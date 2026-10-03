@@ -478,11 +478,16 @@ function run_application(paths::AbstractString...;
     chat = make_application_assistant(assistant; model, context = start.context)
     backend === nothing && (backend = default_backend())
     # The root is the application's own pane tree, so the tabs leave it as it is.
-    # The settings carry the fault policy of the command line.
+    # The settings carry the fault policy of the command line, and the first print
+    # runs under it already.
+    fault = get_settings_group!(settings, FaultSettings)
+    policy = FaultPolicy(; is_barrier_enabled = fault.is_barrier_enabled,
+                         is_console_enabled = fault.is_console_enabled,
+                         is_sound_enabled = fault.is_sound_enabled)
     editor = build_editor(make_application_document(collect(String, paths); root,
                                                     assistant = chat, settings),
                           make_application_projection(; measure, appearance, settings);
-                          backend, appearance, settings,
+                          backend, appearance, settings, fault_policy = policy,
                           # The natural projection draws what a tooltip holds. The
                           # other windows that a wrapper opens draw with the rows a
                           # pane draws with.

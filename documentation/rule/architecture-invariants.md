@@ -1092,11 +1092,13 @@ and a log target that throws does not stop the drain. Tests assert both.
 
 The second half is what keeps the first half honest. **A barrier that catches
 must record**, so no fault is lost, and the policy that governs the barriers
-must default to catching **nothing** wherever a test can reach it. An `Editor`
-starts with `make_strict_fault_policy()`. `make_editor` turns the barriers on,
-because it gives the editor `FaultPolicy()`, and `run_editor!` keeps the policy
-of its editor. A barrier that is on under test turns a real bug into a passing
-run, which is the one way error tolerance can make the program worse than it was.
+must default to catching **nothing** wherever a test can reach it. Every form that
+makes an editor — `Editor`, `make_editor`, `build_editor` and
+`run_editor!(document, projection)` — starts it with `make_strict_fault_policy()`.
+A program that a person starts passes `FaultPolicy()` on purpose, and
+`run_editor!` keeps the policy of its editor. A barrier that is on under test
+turns a real bug into a passing run, which is the one way error tolerance can
+make the program worse than it was.
 
 An exception that means the program is to stop or can not go on is never caught:
 `is_passthrough_exception` names them one at a time — `QuitEditorException`,

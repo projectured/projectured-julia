@@ -32,10 +32,11 @@ The package has [the shared shape](../gesturelog/gesturelog.md#the-shared-shape)
 
 ### Turn it on
 
-`Editor(…)` starts with `make_strict_fault_policy()`: no barrier catches, so a broken projection fails its test. `make_editor` turns the barriers on: it gives the editor `FaultPolicy()`, because a loop that a person sits in front of must survive. `run_editor!` keeps the policy of its editor, and its keyword `fault_policy` replaces it. `print!` puts the policy of the editor in the printer context under `:fault_policy`, the store under `:fault_store` and the list of the barriers that took a fault under `:noted_barriers`, so a barrier in a pipeline follows the same policy as the barriers of the editor. A context with no policy, such as one that a test makes by hand, counts as the strict policy. Under the strict policy a barrier sets no scope and catches nothing, and it still wraps the IoMap of its part, so a test sees the IO maps of a running editor.
+Every form that makes an editor starts with `make_strict_fault_policy()`: no barrier catches, so a broken projection fails its test. A program that a person starts turns the barriers on: it passes `fault_policy = FaultPolicy()` to `make_editor` or `build_editor`, because a loop that a person sits in front of must survive. `run_editor!` keeps the policy of its editor, and its keyword `fault_policy` replaces it. `print!` puts the policy of the editor in the printer context under `:fault_policy`, the store under `:fault_store` and the list of the barriers that took a fault under `:noted_barriers`, so a barrier in a pipeline follows the same policy as the barriers of the editor. A context with no policy, such as one that a test makes by hand, counts as the strict policy. Under the strict policy a barrier sets no scope and catches nothing, and it still wraps the IoMap of its part, so a test sees the IO maps of a running editor.
 
 ```julia
-editor = make_editor(document, projection; backend)            # barriers on
+editor = make_editor(document, projection; backend,
+                     fault_policy = FaultPolicy())              # barriers on
 run_editor!(editor)                                             # barriers stay on
 run_editor!(editor; fault_policy = make_strict_fault_policy())  # barriers off
 ```
@@ -53,7 +54,7 @@ ChainingProjection(
 
 ```julia
 projection, log = make_fault_tolerant_projection(composed)
-editor = make_editor(document, projection; backend)
+editor = make_editor(document, projection; backend, fault_policy = FaultPolicy())
 attach_fault_target!(editor.faults, log)
 run_editor!(editor)
 ```

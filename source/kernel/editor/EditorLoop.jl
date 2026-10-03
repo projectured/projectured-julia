@@ -149,9 +149,8 @@ When the loop ends, it answers the calls that wait in the inbox, runs the stop
 steps of the editor, stops the server and quits the backend it ran on. Each of these steps runs also when the loop or a
 step before it throws. The first exception goes on to the caller: the exception of
 the loop, or else the first exception of a step.
-`fault_policy` defaults to the editor's own: an editor that [`make_editor`](@ref)
-made already prints under the policy of its loop, and an editor a test builds
-with `Editor(…)` stays strict.
+`fault_policy` defaults to the editor's own. Every form that makes an editor
+starts it strict, and a program that a person starts passes `FaultPolicy()`.
 """
 function run_editor!(editor::Editor; mcp::Union{Bool,NamedTuple}=false,
               fault_policy::FaultPolicy=editor.fault_policy)
@@ -274,7 +273,7 @@ end
 """
     make_editor(document::Document, projection; backend::Backend,
                 devices = Device[Display(), Keyboard(), Mouse()], feeds = Feed[],
-                fault_policy = FaultPolicy()) -> Editor
+                fault_policy = make_strict_fault_policy()) -> Editor
 
 Start `backend`, open the native windows of `document`, build the `Editor`, and
 print it once, so the editor has its iomap and the window shows the document.
@@ -300,15 +299,16 @@ window never has, and the answer then arrives as a resize that computes the
 whole document again. `devices` defaults to a display, a keyboard and a mouse; a
 backend that drives another channel passes its own set (e.g. `Device[Keyboard()]`).
 
-`fault_policy` is the policy of a loop a person sits in front of, which survives
-a fault; the one print runs under it already. Pass `make_strict_fault_policy()`
-to stop at the first fault. When the build or the print fails, the backend is
+`fault_policy` is strict by default: the editor stops at its first fault, so a
+test that forgets the keyword fails loudly. A program that a person starts passes
+`FaultPolicy()` on purpose, and then the loop survives a fault; the one print
+runs under the policy already. When the build or the print fails, the backend is
 quit and the error goes on to the caller, also when the quit throws.
 """
 function make_editor(document::Document, projection; backend::Backend,
                      devices::Vector{Device}=_make_default_devices(),
                      feeds::Vector{Feed}=Feed[],
-                     fault_policy::FaultPolicy=FaultPolicy())
+                     fault_policy::FaultPolicy=make_strict_fault_policy())
     initialize_backend!(backend)
     try
         configure_devices!(backend, devices)

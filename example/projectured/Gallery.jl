@@ -436,7 +436,8 @@ function _make_window_scene_editor(docs, projs, names; width, height, backend, c
         _build_window_scene(docs, names; width=width, height=height, content_unwrap=content_unwrap),
         compose(projs, backend);
         inner_wrappers = [wrap_tooltip_window, wrap_context_menu_window])
-    make_editor(screen, composed; backend = backend, feeds = feeds)
+    make_editor(screen, composed; backend = backend, feeds = feeds,
+                fault_policy = FaultPolicy())
 end
 
 # Run the loop of `editor`, under the profiler when `profile` is set.
@@ -626,7 +627,8 @@ function run_console_example(; document=make_json_document_example(),
         # display). Discard those logs for the duration of the interactive loop.
         Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
             run_editor!(make_editor(document, projection; backend = backend,
-                                     devices = Device[Keyboard()]))
+                                     devices = Device[Keyboard()],
+                                     fault_policy = FaultPolicy()))
         end
     else
         backend = ConsoleBackend(; ansi=ansi, clear=something(clear, false))

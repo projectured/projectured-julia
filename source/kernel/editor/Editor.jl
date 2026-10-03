@@ -32,10 +32,11 @@ Holds the state for a read-eval-print loop:
                    barrier catches nothing.** An editor that a test builds with
                    `Editor(…)` therefore behaves exactly as it does without
                    this feature, and a broken projection fails its test rather
-                   than passing quietly. [`make_editor`](@ref) turns the
-                   barriers on, because a loop a person is sitting in front of
-                   is the thing that must survive. [`run_editor!`](@ref) keeps
-                   the policy of its editor.
+                   than passing quietly. [`make_editor`](@ref) and
+                   [`build_editor`](@ref) start strict too; a program that a
+                   person starts passes `FaultPolicy()`, because a loop that a
+                   person sits in front of must survive. [`run_editor!`](@ref)
+                   keeps the policy of its editor.
   - `replaced_projection` — the projection the safe mode put aside, or
                    `nothing` when the editor is not in the safe mode.
   - `noted_barriers` — the fault barriers that took a fault since the last

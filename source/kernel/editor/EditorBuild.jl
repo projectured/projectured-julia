@@ -141,7 +141,7 @@ function build_editor(document::Document, projection;
                       backend::Union{Backend,Nothing} = nothing,
                       devices::Vector{Device} = _make_default_devices(),
                       feeds::Vector{Feed} = Feed[],
-                      fault_policy::FaultPolicy = FaultPolicy(),
+                      fault_policy::FaultPolicy = make_strict_fault_policy(),
                       wrappers...)
     backend === nothing && (backend = make_default_backend(:windows))
     parts = make_editor_parts(document, projection; backend, feeds, wrappers...)

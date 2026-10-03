@@ -199,6 +199,7 @@ function _start_session(document, title::String; backend, tabs::Bool, refresh_ev
     logger = Base.CoreLogging.ConsoleLogger(stderr, Base.CoreLogging.Warn)
     editor = Base.CoreLogging.with_logger(logger) do
         run_editor!(document, projection; wait = false, backend = backend,
+                    fault_policy = FaultPolicy(),
                     window = window, appearance = appearance,
                     tabs = has_tabs ? (; title, appearance) : false, features...)
     end

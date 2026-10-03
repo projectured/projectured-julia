@@ -6,8 +6,9 @@
 
 What the barriers and the report do with a fault. One per editor.
 
-- `is_barrier_enabled` — whether a barrier catches at all. **An editor that a
-  test makes has it false.** A barrier that swallows under test turns a real bug
+- `is_barrier_enabled` — whether a barrier catches at all. **Every form that
+  makes an editor starts with it false**, and a program that a person starts
+  passes `FaultPolicy()`. A barrier that swallows under test turns a real bug
   into a passing run, which is the one way this whole feature can make the
   program worse. With it false, `run_fault_barrier!` re-raises and a broken
   projection fails its test.
@@ -37,8 +38,9 @@ FaultPolicy(; is_barrier_enabled::Bool = true,
 The policy that catches nothing. Every barrier re-raises, so an exception ends
 the run and a test sees it.
 
-Use it in a test, and in any harness where a fault is to fail the run rather
-than be survived.
+It is the default of every form that makes an editor: `Editor`, `make_editor`,
+`build_editor` and `run_editor!(document, projection)`. Use it in a test, and in
+any harness where a fault is to fail the run rather than be survived.
 
 # Example
 

@@ -24,6 +24,7 @@ module DisplayModule
 using ..AgentModule
 using ..DocumentModule
 using ..EditorModule
+using ..FaultModule
 using ..NaturalModule
 using ..OperationModule
 using ..ScreenModule

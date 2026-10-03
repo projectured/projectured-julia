@@ -55,9 +55,9 @@ end
   per-frame log
 - `faults` — the `FaultStore` of this editor: every barrier writes to it, and
   each frame drains it; see [fault.md](../platform/fault/fault.md)
-- `fault_policy` — what the barriers do with a fault. `Editor(…)` starts with
-  `make_strict_fault_policy()`, `make_editor` turns the barriers on, and
-  `run_editor!` keeps the policy of its editor
+- `fault_policy` — what the barriers do with a fault. Every form that makes an
+  editor starts with `make_strict_fault_policy()`, a program that a person starts
+  passes `FaultPolicy()`, and `run_editor!` keeps the policy of its editor
 - `replaced_projection` — the projection that the safe mode put aside, or
   `nothing` while the editor is not in the safe mode
 - `feeds` — the registered inflows, drained once per frame, with the built-in

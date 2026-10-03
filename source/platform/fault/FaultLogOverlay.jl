@@ -222,7 +222,7 @@ the two-line form of what the guide spells out: a barrier around the whole
 pipeline, and the panel over it.
 
     projection, log = make_fault_tolerant_projection(composed)
-    editor = make_editor(document, projection; backend)
+    editor = make_editor(document, projection; backend, fault_policy = FaultPolicy())
     attach_fault_target!(editor.faults, log)
     run_editor!(editor)
 
