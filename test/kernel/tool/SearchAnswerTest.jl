@@ -242,7 +242,10 @@ function test_search_answer()
         end
         @test mime_type("execute_julia_code") == "text/plain"
         # A tool that names no media type answers plain text.
-        plain = Tool("plain", "Answers a word.", NamedTuple[], (target, args) -> "word")
+        plain = Tool("plain";
+                     description = "Answers a word.",
+                     parameters = NamedTuple[],
+                     handler = (target, args) -> "word")
         @test plain.result_mime_type == "text/plain"
     end
 

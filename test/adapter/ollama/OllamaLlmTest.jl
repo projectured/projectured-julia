@@ -18,12 +18,13 @@ function test_ollama_request()
 
 # ── the tool schema is a function wrapper, not Anthropic's input_schema ──
 llm  = OllamaLlm(; model = "mistral:latest")
-tool = Tool("get_weather", "Get the weather for a city",
-            NamedTuple[(name = "city", type = "string",
-                        description = "The city name", required = true),
-                       (name = "unit", type = "string",
-                        description = "celsius or fahrenheit")],
-            (args, target) -> "18 degrees")
+tool = Tool("get_weather";
+            description = "Get the weather for a city",
+            parameters = NamedTuple[(name = "city", type = "string",
+                                     description = "The city name", required = true),
+                                    (name = "unit", type = "string",
+                                     description = "celsius or fahrenheit")],
+            handler = (args, target) -> "18 degrees")
 schema = render_tool_schema(llm, [tool])
 @test length(schema) == 1
 @test schema[1]["type"] == "function"

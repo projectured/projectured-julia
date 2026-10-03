@@ -674,9 +674,11 @@ function test_mcp_server()
                 editor = _mcp_editor()
                 listing, answer = Ref(""), Ref("")
                 ran_on = Task[]
-                probe = Tool("probe_declared", "A tool declared before the loop.",
-                             NamedTuple[],
-                             (target, args) -> (push!(ran_on, current_task()); "probed"))
+                probe = Tool("probe_declared";
+                             description = "A tool declared before the loop.",
+                             parameters = NamedTuple[],
+                             handler = (target, args) ->
+                                 (push!(ran_on, current_task()); "probed"))
                 register_tool!(editor.tools, probe)
                 # The server starts when the loop starts, and the client asks
                 # when it listens.
@@ -711,12 +713,18 @@ function test_mcp_tool_runs_on_editor_task()
     @testset "a tool that a client calls runs on the editor task" begin
         editor = _mcp_editor()
         ran_on = Task[]
-        probe = Tool("probe_task", "Writes the document and records its task.",
-                     NamedTuple[],
-                     (target, args) -> (push!(ran_on, current_task());
-                                        target.document.value = "written"; "done"))
-        broken = Tool("probe_throws", "Throws.", NamedTuple[],
-                      (target, args) -> error("probe failed"))
+        probe = Tool("probe_task";
+                     description = "Writes the document and records its task.",
+                     parameters = NamedTuple[],
+                     handler = (target, args) -> begin
+                         push!(ran_on, current_task())
+                         target.document.value = "written"
+                         "done"
+                     end)
+        broken = Tool("probe_throws";
+                      description = "Throws.",
+                      parameters = NamedTuple[],
+                      handler = (target, args) -> error("probe failed"))
         handlers = Dict(t.name => t.handler for t in render_mcp_tools(editor, [probe, broken]))
         editor.loop_task = current_task()
         call = @async handlers["probe_task"](Dict{String,Any}())

@@ -384,18 +384,22 @@ and a program that wants one says so.
 """
 function register_undo_tools!(set)
     register_tool!(set, Tool(
-        "undo",
-        "Take the last change back. It is the change anyone made — a person, or " *
-        "you — and it is taken back exactly as Ctrl+Z takes it back. Answers what " *
-        "was taken back, or says that there was nothing to take back.",
-        NamedTuple[],
-        (target, args) -> _run_undo_tool(target, UndoOperation, :undo_entries, "take back")))
+        "undo";
+        description =
+            "Take the last change back. It is the change anyone made — a person, or " *
+            "you — and it is taken back exactly as Ctrl+Z takes it back. Answers what " *
+            "was taken back, or says that there was nothing to take back.",
+        parameters = NamedTuple[],
+        handler = (target, args) ->
+            _run_undo_tool(target, UndoOperation, :undo_entries, "take back")))
     register_tool!(set, Tool(
-        "redo",
-        "Put back the last change that `undo` took back. Answers what was put " *
-        "back, or says that there was nothing to put back.",
-        NamedTuple[],
-        (target, args) -> _run_undo_tool(target, RedoOperation, :redo_entries, "put back")))
+        "redo";
+        description =
+            "Put back the last change that `undo` took back. Answers what was put " *
+            "back, or says that there was nothing to put back.",
+        parameters = NamedTuple[],
+        handler = (target, args) ->
+            _run_undo_tool(target, RedoOperation, :redo_entries, "put back")))
     set
 end
 

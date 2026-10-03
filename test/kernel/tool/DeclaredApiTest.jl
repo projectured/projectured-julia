@@ -653,10 +653,14 @@ function test_declared_api()
     # that runs again refreshes the tool and does not add a second one.
     @testset "a tool registered under a name that is there replaces it" begin
         set = ToolSet()
-        register_tool!(set, Tool("toy_tool", "the first", NamedTuple[],
-                                 (target, arguments) -> "first"))
-        register_tool!(set, Tool("toy_tool", "the second", NamedTuple[],
-                                 (target, arguments) -> "second"))
+        register_tool!(set, Tool("toy_tool";
+                                 description = "the first",
+                                 parameters = NamedTuple[],
+                                 handler = (target, arguments) -> "first"))
+        register_tool!(set, Tool("toy_tool";
+                                 description = "the second",
+                                 parameters = NamedTuple[],
+                                 handler = (target, arguments) -> "second"))
         @test count(tool -> tool.name == "toy_tool", list_tools(set)) == 1
         @test find_tool(set, "toy_tool").description == "the second"
         @test call_tool(set, "toy_tool"; args = Dict{String,Any}(), target = nothing) ==

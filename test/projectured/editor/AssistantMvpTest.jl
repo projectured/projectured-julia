@@ -303,8 +303,11 @@ function _mvp_test_turn_writes_on_editor_task()
     @testset "a turn writes the assistant on the editor task" begin
         ran_on = Task[]
         tools = register_default_tools!(ToolSet())
-        register_tool!(tools, Tool("mark", "Records the task it runs on.", NamedTuple[],
-                                   (target, args) -> (push!(ran_on, current_task()); "marked")))
+        register_tool!(tools, Tool("mark";
+                                   description = "Records the task it runs on.",
+                                   parameters = NamedTuple[],
+                                   handler = (target, args) ->
+                                       (push!(ran_on, current_task()); "marked")))
         a = Assistant(; llm = ScriptedLlm([_tool_use_script("tu_1", "mark", Dict{String,Any}()),
                                             _final_text_script("Done.")]))
         editor = Editor(a, make_assistant_projection_example(); backend = HeadlessBackend(),
@@ -428,14 +431,22 @@ function _mvp_test_markdown_tool_result()
         written = "# Found\n\nOne line of the answer\nand the next line.\n\n" *
                   "| a | b |\n|---|---|\n| 1 | 2 |\n"
         tools = register_default_tools!(ToolSet())
-        register_tool!(tools, Tool("page", "Answers a page.", NamedTuple[],
-                                   (target, args) -> written; result_mime_type = "text/markdown"))
-        register_tool!(tools, Tool("plain", "Answers a text.", NamedTuple[],
-                                   (target, args) -> written))
+        register_tool!(tools, Tool("page";
+                                   description = "Answers a page.",
+                                   parameters = NamedTuple[],
+                                   handler = (target, args) -> written,
+                                   result_mime_type = "text/markdown"))
+        register_tool!(tools, Tool("plain";
+                                   description = "Answers a text.",
+                                   parameters = NamedTuple[],
+                                   handler = (target, args) -> written))
         # The loop marks a result as an error by its text, so the exception says
         # "Error" in its name.
-        register_tool!(tools, Tool("broken_page", "Throws.", NamedTuple[],
-                                   (target, args) -> throw(ArgumentError("no page"));
+        register_tool!(tools, Tool("broken_page";
+                                   description = "Throws.",
+                                   parameters = NamedTuple[],
+                                   handler = (target, args) ->
+                                       throw(ArgumentError("no page")),
                                    result_mime_type = "text/markdown"))
         llm = ScriptedLlm([
             _tool_use_script("tu_1", "page", Dict{String,Any}()),

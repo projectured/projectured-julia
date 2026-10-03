@@ -188,8 +188,10 @@ function run_fault_tool_example(; backend = nothing)
     @async begin
         sleep(2.0)
         register_tool!(editor.tools,
-            Tool("break_on_purpose", "throws, on purpose", NamedTuple[],
-                 (target, arguments) -> error("broken on purpose (tool)")))
+            Tool("break_on_purpose";
+                 description = "throws, on purpose",
+                 parameters = NamedTuple[],
+                 handler = (target, arguments) -> error("broken on purpose (tool)")))
         # Two rounds: the call, then the round that reads the
         # error text back and ends the turn.
         llm = ScriptedLlm([

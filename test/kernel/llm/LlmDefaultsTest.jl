@@ -82,8 +82,10 @@ function test_llm_defaults()
         @test !empty_request.thinking
 
         messages = [LlmMessage(:user, "hi")]
-        tool = Tool("probe", "a tool of the test", NamedTuple[],
-                    (target, arguments) -> "")
+        tool = Tool("probe";
+                    description = "a tool of the test",
+                    parameters = NamedTuple[],
+                    handler = (target, arguments) -> "")
         request = LlmRequest(; system = SubString("be brief", 1, 2), messages,
                              tools = [tool], thinking = true)
         @test request.system === "be"

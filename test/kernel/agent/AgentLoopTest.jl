@@ -24,7 +24,10 @@ end
 # A tool set with one tool, `probe`, that `handler` answers.
 function _make_agent_loop_tools(handler)
     set = ToolSet()
-    register_tool!(set, Tool("probe", "a tool of the test", NamedTuple[], handler))
+    register_tool!(set, Tool("probe";
+                             description = "a tool of the test",
+                             parameters = NamedTuple[],
+                             handler))
     set
 end
 

@@ -1,9 +1,10 @@
 # Fragment of `ToolModule` — the three types the capability surface is made of.
 
 """
-    Tool(name, description, parameters, handler; result_mime_type = "text/plain")
+    Tool(name; description, parameters, handler, result_mime_type = "text/plain")
 
-An action the editor can be asked to perform.
+An action the editor can be asked to perform. The name stands first; the other parts
+take a name at the call, as the parts of a `Resource` do.
 
 - `parameters` is a vector of `NamedTuple`s with fields `name::String`,
   `type::String` ("string", "number", …), `description::String`, `required::Bool`.
@@ -27,7 +28,8 @@ struct Tool
     result_mime_type::String
 end
 
-Tool(name, description, parameters, handler; result_mime_type::AbstractString = "text/plain") =
+Tool(name; description, parameters, handler,
+     result_mime_type::AbstractString = "text/plain") =
     Tool(name, description, parameters, handler, result_mime_type)
 
 """

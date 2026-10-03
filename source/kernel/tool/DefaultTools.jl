@@ -140,43 +140,46 @@ const _DOCUMENTATION_MIME_TYPE = "text/markdown"
 # `code` argument gets the answer of `execute_julia_code!` for no code.
 function _register_code_tool!(set::ToolSet)
     register_tool!(set, Tool(
-        "execute_julia_code",
-        _execute_julia_code_description(set),
-        NamedTuple[
+        "execute_julia_code";
+        description = _execute_julia_code_description(set),
+        parameters = NamedTuple[
             (name = "code", type = "string",
              description = "Julia source code to evaluate", required = true),
         ],
-        (target, args) -> execute_julia_code!(set, target, get(args, "code", nothing)),
+        handler = (target, args) ->
+            execute_julia_code!(set, target, get(args, "code", nothing)),
     ))
 end
 
 # The two searches: the sections of the guides, and the names a model may write.
 function _register_search_tools!(set::ToolSet)
     register_tool!(set, Tool(
-        "search_guides",
-        "Learn how the parts fit together: search the guides, prose with worked " *
-        "examples. A hit is one section, with the URI `read_resource` reads it by. " *
-        "Use it when no single name does what was asked, or to see an example.",
-        NamedTuple[
+        "search_guides";
+        description =
+            "Learn how the parts fit together: search the guides, prose with worked " *
+            "examples. A hit is one section, with the URI `read_resource` reads it by. " *
+            "Use it when no single name does what was asked, or to see an example.",
+        parameters = NamedTuple[
             _QUERY_PARAMETER,
             _MODE_PARAMETER,
             _DETAIL_PARAMETER,
             _LIMIT_PARAMETER,
         ],
-        (target, args) -> search_guides(set, _get_query_argument(args);
+        handler = (target, args) -> search_guides(set, _get_query_argument(args);
                                         mode = get(args, "mode", nothing),
                                         detail = get(args, "detail", nothing),
-                                        limit = _arg_limit(get(args, "limit", nothing)));
+                                        limit = _arg_limit(get(args, "limit", nothing))),
         result_mime_type = _DOCUMENTATION_MIME_TYPE,
     ))
 
     register_tool!(set, Tool(
-        "search_api",
-        "Find the name to call: search the modules, types and functions you may " *
-        "write, by name and docstring. A hit shows the signature and one sentence; " *
-        "one clear hit shows its whole docstring. Use it before you write code, and " *
-        "NEVER guess a name or a signature.",
-        NamedTuple[
+        "search_api";
+        description =
+            "Find the name to call: search the modules, types and functions you may " *
+            "write, by name and docstring. A hit shows the signature and one sentence; " *
+            "one clear hit shows its whole docstring. Use it before you write code, " *
+            "and NEVER guess a name or a signature.",
+        parameters = NamedTuple[
             _QUERY_PARAMETER,
             _MODE_PARAMETER,
             _DETAIL_PARAMETER,
@@ -185,11 +188,11 @@ function _register_search_tools!(set::ToolSet)
              required = false),
             _LIMIT_PARAMETER,
         ],
-        (target, args) -> search_api(set, _get_query_argument(args);
+        handler = (target, args) -> search_api(set, _get_query_argument(args);
                                      mode   = get(args, "mode", nothing),
                                      detail = get(args, "detail", nothing),
                                      kind   = _arg_kind(get(args, "kind", nothing)),
-                                     limit  = _arg_limit(get(args, "limit", nothing)));
+                                     limit  = _arg_limit(get(args, "limit", nothing))),
         result_mime_type = _DOCUMENTATION_MIME_TYPE,
     ))
 end
@@ -202,12 +205,13 @@ function _register_function_documentation_tool!(set::ToolSet)
     # `read_function_documentation(…)` call instead. The tool has that name, so every
     # hit `search_api` returns is one tool call away from its full text.
     register_tool!(set, Tool(
-        "read_function_documentation",
-        "Read the full documentation of a function. `search_api` names the module " *
-        "and the function of every hit; this reads the whole docstring of one, " *
-        "which says what its keywords do. Call it before you write a call you are " *
-        "not sure of, and NEVER guess a signature.",
-        NamedTuple[
+        "read_function_documentation";
+        description =
+            "Read the full documentation of a function. `search_api` names the module " *
+            "and the function of every hit; this reads the whole docstring of one, " *
+            "which says what its keywords do. Call it before you write a call you are " *
+            "not sure of, and NEVER guess a signature.",
+        parameters = NamedTuple[
             (name = "module_name", type = "string",
              description = "Module holding the function, as `search_api` printed it",
              required = true),
@@ -218,11 +222,11 @@ function _register_function_documentation_tool!(set::ToolSet)
              description = "Optional type, when the function is documented per type",
              required = false),
         ],
-        (target, args) -> read_function_documentation(
+        handler = (target, args) -> read_function_documentation(
             get(args, "module_name", ""),
             get(args, "function_name", ""),
             get(args, "type_name", nothing);
-            api = set.api);
+            api = set.api),
         result_mime_type = _DOCUMENTATION_MIME_TYPE,
     ))
 end
@@ -233,25 +237,28 @@ function _register_resource_tools!(set::ToolSet)
     # an agent driving a ToolSet directly has no other way to see it, and MCP's own
     # resource list is just this rendered onto the wire.
     register_tool!(set, Tool(
-        "list_resources",
-        "The kinds of documentation resource, each with its count and how it is " *
-        "addressed: the catalogues, the guides and their sections, the modules, the " *
-        "types, and a function.",
-        NamedTuple[],
-        (target, args) -> describe_resources(set);
+        "list_resources";
+        description =
+            "The kinds of documentation resource, each with its count and how it is " *
+            "addressed: the catalogues, the guides and their sections, the modules, " *
+            "the types, and a function.",
+        parameters = NamedTuple[],
+        handler = (target, args) -> describe_resources(set),
         result_mime_type = _DOCUMENTATION_MIME_TYPE,
     ))
 
     register_tool!(set, Tool(
-        "read_resource",
-        "Read a documentation resource in full by its URI: a guide, one section of " *
-        "a guide (resource://guide/<name>#<heading>), a module, a type, or a function " *
-        "(resource://function/<module>/<name>). A search hit carries its URI.",
-        NamedTuple[
+        "read_resource";
+        description =
+            "Read a documentation resource in full by its URI: a guide, one section of " *
+            "a guide (resource://guide/<name>#<heading>), a module, a type, or a " *
+            "function (resource://function/<module>/<name>). A search hit carries " *
+            "its URI.",
+        parameters = NamedTuple[
             (name = "uri", type = "string",
              description = "Resource URI from `list_resources`", required = true),
         ],
-        (target, args) -> read_resource(set, String(get(args, "uri", "")));
+        handler = (target, args) -> read_resource(set, String(get(args, "uri", ""))),
         result_mime_type = _DOCUMENTATION_MIME_TYPE,
     ))
 end

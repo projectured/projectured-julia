@@ -85,10 +85,12 @@ function test_anthropic_model()
         end
 
         @testset "a tool goes into the shape Anthropic reads" begin
-            tool = Tool("count_words", "Count the words of a text",
-                        NamedTuple[(name = "text", type = "string",
-                                    description = "the text", required = true)],
-                        (arguments, target) -> "3")
+            tool = Tool("count_words";
+                        description = "Count the words of a text",
+                        parameters = NamedTuple[(name = "text", type = "string",
+                                                 description = "the text",
+                                                 required = true)],
+                        handler = (arguments, target) -> "3")
             rendered = only(render_tool_schema(AnthropicLlm(; api_key = ""), [tool]))
             @test rendered["name"] == "count_words"
             @test rendered["description"] == "Count the words of a text"
