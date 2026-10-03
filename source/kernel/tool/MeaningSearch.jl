@@ -112,6 +112,7 @@ function _read_meaning_file!(store::_MeaningStore)
             whole_records_end
         end
     catch err
+        is_passthrough_exception(err) && rethrow()
         @warn "A meaning vector file can not be read, and is written again" store.path reason =
             first(split(sprint(showerror, err), '\n'))
         -1
@@ -157,6 +158,7 @@ function _append_meaning_records!(store::_MeaningStore, texts, vectors)
         mkpath(dirname(store.path))
         open(io -> write(io, take!(buffer)), store.path, "a")
     catch err
+        is_passthrough_exception(err) && rethrow()
         store.is_writable = false
         @warn "The meaning vectors of $(store.name) are kept in memory only" store.path reason =
             first(split(sprint(showerror, err), '\n'))
@@ -239,6 +241,7 @@ function _compute_waiting_vectors!(store::_MeaningStore, model::MeaningModel)
             end
         end
     catch err
+        is_passthrough_exception(err) && rethrow()
         lock(store.lock) do
             store.failure = first(split(sprint(showerror, err), '\n'))
             empty!(store.waiting)
@@ -297,6 +300,7 @@ function _start_meaning_vectors!(set::ToolSet)
         end
         _queue_meaning_texts!(_get_meaning_store(model.name), model, texts)
     catch err
+        is_passthrough_exception(err) && rethrow()
         @warn "The meaning vectors of $(model.name) did not start" reason =
             first(split(sprint(showerror, err), '\n'))
     end
@@ -366,6 +370,7 @@ function _compute_query_vector(model::MeaningModel, text::String)
     try
         (only(_normalize_meaning_columns(model.compute([text], :query), 1)), nothing)
     catch err
+        is_passthrough_exception(err) && rethrow()
         (nothing, _describe_meaning_failure(model, first(split(sprint(showerror, err), '\n'))))
     end
 end

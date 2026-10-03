@@ -342,7 +342,8 @@ function read_routed_child(recursion, change::Intent, iomap)
         step = get_reference_head(route)
         node = try
             evaluate_reference_step(step, node)
-        catch
+        catch exception
+            is_passthrough_exception(exception) && rethrow()
             break
         end
         push!(taken, step)
@@ -393,7 +394,8 @@ function read_gesture_outward(answer, gesture, document; steps, with_part::Bool 
     for step in steps
         node = try
             evaluate_reference_step(step, node)
-        catch
+        catch exception
+            is_passthrough_exception(exception) && rethrow()
             break
         end
         push!(taken, step)

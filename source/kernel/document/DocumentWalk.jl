@@ -81,7 +81,8 @@ make_string_predicate(q::Regex)          = x -> (t = _walk_string(x); t !== noth
 """
     walk_document(walk::DocumentWalk, obj, predicate;
                   include_selection=false, maxdepth=64, raw=false,
-                  descend=(parent, child) -> true) -> Vector
+                  descend=(parent, child) -> true,
+                  on_error=(object, exception) -> false) -> Vector
 
 Walk any object graph and return the **location** of every match, as `walk`
 defines locations.
@@ -104,23 +105,49 @@ are generated fresh on demand — which the visited set alone cannot stop.
 root is always entered, and the default enters every child. Pass one when the
 matches can be only in some parts of the graph, so that the walk skips the
 parts that can hold none, such as a type or a function held in a field. An
-exception from `predicate` counts as no match; an exception from `descend` goes
-to the caller.
+exception from `descend` goes to the caller.
+
+`on_error(object, exception) -> Bool` runs when `predicate` throws an ordinary
+exception on `object`, and its answer is the match of that object. The walk
+visits objects of every type, so a predicate that reads a field of one type
+throws on the others; the default counts that as no match. Pass
+`on_error = (object, exception) -> throw(exception)` to let the exception go to
+the caller. An exception that means stop (`is_passthrough_exception`) never
+reaches `on_error`: it ends the walk.
 
 `obj` need not be a document: the walk descends structs, arrays, and dicts alike.
 """
 function walk_document(walk::DocumentWalk, obj, predicate;
                        include_selection::Bool=false, maxdepth::Int=64, raw::Bool=false,
-                       descend = _enter_every_child)
+                       descend = _enter_every_child, on_error = _count_as_no_match)
     results = Any[]
     root = unwrap_cell(obj)
-    _walk_document!(walk, results, IdDict{Any,Bool}(), root, predicate,
+    _walk_document!(walk, results, IdDict{Any,Bool}(), root,
+                    _GuardedPredicate(predicate, on_error),
                     walk.initial(root), nothing, IdDict{Any,Bool}(),
                     include_selection, maxdepth, raw, descend)
     results
 end
 
 _enter_every_child(_, _) = true
+
+_count_as_no_match(_, _) = false
+
+# The predicate of a walk with its answer for an exception: an exception that
+# means stop goes on, and `on_error` answers for every other one.
+struct _GuardedPredicate{P,E}
+    predicate::P
+    on_error::E
+end
+
+function (guarded::_GuardedPredicate)(object)
+    try
+        guarded.predicate(object)
+    catch exception
+        is_passthrough_exception(exception) && rethrow()
+        guarded.on_error(object, exception)
+    end
+end
 
 # Enter `obj` under the walk's cycle rule. Returns the visited set the children
 # should be walked with, or `nothing` to prune this node entirely. A walk leaf
@@ -176,7 +203,7 @@ function _walk_document!(walk, results, reported, obj, predicate, location, encl
         seen === nothing && return
     end
     here = obj isa Document ? location : enclosing
-    if (try predicate(obj) catch; false end)
+    if predicate(obj)
         target = raw ? location : here
         if target !== nothing && !haskey(reported, target)
             push!(results, target); reported[target] = true

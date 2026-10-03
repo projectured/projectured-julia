@@ -95,6 +95,7 @@ function _rank_api_entries_by_relevance(query::_DescriptionQuery, context::Strin
                      _choose_relevance_candidates(query, context, entries, model)
         (_order_by_relevance(query, context, candidates, model), nothing)
     catch err
+        is_passthrough_exception(err) && rethrow()
         (nothing, _describe_relevance_failure(model, first(split(sprint(showerror, err), '\n'))))
     end
 end
@@ -121,6 +122,7 @@ function _rank_guide_sections_by_relevance(query::_DescriptionQuery, context::St
     try
         (_order_by_relevance(query, context, pool, model), nothing)
     catch err
+        is_passthrough_exception(err) && rethrow()
         (nothing, _describe_relevance_failure(model, first(split(sprint(showerror, err), '\n'))))
     end
 end

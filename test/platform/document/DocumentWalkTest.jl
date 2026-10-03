@@ -160,5 +160,25 @@ end
     @test length(search_references(nested, "Alice"; raw = true)) == 1
 end
 
+# ── A predicate that throws ───────────────────────────────────────────────
+# The predicate reads a field that the collection and the leaves do not have, so
+# it throws on them.
+@testset "an exception of the predicate: on_error answers, a stop exception passes" begin
+    nested = CellVector([PrimitiveString("Alice"), PrimitiveNumber(7)])
+    reads_value(v) = v.value == "Alice"
+
+    @test search_documents(nested, reads_value) == [nested[1]]
+    @test length(search_references(nested, reads_value)) == 1
+
+    @test_throws ErrorException search_documents(nested, _ -> error("broken");
+                                                  on_error = (_, e) -> throw(e))
+    @test search_documents(nested, _ -> error("broken");
+                           on_error = (o, _) -> o isa PrimitiveNumber) == [nested[2]]
+
+    @test_throws InterruptException search_documents(nested, _ -> throw(InterruptException()))
+    @test_throws InterruptException search_references(nested, _ -> throw(InterruptException());
+                                                      on_error = (_, _) -> false)
+end
+
 end
 end

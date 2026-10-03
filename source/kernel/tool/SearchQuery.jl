@@ -268,6 +268,7 @@ function _read_search_query(query::AbstractString, mode)
         return try
             Regex(String(query))
         catch err
+            is_passthrough_exception(err) && rethrow()
             "Invalid regex: " * sprint(showerror, err)
         end
     end

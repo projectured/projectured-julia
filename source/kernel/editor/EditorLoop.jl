@@ -325,7 +325,8 @@ function make_editor(document::Document, projection; backend::Backend,
         # The error of the build goes on, so an exception of the quit is dropped.
         try
             quit_backend!(backend)
-        catch
+        catch exception
+            is_passthrough_exception(exception) && rethrow()
         end
         rethrow()
     end

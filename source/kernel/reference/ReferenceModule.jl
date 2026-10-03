@@ -87,6 +87,7 @@ module ReferenceModule
 using ..CellModule
 using ..CellStructModule
 using ..DocumentModule
+using ..FaultModule
 
 # Imported to extend: a referenced document is read by these as its document.
 import ..DocumentModule: search_documents, get_wrapped_document

@@ -75,7 +75,9 @@ already on the current path are dropped, which keeps cyclic graphs (e.g. a
 doubly-linked list's `prev`/`next`) finite. `maxdepth` separately bounds recursion
 depth for structures that are never the *same* object, e.g. an infinite lazy list
 whose nodes are generated fresh on demand. `descend(parent, child)` returns whether
-the walk enters `child`, and the default enters every child; see `walk_document`.
+the walk enters `child`, and the default enters every child. `on_error(object,
+exception)` answers the match of an object whose predicate threw an ordinary
+exception, and the default counts it as no match; see `walk_document`.
 
 `obj` need not be a document — the walk descends **any** object graph (structs,
 arrays, dicts), not only document trees. Searching derived/intermediate state for

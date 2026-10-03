@@ -165,5 +165,20 @@ function test_code_execution()
         @test answer == "42\n"
         @test seen == [42]
     end
+
+    @testset "model code: an interrupt is the answer, a quit and a full heap pass" begin
+        # As at the Julia REPL, an interrupt and a stack overflow end the call only.
+        @test occursin("InterruptException", run("throw(InterruptException())"))
+        @test occursin("StackOverflowError", run("throw(StackOverflowError())"))
+        @test_throws OutOfMemoryError run("throw(OutOfMemoryError())")
+        quit = ProjecturedKernel.OperationModule.QuitEditorException
+        @test_throws quit execute_julia_expression!(set, nothing, :(throw($quit())))
+    end
+
+    @testset "an observer that is interrupted stops the call" begin
+        watched = ToolSet()
+        observe_evaluations!(_ -> throw(InterruptException()), watched)
+        @test_throws InterruptException execute_julia_code!(watched, nothing, "1")
+    end
 end
 end # test_code_execution

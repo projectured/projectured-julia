@@ -28,6 +28,7 @@ module DocumentModule
 
 using ..CellModule
 using ..CellStructModule
+using ..FaultModule
 
 export Document, copy_document, get_wrapped_document, replace_wrapped_document!, get_edited_field,
        sync_document!, get_document_family,

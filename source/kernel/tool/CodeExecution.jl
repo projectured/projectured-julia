@@ -271,6 +271,15 @@ function _make_soft_scope(statement)
     Expr(:block, Expr(:softscope, true), statement)
 end
 
+# An exception of model code is the answer of the call, as at the Julia REPL: an
+# interrupt ends the evaluation and the session goes on, and a stack overflow is an
+# error message. The other exceptions that mean stop, a quit and a heap that ran
+# out, go on to the caller. It is the one catch of the kernel that answers an
+# exception that means stop (PAR-REPORT-NEVER-THROWS).
+_is_passthrough_for_model_code(exception) =
+    is_passthrough_exception(exception) &&
+    !(exception isa InterruptException || exception isa StackOverflowError)
+
 # Everything an evaluation does after the parse. `make_expression` runs inside
 # the guard, so a failure to make the expression is answered like any other.
 # `describe_value` renders the last value once the capture is closed, so its
@@ -307,6 +316,7 @@ function _run_expression(set::ToolSet, target, make_expression::Function;
         set.last_value = result
         describe_value(result)
     catch e
+        _is_passthrough_for_model_code(e) && rethrow()
         sprint(showerror, e, catch_backtrace()) * _suggest_nearest_names(e, set)
     finally
         # A reader reads to the end of its pipe, which comes when its write end closes.
@@ -376,7 +386,8 @@ end
 function _summarize_value(value)
     text = try
         Base.invokelatest(summary, value)
-    catch
+    catch exception
+        _is_passthrough_for_model_code(exception) && rethrow()
         string(typeof(value))
     end
     length(text) > _SHOWN_VALUE_CHARACTERS ? first(text, _SHOWN_VALUE_CHARACTERS - 1) * "…" : text
@@ -445,6 +456,7 @@ function _notify_evaluation(set::ToolSet)
         try
             observe(value)
         catch err
+            is_passthrough_exception(err) && rethrow()
             @warn "an evaluation observer failed" reason =
                 first(split(sprint(showerror, err), "\n"))
         end

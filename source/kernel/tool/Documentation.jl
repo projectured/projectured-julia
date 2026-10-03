@@ -172,6 +172,7 @@ function read_guide(guide_name)
             try
                 return read(filepath, String)
             catch e
+                is_passthrough_exception(e) && rethrow()
                 return "Error reading documentation '$guide_name': $(e)"
             end
         end
@@ -271,7 +272,8 @@ Julia 1.12, where `Base.Docs.doc(obj)` has no method for modules/types/functions
 function _binding_doc(mod::Module, sym::Symbol)
     md = try
         Base.Docs._doc(Base.Docs.Binding(mod, sym))
-    catch
+    catch exception
+        is_passthrough_exception(exception) && rethrow()
         nothing
     end
     str = _render_doc(md)

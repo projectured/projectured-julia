@@ -100,7 +100,8 @@ function run_turn!(agent::Agent, target; messages, on_event)
                     # A `showerror` method that throws gives the type name.
                     text = try
                         sprint(showerror, e, traceback)
-                    catch
+                    catch exception
+                        is_passthrough_exception(exception) && rethrow()
                         string(nameof(typeof(e)))
                     end
                     (text, true)

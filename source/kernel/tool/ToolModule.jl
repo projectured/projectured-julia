@@ -57,6 +57,8 @@ A few values of the layer are process-global, each for a reason:
 """
 module ToolModule
 
+using ..FaultModule
+
 export Tool, Resource, ToolSet, ApiEntry, MeaningModel, set_meaning_model!,
        RelevanceModel, set_relevance_model!,
        get_api_entry_names,

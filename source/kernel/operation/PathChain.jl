@@ -92,7 +92,8 @@ function _find_path_child(document, path)
     path isa ConcreteReference || return nothing
     child = try
         unwrap_cell(evaluate_reference_step(get_reference_head(path), document))
-    catch
+    catch exception
+        is_passthrough_exception(exception) && rethrow()
         return nothing
     end
     child isa Document ? child : nothing
@@ -178,7 +179,8 @@ function _reaches_path_head(document, path)
     try
         evaluate_reference_step(get_reference_head(path), document)
         true
-    catch
+    catch exception
+        is_passthrough_exception(exception) && rethrow()
         false
     end
 end
@@ -193,7 +195,8 @@ function _find_documents_above(root, path::Reference)
         node isa Document && push!(found, (node, steps[index:end]))
         node = try
             unwrap_cell(evaluate_reference_step(step, node))
-        catch
+        catch exception
+            is_passthrough_exception(exception) && rethrow()
             return found
         end
     end

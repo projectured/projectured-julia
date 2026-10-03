@@ -98,7 +98,8 @@ function _find_titled_reference(root, reference::Reference)
     for step in steps
         node = try
             evaluate_reference_step(step, nodes[end])
-        catch
+        catch exception
+            is_passthrough_exception(exception) && rethrow()
             break
         end
         push!(nodes, node)
@@ -124,7 +125,8 @@ function _get_title_text(node)
     node isa Document || return nothing
     title = try
         get_document_title(node)
-    catch
+    catch exception
+        is_passthrough_exception(exception) && rethrow()
         nothing
     end
     title === nothing && return nothing

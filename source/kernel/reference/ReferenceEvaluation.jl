@@ -42,21 +42,29 @@ end
 """
     try_evaluate_reference(document, path::Reference, default = nothing) -> node | default
 
-`evaluate_reference` for a path that may not resolve: `default` instead of a throw.
+`evaluate_reference` for a path that may not resolve: `default` when the path does
+not resolve.
 
 A path is not a guarantee. It can name a node that no longer exists (the document
 changed under a stale selection), or one that never existed in `document` at all (a
 projection-introduced position with no input pre-image). A caller that is *asking
 whether* the path resolves — a gesture precondition deciding whether it has a target —
 wants an answer, not an exception.
+
+An exception that means stop (`is_passthrough_exception`) still goes to the caller.
 """
 function try_evaluate_reference(document, path::Reference, default = nothing)
     try
         evaluate_reference(document, path)
-    catch
+    catch exception
+        _is_walk_passthrough(exception) && rethrow()
         default
     end
 end
+
+# Whether an exception of a step goes on to the caller of a walker that answers a
+# default for a path that does not resolve.
+_is_walk_passthrough(exception) = is_passthrough_exception(exception)
 
 # A selection is `nothing` when there is none, and "no selection" resolves to no node —
 # so callers asking about a document's current selection need no separate guard.
@@ -91,7 +99,8 @@ function get_valid_reference_prefix(document, path::ConcreteReference)
     # truncates.
     child = try
         evaluate_reference_step(step, document)
-    catch
+    catch exception
+        _is_walk_passthrough(exception) && rethrow()
         return EmptyReference()
     end
     ConcreteReference(path.type, step, get_valid_reference_prefix(child, rest))
@@ -170,7 +179,8 @@ function annotate_reference_types(document, path::ConcreteReference)
     # cannot be followed throws and leaves the rest untyped.
     child = try
         evaluate_reference_step(step, document)
-    catch
+    catch exception
+        _is_walk_passthrough(exception) && rethrow()
         nothing
     end
     annotated_rest = child === nothing ? rest : annotate_reference_types(child, rest)

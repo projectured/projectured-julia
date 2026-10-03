@@ -1090,7 +1090,16 @@ run, which is the one way error tolerance can make the program worse than it was
 An exception that means the program is to stop or can not go on is never caught:
 `is_passthrough_exception` names them one at a time — `QuitEditorException`,
 `InterruptException`, `StackOverflowError`, `OutOfMemoryError` — and a layer that
-owns a control-flow exception adds its own method.
+owns a control-flow exception adds its own method. **Every catch-all arm asks it
+first and rethrows when it answers true**, in every layer: a barrier, a walk, a
+search, a fallback for a text. A catch that hands the exception on to its caller,
+as the build of an editor does through a channel, keeps it.
+
+**One accepted exception: the model code of the code tool.** The code tool acts as
+the Julia REPL. An exception that model code raises is the answer of the call, an
+interrupt and a stack overflow too, so that an endless loop or a deep recursion
+that a model wrote ends that call and not the editor. A `QuitEditorException` and
+an `OutOfMemoryError` still pass.
 
 ## Package, layer, slice, and module structure
 
