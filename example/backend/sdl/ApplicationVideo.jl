@@ -54,7 +54,8 @@ that in red on the frames, and `debug_dirty_hold` keeps each outline that many
 seconds (see `VideoBackend`). `status_bar = false` leaves out the status bar
 of the window (see [`make_application_wrappers`](@ref)). `gesture_overlay =
 true` draws the newest gestures, and what each one did, in a panel at the bottom
-right of the window (see the `gesture_log` wrapper).
+right of the window; a named tuple such as `(; anchor = :bottom_left)` gives the
+options of the panel (see the `gesture_log` wrapper).
 
 `prepare` is called with the document of the application, its pane tree,
 before the editor is made, so a take starts from the layout it wants, such as a
@@ -71,8 +72,10 @@ the same `ffmpeg` call [`record_video`](@ref) uses
 """
 # The wrappers of the application, with the panel of the newest gestures over the
 # content when the take asks for it.
-_with_gesture_overlay(wrappers, gesture_overlay::Bool, measure) =
-    gesture_overlay ? merge(wrappers, (; gesture_log = (; overlay = true, measure))) : wrappers
+_with_gesture_overlay(wrappers, gesture_overlay, measure) =
+    gesture_overlay === false ? wrappers :
+    merge(wrappers, (; gesture_log = merge((; overlay = true, measure),
+                                           gesture_overlay === true ? (;) : gesture_overlay)))
 
 function record_application_video(paths::AbstractVector, timeline::AbstractVector,
                                   filename::AbstractString;
@@ -85,7 +88,7 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
                                   video_time::Bool = false, pointer::Bool = true,
                                   partial_render::Bool = false, debug_dirty::Bool = false,
                                   debug_dirty_hold::Real = 0, status_bar::Bool = true,
-                                  gesture_overlay::Bool = false,
+                                  gesture_overlay = false,
                                   measure = FontFileMeasure(), prepare = document -> nothing)
     lowercase(splitext(filename)[2]) == ".mp4" ||
         error("record_application_video: only .mp4 output is supported (got \"$filename\")")

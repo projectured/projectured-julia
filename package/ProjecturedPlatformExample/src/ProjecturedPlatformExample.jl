@@ -90,6 +90,7 @@ include("../../../example/platform/CollectionProjectionExample.jl")
 include("../../../example/platform/PrimitiveProjectionExample.jl")
 include("../../../example/platform/LazyProjectionExample.jl")
 include("../../../example/platform/PaneProjectionExample.jl")
+include("../../../example/platform/ShowBesideExample.jl")
 include("../../../example/platform/ReversingProjectionExample.jl")
 include("../../../example/platform/FilteringProjectionExample.jl")
 include("../../../example/platform/SearchingProjectionExample.jl")
@@ -105,6 +106,7 @@ export Address, AppSettings, FormServer, Person, SearchSettings, WindowSettings,
 export constraint_layout_example, filtering_example, force_next, force_prev, integers_from
 export integers_from_bidirectional, layout_example, lazy_bidirectional_example
 export make_primes_around, is_prime_number, make_lazy_list_view, show_lazy_list!
+export show_beside!
 export lazy_bidirectional_node, lazy_example, lazy_filter, lazy_filter_bidirectional
 export lazy_node, line_numbering_example, make_anchored_layout_document_example
 export make_clipboard_collection_document_example, make_clipboard_slice_document_example

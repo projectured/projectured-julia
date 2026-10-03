@@ -144,6 +144,10 @@ function Base.getindex(rows::DataFrameViewRows, r::Integer)
     get!(() -> DataFrameViewRow(view, Int(r)), rows.rows, Int(r))
 end
 
+# One cell for each column of the frame. The inverse of a write of a whole cell
+# checks its column against this number.
+Base.length(row::DataFrameViewRow) = ncol(row.view.frame)
+
 function Base.getindex(row::DataFrameViewRow, c::Integer)
     frame = row.view.frame
     1 <= c <= ncol(frame) || throw(BoundsError(row, c))

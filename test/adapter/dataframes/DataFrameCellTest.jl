@@ -195,6 +195,31 @@ function test_data_frame_cells()
             @test view.frame[2, :id] == 102
         end
 
+        @testset "through a real editor, keys that empty a number make a type-in, which a history records" begin
+            view = DataFrameView(make_frame())
+            backend = _ColumnWidthBackend()
+            editor = build_editor(view, NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                                  backend, devices = Device[Keyboard(), Mouse(), Display()], tabs = false,
+                                  undo = true, window = (; title = "W", width = 900, height = 400))
+            run_frame!(editor)
+            send!(event) = (push!(backend.events, WindowInput(:W, event)); run_frame!(editor))
+            (x, y) = only((t[1], t[2]) for t in _data_frame_texts(last(backend.rendered).windows[1].content)
+                          if t[3] == "102")
+            send!(MouseDown(:left, x + 30, y + 2, ModifierKeys(); time = 1.0))
+            send!(MouseUp(:left, x + 30, y + 2, ModifierKeys(); time = 1.05))
+            # The last Backspace turns the number into a type-in: a write of the
+            # whole cell, whose way back the history of the window makes.
+            for t in 1:3
+                send!(KeyDown(:backspace, ModifierKeys(); time = 1.1 + 0.05t))
+            end
+            @test only(view.edits).document isa PrimitiveInsertion
+            send!(KeyPress('7'; time = 1.4))
+            send!(KeyDown(:return, ModifierKeys(); time = 1.5))
+            @test view.frame[2, :id] == 7
+            send!(KeyDown(:z, ModifierKeys(ctrl = true); time = 1.6))
+            @test view.frame[2, :id] == 102
+        end
+
         @testset "the table holds the cell open: Escape drops it, and a reason marks it" begin
             view, io = open_view()
             table = table_of(io)
