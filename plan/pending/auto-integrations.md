@@ -603,7 +603,10 @@ The README of each released package changes too
       registry is there. A package that the manifest reaches by path and that
       the repository does not hold, AutoIntegrations, gets the `[compat]` bound
       of the version that the manifest names. `test_package_release()` passes
-      62 of 62 and 157 of 157.
+      62 of 62 and 157 of 157. The first run of the release CI failed in all
+      32 jobs: `ProjecturedRegistry` is private, and a job has no token for it.
+      So a job adds AutoIntegrations from its public repository by URL, and no
+      registry; General comes by itself.
 - [ ] **Step 11, cleanup, after the owner's word.** The branch
       `integration-shells`, its worktree and the two downstream branches. A
       new private release from the new head, with the commands for the owner.

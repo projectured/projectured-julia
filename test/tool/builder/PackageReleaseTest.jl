@@ -501,9 +501,9 @@ function test_package_release()
         @test all(version -> occursin("'$version'", versions), PROJECTURED_CI_JULIA_VERSIONS)
         develop = split(match(r"- \{package: ProjecturedJSON, develop: '([^']*)'", workflow)[1])
         @test issubset(["ProjecturedKernel", "ProjecturedPlatform", "ProjecturedJSON"], develop)
-        # A job adds ProjecturedRegistry, which holds AutoIntegrations, and General.
-        @test occursin("Pkg.Registry.add(\"General\");", workflow)
-        @test occursin("Pkg.Registry.add(url = \"$PROJECTURED_REGISTRY_URL\")", workflow)
+        # A job adds AutoIntegrations from its repository, and no private registry.
+        @test occursin("Pkg.add(url = \"$AUTOINTEGRATIONS_URL\")", workflow)
+        @test !occursin("Registry.add", workflow)
         # AutoIntegrations, a package of a sibling repository, gets the bound of the
         # version that the manifest names.
         umbrella = ProjecturedBuilder.BuilderModule.TOML.parsefile(
