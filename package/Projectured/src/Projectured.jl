@@ -1,21 +1,18 @@
 """
     Projectured
 
-The umbrella. It depends on the kernel and the platform, and re-exports their
-public API as one flat namespace (`using Projectured`), with their submodules as
-`Projectured.XxxModule` for qualified access.
-
-After the load of the session it loads every ProjecturEd package that the user
-installed: the domains, the console and PDF backends and the model adapters. Its
-extensions load an integration with another package, such as `ProjecturedSDL`,
-when that package is loaded too. A loaded package keeps its names: a session that
-writes `JsonDocument` loads `ProjecturedJSON`. The flat namespace of every package
-is `ProjecturedAll`, a development package that the registry does not hold.
+The umbrella. It loads the kernel, the platform and AutoIntegrations, and
+re-exports the names of `ProjecturedEssentials`, the few names that most users
+call. AutoIntegrations then loads each installed package whose triggers are
+loaded, as the environment of the user chooses: a domain, a backend or a model
+adapter when `Projectured` is loaded, and an integration such as
+`ProjecturedSDL` when the package that it joins is loaded too. A loaded package
+keeps its names: a session that writes `JsonDocument` loads `ProjecturedJSON`.
 """
 module Projectured
 
-import ProjecturedKernel
-import ProjecturedPlatform
+import AutoIntegrations
+import ProjecturedEssentials
 
 include("../../../source/projectured/Projectured.jl")
 

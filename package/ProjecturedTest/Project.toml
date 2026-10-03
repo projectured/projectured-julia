@@ -52,6 +52,7 @@ ProjecturedXMLTest = "e1c62fea-11da-4947-a567-721c2ab4f06a"
 ProjecturedYAML = "a9f201ce-8e0a-436b-92f0-224b8478d5cb"
 ProjecturedYAMLTest = "c50c731e-0b3d-49a3-9d62-8794fc19745c"
 Sockets = "6462fe0b-24de-5631-8697-dd941f90decc"
+TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]

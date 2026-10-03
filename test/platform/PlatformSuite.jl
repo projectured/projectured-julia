@@ -136,7 +136,6 @@ function test_platform()
         test_document_walk()
         test_bounded_sync()
         test_document_reflection()
-        test_load_installed_package()
         test_copying_projection()
         test_focusing()
         test_reversing()
@@ -315,7 +314,7 @@ end
 
 export test_platform, test_platform_layering, test_platform_examples
 export PLATFORM_SLICE_EDGES, test_platform_slice_edges
-export test_bounded_sync, test_document_reflection, test_load_installed_package
+export test_bounded_sync, test_document_reflection
 export test_identity
 export test_collection, test_mouse_target_field, test_mouse_target_chain, test_copying_projection, test_focusing, test_reversing, test_filtering, test_searching, test_sorting
 export test_switching, test_window_input_unwrapping

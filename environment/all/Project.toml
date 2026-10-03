@@ -1,4 +1,6 @@
 [deps]
+AutoIntegrations = "40fd747d-4b08-4b8c-98c4-74a2b6295b1b"
+AutoIntegrationsTest = "6bfa7e61-be07-48f9-ae49-c50cc9b84ca6"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 FFMPEG = "c87230d0-a227-11e9-1b43-d7ebe4e7570a"
 ModelContextProtocol = "c58f755f-f2a7-4f48-bf29-4e9659b78499"
@@ -30,6 +32,7 @@ ProjecturedDataFramesTest = "b1aceadc-a635-48bd-837b-c4a6ec3ad7cd"
 ProjecturedDatabase = "a8e362de-fb06-4734-b6cc-4acfede009df"
 ProjecturedDatabaseExample = "ee9f8c84-306f-4f17-8271-ad471b5f4c56"
 ProjecturedDatabaseTest = "8fa9f7e0-53e6-4165-9444-bc8617d011dc"
+ProjecturedEssentials = "abe497b7-f7c3-4d23-8caf-a4d4ca8b23b4"
 ProjecturedExample = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
 ProjecturedFSM = "9482bca5-e1c6-47fd-ab22-f4512ed15b91"
 ProjecturedFSMExample = "b1ba53a3-461e-4ef7-8c9b-f3916bec3479"
@@ -106,6 +109,8 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Tulip = "6dd1b50a-3aae-11e9-10b5-ef983d2400fa"
 
 [sources]
+AutoIntegrations = {path = "../../package/AutoIntegrations"}
+AutoIntegrationsTest = {path = "../../package/AutoIntegrationsTest"}
 Projectured = {path = "../../package/Projectured"}
 ProjecturedAdaptagrams = {path = "../../package/ProjecturedAdaptagrams"}
 ProjecturedAdaptagramsExample = {path = "../../package/ProjecturedAdaptagramsExample"}
@@ -133,6 +138,7 @@ ProjecturedDataFramesTest = {path = "../../package/ProjecturedDataFramesTest"}
 ProjecturedDatabase = {path = "../../package/ProjecturedDatabase"}
 ProjecturedDatabaseExample = {path = "../../package/ProjecturedDatabaseExample"}
 ProjecturedDatabaseTest = {path = "../../package/ProjecturedDatabaseTest"}
+ProjecturedEssentials = {path = "../../package/ProjecturedEssentials"}
 ProjecturedExample = {path = "../../package/ProjecturedExample"}
 ProjecturedFSM = {path = "../../package/ProjecturedFSM"}
 ProjecturedFSMExample = {path = "../../package/ProjecturedFSMExample"}

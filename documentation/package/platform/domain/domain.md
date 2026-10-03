@@ -52,7 +52,6 @@ The domain slice depends on the kernel only. Every domain uses it, and so do the
 
 - **Completion reads the type tree. No list of names exists.** A new document type needs no registration to be a candidate.
 - **The package finds subtypes without `InteractiveUtils`.** `compute_loaded_subtypes` is that walk, and the application slice finds a loaded backend with it too. `InteractiveUtils` needs the `Markdown` standard library, and this package is in the dependency closure of every downstream program. The own walk also reads all module names once, not once for each abstract type; the comment at `source/platform/domain/Domain.jl:26` gives the numbers.
-- **A package loads by the environment of the session.** `load_installed_package!(name)` loads the package called `name` when the environment of the session has it, and answers `nothing` when not. The extensions of the umbrella call it, because an extension sees only its own triggers and the dependencies of its parent, and an integration that the umbrella depended on would be installed with it. A process that writes a cache file loads nothing, so the cache of a package never depends on what one user installed.
 - **Behaviour dispatches on traits.** A name is used only to show a type, never to decide what it does.
 - **One appender for all domains.** `append_insertion_operation` takes the caret from the `@insertion` of the type, so the domains do not each derive it.
 

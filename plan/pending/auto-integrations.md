@@ -470,7 +470,7 @@ The README of each released package changes too
       `auto`: the six with `Projectured` and their third-party package, and the
       17 domains, the console, PDF and the three model adapters with
       `Projectured` alone. `ProjecturedWeb` has none.
-- [ ] **Step 3, the umbrella.** Remove what section 4.8 names. `Projectured`
+- [x] **Step 3, the umbrella.** Remove what section 4.8 names. `Projectured`
       depends on AutoIntegrations. Rewrite `IntegrationLoadingTest.jl` with
       these cases, each in a scratch environment with
       `JULIA_LOAD_PATH=@:@stdlib`:
@@ -482,6 +482,15 @@ The README of each released package changes too
       4. `using Projectured` alone loads no integration.
       5. An integration that is not installed does not load, and gives no
          warning.
+      Done: `Projectured` depends on `ProjecturedEssentials` and
+      AutoIntegrations, and re-exports the names of `ProjecturedEssentials`.
+      `ProjecturedEssentials` came here from step 5, because the umbrella needs
+      it. `load_installed_package!` and its test are gone. The cases 1 to 5 run
+      in a scratch environment of a user (`Projectured`, `ProjecturedSDL`,
+      `ProjecturedDataFrames`, `ProjecturedJSON`, DataFrames,
+      SimpleDirectMediaLayer); one more case loads the other four triggers in
+      `environment/all`. `test_packages_declare_triggers()` replaces
+      `test_umbrella_names_every_package()`. 8 of 8 and 29 of 29.
 - [ ] **Step 4, `ProjecturedIntegrations`.** The package and its six
       extensions, and a test case:
       `using ProjecturedIntegrations, DataFrames` loads `ProjecturedDataFrames`.

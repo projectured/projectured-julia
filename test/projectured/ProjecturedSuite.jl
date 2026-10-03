@@ -6,6 +6,7 @@ for _n in names(ProjecturedAll; all = true)
 end
 
 using ProjecturedExample
+import TOML
 # The transcript test names the factories of the conversation example by package.
 import ProjecturedConversationExample
 # The generic test drivers ((label, document, projection) forms), the reflexive
@@ -427,7 +428,7 @@ function test_repository()
     @testset "repository" begin
         test_package_graph()
         test_umbrella_loads_integrations()
-        test_umbrella_names_every_package()
+        test_packages_declare_triggers()
     end
 end
 
@@ -538,7 +539,7 @@ function test_table()
     end
 end
 
-export test_all, test_integration, test_repository, test_umbrella_loads_integrations, test_umbrella_names_every_package, test_documents, test_projections, test_domain_examples,
+export test_all, test_integration, test_repository, test_umbrella_loads_integrations, test_packages_declare_triggers, test_documents, test_projections, test_domain_examples,
        test_package_graph, test_tree, test_naming,
        test_arguments, test_exports, test_documentation
 export test_kernel, test_platform, test_domain

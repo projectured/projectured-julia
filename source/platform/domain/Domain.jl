@@ -120,24 +120,6 @@ one walk for all of it.
 compute_loaded_subtypes(x::Type; world::UInt = Base.get_world_counter()) =
     _compute_subtypes(_collect_named_types(world), x)
 
-"""
-    load_installed_package!(name) -> Union{Module,Nothing}
-
-Load the package called `name` when the environment of the session has it, and
-answer its module; answer `nothing` when no environment of the session has it.
-A process that writes a cache file loads nothing, so the cache file of a package
-never depends on what one user installed.
-
-The environment is the one of the session, not the one of the caller, so an
-extension can load a package that is not one of its triggers.
-"""
-function load_installed_package!(name::AbstractString)
-    ccall(:jl_generating_output, Cint, ()) == 1 && return nothing
-    package = Base.identify_package(name)
-    package === nothing && return nothing
-    Base.require(package)
-end
-
 
 # ── Traits ────────────────────────────────────────────────────────────────────
 #
