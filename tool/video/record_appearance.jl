@@ -3,16 +3,22 @@
 # Run it as: julia --project=environment/all tool/video/record_appearance.jl [<output>.mp4]
 #
 # Screenplay S13: the look of every part is a value. Ctrl+, opens the Appearance
-# tab, and a drag puts it beside people.json. Two steps of Ctrl+Alt+= make every
-# text of the window larger, and Ctrl+Alt+0 makes it as before. The wheel goes
-# down the cards, one for each theme, to the Json card, which shows a row for
+# tab, and a drag puts it beside people.json. The Widget card opens, so its
+# presets show the size of a control. Then each scale in turn: clicks on its "+"
+# make the text, the icons, the spacing, the controls, the corners or the lines
+# of the whole window larger, and its "Reset" makes them as before. The Widget
+# card closes, and the wheel goes down the cards, one for each theme, to the
+# Json card, which shows a row for
 # each style of JSON with its text; new digits in the colour of "key text" turn
 # the keys of the file red while they are typed. At the top, the Widget card
 # offers its presets, and "Slate dark" turns the whole window dark. Two presses
 # of Ctrl+Z take back the preset and then the colour. The panel of the newest
-# gestures shows each step and what it did. The coordinates are logical pixels
-# of the 1280×720 window with the Files pane closed, read off the frames of the
-# rehearsals; each check prints the state that a step must leave.
+# gestures, at the bottom left, shows each step and what it did. The coordinates
+# are logical pixels of the 1280×720 window with the Files pane closed and no
+# status bar, read off the frames and the drawn texts of the rehearsals; a scale
+# moves the buttons below and beside it, so each click has its own place. Each
+# check prints the state that a step must leave. The Zoom row is not in the take:
+# the recorder draws at one density, so a zoom shows only in a window.
 #
 # With `PROJECTURED_TAKE_FAST=1` the digits are typed fast, which is the
 # warm-up: run it once in the same process before the take, so that no step of
@@ -33,6 +39,21 @@ const WIDGET_CHEVRON = (686, 577)       # the Widget card, at the top of the tab
 const SLATE_DARK = (765, 414)           # the preset, 4 steps down
 const REST = (1262, 90)                 # the right end of the tab strip
 const NEW_KEY_DIGITS = "dc322f"         # red, in place of the blue 268bd2
+
+# The clicks of each scale on its "+", and then on its "Reset": a step of a scale
+# moves the buttons of its own row, so each click has its own place. One step of
+# the wheel before Controls shows the four presets of the Widget card, whose
+# buttons are controls, and moves the rows below it up by 69 pixels; one step
+# after Lines moves the tab back.
+const SCALE_CLICKS = (
+    (field = :font_scale, wheel = 0, plus = [(872, 196), (886, 208), (908, 220)], reset = (1018, 246)),
+    (field = :icon_scale, wheel = 0, plus = [(872, 243), (872, 247), (872, 255), (872, 265)], reset = (939, 277)),
+    (field = :spacing_scale, wheel = 0, plus = [(872, 290), (880, 299), (894, 314)], reset = (994, 345)),
+    (field = :control_scale, wheel = -3, plus = fill((872, 268), 4), reset = (939, 268)),
+    (field = :radius_scale, wheel = 0, plus = fill((872, 315), 6), reset = (939, 315)),
+    (field = :line_scale, wheel = 0, plus = [fill((872, 362), 3); fill((875, 375), 4)], reset = (944, 375)),
+)
+const SCALE_WHEEL_BACK = 3
 
 const PEOPLE = """
 [
@@ -65,7 +86,7 @@ find_theme(editor, name) = only(entry.theme for entry in values(find_editor_appe
 
 function describe_look(editor)
     appearance = find_editor_appearance(editor)
-    (text = appearance.font_scale,
+    (scales = [getproperty(appearance, row.field) for row in SCALE_CLICKS],
      key = format_style_color(find_theme(editor, :JsonTheme).key_text.color),
      background = format_style_color(find_theme(editor, :WidgetTheme).background),
      open = appearance.open_sections)
@@ -115,6 +136,21 @@ typed(text) = FAST ? make_typein_gestures(text; hold = 0.02, jitter = 0.0) :
 
 # ── The screenplay ──────────────────────────────────────────────────────────
 
+# Each scale in turn: its "+" clicks, a look at the window, and its "Reset".
+function scale_steps()
+    out = Any[]
+    for row in SCALE_CLICKS
+        row.wheel == 0 || append!(out, Any[glide(PAGE)..., wheel(1, row.wheel; hold = 0.8)...])
+        for (k, place) in enumerate(row.plus)
+            append!(out, click(place; hold = k == length(row.plus) ? 2.0 : 0.7))
+        end
+        push!(out, check("$(row.field) larger"))
+        append!(out, click(row.reset; hold = 1.2))
+    end
+    append!(out, Any[glide(PAGE)..., wheel(1, SCALE_WHEEL_BACK; hold = 0.8)...])
+    out
+end
+
 function make_timeline()
     POINTER[] = (640, 400)
     Any[
@@ -122,10 +158,10 @@ function make_timeline()
         key(:comma; hold = 1.5, ctrl = true),                # 1. the Appearance tab
         glide(APPEARANCE_TAB)..., pause(0.3),
         drag(RIGHT_EDGE; hold = 1.5)...,                     #    beside the file
-        key(:equals; hold = 1.0, ctrl = true, alt = true),   # 2. every text grows
-        key(:equals; hold = 2.0, ctrl = true, alt = true),
-        check("text larger"),
-        key(:zero; hold = 1.5, ctrl = true, alt = true),     #    and is back
+        click(WIDGET_CHEVRON; hold = 1.0)...,                #    presets, which are controls
+        scale_steps()...,                                    # 2. each scale, and its effect
+        check("scales back"),
+        click(WIDGET_CHEVRON; hold = 1.0)...,                #    the Widget card closes
         glide(PAGE)...,
         wheel(17, -6; hold = 0.15)..., pause(1.5),           # 3. a card for each theme
         click(JSON_CHEVRON; hold = 1.5)...,                  #    the Json card opens
@@ -161,8 +197,9 @@ function main()
                                     width = 1280, height = 720, fps = 30, assistant = :none,
                                     root = directory, initial_hold = 1.5, final_hold = 1.5,
                                     supersample = 2, video_time = true, pointer = true,
-                                    prepare = close_files_pane!,
-                                    gesture_overlay = (; lines = 6, operation_width = 32))
+                                    status_bar = false, prepare = close_files_pane!,
+                                    gesture_overlay = (; anchor = :bottom_left, lines = 6,
+                                                       operation_width = 32))
     println("recorded: ", path, " in ", round(time() - started; digits = 1), " s")
 end
 
