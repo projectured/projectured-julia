@@ -127,11 +127,11 @@ short form goes into the README.
 
 | Package | `[deps]` | Who loads it | Released |
 | --- | --- | --- | --- |
-| `Projectured` | ProjecturedKernel, ProjecturedPlatform, AutoIntegrations | the user | yes |
+| `Projectured` | ProjecturedEssentials, AutoIntegrations | the user | yes |
 | `AutoIntegrations` | Preferences, TOML | `Projectured` | yes |
 | `ProjecturedSDL`, … (the six) | as on `main`, table in section 2 | the user, or AutoIntegrations | yes |
 | `ProjecturedIntegrations` | Projectured and the six | the user | yes |
-| the package of the names (name: D11) | ProjecturedKernel, ProjecturedPlatform | the integrations, the backends, `Projectured` | yes |
+| `ProjecturedEssentials` | ProjecturedKernel, ProjecturedPlatform | the integrations, the backends, `Projectured` | yes |
 | `ProjecturedAll` | each package with no third-party dependency | the tests, the examples, the REPL, a user who wants all | yes |
 
 ### 4.2 A package declares its triggers
@@ -221,9 +221,17 @@ function is my recommendation.
 
 ### 4.5 `Projectured`
 
-`Projectured` depends on the kernel, the platform and AutoIntegrations, and
-loads AutoIntegrations. It has no hook, no extension and no `[weakdeps]` of its
-own. It re-exports only the names of the package of the names (section 4.7).
+`Projectured` depends on `ProjecturedEssentials` and AutoIntegrations, and
+loads both. The kernel and the platform load as dependencies of
+`ProjecturedEssentials`. It has no hook, no extension and no `[weakdeps]` of
+its own.
+
+- It re-exports the names of `ProjecturedEssentials` (section 4.7), and no
+  other name.
+- It does not export `set_auto_integration!`. A user who changes a setting
+  writes `using AutoIntegrations`.
+- It binds no submodule of the kernel or the platform. `ProjecturedPlatform`
+  binds them, so `ProjecturedPlatform.EditorModule` works.
 
 ### 4.6 `ProjecturedIntegrations`
 
@@ -272,9 +280,10 @@ The owner, 2026-10-03:
 > which contains the most useful names, those can be re-exported.
 
 - The kernel exports 577 names, and the platform exports 2999 (2026-10-03).
-- A new package holds no code of its own. Its name is decision D11. It depends
+- A new package, `ProjecturedEssentials`, holds no code of its own. It depends
   on the kernel and the platform, and exports a short list of their names. One
-  constant in its source holds the list.
+  constant in its source holds the list. Its source is in `source/essentials/`,
+  as the source of `ProjecturedAll` is in `source/all/`.
 - The list comes from the guides. It holds the names that show a value, and
   the names that open a window on a document, as the own-project guide does:
 
@@ -288,10 +297,10 @@ The owner, 2026-10-03:
 - `ProjecturedPlatform` does not export the five names of the kernel in this
   list. Only the flat namespace of the umbrella makes them visible now.
 - Each integration and each backend (`ProjecturedConsole`, `ProjecturedPDF`,
-  `ProjecturedWeb`) depends on the package and re-exports its names.
-  `Projectured` re-exports these names and no other name of the kernel or the
-  platform. A user who writes a projection names `ProjecturedPlatform`.
-  So `using ProjecturedSDL, ProjecturedDataFrames` makes `display_in_editor`
+  `ProjecturedWeb`) depends on `ProjecturedEssentials` and re-exports its
+  names. `Projectured` does the same. A user who writes a projection names
+  `ProjecturedPlatform`.
+- So `using ProjecturedSDL, ProjecturedDataFrames` makes `display_in_editor`
   visible.
 - Two packages that re-export the same binding do not conflict in `Main`.
 - A test checks that each name of the list is defined and exported. The design
@@ -422,7 +431,7 @@ The README of each released package changes too
   from the table `[auto-integration]` of the package, so the triggers have one
   source.
 - `PROJECTURED_PACKAGE_READMES` gets entries for `AutoIntegrations`,
-  `ProjecturedIntegrations`, `ProjecturedAll` and the package of the names.
+  `ProjecturedIntegrations`, `ProjecturedAll` and `ProjecturedEssentials`.
   `ProjecturedAll` leaves `PROJECTURED_RELEASE_EXCLUSIONS`, and the sentence of `Projectured` changes.
 
 ## 6. Documentation
@@ -439,7 +448,7 @@ The README of each released package changes too
 | `documentation/package/platform/domain/domain.md` | `load_installed_package!` goes |
 | the documents of SDL, DataFrames, Video, ODBC, Tulip, MCP | the triggers and the default |
 | the document of the builder | the README of a package and the front page |
-| a new design document of the package of the names | the list of names, what each one does, and which packages re-export them |
+| a new design document of `ProjecturedEssentials` | the list of names, what each one does, and which packages re-export them |
 | `documentation/README.md` | the new documents |
 | `plan/pending/release-the-binary-and-the-packages.md` | the items of Part R that this plan changes |
 
@@ -466,7 +475,7 @@ The README of each released package changes too
 - [ ] **Step 4, `ProjecturedIntegrations`.** The package and its six
       extensions, and a test case:
       `using ProjecturedIntegrations, DataFrames` loads `ProjecturedDataFrames`.
-- [ ] **Step 5, the names.** The package of the names and its test. The
+- [ ] **Step 5, the names.** `ProjecturedEssentials` and its test. The
       integrations, the backends and `Projectured` re-export its names.
 - [ ] **Step 6, the release.** The README texts of section 5, the entries of
       `PROJECTURED_PACKAGE_READMES`, the release copy of a package with no
@@ -502,27 +511,11 @@ The owner, 2026-10-03: "mostly agreed". The answers:
 | D8, the name | `AutoIntegrations` |
 | D9, no `default` in the table | `"manual"` |
 | D10, the order | `julia-112` lands first |
+| D11, the name of the package of the names | `ProjecturedEssentials` |
 | D12, who re-exports the names | the six integrations and the backends `ProjecturedConsole`, `ProjecturedPDF`, `ProjecturedWeb` |
-| D13, the names of `Projectured` | only the names of the package of the names |
+| D13, the names of `Projectured` | only the names of `ProjecturedEssentials` |
 | D14, the list | all names of section 4.7 stay: "you can keep them" |
+| D15, `Projectured` exports `set_auto_integration!` | no |
+| D16, `Projectured` binds the submodules | no |
 
-### Open
-
-Each recommendation is mine, not a decision.
-
-- **D11, the name of the package of the names.** The owner: "ProjecturedAPI is
-  way too generic", then "how about ProjecturedUser?". Candidates:
-  - `ProjecturedUser`: the names that a user calls. It is not common practice:
-    I know no Julia package that ends in `User`. The slice `user` is free. A
-    reader can take it for the settings of the user, which this plan also
-    names (`LocalPreferences.toml`).
-  - `ProjecturedEssentials`: the few names that most users need.
-  - `ProjecturedPrelude`: the word of Haskell and Rust for a small set of names
-    that each program gets.
-
-  The common practice in Julia is the other direction. The plain name is the
-  package for the user, as `Makie` or `DifferentialEquations`. A small package
-  for the authors of other packages ends in `Base` or `Core`, as `SciMLBase`
-  or `MakieCore`. Here the plain name `Projectured` is the umbrella, so no
-  common suffix fits. I recommend `ProjecturedEssentials`, but `ProjecturedUser`
-  also works.
+No decision is open.
