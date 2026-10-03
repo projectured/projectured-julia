@@ -9353,7 +9353,7 @@ function _wt_make_graphics(p::WidgetTableToGraphicsCanvas, w::WidgetTable, geom:
     # The frame of each open cell whose last commit failed.
     marks = CellVector(@computation begin
         rects = Any[]
-        for cell in w.open_cells
+        for cell in something(w.open_cells, ())
             cell.reason === nothing && continue
             gr, gc = cell.row + geom.row_offset, cell.column + geom.col_offset
             (1 <= gr <= geom.grid_rows && 1 <= gc <= geom.grid_cols) || continue
@@ -9544,7 +9544,8 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, 
         op = _wt_key_navigate(iomap, g, iomap.geometry)
         op === nothing || return Intent(g, op)
     end
-    Intent(g, _wt_route_event(p, iomap, g))
+    op = _wt_route_event(p, iomap, g)
+    Intent(g, op isa Operation ? op : something(_read_whole_cell_key(iomap.input, g), Some(op)))
 end
 
 # Resolve a left click into a selection operation (or nothing). The margin,
@@ -9731,7 +9732,7 @@ end
 # The open cell in row `k` and column `c` of `w`, `(row, column, reason)`, or
 # `nothing`.
 function _find_open_cell(w::WidgetTable, k::Int, c::Int)
-    for cell in w.open_cells
+    for cell in something(w.open_cells, ())
         cell.row == k && cell.column == c && return cell
     end
     nothing
@@ -9742,13 +9743,35 @@ end
 # of the table converts; `nothing` for another key or another place.
 function _read_open_cell_key(w::WidgetTable, g::KeyDown)
     g.key in (:return, :tab, :escape) || return nothing
-    isempty(w.open_cells) && return nothing
+    isempty(something(w.open_cells, ())) && return nothing
     prefix = _wt_cell_prefix(w.selection)
     prefix === nothing && return nothing
     k, c = prefix
     _find_open_cell(w, k, c) === nothing && return nothing
     g.key === :escape && return DropTableCellOperation(w, k, c)
     CommitTableCellOperation(w, k, c, g.key === :return ? :return : g.modifiers.shift ? :backtab : :tab)
+end
+
+# F2 or a typed character on the whole cell that the selection names, which the
+# cell took no key for, and which is not open: the opening of the cell, which the
+# owner of the table converts; `nothing` for another key or another place, and
+# for a table that no owner opens.
+function _read_whole_cell_key(w::WidgetTable, g)
+    w.open_cells === nothing && return nothing
+    if g isa KeyDown
+        (g.key === :f2 && g.modifiers == ModifierKeys()) || return nothing
+        text = nothing
+    elseif g isa KeyPress
+        (g.modifiers.ctrl || g.modifiers.alt || g.modifiers.meta || any(iscntrl, g.text)) && return nothing
+        text = g.text
+    else
+        return nothing
+    end
+    cell = _wt_cell_terminal(w.selection)
+    cell === nothing && return nothing
+    k, c = cell
+    _find_open_cell(w, k, c) === nothing || return nothing
+    EditTableCellOperation(w, k, c, text)
 end
 
 # The frame of the mark of a cell: four bars of `stroke` inside the box at
@@ -9809,7 +9832,7 @@ end
 # position goes to the cell under it. One with no position, such as a key or a
 # character, goes to the cell the selection is in.
 function _wt_route_event(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, event)
-    if event isa MouseDwell && !isempty(iomap.input.open_cells)
+    if event isa MouseDwell && !isempty(something(iomap.input.open_cells, ()))
         # A rest on an open cell whose last commit failed shows the reason of its mark.
         x, y = _wt_get_unscrolled_point(p, iomap, Int(event.x), Int(event.y))
         hit = _wt_hit_test(iomap.geometry, x, y)

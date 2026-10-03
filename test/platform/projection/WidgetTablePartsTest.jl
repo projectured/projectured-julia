@@ -953,6 +953,25 @@ end
     getfield(table, :selection)[] = cell_reference(3, 1)
     @test !(key(:return) isa CommitTableCellOperation)
     @test key(:escape) === nothing
+    # On a whole cell that is not open, F2 and a typed character that the cell
+    # takes no key for open it, which the owner converts; a key with Ctrl, and a
+    # key in the open cell, open nothing.
+    edit = key(:f2)
+    @test edit isa EditTableCellOperation && edit.table === table
+    @test (edit.row, edit.column, edit.text) == (3, 1, nothing)
+    typed = read(io, KeyPress('x'; time = 0.0))
+    @test typed isa EditTableCellOperation && typed.text == "x"
+    @test !(read(io, KeyPress('x', "x", ModifierKeys(ctrl = true); time = 0.0)) isa EditTableCellOperation)
+    @test !(key(:f2; ctrl = true) isa EditTableCellOperation)
+    getfield(table, :selection)[] = cell_reference(2, 1)
+    @test !(key(:f2) isa EditTableCellOperation)
+    # A table that no owner opens, the default, gives F2 to the parts around it.
+    plain = make_table(form == "a table of a list" ? make_list(5, texts_of) :
+                       Any[Any[texts_of(i, 1), texts_of(i, 2)] for i in 1:5])
+    plain_io = print_document(rec, nothing, plain, context())
+    getfield(plain, :selection)[] = cell_reference(3, 1)
+    @test read(plain_io, KeyDown(:f2, ModifierKeys(); time = 0.0)) === nothing
+    @test read(plain_io, KeyPress('x'; time = 0.0)) === nothing
     # A failed commit marks the cell with a frame of four bars, which each region
     # of a table of a vector draws behind its pane, and a rest on it shows the
     # reason.

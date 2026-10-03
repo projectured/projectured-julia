@@ -254,6 +254,40 @@ function _make_cell_drop_operation(view::DataFrameView, r::Int, name::String)
                         ReplaceViewStateOperation(CloseDataFrameCellOperation(view, r, name))], changed)
 end
 
+# The opening of the cell in row `r` of the frame and column `name` by a key on
+# the whole cell, with the caret at the end of the text of its entry. With
+# `text === nothing`, for F2, the entry holds the value, and the opening is view
+# state, as a click is. With a typed `text`, the entry holds what the text gives
+# in an empty value of the column, and the opening is a step of undo, because it
+# changes the value. `nothing` when the cell is open, takes no key, or the text
+# gives no value of the column.
+function _make_cell_edit_operation(view::DataFrameView, r::Int, name::String, text)
+    _find_cell_edit(view, r, name) === nothing || return nothing
+    frame = view.frame
+    type = eltype(frame[!, name])
+    document = text === nothing ? make_data_frame_cell(frame[r, name], type) : _make_typed_cell_document(text, type)
+    document isa PrimitiveDocument || return nothing
+    c = findfirst(==(name), names(frame))
+    k = length(get_primitive_text(document))
+    caret = _make_element_reference("rows", r, ConcreteReference(RangeReferenceStep(c - 1, c),
+        ConcreteReference(FieldReferenceStep("value"), ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))))
+    _make_cell_step(Any[ReplaceViewStateOperation(OpenDataFrameCellOperation(view, DataFrameCellEdit(r, name, document, nothing))),
+                        ReplaceSelectionOperation(caret)], text !== nothing)
+end
+
+# The document that `text`, typed into an empty value of a column of element type
+# `type`, gives: the string for a column of strings; for a column of numbers, the
+# number, or a type-in of the text that a number can not show yet, such as `-`;
+# `nothing` for a text with a character that no number has, and for any other
+# column, whose keys are its own, as the keys of a Bool.
+function _make_typed_cell_document(text::String, type::Type)
+    primitive = _find_primitive_type(nonmissingtype(type))
+    primitive === PrimitiveString && return PrimitiveString(text)
+    (primitive === PrimitiveNumber && has_only_number_characters(text)) || return nothing
+    something(find_exact_primitive_document((PrimitiveNumber,), text),
+              PrimitiveInsertion(; value = text, allowed_types = (PrimitiveNumber,)))
+end
+
 function _make_whole_cell_selection(view::DataFrameView, r::Int, name::String)
     c = findfirst(==(name), names(view.frame))
     ReplaceSelectionOperation(_make_element_reference("rows", r,

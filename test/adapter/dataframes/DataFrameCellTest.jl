@@ -367,6 +367,80 @@ function test_data_frame_cells()
             @test view.frame[2, :id] == 1025 && isempty(view.edits)
         end
 
+        @testset "F2 on a whole cell opens it with its value, and the caret at its end" begin
+            for (c, value, k) in ((1, 102, 3), (5, nothing, 0))
+                view = DataFrameView(make_frame())
+                io = print_document(projection, nothing, view, context())
+                set_selection!(view, whole(2, c))
+                op = key(io, KeyDown(:f2, ModifierKeys(); time = 0.0))
+                @test !is_undo_step(nothing, op)
+                evaluate_operation(_DataFrameFilterEditor(view), op)
+                @test only(view.edits).document.value == value
+                @test strip_reference_types(get_selection(view)) == caret(2, c, k)
+            end
+        end
+
+        @testset "a typed character on a whole cell opens it with the character in place of the value" begin
+            for (c, character, document) in ((1, '5', PrimitiveNumber(5)), (1, '-', PrimitiveInsertion(; value = "-")),
+                                             (2, 'z', PrimitiveString("z")), (5, '7', PrimitiveNumber(7)))
+                view = DataFrameView(make_frame())
+                io = print_document(projection, nothing, view, context())
+                editor = _DataFrameFilterEditor(view)
+                set_selection!(view, whole(2, c))
+                op = key(io, KeyPress(character; time = 0.0))
+                @test is_undo_step(nothing, op)
+                inverse = evaluate_invertible_operation!(editor, op)
+                entry = only(view.edits)
+                @test typeof(entry.document) === typeof(document) && entry.document.value == document.value
+                @test strip_reference_types(get_selection(view)) == caret(2, c, 1)
+                @test shown(io, 2, c) === entry.document
+                # The undo closes the cell again.
+                evaluate_operation(editor, inverse)
+                @test isempty(view.edits)
+                @test strip_reference_types(get_selection(view)) == whole(2, c)
+            end
+            # A character that no number has, and a cell that takes no key, open nothing.
+            view = DataFrameView(make_frame())
+            io = print_document(projection, nothing, view, context())
+            set_selection!(view, whole(2, 1))
+            @test key(io, KeyPress('x'; time = 0.0)) === nothing
+            set_selection!(view, whole(2, 4))
+            @test key(io, KeyPress('q'; time = 0.0)) === nothing
+        end
+
+        @testset "a typed number replaces the value, and Enter commits it" begin
+            view = DataFrameView(make_frame())
+            io = print_document(projection, nothing, view, context())
+            editor = _DataFrameFilterEditor(view)
+            set_selection!(view, whole(2, 1))
+            for character in "57"
+                evaluate_operation(editor, key(io, KeyPress(character; time = 0.0)))
+            end
+            evaluate_operation(editor, key(io, enter()))
+            @test view.frame[2, :id] == 57 && isempty(view.edits)
+            @test strip_reference_types(get_selection(view)) == whole(3, 1)
+        end
+
+        @testset "a key of a Bool on a whole cell opens the cell and switches it" begin
+            view = DataFrameView(make_frame())
+            io = print_document(projection, nothing, view, context())
+            editor = _DataFrameFilterEditor(view)
+            set_selection!(view, whole(2, 3))
+            op = key(io, KeyPress('t'; time = 0.0))
+            @test is_undo_step(nothing, op)
+            inverse = evaluate_invertible_operation!(editor, op)
+            @test only(view.edits).document.value == true && view.frame[2, :ok] == false
+            evaluate_operation(editor, inverse)
+            @test isempty(view.edits)
+            evaluate_operation(editor, key(io, KeyPress(' '; time = 0.0)))
+            @test only(view.edits).document.value == true
+            evaluate_operation(editor, key(io, KeyPress(' '; time = 0.0)))
+            @test only(view.edits).document.value == false
+            evaluate_operation(editor, key(io, KeyPress('t'; time = 0.0)))
+            evaluate_operation(editor, key(io, enter()))
+            @test view.frame[2, :ok] == true && isempty(view.edits)
+        end
+
         # A view of 30 rows sorted by `price`, whose value is the number of the
         # row, with the head of its list at row 8, so rows 8 to 12 show.
         function open_sorted_view()
@@ -460,6 +534,31 @@ function test_data_frame_cells()
             @test view.frame[10, :price] == 20.5
             @test only(view.edits).row == 12
             @test view.anchor == 7 && y_of(io, "112") == y
+        end
+
+        @testset "through a real editor, keys on a whole cell open it, and Ctrl+Z takes back the commit, then the keys" begin
+            view = DataFrameView(make_frame())
+            backend = _ColumnWidthBackend()
+            editor = build_editor(view, NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                                  backend, devices = Device[Keyboard(), Mouse(), Display()], tabs = false,
+                                  undo = true, window = (; title = "W", width = 900, height = 400))
+            run_frame!(editor)
+            send!(event) = (push!(backend.events, WindowInput(:W, event)); run_frame!(editor))
+            (x, y) = only((t[1], t[2]) for t in _data_frame_texts(last(backend.rendered).windows[1].content)
+                          if t[3] == "102")
+            alt = ModifierKeys(alt = true)
+            send!(MouseDown(:left, x + 2, y + 2, alt; time = 1.0))
+            send!(MouseUp(:left, x + 2, y + 2, alt; time = 1.05))
+            @test strip_reference_types(get_selection(view)) == whole(2, 1) && isempty(view.edits)
+            send!(KeyPress('5'; time = 1.2))
+            send!(KeyPress('7'; time = 1.3))
+            @test only(view.edits).document.value == 57
+            send!(KeyDown(:return, ModifierKeys(); time = 1.4))
+            @test view.frame[2, :id] == 57 && isempty(view.edits)
+            send!(KeyDown(:z, ModifierKeys(ctrl = true); time = 1.5))
+            @test view.frame[2, :id] == 102 && only(view.edits).document.value == 57
+            send!(KeyDown(:z, ModifierKeys(ctrl = true); time = 1.6))
+            @test isempty(view.edits) && view.frame[2, :id] == 102
         end
 
         @testset "a duplicate opens no cell of its original" begin

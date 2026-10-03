@@ -54,7 +54,7 @@ export Inset, Point2D, WidgetDocument, WidgetToolButton, WidgetMessageBox, Widge
        WidgetTreeNode, CloseTabOperation, OpenTabOperation,
        DragTabOperation, DuplicateTabOperation, StartSplitterDragOperation, ResizeSplitPaneOperation,
        EndSplitterDragOperation, SetTableColumnWidthOperation, CommitTableCellOperation,
-       DropTableCellOperation, read_table_column_drag, Shortcut,
+       DropTableCellOperation, EditTableCellOperation, read_table_column_drag, Shortcut,
        matches_action_shortcut,
        InvokeActionOperation, resolve_action,
        make_numeric_validator, evaluate_operation, inset_default, inset_size,

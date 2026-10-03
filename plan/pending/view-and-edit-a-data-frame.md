@@ -1406,8 +1406,7 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     - Open:
       - A key on a whole cell, such as the one that Enter selects, does not
         open the cell, so "a person corrects a column row by row" needs a click
-        in each cell. A key that opens a whole cell (a character that replaces
-        the value, or F2) is a question for the owner.
+        in each cell. Done in 4.8.
       - Tab to a column that the list of columns does not show does not move
         the list of columns.
       - An expression that reads more than one row, such as one with a mean,
@@ -1420,6 +1419,33 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       the last column stay; the undo of a commit puts the anchor back; a click
       out of an open cell keeps the clicked row at its place. The data frames
       406.
+  - [x] **4.8** A key that opens a whole cell (the owner, 2026-10-03: "yes" to
+    both, a typed character that replaces the value and F2). Done 2026-10-03:
+    - The generic table: on a whole cell that is not open, F2 and a typed
+      character that the cell takes no key for are `EditTableCellOperation(
+      table, row, column, text)`, `text === nothing` for F2. It travels up as
+      it is, as the commit and the drop do, and the owner converts it. A table
+      whose `open_cells` is `nothing`, now the default, has no owner that opens
+      its cells and gives every key to its cells and the parts around it (mine:
+      without it, F2 on a whole cell of any table took the F2 that renames the
+      tab around it).
+    - The view: F2 opens the cell with its value and the caret at the end, as
+      view state, as a click does. A typed character opens the cell with what
+      it gives in an empty value of the column, and the caret after it: a
+      string; a number, or a type-in of a text that a number can not show yet,
+      such as `-`; nothing for a character that no number has. It is a step of
+      undo, because it changes the value, and the keys after it join its run,
+      so after the undo of the commit one Ctrl+Z closes the cell again.
+    - A key of a Bool on a whole cell (`t`, `f`, Space) is the gesture of the
+      Bool, a write into the cell. A write into a cell that is not open now
+      opens the cell first, in the same step, so the write goes into the
+      document of the entry; before, it wrote into a cell that was not there.
+    - Tests: the widget table in both forms (F2, a character, Ctrl, the open
+      cell, a table with no owner); the view (F2 on a number and on a missing
+      value; `5`, `-`, a string and a missing value; `x` in a number and a key
+      on a label; `57` and Enter; a Bool); a real editor (Alt+press, `5`, `7`,
+      Enter, Ctrl+Z twice). The platform 86,873 and 8 broken, the markdown
+      233, the data frames 451.
 
   4b, after 4a: the other operations of §3.6 (insert, delete, rename, move and
   convert of rows and columns) from a context menu on the header of a column

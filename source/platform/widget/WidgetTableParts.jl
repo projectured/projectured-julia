@@ -593,7 +593,7 @@ function _make_row_graphics(p::WidgetTableToGraphicsCanvas, w::WidgetTable,
         left, width = span[]
         out = Any[bands..., GraphicsRect(left, 0, width, bw; color = divider)]
         # The frame of each open cell of this row whose last commit failed.
-        for cell in w.open_cells
+        for cell in something(w.open_cells, ())
             (cell.row == k && cell.reason !== nothing) || continue
             column = _get_table_column_span(st, cell.column)
             column === nothing && continue
@@ -1601,7 +1601,7 @@ end
 # A rest of the pointer on an open cell whose last commit failed shows the reason
 # of its mark; `nothing` anywhere else.
 function _read_table_mark_dwell(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, g::MouseDwell)
-    isempty(iomap.input.open_cells) && return nothing
+    isempty(something(iomap.input.open_cells, ())) && return nothing
     found = _find_table_part_at(p, iomap, g.x, g.y)
     (found === nothing || found[1] !== :cells) && return nothing
     st = iomap.state
@@ -1665,7 +1665,9 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent,
     change.operation === nothing && _positioned_event(g) &&
         return Intent(g, _read_table_point_event(p, iomap, g))
     payload = change.operation === nothing ? g : change.operation
-    Intent(g, _read_selected_table_cell(iomap.state, iomap.input, payload))
+    op = _read_selected_table_cell(iomap.state, iomap.input, payload)
+    (op isa Operation || change.operation !== nothing) && return Intent(g, op)
+    Intent(g, something(_read_whole_cell_key(iomap.input, g), Some(op)))
 end
 
 function read_intent(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, event)

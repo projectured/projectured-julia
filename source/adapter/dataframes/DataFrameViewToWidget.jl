@@ -596,6 +596,8 @@ function _convert_table_write(iomap::DataFrameViewToWidgetIoMap, operation, colu
         return _convert_cell_drop(iomap, operation)
     operation isa CommitTableCellOperation && operation.table === iomap.table &&
         return _convert_cell_commit(iomap, operation)
+    operation isa EditTableCellOperation && operation.table === iomap.table &&
+        return _convert_cell_edit(iomap, operation)
     operation isa StartDragOperation && _find_table_path(get_operation_path(operation)) isa EmptyReference &&
         return StartDragOperation(annotate_reference_types(iomap.input, EmptyReference()), operation.dragged)
     width = operation isa ReplaceViewStateOperation ? get_wrapped_operation(operation) : operation
@@ -630,8 +632,13 @@ function _convert_cell_operation(iomap::DataFrameViewToWidgetIoMap, operation)
         target = _find_cell_view_path(iomap, operation_reference(operation))
         return target === nothing ? nothing : retarget_operation(operation, target)
     elseif operation isa ReplaceReferencedValueOperation && operation.document === nothing
+        # A key of a whole cell that is not open, such as Space on a Bool, opens
+        # the cell first, so the write goes into the document of its entry.
         target = _find_cell_view_path(iomap, operation.reference)
-        return target === nothing ? nothing : ReplaceReferencedValueOperation(nothing, target, operation.value)
+        target === nothing && return nothing
+        write = ReplaceReferencedValueOperation(nothing, target, operation.value)
+        open = _make_open_cell_operation(iomap.input, target)
+        return open === nothing ? write : _make_cell_step(Any[open, write], true)
     elseif operation isa ReplaceSelectionOperation
         target = _find_cell_view_path(iomap, operation.path)
         return target === nothing ? nothing : ReplaceSelectionOperation(target)
@@ -642,26 +649,30 @@ end
 # Escape in an open cell drops its entry, so the cell shows its value again, and
 # selects the whole cell.
 function _convert_cell_drop(iomap::DataFrameViewToWidgetIoMap, operation::DropTableCellOperation)
-    view = iomap.input
-    path = _find_view_path(iomap, ConcreteReference(FieldReferenceStep("rows"),
-        ConcreteReference(RangeReferenceStep(operation.row - 1, operation.row),
-                          ConcreteReference(RangeReferenceStep(operation.column - 1, operation.column),
-                                            EmptyReference()))))
-    found = path === nothing ? nothing : _find_frame_cell(view, path)
-    found === nothing ? nothing : _make_cell_drop_operation(view, found[1], found[2])
+    found = _find_frame_cell_of_table(iomap, operation.row, operation.column)
+    found === nothing ? nothing : _make_cell_drop_operation(iomap.input, found[1], found[2])
 end
 
 # Enter, Tab and Shift+Tab in an open cell commit it, and select the whole cell
 # that the key goes to.
 function _convert_cell_commit(iomap::DataFrameViewToWidgetIoMap, operation::CommitTableCellOperation)
-    view = iomap.input
+    found = _find_frame_cell_of_table(iomap, operation.row, operation.column)
+    found === nothing ? nothing : _make_cell_commit_operation(iomap.input, found[1], found[2], operation.key)
+end
+
+# F2 and a typed character on a whole cell open it.
+function _convert_cell_edit(iomap::DataFrameViewToWidgetIoMap, operation::EditTableCellOperation)
+    found = _find_frame_cell_of_table(iomap, operation.row, operation.column)
+    found === nothing ? nothing : _make_cell_edit_operation(iomap.input, found[1], found[2], operation.text)
+end
+
+# The row of the frame and the name of the column of the cell in row `row` and
+# column `column` of the table, in the numbers of its paths, or `nothing`.
+function _find_frame_cell_of_table(iomap::DataFrameViewToWidgetIoMap, row::Int, column::Int)
     path = _find_view_path(iomap, ConcreteReference(FieldReferenceStep("rows"),
-        ConcreteReference(RangeReferenceStep(operation.row - 1, operation.row),
-                          ConcreteReference(RangeReferenceStep(operation.column - 1, operation.column),
-                                            EmptyReference()))))
-    found = path === nothing ? nothing : _find_frame_cell(view, path)
-    found === nothing && return nothing
-    _make_cell_commit_operation(view, found[1], found[2], operation.key)
+        ConcreteReference(RangeReferenceStep(row - 1, row),
+                          ConcreteReference(RangeReferenceStep(column - 1, column), EmptyReference()))))
+    path === nothing ? nothing : _find_frame_cell(iomap.input, path)
 end
 
 # The row of the frame and the name of the column of `path`, the path of the view
