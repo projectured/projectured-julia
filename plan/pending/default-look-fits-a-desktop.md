@@ -698,10 +698,14 @@ inet-julia uses, the same step changes them, so that they always load.
   `..DocumentModule` and `..ReferenceModule`, because `@theme` declares a
   document. Images of 8 legacy examples at the density 1 and 2: 14 of 16 equal
   to the base; the simulation cards differ (section 10, step T3). The legacy
-  tests pass, except two failures that the base has too. Left: the presentation
+  tests pass, except two failures that the base has too. The presentation
   views (workbench, module, page, execution, parameter, capture, telemetry and
-  the result charts), which wait for the answer about the documents that
-  builders make.
+  the result charts), after V2 by the owner's choice: the pilot is the
+  workflow (omnet-julia `1cc1cc42`): `SimulationWorkflowToWidget` takes a
+  `theme`, and every card builder a keyword `style` with the values of the
+  widget theme; the gaps map by meaning (`label_gap`, `form_row_gap`,
+  `item_gap`, `section_gap`) and a button sets no height. The other views follow
+  the same pattern, by a helper agent whose work I review.
 - [x] **T4.** inet-julia: the theme of the packet diagram. *Done:* inet-julia
   `887a204`: `PacketDiagramTheme` with the font and four colors;
   `GUTTER_WIDTH` counts characters and stays. The packet diagram tests pass.
