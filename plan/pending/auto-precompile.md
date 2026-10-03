@@ -306,9 +306,9 @@ Each step is a commit. Mark it here when it is done.
 4. **Done — the selection**: read the files, parse, the shape check, the roots,
    the key. Tests with lines that pass and lines that are refused.
 
-   Done 2026-10-03, commit `78421c3` on the branch `selection` of
-   `auto-precompile` (worktree `auto-precompile-selection`), not on `main` yet.
-   `Pkg.test()`: 40 of 40 pass. What was found and chosen:
+   Done 2026-10-03, commit `78421c3`, landed on `main` of `auto-precompile` and
+   pushed at the owner's word; the CI run passed. `Pkg.test()`: 40 of 40 pass.
+   What was found and chosen:
    - The 17747 lines of the two recordings of ProjecturEd hold few forms: each is
      a `Tuple{…}`, the heads are `curly`, `.`, `where`, `<:`, `tuple` and `call`,
      the only call is `typeof`, and the only literals are integers and symbols.
