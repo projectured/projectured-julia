@@ -52,19 +52,17 @@ SettingsToWidget(; theme = nothing) = SettingsToWidget(theme)
     controls::Vector{Tuple{Any,Any,Symbol,Any}}
 end
 
-const _GROUP_GAP = 12
-# Between two settings, and between a setting and its text, which belongs to it.
-const _ROW_GAP = 12
+# A setting and its text, which belongs to it, stand with no gap between them.
 const _DESCRIPTION_GAP = 0
-const _COLUMN_GAP = 12
 
 # ── Printer ───────────────────────────────────────────────────────────────
 
 function print_document(p::SettingsToWidget, recursion, settings::Settings, ctx)
     controls = Tuple{Any,Any,Symbol,Any}[]
     groups = get_settings_groups(settings)
-    caption = _get_caption_style(p.theme)
-    cards = Any[_make_group_card(settings, group, controls, caption) for group in groups]
+    values = _get_widget_values(p.theme)
+    caption = StyleText(values.font_small, values.muted_foreground)
+    cards = Any[_make_group_card(settings, group, controls, caption, values) for group in groups]
     reset = _make_command_button("Reset all", "Give every setting its default.",
                                () -> _make_reset_operation(groups))
     save = _make_command_button("Save", "Write the settings to their file.",
@@ -74,8 +72,8 @@ function print_document(p::SettingsToWidget, recursion, settings::Settings, ctx)
     for button in (save, load)
         set_cell_computation!(getfield(button, :enabled), () -> !isempty(settings.file))
     end
-    buttons = HorizontalLayout(Any[reset, save, load]; gap = _COLUMN_GAP)
-    output = WidgetScrollPane(VerticalLayout(Any[cards..., buttons]; gap = _GROUP_GAP))
+    buttons = HorizontalLayout(Any[reset, save, load]; gap = values.label_gap)
+    output = WidgetScrollPane(VerticalLayout(Any[cards..., buttons]; gap = values.section_gap))
     # Each kind of path of the settings names a part of the tab: the output holds
     # its image, and each document below it the part of its parent's path.
     set_output_path_computations!(output, settings, path -> find_introduced_path(p, path))
@@ -83,19 +81,17 @@ function print_document(p::SettingsToWidget, recursion, settings::Settings, ctx)
     SettingsToWidgetIoMap(p, settings, output, controls)
 end
 
-# The style of a summary and of a description: the small font and the muted color
-# of the widget theme, as the description of a card.
-function _get_caption_style(theme)
-    values = theme === nothing ? get_theme_defaults(WidgetTheme) : theme
-    StyleText(values.font_small, values.muted_foreground)
-end
+# The values of the scaled widget theme of the tab, or of the default theme. A
+# summary and a description take its small font and its muted color, as the
+# description of a card, and the cards, the rows and the columns its gaps.
+_get_widget_values(theme) = theme === nothing ? get_theme_defaults(WidgetTheme) : theme
 
 # A card of one group: its name, the summary of its type and a note when the
 # editor does not use it, and for each setting a row and its description under it,
 # across the three columns. The note and the state of the controls follow the
 # unused types of the settings, which the start step of the editor finds after the
 # first print.
-function _make_group_card(settings::Settings, group, controls, caption::StyleText)
+function _make_group_card(settings::Settings, group, controls, caption::StyleText, values)
     T = get_settings_group_type(group)
     is_used = () -> !(T in settings.unused_types)
     cells = Any[]
@@ -116,7 +112,7 @@ function _make_group_card(settings::Settings, group, controls, caption::StyleTex
             push!(row_gaps, _DESCRIPTION_GAP)
         end
     end
-    grid = GridLayout(cells, 3; horizontal_gap = _COLUMN_GAP, vertical_gap = _ROW_GAP,
+    grid = GridLayout(cells, 3; horizontal_gap = values.form_column_gap, vertical_gap = values.form_row_gap,
                       vertical_align = :center, row_gaps)
     card = WidgetCard(; title = WidgetLabel(_make_group_title(T)),
                       content = WidgetComposite(Any[grid]))
