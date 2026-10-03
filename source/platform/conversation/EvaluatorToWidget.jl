@@ -76,8 +76,10 @@ _is_plain_left_press(event) =
 _make_prompt(text, style) =
     LayoutConstraint(WidgetLabel(text; text_style = style); width = Content)
 
+# A prompt stands on the baseline of the first line of its code, whose lines can
+# have another spacing than the prompt.
 _make_prompt_row(projection, children::Function) =
-    HorizontalLayout(CellVector(Computation(children)), Cell(:top), Cell(projection.prompt_gap),
+    HorizontalLayout(CellVector(Computation(children)), Cell(:baseline), Cell(projection.prompt_gap),
                      Cell(Content), Cell(nothing), Cell(nothing))
 
 _has_result(form::EvaluatorForm) = !(form.result isa TextBlock && isempty(form.result.elements))

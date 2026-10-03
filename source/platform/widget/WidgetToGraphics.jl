@@ -1479,6 +1479,25 @@ end
 
 # ── WidgetLabel ─────────────────────────────────────────────────────────────
 
+# The text style of a label: its own `text_style`, which can be a whole style, a
+# bare colour or a bare font, over the label text of the theme and of its style.
+function _get_label_style(p::WidgetLabelToGraphicsCanvas, w::WidgetLabel)
+    label = _get_part_text(w, :label_text, p.label_text)
+    w.text_style === nothing ? label :
+    w.text_style isa StyleColor ? StyleText(label.font, w.text_style) :
+    w.text_style isa StyleFont ? StyleText(w.text_style, label.color) :
+    w.text_style
+end
+
+# The baseline of the first line of a label: the top of its content box and the
+# baseline of the line box of its text. An image has none.
+function find_first_baseline(p::WidgetLabelToGraphicsCanvas, iomap::SimpleIoMap)
+    w = iomap.input
+    (w.visible == false || w.content isa ImageDocument) && return nothing
+    _, content_y = _content_offset(p, w)
+    content_y + compute_line_box(p.measure, string(w.content), _get_label_style(p, w).font).baseline
+end
+
 function print_document(p::WidgetLabelToGraphicsCanvas, recursion, w::WidgetLabel, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
@@ -1492,11 +1511,7 @@ function print_document(p::WidgetLabelToGraphicsCanvas, recursion, w::WidgetLabe
         # of the theme; the font is what lets a label write an icon of the icon
         # font in the color of the text beside it. `text_style` wins over the
         # `label_text_color` of a style.
-        label = _get_part_text(w, :label_text, p.label_text)
-        style = w.text_style === nothing ? label :
-                w.text_style isa StyleColor ? StyleText(label.font, w.text_style) :
-                w.text_style isa StyleFont ? StyleText(w.text_style, label.color) :
-                w.text_style
+        style = _get_label_style(p, w)
         box = _get_box_insets(p, w)
         colors = _get_box_colors(p, w)
         inset_width, inset_height = _inset_total(p, w)

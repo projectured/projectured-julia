@@ -34,6 +34,7 @@ using ..EventModule
 using ..GestureBindingModule
 using ..GestureModule
 using ..GraphicsModule
+import ..GraphicsModule: find_first_baseline
 using ..IoMapModule
 using ..OperationModule
 using ..PrimitiveModule

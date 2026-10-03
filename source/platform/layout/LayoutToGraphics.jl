@@ -777,17 +777,23 @@ function _vl_alloc_child_y_cell(i::Int, actual_h_cells::Vector{Cell}, gap_cell::
     end))
 end
 
-function _hl_child_y_cell(i::Int, child_iomaps::Vector, outer_h::Cell, align_cell::Cell)
+function _hl_child_y_cell(i::Int, child_iomaps::Vector, outer_h::Cell, align_cell::Cell,
+                          row_baseline::Cell)
     Cell(Computation(function ()
         ch = _child_h(child_iomaps[i])
         oh = outer_h[]
         a  = align_cell[]
-        y = a === :center ? div(oh - ch, 2) :
-            a === :bottom ? oh - ch         :
-                            0
+        y = a === :center   ? div(oh - ch, 2) :
+            a === :bottom   ? oh - ch         :
+            a === :baseline ? row_baseline[] - _child_baseline(child_iomaps[i]) :
+                              0
         Int32(y)
     end))
 end
+
+# The baseline of a child of a row on the baseline: the baseline of its first line,
+# or its bottom edge when it draws no text, as CSS takes it.
+_child_baseline(cim) = something(find_first_baseline(cim), _child_h(cim))
 
 function _vl_child_y_cell(i::Int, child_iomaps::Vector, gap_cell::Cell)
     Cell(Computation(function ()
@@ -889,10 +895,22 @@ function _hl_build(recursion, doc, ctx)
         end)
     end
 
+    # A row on the baseline stands each child so that its baseline meets the
+    # lowest baseline of the row; the row is as tall as the lowest child reaches.
+    row_baseline = Cell(Computation(function ()
+        align_cell[] === :baseline || return 0
+        b = 0
+        for cim in child_iomaps
+            b = max(b, _child_baseline(cim))
+        end
+        b
+    end))
     outer_h = Cell(Computation(function ()
+        on_baseline = align_cell[] === :baseline
         h = 0
         for cim in child_iomaps
             ch = _child_h(cim)
+            on_baseline && (ch += row_baseline[] - _child_baseline(cim))
             ch > h && (h = ch)
         end
         h
@@ -913,7 +931,7 @@ function _hl_build(recursion, doc, ctx)
     child_y = Cell[]
     for i in 1:n
         push!(child_x, _hl_child_x_cell(i, child_iomaps, gap_cell))
-        push!(child_y, _hl_child_y_cell(i, child_iomaps, outer_h, align_cell))
+        push!(child_y, _hl_child_y_cell(i, child_iomaps, outer_h, align_cell, row_baseline))
     end
 
     wrapped = Any[]

@@ -124,9 +124,13 @@ const Fill = Relative(1.0)
 
 A row of children. The projection places each child at an
 increasing x cursor, with vertical alignment chosen by
-`vertical_align ∈ (:top, :center, :bottom)`. The outer canvas has
-width = sum of child widths + gaps and height = max of child
-heights.
+`vertical_align ∈ (:top, :center, :bottom, :baseline)`. On `:baseline` each
+child stands so that the baseline of its first line of text
+(`find_first_baseline`) meets the lowest one of the row, and a child with no
+text stands on its bottom edge, so a label beside a text of another size or
+line spacing reads on one line. The outer canvas has
+width = sum of child widths + gaps and height = the lowest point that a child
+reaches.
 
 Use it to put widgets or documents side by side in one row, from left to right.
 
