@@ -813,6 +813,11 @@ function _format_projectured_release_workflow(jobs)
                    ("          - {package: $(job.name), " *
                     "develop: '$(join(job.develop, ' '))', " *
                     "coverage: '$(join(job.coverage, ','))'}" for job in jobs)...], "\n")
+    # A workflow runs when a folder that its test develops changes, or the
+    # workflow itself, so a push runs the tests of the packages that it touches.
+    patterns = sort!(unique([["$folder/**" for job in jobs for folder in job.develop];
+                             [".github/workflows/$(job.name).yml" for job in jobs]]))
+    paths = join(["      - '$pattern'" for pattern in patterns], "\n")
     """
     # The test of $(join([job.name for job in jobs], ", ")), with coverage. The
     # release of ProjecturEd writes this file, from
@@ -820,13 +825,17 @@ function _format_projectured_release_workflow(jobs)
     #
     # A package reaches its siblings through a registry, which holds a version only
     # after its commit. So a job develops the folders of the packages that its test
-    # needs, and tests this commit.
+    # needs, and tests this commit. It runs when one of those folders changes.
     name: $(join([_get_workflow_name(job.name) for job in jobs], ", "))
 
     on:
       push:
         branches: [main]
+        paths:
+    $paths
       pull_request:
+        paths:
+    $paths
       workflow_dispatch:
 
     concurrency:

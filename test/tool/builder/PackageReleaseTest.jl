@@ -516,6 +516,12 @@ function test_package_release()
         workflow = read(joinpath(workflows, "ProjecturedJSON.yml"), String)
         # The badge shows the name of the workflow: the slice, and the umbrella's own.
         @test occursin("name: JSON\n", workflow)
+        # It runs when a folder that its test develops changes, or itself.
+        for pattern in ("ProjecturedJSON/**", "ProjecturedKernel/**", "test/ProjecturedJSONTest/**",
+                        ".github/workflows/ProjecturedJSON.yml")
+            @test count("      - '$pattern'\n", workflow) == 2
+        end
+        @test !occursin("ProjecturedSDL/**", workflow)
         @test occursin("name: Projectured\n", read(joinpath(workflows, "Projectured.yml"), String))
         @test [m[1] for m in eachmatch(r"- \{package: (\w+),", workflow)] == ["ProjecturedJSON"]
         versions = match(r"julia: \[(.*)\]", workflow)[1]
