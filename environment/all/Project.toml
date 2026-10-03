@@ -44,6 +44,7 @@ ProjecturedFormulaTest = "0bc32d86-cd04-4a16-a675-273d503f220c"
 ProjecturedGraph = "cfb0314b-b1fd-4c94-91d2-2de69579dcb1"
 ProjecturedGraphExample = "0de1adc3-7512-4c4a-bda3-e5e1bc893aff"
 ProjecturedGraphTest = "13deb21d-971d-427d-98f1-3c3c5c103438"
+ProjecturedIntegrations = "12794e67-4fc4-4a27-b5bd-3fafde71a2fd"
 ProjecturedJSON = "975d7430-285c-49f1-8705-4e3c002513ca"
 ProjecturedJSONExample = "6cb86c1c-56e1-4bb3-a3ba-612b1e625b3f"
 ProjecturedJSONTest = "f3be0e4d-6b3e-4a55-8d43-69a2e3a1b80b"
@@ -150,6 +151,7 @@ ProjecturedFormulaTest = {path = "../../package/ProjecturedFormulaTest"}
 ProjecturedGraph = {path = "../../package/ProjecturedGraph"}
 ProjecturedGraphExample = {path = "../../package/ProjecturedGraphExample"}
 ProjecturedGraphTest = {path = "../../package/ProjecturedGraphTest"}
+ProjecturedIntegrations = {path = "../../package/ProjecturedIntegrations"}
 ProjecturedJSON = {path = "../../package/ProjecturedJSON"}
 ProjecturedJSONExample = {path = "../../package/ProjecturedJSONExample"}
 ProjecturedJSONTest = {path = "../../package/ProjecturedJSONTest"}

@@ -8,12 +8,14 @@ const _UUIDS = Dict(
     "DataFrames"             => "a93c6f00-e57d-5684-b7b6-d8193f3e46c0",
     "Projectured"            => "92922de3-b970-4d9a-8b2a-9d6f361397b5",
     "ProjecturedDataFrames"  => "56a0c30a-96eb-4614-b42e-73838bfa8222",
+    "ProjecturedIntegrations" => "12794e67-4fc4-4a27-b5bd-3fafde71a2fd",
     "ProjecturedJSON"        => "975d7430-285c-49f1-8705-4e3c002513ca",
     "ProjecturedSDL"         => "f0002b97-94ba-416c-b93c-86cdc095626f",
     "SimpleDirectMediaLayer" => "98e33af6-2ee5-5afd-9e75-cbc738b767c4")
 
 const _INTEGRATION_NAMES = ("AutoIntegrations", "Projectured", "ProjecturedAnthropic",
-                            "ProjecturedDataFrames", "ProjecturedJSON", "ProjecturedMCP",
+                            "ProjecturedDataFrames", "ProjecturedIntegrations", "ProjecturedJSON",
+                            "ProjecturedMCP",
                             "ProjecturedODBC", "ProjecturedOllama", "ProjecturedOpenRouter",
                             "ProjecturedSDL", "ProjecturedTulip", "ProjecturedVideo",
                             "ProjecturedWeb")
@@ -100,6 +102,26 @@ function test_umbrella_loads_integrations()
               ["AutoIntegrations", "Projectured", "ProjecturedAnthropic", "ProjecturedJSON",
                "ProjecturedMCP", "ProjecturedODBC", "ProjecturedOllama", "ProjecturedOpenRouter",
                "ProjecturedSDL", "ProjecturedTulip", "ProjecturedVideo"]
+    end
+end
+
+function test_integrations_load_with_extensions()
+    @testset "ProjecturedIntegrations loads each integration with a package extension" begin
+        repository = normpath(joinpath(@__DIR__, "..", ".."))
+        environment = _make_scratch_environment(repository,
+                                                ["ProjecturedIntegrations", "DataFrames"])
+        loaded = ["AutoIntegrations", "Projectured", "ProjecturedDataFrames",
+                  "ProjecturedIntegrations"]
+        @test _read_loaded_integrations(environment,
+            "using ProjecturedIntegrations, DataFrames") == loaded
+        # Without the package that it joins, an integration does not load.
+        @test _read_loaded_integrations(environment, "using ProjecturedIntegrations") ==
+              ["AutoIntegrations", "Projectured", "ProjecturedIntegrations"]
+        # The extension loads an integration that the user sets to "manual".
+        write(joinpath(environment, "LocalPreferences.toml"),
+              "[AutoIntegrations]\nProjecturedDataFrames = \"manual\"\n")
+        @test _read_loaded_integrations(environment,
+            "using ProjecturedIntegrations, DataFrames") == loaded
     end
 end
 

@@ -2,7 +2,7 @@
 
 julia_version = "1.13.0"
 manifest_format = "2.1"
-project_hash = "c1e9d46c9582fe79e1586a6cb50044c857340657"
+project_hash = "dd5a29291eb5f3abc87a5c87ccab173bf2bc660f"
 
 [[deps.AMD]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
@@ -1157,6 +1157,21 @@ deps = ["ProjecturedConsole", "ProjecturedGraph", "ProjecturedGraphExample", "Pr
 path = "../../package/ProjecturedGraphTest"
 uuid = "13deb21d-971d-427d-98f1-3c3c5c103438"
 version = "0.1.0"
+
+[[deps.ProjecturedIntegrations]]
+deps = ["Projectured", "ProjecturedDataFrames", "ProjecturedMCP", "ProjecturedODBC", "ProjecturedSDL", "ProjecturedTulip", "ProjecturedVideo"]
+path = "../../package/ProjecturedIntegrations"
+uuid = "12794e67-4fc4-4a27-b5bd-3fafde71a2fd"
+version = "0.1.0"
+weakdeps = ["DataFrames", "FFMPEG", "ModelContextProtocol", "ODBC", "SimpleDirectMediaLayer", "Tulip"]
+
+    [deps.ProjecturedIntegrations.extensions]
+    ProjecturedIntegrationsDataFramesExt = "DataFrames"
+    ProjecturedIntegrationsFFMPEGExt = "FFMPEG"
+    ProjecturedIntegrationsModelContextProtocolExt = "ModelContextProtocol"
+    ProjecturedIntegrationsODBCExt = "ODBC"
+    ProjecturedIntegrationsSimpleDirectMediaLayerExt = "SimpleDirectMediaLayer"
+    ProjecturedIntegrationsTulipExt = "Tulip"
 
 [[deps.ProjecturedJSON]]
 deps = ["ProjecturedKernel", "ProjecturedPlatform"]

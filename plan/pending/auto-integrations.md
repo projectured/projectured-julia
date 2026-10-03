@@ -491,9 +491,14 @@ The README of each released package changes too
       SimpleDirectMediaLayer); one more case loads the other four triggers in
       `environment/all`. `test_packages_declare_triggers()` replaces
       `test_umbrella_names_every_package()`. 8 of 8 and 29 of 29.
-- [ ] **Step 4, `ProjecturedIntegrations`.** The package and its six
+- [x] **Step 4, `ProjecturedIntegrations`.** The package and its six
       extensions, and a test case:
       `using ProjecturedIntegrations, DataFrames` loads `ProjecturedDataFrames`.
+      Done: the source of the package is in `source/integrations/`, its
+      extensions in `package/ProjecturedIntegrations/ext/`.
+      `test_integrations_load_with_extensions()` passes 3 of 3: the extension
+      loads `ProjecturedDataFrames`, nothing loads without DataFrames, and a
+      "manual" setting does not stop the extension.
 - [ ] **Step 5, the names.** `ProjecturedEssentials` and its test. The
       integrations, the backends and `Projectured` re-export its names.
 - [ ] **Step 6, the release.** The README texts of section 5, the entries of
