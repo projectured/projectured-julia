@@ -166,6 +166,27 @@ end
         @test maximum(rows) - minimum(rows) <= 24
     end
 end
+@testset "the views of the window and its Appearance tab draw with the appearance of the take" begin
+    appearance = ProjecturedPlatform.Appearance()
+    seen = Ref{Any}(nothing)
+    timeline = Any[(await = editor -> (seen[] = ProjecturedPlatform.find_editor_appearance(editor); true),
+                    hold = 1.0)]
+    filename = tempname() * ".mp4"
+    try
+        record_application_video(String[], timeline, filename; width = 480, height = 360, fps = 10,
+                                 assistant = :none, root = mktempdir(), initial_hold = 0.2, final_hold = 0.3,
+                                 supersample = 1, video_time = true, appearance)
+    catch e
+        @warn "record_application_video test: the encoding failed (ffmpeg unavailable?): $e"
+    finally
+        rm(filename; force = true)
+    end
+    # The tab and the keys change the appearance that the widgets of the window
+    # draw with, so a step of a scale or an edit of a style shows.
+    @test seen[] === appearance
+    @test any(entry -> ProjecturedPlatform.get_theme_type(entry.theme) === ProjecturedPlatform.WidgetTheme,
+              values(appearance.themes))
+end
 @testset "a partial repaint draws what a full repaint draws" begin
     width, height = 480, 360
     # A mouse event first: from it on, the pointer is drawn over each frame.
