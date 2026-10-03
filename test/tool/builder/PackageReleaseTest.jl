@@ -195,7 +195,10 @@ function test_package_release()
 
         @testset "the first release copies every package into a folder of its own" begin
             results = release()
-            @test [result.name for result in results] == ["FakeBase", "FakeTop"]
+            @test [result.name for result in results] ==
+                  ["FakeBase", "FakeTop", "FakeTopExample", "FakeTopTest"]
+            @test [result.folder for result in results] ==
+                  ["FakeBase", "FakeTop", "example/FakeTopExample", "test/FakeTopTest"]
             @test all(result -> result.status === :new && result.version == v"0.1.0",
                       results)
             top = read_project("FakeTop")
@@ -207,9 +210,10 @@ function test_package_release()
                                         "WeakTrigger" => "2.0.0", "julia" => "1.11")
             @test top["extensions"] == Dict("FakeTopWeakTriggerExt" => "WeakTrigger")
             @test isfile(joinpath(output, "FakeTop", "ext", "FakeTopWeakTriggerExt.jl"))
-            # One folder for each package, and the licence files and the
-            # workflow at the root.
-            @test sort(readdir(output)) == [".github", "FakeBase", "FakeTop", "LICENSE"]
+            # One folder for each package, the support packages in `test/` and
+            # `example/`, and the licence files and the workflow at the root.
+            @test sort(readdir(output)) ==
+                  [".github", "FakeBase", "FakeTop", "LICENSE", "example", "test"]
             # The slice is under `src/`, at the depth that `source/` has.
             @test occursin("include(\"faketop/FakeTopCode.jl\")",
                            read(joinpath(output, "FakeTop", "src", "FakeTop.jl"), String))
@@ -224,30 +228,32 @@ function test_package_release()
             end
         end
 
-        @testset "a package gets the suite of its test package, with what no registry holds" begin
+        @testset "a package gets the suite of its test package, which the release holds once" begin
             test = joinpath(output, "FakeTop", "test")
             @test read(joinpath(test, "runtests.jl"), String) ==
                   "using FakeTopTest\ntest_faketop()\n"
-            @test sort(readdir(joinpath(test, "support"))) == ["FakeTopExample", "FakeTopTest"]
-            # `test/Project.toml` names every support package by its folder.
+            @test sort(readdir(test)) == ["Project.toml", "runtests.jl"]
+            # `test/Project.toml` names the test package, which a registry serves.
             project = ProjecturedBuilder.BuilderModule.TOML.parsefile(
                 joinpath(test, "Project.toml"))
-            @test sort(collect(keys(project["deps"]))) == ["FakeTopExample", "FakeTopTest"]
-            @test project["sources"]["FakeTopTest"]["path"] == "support/FakeTopTest"
-            # A support package names its sibling by path, and a released package
-            # not at all: that one comes from the registry.
-            support = ProjecturedBuilder.BuilderModule.TOML.parsefile(
-                joinpath(test, "support", "FakeTopTest", "Project.toml"))
-            @test support["sources"] ==
-                  Dict("FakeTopExample" => Dict("path" => "../FakeTopExample"))
+            @test project == Dict("deps" => Dict("FakeTopTest" =>
+                                                 "00000000-0000-0000-0000-00000000000f"))
+            # A support package is a package of the release: a version, bounds on
+            # what it depends on, the licence, and no `[sources]`.
+            support = read_project(joinpath("test", "FakeTopTest"))
+            @test !haskey(support, "sources")
+            @test support["version"] == "0.1.0"
+            @test support["compat"]["FakeTop"] == "0.1.0" &&
+                  support["compat"]["FakeTopExample"] == "0.1.0"
+            @test isfile(joinpath(output, "test", "FakeTopTest", "LICENSE"))
             # The include prefix of the repository becomes one of the copy, and the
             # folders it names come along, the file a test reads included.
             @test occursin("include(\"../test/faketop/FakeTopSuite.jl\")",
-                           read(joinpath(test, "support", "FakeTopTest", "src",
+                           read(joinpath(output, "test", "FakeTopTest", "src",
                                          "FakeTopTest.jl"), String))
-            @test isfile(joinpath(test, "support", "FakeTopTest", "test", "faketop",
+            @test isfile(joinpath(output, "test", "FakeTopTest", "test", "faketop",
                                   "data.txt"))
-            @test isfile(joinpath(test, "support", "FakeTopExample", "example", "faketop",
+            @test isfile(joinpath(output, "example", "FakeTopExample", "example", "faketop",
                                   "FakeTopExamples.jl"))
             @test !isdir(joinpath(output, "FakeBase", "test"))
         end
@@ -257,8 +263,7 @@ function test_package_release()
             # depends on, then its support packages, and its code is in three
             # folders.
             @test read(joinpath(output, ".github", "workflows", "CI.yml"), String) ==
-                  "FakeTop: FakeBase FakeTop FakeTop/test/support/FakeTopExample " *
-                  "FakeTop/test/support/FakeTopTest | " *
+                  "FakeTop: FakeBase FakeTop example/FakeTopExample test/FakeTopTest | " *
                   "FakeTop/src FakeTop/ext\n"
 
             # A released package that only a support package names is developed
@@ -274,11 +279,13 @@ function test_package_release()
             write_project(joinpath(folder, "Other", "Project.toml"), String[])
             write_project(joinpath(folder, "Top", "Project.toml"), String[])
             write_project(joinpath(folder, "Top", "test", "Project.toml"), ["TopTest"])
-            write_project(joinpath(folder, "Top", "test", "support", "TopTest",
-                                   "Project.toml"), ["Top", "Middle", "Test"])
+            write_project(joinpath(folder, "test", "TopTest", "Project.toml"),
+                          ["Top", "Middle", "Test"])
+            folders = Dict("Low" => "Low", "Middle" => "Middle", "Other" => "Other",
+                           "Top" => "Top", "TopTest" => joinpath("test", "TopTest"))
             @test ProjecturedBuilder.BuilderModule._collect_release_test_closure(
-                      folder, "Top", ["Low", "Middle", "Other", "Top"]) ==
-                  ["Low", "Middle", "Top"]
+                      folder, "Top", ["Low", "Middle", "Other", "Top", "TopTest"], folders) ==
+                  ["Low", "Middle", "Top", joinpath("test", "TopTest")]
         end
 
         @testset "the overview is the front page of the release repository" begin
@@ -302,15 +309,18 @@ function test_package_release()
             rm(joinpath(root, "source", "faketop", "FakeTopCode.jl.1234.cov"))
         end
 
-        @testset "a change of a test gives no package a new version" begin
-            before = _read_release_folder(output)
+        @testset "a change of a test gives the test package a new version, and no other" begin
+            before = _read_release_folder(joinpath(output, "FakeTop"))
             write(joinpath(root, "test", "faketop", "FakeTopSuite.jl"),
                   "const DATA = joinpath(@__DIR__, \"data.txt\")\ntest_faketop() = 1\n")
             _track_release_fixture(root)
-            results = release()
-            @test all(result -> result.status === :unchanged, results)
+            results = Dict(result.name => result for result in release())
+            @test results["FakeTopTest"].status === :changed
+            @test results["FakeTopTest"].version == v"0.1.1"
+            @test all(name -> results[name].status === :unchanged,
+                      ("FakeBase", "FakeTop", "FakeTopExample"))
             # The released folder keeps the tests of its version.
-            @test _read_release_folder(output) == before
+            @test _read_release_folder(joinpath(output, "FakeTop")) == before
         end
 
         @testset "a change gives a new version to the package that changed, and only to it" begin
@@ -490,7 +500,12 @@ function test_package_release()
         # shows here and not at the release.
         output = joinpath(mktempdir(get_staging_root()), "Projectured.jl")
         results = build_projectured_package_release!(output; context)
-        @test length(results) == length(names)
+        @test count(result -> result.folder == result.name, results) == length(names)
+        # Each test and example package that a test needs is released once.
+        @test all(result -> result.folder == result.name ||
+                            startswith(result.folder, "test/") ||
+                            startswith(result.folder, "example/"), results)
+        @test !any(name -> isdir(joinpath(output, name, "test", "support")), names)
         @test all(result -> result.status === :new, results)
         # The workflow tests each package that has tests, on each Julia version,
         # and a job develops the packages that its test needs.

@@ -12,7 +12,8 @@
 # reaches the same folder. The repository keeps its own layout.
 #
 # The release copy is one git repository with a folder for each package,
-# `<Name>/`. A registry names each version of a package by the tree of its
+# `<Name>/`, and the test and example packages that the tests need in
+# `test/<Name>/` and `example/<Name>/`. A registry names each version of a package by the tree of its
 # folder. A package whose content did not change keeps its folder byte for byte,
 # so it keeps its tree and gets no new version.
 
@@ -22,8 +23,9 @@
                            registry) -> Vector
 
 Write the release copy of `packages` into `output`, one folder per package, and
-answer one `(name, status, version)` for each package, dependencies first. That
-is the order in which a registry must take them. `status` is `:new`,
+answer one `(name, folder, status, version)` for each package and each support
+package, dependencies first. That is the order in which a registry must take
+them, and `folder` is where the package is in `output`. `status` is `:new`,
 `:changed` or `:unchanged`.
 
 - `packages` — the names of the packages to release. Every package of
@@ -44,22 +46,23 @@ is the order in which a registry must take them. `status` is `:new`,
   `README.md` of each package folder.
 - `tests` — `nothing`, or a function `tests(name)` that answers `nothing` or
   `"<test package>" => "<text of runtests.jl>"`: the package of `context` whose
-  suite tests `name`. The copy writes `test/` with that `runtests.jl`, the test
-  package and every package it needs that `packages` leaves out in
-  `test/support/<Name>/`, and a `test/Project.toml` that names them by
-  `[sources]`, so `Pkg.test` runs the suite in the installed folder.
+  suite tests `name`. The copy writes `test/` with that `runtests.jl` and a
+  `test/Project.toml` that names the test package. The test package and every
+  package of `context` that it needs and `packages` leaves out are the support
+  packages: each one is released once, a test package in `test/<Name>/` and an
+  example package in `example/<Name>/`, with a version as any package. A
+  registry holds them, so `Pkg.test` of an installed package installs them as
+  it installs any dependency.
 - `workflow` — `nothing`, or a function `workflow(jobs)` whose text goes into
   `.github/workflows/CI.yml` at the root of `output`. `jobs` holds one
   `(name, develop, coverage)` for each package with a `test/runtests.jl`,
   dependencies first: `develop`, the folders that a test of the commit
   develops into the environment of `Pkg.test(name)`, and `coverage`, the
-  folders of its code. `develop` holds the released packages that the test
-  needs, `name` included and dependencies first, then the support packages of
-  its `test/`. A released package reaches its siblings through a registry,
-  which holds a version only after its commit, so the test develops their
-  folders instead; and the sandbox of `Pkg.test` keeps the version of a
-  sibling only when the manifest of the environment reaches it, so the
-  support packages that need it are developed too.
+  folders of its code. `develop` holds the folders of the released packages
+  and the support packages that the test needs, `name` included and
+  dependencies first. A package reaches its siblings through a registry, which
+  holds a version only after its commit, and a job reaches no private
+  registry, so the test develops their folders instead.
 - `overview` — `nothing`, or a function `overview(names)` whose text goes into
   `README.md` at the root of `output`, the front page of the release
   repository. `names` are the released packages, dependencies first.
@@ -82,8 +85,10 @@ its released one, and caret bounds on its sibling packages from their versions
 in this release, its weak dependencies too. A package whose content did not change keeps its released
 folder as it is, `[compat]` and `test/` included. The content is every file of
 the folder but those of `test/`, and the `Project.toml` without `version`,
-`[compat]` and `[sources]`: a change of a test gives no package a new version,
-and the next version of the package takes the tests of its time.
+`[compat]` and `[sources]`: a change of a test gives no released package a new
+version. A support package counts the files of its `test/` too, because a test
+package keeps its suite there, so a change of a test gives the test package a
+new version.
 
 **The check.** Every path that a package reads, in the forms that
 [`collect_outside_paths`](@ref) follows, must stay inside its package folder,
@@ -125,24 +130,48 @@ function build_package_release!(context::BuildContext; packages,
     for (name, version) in _read_path_versions(manifest)
         has_package_directory(context, name) || (registered[name] = version)
     end
+    # The suite of each released package, and the support packages: its test
+    # package and every package of `context` that this needs and the release
+    # leaves out. A support package is released once, in `test/` or `example/`,
+    # and a registry holds it, so the test of an installed package reaches it as
+    # it reaches any dependency.
+    suites = Dict{String,Pair{String,String}}()
+    for name in names
+        suite = tests === nothing ? nothing : tests(name)
+        suite === nothing || (suites[name] = suite)
+    end
+    support = sort!(unique([found for (test_package, _) in values(suites)
+                            for found in _collect_support_packages(context, test_package,
+                                                                   names)]))
+    folders = Dict{String,String}(name => name for name in names)
+    for name in support
+        folders[name] = _get_support_folder(name)
+        projects[name] = TOML.parsefile(joinpath(get_package_directory(context, name),
+                                                 "Project.toml"))
+    end
     output = abspath(String(output))
     mkpath(output)
     _check_release_is_committed(output)
-    registry === nothing || _check_release_is_registered(output, names, registry)
+    registry === nothing || _check_release_is_registered(output, folders, registry)
     order = _compute_dependency_order(projects)
     staging = mktempdir(get_staging_root())
-    results = NamedTuple{(:name, :status, :version),Tuple{String,Symbol,VersionNumber}}[]
+    results = NamedTuple{(:name, :folder, :status, :version),
+                         Tuple{String,String,Symbol,VersionNumber}}[]
     try
         for name in order
-            staged = joinpath(staging, name)
-            _write_package_content(context, name, staged;
-                                   assets = get(assets, name, Pair{String,String}[]),
-                                   licences)
-            readme === nothing || write(joinpath(staged, "README.md"), readme(name))
-            tests === nothing ||
-                _write_release_tests(context, staged, tests(name), names; assets)
-            outside = filter(path -> !_is_accepted_test_path(staged, path),
-                             collect_outside_paths(staged))
+            staged = joinpath(staging, folders[name])
+            package_assets = get(assets, name, Pair{String,String}[])
+            if name in support
+                _write_support_package(context, name, staged; assets = package_assets,
+                                       licences)
+            else
+                _write_package_content(context, name, staged; assets = package_assets,
+                                       licences)
+                readme === nothing || write(joinpath(staged, "README.md"), readme(name))
+                haskey(suites, name) && _write_release_tests(context, staged, suites[name])
+            end
+            accepted = name in support ? _is_accepted_support_path : _is_accepted_test_path
+            outside = filter(path -> !accepted(staged, path), collect_outside_paths(staged))
             isempty(outside) ||
                 error("build_package_release!: $name reads outside its folder, which " *
                       "an installed " *
@@ -153,20 +182,23 @@ function build_package_release!(context::BuildContext; packages,
         end
         versions = Dict{String,VersionNumber}()
         for name in order
-            staged, released = joinpath(staging, name), joinpath(output, name)
-            status, version = _compute_release_version(staged, released, projects[name])
+            staged, released = joinpath(staging, folders[name]), joinpath(output, folders[name])
+            status, version = _compute_release_version(staged, released, projects[name];
+                                                       whole = name in support)
             versions[name] = version
             status === :unchanged ||
                 _write_release_project(joinpath(staged, "Project.toml"), projects[name],
                                        version;
                                        versions, registered, julia_compat)
-            push!(results, (name = name, status = status, version = version))
+            push!(results, (name = name, folder = folders[name], status = status,
+                            version = version))
         end
         for result in results
             result.status === :unchanged && continue
-            released = joinpath(output, result.name)
+            released = joinpath(output, result.folder)
             rm(released; recursive = true, force = true)
-            cp(joinpath(staging, result.name), released)
+            mkpath(dirname(released))
+            cp(joinpath(staging, result.folder), released)
         end
     finally
         rm(staging; recursive = true, force = true)
@@ -174,8 +206,9 @@ function build_package_release!(context::BuildContext; packages,
     for licence in licences
         cp(joinpath(context.root, licence), joinpath(output, basename(licence)); force = true)
     end
-    workflow === nothing || _write_release_workflow(output, workflow, order)
-    overview === nothing || write(joinpath(output, "README.md"), overview(order))
+    workflow === nothing || _write_release_workflow(output, workflow, order, folders)
+    overview === nothing ||
+        write(joinpath(output, "README.md"), overview(filter(!in(support), order)))
     counts = Dict(status => count(result -> result.status === status, results)
                   for status in (:new, :changed, :unchanged))
     @info("build_package_release!: wrote $output", packages = length(results),
@@ -325,56 +358,48 @@ end
 # that has tests, with the folders that its test develops and the folders of its
 # code. It reads the folders as the release leaves them, so a package that keeps
 # its released folder gets the jobs of its released tests.
-function _write_release_workflow(output, workflow, order)
+function _write_release_workflow(output, workflow, order, folders)
     jobs = [(name = name,
-             develop = [_collect_release_test_closure(output, name, order);
-                        _collect_support_folders(output, name)],
+             develop = _collect_release_test_closure(output, name, order, folders),
              coverage = [joinpath(name, folder) for folder in ("src", "ext")
                          if isdir(joinpath(output, name, folder))])
-            for name in order if isfile(joinpath(output, name, "test", "runtests.jl"))]
+            for name in order
+            if folders[name] == name && isfile(joinpath(output, name, "test", "runtests.jl"))]
     path = joinpath(output, ".github", "workflows", "CI.yml")
     mkpath(dirname(path))
     write(path, workflow(jobs))
     nothing
 end
 
-# The folders of the support packages of `name`, relative to `output`.
-function _collect_support_folders(output, name)
-    support = joinpath(name, "test", "support")
-    isdir(joinpath(output, support)) || return String[]
-    [joinpath(support, entry) for entry in readdir(joinpath(output, support))
-     if isfile(joinpath(output, support, entry, "Project.toml"))]
-end
-
-# The released packages that `Pkg.test(name)` needs in its environment, `name`
-# included, in the order of `order`: what `name`, its test project and its
-# support packages depend on, and what those depend on in turn. A support
-# package names a released sibling without `[sources]`, so that sibling counts.
-function _collect_release_test_closure(output, name, order)
-    projects = [joinpath(output, name, "Project.toml"),
-                joinpath(output, name, "test", "Project.toml"),
-                (joinpath(output, folder, "Project.toml")
-                 for folder in _collect_support_folders(output, name))...]
+# The folders of the packages that `Pkg.test(name)` needs in its environment,
+# `name` included, in the order of `order`: what `name` and its test project
+# depend on, and what those depend on in turn, released packages and support
+# packages alike. A job develops each one, because a job reaches no registry
+# that holds them.
+function _collect_release_test_closure(output, name, order, folders)
+    projects = [joinpath(output, folders[name], "Project.toml"),
+                joinpath(output, folders[name], "test", "Project.toml")]
     found = Set([name])
     while !isempty(projects)
         project = TOML.parsefile(pop!(projects))
         for dependency in keys(get(project, "deps", Dict{String,Any}()))
             (dependency in order && !(dependency in found)) || continue
             push!(found, dependency)
-            push!(projects, joinpath(output, dependency, "Project.toml"))
+            push!(projects, joinpath(output, folders[dependency], "Project.toml"))
         end
     end
-    filter(in(found), order)
+    [folders[package] for package in order if package in found]
 end
 
 # Every package that the last release holds has its version in `registry`.
-function _check_release_is_registered(output, names, registry::AbstractString)
-    released = filter(name -> isfile(joinpath(output, name, "Project.toml")), names)
+function _check_release_is_registered(output, folders, registry::AbstractString)
+    released = sort!([name for (name, folder) in folders
+                      if isfile(joinpath(output, folder, "Project.toml"))])
     isempty(released) && return nothing
     instance = _find_registry(registry)
     missing_versions = String[]
     for name in released
-        project = TOML.parsefile(joinpath(output, name, "Project.toml"))
+        project = TOML.parsefile(joinpath(output, folders[name], "Project.toml"))
         entry = get(instance.pkgs, Base.UUID(project["uuid"]), nothing)
         version = VersionNumber(project["version"])
         (entry !== nothing && version in _collect_registered_versions(instance, entry)) ||
@@ -428,13 +453,13 @@ function _compute_dependency_order(projects)
     order
 end
 
-function _compute_release_version(staged, released, project)
+function _compute_release_version(staged, released, project; whole::Bool = false)
     isfile(joinpath(released, "Project.toml")) ||
         return :new, VersionNumber(project["version"])
     previous = TOML.parsefile(joinpath(released, "Project.toml"))
     version = VersionNumber(previous["version"])
-    _compute_content_digest(staged, project) ==
-        _compute_content_digest(released, previous) &&
+    _compute_content_digest(staged, project; whole) ==
+        _compute_content_digest(released, previous; whole) &&
         return :unchanged, version
     :changed, VersionNumber(version.major, version.minor, version.patch + 1)
 end
@@ -504,26 +529,28 @@ function _write_package_content(context::BuildContext, name, destination;
        joinpath(destination, "Project.toml"))
 end
 
-# The test folder of one released package: `runtests.jl` from `test`, the test
-# package and every package it needs that `released` leaves out in `support/`,
-# and a `Project.toml` that names them by `[sources]`. `Pkg.test` reads those
-# paths in the installed folder, so the suite needs no registry for them.
-function _write_release_tests(context::BuildContext, staged, test, released; assets)
-    test === nothing && return nothing
+# The test folder of one released package: `runtests.jl`, and a `Project.toml`
+# that names the test package. The release holds the test package once, in
+# `test/`, and a registry holds it, so `Pkg.test` of an installed package
+# installs it as it installs any dependency.
+function _write_release_tests(context::BuildContext, staged, test)
     test_package, runtests = test
-    support = _collect_support_packages(context, test_package, released)
     folder = joinpath(staged, "test")
-    for name in support
-        _write_support_package(context, name, joinpath(folder, "support", name), support;
-                               assets = get(assets, name, Pair{String,String}[]))
-    end
-    project = Dict{String,Any}(
-        "deps" => Dict{String,Any}(name => _read_package_uuid(context, name) for name in support),
-        "sources" => Dict{String,Any}(name => Dict{String,Any}("path" => "support/$name")
-                                      for name in support))
+    mkpath(folder)
+    project = Dict{String,Any}("deps" => Dict{String,Any}(
+        test_package => _read_package_uuid(context, test_package)))
     open(io -> TOML.print(io, project; sorted = true), joinpath(folder, "Project.toml"), "w")
     write(joinpath(folder, "runtests.jl"), runtests)
     nothing
+end
+
+# The folder of a support package in the release: `test/<name>` for a test
+# package, and `example/<name>` for an example package.
+function _get_support_folder(name)
+    endswith(name, "Test") && return joinpath("test", name)
+    endswith(name, "Example") && return joinpath("example", name)
+    error("build_package_release!: the test of a released package needs $name, which " *
+          "is no test package and no example package; release it, or name it so")
 end
 
 # The test package and every package of `context` that it needs and `released`
@@ -546,12 +573,11 @@ end
 _read_package_uuid(context::BuildContext, name) =
     TOML.parsefile(joinpath(get_package_directory(context, name), "Project.toml"))["uuid"]
 
-# One support package of a test folder: its `src/` with the prefix `../../../` of
-# a path into this repository changed to `../`, the folders that those paths
-# name, the folders it reads while it runs, and its `Project.toml` with
-# `[sources]` for the other support packages only. A package that the release
-# holds comes from the registry.
-function _write_support_package(context::BuildContext, name, destination, support; assets)
+# One support package: its `src/` with the prefix `../../../` of a path into this
+# repository changed to `../`, the folders that those paths name, the folders it
+# reads while it runs, the licence files, and its `Project.toml` without
+# `[sources]`: every package that it depends on comes from a registry.
+function _write_support_package(context::BuildContext, name, destination; assets, licences)
     package = relpath(get_package_directory(context, name), context.root)
     mkpath(destination)
     folders = String[]
@@ -571,11 +597,11 @@ function _write_support_package(context::BuildContext, name, destination, suppor
     for (from, to) in assets
         _copy_tracked_files(context, from, joinpath(destination, to))
     end
+    for licence in licences
+        cp(joinpath(context.root, licence), joinpath(destination, basename(licence)))
+    end
     project = TOML.parsefile(joinpath(context.root, package, "Project.toml"))
-    sources = Dict{String,Any}(dependency => Dict{String,Any}("path" => "../$dependency")
-                               for dependency in keys(get(project, "deps", Dict{String,Any}()))
-                               if dependency in support)
-    isempty(sources) ? delete!(project, "sources") : (project["sources"] = sources)
+    delete!(project, "sources")
     open(joinpath(destination, "Project.toml"), "w") do io
         TOML.print(io, project; sorted = true,
                    by = key -> (get(_PROJECT_KEY_ORDER, key, 99), key))
@@ -597,16 +623,24 @@ _is_accepted_test_path(staged, path) =
     startswith(path.file, joinpath(staged, "test") * Base.Filesystem.path_separator) &&
     (path.kind === :form || (path.kind === :path && _is_inside_folder(staged, path.target)))
 
+# A finding of the scan in a support package: a form that the scan can not
+# follow, and a path inside the package that names nothing yet. An `include` must
+# name a file, and no path may leave the package.
+_is_accepted_support_path(staged, path) =
+    path.kind === :form || (path.kind === :path && _is_inside_folder(staged, path.target))
+
 # A digest of what a user of the package gets: every file but those of `test/`,
 # each with its length, and the `Project.toml` without `version`, `[compat]` and
-# `[sources]`.
-function _compute_content_digest(folder, project)
+# `[sources]`. With `whole`, the files of `test/` count too: a test package keeps
+# its suite there.
+function _compute_content_digest(folder, project; whole::Bool = false)
     content = IOBuffer()
     for (directory, _, files) in walkdir(folder), file in sort(files)
         path = joinpath(directory, file)
         relative = relpath(path, folder)
         (relative == "Project.toml" ||
-         startswith(relative, "test" * Base.Filesystem.path_separator)) && continue
+         (!whole && startswith(relative, "test" * Base.Filesystem.path_separator))) &&
+            continue
         bytes = read(path)
         write(content, relative, "\n", string(length(bytes)), "\n", bytes)
     end

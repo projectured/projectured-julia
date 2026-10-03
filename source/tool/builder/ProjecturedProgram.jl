@@ -633,9 +633,8 @@ end
 # that it tests through another package, as the suite of the umbrella reaches it
 # through `ProjecturedAll`.
 _format_projectured_runtests(name, test_package, suite) = """
-    # The suite of `$test_package`, which the release copies into `support/` with
-    # the packages it needs that no registry holds. SDL draws into memory when no
-    # display is named.
+    # The suite of `$test_package`, which the release holds in `test/` and the
+    # registry serves. SDL draws into memory when no display is named.
     haskey(ENV, "SDL_VIDEODRIVER") || (ENV["SDL_VIDEODRIVER"] = "offscreen")
     using $name
     using $test_package

@@ -607,6 +607,21 @@ The README of each released package changes too
       32 jobs: `ProjecturedRegistry` is private, and a job has no token for it.
       So a job adds AutoIntegrations from its public repository by URL, and no
       registry; General comes by itself.
+- [x] **Step 10f, each test and example package once (the owner,
+      2026-10-03).** The release copied the test package of each released
+      package and every test or example package that it needs into its
+      `test/support/`: 216 folders of 55 packages, 88 MB of 128 MB, 8195 of 9216
+      files. The owner's requirements: no test or example package at the root
+      of `Projectured.jl`, `Pkg.test` of an installed package works, and GitHub
+      CI reaches them. Now each support package is released once, a test
+      package in `test/<Name>/` and an example package in `example/<Name>/`,
+      with a version and bounds as any package, and the registry holds it. A
+      released package's `test/Project.toml` names its test package, and a job
+      develops every folder that its test needs. A support package counts the
+      files of its `test/` in its version, because a test package keeps its
+      suite there. The release: 34 packages at the root, 32 in `test/`, 23 in
+      `example/`, 49 MB and 1767 files. `test_package_release()` passes 67 of 67
+      and 160 of 160.
 - [ ] **Step 11, cleanup, after the owner's word.** The branch
       `integration-shells`, its worktree and the two downstream branches. A
       new private release from the new head, with the commands for the owner.
