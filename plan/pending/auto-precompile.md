@@ -303,8 +303,32 @@ Each step is a commit. Mark it here when it is done.
    the ones that its code uses. The module and the README say that this version
    does nothing when it loads, and the test checks that it adds no package
    callback. `Pkg.test()`: 1 of 1 passes.
-4. **The selection**: read the files, parse, the shape check, the roots, the
-   key. Tests with lines that pass and lines that are refused.
+4. **Done — the selection**: read the files, parse, the shape check, the roots,
+   the key. Tests with lines that pass and lines that are refused.
+
+   Done 2026-10-03, commit `78421c3` on the branch `selection` of
+   `auto-precompile` (worktree `auto-precompile-selection`), not on `main` yet.
+   `Pkg.test()`: 40 of 40 pass. What was found and chosen:
+   - The 17747 lines of the two recordings of ProjecturEd hold few forms: each is
+     a `Tuple{…}`, the heads are `curly`, `.`, `where`, `<:`, `tuple` and `call`,
+     the only call is `typeof`, and the only literals are integers and symbols.
+     The shape check allows those, and also `Bool`, `Char`, float and string
+     literals, `>:`, and `Lb<:T<:Ub`, which a trace of another package can
+     hold. Anything else is refused, for example a call, a macro, an assignment,
+     a block, an interpolation, a quoted expression or an array.
+   - No line of the 17747 is refused. For the set of the README, the selection
+     gives the same lines as the experiment of step 2: 7575 of the list of the
+     repository and 2344 of 2344 of the README recording.
+   - AutoPrecompile reads the statement files of every loaded package that has a
+     uuid, in the folder that `pkgdir` gives. A root resolves by name among the
+     loaded packages; a name that two loaded packages share is left out, so a
+     line that names it is not selected.
+   - The uuid of a leaf is `uuid5` of the sorted uuids of its set, with the uuid
+     of AutoPrecompile as the namespace, and its name is `AutoPrecompileLeaf_`
+     and the first 16 hex digits. A test pins two values, because a key that
+     changes would leave every leaf behind.
+   - The package gets the dependency `UUIDs`. `Project.toml` still says 0.1.0;
+     the next registration needs a new number.
 5. **The leaf**: write it, wait 10 s, build it in the background with a log, load
    it. Tests with scratch packages, as the tests of AutoIntegrations.
 6. **Disk space**: the limit, the setting and the cleanup.
