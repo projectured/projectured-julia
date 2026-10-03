@@ -398,19 +398,15 @@ end
 # (`:same_length`) and does not arrive back at the start (`:left_reaches_start`).
 # Each remaining member fails for its own reason, none of them the shared
 # widened-indent round-trip (that one is handled in `_backward_zone`):
-#   * formula — the leftward walk steps out of one formula's syntax children into a
-#     different subtree and stops; its rightward walk misses the end too (see
-#     `NAV_RIGHT_WALK_MISSES_END`).
 #   * text / text_with_image — a left/right asymmetry in the plain Text pipeline,
 #     with no projection involved.
 #   * markdown_rendered — rendered inline chrome (styled links/images) has no
 #     backward caret for every rendered glyph.
-const NAV_LEFT_WALK_STALLS = ("formula", "text", "text_with_image", "markdown_rendered")
+const NAV_LEFT_WALK_STALLS = ("text", "text_with_image", "markdown_rendered")
 
-# @broken: on formula the *rightward* walk also ends somewhere other than where
-# Ctrl+End lands, the same out-of-subtree drift in the forward direction
-# (`:right_reaches_end`).
-const NAV_RIGHT_WALK_MISSES_END = ("formula",)
+# @broken: the rightward walk ends somewhere other than where Ctrl+End lands
+# (`:right_reaches_end`). No example is known to.
+const NAV_RIGHT_WALK_MISSES_END = ()
 
 # @broken: right and left visit a different number of carets (`:same_length`)
 # and the rightward walk does not end where Ctrl+End lands

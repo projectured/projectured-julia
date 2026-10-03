@@ -705,9 +705,11 @@ function _format_projectured_release_overview(context::BuildContext, names)
     julia> display_in_editor(DataFrame(n = 1:100_000, square = (1:100_000) .^ 2))
     ```
 
-    `ProjecturedSDL` installs SimpleDirectMediaLayer, and `ProjecturedDataFrames`
-    installs DataFrames. The session loads the packages that you name and the
-    packages that they depend on. Nothing else loads.
+    The session loads the packages that you name and the packages that they depend
+    on. Nothing else loads. `ProjecturedDataFrames` brings DataFrames as its own
+    dependency, but a `using` line reaches only a package that you added by name,
+    so the `add` line names DataFrames too: without it, `using DataFrames` fails
+    with "Package DataFrames not found in current path".
 
     > The first `display_in_editor` of a session can take a long time before the
     > window opens. Julia compiles the code of the editor the first time that it

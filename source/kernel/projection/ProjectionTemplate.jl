@@ -453,8 +453,10 @@ function _atomic_print(p, doc, out)
     #   opaque (no bound field) ⇒ forward-map (∅↔∅, else unmapped). The generic
     #                             mapper tolerates the `nothing` iomap (a ∅ stays
     #                             untyped, an unmapped path returns as-is).
-    #   output field named as   ⇒ share doc's cell raw — the input cursor `.field{k}`
-    #   the input field           already names the leaf's value span (leaf fast path).
+    #   output field named as   ⇒ the input cursor `.field{k}` already names the
+    #   the input field           leaf's value span, so it passes as it is; a caret
+    #                             on a part that the leaf printed takes off the
+    #                             leaf's own introduced step.
     #   another output field    ⇒ value-lens: forward-map `.field{k}` to the leaf's
     #                             `.<value_field>{k}`.
     iomap_cell = Cell(nothing)
@@ -469,7 +471,8 @@ function _atomic_print(p, doc, out)
         Cell(@computation(map_selection_forward(doc,
             path -> map_reference_forward(p, nothing, path); map_missing = true)))
     elseif wiring.value_field === wiring.bound_field
-        getfield(doc, :selection)
+        Cell(@computation(map_selection_forward(doc, path ->
+            is_introduced_reference(path, p) ? path.head.output_path : path)))
     else
         Cell(@computation begin
             im = iomap_cell[]
