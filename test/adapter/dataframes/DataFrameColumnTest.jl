@@ -28,8 +28,12 @@ function test_data_frame_columns()
         column_reference(c) = ConcreteReference(FieldReferenceStep("columns"),
             ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))
         module_ = ProjecturedDataFrames.DataFramesModule
-        labels_of(menu) = [item.action.label for item in menu.elements]
-        item_of(menu, label) = only(item for item in menu.elements if item.action.label == label)
+        labels_of(menu) = [item.action.label for item in menu.elements if item isa WidgetMenuItem]
+        item_of(menu, label) =
+            only(item for item in menu.elements if item isa WidgetMenuItem && item.action.label == label)
+        # The items of the menu of a header.
+        header_labels = ["Filter by values…", "Hide column", "Insert column before", "Insert column after",
+                         "Move column left", "Move column right", "Delete column"]
 
         @testset "a press on a header selects its column, and the header shows it" begin
             view = DataFrameView(make_frame())
@@ -59,7 +63,7 @@ function test_data_frame_columns()
             io = print_document(projection, nothing, view, context())
             @test compute_context_menu(view) === nothing
             menu = compute_context_menu(DataFrameColumn(view, "name"))
-            @test labels_of(menu) == ["Filter by values…", "Hide column"]
+            @test labels_of(menu) == header_labels
             @test item_of(menu, "Hide column").enabled
             evaluate_operation(nothing, module_._make_hide_column_operation(view, "name"))
             @test view.query.hidden_columns == ["name"]
@@ -94,7 +98,7 @@ function test_data_frame_columns()
             opened = right(x + 2, y + 2)
             @test opened isa OpenContextMenuOperation
             @test titles_of(opened) == ["name"]
-            @test menu_labels(opened) == ["Filter by values…", "Hide column"]
+            @test menu_labels(opened) == header_labels
             @test opened.point == (x + 2, y + 2)
             @test strip_reference_types(opened.source) == column_reference(2)
             # The corner opens the menu of the view once a column is hidden, and a
@@ -116,7 +120,7 @@ function test_data_frame_columns()
             opened = get_wrapped_operation(read_gesture(column, click))
             @test opened isa OpenContextMenuOperation
             labels = labels_of(last(only(opened.layers)))
-            @test labels == ["Filter by values…", "Hide column"]
+            @test labels == header_labels
             # The view has no menu while every column shows.
             @test read_gesture(view, click) === nothing
         end

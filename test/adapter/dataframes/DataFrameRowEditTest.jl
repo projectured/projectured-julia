@@ -80,9 +80,11 @@ function test_data_frame_row_edits()
                 only((t[1], t[2]) for t in _data_frame_texts(force(window.content)) if t[3] == text)
             main = first(windows()).id
             # A right click on the header of the row that shows `header`, and a
-            # choice of `label` in its menu.
+            # choice of `label` in its menu. The corner shows the count of the
+            # rows above the headers, so the header is the lowest such text.
             function choose!(header, label, time)
-                (x, y) = place_in(first(windows()), header)
+                (x, y) = last(sort([(t[1], t[2]) for t in _data_frame_texts(force(first(windows()).content))
+                                    if t[3] == header]; by = last))
                 click!(:right, x + 2, y + 2, time, main)
                 menu = only(window for window in windows() if window.id !== main)
                 (x, y) = place_in(menu, label)
@@ -98,6 +100,13 @@ function test_data_frame_row_edits()
             @test view.frame.name == ["a", "b", "", "c"]
             @test strip_reference_types(get_selection(view)) == whole(3, 1)
             undo!(4.0)
+            # The new row below the last row is a row that the selection names
+            # only after the insert.
+            choose!("3", "Insert row below", 4.5)
+            @test view.frame.name == ["a", "b", "c", ""]
+            @test strip_reference_types(get_selection(view)) == whole(4, 1)
+            undo!(4.8)
+            @test view.frame.name == ["a", "b", "c"]
             choose!("2", "Delete row", 5.0)
             @test view.frame.name == ["a", "c"]
             @test strip_reference_types(get_selection(view)) == whole_row(2)

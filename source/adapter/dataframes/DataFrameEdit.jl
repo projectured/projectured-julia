@@ -25,11 +25,13 @@ end
 operation_travels_unchanged(::SetDataFrameValueOperation) = true
 
 function evaluate_operation(editor, op::SetDataFrameValueOperation)
-    view = op.view
-    view.frame[op.row, op.column] = op.value
-    getfield(view, :frame_version)[] = view.frame_version + 1
-    nothing
+    op.view.frame[op.row, op.column] = op.value
+    _move_frame_version!(op.view)
 end
+
+# Move the version of the frame of `view`, so every computation that reads the
+# frame reads it again.
+_move_frame_version!(view::DataFrameView) = (getfield(view, :frame_version)[] = view.frame_version + 1; nothing)
 
 make_inverse_operation(document, op::SetDataFrameValueOperation) =
     SetDataFrameValueOperation(op.view, op.row, op.column, op.view.frame[op.row, op.column])

@@ -358,18 +358,24 @@ _get_column_align(type::Type) =
 
 # ── read_intent ───────────────────────────────────────────────────────────────
 
-# An insert or a delete of a row of the view, which comes with a route to the
-# row from the menu of the row, becomes the step that it makes in the view: the
-# selection, the entries and the place of the view with it.
+# An insert, a delete or a move of a row or a column of the view, which comes
+# with a route into the view from the menu of a row or of a column, becomes the
+# step that it makes in the view: the selection, the entries and the place of
+# the view with it.
 function read_intent(p::DataFrameViewToWidget, recursion, change::Intent, iomap::DataFrameViewToWidgetIoMap)
     operation = change.operation
-    if change.route !== nothing && operation isa InsertDataFrameRowOperation && operation.view === iomap.input
-        return Intent(change.gesture, _make_row_insert_step(operation), change.description, change.domain)
-    elseif change.route !== nothing && operation isa DeleteDataFrameRowOperation && operation.view === iomap.input
-        return Intent(change.gesture, _make_row_delete_step(operation), change.description, change.domain)
-    end
+    step = (change.route === nothing || !(operation isa _DataFrameShapeOperation) ||
+            operation.view !== iomap.input) ? nothing : _make_shape_step(operation)
+    step === nothing || return Intent(change.gesture, step, change.description, change.domain)
     invoke(read_intent, Tuple{Projection,Any,Intent,Any}, p, recursion, change, iomap)
 end
+
+const _DataFrameShapeOperation =
+    Union{InsertDataFrameRowOperation,DeleteDataFrameRowOperation,_DataFrameColumnOperation}
+
+_make_shape_step(operation::InsertDataFrameRowOperation) = _make_row_insert_step(operation)
+_make_shape_step(operation::DeleteDataFrameRowOperation) = _make_row_delete_step(operation)
+_make_shape_step(operation::_DataFrameColumnOperation) = _make_column_step(operation)
 
 # A key that the table does not take: the gestures of the view answer it.
 read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap, event::KeyDown) =

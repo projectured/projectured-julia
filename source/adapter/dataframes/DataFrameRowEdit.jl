@@ -32,16 +32,14 @@ function evaluate_operation(editor, op::InsertDataFrameRowOperation)
     view = op.view
     insert!(view.frame, op.row, op.values)
     _move_cell_edits!(view, op.row, 1)
-    getfield(view, :frame_version)[] = view.frame_version + 1
-    nothing
+    _move_frame_version!(view)
 end
 
 function evaluate_operation(editor, op::DeleteDataFrameRowOperation)
     view = op.view
     deleteat!(view.frame, op.row)
     _move_cell_edits!(view, op.row + 1, -1)
-    getfield(view, :frame_version)[] = view.frame_version + 1
-    nothing
+    _move_frame_version!(view)
 end
 
 make_inverse_operation(document, op::InsertDataFrameRowOperation) =
@@ -80,14 +78,16 @@ end
 # ── The step of the view ─────────────────────────────────────────────────────
 
 # The step that the insert of row `op.row` makes in the view: the selection of
-# its first shown cell, the insert, and the place of the view that keeps the new
-# row where the row that the menu belongs to, `place_row`, or the place after
-# it, stood. The selection comes first, so its inverse comes last.
+# the whole view, which every state has, the insert, the selection of the first
+# shown cell of the new row, which the insert makes, and the place of the view
+# that keeps the new row where the row of its number stood, or after the last
+# one. So the undo takes back the insert before it puts back the old selection.
 function _make_row_insert_step(op::InsertDataFrameRowOperation)
     view = op.view
     shown = _get_shown_columns(view)
     isempty(shown) && return op
-    operations = Any[_make_whole_cell_selection(view, op.row, first(shown)), op]
+    operations = Any[ReplaceSelectionOperation(EmptyReference()), op,
+                     _make_whole_cell_selection(view, op.row, first(shown))]
     before = view.kept_rows
     after = _compute_kept_rows_of(view, Any[_InsertedValueVector(column, op.row, value)
                                             for (column, value) in zip(eachcol(view.frame), op.values)])

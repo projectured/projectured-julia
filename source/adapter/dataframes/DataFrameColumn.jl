@@ -40,14 +40,18 @@ _make_element_reference(field::String, i::Int, tail) =
 _make_menu_item(label::String, make; enabled::Bool = true) =
     WidgetMenuItem(label; enabled, operation = enabled ? make() : nothing)
 
-# The menu of the header of a column: filter it by its values, and hide it. The
-# last column that the view shows can not be hidden.
+# The menu of the header of a column: filter it by its values and hide it, which
+# change the view, and the items that change the frame
+# (`_make_column_edit_items`). The last column that the view shows can not be
+# hidden.
 function compute_context_menu(column::DataFrameColumn)
     view, name = column.view, column.name
     values = Action("Filter by values…"; callback = editor -> _open_value_list!(editor, view, name))
     WidgetMenu(Any[WidgetMenuItem("Filter by values…"; action = values),
                    _make_menu_item("Hide column", () -> _make_hide_column_operation(view, name);
-                                   enabled = length(_get_shown_columns(view)) > 1)])
+                                   enabled = length(_get_shown_columns(view)) > 1),
+                   WidgetSeparator(),
+                   _make_column_edit_items(view, name)...])
 end
 
 # The menu of the whole view, which the corner of the table reaches: show one

@@ -1626,7 +1626,39 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       allows `missing`); the operations and their inverses with an entry in a
       later row; a real editor (a right click on a row header, each item, and
       Ctrl+Z after each). The data frames 477.
-  - [ ] **4b.3** Columns: insert, delete and move (B2, B3, B5, B7).
+  - [x] **4b.3** Columns: insert, delete and move (B2, B3, B5, B7). Done
+    2026-10-03:
+    - `InsertDataFrameColumnOperation(view, index, name, vector)`,
+      `DeleteDataFrameColumnOperation(view, name)` and
+      `MoveDataFrameColumnOperation(view, name, index)`
+      (`DataFrameColumnEdit.jl`), each with its inverse; the insert takes the
+      vector as it is (`copycols = false`), so the undo of a delete puts back
+      the same vector.
+    - The menu of a header has, after a separator, "Insert column before",
+      "Insert column after", "Move column left", "Move column right" and
+      "Delete column". A move goes past the shown column on that side, also
+      over a hidden one (B7, in the frame). A `SubDataFrame` takes none, and
+      the last column can not be deleted.
+    - B5 changed (mine): a new column is a column of text,
+      `Union{Missing,String}`, all `missing`, with no submenu of its type: a
+      choice in a submenu of a context menu opens a second popup, and the lift
+      of B1 needs the state of the first one. The convert of 4b.4 gives it
+      another type.
+    - The step (a 4-argument reader of the view, as for a row): a path names a
+      column by its number, so the step selects the whole view first, which
+      every state has, then makes the change, then selects the column that it
+      leaves: the new one, the moved one, or the shown column after a deleted
+      one, or the one before it. A delete drops the open cells of its column
+      before it. So the undo takes back the change before it puts back the old
+      selection, in the numbers that it names.
+    - Fact found, and fixed for the rows of 4b.2: a step that selected the new
+      row first failed for a new last row, which the selection names only
+      after the insert. The insert of a row now selects the whole view first
+      too.
+    - Tests: `test_data_frame_column_edits()`: the items and what they take,
+      the operations and their inverses, a real editor (insert after a middle
+      and after the last column, a move, a delete, and Ctrl+Z after each); the
+      rows: an insert below the last row. The data frames 507.
   - [ ] **4b.4** The rename in place (B6) and the convert.
   - [ ] **4b.5** A column that takes no write (B9).
   - [ ] **4b.6** The `DataFrameRow` (B10).
