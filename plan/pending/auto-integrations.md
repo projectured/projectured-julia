@@ -127,11 +127,11 @@ short form goes into the README.
 
 | Package | `[deps]` | Who loads it | Released |
 | --- | --- | --- | --- |
-| `Projectured` | ProjecturedEssentials, AutoIntegrations | the user | yes |
+| `Projectured` | ProjecturedPlatform, AutoIntegrations | the user | yes |
 | `AutoIntegrations` | TOML | `Projectured` | yes |
 | `ProjecturedSDL`, … (the six) | as on `main`, table in section 2 | the user, or AutoIntegrations | yes |
 | `ProjecturedIntegrations` | Projectured and the six | the user | yes |
-| `ProjecturedEssentials` | ProjecturedKernel, ProjecturedPlatform | the integrations, the backends, `Projectured` | yes |
+| `ProjecturedPlatform.EssentialsModule`, a slice of the platform, not a package (section 9.6) | — | the integrations, the backends, `Projectured` | with the platform |
 | `ProjecturedAll` | each package with no third-party dependency | the tests, the examples, the REPL, a user who wants all | yes |
 
 ### 4.2 A package declares its triggers
@@ -221,13 +221,12 @@ active project: `set_auto_integration!(name, state)`, with the state `:auto`,
 
 ### 4.5 `Projectured`
 
-`Projectured` depends on `ProjecturedEssentials` and AutoIntegrations, and
-loads both. The kernel and the platform load as dependencies of
-`ProjecturedEssentials`. It has no hook, no extension and no `[weakdeps]` of
-its own.
+`Projectured` depends on `ProjecturedPlatform` and AutoIntegrations, and loads
+both. The kernel loads as a dependency of the platform. It has no hook, no
+extension and no `[weakdeps]` of its own.
 
-- It re-exports the names of `ProjecturedEssentials` (section 4.7), and no
-  other name.
+- It re-exports the names of `ProjecturedPlatform.EssentialsModule` (section
+  4.7), and no other name.
 - It does not export `set_auto_integration!`. A user who changes a setting
   writes `using AutoIntegrations`.
 - It binds no submodule of the kernel or the platform. `ProjecturedPlatform`
@@ -280,10 +279,9 @@ The owner, 2026-10-03:
 > which contains the most useful names, those can be re-exported.
 
 - The kernel exports 577 names, and the platform exports 2999 (2026-10-03).
-- A new package, `ProjecturedEssentials`, holds no code of its own. It depends
-  on the kernel and the platform, and exports a short list of their names. One
-  constant in its source holds the list. Its source is in `source/essentials/`,
-  as the source of `ProjecturedAll` is in `source/all/`.
+- A new slice of the platform, `EssentialsModule` in
+  `source/platform/essentials/`, holds no code of its own. It exports a short
+  list of names of the kernel and the platform (section 9.6).
 - The list comes from the guides. It holds the names that show a value, and
   the names that open a window on a document, as the own-project guide does:
 
@@ -297,8 +295,8 @@ The owner, 2026-10-03:
 - `ProjecturedPlatform` does not export the five names of the kernel in this
   list. Only the flat namespace of the umbrella makes them visible now.
 - Each integration and each backend (`ProjecturedConsole`, `ProjecturedPDF`,
-  `ProjecturedWeb`) depends on `ProjecturedEssentials` and re-exports its
-  names. `Projectured` does the same. A user who writes a projection names
+  `ProjecturedWeb`) re-exports the names of `ProjecturedPlatform.EssentialsModule`.
+  `Projectured` does the same. A user who writes a projection names
   `ProjecturedPlatform`.
 - So `using ProjecturedSDL, ProjecturedDataFrames` makes `display_in_editor`
   visible.
@@ -433,7 +431,7 @@ The README of each released package changes too
   from the table `[auto-integration]` of the package, so the triggers have one
   source.
 - `PROJECTURED_PACKAGE_READMES` gets entries for `AutoIntegrations`,
-  `ProjecturedIntegrations`, `ProjecturedAll` and `ProjecturedEssentials`.
+  `ProjecturedIntegrations` and `ProjecturedAll`.
   `ProjecturedAll` leaves `PROJECTURED_RELEASE_EXCLUSIONS`, and the sentence of `Projectured` changes.
 
 ## 6. Documentation
@@ -450,7 +448,7 @@ The README of each released package changes too
 | `documentation/package/platform/domain/domain.md` | `load_installed_package!` goes |
 | the documents of SDL, DataFrames, Video, ODBC, Tulip, MCP | the triggers and the default |
 | the document of the builder | the README of a package and the front page |
-| a new design document of `ProjecturedEssentials` | the list of names, what each one does, and which packages re-export them |
+| a new design document of `EssentialsModule`, `documentation/package/platform/essentials/essentials.md` | the list of names, what each one does, and which packages re-export them |
 | `documentation/README.md` | the new documents |
 | `plan/pending/release-the-binary-and-the-packages.md` | the items of Part R that this plan changes |
 
@@ -487,7 +485,7 @@ The README of each released package changes too
       Done: `Projectured` depends on `ProjecturedEssentials` and
       AutoIntegrations, and re-exports the names of `ProjecturedEssentials`.
       `ProjecturedEssentials` came here from step 5, because the umbrella needs
-      it. `load_installed_package!` and its test are gone. The cases 1 to 5 run
+      it; section 9.6 turned it into a slice of the platform. `load_installed_package!` and its test are gone. The cases 1 to 5 run
       in a scratch environment of a user (`Projectured`, `ProjecturedSDL`,
       `ProjecturedDataFrames`, `ProjecturedJSON`, DataFrames,
       SimpleDirectMediaLayer); one more case loads the other four triggers in
@@ -501,7 +499,8 @@ The README of each released package changes too
       `test_integrations_load_with_extensions()` passes 3 of 3: the extension
       loads `ProjecturedDataFrames`, nothing loads without DataFrames, and a
       "manual" setting does not stop the extension.
-- [x] **Step 5, the names.** `ProjecturedEssentials` and its test. The
+- [x] **Step 5, the names.** `ProjecturedEssentials` and its test (a slice of
+      the platform since section 9.6). The
       integrations, the backends and `Projectured` re-export its names.
       Done: the six integrations and the three backends depend on
       `ProjecturedEssentials` and re-export its names with one `export` that
@@ -567,12 +566,13 @@ The owner, 2026-10-03: "mostly agreed". The answers:
 | D8, the name | `AutoIntegrations` |
 | D9, no `default` in the table | `"manual"` |
 | D10, the order | `julia-112` lands first |
-| D11, the name of the package of the names | `ProjecturedEssentials` |
+| D11, the name of the package of the names | `ProjecturedEssentials`, then no package: the slice `ProjecturedPlatform.EssentialsModule` (D17) |
 | D12, who re-exports the names | the six integrations and the backends `ProjecturedConsole`, `ProjecturedPDF`, `ProjecturedWeb` |
-| D13, the names of `Projectured` | only the names of `ProjecturedEssentials` |
+| D13, the names of `Projectured` | only the essential names |
 | D14, the list | all names of section 4.7 stay: "you can keep them" |
 | D15, `Projectured` exports `set_auto_integration!` | no |
 | D16, `Projectured` binds the submodules | no |
+| D17, a package or a module for the essential names | a module of the platform: the owner agreed, 2026-10-03 |
 
 No decision is open.
 
@@ -615,9 +615,9 @@ does not reproduce it, because Julia loads only what the code imports.
 
 ### 9.4 `ProjecturedMCP` loads the platform
 
-`ProjecturedMCP` depended on the kernel alone. It re-exports the names of
-`ProjecturedEssentials` (D12), and `ProjecturedEssentials` depends on the
-platform, so `using ProjecturedMCP` now loads the platform too. An MCP server
+`ProjecturedMCP` depended on the kernel alone. It re-exports the essential
+names (D12), which are a slice of the platform, so it depends on the platform
+and `using ProjecturedMCP` loads the platform too. An MCP server
 drives an editor, which needs the platform in each real use.
 
 ### 9.5 The binary loads the platform, not the umbrella
@@ -628,3 +628,18 @@ The umbrella now gives only the essential names. A binary holds a fixed set of
 packages and imports its domains by name, so AutoIntegrations has no part in
 it: it loads `ProjecturedPlatform` in place of `Projectured`, and calls the two
 functions through it.
+
+### 9.6 The essential names are a module of the platform
+
+The owner asked whether the essential names need a package of their own, since
+no user installs it or names it in a `using` line. They do not: each package
+that re-exports them depends on the platform, `ProjecturedMCP` too after
+section 9.4, and the names include names of the platform, so the kernel can not
+hold them. A package costs a registry entry, a README, a version and a test job,
+and gives the user nothing. So the package `ProjecturedEssentials`, which steps
+3 and 5 made, became the slice `EssentialsModule` of the platform
+(`source/platform/essentials/`, edges to display, natural and style). Each
+re-exporter writes `using ProjecturedPlatform.EssentialsModule`, and
+`Projectured` depends on the platform and AutoIntegrations, as the owner first
+described it. The package graph passes 373 of 373 with one package fewer; the
+loading tests and `test_essential_names()` pass.

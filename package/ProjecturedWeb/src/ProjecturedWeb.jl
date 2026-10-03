@@ -32,8 +32,7 @@ using .WebModule: WebBackend, get_web_asset_directory, convert_web_key_to_symbol
 export WebBackend, get_web_asset_directory, convert_web_key_to_symbol
 
 # A person who names this package gets the names that most users call.
-using ProjecturedEssentials
-Core.eval(@__MODULE__, Expr(:export, filter(!=(:ProjecturedEssentials),
-                                            names(ProjecturedEssentials))...))
+using ProjecturedPlatform.EssentialsModule
+Core.eval(@__MODULE__, Expr(:export, filter(!=(:EssentialsModule), names(EssentialsModule))...))
 
 end # module ProjecturedWeb

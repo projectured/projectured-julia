@@ -398,9 +398,6 @@ const PROJECTURED_PACKAGE_READMES = Dict(
     "AutoIntegrations" =>
         (summary = "Loads an installed package when the packages that it names as its triggers are loaded, as the settings of your environment choose.",
          document = "documentation/package/autointegrations/autointegrations.md"),
-    "ProjecturedEssentials" =>
-        (summary = "The few names of the kernel and the platform that most users call. The umbrella, each integration and each backend give them.",
-         document = "documentation/package/essentials/essentials.md"),
     "ProjecturedIntegrations" =>
         (summary = "Installs every integration of ProjecturEd and the packages that they join, and loads each integration when the package that it joins is loaded.",
          document = "documentation/guide/own-project-guide.md"),
@@ -645,8 +642,8 @@ _format_projectured_runtests(name, test_package, suite) = """
 # with the sentence of its README. The packages that a user meets first come
 # first, then the others by name.
 function _format_projectured_release_overview(context::BuildContext, names)
-    core = ["Projectured", "ProjecturedEssentials", "ProjecturedKernel", "ProjecturedPlatform",
-            "AutoIntegrations", "ProjecturedIntegrations", "ProjecturedAll"]
+    core = ["Projectured", "ProjecturedKernel", "ProjecturedPlatform", "AutoIntegrations",
+            "ProjecturedIntegrations", "ProjecturedAll"]
     order = [filter(in(names), core); sort(filter(!in(core), names))]
     rows = join(["| [$name]($name) | $(PROJECTURED_PACKAGE_READMES[name].summary) |\n"
                  for name in order])

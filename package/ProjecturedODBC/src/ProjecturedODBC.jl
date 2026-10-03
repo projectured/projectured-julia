@@ -29,8 +29,7 @@ export OdbcDatabaseAdapter, OdbcConnectionPool, with_connection, get_dsn, close_
        DatabaseInstanceToDbCatalog
 
 # A person who names this package gets the names that most users call.
-using ProjecturedEssentials
-Core.eval(@__MODULE__, Expr(:export, filter(!=(:ProjecturedEssentials),
-                                            names(ProjecturedEssentials))...))
+using ProjecturedPlatform.EssentialsModule
+Core.eval(@__MODULE__, Expr(:export, filter(!=(:EssentialsModule), names(EssentialsModule))...))
 
 end # module Odbc

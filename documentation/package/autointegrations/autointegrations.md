@@ -84,7 +84,7 @@ A loaded candidate binds no name in `Main`. To write `SdlBackend()`, a user writ
 
 The code is one file, `package/AutoIntegrations/src/AutoIntegrations.jl`, and it depends on the TOML standard library alone. It names no ProjecturEd package, so it can move to a repository of its own. `test_autointegrations_layering()` checks that.
 
-`Projectured` depends on `AutoIntegrations` and `ProjecturedEssentials`, and loads both. The integrations do not depend on AutoIntegrations: `using ProjecturedSDL` alone never loads it.
+`Projectured` depends on `AutoIntegrations` and `ProjecturedPlatform`, loads both, and re-exports the names of `ProjecturedPlatform.EssentialsModule` ([essentials.md](../platform/essentials/essentials.md)). The integrations do not depend on AutoIntegrations: `using ProjecturedSDL` alone never loads it.
 
 `ProjecturedIntegrations` is the other way to load every integration. It depends on the six integrations and loads each one with an ordinary package extension when the package that it joins is loaded. It loads an integration that the user sets to `"manual"` too: it means "load all".
 

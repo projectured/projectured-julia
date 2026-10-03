@@ -127,7 +127,7 @@ function test_integrations_load_with_extensions()
     end
 end
 
-# The packages that re-export the names of `ProjecturedEssentials`.
+# The packages that re-export the names of `ProjecturedPlatform.EssentialsModule`.
 const _ESSENTIAL_NAME_PACKAGES = ("Projectured", "ProjecturedSDL", "ProjecturedDataFrames",
                                   "ProjecturedVideo", "ProjecturedODBC", "ProjecturedTulip",
                                   "ProjecturedMCP", "ProjecturedConsole", "ProjecturedPDF",
@@ -138,16 +138,17 @@ function test_essential_names()
         repository = normpath(joinpath(@__DIR__, "..", ".."))
         for name in _ESSENTIAL_NAME_PACKAGES
             @test name == "ProjecturedIntegrations" ||
-                  "ProjecturedEssentials" in _read_project_packages(repository, name)
+                  "ProjecturedPlatform" in _read_project_packages(repository, name)
         end
         # Each package exports each name, bound to the same value.
         check = """
-            import ProjecturedEssentials, $(join(_ESSENTIAL_NAME_PACKAGES, ", "))
-            essential = filter(!=(:ProjecturedEssentials), names(ProjecturedEssentials))
-            length(essential) == 12 || error("ProjecturedEssentials exports \$(length(essential)) names")
+            import ProjecturedPlatform, $(join(_ESSENTIAL_NAME_PACKAGES, ", "))
+            essentials = ProjecturedPlatform.EssentialsModule
+            essential = filter(!=(:EssentialsModule), names(essentials))
+            length(essential) == 12 || error("EssentialsModule exports \$(length(essential)) names")
             for package in ($(join(_ESSENTIAL_NAME_PACKAGES, ", "))), name in essential
                 Base.isexported(package, name) &&
-                    getfield(package, name) === getfield(ProjecturedEssentials, name) ||
+                    getfield(package, name) === getfield(essentials, name) ||
                     error("\$package does not give \$name")
             end
             """

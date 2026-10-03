@@ -40,8 +40,7 @@ export DataFrameColumnFilter, DataFrameSortKey, DataFrameQuery, DataFrameView, j
        DataFrameViewToWidget, make_data_frame_view_projection
 
 # A person who names this package gets the names that most users call.
-using ProjecturedEssentials
-Core.eval(@__MODULE__, Expr(:export, filter(!=(:ProjecturedEssentials),
-                                            names(ProjecturedEssentials))...))
+using ProjecturedPlatform.EssentialsModule
+Core.eval(@__MODULE__, Expr(:export, filter(!=(:EssentialsModule), names(EssentialsModule))...))
 
 end # module ProjecturedDataFrames
