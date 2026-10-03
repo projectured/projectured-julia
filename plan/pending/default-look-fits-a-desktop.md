@@ -418,6 +418,11 @@ recommendation: "agreed on all". Section 5 logs them as D8 to D12.
   factors are chosen to give about 1.35 times the font size for code and 1.5
   times for prose with the default fonts, as D9 asks. The owner: "option 2,
   follows the plan".
+- **D26** (2026-10-03, V2). A horizontal layout can align its children on the
+  baseline of their first line (`vertical_align = :baseline`), as Qt and CSS
+  do, so a label or a prompt beside a text of another line spacing stands on
+  the same baseline. The evaluator aligns its prompt rows so. The owner:
+  "option 1, agreed with recommendation: baseline alignment".
 - **D15** (2026-10-02, T1). The pointer ring and the fault band of the video
   backend, and the glyph cursor of the SDL backend, stay as they are: they mark
   a recording or the system cursor, not the look of the editor.
@@ -718,8 +723,8 @@ inet-julia uses, the same step changes them, so that they always load.
   fonts through an `Appearance`, so it needs no change of code. Not yet shown:
   the line spacing of D9, which needs step V2, the density 2, and the omnet
   workbench. The script is `/var/tmp/default-look/v1/looks.jl`.
-- [ ] **V2.** The chosen values go into every theme, with the line spacing of
-  section 3.6. *In progress (2026-10-03), before T3 by the owner's choice:*
+- [x] **V2.** The chosen values go into every theme, with the line spacing of
+  section 3.6. *Done (2026-10-03), before T3 by the owner's choice:*
   - Fonts: the rule of step V1 sets 41 base fonts in 35 theme files of the
     three repos: `WidgetTheme` 13, the chart axis fonts 12, a base font of 16
     or less (the tool panes) 13, every other one 14 (code, documents, the
@@ -744,10 +749,27 @@ inet-julia uses, the same step changes them, so that they always load.
     theme cell. The appearance file saves a spacing as a table of one key
     (`single`, `multiple`, `exact`, `at_least`), and the appearance tab shows a
     multiple as a spin box in percent.
-- [ ] **V3.** The tests that check a pixel size follow, for example the line box
+  - The baseline alignment (D26), the design: `find_first_baseline(iomap)` in
+    the graphics slice answers the baseline of the first line of text that an
+    output draws, in pixels from its top, or `nothing`. A wrapper answers what
+    it wraps: a chain its last stage, a barrier its content
+    (`get_content_iomap`). A `ChildrenIoMap`, the IoMap of every layout,
+    answers its first child that has one, offset by the place of that child.
+    The text projection keeps the baseline of its first line in its IoMap; a
+    label computes its own from its content box and the line box of its
+    text. `HorizontalLayout` takes `vertical_align = :baseline`: the row
+    baseline is the lowest baseline of its children, each child stands so its
+    baseline meets it, and a child with no baseline stands on its bottom edge,
+    as in CSS. The evaluator puts its prompt rows on the baseline.
+- [x] **V3.** The tests that check a pixel size follow, for example the line box
   of 23 px for Ubuntu 20. The count of broken tests does not change.
-  *Done for the fonts and the widget spacing (2026-10-03), the line spacing
-  follows:* a helper agent updated 37 files of the platform and domain suites
+  *Done (2026-10-03).* The line spacing changed one more test, the prompt of the
+  evaluator, which the baseline alignment of D26 fixes (`find_first_baseline`,
+  new test `test_baseline_alignment`). It also showed a fault of the scroll
+  pane: the room of the wheel came from the drawn elements, measured with the
+  default measure, while the pane drew with the declared extent, so the first
+  turn off the end jumped 28 px for 24. The room now takes the extent that the
+  pane draws with. For the fonts and the widget spacing: a helper agent updated 37 files of the platform and domain suites
   (`ec62ae78b`) and 6 files of the integration suite (`043e13c86`), and the 4
   legacy theme tests of omnet-julia (`1e89d27d`); I reviewed the changes. Three
   of its changes weakened a check, and I changed the fixture instead: a table
