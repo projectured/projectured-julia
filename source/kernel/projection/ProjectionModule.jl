@@ -66,7 +66,7 @@ selection mechanism.
 | [`ProjectionDefaults.jl`](ProjectionDefaults.jl) | the fallback method of each generic |
 | [`OutputPaths.jl`](OutputPaths.jl) | `make_output_path_cells` — every kind of path of an output document, from one forward map; `set_output_tree_path_computations!` carries them down a built output |
 | [`ProjectionMacro.jl`](ProjectionMacro.jl) | `@projection` — the projection codegen |
-| [`GestureBindings.jl`](GestureBindings.jl) | the default gesture table of a projection, and `read_projection_gesture` |
+| [`ProjectionGestureBindings.jl`](ProjectionGestureBindings.jl) | the default gesture table of a projection, and `read_projection_gesture` |
 | [`ProjectionTemplate.jl`](ProjectionTemplate.jl) | `@projection_template` — the builder-and-walk engine that many structural projections are written with |
 """
 module ProjectionModule
@@ -110,7 +110,7 @@ include("ProjectionInterface.jl")
 include("ProjectionDefaults.jl")
 include("OutputPaths.jl")
 include("ProjectionMacro.jl")
-include("GestureBindings.jl")
+include("ProjectionGestureBindings.jl")
 include("ProjectionTemplate.jl")
 
 end # module

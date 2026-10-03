@@ -248,7 +248,7 @@ end # @testset "JsonToSyntax reader commands"
 end # test_json_to_syntax_reader
 
 # The contextual collector: collect_gesture_bindings walks the projection chain to the
-# reified JSON tables, and get_applicable_gesture_bindings reflects the current selection —
+# reified JSON tables, and compute_applicable_gesture_bindings reflects the current selection —
 # the data-driven dual of what the reader could fire.
 # How a collected intent renders its key; empty when the rule has no gesture.
 _gesture_of(intent) = intent.gesture === nothing ? "" : describe_gesture_pattern(intent.gesture)

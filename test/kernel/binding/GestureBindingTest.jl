@@ -158,9 +158,9 @@ function test_gesture_binding()
     end
 
     @testset "supertype inheritance: subtype = own + base, most-specific first" begin
-        leaf = get_document_gesture_bindings(GestureProbeLeaf)
+        leaf = collect_document_gesture_bindings(GestureProbeLeaf)
         @test length(leaf) == 4                       # only inherited base bindings
-        arr = get_document_gesture_bindings(GestureProbeArray)
+        arr = collect_document_gesture_bindings(GestureProbeArray)
         @test length(arr) == 5                        # own (1) + base (4)
         @test arr[1].description == "append"          # own first
         @test arr[2].description == "make negative"   # then inherited
@@ -179,9 +179,9 @@ function test_gesture_binding()
     @testset "applicable precondition gates firing (and greys help rows)" begin
         leaf = GestureProbeLeaf()           # selection === nothing → precondition false
         @test read_bound_gesture(leaf, KeyPress('n'; time = 0.0)) === nothing
-        @test isempty(get_applicable_gesture_bindings(leaf, get_document_gesture_bindings(GestureProbeLeaf)))
+        @test isempty(compute_applicable_gesture_bindings(leaf, collect_document_gesture_bindings(GestureProbeLeaf)))
         leaf.selection = EmptyReference()
-        @test length(get_applicable_gesture_bindings(leaf, get_document_gesture_bindings(GestureProbeLeaf))) == 4
+        @test length(compute_applicable_gesture_bindings(leaf, collect_document_gesture_bindings(GestureProbeLeaf))) == 4
     end
 
     @testset "read_gesture interpreter routes through the reified table" begin
@@ -197,8 +197,8 @@ function test_gesture_binding()
         @test [b.description for b in probe_clipboard] == ["Copy", "Paste"]
         @test all(b -> b.domain == "probe_clipboard", probe_clipboard)
 
-        alpha = get_document_gesture_bindings(ProbeAlpha)
-        beta = get_document_gesture_bindings(ProbeBeta)
+        alpha = collect_document_gesture_bindings(ProbeAlpha)
+        beta = collect_document_gesture_bindings(ProbeBeta)
         # Each type = spliced set (in position) + its own rule.
         @test [b.description for b in alpha] == ["Copy", "Paste", "alpha only"]
         @test [b.description for b in beta] == ["Copy", "Paste", "beta only"]
@@ -248,7 +248,7 @@ function test_gesture_binding()
     @testset "fire_named_gesture_binding runs a binding by its name" begin
         probe = CommandProbe()
         probe.selection = EmptyReference()
-        own = get_document_gesture_bindings(CommandProbe)
+        own = collect_document_gesture_bindings(CommandProbe)
         sel = probe.selection
         @test fire_named_gesture_binding(own, probe, "sort the keys"; selection = sel) == MarkOperation(:sort)
         @test fire_named_gesture_binding(own, probe, "reverse"; selection = sel) == MarkOperation(:reverse)
@@ -262,7 +262,7 @@ function test_gesture_binding()
 
     @testset "the precondition gates a named run as it gates a gesture" begin
         probe = CommandProbe()                # selection === nothing → precondition false
-        own = get_document_gesture_bindings(CommandProbe)
+        own = collect_document_gesture_bindings(CommandProbe)
         @test fire_named_gesture_binding(own, probe, "sort the keys"; selection = probe.selection) === nothing
     end
 
@@ -271,7 +271,7 @@ function test_gesture_binding()
     @testset "CollectIntents answers with the whole table, not the first match" begin
         probe = CommandProbe()
         probe.selection = EmptyReference()
-        own = get_document_gesture_bindings(CommandProbe)
+        own = collect_document_gesture_bindings(CommandProbe)
         collected = fire_gesture_bindings(own, probe, CollectIntents(); selection = probe.selection)
         @test collected isa CollectedIntentsOperation
         # One intent per binding — including the ones that cannot run.
@@ -297,7 +297,7 @@ function test_gesture_binding()
 
     @testset "a failed precondition greys a row instead of dropping it" begin
         probe = CommandProbe()                # selection === nothing → precondition false
-        own = get_document_gesture_bindings(CommandProbe)
+        own = collect_document_gesture_bindings(CommandProbe)
         collected = fire_gesture_bindings(own, probe, CollectIntents(); selection = probe.selection)
         @test length(collected.intents) == length(own)
         @test all(i -> i.operation === nothing, collected.intents)
@@ -308,7 +308,7 @@ function test_gesture_binding()
         probe.selection = EmptyReference()
         collected = read_bound_gesture(probe, CollectIntents())
         @test collected isa CollectedIntentsOperation
-        @test length(collected.intents) == length(get_document_gesture_bindings(CommandProbe))
+        @test length(collected.intents) == length(collect_document_gesture_bindings(CommandProbe))
     end
 
     @testset "@gestures rejects a nameless or overriding `nothing` rule" begin
@@ -353,14 +353,14 @@ function test_gesture_binding()
     @testset "a table on a concrete document type fires" begin
         value = GestureProbeValue()
         @test read_gesture(value, KeyPress('v'; time = 0.0)) == MarkOperation(:value)
-        @test [b.description for b in get_document_gesture_bindings(value)] == ["value"]
+        @test [b.description for b in collect_document_gesture_bindings(value)] == ["value"]
     end
 
     @testset "a table on a native document reads its selection" begin
         native = GestureProbeNative()
         @test read_gesture(native, KeyPress('m'; time = 0.0)) == MarkOperation(:native)
-        @test length(get_applicable_gesture_bindings(native,
-                         get_document_gesture_bindings(native))) == 1
+        @test length(compute_applicable_gesture_bindings(native,
+                         collect_document_gesture_bindings(native))) == 1
     end
 
     @testset "a table on an immutable native document fires" begin

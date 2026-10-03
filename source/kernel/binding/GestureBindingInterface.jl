@@ -19,7 +19,7 @@ re-implementing them, and a backend that renders the domain directly (without a
 projection pipeline) gets them with no reader of its own.
 
 The catch-all `read_gesture(::Document, gesture)` in `GestureBinding.jl` reads the
-reified [`get_document_gesture_bindings`](@ref) table for the document's type — so a
+reified [`collect_document_gesture_bindings`](@ref) table for the document's type — so a
 domain authored with [`@gestures`](@ref) needs no hand-written reader. A concrete
 `read_gesture(::SomeDocument, …)` method is more specific and still takes precedence;
 a document type with neither a method nor any registered gestures yields `nothing`.
@@ -30,7 +30,7 @@ function read_gesture end
     get_document_gesture_bindings_own(::Type{T}) -> Vector{GestureBinding}
 
 The bindings declared *directly* on type `T` by `@gestures T …` (default empty). Use
-[`get_document_gesture_bindings`](@ref) to also collect inherited supertype bindings.
+[`collect_document_gesture_bindings`](@ref) to also collect inherited supertype bindings.
 """
 function get_document_gesture_bindings_own end
 

@@ -28,7 +28,7 @@ using ProjecturedKernel.ReferenceModule: EmptyReference
 using ProjecturedKernel.SelectionModule: set_selection!, clear_selection!
 using ProjecturedKernel.OperationModule: evaluate_operation
 using ProjecturedKernel.EventModule: KeyPress, KeyDown, ModifierKeys
-using ProjecturedKernel.GestureBindingModule: get_document_gesture_bindings
+using ProjecturedKernel.GestureBindingModule: collect_document_gesture_bindings
 using ProjecturedKernel.GestureModule: GesturePattern
 using ProjecturedKernel.ProjectionModule: print_document, read_intent
 using ProjecturedKernel.CellModule: Cell, Computation
@@ -211,7 +211,7 @@ function _create_keystroke(projection, target)
     key = (Base.typename(typeof(seed)).wrapper, tw)
     haskey(_CREATE_KEY_CACHE, key) && return _CREATE_KEY_CACHE[key]
     found = nothing
-    for b in get_document_gesture_bindings(typeof(seed))
+    for b in collect_document_gesture_bindings(typeof(seed))
         c = _keypress_char(b.pattern)
         c isa Char || continue
         scratch = construct_seed(target)
@@ -264,7 +264,7 @@ function _grow_event(projection, container, field, child)
     ck === nothing || push!(candidates, KeyPress(ck; time = 0.0))
     probe = _fresh_container(projection, container)
     if probe !== nothing
-        for b in get_document_gesture_bindings(typeof(probe.document))
+        for b in collect_document_gesture_bindings(typeof(probe.document))
             e = _synth_event(b.pattern)
             e === nothing || push!(candidates, e)
         end

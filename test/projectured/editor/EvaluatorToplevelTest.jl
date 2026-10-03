@@ -682,7 +682,7 @@ end
 
 @testset "the command palette runs both options by name" begin
     t = make_insertion_document(EvaluatorToplevel)
-    bindings = get_document_gesture_bindings(EvaluatorToplevel)
+    bindings = collect_document_gesture_bindings(EvaluatorToplevel)
     for (name, option) in (("Parse evaluated forms", :parse_evaluated_forms),
                            ("Type structured forms", :type_structured_forms))
         operation = fire_named_gesture_binding(bindings, t, name; selection = t.selection)

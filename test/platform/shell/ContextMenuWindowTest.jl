@@ -248,7 +248,7 @@ end
                              FieldReferenceStep("elements"), ElementReferenceStep(1))
     @test evaluate_reference(editor.document, place) === wrap
     binding = only(filter(binding -> binding.domain == "context menu",
-                          get_document_gesture_bindings(WidgetContextMenu)))
+                          collect_document_gesture_bindings(WidgetContextMenu)))
     operation = read_rooted_operation(editor, place, binding.operation(wrap, nothing))
     @test operation !== nothing
     evaluate_operation(editor, operation)

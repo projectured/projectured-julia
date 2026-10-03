@@ -2,7 +2,7 @@
 # abstract type every projection subtypes, the four open generics every one of
 # them implements, and the open seams of the layer. Nothing here carries a body —
 # the fallback of each generic lives in `ProjectionDefaults.jl`, the default of the
-# gesture-binding seam in `GestureBindings.jl`, the `@projection` codegen in
+# gesture-binding seam in `ProjectionGestureBindings.jl`, the `@projection` codegen in
 # `ProjectionMacro.jl`, and the template engine that writes most concrete
 # projections in `ProjectionTemplate.jl`.
 
@@ -480,7 +480,7 @@ template engine for `TypeReferenceStep(...)` markers.
 """
 function get_children_container_type end
 
-# ── The gesture-binding seam (default in GestureBindings.jl) ───────────────
+# ── The gesture-binding seam (default in ProjectionGestureBindings.jl) ───────────────
 
 """
     get_projection_gesture_bindings(projection, iomap) -> Vector{GestureBinding}

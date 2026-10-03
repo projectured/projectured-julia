@@ -437,7 +437,7 @@ function test_command_palette_decorator()
 
     @testset "a domain rule with no gesture is reached only by name" begin
         obj = JsonObject("a" => JsonNumber(1))
-        bindings = get_document_gesture_bindings(JsonObject)
+        bindings = collect_document_gesture_bindings(JsonObject)
         commands = [b for b in bindings if b.pattern === nothing]
         @test sort([b.name for b in commands]) ==
               ["Move from value to key", "Sort the entries by key"]
@@ -453,7 +453,7 @@ function test_command_palette_decorator()
         @test occursin("key", string(back.path))
 
         # XML has the same gap, filled the same way.
-        xml_command = only(b for b in get_document_gesture_bindings(XmlElement) if b.pattern === nothing)
+        xml_command = only(b for b in collect_document_gesture_bindings(XmlElement) if b.pattern === nothing)
         @test xml_command.name == "Move to attribute name"
     end
 

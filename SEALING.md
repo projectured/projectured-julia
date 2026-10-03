@@ -165,7 +165,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `projection/ProjectionInterface.jl`
   - ⬜ `projection/ProjectionDefaults.jl`
   - ⬜ `projection/ProjectionMacro.jl`
-  - ⬜ `projection/GestureBindings.jl`
+  - ⬜ `projection/ProjectionGestureBindings.jl`
   - ⬜ `projection/ProjectionTemplate.jl`
 - **Layer 18 — tool** (`tool/`)
   - ⬜ `tool/ToolModule.jl`

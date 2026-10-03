@@ -38,14 +38,14 @@ GestureBinding(pattern, operation; applicable = (document, selection) -> true,
 # Own bindings are held in `get_document_gesture_bindings_own(::Type{T})` *methods*
 # (emitted by `@gestures`), not a mutable table, so they persist across
 # precompilation — mutating a Dict at a module's load time would be lost.
-# `get_document_gesture_bindings` walks the supertype chain over those methods.
+# `collect_document_gesture_bindings` walks the supertype chain over those methods.
 # ─────────────────────────────────────────────────────────────────────────
 
 get_document_gesture_bindings_own(::Type) = GestureBinding[]
 
 """
-    get_document_gesture_bindings(T::Type)  -> Vector{GestureBinding}
-    get_document_gesture_bindings(document) -> Vector{GestureBinding}
+    collect_document_gesture_bindings(T::Type)  -> Vector{GestureBinding}
+    collect_document_gesture_bindings(document) -> Vector{GestureBinding}
 
 Every binding that applies to document type `T`: `T`'s own bindings, most specific
 first, followed by each supertype's, walking up the chain. The result is the reified
@@ -59,7 +59,7 @@ together (PAR-NO-PROJECTION-GLOBALS, PAR-PER-EDITOR-STATE). Each table that
 only appends a handful of vectors, which costs nothing next to the event that
 provoked it.
 """
-function get_document_gesture_bindings(T::Type)
+function collect_document_gesture_bindings(T::Type)
     result = GestureBinding[]
     S = T
     while true
@@ -74,8 +74,8 @@ function get_document_gesture_bindings(T::Type)
     end
     return result
 end
-get_document_gesture_bindings(document::Document) =
-    get_document_gesture_bindings(typeof(document))
+collect_document_gesture_bindings(document::Document) =
+    collect_document_gesture_bindings(typeof(document))
 
 get_instance_gesture_bindings(document) = GestureBinding[]
 
@@ -184,7 +184,7 @@ end
 
 Fire the first matching binding for `target`, checking its per-instance
 [`get_instance_gesture_bindings`](@ref) ahead of its per-type
-[`get_document_gesture_bindings`](@ref) table (which walks the supertype chain), so
+[`collect_document_gesture_bindings`](@ref) table (which walks the supertype chain), so
 an instance can add to, shadow, or suppress the type's defaults.
 
 `selection` defaults to `target`'s own — pass it explicitly for a target that has
@@ -212,7 +212,7 @@ end
 # same-pattern default.
 function _gesture_bindings(target)
     instance = get_instance_gesture_bindings(target)
-    type = get_document_gesture_bindings(typeof(target))
+    type = collect_document_gesture_bindings(typeof(target))
     isempty(instance) ? type : (isempty(type) ? instance : vcat(instance, type))
 end
 
@@ -224,12 +224,12 @@ read_gesture(document::Document, event; claimed = nothing) =
     read_bound_gesture(document, event; claimed)
 
 """
-    get_applicable_gesture_bindings(document, bindings) -> Vector{GestureBinding}
+    compute_applicable_gesture_bindings(document, bindings) -> Vector{GestureBinding}
 
 The subset of `bindings` whose `applicable` precondition holds for `document`'s
 current selection — the ones that would fire in the state the document is in.
 """
-function get_applicable_gesture_bindings(document, bindings)
+function compute_applicable_gesture_bindings(document, bindings)
     selection = get_selection(document)
     GestureBinding[b for b in bindings if b.applicable(document, selection)]
 end

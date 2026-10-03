@@ -24,7 +24,7 @@ The pieces:
   The pattern is **optional**: a binding with no pattern has no gesture at all,
   and only its name reaches it — see [`fire_named_gesture_binding`](@ref).
 - **Registry** keyed by document type, with supertype inheritance:
-  `get_document_gesture_bindings(T)` collects `T`'s own bindings plus every
+  `collect_document_gesture_bindings(T)` collects `T`'s own bindings plus every
   supertype's, so a declaration on an abstract document type covers its subtypes.
   The own bindings live in `get_document_gesture_bindings_own(::Type{T})`
   *methods* (not a mutable table) so they survive precompilation.
@@ -50,8 +50,8 @@ using ..IntentModule
 using ..SelectionModule
 
 export GestureBinding,
-       get_document_gesture_bindings, get_document_gesture_bindings_own,
-       get_instance_gesture_bindings, get_applicable_gesture_bindings,
+       collect_document_gesture_bindings, get_document_gesture_bindings_own,
+       get_instance_gesture_bindings, compute_applicable_gesture_bindings,
        fire_gesture_bindings, fire_named_gesture_binding,
        read_gesture, read_bound_gesture,
        var"@gestures", var"@gesture_set"

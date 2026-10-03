@@ -164,7 +164,7 @@ of:
     [`@gesture_set`](@ref)) in at this position.
 
 Bindings shared by a whole type family go on the common abstract supertype and are
-inherited by every subtype via [`get_document_gesture_bindings`](@ref); a set shared
+inherited by every subtype via [`collect_document_gesture_bindings`](@ref); a set shared
 by *unrelated* types (no common supertype) is a `@gesture_set` `splice`d into each.
 
 The macro builds the table once, when its module loads, so a name that a pattern or

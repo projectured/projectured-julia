@@ -237,7 +237,7 @@ end
                              FieldReferenceStep("elements"), ElementReferenceStep(1))
     @test evaluate_reference(editor.document, place) === button
     binding = only(filter(binding -> binding.domain == "tooltip",
-                          get_document_gesture_bindings(WidgetButton)))
+                          collect_document_gesture_bindings(WidgetButton)))
     operation = read_rooted_operation(editor, place, binding.operation(button, nothing))
     @test operation !== nothing
     evaluate_operation(editor, operation)
@@ -264,7 +264,7 @@ end
                              FieldReferenceStep("elements"), ElementReferenceStep(1))
     @test evaluate_reference(editor.document, place) === label
     binding = only(filter(binding -> binding.domain == "tooltip",
-                          get_document_gesture_bindings(WidgetLabel)))
+                          collect_document_gesture_bindings(WidgetLabel)))
     evaluate_operation(editor, read_rooted_operation(editor, place, binding.operation(label, nothing)))
     tip = only(_tw_tooltips(scene))
     @test (tip.x, tip.y) == (100 + 10, 100 + 30 + height + 4)
@@ -291,7 +291,7 @@ end
     function_ = evaluate_reference(editor.document, place)
     @test function_ isa JuliaFunction
     binding = only(filter(binding -> binding.name == "Show the signature",
-                          get_document_gesture_bindings(JuliaFunction)))
+                          collect_document_gesture_bindings(JuliaFunction)))
     operation = read_rooted_operation(editor, place, binding.operation(function_, nothing))
     @test operation !== nothing
     evaluate_operation(editor, operation)

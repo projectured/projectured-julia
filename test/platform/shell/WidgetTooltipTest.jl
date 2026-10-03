@@ -55,7 +55,7 @@ end
 
 @testset "a command runs the binding where it applies" begin
     found = filter(binding -> binding.domain == "tooltip",
-                   get_document_gesture_bindings(WidgetButton))
+                   collect_document_gesture_bindings(WidgetButton))
     @test length(found) == 1
     binding = only(found)
     @test binding.name == "Show the tooltip"

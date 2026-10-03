@@ -362,7 +362,7 @@ read of external state takes none, so `read_os_clipboard` has no `!`.
   `pop_`/`take_`, not a noun.
 - **A qualifier that narrows the *result* is a suffix**:
   `get_document_gesture_bindings_own` answers only the bindings that a type
-  declares itself, and `get_document_gesture_bindings` also collects the
+  declares itself, and `collect_document_gesture_bindings` also collects the
   bindings of its supertypes.
 - **A qualifier that names the *subject* keeps subject-first order**, because
   it reads as English: `get_base_plane_length`, not `get_length_base_plane`;

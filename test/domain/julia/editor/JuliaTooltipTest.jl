@@ -32,10 +32,10 @@ end
 end
 
 @testset "each binding has the name that a command shows" begin
-    names = [binding.name for binding in get_document_gesture_bindings(JuliaFunction)
+    names = [binding.name for binding in collect_document_gesture_bindings(JuliaFunction)
              if binding.domain == "tooltip"]
     @test names == ["Show the signature"]
-    names = [binding.name for binding in get_document_gesture_bindings(JuliaDocstring)
+    names = [binding.name for binding in collect_document_gesture_bindings(JuliaDocstring)
              if binding.domain == "tooltip"]
     @test names == ["Show the documentation"]
 end
