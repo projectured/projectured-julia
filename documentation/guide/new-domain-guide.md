@@ -174,7 +174,46 @@ module of its own, and its `using` lines and exports belong to the module file
 Write it with [`@projection_template`](../package/kernel/macros.md#projection_template)
 rather than a hand-written `print_document`/`map_reference_forward`/
 `map_reference_backward` group. It is how most structural projections here are
-written, and it generates the reference mapping and the reader for you:
+written, and it generates the reference mapping and the reader for you.
+
+A domain declares a theme for its fonts and its colors, and a projection never
+holds one as a literal value: it reads the theme instead, through a small
+helper that every projection of the domain shares. `BookmarkTheme` holds the
+base font and the two text roles that color a title and an address:
+
+```julia
+# ──────────────────────────────────────────────────────────────────────────
+# The theme of the domain. A real domain keeps it in its own fragment file,
+# such as `JsonTheme.jl`; this tutorial keeps everything in one file.
+
+"""
+    BookmarkTheme
+
+The colors and the fonts of a list of bookmarks: a title and an address.
+
+`@theme` declares it, so `ScaledBookmarkTheme` holds each value times its scale.
+"""
+@theme struct BookmarkTheme
+    "The font that the texts of this theme follow: its family, its weight and its size."
+    font::StyleFont = StyleFont("Ubuntu Mono", 14)
+    "The title of a bookmark."
+    title_text::TextRole = TextRole(color_solarized_blue; weight = 700)
+    "The address of a bookmark."
+    url_text::TextRole = TextRole(color_solarized_cyan)
+end
+
+_get_bookmark_style(theme, name::Symbol) =
+    make_style_field(BookmarkTheme, scale_theme(theme), StyleText; name)
+```
+
+The texts are roles over the base font `font`, so a person who changes the
+family or the size of `font` changes both. A projection reads a `StyleText`:
+the scaled theme holds the text that each role gives.
+
+The two projections below take `theme` as a keyword and read their style
+fields through `_get_bookmark_style`, the same shape that
+[`JsonTheme.jl`](../../source/domain/json/JsonTheme.jl) and
+[`JsonToSyntax.jl`](../../source/domain/json/JsonToSyntax.jl) use for `JsonTheme`:
 
 ```julia
 # ──────────────────────────────────────────────────────────────────────────
@@ -182,9 +221,10 @@ written, and it generates the reference mapping and the reader for you:
 # SyntaxNode (title, url), and a BookmarkList as a SyntaxNode whose children
 # are the entry nodes.
 
-@projection struct BookmarkEntryToSyntaxNode
-    title_style::ImmutableCell{StyleText} = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_blue)
-    url_style::ImmutableCell{StyleText}   = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_cyan)
+@projection UntrackedCell struct BookmarkEntryToSyntaxNode
+    theme::Any = nothing
+    title_style::StyleText = _get_bookmark_style(theme, :title_text)
+    url_style::StyleText   = _get_bookmark_style(theme, :url_text)
 end
 
 @projection_template BookmarkEntryToSyntaxNode BookmarkEntry (p, entry) ->
@@ -193,20 +233,28 @@ end
           SyntaxLeaf(bound(:url, String, TextString(() -> entry.url, p.url_style))) ],
         0, false, nothing)
 
-@projection struct BookmarkListToSyntaxNode
-    sep_style::ImmutableCell{StyleText} = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_blue)
+@projection UntrackedCell struct BookmarkListToSyntaxNode
+    theme::Any = nothing
+    sep_style::StyleText = _get_bookmark_style(theme, :title_text)
 end
 
 @projection_template BookmarkListToSyntaxNode BookmarkList (p, list) ->
     SyntaxNode(collection(:entries); sep = TextString("\n", p.sep_style))
 
-function BookmarkToSyntax()
+function BookmarkToSyntax(; theme = nothing)
     RecursiveProjection(TypeDispatchingProjection(
-        BookmarkEntry => BookmarkEntryToSyntaxNode(),
-        BookmarkList  => BookmarkListToSyntaxNode(),
+        BookmarkEntry => BookmarkEntryToSyntaxNode(; theme),
+        BookmarkList  => BookmarkListToSyntaxNode(; theme),
     ))
 end
 ```
+
+With no `theme`, each projection holds the plain values of the default
+`BookmarkTheme`, so `BookmarkToSyntax()` works with no argument. A
+caller that holds an `Appearance` passes
+`theme = get_scaled_theme!(appearance, BookmarkTheme)` instead, and the view
+then follows the scales and the edits of the appearance tab; see
+[style.md](../package/platform/style/style.md#themes-and-the-appearance).
 
 `bound(:title, String, render)` marks the first leaf as holding
 `entry.title`'s value, drawn by `render`; a cursor there maps back to
@@ -243,6 +291,12 @@ julia> iomap.output.selection   # forward-mapped with no mapper of your own
   or `read_intent` for a projection the template can express.
 - `RecursiveProjection(TypeDispatchingProjection(...))` is the standard
   pattern for domains with multiple document types.
+- A font, a color or a fixed length written inside a projection, outside a
+  `@theme` declaration, fails the style guard that `test_style()` runs over
+  `source/`; see [testing-guide.md](testing-guide.md#the-style-guard). A value
+  that a document's own author sets, such as a width that an example passes
+  to one widget, is content and not a style, and the line that sets it carries
+  the marker `# @style: content of the document`.
 - See [macros.md](../package/kernel/macros.md#projection_template) for the
   full marker-word table (`bound`, `project`, `collection`, `tokens`,
   `sections`) and [the projection system guide](../package/kernel/projection-system.md).
@@ -272,14 +326,16 @@ using ..TextModule
 using ..ProjectionModule
 using ..ProjectionAlgebraModule
 
+export BookmarkTheme, ScaledBookmarkTheme
 export BookmarkEntryToSyntaxNode, BookmarkListToSyntaxNode, BookmarkToSyntax
 
 include("BookmarkToSyntax.jl")
 ```
 
-Add the five `using` lines and the `export` line to `BookmarkModule`'s header
-(alongside the four Step 1 already added), and `include("BookmarkToSyntax.jl")`
-after `include`-ing nothing else — Bookmark has only the one fragment.
+Add the five `using` lines and the two `export` lines to `BookmarkModule`'s
+header (alongside the four Step 1 already added), and
+`include("BookmarkToSyntax.jl")` after `include`-ing nothing else — Bookmark
+has only the one fragment.
 
 ---
 
@@ -446,49 +502,13 @@ BookmarkList
   reference re-target.
 - **A custom operation:** e.g. `BookmarkOpenOperation` that opens the URL
   in a browser when Enter is pressed.
-- **A theme:** the styles of the projections become values of a theme, so the
-  view follows the scales of the appearance, and a person changes its colors and
-  fonts in the appearance tab. Declare the theme with a docstring before each
-  field; the tab shows it under the name of the field. The first paragraph of the
-  docstring of the type says, for a person, what the values change; the tab shows
-  it at the top of the card of the theme:
-
-  ```julia
-  """
-      BookmarkTheme
-
-  The colors and the fonts of a list of bookmarks: a title and an address.
-
-  `@theme` declares it, so `ScaledBookmarkTheme` holds each value times its scale.
-  """
-  @theme struct BookmarkTheme
-      "The font that the texts of this theme follow: its family, its weight and its size."
-      font::StyleFont = StyleFont("Ubuntu Mono", 20)
-      "The title of a bookmark."
-      title_text::TextRole = TextRole(color_solarized_blue; weight = 700)
-      "The address of a bookmark."
-      url_text::TextRole = TextRole(color_solarized_cyan)
-  end
-
-  _get_bookmark_style(theme, name::Symbol) =
-      make_style_field(BookmarkTheme, scale_theme(theme), StyleText; name)
-
-  @projection UntrackedCell struct BookmarkEntryToSyntaxNode
-      theme::Any = nothing
-      title_style::StyleText = _get_bookmark_style(theme, :title_text)
-      url_style::StyleText   = _get_bookmark_style(theme, :url_text)
-  end
-  ```
-
-  The texts are roles over the base font `font`, so a person who changes the
-  family or the size of `font` changes both. A projection still reads a
-  `StyleText`: the scaled theme holds the text that each role gives.
-
-  The factory takes `theme` and gives it to each projection, and the natural
-  registration passes `theme = get_scaled_theme!(appearance, BookmarkTheme)`.
-  With no theme, a projection holds the default values. See
-  [style.md](../package/platform/style/style.md#themes-and-the-appearance), and
-  `JsonTheme.jl` and `JsonToSyntax.jl` as a real domain.
+- **The theme in the appearance tab:** `BookmarkTheme` of Step 3 already
+  makes the view follow the scales of the appearance and lets a person change
+  its colors and its fonts there, once a builder passes
+  `theme = get_scaled_theme!(appearance, BookmarkTheme)` to `BookmarkToSyntax`.
+  A card for `BookmarkTheme` then shows in the appearance tab, with the
+  docstring of each field under its name; the first paragraph of the
+  docstring of the type is the summary at the top of the card.
 
 For the next level of complexity, such as a domain with cross-references, a
 custom reader that handles structural events, or a projection whose output

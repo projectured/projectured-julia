@@ -45,7 +45,7 @@ In the rendered view a directive shows what it means, not how it is spelled:
 | `.. toctree::` | the word `Contents` over the entries |
 | `.. literalinclude::` | one line, `↳ path (language, from … to)` |
 
-A table maps the role name to the colour of its chip, and an unknown name gets a neutral grey. The rule that draws the `↳` arrow uses `StyleFont("DejaVu Sans Mono", 20)`, because the chrome font has no such glyph.
+A table maps the role name to the colour of its chip, and an unknown name gets a neutral grey. The rule that draws the `↳` arrow takes `RstTheme.rendered_marker_text`, a role over the code font in the family DejaVu Sans Mono, because the chrome font has no such glyph.
 
 ### Indentation is written, not computed
 

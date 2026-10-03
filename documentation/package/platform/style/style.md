@@ -93,7 +93,7 @@ relative to the base. A `TextRole` is a font role and a color.
 ```julia
 @theme struct JsonTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("Ubuntu Mono", 20)
+    font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The key of an object member, with its quotes."
     key_text::TextRole = TextRole(color_solarized_blue)
     "The brackets of an array and the braces of an object."
