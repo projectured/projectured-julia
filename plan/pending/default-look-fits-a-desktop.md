@@ -583,6 +583,26 @@ inet-julia uses, the same step changes them, so that they always load.
     tests pass.
   - Seen in the images, for step V2: the tab strip is a pill inside the band
     of the pane, where a desktop tool puts the strip at the edge of the pane.
+  - The ring, the ellipsis and the assistant: `GraphicsTheme` gets
+    `selection_ring_radius` (3). A layout and a widget container hold all the
+    values of the graphics theme (`graphics_style`, from
+    `make_theme_values_field`), and `make_selection_ring(bounds, style)` takes
+    the color, the width and the radius from them; `make_selection_ring_stroke`
+    goes. `SyntaxTheme.ellipsis_text` is the style of the ellipsis of a folded
+    node, which the compound projection holds as `ellipsis_style`; the glyph is
+    one constant that the printer and the offset count share.
+    `ConversationTheme` gets `card_gap` (6) and `composer_min_height` (200),
+    which the two assistant views take. Check: the images are equal to the
+    batch before; the platform suite, the assistant tests and the omnet
+    precompile pass. A run of the platform suite in `unshare -rn` fails one file
+    system test, because the process is root there and reads a folder of mode
+    000; outside the namespace it passes.
+  - Open: the color swatch of the appearance tab is a label with fixed
+    paddings, because no widget kind draws a square of a given size. The
+    builders that run outside a printer (the file dialog, the message box and
+    the input dialog, the pager, filter and column chooser bars, the value list
+    of a data frame) set fixed gaps and button sizes, and a checkbox has no
+    label of its own, so each builder sets the gap beside it.
 - [ ] **T3.** omnet-julia: the themes of the NED, INI, test file, result and
   workbench views, and the values move into them. *In progress:* omnet-julia
   `7df48184` adds `NedTheme`, `IniTheme`, `TestFileTheme`, `ResultTheme` and
