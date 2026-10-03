@@ -40,15 +40,17 @@ registry and the release take the new name with a fresh overwrite.
    `test_naming`, `test_documentation` and `test_package_release`, 665 of 665.
 3. **Done** — landed on `main`, and the folder moved to `../auto-integration`.
 4. Publish, with the owner's word for each push:
-   - rename the GitHub repository to `projectured/AutoIntegration.jl`, and set
-     the address of `origin` in `../auto-integration`;
-   - push `main` of the package repository and of this repository;
-   - push the site: commit `0b8f440` on the branch `rename-autointegration` of
-     `projectured.github.io` (worktree `../projectured.github.io-rename`), three
-     lines of `index.html`;
-   - a fresh release and registry, with AutoIntegration registered first, then
-     AutoPrecompile as it is registered, then the release; the README of the
-     registry names `AutoIntegration.jl`. The owner force-pushes both.
+   - **Done** — the owner renamed the GitHub repository to
+     `projectured/AutoIntegration.jl`; `origin` of `../auto-integration` names it.
+   - **Done** — pushed: the package repository `504659a..ffd6d72`, this
+     repository `2b6d5b686..8395d8bdb`, the site `14604e0..0b8f440`.
+   - Prepared in `/var/tmp/release-fresh2`, for the owner's force push: the
+     release `f40439d`, "ProjecturEd 0.1.0, from projectured-julia 8395d8bdb", 89
+     packages; the registry, 92 commits from a new "Create the registry" whose
+     README names `AutoIntegration.jl`, then AutoIntegration (tree `8f4d68f4` of
+     `ffd6d72`), AutoPrecompile (tree `26ee88b5` of `6afd380`) and the release.
+     It replaces the release `18d9208` that another session pushed at 20:35 from
+     `599cee558`, which `8395d8bdb` contains, and the registry `11b7d77`.
 5. **Done** — the memory `autointegration-rename-landed.md`, in the index of
    landed changes: an older branch rebases, or it cannot load the umbrella.
    `projectured-julia-release` and `projectured-julia-kernel-audit-decisions`

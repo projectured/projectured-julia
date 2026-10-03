@@ -452,7 +452,11 @@ Each step is a commit. Mark it here when it is done.
    - Part 5: the front page of the release repository gets the section "Faster
      sessions".
    - Tests: `test_package_release()` 244 of 244; `test_package_graph()`,
-     `test_export_collisions()` and `test_naming()` together 368 of 368.
+     `test_export_collisions()` and `test_naming()` together 368 of 368. The
+     static guard `test/suite/tree.jl` was not run, and CI failed on it: it
+     allowed only `src/`, `ext/` and `deps/` in a package directory. Fixed on
+     2026-10-03 by `9624b51ed`, which allows `precompile/` and says why in the
+     guard and in `naming-rules.md`.
    - Open for the owner: `ProjecturedPlatform` also ships the 6617 lines of
      "examples", so the leaf of the README set holds them too. In step 2 a leaf
      of 7575 lines took 86 s and 110 MB, against 41 s and 57 MB for the README
