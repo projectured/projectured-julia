@@ -690,7 +690,7 @@ inet-julia uses, the same step changes them, so that they always load.
     offer: the column collapsed to 0 and the grid wrapped each field in a
     clipping viewport, 10 checks each (5 and 3 fields). Now the fields keep
     their width and need no wrapper.
-- [ ] **T3.** omnet-julia: the themes of the NED, INI, test file, result and
+- [x] **T3.** omnet-julia: the themes of the NED, INI, test file, result and
   workbench views, and the values move into them. *In progress:* omnet-julia
   `7df48184` adds `NedTheme`, `IniTheme`, `TestFileTheme`, `ResultTheme` and
   `SimulationTheme` for the legacy views; the NED, INI and result domains take
@@ -705,7 +705,24 @@ inet-julia uses, the same step changes them, so that they always load.
   `theme`, and every card builder a keyword `style` with the values of the
   widget theme; the gaps map by meaning (`label_gap`, `form_row_gap`,
   `item_gap`, `section_gap`) and a button sets no height. The other views follow
-  the same pattern, by a helper agent whose work I review.
+  the same pattern, by a helper agent whose work I reviewed (omnet-julia
+  `62e74da0`, 38 files). Facts: the legacy themes (NED, INI, test file,
+  result, simulation) live in packages that `OmnetPresentation` does not
+  depend on, so its views take `WidgetTheme`, `TextTheme`, `ChartTheme` and
+  `MessageLogTheme`. The page passes its theme to its panes by the printer
+  context property `:widget_theme`, the idiom of `:md_style`; the views of the
+  view registry (`register_view_projection!`) have no appearance in reach and
+  take the default values. `make_simulation_control_button` sets no height.
+  The log view first took `ring` for a warning; `MessageLogTheme` got a role
+  for each kind of level (projectured `6d5a5be05`), which the editor's log
+  uses too. A fault from step R2: the demo navigator read `font_small` of an
+  unscaled theme, a role; it takes the scaled theme of its window. Check: the
+  presentation tests of omnet fail exactly as on the base of the branch (the
+  same functions, messages and counts; the failures come from
+  `Projectured` not defined, a timer, a stale test of a model, an allocation
+  bound and the warm dashboards); the projectured images are equal, and the
+  platform suite passes. `OmnetCampaignUiTest` is not in the scratch
+  environment, so the campaign window is checked by its precompile only.
 - [x] **T4.** inet-julia: the theme of the packet diagram. *Done:* inet-julia
   `887a204`: `PacketDiagramTheme` with the font and four colors;
   `GUTTER_WIDTH` counts characters and stays. The packet diagram tests pass.
