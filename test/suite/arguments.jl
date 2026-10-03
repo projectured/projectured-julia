@@ -1,24 +1,20 @@
 # ============================================================================
-# The argument guard — the rule of three positional arguments, where a machine
-# can read it.
+# The argument guard — the clause on optional positional arguments, where a
+# machine can read it.
 #
-# `documentation/rule/code-quality-rules.md` §4 says it: a function takes at
-# most three positional arguments, and the fourth and every one after it takes a
-# name. Four kinds of signature keep more — a method of a protocol, a
-# conventional tuple, a port, and the painter family of a backend — and each one
-# says so with a `# @positional: <reason>` marker above the definition.
+# `documentation/rule/code-quality-rules.md` §4 says it: anything that a caller
+# may leave out is a keyword, so a definition takes at most one optional
+# positional argument, and never one beside a keyword argument. It is a
+# recommendation, and an exception says why with a `# @optional: <reason>`
+# marker above the definition.
 #
-# **It fails on every public definition over the line** that neither a marker
-# nor the protocol list below excuses.
+# **It fails on every public definition that breaks the clause** with no marker,
+# outside a port, and on every `# @positional:` marker, which no rule needs: the
+# count of positional arguments is advice, and `--report` prints it.
 #
-# **A marker excuses the count, and nothing else.** A marked definition still
-# takes at most one optional positional argument, and never one beside a keyword
-# argument. A port keeps its whole signature, the default arguments of the
-# original included.
-#
-# **A private helper is out of scope for now**, by the owner's decision of
-# 2026-09-22: a helper inside one file costs one reader one file, and a public
-# function costs every call site.
+# **A private helper is out of scope**, by the owner's decision of 2026-09-22: a
+# helper inside one file costs one reader one file, and a public function costs
+# every call site.
 #
 # **Static, and deliberately.** It parses each file with the parser of Julia and
 # loads nothing, so it runs in about a second and reads a definition rather than
@@ -28,11 +24,11 @@
 "The folders the rule covers: the code a person writes, and not the tests."
 const ARGUMENT_ROOTS = ["source", "example"]
 
-"How many positional arguments a definition may take."
+"The count of positional arguments that the report counts as over the advice."
 const POSITIONAL_LIMIT = 3
 
 # The generic functions of a protocol: every method takes the arity of the
-# contract, so the rule is not about them. A method of Base is here as well.
+# contract. The report counts them apart. A method of Base is here as well.
 const ARGUMENT_PROTOCOL = Set(String[
     "print_document", "print_document_pure", "print_child", "print_child_pure",
     "read_intent", "map_reference_forward", "map_reference_backward", "read_gesture",
@@ -53,7 +49,7 @@ struct ArgumentDefinition
     optional::Int          # a positional argument with a default
     keywords::Int
     types::Vector{String}  # the declared type of each positional, "" for none
-    excused::Bool          # a `# @positional:` marker stands above it
+    marked::Bool           # a `# @optional:` marker stands above it
 end
 
 # The folders of a port: code that keeps the signature of the program it mirrors.
@@ -67,7 +63,7 @@ keeps_optional_clause(d::ArgumentDefinition) =
 is_protocol_name(name::AbstractString) = name in ARGUMENT_PROTOCOL
 is_private_name(name::AbstractString) = startswith(name, "_")
 is_over_positional_limit(d::ArgumentDefinition) =
-    get_positional_count(d) > POSITIONAL_LIMIT && !is_protocol_name(d.name) && !d.excused
+    get_positional_count(d) > POSITIONAL_LIMIT && !is_protocol_name(d.name)
 
 _argument_name(x::Symbol) = String(x)
 _argument_name(x::QuoteNode) = _argument_name(x.value)
@@ -129,14 +125,14 @@ function _collect_argument_definitions!(found, expression, file, line, markers)
 end
 
 """
-The lines a `# @positional:` marker excuses: under each marker, the first line
+The lines a `# @optional:` marker stands above: under each marker, the first line
 that is neither blank nor a comment.
 """
-function _find_positional_markers(text::AbstractString)
+function _find_optional_markers(text::AbstractString)
     lines = split(text, '\n')
     marked = Set{Int}()
     for (number, line) in enumerate(lines)
-        occursin(r"^\s*#\s*@positional:", line) || continue
+        occursin(r"^\s*#\s*@optional:", line) || continue
         for next in (number + 1):length(lines)
             stripped = strip(lines[next])
             (isempty(stripped) || startswith(stripped, "#")) && continue
@@ -168,35 +164,53 @@ function find_argument_definitions(root::AbstractString)
                 continue          # the naming guard reports a file the parser refuses
             end
             _collect_argument_definitions!(found, parsed, path, 0,
-                                           _find_positional_markers(text))
+                                           _find_optional_markers(text))
         end
     end
     sort!(found; by = d -> (d.file, d.line))
 end
 
 """
+    find_positional_markers(root) -> Vector{String}
+
+Every `# @positional:` marker under the folders the rule covers, as `file:line`.
+"""
+function find_positional_markers(root::AbstractString)
+    found = String[]
+    for folder in ARGUMENT_ROOTS
+        full = joinpath(root, folder)
+        isdir(full) || continue
+        for (here, _dirs, names) in walkdir(full), name in names
+            endswith(name, ".jl") || continue
+            path = relpath(joinpath(here, name), root)
+            for (number, line) in enumerate(eachline(joinpath(root, path)))
+                occursin(r"^\s*#\s*@positional:", line) && push!(found, "$(path):$(number)")
+            end
+        end
+    end
+    sort!(found)
+end
+
+"""
     argument_violations(root) -> Vector{String}
 
-A public definition over the line that neither a marker nor the protocol list
-excuses, and a marked public definition that breaks the clause on optional
-positional arguments, outside a port.
+A public definition outside a port that takes more than one optional positional
+argument, or one beside a keyword argument, with no `# @optional:` marker; and
+every `# @positional:` marker.
 """
 function argument_violations(root::AbstractString)
-    found = find_argument_definitions(root)
-    over = [d for d in found if is_over_positional_limit(d) && !is_private_name(d.name)]
     out = String[]
-    for d in over
-        push!(out, "$(d.file):$(d.line) $(d.name) takes $(get_positional_count(d)) " *
-                   "positional arguments — name the fourth and the rest, or write " *
-                   "`# @positional: <reason>` above it; see code-quality-rules.md §4")
-    end
-    for d in found
-        (d.excused && !is_private_name(d.name) && !is_port_definition(d)) || continue
+    for d in find_argument_definitions(root)
+        (is_private_name(d.name) || is_port_definition(d) || d.marked) && continue
         keeps_optional_clause(d) && continue
-        push!(out, "$(d.file):$(d.line) $(d.name) has a `# @positional:` marker, which " *
-                   "excuses the count only, and takes $(d.optional) optional positional " *
+        push!(out, "$(d.file):$(d.line) $(d.name) takes $(d.optional) optional positional " *
                    "argument(s)$(d.keywords > 0 ? " beside keyword arguments" : "") — " *
-                   "name them; see code-quality-rules.md §4")
+                   "make them keywords, or write `# @optional: <reason>` above it; " *
+                   "see code-quality-rules.md §4")
+    end
+    for place in find_positional_markers(root)
+        push!(out, "$(place) has a `# @positional:` marker, which no rule needs: the " *
+                   "count of positional arguments is advice; remove the marker")
     end
     out
 end
@@ -204,8 +218,9 @@ end
 """
     argument_report(root) -> Nothing
 
-What the rule looks like across the code: how many definitions take how many
-positional arguments, and every public one over the line. It fails nothing.
+What the arguments look like across the code: how many definitions take how many
+positional arguments, the public ones over the advice of three, and the
+definitions that break the optional clause. It fails nothing.
 """
 function argument_report(root::AbstractString)
     found = find_argument_definitions(root)
@@ -219,14 +234,16 @@ function argument_report(root::AbstractString)
     end
     println("\ndefinitions taking a keyword argument: ", count(d -> d.keywords > 0, found))
     wide = [d for d in found if get_positional_count(d) > POSITIONAL_LIMIT]
-    println("over the limit of ", POSITIONAL_LIMIT, ": ", length(wide),
-            " (protocol ", count(d -> is_protocol_name(d.name), wide),
-            ", excused by a marker ", count(d -> d.excused, wide), ")")
+    println("over the advice of ", POSITIONAL_LIMIT, ": ", length(wide),
+            " (protocol ", count(d -> is_protocol_name(d.name), wide), ")")
     over = [d for d in found if is_over_positional_limit(d)]
     public = [d for d in over if !is_private_name(d.name)]
-    println("to answer for: ", length(over), " (public ", length(public),
+    println("over the advice, not a protocol: ", length(over), " (public ", length(public),
             ", private ", length(over) - length(public), ")")
-    println("\nthe public ones, widest first:")
+    optional = [d for d in found if !keeps_optional_clause(d)]
+    println("breaking the optional clause: ", length(optional), " (marked ",
+            count(d -> d.marked, optional), ")")
+    println("\nthe public ones over the advice, widest first:")
     for d in sort(public; by = get_positional_count, rev = true)
         println("  ", rpad(string(d.required) * "+" * string(d.optional) * "+" *
                            string(d.keywords), 9),
@@ -236,19 +253,22 @@ function argument_report(root::AbstractString)
     nothing
 end
 
-# Runnable on its own. It needs no environment and no dependency:
+# Runnable on its own. It needs no environment and no dependency. A path names
+# the root of another repository, whose `source/` and `example/` it reads:
 #
 #     julia test/suite/arguments.jl
 #     julia test/suite/arguments.jl --report
+#     julia test/suite/arguments.jl ../omnet-julia
 #
 if abspath(PROGRAM_FILE) == @__FILE__
-    root = normpath(joinpath(@__DIR__, "..", ".."))
+    paths = filter(argument -> !startswith(argument, "--"), ARGS)
+    root = isempty(paths) ? normpath(joinpath(@__DIR__, "..", "..")) : abspath(first(paths))
     if "--report" in ARGS
         argument_report(root)
     else
         bad = argument_violations(root)
         if isempty(bad)
-            println("every public definition keeps the rule of three, or says why not")
+            println("every public definition keeps the optional clause, or says why not")
         else
             println("$(length(bad)) argument violation(s):")
             foreach(v -> println("  ", v), bad)

@@ -208,15 +208,18 @@ ever hand-rolled.
 reason to change a sealed file, and a wide sweep is exactly where one gets
 changed by accident. List the sealed files before a sweep and exclude them.
 
-## 4. Arguments: three positional, then names
+## 4. Arguments: positional for what the name says, names for the rest
 
-**A function takes at most three positional arguments.** The fourth and every
-one after it takes a name. A name at a call site says what a value is. An order
-says nothing, and a reader can not check it without opening the definition.
+**Prefer at most three positional arguments.** This is advice, not a limit. A
+fourth positional argument is fine when the name of the function implies it:
+`insert_elements!(editor, collection, index, values)` says what and where. A name
+at a call site says what a value is. An order says nothing, and a reader can not
+check it without opening the definition, so an argument that the name of the
+function does not imply takes a name.
 
 **A positional argument is one that the name of the function already names.**
-The subject comes first — the document, the store, the editor — and then at most
-two more that the verb implies. `open_pane!(editor, document)` needs no names. If
+The subject comes first — the document, the store, the editor — and then the
+arguments that the verb implies. `open_pane!(editor, document)` needs no names. If
 a reader can not say what an argument is from the name of the function, that
 argument takes a name of its own.
 
@@ -226,10 +229,22 @@ mode takes a name as soon as a second `Symbol` stands beside it, as in
 `orientation = :vertical, side = :right`.
 
 **Two arguments of one type that a caller could swap take a name**, at least one
-of the two: two `PaneGroup`s, three `Vector{Int}`s, a lower and an upper bound.
+of the two: two `PaneGroup`s, three `Vector{Int}`s, a lower and an upper bound,
+the name and the description of a `Tool`.
 
 **Anything that a caller may leave out is a keyword.** A definition takes at most
-one optional positional argument, and never one beside a keyword argument.
+one optional positional argument, and never one beside a keyword argument. This
+is a recommendation, not a hard rule, and an exception says why on the line above
+the definition:
+
+```julia
+# @optional: the name of the example stands first, as at a command line.
+function run_example(name = "json"; backend = nothing)
+```
+
+A short form of a protocol method is a method of its own, not a default value:
+`copy_document(K, value)` calls `copy_document(K, value, nothing, 0)`, so a type
+that adds the protocol method writes its full signature once.
 
 **A parameter that arrives later is a keyword.** Every call that exists stays
 valid, and every new call says what the new value is. This half of the rule is
@@ -245,35 +260,17 @@ the centre and the radius stand positionally; a style, a view state and an optio
 take names. `WidgetLabel(content; position, text_style, padding, tooltip)` is the
 shape.
 
-### An exception is written down
+### The guard
 
-Four kinds of signature keep more than three positional arguments. Each one is an
-exception, and an exception says so on the line above the definition:
-
-```julia
-# @positional: the arity of the projection protocol.
-function print_document(projection::JsonToSyntax, recursion, document, ctx)
-```
-
-| Exception | Why |
-| --- | --- |
-| A method of a protocol | The arity is the contract: `print_document`, `read_intent`, `match_reference_step`, `splice_value!`, a method of Base. New information goes into the context that the protocol already carries, and never into a new argument. |
-| A conventional tuple | `x, y, w, h` of a rectangle, `MouseClick(button, x, y, modifiers)`, `Inset(top, right, bottom, left)`. One order, everywhere in the repository, and a wrong order fails at once. |
-| A port | A file that mirrors the API of another program keeps the signature of the original, so a reader can hold the two side by side. No file of this repository is a port today. |
-| The painters of a backend | One family of functions of one shape, called from one dispatch table, in `source/backend/sdl/` and `source/backend/pdf/`. The family is read as a whole. |
-
-**A marker excuses the count, and nothing else.** The definition under it keeps
-every other clause of this section: its chrome takes names, a `Bool` is never
-positional, and it takes at most one optional positional argument, never beside
-a keyword argument. `GraphicsRect(x, y, w, h; color, radius)` keeps the four of
-a box positional and names the rest. A port is the one kind that keeps its whole
-signature, default arguments included, because the original has them.
-
-`test/suite/arguments.jl` is the guard, and `test_arguments()` runs it: a public
-definition over the line fails unless a marker says why it stands. A method of a
-protocol on the guard's protocol list needs no marker, because the list says it
-for every method at once. `julia tool/survey-arguments.jl` prints the whole
-picture, the private helpers included.
+`test/suite/arguments.jl` is the guard, and `test_arguments()` runs it. A public
+definition fails when it takes more than one optional positional argument, or one
+beside a keyword argument, and no `# @optional:` marker stands above it. A
+`# @positional:` marker fails too, because no rule needs it: the count is advice.
+A port keeps the whole signature of the program that it
+mirrors, default arguments included, so a definition in a port folder needs no
+marker. `julia test/suite/arguments.jl --report` and `julia
+tool/survey-arguments.jl` print the count of positional arguments across the
+code, the private helpers included; nothing fails on it.
 
 **The public functions come first.** A private helper inside one file costs one
 reader one file. A public function costs every call site and every caller that

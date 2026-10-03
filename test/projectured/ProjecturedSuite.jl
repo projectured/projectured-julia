@@ -303,13 +303,11 @@ end
 """
     test_arguments()
 
-The argument guard: the rule of three positional arguments of
-`documentation/rule/code-quality-rules.md` §4. A public definition over the line
-fails, unless a `# @positional:` marker says why it stands, or unless it is a
-method of a protocol on the protocol list of `test/suite/arguments.jl`. A marker
-excuses the count only: a marked definition fails as well when it takes more
-than one optional positional argument, or one beside keyword arguments, unless
-it is a port.
+The argument guard: the clause on optional positional arguments of
+`documentation/rule/code-quality-rules.md` §4. A public definition outside a port
+fails when it takes more than one optional positional argument, or one beside
+keyword arguments, unless a `# @optional:` marker says why. A `# @positional:`
+marker fails too, because the count of positional arguments is advice.
 
 A private helper is out of scope for now. It loads nothing and runs in about a
 second.
