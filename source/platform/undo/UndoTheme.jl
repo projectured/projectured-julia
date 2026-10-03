@@ -20,7 +20,7 @@ with no theme it holds the plain values of the default theme.
 """
 @theme struct UndoTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("DejaVu Sans Mono", 16)
+    font::StyleFont = StyleFont("DejaVu Sans Mono", 13)
     "The label and the number of a step."
     index_text::TextRole = TextRole(color_slate_500)
     "A step that can be taken back."

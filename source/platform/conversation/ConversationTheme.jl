@@ -24,9 +24,9 @@ style fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct ConversationTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("Ubuntu", 20)
+    font::StyleFont = StyleFont("Ubuntu", 14)
     "The font that the code and the prompts of this theme follow: its family, its weight and its size."
-    code_font::StyleFont = StyleFont("Ubuntu Mono", 20)
+    code_font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The label beside a turn whose role is the user."
     user_role_text::TextRole = TextRole(color_indigo_600; weight = 700, relative_size = 0.9)
     "The label beside a turn whose role is the assistant."

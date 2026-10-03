@@ -20,9 +20,9 @@ fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct BookTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("Ubuntu", 20)
+    font::StyleFont = StyleFont("Ubuntu", 14)
     "The font that the code of this theme follows: its family, its weight and its size."
-    code_font::StyleFont = StyleFont("Ubuntu Mono", 20)
+    code_font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The title of a book."
     title_text::TextRole          = TextRole(color_solarized_blue; weight = 700, relative_size = 1.8)
     "The \"Written by \" that introduces the author."

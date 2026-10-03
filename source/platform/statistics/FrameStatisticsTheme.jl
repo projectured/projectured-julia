@@ -20,7 +20,7 @@ fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct FrameStatisticsTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("DejaVu Sans Mono", 16)
+    font::StyleFont = StyleFont("DejaVu Sans Mono", 13)
     "The head line and the column header."
     header_text::TextRole = TextRole(color_solarized_cyan; weight = 700)
     "One measurement."

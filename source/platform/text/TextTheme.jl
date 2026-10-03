@@ -22,7 +22,7 @@ colors and fonts as keywords: no view of the platform builds them.
 """
 @theme struct TextTheme
     "The font of a text that no document styles, such as the line of a placeholder."
-    font::StyleFont = StyleFont("Ubuntu Mono", 20)
+    font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The caret of the text that holds the keyboard."
     caret::StyleColor = color_black
     "The caret of a text that keeps its place while another holds the keyboard."

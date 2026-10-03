@@ -19,7 +19,7 @@ with no theme it holds the plain values of the default theme.
 """
 @theme struct FaultTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("DejaVu Sans Mono", 16)
+    font::StyleFont = StyleFont("DejaVu Sans Mono", 13)
     "The count of the occurrences of a fault."
     count_text::TextRole = TextRole(color_slate_500)
     "The barrier that catches a fault, such as `print`, `device` or `tool`."

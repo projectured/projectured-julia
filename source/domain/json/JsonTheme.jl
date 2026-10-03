@@ -19,7 +19,7 @@ with no theme it holds the plain values of the default theme.
 """
 @theme struct JsonTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("Ubuntu Mono", 20)
+    font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "A null value."
     null_text::TextRole = TextRole(color_solarized_magenta)
     "A boolean value."

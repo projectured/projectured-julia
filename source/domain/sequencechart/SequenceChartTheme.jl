@@ -53,7 +53,7 @@ plain values of the default theme.
     "The font of the chart's title."
     title_font::FontRole = FontRole(base = :axis_font, weight = 700, relative_size = 16 / 14)
     "The font of a tick, a lane name, a readout and the empty-chart placeholder."
-    axis_font::StyleFont = StyleFont("Ubuntu", 14)
+    axis_font::StyleFont = StyleFont("Ubuntu", 12)
     "The font of the label of an event, an arrow or a band."
     label_font::FontRole = FontRole(base = :axis_font)
     "The space around the whole chart."

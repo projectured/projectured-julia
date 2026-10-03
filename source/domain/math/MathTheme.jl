@@ -20,7 +20,7 @@ fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct MathTheme
     "The font that the code of this theme follows: its family, its weight and its size."
-    code_font::StyleFont = StyleFont("Ubuntu Mono", 20)
+    code_font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "A variable."
     variable_text::TextRole = TextRole(color_solarized_blue; base = :code_font)
     "An operator, and the `/` of a fraction."
@@ -36,7 +36,7 @@ fields; with no theme it holds the plain values of the default theme.
     "The `=` of an assignment."
     equals_text::TextRole = TextRole(color_solarized_yellow; base = :code_font)
     "The upright face: a number, an operator, a function name, a symbol."
-    font::StyleFont = StyleFont("DejaVu Sans", 20)
+    font::StyleFont = StyleFont("DejaVu Sans", 14)
     "The oblique face: a variable."
     slanted_font::FontRole = FontRole(italic = true)
     "The color of every part."

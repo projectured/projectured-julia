@@ -19,7 +19,7 @@ with no theme it holds the plain values of the default theme.
 """
 @theme struct XmlTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("Ubuntu Mono", 20)
+    font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The text of a text node."
     content_text::TextRole         = TextRole(color_black)
     "The name of an element's opening and closing tag."

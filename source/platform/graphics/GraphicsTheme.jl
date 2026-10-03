@@ -16,7 +16,7 @@ with the same theme, from the same appearance.
 """
 @theme struct GraphicsTheme
     "The base font of the fault mark."
-    font::StyleFont = StyleFont("DejaVu Sans Mono", 16)
+    font::StyleFont = StyleFont("DejaVu Sans Mono", 13)
     "The mark of a fault that a projection of the graphics domain raised."
     fault_text::TextRole = TextRole(color_solarized_red; weight = 700)
     "The ring around an object that is selected as a whole."

@@ -19,7 +19,7 @@ fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct SqlTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("Ubuntu Mono", 20)
+    font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "A reserved word, such as `SELECT`, `FROM`, `WHERE` or `AND`."
     keyword_text::TextRole = TextRole(color_solarized_blue; weight = 700)
     "A column, a value, a raw expression, a data type, or any other identifier that is not a keyword or a table name."

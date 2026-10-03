@@ -20,7 +20,7 @@ The widget tree of the file system follows the widget theme instead.
 """
 @theme struct FileSystemTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("Ubuntu Mono", 20)
+    font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The basename of a file."
     file_text::TextRole = TextRole(color_solarized_blue)
     "The name of a directory."

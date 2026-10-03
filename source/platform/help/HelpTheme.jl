@@ -20,7 +20,7 @@ fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct HelpTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("DejaVu Sans", 16)
+    font::StyleFont = StyleFont("DejaVu Sans", 13)
     "The line that says what a list holds."
     heading_text::TextRole = TextRole(color_slate_600)
     "The name of a type, in a list."

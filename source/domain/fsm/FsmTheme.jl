@@ -20,7 +20,7 @@ fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct FsmTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("Ubuntu Mono", 20)
+    font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The keywords: `component`, `variable`, `timer`, `event`, `machine`, `state`, `initial`, `on`, `when`, `stay`, `ignore`, `entry` and `ignoring unhandled`."
     keyword_text::TextRole     = TextRole(color_solarized_blue; weight = 700)
     "The name of a component, a variable, a timer, an event, a machine or a state."

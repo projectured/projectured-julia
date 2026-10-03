@@ -23,9 +23,9 @@ fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct RstTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("Ubuntu", 20)
+    font::StyleFont = StyleFont("Ubuntu", 14)
     "The font that the code of this theme follows: its family, its weight and its size."
-    code_font::StyleFont = StyleFont("Ubuntu Mono", 20)
+    code_font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "A marker: an insertion placeholder, a tick, an emphasis or strong mark, a bullet, a transition, a comment, a directive's chrome, or any other marker."
     marker_text::TextRole          = TextRole(color_solarized_gray; base = :code_font)
     "The text, the root, a value and an argument, in the source form."

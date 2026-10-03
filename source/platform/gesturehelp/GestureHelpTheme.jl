@@ -21,7 +21,7 @@ style fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct GestureHelpTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("DejaVu Sans Mono", 20)
+    font::StyleFont = StyleFont("DejaVu Sans Mono", 14)
     "The heading of a domain's group of rows in the gesture map."
     map_header_text::TextRole = TextRole(color_solarized_blue; family = "Ubuntu Mono", weight = 700)
     "A gesture that can fire."

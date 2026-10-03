@@ -23,9 +23,9 @@ style fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct MarkdownTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("Ubuntu", 20)
+    font::StyleFont = StyleFont("Ubuntu", 14)
     "The font that the code of this theme follows: its family, its weight and its size."
-    code_font::StyleFont = StyleFont("Ubuntu Mono", 20)
+    code_font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "A marker: an insertion placeholder, a tick, a break, an emphasis mark, a quote mark, a bullet, a pipe, a bracket, a fence."
     marker_text::TextRole          = TextRole(color_solarized_gray; base = :code_font)
     "The text of the source form, and the root."

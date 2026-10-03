@@ -22,7 +22,7 @@ fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct ProcessTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("Ubuntu Mono", 20)
+    font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "`process`, `step`, `if`, `else`, `while`, `for`, `in`, `break`, `continue` and `return`, and the keyword of a diagram label."
     keyword_text::TextRole    = TextRole(color_solarized_magenta; weight = 700)
     "The name of a process, and a `for`'s variable."

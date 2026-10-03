@@ -22,7 +22,7 @@ with no theme it holds the plain values of the default theme.
 """
 @theme struct InspectorTheme
     "The body: the compact reference and the human-readable narrative."
-    font::StyleFont = StyleFont("Ubuntu Mono", 20)
+    font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The \"Compact\" and \"Human-readable\" section headers."
     header_font::FontRole = FontRole(family = "Liberation Sans", weight = 700, relative_size = 1.5)
     "The \"Compact\" and \"Human-readable\" section headers."

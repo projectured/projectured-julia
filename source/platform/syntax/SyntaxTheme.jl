@@ -58,7 +58,7 @@ that prints its own leaves styles them with a theme of its own.
     "The color of the delimiters around the part under the pointer."
     lit_delimiter::StyleColor = color_solarized_orange
     "The font of the indentation and the line breaks of a node with no delimiter of its own, such as the body of a block."
-    font::StyleFont = StyleFont("Ubuntu Mono", 20)
+    font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "A bracket and a space of a reflected object, in the font of its field names."
     object_delimiter_text::TextRole = TextRole(color_default)
     "The ellipsis that stands in for the children of a folded node, in the size of the text around it."

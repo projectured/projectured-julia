@@ -19,7 +19,7 @@ with no theme it holds the plain values of the default theme.
 """
 @theme struct MessageLogTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
-    font::StyleFont = StyleFont("DejaVu Sans Mono", 16)
+    font::StyleFont = StyleFont("DejaVu Sans Mono", 13)
     "The level of a message, such as `Info` or `Warn`."
     level_text::TextRole = TextRole(color_solarized_cyan; weight = 700)
     "The text of the message."

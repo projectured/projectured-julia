@@ -32,7 +32,7 @@ fields; with no theme it holds the plain values of the default theme.
     "The value of a formula."
     result_text::TextRole = TextRole(color_solarized_green; base = :plain_font)
     "The font the lines of an environment separate on."
-    plain_font::StyleFont = StyleFont("Ubuntu Mono", 20)
+    plain_font::StyleFont = StyleFont("Ubuntu Mono", 14)
 end
 
 # The style field of type `T` of a Formula projection that holds the field

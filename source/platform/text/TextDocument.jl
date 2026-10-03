@@ -138,7 +138,7 @@ The font of a text that names none: a run that a document makes with no font,
 and the line of a block with no run. It is a default of the text document, the
 content that an author leaves out, and not a style of a projection.
 """
-const UNSTYLED_TEXT_FONT = StyleFont("Ubuntu Mono", 20)
+const UNSTYLED_TEXT_FONT = StyleFont("Ubuntu Mono", 14)
 
 # font / font_color are passed RAW so they land in their ImmutableCell default;
 # content stays a reactive Cell. Passing a Cell for font/colour overrides the default.
