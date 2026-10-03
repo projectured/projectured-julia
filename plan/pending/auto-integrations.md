@@ -535,8 +535,12 @@ The README of each released package changes too
       same findings as `julia-112`. The binary loads the platform, not the
       umbrella (section 9.5); `test_builder()` passes 473 of 473.
 - [ ] **Step 8, the documentation.** Section 6.
-- [ ] **Step 9, downstream.** omnet-julia and inet-julia precompile. I expect
+- [x] **Step 9, downstream.** omnet-julia and inet-julia precompile. I expect
       no change, because they do not load the umbrella.
+      Done: scratch environments of both repositories against the packages of
+      this worktree (`/var/tmp/down3/run.sh`): omnet-julia precompiles 108
+      packages in 140 s, inet-julia 12 in 77 s, with no error. Neither loads
+      the umbrella, so AutoIntegrations is not in their manifests.
 - [ ] **Step 10, the check.** A new user in an empty depot, from a local
       registry, for the manual way, the automatic way, the setting and
       `ProjecturedIntegrations`. The suites of the changed packages,
