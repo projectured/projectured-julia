@@ -564,6 +564,9 @@ function test_package_release()
                        "$PROJECTURED_RELEASE_URL/actions/workflows/ProjecturedJSON.yml/badge.svg)]", front)
         @test all(name -> occursin("| [$name]($name) | ", front), names)
         @test occursin("pkg> registry add General\npkg> registry add $PROJECTURED_REGISTRY_URL\n", front)
+        # It says how to keep the compiled code for the next session.
+        @test occursin("pkg> add AutoPrecompile\n", front)
+        @test occursin("julia> using AutoPrecompile, Projectured, DataFrames", front)
         readme = read(joinpath(output, "ProjecturedJSON", "README.md"), String)
         @test occursin(PROJECTURED_PACKAGE_READMES["ProjecturedJSON"].summary, readme)
         @test occursin("pkg> registry add General\npkg> registry add $PROJECTURED_REGISTRY_URL\n" *

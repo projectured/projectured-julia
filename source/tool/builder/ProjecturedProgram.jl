@@ -778,6 +778,28 @@ function _format_projectured_release_overview(context::BuildContext, names)
     add. Some users want the integrations to load by themselves, and some users
     name each package. The setting for each package lets you choose.
 
+    ## Faster sessions
+
+    A Julia session compiles the code that it runs, and it keeps that code only
+    until it ends. So each new session that shows a data frame compiles the editor
+    again. AutoPrecompile keeps that code for the next session:
+
+    ```
+    pkg> add AutoPrecompile
+
+    julia> using AutoPrecompile, Projectured, DataFrames, SimpleDirectMediaLayer
+    julia> display_in_editor(DataFrame(n = 1:100_000, square = (1:100_000) .^ 2))
+    ```
+
+    Each package of ProjecturEd ships the precompile statements that its
+    recordings compiled, in its folder `precompile/`. In the first session,
+    AutoPrecompile builds one package image for the packages that you loaded, in
+    the background, and logs that it does. A later session that loads the same
+    packages loads that image, so it compiles almost nothing of what the
+    recordings hold. The images take at most 2048 MB together; the entry
+    `disk_limit_mb` of the table `[AutoPrecompile]` in `LocalPreferences.toml`
+    sets another limit.
+
     ## The packages
 
     | Package | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Tests&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | What it holds or does |
