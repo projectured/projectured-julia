@@ -45,7 +45,9 @@ function _copy_shadow_element(K, x, policy = nothing, depth::Int = 0)
 end
 
 # Contract documented at the `sync_document!` declaration in `DocumentInterface.jl`.
-function sync_document!(shadow::Document, source::Document, policy = nothing, depth::Int = 0)
+sync_document!(shadow::Document, source::Document) = sync_document!(shadow, source, nothing, 0)
+
+function sync_document!(shadow::Document, source::Document, policy, depth::Int)
     _is_same_document_type(shadow, source) ||
         error("sync_document!: type mismatch, $(typeof(shadow)) vs $(typeof(source))")
     # An element is rebuilt in the kind of the cells of the collection, and a field

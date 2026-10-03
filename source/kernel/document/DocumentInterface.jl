@@ -192,7 +192,9 @@ its element type when each copied element fits it.
 child with `copy_document(K, child, policy, depth)`, and its shorter forms call
 the four-argument form too. So a kind that copies in its own way adds
 `copy_document(K, value::MyKind, policy, depth::Int)`, and the walk reaches that
-method for a value at any depth. `policy` is the bound of
+method for a value at any depth. The four-argument form takes no default values:
+`copy_document(K, value)` is a method of its own that calls it with `nothing` and
+`0`, so a kind writes the full signature once. `policy` is the bound of
 [`is_descendable_for_sync`](@ref), or `nothing`, and `depth` is the depth of
 `value` below the root of the copy.
 
@@ -335,6 +337,7 @@ function get_copy_memo end
 
 """
     sync_document!(shadow, source) -> shadow
+    sync_document!(shadow, source, policy, depth::Int) -> shadow   # the form a kind adds
 
 Update the writable `shadow` document to match `source`, writing a shadow cell
 **only when its value changed** — so the downstream reactive graph sees a
@@ -350,6 +353,10 @@ native tree holds no cells, so nothing in it can invalidate a reader and it is
 not a shadow. Syncing into one raises an error the moment a child has to be
 built. `source` may be a native document: a rebuilt child converts to the
 shadow's layout, which is what [`copy_document`](@ref) does for a kind.
+
+A kind that syncs in its own way adds the four-argument form, as it does for
+`copy_document`; `policy` and `depth` take no default values there. The
+two-argument form is a method of its own that calls it with `nothing` and `0`.
 """
 function sync_document! end
 

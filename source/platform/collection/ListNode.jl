@@ -127,7 +127,7 @@ _copy_list_link(copy_node, original::ListNode, copied::ListNode, link::Symbol, b
 # syncs each node, without its links. A link of the shadow that nothing has read
 # stays one that copies the neighbour of its source node when it is read, so a
 # sync of a list without an end ends.
-function sync_document!(shadow::ListNode, source::ListNode, policy = nothing, depth::Int = 0)
+function sync_document!(shadow::ListNode, source::ListNode, policy, depth::Int)
     _sync_unlinked_list_node!(shadow, source, policy, depth)
     _sync_list_tail!(shadow, source, :next, :prev, policy, depth)
     _sync_list_tail!(shadow, source, :prev, :next, policy, depth)

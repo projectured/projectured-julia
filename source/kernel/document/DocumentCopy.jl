@@ -193,9 +193,12 @@ end
 # typed field may actually hold `nothing`, and `ImmutableCell{SomeType}(nothing)`
 # would be unconstructable; it lands on `ImmutableCell{Nothing}` instead (still
 # type-stable, just off the alias). Contract at `copy_document` in `DocumentInterface.jl`.
-copy_document(::Type{<:AbstractCell}, value, policy = nothing, depth::Int = 0) = value
+copy_document(::Type{<:AbstractCell}, value, policy, depth::Int) = value
 
-copy_document(K::Type{<:AbstractCell}, v::AbstractVector, policy = nothing, depth::Int = 0) =
+# The short form: no bound, at the root of the copy.
+copy_document(K::Type{<:AbstractCell}, value) = copy_document(K, value, nothing, 0)
+
+copy_document(K::Type{<:AbstractCell}, v::AbstractVector, policy, depth::Int) =
     _copy_elements(K, v, policy, depth)
 
 # The elements of `v`, which stand at `depth`, each copied as kind `K`. The copy
@@ -229,7 +232,7 @@ end
 _wrap_placeholder(K, x, m) =
     x isa AbstractCell ? K{K === ReactiveCell ? Any : typeof(m)}(m) : m
 
-function copy_document(K::Type{<:AbstractCell}, c::AbstractCell, policy = nothing, depth::Int = 0)
+function copy_document(K::Type{<:AbstractCell}, c::AbstractCell, policy, depth::Int)
     v = copy_document(K, c[], policy, depth)
     Tv = K === ReactiveCell ? Any : typeof(v)
     K{Tv}(v)
@@ -250,7 +253,7 @@ function _kinded_value_type(::Type{K}, Ts, i, v) where {K<:AbstractCell}
     v isa Td ? Td : typeof(v)
 end
 
-function copy_document(K::Type{<:AbstractCell}, doc::Document, policy = nothing, depth::Int = 0)
+function copy_document(K::Type{<:AbstractCell}, doc::Document, policy, depth::Int)
     T = typeof(doc)
     # The target is the schema's **cell layout**, not the source's own layout. A kind
     # is a property of a cell, so a kinded copy only means something in a tree that
