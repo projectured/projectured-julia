@@ -25,13 +25,31 @@ registry and the release take the new name with a fresh overwrite.
 
 ## Steps
 
-1. The package repository, on a branch, in a worktree at the new folder name.
-   Its test passes.
-2. This repository, on a branch, in a sibling worktree. The recording
-   "readme-data-frame" again. The tests: the package test of AutoIntegration,
-   the integration loading test, `test_package_release()`,
-   `test_package_graph()`, `test_naming()` and the documentation test.
-3. Land both, and move the folder.
-4. Publish, with the owner's word for each push: the GitHub rename, both
-   repositories, the site, and the fresh release and registry.
-5. A memory note for old branches: they rebase onto the rename.
+1. **Done** — the package repository: commit `ffd6d72`, landed on its `main`, not
+   pushed. The entry file is `src/AutoIntegration.jl`, and the table of
+   `LocalPreferences.toml` that it reads is `[AutoIntegration]`. Its test: 22 of
+   22.
+2. **Done** — this repository: commit `78232fc98`, 62 files. The four forms
+   `AutoIntegrations`, `AUTOINTEGRATIONS_URL`, `autointegrations` and
+   `auto-integrations` were replaced outside the plans and the statement files;
+   `auto-integration` and `auto_integration` stay. The guide moved to
+   `documentation/package/autointegration/autointegration.md`. The recording
+   "readme-data-frame" was made again: its 4 lines name `AutoIntegration`, and
+   the platform and the kernel gained 44 lines from the code of other sessions.
+   Tests: the four of `IntegrationLoadingTest.jl`, `test_package_graph`,
+   `test_naming`, `test_documentation` and `test_package_release`, 665 of 665.
+3. **Done** — landed on `main`, and the folder moved to `../auto-integration`.
+4. Publish, with the owner's word for each push:
+   - rename the GitHub repository to `projectured/AutoIntegration.jl`, and set
+     the address of `origin` in `../auto-integration`;
+   - push `main` of the package repository and of this repository;
+   - push the site: commit `0b8f440` on the branch `rename-autointegration` of
+     `projectured.github.io` (worktree `../projectured.github.io-rename`), three
+     lines of `index.html`;
+   - a fresh release and registry, with AutoIntegration registered first, then
+     AutoPrecompile as it is registered, then the release; the README of the
+     registry names `AutoIntegration.jl`. The owner force-pushes both.
+5. **Done** — the memory `autointegration-rename-landed.md`, in the index of
+   landed changes: an older branch rebases, or it cannot load the umbrella.
+   `projectured-julia-release` and `projectured-julia-kernel-audit-decisions`
+   still name the old folder.
