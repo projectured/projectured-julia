@@ -576,8 +576,8 @@ inet-julia uses, the same step changes them, so that they always load.
     the group "Editor". `FaultToGraphics` takes its defaults from the theme,
     as `FaultToText` and `FaultToSyntax` do. omnet-julia: the qtenv widget
     theme names no ring, and the select-and-paste test reads the default.
-    Left: the radius 3 of the ring stays a literal of `make_selection_ring`,
-    because the stroke that the containers hold has no radius (T5 lists it).
+    The radius of the ring is the field `selection_ring_radius` (3), and the
+    gap of a collection is `collection_gap` (8); the guard of T5 found both.
     Check: the images are 315 of 315 equal. The platform suite passes after
     one change of `PLATFORM_SLICE_EDGES`: the appearance slice may use the
     graphics slice, because its tab names `GraphicsTheme`. The conversation
