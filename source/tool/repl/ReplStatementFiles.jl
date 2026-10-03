@@ -21,10 +21,17 @@ environment that it runs in.
 
 - `"examples"` drives every example of `ProjecturedExample` in a real window, in
   `environment/all`.
+- `"readme-data-frame"` does what the README of the release repository tells a
+  user to write, `display_in_editor` of a data frame, and sends its window a
+  few gestures, in `environment/readme-data-frame`, which holds the packages of
+  the README and nothing else.
 """
 const PRECOMPILE_RECORDINGS = Dict(
     "examples" => (driver = joinpath(_REPOSITORY, "tool", "precompile", "recording-driver.jl"),
-                   project = joinpath(_REPOSITORY, "environment", "all")))
+                   project = joinpath(_REPOSITORY, "environment", "all")),
+    "readme-data-frame" =>
+        (driver = joinpath(_REPOSITORY, "tool", "precompile", "readme-data-frame.jl"),
+         project = joinpath(_REPOSITORY, "environment", "readme-data-frame")))
 
 # Each package of this repository, with the packages of this repository that it
 # depends on, directly or through others, as the `[deps]` of their `Project.toml`

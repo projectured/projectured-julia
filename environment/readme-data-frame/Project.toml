@@ -1,0 +1,11 @@
+[deps]
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
+ProjecturedDataFrames = "56a0c30a-96eb-4614-b42e-73838bfa8222"
+ProjecturedSDL = "f0002b97-94ba-416c-b93c-86cdc095626f"
+SimpleDirectMediaLayer = "98e33af6-2ee5-5afd-9e75-cbc738b767c4"
+
+[sources]
+Projectured = {path = "../../package/Projectured"}
+ProjecturedDataFrames = {path = "../../package/ProjecturedDataFrames"}
+ProjecturedSDL = {path = "../../package/ProjecturedSDL"}
