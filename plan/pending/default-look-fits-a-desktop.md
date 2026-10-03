@@ -714,7 +714,22 @@ inet-julia uses, the same step changes them, so that they always load.
   the line spacing of D9, which needs step V2, the density 2, and the omnet
   workbench. The script is `/var/tmp/default-look/v1/looks.jl`.
 - [ ] **V2.** The chosen values go into every theme, with the line spacing of
-  section 3.6.
+  section 3.6. *In progress (2026-10-03), before T3 by the owner's choice:*
+  - Fonts: the rule of step V1 sets 41 base fonts in 35 theme files of the
+    three repos: `WidgetTheme` 13, the chart axis fonts 12, a base font of 16
+    or less (the tool panes) 13, every other one 14 (code, documents, the
+    inspector, the conversation, the gesture help, the omnet legacy views 24
+    to 14, the packet diagram). The presets of `WidgetTheme` default to Ubuntu
+    13. `UNSTYLED_TEXT_FONT` is Ubuntu Mono 14. Roles follow their base.
+  - `WidgetTheme`: the spacing table of section 3.6. The fields added after
+    the table (the menus, the bars, the tabbed pane, the forms, the context
+    menu) keep their values, which fit a line of 13 px.
+  - The other themes: their spacings (2 to 16 px), radii, line widths and
+    control sizes were reviewed and kept; the chart tick spacings (70, 100)
+    set the density of the ticks and are no gaps.
+  - The line spacing of D9 waits for an answer: the spacing types count from
+    the natural line height (about 1.15 em for Ubuntu), and D9 says "times
+    the font size".
 - [ ] **V3.** The tests that check a pixel size follow, for example the line box
   of 23 px for Ubuntu 20. The count of broken tests does not change.
 - [ ] **V4.** The owner looks at the live editor at 100% on the screen of
