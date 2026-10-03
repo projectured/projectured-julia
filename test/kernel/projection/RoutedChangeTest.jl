@@ -196,7 +196,9 @@ function test_routed_change()
         @test length(log) == 1
         @test log[1][1] === box.second
         @test log[1][2] == _route_probe_dwell()
-        @test log[1][3] isa EmptyReference
+        # The part reads the gesture at its point, with no route, so a container
+        # that is the part reads it with its own reader, as a leaf does.
+        @test log[1][3] === nothing
         # The answer comes back rerooted by the step the route took.
         @test answer.operation isa ReplaceSelectionOperation
         @test answer.operation.path == route

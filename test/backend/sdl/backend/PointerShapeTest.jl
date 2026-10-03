@@ -49,13 +49,20 @@ function test_sdl_pointer_shape()
         end
 
         @testset "each shape has a cursor, made once" begin
-            @test backend.cursors[:open_hand] != C_NULL
+            # The offscreen driver, which SDL uses where no display is, makes no
+            # system cursor, and whether it makes a cursor of a glyph depends on
+            # the machine. So a cursor is asserted only with a display; that each
+            # shape asks SDL once is asserted everywhere.
+            has_display = unsafe_string(_SDL.SDL_GetCurrentVideoDriver()) != "offscreen"
             made = backend.cursors[:open_hand]
+            has_display && @test made != C_NULL
             _push_window_motion!(resource, 105, 10, ratio)
             _read_waiting_input!(backend)
             @test backend.cursors[:open_hand] === made
             for name in POINTER_SHAPES
-                @test ProjecturedSDL.SdlModule._get_shape_cursor!(backend, name) != C_NULL
+                cursor = ProjecturedSDL.SdlModule._get_shape_cursor!(backend, name)
+                has_display && @test cursor != C_NULL
+                @test ProjecturedSDL.SdlModule._get_shape_cursor!(backend, name) === cursor
             end
         end
 
