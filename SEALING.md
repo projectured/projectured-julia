@@ -33,6 +33,9 @@ ask permission before fixing (the seal still holds until permission is given).
 - `🔒` = sealed, `⬜` = not yet sealed.
 - When a file is sealed, flip its `⬜` to `🔒` **in the same commit**. Do not
   remove entries or reorder the list.
+- When a file is deleted, its line goes out **in the commit that deletes the
+  file**. The rule above keeps the audit order of the files that exist; a line
+  for a file that does not exist makes the inventory false.
 - The list is the ordered inventory of `source/kernel/`, in the order the files
   are loaded. The include order in `ProjecturedKernel.jl` is the authoritative
   load order.
@@ -157,7 +160,6 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `iomap/IoMapReconcile.jl`
 - **Layer 17 — projection** (`projection/`)
   - ⬜ `projection/ProjectionModule.jl`
-  - ⬜ `projection/ChildrenContainer.jl`
   - ⬜ `projection/PrinterContext.jl`
   - ⬜ `projection/ProjectionReferenceStep.jl`
   - ⬜ `projection/ProjectionInterface.jl`

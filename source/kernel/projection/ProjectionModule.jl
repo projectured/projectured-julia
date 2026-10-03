@@ -60,7 +60,6 @@ selection mechanism.
 
 | Fragment | Contract |
 |---|---|
-| [`ChildrenContainer.jl`](ChildrenContainer.jl) | no code: `ProjectionInterface.jl` declares the children-container seam, and a higher package adds its methods |
 | [`PrinterContext.jl`](PrinterContext.jl) | `PrinterContext` — the range of each axis, the clock and the properties a printer carries down the tree |
 | [`ProjectionReferenceStep.jl`](ProjectionReferenceStep.jl) | `ProjectionReferenceStep` — a reference step pointing at an element a projection introduced |
 | [`ProjectionInterface.jl`](ProjectionInterface.jl) | the `Projection` supertype, the four open generics and the open seams |
@@ -105,7 +104,6 @@ export read_projection_gesture
 export RuleIoMap, var"@projection_template"
 export print_template_rule, read_template_intent, make_template_builder, find_template_value_retype
 
-include("ChildrenContainer.jl")
 include("PrinterContext.jl")
 include("ProjectionReferenceStep.jl")
 include("ProjectionInterface.jl")

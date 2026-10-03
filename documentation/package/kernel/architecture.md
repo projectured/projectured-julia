@@ -177,7 +177,7 @@ Each layer lives in its own folder under [source/kernel/](../../../source/kernel
 | `intent/` | `IntentModule` — `Intent` and `ClaimedGesture`, the unit that flows back through the readers, and `CollectIntents` |
 | `binding/` | `GestureBindingModule` — `GestureBinding`, the per-document-type registry, `@gestures`/`@gesture_set`, `read_gesture`/`read_bound_gesture` |
 | `iomap/` | `IoMapModule` — the `IoMap` contract (`IoMapInterface.jl`), the concrete IO maps (`IoMapDefaults.jl`: `SimpleIoMap`, `ChildrenIoMap`, `ContentIoMap`, `@iomap`), and the child reconcilers (`IoMapReconcile.jl`: `reconcile_child_iomaps`, `reconcile_child_iomap`) |
-| `projection/` | the projection interface and infrastructure only — `ProjectionInterface`, `PrinterContext`, `ChildrenContainer`, `GestureBindings`, `Projection` (`@projection` + fallbacks), `ProjectionTemplate`. The concrete `higherorder/` and `generic/` combinators live in the platform's projection slice. |
+| `projection/` | the projection interface and infrastructure only — `ProjectionInterface`, `PrinterContext`, `GestureBindings`, `Projection` (`@projection` + fallbacks), `ProjectionTemplate`. The concrete `higherorder/` and `generic/` combinators live in the platform's projection slice. |
 | `tool/` | `ToolModule` — Tool, Resource, ToolSet, `execute_julia_code!`, doc/API search, `register_default_tools!` |
 | `llm/` | `LlmModule` — Llm, `stream_turn`/`render_tool_schema`, LlmMessage/LlmRequest, LlmEvent |
 | `agent/` | `AgentModule` — the inbound contract (`make/start/stop_agent_server!`, `run_on_editor_task!`) and the outbound Agent and `run_turn!` |
