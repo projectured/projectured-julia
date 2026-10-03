@@ -484,8 +484,24 @@ Each step is a commit. Mark it here when it is done.
      that was not idle, so this is no measurement. Each session parses the
      statement files of the loaded packages, about 10000 lines, and loads an image
      of 127 MB.
-   - Not measured: the wall time of the first display, which needs an idle
-     machine and the owner's approval.
+   - Timed at the owner's request, 2026-10-03 at `a31aef8f3`, on cores 28, 30
+     and 31 with one thread, load 1.3 to 4.9. Each session ran the README line
+     `display_in_editor(DataFrame(…))` twice, each time until its first frame,
+     with the editor closed between them; the end of the first frame is when a
+     call through `_run_in_editor` returns, because the loop draws the first
+     frame before it runs work from another task.
+
+     | session | using line | first call | second call |
+     | --- | ---: | ---: | ---: |
+     | without AutoPrecompile, 3 runs | 1.2 s | 27.3, 27.5, 30.1 s | 2.19, 0.14, 0.13 s |
+     | the first with AutoPrecompile, no leaf yet | 2.5 s | 29.0 s | 5.6 s |
+     | with the leaf, 3 runs | 2.8, 2.9, 3.0 s | 0.32, 0.39, 0.33 s | 0.15, 0.12, 0.20 s |
+
+     Without a leaf, almost all of the first call is compile time (27 to 30 s);
+     with the leaf it compiles 0.14 to 0.22 s. In the session that builds the
+     leaf, the second call compiles 5.45 s of AutoPrecompile's own code when its
+     timer starts the build. The using line compiles about 1 s more with
+     AutoPrecompile and loads the image of 127 MB.
 9. **Release**: the owner registers AutoPrecompile in `ProjecturedRegistry`.
 
    Version 0.1.0, the version of step 3 that does nothing, is registered
