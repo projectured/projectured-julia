@@ -14,3 +14,12 @@ ProjecturedPlatform = {path = "../ProjecturedPlatform"}
 
 [compat]
 DataFrames = "1"
+
+# AutoIntegrations loads this package when Projectured and DataFrames are loaded,
+# unless the environment of the user sets it to "manual".
+[auto-integration]
+default = "auto"
+
+[auto-integration.triggers]
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"

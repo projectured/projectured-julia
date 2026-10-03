@@ -465,8 +465,11 @@ The README of each released package changes too
       states of `LocalPreferences.toml`, and `set_auto_integration!`.
       `Pkg.develop` keeps the table. The check of `register` moves to step 10,
       where the local registry is.
-- [ ] **Step 2, the declarations.** The table in the six integrations, and in
-      the packages of decision D2.
+- [x] **Step 2, the declarations.** The table in the six integrations, and in
+      the packages of decision D2. Done: 28 packages, each with the default
+      `auto`: the six with `Projectured` and their third-party package, and the
+      17 domains, the console, PDF and the three model adapters with
+      `Projectured` alone. `ProjecturedWeb` has none.
 - [ ] **Step 3, the umbrella.** Remove what section 4.8 names. `Projectured`
       depends on AutoIntegrations. Rewrite `IntegrationLoadingTest.jl` with
       these cases, each in a scratch environment with

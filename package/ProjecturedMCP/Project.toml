@@ -12,3 +12,12 @@ ProjecturedKernel = {path = "../ProjecturedKernel"}
 
 [compat]
 ModelContextProtocol = "0.4.1"
+
+# AutoIntegrations loads this package when Projectured and ModelContextProtocol are loaded,
+# unless the environment of the user sets it to "manual".
+[auto-integration]
+default = "auto"
+
+[auto-integration.triggers]
+ModelContextProtocol = "c58f755f-f2a7-4f48-bf29-4e9659b78499"
+Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"

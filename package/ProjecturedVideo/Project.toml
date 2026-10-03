@@ -13,3 +13,12 @@ ProjecturedSDL = "f0002b97-94ba-416c-b93c-86cdc095626f"
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
 ProjecturedSDL = {path = "../ProjecturedSDL"}
+
+# AutoIntegrations loads this package when Projectured and FFMPEG are loaded,
+# unless the environment of the user sets it to "manual".
+[auto-integration]
+default = "auto"
+
+[auto-integration.triggers]
+FFMPEG = "c87230d0-a227-11e9-1b43-d7ebe4e7570a"
+Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"

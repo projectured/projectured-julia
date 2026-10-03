@@ -23,3 +23,12 @@ ProjecturedSQL = {path = "../ProjecturedSQL"}
 [compat]
 DBInterface = "2.6.1"
 ODBC = "1.2.1"
+
+# AutoIntegrations loads this package when Projectured and ODBC are loaded,
+# unless the environment of the user sets it to "manual".
+[auto-integration]
+default = "auto"
+
+[auto-integration.triggers]
+ODBC = "be6f12e9-ca4f-5eb2-a339-a4f995cc0291"
+Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"

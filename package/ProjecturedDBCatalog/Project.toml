@@ -14,3 +14,11 @@ ProjecturedSQL = "d8115f9e-353f-406e-8661-6168b14bd6fd"
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
 ProjecturedSQL = {path = "../ProjecturedSQL"}
+
+# AutoIntegrations loads this package when Projectured is loaded, unless the
+# environment of the user sets it to "manual".
+[auto-integration]
+default = "auto"
+
+[auto-integration.triggers]
+Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
