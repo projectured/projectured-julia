@@ -492,10 +492,10 @@ Each step is a commit. Mark it here when it is done.
    2026-10-03 at the owner's word: commit `fcbf66b` in the clone
    `~/.julia/registries/ProjecturedRegistry`, made with LocalRegistry.jl from
    `@localregistry` as for AutoIntegrations, tree `4c5c951b…` of `688a8e2`. The
-   owner pushed it the same day. The registered 0.1.0 is still the
-   version that does nothing; by decision 21 the version stays until the public
-   announcement, so this step waits for it. So
-   the first version that works needs a new number, for example 0.2.0.
+   owner pushed it the same day. The registered 0.1.0 is still the version that
+   does nothing. By decision 21 the version stays 0.1.0 until the public
+   announcement, so this step waits for it; the registry then needs the tree of
+   the version that works.
 
 ## 6. Open questions
 
