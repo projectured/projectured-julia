@@ -849,6 +849,13 @@ function _format_projectured_release_workflow(jobs)
               # longer than a key may be.
               include-matrix: false
               cache-name: julia-cache;package=\${{ matrix.package }};julia=\${{ matrix.julia }}
+          # A package of another repository, such as AutoIntegrations, comes from
+          # ProjecturedRegistry. Julia adds General by itself only when no registry
+          # is there, so the step adds both.
+          - name: Add the registries
+            run: >-
+              julia -e 'using Pkg; Pkg.Registry.add("General");
+              Pkg.Registry.add(url = "$PROJECTURED_REGISTRY_URL")'
           - name: Develop the packages that the test needs
             run: >-
               julia --project="\$RUNNER_TEMP/environment"

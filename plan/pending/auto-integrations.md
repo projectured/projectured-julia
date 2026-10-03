@@ -596,6 +596,14 @@ The README of each released package changes too
 - [ ] **Step 10b, before the publication.** The full suites: each package
       suite in its own environment as CI runs them, `test_integration()`, and
       the comparison with `main` for each failure.
+- [x] **Step 10e, two gaps of the release (the owner, 2026-10-03).** The
+      workflow of the release adds General and ProjecturedRegistry, because its
+      jobs of `Projectured` and `ProjecturedIntegrations` resolve AutoIntegrations
+      from ProjecturedRegistry, and Julia adds General by itself only when no
+      registry is there. A package that the manifest reaches by path and that
+      the repository does not hold, AutoIntegrations, gets the `[compat]` bound
+      of the version that the manifest names. `test_package_release()` passes
+      62 of 62 and 157 of 157.
 - [ ] **Step 11, cleanup, after the owner's word.** The branch
       `integration-shells`, its worktree and the two downstream branches. A
       new private release from the new head, with the commands for the owner.

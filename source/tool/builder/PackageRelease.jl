@@ -119,6 +119,12 @@ function build_package_release!(context::BuildContext; packages,
         error("build_package_release!: no manifest at $manifest, so no package of " *
               "another registry would get a [compat] bound")
     registered = _read_registered_versions(manifest)
+    # A package that the manifest reaches by path and that `context` does not hold
+    # is a package of a sibling repository, which a registry holds as a package of
+    # its own: it gets the bound of the version that the manifest names.
+    for (name, version) in _read_path_versions(manifest)
+        has_package_directory(context, name) || (registered[name] = version)
+    end
     output = abspath(String(output))
     mkpath(output)
     _check_release_is_committed(output)
@@ -621,6 +627,18 @@ function _read_registered_versions(manifest::AbstractString)
         (haskey(entry, "git-tree-sha1") && haskey(entry, "version")) || continue
         version = VersionNumber(entry["version"])
         versions[name] = VersionNumber(version.major, version.minor, version.patch)
+    end
+    versions
+end
+
+# The version of every package of a manifest that it reaches by path.
+function _read_path_versions(manifest::AbstractString)
+    dependencies = get(TOML.parsefile(manifest), "deps", Dict{String,Any}())
+    versions = Dict{String,VersionNumber}()
+    for (name, entries) in dependencies
+        entry = entries[1]
+        (haskey(entry, "path") && haskey(entry, "version")) || continue
+        versions[name] = VersionNumber(entry["version"])
     end
     versions
 end
