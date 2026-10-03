@@ -1,5 +1,5 @@
 # Fragment of `CellModule` — the bodies of `unwrap_cell`, `get_cell_value_type`,
-# `copy_cell_as`, `is_computed_cell` and `has_dependent_cells`, which
+# `make_similar_cell`, `is_computed_cell` and `has_dependent_cells`, which
 # `CellInterface.jl` declares. The methods of each generic stand side by side, one
 # for each kind. The file also keeps a `Computation` out of the two kinds that can
 # not compute.
@@ -8,9 +8,9 @@ unwrap_cell(x) = x isa AbstractCell ? x[] : x
 
 get_cell_value_type(::AbstractCell{T}) where {T} = T
 
-copy_cell_as(c::ReactiveCell{T},  v) where {T} = ReactiveCell{T}(v)
-copy_cell_as(c::MutableCell{T},   v) where {T} = MutableCell{T}(v)
-copy_cell_as(c::ImmutableCell{T}, v) where {T} = ImmutableCell{T}(v)
+make_similar_cell(c::ReactiveCell{T},  v) where {T} = ReactiveCell{T}(v)
+make_similar_cell(c::MutableCell{T},   v) where {T} = MutableCell{T}(v)
+make_similar_cell(c::ImmutableCell{T}, v) where {T} = ImmutableCell{T}(v)
 
 is_computed_cell(::AbstractCell) = false
 is_computed_cell(c::ReactiveCell) = c.computation !== nothing

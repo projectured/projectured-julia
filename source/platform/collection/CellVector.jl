@@ -259,8 +259,8 @@ end
 # Fresh CellVector with the same field-cell kinds as `cv`, holding `slots`
 # (already in cv's storage convention); selection reset.
 _rebuild_with(cv::CellVector, slots::Vector) =
-    CellVector(copy_cell_as(getfield(cv, :elements), slots),
-               copy_cell_as(getfield(cv, :selection), nothing))
+    CellVector(make_similar_cell(getfield(cv, :elements), slots),
+               make_similar_cell(getfield(cv, :selection), nothing))
 
 Base.sort(cv::CellVector; by=identity, lt=isless, rev=false) = begin
     n = length(cv)

@@ -45,10 +45,10 @@ is_descendable_for_copy(policy::CopyPolicy, document) = true
 make_copy_placeholder(policy::CopyPolicy, document) =
     error("make_copy_placeholder: policy $(typeof(policy)) stopped the walk but supplies no marker")
 copy_computed_cell(policy::CopyPolicy, cell) =
-    copy_cell_as(cell, copy_document(policy, cell[]))
+    make_similar_cell(cell, copy_document(policy, cell[]))
 get_copy_memo(policy::CopyPolicy) = nothing
 copy_selection_cell(policy::CopyPolicy, cell) =
-    copy_cell_as(cell, copy_document(policy, cell[]))
+    make_similar_cell(cell, copy_document(policy, cell[]))
 
 # Any name, because a walk asks it of every field name, and the fields of a tuple
 # are numbers.

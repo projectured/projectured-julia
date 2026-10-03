@@ -26,7 +26,7 @@ function test_untracked_cell()
     @test get_cell_value_type(c) === Int
     @test UntrackedCell(4) isa UntrackedCell{Int}
     @test_throws MethodError (c[] = 5)
-    copied = copy_cell_as(c, 6)
+    copied = make_similar_cell(c, 6)
     @test copied isa UntrackedCell{Int}
     @test copied[] == 6
 end

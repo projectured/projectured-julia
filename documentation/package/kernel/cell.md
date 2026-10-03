@@ -212,7 +212,7 @@ struct/CellStructModule.jl        (CellStructModule): the struct of cells
 `CellInterface.jl` is the **interface file** of the layer: it declares the
 contract and nothing else. The read `c[]`, the untracked read `peek` and
 `is_cell_up_to_date` have their bodies in the file of each kind. The bodies of
-`unwrap_cell`, `get_cell_value_type`, `copy_cell_as`, `is_computed_cell` and
+`unwrap_cell`, `get_cell_value_type`, `make_similar_cell`, `is_computed_cell` and
 `has_dependent_cells` are in the sibling `CellDefaults.jl`.
 
 The animation clock is a `@cell_struct` that uses the engine, and it is not a
@@ -246,7 +246,7 @@ The kind is an immutable struct with one pointer, so a struct of cells holds it
 inline, and two structs can share its function.
 
 Public surface: `AbstractCell`, `is_cell_up_to_date`, `unwrap_cell`,
-`get_cell_value_type`, `copy_cell_as`, `is_computed_cell`, `has_dependent_cells`,
+`get_cell_value_type`, `make_similar_cell`, `is_computed_cell`, `has_dependent_cells`,
 `Computation`, `@computation`, `ReactiveCell`, `Cell`, `set_cell_value!`,
 `set_cell_computation!`, `MutableCell`, `ImmutableCell` and `UntrackedCell`.
 `peek` is an untracked read, a method of `Base.peek`. `run_untracked` is internal

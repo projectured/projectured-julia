@@ -215,7 +215,7 @@ function _rebuild(owner, file, node, path::Reference, visited::IdDict, strict::B
         copied = name === :mouse_target ? nothing :
                  (name === :selection || !is_written_in_file(file, node, name)) ? value :
                  _cut_field(owner, file, name, value, path, visited, strict)
-        push!(args, raw isa AbstractCell ? copy_cell_as(raw, copied) : copied)
+        push!(args, raw isa AbstractCell ? make_similar_cell(raw, copied) : copied)
     end
     Base.typename(T).wrapper(args...)
 end

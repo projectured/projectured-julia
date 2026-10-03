@@ -75,7 +75,7 @@ end
 # value. A cell that computes is the policy's to copy.
 copy_document(policy::CopyPolicy, cell::AbstractCell) =
     is_computed_cell(cell) ? copy_computed_cell(policy, cell) :
-                             copy_cell_as(cell, copy_document(policy, cell[]))
+                             make_similar_cell(cell, copy_document(policy, cell[]))
 
 # Document: rebuilt, unless the policy stops here.
 copy_document(policy::CopyPolicy, document::Document) =
@@ -110,7 +110,7 @@ function copy_document_fields(policy::CopyPolicy, document::Document; replacemen
                          name === :selection && raw isa AbstractCell ?
                              copy_selection_cell(policy, raw) :
                          name === :mouse_target && raw isa AbstractCell ?
-                             copy_cell_as(raw, nothing) :
+                             make_similar_cell(raw, nothing) :
                              copy_document(policy, raw))
     end
     result = base(arguments...)
@@ -135,7 +135,7 @@ end
 # kind; a cell given as the replacement is used as it is.
 _make_replacement_field(raw, value) =
     value isa AbstractCell ? value :
-    raw isa AbstractCell   ? copy_cell_as(raw, value) :
+    raw isa AbstractCell   ? make_similar_cell(raw, value) :
                              value
 
 Base.showerror(io::IO, e::DocumentCopyException) =

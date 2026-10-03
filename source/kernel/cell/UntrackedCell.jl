@@ -46,7 +46,7 @@ is_cell_up_to_date(::UntrackedCell) = true
 Base.peek(c::UntrackedCell) = c[]
 
 is_computed_cell(c::UntrackedCell) = !(c.computation isa Returns)
-copy_cell_as(::UntrackedCell{T}, v) where {T} = UntrackedCell{T}(v)
+make_similar_cell(::UntrackedCell{T}, v) where {T} = UntrackedCell{T}(v)
 
 function Base.show(io::IO, c::UntrackedCell{T}) where {T}
     if c.computation isa Returns

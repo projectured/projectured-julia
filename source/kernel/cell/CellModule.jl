@@ -37,7 +37,7 @@ using ..PerformanceModule
 using ..FaultModule
 
 export AbstractCell, is_cell_up_to_date, unwrap_cell, get_cell_value_type,
-       copy_cell_as, is_computed_cell, has_dependent_cells
+       make_similar_cell, is_computed_cell, has_dependent_cells
 export Computation, @computation
 export ReactiveCell, Cell, set_cell_value!, set_cell_computation!
 export run_in_fault_scope, record_computation_fault!, RecordedFaultException,

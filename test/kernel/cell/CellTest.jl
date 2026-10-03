@@ -234,9 +234,9 @@ end
     @test ReactiveCell{Function}(f)[] === f
     @test ReactiveCell{Int}(Computation(f))[] == 42
 
-    # copy_cell_as makes the copy through the constructor, and the copy of a cell
+    # make_similar_cell makes the copy through the constructor, and the copy of a cell
     # that holds a function must hold the function, not compute with it.
-    @test copy_cell_as(c, c[])[] === f
+    @test make_similar_cell(c, c[])[] === f
 
     w = Cell(1)                          # the write side agrees with construction
     w[] = f
@@ -342,19 +342,19 @@ end
     @test width[] == 80
 end
 
-@testset "copy_cell_as keeps the kind and the value type" begin
-    m = copy_cell_as(MutableCell{Union{Nothing,Int}}(1), 2)
+@testset "make_similar_cell keeps the kind and the value type" begin
+    m = make_similar_cell(MutableCell{Union{Nothing,Int}}(1), 2)
     @test m isa MutableCell{Union{Nothing,Int}}
     @test m[] == 2
-    i = copy_cell_as(ImmutableCell{Real}(1), 2.5)
+    i = make_similar_cell(ImmutableCell{Real}(1), 2.5)
     @test i isa ImmutableCell{Real}
     @test i[] == 2.5
-    r = copy_cell_as(ReactiveCell{Int}(1), 3)
+    r = make_similar_cell(ReactiveCell{Int}(1), 3)
     @test r isa ReactiveCell{Int}
     @test r[] == 3
     # The copy is a new cell that holds the value, and it has no computation.
     computed = Cell(@computation 7)
-    copied = copy_cell_as(computed, 8)
+    copied = make_similar_cell(computed, 8)
     @test copied !== computed
     @test !is_computed_cell(copied)
     @test copied[] == 8

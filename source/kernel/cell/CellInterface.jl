@@ -89,7 +89,7 @@ See also `unwrap_cell`, which reads the value.
 function get_cell_value_type end
 
 """
-    copy_cell_as(c::AbstractCell, v) -> AbstractCell
+    make_similar_cell(c::AbstractCell, v) -> AbstractCell
 
 Make a new cell like this one, holding another value.
 
@@ -99,14 +99,14 @@ not have to know which was which.
 
 # Example
 
-    copied = copy_cell_as(getfield(original, :width), 120)
+    copied = make_similar_cell(getfield(original, :width), 120)
 
 The new cell has the kind and the declared value type of `c`.
 
 See also `AbstractCell` and `is_computed_cell`, which says whether the value
 came from a computation.
 """
-function copy_cell_as end
+function make_similar_cell end
 
 """
     is_computed_cell(cell) -> Bool
@@ -126,7 +126,7 @@ computation reads.
 Only the reactive kind and the untracked kind can compute, so the other kinds
 always return `false`.
 
-See also `set_cell_computation!`, which makes a cell compute, and `copy_cell_as`.
+See also `set_cell_computation!`, which makes a cell compute, and `make_similar_cell`.
 """
 function is_computed_cell end
 

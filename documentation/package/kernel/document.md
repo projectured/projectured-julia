@@ -149,7 +149,7 @@ at a time, instead of walking the whole value up front. See
 built on that shadow.
 
 Both use two primitives of the layers below, because the kind of a document is
-in its field cells and not in its type name. `copy_cell_as`, of the cell layer,
+in its field cells and not in its type name. `make_similar_cell`, of the cell layer,
 makes a cell in the kind of another. `get_cell_struct_kind`, of the struct layer,
 returns the kind of the cells of a value.
 
