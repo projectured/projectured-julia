@@ -7,7 +7,7 @@
 function test_text_clipboard()
 @testset "the clipboard pastes and copies text where the selection is" begin
     measure = FontFileMeasure()
-    font = StyleFont("Ubuntu Mono", 20)
+    font = StyleFont("Ubuntu Mono", 14)
     none = ModifierKeys()
     ctrl = ModifierKeys(ctrl = true)
     buf = Ref("")

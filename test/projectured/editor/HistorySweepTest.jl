@@ -58,7 +58,7 @@ function test_history_sweep()
                                                    MouseUp(:left, x + 3, y + 3, modifiers; time = 0.0),
                                                    MouseClick(:left, x + 3, y + 3, 1, modifiers; time = 0.0)]
                 key_downs(names...; modifiers = none) = [KeyDown(name, modifiers; time = 0.0) for name in names]
-                left, middle, right = 0:400, 400:1100, 1100:1600
+                left, middle, right = 0:300, 300:1090, 1090:1600
 
                 # The chevron left of a folder's name: one click closes it, the next
                 # opens it again.
@@ -83,7 +83,7 @@ function test_history_sweep()
                     "Alt+click in the file" => () -> click(place("Alice", middle); modifiers = alt),
                     "the wheel over the file" => () -> [MouseScroll(0, -1, 700, 300; time = 0.0), MouseScroll(0, 1, 700, 300; time = 0.0)],
                     "a click on the tab title of the navigator" => () -> click(place("Files", left)),
-                    "a click on the tab title of the file" => () -> click(place("a.json", 300:1100)),
+                    "a click on the tab title of the file" => () -> click(place("a.json", 290:1100)),
                     "a click on the tab title of the assistant" => () -> click(place("Assistant", right)),
                     "Ctrl+Alt+Right" => () -> key_downs(:right; modifiers = ModifierKeys(ctrl = true, alt = true)),
                     "a click in the draft" => () -> click(place("type here…", right)),
@@ -142,20 +142,20 @@ function test_history_sweep()
 
                 # One character first: the first key compiles, and a compile longer
                 # than the pause would end the run.
-                click!((t, x) -> occursin("Alice", t) && 400 <= x < 1100)
+                click!((t, x) -> occursin("Alice", t) && 300 <= x < 1090)
                 press!(KeyPress('x'; time = 0.0))
                 # A step of the window alone: a new tab in the navigator's group.
-                click!((t, x) -> t == "Files" && x < 400)
+                click!((t, x) -> t == "Files" && x < 300)
                 press!(KeyDown(:t, ModifierKeys(ctrl = true); time = 0.0))
                 opened = steps()
                 tab = window.undo_entries[end].label
 
-                click!((t, x) -> occursin("lice", t) && 400 <= x < 1100)
+                click!((t, x) -> occursin("lice", t) && 300 <= x < 1090)
                 foreach(character -> press!(KeyPress(character; time = 0.0)), text)
                 @test steps() == opened .+ (1, 1)
                 @test window.undo_entries[end - 1].label == tab
 
-                click!((t, x) -> t == "type here…" && x >= 1100)
+                click!((t, x) -> t == "type here…" && x >= 1090)
                 foreach(character -> press!(KeyPress(character; time = 0.0)), text)
                 @test steps() == opened .+ (2, 1)
             end

@@ -55,7 +55,7 @@ end
 function test_text_range_selection()
 @testset "Shift selects a range where a projection maps it" begin
     measure = FontFileMeasure()
-    font = StyleFont("Ubuntu Mono", 20)
+    font = StyleFont("Ubuntu Mono", 14)
 
     @testset "a plain string maps the range, and an edit replaces it" begin
         s = PrimitiveString("hello world")
