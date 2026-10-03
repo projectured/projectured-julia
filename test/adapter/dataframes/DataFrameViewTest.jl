@@ -236,7 +236,7 @@ function test_data_frame_view()
             @test 0 < before - after < step
         end
 
-        @testset "the scroll bar shows the row at the top, and a press on it jumps" begin
+        @testset "the scroll bar shows the row at the top, and a press or a drag on it jumps" begin
             count = 10_000
             view = DataFrameView(DataFrame(id = collect(1:count)))
             io = print_document(projection, nothing, view, context())
@@ -255,6 +255,16 @@ function test_data_frame_view()
             evaluate_operation(nothing, press.operation)
             @test abs(view.anchor - count ÷ 2) < count ÷ 50
             @test abs(bar.value - 0.5) < 0.02
+            # A move with the left button held drags the thumb, and the rows go
+            # with it. The move sets the mouse target too, which needs an editor,
+            # so only the other parts are evaluated here.
+            drag = read_intent(projection, nothing,
+                               Intent(MouseMove(x, y + Int(cim.output.h) ÷ 4, MouseButtons(; left = true),
+                                                ModifierKeys(); time = 0.0), nothing), io)
+            evaluate_operation(nothing, CompoundOperation(Any[o for o in drag.operation.operations
+                                                              if !(o isa ReplaceMouseTargetOperation)]))
+            @test abs(view.anchor - 3 * count ÷ 4) < count ÷ 50
+            @test abs(bar.value - 0.75) < 0.02
             # A turn of the wheel moves the thumb with the row at the top.
             before = bar.value
             evaluate_operation(nothing, read_intent(projection, nothing,

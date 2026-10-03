@@ -590,15 +590,10 @@ end
 # table that moves its head column writes its `column_headers`, its
 # `column_align` and its `rows`; the view moves its column anchor instead, and
 # builds the three lists again from it. A write of the value of the scroll bar
-# is a jump to the row at that value.
-function read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap, operation::Operation)
-    bar = _find_written_field(iomap.bar, operation)
-    if bar !== nothing && bar[1] == "value"
-        count = length(iomap.input.kept_rows)
-        return jump_to_row(iomap.input, _get_scroll_bar_row(bar[2], count, Int(iomap.visible)))
-    end
+# is a jump to the row at that value, also in the compound of a move with the
+# button held, which sets the mouse target too.
+read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap, operation::Operation) =
     _convert_table_writes(iomap, operation)
-end
 
 # The field of `document` that `operation` writes, and the value it writes, or
 # `nothing`.
@@ -620,13 +615,18 @@ function _convert_table_writes(iomap::DataFrameViewToWidgetIoMap, operation)
                           if o !== nothing])
 end
 
-# One write of a compound: `rows` to an anchor, `column_headers` to a column
-# anchor, and, when the compound moves the columns, no write of `rows` or of
+# One write of a compound: the value of the scroll bar to a jump, `rows` to an
+# anchor, `column_headers` to a column anchor, and, when the compound moves the columns, no write of `rows` or of
 # `column_align`, which the view builds again from its anchors. The width of a
 # column goes to the view. The table starts the drag of the edge of a column
 # from the view, which the table is a part of: the parts of the drag come back
 # to the view by its path, and the view gives them to the table.
 function _convert_table_write(iomap::DataFrameViewToWidgetIoMap, operation, columns::Bool)
+    bar = _find_written_field(iomap.bar, operation)
+    if bar !== nothing && bar[1] == "value"
+        count = length(iomap.input.kept_rows)
+        return jump_to_row(iomap.input, _get_scroll_bar_row(bar[2], count, Int(iomap.visible)))
+    end
     cell = _convert_cell_operation(iomap, operation)
     cell === nothing || return cell
     operation isa DropTableCellOperation && operation.table === iomap.table &&
