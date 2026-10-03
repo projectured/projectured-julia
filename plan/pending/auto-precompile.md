@@ -137,6 +137,9 @@ At each call:
 4. AutoPrecompile never loads a leaf whose image is not valid, because `require`
    would build it in the foreground.
 
+A session that ends before the 10 s pass starts the build as it ends, in a
+detached process that outlives it, so that a short script gets a leaf too.
+
 One `using` line ends well within the 10 s, and AutoIntegrations loads its
 integrations inside that line. So a set that is not complete starts no build. A
 person who types the next `using` within 10 s starts no build for the smaller
@@ -335,8 +338,45 @@ Each step is a commit. Mark it here when it is done.
      changes would leave every leaf behind.
    - The package gets the dependency `UUIDs`. `Project.toml` still says 0.1.0;
      the next registration needs a new number.
-5. **The leaf**: write it, wait 10 s, build it in the background with a log, load
-   it. Tests with scratch packages, as the tests of AutoIntegrations.
+5. **Done — the leaf**: write it, wait 10 s, build it in the background with a
+   log, load it. Tests with scratch packages, as the tests of AutoIntegrations.
+
+   Done 2026-10-03, commit `cb53863` on the branch `leaf` of `auto-precompile`
+   (worktree `auto-precompile-leaf`), not on `main` yet. `Pkg.test()`: 59 of 59
+   pass. What was found and chosen:
+   - The build runs `Base.compilecache` of the leaf in a detached process, with
+     `JULIA_LOAD_PATH` set to the expanded load path of the session (the folder
+     of the leaves included) and `JULIA_DEPOT_PATH` to its depots, under
+     `nice -n 10` where `nice` exists. A `FileWatching` pidfile lock in the
+     leaf folder lets one process build a leaf at a time; the next one finds the
+     image valid. Its output goes to `build.log` in the leaf folder. The session
+     logs when the build starts, and when it ends: ready, or failed with the
+     path of the log.
+   - A session that ends before the 10 s pass starts the build as it ends
+     (`atexit`), because a short script would else never get a leaf. Section
+     3.5 says so.
+   - Each loaded package's statements are read and parsed once in a session,
+     because the callback runs after each load.
+   - The leaf files are written under another name and renamed, so that a build
+     in another session never reads half a file.
+   - The leaf imports its set, holds `include_dependency` on its
+     `statements.txt`, and calls `AutoPrecompile._replay_statements!` inside
+     `@compile_workload`. The replay checks the shape of each line again before
+     it evaluates it, because the file in the scratch space can change.
+   - `AutoPrecompile._BUILD_WAIT` holds the wait, so that a test can shorten it.
+   - The dependencies `PrecompileTools` and `Scratch` are added, with the
+     compat `"1"`.
+   - A fault of the tests: an empty entry at the end of `JULIA_DEPOT_PATH`
+     adds the default depots without the depot of the user, so a scratch process
+     saw no registry and no installed package. The tests of AutoIntegrations use
+     only the standard library and do not see it. The tests name the depots of
+     their own process instead.
+   - The tests, each a new process in a scratch environment: the first session
+     builds and logs; a later one loads the leaf, logs nothing and does not
+     compile the replayed method, while a session without AutoPrecompile does;
+     a changed statement file builds again; a package with no statements builds
+     nothing; a line that calls `rm` is never evaluated; a short session starts
+     its build as it ends, and the build finishes after it.
 6. **Disk space**: the limit, the setting and the cleanup.
 7. **ProjecturEd**: the recorder writes text, records the README scenarios, and
    splits each recording by owner into the `precompile/` folders of the packages
