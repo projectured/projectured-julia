@@ -86,7 +86,7 @@ projections that it builds.
    whether it is scaled.** A builder that supports the scales passes
    `get_scaled_theme!(appearance, T)`; a builder of an interface with no scales
    passes a theme as it is, such as a preset. `scale_theme` goes, and no
-   constructor names a scaled theme type (6.1, 6.2).
+   constructor names a scaled theme type (6.1, 6.3).
 5. **A style chosen while printing is a field too.** Markdown holds the four
    fonts of its headings, RST the four fonts of its titles and the styles that
    its roles take, SQL its plain text, and the settings tab its caption style.
