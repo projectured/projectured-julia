@@ -222,11 +222,6 @@ end
 # pipeline marks only directory header nodes, not the indented body wrapper).
 _default_marker_eligible(node) = length(get_syntax_children(node)) > 0
 
-# Default ellipsis glyph for a collapsed node's body. Uses the DejaVu mono
-# font (which carries the … glyph) and a muted gray so the placeholder reads
-# as projection chrome rather than content.
-_default_ellipsis() = TextString("…", StyleFont("DejaVu Sans Mono", 20), color_solarized_gray)
-
 # One projection prints every compound. What varies between compounds is what the
 # *document* has — delimiters, a separator, indentation, a collapsed flag — and the
 # document answers that itself (the compound contract, in `Syntax.jl`). What the
@@ -239,7 +234,9 @@ struct SyntaxCompoundToText <: Projection
     expanded_marker::TextString
     collapsed_marker::TextString
     marker_eligible::Any
-    ellipsis_text::TextString
+    # The style of the ellipsis that stands in for a folded node's children: a
+    # value, or a cell that reads the scaled `SyntaxTheme` (`unwrap_cell`).
+    ellipsis_style::Any
     # The delimiters of the compounds around the part under the pointer: the
     # innermost pair is in this colour, and each level further out mixes it more
     # with the colour of the delimiter, which it reaches after this many levels.
@@ -256,14 +253,14 @@ SyntaxCompoundToText(; indent_size::Int = 2,
                        expanded_marker::TextString = TextString(""),
                        collapsed_marker::TextString = TextString(""),
                        marker_eligible = _default_marker_eligible,
-                       ellipsis_text::TextString = _default_ellipsis(),
                        theme = nothing,
+                       ellipsis_style = _get_syntax_style(scale_theme(theme), StyleText, :ellipsis_text),
                        delimiter_light_color = _get_syntax_style(scale_theme(theme), StyleColor,
                                                                  :lit_delimiter),
                        delimiter_light_levels::Int = 4,
                        decoration_font = _get_syntax_style(scale_theme(theme), StyleFont, :font)) =
     SyntaxCompoundToText(indent_size, expanded_marker, collapsed_marker, marker_eligible,
-                         ellipsis_text, delimiter_light_color, delimiter_light_levels,
+                         ellipsis_style, delimiter_light_color, delimiter_light_levels,
                          decoration_font)
 
 # One IoMap for every compound, and it must be one: a parent reads its child's
@@ -683,12 +680,15 @@ end
 # The collapse marker, ahead of everything else.
 _push_marker!(buf::SpliceBuffer, marker) = _push_span!(buf, marker)
 
+# The glyph that stands in for a collapsed node's (un-projected) children. The
+# printer and the offset count read it both, so they agree on its length.
+const _ELLIPSIS = "…"
+
 # The ellipsis standing in for a collapsed node's (un-projected) children.
-function _push_ellipsis!(buf::SpliceBuffer, ellipsis::TextString)
+function _push_ellipsis!(buf::SpliceBuffer, style::StyleText)
     size = buf.deco_font.size
     _push_span!(buf, _deco_span(buf.deco, (buf.nid, 0, :ellipsis),
-        () -> TextString(ellipsis.content,
-                         with_font_size(ellipsis.font, size), ellipsis.font_color)))
+        () -> TextString(_ELLIPSIS, with_font_size(style.font, size), style.color)))
 end
 
 # One child's line chrome: a newline then an indent of width `depth * indent_size`.
@@ -749,7 +749,7 @@ function _splice_compound(doc::SyntaxCompound, p::SyntaxCompoundToText, deco, ci
     if is_syntax_collapsed(doc)
         # A collapsed node projects no children; a single ellipsis stands in for
         # them. A childless node gets none.
-        length(get_syntax_children(doc)) > 0 && _push_ellipsis!(buf, p.ellipsis_text)
+        length(get_syntax_children(doc)) > 0 && _push_ellipsis!(buf, unwrap_cell(p.ellipsis_style))
     else
         for (i, cim) in enumerate(cims)
             i > 1 && _push_separator!(buf, separator)
@@ -1292,7 +1292,6 @@ function SyntaxToText(; indent_size::Int = 2,
                         expanded_marker::TextString = TextString(""),
                         collapsed_marker::TextString = TextString(""),
                         marker_eligible = _default_marker_eligible,
-                        ellipsis_text::TextString = _default_ellipsis(),
                         theme = nothing,
                         delimiter_light_color = _get_syntax_style(scale_theme(theme), StyleColor,
                                                                   :lit_delimiter),
@@ -1306,7 +1305,6 @@ function SyntaxToText(; indent_size::Int = 2,
                                     expanded_marker=expanded_marker,
                                     collapsed_marker=collapsed_marker,
                                     marker_eligible=marker_eligible,
-                                    ellipsis_text=ellipsis_text,
                                     delimiter_light_color=delimiter_light_color,
                                     delimiter_light_levels=delimiter_light_levels)
     TypeDispatchingProjection(
@@ -1399,7 +1397,7 @@ end
 # a childless node — there is nothing to stand in for, so a collapsed empty
 # node renders as bare `<open><close>`. Only meaningful when `node.collapsed`.
 function _ellipsis_len(p::SyntaxCompoundToText, node::SyntaxCompound)
-    length(get_syntax_children(node)) > 0 ? length(p.ellipsis_text.content::AbstractString) : 0
+    length(get_syntax_children(node)) > 0 ? length(_ELLIPSIS) : 0
 end
 
 # Reads a path of the leaf (.open[k], .value[k], .close[k]), such as its selection

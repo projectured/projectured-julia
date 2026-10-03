@@ -241,8 +241,8 @@ _get_pressed_layer(theme::ScaledWidgetTheme) = _with_alpha(theme.primary, 0.20)
 # under the widgets draw with too. A constructor reads them, and a print does not.
 _get_graphics_theme(theme::ScaledWidgetTheme) =
     get_scaled_theme!(get_theme_appearance(theme), GraphicsTheme)
-_make_selection_ring_stroke(theme::ScaledWidgetTheme) =
-    make_selection_ring_stroke(_get_graphics_theme(theme))
+_make_graphics_style(theme::ScaledWidgetTheme) =
+    make_theme_values_field(GraphicsTheme, _get_graphics_theme(theme))
 _make_selected_row_color(theme::ScaledWidgetTheme) =
     make_theme_cell(StyleColor, _get_graphics_theme(theme), scaled -> _with_alpha(scaled.selection_ring, 0.25))
 

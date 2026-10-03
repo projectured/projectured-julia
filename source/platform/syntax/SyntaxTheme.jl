@@ -61,6 +61,8 @@ that prints its own leaves styles them with a theme of its own.
     font::StyleFont = StyleFont("Ubuntu Mono", 20)
     "A bracket and a space of a reflected object, in the font of its field names."
     object_delimiter_text::TextRole = TextRole(color_default)
+    "The ellipsis that stands in for the children of a folded node, in the size of the text around it."
+    ellipsis_text::TextRole = TextRole(color_solarized_gray; family = "DejaVu Sans Mono")
     "The mark of a part whose projection failed, in place of that part."
     fault_text::TextRole = TextRole(color_solarized_red; family = "DejaVu Sans Mono", weight = 700,
                                     relative_size = 0.8)

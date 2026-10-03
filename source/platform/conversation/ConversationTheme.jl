@@ -75,6 +75,10 @@ style fields; with no theme it holds the plain values of the default theme.
     row_gap::Spacing = Spacing(4)
     "The gap between a prompt and what follows it."
     prompt_gap::Spacing = Spacing(8)
+    "The gap between the transcript and the composer of an assistant card."
+    card_gap::Spacing = Spacing(6)
+    "The least height of the composer under the transcript of the assistant."
+    composer_min_height::ControlSize = ControlSize(200)
 end
 
 # The style field of type `T` of a conversation projection that holds the

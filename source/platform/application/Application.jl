@@ -176,7 +176,8 @@ function make_application_content_projections(; measure = FontFileMeasure(),
         # print does, so a bare `Assistant => AssistantToWidgetSplitPane()` row
         # would hand the tab a widget, not the graphics it draws.
         Assistant         => ChainingProjection(RecursiveProjection(FaultCatchingProjection(
-                                                    inner = AssistantToWidgetSplitPane(),
+                                                    inner = AssistantToWidgetSplitPane(
+                                                        get_scaled_theme!(appearance, ConversationTheme)),
                                                     substitute = FaultToWidget())),
                                                 NaturalToGraphics(measure = measure, extra = conversation_rows,
                                                                   appearance = appearance)),

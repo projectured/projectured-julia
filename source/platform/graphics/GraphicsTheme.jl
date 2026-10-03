@@ -22,4 +22,6 @@ with the same theme, from the same appearance.
     selection_ring::StyleColor = StyleColor(0x25 / 255, 0x63 / 255, 0xeb / 255, 1.0)
     "The width of the ring around an object that is selected as a whole."
     selection_ring_width::LineWidth = LineWidth(2)
+    "The radius of the corners of the ring around an object that is selected as a whole."
+    selection_ring_radius::Radius = Radius(3)
 end

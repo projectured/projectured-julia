@@ -22,12 +22,12 @@
 # ── Projection struct ───────────────────────────────────────────────────────
 
 """
-    SelectionInverting(; default_bg=color_solarized_background_dark,
-                         default_fg=color_solarized_content_lighter,
-                         block_cursor=true)
+    SelectionInverting(; theme = nothing, default_bg, default_fg, block_cursor = true)
 
 Encode the input `TextBlock`'s selection into span colors as inverse video.
 
+  - `theme` — a `TextTheme` or a scaled one, whose `inverted_background` and
+    `inverted_foreground` are the defaults of the two colors.
   - `default_bg` — concrete background color used as the inverted *foreground*
     when the original span has no `fill_color`. Inversion needs an explicit
     background (unlike a terminal's `\\e[7m`, which swaps against the default), so

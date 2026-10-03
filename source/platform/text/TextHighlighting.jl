@@ -16,15 +16,16 @@
 # ── Projection struct ───────────────────────────────────────────────────────
 
 """
-    TextHighlighting(pattern; color=color_yellow)
-    TextHighlighting(; pattern=nothing, color=color_yellow)
+    TextHighlighting(pattern; theme = nothing, color)
+    TextHighlighting(; pattern = nothing, theme = nothing, color)
 
 Paint a background swatch behind every match of `pattern` (a `Regex`, a pattern
 string, a `Cell` holding either, or `nothing`).
 
 `pattern` is held in a reactive `Cell`, so updating it re-highlights live; a
 `nothing` pattern adds no highlights. `color` is the `fill_color` set on matched
-sub-spans (glyph color is left untouched so matched text stays readable). Regex
+sub-spans (glyph color is left untouched so matched text stays readable); its
+default is the `match_highlight` of the `TextTheme` `theme`. Regex
 flags live in the `Regex` the caller builds.
 """
 struct TextHighlighting <: Projection

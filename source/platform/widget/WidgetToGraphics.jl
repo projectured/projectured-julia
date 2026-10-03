@@ -289,8 +289,8 @@ end
 # (dimension A; see plan/pending/printer-locality.md). Transparent fill so only the
 # ring-coloured border shows.
 #
-# `whole`, when given, is the ring's stroke while the widget is selected as a
-# whole. A text box with the focus holds a caret, so a whole selection of one is
+# `whole`, when given, holds the values of the graphics theme, whose ring color
+# the ring takes while the widget is selected as a whole. A text box with the focus holds a caret, so a whole selection of one is
 # a selection of the box as an object, and it shows as one. The ring keeps the
 # width of `ring`; only its color follows the kind of the selection.
 function _push_focus_ring!(elems::Vector, w::WidgetDocument, cw::Int, ch::Int,
@@ -303,7 +303,7 @@ function _push_focus_ring!(elems::Vector, w::WidgetDocument, cw::Int, ch::Int,
                           () -> getfield(w, :selection)[] === nothing ? Int32(0) : Int32(ch))
     whole === nothing ||
         set_cell_computation!(getfield(rect, :border_color), () ->
-            get_stored_selection(w) isa EmptyReference ? whole.color : ring.color)
+            get_stored_selection(w) isa EmptyReference ? whole.selection_ring : ring.color)
     push!(elems, rect)
 end
 
@@ -367,7 +367,7 @@ WidgetLabelToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
     label_disabled_text::StyleText
     placeholder_text::StyleText                   # the example that an empty field shows
     focus_ring_stroke::StyleStroke                # the widget holds the focus
-    selection_ring_stroke::StyleStroke            # the widget is selected as a whole
+    graphics_style::NamedTuple                    # the ring of the widget selected as a whole
     corner_radius::Int
 end
 
@@ -388,13 +388,12 @@ WidgetTextToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                                _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
                            focus_ring_stroke =
                                _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width)),
-                           selection_ring_stroke =
-                               _make_selection_ring_stroke(theme),
+                           graphics_style = _make_graphics_style(theme),
                            corner_radius = _themed(Int, theme, t -> t.radius)) =
     WidgetTextToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                padding_color, content_color, padding_disabled_color,
                                content_disabled_color, label_text, label_disabled_text,
-                               placeholder_text, focus_ring_stroke, selection_ring_stroke, corner_radius)
+                               placeholder_text, focus_ring_stroke, graphics_style, corner_radius)
 
 @projection UntrackedCell struct WidgetCheckboxToGraphicsCanvas
     margin::Inset
@@ -632,17 +631,16 @@ WidgetToolbarItemToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
     border_color::StyleColor
     padding_color::StyleColor
     content_color::StyleColor
-    selection_ring_stroke::StyleStroke   # the ring around a child selected as a whole
+    graphics_style::NamedTuple           # the ring around a child selected as a whole
 end
 
 WidgetCompositeToGraphicsCanvas(theme::ScaledWidgetTheme;
                                 margin = inset_default, border = inset_default, padding = inset_default,
                                 margin_color = color_transparent, border_color = color_transparent,
                                 padding_color = color_transparent, content_color = color_transparent,
-                                selection_ring_stroke =
-                                    _make_selection_ring_stroke(theme)) =
+                                graphics_style = _make_graphics_style(theme)) =
     WidgetCompositeToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
-                                    content_color, selection_ring_stroke)
+                                    content_color, graphics_style)
 
 @projection UntrackedCell struct WidgetShellToGraphicsCanvas
     measure::TextMeasure
@@ -731,7 +729,7 @@ WidgetSplitPaneToGraphicsCanvas(theme::ScaledWidgetTheme;
     tab_text::StyleText
     tab_selected_text::StyleText
     page_color::StyleColor                # the area below the strip
-    selection_ring_stroke::StyleStroke    # the ring around a page selected as a whole
+    graphics_style::NamedTuple            # the ring around a page selected as a whole
     tab_padding::Int
     corner_radius::Int
     label_gap::Int                        # between a tab's icon and its label, and before its button
@@ -750,8 +748,7 @@ WidgetTabbedPaneToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                                  tab_text = _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
                                  tab_selected_text = _themed(StyleText, theme, t -> StyleText(t.font, t.foreground)),
                                  page_color = color_transparent,
-                                 selection_ring_stroke =
-                                     _make_selection_ring_stroke(theme),
+                                 graphics_style = _make_graphics_style(theme),
                                  tab_padding = _themed(Int, theme, t -> t.item_gap),
                                  corner_radius = _themed(Int, theme, t -> t.radius),
                                  label_gap = _themed(Int, theme, t -> t.label_gap),
@@ -759,7 +756,7 @@ WidgetTabbedPaneToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
     WidgetTabbedPaneToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                      padding_color, content_color, font, tab_strip_color, tab_color,
                                      tab_selected_color, tab_text, tab_selected_text, page_color,
-                                     selection_ring_stroke, tab_padding, corner_radius, label_gap,
+                                     graphics_style, tab_padding, corner_radius, label_gap,
                                      icon_scale)
 
 # The one scroll pane projection. It emits a `GraphicsCanvas` carrying the
@@ -1798,7 +1795,7 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
         push!(elems, _make_canvas(content_x, content_y, Any[inner]))
         state === :disabled && push!(elems, GraphicsPointerShape(0, 0, outer_w, outer_h, :arrow))
         _push_focus_ring!(elems, w, outer_w, outer_h, p.focus_ring_stroke, radius;
-                          whole = p.selection_ring_stroke)
+                          whole = p.graphics_style)
         (width=outer_w, height=outer_h, elements=elems)
     end)
     WidgetTextToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(pos)..., build), content_iomap)
@@ -2974,7 +2971,7 @@ function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widget
         (i === nothing || !(1 <= i <= length(entries))) && return nothing
         (x, y, cim) = entries[i]
         _get_entry_box(x, y, cim, _p_measure(p))
-    end; color = p.selection_ring_stroke.color, width = p.selection_ring_stroke.width)
+    end, p.graphics_style)
     ChildrenIoMap(p, w, _reactive_canvas_auto(_origin(pos)..., () -> vcat(build[].elements, Any[ring]),
                                               _p_measure(p)),
                   Cell(@computation build[].child_iomaps))
@@ -4554,7 +4551,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         _is_whole_selected_page(page) || return nothing
         page_w, page_h = _compute_page_extent(cims[idx], avail_w_inner, avail_h_inner)
         (cox, coy + geom[][4], page_w, page_h)
-    end; color = p.selection_ring_stroke.color, width = p.selection_ring_stroke.width)
+    end, p.graphics_style)
 
     # A tabbed pane offered an extent reports that extent, not what its strip and
     # its page happen to reach: it bounded them, so its box is its own (§3b).
@@ -6266,7 +6263,7 @@ end
     plain_padding_color::StyleColor
     plain_content_color::StyleColor
     chevron_color::StyleColor          # the fold mark of a collapsible card
-    selection_ring_stroke::StyleStroke # the ring over the slot selected as a whole
+    graphics_style::NamedTuple         # the ring over the slot selected as a whole
     corner_radius::Int
     title_gap::Int
     section_gap::Int
@@ -6312,8 +6309,7 @@ WidgetCardToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                            plain_border_color = color_transparent,
                            plain_padding_color = color_transparent, plain_content_color = color_transparent,
                            chevron_color = _themed(StyleColor, theme, t -> t.muted_foreground),
-                           selection_ring_stroke =
-                               _make_selection_ring_stroke(theme),
+                           graphics_style = _make_graphics_style(theme),
                            corner_radius = _themed(Int, theme, t -> t.radius),
                            title_gap = _themed(Int, theme, t -> t.title_gap),
                            section_gap = _themed(Int, theme, t -> t.section_gap),
@@ -6325,7 +6321,7 @@ WidgetCardToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                                tinted_border_color, tinted_padding_color, tinted_content_color,
                                muted_border_color, muted_padding_color, muted_content_color,
                                plain_border_color, plain_padding_color, plain_content_color,
-                               chevron_color, selection_ring_stroke, corner_radius, title_gap, section_gap,
+                               chevron_color, graphics_style, corner_radius, title_gap, section_gap,
                                chevron_size, chevron_nudge)
 
 # The column a collapsible card's chevron takes, left of everything else the
@@ -6563,7 +6559,7 @@ function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard,
             return _get_entry_box(x, y, child, _p_measure(p))
         end
         nothing
-    end; color = p.selection_ring_stroke.color, width = p.selection_ring_stroke.width)
+    end, p.graphics_style)
     outer = GraphicsCanvas(Cell(Int32(ox)), Cell(Int32(oy)),
                            Cell(@computation Int32(build[].w)),
                            Cell(@computation Int32(build[].h)),
