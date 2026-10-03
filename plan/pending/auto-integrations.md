@@ -589,6 +589,10 @@ The README of each released package changes too
       (section 9.7); the release does not copy it, and its front page links
       it. The graph (366), the loading tests (8, 3, 29) and the release test
       (62, 154) pass.
+      The new-user check on `383cb9345` passes its five cases, with a local
+      registry that holds AutoIntegrations from `~/workspace/auto-integrations`
+      and the 34 released packages; `Pkg.test("AutoIntegrations")` runs the
+      tests of the new repository.
 - [ ] **Step 10b, before the publication.** The full suites: each package
       suite in its own environment as CI runs them, `test_integration()`, and
       the comparison with `main` for each failure.
