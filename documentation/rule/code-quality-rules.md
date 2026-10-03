@@ -294,7 +294,8 @@ one section out into its own fragment.
 A test function is exempt. `test_reference_rules()` is 1049 lines, and it reads
 better as one list.
 
-`asset/precompile/PrecompileStatements.jl` is generated. No rule applies to it.
+The statement files `package/*/precompile/*.txt` are generated. No rule applies
+to them.
 
 ## 6. The measured baseline
 

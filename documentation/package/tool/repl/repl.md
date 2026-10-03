@@ -19,7 +19,7 @@ A package image keeps its compiled code only when nothing depends on the package
 | Level | What the build compiles |
 | --- | --- |
 | `:none` | nothing, for a day of work on the kernel |
-| `:recorded` | the checked-in list `PRECOMPILE_STATEMENTS`, the default |
+| `:recorded` | `PRECOMPILE_STATEMENTS`, the lines of the statement files of the packages, the default |
 | `:live` | what `ProjecturedExample.precompile_workload()` runs |
 
 `set_workload!(level)` writes the preference; the next start of Julia builds with it. `get_workload()` returns the level of the running image, and it warns when the stored preference differs, because then the session was not started again.
@@ -28,7 +28,9 @@ A package image keeps its compiled code only when nothing depends on the package
 
 ### The recording
 
-`record_precompile_statements()` runs `tool/precompile/recording-driver.jl` in a new Julia process under `--trace-compile`, because that is a flag of the command line. `ProjecturedExample` then drops every statement that names `Main` or does not parse, sorts the rest, and writes `asset/precompile/PrecompileStatements.jl`. That file is generated; do not edit it.
+`record_precompile_statements()` runs the driver of the recording `"examples"`, `tool/precompile/recording-driver.jl`, in a new Julia process under `--trace-compile`, because that is a flag of the command line. `PRECOMPILE_RECORDINGS` names each recording, its driver and its environment. `ProjecturedExample` then drops every statement that names `Main` or does not parse, and sorts the rest. `split_precompile_statements` gives each line to each package that it names and that no other package that it names depends on, and a line that names no package of the repository to the packages of the recording that no other one depends on. `write_precompile_statement_files` writes them into `package/<Name>/precompile/<recording>.txt`. Those files are generated; do not edit them.
+
+`PRECOMPILE_STATEMENTS` is each line of each statement file, read while the leaf precompiles; a changed, added or removed file builds the leaf again. A released package carries its statement files, and AutoPrecompile reads them in the session of a user.
 
 The driver runs three things:
 
@@ -62,7 +64,7 @@ using Revise, ProjecturedREPL         # what the session alias runs
 get_workload()                        # the level of this image
 set_workload!(:none)                  # then start Julia again
 replay_precompile_statements()        # what the list is worth, with no rebuild
-record_precompile_statements()        # record the list again; needs a display
+record_precompile_statements()        # record "examples" again; needs a display
 ```
 
 - Examples: none of its own. The recording drives every registered example.

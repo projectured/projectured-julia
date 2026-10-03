@@ -131,3 +131,35 @@ function write_precompile_statement_files(recording::AbstractString, statements)
     end
     paths
 end
+
+# The statement folders of the packages of this repository, and the statement
+# files in them.
+function _collect_statement_folders()
+    folders = [joinpath(_PACKAGE_FOLDER, name, _STATEMENT_FOLDER) for name in sort!(readdir(_PACKAGE_FOLDER))]
+    filter!(isdir, folders)
+end
+
+_collect_statement_files() =
+    [joinpath(folder, file) for folder in _collect_statement_folders()
+     for file in sort!(readdir(folder)) if endswith(file, ".txt")]
+
+"""
+    PRECOMPILE_STATEMENTS
+
+Each line of each statement file of the packages of this repository, once and
+sorted: what the leaf replays at the level `:recorded`. It is read while the leaf
+precompiles, and each file and each statement folder is a dependency of the
+build, so a changed, added or removed file builds the leaf again.
+"""
+const PRECOMPILE_STATEMENTS = let
+    lines = Set{String}()
+    foreach(include_dependency, _collect_statement_folders())
+    for file in _collect_statement_files()
+        include_dependency(file)
+        for line in eachline(file)
+            line = strip(line)
+            (isempty(line) || startswith(line, '#')) || push!(lines, String(line))
+        end
+    end
+    sort!(collect(lines))
+end

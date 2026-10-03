@@ -119,7 +119,7 @@ julia> set_workload!(:recorded)  # then restart
 | level | what the build does |
 | --- | --- |
 | `:none` | nothing; for a day spent editing the kernel |
-| `:recorded` | replays `asset/precompile/PrecompileStatements.jl` — the default |
+| `:recorded` | replays the statement files `package/*/precompile/*.txt` — the default |
 | `:live` | runs `ProjecturedExample.precompile_workload()` |
 
 `:recorded` replays a list that a person recorded by driving the editor, rather
@@ -128,8 +128,8 @@ the **reader**: a workload prints atoms, and an atom is never read. Measured on
 the json example, the first click costs 475 ms at `:recorded` and 2600 ms at
 `:live`, of which the read half is 221 ms against 1494 ms.
 
-Record again with `record_precompile_statements()` when the list falls behind
-the code. It goes stale gracefully: a statement that names nothing is skipped.
+Record again with `record_precompile_statements()` when the statement files fall
+behind the code. It goes stale gracefully: a statement that names nothing is skipped.
 The build says how many were skipped, warning past a tenth of them.
 Recording needs a display: the driver opens a real window.
 
@@ -152,7 +152,7 @@ julia> record_precompile_statements()
 julia> set_workload!(:recorded)    # then restart; the next build replays the new list
 ```
 
-**Check a new list before you keep it.** Compare it with the one in git: a
+**Check a new recording before you keep it.** Compare its files with the ones in git: a
 comparable SIZE says the recording was made against a bare build, and the
 fraction of the dropped entries that no longer resolve says whether the old list
 was stale or the new run missed coverage.

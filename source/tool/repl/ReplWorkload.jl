@@ -66,10 +66,8 @@ end
 # ── the recording ──────────────────────────────────────────────────────────
 #
 # The machinery is `ProjecturedExample`'s, shared with the other repositories'
-# leaves. What belongs here is what only this repository knows: which run to
-# record, and the list that run produced.
-
-include("../../../asset/precompile/PrecompileStatements.jl")
+# leaves. What belongs here is what only this repository knows: which runs to
+# record, and where their lines go (`ReplStatementFiles.jl`).
 
 """
     replay_precompile_statements(; warn = true) -> (compiled, skipped, total)
