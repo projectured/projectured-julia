@@ -341,9 +341,8 @@ Each step is a commit. Mark it here when it is done.
 5. **Done — the leaf**: write it, wait 10 s, build it in the background with a
    log, load it. Tests with scratch packages, as the tests of AutoIntegrations.
 
-   Done 2026-10-03, commit `cb53863` on the branch `leaf` of `auto-precompile`
-   (worktree `auto-precompile-leaf`), not on `main` yet. `Pkg.test()`: 59 of 59
-   pass. What was found and chosen:
+   Done 2026-10-03, commit `cb53863`, landed on `main` of `auto-precompile` and
+   pushed at the owner's word. `Pkg.test()`: 59 of 59 pass. What was found and chosen:
    - The build runs `Base.compilecache` of the leaf in a detached process, with
      `JULIA_LOAD_PATH` set to the expanded load path of the session (the folder
      of the leaves included) and `JULIA_DEPOT_PATH` to its depots, under
@@ -377,7 +376,28 @@ Each step is a commit. Mark it here when it is done.
      a changed statement file builds again; a package with no statements builds
      nothing; a line that calls `rm` is never evaluated; a short session starts
      its build as it ends, and the build finishes after it.
-6. **Disk space**: the limit, the setting and the cleanup.
+6. **Done — disk space**: the limit, the setting and the cleanup.
+
+   Done 2026-10-03, commit `ba2da6a` on the branch `disk` of `auto-precompile`
+   (worktree `auto-precompile-disk`), not on `main` yet. `Pkg.test()`: 83 of 83
+   pass. What was found and chosen:
+   - The setting is `disk_limit_mb`, a whole number of megabytes, in the table
+     `[AutoPrecompile]` of `LocalPreferences.toml`. AutoPrecompile reads it with
+     `Base.get_preferences`, which works because the user adds AutoPrecompile by
+     name (decision 11); AutoIntegrations reads the file itself only because the
+     user never adds it. Another value gives a warning and the default, 2048.
+   - The size of a leaf is its folder and its images for each Julia version in
+     the first depot. A removal takes all of them.
+   - A leaf records the time of its last load as the text of its file `loaded`,
+     so that a test can write any time; a leaf with no such file counts from the
+     time of its statement file.
+   - A removal never takes a leaf that this session loaded, the leaf that it
+     builds, or a leaf whose `build.pid` is younger than an hour.
+   - The cleanup runs before each build and after each build that succeeds.
+   - Under its pidfile lock, a build removes the old images of its leaf for its
+     Julia version before it compiles. The test plants a stale image and checks
+     that the rebuild removed it, because a rebuild with the same flags writes
+     the same file name and would pass without the removal.
 7. **ProjecturEd**: the recorder writes text, records the README scenarios, and
    splits each recording by owner into the `precompile/` folders of the packages
    (section 3.7). `ProjecturedREPL` reads the text files. The release copies the
