@@ -131,7 +131,8 @@ short form goes into the README.
 | `AutoIntegrations` | Preferences, TOML | `Projectured` | yes |
 | `ProjecturedSDL`, … (the six) | as on `main`, table in section 2 | the user, or AutoIntegrations | yes |
 | `ProjecturedIntegrations` | Projectured and the six | the user | yes |
-| `ProjecturedAll` | decision D3 | the tests, the examples, the REPL | decision D3 |
+| `ProjecturedAPI` (name: D11) | ProjecturedKernel, ProjecturedPlatform | the integrations, the backends (D12), `Projectured` (D13) | yes |
+| `ProjecturedAll` | each package that is not an integration (D3, D3a) | the tests, the examples, the REPL | no (D3b) |
 
 ### 4.2 A package declares its triggers
 
@@ -217,7 +218,7 @@ function is my recommendation.
 
 `Projectured` depends on the kernel, the platform and AutoIntegrations, and
 loads AutoIntegrations. It has no hook, no extension and no `[weakdeps]` of its
-own. It re-exports the names of the kernel and the platform, as now.
+own. Which names it re-exports is decision D13.
 
 ### 4.6 `ProjecturedIntegrations`
 
@@ -257,7 +258,37 @@ ProjecturedIntegrationsModelContextProtocolExt = "ModelContextProtocol"
 - `ProjecturedIntegrations` means "load all". An integration set to `manual`
   for AutoIntegrations still loads through the extension. The documents say so.
 
-### 4.7 What goes away
+### 4.7 The names that a user calls
+
+The owner, 2026-10-03:
+
+> I don't think it's a good idea to re-export all names from the platform,
+> there are so many and most users only a handful. There should be a package
+> which contains the most useful names, those can be re-exported.
+
+- The kernel exports 577 names, and the platform exports 2999 (2026-10-03).
+- A new package, `ProjecturedAPI` (D11), holds no code of its own. It depends
+  on the kernel and the platform, and exports a short list of their names. One
+  constant in its source holds the list.
+- The first list comes from the guides:
+
+  | Names | Slice | What they do |
+  | --- | --- | --- |
+  | `display_in_editor`, `close_display_editor!`, `refresh_display_editor!`, `EditorDisplay` | platform, display | show a value in a window |
+  | `run_editor!`, `build_editor`, `Editor` | kernel, editor | open an editor on a document |
+  | `parse_natural_text`, `NaturalToGraphics`, `FontFileMeasure` | platform, natural and style | make a document from text, and draw it |
+  | `print_document`, `write_image` | kernel, projection and backend | a view with no window, and an image file |
+
+- `ProjecturedPlatform` does not export the five names of the kernel in this
+  list. Only the flat namespace of the umbrella makes them visible now.
+- Each integration depends on `ProjecturedAPI` and re-exports its names (D12).
+  So `using ProjecturedSDL, ProjecturedDataFrames` makes `display_in_editor`
+  visible.
+- Two packages that re-export the same binding do not conflict in `Main`.
+- A test checks that each name of the list is defined and exported. The design
+  document of the package lists the names and says what each one does.
+
+### 4.8 What goes away
 
 - `package/Projectured/ext/`, six files, and the tables `[weakdeps]` and
   `[extensions]` of `package/Projectured/Project.toml`.
@@ -398,7 +429,8 @@ The README of each released package changes too
 | `documentation/package/platform/domain/domain.md` | `load_installed_package!` goes |
 | the documents of SDL, DataFrames, Video, ODBC, Tulip, MCP | the triggers and the default |
 | the document of the builder | the README of a package and the front page |
-| `documentation/README.md` | the new document |
+| a new design document of `ProjecturedAPI` | the list of names, what each one does, and which packages re-export them |
+| `documentation/README.md` | the new documents |
 | `plan/pending/release-the-binary-and-the-packages.md` | the items of Part R that this plan changes |
 
 ## 7. Steps
@@ -409,7 +441,7 @@ The README of each released package changes too
       `develop` and `resolve`, and that LocalRegistry `register` accepts it.
 - [ ] **Step 2, the declarations.** The table in the six integrations, and in
       the packages of decision D2.
-- [ ] **Step 3, the umbrella.** Remove what section 4.7 names. `Projectured`
+- [ ] **Step 3, the umbrella.** Remove what section 4.8 names. `Projectured`
       depends on AutoIntegrations. Rewrite `IntegrationLoadingTest.jl` with
       these cases, each in a scratch environment with
       `JULIA_LOAD_PATH=@:@stdlib`:
@@ -424,8 +456,9 @@ The README of each released package changes too
 - [ ] **Step 4, `ProjecturedIntegrations`.** The package and its six
       extensions, and a test case:
       `using ProjecturedIntegrations, DataFrames` loads `ProjecturedDataFrames`.
-- [ ] **Step 5, decisions D3 and D4.** `ProjecturedAll`, and the names of the
-      manual line.
+- [ ] **Step 5, the names and `ProjecturedAll`.** The package `ProjecturedAPI`
+      and its test, its names re-exported as D12 and D13 say, and
+      `ProjecturedAll` as D3a says.
 - [ ] **Step 6, the release.** The README texts of section 5, the entries of
       `PROJECTURED_PACKAGE_READMES`, the release copy of a package with no
       slice folder, and the release tests.
@@ -466,32 +499,32 @@ Each recommendation is mine, not a decision.
   `using Projectured` expects a window to open JSON, and the setting can turn
   it off. `ProjecturedWeb` gets no table, because a loaded web backend becomes
   the default backend when SDL is absent.
-- **D3, `ProjecturedAll`.** The owner wrote "ProjecturedAll brings in all
-  components". Now it holds the kernel, the platform, the console, PDF and the
-  17 domains, and no integration. `package-rules.md` says that this is
-  deliberate, so that `using ProjecturedAll` loads no ODBC driver manager and
-  no solver.
-  - (a) `ProjecturedAll` depends on every package, the six integrations
-    included. Each environment that uses it (the examples, the REPL, the bench,
-    `ProjecturedTest`, omnet, inet) installs and loads all of them. The rule
-    in `package-rules.md` changes.
-  - (b) `ProjecturedAll` stays as it is. For a user, "all" is
-    `ProjecturedIntegrations`.
+- **D3, `ProjecturedAll` and `ProjecturedIntegrations`. Answered
+  2026-10-03.** The owner: "ProjecturedIntegrations should not bring in
+  ProjecturedJSON and many other domain packages, those are not integrations,
+  they don't depend on any external package. Though you may be right about
+  ProjecturedAll should only bring all non-integration packages". So
+  `ProjecturedIntegrations` holds the six integrations and nothing more, as
+  section 4.6 says. `ProjecturedAll` holds no integration, and the rule of
+  `package-rules.md` stays.
+- **D3a, the packages that are not integrations but have a third-party
+  dependency.** `ProjecturedOllama`, `ProjecturedAnthropic` and
+  `ProjecturedOpenRouter` depend on HTTP and JSON3. `ProjecturedWeb` depends on
+  HTTP, JSON3 and Base64. They join no package that the user loads, so they are
+  not integrations.
+  - (a) `ProjecturedAll` holds each package with no third-party dependency, as
+    now: the kernel, the platform, the console, PDF and the 17 domains.
+  - (b) `ProjecturedAll` holds each package that is not an integration, these
+    four included.
 
-  The owner's text reads as (a). I recommend (b), because of the load time of
-  each test and each example. Please confirm which one.
-- **D4, the names of the manual line.** `using ProjecturedSDL,
-  ProjecturedDataFrames` does not make `display_in_editor` visible, because it
-  is a name of `ProjecturedPlatform`.
-  - (a) Each integration re-exports the exported names of
-    `ProjecturedPlatform`.
-  - (b) Each integration re-exports a short list: `display_in_editor`,
-    `run_editor!` and some more.
-  - (c) The manual line names the platform:
-    `using ProjecturedPlatform, ProjecturedSDL, ProjecturedDataFrames`.
-
-  I recommend (a). It gives the owner's line as written, and two integrations
-  that re-export the same binding do not conflict.
+  I recommend (a). It keeps HTTP out of each test and example environment.
+  Also, a loaded web backend becomes the default backend when SDL is absent.
+- **D3b, is `ProjecturedAll` released?** Then `add ProjecturedAll` installs
+  each domain in one line. I recommend no, in this plan. It is the flat
+  namespace of thousands of names, which decision D4 keeps away from a user.
+- **D4, the names of the manual line. Answered 2026-10-03.** No package
+  re-exports all names of the platform. A package of the most useful names
+  exists, and other packages re-export it. Section 4.7 gives the design.
 - **D5, the form of the triggers.** A table of names and uuids, as in section
   4.2, or a list of names. I recommend the table: it says exactly which
   package, as `[weakdeps]` does.
@@ -510,3 +543,24 @@ Each recommendation is mine, not a decision.
   because of R6.
 - **D10, the order of the landings.** I recommend that `julia-112` lands
   first. It is complete, and this branch starts from it.
+- **D11, the name of the package of the useful names.** `ProjecturedAPI` or
+  `ProjecturedEssentials`. I recommend `ProjecturedAPI`: it is the interface
+  that a user programs against, and `api` is a short form that the naming rules
+  allow.
+- **D12, which packages re-export `ProjecturedAPI`.**
+  - (a) The six integrations.
+  - (b) The six integrations and the backends: `ProjecturedConsole`,
+    `ProjecturedPDF` and `ProjecturedWeb`.
+  - (c) Each released package, the domains included.
+
+  I recommend (b). A user names a backend to see a view, so the names come with
+  the backend. A manual user of JSON writes
+  `using ProjecturedJSON, ProjecturedConsole` and gets them.
+- **D13, which names `Projectured` re-exports.**
+  - (a) Only the names of `ProjecturedAPI`.
+  - (b) Each name of the kernel and the platform, as now.
+
+  I recommend (a), for the reason that the owner gave for D4. Then
+  `using Projectured` and `using ProjecturedSDL` give the same names.
+  `ProjecturedAll` stays the full flat namespace for the tests, the examples and
+  the REPL.
