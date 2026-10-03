@@ -1595,7 +1595,37 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       and the window closes), 44; a real editor of a data frame (a right click
       on a header, "Hide column", Ctrl+Z shows the column again). The platform
       86,929 and 8 broken, the data frames 454.
-  - [ ] **4b.2** Rows: B2 insert and delete, B4, B8, the menu of a row.
+  - [x] **4b.2** Rows: B2 insert and delete, B4, B8, the menu of a row.
+    Done 2026-10-03:
+    - `InsertDataFrameRowOperation(view, row, values)` and
+      `DeleteDataFrameRowOperation(view, row)` (`DataFrameRowEdit.jl`), each the
+      inverse of the other; each moves the row of each entry in a later row
+      and the version of the frame.
+    - `DataFrameViewRow` has a menu: "Insert row above", "Insert row below" and
+      "Delete row", disabled for a `SubDataFrame`, and the inserts disabled when
+      a column has no value for a new row (B4). A right click on a row header
+      or on a cell of the row opens it.
+    - Fact found: the lift of B1 reroots an operation by the steps from its
+      place to the part, so an operation relative to the row can not select
+      another row. So the item holds the plain row operation, and the reader
+      of the view turns it into its step when it comes with a route into the
+      view (a 4-argument `read_intent` of `DataFrameViewToWidget`), as the view
+      converts the commit of the table (mine): the selection first, the drop
+      of the open cells of a deleted row, the operation, and the anchor (B8).
+    - The selection after an insert is the first shown cell of the new row;
+      after a delete, the row that followed it in the order of the view, or
+      the row before it, or the view. The anchor keeps the new row where the
+      row of its number stood, and the row after a delete where the deleted row
+      stood, through the kept rows of the frame with the row inserted or left
+      out, by vectors that copy no column (`_InsertedValueVector`,
+      `_DeletedValueVector`), as after a commit (4.7).
+    - Open: a new row that a filter hides is selected, and the table then shows
+      no selection.
+    - Tests: `test_data_frame_row_edits()`: the menu (its items, a
+      `SubDataFrame`, a column with no value for a new row, a column that
+      allows `missing`); the operations and their inverses with an entry in a
+      later row; a real editor (a right click on a row header, each item, and
+      Ctrl+Z after each). The data frames 477.
   - [ ] **4b.3** Columns: insert, delete and move (B2, B3, B5, B7).
   - [ ] **4b.4** The rename in place (B6) and the convert.
   - [ ] **4b.5** A column that takes no write (B9).

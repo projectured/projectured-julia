@@ -197,8 +197,18 @@ end
 function _push_anchor_write!(operations::Vector{Any}, view::DataFrameView, row::Int, after::Vector{Int})
     after === view.kept_rows && return operations
     place_before = findfirst(==(row), view.kept_rows)
-    place_after = findfirst(==(row), after)
-    (place_before === nothing || place_after === nothing) && return operations
+    place_before === nothing && return operations
+    _push_anchor_place!(operations, view, place_before, row, after)
+end
+
+# Add to `operations` the write of the anchor that puts row `row_after` of the
+# frame, among the kept rows `after`, at the place on the screen of place
+# `place_before` among the kept rows of `view`: the same distance from the head of
+# the list. Nothing when the anchor stays, or `after` does not keep the row.
+function _push_anchor_place!(operations::Vector{Any}, view::DataFrameView, place_before::Int, row_after::Int,
+                             after::Vector{Int})
+    place_after = findfirst(==(row_after), after)
+    place_after === nothing && return operations
     anchor = clamp(place_after - (place_before - _get_head_place(view)), 1, max(1, length(after)))
     anchor == view.anchor ||
         push!(operations, ReplaceViewStateOperation(ReplaceReferencedValueOperation(view, "anchor", anchor)))
@@ -235,11 +245,16 @@ function _compute_kept_rows_after_write(view::DataFrameView, r::Int, name::Strin
               !isempty(strip(query.expression))
     is_read || return view.kept_rows
     frame = view.frame
-    columns = names(frame)
-    changed = DataFrame(AbstractVector[column == name ? _ReplacedValueVector(frame[!, column], r, value) :
-                                       frame[!, column] for column in columns], columns; copycols = false)
-    expression = first(_evaluate_expression(changed, query.expression))
-    Base.invokelatest(_compute_kept_rows, changed, query, expression)
+    _compute_kept_rows_of(view, Any[column == name ? _ReplacedValueVector(frame[!, column], r, value) :
+                                    frame[!, column] for column in names(frame)])
+end
+
+# The rows that the query of `view` keeps of a frame of `columns`, the columns of
+# its frame in their order, with a change that copies no column.
+function _compute_kept_rows_of(view::DataFrameView, columns::Vector{Any})
+    changed = DataFrame(AbstractVector[columns...], names(view.frame); copycols = false)
+    expression = first(_evaluate_expression(changed, view.query.expression))
+    Base.invokelatest(_compute_kept_rows, changed, view.query, expression)
 end
 
 # The drop of the open cell in row `r` of the frame and column `name`, and the
