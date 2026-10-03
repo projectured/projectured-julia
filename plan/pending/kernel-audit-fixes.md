@@ -1349,7 +1349,8 @@ The owner decided 37 questions of the table below between 2026-09-30 and 2026-10
 
 **Baseline:** the suites of the three repositories at the base commits, in `/var/tmp/kad-baseline/`.
 
-- [ ] **D1. The law and the rules, text only.** PAR-NO-NESTED-CELL (L10-13); the carve-outs of PAR-PURE-THUNK and PAR-NO-WRITE-IN-THUNK (L01-17, and the new cell of L17-15); PAR-ONE-BASED-INDEXING (L11-25); PAR-AI-SAME-GUARANTEES (L18-27); system-anatomy.md (L14-6); code-quality-rules.md §5 (L06-10); the rows `run_` (L22-13) and `describe_` (L06-12) and the class of structural operations (L13-15, L14-2) in naming-rules.md.
+- [x] **D1. The law and the rules, text only.** PAR-NO-NESTED-CELL (L10-13); the carve-outs of PAR-PURE-THUNK and PAR-NO-WRITE-IN-THUNK (L01-17); PAR-AI-SAME-GUARANTEES and its accepted exception (L18-27); system-anatomy.md (L14-6); code-quality-rules.md §5 (L06-10); the rows `describe_` (L06-12) and `run_` (L22-13), and the class of structural operations (L13-15, L14-2) in naming-rules.md.
+  *Done:* the text of the new cell of L17-15 goes with its code in D6, and the sentence of PAR-ONE-BASED-INDEXING (L11-25) with its code in D9, so that the law never names code that does not exist yet.
 - [ ] **D2. POLICY-1 outside the fault layer.** L10-10 (`walk_document` takes `on_error`), L11-5 (the three reference walkers), L18-10 (the code tool acts as the Julia REPL), and every other catch-all arm of the kernel that does not ask `is_passthrough_exception`. PAR-REPORT-NEVER-THROWS states the rule and its one exception.
 - [ ] **D3. POLICY-1 in the fault layer** (L01-8). Sealed: FaultCascade.jl, FaultStore.jl, FaultRecord.jl.
 - [ ] **D4. Every default fault policy is strict** (L01-5), with the programs that a person starts in the three repositories.

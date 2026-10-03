@@ -238,8 +238,11 @@ alongside it.
   `ReplaceNumberRangeOperation`. Even the null operation is verb-first:
   `DoNothingOperation`. No word-order exceptions — not
   `NumberReplaceRangeOperation`, not a bare `ReplaceReferencedValue`. The
-  one structural exception is `CompoundOperation`, a sequence of operations
-  evaluated as one.
+  one exception is a *structural operation*: it holds or carries other things,
+  and names no edit of its own. `CompoundOperation` (a sequence of operations
+  evaluated as one), `WrappingOperation` (the supertype of an operation that
+  holds one other) and `CollectedIntentsOperation` (the answer to the request
+  `CollectIntents`) are the members.
 - **Events are `<Source><Action>`, suffixless and tenseless**: `KeyDown`,
   `MouseMove`, `WindowLeave`, `WindowClose`, `WindowResize`, `WindowDefocus`,
   `WindowQuit`. An event reports what the user or system did, never what
@@ -298,6 +301,12 @@ does, not by what it returns:
 | `collect_` | it gathers from several places |
 | `convert_` | it converts one form to another |
 | `measure_` | it measures |
+| `describe_` | it makes words for a person that say what a thing is or does: `describe_operation`, `describe_gesture_pattern` |
+| `run_` | it runs a unit of work: a loop, a frame, a stage or a barrier: `run_editor!`, `run_frame!`, `run_fault_barrier!` |
+
+`format_` and `describe_` both produce text. `format_` puts the fields of a thing
+into a fixed text form (`format_tick`, `format_fault_label`); `describe_` says in
+words what the thing means for a person.
 
 A function does not take `make_` merely because it returns a fresh
 `NamedTuple` or `Vector`. Ask what the caller wants: a newly created object, or

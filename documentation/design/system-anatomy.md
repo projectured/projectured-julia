@@ -166,11 +166,9 @@ aggregator's namespace) let a module split across files with zero API cost.
 **A module is declared in the file that names it.** `JsonModule` lives in
 `JsonModule.jl` and `CellModule` in `CellModule.jl`, without exception, and
 `module_violations` in [test/suite/naming.jl](../../test/suite/naming.jl)
-reports any file that breaks it. A module with several fragments keeps that file
-for the head alone — the docstring, the header, the ordered includes and
-`__init__`. A module with one fragment keeps its code there, because a head
-listing one include gives a reader nothing. All 15 head files of the kernel
-carry two or more includes.
+reports any file that breaks it. A module file holds the head alone — the
+docstring, the header, the ordered includes and `__init__` — whatever the count of
+its fragments.
 
 See [division-terminology.md](../rule/division-terminology.md) for the definitions and
 [architecture-rules.md](../rule/architecture-rules.md) for the durable division

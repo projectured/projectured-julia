@@ -202,15 +202,14 @@ logical change and its cached result is reused until invalidation, so impurity
 produces a wrong cache, not just a style smell. This is a correctness
 requirement.
 
-**Accepted carve-out — an idempotent write to a collector outside the graph.**
+**Accepted carve-out — a write to a collector outside the graph.**
 The requirement is that the *cached result* be right: a computation that runs many
-times for one logical change must leave the same value behind. A write whose
-effect is keyed and idempotent, to an object the graph does not contain, changes
-no result and can not be observed through any cell. `PAR-NO-WRITE-IN-THUNK`
-carries the same carve-out and names the case: the fault store. Nothing else
-qualifies by default — a counter that grows on every run, a log that appends, or
-anything a later read can see through a cell all produce a wrong cache and stay
-forbidden.
+times for one logical change must leave the same value behind. A write to an
+object with two properties changes no result: no cell depends on the object, and
+no computation reads it. A count in such an object can grow at each run, because
+no cached value can see it. `PAR-NO-WRITE-IN-THUNK` carries the same carve-out and
+names the case: the fault store. A counter or a log that a cell or a computation
+reads does not qualify, and a write to it stays forbidden.
 
 ### PAR-NO-WRITE-IN-THUNK
 
@@ -235,9 +234,11 @@ barrier has to catch inside the computation — and the message log it reports t
 document made of cells, which the computation may not write. It writes the store
 instead, and the editor's frame drains the store into the log afterwards, on its
 own task, outside every computation. Two properties make it safe, and a collector that
-lacks either does not qualify: it is **outside the reactive graph**, so no
-consumer can be invalidated half way; and its write is **idempotent**, keyed by
-identity, so a computation that runs ten times for one logical event leaves one entry.
+lacks either does not qualify: **no cell depends on it**, so no consumer can be
+invalidated half way; and **no computation reads it**, so no cached value depends on
+what it holds. A count in it can grow at each run of a computation. The key of a
+record keeps the store small, because the capacity counts keys; the key does not
+keep the cache right.
 
 The editor's other feed stores — the inbox, the message log store, the frame
 measurement store — share the shape but do not need the carve-out: their producers
@@ -358,10 +359,14 @@ assuming only fully-formed values ever occur (see PAR-DOMAIN-OWNS-EDITS).
 
 **A macro-wrapped field may never hold a `Cell` or a `Computation` as its logical
 value.** Both are cell vocabulary, and the auto-wrapping constructor consumes
-them rather than storing them: a cell of the field's type is passed through as
-the field's own cell (so the field's value becomes whatever that cell holds), a
-cell of another type is a `MethodError`, and a `Computation`
-becomes the field's *derivation*, making it a computed cell. To hold either as
+them rather than storing them. A cell that a constructor gets becomes the cell of
+the field, whatever type of value it holds, and a `Computation` becomes the
+field's *derivation*, making it a computed cell. The declared type of a field is
+the type that the field holds at rest. The reactive layout does not enforce it,
+because an edit passes through intermediate values, such as a text to parse or a
+document of another domain that a projection gives meaning to. The kind layouts
+(`ImmutableCell`, `MutableCell`) check a raw value and a write against the
+declared type. To hold either as
 data, box it (a one-element tuple or wrapper struct) or use a plain hand-rolled
 `struct` (as `SyntaxCompoundToText` does). Any convenience constructor must be
 an *outer* constructor — the macro emits the only inner one.
@@ -1409,9 +1414,16 @@ the document through the same operations, references, and selection machinery a
 person does — targeting the *meaning* of the content (references and operations
 on the model), never its position on screen, and it is likewise unable to
 produce structurally invalid content. Code that exposes editing to an AI (the
-agent tools, `execute_julia_code`) routes through
+agent tools, `execute_julia_code!`) routes through
 `evaluate_operation`/`search_*`, not around them, so the same invariants hold
 for both.
+
+**Accepted exception — a direct write through the code tool.** The code tool
+(the Julia function `execute_julia_code!`, the tool `execute_julia_code`) runs any
+code with the editor bound, so a direct write to a document stays possible. The
+editor discourages it: both descriptions of the tool tell the model that such a
+write gets no undo, no check and no transform, and that a verb or an operation
+changes the document of the editor.
 
 ### PAR-NAMING-LAW
 

@@ -284,12 +284,15 @@ holds the list, the waves and what is deferred.
 | --- | --- | --- |
 | Line width | median 43, 90% under 81, 95% under 86 | 90 characters |
 | A main-code function | median 9 lines, 90% under 30, longest 200 | 60 lines |
-| A file | mean 216 lines, 61 over 500 | 500 lines |
+| A file | mean 216 lines, 61 over 500 | 500 lines, as a signal |
 
-The four longest hand-written files are `WidgetToGraphics.jl` at 6392 lines,
-`ProjecturedSDL.jl` at 3033, `Widget.jl` at 2107, and `SqlToSyntax.jl` at 2095.
-They are far over the budget. Do not sweep them. When you next work in one, take
-one section out into its own fragment.
+**The size of a file is a signal, not a limit.** A file over 500 lines is a reason
+to look for a boundary in it, not a reason to split it. Split a file only at a
+good boundary: a part with its own concept, its own readers and a small interface
+to the rest. Where no such boundary exists, the file stays whole, whatever its
+length. The four longest hand-written files are `WidgetToGraphics.jl` at 6392
+lines, `ProjecturedSDL.jl` at 3033, `Widget.jl` at 2107, and `SqlToSyntax.jl` at
+2095.
 
 A test function is exempt. `test_reference_rules()` is 1049 lines, and it reads
 better as one list.
