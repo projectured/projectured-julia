@@ -1,9 +1,8 @@
 # A projection holds its styles, and a builder fills them
 
 > **Status:** pending, not started. Written on 2026-10-03 at the owner's request.
-> The owner decided the model (section 4) and the four points of section 6;
-> section 6 also lists what those answers bring, which the owner has not seen
-> yet. The owner asked for a review of the answers before the work starts.
+> The owner decided the model (section 4) and the points of section 6, except
+> the form of the icon size (6.2) and the name of the style function (6.6).
 
 ## 1. The request
 
@@ -98,8 +97,9 @@ All the work is in a worktree, and each step is a commit. The platform is one
 package, so the steps of its slices run one after another.
 
 - [ ] **M1. The style slice.** A read of a field of a theme gives the plain
-  value, and an accessor gives the kind (6.2); the appearance tab, the file and
-  the scaled theme use it. `make_theme_cell`, `make_style_field` and
+  value, and an accessor gives the kind (6.3); the appearance tab, the file and
+  the scaled theme use it. `@theme` writes `get_<name>_style` (6.6), and the 29
+  helpers by hand go. `make_theme_cell`, `make_style_field` and
   `make_theme_values_field` take any theme or `nothing`, and `scale_theme`
   goes. The guide of the style slice says the model.
 - [ ] **M2. The text and the syntax.** Their projections lose the field
@@ -114,10 +114,9 @@ package, so the steps of its slices run one after another.
   help, the inspector, the settings tab.
 - [ ] **M6. The widgets.** The second constructors of the widget printers take a
   theme of any kind; the five offsets and the box of a glyph become fields of
-  `WidgetTheme`; `WidgetToGraphics(; theme, icon_scale)` takes the icon scale
-  from its builder (6.1).
-- [ ] **M7. omnet**: a call scan for the factories whose keyword changed, and
-  the builders that hold an appearance pass the icon scale.
+  `WidgetTheme` (6.1); the five printers that size an icon beside a text read a
+  style for it (6.2).
+- [ ] **M7. omnet**: a call scan for the factories whose keyword changed.
 - [ ] **M8. The tests**: the 15 files that build a projection with `theme` build
   it through its factory, or pass the style.
 - [ ] **M9. The guides**: the style slice, the widget slice, the guide for a new
@@ -135,35 +134,59 @@ suites that build a themed view, and the images of both tabs.
 1. **The second constructors of the widget printers do not know the scaled
    widget theme** (the owner: "projection constructors don't need to know about
    scaled widget themes, no?"). They take a theme of any kind; `_themed`, the
-   derived text styles and the hover and pressed layers take one too. Two places
-   read the scales of the appearance through the scaled theme, and must change:
-   - **Five small offsets** are scaled with the spacing scale (`_scale_space`):
-     the offset of a shadow (2), the nudge of a chevron (1), the padding of a menu
-     item (2), the inset of a glyph (3) and the gap of a body (2); and one box is
-     8 times the icon scale. They become fields of `WidgetTheme`, of the kinds
-     `Spacing` and `IconSize`, so the scaled theme scales them and a constructor
-     reads them as values. The appearance tab then shows six more fields.
-   - **The icon scale** is a factor that five printers multiply while they
-     print: the box of an icon is the height of its line times the factor. It
-     is no value of a theme but a scale of the appearance. `WidgetToGraphics`
-     takes it as a keyword, `icon_scale`, a number or a cell, 1 by default; the
-     builder that holds the appearance passes a cell over its icon scale, so a
-     change shows at the next print, as now.
-2. **A theme that is not scaled works, and nothing checks** (the owner: "users
-   may want to build a user interface which doesn't support scaling at all").
-   Then a theme and a scaled theme must give the same kind of value for a field.
-   They do for a color, a font and a text style, but not for a length: a theme
-   reads `Spacing(16)` where its scaled theme reads `16`. So **a read of a field
-   of a theme gives the plain value**, the number, the inset or the point, and
-   the kind of the length stays in the document. The appearance tab, the file
-   and the scaled theme, which need the kind, read it with an accessor of the
-   style slice. This is a change of the style slice that every theme uses.
-3. **The default of a style field is the plain value of its role in the default
-   theme** (the owner: "from the default theme, yes"), `get_theme_defaults(K)`.
-4. **A Sonnet sub-agent edits one package at a time**, from the JSON commit as the
+   derived text styles and the hover and pressed layers take one too. Five small
+   offsets that the constructors scale with the spacing scale (`_scale_space`:
+   the offset of a shadow, 2; the nudge of a chevron, 1; the padding of a menu
+   item, 2; the inset of a glyph, 3; the gap of a body, 2) and one box of 8 times
+   the icon scale become fields of `WidgetTheme`, of the kinds `Spacing` and
+   `IconSize`; the appearance tab shows six more fields. The owner agreed.
+2. **The icon scale is no style parameter** (the owner: "icon_scale is not a
+   style parameter, we can introduce new style parameters if needed or use
+   existing ones"). Five printers multiply the height of a line of text by the
+   icon scale of the appearance, which they read through the scaled theme, to
+   size an icon beside the text: a button, a menu item, a toolbar command, a tab
+   and a title. That reading goes. Each printer holds a style instead, which the
+   theme scales:
+   - **A.** One field of `WidgetTheme`, `icon_size::IconSize = IconSize(1.0)`:
+     the size of an icon beside a text, in lines of that text. The kind
+     `IconSize` already exists, and the icon scale scales a length of that kind,
+     so the scaled theme gives the icon scale times 1.0. A printer computes the
+     box as the height of the line times `icon_size`, as it does now with the
+     scale. The look does not change: an icon follows the font scale through
+     the height of its line, and the icon scale through the field. A theme that
+     is not scaled gives 1.0: an icon as tall as its line.
+   - **B.** A size in pixels, `icon_box::IconSize = IconSize(23)`, the height of a
+     line of the default font. Then an icon follows the icon scale and not the
+     font scale: at a font scale of 1.5 its text grows and the icon does not.
+   - My recommendation: A. It keeps the look and the meaning of the two scales,
+     and needs no new kind of style.
+3. **A read of a field of a theme gives the plain value**, and the kind of a
+   length stays in the document; the appearance tab, the file and the scaled
+   theme read the kind with an accessor of the style slice (the owner: "yes").
+   This is a change of the style slice that every theme uses.
+4. **The default of a style field is the plain value of its role in the default
+   theme**, `get_theme_defaults(K)` (the owner: "from the default theme, yes").
+5. **A Sonnet sub-agent edits one package at a time**, from the JSON commit as the
    model, and I review each package before the next (the owner: "yes").
-
-The step M1 holds 6.2, and M6 holds 6.1.
+6. **`@theme` writes the function that gives a style** (the owner: "The @theme
+   JsonTheme macro call should write a function get_json_theme, no? would
+   simplify getting the style"). Each theme file has a helper by hand today,
+   29 of them, such as `_get_json_style(theme, name) = make_style_field(JsonTheme,
+   scale_theme(theme), StyleText; name)`. `@theme struct JsonTheme` writes
+   `get_json_style(theme, name)`: the style field of the role `name`, a cell that
+   reads `theme` with no edge, or the plain default value when `theme` is
+   `nothing`. The macro takes the type of the value from the default of the
+   field, so a call names no type. A factory then reads
+   `JsonNullToSyntaxLeaf(; style = get_json_style(theme, :null_text))`. The
+   name is the name of the type, without `Theme`, in snake case, between `get_`
+   and `_style`: `get_widget_style`, `get_db_catalog_style`,
+   `get_sequence_chart_style`. No name of the 29 is taken. The owner proposed
+   `get_json_theme`; the function answers a style and not a theme, so I propose
+   `get_json_style`.
+7. **A small inconsistency in the use of styles is fixed where it is found**
+   (the owner), and recorded in section 8. Known now: the settings tab holds
+   the widget theme for one caption style; the chart printer names its tuple of
+   values `theme`; the FSM labels of omnet take no Julia theme.
 
 ## 7. Risks
 
