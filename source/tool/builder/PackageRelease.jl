@@ -54,9 +54,9 @@ them, and `folder` is where the package is in `output`. `status` is `:new`,
   registry holds them, so `Pkg.test` of an installed package installs them as
   it installs any dependency.
 - `workflow` — `nothing`, or a function `workflow(jobs)` whose text goes into
-  `.github/workflows/CI.yml` at the root of `output`. `jobs` holds one
-  `(name, develop, coverage)` for each package with a `test/runtests.jl`,
-  dependencies first: `develop`, the folders that a test of the commit
+  `.github/workflows/<name>.yml` at the root of `output`, one file for each
+  package with a `test/runtests.jl`, so each one has a badge of its own. `jobs`
+  holds the one `(name, develop, coverage)` of that package: `develop`, the folders that a test of the commit
   develops into the environment of `Pkg.test(name)`, and `coverage`, the
   folders of its code. `develop` holds the folders of the released packages
   and the support packages that the test needs, `name` included and
@@ -365,9 +365,16 @@ function _write_release_workflow(output, workflow, order, folders)
                          if isdir(joinpath(output, name, folder))])
             for name in order
             if folders[name] == name && isfile(joinpath(output, name, "test", "runtests.jl"))]
-    path = joinpath(output, ".github", "workflows", "CI.yml")
-    mkpath(dirname(path))
-    write(path, workflow(jobs))
+    # One workflow for each package, so each one has a badge of its own. The
+    # release owns the folder, so a workflow of a package that has no tests any
+    # more goes away.
+    folder = joinpath(output, ".github", "workflows")
+    isdir(folder) && foreach(file -> endswith(file, ".yml") && rm(joinpath(folder, file)),
+                             readdir(folder))
+    mkpath(folder)
+    for job in jobs
+        write(joinpath(folder, "$(job.name).yml"), workflow([job]))
+    end
     nothing
 end
 

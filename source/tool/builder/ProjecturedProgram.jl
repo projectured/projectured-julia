@@ -649,8 +649,12 @@ function _format_projectured_release_overview(context::BuildContext, names)
     core = ["Projectured", "ProjecturedKernel", "ProjecturedPlatform", "ProjecturedIntegrations",
             "ProjecturedAll"]
     order = [filter(in(names), core); sort(filter(!in(core), names))]
-    rows = join(["| [$name]($name) | $(PROJECTURED_PACKAGE_READMES[name].summary) |\n"
-                 for name in order])
+    # A package with tests has a workflow of its own, and its badge.
+    badge(name) = _find_projectured_release_test(context, name) === nothing ? "" :
+        "[![tests]($PROJECTURED_RELEASE_URL/actions/workflows/$name.yml/badge.svg)]" *
+        "($PROJECTURED_RELEASE_URL/actions/workflows/$name.yml)"
+    rows = join(["| [$name]($name) | $(badge(name)) | " *
+                 "$(PROJECTURED_PACKAGE_READMES[name].summary) |\n" for name in order])
     # An integration declares a trigger beside the umbrella: the package that it joins.
     integrations = String[]
     for name in order
@@ -664,8 +668,6 @@ function _format_projectured_release_overview(context::BuildContext, names)
     end
     """
     # Projectured.jl
-
-    [![CI]($PROJECTURED_RELEASE_URL/actions/workflows/CI.yml/badge.svg)]($PROJECTURED_RELEASE_URL/actions/workflows/CI.yml)
 
     The released packages of [ProjecturEd]($PROJECTURED_SOURCE), a projectional
     editor: the data is the source, and every view is computed from it. Each folder
@@ -775,13 +777,14 @@ function _format_projectured_release_overview(context::BuildContext, names)
 
     ## The packages
 
-    | Package | What it holds or does |
-    | --- | --- |
+    | Package | Tests | What it holds or does |
+    | --- | --- | --- |
     $rows
     ## Tests
 
-    Each package holds its tests in `test/`. The workflow `.github/workflows/CI.yml`
-    runs them for each package on every push, on Julia $PROJECTURED_JULIA_COMPAT.
+    Each package holds its tests in `test/`. Each package with tests has a workflow
+    of its own, `.github/workflows/<Package>.yml`, which runs them on every push, on
+    Julia $PROJECTURED_JULIA_COMPAT; its badge is in the table above.
 
     ## Licence
 
@@ -803,14 +806,14 @@ function _format_projectured_release_workflow(jobs)
                     "develop: '$(join(job.develop, ' '))', " *
                     "coverage: '$(join(job.coverage, ','))'}" for job in jobs)...], "\n")
     """
-    # The test of each package of this repository, with coverage. The release of
-    # ProjecturEd writes this file, from source/tool/builder/ProjecturedProgram.jl
-    # in projectured-julia.
+    # The test of $(join([job.name for job in jobs], ", ")), with coverage. The
+    # release of ProjecturEd writes this file, from
+    # source/tool/builder/ProjecturedProgram.jl in projectured-julia.
     #
     # A package reaches its siblings through a registry, which holds a version only
     # after its commit. So a job develops the folders of the packages that its test
     # needs, and tests this commit.
-    name: CI
+    name: $(join([job.name for job in jobs], ", "))
 
     on:
       push:

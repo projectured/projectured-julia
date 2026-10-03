@@ -262,7 +262,8 @@ function test_package_release()
             # `FakeBase` has no tests, so no job; `FakeTop` develops the sibling it
             # depends on, then its support packages, and its code is in three
             # folders.
-            @test read(joinpath(output, ".github", "workflows", "CI.yml"), String) ==
+            @test readdir(joinpath(output, ".github", "workflows")) == ["FakeTop.yml"]
+            @test read(joinpath(output, ".github", "workflows", "FakeTop.yml"), String) ==
                   "FakeTop: FakeBase FakeTop example/FakeTopExample test/FakeTopTest | " *
                   "FakeTop/src FakeTop/ext\n"
 
@@ -507,11 +508,14 @@ function test_package_release()
                             startswith(result.folder, "example/"), results)
         @test !any(name -> isdir(joinpath(output, name, "test", "support")), names)
         @test all(result -> result.status === :new, results)
-        # The workflow tests each package that has tests, on each Julia version,
-        # and a job develops the packages that its test needs.
-        workflow = read(joinpath(output, ".github", "workflows", "CI.yml"), String)
+        # Each package that has tests has a workflow of its own, on each Julia
+        # version, and its job develops the packages that its test needs.
+        workflows = joinpath(output, ".github", "workflows")
         tested = filter(name -> isfile(joinpath(output, name, "test", "runtests.jl")), names)
-        @test sort([m[1] for m in eachmatch(r"- \{package: (\w+),", workflow)]) == sort(tested)
+        @test readdir(workflows) == sort(["$name.yml" for name in tested])
+        workflow = read(joinpath(workflows, "ProjecturedJSON.yml"), String)
+        @test occursin("name: ProjecturedJSON\n", workflow)
+        @test [m[1] for m in eachmatch(r"- \{package: (\w+),", workflow)] == ["ProjecturedJSON"]
         versions = match(r"julia: \[(.*)\]", workflow)[1]
         @test all(version -> occursin("'$version'", versions), PROJECTURED_CI_JULIA_VERSIONS)
         develop = split(match(r"- \{package: ProjecturedJSON, develop: '([^']*)'", workflow)[1])
@@ -533,8 +537,12 @@ function test_package_release()
         for (name, readme) in PROJECTURED_PACKAGE_READMES
             @test isfile(joinpath(context.root, readme.document))
         end
-        # The front page has a row for each released package, and the install lines.
+        # The front page has a row for each released package, with the badge of its
+        # workflow when it has tests, and the install lines.
         front = read(joinpath(output, "README.md"), String)
+        @test count("/actions/workflows/", front) == 2 * length(tested)
+        @test occursin("| [ProjecturedJSON](ProjecturedJSON) | [![tests](" *
+                       "$PROJECTURED_RELEASE_URL/actions/workflows/ProjecturedJSON.yml/badge.svg)]", front)
         @test all(name -> occursin("| [$name]($name) | ", front), names)
         @test occursin("pkg> registry add General\npkg> registry add $PROJECTURED_REGISTRY_URL\n", front)
         readme = read(joinpath(output, "ProjecturedJSON", "README.md"), String)
