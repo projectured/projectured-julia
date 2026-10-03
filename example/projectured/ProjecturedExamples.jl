@@ -63,6 +63,7 @@ function run_assistant_example(; backend::Symbol = :ollama, model::AbstractStrin
                 kwargs...)
 end
 
+# @optional: the name of the example stands first, as at a command line.
 function run_example(name="json"; kwargs...)
     idx = findfirst(ex -> ex.name == name, examples)
     if idx === nothing
@@ -97,18 +98,24 @@ function print_example(name="json")
     print_example(examples[idx])
 end
 
+# @optional: the name of the example stands first, then the output file, as at a
+# command line.
 function write_example_image(name="json", filename=tempname()*".bmp"; kwargs...)
     idx = findfirst(ex -> ex.name == name, examples)
     idx === nothing && error("Unknown example: \"$name\"")
     write_example_image(examples[idx], filename; kwargs...)
 end
 
+# @optional: the name of the example stands first, then the output file, as at a
+# command line.
 function write_example_pdf(name="json", filename=tempname()*".pdf"; kwargs...)
     idx = findfirst(ex -> ex.name == name, examples)
     idx === nothing && error("Unknown example: \"$name\"")
     write_example_pdf(examples[idx], filename; kwargs...)
 end
 
+# @optional: the output file stands last of the positionals, as the destination
+# named at a command line.
 function record_example_video(name::AbstractString, gestures,
                               filename=tempname()*".mp4"; kwargs...)
     idx = findfirst(ex -> ex.name == name, examples)

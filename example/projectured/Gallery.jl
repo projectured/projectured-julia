@@ -663,6 +663,7 @@ text. The reply is streamed on an `@async` task that the recording lets settle
 (via `record_video`'s `wait_for`) before holding the final frames for
 `final_hold` seconds (longer than the default so the answer lingers on screen).
 """
+# @optional: the output file stands first, as the destination named at a command line.
 function record_assistant_conversation_video(filename::AbstractString = tempname() * ".mp4";
                                               reply::AbstractString = """
                                                   Sure! Here's a recursive factorial in Julia:

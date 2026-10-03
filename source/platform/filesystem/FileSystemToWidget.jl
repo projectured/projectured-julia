@@ -36,6 +36,8 @@ struct FileSystemToWidgetTree <: Projection
     position::Point2D
     open_file::Any
 end
+# @optional: the position stands first, as the content of the view; the rest is
+# its chrome.
 FileSystemToWidgetTree(position::Point2D = Point2D(0, 0); open_file = OpenFileOperation) =
     FileSystemToWidgetTree(position, open_file)
 

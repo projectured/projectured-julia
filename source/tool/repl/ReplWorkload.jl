@@ -90,6 +90,7 @@ write what it compiled into the statement files of the packages, as
 Needs a display: the driver opens a real window, so that what it records is the
 whole stack down to SDL.
 """
+# @optional: the name of the recording stands first, as at a command line.
 function record_precompile_statements(recording::AbstractString = "examples"; kwargs...)
     entry = PRECOMPILE_RECORDINGS[recording]
     statements = ProjecturedExample.trace_precompile_statements(entry.driver;

@@ -30,6 +30,8 @@ end
 # the child's `prev` back to its parent so the chain is a proper doubly-linked
 # list — walkers that cache by objectid converge after one traversal instead
 # of materialising a fresh prev-chain at every node.
+# @optional: the transform and the parent link follow the stream, in the order the
+# recursive step builds the next node.
 function sieve(stream, transform::Function = identity, parent=nothing)
     head_val = stream.value  # PrimitiveNumber
     head_num = head_val.value  # Extract actual integer
@@ -146,6 +148,8 @@ end
 # that walking `.prev` from one neg-prime node reaches the next neg-prime.
 # `child` is the node further toward the head (in the `.next` direction);
 # linking `node.next = child` makes the chain a proper doubly-linked list.
+# @optional: the transform and the child link follow the stream, in the order the
+# recursive step builds the next node.
 function sieve_prev(stream, transform::Function = identity, child=nothing)
     head_val = stream.value
     head_num = head_val.value

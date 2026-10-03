@@ -213,6 +213,8 @@ pointless — thing to write, and realizes to an empty block rather than to an
 error. `leading` is prepended inside the block, which is how a loop's header
 probe reaches every iteration.
 """
+# @optional: the realization follows the body, as the recursion's own context; a
+# first call needs none.
 function realize_body(body, realization::_Realization = _realization(nothing, :none);
                       leading = JuliaDocument[])
     statements = JuliaDocument[leading...]

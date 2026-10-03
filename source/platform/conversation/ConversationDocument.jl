@@ -54,6 +54,7 @@ ConversationThinking(text::AbstractString;
 
 # Convenience: a thinking part. Collapsed by default — reasoning is verbose and
 # secondary (see Stage 5 of the conversation-thinking plan).
+# @optional: the text stands first, as the content of the part; the rest is its chrome.
 make_conversation_thinking_part(text = ""; collapsed::Bool = true, kwargs...) =
     ConversationPart(ConversationThinking(text; kwargs...); collapsed = collapsed)
 

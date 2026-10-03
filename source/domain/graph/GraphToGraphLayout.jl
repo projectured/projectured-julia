@@ -49,6 +49,8 @@ struct GraphGraphToGraphLayout <: Projection
     constraints::Any
 end
 
+# @optional: the layout engine stands first, as the algorithm the pipeline runs;
+# the rest is its chrome.
 GraphGraphToGraphLayout(engine::GraphLayoutEngine = GridEmbedding();
                         extent = nothing, border::Integer = 0, constraints = nothing) =
     GraphGraphToGraphLayout(engine,

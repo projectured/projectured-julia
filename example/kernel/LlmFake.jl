@@ -36,6 +36,7 @@ struct FakeLlm <: Llm
     meaning_model::String
 end
 
+# @optional: the reply stands first, as the content the backend returns; the rest is its chrome.
 FakeLlm(reply::AbstractString = "Yes, sir!";
         chunk_size::Integer = 1,
         delay::Real = 0.0,

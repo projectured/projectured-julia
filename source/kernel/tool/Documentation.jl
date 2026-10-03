@@ -547,6 +547,8 @@ List the functions within a module (optionally only those mentioning
 declared `api`, the module is looked up among the declared ones, and only the
 functions the declaration gives are listed, which are the ones a model can call.
 """
+# @optional: the module name stands first, then the type name to filter by, as a
+# search line reads them.
 function list_functions(module_name, type_name = nothing; api = ApiEntry[])
     mod = _find_module(String(module_name), api)
     isnothing(mod) && return "Module '$module_name' not found."
@@ -608,6 +610,8 @@ end
 
 Read the full documentation for a function within a module.
 """
+# @optional: the module, the function and the type stand first, in the order a
+# search line names them.
 function read_function_documentation(module_name, function_signature, type_name = nothing;
                                     api = ApiEntry[])
     mod = _find_module(String(module_name), api)
