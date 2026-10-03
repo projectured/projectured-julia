@@ -413,6 +413,11 @@ recommendation: "agreed on all". Section 5 logs them as D8 to D12.
 - **D24** (2026-10-03, T2). The column chooser of a table shows each column as a
   checkbox with its own label, not as a button with "[x]" or "[ ]". The owner:
   "yes".
+- **D25** (2026-10-03, V2). The line spacing keeps the existing spacing types.
+  `MultipleSpacing` counts from the natural line height of the font, so its
+  factors are chosen to give about 1.35 times the font size for code and 1.5
+  times for prose with the default fonts, as D9 asks. The owner: "option 2,
+  follows the plan".
 - **D15** (2026-10-02, T1). The pointer ring and the fault band of the video
   backend, and the glyph cursor of the SDL backend, stay as they are: they mark
   a recording or the system cursor, not the look of the editor.
@@ -727,9 +732,18 @@ inet-julia uses, the same step changes them, so that they always load.
   - The other themes: their spacings (2 to 16 px), radii, line widths and
     control sizes were reviewed and kept; the chart tick spacings (70, 100)
     set the density of the ticks and are no gaps.
-  - The line spacing of D9 waits for an answer: the spacing types count from
-    the natural line height (about 1.15 em for Ubuntu), and D9 says "times
-    the font size".
+  - The line spacing (D9, D25): `TextTheme.code_line_spacing` is
+    `MultipleSpacing(1.35)` and `prose_line_spacing` is `MultipleSpacing(1.3)`.
+    Measured natural heights: Ubuntu Mono 14 is 14.0 (ascent 11.62, descent
+    2.38, no gap), so code lines are 1.35 × 14 = 19 px; Ubuntu 14 is 16.09, so
+    prose lines are 1.3 × 16.09 = 21 px, 1.5 × 14. The code chain of the
+    syntax fabric and the Julia domain pass the code spacing; the prose chain
+    (Markdown headings, paragraphs, quotes and lists) and the text documents
+    of the natural view pass the prose spacing; the widgets, the overlays and
+    the inspector keep single spacing. `TextToGraphics` takes a spacing or a
+    theme cell. The appearance file saves a spacing as a table of one key
+    (`single`, `multiple`, `exact`, `at_least`), and the appearance tab shows a
+    multiple as a spin box in percent.
 - [ ] **V3.** The tests that check a pixel size follow, for example the line box
   of 23 px for Ubuntu 20. The count of broken tests does not change.
   *Done for the fonts and the widget spacing (2026-10-03), the line spacing
