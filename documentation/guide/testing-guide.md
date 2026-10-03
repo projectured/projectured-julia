@@ -568,7 +568,7 @@ pull request, except a push that changes only `plan/`:
 - One job runs the suite of each test package in its own environment, for
   example `test_json()` in `package/ProjecturedJSONTest`. A suite that uses a
   package that its `Project.toml` does not name fails there, and passes in
-  `environment/all`, where AutoIntegrations finds every trigger as a direct
+  `environment/all`, where AutoIntegration finds every trigger as a direct
   dependency. Two jobs run the umbrella's suite: `test_integration()` and
   `test_repository()`.
 - Each job collects the coverage of the files of this repository and sends it

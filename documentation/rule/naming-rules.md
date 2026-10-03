@@ -24,9 +24,9 @@ Every package name is `Projectured<Slice>` in CamelCase, and the umbrella is
 `Projectured` alone. The package directory is `package/<PackageName>/`, one
 folder per package, carrying the name exactly.
 
-`AutoIntegrations`, which the umbrella depends on, is no package of this
+`AutoIntegration`, which the umbrella depends on, is no package of this
 repository. It is generic, it lives in its own repository,
-`projectured/AutoIntegrations.jl`, and it carries no `Projectured` prefix.
+`projectured/AutoIntegration.jl`, and it carries no `Projectured` prefix.
 
 The slice is the lower-case name with the prefix removed, and it is the folder
 its code lives in: `ProjecturedSequenceChart` is

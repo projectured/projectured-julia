@@ -93,16 +93,16 @@ jobs:
       SDL_VIDEODRIVER: offscreen   # SDL draws into memory; the runner has no display
     steps:
       - uses: actions/checkout@v7
-      # environment/all names AutoIntegrations by the folder beside this
+      # environment/all names AutoIntegration by the folder beside this
       # repository.
       - uses: actions/checkout@v7
         if: matrix.project == 'environment/all'
         with:
-          repository: projectured/AutoIntegrations.jl
-          path: auto-integrations
-      - name: Place AutoIntegrations beside the repository
+          repository: projectured/AutoIntegration.jl
+          path: auto-integration
+      - name: Place AutoIntegration beside the repository
         if: matrix.project == 'environment/all'
-        run: mv auto-integrations ../auto-integrations
+        run: mv auto-integration ../auto-integration
       - uses: julia-actions/setup-julia@v3
         with:
           version: '1'

@@ -1,5 +1,5 @@
 [deps]
-AutoIntegrations = "40fd747d-4b08-4b8c-98c4-74a2b6295b1b"
+AutoIntegration = "40fd747d-4b08-4b8c-98c4-74a2b6295b1b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 FFMPEG = "c87230d0-a227-11e9-1b43-d7ebe4e7570a"
 ModelContextProtocol = "c58f755f-f2a7-4f48-bf29-4e9659b78499"
@@ -108,7 +108,7 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Tulip = "6dd1b50a-3aae-11e9-10b5-ef983d2400fa"
 
 [sources]
-AutoIntegrations = {path = "../../../auto-integrations"}
+AutoIntegration = {path = "../../../auto-integration"}
 Projectured = {path = "../../package/Projectured"}
 ProjecturedAdaptagrams = {path = "../../package/ProjecturedAdaptagrams"}
 ProjecturedAdaptagramsExample = {path = "../../package/ProjecturedAdaptagramsExample"}

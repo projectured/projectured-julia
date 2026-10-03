@@ -15,7 +15,7 @@ ProjecturedPlatform = {path = "../ProjecturedPlatform"}
 [compat]
 ModelContextProtocol = "0.4.1"
 
-# AutoIntegrations loads this package when Projectured and ModelContextProtocol are loaded,
+# AutoIntegration loads this package when Projectured and ModelContextProtocol are loaded,
 # unless the environment of the user sets it to "manual".
 [auto-integration]
 default = "auto"

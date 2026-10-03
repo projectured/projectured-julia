@@ -15,7 +15,7 @@ Tulip = "0.9"
 [sources]
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
 
-# AutoIntegrations loads this package when Projectured and Tulip are loaded,
+# AutoIntegration loads this package when Projectured and Tulip are loaded,
 # unless the environment of the user sets it to "manual".
 [auto-integration]
 default = "auto"

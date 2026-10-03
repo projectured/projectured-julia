@@ -61,10 +61,10 @@ julia> display_in_editor(DataFrame(n = 1:1000, square = (1:1000) .^ 2))
 
 ### The application from the source
 
-Clone the repository, and AutoIntegrations beside it: the umbrella names that folder.
+Clone the repository, and AutoIntegration beside it: the umbrella names that folder.
 
 ```sh
-git clone https://github.com/projectured/AutoIntegrations.jl auto-integrations
+git clone https://github.com/projectured/AutoIntegration.jl auto-integration
 git clone https://github.com/projectured/projectured-julia
 cd projectured-julia
 bin/projectured
@@ -142,7 +142,7 @@ The [roadmap](documentation/requirement/delivery-roadmap.md) says what comes nex
 | [projectured-julia](https://github.com/projectured/projectured-julia) | This repository: the source, the application, the examples, the tests and the guides | a person who runs the application from the source, or changes ProjecturEd |
 | [Projectured.jl](https://github.com/projectured/Projectured.jl) | The released packages, one folder for each, which the release writes from this repository | Pkg, when you add a package; a change belongs here, not there |
 | [ProjecturedRegistry](https://github.com/projectured/ProjecturedRegistry) | The Julia registry that names each version of the released packages | Pkg, after you add the registry once |
-| [AutoIntegrations.jl](https://github.com/projectured/AutoIntegrations.jl) | The package that loads an installed package when its triggers are loaded; `Projectured` depends on it | Pkg installs it; a clone of this repository needs it beside it, in `auto-integrations` |
+| [AutoIntegration.jl](https://github.com/projectured/AutoIntegration.jl) | The package that loads an installed package when its triggers are loaded; `Projectured` depends on it | Pkg installs it; a clone of this repository needs it beside it, in `auto-integration` |
 
 ## Repository layout
 

@@ -122,7 +122,7 @@ The second loop exports the names of the domain module from the package. The umb
 4. Add the package to the two lists of the full set, which `test_repository()` and `test_builder()` keep equal:
    - `ProjecturedAll`: the `[deps]` and `[sources]` of its `Project.toml`, the `import` list of its root module, and the `_SOURCES` tuple in `source/all/ProjecturedAll.jl`;
    - the binary: `PROJECTURED_APPLICATION_IMPORTS` in `source/tool/builder/ProjecturedProgram.jl`.
-5. Declare the table `[auto-integration]` in the domain's `Project.toml`, with the trigger `Projectured` and the default `auto`, so AutoIntegrations loads the domain when a session loads `Projectured`; see [autointegrations.md](../package/autointegrations/autointegrations.md).
+5. Declare the table `[auto-integration]` in the domain's `Project.toml`, with the trigger `Projectured` and the default `auto`, so AutoIntegration loads the domain when a session loads `Projectured`; see [autointegration.md](../package/autointegration/autointegration.md).
 6. Add the test package to `ProjecturedTest`.
 7. Add the three packages to `[deps]` and `[sources]` of `environment/all/Project.toml`, then run `Pkg.resolve()`.
 

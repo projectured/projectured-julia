@@ -22,7 +22,7 @@ If the solve is not optimal, has no feasible point, or raises an error, the solv
 
 The code is the slice `TulipModule`, in `source/adapter/tulip/`: `TulipModule.jl` holds its imports and its exports, and `ProjecturedTulip` includes that file and exports the same names.
 
-`ProjecturedTulip` depends on `ProjecturedPlatform`'s layout slice, and on `Tulip` and `MathOptInterface`. It declares the triggers `Projectured` and `Tulip` with the default `auto`, so AutoIntegrations loads it when both are loaded; see [autointegrations.md](../../autointegrations/autointegrations.md). It re-exports the essential names of `ProjecturedPlatform.EssentialsModule`; see [essentials.md](../../platform/essentials/essentials.md). No package depends on it. It registers nothing, and loading it changes no default: a caller passes the solver to the projection. This is different from `ProjecturedAdaptagrams`, which registers itself as the engine of `DeferredLayout` when it loads; see [graph.md](../../domain/graph/graph.md).
+`ProjecturedTulip` depends on `ProjecturedPlatform`'s layout slice, and on `Tulip` and `MathOptInterface`. It declares the triggers `Projectured` and `Tulip` with the default `auto`, so AutoIntegration loads it when both are loaded; see [autointegration.md](../../autointegration/autointegration.md). It re-exports the essential names of `ProjecturedPlatform.EssentialsModule`; see [essentials.md](../../platform/essentials/essentials.md). No package depends on it. It registers nothing, and loading it changes no default: a caller passes the solver to the projection. This is different from `ProjecturedAdaptagrams`, which registers itself as the engine of `DeferredLayout` when it loads; see [graph.md](../../domain/graph/graph.md).
 
 ## Design decisions
 

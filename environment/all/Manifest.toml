@@ -2,7 +2,7 @@
 
 julia_version = "1.13.0"
 manifest_format = "2.1"
-project_hash = "4abb68e124858ec6a6d73a452e33d1d541164ec1"
+project_hash = "3248ba8d2d2c8c4fac887b67637f191d2b3cdf3a"
 
 [[deps.AMD]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
@@ -19,9 +19,9 @@ version = "1.1.2"
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
 version = "1.11.0"
 
-[[deps.AutoIntegrations]]
+[[deps.AutoIntegration]]
 deps = ["TOML"]
-path = "../../../auto-integrations"
+path = "../../../auto-integration"
 uuid = "40fd747d-4b08-4b8c-98c4-74a2b6295b1b"
 version = "0.1.0"
 
@@ -919,7 +919,7 @@ uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 version = "1.11.0"
 
 [[deps.Projectured]]
-deps = ["AutoIntegrations", "ProjecturedPlatform"]
+deps = ["AutoIntegration", "ProjecturedPlatform"]
 path = "../../package/Projectured"
 uuid = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 version = "0.1.0"

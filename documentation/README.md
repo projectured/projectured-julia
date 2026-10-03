@@ -61,7 +61,7 @@ In the order of the chain. The kind is the one in the document's header.
 | [domain-anatomy.md](design/domain-anatomy.md) | design | What parts does every domain have, and how do an edit and a registration travel through them? |
 | [domain-inventory.md](design/domain-inventory.md) | reference | What are the twenty domains, what depends on what, and where is the document of each? |
 | [package/README.md](package/README.md) | reference | The design document of each package, one folder per slice. |
-| [autointegrations.md](package/autointegrations/autointegrations.md) | design | How does AutoIntegrations load an installed package, and why is each integration its own package? |
+| [autointegration.md](package/autointegration/autointegration.md) | design | How does AutoIntegration load an installed package, and why is each integration its own package? |
 | [essentials.md](package/platform/essentials/essentials.md) | design | Which few names does the umbrella give, and why does a program that needs more write `ProjecturedPlatform`? |
 | [orientation.md](guide/orientation.md) | reference | Where do I look first, and what do I search for? |
 | [setup-guide.md](guide/setup-guide.md) | procedure | How do I install it and open a session? |

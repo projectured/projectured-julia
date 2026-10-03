@@ -1,8 +1,8 @@
-# AutoIntegrations
+# AutoIntegration
 
 > **Kind:** design · **Status:** current · **Stands on:** [package-rules.md](../../rule/package-rules.md), [own-project-guide.md](../../guide/own-project-guide.md)
 
-`AutoIntegrations` loads an installed package when the packages that it names as its triggers are loaded, as the settings of the environment of the user choose. `using Projectured` loads it. It is a generic package of its own repository, [projectured/AutoIntegrations.jl](https://github.com/projectured/AutoIntegrations.jl), whose README says how the mechanism works. This document says how ProjecturEd uses it and why ProjecturEd installs and loads its packages in this way.
+`AutoIntegration` loads an installed package when the packages that it names as its triggers are loaded, as the settings of the environment of the user choose. `using Projectured` loads it. It is a generic package of its own repository, [projectured/AutoIntegration.jl](https://github.com/projectured/AutoIntegration.jl), whose README says how the mechanism works. This document says how ProjecturEd uses it and why ProjecturEd installs and loads its packages in this way.
 
 ## Why it is so
 
@@ -49,30 +49,30 @@ SimpleDirectMediaLayer = "98e33af6-2ee5-5afd-9e75-cbc738b767c4"
 The file `LocalPreferences.toml` beside the `Project.toml` of an environment holds the state of each package:
 
 ```toml
-[AutoIntegrations]
+[AutoIntegration]
 ProjecturedSDL = "auto"
 ProjecturedDataFrames = "manual"
 ```
 
-`"auto"` loads the package when its triggers are loaded. `"manual"` loads it only when a `using` line names it. A package with no entry has its default. `set_auto_integration!` writes the same entry. A `using` line in `Main` reaches only the packages that the user added, and `add Projectured` adds AutoIntegrations only as a dependency, so a user who calls the function adds AutoIntegrations by name:
+`"auto"` loads the package when its triggers are loaded. `"manual"` loads it only when a `using` line names it. A package with no entry has its default. `set_auto_integration!` writes the same entry. A `using` line in `Main` reaches only the packages that the user added, and `add Projectured` adds AutoIntegration only as a dependency, so a user who calls the function adds AutoIntegration by name:
 
 ```
-pkg> add AutoIntegrations
+pkg> add AutoIntegration
 
-julia> using AutoIntegrations
+julia> using AutoIntegration
 julia> set_auto_integration!("ProjecturedDataFrames", :manual)   # from the next load
 ```
 
-A package that AutoIntegrations loads binds no name in `Main`. To write `SdlBackend()`, a user writes `using ProjecturedSDL`.
+A package that AutoIntegration loads binds no name in `Main`. To write `SdlBackend()`, a user writes `using ProjecturedSDL`.
 
 ## How it fits
 
-`Projectured` depends on `AutoIntegrations` and `ProjecturedPlatform`, loads both, and re-exports the names of `ProjecturedPlatform.EssentialsModule` ([essentials.md](../platform/essentials/essentials.md)). The integrations do not depend on AutoIntegrations: `using ProjecturedSDL` alone never loads it.
+`Projectured` depends on `AutoIntegration` and `ProjecturedPlatform`, loads both, and re-exports the names of `ProjecturedPlatform.EssentialsModule` ([essentials.md](../platform/essentials/essentials.md)). The integrations do not depend on AutoIntegration: `using ProjecturedSDL` alone never loads it.
 
-The repository of AutoIntegrations sits beside this one. `package/Projectured/Project.toml` and `environment/all` name it by the folder `../../../auto-integrations`, as a sibling checkout. The release of ProjecturEd does not copy it: the registry holds it as a package of its own, and the released `Projectured` depends on it there.
+The repository of AutoIntegration sits beside this one. `package/Projectured/Project.toml` and `environment/all` name it by the folder `../../../auto-integration`, as a sibling checkout. The release of ProjecturEd does not copy it: the registry holds it as a package of its own, and the released `Projectured` depends on it there.
 
 `ProjecturedIntegrations` is the other way to load every integration. It depends on the six integrations and loads each one with an ordinary package extension when the package that it joins is loaded. It loads an integration that the user sets to `"manual"` too: it means "load all".
 
 ## Tests
 
-The repository of AutoIntegrations holds the tests of the mechanism, with small scratch packages. Here, `test_umbrella_loads_integrations()` and `test_integrations_load_with_extensions()` of `ProjecturedTest` run the cases of a user with the real packages, and `test_packages_declare_triggers()` checks the tables.
+The repository of AutoIntegration holds the tests of the mechanism, with small scratch packages. Here, `test_umbrella_loads_integrations()` and `test_integrations_load_with_extensions()` of `ProjecturedTest` run the cases of a user with the real packages, and `test_packages_declare_triggers()` checks the tables.

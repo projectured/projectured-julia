@@ -220,7 +220,7 @@ end
 The packages that the binary loads beside the platform, its backends and its
 adapters, so that it opens every format: the console and PDF backends and the
 domains. A binary holds a fixed set of packages, so it loads the platform and not
-the umbrella, and AutoIntegrations has no part in it.
+the umbrella, and AutoIntegration has no part in it.
 """
 const PROJECTURED_APPLICATION_IMPORTS = ["ProjecturedConsole", "ProjecturedPDF",
     "ProjecturedJSON", "ProjecturedYAML", "ProjecturedXML", "ProjecturedMarkdown",
@@ -383,12 +383,12 @@ The release repository, which holds one folder for each released package.
 const PROJECTURED_RELEASE_URL = "https://github.com/projectured/Projectured.jl"
 
 """
-    AUTOINTEGRATIONS_URL
+    AUTOINTEGRATION_URL
 
-The repository of AutoIntegrations, the package that loads an installed package
+The repository of AutoIntegration, the package that loads an installed package
 of ProjecturEd when its triggers are loaded. `Projectured` depends on it.
 """
-const AUTOINTEGRATIONS_URL = "https://github.com/projectured/AutoIntegrations.jl"
+const AUTOINTEGRATION_URL = "https://github.com/projectured/AutoIntegration.jl"
 
 """
     PROJECTURED_PACKAGE_READMES
@@ -401,7 +401,7 @@ release.
 """
 const PROJECTURED_PACKAGE_READMES = Dict(
     "Projectured" =>
-        (summary = "The umbrella package of ProjecturEd: it loads the kernel, the platform and AutoIntegrations, and gives the names that most users call.",
+        (summary = "The umbrella package of ProjecturEd: it loads the kernel, the platform and AutoIntegration, and gives the names that most users call.",
          document = "documentation/guide/own-project-guide.md"),
     "ProjecturedIntegrations" =>
         (summary = "Installs every integration of ProjecturEd and the packages that they join, and loads each integration when the package that it joins is loaded.",
@@ -558,7 +558,7 @@ _find_auto_integration(context::BuildContext, name) =
 _join_names(names) =
     length(names) <= 1 ? join(names) : join(names[1:end-1], ", ") * " and " * names[end]
 
-# How the package `name` loads: by a `using` line, and by AutoIntegrations when it
+# How the package `name` loads: by a `using` line, and by AutoIntegration when it
 # declares triggers.
 function _format_projectured_load_text(context::BuildContext, name)
     declaration = _find_auto_integration(context, name)
@@ -568,9 +568,9 @@ function _format_projectured_load_text(context::BuildContext, name)
     when = _join_names(["`$trigger`" for trigger in triggers]) *
            (length(triggers) == 1 ? " is loaded" : " are loaded")
     get(declaration, "default", "manual") == "auto" ?
-        "`using $name` loads it. AutoIntegrations also loads it by itself when $when, " *
+        "`using $name` loads it. AutoIntegration also loads it by itself when $when, " *
         "unless your environment sets it to `\"manual\"`." :
-        "`using $name` loads it. AutoIntegrations loads it by itself when $when, " *
+        "`using $name` loads it. AutoIntegration loads it by itself when $when, " *
         "if your environment sets it to `\"auto\"`."
 end
 
@@ -726,7 +726,7 @@ function _format_projectured_release_overview(context::BuildContext, names)
     ```
 
     `using Projectured` loads the kernel, the platform and
-    [AutoIntegrations]($AUTOINTEGRATIONS_URL). AutoIntegrations loads a package that
+    [AutoIntegration]($AUTOINTEGRATION_URL). AutoIntegration loads a package that
     you installed when all its triggers are loaded. The order of the `using` lines does not matter. Each domain, the
     console, PDF and the model adapters load when `Projectured` is loaded. An
     integration loads when the package that it joins is loaded too:
@@ -743,19 +743,19 @@ function _format_projectured_release_overview(context::BuildContext, names)
     the file `LocalPreferences.toml` beside the `Project.toml` of your environment:
 
     ```toml
-    [AutoIntegrations]
+    [AutoIntegration]
     ProjecturedSDL = "auto"
     ProjecturedDataFrames = "manual"
     ```
 
     `"auto"` loads the package when its triggers are loaded. `"manual"` loads it
     only when you name it. A package with no line keeps its own default. This call
-    writes the same line, after you add AutoIntegrations by name:
+    writes the same line, after you add AutoIntegration by name:
 
     ```
-    pkg> add AutoIntegrations
+    pkg> add AutoIntegration
 
-    julia> using AutoIntegrations
+    julia> using AutoIntegration
     julia> set_auto_integration!("ProjecturedDataFrames", :manual)
     ```
 
@@ -809,7 +809,7 @@ function _format_projectured_release_overview(context::BuildContext, names)
     | [projectured-julia]($PROJECTURED_SOURCE) | The source: the application, the examples, the tests and the guides. A change belongs there. |
     | [Projectured.jl]($PROJECTURED_RELEASE_URL) | This repository: the released packages, which the release writes from projectured-julia. |
     | [ProjecturedRegistry]($PROJECTURED_REGISTRY_URL) | The Julia registry that names each version of these packages. |
-    | [AutoIntegrations.jl]($AUTOINTEGRATIONS_URL) | The package that loads an installed package when its triggers are loaded. `Projectured` depends on it. |
+    | [AutoIntegration.jl]($AUTOINTEGRATION_URL) | The package that loads an installed package when its triggers are loaded. `Projectured` depends on it. |
 
     ## The packages
 
@@ -906,14 +906,14 @@ function _format_projectured_release_workflow(jobs)
               # longer than a key may be.
               include-matrix: false
               cache-name: julia-cache;package=\${{ matrix.package }};julia=\${{ matrix.julia }}
-          # AutoIntegrations is a package of another repository, which no job
+          # AutoIntegration is a package of another repository, which no job
           # develops. ProjecturedRegistry is private and a job has no token for
           # it, so the package comes from its public repository, and General
           # comes by itself.
-          - name: Add AutoIntegrations
+          - name: Add AutoIntegration
             run: >-
               julia --project="\$RUNNER_TEMP/environment"
-              -e 'using Pkg; Pkg.add(url = "$AUTOINTEGRATIONS_URL")'
+              -e 'using Pkg; Pkg.add(url = "$AUTOINTEGRATION_URL")'
           - name: Develop the packages that the test needs
             run: >-
               julia --project="\$RUNNER_TEMP/environment"

@@ -1,6 +1,6 @@
 # The recording "readme-data-frame" of this repository, written by
 # ProjecturedREPL.record_precompile_statements. Record it again; do not edit it.
-Tuple{AutoIntegrations.var"#_find_candidate##0#_find_candidate##1"{String}, String}
+Tuple{AutoIntegration.var"#_find_candidate##0#_find_candidate##1"{String}, String}
 Tuple{Base.BottomRF{typeof(Base.:(+))}, Base._InitialValue, Int64}
 Tuple{Base.Colon, UInt32, UInt32}
 Tuple{DataFrames.var"#189#190"{Bool, Array{Any, 1}, Int64, Int64}}
@@ -120,7 +120,7 @@ Tuple{Type{UInt32}, SimpleDirectMediaLayer.LibSDL2.SDL_WindowFlags}
 Tuple{Type{UInt8}, SimpleDirectMediaLayer.LibSDL2.SDL_WindowEventID}
 Tuple{typeof(Artifacts.__artifact_str), Module, String, Base.SubString{String}, String, Base.Dict{String, Any}, Base.SHA1, Base.BinaryPlatforms.Platform, Base.Val{Pkg}}
 Tuple{typeof(Artifacts._artifact_str), Module, String, Base.SubString{String}, String, Base.Dict{String, Any}, Base.SHA1, Base.BinaryPlatforms.Platform, Base.Val{Pkg}}
-Tuple{typeof(AutoIntegrations._run_after_load), Base.PkgId}
+Tuple{typeof(AutoIntegration._run_after_load), Base.PkgId}
 Tuple{typeof(Base.:(!=)), NTuple{4, UInt8}, NTuple{4, UInt8}}
 Tuple{typeof(Base.:(+)), Vararg{Int64, 4}}
 Tuple{typeof(Base.:(+)), Vararg{Int64, 5}}
