@@ -960,7 +960,8 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     independent filter and anchor, both read a change after a refresh, the tab
     duplicates into the next tab); 256 data frame tests pass. A picture shows
     the "+" on the tab.
-- [ ] **4. Edit.** The pending text, the operations of §3.6 with their
+- [x] **4. Edit.** Done for the first release on 2026-10-03: 4a and
+  4b.1 to 4b.3; 4b.4 to 4b.6 wait (the owner, below). The pending text, the operations of §3.6 with their
   inverses, undo, the write-through of a `SubDataFrame`, the `DataFrameRow`
   form. There is no busy flag (D3 changes, §5.1). An edit writes the frame
   from the thread of the editor. A write of one value does no harm to an
@@ -1659,10 +1660,21 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       the operations and their inverses, a real editor (insert after a middle
       and after the last column, a move, a delete, and Ctrl+Z after each); the
       rows: an insert below the last row. The data frames 507.
-  - [ ] **4b.4** The rename in place (B6) and the convert.
-  - [ ] **4b.5** A column that takes no write (B9).
-  - [ ] **4b.6** The `DataFrameRow` (B10).
-- [ ] **5. Sort and filter.** The query document, the header gestures, the
+  - **The first release stops here** (the owner, 2026-10-03: "renaming a
+    column should be deferred, we are doing too much for the first release,
+    let's be reasonable, we need filtering, sorting, searching and basic
+    editing, no need to overcomplicate this at first"). The steps below wait
+    for a later release; the convert and the `DataFrameRow` are not in the
+    four that the owner named, so they wait too (mine, from the owner's
+    words).
+  - [ ] **4b.4** The rename in place (B6) and the convert. Deferred.
+  - [ ] **4b.5** A column that takes no write (B9). Deferred. Known fault
+    until then: a commit into such a column, which only a frame made with
+    `copycols = false` holds, fails in `setindex!`.
+  - [ ] **4b.6** The `DataFrameRow` (B10). Deferred.
+- [x] **5. Sort and filter.** Done for the first release (5.1 to 5.9); the
+  freeze of a column and the move of a column by a drag wait (the owner,
+  2026-10-03: "dragging a column should be deferred, not important"). The query document, the header gestures, the
   quick filters, the expression filter, column hide and move. The sort and
   the filter again on a commit (D6), and the selection after it (D10). Column
   freeze needs frozen columns on a list in the widget substrate (§3.5).
@@ -1777,8 +1789,9 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
         the press, the path, the menus, the chain of a right click through the
         context menu probe, the last column, a wide frame), the list table and
         the eager table, 290 pass.
-      - Not checked: whether undo takes back a hide, because a posted
-        operation is applied outside the reader of the window.
+      - Not checked then: whether undo takes back a hide, because a posted
+        operation is applied outside the reader of the window. Checked in
+        4b.1: it did not, and now it does.
     - [x] **5.3 The query and the rows that pass.** `DataFrameQuery`, the
       computed vector of rows, the hidden columns and the pattern of the
       names (`abc` contains, `/re/` a regular expression).
@@ -2051,7 +2064,26 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     change. inet-julia's presentation tests have 8 errors, all
     `make_natural_to_syntax_dispatch()` without the `appearance` that main's
     theme work (`b964b257f`) requires; inet-julia does not follow it yet.
-- [ ] **6. Find.** §4.5, without replace.
+- [ ] **6. Find.** §4.5, without replace. **The first release, proposed
+  2026-10-03 (mine, waiting for the word of the owner)**: find the next
+  cell, and no more.
+  - Ctrl+F in the view opens a find bar, a text field above the table, as the
+    expression bar is. The text of the bar is state of the view, as the
+    query is, so a duplicate keeps its own.
+  - A cell matches when the text that it shows contains the text of the bar,
+    with no regard to case.
+  - Enter and Shift+Enter in the bar, and F3 and Shift+F3 in the table, move
+    the selection to the whole next or previous cell that matches, in the
+    order of the view: the kept rows, then the shown columns, from the cell of
+    the selection, round the end to the start. The view jumps so the row of
+    the match shows (`jump_to_row`). The bar says "no match" when none does.
+  - Escape closes the bar; the selection stays on the match.
+  - The cost: a find walks from the selection to the next match, so it reads
+    the whole frame only when no cell matches; that can take seconds for a
+    large frame (not measured).
+  - Later: a regular expression and an exact value, the scope of a column or
+    a range, "match k of n", the marks of the visible matches, "filter to
+    matches", and replace.
 - [ ] **7. Group.** §4.6. Deferred until group and pivot have a design of
   their own (D8).
 - [ ] **8. Pivot.** §4.7, with row headers on a list and the spanning header
