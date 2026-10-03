@@ -29,4 +29,9 @@ include("../../../source/adapter/tulip/TulipModule.jl")
 using .TulipModule: TulipConstraintSolver
 export TulipConstraintSolver
 
+# A person who names this package gets the names that most users call.
+using ProjecturedEssentials
+Core.eval(@__MODULE__, Expr(:export, filter(!=(:ProjecturedEssentials),
+                                            names(ProjecturedEssentials))...))
+
 end # module ProjecturedTulip

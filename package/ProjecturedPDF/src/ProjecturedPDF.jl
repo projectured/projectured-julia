@@ -32,4 +32,9 @@ include("../../../source/backend/pdf/PdfModule.jl")
 using .PdfModule: write_pdf, GraphicsCanvasToPdfFile
 export write_pdf, GraphicsCanvasToPdfFile
 
+# A person who names this package gets the names that most users call.
+using ProjecturedEssentials
+Core.eval(@__MODULE__, Expr(:export, filter(!=(:ProjecturedEssentials),
+                                            names(ProjecturedEssentials))...))
+
 end # module ProjecturedPDF

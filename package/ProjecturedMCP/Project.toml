@@ -5,9 +5,11 @@ authors = []
 
 [deps]
 ModelContextProtocol = "c58f755f-f2a7-4f48-bf29-4e9659b78499"
+ProjecturedEssentials = "abe497b7-f7c3-4d23-8caf-a4d4ca8b23b4"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 
 [sources]
+ProjecturedEssentials = {path = "../ProjecturedEssentials"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 
 [compat]

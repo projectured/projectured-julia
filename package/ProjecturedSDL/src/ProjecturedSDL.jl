@@ -38,4 +38,9 @@ export SdlBackend, write_image, open_offscreen_renderer, close_offscreen_rendere
        render_offscreen_changes!, write_offscreen_frame_with_overlay!,
        write_offscreen_picture_with_overlay!
 
+# A person who names this package gets the names that most users call.
+using ProjecturedEssentials
+Core.eval(@__MODULE__, Expr(:export, filter(!=(:ProjecturedEssentials),
+                                            names(ProjecturedEssentials))...))
+
 end # module ProjecturedSDL

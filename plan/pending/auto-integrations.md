@@ -499,8 +499,16 @@ The README of each released package changes too
       `test_integrations_load_with_extensions()` passes 3 of 3: the extension
       loads `ProjecturedDataFrames`, nothing loads without DataFrames, and a
       "manual" setting does not stop the extension.
-- [ ] **Step 5, the names.** `ProjecturedEssentials` and its test. The
+- [x] **Step 5, the names.** `ProjecturedEssentials` and its test. The
       integrations, the backends and `Projectured` re-export its names.
+      Done: the six integrations and the three backends depend on
+      `ProjecturedEssentials` and re-export its names with one `export` that
+      reads `names(ProjecturedEssentials)`, as the umbrella and
+      `ProjecturedIntegrations` do. The export of the three display names in
+      `ProjecturedDataFrames` went into it. `test_essential_names()` checks that
+      the 11 packages export the 12 names with the same bindings (12 of 12), and
+      the manual case of `test_umbrella_loads_integrations()` checks that
+      `display_in_editor` is visible. This test found the fault of section 9.3.
 - [ ] **Step 6, the release.** The README texts of section 5, the entries of
       `PROJECTURED_PACKAGE_READMES`, the release copy of a package with no
       slice folder, and the release tests.
@@ -565,3 +573,25 @@ beside them. AutoIntegrations keeps them with the times of change of these
 files, so an `add`, an `update` or an `activate` in the session gives new
 candidates at the next load of a package. It reads the state of a candidate
 again each time, only when the triggers of the candidate are loaded.
+
+### 9.3 The callback waits while a package loads
+
+`import Projectured, ProjecturedSDL` loads SimpleDirectMediaLayer inside the
+load of `ProjecturedSDL`. Julia calls the callback of SimpleDirectMediaLayer
+while `ProjecturedSDL` is still in `Base.package_locks`, so AutoIntegrations
+found `ProjecturedSDL` ready and loaded it a second time:
+`ConcurrencyViolationError("deadlock detected in loading ProjecturedSDL using
+ProjecturedSDL")`. A candidate that needs a package in progress, as Video needs
+SDL, fails the same way. Julia calls the callback of the outer package after
+`end_loading`, so the callback now does nothing while `Base.package_locks` holds
+a package, and the callback after the outermost load does the work. The scratch
+package `GlueNeedsB` reproduces it in `test_automatic_load()`: it imports one of
+its triggers. A scratch package that names a dependency but does not import it
+does not reproduce it, because Julia loads only what the code imports.
+
+### 9.4 `ProjecturedMCP` loads the platform
+
+`ProjecturedMCP` depended on the kernel alone. It re-exports the names of
+`ProjecturedEssentials` (D12), and `ProjecturedEssentials` depends on the
+platform, so `using ProjecturedMCP` now loads the platform too. An MCP server
+drives an editor, which needs the platform in each real use.

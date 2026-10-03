@@ -32,4 +32,9 @@ include("../../../source/backend/console/ConsoleModule.jl")
 using .ConsoleModule: ConsoleBackend, render_console
 export ConsoleBackend, render_console
 
+# A person who names this package gets the names that most users call.
+using ProjecturedEssentials
+Core.eval(@__MODULE__, Expr(:export, filter(!=(:ProjecturedEssentials),
+                                            names(ProjecturedEssentials))...))
+
 end # module ProjecturedConsole

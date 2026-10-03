@@ -5,10 +5,12 @@ version = "0.1.0"
 
 [deps]
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+ProjecturedEssentials = "abe497b7-f7c3-4d23-8caf-a4d4ca8b23b4"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 
 [sources]
+ProjecturedEssentials = {path = "../ProjecturedEssentials"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
 

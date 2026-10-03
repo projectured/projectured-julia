@@ -41,9 +41,9 @@ that a `using` line in `Main` can reach. So a package loads only when the user
 installed it by name. A folder of packages, such as `@stdlib`, gives no
 candidate.
 
-After each load of a package, Julia calls the callback of this module. It loads
-each candidate that is not loaded, whose triggers are all loaded and whose state
-is `"auto"`, until a pass loads nothing, because a loaded package can be the
+After each load of a package, Julia calls the callback of this module. When no
+other load is in progress, it loads each candidate that is not loaded, whose
+triggers are all loaded and whose state is `"auto"`, until a pass loads nothing, because a loaded package can be the
 trigger of another. A loaded candidate binds no name in `Main`. If a candidate
 fails to load, a warning names it, the `using` line of the user goes on, and the
 session does not try it again. A process that writes a cache file loads nothing,
@@ -230,9 +230,16 @@ function _load_ready_candidates!()
     end
 end
 
+# Whether a package loads now. Julia calls the callback of a dependency while the
+# package that imports it still loads, and a candidate loaded then could need that
+# package and load it a second time. Julia calls the callback of the outer package
+# after its load ends, so the callback waits for that one.
+_is_any_package_loading() = @lock Base.require_lock !isempty(Base.package_locks)
+
 # The callback after each load of a package. A fault here must not stop the
 # `using` line of the user, so it becomes a warning.
 function _run_after_load(::Base.PkgId)
+    _is_any_package_loading() && return nothing
     Threads.atomic_cas!(_RUNNING, false, true) && return nothing
     try
         _load_ready_candidates!()

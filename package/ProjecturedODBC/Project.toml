@@ -6,16 +6,18 @@ version = "0.1.0"
 [deps]
 DBInterface = "a10d1c49-ce27-4219-8d33-6db1a4562965"
 ODBC = "be6f12e9-ca4f-5eb2-a339-a4f995cc0291"
-ProjecturedDatabase = "a8e362de-fb06-4734-b6cc-4acfede009df"
 ProjecturedDBCatalog = "b1d9ff6e-938d-43f9-b327-c16571782863"
+ProjecturedDatabase = "a8e362de-fb06-4734-b6cc-4acfede009df"
+ProjecturedEssentials = "abe497b7-f7c3-4d23-8caf-a4d4ca8b23b4"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 ProjecturedSQL = "d8115f9e-353f-406e-8661-6168b14bd6fd"
 Tables = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
 
 [sources]
-ProjecturedDatabase = {path = "../ProjecturedDatabase"}
 ProjecturedDBCatalog = {path = "../ProjecturedDBCatalog"}
+ProjecturedDatabase = {path = "../ProjecturedDatabase"}
+ProjecturedEssentials = {path = "../ProjecturedEssentials"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
 ProjecturedSQL = {path = "../ProjecturedSQL"}

@@ -8,14 +8,16 @@ const _SCRATCH_UUIDS = Dict(
     "TriggerA"   => "10000000-0000-0000-0000-0000000000a1",
     "TriggerB"   => "10000000-0000-0000-0000-0000000000a2",
     "TriggerC"   => "10000000-0000-0000-0000-0000000000a3",
+    "TriggerD"   => "10000000-0000-0000-0000-0000000000a4",
     "GlueAB"     => "10000000-0000-0000-0000-0000000000b1",
     "GlueManual" => "10000000-0000-0000-0000-0000000000b2",
     "GlueChain"  => "10000000-0000-0000-0000-0000000000b3",
     "GlueBroken" => "10000000-0000-0000-0000-0000000000b4",
-    "HiddenGlue" => "10000000-0000-0000-0000-0000000000b5")
+    "HiddenGlue" => "10000000-0000-0000-0000-0000000000b5",
+    "GlueNeedsB" => "10000000-0000-0000-0000-0000000000b6")
 
 # The packages that only AutoIntegrations loads.
-const _GLUES = ("GlueAB", "GlueManual", "GlueChain", "GlueBroken", "HiddenGlue")
+const _GLUES = ("GlueAB", "GlueManual", "GlueChain", "GlueBroken", "HiddenGlue", "GlueNeedsB")
 
 # A package in `folder` with the dependencies `deps` (the packages of `sources` by
 # their folders), the table `[auto-integration]` when it has `triggers`, and
@@ -59,12 +61,16 @@ function _make_scratch_environment()
         _make_scratch_package(folder, "TriggerB"; deps = ["HiddenGlue"],
                               sources = ["HiddenGlue"]),
         _make_scratch_package(folder, "TriggerC"),
+        _make_scratch_package(folder, "TriggerD"),
         _make_scratch_package(folder, "GlueAB"; triggers = ["TriggerA", "TriggerB"],
                               default = "auto"),
         _make_scratch_package(folder, "GlueManual"; triggers = ["TriggerA"]),
         _make_scratch_package(folder, "GlueChain"; triggers = ["GlueAB"], default = "auto"),
         _make_scratch_package(folder, "GlueBroken"; triggers = ["TriggerC"], default = "auto",
-                              body = "error(\"GlueBroken does not load\")")]
+                              body = "error(\"GlueBroken does not load\")"),
+        _make_scratch_package(folder, "GlueNeedsB"; deps = ["TriggerB"], sources = ["TriggerB"],
+                              triggers = ["TriggerB", "TriggerD"], default = "auto",
+                              body = "import TriggerB")]
     _make_scratch_package(folder, "HiddenGlue"; triggers = ["TriggerA"], default = "auto")
     environment = mkpath(joinpath(folder, "environment"))
     depot = mkpath(joinpath(folder, "depot"))
@@ -120,6 +126,14 @@ function test_automatic_load()
         @test read_loaded("using AutoIntegrations, TriggerA, TriggerB; " *
                           "isdefined(Main, :GlueAB) && error(\"GlueAB is bound in Main\")") ==
               ["GlueAB", "GlueChain"]
+
+        # A candidate that a `using` line names, and that depends on one of its
+        # triggers: Julia calls the callback of the trigger while the candidate
+        # still loads, and the candidate loads once.
+        loaded, errors = _read_loaded_glues(environment, depot,
+                                            "using AutoIntegrations, TriggerD, TriggerA, GlueNeedsB")
+        @test loaded == ["GlueAB", "GlueChain", "GlueNeedsB"]
+        @test !occursin("AutoIntegrations", errors)
 
         # A candidate that fails to load gives a warning, and the others load.
         loaded, errors = _read_loaded_glues(environment, depot,

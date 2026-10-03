@@ -29,4 +29,9 @@ include("../../../source/adapter/mcp/McpModule.jl")
 using .McpModule: McpServer, start_mcp!, stop_mcp!, render_mcp_tools, render_mcp_resources
 export McpServer, start_mcp!, stop_mcp!, render_mcp_tools, render_mcp_resources
 
+# A person who names this package gets the names that most users call.
+using ProjecturedEssentials
+Core.eval(@__MODULE__, Expr(:export, filter(!=(:ProjecturedEssentials),
+                                            names(ProjecturedEssentials))...))
+
 end # module ProjecturedMCP

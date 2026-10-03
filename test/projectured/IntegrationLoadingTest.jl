@@ -60,9 +60,11 @@ function test_umbrella_loads_integrations()
             ["Projectured", "ProjecturedSDL", "ProjecturedDataFrames", "ProjecturedJSON",
              "DataFrames", "SimpleDirectMediaLayer"])
 
-        # Without the umbrella, a session loads what it names and nothing more.
+        # Without the umbrella, a session loads what it names and nothing more, and
+        # the names that most users call come with the packages that it names.
         @test _read_loaded_integrations(user,
-            "using DataFrames, ProjecturedSDL, ProjecturedDataFrames") ==
+            "using DataFrames, ProjecturedSDL, ProjecturedDataFrames; " *
+            "display_in_editor isa Function || error(\"display_in_editor is not visible\")") ==
               ["ProjecturedDataFrames", "ProjecturedSDL"]
         # With the umbrella, AutoIntegrations loads the domain, and each integration
         # whose third-party package is loaded, in each order.
@@ -122,6 +124,37 @@ function test_integrations_load_with_extensions()
               "[AutoIntegrations]\nProjecturedDataFrames = \"manual\"\n")
         @test _read_loaded_integrations(environment,
             "using ProjecturedIntegrations, DataFrames") == loaded
+    end
+end
+
+# The packages that re-export the names of `ProjecturedEssentials`.
+const _ESSENTIAL_NAME_PACKAGES = ("Projectured", "ProjecturedSDL", "ProjecturedDataFrames",
+                                  "ProjecturedVideo", "ProjecturedODBC", "ProjecturedTulip",
+                                  "ProjecturedMCP", "ProjecturedConsole", "ProjecturedPDF",
+                                  "ProjecturedWeb", "ProjecturedIntegrations")
+
+function test_essential_names()
+    @testset "the umbrella, the integrations and the backends give the essential names" begin
+        repository = normpath(joinpath(@__DIR__, "..", ".."))
+        for name in _ESSENTIAL_NAME_PACKAGES
+            @test name == "ProjecturedIntegrations" ||
+                  "ProjecturedEssentials" in _read_project_packages(repository, name)
+        end
+        # Each package exports each name, bound to the same value.
+        check = """
+            import ProjecturedEssentials, $(join(_ESSENTIAL_NAME_PACKAGES, ", "))
+            essential = filter(!=(:ProjecturedEssentials), names(ProjecturedEssentials))
+            length(essential) == 12 || error("ProjecturedEssentials exports \$(length(essential)) names")
+            for package in ($(join(_ESSENTIAL_NAME_PACKAGES, ", "))), name in essential
+                Base.isexported(package, name) &&
+                    getfield(package, name) === getfield(ProjecturedEssentials, name) ||
+                    error("\$package does not give \$name")
+            end
+            """
+        command = addenv(`$(Base.julia_cmd()) --startup-file=no --project=$(joinpath(repository, "environment", "all")) -e $check`,
+                         "SDL_VIDEODRIVER" => "offscreen", "JULIA_PKG_OFFLINE" => "true",
+                         "JULIA_LOAD_PATH" => "@" * (Sys.iswindows() ? ";" : ":") * "@stdlib")
+        @test success(pipeline(command; stderr = stderr))
     end
 end
 

@@ -1015,7 +1015,7 @@ uuid = "c5b98bcf-e28d-4a35-99f8-6857f35710ad"
 version = "0.1.0"
 
 [[deps.ProjecturedConsole]]
-deps = ["ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["ProjecturedEssentials", "ProjecturedKernel", "ProjecturedPlatform"]
 path = "../../package/ProjecturedConsole"
 uuid = "d7d6c9a1-04d6-4ada-9cc1-b2de81f79968"
 version = "0.1.0"
@@ -1051,7 +1051,7 @@ uuid = "3273370f-c929-4bc9-ba87-1db3095df6c3"
 version = "0.1.0"
 
 [[deps.ProjecturedDataFrames]]
-deps = ["DataFrames", "ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["DataFrames", "ProjecturedEssentials", "ProjecturedKernel", "ProjecturedPlatform"]
 path = "../../package/ProjecturedDataFrames"
 uuid = "56a0c30a-96eb-4614-b42e-73838bfa8222"
 version = "0.1.0"
@@ -1227,7 +1227,7 @@ uuid = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
 version = "0.1.0"
 
 [[deps.ProjecturedMCP]]
-deps = ["ModelContextProtocol", "ProjecturedKernel"]
+deps = ["ModelContextProtocol", "ProjecturedEssentials", "ProjecturedKernel"]
 path = "../../package/ProjecturedMCP"
 uuid = "2b4e36b2-6b10-43fd-9b63-0a09efcd22da"
 version = "0.1.0"
@@ -1275,7 +1275,7 @@ uuid = "35efe23a-a24b-424c-93f0-086222c9adeb"
 version = "0.1.0"
 
 [[deps.ProjecturedODBC]]
-deps = ["DBInterface", "ODBC", "ProjecturedDBCatalog", "ProjecturedDatabase", "ProjecturedKernel", "ProjecturedPlatform", "ProjecturedSQL", "Tables"]
+deps = ["DBInterface", "ODBC", "ProjecturedDBCatalog", "ProjecturedDatabase", "ProjecturedEssentials", "ProjecturedKernel", "ProjecturedPlatform", "ProjecturedSQL", "Tables"]
 path = "../../package/ProjecturedODBC"
 uuid = "aed26263-2fd3-42de-9b03-7ee91ffa11a3"
 version = "0.1.0"
@@ -1317,7 +1317,7 @@ uuid = "dc1d00c5-94ff-4244-b58f-31c92e267a9e"
 version = "0.1.0"
 
 [[deps.ProjecturedPDF]]
-deps = ["ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["ProjecturedEssentials", "ProjecturedKernel", "ProjecturedPlatform"]
 path = "../../package/ProjecturedPDF"
 uuid = "18e37c66-e2b2-4424-ab73-223891693292"
 version = "0.1.0"
@@ -1389,7 +1389,7 @@ uuid = "40366416-8a51-4b61-9ebb-c3640b2257e4"
 version = "0.1.0"
 
 [[deps.ProjecturedSDL]]
-deps = ["ProjecturedKernel", "ProjecturedPlatform", "SDL2_jll", "SimpleDirectMediaLayer", "Xorg_libX11_jll"]
+deps = ["ProjecturedEssentials", "ProjecturedKernel", "ProjecturedPlatform", "SDL2_jll", "SimpleDirectMediaLayer", "Xorg_libX11_jll"]
 path = "../../package/ProjecturedSDL"
 uuid = "f0002b97-94ba-416c-b93c-86cdc095626f"
 version = "0.1.0"
@@ -1449,7 +1449,7 @@ uuid = "c3f1d2e8-4a5b-6c7d-8e9f-0a1b2c3d4e5f"
 version = "0.1.0"
 
 [[deps.ProjecturedTulip]]
-deps = ["MathOptInterface", "ProjecturedPlatform", "Tulip"]
+deps = ["MathOptInterface", "ProjecturedEssentials", "ProjecturedPlatform", "Tulip"]
 path = "../../package/ProjecturedTulip"
 uuid = "bf3b10cf-befa-4ac9-98d3-9c1678f27146"
 version = "0.1.0"
@@ -1467,7 +1467,7 @@ uuid = "6e7ca9da-6789-4ac4-a4d2-74571a5e8aba"
 version = "0.1.0"
 
 [[deps.ProjecturedVideo]]
-deps = ["FFMPEG", "ProjecturedKernel", "ProjecturedPlatform", "ProjecturedSDL"]
+deps = ["FFMPEG", "ProjecturedEssentials", "ProjecturedKernel", "ProjecturedPlatform", "ProjecturedSDL"]
 path = "../../package/ProjecturedVideo"
 uuid = "8d225f56-7fda-4c1e-a58b-db6d64f8335c"
 version = "0.1.0"
@@ -1479,7 +1479,7 @@ uuid = "fbb35dcc-61b4-4d33-836d-9545da8fa976"
 version = "0.1.0"
 
 [[deps.ProjecturedWeb]]
-deps = ["Base64", "HTTP", "JSON3", "ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["Base64", "HTTP", "JSON3", "ProjecturedEssentials", "ProjecturedKernel", "ProjecturedPlatform"]
 path = "../../package/ProjecturedWeb"
 uuid = "893c803c-8c7c-42c1-85f1-cc97ca81befb"
 version = "0.1.0"

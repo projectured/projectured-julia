@@ -39,10 +39,9 @@ export DataFrameColumnFilter, DataFrameSortKey, DataFrameQuery, DataFrameView, j
        DataFrameColumn, RefreshDataFrameViewOperation,
        DataFrameViewToWidget, make_data_frame_view_projection
 
-# The display of the platform shows a frame beside the REPL, so a person who
-# loads this package to look at a frame needs no other name:
-# `using DataFrames, ProjecturedDataFrames, ProjecturedSDL` and
-# `display_in_editor(frame)`.
-export display_in_editor, close_display_editor!, refresh_display_editor!
+# A person who names this package gets the names that most users call.
+using ProjecturedEssentials
+Core.eval(@__MODULE__, Expr(:export, filter(!=(:ProjecturedEssentials),
+                                            names(ProjecturedEssentials))...))
 
 end # module ProjecturedDataFrames

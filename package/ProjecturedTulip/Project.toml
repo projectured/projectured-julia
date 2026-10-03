@@ -5,6 +5,7 @@ version = "0.1.0"
 
 [deps]
 MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
+ProjecturedEssentials = "abe497b7-f7c3-4d23-8caf-a4d4ca8b23b4"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 Tulip = "6dd1b50a-3aae-11e9-10b5-ef983d2400fa"
 
@@ -13,6 +14,7 @@ MathOptInterface = "1"
 Tulip = "0.9"
 
 [sources]
+ProjecturedEssentials = {path = "../ProjecturedEssentials"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
 
 # AutoIntegrations loads this package when Projectured and Tulip are loaded,
