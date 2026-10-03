@@ -250,7 +250,7 @@ embeds. [domain-inventory.md](../design/domain-inventory.md) has the table.
 | package | depends on |
 | --- | --- |
 | `Projectured` (umbrella) | the platform, AutoIntegrations |
-| `AutoIntegrations` | — (the TOML standard library alone; names no ProjecturEd package) |
+| `AutoIntegrations` | — (its own repository, `projectured/AutoIntegrations.jl`; the TOML standard library alone) |
 | `ProjecturedIntegrations` | the umbrella, the six packages that own a third-party dependency |
 | `ProjecturedAll` (released) | Kernel, the platform, Console, PDF, the 17 domains |
 | `ProjecturedPlatformExample` | the platform, KernelExample |

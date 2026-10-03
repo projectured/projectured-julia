@@ -41,13 +41,16 @@ _read_loaded_integrations(environment, code) =
     first(_read_loaded_integrations_and_errors(environment, code))
 
 # An environment that names only the packages `names`: the manifest of the
-# development environment with its paths made absolute.
+# development environment with its paths made absolute, the packages of this
+# repository and the sibling repositories that it names.
 function _make_scratch_environment(repository, names)
     folder = mktempdir()
-    manifest = read(joinpath(repository, "environment", "all", "Manifest.toml"), String)
+    development = joinpath(repository, "environment", "all")
+    manifest = read(joinpath(development, "Manifest.toml"), String)
     write(joinpath(folder, "Manifest.toml"),
-          replace(manifest, "path = \"../../package/" =>
-                            "path = \"" * joinpath(repository, "package") * "/"))
+          replace(manifest, r"path = \"(\.\./[^\"]*)\"" =>
+                            found -> "path = \"" * normpath(joinpath(development,
+                                                    match(r"\"(.*)\"", found)[1])) * "\""))
     write(joinpath(folder, "Project.toml"),
           "[deps]\n" * join(["$name = \"$(_UUIDS[name])\"\n" for name in names]))
     folder

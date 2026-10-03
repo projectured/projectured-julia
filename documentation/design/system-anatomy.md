@@ -125,7 +125,9 @@ AutoIntegrations               loads an installed package when the packages it
                                "auto" — a domain, Console, Pdf, a model adapter
                                or an integration (SDL, Video, DataFrames, ODBC,
                                Tulip, MCP). Depends on the TOML standard
-                               library alone, and names no ProjecturEd package.
+                               library alone, names no ProjecturEd package,
+                               and lives in its own repository,
+                               projectured/AutoIntegrations.jl, beside this one.
 ProjecturedIntegrations        depends on Projectured and the six packages that
                                own a third-party dependency, and loads each one
                                with a package extension when the package it

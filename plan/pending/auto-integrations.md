@@ -577,6 +577,17 @@ The README of each released package changes too
       reads `src` and `ext`. `test_package_release()` passes 62 of 62 and 156
       of 156, and `ProjecturedJSON` loads from a generated release with the
       kernel and the platform of the same release.
+- [x] **Step 10d, AutoIntegrations in its own repository (the owner,
+      2026-10-03).** `~/workspace/AutoIntegrations.jl`, pushed as the private
+      repository `projectured/AutoIntegrations.jl` (`eed3a80`): the source
+      unchanged, `test/runtests.jl` from the scratch-package tests
+      (`Pkg.test()` passes 22 of 22), a README with the mechanism and the
+      reasons, the MIT licence, and a CI workflow. In this repository the
+      package, its test package and `test/autointegrations/` went away; the
+      umbrella and `environment/all` name the sibling by `../../../AutoIntegrations.jl`
+      (section 9.7); the release does not copy it, and its front page links
+      it. The graph (366), the loading tests (8, 3, 29) and the release test
+      (62, 154) pass.
 - [ ] **Step 10b, before the publication.** The full suites: each package
       suite in its own environment as CI runs them, `test_integration()`, and
       the comparison with `main` for each failure.
@@ -598,7 +609,7 @@ The owner, 2026-10-03: "mostly agreed". The answers:
 | D4, the names of the manual line | a package of the most useful names, which other packages re-export |
 | D5, the form of the triggers | a table of names and uuids |
 | D6, `ProjecturedIntegrations` re-exports `Projectured` | yes |
-| D7, where AutoIntegrations lives | `package/AutoIntegrations/src/AutoIntegrations.jl`, its document in `documentation/package/autointegrations/` |
+| D7, where AutoIntegrations lives | first `package/AutoIntegrations/`; then its own repository, `projectured/AutoIntegrations.jl`, MIT (D18) |
 | D8, the name | `AutoIntegrations` |
 | D9, no `default` in the table | `"manual"` |
 | D10, the order | `julia-112` lands first |
@@ -609,6 +620,7 @@ The owner, 2026-10-03: "mostly agreed". The answers:
 | D15, `Projectured` exports `set_auto_integration!` | no |
 | D16, `Projectured` binds the submodules | no |
 | D17, a package or a module for the essential names | a module of the platform: the owner agreed, 2026-10-03 |
+| D18, AutoIntegrations in its own repository | yes, MIT, private on GitHub first, registered in ProjecturedRegistry first (the owner, 2026-10-03) |
 
 No decision is open.
 
@@ -679,3 +691,21 @@ re-exporter writes `using ProjecturedPlatform.EssentialsModule`, and
 `Projectured` depends on the platform and AutoIntegrations, as the owner first
 described it. The package graph passes 373 of 373 with one package fewer; the
 loading tests and `test_essential_names()` pass.
+
+### 9.7 The sibling checkout of AutoIntegrations
+
+`package/Projectured/Project.toml` and `environment/all` name AutoIntegrations by
+`path = "../../../AutoIntegrations.jl"`, the folder beside the repository, as
+omnet-julia names projectured-julia. From a worktree in `.claude/worktrees/`
+the same path ends in `.claude/worktrees/AutoIntegrations.jl`, so a symlink
+there, which git ignores, points at the checkout. Pkg follows the symlink and
+writes the path from the real folder into the manifest, six levels up; the
+tracked manifest keeps `../../../AutoIntegrations.jl`, which works in the main
+checkout and, through the symlink, in a worktree. `_make_scratch_environment`
+of the loading tests makes each relative path of the manifest absolute.
+
+The dev CI checks out `projectured/AutoIntegrations.jl` and moves it beside the
+repository, in the two jobs that use `environment/all`. projectured-julia is
+public and AutoIntegrations.jl is private, so that checkout, a public clone of
+projectured-julia and its `environment/all` need AutoIntegrations.jl to be
+public, or a token. The owner decides this before the landing.

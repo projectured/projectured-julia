@@ -2,7 +2,7 @@
 
 julia_version = "1.13.0"
 manifest_format = "2.1"
-project_hash = "7dbf355de5856e8b24f968fc054ee21ebf8f4db5"
+project_hash = "4abb68e124858ec6a6d73a452e33d1d541164ec1"
 
 [[deps.AMD]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
@@ -21,14 +21,8 @@ version = "1.11.0"
 
 [[deps.AutoIntegrations]]
 deps = ["TOML"]
-path = "../../package/AutoIntegrations"
+path = "../../../AutoIntegrations.jl"
 uuid = "40fd747d-4b08-4b8c-98c4-74a2b6295b1b"
-version = "0.1.0"
-
-[[deps.AutoIntegrationsTest]]
-deps = ["AutoIntegrations", "TOML", "Test"]
-path = "../../package/AutoIntegrationsTest"
-uuid = "6bfa7e61-be07-48f9-ae49-c50cc9b84ca6"
 version = "0.1.0"
 
 [[deps.Base64]]

@@ -383,6 +383,14 @@ The release repository, which holds one folder for each released package.
 const PROJECTURED_RELEASE_URL = "https://github.com/projectured/Projectured.jl"
 
 """
+    AUTOINTEGRATIONS_URL
+
+The repository of AutoIntegrations, the package that loads an installed package
+of ProjecturEd when its triggers are loaded. `Projectured` depends on it.
+"""
+const AUTOINTEGRATIONS_URL = "https://github.com/projectured/AutoIntegrations.jl"
+
+"""
     PROJECTURED_PACKAGE_READMES
 
 The README of each released package, as
@@ -395,9 +403,6 @@ const PROJECTURED_PACKAGE_READMES = Dict(
     "Projectured" =>
         (summary = "The umbrella package of ProjecturEd: it loads the kernel, the platform and AutoIntegrations, and gives the names that most users call.",
          document = "documentation/guide/own-project-guide.md"),
-    "AutoIntegrations" =>
-        (summary = "Loads an installed package when the packages that it names as its triggers are loaded, as the settings of your environment choose.",
-         document = "documentation/package/autointegrations/autointegrations.md"),
     "ProjecturedIntegrations" =>
         (summary = "Installs every integration of ProjecturEd and the packages that they join, and loads each integration when the package that it joins is loaded.",
          document = "documentation/guide/own-project-guide.md"),
@@ -642,8 +647,8 @@ _format_projectured_runtests(name, test_package, suite) = """
 # with the sentence of its README. The packages that a user meets first come
 # first, then the others by name.
 function _format_projectured_release_overview(context::BuildContext, names)
-    core = ["Projectured", "ProjecturedKernel", "ProjecturedPlatform", "AutoIntegrations",
-            "ProjecturedIntegrations", "ProjecturedAll"]
+    core = ["Projectured", "ProjecturedKernel", "ProjecturedPlatform", "ProjecturedIntegrations",
+            "ProjecturedAll"]
     order = [filter(in(names), core); sort(filter(!in(core), names))]
     rows = join(["| [$name]($name) | $(PROJECTURED_PACKAGE_READMES[name].summary) |\n"
                  for name in order])
@@ -709,9 +714,9 @@ function _format_projectured_release_overview(context::BuildContext, names)
     julia> display_in_editor(DataFrame(n = 1:100_000, square = (1:100_000) .^ 2))
     ```
 
-    `using Projectured` loads the kernel, the platform and AutoIntegrations.
-    AutoIntegrations loads a package that you installed when all its triggers are
-    loaded. The order of the `using` lines does not matter. Each domain, the
+    `using Projectured` loads the kernel, the platform and
+    [AutoIntegrations]($AUTOINTEGRATIONS_URL). AutoIntegrations loads a package that
+    you installed when all its triggers are loaded. The order of the `using` lines does not matter. Each domain, the
     console, PDF and the model adapters load when `Projectured` is loaded. An
     integration loads when the package that it joins is loaded too:
 
