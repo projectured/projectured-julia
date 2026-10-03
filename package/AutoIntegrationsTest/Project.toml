@@ -1,0 +1,15 @@
+name = "AutoIntegrationsTest"
+uuid = "6bfa7e61-be07-48f9-ae49-c50cc9b84ca6"
+version = "0.1.0"
+authors = []
+
+# The tests of AutoIntegrations, with small scratch packages and no ProjecturEd
+# package.
+
+[deps]
+AutoIntegrations = "40fd747d-4b08-4b8c-98c4-74a2b6295b1b"
+TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+AutoIntegrations = {path = "../AutoIntegrations"}

@@ -128,7 +128,7 @@ short form goes into the README.
 | Package | `[deps]` | Who loads it | Released |
 | --- | --- | --- | --- |
 | `Projectured` | ProjecturedEssentials, AutoIntegrations | the user | yes |
-| `AutoIntegrations` | Preferences, TOML | `Projectured` | yes |
+| `AutoIntegrations` | TOML | `Projectured` | yes |
 | `ProjecturedSDL`, … (the six) | as on `main`, table in section 2 | the user, or AutoIntegrations | yes |
 | `ProjecturedIntegrations` | Projectured and the six | the user | yes |
 | `ProjecturedEssentials` | ProjecturedKernel, ProjecturedPlatform | the integrations, the backends, `Projectured` | yes |
@@ -190,11 +190,11 @@ ProjecturedDataFrames = "manual"
 - `"manual"` loads it only when a `using` line names it.
 - No entry gives the default of the package.
 
-AutoIntegrations reads the file with Preferences.jl, which merges the files of
-the load path, with the active project first. One function writes the file of
-the active project: `set_auto_integration!(name, state)`, with the state
-`:auto`, `:manual` or `nothing`. `nothing` removes the entry. The name of the
-function is my recommendation.
+AutoIntegrations reads the file itself, with the TOML standard library
+(section 9.1). The first environment of the load path that has an entry
+decides, so the active project comes first. One function writes the file of the
+active project: `set_auto_integration!(name, state)`, with the state `:auto`,
+`:manual` or `nothing`. `nothing` removes the entry.
 
 ### 4.4 The hook
 
@@ -454,10 +454,17 @@ The README of each released package changes too
 
 ## 7. Steps
 
-- [ ] **Step 1, AutoIntegrations.** The package, its test package, and tests
+- [x] **Step 1, AutoIntegrations.** The package, its test package, and tests
       with scratch packages in temporary environments that name no ProjecturEd
       package. Check that Pkg keeps `[auto-integration]` through `add`,
       `develop` and `resolve`, and that LocalRegistry `register` accepts it.
+      Done: `package/AutoIntegrations/src/AutoIntegrations.jl`, the test package
+      `AutoIntegrationsTest` with `test/autointegrations/`. `test_autointegrations()`
+      passes 20 of 20: the two triggers, the order of the `using` lines, a chain,
+      a package that is no direct dependency, a package that fails to load, the
+      states of `LocalPreferences.toml`, and `set_auto_integration!`.
+      `Pkg.develop` keeps the table. The check of `register` moves to step 10,
+      where the local registry is.
 - [ ] **Step 2, the declarations.** The table in the six integrations, and in
       the packages of decision D2.
 - [ ] **Step 3, the umbrella.** Remove what section 4.8 names. `Projectured`
@@ -519,3 +526,25 @@ The owner, 2026-10-03: "mostly agreed". The answers:
 | D16, `Projectured` binds the submodules | no |
 
 No decision is open.
+
+## 9. Decisions made during the work
+
+### 9.1 AutoIntegrations reads `LocalPreferences.toml` itself
+
+Julia gives the preferences of a package only to an environment that names the
+package in `[deps]` or `[extras]` (`collect_preferences` in `base/loading.jl`:
+"we only allow actual dependencies to have preferences set"). The environment
+of the user names `Projectured`, not AutoIntegrations, so Preferences.jl would
+not see a table `[AutoIntegrations]` that the user writes. So AutoIntegrations
+reads the first of `JuliaLocalPreferences.toml` and `LocalPreferences.toml`
+beside each project of the load path, as Julia finds them, and
+`set_auto_integration!` writes the file of the active project. It depends on the
+TOML standard library alone.
+
+### 9.2 The candidates are read again when a file changes
+
+The candidates come from the project files of the load path and the manifests
+beside them. AutoIntegrations keeps them with the times of change of these
+files, so an `add`, an `update` or an `activate` in the session gives new
+candidates at the next load of a package. It reads the state of a candidate
+again each time, only when the triggers of the candidate are loaded.
