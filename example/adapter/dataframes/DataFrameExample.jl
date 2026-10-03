@@ -13,7 +13,7 @@ gallery reads the same table every run:
 - `quantity::Int` — a formula over `i`, spread across `0:96`.
 - `in_stock::Bool` — `true` for two rows out of three.
 - `discount::Union{Missing, Float64}` — `missing` for one row in five, else a
-  step of `0.05`.
+  step of `0.05`, which prints with two decimal places at most.
 """
 function make_data_frame_example(; rows::Integer = 1000)
     DataFrame(
@@ -22,6 +22,6 @@ function make_data_frame_example(; rows::Integer = 1000)
         price = [round(1 + (i * 7919 % 1000) / 10; digits = 2) for i in 1:rows],
         quantity = [i * 31 % 97 for i in 1:rows],
         in_stock = [i % 3 != 0 for i in 1:rows],
-        discount = Union{Missing, Float64}[i % 5 == 0 ? missing : (i % 4) * 0.05
+        discount = Union{Missing, Float64}[i % 5 == 0 ? missing : (i % 4) * 5 / 100
                                            for i in 1:rows])
 end
