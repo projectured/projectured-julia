@@ -80,11 +80,13 @@ end
 # unregistered type still lands as an unmarked `Fail` at `unregistered ==
 # String[]` below — the way `_CATALOG_EDIT_BROKEN` records a failing one.
 const _NO_ATOM = Set{String}([
-    "AboutPage", "AppearanceDocument", "Assistant", "CommandPalette", "DataFrameView", "EvaluatorForm",
+    "AboutPage", "AppearanceDocument", "Assistant", "CommandPalette", "ContextMenuWindowState",
+    "DataFrameView", "DragTrackingState", "EvaluatorForm",
     "EvaluatorToplevel", "FaultLog", "FaultReport", "FileSystemChooser",
-    "FrameStatistics", "FrameTimeSeries", "GestureLog", "JuliaToplevel",
+    "FrameStatistics", "FrameTimeSeries", "GestureLog", "GestureTrackingState", "JuliaToplevel",
     "MessageLog", "ObjectField", "PaneGroup", "PaneSplit", "PaneTree",
-    "SelectionInspector", "TextGraphics", "TextSpacing", "WidgetHighlight",
+    "SelectionInspector", "Settings", "SettingsDocument", "TextGraphics", "TextSpacing",
+    "TooltipContent", "TooltipWindowState", "WidgetHighlight",
     "WidgetToolbarItem",
 ])
 
@@ -227,7 +229,7 @@ function test_catalog_coverage()
         @test stale == String[]
 
         # And the whole point: nothing is owed.
-        # @broken: 23 document types in `_NO_ATOM` have a printer and no atom
+        # @broken: 30 document types in `_NO_ATOM` have a printer and no atom
         # yet; this stays broken until each one gets a hand-authored atomic
         # document and is removed from that set.
         @test_broken isempty(gap)

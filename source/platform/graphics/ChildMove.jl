@@ -81,10 +81,11 @@ read_container_gesture(answer, gesture, document; steps = ()) =
 The answer of the child under the pointer to `move`, a move of the pointer, with or
 without a button held, whose point is in the child's frame, with the part under the pointer: the child's
 own answer when it names that part, else the part at the point by the child's
-backward map (`compute_part_at_point`), or the child itself.
+backward map (`compute_part_at_point`), or the child itself. An answer that is no
+operation, such as the move that a reader passes through, counts as none.
 """
 function read_child_move(child_iomap, move::MouseMove)
-    answer = read_intent(child_iomap.projection, child_iomap, move)
+    answer = _read_child_operation(child_iomap, move)
     has_mouse_target(answer) ? answer :
         add_mouse_target(answer, compute_part_at_point(child_iomap, move.x, move.y))
 end
@@ -104,8 +105,14 @@ position in the answer is moved back into the container's frame.
 """
 function read_child_leave(child_iomap, event::MouseMove, dx::Integer, dy::Integer)
     move = MouseMove(-1, -1, event.buttons, event.modifiers; time = event.time)
+    shift_operation_position(_read_child_operation(child_iomap, move), dx, dy)
+end
+
+# The answer of a child's reader to `move` when it is an operation, else `nothing`:
+# a reader that passes its payload through answers the move itself.
+function _read_child_operation(child_iomap, move::MouseMove)
     answer = read_intent(child_iomap.projection, child_iomap, move)
-    shift_operation_position(answer, dx, dy)
+    answer isa Operation ? answer : nothing
 end
 
 """
