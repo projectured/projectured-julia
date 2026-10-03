@@ -18,6 +18,9 @@
 @projection UntrackedCell struct MessageLogToSyntax
     theme::Any = nothing
     level_text::StyleText = _get_messagelog_style(theme, :level_text)
+    error_level_text::StyleText = _get_messagelog_style(theme, :error_level_text)
+    warning_level_text::StyleText = _get_messagelog_style(theme, :warning_level_text)
+    debug_level_text::StyleText = _get_messagelog_style(theme, :debug_level_text)
     message_text::StyleText = _get_messagelog_style(theme, :message_text)
     empty_text::StyleText = _get_messagelog_style(theme, :empty_text)
 end
@@ -46,10 +49,20 @@ function print_document(p::MessageLogToSyntax, recursion, log::MessageLog, ctx::
     SimpleIoMap(p, log, SyntaxNode(children; sep=TextString("\n")))
 end
 
+# The style of a level: an error, a warning and a message for debugging each have
+# their own, and every other level the one of information.
+function _get_level_text(p::MessageLogToSyntax, level::AbstractString)
+    name = lowercase(level)
+    startswith(name, "error") ? p.error_level_text :
+    startswith(name, "warn")  ? p.warning_level_text :
+    startswith(name, "debug") ? p.debug_level_text :
+                                p.level_text
+end
+
 # One line: "Info     hello from the log view".
 function _line(p::MessageLogToSyntax, entry::MessageLogEntry)
     SyntaxNode(SyntaxDocument[
-        SyntaxLeaf(TextString(rpad(entry.level, _LEVEL_WIDTH) * "  ", p.level_text)),
+        SyntaxLeaf(TextString(rpad(entry.level, _LEVEL_WIDTH) * "  ", _get_level_text(p, entry.level))),
         SyntaxLeaf(TextString(entry.message, p.message_text)),
     ])
 end
