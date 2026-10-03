@@ -577,8 +577,8 @@ function move_series(chart::Chart, from::Integer, to::Integer)
         ConcreteReference(ElementReferenceStep(to),
                           EmptyReference(get_reference_node_type(moved))))
     CompoundOperation(Any[
-        delete_elements(field_path, from - 1; root=chart),
-        insert_elements(field_path, to - 1, Any[moved]; root=chart),
+        make_delete_elements_operation(field_path, from; root=chart),
+        make_insert_elements_operation(field_path, to, Any[moved]; root=chart),
         ReplaceSelectionOperation(landing)])
 end
 
@@ -591,7 +591,7 @@ somewhere else.
 function remove_series(chart::Chart)
     index = get_selected_series_index(chart)
     index == 0 && return nothing
-    delete_elements(_chart_field_reference(chart, "series"), index - 1; root=chart)
+    make_delete_elements_operation(_chart_field_reference(chart, "series"), index; root=chart)
 end
 
 # Navigation owns the arrow keys, as it does everywhere else in the editor: the

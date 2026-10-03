@@ -106,9 +106,9 @@ readers stay small:
 | Builder | Builds |
 |---|---|
 | `ReplaceReferencedValueOperation(obj, "field", v)` | a single field write on a carried root |
-| `replace_document(path, doc)` | write `doc` at `path`, then move the cursor to `path ⧺ doc.selection` — a `CompoundOperation` |
-| `insert_elements(path, i, items[, sel]; root=nothing)` | zero-width splice (insert); with `sel`, append a cursor move |
-| `delete_elements(path, i[, n]; root=nothing)` | range-with-empty splice (delete `n` elements) |
+| `make_replace_document_operation(path, doc)` | write `doc` at `path`, then move the cursor to `path ⧺ doc.selection` — a `CompoundOperation` |
+| `make_insert_elements_operation(path, i, items; selection, root=nothing)` | zero-width splice (insert), so that the first new element is the element at the 1-based `i`; with `selection`, append a cursor move |
+| `make_delete_elements_operation(path, i; count = 1, root=nothing)` | range-with-empty splice (delete `count` elements from the element at the 1-based `i`) |
 
 `CompoundOperation([op₁, op₂, …])` applies several operations as one editor step;
 rerooting maps over the members, so a write and its cursor move stay in sync. This
@@ -262,7 +262,7 @@ enclosing* object/array rather than only the root. See
 
 **First ask whether you need one.** If the gesture just writes a value into a slot
 (a field, or an element of a sequence), emit a `ReplaceReferencedValueOperation`, or a
-`replace_document` / `insert_elements` / `delete_elements` builder, optionally inside
+`make_replace_document_operation` / `make_insert_elements_operation` / `make_delete_elements_operation` builder, optionally inside
 a `CompoundOperation` with a `ReplaceSelectionOperation` cursor move. No new type,
 no new evaluator, and rerooting already works. Add a new `Operation` struct only for
 genuinely different behaviour (control flow, I/O, async, multi-field/structural
@@ -299,7 +299,7 @@ When you do need a new one:
   projection graph. If an operation instead swaps a whole value/subtree out from
   under the projection (replacing the structure the iomap was built against), it
   must **null `editor.iomap`** to force a fresh `print_document` — exactly what a
-  `ReplaceReferencedValueOperation` with an empty reference (the `replace_document` whole-root
+  `ReplaceReferencedValueOperation` with an empty reference (the `make_replace_document_operation` whole-root
   swap) does. An operation that silently rebinds structure without dropping the iomap
   renders stale.
 - **A new *reference-carrying* operation must be registered in two places.** If

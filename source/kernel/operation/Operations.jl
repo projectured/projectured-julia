@@ -356,7 +356,7 @@ function evaluate_operation(editor, op::ReplaceReferencedValueOperation)
 end
 
 """
-    replace_document(path, document) -> CompoundOperation
+    make_replace_document_operation(path, document) -> CompoundOperation
 
 Replace the document at `path` (rooted at `editor.document`) with `document`, then
 move the editor selection to `path ⧺ document.selection` so the cursor lands inside
@@ -370,7 +370,7 @@ re-rooting prepends the same steps to both as the operation bubbles up. An empty
 `path` is a whole-root swap (the `ReplaceReferencedValueOperation` rebinds
 `editor.document` and drops the iomap).
 """
-function replace_document(path::Reference, document)
+function make_replace_document_operation(path::Reference, document)
     # Only a live selection moves with the document. A dormant one belongs to a
     # place the document was shown before, and the write starts it afresh.
     inner_sel = unwrap_selection(getfield(document, :selection)[])
@@ -383,37 +383,44 @@ function replace_document(path::Reference, document)
 end
 
 """
-    insert_elements(path, index, items; selection=nothing, root=nothing) -> operation
+    make_insert_elements_operation(path, index, items; selection=nothing, root=nothing)
+        -> operation
 
-Insert each of `items` into the sequence container at `path` (an element collection), at
-the 0-based `index`. Expressed as a splice — a `ReplaceReferencedValueOperation`
-whose terminal step is a **zero-width** `RangeReferenceStep(index, index)`
-and whose value is the item vector. When `selection` is non-`nothing`, a trailing
-`ReplaceSelectionOperation` is appended in a `CompoundOperation` to drop the cursor
-into the new element (re-rooting prepends the same steps to both members).
+Insert each of `items` into the sequence container at `path` (an element
+collection), so that the first new element is the element at the 1-based `index`;
+`length + 1` appends. Expressed as a splice — a `ReplaceReferencedValueOperation`
+whose terminal step is the **zero-width** boundary `RangeReferenceStep(index - 1,
+index - 1)` and whose value is the item vector. When `selection` is non-`nothing`, a
+trailing `ReplaceSelectionOperation` is appended in a `CompoundOperation` to drop
+the cursor into the new element (re-rooting prepends the same steps to both
+members).
 
 `root` defaults to `nothing` (rooted at `editor.document`); pass a carried object
 for an identity-rooted splice against a document that is not in the tree.
 """
-function insert_elements(path::Reference, index::Integer, items;
-                         selection=nothing, root=nothing)
+function make_insert_elements_operation(path::Reference, index::Integer, items;
+                                        selection=nothing, root=nothing)
+    boundary = index - 1
     write = ReplaceReferencedValueOperation(root,
-        extend_reference(path, RangeReferenceStep(index, index)), Vector{Any}(items))
+        extend_reference(path, RangeReferenceStep(boundary, boundary)), Vector{Any}(items))
     selection === nothing ? write :
         CompoundOperation(Any[write, ReplaceSelectionOperation(selection)])
 end
 
 """
-    delete_elements(path, index; count=1, root=nothing) -> operation
+    make_delete_elements_operation(path, index; count=1, root=nothing) -> operation
 
 Remove `count` elements from the sequence container at `path`, starting at the
-0-based `index`. Expressed as a splice — a `ReplaceReferencedValueOperation` whose
-terminal step is `RangeReferenceStep(index, index+count)` and whose value is the
-empty vector (replace the range with nothing). The inverse of `insert_elements`.
+element at the 1-based `index`. Expressed as a splice — a
+`ReplaceReferencedValueOperation` whose terminal step is the range
+`RangeReferenceStep(index - 1, index - 1 + count)` and whose value is the empty
+vector (replace the range with nothing). The inverse of
+`make_insert_elements_operation`.
 """
-delete_elements(path::Reference, index::Integer; count::Integer=1, root=nothing) =
+make_delete_elements_operation(path::Reference, index::Integer; count::Integer=1,
+                               root=nothing) =
     ReplaceReferencedValueOperation(root,
-        extend_reference(path, RangeReferenceStep(index, index + count)), Any[])
+        extend_reference(path, RangeReferenceStep(index - 1, index - 1 + count)), Any[])
 
 """
     SelectNextInsertionOperation(predicate[, cursor])

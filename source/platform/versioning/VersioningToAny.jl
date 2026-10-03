@@ -15,8 +15,9 @@
 # reader and re-roots the returned operation under `versions[idx].value` (the
 # School-A pattern — delegate through the stored child IoMap, never re-walk by
 # document type). Own gestures snapshot a new version
-# (`insert_elements` on `versions`) or remove the active one (`delete_elements`) —
-# the same standard, universally-rerooted sequence splices the clipboard uses;
+# (`make_insert_elements_operation` on `versions`) or remove the active one
+# (`make_delete_elements_operation`) — the same standard, universally-rerooted
+# sequence splices the clipboard uses;
 # `SetVersionCriterionOperation` switches the active criterion.
 #
 # ## Criterion swapping
@@ -159,7 +160,7 @@ _field_path(name::AbstractString) =
 
 # Snapshot the current selected value into a new ObjectVersion (deep-copied) and
 # push it to the front of `versions` (index 0, newest-first). A standard sequence
-# splice (insert_elements) so every ancestor projection re-roots it. The version
+# splice (make_insert_elements_operation) so every ancestor projection re-roots it. The version
 # has the author of the projection and the time as its properties. Returns
 # nothing when there is no selected value to snapshot.
 function _create_version(p::VersioningToAnyProjection, iomap::VersioningToAnyIoMap)
@@ -169,14 +170,15 @@ function _create_version(p::VersioningToAnyProjection, iomap::VersioningToAnyIoM
     clear_selection!(saved_value)               # a saved version carries no cursor
     snapshot = ObjectVersion(saved_value; timestamp = time(),
                              author = p.author === nothing ? Sys.username() : p.author)
-    insert_elements(_field_path("versions"), 0, Any[snapshot])
+    make_insert_elements_operation(_field_path("versions"), 1, Any[snapshot])
 end
 
 # Delete the currently selected version (the active one). A standard sequence
-# splice (delete_elements, 0-based index), re-rooted by every ancestor.
+# splice at the 1-based index of the version (`make_delete_elements_operation`),
+# re-rooted by every ancestor.
 function _delete_version(iomap::VersioningToAnyIoMap)
     iomap.index === nothing && return nothing
-    delete_elements(_field_path("versions"), iomap.index - 1)
+    make_delete_elements_operation(_field_path("versions"), iomap.index)
 end
 
 # Own gestures, reified as a `get_projection_gesture_bindings` table so the same set that

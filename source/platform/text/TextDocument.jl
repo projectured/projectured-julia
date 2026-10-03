@@ -1285,8 +1285,8 @@ end
 # character, so some edits beside it are not a splice of one run. They write the
 # element list of the block instead:
 #   • a character typed beside an image, where no text run holds the caret,
-#     starts a new run there (`insert_elements`);
-#   • a range that covers only images deletes them (`delete_elements`), and a
+#     starts a new run there (`make_insert_elements_operation`);
+#   • a range that covers only images deletes them (`make_delete_elements_operation`), and a
 #     replacement puts a new run in their place.
 # Each leaves the flat caret after it. A new run takes the style of the nearest
 # text run (`_find_style_span`). Every other edit is a splice of one run.
@@ -1302,19 +1302,21 @@ function _make_image_edit(text::TextBlock, s::Int, e::Int, replacement::Abstract
         place === nothing && return nothing
         path, char = place
         run = _make_styled_run(replacement, _find_style_span(text, path))
-        return insert_elements(_get_container_reference(path), path[end] - 1 + char, Any[run];
-                               selection = caret)
+        return make_insert_elements_operation(_get_container_reference(path), path[end] + char,
+                                              Any[run]; selection = caret)
     end
     paths = _find_image_range(text, s, e)
     paths === nothing && return nothing
     container = _get_container_reference(paths[1])
-    index = paths[1][end] - 1
+    element = paths[1][end]
     write = if isempty(replacement)
-        delete_elements(container, index; count = length(paths))
+        make_delete_elements_operation(container, element; count = length(paths))
     else
         run = _make_styled_run(replacement, _find_style_span(text, paths[1]))
+        boundary = element - 1
         ReplaceReferencedValueOperation(nothing,
-            extend_reference(container, RangeReferenceStep(index, index + length(paths))), Any[run])
+            extend_reference(container, RangeReferenceStep(boundary, boundary + length(paths))),
+            Any[run])
     end
     CompoundOperation(Any[write, ReplaceSelectionOperation(caret)])
 end

@@ -311,13 +311,13 @@ end
 # the callback refuses (unknown/incomplete value).
 function _insertion_commit(p::InsertionToSyntaxLeaf, ins)
     doc = p.commit(ins, something(ins.value, ""))
-    doc === nothing ? nothing : replace_document(EmptyReference(), doc)
+    doc === nothing ? nothing : make_replace_document_operation(EmptyReference(), doc)
 end
 
 # Escape: the document of the option `cancel`, or the empty document of the
 # domain of the insertion.
 _make_insertion_cancel_operation(p::InsertionToSyntaxLeaf, ins) =
-    replace_document(EmptyReference(),
+    make_replace_document_operation(EmptyReference(),
                      p.cancel === nothing ? get_nothing_document(typeof(ins))() : p.cancel(ins))
 
 # A key that edits the text of `ins`: `operation`, a range replace at `value{s:e}`,
@@ -329,7 +329,7 @@ function _make_insertion_key_operation(p::InsertionToSyntaxLeaf, ins, operation)
     range === nothing && return operation
     text = splice_string(something(ins.value, ""), range.start, range.stop, operation.replacement)
     document = p.commit_at_key(ins, text, range.start + length(operation.replacement))
-    document === nothing ? operation : replace_document(EmptyReference(), document)
+    document === nothing ? operation : make_replace_document_operation(EmptyReference(), document)
 end
 
 # Append the completion policy's Tab extension at the end of the buffer, caret

@@ -111,17 +111,17 @@ end
 function _clipboard_collection_add(input)
     _, obj = _selected(input)
     obj isa Document || return nothing
-    insert_elements(_field_path("elements"), 0, Any[obj])
+    make_insert_elements_operation(_field_path("elements"), 1, Any[obj])
 end
 
 # Remove the selected element from the collection.
 function _clipboard_collection_remove(input)
     idx = _elements_index(input.selection)
     idx === nothing && return nothing
-    delete_elements(_field_path("elements"), idx)
+    make_delete_elements_operation(_field_path("elements"), idx)
 end
 
-# 0-based index of the element a selection path addresses, or nothing when the
+# The 1-based index of the element a selection path addresses, or nothing when the
 # path does not descend through `elements[i]`.
 function _elements_index(path)
     path = strip_reference_types(path)
@@ -132,7 +132,7 @@ function _elements_index(path)
     rest isa ConcreteReference || return nothing
     e = rest.head
     e isa RangeReferenceStep || return nothing
-    e.start
+    e.start + 1
 end
 
 # ── Readers ──────────────────────────────────────────────────────────────

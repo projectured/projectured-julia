@@ -218,7 +218,7 @@ CompoundOperation([op1, op2])                         # apply several as one ste
 what "write" means: a field step sets a field, a range step with one value
 overwrites an element, and a range step with a vector splices — so an insert is
 a zero-width splice and a delete is a splice with an empty vector. The builders
-`replace_document`, `insert_elements`, and `delete_elements` package the common
+`make_replace_document_operation`, `make_insert_elements_operation`, and `make_delete_elements_operation` package the common
 shapes.
 
 `evaluate_operation(editor, op)` applies an operation. It is the **one** way to

@@ -48,7 +48,7 @@ read_key(doc, sel, evt) = begin
     read_intent(x2s, iomap, evt)
 end
 
-# A type-to-replace gesture returns the folded `replace_document` compound;
+# A type-to-replace gesture returns the folded `make_replace_document_operation` compound;
 # `_written` is the document its first member (the ReplaceReferencedValueOperation) writes.
 _written(op) = op.operations[1].value
 

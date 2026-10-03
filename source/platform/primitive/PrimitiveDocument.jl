@@ -401,7 +401,7 @@ function make_number_edit_operation(number::PrimitiveNumber, operation::ReplaceR
                          operation.replacement)
     find_exact_primitive_document((PrimitiveNumber,), text) === nothing || return operation
     insertion = PrimitiveInsertion(; value = text, allowed_types = (PrimitiveNumber,))
-    replace_document(EmptyReference(),
+    make_replace_document_operation(EmptyReference(),
                      with_value_caret(insertion, range_step.start + length(operation.replacement)))
 end
 
@@ -481,7 +481,7 @@ function make_type_in_edit_operation(insertion::PrimitiveInsertion, range::Range
     text = splice_string(something(insertion.value, ""), range.start, range.stop, replacement)
     document = find_exact_primitive_document(insertion.allowed_types, text)
     document === nothing ||
-        return replace_document(EmptyReference(), with_value_caret(document, range.start + length(replacement)))
+        return make_replace_document_operation(EmptyReference(), with_value_caret(document, range.start + length(replacement)))
     ReplaceStringRangeOperation(ConcreteReference(FieldReferenceStep("value"),
                                                   ConcreteReference(range, EmptyReference())), replacement)
 end
@@ -496,7 +496,7 @@ the first allowed type that its text parses as, with the caret at its end, or
 function make_type_in_commit_operation(insertion::PrimitiveInsertion)
     document = find_primitive_document(insertion.allowed_types, something(insertion.value, ""))
     document === nothing && return nothing
-    replace_document(EmptyReference(), with_value_caret(document, length(get_primitive_text(document))))
+    make_replace_document_operation(EmptyReference(), with_value_caret(document, length(get_primitive_text(document))))
 end
 
 """
@@ -506,4 +506,4 @@ What Escape in a type-in makes: a replace of it with the first allowed type with
 no value.
 """
 make_type_in_cancel_operation(insertion::PrimitiveInsertion) =
-    replace_document(EmptyReference(), make_empty_primitive_document(first(insertion.allowed_types)))
+    make_replace_document_operation(EmptyReference(), make_empty_primitive_document(first(insertion.allowed_types)))

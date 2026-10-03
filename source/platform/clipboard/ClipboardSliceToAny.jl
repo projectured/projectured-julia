@@ -208,7 +208,7 @@ function _text_clipboard_copy(p, input)
     sub = get_selection_substring(content)
     sub === nothing && return nothing
     CompoundOperation(Any[
-        replace_document(_field_path("slice"), TextString(sub)),
+        make_replace_document_operation(_field_path("slice"), TextString(sub)),
         ReplaceSelectionOperation(input.selection),
         WriteOsClipboardOperation(sub),
     ])
@@ -222,7 +222,7 @@ function _text_clipboard_cut(p, input)
     del = make_text_insert_operation(content, "")              # replace the selected range with "" = delete
     del === nothing && return nothing
     CompoundOperation(Any[
-        replace_document(_field_path("slice"), TextString(sub)),
+        make_replace_document_operation(_field_path("slice"), TextString(sub)),
         reroot_operation(del, (FieldReferenceStep("content"),)),
         WriteOsClipboardOperation(sub),
     ])
@@ -314,7 +314,7 @@ function _text_target_copy(p, input; cut::Bool = false)
     target = _find_text_target(input; writes = cut)
     (target === nothing || target.start == target.stop) && return nothing
     text = _get_text_target_text(target)
-    ops = Any[replace_document(_field_path("slice"), PrimitiveString(text)),
+    ops = Any[make_replace_document_operation(_field_path("slice"), PrimitiveString(text)),
               cut ? _make_text_target_edit(target, "") : ReplaceSelectionOperation(target.path),
               WriteOsClipboardOperation(text)]
     CompoundOperation(ops)
@@ -339,7 +339,7 @@ function _clipboard_copy(p, input)
     payload === nothing && return nothing
     clear_selection!(payload)                  # clipboard payload carries no cursor
     ops = Any[
-        replace_document(_field_path("slice"), payload),
+        make_replace_document_operation(_field_path("slice"), payload),
         ReplaceSelectionOperation(sel),
     ]
     _maybe_os_mirror!(ops, p, obj)
@@ -355,8 +355,8 @@ function _clipboard_cut(p, input)
     obj isa Document || return nothing
     _find_paste_target(input, DocumentNothing()) === nothing && return nothing
     ops = Any[
-        replace_document(_field_path("slice"), obj),
-        replace_document(sel, DocumentNothing()),
+        make_replace_document_operation(_field_path("slice"), obj),
+        make_replace_document_operation(sel, DocumentNothing()),
     ]
     _maybe_os_mirror!(ops, p, obj)
     CompoundOperation(ops)
@@ -373,7 +373,7 @@ function _clipboard_note(p, input)
     obj = find_clipboard_document(selected)
     obj === nothing && return nothing
     ops = Any[
-        replace_document(_field_path("slice"), obj),
+        make_replace_document_operation(_field_path("slice"), obj),
         ReplaceSelectionOperation(sel),
     ]
     _maybe_os_mirror!(ops, p, obj)
@@ -395,14 +395,14 @@ function _clipboard_paste(p, input)
         sel = _find_paste_target(input, doc)
         sel === nothing && return nothing
         return CompoundOperation(Any[
-            replace_document(sel, doc),
+            make_replace_document_operation(sel, doc),
             ReplaceSelectionOperation(sel),
         ])
     end
     sel = _find_paste_target(input, slice)
     sel === nothing && return nothing
     CompoundOperation(Any[
-        replace_document(sel, slice),
+        make_replace_document_operation(sel, slice),
         ReplaceSelectionOperation(sel),
     ])
 end
@@ -421,7 +421,7 @@ function _clipboard_paste_copy(p, input)
         sel = _find_paste_target(input, doc)
         sel === nothing && return nothing
         return CompoundOperation(Any[
-            replace_document(sel, doc),
+            make_replace_document_operation(sel, doc),
             ReplaceSelectionOperation(sel),
         ])
     end
@@ -431,7 +431,7 @@ function _clipboard_paste_copy(p, input)
     fresh === nothing && return nothing
     clear_selection!(fresh)                    # pasted content starts with no cursor
     CompoundOperation(Any[
-        replace_document(sel, fresh),
+        make_replace_document_operation(sel, fresh),
         ReplaceSelectionOperation(sel),
     ])
 end

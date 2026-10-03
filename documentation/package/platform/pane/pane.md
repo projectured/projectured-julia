@@ -33,9 +33,9 @@ A new tab takes the focus. The focus goes on the content as a whole when the con
 
 | Builder | Generic form |
 | --- | --- |
-| `make_pane_open_tab_operation` | `insert_elements` and the focus move |
+| `make_pane_open_tab_operation` | `make_insert_elements_operation` and the focus move |
 | `make_pane_duplicate_tab_operation` | the open of the duplicate, after the original |
-| `make_pane_close_tab_operation` | `delete_elements`, or a collapse write, and the focus move |
+| `make_pane_close_tab_operation` | `make_delete_elements_operation`, or a collapse write, and the focus move |
 | `make_pane_split_operation` | `ReplaceReferencedValueOperation` of a new `PaneSplit` at the slot of the group |
 | `make_pane_move_tab_operation` | `MoveRangeOperation` and the focus move |
 | `make_pane_drop_split_operation` | the split write, the move, and the focus move |

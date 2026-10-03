@@ -5,7 +5,7 @@
 # @domain-generated Insert/Escape kit.
 
 
-# A `replace_document(path, doc)` fold expands to a CompoundOperation whose first
+# A `make_replace_document_operation(path, doc)` fold expands to a CompoundOperation whose first
 # member is the ReplaceReferencedValueOperation that writes `doc`.
 _written_doc(op) = op.operations[1].value
 

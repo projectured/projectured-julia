@@ -1896,7 +1896,7 @@ function _act_on_selection(iomap::MathIoMap, event)
         (event.key === :down || event.key === :return) && !isempty(children) &&
             return _select_child(iomap, children[1])
         event.key === :backspace && !(doc isa MathInsertion) &&
-            return replace_document(EmptyReference(), MathInsertion())
+            return make_replace_document_operation(EmptyReference(), MathInsertion())
         return nothing
     end
     _build_around(doc, event.text)
@@ -1910,9 +1910,9 @@ function _build_around(doc, text::AbstractString)
         # An empty slot takes the character as its content: a letter is a
         # variable, a digit a number.
         character = first(text)
-        isletter(character) && return replace_document(EmptyReference(), MathVariable(text))
+        isletter(character) && return make_replace_document_operation(EmptyReference(), MathVariable(text))
         isdigit(character) &&
-            return replace_document(EmptyReference(), PrimitiveNumber(parse(Int, text)))
+            return make_replace_document_operation(EmptyReference(), PrimitiveNumber(parse(Int, text)))
     end
     built = text == "/" ? _with_hole(MathFraction(doc, MathInsertion()), "denominator") :
             text == "^" ? _with_hole(MathScript(doc; superscript = MathInsertion()), "superscript") :
@@ -1921,13 +1921,13 @@ function _build_around(doc, text::AbstractString)
             nothing
     built === nothing && return nothing
     # The reader does not touch the document: the trailing selection write of
-    # `replace_document` moves the selection into the new hole, and setting a
+    # `make_replace_document_operation` moves the selection into the new hole, and setting a
     # selection clears every other one in the tree.
-    replace_document(EmptyReference(), built)
+    make_replace_document_operation(EmptyReference(), built)
 end
 
 # Point a freshly built node's own selection at the hole it opened, which is
-# where `replace_document` then leaves the editor's selection.
+# where `make_replace_document_operation` then leaves the editor's selection.
 function _with_hole(document, field::AbstractString)
     getfield(document, :selection)[] =
         ConcreteReference(FieldReferenceStep(field), EmptyReference())

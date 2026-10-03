@@ -888,8 +888,8 @@ state, bind the container's `elements` to a computation and let the graph do it.
 **Prefer `ReplaceReferencedValueOperation` (or its builders) before writing a
 new operation type.** Most edits just write a value into one slot, so they are
 the same operation differing only in object/slot/value; reach for
-`ReplaceReferencedValueOperation`, `replace_document`, `insert_elements`,
-`delete_elements`, or a `CompoundOperation` of them. Add a new `Operation`
+`ReplaceReferencedValueOperation`, `make_replace_document_operation`, `make_insert_elements_operation`,
+`make_delete_elements_operation`, or a `CompoundOperation` of them. Add a new `Operation`
 struct only for genuinely different behaviour (control flow, I/O, async,
 multi-field/structural change that is not a single splice), and declare it in
 the module that owns the affected document (or `OperationModule` for

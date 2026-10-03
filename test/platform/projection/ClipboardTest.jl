@@ -39,7 +39,7 @@ function test_clipboard()
 # A reference path built from raw steps.
 cpath(steps...) = foldr((s, acc) -> ConcreteReference(s, acc), steps; init=EmptyReference())
 
-# A `replace_document(path, doc)` fold is a CompoundOperation whose first member is
+# A `make_replace_document_operation(path, doc)` fold is a CompoundOperation whose first member is
 # the ReplaceReferencedValueOperation that writes `doc` at `path`. These read that target
 # reference and written value out of the (nested) compound.
 _rd_ref(rd) = rd.operations[1].reference
@@ -122,7 +122,7 @@ end
     op = read_intent(p, iomap, KeyDown(:c, ctrl; time = 0.0))
     @test op isa CompoundOperation
     @test length(op.operations) == 2
-    @test op.operations[1] isa CompoundOperation                # folded replace_document
+    @test op.operations[1] isa CompoundOperation                # folded make_replace_document_operation
     @test _rd_ref(op.operations[1]).head.name == "slice"
     @test _rd_val(op.operations[1]) isa PrimitiveString
     @test _rd_val(op.operations[1]).value == "hello"
@@ -223,7 +223,7 @@ end
     # Add — inserts the selected object at the front of `elements`.
     coll.selection = cpath(FieldReferenceStep("content"))
     op = read_intent(p, iomap, KeyDown(:equals, ctrl; time = 0.0))
-    @test op isa ReplaceReferencedValueOperation                     # insert_elements splice
+    @test op isa ReplaceReferencedValueOperation                     # make_insert_elements_operation splice
     @test op.reference.head.name == "elements"
     @test op.reference.tail.head isa RangeReferenceStep && op.reference.tail.head.start == 0
     @test op.value[1] === content
@@ -231,7 +231,7 @@ end
     # Remove — deletes the selected element (0-based index → RangeReferenceStep start).
     coll.selection = cpath(FieldReferenceStep("elements"), ElementReferenceStep(2))
     op = read_intent(p, iomap, KeyDown(:minus, ctrl; time = 0.0))
-    @test op isa ReplaceReferencedValueOperation                     # delete_elements splice
+    @test op isa ReplaceReferencedValueOperation                     # make_delete_elements_operation splice
     @test op.reference.head.name == "elements"
     @test op.reference.tail.head isa RangeReferenceStep && op.reference.tail.head.start == 1
     @test isempty(op.value)

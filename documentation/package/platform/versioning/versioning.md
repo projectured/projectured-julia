@@ -55,7 +55,7 @@ A key that the table does not take goes to the reader of the selected value. `_p
 
 The undo buffer reads in the opposite order, content first and its own keys last, so that the innermost buffer takes Ctrl+Z. [undo.md](../undo/undo.md) gives the reason, and `source/platform/undo/UndoBufferToAny.jl` states it at its head. With the versioning order, the outermost `VersionedObject` on the path takes Ctrl+Shift+S, and a value below it never gets these two keys while a version is selected.
 
-**The two keys use the standard sequence edits.** `insert_elements` and `delete_elements` make a `ReplaceReferencedValueOperation` that ends in a `RangeReferenceStep` on `versions`. Every projection above reroots that operation, so the keys work when the `VersionedObject` is deep in a tree. The operation also has an inverse, so an undo buffer above it can take a new version back.
+**The two keys use the standard sequence edits.** `make_insert_elements_operation` and `make_delete_elements_operation` make a `ReplaceReferencedValueOperation` that ends in a `RangeReferenceStep` on `versions`. Every projection above reroots that operation, so the keys work when the `VersionedObject` is deep in a tree. The operation also has an inverse, so an undo buffer above it can take a new version back.
 
 ## How it fits
 

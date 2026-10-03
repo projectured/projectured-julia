@@ -148,7 +148,8 @@ function test_undo_buffer()
         editor = _UndoEditor(buffer)
         cell = get_cell_at(list.items, 2)
         operation = RecordUndoOperation(buffer,
-            delete_elements(Reference(FieldReferenceStep("content"), FieldReferenceStep("items")), 1))
+            make_delete_elements_operation(Reference(FieldReferenceStep("content"),
+                                                     FieldReferenceStep("items")), 2))
         evaluate_operation(editor, operation)
         @test _texts(list) == ["a", "c"]
         evaluate_operation(editor, UndoOperation(buffer))

@@ -72,7 +72,7 @@ read_key(doc, sel, evt) = begin
     read_intent(j2s, iomap, evt)
 end
 
-# A type-to-replace gesture now returns the folded `replace_document` compound:
+# A type-to-replace gesture now returns the folded `make_replace_document_operation` compound:
 # CompoundOperation([ReplaceReferencedValueOperation(writes the new doc), ReplaceSelection]).
 # `_written` pulls out the document that the first member writes.
 _written(op) = op.operations[1].value

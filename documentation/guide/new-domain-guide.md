@@ -441,7 +441,7 @@ BookmarkList
   leaf's value flows back through the default reader `@projection_template`
   generated, which re-targets its reference through the `bound(:title, …)` /
   `bound(:url, …)` markers. No extra `read_intent` needed.
-- **Structural editing:** `insert_elements` (a `ReplaceReferencedValueOperation` splice) to
+- **Structural editing:** `make_insert_elements_operation` (a `ReplaceReferencedValueOperation` splice) to
   append bookmarks. This *does* need a `read_intent` method, since it is more than a
   reference re-target.
 - **A custom operation:** e.g. `BookmarkOpenOperation` that opens the URL

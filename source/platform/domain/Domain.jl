@@ -476,7 +476,7 @@ rerooted by the enclosing projections) with a fresh insertion `I`, cursor
 pre-placed at the start of its `value` buffer.
 """
 insert_document_operation(::Type{I}) where {I} =
-    replace_document(EmptyReference(), with_selection(I(), _INSERTION_CURSOR))
+    make_replace_document_operation(EmptyReference(), with_selection(I(), _INSERTION_CURSOR))
 
 """
     replace_selected_document(document, replacement) -> Operation
@@ -490,7 +490,7 @@ so it normalizes to ∅ (see [`normalize_named_node_reference`](@ref)). `replace
 own cursor, so nothing else needs placing.
 """
 replace_selected_document(document, replacement) =
-    replace_document(normalize_named_node_reference(get_selection(document)), replacement)
+    make_replace_document_operation(normalize_named_node_reference(get_selection(document)), replacement)
 
 """
     append_insertion_operation(document, field::Symbol, T::Type) -> Operation
@@ -519,7 +519,7 @@ function append_insertion_operation(document, field::Symbol, ::Type{T}) where {T
                               EmptyReference(get_reference_node_type(inserted))))
     inner = get_selection(inserted)
     cursor = inner === nothing ? element_path : concat_references(element_path, inner)
-    insert_elements(field_path, n, Any[inserted]; selection = cursor)
+    make_insert_elements_operation(field_path, n + 1, Any[inserted]; selection = cursor)
 end
 
 """

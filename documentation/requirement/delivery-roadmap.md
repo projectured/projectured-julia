@@ -8,7 +8,7 @@ The order of the work has been the same from the start: **make the whole path wo
 
 ## Delivered
 
-**The editing path.** An edit is an operation on the data. Insert and delete work on a collection (`insert_elements`, `delete_elements`), a character edit works inside a string, a number, a key, an XML text and an attribute (`ReplaceStringRangeOperation`), and the reader chain turns a key press into one of them. Julia and SQL are typed through their parsers with live completion; Markdown, math and prose take text as well.
+**The editing path.** An edit is an operation on the data. Insert and delete work on a collection (`make_insert_elements_operation`, `make_delete_elements_operation`), a character edit works inside a string, a number, a key, an XML text and an attribute (`ReplaceStringRangeOperation`), and the reader chain turns a key press into one of them. Julia and SQL are typed through their parsers with live completion; Markdown, math and prose take text as well.
 
 **Twenty domains.** JSON, YAML, XML, Markdown, reStructuredText, SQL, Julia, math, formulas, charts, sequence charts, graphs, state machines, processes, books, the file system, the conversation, the assistant, versioning and the reflection view of any object. [domain-inventory.md](../design/domain-inventory.md) lists them with what each one holds.
 

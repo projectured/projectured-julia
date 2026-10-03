@@ -579,5 +579,5 @@ for adding one.
 | Navigation operations | `Operations.jl` (`ReplaceSelectionOperation`) | ✅ |
 | Editor REPL | `EditorModule.jl` | ✅ |
 | All higher-order projections | `projection/higherorder/` | ✅ |
-| Insert / delete operations | `Operations.jl` (`insert_elements` / `delete_elements` → a `ReplaceReferencedValueOperation` splice) | ✅ (collections; produced by JSON/XML readers) |
+| Insert / delete operations | `Operations.jl` (`make_insert_elements_operation` / `make_delete_elements_operation` → a `ReplaceReferencedValueOperation` splice) | ✅ (collections; produced by JSON/XML readers) |
 | Undo / redo | `undo/` (`UndoBuffer`, `UndoBufferToAnyProjection`, `make_inverse_operation`) | ✅ |

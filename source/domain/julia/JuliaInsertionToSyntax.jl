@@ -180,7 +180,7 @@ end
 # cursor lands on the committed value's own selection (a scaffold's first hole).
 _julia_ins_commit(ins) =
     (doc = _julia_commit(something(ins.value, ""));
-     doc === nothing ? nothing : replace_document(EmptyReference(), doc))
+     doc === nothing ? nothing : make_replace_document_operation(EmptyReference(), doc))
 
 # The Tab navigation predicate + in-hole cursor: land on the next `JuliaInsertion`,
 # cursor at its buffer offset 0 so it is ready to type.
@@ -200,10 +200,10 @@ function _julia_ins_tab(ins)
     isempty(strip(value)) &&
         return SelectNextInsertionOperation(_is_julia_hole, _JULIA_HOLE_CURSOR)
     scaffold = make_julia_scaffold(value)
-    scaffold === nothing || return replace_document(EmptyReference(), scaffold)
+    scaffold === nothing || return make_replace_document_operation(EmptyReference(), scaffold)
     parsed = try parse_julia(value) catch; nothing end
     parsed === nothing && return nothing
-    commit = replace_document(EmptyReference(), parsed)
+    commit = make_replace_document_operation(EmptyReference(), parsed)
     CompoundOperation(Any[commit.operations...,
                           SelectNextInsertionOperation(_is_julia_hole, _JULIA_HOLE_CURSOR)])
 end

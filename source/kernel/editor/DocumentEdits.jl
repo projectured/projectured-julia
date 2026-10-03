@@ -67,7 +67,7 @@ Insert `values` into the collection that `collection` names, so that the first o
 them is at `index`, and answer the collection as it is after the edit. `collection`
 is a `ReferencedDocument` or a `Reference`; `index` is 1-based, and
 `length(collection) + 1` appends. It is an edit of the editor, as
-`insert_elements` makes it: Ctrl+Z undoes it, the history of the document that
+`make_insert_elements_operation` makes it: Ctrl+Z undoes it, the history of the document that
 holds the collection records it, and the editor checks and logs it. It evaluates
 the edit at once and reads the IoMap that the frame prints, so it runs on the
 editor's task; another task calls it through `run_on_editor_task!`.
@@ -89,7 +89,7 @@ insert_elements!(editor::Editor, collection, index::Integer, values) =
 Remove `count` elements from the collection that `collection` names, starting at
 the 1-based `index`, and answer the collection as it is after the edit.
 `collection` is a `ReferencedDocument` or a `Reference`. It is an edit of the
-editor, as `delete_elements` makes it: Ctrl+Z undoes it, the history of the
+editor, as `make_delete_elements_operation` makes it: Ctrl+Z undoes it, the history of the
 document that holds the collection records it, and the editor checks and logs it.
 Like `insert_elements!`, it runs on the editor's task.
 
