@@ -29,7 +29,8 @@ struct ToyPathOperation <: Operation
     reference::Reference
 end
 ProjecturedKernel.OperationModule.operation_reference(op::ToyPathOperation) = op.reference
-ProjecturedKernel.OperationModule.retarget_operation(op::ToyPathOperation, reference::Reference) =
+ProjecturedKernel.OperationModule.retarget_operation(op::ToyPathOperation,
+                                                      reference::Reference) =
     ToyPathOperation(reference)
 
 # A test-local operation that answers no seam.

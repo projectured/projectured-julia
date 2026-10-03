@@ -398,7 +398,8 @@ function make_insert_elements_operation(path::Reference, index::Integer, items;
                                         selection=nothing, root=nothing)
     boundary = index - 1
     write = ReplaceReferencedValueOperation(root,
-        extend_reference(path, RangeReferenceStep(boundary, boundary)), Vector{Any}(items))
+        extend_reference(path, RangeReferenceStep(boundary, boundary)),
+        Vector{Any}(items))
     selection === nothing ? write :
         CompoundOperation(Any[write, ReplaceSelectionOperation(selection)])
 end

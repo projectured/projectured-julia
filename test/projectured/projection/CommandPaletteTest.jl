@@ -453,7 +453,8 @@ function test_command_palette_decorator()
         @test occursin("key", string(back.path))
 
         # XML has the same gap, filled the same way.
-        xml_command = only(b for b in collect_document_gesture_bindings(XmlElement) if b.pattern === nothing)
+        xml_command = only(b for b in collect_document_gesture_bindings(XmlElement)
+                           if b.pattern === nothing)
         @test xml_command.name == "Move to attribute name"
     end
 

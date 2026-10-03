@@ -222,7 +222,8 @@ end
 
 # Each carries its own subject and names no reference, so every reader
 # between the gesture and the editor passes it up unchanged.
-OperationModule.is_self_contained_operation(::Union{SaveFileOperation, ReloadFileOperation}) = true
+OperationModule.is_self_contained_operation(::Union{SaveFileOperation,
+                                                    ReloadFileOperation}) = true
 
 # ── What a model may write about a file ─────────────────────────────────────
 

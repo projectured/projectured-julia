@@ -175,8 +175,10 @@ end
     @test search_documents(nested, _ -> error("broken");
                            on_error = (o, _) -> o isa PrimitiveNumber) == [nested[2]]
 
-    @test_throws InterruptException search_documents(nested, _ -> throw(InterruptException()))
-    @test_throws InterruptException search_references(nested, _ -> throw(InterruptException());
+    @test_throws InterruptException search_documents(nested,
+                                                      _ -> throw(InterruptException()))
+    @test_throws InterruptException search_references(nested,
+                                                      _ -> throw(InterruptException());
                                                       on_error = (_, _) -> false)
 end
 

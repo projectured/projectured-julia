@@ -158,11 +158,11 @@ end
 _field_path(name::AbstractString) =
     ConcreteReference(FieldReferenceStep(name), EmptyReference())
 
-# Snapshot the current selected value into a new ObjectVersion (deep-copied) and
-# push it to the front of `versions` (index 0, newest-first). A standard sequence
-# splice (make_insert_elements_operation) so every ancestor projection re-roots it. The version
-# has the author of the projection and the time as its properties. Returns
-# nothing when there is no selected value to snapshot.
+# Snapshot the current selected value into a new ObjectVersion (deep-copied) and push it
+# to the front of `versions` (index 0, newest-first). A standard sequence splice
+# (make_insert_elements_operation) so every ancestor projection re-roots it. The version
+# has the author of the projection and the time as its properties. Returns nothing when
+# there is no selected value to snapshot.
 function _create_version(p::VersioningToAnyProjection, iomap::VersioningToAnyIoMap)
     version = iomap.index === nothing ? nothing : iomap.input.versions[iomap.index]
     version isa ObjectVersion || return nothing

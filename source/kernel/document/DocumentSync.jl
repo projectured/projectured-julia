@@ -45,7 +45,8 @@ function _copy_shadow_element(K, x, policy = nothing, depth::Int = 0)
 end
 
 # Contract documented at the `sync_document!` declaration in `DocumentInterface.jl`.
-sync_document!(shadow::Document, source::Document) = sync_document!(shadow, source, nothing, 0)
+sync_document!(shadow::Document, source::Document) =
+    sync_document!(shadow, source, nothing, 0)
 
 function sync_document!(shadow::Document, source::Document, policy, depth::Int)
     _is_same_document_type(shadow, source) ||

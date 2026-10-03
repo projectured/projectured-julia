@@ -85,10 +85,10 @@ _indent_body(text::AbstractString, prefix::AbstractString = _IND) =
 # Because `make_child_context` derives from the context the rule was given, the
 # ambient reaches every descendant without being threaded by hand.
 #
-# `@projection_template` builds the printer from `(prj, doc)` alone, so the two
-# macros below wrap `print_template_document` — the same entry point the template macro uses
-# — and hand the builder the ambient as well. A rule keeps its template body;
-# only its signature grows.
+# `@projection_template` builds the printer from `(prj, doc)` alone, so the two macros
+# below wrap `print_template_document` — the same entry point the template macro uses —
+# and hand the builder the ambient as well. A rule keeps its template body; only its
+# signature grows.
 
 # The column the block this rule prints starts at.
 _ambient(ctx) = something(get_property(ctx, :rst_indent, ""), "")
@@ -104,7 +104,8 @@ macro rst_flat(projname, intype, builder)
     quote
         function ProjectionModule.print_document(p::$(esc(projname)), recursion, doc::$(esc(intype)), ctx)
             indent = $(_ambient)(ctx)
-            $(print_template_document)(p, recursion, doc, ctx, (prj, d) -> $(esc(builder))(prj, d, indent))
+            $(print_template_document)(p, recursion, doc, ctx,
+                                       (prj, d) -> $(esc(builder))(prj, d, indent))
         end
         function ProjectionModule.read_intent(p::$(esc(projname)), recursion, change::Intent, iomap)
             $(read_template_intent)(p, recursion, change, iomap)
@@ -125,8 +126,9 @@ macro rst_indented(projname, intype, builder)
         function ProjectionModule.print_document(p::$(esc(projname)), recursion, doc::$(esc(intype)), ctx)
             outer = $(_ambient)(ctx)
             inner = outer * $(_IND)
-            $(print_template_document)(p, recursion, doc, $(with_property)(ctx, :rst_indent, inner),
-                          (prj, d) -> $(esc(builder))(prj, d, outer, inner))
+            $(print_template_document)(p, recursion, doc,
+                                       $(with_property)(ctx, :rst_indent, inner),
+                                       (prj, d) -> $(esc(builder))(prj, d, outer, inner))
         end
         function ProjectionModule.read_intent(p::$(esc(projname)), recursion, change::Intent, iomap)
             $(read_template_intent)(p, recursion, change, iomap)

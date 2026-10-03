@@ -58,13 +58,13 @@ that posts as fast as the editor applies can not hold off the paint. When
 operations are left, the drain sets `editor.wake_pending`, and the next frame
 runs without a wait.
 
-Each operation applies in the operation barrier of [`evaluate!`](@ref), with the
-same repairs: an operation that fails half way is taken back where it has a way
-back, the fault is recorded, and the next operation still applies. It is not
-`evaluate!` itself: posted operations do not become `editor.operation`, because
-that field means "what the reader made of this frame's input" and is what
-`_log_performance_counters!` uses to tell a frame in which the user did something from an idle one.
-It also keeps a sync arriving ten times a second out of the operation log.
+Each operation applies in the operation barrier of [`evaluate!`](@ref), with the same
+repairs: an operation that fails half way is taken back where it has a way back, the fault
+is recorded, and the next operation still applies. It is not `evaluate!` itself: posted
+operations do not become `editor.operation`, because that field means "what the reader
+made of this frame's input" and is what `_log_performance_counters!` uses to tell a frame
+in which the user did something from an idle one. It also keeps a sync arriving ten times
+a second out of the operation log.
 """
 function drain_operations!(editor::Editor)
     # `Base.n_avail` also counts the producers that wait for room. The bound

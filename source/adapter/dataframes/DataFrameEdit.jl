@@ -70,7 +70,8 @@ struct CloseDataFrameCellOperation <: Operation
     column::String
 end
 
-is_self_contained_operation(::Union{OpenDataFrameCellOperation,CloseDataFrameCellOperation}) = true
+is_self_contained_operation(::Union{OpenDataFrameCellOperation,
+                                    CloseDataFrameCellOperation}) = true
 
 function evaluate_operation(editor, op::OpenDataFrameCellOperation)
     view = op.view

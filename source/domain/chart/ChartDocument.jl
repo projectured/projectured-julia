@@ -591,7 +591,8 @@ somewhere else.
 function remove_series(chart::Chart)
     index = get_selected_series_index(chart)
     index == 0 && return nothing
-    make_delete_elements_operation(_chart_field_reference(chart, "series"), index; root=chart)
+    make_delete_elements_operation(_chart_field_reference(chart, "series"), index;
+                                   root=chart)
 end
 
 # Navigation owns the arrow keys, as it does everywhere else in the editor: the

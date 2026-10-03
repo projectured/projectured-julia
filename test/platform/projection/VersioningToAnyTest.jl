@@ -157,8 +157,9 @@ end
     iomap = print_document(p, IdentityProjection(), vo, PrinterContext())
 
     # Ctrl+Shift+S snapshots the active value into a new front ObjectVersion via a
-    # sequence splice (make_insert_elements_operation) — a ReplaceReferencedValueOperation whose terminal is
-    # a zero-width RangeReferenceStep(0,0) into `versions` and whose value is the items.
+    # sequence splice (make_insert_elements_operation) — a ReplaceReferencedValueOperation
+    # whose terminal is a zero-width RangeReferenceStep(0,0) into `versions` and whose
+    # value is the items.
     op = read_intent(p, iomap, KeyDown(:s, ctrl_shift; time = 0.0))
     @test op isa ReplaceReferencedValueOperation
     @test op.reference.head.name == "versions"
@@ -169,8 +170,9 @@ end
     @test snapshot.value.value == "v3"
     @test snapshot.value !== vo.versions[1].value       # deep copy
 
-    # Ctrl+Delete deletes the active version via a splice (make_delete_elements_operation): a
-    # ReplaceReferencedValueOperation with terminal RangeReferenceStep(0,1) and an empty value.
+    # Ctrl+Delete deletes the active version via a splice
+    # (make_delete_elements_operation): a ReplaceReferencedValueOperation with terminal
+    # RangeReferenceStep(0,1) and an empty value.
     op = read_intent(p, iomap, KeyDown(:delete, ctrl; time = 0.0))
     @test op isa ReplaceReferencedValueOperation
     @test op.reference.head.name == "versions"

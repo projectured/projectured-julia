@@ -184,7 +184,8 @@ function find_positional_markers(root::AbstractString)
             endswith(name, ".jl") || continue
             path = relpath(joinpath(here, name), root)
             for (number, line) in enumerate(eachline(joinpath(root, path)))
-                occursin(r"^\s*#\s*@positional:", line) && push!(found, "$(path):$(number)")
+                occursin(r"^\s*#\s*@positional:", line) &&
+                    push!(found, "$(path):$(number)")
             end
         end
     end
@@ -203,7 +204,8 @@ function argument_violations(root::AbstractString)
     for d in find_argument_definitions(root)
         (is_private_name(d.name) || is_port_definition(d) || d.marked) && continue
         keeps_optional_clause(d) && continue
-        push!(out, "$(d.file):$(d.line) $(d.name) takes $(d.optional) optional positional " *
+        push!(out, "$(d.file):$(d.line) $(d.name) takes $(d.optional) optional " *
+                   "positional " *
                    "argument(s)$(d.keywords > 0 ? " beside keyword arguments" : "") — " *
                    "make them keywords, or write `# @optional: <reason>` above it; " *
                    "see code-quality-rules.md §4")
@@ -238,7 +240,8 @@ function argument_report(root::AbstractString)
             " (protocol ", count(d -> is_protocol_name(d.name), wide), ")")
     over = [d for d in found if is_over_positional_limit(d)]
     public = [d for d in over if !is_private_name(d.name)]
-    println("over the advice, not a protocol: ", length(over), " (public ", length(public),
+    println("over the advice, not a protocol: ", length(over), " (public ",
+            length(public),
             ", private ", length(over) - length(public), ")")
     optional = [d for d in found if !keeps_optional_clause(d)]
     println("breaking the optional clause: ", length(optional), " (marked ",
@@ -262,7 +265,8 @@ end
 #
 if abspath(PROGRAM_FILE) == @__FILE__
     paths = filter(argument -> !startswith(argument, "--"), ARGS)
-    root = isempty(paths) ? normpath(joinpath(@__DIR__, "..", "..")) : abspath(first(paths))
+    root = isempty(paths) ? normpath(joinpath(@__DIR__, "..", "..")) :
+           abspath(first(paths))
     if "--report" in ARGS
         argument_report(root)
     else

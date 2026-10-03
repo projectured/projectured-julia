@@ -1910,9 +1910,11 @@ function _build_around(doc, text::AbstractString)
         # An empty slot takes the character as its content: a letter is a
         # variable, a digit a number.
         character = first(text)
-        isletter(character) && return make_replace_document_operation(EmptyReference(), MathVariable(text))
+        isletter(character) &&
+            return make_replace_document_operation(EmptyReference(), MathVariable(text))
         isdigit(character) &&
-            return make_replace_document_operation(EmptyReference(), PrimitiveNumber(parse(Int, text)))
+            return make_replace_document_operation(EmptyReference(),
+                                                    PrimitiveNumber(parse(Int, text)))
     end
     built = text == "/" ? _with_hole(MathFraction(doc, MathInsertion()), "denominator") :
             text == "^" ? _with_hole(MathScript(doc; superscript = MathInsertion()), "superscript") :
@@ -1921,8 +1923,8 @@ function _build_around(doc, text::AbstractString)
             nothing
     built === nothing && return nothing
     # The reader does not touch the document: the trailing selection write of
-    # `make_replace_document_operation` moves the selection into the new hole, and setting a
-    # selection clears every other one in the tree.
+    # `make_replace_document_operation` moves the selection into the new hole, and setting
+    # a selection clears every other one in the tree.
     make_replace_document_operation(EmptyReference(), built)
 end
 

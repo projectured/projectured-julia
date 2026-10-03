@@ -2552,7 +2552,8 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
     # WidgetDocument branch. It is offered no width, so what the item needs does
     # not depend on what the item is offered.
     child_iomap = reconcile_child_iomap(() -> w.action.label,
-                                        c -> print_child(recursion, c, with_free_axis(ctx, :x)))
+                                        c -> print_child(recursion, c,
+                                                         with_free_axis(ctx, :x)))
     # What the item draws and the extent it needs. It reads the item and never the
     # offer, because a dropdown reads the width each item needs to offer every item
     # the widest.
@@ -9055,7 +9056,9 @@ function _print_eager_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::
         pane = _make_part_pane(grid, Cell(@computation Point2D(Int((offset[]::Point2D).x[]), 0)),
                                Inset(bw + pad_y, pad_y, bw + pad_x, bw + pad_x))
         column_header_pane = print_child(recursion, pane,
-                                         with_free_axis(with_inner_size(ctx; width = header_width), :y))
+                                         with_free_axis(
+                                             with_inner_size(ctx; width = header_width),
+                                             :y))
     end
     # The header column: `Fixed` heights from the cells. A header is never
     # offered its height, so it is measured, to be a floor for its row.
@@ -9069,7 +9072,9 @@ function _print_eager_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::
         pane = _make_part_pane(grid, Cell(@computation Point2D(0, Int((offset[]::Point2D).y[]))),
                                Inset(bw + pad_y, bw + pad_y, bw + pad_x, pad_x))
         row_header_pane = print_child(recursion, pane,
-                                      with_free_axis(with_inner_size(ctx; height = header_height), :x))
+                                      with_free_axis(
+                                          with_inner_size(ctx; height = header_height),
+                                          :x))
     end
     # The cells, which decide the widths and the heights.
     get_column_header(c) = column_header_pane === nothing ? nothing :

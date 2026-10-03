@@ -63,14 +63,14 @@ end
 """
     insert_elements!(editor, collection, index, values) -> ReferencedDocument
 
-Insert `values` into the collection that `collection` names, so that the first of
-them is at `index`, and answer the collection as it is after the edit. `collection`
-is a `ReferencedDocument` or a `Reference`; `index` is 1-based, and
-`length(collection) + 1` appends. It is an edit of the editor, as
-`make_insert_elements_operation` makes it: Ctrl+Z undoes it, the history of the document that
-holds the collection records it, and the editor checks and logs it. It evaluates
-the edit at once and reads the IoMap that the frame prints, so it runs on the
-editor's task; another task calls it through `run_on_editor_task!`.
+Insert `values` into the collection that `collection` names, so that the first of them is
+at `index`, and answer the collection as it is after the edit. `collection` is a
+`ReferencedDocument` or a `Reference`; `index` is 1-based, and `length(collection) + 1`
+appends. It is an edit of the editor, as `make_insert_elements_operation` makes it: Ctrl+Z
+undoes it, the history of the document that holds the collection records it, and the
+editor checks and logs it. It evaluates the edit at once and reads the IoMap that the
+frame prints, so it runs on the editor's task; another task calls it through
+`run_on_editor_task!`.
 
 Use it to add an item to a list, a record to a table, or an element to any
 collection of a document that the editor shows.

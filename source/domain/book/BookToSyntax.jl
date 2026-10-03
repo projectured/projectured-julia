@@ -615,7 +615,8 @@ end
 # (that position is simply not selectable), which keeps navigation bounded.
 # Everything else — the printer, both reference mappers, and the type-in reader —
 # comes from the template.
-function read_intent(p::BookPictureToSyntaxLeaf, iomap::TemplateIoMap, op::ReplacePathOperation)
+function read_intent(p::BookPictureToSyntaxLeaf, iomap::TemplateIoMap,
+                     op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing ? make_path_operation(op, result) : nothing
 end

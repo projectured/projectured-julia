@@ -171,4 +171,5 @@ describe_operation(operation::LoadAppearanceOperation) = "load the appearance"
 make_inverse_operation(document, ::Union{SaveAppearanceOperation, LoadAppearanceOperation}) =
     DoNothingOperation()
 
-is_self_contained_operation(::Union{SaveAppearanceOperation, LoadAppearanceOperation}) = true
+is_self_contained_operation(::Union{SaveAppearanceOperation,
+                                    LoadAppearanceOperation}) = true

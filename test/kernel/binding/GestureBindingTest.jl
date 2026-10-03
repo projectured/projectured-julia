@@ -179,9 +179,11 @@ function test_gesture_binding()
     @testset "applicable precondition gates firing (and greys help rows)" begin
         leaf = GestureProbeLeaf()           # selection === nothing → precondition false
         @test read_bound_gesture(leaf, KeyPress('n'; time = 0.0)) === nothing
-        @test isempty(compute_applicable_gesture_bindings(leaf, collect_document_gesture_bindings(GestureProbeLeaf)))
+        @test isempty(compute_applicable_gesture_bindings(leaf,
+                      collect_document_gesture_bindings(GestureProbeLeaf)))
         leaf.selection = EmptyReference()
-        @test length(compute_applicable_gesture_bindings(leaf, collect_document_gesture_bindings(GestureProbeLeaf))) == 4
+        @test length(compute_applicable_gesture_bindings(leaf,
+                      collect_document_gesture_bindings(GestureProbeLeaf))) == 4
     end
 
     @testset "read_gesture interpreter routes through the reified table" begin
@@ -308,7 +310,8 @@ function test_gesture_binding()
         probe.selection = EmptyReference()
         collected = read_bound_gesture(probe, CollectIntents())
         @test collected isa CollectedIntentsOperation
-        @test length(collected.intents) == length(collect_document_gesture_bindings(CommandProbe))
+        @test length(collected.intents) ==
+              length(collect_document_gesture_bindings(CommandProbe))
     end
 
     @testset "@gestures rejects a nameless or overriding `nothing` rule" begin
@@ -353,7 +356,8 @@ function test_gesture_binding()
     @testset "a table on a concrete document type fires" begin
         value = GestureProbeValue()
         @test read_gesture(value, KeyPress('v'; time = 0.0)) == MarkOperation(:value)
-        @test [b.description for b in collect_document_gesture_bindings(value)] == ["value"]
+        @test [b.description for b in collect_document_gesture_bindings(value)] ==
+              ["value"]
     end
 
     @testset "a table on a native document reads its selection" begin

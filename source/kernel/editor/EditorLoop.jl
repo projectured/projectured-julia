@@ -58,9 +58,9 @@ threw or at a dropped IoMap, sets `editor.wake_pending`. `run_editor!` then runs
 the next frame without a wait, so the input that is left does not wait for new
 input.
 
-The loop leaves the last applied operation in `editor.operation`. `read!` clears
-that field when the input runs out, and `_log_performance_counters!` reads it to tell a frame that did
-something from an idle one.
+The loop leaves the last applied operation in `editor.operation`. `read!` clears that
+field when the input runs out, and `_log_performance_counters!` reads it to tell a frame
+that did something from an idle one.
 """
 function run_frame!(editor::Editor)
     # Every fault the last frame collected, shown before this one reads
@@ -203,8 +203,9 @@ function run_editor!(editor::Editor; mcp::Union{Bool,NamedTuple}=false,
             # The frame takes ownership of every wake posted before it;
             # a wake that arrives from here on belongs to the next frame.
             Threads.atomic_xchg!(editor.wake_pending, false)
-            # A fresh per-frame counter store, bound for this frame's dynamic
-            # extent; the cell operations below count into it and `_log_performance_counters!` reads it.
+            # A fresh per-frame counter store, bound for this frame's dynamic extent; the
+            # cell operations below count into it and `_log_performance_counters!` reads
+            # it.
             frame_started = time_ns()
             with_performance_counters() do
                 wall_time = (frame_started - t_start) / 1e9

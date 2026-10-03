@@ -44,8 +44,8 @@ import ..SerializationModule: pred_arguments
 import ..StyleModule: get_theme_presets
 import ..GestureBindingModule: get_instance_gesture_bindings, get_document_gesture_bindings_own
 import ..GraphicsModule: map_operation_position
-import ..OperationModule: evaluate_operation, is_self_contained_operation, is_collecting_operation,
-                          join_collected_operations,
+import ..OperationModule: evaluate_operation, is_self_contained_operation,
+                          is_collecting_operation, join_collected_operations,
                           operation_reference, retarget_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SelectionModule: has_dormant_selection

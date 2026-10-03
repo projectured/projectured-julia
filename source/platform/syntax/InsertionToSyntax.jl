@@ -329,7 +329,8 @@ function _make_insertion_key_operation(p::InsertionToSyntaxLeaf, ins, operation)
     range === nothing && return operation
     text = splice_string(something(ins.value, ""), range.start, range.stop, operation.replacement)
     document = p.commit_at_key(ins, text, range.start + length(operation.replacement))
-    document === nothing ? operation : make_replace_document_operation(EmptyReference(), document)
+    document === nothing ? operation :
+        make_replace_document_operation(EmptyReference(), document)
 end
 
 # Append the completion policy's Tab extension at the end of the buffer, caret

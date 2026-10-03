@@ -2998,7 +2998,8 @@ is_self_contained_operation(::SetTableColumnWidthOperation) = true
 # The opening, the commit and the drop of a cell name their table, so they travel
 # up a chain as they are, and the owner that holds the cell open converts them;
 # one that reaches the root found no owner, and does nothing.
-is_self_contained_operation(::Union{EditTableCellOperation,CommitTableCellOperation,DropTableCellOperation}) = true
+is_self_contained_operation(::Union{EditTableCellOperation,CommitTableCellOperation,
+                                    DropTableCellOperation}) = true
 evaluate_operation(editor, ::Union{EditTableCellOperation,CommitTableCellOperation,DropTableCellOperation}) = nothing
 
 function evaluate_operation(editor, op::SetTableColumnWidthOperation)

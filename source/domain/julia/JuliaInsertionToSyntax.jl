@@ -200,7 +200,8 @@ function _julia_ins_tab(ins)
     isempty(strip(value)) &&
         return SelectNextInsertionOperation(_is_julia_hole, _JULIA_HOLE_CURSOR)
     scaffold = make_julia_scaffold(value)
-    scaffold === nothing || return make_replace_document_operation(EmptyReference(), scaffold)
+    scaffold === nothing ||
+        return make_replace_document_operation(EmptyReference(), scaffold)
     parsed = try parse_julia(value) catch; nothing end
     parsed === nothing && return nothing
     commit = make_replace_document_operation(EmptyReference(), parsed)

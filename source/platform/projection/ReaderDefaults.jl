@@ -16,7 +16,8 @@
 # needs over it.
 import ProjecturedKernel.ProjectionModule: read_intent, map_reference_backward, Projection
 import ProjecturedKernel.IntentModule: Intent
-import ProjecturedKernel.ProjectionModule: TemplateIoMap, AtomicWiring, find_template_value_retype
+import ProjecturedKernel.ProjectionModule: TemplateIoMap, AtomicWiring,
+                                           find_template_value_retype
 import ProjecturedKernel.OperationModule: ReplaceSelectionOperation
 import ProjecturedKernel.EventModule: KeyDown, KeyPress
 
@@ -60,12 +61,14 @@ end
 # wrapper, which threads the read into its child projection. These live here (not
 # in `kernel/projection/ProjectionTemplate.jl`) because they dispatch on
 # `RecursiveProjection`, a base projection the kernel cannot name.
-read_intent(rp::RecursiveProjection, iomap::TemplateIoMap, evt::Union{KeyPress, KeyDown}) =
+read_intent(rp::RecursiveProjection, iomap::TemplateIoMap,
+            evt::Union{KeyPress, KeyDown}) =
     read_intent(rp, nothing, Intent(evt), iomap).operation
 
 read_intent(rp::RecursiveProjection, iomap::TemplateIoMap, op::ReplacePathOperation) =
     read_intent(rp, nothing, Intent(op), iomap).operation
 
 # Disambiguation for RecursiveProjection over TemplateIoMap.
-read_intent(rp::RecursiveProjection, iomap::TemplateIoMap, op::ReplaceStringRangeOperation) =
+read_intent(rp::RecursiveProjection, iomap::TemplateIoMap,
+            op::ReplaceStringRangeOperation) =
     read_intent(rp, nothing, Intent(op), iomap).operation

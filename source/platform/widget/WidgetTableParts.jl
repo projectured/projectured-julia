@@ -207,8 +207,11 @@ _has_table_column_headers(w::WidgetTable) =
 _print_table_corner(recursion, w::WidgetTable, inner) =
     w.corner === nothing ? nothing :
         print_child(recursion, w.corner,
-                    with_free_axis(with_free_axis(make_child_context(inner, FieldReferenceStep("corner")),
-                                                  :x), :y))
+                    with_free_axis(
+                        with_free_axis(
+                            make_child_context(inner, FieldReferenceStep("corner")),
+                            :x),
+                        :y))
 
 # The node of a list that mirrors the headers of `header_node` as rows of one
 # cell, the form of a row of a grid. A node is built when a walk first reaches
@@ -259,7 +262,8 @@ function _print_header_column(recursion, w::WidgetTable, inner, corner, height::
     offset = getfield(w, :scroll_position)
     pane = _make_part_pane(grid, Cell(@computation Point2D(0, Int((offset[]::Point2D).y[]))),
                            Inset(bw + pad_y, bw + pad_y, bw + pad_x, pad_x))
-    iomap = print_child(recursion, pane, with_exact_size(with_free_axis(inner, :x); height))
+    iomap = print_child(recursion, pane,
+                        with_exact_size(with_free_axis(inner, :x); height))
     grid_iomap[] = iomap.content_iomap
     iomap
 end

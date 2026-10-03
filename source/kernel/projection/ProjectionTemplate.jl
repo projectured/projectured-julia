@@ -1445,11 +1445,11 @@ end
 # `claimed !== nothing`), so this is inert for every ordinary gesture and the caller
 # goes on to translate the claimed operation.
 #
-# The descent is a private walk over `TemplateIoMap` children rather than the `read_intent`
-# recursion the unclaimed path uses, for two reasons. A hand-written reader takes an
-# *untyped* payload argument and would mistake a `ClaimedGesture` for an event; and the
-# claimed operation is expressed in the *enclosing* stage's output vocabulary, so a
-# child that translated it rather than declining would map a reference it does not own.
+# The descent is a private walk over `TemplateIoMap` children rather than the
+# `read_intent` recursion the unclaimed path uses, for two reasons. A hand-written reader
+# takes an *untyped* payload argument and would mistake a `ClaimedGesture` for an event;
+# and the claimed operation is expressed in the *enclosing* stage's output vocabulary, so
+# a child that translated it rather than declining would map a reference it does not own.
 # Nothing is lost: only a template node hosts gestures, and gestures are all this is
 # looking for.
 function read_intent(p::Projection, iomap::TemplateIoMap, c::ClaimedGesture)

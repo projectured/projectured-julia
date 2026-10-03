@@ -314,7 +314,8 @@ function _text_target_copy(p, input; cut::Bool = false)
     target = _find_text_target(input; writes = cut)
     (target === nothing || target.start == target.stop) && return nothing
     text = _get_text_target_text(target)
-    ops = Any[make_replace_document_operation(_field_path("slice"), PrimitiveString(text)),
+    ops = Any[make_replace_document_operation(_field_path("slice"),
+                                              PrimitiveString(text)),
               cut ? _make_text_target_edit(target, "") : ReplaceSelectionOperation(target.path),
               WriteOsClipboardOperation(text)]
     CompoundOperation(ops)
