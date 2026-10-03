@@ -57,8 +57,11 @@ end
 # The dialog of the values of `column` in `view`, and `take()`, which gives the
 # operation that "Apply" posts, or `nothing` when no value is ticked. A column
 # with more than `_VALUE_LIST_LIMIT` distinct values gives a dialog that says so,
-# and a `take` that gives `nothing`.
-function _make_value_list_dialog(view, column::String)
+# and a `take` that gives `nothing`. `widget` and `frame` are the scaled widget
+# and data frame themes of the editor that opens the dialog.
+function _make_value_list_dialog(view, column::String;
+                                 widget::ScaledWidgetTheme = make_scaled_theme(WidgetTheme()),
+                                 frame::ScaledDataFrameTheme = make_scaled_theme(DataFrameTheme()))
     counted = _count_column_values(view.frame[!, column])
     if counted === nothing
         text = "The column $(column) has more than $(_VALUE_LIST_LIMIT) distinct values. " *
@@ -67,11 +70,12 @@ function _make_value_list_dialog(view, column::String)
                              popup_id = :data_frame_values), () -> nothing)
     end
     values = Any[first(entry) for entry in counted]
-    boxes = WidgetCheckbox[WidgetCheckbox(_is_value_listed(view, column, value)) for value in values]
-    rows = Any[HorizontalLayout(Any[box, WidgetLabel(_get_filter_text(value) * "  (" * string(count) * ")")];
-                                gap = 8)
-               for (box, (value, count)) in zip(boxes, counted)]
-    list = WidgetScrollPane(VerticalLayout(rows; gap = 4); size = Point2D(320, 320))
+    boxes = WidgetCheckbox[WidgetCheckbox(_is_value_listed(view, column, value);
+                                          label = _get_filter_text(value) * "  (" * string(count) * ")")
+                           for (value, count) in counted]
+    size = frame.value_list_size
+    list = WidgetScrollPane(VerticalLayout(Any[boxes...]; gap = widget.item_gap);
+                            size = Point2D(Int(size.x[]), Int(size.y[])))
     function take()
         text = _make_value_list_text(values, Bool[box.content for box in boxes])
         text === nothing ? nothing : _make_filter_write_operation(view, column, text)
@@ -84,14 +88,19 @@ end
 # Open the dialog of the values of `column` in `view` in `editor`. "Apply" posts
 # the write of the filter.
 function _open_value_list!(editor, view, column::String)
-    dialog, take = _make_value_list_dialog(view, column)
+    appearance = something(find_editor_appearance(editor), Appearance())
+    frame = get_scaled_theme!(appearance, DataFrameTheme)
+    dialog, take = _make_value_list_dialog(view, column; frame,
+                                           widget = get_scaled_theme!(appearance, WidgetTheme))
+    window = frame.value_list_window_size
     apply = last(collect(dialog.buttons))
     apply.action = Action(apply.action.label;
                           callback = _ -> (operation = take();
                                            operation === nothing || post_operation!(editor, operation);
                                            nothing))
     evaluate_operation(editor, OpenWindowOperation(id = :data_frame_values, title = "Filter by values",
-                                                   x = -1, y = -1, width = 400, height = 460,
+                                                   x = -1, y = -1, width = Int(window.x[]),
+                                                   height = Int(window.y[]),
                                                    style = :floating, content = dialog))
     nothing
 end

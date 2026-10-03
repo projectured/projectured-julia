@@ -30,8 +30,7 @@ end
     theme::Any = nothing
     element_gap::Int = _get_conversation_style(theme, Int, :element_gap)
     row_gap::Int = _get_conversation_style(theme, Int, :row_gap)
-    prompt_gap::Int = _get_conversation_style(theme, Int, :prompt_gap)
-    prompt_text::StyleText = _get_conversation_style(theme, StyleText, :prompt_text)
+    option_gap::Int = _get_conversation_style(theme, Int, :option_gap)
 end
 
 # `("form", 1)` / `("result", 2)`: which row of a form each field prints as.
@@ -171,21 +170,19 @@ end
 # `ToggleEvaluatorOptionOperation`, which the per-instance bindings of the box
 # give ahead of its own toggle.
 function _make_option_row(projection, t::EvaluatorToplevel)
-    HorizontalLayout(Any[_make_option_checkbox(t, :parse_evaluated_forms),
-                         WidgetLabel("Parse evaluated forms"; text_style = projection.prompt_text),
-                         _make_option_checkbox(t, :type_structured_forms),
-                         WidgetLabel("Structured forms"; text_style = projection.prompt_text)];
-                     vertical_align = :center, gap = projection.prompt_gap)
+    HorizontalLayout(Any[_make_option_checkbox(t, :parse_evaluated_forms, "Parse evaluated forms"),
+                         _make_option_checkbox(t, :type_structured_forms, "Structured forms")];
+                     vertical_align = :center, gap = projection.option_gap)
 end
 
-function _make_option_checkbox(t::EvaluatorToplevel, option::Symbol)
+function _make_option_checkbox(t::EvaluatorToplevel, option::Symbol, label::AbstractString)
     toggle = (document, event) -> ToggleEvaluatorOptionOperation(t, option)
     bind(pattern) = GestureBinding(pattern, toggle; description = "Turn the option on or off",
                                    domain = "evaluator")
     gestures = GestureBinding[bind(MouseClickPattern(:left; modifiers = Symbol[])),
                               bind(KeyDownPattern(:space; modifiers = Symbol[])),
                               bind(KeyDownPattern(:return; modifiers = Symbol[]))]
-    box = WidgetCheckbox( getproperty(t, option) === true; gestures)
+    box = WidgetCheckbox(getproperty(t, option) === true; label, gestures)
     set_cell_computation!(box, () -> getproperty(t, option) === true)
 end
 

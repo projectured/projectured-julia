@@ -36,6 +36,10 @@ with this one.
     unsorted_glyph::StyleColor = color_gray159
     "The width of a column of the table when a wide frame draws its columns as a list."
     list_column_width::ControlSize = ControlSize(160)
+    "The width and the height of the list in the dialog of the values of a column."
+    value_list_size::ControlSize = ControlSize(Point2D(320, 320))
+    "The width and the height of the window of the dialog of the values of a column."
+    value_list_window_size::ControlSize = ControlSize(Point2D(400, 460))
 end
 
 # The style field `name` of `theme`, of the kind `T`: a `DataFrameTheme`, a scaled

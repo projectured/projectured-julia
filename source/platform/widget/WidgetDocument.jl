@@ -320,20 +320,19 @@ end
 # ── WidgetCheckbox ─────────────────────────────────────────────────────────
 
 """
-    WidgetCheckbox(content; position, <base kwargs>)
+    WidgetCheckbox(content; label, position, <base kwargs>)
 
 A box a person ticks on or off.
 
 Use it to let a person turn one option on or off: whether a plot shows a
 legend, whether a run keeps its vectors. `content` is `true` or `false`, and a
-click flips it. Put a `WidgetLabel` beside it in a `HorizontalLayout` to say
-what it means.
+click flips it. `label`, a string or `nothing`, says what it means: the box
+draws it after the mark, at the label gap of the theme, and a click on it flips
+the box too. A form that puts its labels in a column of their own gives none.
 
 # Example
 
-    open_pane!(editor, HorizontalLayout(Any[WidgetCheckbox(true),
-                                            WidgetLabel("Record vectors")]; gap = 8);
-               title = "Option")
+    open_pane!(editor, WidgetCheckbox(true; label = "Record vectors"); title = "Option")
 
 `enabled` (default `true`) is a shared interactivity flag alongside `visible`:
 when `false` the checkbox renders muted and its reader refuses to emit the toggle
@@ -345,6 +344,7 @@ See also `WidgetSwitch`, which is the same choice drawn as a slide, and
 @document struct WidgetCheckbox <: WidgetDocument
     position::Point2D
     content::Any
+    label::Any                  # what the box means, drawn after it, or nothing
     visible::Bool
     enabled::Bool
     margin::Inset
@@ -355,13 +355,13 @@ See also `WidgetSwitch`, which is the same choice drawn as a slide, and
     tooltip::Any
 end
 
-function WidgetCheckbox(content; position::Point2D=Point2D(0, 0),
+function WidgetCheckbox(content; label = nothing, position::Point2D=Point2D(0, 0),
                         gestures=GestureBinding[],
                         visible::Bool=true,
                         enabled::Bool=true,
                         margin=nothing, border=nothing, padding=nothing,
                         style=nothing, tooltip=nothing)
-    WidgetCheckbox(Cell(position), Cell(content),
+    WidgetCheckbox(Cell(position), Cell(content), Cell(label),
                    Cell(visible), Cell(enabled), Cell(margin), Cell(border), Cell(padding),
                    Cell(style), Cell(gestures), Cell(tooltip))
 end
@@ -601,28 +601,29 @@ set_cell_computation!(w::WidgetDialog, f::Function) = (set_cell_computation!(get
     WidgetMessageBox(title, message; buttons=["OK"], popup_id=:widget_dialog)
 
 A `WidgetDialog` whose content is a `WidgetLabel(message)` and whose buttons are
-plain closing `WidgetButton`s — the `QMessageBox` analogue.
+plain closing `WidgetButton`s — the `QMessageBox` analogue. Each button is as
+large as its label.
 """
 function WidgetMessageBox(title, message; buttons=["OK"], popup_id::Symbol=:widget_dialog)
-    btns = Any[WidgetButton(b; size = Point2D(72, 0)) for b in buttons]
+    btns = Any[WidgetButton(b) for b in buttons]
     WidgetDialog(title, WidgetLabel(message), btns; popup_id=popup_id)
 end
 
 """
-    WidgetInputDialog(title, prompt; value="", popup_id=:widget_dialog)
+    WidgetInputDialog(title, prompt; value="", popup_id=:widget_dialog, theme=nothing)
 
 A `WidgetDialog` whose content is a prompt label above a `WidgetText` field, with
 Cancel / OK buttons — the `QInputDialog` analogue. (Editing the field needs the
-text-widget projection, as for any `WidgetText`.)
+text-widget projection, as for any `WidgetText`.) `theme` is the scaled widget
+theme of the place that opens the dialog, or `nothing` for the default theme:
+the field stands `item_gap` below the prompt, and each button is as large as
+its label.
 """
-function WidgetInputDialog(title, prompt; value="", popup_id::Symbol=:widget_dialog)
-    content = WidgetComposite(Any[
-        WidgetLabel(prompt),
-        WidgetText(value; position = Point2D(0, 28)),
-    ])
-    WidgetDialog(title, content,
-                 Any[WidgetButton("Cancel"; size = Point2D(72, 0)),
-                     WidgetButton("OK"; size = Point2D(72, 0))];
+function WidgetInputDialog(title, prompt; value="", popup_id::Symbol=:widget_dialog,
+                           theme = nothing)
+    content = VerticalLayout(Any[WidgetLabel(prompt), WidgetText(value)];
+                             gap = _get_bar_item_gap(theme))
+    WidgetDialog(title, content, Any[WidgetButton("Cancel"), WidgetButton("OK")];
                  popup_id=popup_id)
 end
 
@@ -844,7 +845,7 @@ set_cell_computation!(w::WidgetToolbar, f::Function) =
     (set_cell_computation!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
 
 """
-    make_pager_widget(; from, total, page, move, button_size) -> WidgetToolbar
+    make_pager_widget(; from, total, page, move, theme = nothing) -> HorizontalLayout
 
 The strip that moves a WINDOW over a longer sequence: first, previous, next,
 last, and a line saying where the reader is.
@@ -873,9 +874,12 @@ knows how many rows it has and which it is showing, and this asks:
 
 Both `from` and `total` are read as functions rather than taken as numbers, so
 the label follows a sequence that grows while the reader watches it.
+
+`theme` is the scaled widget theme of the place that builds the strip, or
+`nothing` for the default theme: the items stand `item_gap` apart, and each
+button is as large as its label.
 """
-function make_pager_widget(; from, total, page::Integer, move,
-                        button_size::Point2D = Point2D(34, 24))
+function make_pager_widget(; from, total, page::Integer, move, theme = nothing)
     rows_a_page = max(1, Int(page))
     # The first row of the LAST window. A sequence shorter than one window has
     # exactly one, which starts at one.
@@ -888,8 +892,7 @@ function make_pager_widget(; from, total, page::Integer, move,
         landing == from() || move(landing)
         nothing
     end
-    button(label, where) =
-        WidgetButton(label; size = button_size, action = go(where))
+    button(label, where) = WidgetButton(label; action = go(where))
     where_label = WidgetLabel("")
     set_cell_computation!(getfield(where_label, :content), () -> begin
         count = total()
@@ -901,11 +904,12 @@ function make_pager_widget(; from, total, page::Integer, move,
             "rows $(first_row)–$(last_row) of $(count)"
     end)
     HorizontalLayout(Any[button("|<", :first), button("<", :previous),
-                         button(">", :next), button(">|", :last), where_label]; gap = 4)
+                         button(">", :next), button(">|", :last), where_label];
+                     gap = _get_bar_item_gap(theme))
 end
 
 """
-    make_filter_bar_widget(; text, place, regex, apply, width) -> WidgetToolbar
+    make_filter_bar_widget(; text, place, regex, apply, theme = nothing) -> HorizontalLayout
 
 The strip a reader types a filter into: a text box, a place box, and a switch
 that says whether the text is a regular expression.
@@ -926,9 +930,12 @@ this asks:
 What it does NOT do is decide what the terms mean. A place is a place to
 whatever holds the records, and a regular expression is compiled by the thing
 that runs it, once, rather than here per keystroke.
+
+`theme` is the scaled widget theme of the place that builds the strip, or
+`nothing` for the default theme: the items stand `item_gap` apart, and each
+button is as large as its label.
 """
-function make_filter_bar_widget(; text, place, regex, apply,
-                             button_size::Point2D = Point2D(60, 24))
+function make_filter_bar_widget(; text, place, regex, apply, theme = nothing)
     # The boxes own what is typed into them. They are NOT derived from the
     # filter: a cell with a function behind it recomputes, and a box that
     # recomputed would erase the reader mid-word. So the filter seeds them once
@@ -940,7 +947,7 @@ function make_filter_bar_widget(; text, place, regex, apply,
     # filter over the whole history for every letter of a word — the reader
     # would pay for `pack`, `packe` and `packet` to learn about `packet`.
     press = WidgetButton("find";
-                         size = button_size, action = () -> begin
+                         action = () -> begin
                              apply(; text = string(text_box.content),
                                      place = string(place_box.content),
                                      regex = regex_switch.pressed)
@@ -948,11 +955,11 @@ function make_filter_bar_widget(; text, place, regex, apply,
                          end)
     HorizontalLayout(Any[WidgetLabel("find"), text_box,
                          WidgetLabel("in"), place_box,
-                         regex_switch, press]; gap = 4)
+                         regex_switch, press]; gap = _get_bar_item_gap(theme))
 end
 
 """
-    make_column_chooser_widget(; columns, is_shown, choose) -> WidgetToolbar
+    make_column_chooser_widget(; columns, is_shown, choose, theme = nothing) -> HorizontalLayout
 
 Which columns a table shows: one switch per column, pressed when it is shown.
 
@@ -968,9 +975,12 @@ own, but *choosing* them is not.
 It does not decide what happens when every column is turned off. A table that
 should keep one is the table that should say so, because which one is not a
 question this can answer.
+
+`theme` is the scaled widget theme of the place that builds the strip, or
+`nothing` for the default theme: the items stand `item_gap` apart, and each
+button is as large as its label.
 """
-function make_column_chooser_widget(; columns, is_shown, choose,
-                                 button_size::Point2D = Point2D(92, 24))
+function make_column_chooser_widget(; columns, is_shown, choose, theme = nothing)
     # Buttons and not switches, and the reason is worth stating: a `WidgetToggle`
     # owns its `pressed`, so a chooser built from toggles would hold the truth
     # about which columns are shown — and then the table and the chooser would
@@ -982,12 +992,12 @@ function make_column_chooser_widget(; columns, is_shown, choose,
     # `[x]`/`[ ]` and not a tick glyph: the monospace faces this ships with
     # have no U+25CF, so a filled circle draws as a box in the one place the
     # reader is trying to read a state.
-    bar = HorizontalLayout(Any[]; gap = 4)
+    bar = HorizontalLayout(Any[]; gap = _get_bar_item_gap(theme))
     set_cell_computation!(getfield(bar, :children), () -> Any[
         WidgetLabel("columns");
         [WidgetButton(
                       (is_shown(name) ? "[x] " : "[ ] ") * label;
-                      size = button_size, action = () -> (choose(name, !is_shown(name)); nothing))
+                      action = () -> (choose(name, !is_shown(name)); nothing))
          for (name, label) in columns]])
     bar
 end
@@ -1614,19 +1624,19 @@ WidgetCard(; position::Point2D=Point2D(0, 0), title=nothing, description=nothing
 # ── WidgetSwitch ────────────────────────────────────────────────────────────
 
 """
-    WidgetSwitch(; position, checked=false, duration=0)
+    WidgetSwitch(; label, position, checked=false, duration=0)
 
 An on/off switch, drawn as a knob on a track.
 
 Use it to let a person turn a setting on or off where a checkbox would look
 small: a live update, a dark theme. `checked` is the state, and a click flips
-it.
+it. `label`, a string or `nothing`, says what it means: the switch draws it
+after the track, at the label gap of the theme, and a click on it flips the
+switch too. A form that puts its labels in a column of their own gives none.
 
 # Example
 
-    open_pane!(editor, HorizontalLayout(Any[WidgetLabel("Live update"),
-                                            WidgetSwitch(; checked = true)]; gap = 8);
-               title = "Setting")
+    open_pane!(editor, WidgetSwitch(; checked = true, label = "Live update"); title = "Setting")
 
 The knob snaps to its new position. `duration`, `anim_from` and `anim_t0` hold
 the state of a slide of the knob, but `WidgetSwitchToGraphicsCanvas` draws no
@@ -1638,6 +1648,7 @@ See also `WidgetCheckbox` and `WidgetToggleGroup`.
 @document struct WidgetSwitch <: WidgetDocument
     position::Point2D
     checked::Bool
+    label::Any           # what the switch means, drawn after it, or nothing
     visible::Bool
     enabled::Bool
     margin::Inset
@@ -1650,10 +1661,11 @@ See also `WidgetCheckbox` and `WidgetToggleGroup`.
     gestures::Any        # per-instance gesture bindings (see get_instance_gesture_bindings)
     tooltip::Any
 end
-WidgetSwitch(; position::Point2D=Point2D(0, 0), checked::Bool=false, visible::Bool=true, enabled::Bool=true,
+WidgetSwitch(; label = nothing, position::Point2D=Point2D(0, 0), checked::Bool=false,
+             visible::Bool=true, enabled::Bool=true,
              margin=nothing, border=nothing, padding=nothing, style=nothing,
              duration::Integer=0, gestures=GestureBinding[], tooltip=nothing) =
-    WidgetSwitch(Cell(position), Cell(checked), Cell(visible), Cell(enabled),
+    WidgetSwitch(Cell(position), Cell(checked), Cell(label), Cell(visible), Cell(enabled),
                  Cell(margin), Cell(border), Cell(padding), Cell(style),
                  Cell(Int(duration)), Cell(0.0), Cell(NaN), Cell(gestures), Cell(tooltip))
 get_instance_gesture_bindings(w::WidgetSwitch) = w.gestures

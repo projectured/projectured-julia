@@ -396,6 +396,7 @@ WidgetTextToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                                placeholder_text, focus_ring_stroke, graphics_style, corner_radius)
 
 @projection UntrackedCell struct WidgetCheckboxToGraphicsCanvas
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -413,9 +414,12 @@ WidgetTextToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
     focus_ring_stroke::StyleStroke
     indicator_size::Int
     corner_radius::Int
+    label_text::StyleText                    # the label after the box
+    label_disabled_text::StyleText
+    label_gap::Int                           # between the box and its label
 end
 
-WidgetCheckboxToGraphicsCanvas(theme::ScaledWidgetTheme;
+WidgetCheckboxToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                                margin = inset_default, border = inset_default, padding = inset_default,
                                margin_color = color_transparent, border_color = color_transparent,
                                padding_color = color_transparent, content_color = color_transparent,
@@ -431,12 +435,17 @@ WidgetCheckboxToGraphicsCanvas(theme::ScaledWidgetTheme;
                                focus_ring_stroke =
                                    _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width)),
                                indicator_size = _themed(Int, theme, t -> t.indicator_size),
-                               corner_radius = _themed(Int, theme, t -> t.radius_small)) =
-    WidgetCheckboxToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
-                                   content_color, indicator_color, indicator_checked_color,
-                                   indicator_disabled_color, indicator_stroke, indicator_disabled_stroke,
-                                   check_color, check_disabled_color, focus_ring_stroke,
-                                   indicator_size, corner_radius)
+                               corner_radius = _themed(Int, theme, t -> t.radius_small),
+                               label_text = _themed(StyleText, theme, _get_body_text),
+                               label_disabled_text =
+                                   _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
+                               label_gap = _themed(Int, theme, t -> t.label_gap)) =
+    WidgetCheckboxToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
+                                   padding_color, content_color, indicator_color,
+                                   indicator_checked_color, indicator_disabled_color, indicator_stroke,
+                                   indicator_disabled_stroke, check_color, check_disabled_color,
+                                   focus_ring_stroke, indicator_size, corner_radius, label_text,
+                                   label_disabled_text, label_gap)
 
 @projection UntrackedCell struct WidgetButtonToGraphicsCanvas
     measure::TextMeasure
@@ -1890,6 +1899,29 @@ end
 
 # ── WidgetCheckbox ──────────────────────────────────────────────────────────
 
+# The content of a control with a mark and a label after it, a checkbox or a
+# switch: its width and its height, the offset of the mark from the top, and the
+# label with its style and its place, or `nothing` when the control has none.
+# The mark and the label are each centred in the height of the larger.
+function _get_mark_label_layout(p, w, mark_width::Int, mark_height::Int, enabled::Bool)
+    label = w.label
+    label === nothing && return (width = mark_width, height = mark_height, mark_y = 0, label = nothing)
+    text = string(label)
+    style = _get_state_text(p, w, :label; state = enabled ? nothing : :disabled)
+    text_width, line = _text_size(p.measure, style.font, text)
+    height = max(mark_height, line)
+    (width = mark_width + p.label_gap + text_width, height, mark_y = (height - mark_height) ÷ 2,
+     label = (text = text, style = style, x = mark_width + p.label_gap, y = (height - line) ÷ 2))
+end
+
+# The label of `content` (`_get_mark_label_layout`), with the content at (x, y).
+function _push_mark_label!(elements::Vector, p, content, x::Int, y::Int)
+    label = content.label
+    label === nothing && return elements
+    _push_text!(elements, p.measure, label.style.font, label.text, x + label.x, y + label.y,
+                label.style.color)
+end
+
 function print_document(p::WidgetCheckboxToGraphicsCanvas, recursion, w::WidgetCheckbox, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
@@ -1899,9 +1931,12 @@ function print_document(p::WidgetCheckboxToGraphicsCanvas, recursion, w::WidgetC
         box_size = p.indicator_size
         corner_radius = p.corner_radius
         inset_width, inset_height = _inset_total(p, w)
-        x, y = _content_offset(p, w)
+        content_x, content_y = _content_offset(p, w)
+        content = _get_mark_label_layout(p, w, box_size, box_size, enabled)
+        x, y = content_x, content_y + content.mark_y
         elements = Any[]
-        _push_box_parts!(elements, _get_box_insets(p, w), _get_box_colors(p, w), box_size, box_size)
+        _push_box_parts!(elements, _get_box_insets(p, w), _get_box_colors(p, w), content.width, content.height)
+        _push_mark_label!(elements, p, content, content_x, content_y)
         # When disabled, the box uses the muted surface and the tick/outline render in
         # the muted foreground, keeping the checked/unchecked shape but signalling that
         # the control is inert (its reader also swallows clicks).
@@ -1915,7 +1950,7 @@ function print_document(p::WidgetCheckboxToGraphicsCanvas, recursion, w::WidgetC
             _push_panel!(elements, x, y, box_size, box_size; fill=indicator_color,
                          border=outline.color, border_w=max(1, Int(outline.width)), radius=corner_radius)
         end
-        outer_width, outer_height = box_size + inset_width, box_size + inset_height
+        outer_width, outer_height = content.width + inset_width, content.height + inset_height
         _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, corner_radius)
         (width=outer_width, height=outer_height, elements=elements)
     end))
@@ -6712,6 +6747,7 @@ map_reference_backward(::WidgetCardToGraphicsCanvas, iomap, reference) =
 # ── WidgetSwitch ────────────────────────────────────────────────────────────
 
 @projection UntrackedCell struct WidgetSwitchToGraphicsCanvas
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -6727,9 +6763,12 @@ map_reference_backward(::WidgetCardToGraphicsCanvas, iomap, reference) =
     knob_color::StyleColor     # knob fill
     knob_stroke::StyleStroke   # knob outline (color + width)
     focus_ring_stroke::StyleStroke
+    label_text::StyleText      # the label after the track
+    label_disabled_text::StyleText
+    label_gap::Int             # between the track and its label
 end
 
-WidgetSwitchToGraphicsCanvas(theme::ScaledWidgetTheme;
+WidgetSwitchToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                              margin = inset_default, border = inset_default, padding = inset_default,
                              margin_color = color_transparent, border_color = color_transparent,
                              padding_color = color_transparent, content_color = color_transparent,
@@ -6740,10 +6779,15 @@ WidgetSwitchToGraphicsCanvas(theme::ScaledWidgetTheme;
                              track_disabled_color = _themed(StyleColor, theme, t -> t.muted),
                              knob_color = _themed(StyleColor, theme, t -> t.knob),
                              knob_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.border, t.border_width)),
-                             focus_ring_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width))) =
-    WidgetSwitchToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
-                                 content_color, track_size, knob_padding, track_color, track_checked_color,
-                                 track_disabled_color, knob_color, knob_stroke, focus_ring_stroke)
+                             focus_ring_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width)),
+                             label_text = _themed(StyleText, theme, _get_body_text),
+                             label_disabled_text =
+                                 _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
+                             label_gap = _themed(Int, theme, t -> t.label_gap)) =
+    WidgetSwitchToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
+                                 padding_color, content_color, track_size, knob_padding, track_color,
+                                 track_checked_color, track_disabled_color, knob_color, knob_stroke,
+                                 focus_ring_stroke, label_text, label_disabled_text, label_gap)
 
 function print_document(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwitch, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
@@ -6757,9 +6801,12 @@ function print_document(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwi
         box = _get_box_insets(p, w)
         colors = _get_box_colors(p, w; state)
         inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        label_x, label_y = _content_offset(p, w)
+        content = _get_mark_label_layout(p, w, track_width, track_height, enabled)
+        content_x, content_y = label_x, label_y + content.mark_y
         elements = Any[]
-        _push_box_parts!(elements, box, colors, track_width, track_height)
+        _push_box_parts!(elements, box, colors, content.width, content.height)
+        _push_mark_label!(elements, p, content, label_x, label_y)
         track_color = _get_state_color(p, w, :track; state)
         push!(elements, GraphicsRect(content_x, content_y, track_width, track_height; color = track_color, radius = track_height ÷ 2))
         knob_padding = p.knob_padding
@@ -6773,7 +6820,7 @@ function print_document(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwi
         # The knob snaps to its new position. A slide needs a start time on the
         # editor's clock, and the reader of the switch has no context that reaches it.
         push!(elements, knob)
-        outer_width, outer_height = track_width + inset_width, track_height + inset_height
+        outer_width, outer_height = content.width + inset_width, content.height + inset_height
         _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, track_height ÷ 2)
         (width=outer_width, height=outer_height, elements=elements)
     end))
@@ -10429,7 +10476,7 @@ function WidgetToGraphics(; measure::TextMeasure,
         WidgetInsertion  => WidgetInsertionToGraphicsCanvas(theme; measure = measure),
         WidgetLabel      => WidgetLabelToGraphicsCanvas(theme; measure = measure),
         WidgetText       => WidgetTextToGraphicsCanvas(theme; measure = measure),
-        WidgetCheckbox   => WidgetCheckboxToGraphicsCanvas(theme),
+        WidgetCheckbox   => WidgetCheckboxToGraphicsCanvas(theme; measure = measure),
         WidgetButton     => WidgetButtonToGraphicsCanvas(theme; measure = measure),
         WidgetTooltip    => WidgetTooltipToGraphicsCanvas(theme; measure = measure),
         WidgetContextMenu => WidgetContextMenuToGraphicsCanvas(theme; measure = measure),
@@ -10450,7 +10497,7 @@ function WidgetToGraphics(; measure::TextMeasure,
         WidgetBadge      => WidgetBadgeToGraphicsCanvas(theme; measure = measure),
         WidgetSeparator  => WidgetSeparatorToGraphicsCanvas(theme),
         WidgetCard       => WidgetCardToGraphicsCanvas(theme; measure = measure),
-        WidgetSwitch     => WidgetSwitchToGraphicsCanvas(theme),
+        WidgetSwitch     => WidgetSwitchToGraphicsCanvas(theme; measure = measure),
         WidgetProgress   => WidgetProgressToGraphicsCanvas(theme),
         WidgetSlider     => WidgetSliderToGraphicsCanvas(theme),
         WidgetRadioGroup => WidgetRadioGroupToGraphicsCanvas(theme; measure = measure),

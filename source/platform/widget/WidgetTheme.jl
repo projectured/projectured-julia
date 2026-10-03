@@ -246,6 +246,11 @@ _make_graphics_style(theme::ScaledWidgetTheme) =
 _make_selected_row_color(theme::ScaledWidgetTheme) =
     make_theme_cell(StyleColor, _get_graphics_theme(theme), scaled -> _with_alpha(scaled.selection_ring, 0.25))
 
+# The gap between the items that a builder of widgets puts in a row or a column:
+# the `item_gap` of the scaled widget theme `theme`, or of the default theme for
+# `nothing`. A builder that runs outside a printer takes the theme of its caller.
+_get_bar_item_gap(theme) = theme === nothing ? get_theme_defaults(WidgetTheme).item_gap : theme.item_gap
+
 # The inset of `width` on every side, for a border.
 _make_uniform_inset(width::Integer) = Inset(width, width, width, width)
 

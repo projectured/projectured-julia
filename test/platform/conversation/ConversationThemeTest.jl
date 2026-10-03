@@ -64,7 +64,7 @@ end
     @test scaled.section_padding.top[] == 0
 end
 
-@testset "EvaluatorFormToVerticalLayout and EvaluatorToplevelToWidgetComposite read the prompts" begin
+@testset "EvaluatorFormToVerticalLayout reads the prompts, and EvaluatorToplevelToWidgetComposite its gaps" begin
     plain = EvaluatorFormToVerticalLayout()
     @test (plain.row_gap, plain.prompt_gap) == (4, 8)
     @test plain.prompt_text.font.size == 20 && plain.prompt_text.font.family == "Ubuntu Mono"
@@ -77,9 +77,10 @@ end
     @test scaled.row_gap == round(Int, 4 * 1.5)
 
     top_plain = EvaluatorToplevelToWidgetComposite()
-    @test (top_plain.element_gap, top_plain.row_gap, top_plain.prompt_gap) == (8, 4, 8)
+    @test (top_plain.element_gap, top_plain.row_gap, top_plain.option_gap) == (8, 4, 12)
     top_scaled = EvaluatorToplevelToWidgetComposite(; theme)
     @test top_scaled.element_gap == round(Int, 8 * 1.5)
+    @test top_scaled.option_gap == round(Int, 12 * 1.5)
 end
 
 @testset "ConversationComposerToWidget reads the composer's font, its gap and its colors" begin

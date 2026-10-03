@@ -164,9 +164,9 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
         writes[box] = write
         box
     end
-    # A checkbox of `value`; a click answers `write(!value)`.
-    function checkbox(value, write)
-        box = WidgetCheckbox(value)
+    # A checkbox of `value` that says `label`; a click answers `write(!value)`.
+    function checkbox(value, write; label = nothing)
+        box = WidgetCheckbox(value; label)
         writes[box] = write
         box
     end
@@ -363,8 +363,7 @@ function _make_role_control(controls, theme, read, write)
         controls.button("−", write(_with_font_role(role; weight = _step_font_weight(font, -1).weight))),
         WidgetLabel(_get_font_weight_name(font.weight)),
         controls.button("+", write(_with_font_role(role; weight = _step_font_weight(font, 1).weight))),
-        controls.checkbox(font.italic, v -> write(_with_font_role(read(); italic = v))),
-        WidgetLabel("italic"),
+        controls.checkbox(font.italic, v -> write(_with_font_role(read(); italic = v)); label = "italic"),
         controls.spin_box(round(Int, role.relative_size * 100),
                           v -> write(_with_font_role(read(); relative_size = v / 100)); min = 25, max = 400),
         WidgetLabel("% of " * replace(String(role.base), "_" => " ")),
@@ -389,8 +388,7 @@ function _make_font_control(controls, read, write)
             controls.button("−", write(_step_font_weight(font, -1))),
             WidgetLabel(_get_font_weight_name(font.weight)),
             controls.button("+", write(_step_font_weight(font, 1))),
-            controls.checkbox(font.italic, v -> write(_with_font_italic(read(), v))),
-            WidgetLabel("italic"),
+            controls.checkbox(font.italic, v -> write(_with_font_italic(read(), v)); label = "italic"),
             controls.spin_box(font.size, v -> write(with_font_size(read(), v)); min = 6, max = 96),
         ]; gap, vertical_align = :center),
     ]; gap)

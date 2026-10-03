@@ -55,6 +55,8 @@ A `WidgetSplitPane` makes its per-slot cells and child IO maps for the number of
 - ten sizes of the parts of controls: the indicator of a checkbox and a radio button and its dot, the track and the knob padding of a switch, the height, the track and the knob of a slider, the height of a progress bar, and the thickness and the minimum thumb of a scroll bar;
 - three icon sizes: `chevron`, and the chevron column and the icon column of a tree.
 
+A checkbox and a switch carry their own `label`, as in a desktop toolkit. They draw it after the mark, at the `label_gap` of the theme, so no builder puts a label beside them in a layout. A form that puts its labels in a column of their own gives them none.
+
 The text styles and the layers of a hovered and of a pressed widget are no fields: a widget derives them from the fonts and the palette, so they follow a change of either. Four presets exist: `make_light_theme` and `make_dark_theme` are neutral zinc, and `make_slate_light_theme` and `make_slate_dark_theme` are slate with an indigo accent. The default, `WidgetTheme()`, is the slate light preset.
 
 A projection draws with a `ScaledWidgetTheme`: each value of the theme times the scale of its kind in an `Appearance`. `WidgetToGraphics(font; measure, theme)` takes a theme or a scaled theme, and it scales a theme at the scales of a new `Appearance`, all 1.0. Each widget projection is `@projection UntrackedCell struct`. Its constructor fills each style field with an `UntrackedCell` that reads the scaled theme at each read (`_themed`), so a view holds no edge to the theme. An inset or a point that a field derives, such as the uniform inset of `border_width`, is made once for each state of the theme and kept in a computed cell, because a read of one of its sides records an edge. A view shows a change of the theme or of a scale when it prints again. A small offset that is no value of the theme, such as the shadow of a button, is a number times the spacing scale (`_scale_space`). The box of a named icon is the box that its widget gives, one line of the label, times the icon scale (`icon_scale`), and the row that holds the icon is as tall as the larger of the icon and the line.
@@ -132,7 +134,7 @@ Each control has a reader in `WidgetToGraphics.jl`. The keys in the table work w
 | Widget | A press | A key |
 | --- | --- | --- |
 | `WidgetButton` | a left press invokes its action, or opens its dialog | Return, Space |
-| `WidgetCheckbox`, `WidgetSwitch` | a left press flips the value | Return, Space |
+| `WidgetCheckbox`, `WidgetSwitch` | a left press on the mark or on its label flips the value | Return, Space |
 | `WidgetToggle` | a left press flips `pressed` | Return, Space |
 | `WidgetToggleGroup` | a left press on a segment selects it | none |
 | `WidgetRadioGroup` | a left press on the row of an option, on its circle or its label, selects it | Down and Right select the next option, Up and Left the previous one, around the ends. Return and Space select the first option when no option is on. |
