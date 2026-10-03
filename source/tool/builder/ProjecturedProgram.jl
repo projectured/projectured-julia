@@ -792,6 +792,11 @@ function _format_projectured_release_overview(context::BuildContext, names)
     """
 end
 
+# The name of the workflow of a package, which its badge shows as its label: the
+# slice, without the prefix, so the badge fits a column of a table; the umbrella
+# keeps its name.
+_get_workflow_name(name) = name == "Projectured" ? name : chopprefix(name, "Projectured")
+
 # The workflow of the release repository: one job for each package and Julia
 # version. A job develops the folders that the test of its package needs, runs
 # `Pkg.test` with coverage, and sends the coverage of the code of the package to
@@ -813,7 +818,7 @@ function _format_projectured_release_workflow(jobs)
     # A package reaches its siblings through a registry, which holds a version only
     # after its commit. So a job develops the folders of the packages that its test
     # needs, and tests this commit.
-    name: $(join([job.name for job in jobs], ", "))
+    name: $(join([_get_workflow_name(job.name) for job in jobs], ", "))
 
     on:
       push:

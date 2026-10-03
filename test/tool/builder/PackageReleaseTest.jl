@@ -514,7 +514,9 @@ function test_package_release()
         tested = filter(name -> isfile(joinpath(output, name, "test", "runtests.jl")), names)
         @test readdir(workflows) == sort(["$name.yml" for name in tested])
         workflow = read(joinpath(workflows, "ProjecturedJSON.yml"), String)
-        @test occursin("name: ProjecturedJSON\n", workflow)
+        # The badge shows the name of the workflow: the slice, and the umbrella's own.
+        @test occursin("name: JSON\n", workflow)
+        @test occursin("name: Projectured\n", read(joinpath(workflows, "Projectured.yml"), String))
         @test [m[1] for m in eachmatch(r"- \{package: (\w+),", workflow)] == ["ProjecturedJSON"]
         versions = match(r"julia: \[(.*)\]", workflow)[1]
         @test all(version -> occursin("'$version'", versions), PROJECTURED_CI_JULIA_VERSIONS)
