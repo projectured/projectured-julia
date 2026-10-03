@@ -65,7 +65,9 @@ on, and why a leaf matters.
 A package directory holds its `Project.toml` and `src/<PackageName>.jl`, and
 that root file holds the docstring, the imports, the module aliases and the
 ordered `include`s. The code it includes lives in `source/`, `test/` or
-`example/`. The rule and what it cost are in
+`example/`. A package directory can also hold `precompile/`, the recorded
+precompile statements of the package, because AutoPrecompile reads them in the
+folder of a loaded package and nowhere else. The rule and what it cost are in
 [plan/done/repository-tree.md](../../plan/done/repository-tree.md).
 
 ## A file is named for what it defines

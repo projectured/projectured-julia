@@ -146,13 +146,14 @@ function package_violations(root::AbstractString)
         isfile(joinpath(directory, "src", package * ".jl")) ||
             push!(out, "package/$name — has no src/$package.jl")
         for sub in _subdirs(directory)
-            # All three are Julia's choice, not this tree's: the loader finds a
-            # root at `src/<Name>.jl` and an extension at `ext/<Name>Ext.jl`,
-            # and `Pkg.build` runs `deps/build.jl` from the package directory
-            # and nowhere else.
-            (sub == "src" || sub == "ext" || sub == "deps") && continue
+            # Each one is another tool's choice, not this tree's: the loader
+            # finds a root at `src/<Name>.jl` and an extension at
+            # `ext/<Name>Ext.jl`, `Pkg.build` runs `deps/build.jl`, and
+            # AutoPrecompile reads the recorded statements in `precompile/`,
+            # each from the package directory and nowhere else.
+            sub in ("src", "ext", "deps", "precompile") && continue
             push!(out, "package/$name/$sub — a package directory holds no folders " *
-                       "but src/, ext/ and deps/")
+                       "but src/, ext/, deps/ and precompile/")
         end
     end
     out
