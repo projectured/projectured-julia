@@ -14,7 +14,6 @@ the same object to the projection that it makes when the caller names none. A
 start step copies the zoom of the appearance into the `Display` of the editor,
 so an editor starts at the zoom that its appearance holds.
 """
-# @positional: the arity of the wrapper seam of the kernel.
 function wrap_editor!(::Val{:appearance}, layer::Symbol, argument, parts::EditorParts)
     parts.document isa AppearanceDocument && return parts
     appearance = make_wrapper_argument(Val(:appearance), argument)::Appearance

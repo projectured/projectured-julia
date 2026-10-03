@@ -127,7 +127,6 @@ panel holds the last `lines` entries (8 by default) in a log of its own,
 `background` is its color, an opaque gray by default, so the text of the window
 under the panel does not show through its lines.
 """
-# @positional: the arity of the wrapper seam of the kernel.
 function wrap_editor!(::Val{:gesture_log}, layer::Symbol, argument, parts::EditorParts)
     options = argument === true ? (;) : argument
     inner = get(options, :overlay, false) === true ?

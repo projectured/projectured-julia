@@ -62,7 +62,6 @@ end
 
 MouseDown(button::Symbol, x::Int, y::Int; time::Real) =
     MouseDown(button, x, y, ModifierKeys(), Float64(time))
-# @positional: the four of a mouse event, in the order every backend sends them.
 MouseDown(button::Symbol, x::Int, y::Int, modifiers::ModifierKeys; time::Real) =
     MouseDown(button, x, y, modifiers, Float64(time))
 
@@ -82,7 +81,6 @@ end
 
 MouseUp(button::Symbol, x::Int, y::Int; time::Real) =
     MouseUp(button, x, y, ModifierKeys(), Float64(time))
-# @positional: the four of a mouse event, in the order every backend sends them.
 MouseUp(button::Symbol, x::Int, y::Int, modifiers::ModifierKeys; time::Real) =
     MouseUp(button, x, y, modifiers, Float64(time))
 
@@ -103,7 +101,6 @@ end
 
 MouseMove(x::Int, y::Int; time::Real) =
     MouseMove(x, y, MouseButtons(), ModifierKeys(), Float64(time))
-# @positional: the fields of a pointer event, in the order every backend sends them.
 MouseMove(x::Int, y::Int, buttons::MouseButtons, modifiers::ModifierKeys; time::Real) =
     MouseMove(x, y, buttons, modifiers, Float64(time))
 
@@ -134,10 +131,8 @@ struct MouseScroll <: Event
     time::Float64
 end
 
-# @positional: the four of a scroll event, in the order every backend sends them.
 MouseScroll(dx::Int, dy::Int, x::Int, y::Int; time::Real) =
     MouseScroll(dx, dy, x, y, ModifierKeys(), Float64(time))
-# @positional: the fields of a scroll event, in the order of the struct.
 MouseScroll(dx::Int, dy::Int, x::Int, y::Int, modifiers::ModifierKeys; time::Real) =
     MouseScroll(dx, dy, x, y, modifiers, Float64(time))
 

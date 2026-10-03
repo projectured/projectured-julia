@@ -220,7 +220,6 @@ A root that is a buffer already keeps it. The buffer holds the selection that th
 root holds, rooted at the buffer. It keeps as many steps as the `HistorySettings`
 of the `settings` wrapper of the same editor say, when that wrapper is on.
 """
-# @positional: the arity of the wrapper seam of the kernel.
 function wrap_editor!(::Val{:undo}, layer::Symbol, argument, parts::EditorParts)
     parts.document isa UndoBuffer && return parts
     content = parts.document

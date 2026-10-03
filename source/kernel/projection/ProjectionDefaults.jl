@@ -244,7 +244,6 @@ function read_intent(p::Projection, recursion, change::Intent, iomap)
     return Intent(change.gesture, op, change.description, change.domain)
 end
 
-# @positional: the arity of the reader of the projection protocol, which it calls.
 """
     read_routed_intent(projection, recursion, change, iomap) -> Intent
 

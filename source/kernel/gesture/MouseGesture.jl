@@ -27,10 +27,8 @@ end
 
 MouseClick(button::Symbol, x::Int, y::Int; time::Real) =
     MouseClick(button, x, y, 1, ModifierKeys(), Float64(time))
-# @positional: the four of a mouse event, in the order every backend sends them.
 MouseClick(button::Symbol, x::Int, y::Int, modifiers::ModifierKeys; time::Real) =
     MouseClick(button, x, y, 1, modifiers, Float64(time))
-# @positional: the fields of a click, in the order of the struct.
 MouseClick(button::Symbol, x::Int, y::Int, count::Int, modifiers::ModifierKeys;
            time::Real) =
     MouseClick(button, x, y, count, modifiers, Float64(time))
@@ -53,7 +51,6 @@ struct MouseDwell <: Gesture
 end
 
 MouseDwell(x::Int, y::Int; time::Real) = MouseDwell(x, y, ModifierKeys(), Float64(time))
-# @positional: the position and the keys of a pointer event.
 MouseDwell(x::Int, y::Int, modifiers::ModifierKeys; time::Real) =
     MouseDwell(x, y, modifiers, Float64(time))
 
@@ -77,7 +74,6 @@ struct DragMove <: Gesture
 end
 
 DragMove(x::Int, y::Int; time::Real) = DragMove(x, y, ModifierKeys(), Float64(time))
-# @positional: the position and the keys of a pointer event.
 DragMove(x::Int, y::Int, modifiers::ModifierKeys; time::Real) =
     DragMove(x, y, modifiers, Float64(time))
 
@@ -98,7 +94,6 @@ struct DragEnd <: Gesture
 end
 
 DragEnd(x::Int, y::Int; time::Real) = DragEnd(x, y, ModifierKeys(), Float64(time))
-# @positional: the position and the keys of a pointer event.
 DragEnd(x::Int, y::Int, modifiers::ModifierKeys; time::Real) =
     DragEnd(x, y, modifiers, Float64(time))
 

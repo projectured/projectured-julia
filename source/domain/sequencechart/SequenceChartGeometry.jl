@@ -10,7 +10,6 @@ struct FlowFrame
     h::Float64
 end
 
-# @positional: the frame of a flow: its side, then x, y, width and height.
 FlowFrame(orientation::Symbol, x::Real, y::Real, w::Real, h::Real) =
     FlowFrame(orientation, Float64(x), Float64(y), Float64(w), Float64(h))
 
@@ -40,7 +39,6 @@ flow_point(f::FlowFrame, flow::Real, cross::Real) =
     f.orientation === :vertical ? (Float64(cross), Float64(flow)) :
                                   (Float64(flow), Float64(cross))
 
-# @positional: a rectangle in a frame: x, y, width and height, in that order.
 """
     flow_rect(frame, flow, cross, flow_length, cross_length) -> (x, y, w, h)
 
@@ -360,7 +358,6 @@ function flow_ticks(times, coordinates; scale::AxisScale, mode::Symbol,
     out
 end
 
-# @positional: a span of the time axis: the chart, its coordinates, the low and the high end.
 """
     get_zero_time_spans(times, coordinates, lo, hi) -> Vector{(c0, c1)}
 
@@ -395,7 +392,6 @@ end
 
 # ── Lane placement ───────────────────────────────────────────────────────
 
-# @positional: a span of the time axis: the axis, its coordinates, the low and the high end.
 """
     get_axis_cross_positions(count, band_heights, cross_lo, cross_hi; spacing=nothing,
                          minimum_spacing=14.0, offset=20.0) -> Vector{Float64}
@@ -455,7 +451,6 @@ function get_arrow_route(route::Symbol, same_lane::Bool)
     same_lane ? :arc : :direct
 end
 
-# @positional: the two ends of an arc: x, y and x, y.
 """
     get_arc_geometry(flow0, flow1, cross, height) -> Vector{Tuple{Float64,Float64}}
 
@@ -488,7 +483,6 @@ function arc_height(row_delta::Integer, spacing::Real; minimum::Real=15.0, bucke
     Float64(minimum) + step * (mod(abs(Int(row_delta)), b))
 end
 
-# @positional: the two ends of an arrow: x, y and x, y.
 """
     split_arrow(flow0, flow1, horizon, stub) -> nothing | (near, far)
 

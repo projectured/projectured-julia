@@ -559,8 +559,6 @@ function read_intent(::LayoutConstraintToGraphicsCanvas, iomap::ContentIoMap, ev
     _annotate_operation(iomap.input, reroot_operation(answer, (FieldReferenceStep("child"),)))
 end
 
-# @positional: the container, its children, the child, and the path in the child, in
-# the order of the path that it makes.
 """
     make_slot_reference(canvas, entries, index, inner; drawn) -> Reference | Nothing
 
@@ -594,8 +592,6 @@ function make_slot_reference(canvas, entries::Vector, index::Int, inner::Referen
                       ConcreteReference(RangeReferenceStep(slot - 1, slot), below))
 end
 
-# @positional: the container, its children, their field, and the path, in the order
-# of the path that it reads.
 """
     descend_reference_forward(canvas, entries, field, reference; drawn) -> Reference | Nothing
 
@@ -1002,7 +998,6 @@ function _main_context(cctx, i::Int, children, child_iomaps, slotted::Vector{Boo
     with_size_range(cctx; on_axis((minimum > 0 ? Cell(Int32(minimum)) : nothing, bound))...)
 end
 
-# @positional: the context and the child, then the axis and the policy of that axis.
 """
     make_cross_axis_context(cctx, child, axis, default) -> PrinterContext
 

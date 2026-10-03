@@ -997,7 +997,6 @@ end
 
 _in_body(g, x::Real, y::Real) = _in_rect(x, y, g.body_x, g.body_y, g.body_w, g.body_h)
 
-# @positional: a point of the chart: the chart, its coordinates, x and y.
 """
     find_event_hit(geometry, plot, x, y) -> row | nothing
 
@@ -1023,7 +1022,6 @@ function find_event_hit(g, plot, x::Real, y::Real)
     best
 end
 
-# @positional: a point of the chart: the chart, its coordinates, x and y.
 """
     find_arrow_hit(geometry, plot, x, y) -> row | nothing
 
@@ -1059,7 +1057,6 @@ function _segment_distance(px, py, x0, y0, x1, y1)
     hypot(px - (x0 + t * dx), py - (y0 + t * dy))
 end
 
-# @positional: a point of the chart: the chart, its coordinates, x and y.
 """
     find_band_hit(geometry, plot, x, y) -> (axis = …, band = …, row = …) | nothing
 
@@ -1079,7 +1076,6 @@ function find_band_hit(g, plot, x::Real, y::Real)
     nothing
 end
 
-# @positional: a point of the chart: the chart, its coordinates, x and y.
 """
     find_lane_hit(geometry, plot, x, y) -> identity | nothing
 

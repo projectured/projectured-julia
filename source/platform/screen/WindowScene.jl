@@ -168,7 +168,6 @@ The gesture tracker reads the limits of its recognitions from the
 `PointerSettings` of the `settings` wrapper of the same editor, when that wrapper
 is on.
 """
-# @positional: the arity of the wrapper seam of the kernel.
 function wrap_editor!(::Val{:window}, layer::Symbol, argument, parts::EditorParts)
     _is_window_backend(parts.backend) || return parts
     get_wrapped_document(parts.document) isa ScreenDocument && return parts

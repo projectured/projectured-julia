@@ -160,7 +160,6 @@ The wrapper of `build_editor` that attaches the fault log of the session
 ([`get_session_fault_log`](@ref)) to the fault store of the editor in a start
 step, so the log holds every fault that the editor catches. It is off by default.
 """
-# @positional: the arity of the wrapper seam of the kernel.
 function wrap_editor!(::Val{:fault_log}, layer::Symbol, argument, parts::EditorParts)
     push!(parts.start_steps, editor -> (attach_fault_target!(editor.faults, get_session_fault_log());
                                         nothing))

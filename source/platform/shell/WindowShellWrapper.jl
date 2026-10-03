@@ -36,7 +36,6 @@ the host:
 
 A root that is a shell already keeps its bands.
 """
-# @positional: the arity of the wrapper seam of the kernel.
 function wrap_editor!(::Val{:shell}, layer::Symbol, argument, parts::EditorParts)
     parts.document isa WidgetShell && return parts
     options = argument === true ? (;) : argument

@@ -20,7 +20,6 @@ mutable struct Display <: Device
     height::Int
     density::Float64
     zoom::Float64
-    # @positional: the fields of a display, in the order of the struct.
     function Display(width, height, density, zoom)
         density > 0 ||
             throw(ArgumentError("the density of a display must be above 0, got $density"))

@@ -22,7 +22,6 @@ struct AxisScale
     log::Bool
 end
 
-# @positional: the four of an axis scale, in one order everywhere.
 AxisScale(lo::Real, hi::Real, p0::Real, p1::Real; log::Bool=false) =
     AxisScale(Float64(lo), Float64(hi), Float64(p0), Float64(p1), log)
 
@@ -642,7 +641,6 @@ function compute_legend_layout(sizes::AbstractVector; horizontal::Bool, area_w::
        shown, truncated)
 end
 
-# @positional: an anchor and the rectangle it sits on: x, y, width and height.
 """
     get_anchor_offset(anchor, outer_w, outer_h, box_w, box_h) -> (dx, dy)
 

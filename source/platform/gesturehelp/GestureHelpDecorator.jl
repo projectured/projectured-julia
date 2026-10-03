@@ -173,7 +173,6 @@ that draws that window to the windows that open later, measured with `measure`,
 `appearance` wrapper. It is off by default. It acts around the
 clipboard, so the list names the gestures of the walk and of the clipboard too.
 """
-# @positional: the arity of the wrapper seam of the kernel.
 function wrap_editor!(::Val{:gesture_help}, layer::Symbol, argument, parts::EditorParts)
     options = argument === true ? (;) : argument
     parts.projection = GestureHelpDecoratorProjection(inner = parts.projection, state = GestureHelpState())

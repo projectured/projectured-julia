@@ -17,7 +17,6 @@ values come from the editor when it starts. Another wrapper reads it from
 A start step brings the values to the places where they act, once the editor
 exists ([`start_settings!`](@ref)).
 """
-# @positional: the arity of the wrapper seam of the kernel.
 function wrap_editor!(::Val{:settings}, layer::Symbol, argument, parts::EditorParts)
     parts.document isa SettingsDocument && return parts
     settings = make_wrapper_argument(Val(:settings), argument)::Settings

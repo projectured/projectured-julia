@@ -215,7 +215,6 @@ end
 function _push_following_band!(elements::Vector, x_of, y_of, width_of, height_of, sides, color::StyleColor)
     is_color_transparent(color) && return
     left, top, right, bottom = sides
-    # @positional: a rectangle, as its origin and its size
     function push_rect!(x, y, width, height)
         push!(elements, GraphicsRect(Cell(@computation Int32(x())), Cell(@computation Int32(y())),
                                      Cell(@computation Int32(max(0, width()))),

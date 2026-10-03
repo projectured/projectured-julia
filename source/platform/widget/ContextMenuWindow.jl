@@ -138,7 +138,6 @@ read_intent(p::ContextMenuWindowProjection, iomap::ContextMenuWindowIoMap, paylo
 
 # A change with a route, such as a command that runs a binding on a part with no
 # pointer: a menu in the answer opens the window, as the answer to a click does.
-# @positional: the arity of the reader of the projection protocol, which it serves.
 function _read_routed_menu(p::ContextMenuWindowProjection, recursion, change::Intent,
                            iomap::ContextMenuWindowIoMap)
     answer = read_routed_child(recursion, change, iomap)
@@ -186,7 +185,6 @@ function _lift_menu_part_edit(p::ContextMenuWindowProjection, recursion, iomap::
 end
 
 # The answer of the content to `change`, as an operation from the state.
-# @positional: the arity of the reader of the projection protocol, which it calls.
 function _read_menu_content(p::ContextMenuWindowProjection, recursion, change::Intent,
                             iomap::ContextMenuWindowIoMap)
     answer = read_intent(p.inner, recursion, change, iomap.child_iomap)
@@ -339,7 +337,6 @@ puts it around the screen, inside the trackers and outside the tooltip window.
 It is on by default, and `context_menu = false` leaves an editor with no context
 menu window.
 """
-# @positional: the arity of the wrapper seam of the kernel.
 function wrap_editor!(::Val{:context_menu}, layer::Symbol, argument, parts::EditorParts)
     push!(parts.window_wrappers, wrap_context_menu_window)
     parts

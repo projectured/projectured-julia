@@ -4318,7 +4318,6 @@ end
 # How far a window that had to move stays from the pointer.
 const _POINTER_GAP = 8
 
-# @positional: the window's box, in the order every one writes it.
 """
     compute_window_place(x, y, width, height; area_width, area_height, pointer) -> (x, y)
 

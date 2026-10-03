@@ -143,7 +143,6 @@ end
 _norm_border(::Nothing) = color_transparent
 _norm_border(c::StyleColor) = c
 
-# @positional: the geometry of a rectangle, in one order everywhere: x, y, width and height.
 function GraphicsRect(x::_LiveNumber, y::_LiveNumber, w::_LiveNumber, h::_LiveNumber;
                       color::StyleColor=color_white, radius::Integer=0,
                       radius_tl::Integer=radius, radius_tr::Integer=radius,
@@ -188,7 +187,6 @@ _norm_dash(::Nothing) = nothing
 _norm_dash(n::Integer) = (Int(n), Int(n))
 _norm_dash(d) = (Int(d[1]), Int(d[2]))
 
-# @positional: the two ends of a line: x, y and x, y.
 function GraphicsLine(x1::_LiveNumber, y1::_LiveNumber, x2::_LiveNumber, y2::_LiveNumber;
                       color::StyleColor=color_black,
                       width::Integer=1, dash=nothing)
@@ -518,7 +516,6 @@ work.
     transform::AffineTransform
 end
 
-# @positional: the geometry of a viewport, in one order everywhere: x, y, width and height.
 function GraphicsViewport(x::_LiveNumber, y::_LiveNumber, w::_LiveNumber, h::_LiveNumber,
                           content::GraphicsCanvas; transform::AffineTransform=affine_identity)
     GraphicsViewport(_make_pixel_cell(x), _make_pixel_cell(y),
@@ -530,7 +527,6 @@ end
 
 # A viewport whose box is reactive and whose transform is the identity: what a
 # layout builds when it clips a child to a slot that moves with the layout.
-# @positional: the geometry of a viewport, in one order everywhere: x, y, width and height.
 function GraphicsViewport(x::Cell, y::Cell, w::Cell, h::Cell, content::Cell)
     GraphicsViewport(x, y, w, h, content, Cell(affine_identity), Cell(nothing))
 end
@@ -545,7 +541,6 @@ end
     data::Any
 end
 
-# @positional: the geometry of an image, in one order everywhere: x, y, width and height.
 function GraphicsImage(x::_LiveNumber, y::_LiveNumber, w::_LiveNumber, h::_LiveNumber, data)
     GraphicsImage(_make_pixel_cell(x), _make_pixel_cell(y),
                   _make_pixel_cell(w), _make_pixel_cell(h),
@@ -615,7 +610,6 @@ without a layout.
     shape::Symbol
 end
 
-# @positional: the geometry of a region, in one order everywhere: x, y, width and height, then the shape.
 function GraphicsPointerShape(x::_LiveNumber, y::_LiveNumber, w::_LiveNumber, h::_LiveNumber,
                               shape::Union{Symbol,Cell,Function})
     GraphicsPointerShape(_make_pixel_cell(x), _make_pixel_cell(y),
@@ -642,7 +636,6 @@ function _dist2_point_segment(px, py, ax, ay, bx, by)
     (px - qx)^2 + (py - qy)^2
 end
 
-# @positional: a point and a tolerance: the polyline, x, y and the distance.
 """
     is_point_near_polyline(points, x, y, tolerance) -> Bool
 

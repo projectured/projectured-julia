@@ -66,7 +66,6 @@ offers, all of them by default; a window whose documents must not be cut leaves
 It is off by default. It acts around the chrome of the `shell` wrapper and the
 cycle of the focus, so the walk and the clipboard reach into the bands too.
 """
-# @positional: the arity of the wrapper seam of the kernel.
 function wrap_editor!(::Val{:clipboard}, layer::Symbol, argument, parts::EditorParts)
     options = argument === true ? (;) : argument
     collection = get(options, :collection, false)

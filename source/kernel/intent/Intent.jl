@@ -54,8 +54,6 @@ end
 
 Intent(gesture) = Intent(gesture, nothing, "", "", nothing)
 Intent(gesture, operation) = Intent(gesture, operation, "", "", nothing)
-# @positional: the fields of the carrier in their order, as its own constructor
-# takes them, for a change that has no route.
 Intent(gesture, operation, description::AbstractString, domain::AbstractString) =
     Intent(gesture, operation, String(description), String(domain), nothing)
 

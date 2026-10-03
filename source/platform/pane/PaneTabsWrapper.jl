@@ -46,7 +46,6 @@ pane draw with the widget theme of `appearance`; the default is the `Appearance`
 of the `appearance` wrapper of the same editor, so the keys of the zoom and of the
 scales reach the tab strip too.
 """
-# @positional: the arity of the wrapper seam of the kernel.
 function wrap_editor!(::Val{:tabs}, layer::Symbol, argument, parts::EditorParts)
     (parts.document isa PaneTree || parts.document isa ScreenDocument) && return parts
     options = argument === true ? (;) : argument

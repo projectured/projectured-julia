@@ -251,8 +251,6 @@ _strip_checkpoints(x) = strip_reference_types(x)
 
 # ── The builder/walk printer ─────────────────────────────────────────────────
 
-# @positional: the arity of the printer of the projection protocol, with the
-# builder of the template beside it. The macro emits a method of that shape.
 """
     print_template_document(p, recursion, doc, ctx, builder)
 
@@ -1475,8 +1473,6 @@ function _read_override_gesture(iomap::TemplateIoMap, evt, claimed)
     return read_gesture(input, evt; claimed)
 end
 
-# @positional: the arity of the reader of the projection protocol. The macro
-# emits a method of that shape.
 """
     read_template_intent(p, recursion, change::Intent, iomap) -> Intent
 

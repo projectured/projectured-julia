@@ -327,7 +327,6 @@ default. The palette takes its theme and the syntax and the text themes from the
 `Appearance` of the `appearance` wrapper. It is off by default. It acts around the
 help of F1.
 """
-# @positional: the arity of the wrapper seam of the kernel.
 function wrap_editor!(::Val{:command_palette}, layer::Symbol, argument, parts::EditorParts)
     options = argument === true ? (;) : argument
     parts.projection = CommandPaletteDecoratorProjection(; inner = parts.projection,

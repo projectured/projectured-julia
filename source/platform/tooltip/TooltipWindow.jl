@@ -296,7 +296,6 @@ gives [`wrap_tooltip_window`](@ref) to the wrapper of the window, which puts it
 around the screen, inside the trackers. It is on by default, and
 `tooltip = false` leaves an editor with no tooltip window.
 """
-# @positional: the arity of the wrapper seam of the kernel.
 function wrap_editor!(::Val{:tooltip}, layer::Symbol, argument, parts::EditorParts)
     push!(parts.window_wrappers, wrap_tooltip_window)
     parts

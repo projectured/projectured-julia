@@ -84,7 +84,6 @@ The wrapper of `build_editor` that gives the editor a
 [`FrameStatisticsFeed`](@ref), so the statistics and the frame times of the
 session follow the frames of the window. It is off by default.
 """
-# @positional: the arity of the wrapper seam of the kernel.
 function wrap_editor!(::Val{:frame_statistics}, layer::Symbol, argument, parts::EditorParts)
     push!(parts.feeds, FrameStatisticsFeed())
     parts

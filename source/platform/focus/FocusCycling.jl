@@ -65,7 +65,6 @@ the window. It is on by default, in every window, and a caller turns it off with
 `focus_cycling = false`. It acts around the chrome of the `shell` wrapper, so the
 cycle goes through the bands and the panes.
 """
-# @positional: the arity of the wrapper seam of the kernel.
 function wrap_editor!(::Val{:focus_cycling}, layer::Symbol, argument, parts::EditorParts)
     parts.projection = FocusCyclingProjection(inner = parts.projection)
     parts

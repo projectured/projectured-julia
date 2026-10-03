@@ -208,7 +208,6 @@ function _stroke_rrect!(ctx, L, B, w, h, rtl, rtr, rbr, rbl, bw, r, g, b, a)
     print(ctx.buf, " S\n")
 end
 
-# @positional: one of the painters of the PDF backend: one family of one shape, called from one dispatch table.
 function paint_rect!(ctx, rect, ox, oy)
     x = ox + Int(rect.x); y = oy + Int(rect.y); w = Int(rect.w); h = Int(rect.h)
     (w <= 0 || h <= 0) && return
@@ -271,7 +270,6 @@ function _stroke_ring!(ctx, cx, cy, rad, bw, r, g, b, a)
     p(cx + k, cy - rm); p(cx + rm, cy - k); p(cx + rm, cy); print(ctx.buf, "c h S\n")
 end
 
-# @positional: one of the painters of the PDF backend: one family of one shape, called from one dispatch table.
 function paint_circle!(ctx, circ, ox, oy)
     cyG = oy + Int(circ.cy); rad = Int(circ.radius); bw = Int(circ.border_width)
     _on_page(ctx, cyG - rad - bw, cyG + rad + bw) || return
@@ -289,7 +287,6 @@ function paint_circle!(ctx, circ, ox, oy)
     end
 end
 
-# @positional: one of the painters of the PDF backend: one family of one shape, called from one dispatch table.
 function paint_line!(ctx, line, ox, oy)
     line.color.alpha == 0 && return
     lr, lg, lb, la = _rgba8(line.color)
@@ -346,7 +343,6 @@ function _paint_polyline_points!(ctx, gpts, wdt::Int, r, g, b, a,
     start_arrow && fill_tri(build_polyline_arrowhead(gpts, arrow_size; at_end=false))
 end
 
-# @positional: one of the painters of the PDF backend: one family of one shape, called from one dispatch table.
 function paint_polyline!(ctx, pl, ox, oy)
     gpts = [(ox + Int(p[1]), oy + Int(p[2])) for p in pl.points]
     _paint_polyline_points!(ctx, gpts, max(1, Int(pl.width)), _rgba8(pl.color)...,
@@ -356,7 +352,6 @@ end
 # Fill a closed polygon, then stroke its outline when a border is asked for.
 # The nonzero winding rule of the `f` operator fills a concave outline (a star
 # marker) directly, so no triangulation is needed in vector output.
-# @positional: one of the painters of the PDF backend: one family of one shape, called from one dispatch table.
 function paint_polygon!(ctx, pg, ox, oy)
     gpts = [(ox + Int(p[1]), oy + Int(p[2])) for p in pg.points]
     length(gpts) < 3 && return
@@ -391,7 +386,6 @@ function paint_polygon!(ctx, pg, ox, oy)
     end
 end
 
-# @positional: one of the painters of the PDF backend: one family of one shape, called from one dispatch table.
 function paint_spline!(ctx, sp, ox, oy)
     tess = tessellate_spline(sp.points, sp.kind, sp.segments)
     gpts = [(ox + p[1], oy + p[2]) for p in tess]
@@ -405,7 +399,6 @@ end
 # kerning between them, so a run starts where the run before it ends. Every run
 # sits on the baseline of the text, the ascent of its box (`compute_text_extent`)
 # below its `y`.
-# @positional: one of the painters of the PDF backend: one family of one shape, called from one dispatch table.
 function paint_text!(ctx, t, ox, oy)
     (isempty(t.text) || t.color.alpha == 0) && return
     tr, tg, tb, ta = _rgba8(t.color)
@@ -425,7 +418,6 @@ function paint_text!(ctx, t, ox, oy)
     print(ctx.buf, " ET\n")
 end
 
-# @positional: one of the painters of the PDF backend: one family of one shape, called from one dispatch table.
 function paint_image!(ctx, img, ox, oy)
     data = img.data
     data === nothing && return
@@ -452,7 +444,6 @@ function paint_image!(ctx, img, ox, oy)
     print(ctx.buf, "q ", n2(w), " 0 0 ", n2(h), " ", n2(x), " ", n2(yb), " cm /", resname, " Do Q\n")
 end
 
-# @positional: one of the painters of the PDF backend: one family of one shape, called from one dispatch table.
 function paint_viewport!(ctx, vp, ox, oy)
     vx = ox + Int(vp.x); vy = oy + Int(vp.y); vw = Int(vp.w); vh = Int(vp.h)
     _on_page(ctx, vy, vy + vh) || return
@@ -475,7 +466,6 @@ function paint_viewport!(ctx, vp, ox, oy)
     print(ctx.buf, "Q\n")
 end
 
-# @positional: one of the painters of the PDF backend: one family of one shape, called from one dispatch table.
 function paint_elem!(ctx, elem, ox, oy)
     if elem isa GraphicsText
         paint_text!(ctx, elem, ox, oy)
@@ -501,7 +491,6 @@ function paint_elem!(ctx, elem, ox, oy)
     # GraphicsFence and unknown types paint nothing.
 end
 
-# @positional: one of the painters of the PDF backend: one family of one shape, called from one dispatch table.
 function paint_canvas!(ctx, canvas::GraphicsCanvas, ox::Int, oy::Int)
     for elem in canvas.elements
         elem isa GraphicsFence && continue

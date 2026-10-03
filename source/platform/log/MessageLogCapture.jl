@@ -88,7 +88,6 @@ terminal still shows it; a [`MessageLogFeed`](@ref) moves the lines into the log
 and a stop step puts the logger that the capture replaced back when the loop of
 the editor ends. It is off by default.
 """
-# @positional: the arity of the wrapper seam of the kernel.
 function wrap_editor!(::Val{:message_log}, layer::Symbol, argument, parts::EditorParts)
     push!(parts.feeds, MessageLogFeed())
     replaced = Ref{Union{Nothing,Base.CoreLogging.AbstractLogger}}(nothing)

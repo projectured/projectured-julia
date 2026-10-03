@@ -61,7 +61,6 @@ struct GesturePattern{E<:Union{Event,Gesture}}
     modifiers::Union{Vector{Symbol},Nothing}
     guard::Union{Function,Nothing}
     label::Union{String,Nothing}
-    # @positional: the fields of a pattern, in the order of the struct.
     function GesturePattern{E}(fields, modifiers, guard,
                                label) where {E<:Union{Event,Gesture}}
         for flag in (modifiers === nothing ? () : modifiers)

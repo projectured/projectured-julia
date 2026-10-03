@@ -31,8 +31,6 @@ evaluate_operation(editor, ::InvalidateProjectionOperation) = invalidate_project
 
 # ── Text-splice helpers ─────────────────────────────────────────────────────
 
-# @positional: a range of a text, in the order a range is written: the text, the
-# start, the stop, the replacement.
 """
     splice_string(old, s, e, replacement) -> String
 
@@ -50,8 +48,6 @@ function splice_string(old::AbstractString, s::Int, e::Int,
     String(left) * replacement * String(right)
 end
 
-# @positional: a range of a text, in the order a range is written: the text, the
-# start, the stop, the replacement.
 """
     splice_number(old_str, s, e, replacement) -> Union{Int, Float64, Nothing}
 

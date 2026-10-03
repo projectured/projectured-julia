@@ -177,9 +177,8 @@ end
 # `reported` dedups by location identity — sibling scalars under one document share
 # the same enclosing location object, so that document is reported once, while
 # distinct locations are all kept.
-# @positional: a private recursion. All but `obj`, `location`, `enclosing`, `seen`
-# and `depth` pass through unchanged, and the compile count below is measured on
-# this form.
+# All but `obj`, `location`, `enclosing`, `seen` and `depth` pass through
+# unchanged, and the compile count below is measured on this form.
 function _walk_document!(walk, results, reported, obj, predicate, location, enclosing,
                          seen, include_selection, depth, raw, descend)
     # Nothing dispatches on `enclosing`: it is pushed into `results::Vector{Any}`,

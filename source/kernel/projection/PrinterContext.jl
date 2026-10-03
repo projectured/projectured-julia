@@ -57,12 +57,10 @@ struct PrinterContext
     clock::Clock
 end
 
-# @positional: the five of a root context: where it prints, the width and the height it is exactly, its properties and its clock.
 PrinterContext(reference::Reference, width::Union{Nothing, Cell}, height::Union{Nothing, Cell},
                properties::Dict{Symbol, Any}, clock::Clock) =
     PrinterContext(reference, width, width, height, height, properties, clock)
 
-# @positional: the four of a root context: where it prints, the width and the height it is exactly, and its properties.
 PrinterContext(reference::Reference, width::Union{Nothing, Cell}, height::Union{Nothing, Cell},
                properties::Dict{Symbol, Any}) =
     PrinterContext(reference, width, height, properties, Clock())
@@ -136,7 +134,6 @@ function make_child_context(ctx::PrinterContext, steps::ReferenceStep...)
                  reference = extend_reference(ctx.reference, steps...))
 end
 
-# @positional: a path, in the order it is walked: the context, the node, and the steps that lead to the child.
 """
     make_child_context(ctx, current_doc, steps...) -> PrinterContext
 
