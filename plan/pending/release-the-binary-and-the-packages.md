@@ -1402,6 +1402,9 @@ seals go beyond the kernel in time (only kernel files are sealed today).
       An overwrite on 2026-10-03 dropped AutoPrecompile, which another session
       had registered, because it kept only AutoIntegrations; the entry came back
       unchanged from the replaced registry commit.
+      After the force-push, each workflow of `Projectured.jl` starts by hand
+      (`gh workflow run <Package>.yml --ref main`): a fresh history is one root
+      commit, which starts no workflow that has a path filter.
 - [ ] Before the announcement, the full suites: each test package in its own
       environment, `test_integration()`, and each failure compared with `main`.
       The release CI covers each package but the umbrella. The umbrella fails
