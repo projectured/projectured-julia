@@ -45,7 +45,7 @@ The AI assistant runs inside the application, with a local model through Ollama 
 You need Julia 1.12 or later, and SDL2 with SDL_ttf for a native window. The packages are not in the General registry, so clone the repository, and AutoIntegrations beside it: the umbrella names that folder.
 
 ```sh
-git clone https://github.com/projectured/AutoIntegrations.jl
+git clone https://github.com/projectured/AutoIntegrations.jl auto-integrations
 git clone https://github.com/projectured/projectured-julia
 cd projectured-julia
 bin/projectured

@@ -13,13 +13,13 @@ What you need, how to start the application, and how to open the same views from
 ## Start the application
 
 ```sh
-git clone https://github.com/projectured/AutoIntegrations.jl
+git clone https://github.com/projectured/AutoIntegrations.jl auto-integrations
 git clone https://github.com/projectured/projectured-julia
 cd projectured-julia
 bin/projectured
 ```
 
-`AutoIntegrations.jl` goes beside `projectured-julia`, because the umbrella and `environment/all` name it by that folder.
+The folder `auto-integrations` goes beside `projectured-julia`, because the umbrella and `environment/all` name it by that folder.
 
 The window has the file navigator on the left, the open files in the middle, and the assistant on the right. A double click in the navigator opens a file. Files named on the command line open at once:
 

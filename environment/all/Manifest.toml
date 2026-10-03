@@ -21,7 +21,7 @@ version = "1.11.0"
 
 [[deps.AutoIntegrations]]
 deps = ["TOML"]
-path = "../../../AutoIntegrations.jl"
+path = "../../../auto-integrations"
 uuid = "40fd747d-4b08-4b8c-98c4-74a2b6295b1b"
 version = "0.1.0"
 

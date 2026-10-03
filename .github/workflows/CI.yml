@@ -99,10 +99,10 @@ jobs:
         if: matrix.project == 'environment/all'
         with:
           repository: projectured/AutoIntegrations.jl
-          path: AutoIntegrations.jl
+          path: auto-integrations
       - name: Place AutoIntegrations beside the repository
         if: matrix.project == 'environment/all'
-        run: mv AutoIntegrations.jl ../AutoIntegrations.jl
+        run: mv auto-integrations ../auto-integrations
       - uses: julia-actions/setup-julia@v3
         with:
           version: '1'

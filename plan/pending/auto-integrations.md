@@ -578,13 +578,14 @@ The README of each released package changes too
       of 156, and `ProjecturedJSON` loads from a generated release with the
       kernel and the platform of the same release.
 - [x] **Step 10d, AutoIntegrations in its own repository (the owner,
-      2026-10-03).** `~/workspace/AutoIntegrations.jl`, pushed as the private
+      2026-10-03).** `~/workspace/auto-integrations` (the owner renamed the
+      folder from `AutoIntegrations.jl`), pushed as the
       repository `projectured/AutoIntegrations.jl` (`eed3a80`): the source
       unchanged, `test/runtests.jl` from the scratch-package tests
       (`Pkg.test()` passes 22 of 22), a README with the mechanism and the
       reasons, the MIT licence, and a CI workflow. In this repository the
       package, its test package and `test/autointegrations/` went away; the
-      umbrella and `environment/all` name the sibling by `../../../AutoIntegrations.jl`
+      umbrella and `environment/all` name the sibling by `../../../auto-integrations`
       (section 9.7); the release does not copy it, and its front page links
       it. The graph (366), the loading tests (8, 3, 29) and the release test
       (62, 154) pass.
@@ -695,17 +696,22 @@ loading tests and `test_essential_names()` pass.
 ### 9.7 The sibling checkout of AutoIntegrations
 
 `package/Projectured/Project.toml` and `environment/all` name AutoIntegrations by
-`path = "../../../AutoIntegrations.jl"`, the folder beside the repository, as
-omnet-julia names projectured-julia. From a worktree in `.claude/worktrees/`
-the same path ends in `.claude/worktrees/AutoIntegrations.jl`, so a symlink
-there, which git ignores, points at the checkout. Pkg follows the symlink and
-writes the path from the real folder into the manifest, six levels up; the
-tracked manifest keeps `../../../AutoIntegrations.jl`, which works in the main
-checkout and, through the symlink, in a worktree. `_make_scratch_environment`
-of the loading tests makes each relative path of the manifest absolute.
+`path = "../../../auto-integrations"`, the folder beside the repository, as
+omnet-julia names projectured-julia. The repository on GitHub keeps the name
+`AutoIntegrations.jl`, so a clone names the folder:
+`git clone https://github.com/projectured/AutoIntegrations.jl auto-integrations`.
+
+From a worktree in `.claude/worktrees/` the same path ends in
+`.claude/worktrees/auto-integrations`, so a symlink there, which git ignores,
+points at the checkout. The worktree of this branch is therefore
+`.claude/worktrees/auto-integrations-branch`. Pkg follows the symlink and writes
+the path from the real folder, six levels up, into the manifest and into the
+`[sources]` of `environment/all`; the tracked files keep
+`../../../auto-integrations`, which works in the main checkout and, through the
+symlink, in a worktree. `_make_scratch_environment` of the loading tests makes
+each relative path of the manifest absolute.
 
 The dev CI checks out `projectured/AutoIntegrations.jl` and moves it beside the
-repository, in the two jobs that use `environment/all`. projectured-julia is
-public and AutoIntegrations.jl is private, so that checkout, a public clone of
-projectured-julia and its `environment/all` need AutoIntegrations.jl to be
-public, or a token. The owner decides this before the landing.
+repository, in the two jobs that use `environment/all`. The owner made the
+repository public, so the CI and a public clone of projectured-julia reach it
+with no token.

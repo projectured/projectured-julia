@@ -8,5 +8,5 @@ AutoIntegrations = "40fd747d-4b08-4b8c-98c4-74a2b6295b1b"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 
 [sources]
-AutoIntegrations = {path = "../../../AutoIntegrations.jl"}
+AutoIntegrations = {path = "../../../auto-integrations"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}

@@ -69,7 +69,7 @@ A package that AutoIntegrations loads binds no name in `Main`. To write `SdlBack
 
 `Projectured` depends on `AutoIntegrations` and `ProjecturedPlatform`, loads both, and re-exports the names of `ProjecturedPlatform.EssentialsModule` ([essentials.md](../platform/essentials/essentials.md)). The integrations do not depend on AutoIntegrations: `using ProjecturedSDL` alone never loads it.
 
-The repository of AutoIntegrations sits beside this one. `package/Projectured/Project.toml` and `environment/all` name it by the folder `../../../AutoIntegrations.jl`, as a sibling checkout. The release of ProjecturEd does not copy it: the registry holds it as a package of its own, and the released `Projectured` depends on it there.
+The repository of AutoIntegrations sits beside this one. `package/Projectured/Project.toml` and `environment/all` name it by the folder `../../../auto-integrations`, as a sibling checkout. The release of ProjecturEd does not copy it: the registry holds it as a package of its own, and the released `Projectured` depends on it there.
 
 `ProjecturedIntegrations` is the other way to load every integration. It depends on the six integrations and loads each one with an ordinary package extension when the package that it joins is loaded. It loads an integration that the user sets to `"manual"` too: it means "load all".
 
