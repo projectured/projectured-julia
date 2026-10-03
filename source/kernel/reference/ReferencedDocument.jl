@@ -17,11 +17,11 @@ the field or the index; a read that answers any other value — a string, a numb
 `Bool`, `nothing` — answers that value. So a chain of reads looks like code on the
 document itself, and every value in it but the last holds the reference to its place.
 
-A write through it is a direct write to the document. It works, but the editor does
-not handle it as an edit: it can not be undone, and the editor does not check or
-transform it as it does an operation. To change the editor's document, give the
-referenced document to a verb that makes an operation, or build one at
-`get_reference(x)`, such as a `ReplaceReferencedValueOperation`.
+A write through it is a direct write to the document. It works, but nothing
+records it as an edit: it can not be undone, and nothing checks or transforms
+it as it would an operation. To make a change that is recorded as an edit,
+give the referenced document to a verb that makes an operation, or build one
+at `get_reference(x)`, such as a `ReplaceReferencedValueOperation`.
 
 Read its two parts with [`get_document`](@ref) and [`get_reference`](@ref); every
 property name goes to the document. A referenced document is not an instance of the
@@ -237,17 +237,18 @@ is not resolved: [`find_referenced_document`](@ref) reads it when the document i
 needed, so it still finds the document after the tree around it changed, as long
 as the reference reaches a node.
 
-`start` is usually the editor, whose document is read when the locator is
-resolved, so the locator stays right when the editor's document is replaced. It
-can be any document a reference is read from, such as the root that an operation
-carries.
+`start` is read again every time the locator is resolved, not once when the
+locator is built, so a locator built before a change still finds the right
+node after it. It can be any object that a reference is read from: a document,
+such as a root that an operation carries, or an object that holds a document in
+a field, so the locator stays right when that field gets another document.
 
 Use it to keep where a document is, and to find the document there again later.
 
 # Example
 
-    locator = DocumentLocator(editor, get_reference(items_tab))
-    items_tab = find_referenced_document(locator)
+    locator = DocumentLocator(root, get_reference(x))
+    x = find_referenced_document(locator)
 """
 struct DocumentLocator{S}
     start::S
@@ -266,7 +267,7 @@ reference that reached it; `nothing` when the reference no longer reaches a node
 
 Use it to find a document again after the tree changed, or to bring a
 `ReferencedDocument`, which holds the document as it was, up to date:
-`find_referenced_document(DocumentLocator(editor.document, get_reference(x)))`.
+`find_referenced_document(DocumentLocator(root, get_reference(x)))`.
 """
 function find_referenced_document(locator::DocumentLocator)
     document = try_evaluate_reference(locator.start, locator.reference, _NotReached())
@@ -283,18 +284,27 @@ _is_collection(node) = is_element_collection(node) || node isa AbstractVector ||
     get_parent(root, x) -> ReferencedDocument or nothing
 
 The document that holds `x`, read from `root` now: one step up the reference of
-`x`, and past each collection on the way, so the parent of a tab is its group and
-not the vector of its tabs. `x` is a `ReferencedDocument` or a `Reference` from
-`root`. `root` is the document the reference starts at, or the editor, whose
-document is read at the call. `nothing` when `x` is the root, or when the reference
-no longer reaches a node.
+`x`, and past each collection on the way, so the parent of an element in a
+vector field is the document that has the field, not the vector. `x` is a
+`ReferencedDocument` or a `Reference` from `root`. `root` is the document the
+reference starts at. `nothing` when `x` is the root, or when the reference no
+longer reaches a node.
 
-Use it to reach the group that holds a tab, the object that holds a field, or the
-document around any part, for example to open a new tab in the group of a tab.
+Use it to reach the document that holds a field, an element, or any other
+part, read fresh at the call.
 
 # Example
 
-    items_group_1 = get_parent(editor, find_pane(editor, "items.json"))
+    @document struct Child
+        value::Int
+    end
+
+    @document struct Parent
+        child::Child
+    end
+
+    parent = Parent(Child(1))
+    get_parent(parent, @reference(parent, child))   # parent itself
 """
 function get_parent(root, x::Union{Reference, ReferencedDocument})
     steps = get_reference_steps(strip_reference_types(convert(Reference, x)))

@@ -110,7 +110,9 @@ See also `make_result_table`, which shows the same frame as rows.
   says: "draw", "over time", "compare". The meaning vector and the keyword
   prose score read it.
 - The **Example** is one call that runs in the window that declares the name;
-  a model copies a shape more than it reads a signature.
+  a model copies a shape more than it reads a signature. In a kernel file the
+  Example uses kernel names only, and the package that declares the name to a
+  window shows that call itself (`PAR-NO-CONSUMER-DOCS`).
 - **See also** names the neighbours a model confuses it with.
 
 A name the assistant can reach without its "Use it to" paragraph is found by:

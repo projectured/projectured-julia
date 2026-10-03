@@ -69,13 +69,15 @@ A new node in front of a path reuses its tail; `extend_reference`, which appends
 at the far end, builds a new node for each node of the base. A path node and a C
 step store their dynamic values (indices, positions, the head/tail links) in
 reactive `Cell`s, so callers can update those cells in place without rebuilding
-the chain — an index shifts in the UI and the change propagates.
+the chain — a caller shifts an index in place and the change propagates to
+every reader of it.
 
 The step types are `@document [C, M]` LAYOUT FAMILIES: the values of the
-kernel's run path hold no reactivity, and reactivity is for the UI. The bare
-name binds the C (reactive) layout, which the UI builds; the `M…` variants are
-the plain VALUES a simulator's hot path constructs, compares and hashes — a
-trimmed binary resolves those statically. The `A…` stems carry `show`/`==`/
+kernel's run path hold no reactivity, and reactivity is for a caller that must
+see a step update live. The bare name binds the C (reactive) layout, which
+such a caller builds; the `M…` variants are the plain VALUES a hot path
+constructs, compares and hashes — a trimmed binary resolves those statically.
+The `A…` stems carry `show`/`==`/
 `hash`/the seam methods, and the matchers, `fold_reference_types` and the
 selection walk test the `A…` stems, so a reactive step equals and matches a
 plain step holding the same values. Steps are still not addressable CONTENT —
@@ -98,7 +100,7 @@ export ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReference
        # a reference is a linked list, and these read its two ends
        get_reference_head, get_reference_tail,
        # the step layout families: the A… stems carry the shared methods, the
-       # M… variants are the plain values a simulator's hot path constructs
+       # M… variants are the plain values a hot path constructs
        ARangeReferenceStep, AFieldReferenceStep, ATypeReferenceStep,
        MRangeReferenceStep, MFieldReferenceStep, MTypeReferenceStep,
        MElementReferenceStep, MPositionReferenceStep,

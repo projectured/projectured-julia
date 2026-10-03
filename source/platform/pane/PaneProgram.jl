@@ -959,6 +959,7 @@ Use it to find a tab by its title: to read the data it shows with
 
     items_tab_1 = find_pane(editor, "items.json")
     items_1 = get_edited_document(items_tab_1)       # the data the tab shows
+    items_group_1 = get_parent(editor, items_tab_1)  # the group that holds the tab
 """
 function find_pane(editor, title::AbstractString)
     reference = find_pane_reference(editor, title)

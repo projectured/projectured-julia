@@ -158,17 +158,21 @@ end
 
 Build a `Reference` from the construction DSL.
 
-Use it to name a place in the window — a tab, what a pane holds, a split, the
-root — for `get_referenced_value`, `replace_referenced_value!` and
-`focus_pane!`. `show_layout` prints the path of every part as a tree of steps, so
-join the steps of a branch there: the first argument is the root, and the path
-starts after it.
+Use it to name a place in a document — a field, an element, a range, or a
+typed node — so a caller can read it, write it, or hold it for later. A
+caller that already holds a path to a container extends it with
+`concat_references` to reach a part further inside.
 
 # Example
 
-    show_layout(editor)
-    plot = get_referenced_value(editor, @reference(editor.document,
-        windows[1].content.content.content.content.root.elements[2].tabs[1].content))
+    @document struct Point
+        x::Int
+        y::Int
+    end
+
+    point = Point(1, 2)
+    path = @reference(point, x)
+    evaluate_reference(point, path)   # 1
 
 `@reference(path)` parses a rootless chain of steps, left = outermost:
 
@@ -201,7 +205,8 @@ correct by construction rather than by hand. Use this whenever the document is
 in scope. See `@reference_case` for the matching counterpart, which reads the
 same grammar.
 
-See also `show_layout`, `get_referenced_value`, `replace_referenced_value!`.
+See also [`@reference_step`](@ref), which builds a single step, and
+[`@reference_case`](@ref), which matches the same grammar.
 """
 macro reference()
     return _gen_build_path(ReferenceSyntaxStep[])

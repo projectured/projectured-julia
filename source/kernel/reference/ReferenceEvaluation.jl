@@ -129,8 +129,9 @@ kind-parameterized `@document` type (`JsonString{ImmutableCell{String},…}` →
 Recording the cell layout makes the token agnostic on both axes. A reference typed
 on a reactive node still `isa`-matches its immutable snapshot, which is the kind
 axis. A reference built on a native node records the same token as one built on
-the node's cell twin, which is the layout axis — so a path built while a simulator
-mutates its native tree is the path the editor navigates in the shadow. And the
+the node's cell twin, which is the layout axis — so a path built while a hot path
+mutates a native tree still names each node by the type that its cell-backed
+twin — the shadow — carries, and resolves unchanged against that twin. And the
 token stays the bare name the `@reference` macro emits, which the pattern matcher
 compares with `<:`.
 
@@ -139,8 +140,8 @@ the cell layout, so `AJsonString <: JsonString` is false and every `::T`
 pattern arm would stop matching.
 
 Validation is `document isa path.type`, so a **native** document does not validate
-against this token — it is not `isa` its cell layout. The editor validates against
-the shadow, which is a cell tree.
+against this token — it is not `isa` its cell layout. A caller validates against
+the shadow, the cell-backed twin, instead.
 
 Generic reference-mapping code that constructs a typed reference against a
 runtime document (rather than a statically named type) reads the type from
