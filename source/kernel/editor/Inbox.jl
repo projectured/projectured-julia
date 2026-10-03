@@ -63,7 +63,7 @@ same repairs: an operation that fails half way is taken back where it has a way
 back, the fault is recorded, and the next operation still applies. It is not
 `evaluate!` itself: posted operations do not become `editor.operation`, because
 that field means "what the reader made of this frame's input" and is what
-`perf!` uses to tell a frame in which the user did something from an idle one.
+`_log_performance_counters!` uses to tell a frame in which the user did something from an idle one.
 It also keeps a sync arriving ten times a second out of the operation log.
 """
 function drain_operations!(editor::Editor)

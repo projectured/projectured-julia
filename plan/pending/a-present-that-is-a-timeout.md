@@ -93,7 +93,7 @@ Three alternatives were considered and rejected:
 
 - [ ] **2. A frame-rate reading the editor can show.** Nothing in the editor
   counts its own frames, which is why this took a measurement campaign to find
-  rather than a glance. `perf!` exists and reports only when an operation was
+  rather than a glance. `_log_performance_counters!` exists and reports only when an operation was
   applied, so an idle editor at one frame a second reports nothing at all.
 
 ## What else the campaign found, and did not fix

@@ -1023,7 +1023,7 @@ events.
 **Profile edits with the per-frame performance counters.** Set
 `PROJECTURED_PERFORMANCE_COUNTERS=true` and recompile to compile the counters in.
 The read-eval-print loop then binds a fresh counter store for each frame, and
-`perf!` logs `reads / computes / invalidations / writes` for each frame that
+`_log_performance_counters!` logs `reads / computes / invalidations / writes` for each frame that
 applied an operation. Use them to find unintentional recomputation (a single
 keypress causing thousands of `computes` means something reads more cells than
 necessary).
@@ -1165,7 +1165,7 @@ half the boundary, though — `XxxModule._private` reaches a non-exported name
 just as far, and bypasses the export list entirely.
 `qualified_reference_errors` closes that half (PAR-QUALIFIED-EXTENSION), with no
 same-layer exemption. Known remaining instance: `PlaybackModule` reaches into
-`EditorModule`'s non-exported `read!`/`evaluate!`/`print!`/`perf!` — fix by
+`EditorModule`'s non-exported `read!`/`evaluate!`/`print!`/`_log_performance_counters!` — fix by
 making Playback a fragment of the editor module, or by exporting the loop
 steps.
 

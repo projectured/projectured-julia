@@ -98,7 +98,7 @@ while true
         set_clock_time!(editor.clock, get_frame_clock_time(editor.backend, wall_time))
         drain_feeds!(editor)         # the inbox first, then every registered feed
         run_frame!(editor)           # read!/evaluate! up to MAX_OPERATIONS_PER_FRAME, then print!
-        perf!(editor)                # log reactive counters
+        _log_performance_counters!(editor)                # log reactive counters
         record_frame_performance!(editor, …)  # record this frame in editor.frame_measurements
     end
 end
@@ -185,7 +185,7 @@ waits rather than queueing work that will be stale before it is applied.
 
 Posted operations go through `evaluate_operation` and not `evaluate!`, so they
 do not become `editor.operation` — that field means "what the reader made of
-this frame's input", which is what `perf!` uses to tell a frame the user acted
+this frame's input", which is what `_log_performance_counters!` uses to tell a frame the user acted
 in from an idle one, and what `evaluate!` writes to the operation log.
 
 A `QuitEditorException` thrown out of `evaluate_operation` exits the loop
@@ -621,7 +621,7 @@ The server is stopped in the `finally` block of `run_editor!`.
 ## Performance counters
 
 Each frame the editor binds a fresh counter store with `with_performance_counters()`
-and calls `perf!()` after rendering, which logs
+and calls `_log_performance_counters!()` after rendering, which logs
 
 ```
 [perf] computes=… invalidations=… reads=… writes=… evaluate_time=…ms print_time=…ms read_time=…ms
@@ -677,7 +677,7 @@ EditorModule.jl        (EditorModule) — the module: its docstring, imports, ex
     │                         projection that fails
     ├─ FaultBarriers.jl     — the barrier of each stage, the report of the faults of a
     │                         frame, the limits of the fault counts, and the repairs
-    └─ EditorLoop.jl        — perf!, run_frame!, get_frame_clock_time, run_editor! and
+    └─ EditorLoop.jl        — _log_performance_counters!, run_frame!, get_frame_clock_time, run_editor! and
                               make_editor
 ```
 

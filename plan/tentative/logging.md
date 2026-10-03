@@ -13,7 +13,7 @@
 
 ## Motivation
 
-Currently, diagnostics go to stdout (`println` in `evaluate!` and `perf!`).
+Currently, diagnostics go to stdout (`println` in `evaluate!` and `_log_performance_counters!`).
 This is invisible to the user inside the graphical editor and unavailable to
 projections. An in-document log allows:
 
@@ -166,7 +166,7 @@ context inline (truncated) or allow the user to select a log entry and
   context through the pipeline). Need to verify all projection call sites
   pass `recursion` correctly.
 - **Interaction with existing stdout logging** — the current `println` in
-  `evaluate!` and `perf!` should migrate to `log!` calls once the system is
+  `evaluate!` and `_log_performance_counters!` should migrate to `log!` calls once the system is
   in place, unifying all diagnostics into the in-document log.
 - **Log as first-class document** — since the log is a document, it can
   itself be edited (entries deleted, annotated). Is this useful or confusing?

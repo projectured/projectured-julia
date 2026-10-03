@@ -128,7 +128,7 @@ function test_editor_inbox()
 
     @testset "draining leaves `operation` alone" begin
         # `editor.operation` means "what the reader made of this frame's input";
-        # `perf!` uses it to tell a frame the user acted in from an idle one, and
+        # `_log_performance_counters!` uses it to tell a frame the user acted in from an idle one, and
         # `evaluate!` logs it. A sync arriving ten times a second is neither.
         editor = _inbox_editor()
         post_operation!(editor, ProbeInboxOperation(Any[], :quiet))

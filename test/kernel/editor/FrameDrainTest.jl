@@ -113,7 +113,7 @@ function test_editor_frame_drain()
     end
 
     @testset "the last applied operation stays in `operation`" begin
-        # `perf!` reads this field to tell a frame that did something from an
+        # `_log_performance_counters!` reads this field to tell a frame that did something from an
         # idle one, and `read!` clears it when the input runs out.
         log = Any[]
         editor, backend = _frame_editor(log)

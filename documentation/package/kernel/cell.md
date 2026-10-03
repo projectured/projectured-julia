@@ -341,7 +341,7 @@ Public surface:
 - `@count_performance key` adds one to the count `key` on the hot path.
 
 The read-eval-print loop of the editor binds a new store for each frame. With the
-counting compiled in, `perf!` logs the store of each frame that applied an
+counting compiled in, `_log_performance_counters!` logs the store of each frame that applied an
 operation; see [EditorModule.run_editor!](../../../source/kernel/editor/EditorLoop.jl).
 This is the easiest way to see what work one edit starts.
 

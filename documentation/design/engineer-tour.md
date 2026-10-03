@@ -54,7 +54,7 @@ The editor runs a read-evaluate-print loop. One frame does four steps.
 read!(editor)      # poll the devices, run the reader chain → an Operation
 evaluate!(editor)  # apply the Operation to the document
 print!(editor)     # run the printer chain → the output document, then render
-perf!(editor)      # report the reactive counters of this frame
+_log_performance_counters!(editor)      # report the reactive counters of this frame
 ```
 
 The loop lives in

@@ -3,13 +3,13 @@
 # ── Performance logging ───────────────────────────────────────────────
 
 """
-    perf!(editor::Editor)
+    _log_performance_counters!(editor::Editor)
 
 Log the performance counters of the current frame: every count, and every time
 in milliseconds, in name order. Logs only when the editor processed an
 operation.
 """
-function perf!(editor::Editor)
+function _log_performance_counters!(editor::Editor)
     PERFORMANCE_COUNTERS_ENABLED || return
     editor.operation === nothing && return
     counters = get_performance_counters()
@@ -59,7 +59,7 @@ the next frame without a wait, so the input that is left does not wait for new
 input.
 
 The loop leaves the last applied operation in `editor.operation`. `read!` clears
-that field when the input runs out, and `perf!` reads it to tell a frame that did
+that field when the input runs out, and `_log_performance_counters!` reads it to tell a frame that did
 something from an idle one.
 """
 function run_frame!(editor::Editor)
@@ -204,7 +204,7 @@ function run_editor!(editor::Editor; mcp::Union{Bool,NamedTuple}=false,
             # a wake that arrives from here on belongs to the next frame.
             Threads.atomic_xchg!(editor.wake_pending, false)
             # A fresh per-frame counter store, bound for this frame's dynamic
-            # extent; the cell operations below count into it and `perf!` reads it.
+            # extent; the cell operations below count into it and `_log_performance_counters!` reads it.
             frame_started = time_ns()
             with_performance_counters() do
                 wall_time = (frame_started - t_start) / 1e9
@@ -222,7 +222,7 @@ function run_editor!(editor::Editor; mcp::Union{Bool,NamedTuple}=false,
                 drain_feeds!(editor)
                 run_frame!(editor)
                 _run_barrier(editor, :report) do
-                    perf!(editor)
+                    _log_performance_counters!(editor)
                     record_frame_performance!(editor, (time_ns() - frame_started) / 1e9)
                 end
             end
