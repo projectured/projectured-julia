@@ -321,12 +321,14 @@ _is_fixed_children(x) = is_element_collection(x) && any(_carries_marker, x)
 # Does a blueprint child carry a marker? Not the same question as `_is_marker` or
 # `_is_marker_bearing_subnode`: the commonest fixed child is a `SyntaxLeaf(bound(:x))`,
 # which is neither — it is an ordinary document holding a marker in a *field*. Only ever
-# called on a builder's blueprint (never on a hand-written projection's output), so
-# forcing the cells it reads costs nothing at print time.
+# called on a builder's blueprint (never on a hand-written projection's output). A
+# blueprint is new in this run, and the walk writes its cells, so every read of a
+# blueprint cell here and in the helpers below is a `peek`: the computation that
+# prints the node must not depend on a cell that it then writes (PAR-NO-WRITE-IN-THUNK).
 _carries_marker(x) = _is_marker(x)
 function _carries_marker(x::Document)
     for fname in fieldnames(typeof(x))
-        v = getfield(x, fname)[]
+        v = peek(getfield(x, fname))
         _is_marker(v) && return true
         (v isa Vector || is_element_collection(v)) && any(_carries_marker, v) &&
             return true
@@ -335,7 +337,7 @@ function _carries_marker(x::Document)
 end
 
 _has_fixed_children(out) =
-    any(fname -> _is_fixed_children(getfield(out, fname)[]), fieldnames(typeof(out)))
+    any(fname -> _is_fixed_children(peek(getfield(out, fname))), fieldnames(typeof(out)))
 
 # Locate a reactive child list: a field whose cell computes a blueprint child
 # list. A builder writes it as a thunk, `SyntaxConcatenation(() -> [...])`, and the
@@ -377,7 +379,7 @@ end
 # Locate a `Tokens` marker among the built output's fields, if any.
 function _find_tokens(out)
     for fname in fieldnames(typeof(out))
-        val = getfield(out, fname)[]
+        val = peek(getfield(out, fname))
         val isa Tokens && return (fname, val)
     end
     (nothing, nothing)
@@ -386,7 +388,7 @@ end
 # Locate a `Sections` marker among the built output's fields, if any.
 function _find_sections(out)
     for fname in fieldnames(typeof(out))
-        val = getfield(out, fname)[]
+        val = peek(getfield(out, fname))
         val isa Sections && return (fname, val)
     end
     (nothing, nothing)
@@ -410,7 +412,7 @@ end
 # Locate a `Collection` marker among the built output's fields, if any.
 function _find_collection(out)
     for fname in fieldnames(typeof(out))
-        val = getfield(out, fname)[]
+        val = peek(getfield(out, fname))
         val isa Collection && return (fname, val)
     end
     (nothing, nothing)
@@ -540,7 +542,7 @@ function _scan_atomic!(p, doc, out)
     bound_field = nothing; bound_type = nothing
     value_field = nothing; value_checkpoint = nothing; retype = nothing
     for fname in fieldnames(outtype)
-        val = getfield(out, fname)[]
+        val = peek(getfield(out, fname))
         if val isa Bound
             bound_field = val.input; bound_type = val.type
             value_field = fname; value_checkpoint = typeof(val.render)
@@ -644,7 +646,7 @@ end
 
 function _find_fixed_children(out)
     for fname in fieldnames(typeof(out))
-        _is_fixed_children(getfield(out, fname)[]) && return fname
+        _is_fixed_children(peek(getfield(out, fname))) && return fname
     end
     error("ProjectionTemplate: fixed-children node has no children vector")
 end
@@ -714,7 +716,7 @@ function _inline_print(p, doc, out; children_field, thunk)
     bound_type = nothing; value_checkpoint = nothing
     for (i, leaf) in enumerate(sample)
         for fname in fieldnames(typeof(leaf))
-            v = getfield(leaf, fname)[]
+            v = peek(getfield(leaf, fname))
             if v isa Bound
                 bound_index = i; bound_field = v.input; value_field = fname
                 bound_type = v.type; value_checkpoint = typeof(v.render)
@@ -728,7 +730,7 @@ function _inline_print(p, doc, out; children_field, thunk)
         # leaf with its path cells here happens before anything references it.
         map(thunk()) do leaf
             for fname in fieldnames(typeof(leaf))
-                v = getfield(leaf, fname)[]
+                v = peek(getfield(leaf, fname))
                 if v isa Bound
                     setproperty!(leaf, fname, v.render)
                     paths = _key_leaf_path_cells(doc, v.input, fname)

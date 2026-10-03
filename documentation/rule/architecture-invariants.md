@@ -246,6 +246,14 @@ run on ordinary tasks, outside every computation, so this ban is not in play for
 them. Only a store a computation itself writes must have the two properties above,
 and the fault store is the one that does.
 
+**Accepted carve-out — a new cell that the same run made.** A computation can write
+a cell that it made in the same run, before it gives the cell out. Until then no
+cell depends on the new cell, so the write invalidates nothing. The computation
+reads such a cell only with `peek`, so that the cell gets no dependent before the
+write. The template walk of `@projection_template` does this: a nested template
+builds an output node inside the computation of its parent, reads the blueprint
+of that node with `peek`, and completes its cells.
+
 ### PAR-STORE-THEN-DRAIN
 
 **Data enters a running editor through a store and a drain, never through a
