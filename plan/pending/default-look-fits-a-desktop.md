@@ -392,6 +392,12 @@ recommendation: "agreed on all". Section 5 logs them as D8 to D12.
   the selection ring and the fault mark of the graphics and layout slices,
   which lie below every other theme; `WidgetTheme` reads the ring from it and
   has no copy of its own. The owner: "yes".
+- **D20** (2026-10-02, T2). In this plan, a value that the old look had is no
+  reason to keep it. The paddings that builders set go to the default of their
+  widget kind, also where that changes other widgets of the kind. The owner:
+  "Backward compatibility is not a goal, we should make it correct and
+  beautiful first". The image check still finds the changes, to show which ones
+  were not intended.
 - **D15** (2026-10-02, T1). The pointer ring and the fault band of the video
   backend, and the glyph cursor of the SDL backend, stay as they are: they mark
   a recording or the system cursor, not the look of the editor.
@@ -565,10 +571,18 @@ inet-julia uses, the same step changes them, so that they always load.
     Check: 4 examples change (`widget`, `widget_menu`, `widget_shell`,
     `widget_toolbar`), the other 101 are equal. Three tests pressed fixed
     points on menus with no padding; they now press the middle of each row.
-    Left for D18: the assistant (scroll panes with padding 5), the tab page of
-    a pane (border 8), the text boxes of two omnet forms (padding 2, 2, 5, 5).
-    Each kind default would change every widget of that kind, which the
-    owner's answer about the menus does not cover.
+  - The rest of D18, by D20: `WidgetTheme.tabbed_pane_padding` (8) is the
+    default space around the strip and the page of a tabbed pane; the pane
+    tree sets no border (the 8 was a `border` with no color). The assistant
+    and the appearance tab set no padding on their scroll panes, whose kind
+    has none, so in a pane they sit 8 from the edge as every tab does. The two
+    omnet forms set no border and no padding on their text boxes, which take
+    the look of every text box. Check: 6 examples change (the 4 above,
+    `assistant`, `widget_tabbed_pane`), the other 99 are equal; the window
+    with the pane tree draws as before. The platform suite and the omnet form
+    tests pass.
+  - Seen in the images, for step V2: the tab strip is a pill inside the band
+    of the pane, where a desktop tool puts the strip at the edge of the pane.
 - [ ] **T3.** omnet-julia: the themes of the NED, INI, test file, result and
   workbench views, and the values move into them. *In progress:* omnet-julia
   `7df48184` adds `NedTheme`, `IniTheme`, `TestFileTheme`, `ResultTheme` and
