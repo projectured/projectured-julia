@@ -4,9 +4,9 @@
 #
 # Screenplay S13: the look of every part is a value. Ctrl+, opens the Appearance
 # tab, and a drag puts it beside people.json. The Widget card opens, so its
-# presets show the size of a control. Then each scale in turn: clicks on its "+"
-# make the text, the icons, the spacing, the controls, the corners or the lines
-# of the whole window larger, and its "Reset" makes them as before. The Widget
+# presets show the size of a control. Then the zoom and each scale in turn:
+# clicks on its "+" make the whole window, or its text, icons, spacing, controls,
+# corners or lines larger, and its "Reset" makes them as before. The Widget
 # card closes, and the wheel goes down the cards, one for each theme, to the
 # Json card, which shows a row for
 # each style of JSON with its text; new digits in the colour of "key text" turn
@@ -16,9 +16,9 @@
 # gestures, at the bottom left, shows each step and what it did. The coordinates
 # are logical pixels of the 1280×720 window with the Files pane closed and no
 # status bar, read off the frames and the drawn texts of the rehearsals; a scale
-# moves the buttons below and beside it, so each click has its own place. Each
-# check prints the state that a step must leave. The Zoom row is not in the take:
-# the recorder draws at one density, so a zoom shows only in a window.
+# moves the buttons below and beside it, and the zoom moves every button of the
+# frame, so each click has its own place. Each check prints the state that a step
+# must leave.
 #
 # With `PROJECTURED_TAKE_FAST=1` the digits are typed fast, which is the
 # warm-up: run it once in the same process before the take, so that no step of
@@ -40,12 +40,14 @@ const SLATE_DARK = (765, 414)           # the preset, 4 steps down
 const REST = (1262, 90)                 # the right end of the tab strip
 const NEW_KEY_DIGITS = "dc322f"         # red, in place of the blue 268bd2
 
-# The clicks of each scale on its "+", and then on its "Reset": a step of a scale
-# moves the buttons of its own row, so each click has its own place. One step of
+# The clicks of the zoom and of each scale on its "+", and then on its "Reset": a
+# step of a scale moves the buttons of its own row, and a step of the zoom moves
+# every button by the zoom, so each click has its own place. One step of
 # the wheel before Controls shows the four presets of the Widget card, whose
 # buttons are controls, and moves the rows below it up by 69 pixels; one step
 # after Lines moves the tab back.
 const SCALE_CLICKS = (
+    (field = :zoom, wheel = 0, plus = [(872, 149), (895, 164), (930, 186)], reset = (1088, 224)),
     (field = :font_scale, wheel = 0, plus = [(872, 196), (886, 208), (908, 220)], reset = (1018, 246)),
     (field = :icon_scale, wheel = 0, plus = [(872, 243), (872, 247), (872, 255), (872, 265)], reset = (939, 277)),
     (field = :spacing_scale, wheel = 0, plus = [(872, 290), (880, 299), (894, 314)], reset = (994, 345)),
@@ -136,7 +138,8 @@ typed(text) = FAST ? make_typein_gestures(text; hold = 0.02, jitter = 0.0) :
 
 # ── The screenplay ──────────────────────────────────────────────────────────
 
-# Each scale in turn: its "+" clicks, a look at the window, and its "Reset".
+# The zoom and each scale in turn: its "+" clicks, a look at the window, and its
+# "Reset".
 function scale_steps()
     out = Any[]
     for row in SCALE_CLICKS
@@ -159,7 +162,7 @@ function make_timeline()
         glide(APPEARANCE_TAB)..., pause(0.3),
         drag(RIGHT_EDGE; hold = 1.5)...,                     #    beside the file
         click(WIDGET_CHEVRON; hold = 1.0)...,                #    presets, which are controls
-        scale_steps()...,                                    # 2. each scale, and its effect
+        scale_steps()...,                                    # 2. the zoom and each scale
         check("scales back"),
         click(WIDGET_CHEVRON; hold = 1.0)...,                #    the Widget card closes
         glide(PAGE)...,
