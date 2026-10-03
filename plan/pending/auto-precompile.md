@@ -294,8 +294,9 @@ Each step is a commit. Mark it here when it is done.
    sibling folder `auto-precompile`: `Project.toml`, `src`, `test`, `README.md`,
    the licence.
 
-   Done 2026-10-03, commit `688a8e2` on `main` of the new repository, not
-   pushed; the GitHub repository does not exist yet. The uuid is
+   Done 2026-10-03, commit `688a8e2` on `main` of the new repository. The owner
+   created `projectured/AutoPrecompile.jl` on GitHub, private, and pushed it the
+   same day; the first CI run passed. The uuid is
    `b272d1c7-21da-44b4-9d4d-f64941f33c6f`. As in `auto-integrations`: the MIT
    licence, the CI workflow on Julia 1.12 and the newest release, `julia = "1.12"`,
    and no manifest in Git. The package has no dependencies yet; each step adds
