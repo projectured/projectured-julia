@@ -508,10 +508,17 @@ Each step is a commit. Mark it here when it is done.
    2026-10-03 at the owner's word: commit `fcbf66b` in the clone
    `~/.julia/registries/ProjecturedRegistry`, made with LocalRegistry.jl from
    `@localregistry` as for AutoIntegrations, tree `4c5c951b…` of `688a8e2`. The
-   owner pushed it the same day. The registered 0.1.0 is still the version that
-   does nothing. By decision 21 the version stays 0.1.0 until the public
-   announcement, so this step waits for it; the registry then needs the tree of
-   the version that works.
+   owner pushed it the same day.
+
+   The fresh release of 2026-10-03 registered 0.1.0 again, with tree `2095cef`
+   of `ba2da6a`, the working code of step 6, and the overwrite after it kept that
+   entry. The README commit `6afd380`, with the times of step 8, is newer than
+   the registered tree. By decision 21 the version stays 0.1.0 until the public
+   announcement, so this step waits for it. At the announcement:
+   - register the tree of `main` of AutoPrecompile, so that the registry has the
+     README with the times;
+   - make `projectured/AutoPrecompile.jl` public, because Pkg installs from its
+     repository and it is private now.
 
 ## 6. Open questions
 
