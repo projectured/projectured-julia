@@ -39,7 +39,7 @@ mechanisms collapse the space:
    document is a tree of independent placeholders and editor operations are local — building
    sibling 1 cannot invalidate sibling 2, filling a child cannot break its parent.
 2. **Each local decision is decidable in one ply.** At a node, the applicable gestures are already
-   filtered to a small legal menu (`get_applicable_gesture_bindings`), and *what to type is always a
+   filtered to a small legal menu (`compute_applicable_gesture_bindings`), and *what to type is always a
    lookup keyed by the target* — a value leaf's keystrokes are its printed surface, a structural
    kind's commit-string comes from reflection. We pick the one legal recipe whose result type
    matches the target's type.
@@ -83,7 +83,7 @@ from the payload. This keeps probing side-effect-free and cheap.
 
 | Need | Status | Hook (with location) |
 |---|---|---|
-| Enumerate gestures at a state | ✅ exists | `collect_gesture_bindings(proj, recursion, iomap)` [`projection/GestureBindings.jl:54`], filter via `get_applicable_gesture_bindings(bindings, doc, sel)` [`binding/GestureBinding.jl:230`]; descriptor `GestureBinding{pattern, operation, applicable, description, domain}` [`binding/GestureBinding.jl:60`] |
+| Enumerate gestures at a state | ✅ exists | `collect_gesture_bindings(proj, recursion, iomap)` [`projection/GestureBindings.jl:54`], filter via `compute_applicable_gesture_bindings(bindings, doc, sel)` [`binding/GestureBinding.jl:230`]; descriptor `GestureBinding{pattern, operation, applicable, description, domain}` [`binding/GestureBinding.jl:60`] |
 | Empty seed | ✅ exists | `@domain` generates `XNothing`/`XInsertion` [`base/main/document/Domain.jl:488`]; e.g. `JuliaNothing()` [`domain/main/julia/Julia.jl:74`]; `insertion_candidates` / `make_insertion_document` / `resolve_insertion` [`Domain.jl:213,128,320`] |
 | Drive keystrokes headless | ✅ exists | `read_intent(proj, iomap, ev)` → `evaluate_operation((document=doc,), op)` → `print_document`; manual loop in [`documentation/debugging.md:87`]; events `KeyPress`/`KeyDown` [`event/KeyboardEvent.jl:24`], `Modifiers` [`event/Modifiers.jl:17`] |
 | Place selection by path | ✅ exists | `set_selection!(doc, @reference(doc, …))` [`selection/Selection.jl:75`, `reference/ReferenceBuilder.jl:174`]; enumerate sites `collect_tree_selections` / `collect_position_selections` [now `package/substrate/test/document/SelectionEnumeration.jl` — `package/base` no longer exists; a near-duplicate copy also lives at `package/projectured/test/document/SelectionEnumeration.jl`] |
@@ -130,7 +130,7 @@ construct(doc, proj, model, path, tgt):
         construct(doc, proj, model, path*[i], child)
 
 choose_recipe(model, ctx, goal):                    # cached by (ctx.kind, goal)
-    for b in get_applicable_gesture_bindings(collect_gesture_bindings(ctx.proj,nothing,ctx.iomap), ctx.doc, ctx.sel):
+    for b in compute_applicable_gesture_bindings(collect_gesture_bindings(ctx.proj,nothing,ctx.iomap), ctx.doc, ctx.sel):
         op = b.operation(ctx.doc, synth_event(b.pattern))    # builds, does not apply
         op !== nothing && classify(op) == goal && return [b]
     fail("no recipe for $goal at $(ctx.kind) — editor authoring gap")

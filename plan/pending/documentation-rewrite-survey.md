@@ -2223,7 +2223,7 @@ Julia API a library user calls directly.
 Defined via the `@gestures`/`@gesture_set` DSL (`source/kernel/binding/Gestures.jl`), which
 compiles a `get_document_gesture_bindings_own(::Type{T})` method per document type
 (`Gestures.jl:171-188`); bindings are inherited down a type's supertype chain and aggregated by
-`get_document_gesture_bindings`. 22 files use `@gestures` across the tree (json, xml, yaml, syntax,
+`collect_document_gesture_bindings`. 22 files use `@gestures` across the tree (json, xml, yaml, syntax,
 text, pane, fsm, chart, process, sequencechart, workbench, ...) — there is no single central
 binding table; each domain declares its own, and the **help window is the aggregator**, not a
 document.
