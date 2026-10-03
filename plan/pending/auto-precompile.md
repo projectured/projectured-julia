@@ -378,9 +378,8 @@ Each step is a commit. Mark it here when it is done.
      its build as it ends, and the build finishes after it.
 6. **Done — disk space**: the limit, the setting and the cleanup.
 
-   Done 2026-10-03, commit `ba2da6a` on the branch `disk` of `auto-precompile`
-   (worktree `auto-precompile-disk`), not on `main` yet. `Pkg.test()`: 83 of 83
-   pass. What was found and chosen:
+   Done 2026-10-03, commit `ba2da6a`, landed on `main` of `auto-precompile` and
+   pushed at the owner's word. `Pkg.test()`: 83 of 83 pass. What was found and chosen:
    - The setting is `disk_limit_mb`, a whole number of megabytes, in the table
      `[AutoPrecompile]` of `LocalPreferences.toml`. AutoPrecompile reads it with
      `Base.get_preferences`, which works because the user adds AutoPrecompile by
