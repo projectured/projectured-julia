@@ -705,6 +705,11 @@ function _format_projectured_release_overview(context::BuildContext, names)
     installs DataFrames. The session loads the packages that you name and the
     packages that they depend on. Nothing else loads.
 
+    > The first `display_in_editor` of a session can take a long time before the
+    > window opens. Julia compiles the code of the editor the first time that it
+    > runs. The next calls in the same session do not compile it again, so the
+    > window opens fast.
+
     ### Let `Projectured` load the integrations
 
     ```

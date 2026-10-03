@@ -538,6 +538,8 @@ function test_package_release()
         @test occursin("| `ProjecturedSDL` | SimpleDirectMediaLayer | Projectured and SimpleDirectMediaLayer |",
                        front)
         @test count("| `Projectured", split(front, "### Choose")[1]) == 6
+        # The front page says that the first window of a session compiles.
+        @test occursin("> The first `display_in_editor` of a session can take a long time", front)
         rm(dirname(output); recursive = true)
     end
 end
