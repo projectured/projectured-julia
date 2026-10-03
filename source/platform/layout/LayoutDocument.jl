@@ -27,7 +27,9 @@ Four policies say everything:
 
 A policy is a statement about a **relationship**, which is why it lives here and
 not on the widget: `Relative(1.0)` means nothing without a parent that divides,
-and `Fill` means nothing without a parent that offers. The same card fills the
+and `Fill` means nothing without a parent that offers. A parent that is offered
+no extent on an axis has nothing to divide there, so a weighted child, column or
+row takes the extent of its content on that axis. The same card fills the
 width in a conversation column and is content-wide in a toolbar, because the
 container it is placed in says so and the card is placed twice, unchanged.
 """

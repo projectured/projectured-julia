@@ -1287,6 +1287,14 @@ _col_align(v, col::Int, default::Symbol) =
 _gl_policy_at(v, i::Int, default) =
     (v isa AbstractVector && 1 <= i <= length(v) && v[i] isa SizePolicy) ? v[i] : default
 
+# The policy of a column or a row on an axis that the grid was `offered` an
+# extent on, or not. A weighted one with no offer has no share to take, so it
+# takes the extent of its cells, as a weighted child of a stack does: it acts as
+# `Content` and keeps its minimum and its maximum. So a `Fill` column fills a
+# pane, and keeps the width of its cells where nothing is offered.
+_gl_unoffered_policy(p::SizePolicy, offered::Bool) =
+    (offered || p.weight === nothing || p.weight <= 0) ? p : SizePolicy(p.min, nothing, p.max, 0.0)
+
 # The four allocator inputs of one column or one row.
 #
 # `content` is what its cells measured, and it is passed as `0` for an item that
@@ -1424,12 +1432,21 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     # grid. Its NUMBERS are read inside the extent cells, so a policy that is a
     # computed cell — a header row that takes the widths of the grid under it —
     # follows what it reads, and a new number does not print the grid again.
-    policy_of_column(k::Int) = _gl_policy_at(doc.column_policies, k, doc.column_policy)
-    policy_of_row(k::Int)    = _gl_policy_at(doc.row_policies, k, doc.row_policy)
-    peek_column_policy(k::Int) = _gl_policy_at(peek(getfield(doc, :column_policies)), k,
-                                               peek(getfield(doc, :column_policy)))
-    peek_row_policy(k::Int)    = _gl_policy_at(peek(getfield(doc, :row_policies)), k,
-                                               peek(getfield(doc, :row_policy)))
+    #
+    # A weighted column or row on an axis that the grid was offered no extent on
+    # has no share to take, so it takes the extent of its cells
+    # (`_gl_unoffered_policy`).
+    offered_w, offered_h = avail_w !== nothing, avail_h !== nothing
+    policy_of_column(k::Int) =
+        _gl_unoffered_policy(_gl_policy_at(doc.column_policies, k, doc.column_policy), offered_w)
+    policy_of_row(k::Int) =
+        _gl_unoffered_policy(_gl_policy_at(doc.row_policies, k, doc.row_policy), offered_h)
+    peek_column_policy(k::Int) =
+        _gl_unoffered_policy(_gl_policy_at(peek(getfield(doc, :column_policies)), k,
+                                           peek(getfield(doc, :column_policy))), offered_w)
+    peek_row_policy(k::Int) =
+        _gl_unoffered_policy(_gl_policy_at(peek(getfield(doc, :row_policies)), k,
+                                           peek(getfield(doc, :row_policy))), offered_h)
     # A column that was given an extent hands it to its cells unless the grid
     # was told not to for that column; a column that was not given one has
     # nothing to hand out either way.

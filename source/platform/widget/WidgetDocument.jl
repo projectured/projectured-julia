@@ -961,7 +961,8 @@ end
 """
     make_column_chooser_widget(; columns, is_shown, choose, theme = nothing) -> HorizontalLayout
 
-Which columns a table shows: one switch per column, pressed when it is shown.
+Which columns a table shows: one checkbox per column, with the label of the
+column, ticked when it is shown.
 
 The third of the strips a long table wants, beside `make_pager_widget` and
 `make_filter_bar_widget`, and here for the same reason — a table's columns are its
@@ -981,24 +982,25 @@ question this can answer.
 button is as large as its label.
 """
 function make_column_chooser_widget(; columns, is_shown, choose, theme = nothing)
-    # Buttons and not switches, and the reason is worth stating: a `WidgetToggle`
-    # owns its `pressed`, so a chooser built from toggles would hold the truth
-    # about which columns are shown — and then the table and the chooser would
-    # each have a copy. A button has an ACTION and no state, so the truth stays
-    # with whatever owns the columns and this only asks and reports.
-    #
-    # The whole strip is rebuilt when the answer changes, which is what makes a
-    # tick follow a press.
-    # `[x]`/`[ ]` and not a tick glyph: the monospace faces this ships with
-    # have no U+25CF, so a filled circle draws as a box in the one place the
-    # reader is trying to read a state.
+    # A checkbox for each column, with the label of the column. The truth about
+    # which columns are shown stays with whatever owns the columns: a box shows
+    # what `is_shown` answers, and a press does not flip the box but asks
+    # `choose`, through the gestures of the box. The whole strip is rebuilt when
+    # the answer changes, which is what makes a tick follow a press.
+    function make_box(name, label)
+        ask = (document, event) -> InvokeActionOperation(Action(label;
+            callback = () -> (choose(name, !is_shown(name)); nothing)))
+        bind(pattern) = GestureBinding(pattern, ask; description = "Show or hide the column",
+                                       domain = "widget")
+        WidgetCheckbox(is_shown(name); label,
+                       gestures = GestureBinding[bind(MouseClickPattern(:left; modifiers = Symbol[])),
+                                                 bind(KeyDownPattern(:space; modifiers = Symbol[])),
+                                                 bind(KeyDownPattern(:return; modifiers = Symbol[]))])
+    end
     bar = HorizontalLayout(Any[]; gap = _get_bar_item_gap(theme))
     set_cell_computation!(getfield(bar, :children), () -> Any[
         WidgetLabel("columns");
-        [WidgetButton(
-                      (is_shown(name) ? "[x] " : "[ ] ") * label;
-                      action = () -> (choose(name, !is_shown(name)); nothing))
-         for (name, label) in columns]])
+        [make_box(name, label) for (name, label) in columns]])
     bar
 end
 

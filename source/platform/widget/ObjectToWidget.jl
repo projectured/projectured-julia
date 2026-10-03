@@ -139,9 +139,11 @@ function _struct_grid(p::ObjectToWidget, obj, basepath::Reference, controls, dep
         push!(children, WidgetLabel(String(nm)))
         push!(children, _print_value(p, value, f isa Cell ? f : nothing, path, controls, depth))
     end
+    # The controls fill the width that the form is offered, so the cards of the
+    # nested values line up; with no width offered they keep their own.
     GridLayout(children, 2;
                horizontal_gap=p.column_gap, vertical_gap=p.row_gap,
-               vertical_align=:center)
+               vertical_align=:center, column_policies=Any[Content, Fill])
 end
 
 # Project one value into a widget. `cell` is the backing `Cell` (or `nothing` when
