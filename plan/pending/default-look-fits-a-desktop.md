@@ -726,7 +726,14 @@ inet-julia uses, the same step changes them, so that they always load.
 - [x] **T4.** inet-julia: the theme of the packet diagram. *Done:* inet-julia
   `887a204`: `PacketDiagramTheme` with the font and four colors;
   `GUTTER_WIDTH` counts characters and stays. The packet diagram tests pass.
-- [ ] **T5.** The guard of section 3.5 in each repository.
+- [x] **T5.** The guard of section 3.5 in each repository. *Done:*
+  projectured-julia `f10303c93` (`test/suite/style.jl`, `test_style()`),
+  omnet-julia `c33270de` (`test/style.jl`) and inet-julia `ee71036`
+  (`test/suite/style.jl`). Each guard passes, and each runs on its own with no
+  environment. The values that the guard found in omnet-julia now come from a
+  theme or carry a marker; section 10 lists them. The omnet build passes, and
+  the tests of the changed views pass, except two checks of
+  `test_result_chart` that fail the same way on the base of the branch.
 
 ### Part V: the new defaults
 
@@ -909,3 +916,30 @@ runs `Pkg.precompile` and the tests of each package that a step touches.
   24, where they were Ubuntu 18 and Ubuntu Bold 20. This is the role model of
   D8. It shows in the simulation cards of omnet-julia, whose fixture passes
   Ubuntu 24; the projectured-julia examples pass no such font.
+
+### Step T5
+
+- The guard reads the values inside a call, not the name of the call. A
+  `StyleColor(` with a number fails, and a `StyleColor(` of a variable is a
+  conversion and passes. A `StyleText(` fails only when a font description, a
+  number color or a palette color is in it, so the guard does not list
+  `StyleText(` by name, as section 3.5 did.
+- A marker on a line of its own covers the lines below it, up to the next
+  blank line. A table of colors that a document names, such as the colors that
+  a model of omnet-julia writes by name, needs one marker and not one for each
+  line.
+- omnet-julia and inet-julia have no palette file. Their guard reads the names
+  of the palette colors from the `import` and `using` statements of each file.
+- One file of projectured-julia is exempt by name:
+  `source/domain/julia/JuliaCodePieces.jl`, whose colors of the pieces of code
+  wait for a decision of the owner.
+- The guard found these values in omnet-julia, which now come from a theme:
+  - the colors of the states of a result set chart and of the vector plot take
+    the color cycle of the plot domain, `default_color_cycle()`;
+  - the vector plot takes the axis font and the title font of `ChartTheme`, so
+    it draws in Ubuntu and not in DejaVu Sans Mono;
+  - the held disk of the Hanoi example takes the `ring` color of the widget
+    theme;
+  - the icon of the status line takes the size of the text of the widget theme,
+    13 px, where it was 20 px. The theme has no size for an icon in a line of
+    text.
