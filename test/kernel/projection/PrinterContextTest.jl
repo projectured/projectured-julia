@@ -7,7 +7,7 @@ Confirms:
 - each helper changes only the axis it is given, and keeps the other;
 - `get_exact_width` / `get_exact_height` read the extent of an exact range and
   `nothing` otherwise;
-- `withhold_offer` takes the axis `:x` or `:y`, and throws for any other;
+- `with_free_axis` takes the axis `:x` or `:y`, and throws for any other;
 - a child context, a new clock and a new property keep the ranges;
 - `with_inner_size` keeps the state of each axis and reduces each extent, and
   `with_size_range` sets both ends of an axis;
@@ -17,7 +17,7 @@ Confirms:
 
 using Test
 using ProjecturedKernel.ProjectionModule: PrinterContext, make_child_context, with_exact_size,
-    with_bounded_size, get_exact_width, get_exact_height, withhold_offer, with_clock,
+    with_bounded_size, get_exact_width, get_exact_height, with_free_axis, with_clock,
     with_property, with_inner_size, with_size_range, get_property
 using ProjecturedKernel.CellModule: Cell
 using ProjecturedKernel.ClockModule: Clock
@@ -67,14 +67,14 @@ function test_printer_context_range()
         @test exact.minimum_height === nothing && exact.maximum_height[] == 90
     end
 
-    @testset "withhold_offer frees one axis and keeps the other" begin
+    @testset "with_free_axis frees one axis and keeps the other" begin
         edge = Cell(120)
         ctx = with_bounded_size(PrinterContext(EmptyReference(), Cell(500), Cell(300), Dict{Symbol,Any}());
                                 height = edge)
-        free = withhold_offer(ctx, :x)
+        free = with_free_axis(ctx, :x)
         @test free.minimum_width === nothing && free.maximum_width === nothing
         @test free.minimum_height === nothing && free.maximum_height === edge
-        @test_throws ArgumentError withhold_offer(ctx, :z)
+        @test_throws ArgumentError with_free_axis(ctx, :z)
     end
 
     @testset "a child context, a clock and a property keep the ranges" begin

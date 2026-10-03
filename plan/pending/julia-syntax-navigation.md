@@ -4,7 +4,7 @@
 > this plan opens with) is fixed — but by a different mechanism than the plan
 > proposes: `JuliaToSyntax.jl` was rewritten with `@projection_template`
 > (commits `a764d510`, `962bc361`, `bf8de12a`, 2026-07-02), which gets reference
-> mapping for free from the shared `RuleIoMap` machinery, plus a caret-round-trip
+> mapping for free from the shared `TemplateIoMap` machinery, plus a caret-round-trip
 > follow-up in [julia-navigation-caret-roundtrip.md](../done/julia-navigation-caret-roundtrip.md)
 > (`plan/done/`, commit `43ec6e7`). `explore_position_selections` on `julia_example`
 > now reaches 82 states (was ~3), and `test_position_navigation(julia_example;
@@ -52,7 +52,7 @@ has no equivalent, so its structural tokens are dead ends for the cursor.
       positions are navigable, but not through a reused `_syntax_to_flat` helper.
       `JuliaToSyntax.jl` was rewritten to use `@projection_template` for all 32
       sub-projections (commits `a764d510`, `962bc361`, `bf8de12a`, 2026-07-02),
-      which get reference mapping and reading for free from the shared `RuleIoMap`
+      which get reference mapping and reading for free from the shared `TemplateIoMap`
       machinery in `package/kernel/main/projection/ProjectionTemplate.jl`
       (generic `map_reference_forward`/`map_reference_backward` at lines 732/745).
       A follow-up, [julia-navigation-caret-roundtrip.md](../done/julia-navigation-caret-roundtrip.md)
@@ -66,7 +66,7 @@ has no equivalent, so its structural tokens are dead ends for the cursor.
 - [x] ✅ DONE (2026-08-12), by a different mechanism than proposed: not hand-written
       School-A `map_reference_forward`/`map_reference_backward` per node — the
       `@projection_template` rewrite (see above) gets this generically from
-      `RuleIoMap`, so no per-node mapper code was needed for content positions
+      `TemplateIoMap`, so no per-node mapper code was needed for content positions
       either. Verified live: `explore_position_selections(julia_example.document,
       julia_example.projection).state_count == 82` (was ~3), and
       `test_position_navigation(julia_example; check_reaches_all=true)` runs

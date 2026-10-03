@@ -7,10 +7,10 @@
 # a `TypeReferenceStep` marker, and a higher package registers both. That is the
 # pressure that keeps the engine kernel-pure.
 #
-# Two seams stay open for a higher package: the readers of a `RuleIoMap` under a
+# Two seams stay open for a higher package: the readers of a `TemplateIoMap` under a
 # transparent recursive wrapper, and the retype of a text-range replace. The
 # kernel names neither that wrapper nor that operation, so the package that
-# defines them adds these methods, and they dispatch on `RuleIoMap` and
+# defines them adds these methods, and they dispatch on `TemplateIoMap` and
 # `AtomicWiring`.
 
 
@@ -189,7 +189,7 @@ end
 
 # The projection, the input, the output and the wiring never change after the print,
 # so they are immutable cells, which a computation that reads them does not track.
-@iomap struct RuleIoMap
+@iomap struct TemplateIoMap
     projection::ImmutableCell{Any}
     input::ImmutableCell{Any}
     output::ImmutableCell{Any}
@@ -202,7 +202,7 @@ end
 # change with a route goes on to the child that the route reaches
 # (`read_routed_child`), as it does in any container. A rule with no child IoMaps
 # answers `nothing`, and reads a change with a route itself.
-function get_child_iomaps(iomap::RuleIoMap)
+function get_child_iomaps(iomap::TemplateIoMap)
     found = _collect_rule_child_iomaps!(Any[], iomap.child_iomaps)
     isempty(found) ? nothing : found
 end
@@ -254,17 +254,17 @@ _strip_checkpoints(x) = strip_reference_types(x)
 # @positional: the arity of the printer of the projection protocol, with the
 # builder of the template beside it. The macro emits a method of that shape.
 """
-    print_template_rule(p, recursion, doc, ctx, builder)
+    print_template_document(p, recursion, doc, ctx, builder)
 
 Build the marked output via `builder(p, doc)`, walk it to record the wiring,
 strip the markers (replacing each with its real value *through* the field's Cell),
-and return a `RuleIoMap`. The path cells (the selection, the mouse target) are wired
+and return a `TemplateIoMap`. The path cells (the selection, the mouse target) are wired
 at construction time: each node is rebuilt once via `_with_path_cells` with its final
 path cells in place, reusing every other field's Cell object. No node is retargeted
 after anything else references it, because the kind-parameterized stem of a
 document is immutable.
 """
-print_template_rule(p, recursion, doc, ctx, builder) =
+print_template_document(p, recursion, doc, ctx, builder) =
     _dispatch_print(p, doc, builder(p, doc); recursion, context = ctx)
 
 # Dispatch an *already-built* output on its shape. A function of its own, so a
@@ -490,7 +490,7 @@ function _atomic_print(p, doc, out)
             iomap === nothing ? nothing : map_reference_forward(p, iomap, path)
         end)))
     out = _with_path_cells(out, (selection = sel, mouse_target = mouse_target))
-    iomap = RuleIoMap(p, doc, out, wiring, nothing)
+    iomap = TemplateIoMap(p, doc, out, wiring, nothing)
     iomap_cell[] = iomap
     iomap
 end
@@ -528,7 +528,7 @@ function _node_print(p, doc, out; recursion, context, children_field, collection
     setproperty!(out, children_field, children)   # the real children replace the marker
     out = _with_path_cells(out, _make_node_path_cells(p, doc, iomap_cell))
     wiring = NodeWiring(_dtype(doc), _dtype(out), input_field, children_field)
-    iomap = RuleIoMap(p, doc, out, wiring, child_iomaps)
+    iomap = TemplateIoMap(p, doc, out, wiring, child_iomaps)
     iomap_cell[] = iomap
     return iomap
 end
@@ -619,7 +619,7 @@ function _fixed_print(p, doc, out; recursion, context)
     iomap_cell = Cell(nothing)
     out = _with_path_cells(out, _make_node_path_cells(p, doc, iomap_cell))
     wiring = FixedNodeWiring(_dtype(doc), _dtype(out), children_field, slots)
-    im = RuleIoMap(p, doc, out, wiring, store)
+    im = TemplateIoMap(p, doc, out, wiring, store)
     iomap_cell[] = im
     return im
 end
@@ -639,7 +639,7 @@ function _conditional_print(p, doc, out; recursion, context, children_field, mar
                   NamedTuple{(children_field,)}((children,)))
     out = _with_path_cells(out, cells)
     wiring = ConditionalNodeWiring(_dtype(doc), _dtype(out), children_field)
-    im = RuleIoMap(p, doc, out, wiring, state)
+    im = TemplateIoMap(p, doc, out, wiring, state)
     iomap_cell[] = im
     return im
 end
@@ -699,7 +699,7 @@ function _mixed_print(p, doc, out; recursion, context, children_field)
     out = _with_path_cells(out, _make_node_path_cells(p, doc, iomap_cell))
     wiring = MixedNodeWiring(_dtype(doc), _dtype(out), children_field, prefix_slots,
                              coll_field)
-    iomap = RuleIoMap(p, doc, out, wiring, (prefix=store, coll=coll_iomaps))
+    iomap = TemplateIoMap(p, doc, out, wiring, (prefix=store, coll=coll_iomaps))
     iomap_cell[] = iomap
     return iomap
 end
@@ -746,7 +746,7 @@ function _inline_print(p, doc, out; children_field, thunk)
     out = _with_path_cells(out, _make_node_path_cells(p, doc, iomap_cell))
     wiring = InlineWiring(_dtype(doc), _dtype(out), children_field, bound_index,
                           bound_field, value_field, bound_type, value_checkpoint)
-    iomap = RuleIoMap(p, doc, out, wiring, nothing)
+    iomap = TemplateIoMap(p, doc, out, wiring, nothing)
     iomap_cell[] = iomap
     return iomap
 end
@@ -774,7 +774,7 @@ function _sections_print(p, doc, out; recursion, context, children_field, specs)
     iomap_cell = Cell(nothing)
     out = _with_path_cells(out, _make_node_path_cells(p, doc, iomap_cell))
     wiring = SectionsWiring(_dtype(doc), _dtype(out), children_field)
-    iomap = RuleIoMap(p, doc, out, wiring, section_iomaps)
+    iomap = TemplateIoMap(p, doc, out, wiring, section_iomaps)
     iomap_cell[] = iomap
     return iomap
 end
@@ -798,7 +798,7 @@ _typed_generic(r, doc) =
     is_fully_typed_reference(r) ? r : annotate_reference_types(doc, r)
 
 # Each wiring maps a reference by a method of `_map_forward` and `_map_backward`.
-function map_reference_forward(p::Projection, iomap::RuleIoMap, reference)
+function map_reference_forward(p::Projection, iomap::TemplateIoMap, reference)
     mapped = _map_forward(iomap.wiring, iomap, reference; projection = p)
     _typed_generic(mapped, iomap.output)
 end
@@ -816,7 +816,7 @@ _map_child_backward(child, reference) =
 
 # A part that a node printed has no input pre-image, so the backward map names it by
 # the node's own introduced step, which holds the path of the part in the output.
-function map_reference_backward(p::Projection, iomap::RuleIoMap, reference)
+function map_reference_backward(p::Projection, iomap::TemplateIoMap, reference)
     mapped = _map_backward(iomap.wiring, iomap, reference; projection = p)
     mapped === nothing && iomap.wiring isa _INTRODUCING_WIRINGS &&
         reference isa ConcreteReference &&
@@ -1387,7 +1387,7 @@ function _focused_child(w::SectionsWiring, iomap, sel)
 end
 
 """
-    find_template_value_retype(iomap::RuleIoMap, reference) -> Type | Nothing
+    find_template_value_retype(iomap::TemplateIoMap, reference) -> Type | Nothing
 
 The operation type that the leaf rule under `reference` makes of a text edit of
 its bound value: the `retype` of its `bound`, or `nothing` when it has none.
@@ -1396,7 +1396,7 @@ answers for an edit of its own bound field. A node descends into the child that
 `reference` enters, so a leaf in a container retypes an edit as it does when it
 is the document.
 """
-function find_template_value_retype(iomap::RuleIoMap, reference)
+function find_template_value_retype(iomap::TemplateIoMap, reference)
     w = iomap.wiring
     if w isa AtomicWiring
         return reference isa ConcreteReference && reference.head isa FieldReferenceStep &&
@@ -1406,7 +1406,7 @@ function find_template_value_retype(iomap::RuleIoMap, reference)
     focused === nothing && return nothing
     child, steps = focused
     child = get_content_iomap(child)
-    child isa RuleIoMap || return nothing
+    child isa TemplateIoMap || return nothing
     rest = reference
     for _ in steps
         rest isa ConcreteReference || return nothing
@@ -1419,12 +1419,12 @@ end
 # selected child's projection (lifting its operation back into this node's input
 # domain), and only when the child declines fall back to this node's own reified
 # gestures.
-read_intent(p::Projection, iomap::RuleIoMap, evt::Union{KeyPress, KeyDown}) =
+read_intent(p::Projection, iomap::TemplateIoMap, evt::Union{KeyPress, KeyDown}) =
     _read_template_gesture(iomap, evt; recursion = nothing)
 
 # The child reads the gesture with its own 4-argument reader, and with the
 # `recursion` that printed it.
-function _read_template_gesture(iomap::RuleIoMap, evt; recursion)
+function _read_template_gesture(iomap::TemplateIoMap, evt; recursion)
     input = iomap.input
     input isa Document || return nothing
     sel = getfield(input, :selection)[]
@@ -1447,25 +1447,25 @@ end
 # `claimed !== nothing`), so this is inert for every ordinary gesture and the caller
 # goes on to translate the claimed operation.
 #
-# The descent is a private walk over `RuleIoMap` children rather than the `read_intent`
+# The descent is a private walk over `TemplateIoMap` children rather than the `read_intent`
 # recursion the unclaimed path uses, for two reasons. A hand-written reader takes an
 # *untyped* payload argument and would mistake a `ClaimedGesture` for an event; and the
 # claimed operation is expressed in the *enclosing* stage's output vocabulary, so a
 # child that translated it rather than declining would map a reference it does not own.
 # Nothing is lost: only a template node hosts gestures, and gestures are all this is
 # looking for.
-function read_intent(p::Projection, iomap::RuleIoMap, c::ClaimedGesture)
+function read_intent(p::Projection, iomap::TemplateIoMap, c::ClaimedGesture)
     c.gesture isa Union{KeyPress, KeyDown} || return nothing
     return _read_override_gesture(iomap, c.gesture, c.operation)
 end
 
-function _read_override_gesture(iomap::RuleIoMap, evt, claimed)
+function _read_override_gesture(iomap::TemplateIoMap, evt, claimed)
     input = iomap.input
     input isa Document || return nothing
     sel = getfield(input, :selection)[]
     if sel !== nothing
         fc = _focused_child(iomap.wiring, iomap, sel)
-        if fc !== nothing && get_content_iomap(fc[1]) isa RuleIoMap
+        if fc !== nothing && get_content_iomap(fc[1]) isa TemplateIoMap
             child, steps = fc
             child = get_content_iomap(child)
             child_op = _read_override_gesture(child, evt, claimed)
@@ -1490,7 +1490,7 @@ goes on to the child that the route names, as it does through the generic bridge
 Where the rule holds no children, this reader follows no route, so an operation
 whose route names a place below the input answers no operation.
 
-Keyed on the concrete projection type rather than on `RuleIoMap`: the transparent
+Keyed on the concrete projection type rather than on `TemplateIoMap`: the transparent
 recursive and type-dispatching wrappers hand a leaf its own iomap
 and already carry 4-arg methods of their own, so a method keyed on the iomap would be
 ambiguous with every one of them.
@@ -1502,7 +1502,7 @@ function read_template_intent(p, recursion, change::Intent, iomap)
         return read_routed_child(recursion, change, iomap)
     change.route isa ConcreteReference && change.operation !== nothing &&
         return Intent(change.gesture, nothing)
-    is_key = iomap isa RuleIoMap && change.gesture isa Union{KeyPress, KeyDown}
+    is_key = iomap isa TemplateIoMap && change.gesture isa Union{KeyPress, KeyDown}
     if is_key && change.operation !== nothing
         override = read_intent(p, iomap, ClaimedGesture(change.gesture, change.operation))
         override === nothing ||
@@ -1516,7 +1516,7 @@ end
 
 # A caret on a part that a node printed maps back to the node's own introduced step,
 # which the backward map makes.
-function read_intent(p::Projection, iomap::RuleIoMap, op::ReplacePathOperation)
+function read_intent(p::Projection, iomap::TemplateIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing ? nothing : make_path_operation(op, result)
 end
@@ -1527,7 +1527,7 @@ end
     @projection_template ProjName InType (p, doc) -> <builder body>
 
 Emit `print_document(p::ProjName, recursion, doc::InType, ctx)` that runs the
-builder through `print_template_rule`, and the matching 4-arg
+builder through `print_template_document`, and the matching 4-arg
 [`read_template_intent`](@ref) reader — the seam an `override` gesture fires
 through.
 """
@@ -1543,7 +1543,7 @@ macro projection_template(projname, intype, builder)
         # silently define a dead local one.
         function ProjectionModule.print_document(p::$(esc(projname)), recursion,
                                                  doc::$(esc(intype)), ctx)
-            $(print_template_rule)(p, recursion, doc, ctx, $(esc(builder)))
+            $(print_template_document)(p, recursion, doc, ctx, $(esc(builder)))
         end
 
         # Without this the projection falls to the generic bridge, which collapses the

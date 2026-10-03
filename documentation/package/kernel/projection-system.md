@@ -331,7 +331,7 @@ This is the reader-side mirror of three things the printer side already does:
   route a mouse gesture to the hit child and lift the returned operation with
   `reroot_operation` ([operation/Rerooting.jl](../../../source/kernel/operation/Rerooting.jl)).
 
-The template engine applies the rule **automatically**: the `RuleIoMap` reader in
+The template engine applies the rule **automatically**: the `TemplateIoMap` reader in
 [projection/ProjectionTemplate.jl](../../../source/kernel/projection/ProjectionTemplate.jl)
 handles a raw `KeyPress`/`KeyDown` (the keystrokes the Text/Syntax layers
 left unhandled — the domain *authoring* gestures of [`read_gesture`](#domain-owned-geometry-free-gesture-mapping-read_gesture))

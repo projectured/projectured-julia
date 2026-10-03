@@ -398,7 +398,7 @@ Printing a `JsonBool` through it needs no hand-written printer at all:
 julia> iomap = print_document(JsonBoolToSyntaxLeaf(), JsonBool(true));
 
 julia> typeof(iomap)
-RuleIoMap
+TemplateIoMap
 
 julia> iomap.output
 SyntaxLeaf(nothing, nothing, TextString("true", …), 0, false)

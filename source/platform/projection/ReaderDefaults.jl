@@ -12,19 +12,19 @@
 # one is more specific in the projection and the other in the operation.
 #
 # What remains here needs a concrete IoMap type — the `ProjectionTemplate`
-# `RuleIoMap` retype and the disambiguations the `RecursiveProjection` wrapper
+# `TemplateIoMap` retype and the disambiguations the `RecursiveProjection` wrapper
 # needs over it.
 import ProjecturedKernel.ProjectionModule: read_intent, map_reference_backward, Projection
 import ProjecturedKernel.IntentModule: Intent
-import ProjecturedKernel.ProjectionModule: RuleIoMap, AtomicWiring, find_template_value_retype
+import ProjecturedKernel.ProjectionModule: TemplateIoMap, AtomicWiring, find_template_value_retype
 import ProjecturedKernel.OperationModule: ReplaceSelectionOperation
 import ProjecturedKernel.EventModule: KeyDown, KeyPress
 
-# The value-edit retype for ProjectionTemplate's RuleIoMap lives here (not
+# The value-edit retype for ProjectionTemplate's TemplateIoMap lives here (not
 # in `kernel/projection/ProjectionTemplate.jl`) because it references
 # `ReplaceStringRangeOperation` (a base/Primitive type) that the kernel
 # cannot import.
-function read_intent(p::Projection, iomap::RuleIoMap, op::ReplaceStringRangeOperation)
+function read_intent(p::Projection, iomap::TemplateIoMap, op::ReplaceStringRangeOperation)
     w = iomap.wiring
     # An opaque atomic leaf (no bound field — `JsonInsertion`, `JsonNull`,
     # …) has no editable text, so a character insert there is never a
@@ -54,18 +54,18 @@ function read_intent(p::Projection, iomap::RuleIoMap, op::ReplaceStringRangeOper
 end
 
 # Disambiguations for the transparent `RecursiveProjection` wrapper over
-# `RuleIoMap`. The recursive reader in `ProjectionTemplate.jl` (`Projection`) and
-# the wrapper's 3-arg reader both match `(RecursiveProjection, RuleIoMap, …)`,
+# `TemplateIoMap`. The recursive reader in `ProjectionTemplate.jl` (`Projection`) and
+# the wrapper's 3-arg reader both match `(RecursiveProjection, TemplateIoMap, …)`,
 # neither more specific — so one concrete-typed method per payload defers to the
 # wrapper, which threads the read into its child projection. These live here (not
 # in `kernel/projection/ProjectionTemplate.jl`) because they dispatch on
 # `RecursiveProjection`, a base projection the kernel cannot name.
-read_intent(rp::RecursiveProjection, iomap::RuleIoMap, evt::Union{KeyPress, KeyDown}) =
+read_intent(rp::RecursiveProjection, iomap::TemplateIoMap, evt::Union{KeyPress, KeyDown}) =
     read_intent(rp, nothing, Intent(evt), iomap).operation
 
-read_intent(rp::RecursiveProjection, iomap::RuleIoMap, op::ReplacePathOperation) =
+read_intent(rp::RecursiveProjection, iomap::TemplateIoMap, op::ReplacePathOperation) =
     read_intent(rp, nothing, Intent(op), iomap).operation
 
-# Disambiguation for RecursiveProjection over RuleIoMap.
-read_intent(rp::RecursiveProjection, iomap::RuleIoMap, op::ReplaceStringRangeOperation) =
+# Disambiguation for RecursiveProjection over TemplateIoMap.
+read_intent(rp::RecursiveProjection, iomap::TemplateIoMap, op::ReplaceStringRangeOperation) =
     read_intent(rp, nothing, Intent(op), iomap).operation

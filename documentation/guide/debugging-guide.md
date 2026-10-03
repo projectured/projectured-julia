@@ -299,9 +299,9 @@ pipeline stage each hit is in at a glance:
 
 ```
 ::ChainingIoMap.input::JsonObject.entries…::JsonString               # source document
-::ChainingIoMap.step_iomaps::Array[1]::RuleIoMap.input::JsonObject…   # a stage's input
-::ChainingIoMap.step_iomaps::Array[1]::RuleIoMap.output::SyntaxNode…  # a stage's output
-::…child_iomaps::Array[4]::RuleIoMap.input::JsonObjectEntry…                      # nested projection
+::ChainingIoMap.step_iomaps::Array[1]::TemplateIoMap.input::JsonObject…   # a stage's input
+::ChainingIoMap.step_iomaps::Array[1]::TemplateIoMap.output::SyntaxNode…  # a stage's output
+::…child_iomaps::Array[4]::TemplateIoMap.input::JsonObjectEntry…                      # nested projection
 ```
 
 - `.input` — a stage's input document.

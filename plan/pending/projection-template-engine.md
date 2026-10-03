@@ -53,9 +53,9 @@ Because `@document` types store every field in a `Cell` with **no type check**, 
 marker can sit in a real field (e.g. a `Bound` in a leaf's value slot). The engine
 **walks the built value by reflection** (`fieldnames`), records the *wiring*,
 **strips the markers in place** (replacing each with its real value, wiring the
-selection cell), and returns the clean output document plus a `RuleIoMap`. Reference
+selection cell), and returns the clean output document plus a `TemplateIoMap`. Reference
 mapping is then **generic and data-driven** from the recorded wiring — one method
-set dispatched on `RuleIoMap`, no per-type codegen.
+set dispatched on `TemplateIoMap`, no per-type codegen.
 
 Why this shape won out over a declarative slot-DSL (the abandoned first approach):
 
@@ -81,7 +81,7 @@ Why this shape won out over a declarative slot-DSL (the abandoned first approach
   document's selection cell into the output and to strip markers in place rather
   than reconstructing. Verified safe suite-wide (documents are handled by identity,
   so value→identity equality on the mutable variant is a non-issue).
-- **`RuleIoMap`** carries `(projection, input, output, wiring, child_iomaps)`.
+- **`TemplateIoMap`** carries `(projection, input, output, wiring, child_iomaps)`.
   `AtomicWiring` (no recursive children) records the optional bound field; any
   other output field is introduced. `NodeWiring` records the input collection
   field and the output children field; per-child correspondence lives in the
@@ -89,7 +89,7 @@ Why this shape won out over a declarative slot-DSL (the abandoned first approach
 - **Authoring readers stay hand-written** — `_json_read_command` (type-to-replace),
   `,`/Tab inserts, etc. fabricate *new* documents from keystrokes; they are not a
   structural correspondence and are not derivable from the builder. They dispatch
-  on `RuleIoMap`.
+  on `TemplateIoMap`.
 - **Escaping deferred** — the value lens is identity at character-offset
   granularity (`json_escape` round-trip is not yet inverted).
 
@@ -112,7 +112,7 @@ Why this shape won out over a declarative slot-DSL (the abandoned first approach
 >   `Collection`/`Tokens`/`Sections` markers, the reflection walk
 >   (`rule_print`, `_atomic_print`, `_node_print`, `_fixed_print`, `_mixed_print`,
 >   `_inline_print`, `_sections_print`), `AtomicWiring`/`NodeWiring`/
->   `FixedNodeWiring`/`MixedNodeWiring`/`InlineWiring`/`SectionsWiring`/`RuleIoMap`,
+>   `FixedNodeWiring`/`MixedNodeWiring`/`InlineWiring`/`SectionsWiring`/`TemplateIoMap`,
 >   the generic `map_reference_forward`/`backward`, and the readers — Syntax-type-free.
 > - All seven JSON value types are builders in
 >   `package/json/main/JsonToSyntax.jl` (this path was already correct). Hand-written
@@ -132,7 +132,7 @@ clean ones on the new layout:
   — commit `3b95c3f`
 - `ProjectionTemplate.jl`: the builder/marker/walk engine — markers, the reflection
   walk with in-place marker stripping, `AtomicWiring`/`NodeWiring`/`FixedNodeWiring`/
-  `RuleIoMap`, the generic data-driven `map_reference_forward`/`backward`, and the
+  `TemplateIoMap`, the generic data-driven `map_reference_forward`/`backward`, and the
   readers (value-edit retype + the proj-wrap structural fallback). Output-domain-
   independent (no Syntax type or field name). At the time, in `domain/src/projection/`;
   as of 2026-08-12 it is `package/kernel/main/projection/ProjectionTemplate.jl`. All
@@ -149,7 +149,7 @@ clean ones on the new layout:
   `TextString(str/thunk, style)` bridge, `_hinted_text(…, style::StyleText)`).
   Hand-written kept: JSON authoring readers (type-to-replace, `,` insert, Tab) and
   the Syntax-specific flat-offset structural fallback, both dispatching on
-  `RuleIoMap`. Two navigation behaviours preserved from the original Stage A —
+  `TemplateIoMap`. Two navigation behaviours preserved from the original Stage A —
   **structural fallback** (brackets/braces/commas/colons → flat char offset via
   `_syntax_to_flat`, keeping them navigable in the text layer) and **clean input
   paths** (the collection mapper strips `TypeReference` checkpoints from a delegated

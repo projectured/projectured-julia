@@ -237,7 +237,7 @@ julia> iomap.output.selection   # forward-mapped with no mapper of your own
 **Key points:**
 - `print_document` (which the macro generates for you) always returns an
   `IoMap`, not just the output document; `@projection_template` wires this
-  internally through `RuleIoMap`.
+  internally through `TemplateIoMap`.
 - Reference mapping in both directions, and the reader, come from the
   markers — you never write `map_reference_forward`, `map_reference_backward`,
   or `read_intent` for a projection the template can express.

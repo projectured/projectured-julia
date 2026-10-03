@@ -14,11 +14,11 @@ Tuple{ProjecturedKernel.OperationModule.var"#describe_operation##0#describe_oper
 Tuple{ProjecturedKernel.OperationModule.var"#describe_operation##0#describe_operation##1", ProjecturedKernel.OperationModule.ReplaceSelectionOperation}
 Tuple{ProjecturedKernel.OperationModule.var"#describe_operation##0#describe_operation##1", ProjecturedKernel.OperationModule.ReplaceViewStateOperation}
 Tuple{ProjecturedKernel.OperationModule.var"#join_move_answers##0#join_move_answers##1", Nothing}
-Tuple{ProjecturedKernel.ProjectionModule.var"#121#122"{ProjecturedKernel.ProjectionModule.RuleIoMap}, Symbol}
+Tuple{ProjecturedKernel.ProjectionModule.var"#121#122"{ProjecturedKernel.ProjectionModule.TemplateIoMap}, Symbol}
 Tuple{ProjecturedKernel.ProjectionModule.var"#129#130"{Base.Dict{Symbol, Any}}, Symbol}
 Tuple{ProjecturedKernel.ProjectionModule.var"#66#67", ProjecturedKernel.IoMapModule.ChildrenIoMap}
 Tuple{ProjecturedKernel.ProjectionModule.var"#66#67", ProjecturedKernel.IoMapModule.SimpleIoMap}
-Tuple{ProjecturedKernel.ProjectionModule.var"#66#67", ProjecturedKernel.ProjectionModule.RuleIoMap}
+Tuple{ProjecturedKernel.ProjectionModule.var"#66#67", ProjecturedKernel.ProjectionModule.TemplateIoMap}
 Tuple{ProjecturedKernel.ProjectionModule.var"#_get_inner_extent##0#_get_inner_extent##1"{ProjecturedKernel.CellModule.ReactiveCell{Any}, Int64}}
 Tuple{ProjecturedKernel.ProjectionModule.var"#_get_inner_extent##0#_get_inner_extent##1"{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
 Tuple{ProjecturedKernel.ProjectionModule.var"#_project_output_cell##0#_project_output_cell##1"{ProjecturedKernel.CellModule.ReactiveCell{Any}}}
@@ -82,7 +82,7 @@ Tuple{typeof(Base.:(var"==")), ProjecturedKernel.ReferenceModule.FieldReferenceS
 Tuple{typeof(Base.:(var"==")), ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
 Tuple{typeof(Base.:(var"==")), ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
 Tuple{typeof(Base.Iterators.enumerate), Array{ProjecturedKernel.IoMapModule.SimpleIoMap, 1}}
-Tuple{typeof(Base.Iterators.enumerate), Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}}
+Tuple{typeof(Base.Iterators.enumerate), Array{ProjecturedKernel.ProjectionModule.TemplateIoMap, 1}}
 Tuple{typeof(Base.Iterators.enumerate), Array{ProjecturedKernel.ReferenceModule.Reference, 1}}
 Tuple{typeof(Base.Iterators.reverse), Array{ProjecturedKernel.CellModule.ReactiveCell{Any}, 1}}
 Tuple{typeof(Base._array_for), Type{ProjecturedKernel.CellModule.ReactiveCell{Any}}, Array{Any, 1}, Base.HasShape{1}}
@@ -92,7 +92,7 @@ Tuple{typeof(Base._array_for), Type{Union{Nothing, ProjecturedKernel.CellModule.
 Tuple{typeof(Base._array_for_inner), Type{ProjecturedKernel.IoMapModule.ChildrenIoMap}, Base.HasLength, Int64}
 Tuple{typeof(Base._array_for_inner), Type{ProjecturedKernel.IoMapModule.ChildrenIoMap}, Base.HasShape{1}, Tuple{Base.OneTo{Int64}}}
 Tuple{typeof(Base._array_for_inner), Type{ProjecturedKernel.IoMapModule.SimpleIoMap}, Base.HasLength, Int64}
-Tuple{typeof(Base._array_for_inner), Type{ProjecturedKernel.ProjectionModule.RuleIoMap}, Base.HasLength, Int64}
+Tuple{typeof(Base._array_for_inner), Type{ProjecturedKernel.ProjectionModule.TemplateIoMap}, Base.HasLength, Int64}
 Tuple{typeof(Base._front), ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, Vararg{Any}}
 Tuple{typeof(Base._front), ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
 Tuple{typeof(Base._front), ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
@@ -110,7 +110,7 @@ Tuple{typeof(Base.getindex), Array{ProjecturedKernel.CellModule.ReactiveCell{T} 
 Tuple{typeof(Base.getindex), Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}, Int64}
 Tuple{typeof(Base.getindex), Array{ProjecturedKernel.IoMapModule.IoMap, 1}, Int64}
 Tuple{typeof(Base.getindex), Array{ProjecturedKernel.IoMapModule.SimpleIoMap, 1}, Int64}
-Tuple{typeof(Base.getindex), Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}, Int64}
+Tuple{typeof(Base.getindex), Array{ProjecturedKernel.ProjectionModule.TemplateIoMap, 1}, Int64}
 Tuple{typeof(Base.getindex), Array{ProjecturedKernel.ReferenceModule.Reference, 1}, Int64}
 Tuple{typeof(Base.getindex), Array{Tuple{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, Any}, 1}, Int64}
 Tuple{typeof(Base.getindex), Array{Union{Nothing, ProjecturedKernel.CellModule.ReactiveCell{Any}}, 1}, Int64}
@@ -135,7 +135,7 @@ Tuple{typeof(Base.getproperty), ProjecturedKernel.IoMapModule.ContentIoMap, Symb
 Tuple{typeof(Base.getproperty), ProjecturedKernel.IoMapModule.SimpleIoMap, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernel.OperationModule.ReplaceReferencedValueOperation, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernel.ProjectionModule.ProjectionReferenceStep, Symbol}
-Tuple{typeof(Base.getproperty), ProjecturedKernel.ProjectionModule.RuleIoMap, Symbol}
+Tuple{typeof(Base.getproperty), ProjecturedKernel.ProjectionModule.TemplateIoMap, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernel.ReferenceModule.ConcreteReference, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, Symbol}
@@ -157,26 +157,26 @@ Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.IoMapModule.Children
 Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.IoMapModule.ChildrenIoMap, ProjecturedKernel.IoMapModule.ChildrenIoMap}, Int64}
 Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.IoMapModule.ChildrenIoMap, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}, Int64, Int64}
 Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.IoMapModule.ChildrenIoMap, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}, Int64}
-Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, Array{Any, 1}}, Int64, Int64}
-Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, Array{Any, 1}}, Int64}
-Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}, Nothing}, Int64, Int64}
-Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}, Nothing}, Int64}
-Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}, ProjecturedKernel.IoMapModule.ChildrenIoMap}, Int64, Int64}
-Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}, ProjecturedKernel.IoMapModule.ChildrenIoMap}, Int64}
-Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}}, Int64, Int64}
-Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}}, Int64}
-Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}, Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}}, Int64, Int64}
-Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}, Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}}, Int64}
-Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, ProjecturedKernel.IoMapModule.ChildrenIoMap, ProjecturedKernel.IoMapModule.ChildrenIoMap}, Int64, Int64}
-Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, ProjecturedKernel.IoMapModule.ChildrenIoMap, ProjecturedKernel.IoMapModule.ChildrenIoMap}, Int64}
-Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, ProjecturedKernel.ProjectionModule.RuleIoMap, ProjecturedKernel.IoMapModule.ChildrenIoMap}, Int64, Int64}
-Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, ProjecturedKernel.ProjectionModule.RuleIoMap, ProjecturedKernel.IoMapModule.ChildrenIoMap}, Int64}
-Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, ProjecturedKernel.ProjectionModule.RuleIoMap}, Int64, Int64}
-Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, ProjecturedKernel.ProjectionModule.RuleIoMap}, Int64}
-Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}, Int64, Int64}
-Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}, Int64}
-Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}, Int64, Int64}
-Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.TemplateIoMap, Array{Any, 1}}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.TemplateIoMap, Array{Any, 1}}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.TemplateIoMap, Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}, Nothing}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.TemplateIoMap, Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}, Nothing}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.TemplateIoMap, Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}, ProjecturedKernel.IoMapModule.ChildrenIoMap}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.TemplateIoMap, Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}, ProjecturedKernel.IoMapModule.ChildrenIoMap}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.TemplateIoMap, Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.TemplateIoMap, Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.TemplateIoMap, Array{ProjecturedKernel.ProjectionModule.TemplateIoMap, 1}, Array{ProjecturedKernel.ProjectionModule.TemplateIoMap, 1}}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.TemplateIoMap, Array{ProjecturedKernel.ProjectionModule.TemplateIoMap, 1}, Array{ProjecturedKernel.ProjectionModule.TemplateIoMap, 1}}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.TemplateIoMap, ProjecturedKernel.IoMapModule.ChildrenIoMap, ProjecturedKernel.IoMapModule.ChildrenIoMap}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.TemplateIoMap, ProjecturedKernel.IoMapModule.ChildrenIoMap, ProjecturedKernel.IoMapModule.ChildrenIoMap}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.TemplateIoMap, ProjecturedKernel.ProjectionModule.TemplateIoMap, ProjecturedKernel.IoMapModule.ChildrenIoMap}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.TemplateIoMap, ProjecturedKernel.ProjectionModule.TemplateIoMap, ProjecturedKernel.IoMapModule.ChildrenIoMap}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.TemplateIoMap, ProjecturedKernel.ProjectionModule.TemplateIoMap}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.TemplateIoMap, ProjecturedKernel.ProjectionModule.TemplateIoMap}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.TemplateIoMap, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.TemplateIoMap, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.TemplateIoMap, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.TemplateIoMap, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}, Int64}
 Tuple{typeof(Base.indexed_iterate), Tuple{Symbol, ProjecturedKernel.IoMapModule.ChildrenIoMap}, Int64, Int64}
 Tuple{typeof(Base.indexed_iterate), Tuple{Symbol, ProjecturedKernel.IoMapModule.ChildrenIoMap}, Int64}
 Tuple{typeof(Base.indexed_iterate), Tuple{Symbol, ProjecturedKernel.IoMapModule.SimpleIoMap}, Int64, Int64}
@@ -185,7 +185,7 @@ Tuple{typeof(Base.isempty), Array{ProjecturedKernel.CellModule.ReactiveCell{Any}
 Tuple{typeof(Base.isempty), Array{ProjecturedKernel.CellModule.ReactiveCell{T} where T, 1}}
 Tuple{typeof(Base.isempty), Array{ProjecturedKernel.GestureBindingModule.GestureBinding, 1}}
 Tuple{typeof(Base.isempty), Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}}
-Tuple{typeof(Base.isempty), Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}}
+Tuple{typeof(Base.isempty), Array{ProjecturedKernel.ProjectionModule.TemplateIoMap, 1}}
 Tuple{typeof(Base.iterate), Array{ProjecturedKernel.CellModule.ReactiveCell{Any}, 1}, Int64}
 Tuple{typeof(Base.iterate), Array{ProjecturedKernel.CellModule.ReactiveCell{Any}, 1}}
 Tuple{typeof(Base.iterate), Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}, Int64}
@@ -194,14 +194,14 @@ Tuple{typeof(Base.iterate), Array{ProjecturedKernel.IoMapModule.IoMap, 1}, Int64
 Tuple{typeof(Base.iterate), Array{ProjecturedKernel.IoMapModule.IoMap, 1}}
 Tuple{typeof(Base.iterate), Array{ProjecturedKernel.IoMapModule.SimpleIoMap, 1}, Int64}
 Tuple{typeof(Base.iterate), Array{ProjecturedKernel.IoMapModule.SimpleIoMap, 1}}
-Tuple{typeof(Base.iterate), Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}, Int64}
-Tuple{typeof(Base.iterate), Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}}
+Tuple{typeof(Base.iterate), Array{ProjecturedKernel.ProjectionModule.TemplateIoMap, 1}, Int64}
+Tuple{typeof(Base.iterate), Array{ProjecturedKernel.ProjectionModule.TemplateIoMap, 1}}
 Tuple{typeof(Base.iterate), Array{Tuple{ProjecturedKernel.ReferenceModule.Reference, Any}, 1}, Int64}
 Tuple{typeof(Base.iterate), Array{Tuple{ProjecturedKernel.ReferenceModule.Reference, Any}, 1}}
 Tuple{typeof(Base.iterate), Base.Iterators.Enumerate{Array{ProjecturedKernel.IoMapModule.SimpleIoMap, 1}}, Tuple{Int64, Int64}}
 Tuple{typeof(Base.iterate), Base.Iterators.Enumerate{Array{ProjecturedKernel.IoMapModule.SimpleIoMap, 1}}, Tuple{Int64}}
-Tuple{typeof(Base.iterate), Base.Iterators.Enumerate{Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}}, Tuple{Int64, Int64}}
-Tuple{typeof(Base.iterate), Base.Iterators.Enumerate{Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}}, Tuple{Int64}}
+Tuple{typeof(Base.iterate), Base.Iterators.Enumerate{Array{ProjecturedKernel.ProjectionModule.TemplateIoMap, 1}}, Tuple{Int64, Int64}}
+Tuple{typeof(Base.iterate), Base.Iterators.Enumerate{Array{ProjecturedKernel.ProjectionModule.TemplateIoMap, 1}}, Tuple{Int64}}
 Tuple{typeof(Base.iterate), Base.Iterators.Enumerate{Array{ProjecturedKernel.ReferenceModule.Reference, 1}}, Tuple{Int64, Int64}}
 Tuple{typeof(Base.iterate), Base.Iterators.Enumerate{Array{ProjecturedKernel.ReferenceModule.Reference, 1}}, Tuple{Int64}}
 Tuple{typeof(Base.iterate), Base.Iterators.Reverse{Array{ProjecturedKernel.CellModule.ReactiveCell{Any}, 1}}, Tuple{Base.StepRange{Int64, Int64}, Int64}}
@@ -217,7 +217,7 @@ Tuple{typeof(Base.length), Array{ProjecturedKernel.CellModule.ReactiveCell{Any},
 Tuple{typeof(Base.length), Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}}
 Tuple{typeof(Base.length), Array{ProjecturedKernel.IoMapModule.IoMap, 1}}
 Tuple{typeof(Base.length), Array{ProjecturedKernel.IoMapModule.SimpleIoMap, 1}}
-Tuple{typeof(Base.length), Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}}
+Tuple{typeof(Base.length), Array{ProjecturedKernel.ProjectionModule.TemplateIoMap, 1}}
 Tuple{typeof(Base.length), Array{Tuple{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, Any}, 1}}
 Tuple{typeof(Base.merge), NamedTuple{(:open, :close, :sep, :children), Tuple{Nothing, Nothing, Nothing, ProjecturedKernel.ProjectionModule.Collection}}, Base.Pairs{Symbol, Int64, Nothing, NamedTuple{(:indentation,), Tuple{Int64}}}}
 Tuple{typeof(Base.repr), ProjecturedKernel.ReferenceModule.ConcreteReference}
@@ -231,15 +231,15 @@ Tuple{typeof(Base.setindex!), Array{Union{Nothing, ProjecturedKernel.CellModule.
 Tuple{typeof(Base.setindex!), Base.Dict{Type, Tuple{UInt64, Array{Type, 1}}}, Tuple{UInt64, Array{Type, 1}}, Type{ProjecturedKernel.DocumentModule.Document}}
 Tuple{typeof(Base.setindex_widen_up_to), Array{ProjecturedKernel.DocumentModule.Document, 1}, Int64, Int64}
 Tuple{typeof(Base.setindex_widen_up_to), Array{ProjecturedKernel.IoMapModule.SimpleIoMap, 1}, ProjecturedKernel.IoMapModule.ChildrenIoMap, Int64}
-Tuple{typeof(Base.setindex_widen_up_to), Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}, ProjecturedKernel.IoMapModule.ChildrenIoMap, Int64}
+Tuple{typeof(Base.setindex_widen_up_to), Array{ProjecturedKernel.ProjectionModule.TemplateIoMap, 1}, ProjecturedKernel.IoMapModule.ChildrenIoMap, Int64}
 Tuple{typeof(Base.show), Base.GenericIOBuffer{Memory{UInt8}}, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
 Tuple{typeof(Base.show), Base.GenericIOBuffer{Memory{UInt8}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
 Tuple{typeof(Base.show), Base.IOContext{Base.GenericIOBuffer{Memory{UInt8}}}, ProjecturedKernel.ProjectionModule.ProjectionReferenceStep}
 Tuple{typeof(Base.show), Base.IOContext{Base.GenericIOBuffer{Memory{UInt8}}}, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
 Tuple{typeof(Base.show), Base.IOContext{Base.GenericIOBuffer{Memory{UInt8}}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
-Tuple{typeof(Base.typed_vcat), Type{Any}, ProjecturedKernel.ProjectionModule.RuleIoMap, Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}, ProjecturedKernel.IoMapModule.ChildrenIoMap}
-Tuple{typeof(Base.typed_vcat), Type{Any}, ProjecturedKernel.ProjectionModule.RuleIoMap, Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}}
-Tuple{typeof(Base.typed_vcat), Type{Any}, ProjecturedKernel.ProjectionModule.RuleIoMap, Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}, Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}}
+Tuple{typeof(Base.typed_vcat), Type{Any}, ProjecturedKernel.ProjectionModule.TemplateIoMap, Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}, ProjecturedKernel.IoMapModule.ChildrenIoMap}
+Tuple{typeof(Base.typed_vcat), Type{Any}, ProjecturedKernel.ProjectionModule.TemplateIoMap, Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}}
+Tuple{typeof(Base.typed_vcat), Type{Any}, ProjecturedKernel.ProjectionModule.TemplateIoMap, Array{ProjecturedKernel.ProjectionModule.TemplateIoMap, 1}, Array{ProjecturedKernel.ProjectionModule.TemplateIoMap, 1}}
 Tuple{typeof(Base.vect), ProjecturedKernel.IoMapModule.ChildrenIoMap, Vararg{Any}}
 Tuple{typeof(Base.vect), ProjecturedKernel.IoMapModule.SimpleIoMap, Vararg{Any}}
 Tuple{typeof(Core.kwcall), NamedTuple{(:alt,), Tuple{Bool}}, Type{ProjecturedKernel.EventModule.ModifierKeys}}
@@ -323,7 +323,7 @@ Tuple{typeof(ProjecturedKernel.IoMapModule.get_iomap_input), ProjecturedKernel.I
 Tuple{typeof(ProjecturedKernel.IoMapModule.get_iomap_input), ProjecturedKernel.IoMapModule.SimpleIoMap}
 Tuple{typeof(ProjecturedKernel.IoMapModule.get_iomap_projection), ProjecturedKernel.IoMapModule.ChildrenIoMap}
 Tuple{typeof(ProjecturedKernel.IoMapModule.get_iomap_projection), ProjecturedKernel.IoMapModule.SimpleIoMap}
-Tuple{typeof(ProjecturedKernel.IoMapModule.get_iomap_projection), ProjecturedKernel.ProjectionModule.RuleIoMap}
+Tuple{typeof(ProjecturedKernel.IoMapModule.get_iomap_projection), ProjecturedKernel.ProjectionModule.TemplateIoMap}
 Tuple{typeof(ProjecturedKernel.OperationModule._is_written_step), ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
 Tuple{typeof(ProjecturedKernel.OperationModule._short_reference), ProjecturedKernel.ReferenceModule.ConcreteReference}
 Tuple{typeof(ProjecturedKernel.OperationModule._short_value), Array{Any, 1}}
@@ -366,14 +366,14 @@ Tuple{typeof(ProjecturedKernel.OperationModule.reroot_operation), ProjecturedKer
 Tuple{typeof(ProjecturedKernel.OperationModule.reroot_operation), ProjecturedKernel.OperationModule.ReplaceViewStateOperation, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}
 Tuple{typeof(ProjecturedKernel.ProjectionModule._find_entry_iomaps), Array{Any, 1}}
 Tuple{typeof(ProjecturedKernel.ProjectionModule._find_entry_iomaps), Array{Tuple{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, Any}, 1}}
-Tuple{typeof(ProjecturedKernel.ProjectionModule._focused_child), ProjecturedKernel.ProjectionModule.ConditionalNodeWiring, ProjecturedKernel.ProjectionModule.RuleIoMap, ProjecturedKernel.ReferenceModule.ConcreteReference}
-Tuple{typeof(ProjecturedKernel.ProjectionModule._focused_child), ProjecturedKernel.ProjectionModule.FixedNodeWiring, ProjecturedKernel.ProjectionModule.RuleIoMap, ProjecturedKernel.ReferenceModule.ConcreteReference}
-Tuple{typeof(ProjecturedKernel.ProjectionModule._focused_child), ProjecturedKernel.ProjectionModule.NodeWiring, ProjecturedKernel.ProjectionModule.RuleIoMap, ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(ProjecturedKernel.ProjectionModule._focused_child), ProjecturedKernel.ProjectionModule.ConditionalNodeWiring, ProjecturedKernel.ProjectionModule.TemplateIoMap, ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(ProjecturedKernel.ProjectionModule._focused_child), ProjecturedKernel.ProjectionModule.FixedNodeWiring, ProjecturedKernel.ProjectionModule.TemplateIoMap, ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(ProjecturedKernel.ProjectionModule._focused_child), ProjecturedKernel.ProjectionModule.NodeWiring, ProjecturedKernel.ProjectionModule.TemplateIoMap, ProjecturedKernel.ReferenceModule.ConcreteReference}
 Tuple{typeof(ProjecturedKernel.ProjectionModule._map_child_backward), ProjecturedKernel.IoMapModule.ChildrenIoMap, ProjecturedKernel.ReferenceModule.ConcreteReference}
 Tuple{typeof(ProjecturedKernel.ProjectionModule._map_child_backward), ProjecturedKernel.IoMapModule.SimpleIoMap, ProjecturedKernel.ReferenceModule.ConcreteReference}
-Tuple{typeof(ProjecturedKernel.ProjectionModule._map_child_backward), ProjecturedKernel.ProjectionModule.RuleIoMap, ProjecturedKernel.ReferenceModule.ConcreteReference}
-Tuple{typeof(ProjecturedKernel.ProjectionModule._read_override_gesture), ProjecturedKernel.ProjectionModule.RuleIoMap, ProjecturedKernel.EventModule.KeyDown, ProjecturedKernel.EventModule.KeyDown}
-Tuple{typeof(ProjecturedKernel.ProjectionModule._read_override_gesture), ProjecturedKernel.ProjectionModule.RuleIoMap, ProjecturedKernel.EventModule.KeyDown, ProjecturedKernel.OperationModule.ReplaceSelectionOperation}
+Tuple{typeof(ProjecturedKernel.ProjectionModule._map_child_backward), ProjecturedKernel.ProjectionModule.TemplateIoMap, ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(ProjecturedKernel.ProjectionModule._read_override_gesture), ProjecturedKernel.ProjectionModule.TemplateIoMap, ProjecturedKernel.EventModule.KeyDown, ProjecturedKernel.EventModule.KeyDown}
+Tuple{typeof(ProjecturedKernel.ProjectionModule._read_override_gesture), ProjecturedKernel.ProjectionModule.TemplateIoMap, ProjecturedKernel.EventModule.KeyDown, ProjecturedKernel.OperationModule.ReplaceSelectionOperation}
 Tuple{typeof(ProjecturedKernel.ProjectionModule._strip_checkpoints), ProjecturedKernel.ReferenceModule.ConcreteReference}
 Tuple{typeof(ProjecturedKernel.ProjectionModule.collection), Symbol}
 Tuple{typeof(ProjecturedKernel.ProjectionModule.make_child_context), ProjecturedKernel.ProjectionModule.PrinterContext, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}

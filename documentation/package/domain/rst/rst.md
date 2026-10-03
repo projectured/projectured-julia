@@ -51,7 +51,7 @@ A table maps the role name to the colour of its chip, and an unknown name gets a
 
 Every compound of this domain has `indentation = 0` and writes the indent into its own `open` and `sep` text. The current column travels as an ambient `:rst_indent` in the printer context. A container that owns an indented body pushes a deeper indent, and every rule that writes a newline puts the ambient after it.
 
-The `indentation` field of a compound can not do this. It writes a newline before the first child too, and it always costs one indent level of the pipeline, so the items of a list would leave their marker column. `@projection_template` builds a printer from `(prj, doc)` alone and has no access to the context. So two macros of `source/domain/rst/RstToSyntax.jl`, `@rst_flat` and `@rst_indented`, call `print_template_rule`, the entry point of the template macro, and give the builder the ambient column as well. A rule keeps its template body, and the reader still comes from the template.
+The `indentation` field of a compound can not do this. It writes a newline before the first child too, and it always costs one indent level of the pipeline, so the items of a list would leave their marker column. `@projection_template` builds a printer from `(prj, doc)` alone and has no access to the context. So two macros of `source/domain/rst/RstToSyntax.jl`, `@rst_flat` and `@rst_indented`, call `print_template_document`, the entry point of the template macro, and give the builder the ambient column as well. A rule keeps its template body, and the reader still comes from the template.
 
 ### Seven opaque bodies
 

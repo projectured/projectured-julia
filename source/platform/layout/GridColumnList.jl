@@ -91,9 +91,9 @@ function _make_grid_cell_node(recursion, doc, ctx, state::GridListState, k::Int,
     cctx = make_child_context(ctx, doc, (@reference_step children), (@reference_step [k]),
                               (@reference_step [c]))
     if cctx !== nothing
-        cctx = _is_offer_withheld(doc.column_offers) ? withhold_offer(cctx, :x) :
+        cctx = _is_offer_withheld(doc.column_offers) ? with_free_axis(cctx, :x) :
                    with_exact_size(cctx; width = getfield(column, :w))
-        cctx = _is_offer_withheld(doc.row_offers) ? withhold_offer(cctx, :y) :
+        cctx = _is_offer_withheld(doc.row_offers) ? with_free_axis(cctx, :y) :
                    with_exact_size(cctx; height = height)
     end
     cim = document === nothing ? nothing : _recurse_child(recursion, document, cctx)

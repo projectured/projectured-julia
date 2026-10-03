@@ -137,9 +137,9 @@ function _make_grid_list_row(recursion, doc, ctx, state::GridListState, col_x, c
         if cctx !== nothing
             withheld = column_offers isa AbstractVector && c <= length(column_offers) &&
                        column_offers[c] === false
-            cctx = withheld ? withhold_offer(cctx, :x) :
+            cctx = withheld ? with_free_axis(cctx, :x) :
                               with_exact_size(cctx; width = _gl_int32_cell(col_w[c]))
-            cctx = fixed_h === nothing ? withhold_offer(cctx, :y) :
+            cctx = fixed_h === nothing ? with_free_axis(cctx, :y) :
                                          with_exact_size(cctx; height = Cell(Int32(fixed_h)))
         end
         cim = document === nothing ? nothing : _recurse_child(recursion, document, cctx)

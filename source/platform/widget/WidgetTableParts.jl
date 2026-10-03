@@ -207,7 +207,7 @@ _has_table_column_headers(w::WidgetTable) =
 _print_table_corner(recursion, w::WidgetTable, inner) =
     w.corner === nothing ? nothing :
         print_child(recursion, w.corner,
-                    withhold_offer(withhold_offer(make_child_context(inner, FieldReferenceStep("corner")),
+                    with_free_axis(with_free_axis(make_child_context(inner, FieldReferenceStep("corner")),
                                                   :x), :y))
 
 # The node of a list that mirrors the headers of `header_node` as rows of one
@@ -259,7 +259,7 @@ function _print_header_column(recursion, w::WidgetTable, inner, corner, height::
     offset = getfield(w, :scroll_position)
     pane = _make_part_pane(grid, Cell(@computation Point2D(0, Int((offset[]::Point2D).y[]))),
                            Inset(bw + pad_y, bw + pad_y, bw + pad_x, pad_x))
-    iomap = print_child(recursion, pane, with_exact_size(withhold_offer(inner, :x); height))
+    iomap = print_child(recursion, pane, with_exact_size(with_free_axis(inner, :x); height))
     grid_iomap[] = iomap.content_iomap
     iomap
 end
@@ -693,7 +693,7 @@ function _print_vector_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w
                           Cell(Any[]), Cell(offers), Cell(Bool[]), Cell(nothing))
         header_offset = Cell(@computation Point2D(Int((offset[]::Point2D).x[]), 0))
         pane = _make_part_pane(grid, header_offset, Inset(bw + pad_y, pad_y, bw + pad_x, bw + pad_x))
-        column_header_pane = print_child(recursion, pane, withhold_offer(beside, :y))
+        column_header_pane = print_child(recursion, pane, with_free_axis(beside, :y))
     end
     header_height = column_header_pane === nothing ? Cell(0) : Cell(@computation Int(column_header_pane.output.h))
 

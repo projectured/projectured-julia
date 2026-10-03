@@ -904,7 +904,7 @@ end
 #
 # Every projection here is written with `@projection_template`; all 32 get their
 # reference mapping and readers for free from the template engine's generic
-# `RuleIoMap` machinery. Opaque leaves map `∅↔∅` (mirroring the old generic
+# `TemplateIoMap` machinery. Opaque leaves map `∅↔∅` (mirroring the old generic
 # default); the collection / fixed nodes delegate each recursive child through its
 # stored child IoMap (School A), like JsonToSyntax. The composite/statement nodes
 # use the general node markers: a keyword/bracket header is a nested

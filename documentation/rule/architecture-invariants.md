@@ -628,7 +628,7 @@ child and lifts the result.** For a raw authoring gesture, find the selected
 child from the node's `selection` and `child_iomaps`, delegate to that child's
 `read_intent`, and lift the returned operation with `reroot_operation`
 (prepending the input step that reaches the child); handle the gesture itself
-only when the child declines. The template engine's `RuleIoMap` reader already
+only when the child declines. The template engine's `TemplateIoMap` reader already
 does this — do not special-case nested editing.
 
 ### PAR-SHARED-CHILDREN-IOMAP

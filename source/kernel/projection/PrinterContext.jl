@@ -111,7 +111,7 @@ Return a context for a child position: extends `ctx.reference` by `steps`.
 The ranges, the clock and the properties are inherited unchanged —
 pass-through wrappers keep the parent's range; a layout that gives its child a
 range of its own calls `with_exact_size`, `with_bounded_size` or
-`withhold_offer` explicitly.
+`with_free_axis` explicitly.
 
 Use it to give a child its place in the document before a node printer prints
 the child.
@@ -256,7 +256,7 @@ function _get_inner_range(range, inset)
 end
 
 """
-    withhold_offer(ctx, axis) -> PrinterContext
+    with_free_axis(ctx, axis) -> PrinterContext
 
 The context a container hands its children on an axis whose extent the container
 derives **from** those children.
@@ -272,10 +272,10 @@ is that rule, written once — `axis` is the axis the container derives, `:x` or
 `:y`, and the other axis passes through untouched. The axis becomes free: no
 minimum and no maximum. Any other `axis` throws an `ArgumentError`.
 """
-function withhold_offer(ctx::PrinterContext, axis::Symbol)
+function with_free_axis(ctx::PrinterContext, axis::Symbol)
     axis === :x && return with_exact_size(ctx; width = nothing)
     axis === :y && return with_exact_size(ctx; height = nothing)
-    throw(ArgumentError("withhold_offer: the axis is :x or :y, not :$axis"))
+    throw(ArgumentError("with_free_axis: the axis is :x or :y, not :$axis"))
 end
 
 """

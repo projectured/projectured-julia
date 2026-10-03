@@ -1527,10 +1527,10 @@ function print_document(p::GridLayoutToGraphicsCanvas,
                             with_bounded_size(cctx; width = make_span_edge(i))) :
                    offers_to_cells(col) ? with_exact_size(cctx; width = _gl_int32_cell(col_w[col])) :
                    is_content_column(col) ? with_bounded_size(cctx; width = column_edges[col]) :
-                   withhold_offer(cctx, :x)
+                   with_free_axis(cctx, :x)
             cctx = offers_to_row_cells(row) ?
                 with_exact_size(cctx; height = _gl_int32_cell(row_h[row])) :
-                withhold_offer(cctx, :y)
+                with_free_axis(cctx, :y)
         end
         cim = _recurse_child(recursion, doc.children[i],
                              make_child_context(cctx, doc, (@reference_step children), (@reference_step [i])))
@@ -1737,7 +1737,7 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
     # to them. The flow breaks its lines at `max_width`, or at the edge of the
     # range it was given when that is less: a flow in a card breaks at the card's
     # edge.
-    child_ctx = ctx === nothing ? nothing : withhold_offer(withhold_offer(ctx, :x), :y)
+    child_ctx = ctx === nothing ? nothing : with_free_axis(with_free_axis(ctx, :x), :y)
     edge_w = ctx === nothing ? nothing : ctx.maximum_width
     minimum_w = ctx === nothing ? nothing : ctx.minimum_width
     build = Cell(@computation begin

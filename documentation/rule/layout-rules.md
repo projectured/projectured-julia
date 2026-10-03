@@ -34,7 +34,7 @@ An overlay (a tooltip, a menu, a context menu) caps instead of stretching:
 
 A container gives an exact range to a child that it sizes (§3, §4), a bounded
 range to a child that it only bounds, and a free range on an axis where it has
-no edge. `with_exact_size`, `with_bounded_size` and `withhold_offer` make the
+no edge. `with_exact_size`, `with_bounded_size` and `with_free_axis` make the
 three states. A printer that fills a slot, and is its content where it has
 none, reads `get_exact_width(ctx)` and `get_exact_height(ctx)`: the cell of an
 exact range, and `nothing` for a bounded or a free one.
@@ -132,7 +132,7 @@ edge(axis) = the edge I was given, less my insets
 The second line is not taste. A child that reads an extent its parent computed
 from its children reads the parent's own outer size, and the reactive cell cycles
 and overflows the stack. `with_bounded_size` gives a child the edge and no slot,
-and `withhold_offer(ctx, axis)` gives it neither.
+and `with_free_axis(ctx, axis)` gives it neither.
 
 The edge is a different value. It is the maximum of the range that the container
 was given, a cell of the container's own parent, and never the container's own

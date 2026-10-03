@@ -23,7 +23,7 @@ print to print, no?", then:
   loop: `print_document(projection, …)` runs the printer of a projection and
   answers an IoMap, which holds the output document. `print_child`,
   `print_document_pure`, `print_child_pure`, `print_pure` and
-  `print_template_rule` are of that sense. In Julia, `print(io, x)` writes to an
+  `print_template_document` are of that sense. In Julia, `print(io, x)` writes to an
   IO and answers `nothing`. The rules do not say which sense a `print_` name has.
 - **`print_natural_text(document) -> String`** (`source/natural/NaturalNotation.jl`)
   runs the natural projection down to a string. Its docstring calls it "a

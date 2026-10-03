@@ -73,7 +73,7 @@ function _get_layout_list_main_context(cctx, child, doc, axis::Symbol)
     main = axis === :y ? :y : :x
     default = getfield(doc, axis === :y ? :child_height : :child_width)[]
     preferred = layout_preferred(child, main, 0; default)
-    preferred > 0 || return withhold_offer(cctx, main)
+    preferred > 0 || return with_free_axis(cctx, main)
     axis === :y ? with_exact_size(cctx; height = Cell(Int32(preferred))) :
                   with_exact_size(cctx; width = Cell(Int32(preferred)))
 end

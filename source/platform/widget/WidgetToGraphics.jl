@@ -2386,7 +2386,7 @@ function print_document(p::WidgetDialogToGraphicsCanvas, recursion, w::WidgetDia
 
     # Buttons laid out in a row, which offers no width.
     button_ctx = ctx === nothing ? nothing :
-                 with_bounded_size(withhold_offer(ctx, :x); height = Cell(Int32(edge_h)))
+                 with_bounded_size(with_free_axis(ctx, :x); height = Cell(Int32(edge_h)))
     button_iomaps = Any[]
     btn_w = 0; btn_h = 0
     for b in w.buttons
@@ -2553,7 +2553,7 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
     # WidgetDocument branch. It is offered no width, so what the item needs does
     # not depend on what the item is offered.
     child_iomap = reconcile_child_iomap(() -> w.action.label,
-                                        c -> print_child(recursion, c, withhold_offer(ctx, :x)))
+                                        c -> print_child(recursion, c, with_free_axis(ctx, :x)))
     # What the item draws and the extent it needs. It reads the item and never the
     # offer, because a dropdown reads the width each item needs to offer every item
     # the widest.
@@ -2759,10 +2759,10 @@ end
 # offered `row_width`, the width of the widest item, which is what makes a row's
 # highlight span the menu; any other widget in it keeps its own width.
 function _menu_item_context(w::WidgetMenu, ctx, item, row_width)
-    w.orientation === :horizontal && return withhold_offer(ctx, :x)
-    column = withhold_offer(ctx, :y)
+    w.orientation === :horizontal && return with_free_axis(ctx, :x)
+    column = with_free_axis(ctx, :y)
     item isa WidgetMenuItem ? with_exact_size(column; width = row_width) :
-                              withhold_offer(column, :x)
+                              with_free_axis(column, :x)
 end
 
 # The width of a row of a dropdown: what its widest element needs. An item says
@@ -3716,7 +3716,7 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
         # Offer the slot only when there is one. Offering an unallocated slot
         # tells the child it has no room at all, and it draws nothing; withholding
         # the axis lets the child size itself, which is what the slot then is.
-        cctx  = avail_main === nothing ? withhold_offer(ctx, main_axis) :
+        cctx  = avail_main === nothing ? with_free_axis(ctx, main_axis) :
                 main_axis === :x ? with_exact_size(ctx; width=cell) :
                                    with_exact_size(ctx; height=cell)
         cim = print_child(recursion, inner, cctx)
@@ -6526,7 +6526,7 @@ function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard,
     authored_width = _sc(Int(w.width))
     inner_ctx = authored_width > 0 ? with_exact_size(ctx; width = Cell(Int32(max(0, authored_width - pad_x)))) :
                 with_inner_size(ctx; width = pad_x)
-    inner_ctx = withhold_offer(inner_ctx, :y)
+    inner_ctx = with_free_axis(inner_ctx, :y)
     tim = w.title isa Document ? print_child(recursion, w.title, inner_ctx) : nothing
     # A `LayoutConstraint` around the content is how a caller pins the body's
     # height — a collapsed card showing one row of what it holds. The card does
@@ -8563,7 +8563,7 @@ function _get_accordion_item_context(p::WidgetAccordionToGraphicsCanvas, w::Widg
     authored = _sc(Int(w.width))
     inner_ctx = authored > 0 ? with_exact_size(ctx; width = Cell(Int32(max(0, authored - padding)))) :
                 with_inner_size(ctx; width = padding)
-    withhold_offer(inner_ctx, :y)
+    with_free_axis(inner_ctx, :y)
 end
 
 function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::WidgetAccordion, ctx)
@@ -9056,7 +9056,7 @@ function _print_eager_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::
         pane = _make_part_pane(grid, Cell(@computation Point2D(Int((offset[]::Point2D).x[]), 0)),
                                Inset(bw + pad_y, pad_y, bw + pad_x, bw + pad_x))
         column_header_pane = print_child(recursion, pane,
-                                         withhold_offer(with_inner_size(ctx; width = header_width), :y))
+                                         with_free_axis(with_inner_size(ctx; width = header_width), :y))
     end
     # The header column: `Fixed` heights from the cells. A header is never
     # offered its height, so it is measured, to be a floor for its row.
@@ -9070,7 +9070,7 @@ function _print_eager_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::
         pane = _make_part_pane(grid, Cell(@computation Point2D(0, Int((offset[]::Point2D).y[]))),
                                Inset(bw + pad_y, bw + pad_y, bw + pad_x, pad_x))
         row_header_pane = print_child(recursion, pane,
-                                      withhold_offer(with_inner_size(ctx; height = header_height), :x))
+                                      with_free_axis(with_inner_size(ctx; height = header_height), :x))
     end
     # The cells, which decide the widths and the heights.
     get_column_header(c) = column_header_pane === nothing ? nothing :
