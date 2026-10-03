@@ -75,8 +75,15 @@ text themes the stages take.
 make_natural_prose_graphics(; measure::TextMeasure, appearance::Appearance) = ChainingProjection(
     _make_natural_syntax_stages(appearance)...,
     WordWrapping(measure = measure),
-    TextToGraphics(; measure, theme = get_scaled_theme!(appearance, TextTheme)),
+    _make_spaced_text(measure, appearance, :prose_line_spacing),
 )
+
+# The text projection of the fabric, at the line spacing `name` of the text theme
+# of `appearance`: the spacing of code or of prose.
+function _make_spaced_text(measure::TextMeasure, appearance::Appearance, name::Symbol)
+    theme = get_scaled_theme!(appearance, TextTheme)
+    TextToGraphics(; measure, theme, line_spacing = make_style_field(TextTheme, theme, LineSpacing; name))
+end
 
 # The two recursive stages of the fabric, each with a barrier at its recursion
 # point, so a fault costs one node of the syntax tree or of its text.
@@ -99,7 +106,7 @@ _make_natural_syntax_stages(appearance::Appearance) = (
 function _fallback_rows(; measure::TextMeasure, font, wrap, appearance::Appearance)
     fabric = ChainingProjection(
         _make_natural_syntax_stages(appearance)...,
-        TextToGraphics(; measure, theme = get_scaled_theme!(appearance, TextTheme)),
+        _make_spaced_text(measure, appearance, :code_line_spacing),
     )
     Pair{Type,Any}[
         TextNothing       => fabric,

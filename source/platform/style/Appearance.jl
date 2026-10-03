@@ -244,6 +244,10 @@ _encode_appearance_value(length::ThemeLength) = _encode_appearance_value(length.
 _encode_appearance_value(inset::Inset) = Any[inset.top[], inset.bottom[], inset.left[], inset.right[]]
 _encode_appearance_value(point::Point2D) = Any[point.x[], point.y[]]
 _encode_appearance_value(value::Union{Real, AbstractString}) = value
+_encode_appearance_value(::SingleSpacing) = Dict{String,Any}("single" => true)
+_encode_appearance_value(spacing::MultipleSpacing) = Dict{String,Any}("multiple" => spacing.factor)
+_encode_appearance_value(spacing::ExactSpacing) = Dict{String,Any}("exact" => spacing.distance)
+_encode_appearance_value(spacing::AtLeastSpacing) = Dict{String,Any}("at_least" => spacing.distance)
 _encode_appearance_value(_) = nothing
 
 # The value that the TOML value `saved` says, of the kind of `current`, or
@@ -315,4 +319,17 @@ end
 _decode_appearance_value(current::Integer, saved) = saved isa Integer ? saved : nothing
 _decode_appearance_value(current::AbstractFloat, saved) = saved isa Real ? Float64(saved) : nothing
 _decode_appearance_value(current::AbstractString, saved) = saved isa AbstractString ? String(saved) : nothing
+# A line spacing is saved as a table of one key, its kind, and its number.
+function _decode_appearance_value(current::LineSpacing, saved)
+    saved isa AbstractDict || return nothing
+    haskey(saved, "single") && return SingleSpacing()
+    number(key) = (value = get(saved, key, nothing); value isa Real ? value : nothing)
+    factor = number("multiple")
+    factor === nothing || return MultipleSpacing(factor)
+    exact = number("exact")
+    exact === nothing || return ExactSpacing(exact)
+    least = number("at_least")
+    least === nothing || return AtLeastSpacing(least)
+    nothing
+end
 _decode_appearance_value(current, saved) = nothing

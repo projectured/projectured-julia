@@ -5437,7 +5437,10 @@ function _scroll_room(p, iomap)
     tx, ty = _inset_total(p, iomap.input)
     view_w = max(0, Int(out.w[]) - tx)
     view_h = max(0, Int(out.h[]) - ty)
-    content_w, content_h = get_graphics_size(content)
+    # The extent that the pane draws with (`_pane_scroll_y`): the size that a
+    # canvas declares, or else what is drawn, with the measure of the pane.
+    content_w, content_h = content isa GraphicsCanvas ? (Int(content.w), Int(content.h)) :
+                           get_graphics_size(content, p.measure)
     (max(0, Int(content_w) - view_w), max(0, Int(content_h) - view_h))
 end
 

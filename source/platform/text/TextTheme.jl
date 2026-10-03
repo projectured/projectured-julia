@@ -35,6 +35,10 @@ colors and fonts as keywords: no view of the platform builds them.
     dormant_highlight::StyleColor = StyleColor(0x88 / 255, 0x88 / 255, 0x88 / 255, 0x28 / 255)
     "The radius of the corners of the band under the selected text."
     highlight_radius::Radius = Radius(4)
+    "The distance between the lines of code, as a multiple of the natural line height of its font."
+    code_line_spacing::LineSpacing = MultipleSpacing(1.35)
+    "The distance between the lines of prose, as a multiple of the natural line height of its font."
+    prose_line_spacing::LineSpacing = MultipleSpacing(1.3)
     "A boolean that a primitive projection prints as text."
     bool_text::TextRole = TextRole(color_solarized_cyan)
     "A number that a primitive projection prints as text."

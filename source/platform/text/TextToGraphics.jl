@@ -78,10 +78,13 @@ end
 
 Draw a `TextBlock` as graphics, with its caret and the band under its selection.
 `theme` is a `TextTheme` or a scaled one, whose caret and selection it draws; with
-none, it draws those of the default theme, and builds no theme.
+none, it draws those of the default theme, and builds no theme. `line_spacing` is
+a `LineSpacing`, or a cell that reads one of the theme, such as its
+`code_line_spacing` or `prose_line_spacing`; a builder of code or of prose passes
+the one it draws, and a widget keeps single spacing.
 """
 function TextToGraphics(; start_x::Int=0, start_y::Int=0, measure::TextMeasure,
-                        line_spacing::LineSpacing = SingleSpacing(), theme = nothing)
+                        line_spacing = SingleSpacing(), theme = nothing)
     theme = scale_theme(theme)
     TextToGraphics(start_x, start_y, measure, line_spacing,
                    _get_text_style(theme, StyleColor, :caret),

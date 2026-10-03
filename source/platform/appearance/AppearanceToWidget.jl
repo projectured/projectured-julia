@@ -342,6 +342,14 @@ function _make_field_control(controls, theme, field::Symbol, value::TextRole)
     ]; gap = controls.theme.item_gap)
 end
 
+# A multiple of the natural line height has a spin box in percent.
+_make_field_control(controls, theme, field::Symbol, value::MultipleSpacing) =
+    HorizontalLayout(Any[controls.spin_box(round(Int, value.factor * 100),
+                                           v -> _write_theme_field(theme, field, MultipleSpacing(v / 100));
+                                           min = 50, max = 400),
+                         WidgetLabel("% of the natural line height")];
+                     gap = controls.theme.label_gap, vertical_align = :center)
+
 _make_field_control(controls, theme, field::Symbol, value) = WidgetLabel(string(value))
 
 # `role` with its weight, its slant or its relative size replaced.
