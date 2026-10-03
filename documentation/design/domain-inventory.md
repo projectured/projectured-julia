@@ -119,12 +119,12 @@ The second loop exports the names of the domain module from the package. The umb
 1. Create the three packages `package/Projectured<Name>/`, `…Example/` and `…Test/`, each with a `Project.toml` and a root module as above. Put the code in `source/<name>/`.
 2. Write the documents, the parser and the projections; [domain-anatomy.md](domain-anatomy.md) lists the parts.
 3. In the `__init__` of the module, register the natural notation with `register_natural_domain!`, and the file type with `register_file_document_type!`.
-4. Add the package to the three lists of the full set, which `test_repository()` and `test_builder()` keep equal:
+4. Add the package to the two lists of the full set, which `test_repository()` and `test_builder()` keep equal:
    - `ProjecturedAll`: the `[deps]` and `[sources]` of its `Project.toml`, the `import` list of its root module, and the `_SOURCES` tuple in `source/all/ProjecturedAll.jl`;
-   - the umbrella: `_INSTALLED_PACKAGES` in `source/projectured/Projectured.jl`, and the `[weakdeps]` of `package/Projectured/Project.toml`;
    - the binary: `PROJECTURED_APPLICATION_IMPORTS` in `source/tool/builder/ProjecturedProgram.jl`.
-5. Add the test package to `ProjecturedTest`.
-6. Add the three packages to `[deps]` and `[sources]` of `environment/all/Project.toml`, then run `Pkg.resolve()`.
+5. Declare the table `[auto-integration]` in the domain's `Project.toml`, with the trigger `Projectured` and the default `auto`, so AutoIntegrations loads the domain when a session loads `Projectured`; see [autointegrations.md](../package/autointegrations/autointegrations.md).
+6. Add the test package to `ProjecturedTest`.
+7. Add the three packages to `[deps]` and `[sources]` of `environment/all/Project.toml`, then run `Pkg.resolve()`.
 
 ## Where a cross-domain thing goes
 

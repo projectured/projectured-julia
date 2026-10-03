@@ -36,35 +36,70 @@ The packages are not in the General registry yet. A project reaches them by path
 
 | Package | What you get |
 | --- | --- |
-| `Projectured` | the umbrella: the names of the kernel and the platform, and the load of each ProjecturEd package that you installed |
+| `Projectured` | the umbrella: the essential names, `ProjecturedPlatform.EssentialsModule` ([essentials.md](../package/platform/essentials/essentials.md)), and AutoIntegrations to load an installed package when its triggers are loaded ([autointegrations.md](../package/autointegrations/autointegrations.md)) |
 | `ProjecturedSDL` | the native window |
 | `ProjecturedWeb` | the browser backend |
 | `ProjecturedExample` | the examples, the gallery, `run_value_viewer` and the application |
 | one domain, for example `ProjecturedJSON` | the names of that domain, with the kernel and the platform below it |
 
-`add Projectured` installs the kernel and the platform, and nothing more. Add each domain that your program shows, and the console or the PDF backend if you use one. The umbrella loads each ProjecturEd package that you installed, so that a window shows every installed domain. The names of a domain stay in its package: to write `JsonString`, add `using ProjecturedJSON`.
+`add Projectured` installs the kernel, the platform and `AutoIntegrations`, and nothing more. Add each domain that your program shows, and the console or the PDF backend if you use one. AutoIntegrations loads each one that you installed when `Projectured` is loaded, because a domain declares `Projectured` as its trigger with the default `auto` ([autointegrations.md](../package/autointegrations/autointegrations.md)). The names of a domain stay in its package: to write `JsonString`, add `using ProjecturedJSON`.
 
 A program that shows data of one domain can load that domain and a backend without the umbrella. [package-rules.md](../rule/package-rules.md) says what each kind of package may depend on.
 
-## Two ways to load the integrations
+## Load the integrations
 
 An integration joins ProjecturEd to another package: `ProjecturedSDL` to `SimpleDirectMediaLayer`, `ProjecturedVideo` to `FFMPEG`, `ProjecturedDataFrames` to `DataFrames`, `ProjecturedODBC` to `ODBC`, `ProjecturedTulip` to `Tulip`, and `ProjecturedMCP` to `ModelContextProtocol`. Add the integrations that you want; `add Projectured` installs none of them.
 
-- **With the umbrella**, a session loads each installed integration when the package it joins is loaded too, in either order:
+### Name each package
 
-  ```julia
-  using SimpleDirectMediaLayer, DataFrames, Projectured    # loads ProjecturedSDL and ProjecturedDataFrames
-  ```
+A session that names each package loads only the packages it names and their dependencies:
 
-- **Without the umbrella**, a session loads the packages it names, and nothing more:
+```julia
+using SimpleDirectMediaLayer, DataFrames, ProjecturedSDL, ProjecturedDataFrames
+```
 
-  ```julia
-  using SimpleDirectMediaLayer, DataFrames, ProjecturedDataFrames, ProjecturedWeb
-  ```
+### Let AutoIntegrations load them
 
-The model adapters `ProjecturedOllama`, `ProjecturedAnthropic` and `ProjecturedOpenRouter` have no package of their own to trigger them: the umbrella loads each one that you installed, and a loaded adapter does nothing until you ask for it by name (`assistant = :ollama`). The web backend loads only when you name it, because a loaded web backend becomes the default backend when SDL is absent.
+`using Projectured` loads `AutoIntegrations` too. AutoIntegrations loads an installed integration when the packages it names as triggers are loaded, in either order:
 
-The umbrella loads an integration so that it works; the names of the integration stay in it. To write `SdlBackend()` yourself, add `using ProjecturedSDL`.
+```julia
+using Projectured, SimpleDirectMediaLayer, DataFrames    # loads ProjecturedSDL and ProjecturedDataFrames
+```
+
+### Choose for each integration
+
+Each integration gives its own default. Set the state of a package in the file `LocalPreferences.toml` beside the `Project.toml` of your project:
+
+```toml
+[AutoIntegrations]
+ProjecturedSDL = "auto"
+ProjecturedDataFrames = "manual"
+```
+
+`"auto"` loads the package when its triggers are loaded; `"manual"` loads it only when a `using` line names it. `set_auto_integration!(name, state)` writes the same file:
+
+```
+pkg> add AutoIntegrations
+
+julia> using AutoIntegrations
+julia> set_auto_integration!("ProjecturedDataFrames", :manual)
+```
+
+[autointegrations.md](../package/autointegrations/autointegrations.md) says how the hook finds its candidates and in which order it loads them.
+
+### Load every integration
+
+```julia
+using ProjecturedIntegrations, SimpleDirectMediaLayer, DataFrames
+```
+
+`ProjecturedIntegrations` installs every integration and every package that it joins, and loads each one with a package extension when the package it joins is loaded. Use it when you want all of them and do not want to choose.
+
+The model adapters `ProjecturedOllama`, `ProjecturedAnthropic` and `ProjecturedOpenRouter` declare the trigger `Projectured` alone, with no third-party package to join: AutoIntegrations loads each one that you installed when `Projectured` is loaded, and a loaded adapter does nothing until you ask for it by name (`assistant = :ollama`). The web backend loads only when you name it, because a loaded web backend becomes the default backend when SDL is absent.
+
+An integration that AutoIntegrations loads puts no name into `Main`; the names of the integration stay in it. To write `SdlBackend()` yourself, add `using ProjecturedSDL`.
+
+`Projectured` gives only the essential names, `ProjecturedPlatform.EssentialsModule` ([essentials.md](../package/platform/essentials/essentials.md)): `display_in_editor`, `run_editor!` and the few others that most programs call. A program that needs another name of the kernel or the platform writes `using ProjecturedPlatform`.
 
 ## Open a window from your code
 
@@ -78,7 +113,7 @@ projection = NaturalToGraphics(measure = FontFileMeasure())
 run_editor!(document, projection; window = (; title = "My data"))
 ```
 
-The JSON domain is installed (step 2), so the umbrella loads it and `parse_natural_text` reads `:json`. `run_editor!` puts the view in a window of the title you give, and returns when the window closes. SDL is the one loaded backend that draws windows, so the call needs no `backend`. `mcp = true` starts the MCP server beside it, so an external client can drive the same editor ([mcp-guide.md](mcp-guide.md)).
+The JSON domain is installed (step 2), so AutoIntegrations loads it when `Projectured` is loaded, because `ProjecturedJSON` declares the trigger `Projectured` with the default `auto`, and `parse_natural_text` reads `:json`. `run_editor!` puts the view in a window of the title you give, and returns when the window closes. SDL is the one loaded backend that draws windows, so the call needs no `backend`. `mcp = true` starts the MCP server beside it, so an external client can drive the same editor ([mcp-guide.md](mcp-guide.md)).
 
 `NaturalToGraphics` is the general renderer: it draws a document of any domain, and a struct of your own through reflection. A projection you wrote yourself goes in its place.
 

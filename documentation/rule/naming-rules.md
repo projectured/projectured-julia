@@ -24,6 +24,11 @@ Every package name is `Projectured<Slice>` in CamelCase, and the umbrella is
 `Projectured` alone. The package directory is `package/<PackageName>/`, one
 folder per package, carrying the name exactly.
 
+**One package is the exception: `AutoIntegrations` names no slice of
+ProjecturEd.** It is generic — a package of another project could use it
+unchanged — so it carries no `Projectured` prefix. Its test package is
+`AutoIntegrationsTest`, the ordinary suffix on the bare name.
+
 The slice is the lower-case name with the prefix removed, and it is the folder
 its code lives in: `ProjecturedSequenceChart` is
 `package/ProjecturedSequenceChart/`, its code is `source/domain/sequencechart/`, its
@@ -48,8 +53,9 @@ on, and why a leaf matters.
   is a leaf that measures. A tool is not a kind of artifact. The package that a
   build writes for a binary is `<Name>App`, for example `ProjecturedApp`.
 - **A package extension is `<Package><Dependency>Ext`.** That is the name
-  Julia's `[extensions]` table needs, and it reads as what it is: the umbrella
-  loads `ProjecturedSDL` in `ProjecturedSimpleDirectMediaLayerExt`.
+  Julia's `[extensions]` table needs, and it reads as what it is:
+  `ProjecturedIntegrations` loads `ProjecturedSDL` in
+  `ProjecturedIntegrationsSimpleDirectMediaLayerExt`.
 - **A test package's entry point is `test_<slice>()`.** `ProjecturedJSONTest`
   exports `test_json`, `ProjecturedKernelTest` exports `test_kernel`, and the
   static layering guard beside it is `test_<slice>_layering()`. The table of

@@ -204,7 +204,7 @@ julia> iomap = print_document(proj, doc);    # forward projection
 julia> iomap.output                            # the printed tree
 julia> iomap.output[]                          # force the outer Cell
 
-julia> using Projectured: KeyDown, ModifierKeys, Intent
+julia> using ProjecturedPlatform: KeyDown, ModifierKeys, Intent
 julia> change = read_intent(proj, nothing, Intent(KeyDown(:right, ModifierKeys(); time = time())), iomap);
 julia> change.operation                              # the operation the reader produced
 julia> evaluate_operation((; document = doc), change.operation);   # apply it (editor.document)
@@ -363,17 +363,17 @@ The intended tool is a Cassette `overdub` that logs every call to the selected
 functions as an indented tree, with **no edits to any projection method**:
 
 ```julia
-julia> using Cassette, Projectured
-julia> using Projectured: KeyDown, ModifierKeys, Intent
+julia> using Cassette, ProjecturedPlatform
+julia> using ProjecturedPlatform: KeyDown, ModifierKeys, Intent
 julia> Cassette.@context TraceCtx
 julia> const _depth = Ref(0)
 
 # Hook the 4-arg reader: read_intent(p, recursion, change, iomap)
-julia> function Cassette.prehook(::TraceCtx, ::typeof(Projectured.read_intent), p, recursion, change, iomap)
+julia> function Cassette.prehook(::TraceCtx, ::typeof(ProjecturedPlatform.read_intent), p, recursion, change, iomap)
            println("  "^_depth[], "→ read ", nameof(typeof(p)), "   <", nameof(typeof(change.gesture)), ">")
            _depth[] += 1
        end
-julia> Cassette.posthook(::TraceCtx, out, ::typeof(Projectured.read_intent), p, recursion, change, iomap) = (_depth[] -= 1)
+julia> Cassette.posthook(::TraceCtx, out, ::typeof(ProjecturedPlatform.read_intent), p, recursion, change, iomap) = (_depth[] -= 1)
 
 # wrap whatever triggers a read — a manual call, or the editor's read of one event:
 julia> ex = json_example; doc, proj = ex.document, ex.projection;

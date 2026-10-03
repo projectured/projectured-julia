@@ -54,6 +54,7 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | `fault` | [fault.md](platform/fault/fault.md) | the fault barrier, the fault log and the safe mode |
 | `filesystem` | [filesystem.md](platform/filesystem/filesystem.md) | the file system tree and the workspace of the Explorer |
 | `display` | [display.md](platform/display/display.md) | a value shown in an editor beside the REPL |
+| `essentials` | [essentials.md](platform/essentials/essentials.md) | the few names of the kernel and the platform that most users call, which the umbrella, each integration and each backend re-export |
 | `undo` | [undo.md](platform/undo/undo.md) | the undo buffer and its history |
 | `log` | [log.md](platform/log/log.md) | the message log of the session |
 | `statistics` | [statistics.md](platform/statistics/statistics.md) | the frame statistics of the editor loop |
@@ -95,3 +96,9 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | --- | --- | --- |
 | `ProjecturedREPL` | [repl.md](tool/repl/repl.md) | the leaf that a session loads, with the precompile workload |
 | `ProjecturedBuilder` | [builder.md](tool/builder/builder.md) | the build of a native binary |
+
+## AutoIntegrations
+
+| Package | Document | What it holds |
+| --- | --- | --- |
+| `AutoIntegrations` | [autointegrations.md](autointegrations/autointegrations.md) | loads an installed package when its triggers are loaded, as the settings of the user choose |

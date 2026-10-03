@@ -533,7 +533,15 @@ The README of each released package changes too
       and documentation guards pass; the exports and arguments guards give the
       same findings as `julia-112`. The binary loads the platform, not the
       umbrella (section 9.5); `test_builder()` passes 473 of 473.
-- [ ] **Step 8, the documentation.** Section 6.
+- [x] **Step 8, the documentation.** Section 6.
+      Done: the two design documents (step 6 and section 9.6), and 25 files
+      by a documentation agent that I reviewed: the guides, the rules, the
+      anatomy, the package documents, the builder document, the index, and
+      each code example that wrote `using Projectured` and used a name that
+      is not essential (checked with Julia; `debugging-guide.md`,
+      `application.md`, `editor.md`, `tulip.md` and two docstrings name
+      `ProjecturedPlatform` now). The documentation guard passes; its two new
+      soft lines are "wants" said of a user.
 - [x] **Step 9, downstream.** omnet-julia and inet-julia precompile. I expect
       no change, because they do not load the umbrella.
       Done: scratch environments of both repositories against the packages of

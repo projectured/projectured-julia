@@ -189,10 +189,13 @@ Each layer lives in its own folder under [source/kernel/](../../../source/kernel
 
 A domain package binds the kernel's submodules as `const XxxModule =
 ProjecturedKernel.XxxModule` aliases, so its files can use relative `..XxxModule`
-imports. The `Projectured` umbrella mechanically re-exports every public name of
-every kernel and platform submodule into one flat namespace, and `ProjecturedAll`
-does the same with the domains too. Consequently, **module names are de-facto
-public API**: renaming one ripples into the domain alias block and the two flat
-namespaces. The module of a new layer, such as `PerformanceModule` or
-`IntentModule`, is picked up by both automatically and needs only an
-added domain alias if a domain file imports from it directly.
+imports. `ProjecturedAll` mechanically re-exports every public name of every
+kernel and platform submodule, the console, the PDF backend and every domain
+into one flat namespace. The `Projectured` umbrella re-exports only the twelve
+names of the platform's essentials slice (`ProjecturedPlatform.EssentialsModule`);
+see [essentials.md](../platform/essentials/essentials.md). Consequently,
+**module names are de-facto public API**: renaming one ripples into the domain
+alias block and `ProjecturedAll`'s flat namespace. The module of a new layer,
+such as `PerformanceModule` or `IntentModule`, is picked up by `ProjecturedAll`
+automatically and needs only an added domain alias if a domain file imports
+from it directly.

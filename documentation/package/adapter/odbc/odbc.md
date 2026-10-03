@@ -25,7 +25,7 @@ ProjecturedDatabase        ProjecturedDBCatalog ──▶ ProjecturedSQL
         └──────── ProjecturedODBC ─┴──────────────────────┘
 ```
 
-So only a program that loads `ProjecturedODBC` can reach a database. The package owns a third-party dependency, so the umbrella package `Projectured` does not depend on it; see [package-rules.md](../../../rule/package-rules.md). When the environment has the package, the umbrella loads it as soon as `ODBC` is loaded; see [system-anatomy.md](../../../design/system-anatomy.md).
+So only a program that loads `ProjecturedODBC` can reach a database. The package owns a third-party dependency, so the umbrella package `Projectured` does not depend on it; see [package-rules.md](../../../rule/package-rules.md). It declares the triggers `Projectured` and `ODBC` with the default `auto`, so AutoIntegrations loads it when both are loaded; see [autointegrations.md](../../autointegrations/autointegrations.md). It re-exports the essential names of `ProjecturedPlatform.EssentialsModule`; see [essentials.md](../../platform/essentials/essentials.md).
 
 The package has no `__init__`. It registers no natural row and no file type, so the general renderer has no row for it, and a caller composes its projections into a chain. Its one registration is the method `make_database_adapter(::Val{:odbc})`.
 

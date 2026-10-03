@@ -12,7 +12,9 @@ and no synonyms.
 - **Package** — a Julia package with its own `Project.toml`. The project
   consists of packages: the `ProjecturedKernel` engine, `ProjecturedPlatform`,
   the seventeen domain packages, the `Projectured`
-  umbrella, the `ProjecturedAll` development package, their sibling test and example packages, and the opt-in packages
+  umbrella, `AutoIntegrations`, `ProjecturedIntegrations`, the `ProjecturedAll`
+  flat-namespace package, their sibling test and example packages, and the
+  opt-in packages
   (`sdl`, `web`, `odbc`, `video`, `tulip`, `anthropic`, `ollama`, `mcp`, …). A
   package is one concept and a boundary of dependencies and consumers. The
   packages form an acyclic graph, not a chain.
@@ -33,12 +35,13 @@ and no synonyms.
   Slices are **not ordered** — a slice may depend on another slice of the
   same layer or package only if the slice→slice edges stay **acyclic** (a
   DAG, not a stack). Slice is not a kernel-only notion: `ProjecturedPlatform`
-  is thirty-eight slices in one package, and each source domain, each
+  is thirty-nine slices in one package, and each source domain, each
   backend, each adapter and each tool is one slice and a package of its own.
 
 - **Module** — a Julia `module`, the namespace/import boundary. One layer
   (or slice) contains one or more modules; module names are de-facto public
-  API because `Projectured` and `ProjecturedAll` re-export them.
+  API because `ProjecturedAll` re-exports every one of them, and `Projectured`
+  re-exports the twelve names of the platform's essentials slice.
 
 - **Leaf** — a package **nothing depends on and nothing loads after**:
   `ProjecturedREPL`, which the alias loads, and the package that a build writes

@@ -73,13 +73,13 @@ The application slice depends on the kernel and on the assistant, collection, co
 **It names no domain, no backend and no adapter.** A document of a domain draws through the natural renderer, which each loaded domain registers itself with; the model of the assistant is asked for by the name of its backend, through `make_llm`; and the window's backend is the one a caller passes, or the one `default_backend` finds among the loaded packages. So the window shows every domain that a session loads, and a session decides what it holds by what it loads:
 
 ```julia
-using Projectured, ProjecturedSDL, ProjecturedOllama
+using Projectured, ProjecturedPlatform, ProjecturedSDL, ProjecturedOllama
 run_application("data.json")
 ```
 
 The Julia domain registers its own closed chain with the natural renderer, under the key `:julia_code` (see [julia.md](../../domain/julia/julia.md)), so that an object pasted into Julia code stays one leaf, `⟨title⟩`, in every natural renderer and not only in this one; without it, the renderer would recurse the pasted object into its own domain's table instead of `JuliaToSyntax`'s closing rule.
 
-The umbrella `Projectured` re-exports this slice with the rest of the platform, so `run_application_command`, `warm_application` and `default_backend` are reachable as `Projectured.run_application_command` and so on. `ProjecturedBuilder` names those two as the `main` and the `workload` of the `projectured` binary, which also holds `ProjecturedOllama`, `ProjecturedAnthropic`, `ProjecturedMCP` and the backend packages the build names; see [builder.md](../../tool/builder/builder.md).
+`run_application_command`, `warm_application` and `default_backend` are reachable as `ProjecturedPlatform.run_application_command` and so on; the umbrella `Projectured` does not re-export this slice, only the essential names of `ProjecturedPlatform.EssentialsModule`. `ProjecturedBuilder` names the first two as the `main` and the `workload` of the `projectured` binary, which loads `ProjecturedPlatform` and also holds `ProjecturedOllama`, `ProjecturedAnthropic`, `ProjecturedMCP` and the backend packages the build names; see [builder.md](../../tool/builder/builder.md).
 
 ## Design decisions
 
@@ -90,7 +90,7 @@ The umbrella `Projectured` re-exports this slice with the rest of the platform, 
 ## Usage
 
 ```julia
-using Projectured, ProjecturedSDL, ProjecturedOllama
+using Projectured, ProjecturedPlatform, ProjecturedSDL, ProjecturedOllama
 run_application("notes.md", "data.json"; assistant = :ollama)
 ```
 

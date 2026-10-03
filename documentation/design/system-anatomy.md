@@ -59,9 +59,10 @@ depend on, and why the leaf the alias loads is the only place a
 `@compile_workload` may live, are in [package-rules.md](../rule/package-rules.md).
 
 ProjecturEd is organized as **one kernel, one platform package of
-thirty-eight slices, seventeen domain packages, five backends and eight
-adapters**, plus an umbrella, the development package `ProjecturedAll` and
-the tools. The kernel
+thirty-nine slices, seventeen domain packages, five backends and eight
+adapters**, plus the umbrella `Projectured`, `AutoIntegrations`,
+`ProjecturedIntegrations`, the released package `ProjecturedAll` and the
+tools. The kernel
 is the one *layered* package: its twenty-three layers depend only downward,
 and the ordering is enforced statically by the shared
 [layered-architecture guard](../../test/kernel/layering/CheckLayering.jl).
@@ -70,7 +71,7 @@ diagram itself: one line per layer, bottom to top, and a module's own file
 carries its fragment include list.
 Every other package is **one concept**, so it declares no layer index; the
 guard checks its include order and its file inventory alone. The platform
-declares no layer either: its thirty-eight slices form an acyclic graph of
+declares no layer either: its thirty-nine slices form an acyclic graph of
 their own, which the same guard checks.
 
 Each main package is one third of a **triad**: `package/Projected<Name>`,
@@ -89,7 +90,7 @@ ProjecturedKernel (kernel/)    the engine — machinery + interfaces only
         │                      selection → operation → intent → binding → iomap →
         │                      projection → tool → llm → agent → feed → editor → playback
         │                      Zero runtime deps, zero concrete documents.
-ProjecturedPlatform (platform/) one package, 38 slices, below every domain
+ProjecturedPlatform (platform/) one package, 39 slices, below every domain
         ▲                      one concept each, an acyclic slice graph
         │                      the vocabulary — collection, primitive, domain,
         │                      serialization;
@@ -101,7 +102,7 @@ ProjecturedPlatform (platform/) one package, 38 slices, below every domain
         │                      the features — clipboard, tooltip, inspector,
         │                      gesturehelp, gesturelog, fault, fileformat,
         │                      natural, filesystem, display, gesturetracking,
-        │                      dragtracking;
+        │                      dragtracking, essentials;
         │                      the application — undo, log, statistics, shell,
         │                      help, conversation, assistant, application.
         │                      Each slice declares the exact set it imports; the table
@@ -115,17 +116,23 @@ The seventeen domain packages  one package per concrete source domain
         │                      Deps: the kernel, the platform,
         │                      and the domains it embeds. See
         │                      [domain-inventory.md](domain-inventory.md).
-Projectured (projectured/)     umbrella: depends on the kernel and the
-                               platform and re-exports their names. After the
-                               load of the session it loads each installed
-                               domain, Console, Pdf and model adapter, and its
-                               extensions load each installed integration (SDL,
-                               Video, DataFrames, ODBC, Tulip, MCP) when the
-                               package it joins is loaded too.
-ProjecturedAll (all/)          development: re-exports the kernel, the platform,
-                               Console, Pdf and the 17 domains as one flat
-                               namespace for the tests, the examples and the
-                               REPL. The registry does not hold it.
+Projectured (projectured/)     umbrella: depends on the platform and on
+                               AutoIntegrations, and re-exports the twelve
+                               names of the platform's essentials slice
+                               (`ProjecturedPlatform.EssentialsModule`).
+AutoIntegrations               loads an installed package when the packages it
+                               names as triggers are loaded and its state is
+                               "auto" — a domain, Console, Pdf, a model adapter
+                               or an integration (SDL, Video, DataFrames, ODBC,
+                               Tulip, MCP). Depends on the TOML standard
+                               library alone, and names no ProjecturEd package.
+ProjecturedIntegrations        depends on Projectured and the six packages that
+                               own a third-party dependency, and loads each one
+                               with a package extension when the package it
+                               joins is loaded.
+ProjecturedAll (all/)          re-exports the kernel, the platform, Console,
+                               Pdf and the 17 domains as one flat namespace for
+                               the tests, the examples and the REPL.
 
 The five backends (depend on the kernel and the platform):
   Console (console/) → required, no third-party dependency   the ANSI terminal backend
@@ -149,7 +156,7 @@ The four-level division rule: **package** = one concept, or an
 external dependency boundary; **layer** = direction-of-dependency boundary
 inside a package, which the kernel alone declares; **slice** = vertical split
 of a layer, or of a package with no layer of its own — the kernel's layers,
-and the thirty-eight feature folders of the platform, are both slices;
+and the thirty-nine feature folders of the platform, are both slices;
 **module** = namespace/import surface. Files sit below all four levels as
 readability boundaries only: fragments (0-module files that share their
 aggregator's namespace) let a module split across files with zero API cost.
@@ -367,21 +374,32 @@ enforces.
 
 ```
 ProjecturedKernel ◄── ProjecturedPlatform ◄── the 17 domains ◄── ProjecturedAll
-       ▲                  ▲       ▲                 ▲            (development)
+       ▲                  ▲       ▲                 ▲
        │                  │       │                 │
        │                  │   Projectured      Odbc, Adaptagrams
-       │                  │   (umbrella)
-       │                  │
-   Mcp, Anthropic,  Console, Pdf, Sdl, Web,
-   Ollama,          Video, Tulip,
-   OpenRouter       DataFrames
+       │                  │        ▲
+       │                  │        │
+   Mcp, Anthropic,  Console, Pdf, AutoIntegrations
+   Ollama,          Sdl, Web,
+   OpenRouter       Video, Tulip,
+                     DataFrames
+
+ProjecturedIntegrations ◄── Projectured, and the six packages above that own a
+                             third-party dependency (Sdl, DataFrames, Video,
+                             Odbc, Tulip, Mcp)
 ```
 
-The umbrella depends on the kernel and the platform alone. Every other package
-is one that a user adds by name, and the umbrella loads it when the environment
-of the session holds it. `ProjecturedAll` also depends on Console and Pdf.
+The umbrella depends on the platform and on `AutoIntegrations`, and re-exports
+only the twelve names of the platform's essentials slice
+(`ProjecturedPlatform.EssentialsModule`). AutoIntegrations loads an installed
+package whose triggers are all loaded and whose state is `auto`; see
+[autointegrations.md](../package/autointegrations/autointegrations.md). Every
+other package is one that a user adds by name. `ProjecturedIntegrations`
+depends on `Projectured` and the six packages that own a third-party
+dependency, and loads each one with a package extension when the package it
+joins is loaded. `ProjecturedAll` also depends on Console and Pdf.
 
-The platform's thirty-eight slices form their own DAG, and so do the
+The platform's thirty-nine slices form their own DAG, and so do the
 seventeen domains. [package-rules.md](../rule/package-rules.md) has the
 platform's table; [domain-inventory.md](domain-inventory.md)
 has the domain table.
@@ -442,7 +460,7 @@ includes them in:
                wall-clock schedule
 ```
 
-**The thirty-eight slices of `ProjecturedPlatform`**, in a topological order.
+**The thirty-nine slices of `ProjecturedPlatform`**, in a topological order.
 Each is one concept, and each declares the exact set of slices it imports;
 [package-rules.md](../rule/package-rules.md) has the table. (Console and Pdf,
 the two backends with no third-party dependency, are packages of their own,
@@ -486,6 +504,8 @@ not slices of the platform.)
    filesystem      the file-system tree, the workspace, and the Explorer view
    natural         NaturalRegistry and NaturalProjection: render anything
    display         a value shown in an editor window beside the REPL
+   essentials      the few names of the kernel and the platform that most
+                   users call: display_in_editor, run_editor!, parse_natural_text
    undo            UndoBuffer and its transparent recording projection
    log             the message log of the session, filled from any task
    statistics      the frame-time table and plot of the editor loop

@@ -429,7 +429,7 @@ fault_policy, feeds)`. It builds the state and does nothing else: it starts no
 backend and prints nothing, and its fault policy is strict.
 
 ```julia
-using Projectured, ProjecturedJSON
+using Projectured, ProjecturedPlatform, ProjecturedWeb, ProjecturedJSON
 
 document = JsonString("hello world")
 projection = ChainingProjection(

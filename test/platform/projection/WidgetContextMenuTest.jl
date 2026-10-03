@@ -12,7 +12,7 @@ end
 function test_widget_context_menu()
 @testset "WidgetContextMenu" begin
 
-# Symbols resolve from the enclosing `ProjecturedTest` module (`using Projectured`
+# Symbols resolve from the enclosing `ProjecturedTest` module (`using ProjecturedAll`
 # / `using ProjecturedExample`).
 proj = make_layout_projection_example()
 

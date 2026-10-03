@@ -16,7 +16,7 @@ function get_anchor_point(iomap, reference)
     box === nothing ? nothing : (box.x, box.y)
 end
 
-# Symbols resolve from the enclosing `ProjecturedTest` module's `using Projectured`
+# Symbols resolve from the enclosing `ProjecturedTest` module's `using ProjecturedAll`
 # / `using ProjecturedExample`; `Cell` is referenced fully-qualified.
 proj = make_layout_projection_example()
 mkbtn(w, h, label) = WidgetButton(label;

@@ -10,7 +10,7 @@ carries no `Tulip` / `MathOptInterface` dependency — exactly how
 
 Usage:
 
-    using Projectured, ProjecturedTulip
+    using Projectured, ProjecturedPlatform, ProjecturedTulip
     proj = ConstraintLayoutToGraphicsCanvas(solver = TulipConstraintSolver())
 
 A UI layout problem is mapped onto a linear program by **goal programming**:

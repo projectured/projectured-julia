@@ -107,7 +107,7 @@ Both repaint every window in full.
 
 The code is the slice `SdlModule`, in `source/backend/sdl/`: `SdlModule.jl` holds its imports and its exports, and `ProjecturedSDL` includes that file and exports the same names.
 
-`ProjecturedSDL` depends on the kernel and the platform, and on `SimpleDirectMediaLayer` and `SDL2_jll`. A package with a third-party dependency is a stem that a user names, so `using Projectured` does not load it. `ProjecturedREPL` loads it, and `ProjecturedVideo` depends on it. The builder names it as the backend `sdl` of a binary, the default when a build holds both backends.
+`ProjecturedSDL` depends on the kernel and the platform, and on `SimpleDirectMediaLayer` and `SDL2_jll`. It declares the triggers `Projectured` and `SimpleDirectMediaLayer` with the default `auto`, so AutoIntegrations loads it when both are loaded; see [autointegrations.md](../../autointegrations/autointegrations.md). `using ProjecturedSDL` alone always loads it. It re-exports the essential names of `ProjecturedPlatform.EssentialsModule`; see [essentials.md](../../platform/essentials/essentials.md). `ProjecturedREPL` loads it, and `ProjecturedVideo` depends on it. The builder names it as the backend `sdl` of a binary, the default when a build holds both backends.
 
 `default_backend()` in the [application slice](../../platform/application/application.md) returns an `SdlBackend` when the package is loaded. It registers nothing.
 

@@ -57,13 +57,24 @@ dependency. It deliberately does not aggregate `ProjecturedSDL`, `ProjecturedODB
 `ProjecturedVideo`, `ProjecturedAnthropic`, `ProjecturedOllama`, `ProjecturedMCP`,
 `ProjecturedWeb`, `ProjecturedDataFrames` or
 `ProjecturedAdaptagrams`, each of which owns one. The umbrella `Projectured`
-depends on the kernel and the platform alone, and loads each other package that
-the environment of the session holds.
+depends on `ProjecturedPlatform` and `AutoIntegrations`, and re-exports only the
+names of `ProjecturedPlatform.EssentialsModule`. AutoIntegrations loads each
+other installed package whose triggers are all loaded and whose state is
+`"auto"`; [autointegrations.md](../package/autointegrations/autointegrations.md)
+says how.
 
 The rule: a sub-stem is a layer and carries no third-party dependency of its
 own; a package that has one is a stem in its own right, named explicitly by
 whoever wants it. Without it, `using ProjecturedAll` would drag an ODBC driver
 manager and a linear-programming solver into every session.
+
+`ProjecturedIntegrations` (its code is in `source/integrations/`) carries no
+third-party dependency of its own either —
+each one is a `[weakdeps]` entry behind a package extension — but it still
+installs every third-party package that the six integrations own, because
+`add` installs the `[deps]` of each one. A user who wants all of them names
+this package; a user who does not stays with the ones installed by name. See
+[autointegrations.md](../package/autointegrations/autointegrations.md).
 
 ## Why the leaf matters
 
@@ -202,6 +213,7 @@ guard of the platform checks every edge below against the code.
 | `fileformat` | Collection, Domain, Layout, Natural, Primitive, Projection, Serialization, Style, Syntax, Text, Widget | — |
 | `fault` | Collection, Domain, Graphics, Natural, Projection, Serialization, Style, Syntax, Text, Widget | — |
 | `display` | Natural, Screen, Style, Widget | — |
+| `essentials` | Display, Natural, Style | — |
 
 This is not every slice of the platform: `gesturetracking`, `dragtracking`,
 `filesystem`, `undo`, `log`, `statistics`, `shell`, `help`, `conversation`,
@@ -237,8 +249,10 @@ embeds. [domain-inventory.md](../design/domain-inventory.md) has the table.
 
 | package | depends on |
 | --- | --- |
-| `Projectured` (umbrella) | Kernel, the platform; every other released package as a weak dependency |
-| `ProjecturedAll` (development) | Kernel, the platform, Console, PDF, the 17 domains |
+| `Projectured` (umbrella) | the platform, AutoIntegrations |
+| `AutoIntegrations` | — (the TOML standard library alone; names no ProjecturEd package) |
+| `ProjecturedIntegrations` | the umbrella, the six packages that own a third-party dependency |
+| `ProjecturedAll` (released) | Kernel, the platform, Console, PDF, the 17 domains |
 | `ProjecturedPlatformExample` | the platform, KernelExample |
 | `ProjecturedPlatformTest` | the platform, KernelTest, PlatformExample |
 | `<Stem>Example` | `<Stem>`, the Examples below it |

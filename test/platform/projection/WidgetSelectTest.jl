@@ -11,7 +11,7 @@ end
 function test_widget_select_dropdown()
 @testset "WidgetSelect dropdown" begin
 
-# Symbols resolve from the enclosing `ProjecturedTest` module (`using Projectured`
+# Symbols resolve from the enclosing `ProjecturedTest` module (`using ProjecturedAll`
 # / `using ProjecturedExample`).
 proj = make_layout_projection_example()
 
