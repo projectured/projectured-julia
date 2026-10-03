@@ -290,9 +290,18 @@ Each step is a commit. Mark it here when it is done.
    - A marker function that returns a constant leaves no line in the trace,
      because Julia runs it without compiling it. A marker must return a value of
      run time, such as `time()`.
-3. **The repository of AutoPrecompile**, as `auto-integrations`, in the sibling
-   folder `auto-precompile`: `Project.toml`, `src`, `test`, `README.md`, the
-   licence.
+3. **Done — the repository of AutoPrecompile**, as `auto-integrations`, in the
+   sibling folder `auto-precompile`: `Project.toml`, `src`, `test`, `README.md`,
+   the licence.
+
+   Done 2026-10-03, commit `688a8e2` on `main` of the new repository, not
+   pushed; the GitHub repository does not exist yet. The uuid is
+   `b272d1c7-21da-44b4-9d4d-f64941f33c6f`. As in `auto-integrations`: the MIT
+   licence, the CI workflow on Julia 1.12 and the newest release, `julia = "1.12"`,
+   and no manifest in Git. The package has no dependencies yet; each step adds
+   the ones that its code uses. The module and the README say that this version
+   does nothing when it loads, and the test checks that it adds no package
+   callback. `Pkg.test()`: 1 of 1 passes.
 4. **The selection**: read the files, parse, the shape check, the roots, the
    key. Tests with lines that pass and lines that are refused.
 5. **The leaf**: write it, wait 10 s, build it in the background with a log, load
