@@ -480,7 +480,7 @@ Every screenplay has the same parts: the feature, the claim of the post that it 
 
 #### S12. A setting takes effect at once
 
-**Proposed on 2026-10-03, waiting for the owner.** The owner asked for a settings video, and said that it does not have to be complicated.
+**Accepted by the owner on 2026-10-03.** The videos are made in the order S12, S13, S14, and the owner reviews each take before the next one starts. The owner asked for a settings video, and said that it does not have to be complicated.
 
 - **Feature:** the settings page of the editor. Each setting says what it sets, and a change takes effect while you look.
 - **Claim:** a setting is a value with its own text, and the window follows it at once; `Ctrl+Z` takes a setting back like an edit.
@@ -502,7 +502,7 @@ Every screenplay has the same parts: the feature, the claim of the post that it 
 
 #### S13. The look of every part is a value
 
-**Proposed on 2026-10-03, waiting for the owner.** The owner asked for an appearance video, and said that it does not have to be complicated.
+**Accepted by the owner on 2026-10-03.** The videos are made in the order S12, S13, S14, and the owner reviews each take before the next one starts. The owner asked for an appearance video, and said that it does not have to be complicated.
 
 - **Feature:** the appearance page. Every color, font and size of the editor is a value of a theme, and a change shows in the open documents while you look.
 - **Claim:** the look is data. The page is made from the themes themselves, so each style has its text, and an edit of a style is an edit like any other.
@@ -526,7 +526,7 @@ Every screenplay has the same parts: the feature, the claim of the post that it 
 
 #### S14. A data frame as a table that you edit
 
-**Proposed on 2026-10-03, waiting for the owner.**
+**Accepted by the owner on 2026-10-03.** The videos are made in the order S12, S13, S14, and the owner reviews each take before the next one starts.
 
 - **Feature:** a `DataFrame` of DataFrames.jl shown as a table that filters, sorts, finds and edits, where each edit writes into the frame itself, and where only the rows on the screen are read.
 - **Claim:** the table is a view of the frame, not a copy. An edit in the table is a write into `df`, the evaluator sees it at once, and `Ctrl+Z` takes it back. A frame of ten million rows opens as fast as one of a thousand.
