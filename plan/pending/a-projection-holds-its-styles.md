@@ -1,8 +1,10 @@
 # A projection holds its styles, and a builder fills them
 
 > **Status:** pending, not started. Written on 2026-10-03 at the owner's request.
-> The owner decided the model (section 4) and the points of section 6, except
-> the form of the icon size (6.2) and the name of the style function (6.6).
+> The owner decided the model (section 4) and every point of section 6. The work
+> waits: another agent changes the default values of the appearance, so some
+> defaults of the styles change. The work starts from the `main` that holds that
+> change, and a default that it changed is kept as it is there.
 
 ## 1. The request
 
@@ -158,8 +160,8 @@ suites that build a themed view, and the images of both tabs.
    - **B.** A size in pixels, `icon_box::IconSize = IconSize(23)`, the height of a
      line of the default font. Then an icon follows the icon scale and not the
      font scale: at a font scale of 1.5 its text grows and the icon does not.
-   - My recommendation: A. It keeps the look and the meaning of the two scales,
-     and needs no new kind of style.
+   - The owner chose A. It keeps the look and the meaning of the two scales, and
+     needs no new kind of style.
 3. **A read of a field of a theme gives the plain value**, and the kind of a
    length stays in the document; the appearance tab, the file and the scaled
    theme read the kind with an accessor of the style slice (the owner: "yes").
@@ -181,8 +183,8 @@ suites that build a themed view, and the images of both tabs.
    name is the name of the type, without `Theme`, in snake case, between `get_`
    and `_style`: `get_widget_style`, `get_db_catalog_style`,
    `get_sequence_chart_style`. No name of the 29 is taken. The owner proposed
-   `get_json_theme`; the function answers a style and not a theme, so I propose
-   `get_json_style`.
+   `get_json_theme`, and agreed to `get_json_style`, because the function
+   answers a style and not a theme.
 7. **A small inconsistency in the use of styles is fixed where it is found**
    (the owner), and recorded in section 8. Known now: the settings tab holds
    the widget theme for one caption style; the chart printer names its tuple of
