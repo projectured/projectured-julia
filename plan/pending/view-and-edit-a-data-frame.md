@@ -1449,7 +1449,126 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
 
   4b, after 4a: the other operations of §3.6 (insert, delete, rename, move and
   convert of rows and columns) from a context menu on the header of a column
-  and on a row, and the `DataFrameRow`.
+  and on a row, and the `DataFrameRow`. **The design, 2026-10-03, waiting for
+  the word of the owner.** Each point is mine unless it names the owner.
+
+  Facts found for the design (2026-10-03, from the code):
+  - A menu item posts its operation (`_make_menu_item` calls
+    `post_operation!`). The editor applies a posted operation outside the
+    readers, so the undo buffer does not record it, and Ctrl+Z does not take
+    back "Hide column" now (from the code; not tried in a window). The kernel has the way for an operation that code
+    makes: `read_rooted_operation(editor, place, operation)` and
+    `find_rooted_operation` carry it from its place through every reader to
+    the root, so a history records it as an edit of the person. The menu
+    window keeps `source`, the path of the part that opened the menu, but it
+    gives an item only the editor.
+  - A row header and a column header of the view are parts with a gesture
+    table of their own: a right click on a column header opens the menu of its
+    `DataFrameColumn`. A row of the view, `DataFrameViewRow`, has no menu.
+  - The query names columns by their names: the hidden columns, the filters,
+    the sort keys and the widths. The selection and the entries name a row by
+    its number in the frame and a column by its number or its name.
+  - DataFrames forbids an insert and a delete of a row in a `SubDataFrame`,
+    and a column of a `SubDataFrame` is the column of its parent.
+  - A frame made with `copycols = false` can hold a range or another vector
+    that takes no write. A commit into such a column fails in `setindex!`
+    today (4.6 does not check it).
+
+  The decisions:
+  - **B1. A menu item that edits is a step of undo** (generic, a new piece of
+    the menu, so it needs the word of the owner). Options:
+    - (a) A `WidgetMenuItem` can hold an `operation`, relative to the part that
+      opened the menu. When a person chooses the item, the menu window lifts
+      it from the place of that part (`source`) with `read_rooted_operation`,
+      and posts what reaches the root. Every reader between the part and the
+      root has its turn, so the undo buffer records it, and a sorted view maps
+      a path back.
+    - (b) The callback of an `Action` gets the place too, `callback(editor,
+      place)`, and calls `find_rooted_operation` itself.
+    - Recommendation: (a). The item says what it does as data, and no item
+      repeats the lift. "Hide column" and "Show column" become steps of undo
+      too.
+  - **B2. The operations**, each named by its view, so each travels up as it
+    is, each with its inverse, as `SetDataFrameValueOperation` is (4.6). Each
+    moves the version of the frame, so the view sorts and filters again.
+    - `InsertDataFrameRowOperation(view, row, values)` and
+      `DeleteDataFrameRowOperation(view, row)`, each the inverse of the other;
+      the delete keeps the values of the row for its inverse.
+    - `InsertDataFrameColumnOperation(view, index, name, vector)` and
+      `DeleteDataFrameColumnOperation(view, name)`, each the inverse of the
+      other; the delete keeps the vector and its place.
+    - `RenameDataFrameColumnOperation(view, name, new_name)`, whose inverse
+      renames back.
+    - `MoveDataFrameColumnOperation(view, name, index)`, whose inverse moves
+      the column back.
+    - `ConvertDataFrameColumnOperation(view, name, type)`, which writes a new
+      vector of element type `type`; its inverse writes the old vector back.
+  - **B3. The menus.**
+    - The header of a column: "Insert column before ▸" and "Insert column
+      after ▸", each with a submenu of the type of the new column (Number,
+      Text, Bool); "Rename column"; "Move column left" and "Move column
+      right"; "Convert to ▸" (Integer, Number, Text, Bool, and "Allow
+      missing" or "Forbid missing"); "Delete column". After the filter and the
+      hide that are there now.
+    - The header of a row: "Insert row above", "Insert row below", "Delete
+      row". A `DataFrameViewRow` gets a gesture table with this menu.
+    - An item that can not act is shown and disabled, as "Hide column" is for
+      the last shown column: a row insert and delete in a `SubDataFrame`, a
+      column insert, delete, rename and convert in a `SubDataFrame`, and a
+      convert that a value of the column does not take.
+  - **B4. The values of a new row**: `missing` where the column allows it;
+    else `0` of the type for a number, `""` for a string, `false` for a Bool.
+    A column of another type that takes no `missing` makes the row insert
+    disabled.
+  - **B5. A new column** holds `missing` in every row, of element type
+    `Union{Missing, T}` for the type of the submenu (`Float64`, `String`,
+    `Bool`), and the name `column N`, the first such name that the frame does
+    not have. Its header then opens for a rename (B6).
+  - **B6. A rename edits the header in place.** "Rename column" and F2 on a
+    whole column header open the header as a cell is opened (4.4), the text of
+    the name in a `PrimitiveString`; Enter commits, Escape drops. A name that
+    the frame has, or an empty name, keeps the header open with the reason as
+    a mark, as a value that does not convert does. The commit renames the
+    column and, in the same step, the column in the query: the hidden columns,
+    the filters, the sort keys and the widths, so the view stays as it was.
+  - **B7. A move of a column moves it in the frame.** §3.2 lists "the moved
+    columns" in the query, a move in the view only, and §3.6 lists
+    `MoveDataFrameColumnOperation`, a move in the frame; the plan holds both.
+    Options: (a) the frame (a move is an edit of the data, and the view shows
+    the frame's order); (b) the view (the query keeps an order, and the frame
+    stays as the program made it). Recommendation: (b) for a drag of a header
+    in phase 5, which only looks, and (a) for the menu items here, which
+    edit. The owner chooses.
+  - **B8. After an insert or a delete, the paths that name later rows move.**
+    The step that inserts or deletes row `r` also moves by one the entries and
+    the selection that name a row after `r`, and the selection goes to the
+    first cell of the new row, or to the row after the deleted one. The row of
+    the selection keeps its place on the screen, as after a commit (4.7). An
+    open cell in a deleted row is dropped in the same step.
+  - **B9. A column that takes no write** (a range, a vector of a package that
+    is read-only) shows its cells as labels, which take no key, and its header
+    says "read-only" (§4.1). A method `is_writable_column(vector)` answers it:
+    `false` for an `AbstractRange`, `true` for any other vector, and a package
+    can add a method for its own type.
+  - **B10. The `DataFrameRow`** (E5): a table of two columns, the name and the
+    value of each column of the row, whose value cells are primitive
+    documents edited as in 4a, and an edit writes through to the parent frame.
+    Options: (a) a `DataFrameRowView` document over the row, with its own
+    entries, and the commit of 4.6 made general over a view of a frame and a
+    view of a row; (b) a `DataFrameView` of the parent frame, kept to the one
+    row, and a projection that shows it turned, a column of the frame as a row
+    of the table. Recommendation: (b): the entries, the commit, the undo, the
+    mark and the refresh are there already, and only the printer and the map
+    of the paths are new. The owner chooses.
+
+  The steps, after the owner's word:
+  - [ ] **4b.1** B1, the menu item that edits, with "Hide column" and "Show
+    column" as steps of undo.
+  - [ ] **4b.2** Rows: B2 insert and delete, B4, B8, the menu of a row.
+  - [ ] **4b.3** Columns: insert, delete and move (B2, B3, B5, B7).
+  - [ ] **4b.4** The rename in place (B6) and the convert.
+  - [ ] **4b.5** A column that takes no write (B9).
+  - [ ] **4b.6** The `DataFrameRow` (B10).
 - [ ] **5. Sort and filter.** The query document, the header gestures, the
   quick filters, the expression filter, column hide and move. The sort and
   the filter again on a commit (D6), and the selection after it (D10). Column
