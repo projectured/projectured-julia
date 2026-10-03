@@ -449,8 +449,35 @@ Each step is a commit. Mark it here when it is done.
      "examples", so the leaf of the README set holds them too. In step 2 a leaf
      of 7575 lines took 86 s and 110 MB, against 41 s and 57 MB for the README
      lines alone.
-8. **Measure the README scenario**: the count of compiled methods in the second
-   session, and the times if the owner approves.
+8. **Done — measure the README scenario**: the count of compiled methods in the
+   second session, and the times if the owner approves.
+
+   Done 2026-10-03 on `main` at `1c506c047` with AutoPrecompile at `ba2da6a`,
+   Julia 1.13, in a scratch environment with the five packages of the README and
+   AutoPrecompile, and a scratch depot before `~/.julia`, so that the leaf went
+   to the scratch depot. Each session ran `display_in_editor(df)` of the README,
+   waited 8 s and closed the editor; the counts are lines of `--trace-compile`.
+
+   | session | using line | first display | close |
+   | --- | ---: | ---: | ---: |
+   | without AutoPrecompile | 22 | 1615 | 8 |
+   | the first with AutoPrecompile, which builds the leaf | 41 | 1627 | 8 |
+   | the second, which loads the leaf | 41 | 52 | 0 |
+
+   - The leaf of the set holds 8129 statements, from the files of
+     `ProjecturedPlatform`, `ProjecturedKernel`, `ProjecturedSDL` and
+     `ProjecturedDataFrames`, both recordings. All 8129 compiled. The build took
+     about 95 s, and the image is 127 MB.
+   - The 52 methods left in the second session are small `Base` methods, most of
+     them of the code of the session itself: the `DataFrame` and `(1:100_000) .^ 2`.
+   - The `using` line compiles 19 more methods with AutoPrecompile, 8 of them its
+     own, because AutoPrecompile has no workload of its own. Its wall time was
+     1.1 s without AutoPrecompile and 3.0 s in the second session, on a machine
+     that was not idle, so this is no measurement. Each session parses the
+     statement files of the loaded packages, about 10000 lines, and loads an image
+     of 127 MB.
+   - Not measured: the wall time of the first display, which needs an idle
+     machine and the owner's approval.
 9. **Release**: the owner registers AutoPrecompile in `ProjecturedRegistry`.
 
    Version 0.1.0, the version of step 3 that does nothing, is registered
