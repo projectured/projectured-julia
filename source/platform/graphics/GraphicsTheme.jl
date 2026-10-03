@@ -4,8 +4,9 @@
 """
     GraphicsTheme
 
-The ring around an object that is selected as a whole, and the mark that a
-fault barrier of the graphics domain draws.
+The ring around an object that is selected as a whole, the mark that a fault
+barrier of the graphics domain draws, and the gap between the blocks of a
+collection.
 
 The graphics and the layouts lie below every other slice that draws, so they
 take these styles from this theme and from no other. `@theme` declares it, so
@@ -24,4 +25,6 @@ with the same theme, from the same appearance.
     selection_ring_width::LineWidth = LineWidth(2)
     "The radius of the corners of the ring around an object that is selected as a whole."
     selection_ring_radius::Radius = Radius(3)
+    "The gap between the elements of a collection drawn as a stack of blocks."
+    collection_gap::Spacing = Spacing(8)
 end

@@ -220,7 +220,7 @@ end
 
 # The themes that every view of the editor draws with, in the order of the group
 # "Editor" of the tab.
-const _EDITOR_THEME_TYPES = (WidgetTheme, TextTheme, SyntaxTheme, ReferenceTheme, GraphicsTheme)
+const _EDITOR_THEME_TYPES = (WidgetTheme, TextTheme, SyntaxTheme, ReferenceTheme, GraphicsTheme, TooltipTheme)
 
 # The groups of the tab: each a title and the themes of `appearance` that it shows.
 # A theme of `ProjecturedPlatform` that is no editor theme is the theme of a tool,

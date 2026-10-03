@@ -98,6 +98,8 @@ A widget projection reads a scaled theme through its `UntrackedCell` style field
     status_bar_padding::Spacing = Spacing(Inset(4, 4, 8, 8))
     "The space between the edge of a tabbed pane and its tab strip and page."
     tabbed_pane_padding::Spacing = Spacing(Inset(8, 8, 8, 8))
+    "The largest width and height of the window of a context menu."
+    context_menu_maximum_size::ControlSize = ControlSize(Point2D(640, 800))
     "The space between the items of a bar, a list or a popup."
     item_gap::Spacing = Spacing(4)
     "The space under a title."

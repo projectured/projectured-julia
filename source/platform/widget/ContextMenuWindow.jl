@@ -44,7 +44,7 @@ end
 get_wrapped_document(state::ContextMenuWindowState) = get_wrapped_document(state.content)
 
 """
-    ContextMenuWindowProjection(; inner, id = :widget_popup, maximum_size = (640, 800))
+    ContextMenuWindowProjection(; inner, id = :widget_popup, theme = nothing)
 
 Show the content of a [`ContextMenuWindowState`](@ref) through `inner`, and keep
 the context menu window: the one place that opens it, because a window belongs
@@ -57,7 +57,10 @@ This projection takes that operation out of the answer and opens a popup window
 with the nearest menu at the point of the click, in screen coordinates. A
 command that runs the binding answers with no point, and the window opens below
 the part, with the left edges aligned (`find_part_place`), so it does not cover
-the part. The window takes the extent of the menu, up to `maximum_size`.
+the part, `item_gap` below it. The window takes the extent of the menu, up to
+the `context_menu_maximum_size` of the widget theme. `theme` is a scaled
+`WidgetTheme`, or `nothing` for the default theme; the projection reads it each
+time it opens a window.
 
 **Closing.** The window is a popup that dismisses itself, with the id of the
 popups of the widgets, `:widget_popup`. So the window manager closes it on a
@@ -76,12 +79,12 @@ sits. The screen gives the right click to the part at its point.
 struct ContextMenuWindowProjection <: Projection
     inner::Projection
     id::Symbol
-    maximum_size::Tuple{Int,Int}
+    theme::Union{ScaledWidgetTheme,Nothing}
 end
 
 ContextMenuWindowProjection(; inner::Projection, id::Symbol = :widget_popup,
-                              maximum_size = (640, 800)) =
-    ContextMenuWindowProjection(inner, id, (Int(maximum_size[1]), Int(maximum_size[2])))
+                              theme = nothing) =
+    ContextMenuWindowProjection(inner, id, scale_theme(theme))
 
 # `output` forwards the output of the content reactively, so the IoMap keeps its
 # identity while the content re-derives, and a swap of the content rebuilds the
@@ -234,19 +237,22 @@ _take_context_menu(answer) = (nothing, answer)
 
 # Open the window of `menu`, and keep what it shows. It stands at the point of
 # the click; with no point, below the part with the left edges aligned and
-# `_PART_MENU_GAP` between them; with neither, at the corner of the screen.
+# `item_gap` between them; with neither, at the corner of the screen.
 function _open_menu_window(p::ContextMenuWindowProjection, iomap::ContextMenuWindowIoMap,
                            menu::OpenContextMenuOperation)
     state = iomap.input
+    values = _get_theme_values(p.theme)
+    size = values.context_menu_maximum_size
+    maximum_size = (Int(size.x[]), Int(size.y[]))
     x, y = if menu.point !== nothing
         menu.point
     else
         below = find_part_place(p, iomap, menu.source)
-        below === nothing ? (0, 0) : (below[1], below[2] + _PART_MENU_GAP)
+        below === nothing ? (0, 0) : (below[1], below[2] + values.item_gap)
     end
     window = OpenWindowOperation(; id = p.id, title = "context menu", x = x, y = y,
-                                   width = p.maximum_size[1], height = p.maximum_size[2],
-                                   maximum_size = p.maximum_size, style = :popup,
+                                   width = maximum_size[1], height = maximum_size[2],
+                                   maximum_size, style = :popup,
                                    auto_dismiss = true,
                                    content = _make_context_menu_content(menu.layers, 1))
     CompoundOperation(Any[_write_menu_state(state, "layers", menu.layers),
@@ -256,9 +262,6 @@ function _open_menu_window(p::ContextMenuWindowProjection, iomap::ContextMenuWin
                           _write_menu_state(state, "window", window),
                           window])
 end
-
-# The pixels between a part and a menu that stands below it.
-const _PART_MENU_GAP = 4
 
 # The window is gone, so the state forgets what it showed.
 _forget_context_menu(state::ContextMenuWindowState) =
@@ -311,10 +314,10 @@ make_context_menu_window_projection(projection; keywords...) =
     ContextMenuWindowProjection(; inner = projection, keywords...)
 
 """
-    wrap_context_menu_window(document, projection) -> (document, projection)
+    wrap_context_menu_window(document, projection; theme = nothing) -> (document, projection)
 
 Both halves at once, the shape that `make_tracking_screen` takes in its list of
-`inner_wrappers`.
+`inner_wrappers`. `theme` is the scaled `WidgetTheme` of the window.
 
 Use it to open the menu of the part under the pointer on a right click, in a
 window of its own, in every window of the screen.
@@ -326,22 +329,25 @@ window of its own, in every window of the screen.
 
 See also `wrap_tooltip_window`, the wrapper of the tooltip window.
 """
-wrap_context_menu_window(document, projection) =
+wrap_context_menu_window(document, projection; theme = nothing) =
     (make_context_menu_window_document(document),
-     make_context_menu_window_projection(projection))
+     make_context_menu_window_projection(projection; theme))
 
 """
     context_menu = true
 
 The wrapper of `build_editor` that keeps the context menu window of the screen.
 It gives [`wrap_context_menu_window`](@ref) to the wrapper of the window, which
-puts it around the screen, inside the trackers and outside the tooltip window.
-It is on by default, and `context_menu = false` leaves an editor with no context
+puts it around the screen, inside the trackers and outside the tooltip window,
+with the `WidgetTheme` of the appearance of the editor. It is on by default, and `context_menu = false` leaves an editor with no context
 menu window.
 """
 # @positional: the arity of the wrapper seam of the kernel.
 function wrap_editor!(::Val{:context_menu}, layer::Symbol, argument, parts::EditorParts)
-    push!(parts.window_wrappers, wrap_context_menu_window)
+    appearance = get(parts.arguments, :appearance, nothing)
+    theme = appearance === nothing ? nothing : get_scaled_theme!(appearance, WidgetTheme)
+    push!(parts.window_wrappers,
+          (document, projection) -> wrap_context_menu_window(document, projection; theme))
     parts
 end
 

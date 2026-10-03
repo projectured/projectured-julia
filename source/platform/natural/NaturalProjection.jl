@@ -122,6 +122,10 @@ function NaturalToGraphics(; measure::TextMeasure,
     w2g = WidgetToGraphics(; measure, theme = widget_theme)
     text_theme = get_scaled_theme!(appearance, TextTheme)
     text = TextToGraphics(; measure, theme = text_theme)
+    graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)
+    # A stack of blocks draws the ring of the graphics theme, as every layout does.
+    stack() = VerticalLayoutToGraphicsCanvas(;
+        graphics_style = make_theme_values_field(GraphicsTheme, graphics_theme))
 
     # Prose: optionally word-wrapped. Structured syntax/code: never wrapped.
     prose_chain = wrap ? ChainingProjection(WordWrapping(measure = measure), text) : text
@@ -141,7 +145,7 @@ function NaturalToGraphics(; measure::TextMeasure,
     table = vcat(
         Pair{Type,Any}[p for p in extra],
         # layouts before widgets: a WidgetTable builds a GridLayout
-        LayoutToGraphics(; theme = get_scaled_theme!(appearance, GraphicsTheme)).dispatch,
+        LayoutToGraphics(; theme = graphics_theme).dispatch,
         w2g.dispatch,                  # every widget node (incl. WidgetTable)
         # The domains that draw themselves rather than going through the syntax
         # fabric: a page of blocks (markdown, RST), a diagram (graph), a typeset
@@ -180,12 +184,14 @@ function NaturalToGraphics(; measure::TextMeasure,
             # A collection renders as a stack of independent graphics blocks: each
             # element re-enters this renderer in its own domain (prose→prose,
             # JSON→JSON, widget→widget), instead of collapsing to one syntax tree.
-            CellVector      => ChainingProjection(CellVectorToVerticalLayout(),
-                                                 VerticalLayoutToGraphicsCanvas()),
+            CellVector      => ChainingProjection(CellVectorToVerticalLayout(;
+                                                     gap = make_style_field(GraphicsTheme, graphics_theme, Int;
+                                                                            name = :collection_gap)),
+                                                 stack()),
             # A tooltip window: a column of what the parts say, each in its own
             # domain.
             TooltipContent  => ChainingProjection(TooltipContentToVerticalLayout(; theme = widget_theme),
-                                                 VerticalLayoutToGraphicsCanvas()),
+                                                 stack()),
         ],
         # The fallback's own tail, then this one. A session that loaded a package
         # that can draw anything reaches its tail; one that did not reaches the

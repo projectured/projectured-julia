@@ -16,9 +16,11 @@
 # Because the rewrap does not recurse, the reference maps only relocate the head:
 # `[i] + rest ↔ children[i] + rest`. The `rest` (the element subtree path) is
 # unchanged and is mapped later by the layout renderer's own child IO maps.
-@projection struct CellVectorToVerticalLayout
+# The gap between the blocks is the `collection_gap` of the `GraphicsTheme`: a
+# value, or a cell that reads a scaled theme (`make_style_field`).
+@projection UntrackedCell struct CellVectorToVerticalLayout
     horizontal_align::Symbol = :left
-    gap::Int = 8
+    gap::Int = get_theme_defaults(GraphicsTheme).collection_gap
 end
 
 function print_document(p::CellVectorToVerticalLayout, recursion, cv::CellVector, ctx)
