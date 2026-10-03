@@ -163,6 +163,9 @@ The owner, 2026-10-03, on the review of the first version:
 Also from the owner: the recording is a separate task, made as now, and the
 statements of ProjecturEd are part of the repository.
 
+11. The user loads X with `using X`. `Projectured` does not load it
+    (2026-10-03).
+
 ## 5. Steps
 
 Each step is a commit. Mark it here when it is done.
@@ -244,12 +247,23 @@ Each step is a commit. Mark it here when it is done.
 ## 6. Open questions
 
 - The name of X.
-- Who loads X. My proposal: `Projectured` loads it, as it loads
-  AutoIntegrations, and a user who names each package writes `using X`.
 - The path and the name of the statement file in a package folder.
-- Which released package of ProjecturEd ships the file of the repository. My
-  proposal: `ProjecturedPlatform`, because every package of ProjecturEd loads it,
-  and X selects from the file by the loaded set.
+- Which package of ProjecturEd ships which statements. One file in
+  `ProjecturedPlatform` would work, because X skips a line whose modules are not
+  loaded, but the platform would carry the lines of the JSON domain and of every
+  other package (the owner, 2026-10-03). X reads the files of loaded packages
+  only, so the package that ships a line also decides when X reads it. The
+  spread, counted by the ProjecturEd packages that a line names, keeping only
+  those that no other named one depends on:
+
+  | | lines | one such package | two or more | none |
+  | --- | ---: | ---: | ---: | ---: |
+  | the list of the repository | 15403 | 14721 | 133 | 549 |
+  | the README recording | 2344 | 2104 | 1 | 239 |
+
+  In the README recording, the one package is `ProjecturedPlatform` for 1692
+  lines, `ProjecturedKernel` for 186, `ProjecturedDataFrames` for 128 and
+  `ProjecturedSDL` for 98.
 - How long X waits after the last load before it starts a build.
 - How many leaves X keeps.
 - Whether the load of a valid leaf writes a log line. My proposal: no line,
