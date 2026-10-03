@@ -514,11 +514,10 @@ Each step is a commit. Mark it here when it is done.
    of `ba2da6a`, the working code of step 6, and the overwrite after it kept that
    entry. The README commit `6afd380`, with the times of step 8, is newer than
    the registered tree. By decision 21 the version stays 0.1.0 until the public
-   announcement, so this step waits for it. At the announcement:
-   - register the tree of `main` of AutoPrecompile, so that the registry has the
-     README with the times;
-   - make `projectured/AutoPrecompile.jl` public, because Pkg installs from its
-     repository and it is private now.
+   announcement, so this step waits for it. The owner made
+   `projectured/AutoPrecompile.jl` public on 2026-10-03; it is not announced,
+   and the registry is not known yet. At the announcement, register the tree of
+   `main` of AutoPrecompile, so that the registry has the README with the times.
 
 ## 6. Open questions
 
