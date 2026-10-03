@@ -39,18 +39,30 @@ registry and the release take the new name with a fresh overwrite.
    Tests: the four of `IntegrationLoadingTest.jl`, `test_package_graph`,
    `test_naming`, `test_documentation` and `test_package_release`, 665 of 665.
 3. **Done** — landed on `main`, and the folder moved to `../auto-integration`.
-4. Publish, with the owner's word for each push:
+4. **Done** — publish, with the owner's word for each push:
    - **Done** — the owner renamed the GitHub repository to
      `projectured/AutoIntegration.jl`; `origin` of `../auto-integration` names it.
    - **Done** — pushed: the package repository `504659a..ffd6d72`, this
      repository `2b6d5b686..8395d8bdb`, the site `14604e0..0b8f440`.
-   - Prepared in `/var/tmp/release-fresh2`, for the owner's force push: the
-     release `f40439d`, "ProjecturEd 0.1.0, from projectured-julia 8395d8bdb", 89
-     packages; the registry, 92 commits from a new "Create the registry" whose
-     README names `AutoIntegration.jl`, then AutoIntegration (tree `8f4d68f4` of
-     `ffd6d72`), AutoPrecompile (tree `26ee88b5` of `6afd380`) and the release.
-     It replaces the release `18d9208` that another session pushed at 20:35 from
-     `599cee558`, which `8395d8bdb` contains, and the registry `11b7d77`.
+   - **Done** — the owner asked for one commit in the package repository: its
+     history is the root commit `cf89407`, force-pushed. Its tree is `8f4d68f4`,
+     the tree of `ffd6d72`. Its CI passes.
+   - **Done** — force-pushed: the release `19fe700`, "ProjecturEd 0.1.0, from
+     projectured-julia 9624b51ed", 89 packages, and the registry `f8f0451`. The
+     registry has the README and the entries AutoIntegration (tree `8f4d68f4`) and
+     AutoPrecompile (tree `26ee88b5`) of the registry prepared in
+     `/var/tmp/release-fresh2`, then the release. The release is made again from
+     `9624b51ed` and not from `8395d8bdb`, because `9624b51ed` changes two files
+     that the release ships: `naming-rules.md` and the tree guard of
+     ProjecturedTest. It replaces the release `18d9208` and the registry
+     `11b7d77`. AutoIntegration 0.1.0 installs from the registry in an empty
+     depot, and the 32 workflows of the release pass.
+   - **Done** — no copy on this machine names the old package: the second clone
+     `../projectured-registry` is reset to the registry, the old compiled caches
+     are deleted, and the environment `../Project.toml` has a new manifest. An
+     environment that installed the old 0.1.0 needs a new manifest, because the
+     fresh release keeps the version 0.1.0 and Pkg keeps the old dependencies
+     of `Projectured` from the manifest.
 5. **Done** — the memory `autointegration-rename-landed.md`, in the index of
    landed changes: an older branch rebases, or it cannot load the umbrella.
    `projectured-julia-release` and `projectured-julia-kernel-audit-decisions`
