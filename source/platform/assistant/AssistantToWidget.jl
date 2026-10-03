@@ -7,7 +7,6 @@
 # literals and a step comparison; sharing them would mean one package reaching
 # into another's private surface.
 # ── Layout tokens ───────────────────────────────────────────────────────────
-const _PAD5  = Inset(5, 5, 5, 5)
 # The composer's floor on the split axis, and the transcript's share of what is
 # left over.
 const _INPUT_MIN_HEIGHT = 200
@@ -54,14 +53,11 @@ function print_document(projection::AssistantToWidgetSplitPane,
     # `PrimitiveStringToSyntaxLeaf` reader receive `KeyPress` events.
     # Stick to the bottom: as streamed turns/parts are appended, the latest
     # message stays in view instead of scrolling below the fold (standard chat UX).
-    conv_pane  = WidgetScrollPane(a.conversation;
-                                  follow_end=true,
-                                  padding=_PAD5)
+    conv_pane  = WidgetScrollPane(a.conversation; follow_end=true)
     # The input pane is the composer on `a.draft` (a `ConversationDraft`, so it
     # dispatches to the composer rather than the history presentation; it already
     # back-links the assistant for submit).
-    input_pane = WidgetScrollPane(a.draft;
-                                  padding=_PAD5)
+    input_pane = WidgetScrollPane(a.draft)
     # Conversation takes the main weight; the input box stays at its minimum
     # (≈3 monospace rows) and does not grow with the window.
     column = WidgetSplitPane(:vertical, Any[
@@ -96,10 +92,8 @@ function print_document(p::AssistantToWidgetCard,
     # Each half authors its height and a width of 0, so it is as wide as the card,
     # and the card is as wide as the page.
     transcript = WidgetScrollPane(a.conversation; follow_end=true,
-                                  size=Point2D(0, p.transcript_height),
-                                  padding=_PAD5)
-    cell = WidgetScrollPane(a.draft; size=Point2D(0, p.cell_height),
-                            padding=_PAD5)
+                                  size=Point2D(0, p.transcript_height))
+    cell = WidgetScrollPane(a.draft; size=Point2D(0, p.cell_height))
     card = WidgetCard(; title=p.title,
                       content=VerticalLayout(Any[transcript, cell]; gap=6, child_width=Fill))
     column = VerticalLayout(Any[card]; gap=6, child_width=Fill)

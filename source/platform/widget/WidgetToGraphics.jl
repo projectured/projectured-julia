@@ -739,7 +739,8 @@ WidgetSplitPaneToGraphicsCanvas(theme::ScaledWidgetTheme;
 end
 
 WidgetTabbedPaneToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
-                                 margin = inset_default, border = inset_default, padding = inset_default,
+                                 margin = inset_default, border = inset_default,
+                                 padding = _themed(Inset, theme, t -> t.tabbed_pane_padding),
                                  margin_color = color_transparent, border_color = color_transparent,
                                  padding_color = color_transparent, content_color = color_transparent,
                                  font = _themed(StyleFont, theme, t -> t.font),

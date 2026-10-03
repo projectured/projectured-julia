@@ -68,16 +68,6 @@ end
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
-# The inset of a pane: what holds a tab's content off the pane's edge. It was two
-# insets of 4 — the tabbed pane's own, and a scroll pane's padding inside it. The
-# scroll pane is gone, so the page carries the whole 8.
-#
-# It belongs to the tabbed pane alone. A split pane draws no chrome — it holds
-# its children and one splitter each — so an inset there only pushes the whole
-# layout right and down, once per level of nesting, and leaves each nested
-# splitter short of the splitter of the split that holds it.
-const _PANE_BORDER = Inset(8, 8, 8, 8)
-
 # What a selection cell holds, past the live/dormant wrapper.
 _get_stored_selection_value(value) = value
 _get_stored_selection_value(value::SelectionDocument) = value.primary
@@ -370,7 +360,7 @@ function print_document(p::PaneGroupToWidgetTabbedPane, recursion, group::PaneGr
     # duplicate one whose content has a duplicate. That question is answered from
     # the type of the content, so the strip reads no cell of the content to ask it.
     pane = WidgetTabbedPane(Any[]; closable = true, new_tab = true, draggable = true,
-                            duplicable = true, border = _PANE_BORDER)
+                            duplicable = true)
     set_cell_computation!(pane, () -> begin
         entries = content_iomaps[]
         tabs = group.tabs
