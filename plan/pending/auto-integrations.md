@@ -275,16 +275,15 @@ The owner, 2026-10-03:
 - A new package holds no code of its own. Its name is decision D11. It depends
   on the kernel and the platform, and exports a short list of their names. One
   constant in its source holds the list.
-- The list holds the names of the display slice. The owner removed
-  `parse_natural_text`, `NaturalToGraphics` and `FontFileMeasure` on
-  2026-10-03 ("maybe even less, these ones I don't know"). The names of the
-  kernel are decision D14.
+- The list comes from the guides. It holds the names that show a value, and
+  the names that open a window on a document, as the own-project guide does:
 
   | Names | Slice | What they do |
   | --- | --- | --- |
   | `display_in_editor`, `close_display_editor!`, `refresh_display_editor!`, `EditorDisplay` | platform, display | show a value in a window |
-  | `run_editor!`, `build_editor`, `Editor` (D14) | kernel, editor | open an editor on a document |
-  | `print_document`, `write_image` (D14) | kernel, projection and backend | a view with no window, and an image file |
+  | `run_editor!`, `build_editor`, `Editor` | kernel, editor | open an editor on a document |
+  | `parse_natural_text`, `NaturalToGraphics`, `FontFileMeasure` | platform, natural and style | make a document from text, and draw it |
+  | `print_document`, `write_image` | kernel, projection and backend | a view with no window, and an image file |
 
 - `ProjecturedPlatform` does not export the five names of the kernel in this
   list. Only the flat namespace of the umbrella makes them visible now.
@@ -505,28 +504,25 @@ The owner, 2026-10-03: "mostly agreed". The answers:
 | D10, the order | `julia-112` lands first |
 | D12, who re-exports the names | the six integrations and the backends `ProjecturedConsole`, `ProjecturedPDF`, `ProjecturedWeb` |
 | D13, the names of `Projectured` | only the names of the package of the names |
+| D14, the list | all names of section 4.7 stay: "you can keep them" |
 
 ### Open
 
 Each recommendation is mine, not a decision.
 
 - **D11, the name of the package of the names.** The owner: "ProjecturedAPI is
-  way too generic". Candidates:
+  way too generic", then "how about ProjecturedUser?". Candidates:
+  - `ProjecturedUser`: the names that a user calls. It is not common practice:
+    I know no Julia package that ends in `User`. The slice `user` is free. A
+    reader can take it for the settings of the user, which this plan also
+    names (`LocalPreferences.toml`).
   - `ProjecturedEssentials`: the few names that most users need.
   - `ProjecturedPrelude`: the word of Haskell and Rust for a small set of names
     that each program gets.
-  - `ProjecturedDisplay`: it says what the names do if D14 leaves only the
-    display names. But the platform has a slice `display`, and the naming rule
-    derives the folder of a package from its name, so the two collide.
 
-  I recommend `ProjecturedEssentials`. It is a plain word, and it stays true
-  when the list changes.
-- **D14, the names of the kernel in the list.** `run_editor!`, `build_editor`,
-  `Editor`, `print_document` and `write_image` each need a projection. The list
-  holds no name that makes one, because `NaturalToGraphics` left it.
-  - (a) They leave the list. The list is the four names of the display slice,
-    which choose the projection themselves. A user who makes a projection names
-    `ProjecturedPlatform`.
-  - (b) They stay in the list.
-
-  I recommend (a).
+  The common practice in Julia is the other direction. The plain name is the
+  package for the user, as `Makie` or `DifferentialEquations`. A small package
+  for the authors of other packages ends in `Base` or `Core`, as `SciMLBase`
+  or `MakieCore`. Here the plain name `Projectured` is the umbrella, so no
+  common suffix fits. I recommend `ProjecturedEssentials`, but `ProjecturedUser`
+  also works.
