@@ -499,6 +499,12 @@ Every screenplay has the same parts: the feature, the claim of the post that it 
 - **Checks before the take:**
   - Open the page from the toolbar, not by typing `settings` into an empty tab: a typed name makes a new `Settings()` that the editor does not read, so a change there does nothing.
   - The repaint outline holds 0 s by default, so an outline lasts one frame. "Outline hold" can give it 0.6 s, as in S10, or the take sets it in the same beat.
+- **The take of 2026-10-03**, waiting for the owner's review: `tool/video/record_settings.jl`, 1280×720, 36.5 s, recorded in video time in a warm session. It is `build/video/s12/s12_settings.mp4` of the worktree `projectured-julia-s12-settings-video`. What the rehearsal settled:
+  - The Settings button is the tenth of the toolbar, after Appearance. The page opens in the group of the file, and twelve steps of the wheel bring the Render card into view.
+  - One press on the `+` of "Outline hold" gives 0.5 s, so the take sets the hold in beat 2.
+  - A hover is drawn, and so outlined, only when the pointer rests on a button: a glide of 0.04 s a step draws no hover. The take rests 0.5 s on each button and on each tab.
+  - Three presses of `Ctrl+Z` take back the hold, the outline and the partial repaint, in that order; the focus stays in the Settings tab while the pointer rests on the toolbar.
+  - Seen in the take, for the owner: the cards are not all as wide as the pane (Fault and History are narrower than Pointer and Render); and a press on a switch outlines the Start card too, under the Render card.
 
 #### S13. The look of every part is a value
 
