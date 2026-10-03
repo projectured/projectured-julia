@@ -737,9 +737,11 @@ function _format_projectured_release_overview(context::BuildContext, names)
 
     `"auto"` loads the package when its triggers are loaded. `"manual"` loads it
     only when you name it. A package with no line keeps its own default. This call
-    writes the same line:
+    writes the same line, after you add AutoIntegrations by name:
 
     ```
+    pkg> add AutoIntegrations
+
     julia> using AutoIntegrations
     julia> set_auto_integration!("ProjecturedDataFrames", :manual)
     ```

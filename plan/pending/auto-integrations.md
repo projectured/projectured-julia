@@ -398,6 +398,8 @@ it only when you name it. A package with no line keeps its own default. This
 call writes the same line:
 
 ```
+pkg> add AutoIntegrations
+
 julia> using AutoIntegrations
 julia> set_auto_integration!("ProjecturedDataFrames", :manual)
 ```

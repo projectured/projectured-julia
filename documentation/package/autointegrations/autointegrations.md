@@ -94,9 +94,14 @@ The code is one file, `package/AutoIntegrations/src/AutoIntegrations.jl`, and it
 pkg> add Projectured ProjecturedSDL ProjecturedDataFrames DataFrames SimpleDirectMediaLayer
 
 julia> using Projectured, DataFrames, SimpleDirectMediaLayer    # loads ProjecturedSDL and ProjecturedDataFrames
+
+pkg> add AutoIntegrations
+
 julia> using AutoIntegrations
-julia> set_auto_integration!("ProjecturedDataFrames", :manual)  # from the next session
+julia> set_auto_integration!("ProjecturedDataFrames", :manual)  # from the next load
 ```
+
+A `using` line in `Main` reaches only the packages that the user added, and `add Projectured` adds AutoIntegrations only as a dependency. So a user who calls `set_auto_integration!` adds AutoIntegrations by name. A user who edits `LocalPreferences.toml` needs no add.
 
 ## Tests
 
