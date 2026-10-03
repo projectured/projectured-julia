@@ -817,9 +817,16 @@ inet-julia uses, the same step changes them, so that they always load.
 
 ### Part G: the guides
 
-- [ ] **G1.** The documents of the style and widget slices in
+- [x] **G1.** The documents of the style and widget slices in
   `documentation/package/`, the new-domain guide (a domain declares a theme and
   writes no font or color in a projection), and the guard in the testing guide.
+  *Done:* ten documents. The widget, layout, graphics, appearance, text and
+  style documents describe the new fields and rules. The testing guide has a
+  section on the static guards and the style guard. The tutorial of the
+  new-domain guide gives the domain a theme from its first projection. The
+  worked examples in `macros.md` and `rst.md` follow the code. An example that
+  passes an explicit font to an API stays as it is. The documentation guard
+  passes.
 
 ## 7. Checks
 
