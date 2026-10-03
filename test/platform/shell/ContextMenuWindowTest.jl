@@ -214,6 +214,22 @@ end
     @test _cm_state(editor).shown == 0
 end
 
+@testset "an item with an operation edits its part, and the window closes" begin
+    label = WidgetLabel("has a menu")
+    menu = WidgetMenu(Any[WidgetMenuItem("Rename";
+                                         operation = ReplaceReferencedValueOperation(label, "content", "renamed"))])
+    parts = WidgetComposite(Any[WidgetContextMenu(label, menu),
+                                WidgetLabel("has none"; position = Point2D(0, 40))])
+    editor, backend, scene = _cm_editor(parts)
+    _cm_click!(editor, backend, :right, 20, 10, 1.0)
+    window = only(_cm_menus(scene))
+    (x, y) = _cm_place_of(_cm_drawn_window(editor, scene, window.id), "Rename")
+    _cm_click!(editor, backend, :left, x + 2, y + 2, 2.0; window = window.id)
+    @test label.content == "renamed"
+    @test isempty(_cm_menus(scene))
+    @test _cm_state(editor).shown == 0
+end
+
 @testset "a command runs the binding with no pointer, and the menu opens below" begin
     menu = _cm_menu("Cut", "Copy")
     wrap = WidgetContextMenu(WidgetButton("Run"; size = Point2D(80, 24)), menu)

@@ -34,11 +34,11 @@ _make_element_reference(field::String, i::Int, tail) =
 
 # ── The menus ────────────────────────────────────────────────────────────────
 
-# An item of a menu that posts the operation that `make` gives when it is
-# chosen, so the operation reads the view as it is then.
+# An item of a menu that makes the operation that `make` gives, on the part of
+# the menu, as a step of undo. The operation reads the view as it is when the
+# menu opens.
 _make_menu_item(label::String, make; enabled::Bool = true) =
-    WidgetMenuItem(label; enabled,
-                   action = Action(label; enabled, callback = editor -> post_operation!(editor, make())))
+    WidgetMenuItem(label; enabled, operation = enabled ? make() : nothing)
 
 # The menu of the header of a column: filter it by its values, and hide it. The
 # last column that the view shows can not be hidden.

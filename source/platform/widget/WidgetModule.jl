@@ -92,7 +92,7 @@ export CellTableToWidgetTable
 export WidgetTableListIoMap, make_widget_table_row
 export make_embed_card, make_embed_card_path, find_embed_card_path_inside
 export ProjectionConfiguringProjection, ProjectionConfiguringIoMap
-export OpenContextMenuOperation, make_context_menu_operation, make_context_menu_binding
+export OpenContextMenuOperation, EditMenuPartOperation, make_context_menu_operation, make_context_menu_binding
 export ContextMenuWindowProjection, ContextMenuWindowIoMap,
        make_context_menu_window_document, make_context_menu_window_projection,
        wrap_context_menu_window

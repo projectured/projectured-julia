@@ -50,6 +50,28 @@ function map_operation_position(operation::OpenContextMenuOperation, move)
 end
 
 """
+    EditMenuPartOperation(operation, description)
+
+The edit that an item of a context menu makes on the part that the menu belongs
+to: `operation`, relative to that part, which the item holds
+(`WidgetMenuItem(…; operation)`), and `description`, the label of the item. The
+context menu window lifts it from the part through every reader around the part,
+as [`read_rooted_operation`](@ref) lifts an operation that code made, so a
+history records it as an edit of the person, and a reader that maps a path, such
+as a sorted view, maps it. The part is the nearest one, under the pointer, also
+for an item of a menu of a part around it, which F2 shows: such an item holds an
+operation that names its own document, as a write of a field of a document does.
+One that reaches the root found no context menu window, and does nothing.
+"""
+struct EditMenuPartOperation <: Operation
+    operation::Operation
+    description::String
+end
+
+operation_travels_unchanged(::EditMenuPartOperation) = true
+evaluate_operation(editor, ::EditMenuPartOperation) = nothing
+
+"""
     make_context_menu_operation(document, menu, gesture) -> Operation | Nothing
 
 The answer of a context menu binding: `menu` is the menu of `document`, or

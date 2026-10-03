@@ -2654,10 +2654,13 @@ function read_intent(p::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToG
         submenu = w.submenu
         submenu === nothing || return _open_submenu_popup(p, submenu, iomap)
         # The subtree wins over the callback here (unlike a button's dialog):
-        # a menu-bar entry that opens a submenu is what the item IS.
+        # a menu-bar entry that opens a submenu is what the item IS. An item
+        # with an operation edits the part that its context menu belongs to.
         command = _menu_item_command(w)
-        invoke = InvokeActionOperation(command)
-        return CompoundOperation(Any[invoke, CloseWindowOperation(:widget_popup)])
+        operation = w.operation
+        chosen = operation === nothing ? InvokeActionOperation(command) :
+                 EditMenuPartOperation(operation, string(command.label))
+        return CompoundOperation(Any[chosen, CloseWindowOperation(:widget_popup)])
     end
     # A dwell goes to the content at its point, and invokes nothing.
     evt isa MouseDwell &&

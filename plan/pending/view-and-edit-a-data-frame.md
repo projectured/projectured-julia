@@ -1568,8 +1568,33 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     - **The owner: (b)** ("for 3, yes", 2026-10-03).
 
   The steps, after the owner's word:
-  - [ ] **4b.1** B1, the menu item that edits, with "Hide column" and "Show
-    column" as steps of undo.
+  - [x] **4b.1** B1, the menu item that edits, with "Hide column" and "Show
+    column" as steps of undo. Done 2026-10-03:
+    - `WidgetMenuItem` has a field `operation`, relative to the part that the
+      menu belongs to. A choice of an item that has one answers
+      `EditMenuPartOperation(operation, label)`, with the close of the popup,
+      in place of `InvokeActionOperation`. It travels up as it is.
+    - `ContextMenuWindowProjection` takes it out of the answer of its content
+      and lifts the operation from the part through the readers of the
+      content, from the part outward, the first place from which the readers
+      carry it, as `find_rooted_operation` looks; the operation is rerooted by
+      the steps from that place to the part. An edit that no place lifts is
+      dropped.
+    - Fact found: `source` of `ContextMenuWindowState` is the path from the
+      state, through `content`, not from `content` as its docstring said; the
+      docstring now says so, and the lift follows the `content` step.
+    - The menu items of the view (`_make_menu_item`) hold the operation, which
+      they make when the menu opens; before, a callback made it when a person
+      chose the item.
+    - A limit (mine): the lift starts at the nearest part, under the pointer,
+      also for an item of an outer layer, which F2 shows. Such an item must
+      hold an operation that names its own document, as every item of the view
+      does. Each layer with a place of its own needs a path for each layer in
+      `OpenContextMenuOperation`, which a path map of a reader then maps too.
+    - Tests: the context menu window (an item with an operation edits its part
+      and the window closes), 44; a real editor of a data frame (a right click
+      on a header, "Hide column", Ctrl+Z shows the column again). The platform
+      86,929 and 8 broken, the data frames 454.
   - [ ] **4b.2** Rows: B2 insert and delete, B4, B8, the menu of a row.
   - [ ] **4b.3** Columns: insert, delete and move (B2, B3, B5, B7).
   - [ ] **4b.4** The rename in place (B6) and the convert.

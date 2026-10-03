@@ -28,7 +28,8 @@ writes each field, so a history does not record it:
 
 - `layers` — the `(title, menu)` pairs of the open menu, the nearest part first;
 - `shown` — how many layers the window shows; `0` when no menu is open;
-- `source` — the path of the part that the menu belongs to, from `content`;
+- `source` — the path of the part that the menu belongs to, from the state,
+  through `content`;
 - `window` — the `OpenWindowOperation` that opened the window last, which F2 and
   Shift+F2 open again with other content (`show_window_layers`).
 """
@@ -123,6 +124,7 @@ function read_intent(p::ContextMenuWindowProjection, recursion, change::Intent,
         own === nothing || return Intent(input, own)
     end
     menu, rest = _take_context_menu(_read_menu_content(p, recursion, change, iomap))
+    rest = _lift_menu_part_edits(p, recursion, iomap, rest)
     own = if menu !== nothing
         _open_menu_window(p, iomap, menu)
     elseif event !== nothing && state.shown > 0 && !_is_menu_window_open(state)
@@ -145,6 +147,42 @@ function _read_routed_menu(p::ContextMenuWindowProjection, recursion, change::In
     menu === nothing && return answer
     Intent(answer.gesture, _join_menu_operations(rest, _open_menu_window(p, iomap, menu)),
            answer.description, answer.domain, answer.route)
+end
+
+# `operation` with each edit of a part that an item of the menu made lifted from
+# that part (`_lift_menu_part_edit`); an edit that no place lifts is dropped.
+_lift_menu_part_edits(p::ContextMenuWindowProjection, recursion, iomap::ContextMenuWindowIoMap, operation) =
+    operation
+_lift_menu_part_edits(p::ContextMenuWindowProjection, recursion, iomap::ContextMenuWindowIoMap,
+                      operation::EditMenuPartOperation) =
+    _lift_menu_part_edit(p, recursion, iomap, operation)
+function _lift_menu_part_edits(p::ContextMenuWindowProjection, recursion, iomap::ContextMenuWindowIoMap,
+                               operation::CompoundOperation)
+    members = Any[_lift_menu_part_edits(p, recursion, iomap, member) for member in operation.operations]
+    CompoundOperation(Any[member for member in members if member !== nothing])
+end
+
+# The edit of the part that the menu belongs to, lifted from the part through the
+# readers of the content, as an operation from the state: from the part outward,
+# the first place from which the readers carry it, as `find_rooted_operation`
+# looks, with the operation rerooted by the steps from that place to the part.
+# `nothing` when no place does, or no menu has a part.
+function _lift_menu_part_edit(p::ContextMenuWindowProjection, recursion, iomap::ContextMenuWindowIoMap,
+                              edit::EditMenuPartOperation)
+    source = iomap.input.source
+    source isa Reference || return nothing
+    steps = get_reference_steps(strip_reference_types(source))
+    (isempty(steps) || steps[1] != FieldReferenceStep("content")) && return nothing
+    steps = steps[2:end]
+    for depth in length(steps):-1:1
+        place = extend_reference(EmptyReference(), steps[1:depth]...)
+        operation = reroot_operation(edit.operation, Tuple(steps[(depth + 1):end]))
+        answer = read_intent(p.inner, recursion, Intent(nothing, operation, edit.description, "", place),
+                             iomap.child_iomap)
+        lifted = answer isa Intent ? answer.operation : answer
+        lifted isa Operation && return reroot_operation(lifted, (FieldReferenceStep("content"),))
+    end
+    nothing
 end
 
 # The answer of the content to `change`, as an operation from the state.

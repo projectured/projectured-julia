@@ -121,6 +121,37 @@ function test_data_frame_columns()
             @test read_gesture(view, click) === nothing
         end
 
+        @testset "through a real editor, Hide column from the menu of a header is a step of undo" begin
+            view = DataFrameView(make_frame())
+            backend = _ColumnWidthBackend()
+            # The menu window draws with a renderer of its own, as in the display.
+            opened = Pair{Type,Any}[Document => NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))]
+            editor = build_editor(view, projection; backend, devices = Device[Keyboard(), Mouse(), Display()],
+                                  tabs = false, undo = true,
+                                  window = (; title = "W", width = 600, height = 300,
+                                            opened_window_projections = opened))
+            run_frame!(editor)
+            send!(event, window) = (push!(backend.events, WindowInput(window, event)); run_frame!(editor))
+            force(value) = value isa AbstractCell ? force(value[]) : value
+            function click!(button, x, y, time, window)
+                send!(MouseDown(button, x, y, ModifierKeys(); time), window)
+                send!(MouseUp(button, x, y, ModifierKeys(); time = time + 0.05), window)
+            end
+            windows() = collect(force(force(get_iomap_output(editor.iomap)).windows))
+            place_in(window, text) =
+                only((t[1], t[2]) for t in _data_frame_texts(force(window.content)) if t[3] == text)
+            main = first(windows())
+            (x, y) = place_in(main, "name :: String")
+            click!(:right, x + 2, y + 2, 1.0, main.id)
+            menu = only(window for window in windows() if window.id !== main.id)
+            (x, y) = place_in(menu, "Hide column")
+            click!(:left, x + 2, y + 2, 2.0, menu.id)
+            @test view.query.hidden_columns == ["name"]
+            @test length(windows()) == 1
+            send!(KeyDown(:z, ModifierKeys(ctrl = true); time = 3.0), main.id)
+            @test isempty(view.query.hidden_columns)
+        end
+
         @testset "the last column that the view shows can not be hidden" begin
             view = DataFrameView(DataFrame(id = 1:3))
             @test !item_of(compute_context_menu(DataFrameColumn(view, "id")), "Hide column").enabled

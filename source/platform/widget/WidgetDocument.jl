@@ -675,11 +675,17 @@ action, so the one item type serves a menu-bar entry, a nested submenu, and a
 leaf command. A click on an enabled leaf item also closes the enclosing popup
 (a no-op when the menu is rendered inline). A disabled item (or one bound to a
 disabled command) is inert.
+`operation` is the edit that the item makes on the part that a context menu
+belongs to, relative to that part, or `nothing`. A click on an item that has one
+answers [`EditMenuPartOperation`](@ref) in place of its action, and the context
+menu window lifts it from the part through the readers around it, so a history
+records it as an edit of the person.
 """
 @document struct WidgetMenuItem <: WidgetDocument
     action::Any
     gestures::Any
     submenu::Any
+    operation::Any
     visible::Bool
     enabled::Bool
     margin::Inset
@@ -694,13 +700,14 @@ function WidgetMenuItem(content;
                         gestures=GestureBinding[],
                         icon=nothing,
                         submenu=nothing,
+                        operation=nothing,
                         visible::Bool=true,
                         enabled::Bool=true,
                         margin=nothing, border=nothing, padding=nothing,
                         style=nothing, tooltip=nothing)
     # See `WidgetButton`: `content` and `icon` are sugar that folds into the
     # item's `Action`.
-    WidgetMenuItem(Cell(resolve_action(content, icon, action)), Cell(gestures), Cell(submenu),
+    WidgetMenuItem(Cell(resolve_action(content, icon, action)), Cell(gestures), Cell(submenu), Cell(operation),
                    Cell(visible), Cell(enabled), Cell(margin), Cell(border), Cell(padding),
                    Cell(style), Cell(tooltip))
 end
