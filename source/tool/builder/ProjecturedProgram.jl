@@ -326,9 +326,8 @@ does not hold, reads a folder outside its own, compiles native code on the
 machine of the user, or serves only the development of this repository, as the
 flat namespace of `ProjecturedAll` does.
 """
-const PROJECTURED_RELEASE_EXCLUSIONS = ["ProjecturedAdaptagrams", "ProjecturedAll",
-                                        "ProjecturedBench", "ProjecturedBuilder",
-                                        "ProjecturedREPL"]
+const PROJECTURED_RELEASE_EXCLUSIONS = ["ProjecturedAdaptagrams", "ProjecturedBench",
+                                        "ProjecturedBuilder", "ProjecturedREPL"]
 
 """
     PROJECTURED_PACKAGE_ASSETS
@@ -393,8 +392,20 @@ release.
 """
 const PROJECTURED_PACKAGE_READMES = Dict(
     "Projectured" =>
-        (summary = "The umbrella package of ProjecturEd: it installs the kernel and the platform, and loads every ProjecturEd package that you install.",
+        (summary = "The umbrella package of ProjecturEd: it loads the kernel, the platform and AutoIntegrations, and gives the names that most users call.",
          document = "documentation/guide/own-project-guide.md"),
+    "AutoIntegrations" =>
+        (summary = "Loads an installed package when the packages that it names as its triggers are loaded, as the settings of your environment choose.",
+         document = "documentation/package/autointegrations/autointegrations.md"),
+    "ProjecturedEssentials" =>
+        (summary = "The few names of the kernel and the platform that most users call. The umbrella, each integration and each backend give them.",
+         document = "documentation/package/essentials/essentials.md"),
+    "ProjecturedIntegrations" =>
+        (summary = "Installs every integration of ProjecturEd and the packages that they join, and loads each integration when the package that it joins is loaded.",
+         document = "documentation/guide/own-project-guide.md"),
+    "ProjecturedAll" =>
+        (summary = "Every package of ProjecturEd that needs no package of another author, with all their names in one namespace. It loads much more than most programs need.",
+         document = "documentation/design/system-anatomy.md"),
     "ProjecturedKernel" =>
         (summary = "The core of ProjecturEd: reactive cells, documents, references, operations, projections and the editor loop, with no concrete kind of data.",
          document = "documentation/design/concepts.md"),
@@ -525,23 +536,48 @@ function build_projectured_package_release!(output::AbstractString;
                            packages = collect_projectured_release_packages(context),
                            output = output, assets = PROJECTURED_PACKAGE_ASSETS,
                            licences = PROJECTURED_LICENCES,
-                           readme = _format_projectured_package_readme,
+                           readme = name -> _format_projectured_package_readme(context, name),
                            tests = name -> _find_projectured_release_test(context, name),
                            workflow = _format_projectured_release_workflow,
-                           overview = _format_projectured_release_overview,
+                           overview = names -> _format_projectured_release_overview(context,
+                                                                                     names),
                            julia_compat = PROJECTURED_JULIA_COMPAT, registry = registry,
                            kwargs...)
 end
 
+# The table `[auto-integration]` of the `Project.toml` of the package `name`, or
+# `nothing` when it declares none.
+_find_auto_integration(context::BuildContext, name) =
+    get(TOML.parsefile(joinpath(get_package_directory(context, name), "Project.toml")),
+        "auto-integration", nothing)
+
+# The names joined as a person writes them: "A", "A and B", "A, B and C".
+_join_names(names) =
+    length(names) <= 1 ? join(names) : join(names[1:end-1], ", ") * " and " * names[end]
+
+# How the package `name` loads: by a `using` line, and by AutoIntegrations when it
+# declares triggers.
+function _format_projectured_load_text(context::BuildContext, name)
+    declaration = _find_auto_integration(context, name)
+    declaration === nothing && return "`using $name` loads it."
+    triggers = sort(collect(keys(get(declaration, "triggers", Dict{String,Any}())));
+                    by = trigger -> (trigger != "Projectured", trigger))
+    when = _join_names(["`$trigger`" for trigger in triggers]) *
+           (length(triggers) == 1 ? " is loaded" : " are loaded")
+    get(declaration, "default", "manual") == "auto" ?
+        "`using $name` loads it. AutoIntegrations also loads it by itself when $when, " *
+        "unless your environment sets it to `\"manual\"`." :
+        "`using $name` loads it. AutoIntegrations loads it by itself when $when, " *
+        "if your environment sets it to `\"auto\"`."
+end
+
 # The README of the folder of one released package, which is also its page on
-# GitHub: what it is, how to install it, and where its source is.
-function _format_projectured_package_readme(name)
+# GitHub: what it is, how to install and load it, and where its source is.
+function _format_projectured_package_readme(context::BuildContext, name)
     haskey(PROJECTURED_PACKAGE_READMES, name) ||
         error("build_projectured_package_release!: $name has no README; add it to " *
               "PROJECTURED_PACKAGE_READMES")
     readme = PROJECTURED_PACKAGE_READMES[name]
-    install = name in ("Projectured", "ProjecturedKernel", "ProjecturedPlatform") ?
-              "pkg> add Projectured" : "pkg> add Projectured $name"
     """
     # $name
 
@@ -555,17 +591,18 @@ function _format_projectured_package_readme(name)
     ## Install
 
     The packages of ProjecturEd are in the registry `ProjecturedRegistry`. Add General
-    too, for the packages that they depend on; where it is there, the line does nothing:
+    too, for the packages that they depend on. If General is there already, the line
+    does nothing.
 
     ```
     pkg> registry add General
     pkg> registry add $PROJECTURED_REGISTRY_URL
-    $install
+    pkg> add $name
     ```
 
-    `Projectured` installs the kernel and the platform, and loads every ProjecturEd
-    package that you install.
-    [ProjecturEd in your own project]($PROJECTURED_SOURCE/blob/main/documentation/guide/own-project-guide.md)
+    $(_format_projectured_load_text(context, name))
+    [The front page]($PROJECTURED_RELEASE_URL) says how the packages install and load,
+    and [ProjecturEd in your own project]($PROJECTURED_SOURCE/blob/main/documentation/guide/own-project-guide.md)
     says how to open a window from your code.
 
     ## Source and licence
@@ -585,7 +622,7 @@ function _find_projectured_release_test(context::BuildContext, name)
                                                                  "test_integration")
     test_package = name * "Test"
     has_package_directory(context, test_package) || return nothing
-    suite = "test_" * lowercase(name[length("Projectured")+1:end])
+    suite = "test_" * lowercase(chopprefix(name, "Projectured"))
     test_package => _format_projectured_runtests(name, test_package, suite)
 end
 
@@ -602,14 +639,27 @@ _format_projectured_runtests(name, test_package, suite) = """
     $suite()
     """
 
-# The front page of the release repository: what it is, how to install from it,
-# and one row for each package with the sentence of its README. The umbrella, the
-# kernel and the platform come first, then the others by name.
-function _format_projectured_release_overview(names)
-    core = ["Projectured", "ProjecturedKernel", "ProjecturedPlatform"]
+# The front page of the release repository: what it is, how to install and load
+# the packages, the integrations with their triggers, and one row for each package
+# with the sentence of its README. The packages that a user meets first come
+# first, then the others by name.
+function _format_projectured_release_overview(context::BuildContext, names)
+    core = ["Projectured", "ProjecturedEssentials", "ProjecturedKernel", "ProjecturedPlatform",
+            "AutoIntegrations", "ProjecturedIntegrations", "ProjecturedAll"]
     order = [filter(in(names), core); sort(filter(!in(core), names))]
     rows = join(["| [$name]($name) | $(PROJECTURED_PACKAGE_READMES[name].summary) |\n"
                  for name in order])
+    # An integration declares a trigger beside the umbrella: the package that it joins.
+    integrations = String[]
+    for name in order
+        declaration = _find_auto_integration(context, name)
+        declaration === nothing && continue
+        triggers = sort(collect(keys(get(declaration, "triggers", Dict{String,Any}())));
+                        by = trigger -> (trigger != "Projectured", trigger))
+        joined = filter(!=("Projectured"), triggers)
+        isempty(joined) && continue
+        push!(integrations, "| `$name` | $(_join_names(joined)) | $(_join_names(triggers)) |\n")
+    end
     """
     # Projectured.jl
 
@@ -623,19 +673,96 @@ function _format_projectured_release_overview(names)
     ## Install
 
     The packages are in the registry `ProjecturedRegistry`. Add General too, for the
-    packages that they depend on; where it is there, the line does nothing:
+    packages that they depend on. If General is there already, the line does
+    nothing.
 
     ```
     pkg> registry add General
     pkg> registry add $PROJECTURED_REGISTRY_URL
-    pkg> add Projectured ProjecturedJSON ProjecturedSDL
     ```
 
-    `Projectured` installs the kernel and the platform, and loads every ProjecturEd
-    package that you install. Add the packages of the data that you open and of the
-    backend that you draw with.
-    [ProjecturEd in your own project]($PROJECTURED_SOURCE/blob/main/documentation/guide/own-project-guide.md)
-    says how to open a window from your code.
+    Each package installs only what it needs. Add each package that you use by its
+    name. A `using` line reaches only the packages that you added, so add the
+    packages of other authors that you load too.
+
+    ## Use
+
+    To install and to load are two different steps. You can load in two ways.
+
+    ### Name each package
+
+    ```
+    pkg> add ProjecturedSDL ProjecturedDataFrames DataFrames
+
+    julia> using DataFrames, ProjecturedSDL, ProjecturedDataFrames
+    julia> display_in_editor(DataFrame(n = 1:100_000, square = (1:100_000) .^ 2))
+    ```
+
+    `ProjecturedSDL` installs SimpleDirectMediaLayer, and `ProjecturedDataFrames`
+    installs DataFrames. The session loads the packages that you name and the
+    packages that they depend on. Nothing else loads.
+
+    ### Let `Projectured` load the integrations
+
+    ```
+    pkg> add Projectured ProjecturedSDL ProjecturedDataFrames DataFrames SimpleDirectMediaLayer
+
+    julia> using Projectured, DataFrames, SimpleDirectMediaLayer
+    julia> display_in_editor(DataFrame(n = 1:100_000, square = (1:100_000) .^ 2))
+    ```
+
+    `using Projectured` loads the kernel, the platform and AutoIntegrations.
+    AutoIntegrations loads a package that you installed when all its triggers are
+    loaded. The order of the `using` lines does not matter. Each domain, the
+    console, PDF and the model adapters load when `Projectured` is loaded. An
+    integration loads when the package that it joins is loaded too:
+
+    | Integration | It joins | It loads when these are loaded |
+    | --- | --- | --- |
+    $(join(integrations))
+    A package that loads in this way puts no name into `Main`. To write
+    `SdlBackend()`, add `using ProjecturedSDL`.
+
+    ### Choose for each package
+
+    Each package says if it loads by itself. You can change it for each package in
+    the file `LocalPreferences.toml` beside the `Project.toml` of your environment:
+
+    ```toml
+    [AutoIntegrations]
+    ProjecturedSDL = "auto"
+    ProjecturedDataFrames = "manual"
+    ```
+
+    `"auto"` loads the package when its triggers are loaded. `"manual"` loads it
+    only when you name it. A package with no line keeps its own default. This call
+    writes the same line:
+
+    ```
+    julia> using AutoIntegrations
+    julia> set_auto_integration!("ProjecturedDataFrames", :manual)
+    ```
+
+    ### Load all integrations
+
+    ```
+    pkg> add ProjecturedIntegrations DataFrames SimpleDirectMediaLayer
+
+    julia> using ProjecturedIntegrations, DataFrames, SimpleDirectMediaLayer
+    ```
+
+    `ProjecturedIntegrations` installs every integration and every package that
+    they join. It loads an integration when the package that it joins is loaded,
+    whatever `LocalPreferences.toml` says. Use it when you want all of them and do
+    not want to choose.
+
+    ### Why there are so many packages
+
+    ProjecturEd joins many packages of other authors, and each join is one small
+    package. Pkg installs all dependencies of a package and has no optional ones.
+    So each integration is its own package, and you install only the ones that you
+    add. Some users want the integrations to load by themselves, and some users
+    name each package. The setting for each package lets you choose.
 
     ## The packages
 

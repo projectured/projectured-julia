@@ -515,7 +515,19 @@ function test_package_release()
         readme = read(joinpath(output, "ProjecturedJSON", "README.md"), String)
         @test occursin(PROJECTURED_PACKAGE_READMES["ProjecturedJSON"].summary, readme)
         @test occursin("pkg> registry add General\npkg> registry add $PROJECTURED_REGISTRY_URL\n" *
-                       "pkg> add Projectured ProjecturedJSON\n", readme)
+                       "pkg> add ProjecturedJSON\n", readme)
+        # A README says when AutoIntegrations loads the package, from the triggers
+        # that its `Project.toml` declares.
+        @test occursin("AutoIntegrations also loads it by itself when `Projectured` is loaded",
+                       readme)
+        sdl = read(joinpath(output, "ProjecturedSDL", "README.md"), String)
+        @test occursin("when `Projectured` and `SimpleDirectMediaLayer` are loaded", sdl)
+        @test occursin("`using ProjecturedWeb` loads it.\n",
+                       read(joinpath(output, "ProjecturedWeb", "README.md"), String))
+        # The front page has a row for each integration, with its triggers.
+        @test occursin("| `ProjecturedSDL` | SimpleDirectMediaLayer | Projectured and SimpleDirectMediaLayer |",
+                       front)
+        @test count("| `Projectured", split(front, "### Choose")[1]) == 6
         rm(dirname(output); recursive = true)
     end
 end

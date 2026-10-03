@@ -509,9 +509,20 @@ The README of each released package changes too
       the 11 packages export the 12 names with the same bindings (12 of 12), and
       the manual case of `test_umbrella_loads_integrations()` checks that
       `display_in_editor` is visible. This test found the fault of section 9.3.
-- [ ] **Step 6, the release.** The README texts of section 5, the entries of
+- [x] **Step 6, the release.** The README texts of section 5, the entries of
       `PROJECTURED_PACKAGE_READMES`, the release copy of a package with no
       slice folder, and the release tests.
+      Done: `ProjecturedAll` is released; `PROJECTURED_PACKAGE_READMES` has
+      entries for `AutoIntegrations`, `ProjecturedEssentials`,
+      `ProjecturedIntegrations` and `ProjecturedAll`. The README of a package
+      installs it alone, and says when AutoIntegrations loads it, from the
+      table of its `Project.toml`. The front page holds the text of section 5;
+      its table of integrations comes from the same tables. The suite name of a
+      released package drops the prefix with `chopprefix`, so
+      `AutoIntegrationsTest` runs `test_autointegrations()`.
+      `test_package_release()` passes 61 of 61 and 167 of 167. The two design
+      documents of section 6 came here, because a README entry names its
+      document and the test checks that it exists.
 - [ ] **Step 7, the guards.** The naming guard, the package graph and the tree
       guard accept `AutoIntegrations`.
 - [ ] **Step 8, the documentation.** Section 6.
