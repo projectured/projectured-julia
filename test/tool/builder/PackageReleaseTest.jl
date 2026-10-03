@@ -543,6 +543,7 @@ function test_package_release()
         # workflow when it has tests, and the install lines.
         front = read(joinpath(output, "README.md"), String)
         @test count("/actions/workflows/", front) == 2 * length(tested)
+        @test occursin("| Package | &nbsp;", front)
         @test occursin("| [ProjecturedJSON](ProjecturedJSON) | [![tests](" *
                        "$PROJECTURED_RELEASE_URL/actions/workflows/ProjecturedJSON.yml/badge.svg)]", front)
         @test all(name -> occursin("| [$name]($name) | ", front), names)

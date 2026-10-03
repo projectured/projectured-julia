@@ -649,7 +649,10 @@ function _format_projectured_release_overview(context::BuildContext, names)
     core = ["Projectured", "ProjecturedKernel", "ProjecturedPlatform", "ProjecturedIntegrations",
             "ProjecturedAll"]
     order = [filter(in(names), core); sort(filter(!in(core), names))]
-    # A package with tests has a workflow of its own, and its badge.
+    # A package with tests has a workflow of its own, and its badge. A table of
+    # GitHub has no column width, and a header does not wrap, so the spaces of the
+    # header keep the column of the badges wide enough that GitHub does not scale
+    # them down.
     badge(name) = _find_projectured_release_test(context, name) === nothing ? "" :
         "[![tests]($PROJECTURED_RELEASE_URL/actions/workflows/$name.yml/badge.svg)]" *
         "($PROJECTURED_RELEASE_URL/actions/workflows/$name.yml)"
@@ -777,8 +780,8 @@ function _format_projectured_release_overview(context::BuildContext, names)
 
     ## The packages
 
-    | Package | Tests | What it holds or does |
-    | --- | --- | --- |
+    | Package | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Tests&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | What it holds or does |
+    | --- | :---: | --- |
     $rows
     ## Tests
 
