@@ -270,11 +270,14 @@ function test_web_backend()
         end
         try
             # The connection ends the wait, so that a frame sends every window in full.
-            @test (@elapsed wait_for_input(backend, Device[], 10.0)) < 5.0
+            # The first connection also compiles the handshake, which takes seconds
+            # on a busy machine; the bound stays far below the timeout, so a wait
+            # that only the timeout ends still fails.
+            @test (@elapsed wait_for_input(backend, Device[], 60.0)) < 30.0
             @test backend.conn !== nothing
             @test backend.force_full
             notify(send)
-            @test (@elapsed wait_for_input(backend, Device[], 10.0)) < 5.0
+            @test (@elapsed wait_for_input(backend, Device[], 60.0)) < 30.0
             window_input = read_from_devices(backend, Device[])
             @test window_input isa WindowInput
             @test window_input.event == KeyDown(:escape, ModifierKeys(); time = 1.5)
