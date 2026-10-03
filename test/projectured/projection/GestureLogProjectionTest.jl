@@ -161,6 +161,29 @@ function test_gesture_log()
         @test length(log.entries) == 0                            # the filter dropped it
     end
 
+    @testset "a click or a key that types nothing ends a run, with no entry of its own" begin
+        log = GestureLog()
+        recorder = GestureLogRecordingProjection(inner = inner_syntax(), log = log, fold_typing = true)
+        iomap = print_document(recorder, mkarray())
+        gestures() = [entry.gesture for entry in log.entries]
+        read_intent(recorder, iomap, typed)
+        # The key down of a character key comes with the character, and a key up
+        # follows it: the run goes on.
+        read_intent(recorder, iomap, KeyDown(:a, none; time = 0.0))
+        read_intent(recorder, iomap, typed)
+        read_intent(recorder, iomap, KeyUp(:a, none; time = 0.0))
+        read_intent(recorder, iomap, typed)
+        @test gestures() == ["typed \"777\""]
+        # A click that reads to nothing is no entry, but the next character starts one.
+        @test read_intent(recorder, iomap, MouseClick(:left, 3, 3, 1, none; time = 0.0)) === nothing
+        read_intent(recorder, iomap, typed)
+        @test gestures() == ["typed \"777\"", "typed \"7\""]
+        # So does a key that types no character, such as F3.
+        read_intent(recorder, iomap, KeyDown(:f3, none; time = 0.0))
+        read_intent(recorder, iomap, typed)
+        @test gestures() == ["typed \"777\"", "typed \"7\"", "typed \"7\""]
+    end
+
     @testset "the overlay draws the panel over the content" begin
         log = GestureLog()
         array = mkarray()

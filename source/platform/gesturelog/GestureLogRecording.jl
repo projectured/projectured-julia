@@ -27,7 +27,9 @@ Decorator over `inner` that records every operation the inner reader makes.
 `filter(gesture, operation)` decides what the log keeps; the default drops the
 selection operations. Each entry writes its references from the document this
 projection reads, by the titles of the documents on them. `fold_typing` folds a
-run of typed characters into one entry (see `record_gesture!`).
+run of typed characters into one entry (see `record_gesture!`). A click, a turn
+of the wheel, or a key that types no character ends the run, also when the
+filter keeps no entry of it, so the text typed after it is an entry of its own.
 """
 struct GestureLogRecordingProjection <: Projection
     inner::Any
@@ -66,8 +68,29 @@ function read_intent(p::GestureLogRecordingProjection, recursion, change::Intent
         # Code that acts with no gesture says in the description what it did.
         record_gesture!(p.log, change.gesture === nothing ? change.description : change.gesture,
                         operation; root = iomap.input, fold_typing = p.fold_typing)
+    elseif p.fold_typing && !isempty(p.log.typing) && _ends_typing_run(change.gesture)
+        # A click that only selects, or F3 that only scrolls, is no entry, but the
+        # person stopped typing: the next typed character starts an entry of its own.
+        p.log.typing = ""
     end
     child
+end
+
+# The keys that type no character. The press of any other key comes with the
+# character that it types.
+const _NON_TYPING_KEYS = Set{Symbol}([:left, :right, :up, :down, :home, :end, :page_up, :page_down,
+                                      :return, :tab, :escape, :insert, :backspace, :delete,
+                                      :f1, :f2, :f3, :f4, :f5, :f6, :f7, :f8, :f9, :f10, :f11, :f12])
+
+# Is `gesture` an act of the person that types no character: a press of a mouse
+# button, a turn of the wheel, a key with Ctrl, Alt or Meta held, or a key that
+# types nothing? A move or a dwell of the pointer, a key up and a timer are none.
+function _ends_typing_run(gesture)
+    event = gesture isa WindowInput ? gesture.event : gesture
+    event isa Union{MouseClick, MouseDown, MouseScroll} && return true
+    event isa KeyDown || return false
+    modifiers = event.modifiers
+    modifiers.ctrl || modifiers.alt || modifiers.meta || event.key in _NON_TYPING_KEYS
 end
 
 read_intent(p::GestureLogRecordingProjection, iomap::GestureLogRecordingIoMap, payload) =
