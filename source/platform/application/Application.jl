@@ -682,9 +682,23 @@ function warm_application()
             push!(paths, path)
         end
         write(joinpath(directory, "d.txt"), "text")
+        document, projection = make_application_window(paths; root = directory,
+            assistant = make_application_assistant(:ollama))
+        scene = make_window_scene(document, "ProjecturEd"; width = 1280, height = 800)
+        composed = make_window_scene_projection(projection;
+            opened_window_projections = make_opened_window_projections(;
+                content = make_application_content_projections()))
+        editor = Editor(scene, composed; backend = default_backend((:ConsoleBackend,)),
+                        devices = Device[Display(), Keyboard(), Mouse()])
+        editor.iomap = print_document(composed, scene)
+        evaluate_reachable_cells!(editor.iomap)
+        # The press lands on the row of `b.md` in the navigator, found by its
+        # drawn name, so it follows the sizes of the theme; Enter opens that file.
+        row = _find_drawn_text_point(get_iomap_output(editor.iomap).windows[1].content, "b.md")
+        press = row === nothing ? Any[] : Any[MouseClick(:left, row[1], row[2], 1, ModifierKeys(); time = time())]
         events = Any[KeyDown(:down, ModifierKeys(); time = time()),
                      KeyPress('x'; time = time()),
-                     MouseClick(:left, 100, 84, 1, ModifierKeys(); time = time()),
+                     press...,
                      KeyDown(:return, ModifierKeys(); time = time()),
                      KeyDown(:s, ModifierKeys(ctrl = true); time = time()),
                      # Ctrl+T opens a tab on an empty placeholder, Insert turns
@@ -698,16 +712,6 @@ function warm_application()
                      KeyDown(:left, ModifierKeys(); time = time()),
                      KeyDown(:delete, ModifierKeys(); time = time()),
                      KeyDown(:return, ModifierKeys(); time = time())]
-        document, projection = make_application_window(paths; root = directory,
-            assistant = make_application_assistant(:ollama))
-        scene = make_window_scene(document, "ProjecturEd"; width = 1280, height = 800)
-        composed = make_window_scene_projection(projection;
-            opened_window_projections = make_opened_window_projections(;
-                content = make_application_content_projections()))
-        editor = Editor(scene, composed; backend = default_backend((:ConsoleBackend,)),
-                        devices = Device[Display(), Keyboard(), Mouse()])
-        editor.iomap = print_document(composed, scene)
-        evaluate_reachable_cells!(editor.iomap)
         for event in events
             change = read_intent(composed, nothing,
                                  Intent(WindowInput(:ProjecturEd, event)), editor.iomap)
@@ -715,6 +719,9 @@ function warm_application()
             operation isa Operation || continue
             editor.operation = operation
             evaluate_operation(editor, operation)
+            # A command, such as the one of Ctrl+T, posts its operation, and a
+            # frame of the editor applies what was posted.
+            drain_operations!(editor)
             editor.iomap = print_document(composed, editor.document)
             evaluate_reachable_cells!(editor.iomap)
         end
@@ -725,6 +732,26 @@ function warm_application()
         rm(directory; recursive = true, force = true)
     end
     warmed
+end
+
+# A point inside the first drawn text `text` of a canvas tree, in the frame of
+# `node`, or `nothing` when no element draws it.
+function _find_drawn_text_point(node, text::AbstractString, x0::Int = 0, y0::Int = 0)
+    node = unwrap_cell(node)
+    node === nothing && return nothing
+    x = hasproperty(node, :x) ? x0 + Int(unwrap_cell(node.x)) : x0
+    y = hasproperty(node, :y) ? y0 + Int(unwrap_cell(node.y)) : y0
+    if node isa GraphicsText
+        return unwrap_cell(node.text) == text ? (x + 2, y + 2) : nothing
+    elseif hasproperty(node, :elements)
+        for element in unwrap_cell(node.elements)
+            point = _find_drawn_text_point(element, text, x, y)
+            point === nothing || return point
+        end
+    elseif hasproperty(node, :content)
+        return _find_drawn_text_point(node.content, text, x, y)
+    end
+    nothing
 end
 
 """
