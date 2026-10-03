@@ -502,7 +502,7 @@ Each step is a commit. Mark it here when it is done.
      leaf, the second call compiles 5.45 s of AutoPrecompile's own code when its
      timer starts the build. The using line compiles about 1 s more with
      AutoPrecompile and loads the image of 127 MB.
-9. **Release**: the owner registers AutoPrecompile in `ProjecturedRegistry`.
+9. **Done — release**: the owner registers AutoPrecompile in `ProjecturedRegistry`.
 
    Version 0.1.0, the version of step 3 that does nothing, is registered
    2026-10-03 at the owner's word: commit `fcbf66b` in the clone
@@ -516,8 +516,15 @@ Each step is a commit. Mark it here when it is done.
    the registered tree. By decision 21 the version stays 0.1.0 until the public
    announcement, so this step waits for it. The owner made
    `projectured/AutoPrecompile.jl` public on 2026-10-03; it is not announced,
-   and the registry is not known yet. At the announcement, register the tree of
-   `main` of AutoPrecompile, so that the registry has the README with the times.
+   and the registry is not known yet.
+
+   Done 2026-10-03 at the owner's word: the entry 0.1.0 of AutoPrecompile points
+   to tree `26ee88b5…` of `6afd380`, whose README holds the times of step 8,
+   with the dependencies and the compat bounds as they were, because only the
+   README changed since `ba2da6a`. LocalRegistry refuses a second registration of
+   a version with another tree, so `Versions.toml` was changed by hand, in commit
+   `11b7d77` of the registry, pushed without force on top of `3c1019d`, a fresh
+   overwrite by another session that kept the entry.
 
 ## 6. Open questions
 
