@@ -54,9 +54,10 @@ The module lives in twelve fragments that share this namespace:
   `PatStep` data `ReferenceCase.jl` lowers to, matched by an interpreter rather
   than compiled, since a rule set may be built where no macro ran.
 - [`ReferencePatternString.jl`](ReferencePatternString.jl) — the **string spelling**
-  of a pattern (`ref"…"`, `parse_reference_pattern`): a dotted, glob-style key of
-  the kind a configuration file is written in, parsed into the same `PatStep` data
-  the Julia surface lowers to. A front end, not a second pattern language.
+  of a pattern (`reference_pattern"…"`, `parse_reference_pattern`): a dotted,
+  glob-style key of the kind a configuration file is written in, parsed into the
+  same `PatStep` data the Julia surface lowers to. A front end, not a second
+  pattern language.
 - [`ReferenceBuilder.jl`](ReferenceBuilder.jl) — the `@reference` / `@reference_step`
   construction DSL (compact surface syntax for building paths).
 - [`ReferencedDocument.jl`](ReferencedDocument.jl) — `ReferencedDocument`, a
@@ -118,7 +119,7 @@ export ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReference
        ReferenceRules, ReferenceRule, ReferenceRuleAnswer,
        apply_reference_rules, match_reference_pattern,
        glob_matches,
-       parse_reference_pattern, @ref_str,
+       parse_reference_pattern, @reference_pattern_str,
        parse_reference_path, ReferenceSyntaxField, ReferenceSyntaxIndex,
        @reference_case, @reference_rules, @reference, @reference_step,
        # a document with the reference that reached it, and the address of one

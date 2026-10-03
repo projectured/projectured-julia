@@ -730,7 +730,11 @@ stop)` axis and apply to any sequence, whether the items are elements or
 characters. Keep this convention everywhere. Mind the two coordinate systems in
 play: a `RangeReferenceStep` stores its boundaries **0-based**, while Julia
 containers are **1-based** — convert explicitly (`start + 1`) at every
-reference↔container crossing rather than assuming one base throughout.
+reference↔container crossing rather than assuming one base throughout. A parser of
+an outside format whose text counts from another index takes that index as a
+keyword, with the default 1, and converts at the boundary:
+`parse_reference_pattern(text; first_index = 0)` reads a configuration key that
+counts from 0.
 
 ### PAR-REFERENCE-DSL
 

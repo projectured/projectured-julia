@@ -1,7 +1,7 @@
-# Fragment of `ReferenceModule` — the **string spelling of a pattern**: `ref"…"` and
-# `parse_reference_pattern`, which read a dotted, glob-style key of the kind a
-# configuration file is written in and answer the same `Vector{PatStep}` the Julia
-# surface lowers to.
+# Fragment of `ReferenceModule` — the **string spelling of a pattern**:
+# `reference_pattern"…"` and `parse_reference_pattern`, which read a dotted,
+# glob-style key of the kind a configuration file is written in and answer the same
+# `Vector{PatStep}` the Julia surface lowers to.
 #
 # One semantics, two spellings. Nothing here matches anything: it parses, and the
 # matchers in `ReferenceCase.jl` and `ReferenceRules.jl` do the rest — which is the whole
@@ -11,13 +11,14 @@
 # fragment exists. A rule set read from a configuration file has no macro, so a pattern
 # has to be constructible from text at run time.
 #
-#     ref"**.host[*].queue.capacity"   ≡   __.host[_].queue.capacity
+#     reference_pattern"**.host[*].queue.capacity"   ≡   __.host[_].queue.capacity
 #
-# Two departures from the language it is modelled on, both deliberate:
+# Two points where it differs from a configuration key, both deliberate:
 #
-#   - **Indices shift.** A configuration counts module vectors from zero; every index in
-#     this codebase is 1-based, so `host[0]` parses to element 1 and `[0..3]` to `1..4`.
-#     The conversion belongs here, at the boundary, and nowhere else.
+#   - **The first index is a keyword.** An index counts from 1, as everywhere in this
+#     codebase. A file whose keys count from 0 passes `first_index = 0` to
+#     `parse_reference_pattern`, so `host[0]` parses to element 1 and `[0..3]` to
+#     `1..4`. The conversion belongs here, at the boundary, and nowhere else.
 #   - **`**` is a whole component.** A key like `host**x` — a run of steps spliced into
 #     the middle of a *name* — has no reading in a step-structured path, and is refused
 #     rather than approximated. `**.a`, `a.**`, `a.**.b` are all fine, and are what
@@ -35,7 +36,7 @@ const REFERENCE_PATTERN_ANY_STEP = "*"
 const _GLOB_METACHARACTERS = ('*', '?', '{')
 
 """
-    parse_reference_pattern(text) -> Vector{PatStep}
+    parse_reference_pattern(text; first_index = 1) -> Vector{PatStep}
 
 Parse the string spelling of a pattern — dotted components, `**` for a run of steps,
 `*` for one step, glob characters inside a name, `[…]` for an index — into the same
@@ -43,13 +44,14 @@ pattern data the Julia surface produces.
 
     parse_reference_pattern("**.host[*].queue.capacity")
 
-Indices are converted from the 0-based counting a configuration file uses to the 1-based
-counting everything here uses, so `host[0]` is the first element.
+An index counts from 1, as everywhere here. `first_index` is the index of the first
+element in the text: a configuration file that counts from 0 passes `first_index = 0`,
+so `host[0]` is the first element.
 """
-function parse_reference_pattern(text::AbstractString)
+function parse_reference_pattern(text::AbstractString; first_index::Integer = 1)
     steps = PatStep[]
     for component in _split_pattern_components(text)
-        _push_pattern_component!(steps, component, text)
+        _push_pattern_component!(steps, component, text, first_index)
     end
     steps
 end
@@ -86,7 +88,7 @@ function _split_pattern_components(text::AbstractString)
 end
 
 function _push_pattern_component!(steps::Vector{PatStep}, component::AbstractString,
-                                  text::AbstractString)
+                                  text::AbstractString, first_index::Integer)
     isempty(component) && error("empty component in pattern string: $text")
 
     component == REFERENCE_PATTERN_LAZY_GAP && return push!(steps, PatStepGap(nothing, true))
@@ -100,7 +102,8 @@ function _push_pattern_component!(steps::Vector{PatStep}, component::AbstractStr
     isempty(name) && error("an index needs a name in front of it: `$component`")
 
     push!(steps, PatStepField(_pattern_name_value(name)))
-    index === nothing || push!(steps, PatStepIndex(_pattern_index_value(index, text)))
+    index === nothing ||
+        push!(steps, PatStepIndex(_pattern_index_value(index, text, first_index)))
     steps
 end
 
@@ -161,10 +164,12 @@ function _unescape_pattern(name::AbstractString)
     String(take!(out))
 end
 
-# `[*]`, `[3]`, `[0..7]`. The two numeric forms shift base; the wildcard has no base to
-# shift.
-function _pattern_index_value(index::AbstractString, text::AbstractString)
+# `[*]`, `[3]`, `[0..7]`. The two numeric forms shift from `first_index` to 1; the
+# wildcard has no base to shift.
+function _pattern_index_value(index::AbstractString, text::AbstractString,
+                              first_index::Integer)
     index == REFERENCE_PATTERN_ANY_STEP && return PatValueWildcard()
+    shift = 1 - first_index
 
     if occursin("..", index)
         bounds = split(index, ".."; limit = 2)
@@ -172,13 +177,13 @@ function _pattern_index_value(index::AbstractString, text::AbstractString)
         hi = tryparse(Int, strip(bounds[2]))
         (lo === nothing || hi === nothing) &&
             error("`[$index]` in a pattern string must be a numeric range like [0..7]: $text")
-        return PatValueRange(lo + 1, hi + 1)
+        return PatValueRange(lo + shift, hi + shift)
     end
 
     single = tryparse(Int, strip(index))
     single === nothing &&
         error("`[$index]` in a pattern string must be an index, a range, or `*`: $text")
-    PatValueLiteral(single + 1)
+    PatValueLiteral(single + shift)
 end
 
 # ------------------------------------------------------------
@@ -186,19 +191,19 @@ end
 # ------------------------------------------------------------
 
 """
-    ref"**.host[*].queue.capacity"
+    reference_pattern"**.host[*].queue.capacity"
 
 The string spelling of a pattern, parsed at macroexpand time into the same pattern data
 the Julia surface lowers to. Usable as an arm of `@reference_case` / `@reference_rules`,
-or on its own as a `Vector{PatStep}`.
+or on its own as a `Vector{PatStep}`. An index counts from 1.
 
     @reference_rules begin
-        ref"**.queue.capacity" => 100
+        reference_pattern"**.queue.capacity" => 100
     end
 
-See [`parse_reference_pattern`](@ref) for the language, and for the two places it departs
-from the configuration syntax it is modelled on.
+See [`parse_reference_pattern`](@ref) for the language, and for the keyword
+`first_index` of a text that counts from another index.
 """
-macro ref_str(text)
+macro reference_pattern_str(text)
     _quote_pattern(parse_reference_pattern(text))
 end

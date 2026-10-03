@@ -523,7 +523,7 @@ function _parse_arm_pattern(lhs)
         length(lhs.args) == 2 || error("$mode(path) expects exactly one argument")
         return (mode, _parse_path(lhs.args[2]))
     elseif lhs isa Expr && lhs.head === :macrocall &&
-           _macro_basename(lhs.args[1]) === Symbol("@ref_str")
+           _macro_basename(lhs.args[1]) === Symbol("@reference_pattern_str")
         # The string spelling of a pattern, as an arm. It parses to the same data, so it
         # is read here rather than expanded and then re-read.
         return (:at, parse_reference_pattern(lhs.args[end]))
@@ -1097,7 +1097,7 @@ use the same step grammar as `@reference` (`a.b`, `xs[i]`, `xs{k}`, a leading/su
 - `when(pattern, cond)` matches `pattern` then requires the guard `cond` (which may
   read the pattern's bindings); `name...` binds the entire remaining tail; `∅`
   matches the empty (whole-element) path.
-- An arm written `ref"…"` gives its pattern in the string spelling of a
+- An arm written `reference_pattern"…"` gives its pattern in the string spelling of a
   configuration key (see `parse_reference_pattern`).
 
 Each arm says where the **input** sits relative to its pattern `P` — the same five

@@ -833,7 +833,7 @@ _make_reference_rule_answer(value) = ReferenceRuleAnswer(value)
 # whole-path forms that have no path syntax of their own.
 function _rules_pattern(ex)
     if ex isa Expr && ex.head === :macrocall &&
-       _macro_basename(ex.args[1]) === Symbol("@ref_str")
+       _macro_basename(ex.args[1]) === Symbol("@reference_pattern_str")
         return parse_reference_pattern(ex.args[end])
     elseif ex === :∅
         # A path that terminates *at* the element — a whole-element selection. The empty

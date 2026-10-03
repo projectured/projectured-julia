@@ -56,11 +56,12 @@ ReferenceModule.jl       (ReferenceModule)             — the aggregator
         ├─ ReferenceRules.jl   — the @reference_rules DSL: the same block of arms
         │                        kept as a VALUE (ReferenceRules), matched by an
         │                        interpreter over the same pattern AST
-        ├─ ReferencePatternString.jl — the string spelling of a pattern: ref"…" and
-        │                        parse_reference_pattern, for a rule set read from
-        │                        a configuration file at run time. It has its own
-        │                        parser, with 0-based indices and ** for a run of
-        │                        steps, and it gives the same pattern data
+        ├─ ReferencePatternString.jl — the string spelling of a pattern:
+        │                        reference_pattern"…" and parse_reference_pattern,
+        │                        for a rule set read from a configuration file at
+        │                        run time. It has its own parser, with indices from
+        │                        1 or from first_index and ** for a run of steps,
+        │                        and it gives the same pattern data
         ├─ ReferenceBuilder.jl — the @reference / @reference_step construction DSL
         │                        (compact surface syntax for building paths)
         └─ ReferencedDocument.jl — ReferencedDocument, a document with the reference
@@ -69,9 +70,9 @@ ReferenceModule.jl       (ReferenceModule)             — the aggregator
 ```
 
 The DSLs read the **same Julia path grammar** — `a.b`, `xs[i]`, `xs{k}`, `x::T`,
-`.name(...)`, `^(e)` — so it is parsed in one place. The string spelling `ref"…"`
-is the one other parser: it reads a configuration key and gives the same pattern
-data. Each DSL then *lowers* the
+`.name(...)`, `^(e)` — so it is parsed in one place. The string spelling
+`reference_pattern"…"` is the one other parser: it reads a configuration key and
+gives the same pattern data. Each DSL then *lowers* the
 resulting AST: the builder to constructor calls, the matcher to match branches, and
 `@reference_rules` to pattern *data* it interprets. Seven forms deliberately mean
 different things on the building and matching sides, and the lowering is where that
@@ -663,9 +664,10 @@ Pattern syntax:
   interesting)
 - `[i, j]` — the same match, binding the items instead: `i` is the 1-based first
   item and `j` the 1-based last
-- `ref"**.host[*].queue"` — a whole pattern in the string spelling of a
-  configuration key, which `parse_reference_pattern` reads: `**` is `__`, `*` is
-  `_`, and an index counts from 0
+- `reference_pattern"**.host[*].queue"` — a whole pattern in the string spelling
+  of a configuration key, which `parse_reference_pattern` reads: `**` is `__`, `*`
+  is `_`, and an index counts from 1. A file whose keys count from 0 calls
+  `parse_reference_pattern(text; first_index = 0)`
 
 The `when(pattern, cond)` helper adds a guard.
 
