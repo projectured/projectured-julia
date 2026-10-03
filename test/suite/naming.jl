@@ -226,7 +226,7 @@ function suite_violations(root::AbstractString)
     isdir(packages) || return out
     for entry in sort(readdir(packages))
         endswith(entry, "Test") || continue
-        stem = entry[length("Projectured")+1:end-length("Test")]
+        stem = chopsuffix(chopprefix(entry, "Projectured"), "Test")
         isempty(stem) && continue                       # the umbrella is named apart
         slice = lowercase(stem)
         # The folder of the suite is the common folder of the test files that the

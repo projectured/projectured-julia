@@ -523,8 +523,15 @@ The README of each released package changes too
       `test_package_release()` passes 61 of 61 and 167 of 167. The two design
       documents of section 6 came here, because a README entry names its
       document and the test checks that it exists.
-- [ ] **Step 7, the guards.** The naming guard, the package graph and the tree
+- [x] **Step 7, the guards.** The naming guard, the package graph and the tree
       guard accept `AutoIntegrations`.
+      Done: the suite rule of the naming guard drops the prefix with
+      `chopprefix`, so it reads `AutoIntegrationsTest` as the slice
+      `autointegrations`. The package graph reads `ext/` too, where
+      `ProjecturedIntegrations` names the integrations (380 of 380). The tree
+      and documentation guards pass; the exports and arguments guards give the
+      same findings as `julia-112`. The binary loads the platform, not the
+      umbrella (section 9.5); `test_builder()` passes 473 of 473.
 - [ ] **Step 8, the documentation.** Section 6.
 - [ ] **Step 9, downstream.** omnet-julia and inet-julia precompile. I expect
       no change, because they do not load the umbrella.
@@ -606,3 +613,12 @@ does not reproduce it, because Julia loads only what the code imports.
 `ProjecturedEssentials` (D12), and `ProjecturedEssentials` depends on the
 platform, so `using ProjecturedMCP` now loads the platform too. An MCP server
 drives an editor, which needs the platform in each real use.
+
+### 9.5 The binary loads the platform, not the umbrella
+
+The binary called `Projectured.run_application_command` and
+`Projectured.warm_application`, which the flat namespace of the umbrella gave.
+The umbrella now gives only the essential names. A binary holds a fixed set of
+packages and imports its domains by name, so AutoIntegrations has no part in
+it: it loads `ProjecturedPlatform` in place of `Projectured`, and calls the two
+functions through it.

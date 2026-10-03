@@ -217,10 +217,10 @@ end
 """
     PROJECTURED_APPLICATION_IMPORTS
 
-The packages that the binary loads beside the umbrella, its backends and its
+The packages that the binary loads beside the platform, its backends and its
 adapters, so that it opens every format: the console and PDF backends and the
-domains. The umbrella depends on the kernel and the platform alone, and loads the
-others where the environment of a session names them, which a binary has not.
+domains. A binary holds a fixed set of packages, so it loads the platform and not
+the umbrella, and AutoIntegrations has no part in it.
 """
 const PROJECTURED_APPLICATION_IMPORTS = ["ProjecturedConsole", "ProjecturedPDF",
     "ProjecturedJSON", "ProjecturedYAML", "ProjecturedXML", "ProjecturedMarkdown",
@@ -269,13 +269,14 @@ function build_projectured_executable(; name::AbstractString = "projectured",
                                Expr(:., Symbol(first(PROJECTURED_BACKENDS[backend])),
                                     QuoteNode(last(PROJECTURED_BACKENDS[backend]))))
                           for backend in backends]...)
-    main = :(Projectured.run_application_command(ARGS; backends = $table))
+    main = :(ProjecturedPlatform.run_application_command(ARGS; backends = $table))
     build_executable(context; name = name,
-                     packages = vcat(["Projectured", "ProjecturedOllama", "ProjecturedAnthropic",
-                                      "ProjecturedMCP"], backend_packages),
+                     packages = vcat(["ProjecturedPlatform", "ProjecturedOllama",
+                                      "ProjecturedAnthropic", "ProjecturedMCP"],
+                                     backend_packages),
                      imports = PROJECTURED_APPLICATION_IMPORTS,
                      main = main,
-                     workload = workload ? :(Projectured.warm_application()) : nothing,
+                     workload = workload ? :(ProjecturedPlatform.warm_application()) : nothing,
                      usage = make_projectured_usage(collect(backends)),
                      fonts = true,
                      assets = PROJECTURED_ASSETS,

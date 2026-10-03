@@ -190,11 +190,11 @@ function _named_packages(name)
 end
 
 const _MODULE_OWNER = Dict{String,String}()
-# Package => the folders its code lives in. There are two, and a package may
-# have only the first: the directory that holds its root file, and `source/`,
-# where everything the root file includes lives. Scanning one of them is how a
-# guard goes on passing while it covers nothing — the root file alone names
-# almost no dependency.
+# Package => the folders its code lives in. There are three, and a package may
+# have only the first: the directory that holds its root file, `source/`, where
+# everything the root file includes lives, and `ext/`, which holds its package
+# extensions. Scanning one of them is how a guard goes on passing while it covers
+# nothing — the root file alone names almost no dependency.
 const _MAIN_DIR = Dict{String,Vector{String}}()
 
 "Fill `_MODULE_OWNER` (submodule => package) and `_MAIN_DIR` (package => folders)."
@@ -208,6 +208,7 @@ function _build_module_owner()
         dirs = [joinpath(dir, "src")]
         source = _source_dir(name)
         source === nothing || push!(dirs, source)
+        isdir(joinpath(dir, "ext")) && push!(dirs, joinpath(dir, "ext"))
         _MAIN_DIR[name] = dirs
         for d in dirs, (root, _dirs, files) in walkdir(d), f in files
             endswith(f, ".jl") || continue
