@@ -478,6 +478,84 @@ Every screenplay has the same parts: the feature, the claim of the post that it 
 - **The take of 2026-09-27**: `tool/video/record_lazy_primes.jl`, 1280×720, 92.2 s, recorded in video time in a warm session after a fast run of the same script. The forms, as typed: `using ProjecturedSubstrateExample;`, `primes = sieve(integers_from(2));`, `show_lazy_list!(editor, primes, "Primes");`, `sevens = lazy_filter(primes, p -> p.value % 10 == 7);`, `show_lazy_list!(editor, sevens, "Sevens");`, `around = make_primes_around(10^12);`, `show_lazy_list!(editor, around, "Around one trillion");`. The counts in the take: Primes 31 when it opens, 126 after thirty steps of the wheel and the same after the way back, 251 after Sevens scrolls; Sevens 15, then 62; Around one trillion 17, 26 after three steps up, which show the crossing of one trillion, and 64 after fifteen steps down. The take is `build/video/s11/s11_lazy_primes.mp4` of the main checkout, and `assets/videos/lazy-primes.mp4` of the web page, after the S7 article.
   - **Open for the owner:** a form whose value is a list with no end, with no `;`, gets a result row one line high, and the rest of the list draws over the next prompt. A result whose graphics have no end needs a bounded window, such as a scroll pane of a fixed height, and that changes how a `result` path maps through the result row. See `plan/done/lazy-list-video.md`.
 
+#### S12. A setting takes effect at once
+
+**Proposed on 2026-10-03, waiting for the owner.** The owner asked for a settings video, and said that it does not have to be complicated.
+
+- **Feature:** the settings page of the editor. Each setting says what it sets, and a change takes effect while you look.
+- **Claim:** a setting is a value with its own text, and the window follows it at once; `Ctrl+Z` takes a setting back like an edit.
+- **Setup:** `bin/projectured` over a folder with `README.md` open, 1280×720, with no assistant.
+- **Beats:**
+
+| # | Action | On the screen | What the viewer learns |
+| --- | --- | --- | --- |
+| 1 | Click the Settings button of the toolbar. | The Settings tab: a card for each group (Fault, History, Pointer, Render, Start), and the text of each setting under its row. | Each setting says what it sets. |
+| 2 | In the Render card, turn on "Partial render", then "Repaint outline". | | |
+| 3 | Move the pointer over the toolbar, the tabs and the switches. | A red outline around each part that the window paints again. | The change takes effect at once. |
+| 4 | Press `Ctrl+Z` twice, and move the pointer again. | Both switches are off, and no outline shows. | A setting is taken back like an edit. |
+| 5 | Hold. | | |
+
+- **What exists** (found on 2026-10-03): the toolbar button and the View menu open the settings of the running editor; the cards come from the `@settings` declarations and their docstrings; a switch writes the setting and applies it to the backend at once; a history around the tab takes back a change (`plan/done/editor-settings.md`, D14).
+- **Checks before the take:**
+  - Open the page from the toolbar, not by typing `settings` into an empty tab: a typed name makes a new `Settings()` that the editor does not read, so a change there does nothing.
+  - The repaint outline holds 0 s by default, so an outline lasts one frame. "Outline hold" can give it 0.6 s, as in S10, or the take sets it in the same beat.
+
+#### S13. The look of every part is a value
+
+**Proposed on 2026-10-03, waiting for the owner.** The owner asked for an appearance video, and said that it does not have to be complicated.
+
+- **Feature:** the appearance page. Every color, font and size of the editor is a value of a theme, and a change shows in the open documents while you look.
+- **Claim:** the look is data. The page is made from the themes themselves, so each style has its text, and an edit of a style is an edit like any other.
+- **Setup:** `bin/projectured` over a folder with `people.json`, 1280×720, with no assistant. The file is on the left, and the Appearance tab opens on the right.
+- **Beats:**
+
+| # | Action | On the screen | What the viewer learns |
+| --- | --- | --- | --- |
+| 1 | Press `Ctrl+,`. | The Appearance tab: the rows Zoom, Text, Icons, Spacing, Controls, Corners and Lines, and a card for each theme. | |
+| 2 | Press `Ctrl+Alt+=` twice, then `Ctrl+Alt+0`. | All text grows, the Text row reads 125%, and then it is back. | One step changes every text of the window. |
+| 3 | Open the Json card. | A row for each style of JSON, with its text under it, for example "The key of an object member, with its quotes." | The page is made from the theme. |
+| 4 | Type a new color into the field of "Key text". | The keys of `people.json` change color at once. | A style is a value, and the document follows it. |
+| 5 | In the Widget card, choose the preset "Slate dark". | The whole window turns dark. | |
+| 6 | Press `Ctrl+Z` twice. | The dark preset and the key color go back. | A change of the look is a step of undo. |
+
+- **What exists** (found on 2026-10-03): `Ctrl+,`, the toolbar and the View menu open the tab; the cards come from the 29 `@theme` declarations and their field docstrings; a color is a swatch and a field of hex text; the presets "Slate light", "Slate dark", "Light" and "Dark" exist for the Widget theme only; a theme edit is a step of undo, and a zoom or scale step is not (`plan/done/zoom-and-theme-controls.md`).
+- **Checks before the take:**
+  - Beat 5: only the Widget theme has a dark preset, so the colors of JSON stay the colors of a light page. If the document looks wrong on a dark window, that is a product gap to show to the owner, and beat 5 waits.
+  - Beat 2: a scale step is not undone by `Ctrl+Z`, so the beat resets it with `Ctrl+Alt+0`.
+  - The tab opens in the group of the file. The take drags it to the right edge, as in S7, or the window is prepared with the split.
+
+#### S14. A data frame as a table that you edit
+
+**Proposed on 2026-10-03, waiting for the owner.**
+
+- **Feature:** a `DataFrame` of DataFrames.jl shown as a table that filters, sorts, finds and edits, where each edit writes into the frame itself, and where only the rows on the screen are read.
+- **Claim:** the table is a view of the frame, not a copy. An edit in the table is a write into `df`, the evaluator sees it at once, and `Ctrl+Z` takes it back. A frame of ten million rows opens as fast as one of a thousand.
+- **Setup:** `bin/projectured`, 1280×720, with no assistant, the evaluator open, and the Files pane closed so that the table has room. The data is `make_data_frame_example()`: 1000 products with `id`, `name`, `price`, `quantity`, `in_stock` and `discount`.
+- **Beats:**
+
+| # | Action | On the screen | What the viewer learns |
+| --- | --- | --- | --- |
+| 1 | `using DataFrames, ProjecturedDataFramesExample;` and `df = make_data_frame_example();` | | A plain `DataFrame`. |
+| 2 | A form opens `DataFrameView(df)` in a pane to the right of the evaluator. | The table: each header with the name and the type of its column, the row numbers, a filter field under each header, and the bar "Rows where" with a find field. | |
+| 3 | Scroll the table with the wheel. | The rows move, and the row numbers count up. | |
+| 4 | Type `> 50` in the filter field of `price`. | Only the rows with a price over 50; the corner says how many rows are kept. | A filter is a condition typed where the column is. |
+| 5 | Type `in_stock && quantity < 10` in the bar "Rows where". | Fewer rows: the products that are in stock and almost gone. | A condition can be Julia over the columns. |
+| 6 | Click the sort arrow of `price` twice. | The rows go from the highest price down. | |
+| 7 | `Ctrl+F`, type a part of a name, then `F3` twice. | The table jumps to each row that holds the name. | |
+| 8 | Click a price, type a new one, press Enter. | The cell shows the new price. | |
+| 9 | In the evaluator, `df[row, :price]` for that row. | The result is the new price. | The table writes into the frame itself. |
+| 10 | Press `Ctrl+Z` in the table, and evaluate the form again. | The old price, in the table and in the result. | An edit of the frame is a step of undo. |
+| 11 | `big = DataFrame(n = 1:10^7, square = (1:10^7) .^ 2);`, and a form opens its view. Scroll it far. | Ten million rows open at once and scroll without a pause. | Only the rows on the screen are read. |
+| 12 | Hold. | | |
+
+- **What exists** (found on 2026-10-03): `ProjecturedDataFrames` loads by itself when `Projectured` and `DataFrames` are both loaded; `DataFrameView(df)` is a document, so a form that returns it draws the live table; filtering, sorting, finding and editing are the first release of `plan/pending/view-and-edit-a-data-frame.md`; an edit is `SetDataFrameValueOperation`, which writes into `df`; the rows are a lazy list, and a test reads only a screenful of a frame of ten million rows.
+- **Checks before the take:**
+  - `display_in_editor(df)` opens a second window outside the recording, so the take uses `DataFrameView(df)` in a pane of the recorded window. A form that opens a pane beside the evaluator is long (`open_pane!` with `target` and `side`); the step finds the shortest honest form, as `show_lazy_list!` was for S11.
+  - The table of six columns needs more width than half of the window. The step checks the widths, and gives the table pane more of the window if it needs it.
+  - Beat 11 sorts nothing: a sort of ten million rows runs at once and shows no progress.
+  - Not in the video, because they are not in the first release: the rename of a column, the drag of a column, a range selection, and the copy and paste of cells.
+  - Beat 9 reads the row number of the edited cell from the row header of the table, so the form names the row that the viewer saw.
+
 ### Considered, and not chosen now
 
 | Feature | Why not now |
