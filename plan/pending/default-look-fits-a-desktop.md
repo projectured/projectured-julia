@@ -606,11 +606,26 @@ inet-julia uses, the same step changes them, so that they always load.
     system test, because the process is root there and reads a folder of mode
     000; outside the namespace it passes.
   - Open: the color swatch of the appearance tab is a label with fixed
-    paddings, because no widget kind draws a square of a given size. The
-    builders that run outside a printer (the file dialog, the message box and
-    the input dialog, the pager, filter and column chooser bars, the value list
-    of a data frame) set fixed gaps and button sizes, and a checkbox has no
-    label of its own, so each builder sets the gap beside it.
+    paddings, because no widget kind draws a square of a given size.
+  - D22, a label of its own: `WidgetCheckbox` and `WidgetSwitch` have a field
+    `label`, drawn after the mark at `label_gap`, and a press on it flips the
+    value. The value list of a data frame, the two options of the evaluator
+    and the italic boxes of the appearance tab use it; the options stand
+    `ConversationTheme.option_gap` (12) apart. A form keeps its labels in a
+    column of their own, so its boxes carry none.
+  - D21, the theme of the caller: the value list takes the widget and data
+    frame themes of the editor's appearance (`find_editor_appearance`), for
+    the gap of its rows and `DataFrameTheme.value_list_size` and
+    `value_list_window_size`. The pager, filter and column chooser bars and the
+    input dialog take `theme` (a scaled widget theme or `nothing`) for their
+    `item_gap`; their buttons, and those of the message box and of the file
+    dialog, are as large as their labels. omnet-julia calls the bars with no
+    theme yet, which step T3 changes with the themes of its page views.
+  - Check: the images change only in the `widget` example (the labelled
+    checkbox and switch); the platform, data frame, evaluator and application
+    tests pass, and omnet-julia precompiles.
+  - Seen, for the owner: the column chooser shows its state as "[x]" and
+    "[ ]" text on buttons, where a labelled checkbox is the widget for it.
 - [ ] **T3.** omnet-julia: the themes of the NED, INI, test file, result and
   workbench views, and the values move into them. *In progress:* omnet-julia
   `7df48184` adds `NedTheme`, `IniTheme`, `TestFileTheme`, `ResultTheme` and
