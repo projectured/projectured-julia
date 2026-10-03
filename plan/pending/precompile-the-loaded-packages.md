@@ -167,15 +167,66 @@ statements of ProjecturEd are part of the repository.
 
 Each step is a commit. Mark it here when it is done.
 
-1. **Search.** Look in the General registry for a package that does this
+1. **Done — search.** Look in the General registry for a package that does this
    already. Report before step 3.
-2. **Experiment, no package changes.** In `/var/tmp`, write by hand the leaf
+
+   Done 2026-10-03: the names of the local General registry, and the web. No
+   package does all of it: watch the loads of a session, select recorded
+   statements by the loaded set, and build one package image for that set. The
+   closest tools:
+   - `AutoSysimages` (petvana/AutoSysimages.jl) records statements while a
+     person works and builds one system image for each project, with a command.
+     It is not driven by the loads of a session and reads no file that a package
+     ships.
+   - `SnoopCompile` turns traces into `precompile` lines that the author of a
+     package puts into that package.
+   - `PrecompileTools` caches what a workload runs, in the image of the package
+     that holds the workload. X uses it inside each leaf.
+   - `CompileTraces` replays a `--trace-compile` file in the running session
+     only.
+   - `PackageCompiler` builds a system image for a list of packages that a
+     person gives, ahead of time.
+
+   Not read: `PrecompileSignatures`, `PrecompileAfterUpdate`,
+   `PrecompileMacro`, `CompileBot`.
+2. **Done — experiment, no package changes.** In `/var/tmp`, write by hand the leaf
    that X would make for the set of the README, from the recording of the
    repository. Put it in a directory environment, build it, and count the methods
    that the first `display_in_editor(df)` compiles in a new session, with the leaf
    and without it (`--trace-compile`, counted lines). Report the count, the build
    time and the size of the image. Wall-clock times of a session need an idle
    machine and the owner's approval.
+
+   Done 2026-10-03 on `main` at `9b7be97be`, Julia 1.13, in a scratch
+   environment with the five packages of the README (`/var/tmp/x-experiment/`).
+   Two leaves, written as section 3.4 says: `XLeafRepo` from the recording of
+   the repository, and `XLeafReadme` from a trace of the README scenario itself.
+
+   | | statements | build | image | load | first display | close |
+   | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+   | no leaf | — | — | — | — | 2010 | 312 |
+   | `XLeafRepo` | 7575 of 15403 | 86.4 s | 110 MB | 0.31 s | 470 | 7 |
+   | `XLeafReadme` | 2344 of 2344 | 40.5 s | 57 MB | 0.20 s | 106 | 0 |
+
+   "First display" counts the methods compiled from `display_in_editor(df)`
+   through its first 8 s; "close" counts `close_display_editor!()`.
+
+   What it shows:
+   - A leaf in a directory at the end of `JULIA_LOAD_PATH` builds and loads. Its
+     dependencies resolve through the environment of the user, `PrecompileTools`
+     too, which is only in the manifest there (through DataFrames). The fact of
+     section 2 holds.
+   - Every statement of both leaves compiled; none was skipped.
+   - The recording of the repository drives no data frame, so `XLeafRepo` leaves
+     the DataFrames path to the session. ProjecturEd must record the scenarios of
+     its README too (step 7).
+   - Of the 106 methods left with `XLeafReadme`, 71 are key and gesture paths
+     (`recognize(::ChordRecognition, …, ::KeyDown, …)`) that the window received
+     in this run and not in the recorded one. 35 are small `Base` methods that the
+     leaf holds and the session compiled again; the cause is not known.
+   - A marker function that returns a constant leaves no line in the trace,
+     because Julia runs it without compiling it. A marker must return a value of
+     run time, such as `time()`.
 3. **The repository of X**, as `auto-integrations`: `Project.toml`, `src`,
    `test`, `README.md`, the licence.
 4. **The selection**: parse, the shape check, the roots, the key. Tests with
