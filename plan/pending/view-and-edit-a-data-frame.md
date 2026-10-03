@@ -1076,9 +1076,9 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     below; each key in an entry is a step of undo, as a key in a filter field
     is, and the undo of a commit puts back the old value but not the text of
     the edit; a `missing` value shows "missing" as the placeholder of the
-    primitive document of its cell. **Proposed change, waiting for the word of
-    the owner** (mine, 2026-10-03, see 4.6): the undo of a commit puts back the
-    old value and opens the cell again with the text of the edit.
+    primitive document of its cell. **Changed** (the owner, 2026-10-03,
+    option (a) of 4.6: "agree with you (a)"): the undo of a commit puts back
+    the old value and opens the cell again with the text of the edit.
 
   The design that follows from R1 to R5 (each point mine unless the owner made
   it above):
@@ -1342,7 +1342,7 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       another keeps both changes. Each is the inverse of the other, and the
       close puts back the same entry.
     - **The undo of a commit opens the cell again, with the text of the edit**
-      (mine; it changes R5, so it waits for the word of the owner). The fact
+      (mine; it changes R5, and the owner accepted it on 2026-10-03). The fact
       that moved it: each key in an entry is a step of undo (R5). When the
       undo of a commit does not open the cell again, those steps act on an
       entry that no cell shows, and each Ctrl+Z on them shows no change. Now
