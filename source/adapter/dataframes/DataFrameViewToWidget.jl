@@ -383,13 +383,26 @@ function read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
     # A move out of an open cell commits it; a value that does not convert keeps
     # it open with its mark, and the selection moves on. The commit comes after
     # the selection, so the undo opens the cell again before it selects in it.
+    # The row of the new selection keeps its place on the screen.
     left = _find_selected_open_cell(view)
     commit = (left === nothing || _find_frame_cell(view, target) == left) ? nothing :
              _make_cell_commit(view, left[1], left[2])
     (open === nothing && commit === nothing) && return selection
     operations = open === nothing ? Any[selection] : Any[open, selection]
-    commit === nothing || append!(operations, commit.members)
-    _make_cell_step(operations, commit !== nothing && commit.edits)
+    commit === nothing && return _make_cell_step(operations, false)
+    append!(operations, commit.members)
+    row = _find_path_row(target)
+    (commit.edits && row !== nothing) &&
+        _push_anchor_write!(operations, view, row, _compute_kept_rows_after_write(view, left[1], left[2], commit.value))
+    _make_cell_step(operations, commit.edits)
+end
+
+# The row of the frame that `path`, a path of the view, goes into, `rows[r]…`, or
+# `nothing`.
+function _find_path_row(path)
+    (path isa ConcreteReference && path.head == FieldReferenceStep("rows")) || return nothing
+    tail = path.tail
+    (tail isa ConcreteReference && tail.head isa RangeReferenceStep) ? tail.head.stop : nothing
 end
 
 # The row of the frame, the column of the frame and the rest of `path`, a path of
@@ -407,7 +420,7 @@ end
 
 # The opening of the cell that `path`, a path of the view, goes on into: a new
 # entry, whose document is a new primitive document of the value, when the cell
-# is not open and takes keys; `nothing` otherwise.
+# is not open and takes keys; `nothing` otherwise. It is view state.
 function _make_open_cell_operation(view::DataFrameView, path)
     found = _find_cell_tail(path)
     found === nothing && return nothing
@@ -418,7 +431,7 @@ function _make_open_cell_operation(view::DataFrameView, path)
     _find_cell_edit(view, r, name) === nothing || return nothing
     document = make_data_frame_cell(frame[r, c], eltype(frame[!, c]))
     document isa PrimitiveDocument || return nothing
-    OpenDataFrameCellOperation(view, DataFrameCellEdit(r, name, document, nothing))
+    ReplaceViewStateOperation(OpenDataFrameCellOperation(view, DataFrameCellEdit(r, name, document, nothing)))
 end
 
 # A place in the table that has a place in the view maps back to it, as a
@@ -638,7 +651,8 @@ function _convert_cell_drop(iomap::DataFrameViewToWidgetIoMap, operation::DropTa
     found === nothing ? nothing : _make_cell_drop_operation(view, found[1], found[2])
 end
 
-# Enter, Tab and Shift+Tab in an open cell commit it, and select the whole cell.
+# Enter, Tab and Shift+Tab in an open cell commit it, and select the whole cell
+# that the key goes to.
 function _convert_cell_commit(iomap::DataFrameViewToWidgetIoMap, operation::CommitTableCellOperation)
     view = iomap.input
     path = _find_view_path(iomap, ConcreteReference(FieldReferenceStep("rows"),
@@ -647,7 +661,7 @@ function _convert_cell_commit(iomap::DataFrameViewToWidgetIoMap, operation::Comm
                                             EmptyReference()))))
     found = path === nothing ? nothing : _find_frame_cell(view, path)
     found === nothing && return nothing
-    _make_cell_commit_operation(view, found[1], found[2])
+    _make_cell_commit_operation(view, found[1], found[2], operation.key)
 end
 
 # The row of the frame and the name of the column of `path`, the path of the view

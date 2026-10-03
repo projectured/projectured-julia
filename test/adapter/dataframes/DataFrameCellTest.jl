@@ -224,7 +224,7 @@ function test_data_frame_cells()
             @test view.frame[2, :id] == 1025
             @test isempty(view.edits) && isempty(table_of(io).open_cells)
             @test view.frame_version > version
-            @test strip_reference_types(get_selection(view)) == whole(2, 1)
+            @test strip_reference_types(get_selection(view)) == whole(3, 1)
             @test "1025" in texts_of(io) && shown(io, 2, 1).value == 1025
             # The undo puts the value back and opens the cell again with the text
             # of the edit, so the key before it takes back a key that shows.
@@ -235,7 +235,7 @@ function test_data_frame_cells()
             @test shown(io, 2, 1).value == 1025 && only(table_of(io).open_cells).row == 2
             evaluate_operation(editor, redo)
             @test view.frame[2, :id] == 1025 && isempty(view.edits)
-            @test strip_reference_types(get_selection(view)) == whole(2, 1)
+            @test strip_reference_types(get_selection(view)) == whole(3, 1)
         end
 
         @testset "Escape after a key is a step of undo, and Escape with no change is none" begin
@@ -365,6 +365,101 @@ function test_data_frame_cells()
             send!(KeyDown(:y, ModifierKeys(ctrl = true); time = 1.6))
             send!(KeyDown(:y, ModifierKeys(ctrl = true); time = 1.7))
             @test view.frame[2, :id] == 1025 && isempty(view.edits)
+        end
+
+        # A view of 30 rows sorted by `price`, whose value is the number of the
+        # row, with the head of its list at row 8, so rows 8 to 12 show.
+        function open_sorted_view()
+            frame = DataFrame(id = 101:130, price = Float64.(1:30), name = ["n$i" for i in 1:30])
+            view = DataFrameView(frame)
+            io = print_document(projection, nothing, view, context())
+            editor = _DataFrameFilterEditor(view)
+            evaluate_operation(editor, module_._make_sort_operation(view, "price", false))
+            evaluate_operation(editor, jump_to_row(view, 8))
+            (view, io, editor)
+        end
+        # Open the price of row 10, `10.0`, and type `text` in place of it.
+        function retype_price!(view, io, editor, text)
+            open_cell!(view, io, "10.0", 10, 2)
+            for _ in 1:4
+                evaluate_operation(editor, key(io, backspace()))
+            end
+            for character in text
+                evaluate_operation(editor, key(io, KeyPress(character; time = 0.0)))
+            end
+        end
+        y_of(io, text) = place_of(io, text)[2]
+        tab(shift = false) = KeyDown(:tab, ModifierKeys(; shift); time = 0.0)
+
+        @testset "after a commit the view sorts again, and Enter goes to the cell below, which keeps its place" begin
+            view, io, editor = open_sorted_view()
+            @test view.anchor == 8
+            y = y_of(io, "111")
+            retype_price!(view, io, editor, "20.5")
+            # While the text is pending, the row stays where it is.
+            @test view.kept_rows[10] == 10
+            evaluate_operation(editor, key(io, enter()))
+            @test view.frame[10, :price] == 20.5
+            @test view.kept_rows[20] == 10 && view.kept_rows[10] == 11
+            @test strip_reference_types(get_selection(view)) == whole(11, 2)
+            @test view.anchor == 7 && y_of(io, "111") == y
+        end
+
+        @testset "Tab and Shift+Tab go along the row, which the view follows" begin
+            for (shift, column) in ((false, 3), (true, 1))
+                view, io, editor = open_sorted_view()
+                y = y_of(io, "110")
+                retype_price!(view, io, editor, "20.5")
+                evaluate_operation(editor, key(io, tab(shift)))
+                @test view.frame[10, :price] == 20.5
+                @test strip_reference_types(get_selection(view)) == whole(10, column)
+                @test view.anchor == 18 && y_of(io, "110") == y
+            end
+        end
+
+        @testset "Tab acts as Enter when the filter hides the row after the commit" begin
+            view, io, editor = open_sorted_view()
+            getfield(view.query, :expression)[] = "price < 25"
+            retype_price!(view, io, editor, "30.5")
+            evaluate_operation(editor, key(io, tab()))
+            @test view.frame[10, :price] == 30.5 && !(10 in view.kept_rows)
+            @test strip_reference_types(get_selection(view)) == whole(11, 2)
+        end
+
+        @testset "Enter in the last row stays in it, and Tab in the last column stays in it" begin
+            view = DataFrameView(make_frame())
+            io = print_document(projection, nothing, view, context())
+            editor = _DataFrameFilterEditor(view)
+            open_cell!(view, io, "103", 3, 1)
+            evaluate_operation(editor, key(io, enter()))
+            @test strip_reference_types(get_selection(view)) == whole(3, 1)
+            open_cell!(view, io, "2.5", 3, 5)
+            evaluate_operation(editor, key(io, tab()))
+            @test strip_reference_types(get_selection(view)) == whole(3, 5)
+        end
+
+        @testset "the undo of a commit in a sorted view puts the view back where it was" begin
+            view, io, editor = open_sorted_view()
+            y = y_of(io, "110")
+            retype_price!(view, io, editor, "20.5")
+            commit = key(io, enter())
+            inverse = evaluate_invertible_operation!(editor, commit)
+            @test view.anchor == 7
+            evaluate_operation(editor, inverse)
+            @test view.frame[10, :price] == 10.0 && view.anchor == 8
+            @test only(view.edits).document.value == 20.5
+            @test y_of(io, "20.5") == y
+        end
+
+        @testset "a click out of an open cell in a sorted view keeps the clicked row at its place" begin
+            view, io, editor = open_sorted_view()
+            y = y_of(io, "112")
+            retype_price!(view, io, editor, "20.5")
+            (x, _) = place_of(io, "112")
+            evaluate_operation(editor, press(io, x + 2, y + 2))
+            @test view.frame[10, :price] == 20.5
+            @test only(view.edits).row == 12
+            @test view.anchor == 7 && y_of(io, "112") == y
         end
 
         @testset "a duplicate opens no cell of its original" begin

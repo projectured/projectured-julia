@@ -86,13 +86,15 @@ function make_inverse_operation(document, op::CloseDataFrameCellOperation)
     edit === nothing ? DoNothingOperation() : OpenDataFrameCellOperation(op.view, edit)
 end
 
-# One step of the opens and the closes of cells in `operations`. A step that edits
-# the frame takes its opens and closes back with the edit; any other step only
-# shows cells, so its opens and closes are view state.
-_make_cell_step(operations::Vector{Any}, edits::Bool) =
-    CompoundOperation(edits ? operations :
-        Any[operation isa Union{OpenDataFrameCellOperation,CloseDataFrameCellOperation} ?
-            ReplaceViewStateOperation(operation) : operation for operation in operations])
+# One step of `operations`, whose opens and closes of cells and writes of the
+# place of the view are marked as view state. A step that a history records,
+# because it writes the frame or drops a change, takes them back with it, so its
+# undo opens its cells again and puts the view where it was; any other step only
+# shows cells, and a history does not record it.
+_make_cell_step(operations::Vector{Any}, recorded::Bool) =
+    CompoundOperation(recorded ?
+        Any[operation isa ReplaceViewStateOperation ? get_wrapped_operation(operation) : operation
+            for operation in operations] : operations)
 
 # The value of `document`, the document of an open cell, as a value of a column
 # of element type `type`, `(value, reason)` with `reason === nothing` when it
@@ -125,8 +127,9 @@ end
 # The commit of the open cell in row `r` of the frame and column `name`, as the
 # members of a step: the write of its value, when it changes, and the drop of its
 # entry. A value that does not convert keeps the cell open, with the reason as
-# view state. `closes` tells whether the entry goes, and `edits` whether the
-# step writes the frame. `nothing` when the cell is not open.
+# view state. `closes` tells whether the entry goes, `edits` whether the step
+# writes the frame, and `value` is the value of the entry. `nothing` when the
+# cell is not open.
 function _make_cell_commit(view::DataFrameView, r::Int, name::String)
     edit = _find_cell_edit(view, r, name)
     edit === nothing && return nothing
@@ -134,21 +137,109 @@ function _make_cell_commit(view::DataFrameView, r::Int, name::String)
     found = _convert_cell_value(edit.document, eltype(frame[!, name]))
     found.reason === nothing ||
         return (members = Any[ReplaceViewStateOperation(ReplaceReferencedValueOperation(edit, "reason", found.reason))],
-                closes = false, edits = false)
-    close = CloseDataFrameCellOperation(view, r, name)
-    isequal(found.value, frame[r, name]) && return (members = Any[close], closes = true, edits = false)
-    (members = Any[SetDataFrameValueOperation(view, r, name, found.value), close], closes = true, edits = true)
+                closes = false, edits = false, value = nothing)
+    close = ReplaceViewStateOperation(CloseDataFrameCellOperation(view, r, name))
+    isequal(found.value, frame[r, name]) &&
+        return (members = Any[close], closes = true, edits = false, value = found.value)
+    (members = Any[SetDataFrameValueOperation(view, r, name, found.value), close],
+     closes = true, edits = true, value = found.value)
 end
 
-# The commit of the open cell in row `r` of the frame and column `name` by a key:
-# the commit, and the selection of the whole cell when the entry goes. The
-# selection comes first, so its inverse comes last, after the undo opened the
-# cell again. `nothing` when the cell is not open.
-function _make_cell_commit_operation(view::DataFrameView, r::Int, name::String)
+# The commit of the open cell in row `r` of the frame and column `name` by `key`,
+# `:return`, `:tab` or `:backtab`: the commit, the selection of the whole cell
+# that the key goes to when the entry goes, and the place of the view that keeps
+# the row of that cell at its place on the screen, as the frame sorts and filters
+# again. The selection comes first, so its inverse comes last, after the undo
+# opened the cell again. `nothing` when the cell is not open.
+function _make_cell_commit_operation(view::DataFrameView, r::Int, name::String, key::Symbol)
     commit = _make_cell_commit(view, r, name)
     commit === nothing && return nothing
     commit.closes || return _make_cell_step(commit.members, false)
-    _make_cell_step(Any[_make_whole_cell_selection(view, r, name), commit.members...], commit.edits)
+    after = commit.edits ? _compute_kept_rows_after_write(view, r, name, commit.value) : view.kept_rows
+    target = _find_commit_target(view, r, name, key, after)
+    operations = Any[_make_whole_cell_selection(view, target.row, target.column), commit.members...]
+    _push_anchor_write!(operations, view, target.row, after)
+    _make_cell_step(operations, commit.edits)
+end
+
+# Where the commit by `key` of the cell in row `r` of the frame and column `name`
+# puts the selection, `(row, column)`, given the kept rows `after` the write.
+# Enter goes to the cell below, in the kept row that follows `r` in the order
+# before the write. Tab and Shift+Tab go to the next and the previous shown cell
+# of row `r`, and act as Enter when the filter hides `r` after the write. With no
+# row that follows, the selection stays in row `r`, or goes to the row before it.
+function _find_commit_target(view::DataFrameView, r::Int, name::String, key::Symbol, after::Vector{Int})
+    before = view.kept_rows
+    kept = after === before ? nothing : Set(after)
+    is_kept(row) = kept === nothing || row in kept
+    if key in (:tab, :backtab) && is_kept(r)
+        shown = _get_shown_columns(view)
+        j = findfirst(==(name), shown)
+        j === nothing && return (row = r, column = name)
+        return (row = r, column = shown[clamp(j + (key === :tab ? 1 : -1), 1, length(shown))])
+    end
+    place = findfirst(==(r), before)
+    place === nothing && return (row = r, column = name)
+    for q in place+1:length(before)
+        is_kept(before[q]) && return (row = before[q], column = name)
+    end
+    is_kept(r) && return (row = r, column = name)
+    for q in place-1:-1:1
+        is_kept(before[q]) && return (row = before[q], column = name)
+    end
+    (row = r, column = name)
+end
+
+# Add to `operations` the write of the anchor that keeps row `row` of the frame
+# at its place on the screen when the kept rows change from those of `view` to
+# `after`: the row keeps its distance from the head of the list. Nothing when the
+# anchor stays.
+function _push_anchor_write!(operations::Vector{Any}, view::DataFrameView, row::Int, after::Vector{Int})
+    after === view.kept_rows && return operations
+    place_before = findfirst(==(row), view.kept_rows)
+    place_after = findfirst(==(row), after)
+    (place_before === nothing || place_after === nothing) && return operations
+    anchor = clamp(place_after - (place_before - _get_head_place(view)), 1, max(1, length(after)))
+    anchor == view.anchor ||
+        push!(operations, ReplaceViewStateOperation(ReplaceReferencedValueOperation(view, "anchor", anchor)))
+    operations
+end
+
+"""
+    _ReplacedValueVector(column, row, value)
+
+The values of `column` with `value` in place of the value at `row`. It copies no
+value, so the order of the kept rows after a write costs no copy of the frame.
+"""
+struct _ReplacedValueVector{T,V<:AbstractVector{T}} <: AbstractVector{T}
+    column::V
+    row::Int
+    value::T
+end
+
+_ReplacedValueVector(column::AbstractVector{T}, row::Int, value) where {T} =
+    _ReplacedValueVector{T,typeof(column)}(column, row, convert(T, value))
+
+Base.size(vector::_ReplacedValueVector) = size(vector.column)
+Base.IndexStyle(::Type{<:_ReplacedValueVector}) = IndexLinear()
+Base.getindex(vector::_ReplacedValueVector, i::Int) = i == vector.row ? vector.value : vector.column[i]
+
+# The kept rows of `view` after the write of `value` into row `r` of the frame and
+# column `name`. When no sort key, no filter and no expression reads the column,
+# they are the kept rows as they are; else the query keeps them again from the
+# frame with the value in place.
+function _compute_kept_rows_after_write(view::DataFrameView, r::Int, name::String, value)
+    query = view.query
+    is_read = any(key -> key.column == name, query.sort_keys) ||
+              any(filter -> filter.column == name && !isempty(strip(filter.text)), query.column_filters) ||
+              !isempty(strip(query.expression))
+    is_read || return view.kept_rows
+    frame = view.frame
+    columns = names(frame)
+    changed = DataFrame(AbstractVector[column == name ? _ReplacedValueVector(frame[!, column], r, value) :
+                                       frame[!, column] for column in columns], columns; copycols = false)
+    expression = first(_evaluate_expression(changed, query.expression))
+    Base.invokelatest(_compute_kept_rows, changed, query, expression)
 end
 
 # The drop of the open cell in row `r` of the frame and column `name`, and the
@@ -160,7 +251,7 @@ function _make_cell_drop_operation(view::DataFrameView, r::Int, name::String)
     found = _convert_cell_value(edit.document, eltype(view.frame[!, name]))
     changed = found.reason !== nothing || !isequal(found.value, view.frame[r, name])
     _make_cell_step(Any[_make_whole_cell_selection(view, r, name),
-                        CloseDataFrameCellOperation(view, r, name)], changed)
+                        ReplaceViewStateOperation(CloseDataFrameCellOperation(view, r, name))], changed)
 end
 
 function _make_whole_cell_selection(view::DataFrameView, r::Int, name::String)

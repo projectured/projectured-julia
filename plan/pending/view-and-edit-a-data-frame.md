@@ -1374,8 +1374,52 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       string; a Bool; an unchanged value writes nothing; a `SubDataFrame`
       writes through; in a real editor, Enter, then Ctrl+Z twice (the commit,
       then the key), then Ctrl+Y twice. The data frames 383, the markdown 233.
-  - [ ] **4.7** The sort and the filter again after a commit (D6), and the
-    selection after it (D10).
+  - [x] **4.7** The sort and the filter again after a commit (D6), and the
+    selection after it (D10). Done 2026-10-03:
+    - The kept rows read `frame_version`, so the view sorts and filters again
+      when a commit writes the frame (D6). While the text of a cell is pending,
+      the frame does not change, so the row stays where it is.
+    - The reader of a commit knows the kept rows after the write before it
+      writes (`_compute_kept_rows_after_write`). When no sort key, no filter
+      and no expression reads the column, they are the kept rows as they are.
+      Else the query keeps the rows again from the frame with the new value in
+      place, through a vector that shows the value at one row and copies no
+      column (`_ReplacedValueVector`). So each member of the step is a plain
+      operation with a known value, and the undo takes each one back. The cost:
+      a commit in a column that the query reads sorts and filters the frame
+      twice, once in the reader and once after the write (not measured).
+    - Enter goes to the whole cell below, in the kept row that follows the
+      edited row in the order before the write. Tab and Shift+Tab go to the
+      next and the previous shown cell of the edited row, and act as Enter
+      when the filter hides the row after the write. A commit with no change
+      moves the selection in the same way, and is no step of undo.
+    - The row of the new selection keeps its place on the screen: the anchor
+      moves so that the row keeps its distance from the head of the list
+      (`_push_anchor_write!`). A click out of an open cell keeps the clicked
+      row at its place in the same way. Near the head of the kept rows the
+      anchor stops at 1, so the row moves up. The write of the anchor is view
+      state, which a step of undo takes back, so the undo puts the view where
+      it was.
+    - Mine: with no kept row that follows, Enter stays in the edited row, or
+      goes to the row before it when the filter hides the edited row; Tab in
+      the last shown column and Shift+Tab in the first stay in the cell.
+    - Open:
+      - A key on a whole cell, such as the one that Enter selects, does not
+        open the cell, so "a person corrects a column row by row" needs a click
+        in each cell. A key that opens a whole cell (a character that replaces
+        the value, or F2) is a question for the owner.
+      - Tab to a column that the list of columns does not show does not move
+        the list of columns.
+      - An expression that reads more than one row, such as one with a mean,
+        can hide the row that Enter goes to; the selection then names a row
+        that the table does not show.
+    - Tests: in a view of 30 rows sorted by price, Enter after a value that
+      moves the row selects the cell below, whose row keeps its place; Tab and
+      Shift+Tab select along the row, and the row keeps its place; Tab acts as
+      Enter when the expression hides the row; Enter in the last row and Tab in
+      the last column stay; the undo of a commit puts the anchor back; a click
+      out of an open cell keeps the clicked row at its place. The data frames
+      406.
 
   4b, after 4a: the other operations of §3.6 (insert, delete, rename, move and
   convert of rows and columns) from a context menu on the header of a column
