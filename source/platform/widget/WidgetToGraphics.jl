@@ -9968,22 +9968,13 @@ WidgetTreeToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                                layer_hovered_color, indent, chevron_column, icon_column, row_padding, chevron_size,
                                row_radius, label_gap, icon_scale)
 
-# A node is a WidgetTreeNode (icon + label + children), a leaf label (String), or
-# a bare (label, children::Vector) tuple. Icon-less nodes report an empty icon.
+# A node is a WidgetTreeNode (icon + label + children) or a leaf label (String).
+# A leaf reports an empty icon.
 _tree_icon(node)  = node isa WidgetTreeNode ? node.icon : ""
-_tree_label(node) = node isa WidgetTreeNode ? string(node.label) :
-                    (node isa Tuple ? string(node[1]) : string(node))
+_tree_label(node) = node isa WidgetTreeNode ? string(node.label) : string(node)
 # The children of a `WidgetTreeNode` are not read here: the caller reads them,
 # and the tree reads them only for a drawn row and for an open node.
-function _tree_children(node)
-    if node isa WidgetTreeNode
-        node.children
-    elseif node isa Tuple && length(node) >= 2 && node[2] isa AbstractVector
-        node[2]
-    else
-        nothing
-    end
-end
+_tree_children(node) = node isa WidgetTreeNode ? node.children : nothing
 
 # One row of the open tree, placed by arithmetic alone. `path` is the 1-based
 # index chain from the roots down to the node (`[i]`, `[i, j]`, …), `depth` its

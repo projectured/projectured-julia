@@ -7,6 +7,8 @@
 # deterministic text measure so row geometry is exact.
 
 using ProjecturedKernel.CellModule: Cell, Computation, is_cell_up_to_date
+using ProjecturedKernel.SelectionModule: replace_selection!, get_selection
+using ProjecturedKernel.ReferenceModule: evaluate_reference
 
 function test_widget_tree()
 @testset "WidgetTree hover + collapse" begin
@@ -49,6 +51,12 @@ function _rects(io)
         el isa GraphicsRect && push!(out, el)
     end
     out
+end
+
+@testset "the path of the child of a tuple node is a selection the tree takes" begin
+    w, _ = _fresh()
+    replace_selection!(w, _node([1, 2]))
+    @test evaluate_reference(w, get_selection(w)) == "b.jl"
 end
 
 @testset "a node is closed until its path is in expanded" begin

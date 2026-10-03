@@ -2524,9 +2524,8 @@ A single node of a [`WidgetTree`](@ref) carrying a dedicated **icon** slot
 distinct from its text **label** (the decoration model used by typical widget
 libraries — Swing `JTree` renderers, Qt's `QTreeView` decoration role). `icon`
 is `Any`: a glyph `String` today, an image document later. `children` is a
-`Vector` of child nodes (each a `WidgetTreeNode`, a leaf `String`, or a
-bare `(label, children)` tuple), or a `CellVector` of them; an empty one marks
-a leaf, and a leaf has no chevron.
+`Vector` of child nodes (each a `WidgetTreeNode` or a leaf `String`), or a
+`CellVector` of them; an empty one marks a leaf, and a leaf has no chevron.
 
 The tree reads `children` only for a row that it draws, to know if the row has
 a chevron, and for an open node, to draw the rows under it. So a `CellVector`
@@ -2555,8 +2554,10 @@ get_instance_gesture_bindings(node::WidgetTreeNode) = node.gestures
     WidgetTree(roots; position)
 
 A tree / outline view. `roots` is a `Vector` of nodes. A node is a
-[`WidgetTreeNode`](@ref) (icon + label + children), or — for icon-less trees —
-a leaf label (`String`) or a `(label, children::Vector)` tuple. Parent nodes get
+[`WidgetTreeNode`](@ref) (icon + label + children) or a leaf label (`String`).
+For an icon-less tree, a `(label, children::Vector)` tuple is also accepted: the
+constructor makes it a `WidgetTreeNode` with no icon, so that a reference of the
+tree reaches each child as `children[j]`. Parent nodes get
 an expand chevron; an icon (when present) is drawn in its own column before the
 label; children are indented. (A widget-styled counterpart to the file-system /
 navigator trees.)
@@ -2587,9 +2588,15 @@ end
 WidgetTree(roots::Vector; position::Point2D=Point2D(0, 0), visible::Bool=true,
            margin=nothing, border=nothing, padding=nothing, style=nothing,
            expanded=Set{Vector{Int}}(), gestures=GestureBinding[], tooltip=nothing) =
-    WidgetTree(Cell(position), CellVector(Cell[Cell(n) for n in roots]), Cell(visible),
-               Cell(margin), Cell(border), Cell(padding), Cell(style),
+    WidgetTree(Cell(position), CellVector(Cell[Cell(_convert_to_tree_node(n)) for n in roots]),
+               Cell(visible), Cell(margin), Cell(border), Cell(padding), Cell(style),
                Cell(Set{Vector{Int}}(expanded)), Cell(gestures), Cell(tooltip))
+
+# A `(label, children)` tuple becomes a node with no icon, and so do the tuples
+# among its children. Any other node is kept as it is.
+_convert_to_tree_node(node::Tuple{Any, AbstractVector}) =
+    WidgetTreeNode("", node[1], Any[_convert_to_tree_node(child) for child in node[2]])
+_convert_to_tree_node(node) = node
 
 # Tree-level gestures (over the whole tree); per-node gestures live on each
 # `WidgetTreeNode`. See `get_instance_gesture_bindings` / `read_bound_gesture`.
