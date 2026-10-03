@@ -1,3 +1,12 @@
+# A vector that takes no write, as a read-only vector of a package is, which a
+# frame made with `copycols = false` holds as it is.
+struct _ReadOnlyColumn <: AbstractVector{Int}
+    values::Vector{Int}
+end
+_ReadOnlyColumn(values::AbstractRange) = _ReadOnlyColumn(collect(values))
+Base.size(column::_ReadOnlyColumn) = size(column.values)
+Base.getindex(column::_ReadOnlyColumn, i::Int) = column.values[i]
+
 """
     test_data_frame_cells()
 
@@ -559,6 +568,30 @@ function test_data_frame_cells()
             @test view.frame[2, :id] == 102 && only(view.edits).document.value == 57
             send!(KeyDown(:z, ModifierKeys(ctrl = true); time = 1.6))
             @test isempty(view.edits) && view.frame[2, :id] == 102
+        end
+
+        @testset "a column that takes no write shows its cells and takes no caret and no key" begin
+            frame = DataFrame(id = _ReadOnlyColumn(101:103), name = ["alpha", "beta", "gamma"]; copycols = false)
+            @test frame[!, :id] isa _ReadOnlyColumn
+            view = DataFrameView(frame)
+            io = print_document(projection, nothing, view, context())
+            editor = _DataFrameFilterEditor(view)
+            @test shown(io, 2, 1) isa PrimitiveNumber
+            # A press in the cell selects the whole cell, and opens no entry.
+            (x, y) = place_of(io, "102")
+            evaluate_operation(editor, press(io, x + 2, y + 2))
+            @test isempty(view.edits) && strip_reference_types(get_selection(view)) == whole(2, 1)
+            @test key(io, KeyDown(:f2, ModifierKeys(); time = 0.0)) === nothing
+            @test key(io, KeyPress('5'; time = 0.0)) === nothing
+            @test isempty(view.edits) && frame[2, :id] == 102
+            # The other column takes keys.
+            (x, y) = place_of(io, "beta")
+            evaluate_operation(editor, press(io, x + 2, y + 2))
+            @test only(view.edits).column == "name"
+            # A range can not grow or shrink, so the rows take no insert and no delete.
+            row = try_evaluate_reference(view, ConcreteReference(FieldReferenceStep("rows"),
+                ConcreteReference(RangeReferenceStep(1, 2), EmptyReference())))
+            @test !any(item -> item.enabled, compute_context_menu(row).elements)
         end
 
         @testset "a duplicate opens no cell of its original" begin

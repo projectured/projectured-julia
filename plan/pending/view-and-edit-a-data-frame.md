@@ -1668,9 +1668,30 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     four that the owner named, so they wait too (mine, from the owner's
     words).
   - [ ] **4b.4** The rename in place (B6) and the convert. Deferred.
-  - [ ] **4b.5** A column that takes no write (B9). Deferred. Known fault
-    until then: a commit into such a column, which only a frame made with
-    `copycols = false` holds, fails in `setindex!`.
+  - [ ] **4b.5** A column that takes no write (B9). The guard is done for the
+    first release (2026-10-03, the owner: "agreed with you recommendation, you
+    can use the same display for such columns because the reader can filter
+    out the replace selection for such columns"); the mark "read-only" in the
+    header waits.
+    - Fact found: DataFrames copies a range into a `Vector`, also with
+      `copycols = false`, so a frame holds no range. A column that takes no
+      write is a read-only vector of a package that a frame made with
+      `copycols = false` holds as it is.
+    - `_is_writable_column(column)`: a vector whose type has no `setindex!` of
+      its own, only the one of `AbstractArray`, which raises an error, takes no
+      write; a view takes one when its parent does. A type with a `setindex!`
+      of its own that raises an error passes this test, and a commit into it
+      still fails.
+    - The cells of such a column show as the cells of any column. The reader
+      of the selection makes a caret in such a cell the selection of the whole
+      cell (mine: so the cell can still be selected), and no entry opens: not
+      by a press, not by F2 or a typed character, and not by a key of a Bool,
+      whose write the reader declines. The menu of a row disables the insert
+      and the delete for a frame with such a column, which can not grow or
+      shrink.
+    - Tests: a column of a read-only vector of the test: its cell, a press, F2,
+      a typed character, the other column, the menu of a row. The data frames
+      535.
   - [ ] **4b.6** The `DataFrameRow` (B10). Deferred.
 - [x] **5. Sort and filter.** Done for the first release (5.1 to 5.9); the
   freeze of a column and the move of a column by a drag wait (the owner,

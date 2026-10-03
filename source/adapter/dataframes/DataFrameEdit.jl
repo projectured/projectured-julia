@@ -29,6 +29,14 @@ function evaluate_operation(editor, op::SetDataFrameValueOperation)
     _move_frame_version!(op.view)
 end
 
+# Whether a column of a frame takes a write. A vector whose type has no
+# `setindex!` of its own, only the one of `AbstractArray`, which raises an error,
+# does not, as a read-only vector of a package that a frame made with
+# `copycols = false` holds; a view of a column takes one when its parent does.
+_is_writable_column(column::SubArray) = _is_writable_column(parent(column))
+_is_writable_column(column::AbstractVector) =
+    which(setindex!, Tuple{typeof(column),eltype(column),Int}) !== which(setindex!, Tuple{AbstractArray,Any,Int})
+
 # Move the version of the frame of `view`, so every computation that reads the
 # frame reads it again.
 _move_frame_version!(view::DataFrameView) = (getfield(view, :frame_version)[] = view.frame_version + 1; nothing)
@@ -276,11 +284,12 @@ end
 # `text === nothing`, for F2, the entry holds the value, and the opening is view
 # state, as a click is. With a typed `text`, the entry holds what the text gives
 # in an empty value of the column, and the opening is a step of undo, because it
-# changes the value. `nothing` when the cell is open, takes no key, or the text
-# gives no value of the column.
+# changes the value. `nothing` when the cell is open, takes no key, is in a
+# column that takes no write, or the text gives no value of the column.
 function _make_cell_edit_operation(view::DataFrameView, r::Int, name::String, text)
     _find_cell_edit(view, r, name) === nothing || return nothing
     frame = view.frame
+    _is_writable_column(frame[!, name]) || return nothing
     type = eltype(frame[!, name])
     document = text === nothing ? make_data_frame_cell(frame[r, name], type) : _make_typed_cell_document(text, type)
     document isa PrimitiveDocument || return nothing

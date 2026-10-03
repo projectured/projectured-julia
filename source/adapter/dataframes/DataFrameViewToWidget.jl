@@ -396,6 +396,7 @@ function read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
     target = _find_view_path(iomap, path)
     target === nothing && return nothing
     view = iomap.input
+    target = _find_whole_read_only_cell(view, target)
     open = _make_open_cell_operation(view, target)
     selection = ReplaceSelectionOperation(open === nothing && _find_cell_tail(target) === nothing ?
                                           annotate_reference_types(view, target) : target)
@@ -439,18 +440,32 @@ end
 
 # The opening of the cell that `path`, a path of the view, goes on into: a new
 # entry, whose document is a new primitive document of the value, when the cell
-# is not open and takes keys; `nothing` otherwise. It is view state.
+# is not open, takes keys and is in a column that takes a write; `nothing`
+# otherwise. It is view state.
 function _make_open_cell_operation(view::DataFrameView, path)
     found = _find_cell_tail(path)
     found === nothing && return nothing
     r, c, _ = found
     frame = view.frame
     (1 <= r <= nrow(frame) && 1 <= c <= ncol(frame)) || return nothing
+    _is_writable_column(frame[!, c]) || return nothing
     name = names(frame)[c]
     _find_cell_edit(view, r, name) === nothing || return nothing
     document = make_data_frame_cell(frame[r, c], eltype(frame[!, c]))
     document isa PrimitiveDocument || return nothing
     ReplaceViewStateOperation(OpenDataFrameCellOperation(view, DataFrameCellEdit(r, name, document, nothing)))
+end
+
+# `path`, a path of the view, or the whole cell when it goes into a cell of a
+# column that takes no write: such a cell shows its value as any other does, and
+# takes no caret and no key.
+function _find_whole_read_only_cell(view::DataFrameView, path)
+    found = _find_cell_tail(path)
+    found === nothing && return path
+    r, c, _ = found
+    frame = view.frame
+    (1 <= c <= ncol(frame) && !_is_writable_column(frame[!, c])) || return path
+    _make_element_reference("rows", r, ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))
 end
 
 # A place in the table that has a place in the view maps back to it, as a
@@ -658,6 +673,7 @@ function _convert_cell_operation(iomap::DataFrameViewToWidgetIoMap, operation)
         # the cell first, so the write goes into the document of its entry.
         target = _find_cell_view_path(iomap, operation.reference)
         target === nothing && return nothing
+        _find_whole_read_only_cell(iomap.input, target) === target || return nothing
         write = ReplaceReferencedValueOperation(nothing, target, operation.value)
         open = _make_open_cell_operation(iomap.input, target)
         return open === nothing ? write : _make_cell_step(Any[open, write], true)

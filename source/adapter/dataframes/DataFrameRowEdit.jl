@@ -161,19 +161,21 @@ Base.getindex(vector::_DeletedValueVector, i::Int) =
 get_document_title(row::DataFrameViewRow) = "row " * string(row.row)
 
 # The menu of a row: insert a row above it or below it, and delete it. A
-# `SubDataFrame` takes neither, and a frame with a column that has no value for a
-# new row takes no insert.
+# `SubDataFrame` takes neither, nor does a frame with a column that takes no
+# write, such as a range, which can not grow or shrink; a frame with a column
+# that has no value for a new row takes no insert.
 function compute_context_menu(row::DataFrameViewRow)
     view, r = row.view, row.row
     frame = view.frame
-    values = frame isa DataFrame ? _make_new_row_values(frame) : nothing
+    editable = frame isa DataFrame && all(_is_writable_column, eachcol(frame))
+    values = editable ? _make_new_row_values(frame) : nothing
     WidgetMenu(Any[
         _make_menu_item("Insert row above", () -> InsertDataFrameRowOperation(view, r, values);
                         enabled = values !== nothing),
         _make_menu_item("Insert row below", () -> InsertDataFrameRowOperation(view, r + 1, values);
                         enabled = values !== nothing),
         _make_menu_item("Delete row", () -> DeleteDataFrameRowOperation(view, r);
-                        enabled = frame isa DataFrame)])
+                        enabled = editable)])
 end
 
 # A right click on a row, its header or a cell of it, opens its menu.
