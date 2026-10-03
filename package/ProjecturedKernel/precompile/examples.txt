@@ -1,0 +1,418 @@
+# The recording "examples" of this repository, written by
+# ProjecturedREPL.record_precompile_statements. Record it again; do not edit it.
+Tuple{Base.var"##sprint#429", Pair{Symbol, Bool}, Int64, typeof(Base.sprint), typeof(Base.show), ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{Base.var"#__cat_offset1!##2#__cat_offset1!##3"{Tuple{Bool}, Tuple{Int64}, ProjecturedKernel.EditorModule.InboxFeed}, Int64}
+Tuple{ProjecturedKernel.ClockModule.var"#start_wall_clock!##0#start_wall_clock!##1"{Float64, WeakRef}}
+Tuple{ProjecturedKernel.DocumentModule.var"##DocumentWalk#76", Function, Function, Function, Symbol, Type{ProjecturedKernel.DocumentModule.DocumentWalk}}
+Tuple{ProjecturedKernel.GestureBindingModule.var"##GestureBinding#1", Function, String, String, Bool, Nothing, Type{ProjecturedKernel.GestureBindingModule.GestureBinding}, ProjecturedKernel.GestureModule.GesturePattern{ProjecturedKernel.EventModule.KeyDown}, Function}
+Tuple{ProjecturedKernel.GestureModule.var"##ClickRecognition#29", Int64, Float64, Int64, Float64, Type{ProjecturedKernel.GestureModule.ClickRecognition}}
+Tuple{ProjecturedKernel.GestureModule.var"##DwellRecognition#34", Float64, Type{ProjecturedKernel.GestureModule.DwellRecognition}}
+Tuple{ProjecturedKernel.GestureModule.var"##MouseClickPattern#18", Nothing, Function, String, typeof(ProjecturedKernel.GestureModule.MouseClickPattern), Symbol}
+Tuple{ProjecturedKernel.OperationModule.var"#describe_operation##0#describe_operation##1", ProjecturedKernel.EventModule.MouseMove}
+Tuple{ProjecturedKernel.OperationModule.var"#describe_operation##0#describe_operation##1", ProjecturedKernel.OperationModule.ReplaceMouseTargetOperation}
+Tuple{ProjecturedKernel.OperationModule.var"#describe_operation##0#describe_operation##1", ProjecturedKernel.OperationModule.ReplaceReferencedValueOperation}
+Tuple{ProjecturedKernel.OperationModule.var"#describe_operation##0#describe_operation##1", ProjecturedKernel.OperationModule.ReplaceSelectionOperation}
+Tuple{ProjecturedKernel.OperationModule.var"#describe_operation##0#describe_operation##1", ProjecturedKernel.OperationModule.ReplaceViewStateOperation}
+Tuple{ProjecturedKernel.OperationModule.var"#join_move_answers##0#join_move_answers##1", Nothing}
+Tuple{ProjecturedKernel.ProjectionModule.var"#121#122"{ProjecturedKernel.ProjectionModule.RuleIoMap}, Symbol}
+Tuple{ProjecturedKernel.ProjectionModule.var"#129#130"{Base.Dict{Symbol, Any}}, Symbol}
+Tuple{ProjecturedKernel.ProjectionModule.var"#66#67", ProjecturedKernel.IoMapModule.ChildrenIoMap}
+Tuple{ProjecturedKernel.ProjectionModule.var"#66#67", ProjecturedKernel.IoMapModule.SimpleIoMap}
+Tuple{ProjecturedKernel.ProjectionModule.var"#66#67", ProjecturedKernel.ProjectionModule.RuleIoMap}
+Tuple{ProjecturedKernel.ProjectionModule.var"#_get_inner_extent##0#_get_inner_extent##1"{ProjecturedKernel.CellModule.ReactiveCell{Any}, Int64}}
+Tuple{ProjecturedKernel.ProjectionModule.var"#_get_inner_extent##0#_get_inner_extent##1"{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
+Tuple{ProjecturedKernel.ProjectionModule.var"#_project_output_cell##0#_project_output_cell##1"{ProjecturedKernel.CellModule.ReactiveCell{Any}}}
+Tuple{ProjecturedKernel.ReferenceModule.var"#5#6", Pair{Any, Any}, Symbol, Array{Float64, 1}}
+Tuple{ProjecturedKernel.ReferenceModule.var"#5#6", Pair{Any, Any}, Symbol, Array{ProjecturedKernel.GestureBindingModule.GestureBinding, 1}}
+Tuple{ProjecturedKernel.ReferenceModule.var"#5#6", Pair{Any, Any}, Symbol, Array{String, 1}}
+Tuple{ProjecturedKernel.ReferenceModule.var"#5#6", Pair{Any, Any}, Symbol, Bool}
+Tuple{ProjecturedKernel.ReferenceModule.var"#5#6", Pair{Any, Any}, Symbol, Float64}
+Tuple{ProjecturedKernel.ReferenceModule.var"#5#6", Pair{Any, Any}, Symbol, Int64}
+Tuple{ProjecturedKernel.ReferenceModule.var"#5#6", Pair{Any, Any}, Symbol, Nothing}
+Tuple{ProjecturedKernel.ReferenceModule.var"#5#6", Pair{Any, Any}, Symbol, String}
+Tuple{ProjecturedKernel.ReferenceModule.var"#5#6", Pair{Any, Any}, Symbol, Symbol}
+Tuple{ProjecturedKernel.ReferenceModule.var"#5#6", Tuple{}, Symbol, Bool}
+Tuple{ProjecturedKernel.ReferenceModule.var"#5#6", Tuple{}, Symbol, Int64}
+Tuple{ProjecturedKernel.ReferenceModule.var"#5#6", Tuple{}, Symbol, Nothing}
+Tuple{ProjecturedKernel.ReferenceModule.var"#5#6", Tuple{}, Symbol, Symbol}
+Tuple{ProjecturedKernel.ReferenceModule.var"#7#8", Pair{Any, Any}, Int64, Int64}
+Tuple{ProjecturedKernel.ReferenceModule.var"#7#8", Pair{Any, Any}, Int64, String}
+Tuple{Type{Base.Fix{1, F, T} where T where F}, typeof(Base.ScopedValues.getdefault), Base.ScopedValues.ScopedValue{Union{Nothing, Tuple{Any, Array{ProjecturedKernel.CellModule.ReactiveCell{T} where T, 1}, Int64}}}}
+Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedKernel.ProjectionModule.var"#66#67", Array{Any, 1}}
+Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedKernel.ProjectionModule.var"#78#79", Array{ProjecturedKernel.CellModule.ReactiveCell{Any}, 1}}
+Tuple{Type{Base.Generator{I, F} where F where I}, typeof(Base.identity), Base.Iterators.Filter{ProjecturedKernel.OperationModule.var"#join_move_answers##0#join_move_answers##1", Tuple{Nothing, ProjecturedKernel.OperationModule.ReplaceMouseTargetOperation}}}
+Tuple{Type{Base.Generator{I, F} where F where I}, typeof(Base.identity), Base.Iterators.Filter{ProjecturedKernel.OperationModule.var"#join_move_answers##0#join_move_answers##1", Tuple{ProjecturedKernel.OperationModule.ReplaceViewStateOperation, Nothing}}}
+Tuple{Type{Base.Iterators.Filter{F, I} where I where F}, ProjecturedKernel.OperationModule.var"#join_move_answers##0#join_move_answers##1", Tuple{Nothing, ProjecturedKernel.OperationModule.ReplaceMouseTargetOperation}}
+Tuple{Type{Base.Iterators.Filter{F, I} where I where F}, ProjecturedKernel.OperationModule.var"#join_move_answers##0#join_move_answers##1", Tuple{ProjecturedKernel.OperationModule.ReplaceViewStateOperation, Nothing}}
+Tuple{Type{Base.LinearIndices{N, R} where R<:Tuple{Vararg{Base.AbstractUnitRange{Int64}, N}} where N}, Array{ProjecturedKernel.CellModule.ReactiveCell{Any}, 1}}
+Tuple{Type{Base.LinearIndices{N, R} where R<:Tuple{Vararg{Base.AbstractUnitRange{Int64}, N}} where N}, Array{ProjecturedKernel.ReferenceModule.Reference, 1}}
+Tuple{Type{Base.LinearIndices{N, R} where R<:Tuple{Vararg{Base.AbstractUnitRange{Int64}, N}} where N}, Array{Union{Nothing, ProjecturedKernel.CellModule.ReactiveCell{Any}}, 1}}
+Tuple{Type{NamedTuple{(:open, :close, :sep, :children), T} where T<:Tuple}, Tuple{Nothing, Nothing, Nothing, ProjecturedKernel.ProjectionModule.Collection}}
+Tuple{Type{NamedTuple{(:origin, :fallback), T} where T<:Tuple}, Tuple{Symbol, ProjecturedKernel.EditorModule._BarrierFailed}}
+Tuple{Type{NamedTuple{(:origin, :fallback), T} where T<:Tuple}, Tuple{typeof(DataType), ProjecturedKernel.EditorModule._BarrierFailed}}
+Tuple{Type{ProjecturedKernel.CellModule.ImmutableCell{Int64}}, Int64}
+Tuple{Type{ProjecturedKernel.CellModule.ImmutableCell{String}}, String}
+Tuple{Type{ProjecturedKernel.DeviceModule.Display}}
+Tuple{Type{ProjecturedKernel.DeviceModule.Keyboard}}
+Tuple{Type{ProjecturedKernel.DeviceModule.Mouse}}
+Tuple{Type{ProjecturedKernel.EventModule.WindowInput{E} where E}, Symbol, ProjecturedKernel.EventModule.KeyDown}
+Tuple{Type{ProjecturedKernel.EventModule.WindowInput{E} where E}, Symbol, ProjecturedKernel.EventModule.KeyPress}
+Tuple{Type{ProjecturedKernel.EventModule.WindowInput{E} where E}, Symbol, ProjecturedKernel.EventModule.MouseMove}
+Tuple{Type{ProjecturedKernel.EventModule.WindowInput{E} where E}, Symbol, ProjecturedKernel.EventModule.MouseScroll}
+Tuple{Type{ProjecturedKernel.EventModule.WindowInput{E} where E}, Symbol, ProjecturedKernel.GestureModule.MouseClick}
+Tuple{Type{ProjecturedKernel.GestureBindingModule.GestureBinding}, ProjecturedKernel.GestureModule.GesturePattern{ProjecturedKernel.EventModule.KeyDown}, Function, Function, String, String, Bool, Nothing}
+Tuple{Type{ProjecturedKernel.GestureModule.GesturePattern{ProjecturedKernel.GestureModule.MouseClick}}, NamedTuple{(:button,), Tuple{Symbol}}, Nothing, Function, String}
+Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernel.IntentModule.CollectIntents, Nothing, String, String, Nothing}
+Tuple{Type{ProjecturedKernel.ReferenceModule.ConcreteReference}, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{Type{ProjecturedKernel.ReferenceModule.ConcreteReference}, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.EmptyReference}
+Tuple{Type{ProjecturedKernel.ReferenceModule.ConcreteReference}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{Type{ProjecturedKernel.ReferenceModule.ConcreteReference}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.EmptyReference}
+Tuple{Type{ProjecturedKernel.ReferenceModule.FieldReferenceStep{C1, C2, C3} where C3<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C2<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C1<:(ProjecturedKernel.CellModule.AbstractCell{T} where T)}, String}
+Tuple{Type{ProjecturedKernel.ReferenceModule.RangeReferenceStep{C1, C2, C3, C4} where C4<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C3<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C2<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C1<:(ProjecturedKernel.CellModule.AbstractCell{T} where T)}, Int64, Int64}
+Tuple{Type{ProjecturedKernel.ReferenceModule.Reference}, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, Vararg{ProjecturedKernel.ReferenceModule.ReferenceStep}}
+Tuple{Type{ProjecturedKernel.ReferenceModule.Reference}}
+Tuple{Type{ProjecturedKernel.ReferenceModule.TypeReferenceStep{C1, C2, C3} where C3<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C2<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C1<:(ProjecturedKernel.CellModule.AbstractCell{T} where T)}, Type}
+Tuple{typeof(Base.:(var"==")), Nothing, ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(Base.:(var"==")), Nothing, ProjecturedKernel.ReferenceModule.EmptyReference}
+Tuple{typeof(Base.:(var"==")), ProjecturedKernel.ProjectionModule.ProjectionReferenceStep, ProjecturedKernel.ProjectionModule.ProjectionReferenceStep}
+Tuple{typeof(Base.:(var"==")), ProjecturedKernel.ProjectionModule.ProjectionReferenceStep, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
+Tuple{typeof(Base.:(var"==")), ProjecturedKernel.ProjectionModule.ProjectionReferenceStep, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
+Tuple{typeof(Base.:(var"==")), ProjecturedKernel.ReferenceModule.EmptyReference, ProjecturedKernel.ReferenceModule.EmptyReference}
+Tuple{typeof(Base.:(var"==")), ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ProjectionModule.ProjectionReferenceStep}
+Tuple{typeof(Base.:(var"==")), ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
+Tuple{typeof(Base.:(var"==")), ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
+Tuple{typeof(Base.Iterators.enumerate), Array{ProjecturedKernel.IoMapModule.SimpleIoMap, 1}}
+Tuple{typeof(Base.Iterators.enumerate), Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}}
+Tuple{typeof(Base.Iterators.enumerate), Array{ProjecturedKernel.ReferenceModule.Reference, 1}}
+Tuple{typeof(Base.Iterators.reverse), Array{ProjecturedKernel.CellModule.ReactiveCell{Any}, 1}}
+Tuple{typeof(Base._array_for), Type{ProjecturedKernel.CellModule.ReactiveCell{Any}}, Array{Any, 1}, Base.HasShape{1}}
+Tuple{typeof(Base._array_for), Type{ProjecturedKernel.CellModule.ReactiveCell{Any}}, Base.UnitRange{Int64}, Base.HasShape{1}}
+Tuple{typeof(Base._array_for), Type{ProjecturedKernel.ReferenceModule.Reference}, Array{Tuple{ProjecturedKernel.ReferenceModule.Reference, Any}, 1}, Base.HasShape{1}}
+Tuple{typeof(Base._array_for), Type{Union{Nothing, ProjecturedKernel.CellModule.ReactiveCell{Any}}}, Base.UnitRange{Int64}, Base.HasShape{1}}
+Tuple{typeof(Base._array_for_inner), Type{ProjecturedKernel.IoMapModule.ChildrenIoMap}, Base.HasLength, Int64}
+Tuple{typeof(Base._array_for_inner), Type{ProjecturedKernel.IoMapModule.ChildrenIoMap}, Base.HasShape{1}, Tuple{Base.OneTo{Int64}}}
+Tuple{typeof(Base._array_for_inner), Type{ProjecturedKernel.IoMapModule.SimpleIoMap}, Base.HasLength, Int64}
+Tuple{typeof(Base._array_for_inner), Type{ProjecturedKernel.ProjectionModule.RuleIoMap}, Base.HasLength, Int64}
+Tuple{typeof(Base._front), ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, Vararg{Any}}
+Tuple{typeof(Base._front), ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
+Tuple{typeof(Base._front), ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
+Tuple{typeof(Base.append!), Array{ProjecturedKernel.GestureBindingModule.GestureBinding, 1}, Array{ProjecturedKernel.GestureBindingModule.GestureBinding, 1}}
+Tuple{typeof(Base.collect), Base.Generator{Array{Any, 1}, ProjecturedKernel.ProjectionModule.var"#66#67"}}
+Tuple{typeof(Base.collect), Base.Generator{Array{ProjecturedKernel.CellModule.ReactiveCell{Any}, 1}, ProjecturedKernel.ProjectionModule.var"#78#79"}}
+Tuple{typeof(Base.collect), Type{Any}, Base.Generator{Base.Iterators.Filter{ProjecturedKernel.OperationModule.var"#join_move_answers##0#join_move_answers##1", Tuple{Nothing, Nothing}}, typeof(Base.identity)}}
+Tuple{typeof(Base.collect), Type{Any}, Base.Generator{Base.Iterators.Filter{ProjecturedKernel.OperationModule.var"#join_move_answers##0#join_move_answers##1", Tuple{Nothing, ProjecturedKernel.OperationModule.ReplaceMouseTargetOperation}}, typeof(Base.identity)}}
+Tuple{typeof(Base.collect), Type{Any}, Base.Generator{Base.Iterators.Filter{ProjecturedKernel.OperationModule.var"#join_move_answers##0#join_move_answers##1", Tuple{ProjecturedKernel.OperationModule.ReplaceViewStateOperation, Nothing}}, typeof(Base.identity)}}
+Tuple{typeof(Base.eachindex), Array{ProjecturedKernel.CellModule.ReactiveCell{Any}, 1}}
+Tuple{typeof(Base.front), Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}
+Tuple{typeof(Base.front), Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}
+Tuple{typeof(Base.getindex), Array{ProjecturedKernel.CellModule.ReactiveCell{Any}, 1}, Int64}
+Tuple{typeof(Base.getindex), Array{ProjecturedKernel.CellModule.ReactiveCell{T} where T, 1}, Int64}
+Tuple{typeof(Base.getindex), Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}, Int64}
+Tuple{typeof(Base.getindex), Array{ProjecturedKernel.IoMapModule.IoMap, 1}, Int64}
+Tuple{typeof(Base.getindex), Array{ProjecturedKernel.IoMapModule.SimpleIoMap, 1}, Int64}
+Tuple{typeof(Base.getindex), Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}, Int64}
+Tuple{typeof(Base.getindex), Array{ProjecturedKernel.ReferenceModule.Reference, 1}, Int64}
+Tuple{typeof(Base.getindex), Array{Tuple{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, Any}, 1}, Int64}
+Tuple{typeof(Base.getindex), Array{Union{Nothing, ProjecturedKernel.CellModule.ReactiveCell{Any}}, 1}, Int64}
+Tuple{typeof(Base.getindex), ProjecturedKernel.CellModule.ImmutableCell{String}}
+Tuple{typeof(Base.getindex), Type{ProjecturedKernel.DeviceModule.Device}, ProjecturedKernel.DeviceModule.Display, ProjecturedKernel.DeviceModule.Keyboard, ProjecturedKernel.DeviceModule.Mouse}
+Tuple{typeof(Base.getindex), Type{ProjecturedKernel.IoMapModule.IoMap}, ProjecturedKernel.IoMapModule.ChildrenIoMap, ProjecturedKernel.IoMapModule.SimpleIoMap}
+Tuple{typeof(Base.getindex), Type{ProjecturedKernel.IoMapModule.IoMap}, ProjecturedKernel.IoMapModule.SimpleIoMap, ProjecturedKernel.IoMapModule.ChildrenIoMap}
+Tuple{typeof(Base.getproperty), Base.Generator{Base.Iterators.Filter{ProjecturedKernel.OperationModule.var"#join_move_answers##0#join_move_answers##1", Tuple{Nothing, Nothing}}, typeof(Base.identity)}, Symbol}
+Tuple{typeof(Base.getproperty), Base.Iterators.Filter{ProjecturedKernel.OperationModule.var"#join_move_answers##0#join_move_answers##1", Tuple{Nothing, Nothing}}, Symbol}
+Tuple{typeof(Base.getproperty), Base.Order.By{ProjecturedKernel.ToolModule.var"#_find_docstring_texts##0#_find_docstring_texts##1", Base.Order.ForwardOrdering}, Symbol}
+Tuple{typeof(Base.getproperty), Base.Order.Lt{Base.Sort.var"#_sort!##10#_sort!##11"{Base.Order.By{ProjecturedKernel.ToolModule.var"#_find_docstring_texts##0#_find_docstring_texts##1", Base.Order.ForwardOrdering}}}, Symbol}
+Tuple{typeof(Base.getproperty), NamedTuple{(:wrapped, :w, :h, :entries), Tuple{Array{Any, 1}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, Array{Tuple{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, Any}, 1}}}, Symbol}
+Tuple{typeof(Base.getproperty), ProjecturedKernel.CellModule.ImmutableCell{Nothing}, Symbol}
+Tuple{typeof(Base.getproperty), ProjecturedKernel.CellModule.ImmutableCell{String}, Symbol}
+Tuple{typeof(Base.getproperty), ProjecturedKernel.CellModule.ReactiveCell{Any}, Symbol}
+Tuple{typeof(Base.getproperty), ProjecturedKernel.EventModule.KeyDown, Symbol}
+Tuple{typeof(Base.getproperty), ProjecturedKernel.EventModule.ModifierKeys, Symbol}
+Tuple{typeof(Base.getproperty), ProjecturedKernel.FaultModule.FaultPolicy, Symbol}
+Tuple{typeof(Base.getproperty), ProjecturedKernel.IntentModule.Intent, Symbol}
+Tuple{typeof(Base.getproperty), ProjecturedKernel.IoMapModule.ChildrenIoMap, Symbol}
+Tuple{typeof(Base.getproperty), ProjecturedKernel.IoMapModule.ContentIoMap, Symbol}
+Tuple{typeof(Base.getproperty), ProjecturedKernel.IoMapModule.SimpleIoMap, Symbol}
+Tuple{typeof(Base.getproperty), ProjecturedKernel.OperationModule.ReplaceReferencedValueOperation, Symbol}
+Tuple{typeof(Base.getproperty), ProjecturedKernel.ProjectionModule.ProjectionReferenceStep, Symbol}
+Tuple{typeof(Base.getproperty), ProjecturedKernel.ProjectionModule.RuleIoMap, Symbol}
+Tuple{typeof(Base.getproperty), ProjecturedKernel.ReferenceModule.ConcreteReference, Symbol}
+Tuple{typeof(Base.getproperty), ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, Symbol}
+Tuple{typeof(Base.getproperty), ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, Symbol}
+Tuple{typeof(Base.getproperty), ProjecturedKernel.ReferenceModule.TypeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, Symbol}
+Tuple{typeof(Base.haskey), Base.IdDict{Any, Bool}, ProjecturedKernel.CellModule.ReactiveCell{Any}}
+Tuple{typeof(Base.indexed_iterate), Tuple{Array{Any, 1}, Base.Dict{Symbol, Any}, Array{ProjecturedKernel.CellModule.ReactiveCell{Any}, 1}}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{Array{Any, 1}, Base.Dict{Symbol, Any}, Array{ProjecturedKernel.CellModule.ReactiveCell{Any}, 1}}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{Array{ProjecturedKernel.CellModule.ReactiveCell{Any}, 1}, Array{ProjecturedKernel.CellModule.ReactiveCell{Any}, 1}}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{Array{ProjecturedKernel.CellModule.ReactiveCell{Any}, 1}, Array{ProjecturedKernel.CellModule.ReactiveCell{Any}, 1}}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{Int64, Int64, ProjecturedKernel.IoMapModule.ChildrenIoMap}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{Int64, Int64, ProjecturedKernel.IoMapModule.ChildrenIoMap}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{Int64, Int64, ProjecturedKernel.IoMapModule.SimpleIoMap}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{Int64, Int64, ProjecturedKernel.IoMapModule.SimpleIoMap}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.IoMapModule.SimpleIoMap}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.IoMapModule.SimpleIoMap}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, Nothing}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, Nothing}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.IoMapModule.ChildrenIoMap, ProjecturedKernel.IoMapModule.ChildrenIoMap}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.IoMapModule.ChildrenIoMap, ProjecturedKernel.IoMapModule.ChildrenIoMap}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.IoMapModule.ChildrenIoMap, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.IoMapModule.ChildrenIoMap, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, Array{Any, 1}}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, Array{Any, 1}}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}, Nothing}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}, Nothing}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}, ProjecturedKernel.IoMapModule.ChildrenIoMap}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}, ProjecturedKernel.IoMapModule.ChildrenIoMap}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}, Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}, Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, ProjecturedKernel.IoMapModule.ChildrenIoMap, ProjecturedKernel.IoMapModule.ChildrenIoMap}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, ProjecturedKernel.IoMapModule.ChildrenIoMap, ProjecturedKernel.IoMapModule.ChildrenIoMap}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, ProjecturedKernel.ProjectionModule.RuleIoMap, ProjecturedKernel.IoMapModule.ChildrenIoMap}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, ProjecturedKernel.ProjectionModule.RuleIoMap, ProjecturedKernel.IoMapModule.ChildrenIoMap}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, ProjecturedKernel.ProjectionModule.RuleIoMap}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, ProjecturedKernel.ProjectionModule.RuleIoMap}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{ProjecturedKernel.ProjectionModule.RuleIoMap, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{Symbol, ProjecturedKernel.IoMapModule.ChildrenIoMap}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{Symbol, ProjecturedKernel.IoMapModule.ChildrenIoMap}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{Symbol, ProjecturedKernel.IoMapModule.SimpleIoMap}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{Symbol, ProjecturedKernel.IoMapModule.SimpleIoMap}, Int64}
+Tuple{typeof(Base.isempty), Array{ProjecturedKernel.CellModule.ReactiveCell{Any}, 1}}
+Tuple{typeof(Base.isempty), Array{ProjecturedKernel.CellModule.ReactiveCell{T} where T, 1}}
+Tuple{typeof(Base.isempty), Array{ProjecturedKernel.GestureBindingModule.GestureBinding, 1}}
+Tuple{typeof(Base.isempty), Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}}
+Tuple{typeof(Base.isempty), Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}}
+Tuple{typeof(Base.iterate), Array{ProjecturedKernel.CellModule.ReactiveCell{Any}, 1}, Int64}
+Tuple{typeof(Base.iterate), Array{ProjecturedKernel.CellModule.ReactiveCell{Any}, 1}}
+Tuple{typeof(Base.iterate), Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}, Int64}
+Tuple{typeof(Base.iterate), Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}}
+Tuple{typeof(Base.iterate), Array{ProjecturedKernel.IoMapModule.IoMap, 1}, Int64}
+Tuple{typeof(Base.iterate), Array{ProjecturedKernel.IoMapModule.IoMap, 1}}
+Tuple{typeof(Base.iterate), Array{ProjecturedKernel.IoMapModule.SimpleIoMap, 1}, Int64}
+Tuple{typeof(Base.iterate), Array{ProjecturedKernel.IoMapModule.SimpleIoMap, 1}}
+Tuple{typeof(Base.iterate), Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}, Int64}
+Tuple{typeof(Base.iterate), Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}}
+Tuple{typeof(Base.iterate), Array{Tuple{ProjecturedKernel.ReferenceModule.Reference, Any}, 1}, Int64}
+Tuple{typeof(Base.iterate), Array{Tuple{ProjecturedKernel.ReferenceModule.Reference, Any}, 1}}
+Tuple{typeof(Base.iterate), Base.Iterators.Enumerate{Array{ProjecturedKernel.IoMapModule.SimpleIoMap, 1}}, Tuple{Int64, Int64}}
+Tuple{typeof(Base.iterate), Base.Iterators.Enumerate{Array{ProjecturedKernel.IoMapModule.SimpleIoMap, 1}}, Tuple{Int64}}
+Tuple{typeof(Base.iterate), Base.Iterators.Enumerate{Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}}, Tuple{Int64, Int64}}
+Tuple{typeof(Base.iterate), Base.Iterators.Enumerate{Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}}, Tuple{Int64}}
+Tuple{typeof(Base.iterate), Base.Iterators.Enumerate{Array{ProjecturedKernel.ReferenceModule.Reference, 1}}, Tuple{Int64, Int64}}
+Tuple{typeof(Base.iterate), Base.Iterators.Enumerate{Array{ProjecturedKernel.ReferenceModule.Reference, 1}}, Tuple{Int64}}
+Tuple{typeof(Base.iterate), Base.Iterators.Reverse{Array{ProjecturedKernel.CellModule.ReactiveCell{Any}, 1}}, Tuple{Base.StepRange{Int64, Int64}, Int64}}
+Tuple{typeof(Base.iterate), Base.Iterators.Reverse{Array{ProjecturedKernel.CellModule.ReactiveCell{Any}, 1}}}
+Tuple{typeof(Base.last), Tuple{Int64, Int64, ProjecturedKernel.IoMapModule.ChildrenIoMap}}
+Tuple{typeof(Base.last), Tuple{Int64, Int64, ProjecturedKernel.IoMapModule.SimpleIoMap}}
+Tuple{typeof(Base.last), Tuple{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.IoMapModule.ChildrenIoMap}}
+Tuple{typeof(Base.last), Tuple{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.IoMapModule.ContentIoMap}}
+Tuple{typeof(Base.last), Tuple{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.IoMapModule.SimpleIoMap}}
+Tuple{typeof(Base.lastindex), Array{ProjecturedKernel.CellModule.ReactiveCell{Any}, 1}}
+Tuple{typeof(Base.lastindex), Array{ProjecturedKernel.CellModule.ReactiveCell{T} where T, 1}}
+Tuple{typeof(Base.length), Array{ProjecturedKernel.CellModule.ReactiveCell{Any}, 1}}
+Tuple{typeof(Base.length), Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}}
+Tuple{typeof(Base.length), Array{ProjecturedKernel.IoMapModule.IoMap, 1}}
+Tuple{typeof(Base.length), Array{ProjecturedKernel.IoMapModule.SimpleIoMap, 1}}
+Tuple{typeof(Base.length), Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}}
+Tuple{typeof(Base.length), Array{Tuple{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, Any}, 1}}
+Tuple{typeof(Base.merge), NamedTuple{(:open, :close, :sep, :children), Tuple{Nothing, Nothing, Nothing, ProjecturedKernel.ProjectionModule.Collection}}, Base.Pairs{Symbol, Int64, Nothing, NamedTuple{(:indentation,), Tuple{Int64}}}}
+Tuple{typeof(Base.repr), ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(Base.revargs), ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
+Tuple{typeof(Base.revargs), ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
+Tuple{typeof(Base.reverse), Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}
+Tuple{typeof(Base.setindex!), Array{ProjecturedKernel.CellModule.ReactiveCell{Any}, 1}, ProjecturedKernel.CellModule.ReactiveCell{Any}, Int64}
+Tuple{typeof(Base.setindex!), Array{ProjecturedKernel.ReferenceModule.Reference, 1}, ProjecturedKernel.ReferenceModule.ConcreteReference, Int64}
+Tuple{typeof(Base.setindex!), Array{Union{Nothing, ProjecturedKernel.CellModule.ReactiveCell{Any}}, 1}, Nothing, Int64}
+Tuple{typeof(Base.setindex!), Array{Union{Nothing, ProjecturedKernel.CellModule.ReactiveCell{Any}}, 1}, ProjecturedKernel.CellModule.ReactiveCell{Any}, Int64}
+Tuple{typeof(Base.setindex!), Base.Dict{Type, Tuple{UInt64, Array{Type, 1}}}, Tuple{UInt64, Array{Type, 1}}, Type{ProjecturedKernel.DocumentModule.Document}}
+Tuple{typeof(Base.setindex_widen_up_to), Array{ProjecturedKernel.DocumentModule.Document, 1}, Int64, Int64}
+Tuple{typeof(Base.setindex_widen_up_to), Array{ProjecturedKernel.IoMapModule.SimpleIoMap, 1}, ProjecturedKernel.IoMapModule.ChildrenIoMap, Int64}
+Tuple{typeof(Base.setindex_widen_up_to), Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}, ProjecturedKernel.IoMapModule.ChildrenIoMap, Int64}
+Tuple{typeof(Base.show), Base.GenericIOBuffer{Memory{UInt8}}, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
+Tuple{typeof(Base.show), Base.GenericIOBuffer{Memory{UInt8}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
+Tuple{typeof(Base.show), Base.IOContext{Base.GenericIOBuffer{Memory{UInt8}}}, ProjecturedKernel.ProjectionModule.ProjectionReferenceStep}
+Tuple{typeof(Base.show), Base.IOContext{Base.GenericIOBuffer{Memory{UInt8}}}, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
+Tuple{typeof(Base.show), Base.IOContext{Base.GenericIOBuffer{Memory{UInt8}}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
+Tuple{typeof(Base.typed_vcat), Type{Any}, ProjecturedKernel.ProjectionModule.RuleIoMap, Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}, ProjecturedKernel.IoMapModule.ChildrenIoMap}
+Tuple{typeof(Base.typed_vcat), Type{Any}, ProjecturedKernel.ProjectionModule.RuleIoMap, Array{ProjecturedKernel.IoMapModule.ChildrenIoMap, 1}}
+Tuple{typeof(Base.typed_vcat), Type{Any}, ProjecturedKernel.ProjectionModule.RuleIoMap, Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}, Array{ProjecturedKernel.ProjectionModule.RuleIoMap, 1}}
+Tuple{typeof(Base.vect), ProjecturedKernel.IoMapModule.ChildrenIoMap, Vararg{Any}}
+Tuple{typeof(Base.vect), ProjecturedKernel.IoMapModule.SimpleIoMap, Vararg{Any}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:alt,), Tuple{Bool}}, Type{ProjecturedKernel.EventModule.ModifierKeys}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:by,), Tuple{ProjecturedKernel.ToolModule.var"#_find_docstring_texts##0#_find_docstring_texts##1"}}, typeof(Base.sort), Array{Type, 1}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:context,), Tuple{Pair{Symbol, Bool}}}, typeof(Base.sprint), Function, ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(Core.kwcall), NamedTuple{(:description, :domain), Tuple{String, String}}, Type{ProjecturedKernel.GestureBindingModule.GestureBinding}, ProjecturedKernel.GestureModule.GesturePattern{ProjecturedKernel.EventModule.KeyDown}, Function}
+Tuple{typeof(Core.kwcall), NamedTuple{(:is_barrier_enabled,), Tuple{Bool}}, Type{ProjecturedKernel.FaultModule.FaultPolicy}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:primary, :live), Tuple{ProjecturedKernel.ReferenceModule.ConcreteReference, Bool}}, Type{ProjecturedKernel.DocumentModule.SelectionDocument{C1, C2, C3} where C3<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C2<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C1<:(ProjecturedKernel.CellModule.AbstractCell{T} where T)}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:primary, :live), Tuple{ProjecturedKernel.ReferenceModule.EmptyReference, Bool}}, Type{ProjecturedKernel.DocumentModule.SelectionDocument{C1, C2, C3} where C3<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C2<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C1<:(ProjecturedKernel.CellModule.AbstractCell{T} where T)}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:project_child, :children_field, :intype), Tuple{ProjecturedKernel.ProjectionModule.var"#133#134"{Base.Dict{Symbol, Any}}, Symbol, UnionAll}}, typeof(ProjecturedKernel.ProjectionModule._slots_backward), Array{Any, 1}, ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(Core.kwcall), NamedTuple{(:project_child, :children_field, :outtype), Tuple{ProjecturedKernel.ProjectionModule.var"#129#130"{Base.Dict{Symbol, Any}}, Symbol, UnionAll}}, typeof(ProjecturedKernel.ProjectionModule._slots_forward), Array{Any, 1}, ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(Core.kwcall), NamedTuple{(:selection,), Tuple{ProjecturedKernel.ReferenceModule.ConcreteReference}}, typeof(ProjecturedKernel.OperationModule.insert_elements), ProjecturedKernel.ReferenceModule.ConcreteReference, Int64, Array{Any, 1}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:time,), Tuple{Float64}}, Type{ProjecturedKernel.EventModule.MouseMove}, Int64, Int64}
+Tuple{typeof(Core.kwcall), NamedTuple{(:time,), Tuple{Float64}}, Type{ProjecturedKernel.EventModule.MouseScroll}, Vararg{Int64, 4}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:time,), Tuple{Float64}}, Type{ProjecturedKernel.GestureModule.MouseClick}, Symbol, Int64, Int64}
+Tuple{typeof(Core.kwcall), NamedTuple{(:width, :height), Tuple{Int64, Int64}}, typeof(ProjecturedKernel.ProjectionModule.with_inner_size), ProjecturedKernel.ProjectionModule.PrinterContext}
+Tuple{typeof(Core.kwcall), NamedTuple{(:width, :height), Tuple{Int64, ProjecturedKernel.CellModule.ReactiveCell{Any}}}, typeof(ProjecturedKernel.ProjectionModule.with_inner_size), ProjecturedKernel.ProjectionModule.PrinterContext}
+Tuple{typeof(Core.kwcall), NamedTuple{(:width,), Tuple{Int64}}, typeof(ProjecturedKernel.ProjectionModule.with_inner_size), ProjecturedKernel.ProjectionModule.PrinterContext}
+Tuple{typeof(ProjecturedKernel.CellModule.is_cell_up_to_date), ProjecturedKernel.CellModule.ReactiveCell{Any}}
+Tuple{typeof(ProjecturedKernel.CellModule.run_untracked), Base.Returns{Bool}}
+Tuple{typeof(ProjecturedKernel.CellModule.run_untracked), Base.Returns{Int64}}
+Tuple{typeof(ProjecturedKernel.CellModule.run_untracked), Base.Returns{Nothing}}
+Tuple{typeof(ProjecturedKernel.CellModule.run_untracked), Base.Returns{String}}
+Tuple{typeof(ProjecturedKernel.CellModule.run_untracked), Base.Returns{Symbol}}
+Tuple{typeof(ProjecturedKernel.CellModule.set_cell_computation!), ProjecturedKernel.CellModule.ReactiveCell{Any}, Function}
+Tuple{typeof(ProjecturedKernel.CellModule.unwrap_cell), Array{Any, 1}}
+Tuple{typeof(ProjecturedKernel.CellModule.unwrap_cell), Int64}
+Tuple{typeof(ProjecturedKernel.CellModule.unwrap_cell), ProjecturedKernel.CellModule.UntrackedCell{NamedTuple{names, T} where T<:Tuple where names}}
+Tuple{typeof(ProjecturedKernel.CellModule.unwrap_cell), ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(ProjecturedKernel.CellModule.unwrap_cell), ProjecturedKernel.ReferenceModule.Position}
+Tuple{typeof(ProjecturedKernel.CellModule.unwrap_cell), String}
+Tuple{typeof(ProjecturedKernel.CellModule.unwrap_cell), Tuple{Float64, Float64, String}}
+Tuple{typeof(ProjecturedKernel.CellModule.unwrap_cell), Tuple{Float64, Float64}}
+Tuple{typeof(ProjecturedKernel.ClockModule._get_clock_seconds), Float64}
+Tuple{typeof(ProjecturedKernel.ClockModule.set_clock_time!), ProjecturedKernel.ClockModule.Clock, Float64}
+Tuple{typeof(ProjecturedKernel.DocumentModule._is_walk_leaf), Nothing}
+Tuple{typeof(ProjecturedKernel.DocumentModule.is_view_state_field), Symbol}
+Tuple{typeof(ProjecturedKernel.DocumentModule.unwrap_selection), ProjecturedKernel.DocumentModule.SelectionDocument{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ImmutableCell{Nothing}}}
+Tuple{typeof(ProjecturedKernel.DocumentModule.unwrap_selection), ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(ProjecturedKernel.DocumentModule.unwrap_selection), ProjecturedKernel.ReferenceModule.EmptyReference}
+Tuple{typeof(ProjecturedKernel.EditorModule._evaluate_operation_guarded!), ProjecturedKernel.EditorModule.Editor, ProjecturedKernel.OperationModule.CompoundOperation}
+Tuple{typeof(ProjecturedKernel.EditorModule._evaluate_operation_guarded!), ProjecturedKernel.EditorModule.Editor, ProjecturedKernel.OperationModule.ReplaceMouseTargetOperation}
+Tuple{typeof(ProjecturedKernel.EditorModule._evaluate_operation_guarded!), ProjecturedKernel.EditorModule.Editor, ProjecturedKernel.OperationModule.ReplaceReferencedValueOperation}
+Tuple{typeof(ProjecturedKernel.EditorModule._evaluate_operation_guarded!), ProjecturedKernel.EditorModule.Editor, ProjecturedKernel.OperationModule.ReplaceSelectionOperation}
+Tuple{typeof(ProjecturedKernel.EditorModule._evaluate_operation_guarded!), ProjecturedKernel.EditorModule.Editor, ProjecturedKernel.OperationModule.ReplaceViewStateOperation}
+Tuple{typeof(ProjecturedKernel.EditorModule.get_consecutive_fault_limit), Symbol}
+Tuple{typeof(ProjecturedKernel.EditorModule.is_wrapper_default), Base.Val{:build_probe_default}}
+Tuple{typeof(ProjecturedKernel.EditorModule.make_wrapper_argument), Base.Val{:clipboard}, Bool}
+Tuple{typeof(ProjecturedKernel.EditorModule.make_wrapper_argument), Base.Val{:context_menu}, Bool}
+Tuple{typeof(ProjecturedKernel.EditorModule.make_wrapper_argument), Base.Val{:fault_log}, Bool}
+Tuple{typeof(ProjecturedKernel.EditorModule.make_wrapper_argument), Base.Val{:focus_cycling}, Bool}
+Tuple{typeof(ProjecturedKernel.EditorModule.make_wrapper_argument), Base.Val{:frame_statistics}, Bool}
+Tuple{typeof(ProjecturedKernel.EditorModule.make_wrapper_argument), Base.Val{:gesture_log}, Bool}
+Tuple{typeof(ProjecturedKernel.EditorModule.make_wrapper_argument), Base.Val{:message_log}, Bool}
+Tuple{typeof(ProjecturedKernel.EditorModule.make_wrapper_argument), Base.Val{:tabs}, Bool}
+Tuple{typeof(ProjecturedKernel.EditorModule.make_wrapper_argument), Base.Val{:tooltip}, Bool}
+Tuple{typeof(ProjecturedKernel.EditorModule.make_wrapper_argument), Base.Val{:undo}, Bool}
+Tuple{typeof(ProjecturedKernel.EditorModule.make_wrapper_argument), Base.Val{:window}, Bool}
+Tuple{typeof(ProjecturedKernel.EditorModule.wrap_editor!), Base.Val{:clipboard}, Symbol, Bool, ProjecturedKernel.EditorModule.EditorParts}
+Tuple{typeof(ProjecturedKernel.EditorModule.wrap_editor!), Base.Val{:context_menu}, Symbol, Bool, ProjecturedKernel.EditorModule.EditorParts}
+Tuple{typeof(ProjecturedKernel.EditorModule.wrap_editor!), Base.Val{:fault_log}, Symbol, Bool, ProjecturedKernel.EditorModule.EditorParts}
+Tuple{typeof(ProjecturedKernel.EditorModule.wrap_editor!), Base.Val{:focus_cycling}, Symbol, Bool, ProjecturedKernel.EditorModule.EditorParts}
+Tuple{typeof(ProjecturedKernel.EditorModule.wrap_editor!), Base.Val{:frame_statistics}, Symbol, Bool, ProjecturedKernel.EditorModule.EditorParts}
+Tuple{typeof(ProjecturedKernel.EditorModule.wrap_editor!), Base.Val{:gesture_log}, Symbol, Bool, ProjecturedKernel.EditorModule.EditorParts}
+Tuple{typeof(ProjecturedKernel.EditorModule.wrap_editor!), Base.Val{:message_log}, Symbol, Bool, ProjecturedKernel.EditorModule.EditorParts}
+Tuple{typeof(ProjecturedKernel.EditorModule.wrap_editor!), Base.Val{:tabs}, Symbol, Bool, ProjecturedKernel.EditorModule.EditorParts}
+Tuple{typeof(ProjecturedKernel.EditorModule.wrap_editor!), Base.Val{:tooltip}, Symbol, Bool, ProjecturedKernel.EditorModule.EditorParts}
+Tuple{typeof(ProjecturedKernel.EditorModule.wrap_editor!), Base.Val{:undo}, Symbol, Bool, ProjecturedKernel.EditorModule.EditorParts}
+Tuple{typeof(ProjecturedKernel.EditorModule.wrap_editor!), Base.Val{:window}, Symbol, Bool, ProjecturedKernel.EditorModule.EditorParts}
+Tuple{typeof(ProjecturedKernel.GestureBindingModule.get_document_gesture_bindings_own), Type}
+Tuple{typeof(ProjecturedKernel.GestureBindingModule.read_bound_gesture), String, ProjecturedKernel.EventModule.KeyDown, ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(ProjecturedKernel.GestureBindingModule.read_bound_gesture), String, ProjecturedKernel.GestureModule.MouseClick, Nothing}
+Tuple{typeof(ProjecturedKernel.GestureBindingModule.read_bound_gesture), String, ProjecturedKernel.GestureModule.MouseClick, ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(ProjecturedKernel.GestureModule.KeyDownPattern), Symbol}
+Tuple{typeof(ProjecturedKernel.GestureModule.MouseClickPattern), Symbol}
+Tuple{typeof(ProjecturedKernel.GestureModule._constrain_field), Symbol, Symbol}
+Tuple{typeof(ProjecturedKernel.GestureModule.matches_gesture_pattern), ProjecturedKernel.GestureModule.GesturePattern{ProjecturedKernel.EventModule.KeyDown}, ProjecturedKernel.EventModule.KeyDown}
+Tuple{typeof(ProjecturedKernel.GestureModule.matches_gesture_pattern), ProjecturedKernel.GestureModule.GesturePattern{ProjecturedKernel.EventModule.KeyPress}, ProjecturedKernel.EventModule.KeyPress}
+Tuple{typeof(ProjecturedKernel.GestureModule.matches_gesture_pattern), ProjecturedKernel.GestureModule.GesturePattern{ProjecturedKernel.GestureModule.MouseClick}, ProjecturedKernel.GestureModule.MouseClick}
+Tuple{typeof(ProjecturedKernel.IoMapModule.get_iomap_input), ProjecturedKernel.IoMapModule.ChildrenIoMap}
+Tuple{typeof(ProjecturedKernel.IoMapModule.get_iomap_input), ProjecturedKernel.IoMapModule.SimpleIoMap}
+Tuple{typeof(ProjecturedKernel.IoMapModule.get_iomap_projection), ProjecturedKernel.IoMapModule.ChildrenIoMap}
+Tuple{typeof(ProjecturedKernel.IoMapModule.get_iomap_projection), ProjecturedKernel.IoMapModule.SimpleIoMap}
+Tuple{typeof(ProjecturedKernel.IoMapModule.get_iomap_projection), ProjecturedKernel.ProjectionModule.RuleIoMap}
+Tuple{typeof(ProjecturedKernel.OperationModule._is_written_step), ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
+Tuple{typeof(ProjecturedKernel.OperationModule._short_reference), ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(ProjecturedKernel.OperationModule._short_value), Array{Any, 1}}
+Tuple{typeof(ProjecturedKernel.OperationModule._short_value), Bool}
+Tuple{typeof(ProjecturedKernel.OperationModule._short_value), Float64}
+Tuple{typeof(ProjecturedKernel.OperationModule._short_value), Int64}
+Tuple{typeof(ProjecturedKernel.OperationModule._short_value), Nothing}
+Tuple{typeof(ProjecturedKernel.OperationModule._short_value), Tuple{Float64, Float64}}
+Tuple{typeof(ProjecturedKernel.OperationModule.add_mouse_target), Nothing, ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(ProjecturedKernel.OperationModule.add_mouse_target), Nothing, ProjecturedKernel.ReferenceModule.EmptyReference}
+Tuple{typeof(ProjecturedKernel.OperationModule.add_mouse_target), Nothing}
+Tuple{typeof(ProjecturedKernel.OperationModule.add_mouse_target), ProjecturedKernel.EventModule.MouseMove, ProjecturedKernel.ReferenceModule.EmptyReference}
+Tuple{typeof(ProjecturedKernel.OperationModule.add_mouse_target), ProjecturedKernel.EventModule.MouseMove}
+Tuple{typeof(ProjecturedKernel.OperationModule.add_mouse_target), ProjecturedKernel.OperationModule.CompoundOperation}
+Tuple{typeof(ProjecturedKernel.OperationModule.add_mouse_target), ProjecturedKernel.OperationModule.ReplaceMouseTargetOperation}
+Tuple{typeof(ProjecturedKernel.OperationModule.add_mouse_target), ProjecturedKernel.OperationModule.ReplaceViewStateOperation, ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(ProjecturedKernel.OperationModule.add_mouse_target), ProjecturedKernel.OperationModule.ReplaceViewStateOperation, ProjecturedKernel.ReferenceModule.EmptyReference}
+Tuple{typeof(ProjecturedKernel.OperationModule.describe_operation), ProjecturedKernel.OperationModule.CompoundOperation}
+Tuple{typeof(ProjecturedKernel.OperationModule.describe_operation), ProjecturedKernel.OperationModule.ReplaceMouseTargetOperation}
+Tuple{typeof(ProjecturedKernel.OperationModule.describe_operation), ProjecturedKernel.OperationModule.ReplaceViewStateOperation}
+Tuple{typeof(ProjecturedKernel.OperationModule.evaluate_invertible_operation!), ProjecturedKernel.EditorModule.Editor, ProjecturedKernel.OperationModule.ReplaceReferencedValueOperation}
+Tuple{typeof(ProjecturedKernel.OperationModule.evaluate_invertible_operation!), ProjecturedKernel.EditorModule.Editor, ProjecturedKernel.OperationModule.ReplaceSelectionOperation}
+Tuple{typeof(ProjecturedKernel.OperationModule.has_mouse_target), ProjecturedKernel.OperationModule.CompoundOperation}
+Tuple{typeof(ProjecturedKernel.OperationModule.has_mouse_target), ProjecturedKernel.OperationModule.ReplaceViewStateOperation}
+Tuple{typeof(ProjecturedKernel.OperationModule.join_move_answers), Nothing, Vararg{Any}}
+Tuple{typeof(ProjecturedKernel.OperationModule.join_move_answers), ProjecturedKernel.OperationModule.ReplaceViewStateOperation, Vararg{Any}}
+Tuple{typeof(ProjecturedKernel.OperationModule.reroot_operation), ProjecturedKernel.OperationModule.CompoundOperation, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}
+Tuple{typeof(ProjecturedKernel.OperationModule.reroot_operation), ProjecturedKernel.OperationModule.CompoundOperation, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}
+Tuple{typeof(ProjecturedKernel.OperationModule.reroot_operation), ProjecturedKernel.OperationModule.CompoundOperation, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}
+Tuple{typeof(ProjecturedKernel.OperationModule.reroot_operation), ProjecturedKernel.OperationModule.ReplaceMouseTargetOperation, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}
+Tuple{typeof(ProjecturedKernel.OperationModule.reroot_operation), ProjecturedKernel.OperationModule.ReplaceMouseTargetOperation, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}
+Tuple{typeof(ProjecturedKernel.OperationModule.reroot_operation), ProjecturedKernel.OperationModule.ReplaceMouseTargetOperation, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}
+Tuple{typeof(ProjecturedKernel.OperationModule.reroot_operation), ProjecturedKernel.OperationModule.ReplaceReferencedValueOperation, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}
+Tuple{typeof(ProjecturedKernel.OperationModule.reroot_operation), ProjecturedKernel.OperationModule.ReplaceReferencedValueOperation, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}
+Tuple{typeof(ProjecturedKernel.OperationModule.reroot_operation), ProjecturedKernel.OperationModule.ReplaceReferencedValueOperation, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}
+Tuple{typeof(ProjecturedKernel.OperationModule.reroot_operation), ProjecturedKernel.OperationModule.ReplaceSelectionOperation, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}
+Tuple{typeof(ProjecturedKernel.OperationModule.reroot_operation), ProjecturedKernel.OperationModule.ReplaceSelectionOperation, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}
+Tuple{typeof(ProjecturedKernel.OperationModule.reroot_operation), ProjecturedKernel.OperationModule.ReplaceSelectionOperation, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}
+Tuple{typeof(ProjecturedKernel.OperationModule.reroot_operation), ProjecturedKernel.OperationModule.ReplaceSelectionOperation, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}
+Tuple{typeof(ProjecturedKernel.OperationModule.reroot_operation), ProjecturedKernel.OperationModule.ReplaceViewStateOperation, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}
+Tuple{typeof(ProjecturedKernel.ProjectionModule._find_entry_iomaps), Array{Any, 1}}
+Tuple{typeof(ProjecturedKernel.ProjectionModule._find_entry_iomaps), Array{Tuple{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, Any}, 1}}
+Tuple{typeof(ProjecturedKernel.ProjectionModule._focused_child), ProjecturedKernel.ProjectionModule.ConditionalNodeWiring, ProjecturedKernel.ProjectionModule.RuleIoMap, ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(ProjecturedKernel.ProjectionModule._focused_child), ProjecturedKernel.ProjectionModule.FixedNodeWiring, ProjecturedKernel.ProjectionModule.RuleIoMap, ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(ProjecturedKernel.ProjectionModule._focused_child), ProjecturedKernel.ProjectionModule.NodeWiring, ProjecturedKernel.ProjectionModule.RuleIoMap, ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(ProjecturedKernel.ProjectionModule._map_child_backward), ProjecturedKernel.IoMapModule.ChildrenIoMap, ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(ProjecturedKernel.ProjectionModule._map_child_backward), ProjecturedKernel.IoMapModule.SimpleIoMap, ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(ProjecturedKernel.ProjectionModule._map_child_backward), ProjecturedKernel.ProjectionModule.RuleIoMap, ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(ProjecturedKernel.ProjectionModule._read_override_gesture), ProjecturedKernel.ProjectionModule.RuleIoMap, ProjecturedKernel.EventModule.KeyDown, ProjecturedKernel.EventModule.KeyDown}
+Tuple{typeof(ProjecturedKernel.ProjectionModule._read_override_gesture), ProjecturedKernel.ProjectionModule.RuleIoMap, ProjecturedKernel.EventModule.KeyDown, ProjecturedKernel.OperationModule.ReplaceSelectionOperation}
+Tuple{typeof(ProjecturedKernel.ProjectionModule._strip_checkpoints), ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(ProjecturedKernel.ProjectionModule.collection), Symbol}
+Tuple{typeof(ProjecturedKernel.ProjectionModule.make_child_context), ProjecturedKernel.ProjectionModule.PrinterContext, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
+Tuple{typeof(ProjecturedKernel.ProjectionModule.project), Symbol}
+Tuple{typeof(ProjecturedKernel.ReferenceModule._copy_reference_step), ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
+Tuple{typeof(ProjecturedKernel.ReferenceModule._copy_reference_step), ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
+Tuple{typeof(ProjecturedKernel.ReferenceModule._fold_reference_types), ProjecturedKernel.ReferenceModule.ConcreteReference, Type}
+Tuple{typeof(ProjecturedKernel.ReferenceModule._fold_reference_types), ProjecturedKernel.ReferenceModule.EmptyReference, Type}
+Tuple{typeof(ProjecturedKernel.ReferenceModule._make_location_reference), Pair{Any, Any}}
+Tuple{typeof(ProjecturedKernel.ReferenceModule._show_node_type), Base.IOContext{Base.GenericIOBuffer{Memory{UInt8}}}, Type}
+Tuple{typeof(ProjecturedKernel.ReferenceModule._type_step_node_type), ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(ProjecturedKernel.ReferenceModule.annotate_reference_types), Array{Any, 1}, ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(ProjecturedKernel.ReferenceModule.annotate_reference_types), Char, ProjecturedKernel.ReferenceModule.EmptyReference}
+Tuple{typeof(ProjecturedKernel.ReferenceModule.annotate_reference_types), Int64, ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(ProjecturedKernel.ReferenceModule.annotate_reference_types), ProjecturedKernel.ReferenceModule.ConcreteReference, ProjecturedKernel.ReferenceModule.EmptyReference}
+Tuple{typeof(ProjecturedKernel.ReferenceModule.annotate_reference_types), ProjecturedKernel.ReferenceModule.Position, ProjecturedKernel.ReferenceModule.EmptyReference}
+Tuple{typeof(ProjecturedKernel.ReferenceModule.annotate_reference_types), String, ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(ProjecturedKernel.ReferenceModule.annotate_reference_types), String, ProjecturedKernel.ReferenceModule.EmptyReference}
+Tuple{typeof(ProjecturedKernel.ReferenceModule.annotate_reference_types), Tuple{Float64, Float64, String}, ProjecturedKernel.ReferenceModule.EmptyReference}
+Tuple{typeof(ProjecturedKernel.ReferenceModule.annotate_reference_types), Tuple{Float64, Float64}, ProjecturedKernel.ReferenceModule.EmptyReference}
+Tuple{typeof(ProjecturedKernel.ReferenceModule.evaluate_reference_step), ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, Array{Any, 1}}
+Tuple{typeof(ProjecturedKernel.ReferenceModule.evaluate_reference_step), ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, Int64}
+Tuple{typeof(ProjecturedKernel.ReferenceModule.evaluate_reference_step), ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, String}
+Tuple{typeof(ProjecturedKernel.ReferenceModule.extend_reference), ProjecturedKernel.ReferenceModule.EmptyReference, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, Vararg{Any}}
+Tuple{typeof(ProjecturedKernel.ReferenceModule.extend_reference), ProjecturedKernel.ReferenceModule.EmptyReference, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, Vararg{Any}}
+Tuple{typeof(ProjecturedKernel.ReferenceModule.extend_reference), ProjecturedKernel.ReferenceModule.EmptyReference, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
+Tuple{typeof(ProjecturedKernel.ReferenceModule.extend_reference), ProjecturedKernel.ReferenceModule.EmptyReference}
+Tuple{typeof(ProjecturedKernel.ReferenceModule.get_reference_steps), ProjecturedKernel.ReferenceModule.EmptyReference}
+Tuple{typeof(ProjecturedKernel.ReferenceModule.get_valid_reference_prefix), Array{Any, 1}, ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(ProjecturedKernel.ReferenceModule.get_valid_reference_prefix), Int64, ProjecturedKernel.ReferenceModule.EmptyReference}
+Tuple{typeof(ProjecturedKernel.ReferenceModule.get_valid_reference_prefix), Nothing, ProjecturedKernel.ReferenceModule.EmptyReference}
+Tuple{typeof(ProjecturedKernel.ReferenceModule.get_valid_reference_prefix), ProjecturedKernel.ReferenceModule.ConcreteReference, ProjecturedKernel.ReferenceModule.EmptyReference}
+Tuple{typeof(ProjecturedKernel.ReferenceModule.get_valid_reference_prefix), ProjecturedKernel.ReferenceModule.Position, ProjecturedKernel.ReferenceModule.EmptyReference}
+Tuple{typeof(ProjecturedKernel.ReferenceModule.get_valid_reference_prefix), String, ProjecturedKernel.ReferenceModule.EmptyReference}
+Tuple{typeof(ProjecturedKernel.ReferenceModule.get_valid_reference_prefix), Tuple{Float64, Float64, String}, ProjecturedKernel.ReferenceModule.EmptyReference}
+Tuple{typeof(ProjecturedKernel.ReferenceModule.get_valid_reference_prefix), Tuple{Float64, Float64}, ProjecturedKernel.ReferenceModule.EmptyReference}
+Tuple{typeof(ProjecturedKernel.ReferenceModule.is_element_reference_step), ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
+Tuple{typeof(ProjecturedKernel.ReferenceModule.is_reference_equal), ProjecturedKernel.ReferenceModule.ConcreteReference, ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(ProjecturedKernel.ReferenceModule.is_reference_equal), ProjecturedKernel.ReferenceModule.EmptyReference, ProjecturedKernel.ReferenceModule.EmptyReference}
+Tuple{typeof(ProjecturedKernel.SelectionModule._get_stored_path), ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(ProjecturedKernel.SelectionModule._get_stored_path), ProjecturedKernel.ReferenceModule.EmptyReference}
+Tuple{typeof(ProjecturedKernel.SelectionModule._is_live_value), ProjecturedKernel.DocumentModule.SelectionDocument{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ImmutableCell{Nothing}}}

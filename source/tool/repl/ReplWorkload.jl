@@ -83,19 +83,21 @@ replay_precompile_statements(; warn::Bool = true) =
                                                     StatementScope; warn = warn)
 
 """
-    record_precompile_statements(; output, driver, kwargs...) -> path
+    record_precompile_statements(recording = "examples"; threads) -> Vector{String}
 
-Drive this repository's examples under `--trace-compile` and write the list this
-package replays. Needs a display: the driver opens a real window, so that what it
-records is the whole stack down to SDL.
+Run the driver of the recording named `recording` (see
+[`PRECOMPILE_RECORDINGS`](@ref)) under `--trace-compile`, in its environment, and
+write what it compiled into the statement files of the packages, as
+[`write_precompile_statement_files`](@ref) does. Answers the paths that it wrote.
+Needs a display: the driver opens a real window, so that what it records is the
+whole stack down to SDL.
 """
-record_precompile_statements(;
-        output::AbstractString =
-            joinpath(@__DIR__, "../../../asset/precompile/PrecompileStatements.jl"),
-        driver::AbstractString =
-            joinpath(@__DIR__, "../../../tool/precompile/recording-driver.jl"),
-        kwargs...) =
-    ProjecturedExample.record_precompile_statements(driver, output; kwargs...)
+function record_precompile_statements(recording::AbstractString = "examples"; kwargs...)
+    entry = PRECOMPILE_RECORDINGS[recording]
+    statements = ProjecturedExample.trace_precompile_statements(entry.driver;
+                                                                project = entry.project, kwargs...)
+    write_precompile_statement_files(recording, statements)
+end
 
 @setup_workload begin
     # Built outside the workload: constructing the documents is not what needs

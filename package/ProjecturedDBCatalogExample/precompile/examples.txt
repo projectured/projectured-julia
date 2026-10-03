@@ -1,0 +1,7 @@
+# The recording "examples" of this repository, written by
+# ProjecturedREPL.record_precompile_statements. Record it again; do not edit it.
+Tuple{typeof(ProjecturedDBCatalogExample.make_db_catalog_column_document_example)}
+Tuple{typeof(ProjecturedDBCatalogExample.make_db_catalog_database_document_example)}
+Tuple{typeof(ProjecturedDBCatalogExample.make_db_catalog_rdbms_document_example)}
+Tuple{typeof(ProjecturedDBCatalogExample.make_db_catalog_schema_document_example)}
+Tuple{typeof(ProjecturedDBCatalogExample.make_db_catalog_table_document_example)}

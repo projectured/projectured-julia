@@ -1,0 +1,11 @@
+# The recording "examples" of this repository, written by
+# ProjecturedREPL.record_precompile_statements. Record it again; do not edit it.
+Tuple{typeof(ProjecturedConversationExample.make_conversation_conversation_document_example)}
+Tuple{typeof(ProjecturedConversationExample.make_conversation_draft_document_example)}
+Tuple{typeof(ProjecturedConversationExample.make_conversation_part_document_example)}
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedConversationExample.make_assistant_document_example)}
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedConversationExample.make_assistant_projection_example)}
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedConversationExample.make_conversation_document_example)}
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedConversationExample.make_conversation_editor_document_example)}
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedConversationExample.make_conversation_editor_projection_example)}
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedConversationExample.make_conversation_widget_projection_example)}

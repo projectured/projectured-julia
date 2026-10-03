@@ -100,11 +100,10 @@ function replay_precompile_statements(statements::AbstractVector{<:AbstractStrin
 end
 
 """
-    record_precompile_statements(driver, output; project, threads) -> output
+    trace_precompile_statements(driver; project, threads) -> Vector{String}
 
-Run `driver` in a fresh process under `--trace-compile`, and write what it
-compiled to `output` as a list [`replay_precompile_statements`](@ref) can replay.
-Answers the path it wrote.
+Run `driver` in a fresh process under `--trace-compile`, and answer what it
+compiled, as [`clean_precompile_trace`](@ref) keeps it.
 
 The run is a separate process because `--trace-compile` is a command-line flag
 rather than something a running session can turn on. It is also a person's step
@@ -113,15 +112,29 @@ as long as it likes.
 
 `project` is the environment to run in, and defaults to the active one.
 """
-function record_precompile_statements(driver::AbstractString,
-                                      output::AbstractString;
-                                      project::AbstractString = dirname(Base.active_project()),
-                                      threads::Integer = 4)
+function trace_precompile_statements(driver::AbstractString;
+                                     project::AbstractString = dirname(Base.active_project()),
+                                     threads::Integer = 4)
     trace = tempname() * ".jl"
     command = `$(Base.julia_cmd()) --project=$project --threads=$threads --trace-compile=$trace $driver`
     @info "recording — the driver opens a window and drives it" driver project
     run(command)
     statements = clean_precompile_trace(trace)
+    rm(trace; force = true)
+    statements
+end
+
+"""
+    record_precompile_statements(driver, output; project, threads) -> output
+
+Run `driver` as [`trace_precompile_statements`](@ref) does, and write what it
+compiled to `output` as a list [`replay_precompile_statements`](@ref) can replay.
+Answers the path it wrote.
+"""
+function record_precompile_statements(driver::AbstractString, output::AbstractString;
+                                      project::AbstractString = dirname(Base.active_project()),
+                                      threads::Integer = 4)
+    statements = trace_precompile_statements(driver; project, threads)
     write_precompile_statements(output, statements)
     @info "recorded" statements = length(statements) output
     output

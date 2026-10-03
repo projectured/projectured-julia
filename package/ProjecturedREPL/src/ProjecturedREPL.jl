@@ -51,8 +51,11 @@ include("../../../source/tool/repl/ReplModule.jl")
 
 # A person loads this package by name, so its names are exported here.
 using .ReplModule: WORKLOAD, set_workload!, get_workload, PRECOMPILE_STATEMENTS,
-                   replay_precompile_statements, record_precompile_statements
+                   replay_precompile_statements, record_precompile_statements,
+                   PRECOMPILE_RECORDINGS, split_precompile_statements,
+                   write_precompile_statement_files
 export WORKLOAD, set_workload!, get_workload, PRECOMPILE_STATEMENTS,
-       replay_precompile_statements, record_precompile_statements
+       replay_precompile_statements, record_precompile_statements,
+       PRECOMPILE_RECORDINGS, split_precompile_statements, write_precompile_statement_files
 
 end # module ProjecturedREPL

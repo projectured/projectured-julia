@@ -1,0 +1,14 @@
+# The recording "examples" of this repository, written by
+# ProjecturedREPL.record_precompile_statements. Record it again; do not edit it.
+Tuple{ProjecturedJSONExample.var"#10#11", ProjecturedJSON.JsonModule.JsonObjectEntry{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
+Tuple{typeof(ProjecturedJSONExample.make_json_array_document_example)}
+Tuple{typeof(ProjecturedJSONExample.make_json_bool_document_example)}
+Tuple{typeof(ProjecturedJSONExample.make_json_null_document_example)}
+Tuple{typeof(ProjecturedJSONExample.make_json_number_document_example)}
+Tuple{typeof(ProjecturedJSONExample.make_json_object_document_example)}
+Tuple{typeof(ProjecturedJSONExample.make_json_object_entry_document_example)}
+Tuple{typeof(ProjecturedJSONExample.make_json_string_document_example)}
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedJSONExample.make_json_document_example)}
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedJSONExample.make_json_insertion_document_example)}
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedJSONExample.make_json_projection_example)}
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedJSONExample.make_json_sorted_projection_example)}

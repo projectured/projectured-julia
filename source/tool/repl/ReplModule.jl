@@ -12,6 +12,7 @@ module ReplModule
 using PrecompileTools: @setup_workload, @compile_workload
 using Preferences: @load_preference, set_preferences!
 using ProjecturedExample
+using TOML
 
 """
     StatementScope
@@ -24,8 +25,10 @@ build writing into another package's image.
 module StatementScope end
 
 export WORKLOAD, set_workload!, get_workload, PRECOMPILE_STATEMENTS,
-       replay_precompile_statements, record_precompile_statements
+       replay_precompile_statements, record_precompile_statements,
+       PRECOMPILE_RECORDINGS, split_precompile_statements, write_precompile_statement_files
 
+include("ReplStatementFiles.jl")
 include("ReplWorkload.jl")
 
 end # module ReplModule

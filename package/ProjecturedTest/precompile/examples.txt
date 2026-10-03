@@ -1,0 +1,564 @@
+# The recording "examples" of this repository, written by
+# ProjecturedREPL.record_precompile_statements. Record it again; do not edit it.
+Tuple{Base.BottomRF{typeof(Base.:(+))}, Base._InitialValue, Int64}
+Tuple{Base.BottomRF{typeof(Base.max)}, Base._InitialValue, Int64}
+Tuple{Base.Fix{2, typeof(Base.:(>)), Int64}, Int64}
+Tuple{Base.Iterators.var"#IteratorEltype##0#IteratorEltype##1"{Tuple{Array{Int64, 1}, Array{Tuple{Float64, Float64}, 1}}}, Int64}
+Tuple{Base.var"#__cat_offset1!##2#__cat_offset1!##3"{Tuple{Bool}, Tuple{Int64}, Int64}, Int64}
+Tuple{Base.var"#_replace_init##0#_replace_init##1", Pair{String, String}}
+Tuple{Type{Array{Expr, 1}}, UndefInitializer, Tuple{Int64}}
+Tuple{Type{Array{Float64, 1}}, UndefInitializer, Int64}
+Tuple{Type{Array{NTuple{4, Int64}, 1}}, UndefInitializer, Tuple{Int64}}
+Tuple{Type{Array{String, 1}}, UndefInitializer, Tuple{Int64}}
+Tuple{Type{Base.BottomRF{T} where T}, Base.FlipArgs{typeof(DataType)}}
+Tuple{Type{Base.Fix{1, F, T} where T where F}, typeof(Base.ScopedValues.getdefault), Base.ScopedValues.ScopedValue{Any}}
+Tuple{Type{Base.Generator{I, F} where F where I}, Base.var"#_typed_hvncat##4#_typed_hvncat##5", Tuple{String, String, String, Int64, String, Int64}}
+Tuple{Type{Base.Generator{I, F} where F where I}, typeof(Base.string), Array{Any, 1}}
+Tuple{Type{Base.IOContext{IO_t} where IO_t<:IO}, Base.GenericIOBuffer{Memory{UInt8}}, Base.IOStream}
+Tuple{Type{Base.LinearIndices{N, R} where R<:Tuple{Vararg{Base.AbstractUnitRange{Int64}, N}} where N}, Array{Float64, 1}}
+Tuple{Type{Base.LinearIndices{N, R} where R<:Tuple{Vararg{Base.AbstractUnitRange{Int64}, N}} where N}, Array{String, 1}}
+Tuple{Type{Base.LinearIndices{N, R} where R<:Tuple{Vararg{Base.AbstractUnitRange{Int64}, N}} where N}, Array{Symbol, 1}}
+Tuple{Type{Base.LinearIndices{N, R} where R<:Tuple{Vararg{Base.AbstractUnitRange{Int64}, N}} where N}, Array{Union{Nothing, Int64}, 1}}
+Tuple{Type{Base.Pairs{Symbol, V, I, A} where A where I where V}, NamedTuple{(:open, :close), Tuple{String, String}}, Nothing}
+Tuple{Type{Base.Pairs{Symbol, V, I, A} where A where I where V}, NamedTuple{(:signature,), Tuple{String}}, Nothing}
+Tuple{Type{Base.Set{T} where T}, Array{Int64, 1}}
+Tuple{Type{Base.Set{UnionAll}}}
+Tuple{Type{Base.TwicePrecision{Float64}}, Float64}
+Tuple{Type{Base.TwicePrecision{Float64}}, Tuple{Int128, Int128}, Int64}
+Tuple{Type{Base.TwicePrecision{Float64}}, Tuple{Int128, Int128}}
+Tuple{Type{Char}, UInt16}
+Tuple{Type{Int32}, SimpleDirectMediaLayer.LibSDL2.SDL_TextureAccess}
+Tuple{Type{Int32}, UInt16}
+Tuple{Type{NamedTuple{(:active,), T} where T<:Tuple}, Tuple{Int64}}
+Tuple{Type{NamedTuple{(:align,), T} where T<:Tuple}, Tuple{String}}
+Tuple{Type{NamedTuple{(:alt,), T} where T<:Tuple}, Tuple{Bool}}
+Tuple{Type{NamedTuple{(:appearance, :settings), T} where T<:Tuple}, Tuple{Bool, Bool}}
+Tuple{Type{NamedTuple{(:at_end,), T} where T<:Tuple}, Tuple{Bool}}
+Tuple{Type{NamedTuple{(:bounded,), T} where T<:Tuple}, Tuple{Bool}}
+Tuple{Type{NamedTuple{(:bounding_width, :bounding_height), T} where T<:Tuple}, Tuple{Int64, Int64}}
+Tuple{Type{NamedTuple{(:checked, :enabled), T} where T<:Tuple}, Tuple{Bool, Bool}}
+Tuple{Type{NamedTuple{(:checked,), T} where T<:Tuple}, Tuple{Bool}}
+Tuple{Type{NamedTuple{(:collapsed,), T} where T<:Tuple}, Tuple{Bool}}
+Tuple{Type{NamedTuple{(:collection, :offered_gestures), T} where T<:Tuple}, Tuple{Bool, NTuple{7, Symbol}}}
+Tuple{Type{NamedTuple{(:collection,), T} where T<:Tuple}, Tuple{Bool}}
+Tuple{Type{NamedTuple{(:cols, :rows, :col_w, :row_h, :box_w, :box_h, :shown, :truncated), T} where T<:Tuple}, Tuple{Int64, Int64, Int64, Int64, Int64, Int64, Int64, Bool}}
+Tuple{Type{NamedTuple{(:column_span,), T} where T<:Tuple}, Tuple{Int64}}
+Tuple{Type{NamedTuple{(:ctrl, :shift), T} where T<:Tuple}, Tuple{Bool, Bool}}
+Tuple{Type{NamedTuple{(:depth,), T} where T<:Tuple}, Tuple{Int64}}
+Tuple{Type{NamedTuple{(:description, :domain), T} where T<:Tuple}, Tuple{String, String}}
+Tuple{Type{NamedTuple{(:description, :domain, :name), T} where T<:Tuple}, Tuple{String, String, String}}
+Tuple{Type{NamedTuple{(:description, :variant), T} where T<:Tuple}, Tuple{String, Symbol}}
+Tuple{Type{NamedTuple{(:description,), T} where T<:Tuple}, Tuple{String}}
+Tuple{Type{NamedTuple{(:directed,), T} where T<:Tuple}, Tuple{Bool}}
+Tuple{Type{NamedTuple{(:display_mode,), T} where T<:Tuple}, Tuple{Symbol}}
+Tuple{Type{NamedTuple{(:dormant,), T} where T<:Tuple}, Tuple{Bool}}
+Tuple{Type{NamedTuple{(:draw,), T} where T<:Tuple}, Tuple{Symbol}}
+Tuple{Type{NamedTuple{(:edge_regions,), T} where T<:Tuple}, Tuple{Bool}}
+Tuple{Type{NamedTuple{(:enabled,), T} where T<:Tuple}, Tuple{Bool}}
+Tuple{Type{NamedTuple{(:expanded,), T} where T<:Tuple}, Tuple{Int64}}
+Tuple{Type{NamedTuple{(:font_scale,), T} where T<:Tuple}, Tuple{Float64}}
+Tuple{Type{NamedTuple{(:from, :to), T} where T<:Tuple}, Tuple{Symbol, Symbol}}
+Tuple{Type{NamedTuple{(:gap, :horizontal_align), T} where T<:Tuple}, Tuple{Int64, Symbol}}
+Tuple{Type{NamedTuple{(:gap,), T} where T<:Tuple}, Tuple{Int64}}
+Tuple{Type{NamedTuple{(:hidden,), T} where T<:Tuple}, Tuple{Bool}}
+Tuple{Type{NamedTuple{(:horizontal_align, :gap), T} where T<:Tuple}, Tuple{Symbol, Int64}}
+Tuple{Type{NamedTuple{(:horizontal_gap, :vertical_gap), T} where T<:Tuple}, Tuple{Int64, Int64}}
+Tuple{Type{NamedTuple{(:horizontal_gap, :vertical_gap, :horizontal_align, :vertical_align), T} where T<:Tuple}, Tuple{Int64, Int64, Symbol, Symbol}}
+Tuple{Type{NamedTuple{(:horizontal_gap, :vertical_gap, :vertical_align), T} where T<:Tuple}, Tuple{Int64, Int64, Symbol}}
+Tuple{Type{NamedTuple{(:icon, :callback), T} where T<:Tuple}, Tuple{Symbol, Nothing}}
+Tuple{Type{NamedTuple{(:icon, :tooltip), T} where T<:Tuple}, Tuple{Symbol, String}}
+Tuple{Type{NamedTuple{(:icon,), T} where T<:Tuple}, Tuple{Symbol}}
+Tuple{Type{NamedTuple{(:indentation,), T} where T<:Tuple}, Tuple{Int64}}
+Tuple{Type{NamedTuple{(:init,), T} where T<:Tuple}, Tuple{Float64}}
+Tuple{Type{NamedTuple{(:is_barrier_enabled,), T} where T<:Tuple}, Tuple{Bool}}
+Tuple{Type{NamedTuple{(:length,), T} where T<:Tuple}, Tuple{Int64}}
+Tuple{Type{NamedTuple{(:line_style, :line_width), T} where T<:Tuple}, Tuple{Symbol, Int64}}
+Tuple{Type{NamedTuple{(:map_missing,), T} where T<:Tuple}, Tuple{Bool}}
+Tuple{Type{NamedTuple{(:max_width, :horizontal_gap, :vertical_gap), T} where T<:Tuple}, Tuple{Int64, Int64, Int64}}
+Tuple{Type{NamedTuple{(:max_width, :horizontal_gap, :vertical_gap, :horizontal_align, :vertical_align), T} where T<:Tuple}, Tuple{Int64, Int64, Int64, Symbol, Symbol}}
+Tuple{Type{NamedTuple{(:maxdepth,), T} where T<:Tuple}, Tuple{Int64}}
+Tuple{Type{NamedTuple{(:min, :max), T} where T<:Tuple}, Tuple{Int64, Int64}}
+Tuple{Type{NamedTuple{(:min, :max, :step), T} where T<:Tuple}, Tuple{Int64, Int64, Int64}}
+Tuple{Type{NamedTuple{(:min_height, :preferred_height), T} where T<:Tuple}, Tuple{Int64, Int64}}
+Tuple{Type{NamedTuple{(:min_height, :preferred_height, :weight_height), T} where T<:Tuple}, Tuple{Int64, Int64, Float64}}
+Tuple{Type{NamedTuple{(:min_px,), T} where T<:Tuple}, Tuple{Int64}}
+Tuple{Type{NamedTuple{(:min_width, :preferred_width, :max_width), T} where T<:Tuple}, Tuple{Int64, Int64, Int64}}
+Tuple{Type{NamedTuple{(:mode,), T} where T<:Tuple}, Tuple{Symbol}}
+Tuple{Type{NamedTuple{(:op, :constant, :strength), T} where T<:Tuple}, Tuple{Symbol, Float64, Symbol}}
+Tuple{Type{NamedTuple{(:open, :close), T} where T<:Tuple}, Tuple{String, String}}
+Tuple{Type{NamedTuple{(:open, :close, :sep), T} where T<:Tuple}, Tuple{String, String, String}}
+Tuple{Type{NamedTuple{(:open, :close, :sep, :indent, :theme), T} where T<:Tuple}, Tuple{String, String, String, Int64, Nothing}}
+Tuple{Type{NamedTuple{(:open, :close, :sep, :indentation), T} where T<:Tuple}, Tuple{String, String, String, Int64}}
+Tuple{Type{NamedTuple{(:open_file,), T} where T<:Tuple}, Tuple{typeof(DataType)}}
+Tuple{Type{NamedTuple{(:orientation,), T} where T<:Tuple}, Tuple{Symbol}}
+Tuple{Type{NamedTuple{(:origin,), T} where T<:Tuple}, Tuple{typeof(DataType)}}
+Tuple{Type{NamedTuple{(:placeholder, :theme), T} where T<:Tuple}, Tuple{String, Nothing}}
+Tuple{Type{NamedTuple{(:position, :anchor), T} where T<:Tuple}, Tuple{Symbol, Symbol}}
+Tuple{Type{NamedTuple{(:position, :anchor, :border), T} where T<:Tuple}, Tuple{Symbol, Symbol, Bool}}
+Tuple{Type{NamedTuple{(:pressed, :enabled), T} where T<:Tuple}, Tuple{Bool, Bool}}
+Tuple{Type{NamedTuple{(:pressed,), T} where T<:Tuple}, Tuple{Bool}}
+Tuple{Type{NamedTuple{(:raise, :depwarn), T} where T<:Tuple}, Tuple{Bool, Bool}}
+Tuple{Type{NamedTuple{(:retype,), T} where T<:Tuple}, Tuple{typeof(DataType)}}
+Tuple{Type{NamedTuple{(:root,), T} where T<:Tuple}, Tuple{typeof(DataType)}}
+Tuple{Type{NamedTuple{(:rule,), T} where T<:Tuple}, Tuple{Symbol}}
+Tuple{Type{NamedTuple{(:selected, :width), T} where T<:Tuple}, Tuple{Int64, Int64}}
+Tuple{Type{NamedTuple{(:selected,), T} where T<:Tuple}, Tuple{Int64}}
+Tuple{Type{NamedTuple{(:signature, :redacted, :data), T} where T<:Tuple}, Tuple{String, Bool, String}}
+Tuple{Type{NamedTuple{(:signature,), T} where T<:Tuple}, Tuple{String}}
+Tuple{Type{NamedTuple{(:size,), T} where T<:Tuple}, Tuple{Int64}}
+Tuple{Type{NamedTuple{(:started,), T} where T<:Tuple}, Tuple{Bool}}
+Tuple{Type{NamedTuple{(:state,), T} where T<:Tuple}, Tuple{Symbol}}
+Tuple{Type{NamedTuple{(:steps, :with_part), T} where T<:Tuple}, Tuple{Tuple{}, Bool}}
+Tuple{Type{NamedTuple{(:strength,), T} where T<:Tuple}, Tuple{Symbol}}
+Tuple{Type{NamedTuple{(:symbol,), T} where T<:Tuple}, Tuple{Symbol}}
+Tuple{Type{NamedTuple{(:theme, :allows_type_in), T} where T<:Tuple}, Tuple{Nothing, Bool}}
+Tuple{Type{NamedTuple{(:theme, :bullet), T} where T<:Tuple}, Tuple{Nothing, String}}
+Tuple{Type{NamedTuple{(:timestamp, :author, :label), T} where T<:Tuple}, Tuple{Int64, String, String}}
+Tuple{Type{NamedTuple{(:timestamp, :author, :origin, :label), T} where T<:Tuple}, Tuple{Int64, String, Nothing, String}}
+Tuple{Type{NamedTuple{(:title, :content), T} where T<:Tuple}, Tuple{String, String}}
+Tuple{Type{NamedTuple{(:title, :description, :content, :footer), T} where T<:Tuple}, NTuple{4, String}}
+Tuple{Type{NamedTuple{(:tooltip,), T} where T<:Tuple}, Tuple{String}}
+Tuple{Type{NamedTuple{(:topmost_first,), T} where T<:Tuple}, Tuple{Bool}}
+Tuple{Type{NamedTuple{(:unmapped_maps_to_itself,), T} where T<:Tuple}, Tuple{Bool}}
+Tuple{Type{NamedTuple{(:user, :password), T} where T<:Tuple}, Tuple{String, String}}
+Tuple{Type{NamedTuple{(:value, :allowed_types), T} where T<:Tuple}, Tuple{String, Tuple{UnionAll}}}
+Tuple{Type{NamedTuple{(:value,), T} where T<:Tuple}, Tuple{String}}
+Tuple{Type{NamedTuple{(:variant,), T} where T<:Tuple}, Tuple{Symbol}}
+Tuple{Type{NamedTuple{(:vertical_align, :gap), T} where T<:Tuple}, Tuple{Symbol, Int64}}
+Tuple{Type{NamedTuple{(:visible,), T} where T<:Tuple}, Tuple{Bool}}
+Tuple{Type{NamedTuple{(:w, :h), T} where T<:Tuple}, Tuple{Int64, Int64}}
+Tuple{Type{NamedTuple{(:width, :enabled), T} where T<:Tuple}, Tuple{Int64, Bool}}
+Tuple{Type{NamedTuple{(:width, :height), T} where T<:Tuple}, Tuple{Int64, Int64}}
+Tuple{Type{NamedTuple{(:width, :rows), T} where T<:Tuple}, Tuple{Int64, Int64}}
+Tuple{Type{NamedTuple{(:width,), T} where T<:Tuple}, Tuple{Int64}}
+Tuple{Type{NamedTuple{(:x, :y, :w, :h), T} where T<:Tuple}, NTuple{4, Float64}}
+Tuple{Type{Pair{A, B} where B where A}, String, Function}
+Tuple{Type{Ptr{SimpleDirectMediaLayer.LibSDL2.SDL_Cursor}}, Ptr{Nothing}}
+Tuple{Type{Ptr{SimpleDirectMediaLayer.LibSDL2.SDL_Texture}}, Ptr{Nothing}}
+Tuple{Type{Ptr{SimpleDirectMediaLayer.LibSDL2._TTF_Font}}, Ptr{Nothing}}
+Tuple{Type{SimpleDirectMediaLayer.LibSDL2.SDL_Color}, Vararg{UInt8, 4}}
+Tuple{Type{SimpleDirectMediaLayer.LibSDL2.SDL_FPoint}, Float32, Float32}
+Tuple{Type{Tuple}, Tuple{Int64, Int64}}
+Tuple{Type{UInt32}, SimpleDirectMediaLayer.LibSDL2.SDL_PixelFormatEnum}
+Tuple{Type{UInt32}, SimpleDirectMediaLayer.LibSDL2.SDL_WindowFlags}
+Tuple{Type{UInt8}, Int32}
+Tuple{typeof(Artifacts.__artifact_str), Module, String, Base.SubString{String}, String, Base.Dict{String, Any}, Base.SHA1, Base.BinaryPlatforms.Platform, Base.Val{Pkg}}
+Tuple{typeof(Artifacts._artifact_str), Module, String, Base.SubString{String}, String, Base.Dict{String, Any}, Base.SHA1, Base.BinaryPlatforms.Platform, Base.Val{Pkg}}
+Tuple{typeof(Base.:(!=)), NTuple{4, UInt8}, NTuple{4, UInt8}}
+Tuple{typeof(Base.:(!=)), Symbol, Symbol}
+Tuple{typeof(Base.:(*)), Int128, Int64}
+Tuple{typeof(Base.:(*)), Int64, Base.Irrational{:π}}
+Tuple{typeof(Base.:(*)), String, Base.SubString{String}}
+Tuple{typeof(Base.:(*)), String, String, String, String, String, String, Vararg{String}}
+Tuple{typeof(Base.:(*)), Vararg{String, 4}}
+Tuple{typeof(Base.:(*)), Vararg{String, 5}}
+Tuple{typeof(Base.:(+)), Int64, Float64}
+Tuple{typeof(Base.:(+)), Vararg{Int64, 4}}
+Tuple{typeof(Base.:(+)), Vararg{Int64, 5}}
+Tuple{typeof(Base.:(-)), Float64, Int64}
+Tuple{typeof(Base.:(-)), Int64, Float64}
+Tuple{typeof(Base.:(/)), UInt8, Int64}
+Tuple{typeof(Base.:(<)), Int64, Int32}
+Tuple{typeof(Base.:(<<)), UInt8, Int64}
+Tuple{typeof(Base.:(<=)), Float64, Float32}
+Tuple{typeof(Base.:(<=)), UInt8, UInt64}
+Tuple{typeof(Base.:(>)), Float64, Float64}
+Tuple{typeof(Base.:(>)), Float64, Int64}
+Tuple{typeof(Base.:(>)), Int64}
+Tuple{typeof(Base.:(>=)), Int64, Int32}
+Tuple{typeof(Base.:(^)), String, Int64}
+Tuple{typeof(Base.:(var"==")), Int64}
+Tuple{typeof(Base.:(var"==")), JSON.JSONTypes.T, JSON.JSONTypes.T}
+Tuple{typeof(Base.:(var"==")), Method, Method}
+Tuple{typeof(Base.:(|)), SimpleDirectMediaLayer.LibSDL2.SDL_RendererFlags, SimpleDirectMediaLayer.LibSDL2.SDL_RendererFlags}
+Tuple{typeof(Base.Broadcast._broadcast_getindex), Int64, Int64}
+Tuple{typeof(Base.Broadcast._getindex), Tuple{Int64}, Int64}
+Tuple{typeof(Base.Broadcast.broadcast_shape), Tuple{}, Tuple{Base.OneTo{Int64}}}
+Tuple{typeof(Base.Broadcast.broadcastable), Type{Int64}}
+Tuple{typeof(Base.Broadcast.broadcasted), Base.Broadcast.Style{Tuple}, typeof(Base.round), Base.RefValue{Type{Int64}}, Tuple{Float64, Float64}}
+Tuple{typeof(Base.Broadcast.broadcasted), Type{Float64}, Array{Float64, 1}}
+Tuple{typeof(Base.Broadcast.broadcasted), Type{Float64}, Array{Int64, 1}}
+Tuple{typeof(Base.Broadcast.broadcasted), typeof(Base.:(+)), Int64, Base.UnitRange{Int64}}
+Tuple{typeof(Base.Broadcast.broadcasted), typeof(Base.round), Type, Tuple{Float64, Float64}}
+Tuple{typeof(Base.Broadcast.copyto_nonleaf!), Array{String, 1}, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Tuple{Base.OneTo{Int64}}, typeof(Base.string), Tuple{Base.Broadcast.Extruded{Array{Any, 1}, Tuple{Bool}, Tuple{Int64}}}}, Base.OneTo{Int64}, Int64, Int64}
+Tuple{typeof(Base.Broadcast.materialize), Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, Type{Float64}, Tuple{Array{Float64, 1}}}}
+Tuple{typeof(Base.Broadcast.materialize), Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Nothing, Type{Float64}, Tuple{Array{Int64, 1}}}}
+Tuple{typeof(Base.Broadcast.materialize), Base.Broadcast.Broadcasted{Base.Broadcast.Style{Tuple}, Nothing, typeof(Base.round), Tuple{Base.RefValue{Type{Int64}}, Tuple{Float64, Float64}}}}
+Tuple{typeof(Base.Broadcast.materialize), Base.UnitRange{Int64}}
+Tuple{typeof(Base.CoreLogging.shouldlog), Base.CoreLogging.ConsoleLogger, Base.CoreLogging.LogLevel, Module, Symbol, Symbol}
+Tuple{typeof(Base.CoreLogging.showvalue), Base.IOContext{Base.GenericIOBuffer{Memory{UInt8}}}, Bool}
+Tuple{typeof(Base.CoreLogging.showvalue), Base.IOContext{Base.GenericIOBuffer{Memory{UInt8}}}, String}
+Tuple{typeof(Base.Filesystem.basename), String}
+Tuple{typeof(Base.Iterators._zip_iterate_all), Tuple{Array{Float64, 1}, Array{Int64, 1}}, Tuple{Tuple{Int64}, Tuple{Int64}}}
+Tuple{typeof(Base.Iterators._zip_iterate_all), Tuple{Array{Float64, 1}, Array{Int64, 1}}, Tuple{Tuple{}, Tuple{}}}
+Tuple{typeof(Base.Iterators.enumerate), Array{Array{String, 1}, 1}}
+Tuple{typeof(Base.Iterators.enumerate), Array{Base.SubString{String}, 1}}
+Tuple{typeof(Base.Iterators.enumerate), Array{Base.UnitRange{Int64}, 1}}
+Tuple{typeof(Base.Iterators.enumerate), Array{Tuple{Int64, Int64, Int64}, 1}}
+Tuple{typeof(Base.Iterators.enumerate), Base.EachStringIndex{String}}
+Tuple{typeof(Base.Iterators.enumerate), NTuple{4, Symbol}}
+Tuple{typeof(Base.Iterators.zip), Array{Float64, 1}, Array{Int64, 1}}
+Tuple{typeof(Base.Math.hypot), Float64, Float64}
+Tuple{typeof(Base.Order.lt), Base.Order.ForwardOrdering, String, String}
+Tuple{typeof(Base.Sort.searchsortedlast), Array{Float64, 1}, Float64}
+Tuple{typeof(Base._all), Base.Fix{2, typeof(Base.:(>)), Int64}, Tuple{Int64, Int64}, Base.Colon}
+Tuple{typeof(Base._array_for), Type{Float64}, Array{Int64, 1}, Base.HasShape{1}}
+Tuple{typeof(Base._array_for), Type{Float64}, Base.UnitRange{Int64}, Base.HasShape{1}}
+Tuple{typeof(Base._array_for), Type{Int64}, Array{String, 1}, Base.HasShape{1}}
+Tuple{typeof(Base._array_for), Type{String}, Array{Int64, 1}, Base.HasShape{1}}
+Tuple{typeof(Base._array_for), Type{Symbol}, Base.UnitRange{Int64}, Base.HasShape{1}}
+Tuple{typeof(Base._array_for), Type{Union{Nothing, Int64}}, Base.UnitRange{Int64}, Base.HasShape{1}}
+Tuple{typeof(Base._array_for_inner), Type{Array{String, 1}}, Base.HasShape{1}, Tuple{Base.OneTo{Int64}}}
+Tuple{typeof(Base._array_for_inner), Type{String}, Base.HasLength, Int64}
+Tuple{typeof(Base._array_for_inner), Type{String}, Base.HasShape{1}, Tuple{Base.OneTo{Int64}}}
+Tuple{typeof(Base._cshp), Int64, Tuple{Bool}, Tuple{}, Tuple{Int64}}
+Tuple{typeof(Base._mapreduce), typeof(Base.first), typeof(Base.max), Base.IndexLinear, Array{Tuple{Int64, Int64, Int64}, 1}}
+Tuple{typeof(Base._new_NamedTuple), Type{NamedTuple{(:signature,), Tuple{String}}}, Tuple{String}}
+Tuple{typeof(Base._nthbyte), Base.CodeUnits{UInt8, String}, Int64}
+Tuple{typeof(Base._pat_replacer), String}
+Tuple{typeof(Base._unique!), typeof(Base.identity), Array{Type, 1}, Base.Set{Type}, Int64, Int64}
+Tuple{typeof(Base._unique!), typeof(Base.identity), Array{Type, 1}, Base.Set{UnionAll}, Int64, Int64}
+Tuple{typeof(Base.abs), UInt64}
+Tuple{typeof(Base.add_sum), Int64, Int64}
+Tuple{typeof(Base.all), Function, Base.UnitRange{Int64}}
+Tuple{typeof(Base.all), Function, Tuple{Int64, Int64}}
+Tuple{typeof(Base.any), Array{Bool, 1}}
+Tuple{typeof(Base.between), UInt8, UInt8, UInt8}
+Tuple{typeof(Base.cconvert), Type{Float32}, Float32}
+Tuple{typeof(Base.cconvert), Type{Ptr{Int32}}, Ptr{Nothing}}
+Tuple{typeof(Base.cconvert), Type{Ptr{SimpleDirectMediaLayer.LibSDL2.SDL_Rect}}, Ptr{Nothing}}
+Tuple{typeof(Base.cconvert), Type{Ptr{SimpleDirectMediaLayer.LibSDL2.SDL_Texture}}, Ptr{Nothing}}
+Tuple{typeof(Base.cconvert), Type{Ptr{SimpleDirectMediaLayer.LibSDL2.SDL_Texture}}, Ptr{SimpleDirectMediaLayer.LibSDL2.SDL_Texture}}
+Tuple{typeof(Base.cconvert), Type{Ptr{UInt32}}, Ptr{Nothing}}
+Tuple{typeof(Base.cconvert), Type{Ptr{UInt8}}, Base.CodeUnits{UInt8, String}}
+Tuple{typeof(Base.cconvert), Type{SimpleDirectMediaLayer.LibSDL2.SDL_BlendMode}, SimpleDirectMediaLayer.LibSDL2.SDL_BlendMode}
+Tuple{typeof(Base.cconvert), Type{SimpleDirectMediaLayer.LibSDL2.SDL_Color}, SimpleDirectMediaLayer.LibSDL2.SDL_Color}
+Tuple{typeof(Base.cconvert), Type{SimpleDirectMediaLayer.LibSDL2.SDL_SystemCursor}, SimpleDirectMediaLayer.LibSDL2.SDL_SystemCursor}
+Tuple{typeof(Base.clamp), Float64, Float64, Float64}
+Tuple{typeof(Base.clamp), Int64, Int64, Int64}
+Tuple{typeof(Base.collect), Array{Int64, 1}}
+Tuple{typeof(Base.collect), Base.UnitRange{Int64}}
+Tuple{typeof(Base.collect), Core.SimpleVector}
+Tuple{typeof(Base.collect), NTuple{4, Int64}}
+Tuple{typeof(Base.collect_similar), Array{Any, 1}, Base.Generator{Array{Any, 1}, typeof(Base.string)}}
+Tuple{typeof(Base.collect_to_with_first!), Array{String, 1}, String, Base.Generator{Array{Any, 1}, typeof(Base.string)}, Int64}
+Tuple{typeof(Base.convert), Type{Base.Set{Type}}, Base.Set{UnionAll}}
+Tuple{typeof(Base.convert), Type{Ptr{SimpleDirectMediaLayer.LibSDL2.SDL_Texture}}, Ptr{Nothing}}
+Tuple{typeof(Base.copy), Base.IdDict{Any, Bool}}
+Tuple{typeof(Base.count), Function, String}
+Tuple{typeof(Base.delete!), Base.Dict{Any, Any}, Tuple{UInt64, Int64, Int64, Symbol}}
+Tuple{typeof(Base.delete!), Base.Dict{Any, Any}, Tuple{UInt64, Int64, Int64}}
+Tuple{typeof(Base.eachindex), Array{String, 1}}
+Tuple{typeof(Base.eachindex), String}
+Tuple{typeof(Base.eachmatch), Base.Regex, String}
+Tuple{typeof(Base.empty), Base.Dict{Any, Any}, Type{String}, Type{String}}
+Tuple{typeof(Base.exp10), Int64}
+Tuple{typeof(Base.fill), Float64, Int64}
+Tuple{typeof(Base.findfirst), Function, Array{Int64, 1}}
+Tuple{typeof(Base.findfirst), Function, Array{Pair{Any, Any}, 1}}
+Tuple{typeof(Base.findfirst), Function, Array{String, 1}}
+Tuple{typeof(Base.findfirst), Function, Tuple{Int64, Int64}}
+Tuple{typeof(Base.findlast), Function, Array{Any, 1}}
+Tuple{typeof(Base.findnext), Base.Fix{2, typeof(Base.:(var"==")), Int64}, Array{Int64, 1}, Int64}
+Tuple{typeof(Base.findnext), Base.Fix{2, typeof(Base.:(var"==")), String}, Array{String, 1}, Int64}
+Tuple{typeof(Base.first), NTuple{4, Symbol}}
+Tuple{typeof(Base.first), Pair{Base.Regex, String}}
+Tuple{typeof(Base.first), Pair{String, String}}
+Tuple{typeof(Base.first), Pair{Type, Any}}
+Tuple{typeof(Base.first), Tuple{Symbol, Symbol, Symbol}}
+Tuple{typeof(Base.first), Tuple{Symbol, Symbol}}
+Tuple{typeof(Base.first), Tuple{Symbol}}
+Tuple{typeof(Base.get), Base.Dict{Any, Any}, Tuple{UInt64, Int64, Int64, Symbol}, Nothing}
+Tuple{typeof(Base.get), Base.Dict{Any, Any}, Tuple{UInt64, Int64, Int64}, Nothing}
+Tuple{typeof(Base.get), Base.Dict{Array{Int64, 1}, Int64}, Array{Int64, 1}, Int64}
+Tuple{typeof(Base.get), Base.Dict{Array{Int64, 1}, Int64}, Array{Int64, 1}, Nothing}
+Tuple{typeof(Base.get), Base.Dict{Int64, Float64}, Int64, Nothing}
+Tuple{typeof(Base.get), Base.Dict{Type, Any}, Type, Nothing}
+Tuple{typeof(Base.get), Base.Dict{UInt64, Array{Tuple{Int64, Int64}, 1}}, UInt64, Array{Tuple{Int64, Int64}, 1}}
+Tuple{typeof(Base.get), Base.Dict{UInt64, NTuple{4, Int64}}, UInt64, NTuple{4, Int64}}
+Tuple{typeof(Base.get), Base.EnvDict, String, Nothing}
+Tuple{typeof(Base.get), Base.IdDict{Any, Any}, Any, Any}
+Tuple{typeof(Base.get), NamedTuple{(), Tuple{}}, Symbol, Bool}
+Tuple{typeof(Base.get), NamedTuple{(), Tuple{}}, Symbol, NTuple{7, Symbol}}
+Tuple{typeof(Base.get), NamedTuple{(:background, :foreground, :card, :card_foreground, :popover, :popover_foreground, :muted, :muted_foreground, :primary, :primary_foreground, :secondary, :secondary_foreground, :accent, :accent_foreground, :destructive, :destructive_foreground, :border, :input, :ring, :track_off, :shadow, :scrim, :selection_ring, :knob, :font, :font_bold, :font_small, :control_padding, :container_padding, :compact_padding, :item_gap, :title_gap, :label_gap, :section_gap, :bar_gap, :indent, :radius, :radius_small, :border_width, :stroke, :ring_width, :indicator_size, :indicator_dot, :switch_track, :switch_knob_padding, :slider_height, :slider_track, :slider_knob, :progress_height, :scroll_bar_thickness, :scroll_thumb_minimum, :chevron, :tree_chevron_column, :tree_icon_column), NTuple{54, String}}, Symbol, Nothing}
+Tuple{typeof(Base.getindex), Array{Base.SubString{String}, 1}, Int64}
+Tuple{typeof(Base.getindex), Array{Base.UnitRange{Int64}, 1}, Int64}
+Tuple{typeof(Base.getindex), Array{Expr, 1}, Int64}
+Tuple{typeof(Base.getindex), Array{Float64, 1}, Base.UnitRange{Int64}}
+Tuple{typeof(Base.getindex), Array{Float64, 1}, Int64}
+Tuple{typeof(Base.getindex), Array{NTuple{4, Int64}, 1}, Int64}
+Tuple{typeof(Base.getindex), Array{NamedTuple{names, T} where T<:Tuple where names, 1}, Int64}
+Tuple{typeof(Base.getindex), Array{Tuple{Int64, Int64, Int64}, 1}, Int64}
+Tuple{typeof(Base.getindex), Base.Dict{Int64, Float64}, Int64}
+Tuple{typeof(Base.getindex), Base.IdDict{Any, Any}, Any}
+Tuple{typeof(Base.getindex), Int32}
+Tuple{typeof(Base.getindex), NamedTuple{(:cox, :coy, :pad, :height, :strip_w, :tabs, :new_x, :new_w, :line), Tuple{Int64, Int64, Int64, Int64, Int64, Array{Any, 1}, Int64, Int64, Int64}}, Int64}
+Tuple{typeof(Base.getindex), Type{Pair{Type, Any}}, Pair{Type, Any}, Pair{Type, Any}, Pair{Type, Any}, Pair{Type, Any}, Vararg{Pair{Type, Any}}}
+Tuple{typeof(Base.getindex), Type{Pair{Type, Any}}}
+Tuple{typeof(Base.getproperty), Base.CodeUnits{UInt8, String}, Symbol}
+Tuple{typeof(Base.getproperty), Base.Docs.DocStr, Symbol}
+Tuple{typeof(Base.getproperty), Base.KeySet{Symbol, Base.Dict{Symbol, Any}}, Symbol}
+Tuple{typeof(Base.getproperty), Base.MappingRF{Base.var"#_typed_hvncat##4#_typed_hvncat##5", Base.BottomRF{typeof(Base.max)}}, Symbol}
+Tuple{typeof(Base.getproperty), Base.MappingRF{Base.var"#_typed_hvncat##6#_typed_hvncat##7", Base.BottomRF{typeof(Base.max)}}, Symbol}
+Tuple{typeof(Base.getproperty), Base.MappingRF{SentinelArrays.var"#39#40"{typeof(Base.first), typeof(Base.max)}, Base.BottomRF{typeof(Base.max)}}, Symbol}
+Tuple{typeof(Base.getproperty), Base.MappingRF{typeof(Base.first), typeof(Base.add_sum)}, Symbol}
+Tuple{typeof(Base.getproperty), Base.MappingRF{typeof(Base.first), typeof(Base.max)}, Symbol}
+Tuple{typeof(Base.getproperty), Base.MappingRF{typeof(Base.identity), typeof(Base.mul_prod)}, Symbol}
+Tuple{typeof(Base.getproperty), Base.MappingRF{typeof(Base.last), typeof(Base.add_sum)}, Symbol}
+Tuple{typeof(Base.getproperty), Base.Set{Char}, Symbol}
+Tuple{typeof(Base.getproperty), Base.Set{String}, Symbol}
+Tuple{typeof(Base.getproperty), Base.ValueIterator{Base.Dict{Tuple{String, Int64}, Ptr{SimpleDirectMediaLayer.LibSDL2._TTF_Font}}}, Symbol}
+Tuple{typeof(Base.getproperty), NamedTuple{(:cox, :coy, :menu_h, :tool_h, :content_y, :status_h), NTuple{6, Int64}}, Symbol}
+Tuple{typeof(Base.getproperty), NamedTuple{(:cox, :coy, :pad, :height, :strip_w, :tabs, :new_x, :new_w, :line), Tuple{Int64, Int64, Int64, Int64, Int64, Array{Any, 1}, Int64, Int64, Int64}}, Symbol}
+Tuple{typeof(Base.getproperty), NamedTuple{(:cursor, :highlight), Tuple{Nothing, Array{NTuple{4, Int64}, 1}}}, Symbol}
+Tuple{typeof(Base.getproperty), NamedTuple{(:cursor, :highlight), Tuple{Tuple{Int64, Int64, Int64}, Array{NTuple{4, Int64}, 1}}}, Symbol}
+Tuple{typeof(Base.getproperty), NamedTuple{(:elements, :child_iomaps), Tuple{Array{Any, 1}, Array{Any, 1}}}, Symbol}
+Tuple{typeof(Base.getproperty), NamedTuple{(:menu_bar, :toolbar, :content, :status_bar), NTuple{4, Int64}}, Symbol}
+Tuple{typeof(Base.getproperty), NamedTuple{(:state, :hint, :extension), Tuple{Symbol, String, String}}, Symbol}
+Tuple{typeof(Base.getproperty), NamedTuple{(:w, :h, :elements, :child_iomaps), Tuple{Int64, Int64, Array{Any, 1}, Array{Any, 1}}}, Symbol}
+Tuple{typeof(Base.getproperty), NamedTuple{(:width, :elements), Tuple{Int64, Array{Any, 1}}}, Symbol}
+Tuple{typeof(Base.getproperty), NamedTuple{(:width, :height, :elements), Tuple{Int64, Int64, Array{Any, 1}}}, Symbol}
+Tuple{typeof(Base.getproperty), NamedTuple{(:width, :height, :elements, :child_iomaps), Tuple{Int64, Int64, Array{Any, 1}, Array{Any, 1}}}, Symbol}
+Tuple{typeof(Base.getproperty), NamedTuple{(:width, :height, :elements, :header_bounds, :body_entry, :headers), Tuple{Int64, Int64, Array{Any, 1}, Array{Tuple{Int64, Int64}, 1}, Nothing, Array{Any, 1}}}, Symbol}
+Tuple{typeof(Base.getproperty), NamedTuple{(:width, :height, :elements, :row_bounds), Tuple{Int64, Int64, Array{Any, 1}, Array{Tuple{Int64, Int64}, 1}}}, Symbol}
+Tuple{typeof(Base.getproperty), NamedTuple{(:width, :height, :elements, :segment_widths), Tuple{Int64, Int64, Array{Any, 1}, Array{Int64, 1}}}, Symbol}
+Tuple{typeof(Base.getproperty), NamedTuple{(:width, :height, :inset_width, :inset_height, :enabled, :elements, :child_iomaps), Tuple{Int64, Int64, Int64, Int64, Bool, Array{Any, 1}, Array{Any, 1}}}, Symbol}
+Tuple{typeof(Base.getproperty), NamedTuple{(:width, :height, :row_height, :elements, :rows), Tuple{Int64, Int64, Int64, Array{Any, 1}, Array{Any, 1}}}, Symbol}
+Tuple{typeof(Base.getproperty), NamedTuple{(:width, :height, :stepper_w, :elements), Tuple{Int64, Int64, Int64, Array{Any, 1}}}, Symbol}
+Tuple{typeof(Base.getproperty), NamedTuple{(:x, :y, :width, :height, :elements), Tuple{Int64, Int64, Int64, Int64, Array{Any, 1}}}, Symbol}
+Tuple{typeof(Base.getproperty), Pair{Base.Regex, String}, Symbol}
+Tuple{typeof(Base.getproperty), Pair{String, String}, Symbol}
+Tuple{typeof(Base.hash), Array{Tuple{Int64, Int64}, 1}, UInt64}
+Tuple{typeof(Base.hash), Tuple{Array{UInt8, 1}, Int32, Int32}, UInt64}
+Tuple{typeof(Base.hash), Tuple{Int64, Int64}, UInt64}
+Tuple{typeof(Base.hashindex), Tuple{UInt64, Int64, Int64}, Int64}
+Tuple{typeof(Base.hashindex), Tuple{UInt64, Int64, Symbol}, Int64}
+Tuple{typeof(Base.hashindex), Tuple{UInt64, Symbol, UInt64, Int64}, Int64}
+Tuple{typeof(Base.hashindex), Tuple{UInt64, Symbol, UInt64}, Int64}
+Tuple{typeof(Base.haskey), Base.Dict{Int64, Float64}, Int64}
+Tuple{typeof(Base.haskey), Base.IdDict{Any, Bool}, Array{Any, 1}}
+Tuple{typeof(Base.haskey), Base.IdDict{Any, Bool}, Array{Float64, 1}}
+Tuple{typeof(Base.haskey), Base.IdDict{Any, Bool}, Array{Int64, 1}}
+Tuple{typeof(Base.haskey), Base.IdDict{Any, Bool}, Array{String, 1}}
+Tuple{typeof(Base.haskey), Base.IdDict{Any, Bool}, Array{Symbol, 1}}
+Tuple{typeof(Base.haskey), Base.IdDict{Any, Bool}, Array{Tuple{Int64, Int64}, 1}}
+Tuple{typeof(Base.haskey), Base.Pairs{Symbol, Any, Nothing, NamedTuple{(:driver, :accelerated), Tuple{String, Bool}}}, Symbol}
+Tuple{typeof(Base.in), Array{Int64, 1}, Base.Set{Array{Int64, 1}}}
+Tuple{typeof(Base.in), Int64, Base.Set{Int64}}
+Tuple{typeof(Base.in), Pair{Module, NTuple{7, Symbol}}, Array{Any, 1}}
+Tuple{typeof(Base.in), String, Array{String, 1}}
+Tuple{typeof(Base.in), String, NTuple{5, String}}
+Tuple{typeof(Base.in), String, Tuple{String, String, String}}
+Tuple{typeof(Base.in), String, Tuple{String, String}}
+Tuple{typeof(Base.in), Symbol, NTuple{7, Symbol}}
+Tuple{typeof(Base.in), Tuple{Int64, Int64}, Base.Set{Tuple{Int64, Int64}}}
+Tuple{typeof(Base.in), Tuple{UInt64, Int64, Int64, Symbol}, Base.Set{Any}}
+Tuple{typeof(Base.in), Tuple{UInt64, Int64, Int64}, Base.Set{Any}}
+Tuple{typeof(Base.in), Tuple{UInt64, Int64, Symbol}, Base.Set{Any}}
+Tuple{typeof(Base.in), Tuple{UInt64, Symbol, UInt64, Int64}, Base.Set{Any}}
+Tuple{typeof(Base.in), Tuple{UInt64, Symbol, UInt64}, Base.Set{Any}}
+Tuple{typeof(Base.in), Type, NTuple{4, UnionAll}}
+Tuple{typeof(Base.indexed_iterate), NTuple{4, Int64}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), NTuple{4, Int64}, Int64}
+Tuple{typeof(Base.indexed_iterate), Pair{Int64, Symbol}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Pair{Int64, Symbol}, Int64}
+Tuple{typeof(Base.indexed_iterate), Pair{String, String}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Pair{String, String}, Int64}
+Tuple{typeof(Base.indexed_iterate), Pair{Symbol, String}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Pair{Symbol, String}, Int64}
+Tuple{typeof(Base.indexed_iterate), Pair{Symbol, UInt16}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Pair{Symbol, UInt16}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{Base.Dict{UInt64, NTuple{4, Int64}}, Base.Dict{UInt64, Array{Tuple{Int64, Int64}, 1}}, Symbol}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{Base.Dict{UInt64, NTuple{4, Int64}}, Base.Dict{UInt64, Array{Tuple{Int64, Int64}, 1}}, Symbol}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{Float64, Float64, Float64, Int64}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{Float64, Float64, Float64, Int64}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{Int64, Array{Any, 1}}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{Int64, Array{Any, 1}}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{Nothing, Nothing}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{String, Int64}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{String, Int64}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{String, Nothing, Int64, Int64, Int64, Int64, Int64, Symbol}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{String, Nothing, Int64, Int64, Int64, Int64, Int64, Symbol}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{String, Symbol, Int64, Int64, Int64, Int64, Int64, Symbol}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{String, Symbol, Int64, Int64, Int64, Int64, Int64, Symbol}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{Tuple{}, Base._InitialValue}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{Tuple{}, Base._InitialValue}, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{UInt64, Bool}, Int64, Int64}
+Tuple{typeof(Base.indexed_iterate), Tuple{UInt64, Bool}, Int64}
+Tuple{typeof(Base.isempty), Array{Tuple{Int64, Int64, Int64}, 1}}
+Tuple{typeof(Base.isequal), Tuple{Float64, Float64}, Tuple{Float64, Float64}}
+Tuple{typeof(Base.isequal), Tuple{UInt64, Int64, Int64}, Tuple{UInt64, Int64, Int64}}
+Tuple{typeof(Base.isequal), Tuple{UInt64, Int64, Symbol}, Tuple{UInt64, Int64, Symbol}}
+Tuple{typeof(Base.isequal), Tuple{UInt64, Symbol, UInt64, Int64}, Tuple{UInt64, Symbol, UInt64, Int64}}
+Tuple{typeof(Base.isequal), Tuple{UInt64, Symbol, UInt64}, Tuple{UInt64, Symbol, UInt64}}
+Tuple{typeof(Base.isequal), UInt8}
+Tuple{typeof(Base.isfinite), Float64}
+Tuple{typeof(Base.isopen), Base.GenericIOBuffer{Memory{UInt8}}}
+Tuple{typeof(Base.issorted), Array{String, 1}, Base.Order.ReverseOrdering{Base.Order.ForwardOrdering}}
+Tuple{typeof(Base.iszero), Float64}
+Tuple{typeof(Base.iterate), Array{Pair{Int64, Symbol}, 1}, Int64}
+Tuple{typeof(Base.iterate), Array{Pair{Int64, Symbol}, 1}}
+Tuple{typeof(Base.iterate), Array{Pair{Type, Any}, 1}, Int64}
+Tuple{typeof(Base.iterate), Array{Pair{Type, Any}, 1}}
+Tuple{typeof(Base.iterate), Array{Tuple{Array{Int64, 1}, Any}, 1}, Int64}
+Tuple{typeof(Base.iterate), Array{Tuple{Array{Int64, 1}, Any}, 1}}
+Tuple{typeof(Base.iterate), Array{Tuple{Float64, Float64, Float64, Int64}, 1}, Int64}
+Tuple{typeof(Base.iterate), Array{Tuple{Float64, Float64, Float64, Int64}, 1}}
+Tuple{typeof(Base.iterate), Array{Tuple{Int64, Int64}, 1}, Int64}
+Tuple{typeof(Base.iterate), Array{Tuple{Int64, Int64}, 1}}
+Tuple{typeof(Base.iterate), Array{Type, 1}, Int64}
+Tuple{typeof(Base.iterate), Array{Type, 1}}
+Tuple{typeof(Base.iterate), Base.EachStringIndex{String}, Int64}
+Tuple{typeof(Base.iterate), Base.EachStringIndex{String}}
+Tuple{typeof(Base.iterate), Base.Iterators.Enumerate{Array{Any, 1}}, Tuple{Int64}}
+Tuple{typeof(Base.iterate), Base.Iterators.Enumerate{Array{Array{String, 1}, 1}}, Tuple{Int64, Int64}}
+Tuple{typeof(Base.iterate), Base.Iterators.Enumerate{Array{Array{String, 1}, 1}}, Tuple{Int64}}
+Tuple{typeof(Base.iterate), Base.Iterators.Enumerate{Array{Base.UnitRange{Int64}, 1}}, Tuple{Int64, Int64}}
+Tuple{typeof(Base.iterate), Base.Iterators.Enumerate{Array{Base.UnitRange{Int64}, 1}}, Tuple{Int64}}
+Tuple{typeof(Base.iterate), Base.Iterators.Enumerate{Array{Tuple{Int64, Int64, Int64}, 1}}, Tuple{Int64, Int64}}
+Tuple{typeof(Base.iterate), Base.Iterators.Enumerate{Array{Tuple{Int64, Int64, Int64}, 1}}, Tuple{Int64}}
+Tuple{typeof(Base.iterate), Base.Iterators.Enumerate{NTuple{4, Symbol}}, Tuple{Int64, Int64}}
+Tuple{typeof(Base.iterate), Base.Iterators.Enumerate{NTuple{4, Symbol}}}
+Tuple{typeof(Base.iterate), Base.StepRangeLen{Float64, Base.TwicePrecision{Float64}, Base.TwicePrecision{Float64}, Int64}, Int64}
+Tuple{typeof(Base.iterate), Base.StepRangeLen{Float64, Base.TwicePrecision{Float64}, Base.TwicePrecision{Float64}, Int64}}
+Tuple{typeof(Base.iterate), Float64}
+Tuple{typeof(Base.join), Array{String, 1}, String}
+Tuple{typeof(Base.join), Array{String, 1}}
+Tuple{typeof(Base.last), Pair{Base.Regex, String}}
+Tuple{typeof(Base.last), Pair{String, String}}
+Tuple{typeof(Base.last), Pair{Type, Any}}
+Tuple{typeof(Base.last_byteindex), Base.CodeUnits{UInt8, String}}
+Tuple{typeof(Base.lastindex), Base.CodeUnits{UInt8, String}}
+Tuple{typeof(Base.length), Array{Base.UnitRange{Int64}, 1}}
+Tuple{typeof(Base.length), Array{Float64, 1}}
+Tuple{typeof(Base.length), Array{NTuple{4, Int64}, 1}}
+Tuple{typeof(Base.length), Array{NamedTuple{names, T} where T<:Tuple where names, 1}}
+Tuple{typeof(Base.length), Array{String, 1}}
+Tuple{typeof(Base.length), Array{Tuple{Float64, Float64}, 1}}
+Tuple{typeof(Base.length), Base.StepRangeLen{Float64, Base.TwicePrecision{Float64}, Base.TwicePrecision{Float64}, Int64}}
+Tuple{typeof(Base.map), Base.var"#_replace_init##0#_replace_init##1", Tuple{Pair{String, String}}}
+Tuple{typeof(Base.map), typeof(Base.last), Tuple{Pair{Base.Regex, String}}}
+Tuple{typeof(Base.map), typeof(Base.last), Tuple{Pair{String, String}}}
+Tuple{typeof(Base.mapfoldl_impl), Base.var"#_bool##0#_bool##1"{Base.Fix{2, typeof(Base.:(var"==")), Char}}, typeof(Base.add_sum), Int64, String}
+Tuple{typeof(Base.maximum), Array{Int64, 1}}
+Tuple{typeof(Base.maximum), Function, Array{Tuple{Int64, Int64, Int64}, 1}}
+Tuple{typeof(Base.merge), NamedTuple{(), Tuple{}}, Base.Pairs{Symbol, Float64, Nothing, NamedTuple{(:init,), Tuple{Float64}}}}
+Tuple{typeof(Base.merge), NamedTuple{(), Tuple{}}, Base.Pairs{Symbol, String, Nothing, NamedTuple{(:open, :close), Tuple{String, String}}}}
+Tuple{typeof(Base.merge), NamedTuple{(), Tuple{}}, Base.Pairs{Symbol, String, Nothing, NamedTuple{(:signature,), Tuple{String}}}}
+Tuple{typeof(Base.merge), NamedTuple{(), Tuple{}}, NamedTuple{(:open, :close), Tuple{String, String}}}
+Tuple{typeof(Base.merge), NamedTuple{(), Tuple{}}, NamedTuple{(:signature,), Tuple{String}}}
+Tuple{typeof(Base.merge), NamedTuple{(:theme, :allows_type_in), Tuple{Nothing, Bool}}, Tuple{}}
+Tuple{typeof(Base.merge), NamedTuple{(:theme,), Tuple{Nothing}}, Tuple{}}
+Tuple{typeof(Base.minimum), Array{Int64, 1}}
+Tuple{typeof(Base.nbitslen), Type{Float64}, Int64, Int64}
+Tuple{typeof(Base.occursin), Char, String}
+Tuple{typeof(Base.pairs), NamedTuple{(:button,), Tuple{Symbol}}}
+Tuple{typeof(Base.pairs), NamedTuple{(:char,), Tuple{Char}}}
+Tuple{typeof(Base.pairs), NamedTuple{(:driver, :accelerated), Tuple{String, Bool}}}
+Tuple{typeof(Base.pairs), NamedTuple{(:indentation,), Tuple{Int64}}}
+Tuple{typeof(Base.pairs), NamedTuple{(:init,), Tuple{Float64}}}
+Tuple{typeof(Base.pairs), NamedTuple{(:key,), Tuple{Symbol}}}
+Tuple{typeof(Base.pairs), NamedTuple{(:maxdepth,), Tuple{Int64}}}
+Tuple{typeof(Base.pairs), NamedTuple{(:open, :close), Tuple{String, String}}}
+Tuple{typeof(Base.pairs), NamedTuple{(:signature,), Tuple{String}}}
+Tuple{typeof(Base.pairs), NamedTuple{(:w, :h), Tuple{Int64, Int64}}}
+Tuple{typeof(Base.pop!), Base.Dict{String, Any}, String, Nothing}
+Tuple{typeof(Base.prevfloat), Float64}
+Tuple{typeof(Base.print), Base.AnnotatedIOBuffer, String}
+Tuple{typeof(Base.print), Base.IOStream, Int64}
+Tuple{typeof(Base.print), Base.IOStream, String, Int64, Vararg{Any}}
+Tuple{typeof(Base.println), String, Int64, String, Vararg{Any}}
+Tuple{typeof(Base.push!), Array{NTuple{4, Int64}, 1}, NTuple{4, Int64}}
+Tuple{typeof(Base.push!), Array{String, 1}, String, String}
+Tuple{typeof(Base.push!), Base.Set{Any}, Tuple{UInt64, Int64, Int64, Symbol}}
+Tuple{typeof(Base.push!), Base.Set{Any}, Tuple{UInt64, Int64, Int64}}
+Tuple{typeof(Base.push!), Base.Set{Tuple{Int64, Int64}}, Tuple{Int64, Int64}}
+Tuple{typeof(Base.push!), Base.Set{UnionAll}, Type}
+Tuple{typeof(Base.read), Base.PipeEndpoint}
+Tuple{typeof(Base.reinterpret), Type{Char}, UInt32}
+Tuple{typeof(Base.round), Float64}
+Tuple{typeof(Base.round), Type{Int64}, Float64}
+Tuple{typeof(Base.round), Type{Int64}, Int64}
+Tuple{typeof(Base.rows_to_dimshape), Tuple{Int64, Int64, Int64}}
+Tuple{typeof(Base.setindex!), Array{Float64, 1}, Float64, Int64}
+Tuple{typeof(Base.setindex!), Array{String, 1}, String, Int64}
+Tuple{typeof(Base.setindex!), Array{Symbol, 1}, Symbol, Int64}
+Tuple{typeof(Base.setindex!), Array{Union{Nothing, Int64}, 1}, Int64, Int64}
+Tuple{typeof(Base.setindex!), Array{Union{Nothing, Int64}, 1}, Nothing, Int64}
+Tuple{typeof(Base.setindex!), Base.Dict{Any, Any}, Any, Tuple{UInt64, Int64, Int64, Symbol}}
+Tuple{typeof(Base.setindex!), Base.Dict{Any, Any}, Any, Tuple{UInt64, Int64, Int64}}
+Tuple{typeof(Base.setindex!), Base.Dict{Array{Int64, 1}, Int64}, Int64, Array{Int64, 1}}
+Tuple{typeof(Base.setindex!), Base.Dict{UInt64, Tuple{Int64, Int64}}, Tuple{Int64, Int64}, UInt64}
+Tuple{typeof(Base.setindex!), Base.EnvDict, String, String}
+Tuple{typeof(Base.setindex!), Base.IdDict{Any, Bool}, Any, Any}
+Tuple{typeof(Base.setindex_widen_up_to), Array{String, 1}, Int64, Int64}
+Tuple{typeof(Base.similar), Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Tuple{Base.OneTo{Int64}}, typeof(Base.string), Tuple{Base.Broadcast.Extruded{Array{Any, 1}, Tuple{Bool}, Tuple{Int64}}}}, Type{String}}
+Tuple{typeof(Base.sizehint!), Base.Dict{Tuple{UInt64, Int64}, Any}, Int64}
+Tuple{typeof(Base.sizeof), Symbol}
+Tuple{typeof(Base.something), Nothing, NTuple{4, Int64}}
+Tuple{typeof(Base.something), String, String, Vararg{String}}
+Tuple{typeof(Base.sortperm), Array{Any, 1}}
+Tuple{typeof(Base.sortperm), Array{String, 1}}
+Tuple{typeof(Base.split), String, Char}
+Tuple{typeof(Base.split_sign), Int64}
+Tuple{typeof(Base.sqrt), Int64}
+Tuple{typeof(Base.startswith), String, Base.Regex}
+Tuple{typeof(Base.string), Int64}
+Tuple{typeof(Base.strip), String}
+Tuple{typeof(Base.structdiff), NamedTuple{(:indentation,), Tuple{Int64}}, Type{NamedTuple{(:open, :close, :sep), T} where T<:Tuple}}
+Tuple{typeof(Base.structdiff), NamedTuple{(:open, :close, :sep, :indentation), Tuple{String, String, String, Int64}}, Type{NamedTuple{(:open, :close, :sep), T} where T<:Tuple}}
+Tuple{typeof(Base.structdiff), NamedTuple{(:signature,), Tuple{String}}, Type{NamedTuple{(:collapsed,), T} where T<:Tuple}}
+Tuple{typeof(Base.sum), Array{Int64, 1}}
+Tuple{typeof(Base.sum), Function, NamedTuple{(:margin, :border, :padding), Tuple{NTuple{4, Int64}, NTuple{4, Int64}, NTuple{4, Int64}}}}
+Tuple{typeof(Base.sym_in), Symbol, NTuple{19, Symbol}}
+Tuple{typeof(Base.sym_in), Symbol, NTuple{22, Symbol}}
+Tuple{typeof(Base.sym_in), Symbol, NTuple{31, Symbol}}
+Tuple{typeof(Base.sym_in), Symbol, NTuple{43, Symbol}}
+Tuple{typeof(Base.sym_in), Symbol, NTuple{56, Symbol}}
+Tuple{typeof(Base.tail), NTuple{10, Char}}
+Tuple{typeof(Base.tail), NTuple{27, String}}
+Tuple{typeof(Base.tail), NTuple{28, String}}
+Tuple{typeof(Base.tail), NTuple{4, Char}}
+Tuple{typeof(Base.tail), NTuple{5, Char}}
+Tuple{typeof(Base.tail), NTuple{6, Char}}
+Tuple{typeof(Base.tail), NTuple{7, Char}}
+Tuple{typeof(Base.tail), NTuple{8, Char}}
+Tuple{typeof(Base.tail), NTuple{9, Char}}
+Tuple{typeof(Base.top_set_bit), UInt64}
+Tuple{typeof(Base.trunc), Type{Int64}, Float64}
+Tuple{typeof(Base.twiceprecision), Base.TwicePrecision{Float64}, Int64}
+Tuple{typeof(Base.unsafe_convert), Type{Float32}, Float32}
+Tuple{typeof(Base.unsafe_convert), Type{Ptr{Int32}}, Ptr{Nothing}}
+Tuple{typeof(Base.unsafe_convert), Type{Ptr{SimpleDirectMediaLayer.LibSDL2.SDL_Rect}}, Ptr{Nothing}}
+Tuple{typeof(Base.unsafe_convert), Type{Ptr{SimpleDirectMediaLayer.LibSDL2.SDL_Texture}}, Ptr{Nothing}}
+Tuple{typeof(Base.unsafe_convert), Type{Ptr{SimpleDirectMediaLayer.LibSDL2.SDL_Texture}}, Ptr{SimpleDirectMediaLayer.LibSDL2.SDL_Texture}}
+Tuple{typeof(Base.unsafe_convert), Type{Ptr{UInt32}}, Ptr{Nothing}}
+Tuple{typeof(Base.unsafe_convert), Type{SimpleDirectMediaLayer.LibSDL2.SDL_BlendMode}, SimpleDirectMediaLayer.LibSDL2.SDL_BlendMode}
+Tuple{typeof(Base.unsafe_convert), Type{SimpleDirectMediaLayer.LibSDL2.SDL_Color}, SimpleDirectMediaLayer.LibSDL2.SDL_Color}
+Tuple{typeof(Base.unsafe_convert), Type{SimpleDirectMediaLayer.LibSDL2.SDL_SystemCursor}, SimpleDirectMediaLayer.LibSDL2.SDL_SystemCursor}
+Tuple{typeof(Base.unsigned), UInt64}
+Tuple{typeof(Base.values), Base.Dict{String, Type}}
+Tuple{typeof(Base.values), Base.Dict{Tuple{String, Int64}, Ptr{SimpleDirectMediaLayer.LibSDL2._TTF_Font}}}
+Tuple{typeof(Base.values), Base.Dict{Type, Any}}
+Tuple{typeof(Base.vcat), Array{Int64, 1}, Int64}
+Tuple{typeof(Base.vect), Tuple{Int64, Int64}, Vararg{Tuple{Int64, Int64}}}
+Tuple{typeof(Base.write), Base.IOStream, Array{UInt8, 1}}
+Tuple{typeof(Base.zeros), Type{Float64}, Int64}
+Tuple{typeof(Core.kwcall), NamedTuple{(:init,), Tuple{Int64}}, typeof(Base.sum), Array{Int64, 1}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:keepempty,), Tuple{Bool}}, typeof(Base.split), Base.SubString{String}, Char}
+Tuple{typeof(Core.kwcall), NamedTuple{(:keepempty,), Tuple{Bool}}, typeof(Base.split), String, Char}
+Tuple{typeof(JLLWrappers.get_julia_libpaths)}
+Tuple{typeof(ProjecturedPlatform.DomainModule.insertable), Type{ProjecturedTest.ACTestMark{C1, C2} where C2<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C1<:(ProjecturedKernel.CellModule.AbstractCell{T} where T)}}
+Tuple{typeof(ProjecturedPlatform.DomainModule.insertable), Type{ProjecturedTest.InsertionReflectionProbe}}
+Tuple{typeof(ProjecturedPlatform.DomainModule.insertable), Type{ProjecturedTest.NaturalNotationTestLeaf}}
+Tuple{typeof(ProjecturedPlatform.DomainModule.insertable), Type{ProjecturedTest.NaturalNotationTestOther}}
+Tuple{typeof(ProjecturedPlatform.DomainModule.insertable), Type{ProjecturedTest.NaturalRegistryTestDocument}}
+Tuple{typeof(ProjecturedPlatform.DomainModule.insertable), Type{ProjecturedTest.PredTwinFirst.TestTwin}}
+Tuple{typeof(ProjecturedPlatform.DomainModule.insertable), Type{ProjecturedTest.PredTwinSecond.TestTwin}}
+Tuple{typeof(ProjecturedPlatform.DomainModule.insertable), Type{ProjecturedTest.TestBag{C1, C2, C3} where C3<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C2<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C1<:(ProjecturedKernel.CellModule.AbstractCell{T} where T)}}
+Tuple{typeof(ProjecturedPlatform.DomainModule.insertable), Type{ProjecturedTest.TestBare{C1, C2, C3} where C3<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C2<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C1<:(ProjecturedKernel.CellModule.AbstractCell{T} where T)}}
+Tuple{typeof(ProjecturedPlatform.DomainModule.insertable), Type{ProjecturedTest.TestLayout{C1, C2, C3, C4} where C4<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C3<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C2<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C1<:(ProjecturedKernel.CellModule.AbstractCell{T} where T)}}
+Tuple{typeof(ProjecturedPlatform.DomainModule.insertable), Type{ProjecturedTest.TestRun{C1, C2, C3, C4, C5, C6} where C6<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C5<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C4<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C3<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C2<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C1<:(ProjecturedKernel.CellModule.AbstractCell{T} where T)}}
+Tuple{typeof(ProjecturedPlatform.DomainModule.insertable), Type{ProjecturedTest.TestState{C1, C2, C3} where C3<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C2<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C1<:(ProjecturedKernel.CellModule.AbstractCell{T} where T)}}
+Tuple{typeof(ProjecturedPlatform.DomainModule.insertable), Type{ProjecturedTest.TestWindow{C1, C2, C3, C4, C5} where C5<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C4<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C3<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C2<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C1<:(ProjecturedKernel.CellModule.AbstractCell{T} where T)}}
+Tuple{typeof(SimpleDirectMediaLayer.LibSDL2.SDL_CreateWindow), String, Int32, Int32, Int32, Int32, UInt32}

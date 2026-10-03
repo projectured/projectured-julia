@@ -1,0 +1,3 @@
+# The recording "examples" of this repository, written by
+# ProjecturedREPL.record_precompile_statements. Record it again; do not edit it.
+Tuple{typeof(ProjecturedDatabaseExample.make_database_instance_document_example)}

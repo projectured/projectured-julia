@@ -1353,7 +1353,7 @@ uuid = "4e12067a-a745-4784-a5a3-977285a45110"
 version = "0.1.0"
 
 [[deps.ProjecturedREPL]]
-deps = ["PrecompileTools", "Preferences", "ProjecturedAll", "ProjecturedExample", "ProjecturedSDL", "ProjecturedTest"]
+deps = ["PrecompileTools", "Preferences", "ProjecturedAll", "ProjecturedExample", "ProjecturedSDL", "ProjecturedTest", "TOML"]
 path = "../../package/ProjecturedREPL"
 uuid = "6b3f1e12-a33e-4b24-a01a-a986c90b1b68"
 version = "0.1.0"

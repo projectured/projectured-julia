@@ -1,0 +1,10 @@
+# The recording "examples" of this repository, written by
+# ProjecturedREPL.record_precompile_statements. Record it again; do not edit it.
+Tuple{typeof(ProjecturedBookExample.make_book_book_document_example)}
+Tuple{typeof(ProjecturedBookExample.make_book_chapter_document_example)}
+Tuple{typeof(ProjecturedBookExample.make_book_insertion_document_example)}
+Tuple{typeof(ProjecturedBookExample.make_book_list_document_example)}
+Tuple{typeof(ProjecturedBookExample.make_book_paragraph_document_example)}
+Tuple{typeof(ProjecturedBookExample.make_book_picture_document_example)}
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedBookExample.make_book_document_example)}
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedBookExample.make_book_projection_example)}

@@ -1,0 +1,9 @@
+# The recording "examples" of this repository, written by
+# ProjecturedREPL.record_precompile_statements. Record it again; do not edit it.
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedXMLExample.make_mixed_document_example)}
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedXMLExample.make_mixed_projection_example)}
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedXMLExample.make_xml_document_example)}
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedXMLExample.make_xml_projection_example)}
+Tuple{typeof(ProjecturedXMLExample.make_xml_attribute_document_example)}
+Tuple{typeof(ProjecturedXMLExample.make_xml_element_document_example)}
+Tuple{typeof(ProjecturedXMLExample.make_xml_text_document_example)}

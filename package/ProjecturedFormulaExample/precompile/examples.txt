@@ -1,0 +1,8 @@
+# The recording "examples" of this repository, written by
+# ProjecturedREPL.record_precompile_statements. Record it again; do not edit it.
+Tuple{typeof(ProjecturedFormulaExample.make_formula_environment_document_example)}
+Tuple{typeof(ProjecturedFormulaExample.make_formula_formula_document_example)}
+Tuple{typeof(ProjecturedFormulaExample.make_formula_insertion_document_example)}
+Tuple{typeof(ProjecturedFormulaExample.make_formula_reference_document_example)}
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedFormulaExample.make_formula_document_example)}
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedFormulaExample.make_formula_projection_example)}

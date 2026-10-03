@@ -1,0 +1,4 @@
+# The recording "examples" of this repository, written by
+# ProjecturedREPL.record_precompile_statements. Record it again; do not edit it.
+Tuple{Type{ProjecturedConsole.ConsoleModule.ConsoleBackend}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:backend, :devices), Tuple{ProjecturedConsole.ConsoleModule.ConsoleBackend, Array{ProjecturedKernel.DeviceModule.Device, 1}}}, Type{ProjecturedKernel.EditorModule.Editor}, ProjecturedPlatform.ScreenModule.ScreenDocument{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedPlatform.ProjectionAlgebraModule.RecursiveProjection}

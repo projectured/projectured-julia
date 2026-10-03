@@ -1,0 +1,25 @@
+# The recording "examples" of this repository, written by
+# ProjecturedREPL.record_precompile_statements. Record it again; do not edit it.
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedMathExample.make_math_document_example)}
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedMathExample.make_math_projection_example)}
+Tuple{typeof(ProjecturedMathExample.make_math_accent_document_example)}
+Tuple{typeof(ProjecturedMathExample.make_math_assignment_document_example)}
+Tuple{typeof(ProjecturedMathExample.make_math_big_operator_document_example)}
+Tuple{typeof(ProjecturedMathExample.make_math_binary_operation_document_example)}
+Tuple{typeof(ProjecturedMathExample.make_math_case_document_example)}
+Tuple{typeof(ProjecturedMathExample.make_math_cases_document_example)}
+Tuple{typeof(ProjecturedMathExample.make_math_derivative_document_example)}
+Tuple{typeof(ProjecturedMathExample.make_math_differential_document_example)}
+Tuple{typeof(ProjecturedMathExample.make_math_fraction_document_example)}
+Tuple{typeof(ProjecturedMathExample.make_math_function_document_example)}
+Tuple{typeof(ProjecturedMathExample.make_math_insertion_document_example)}
+Tuple{typeof(ProjecturedMathExample.make_math_matrix_document_example)}
+Tuple{typeof(ProjecturedMathExample.make_math_parenthesized_document_example)}
+Tuple{typeof(ProjecturedMathExample.make_math_radical_document_example)}
+Tuple{typeof(ProjecturedMathExample.make_math_row_document_example)}
+Tuple{typeof(ProjecturedMathExample.make_math_script_document_example)}
+Tuple{typeof(ProjecturedMathExample.make_math_space_document_example)}
+Tuple{typeof(ProjecturedMathExample.make_math_symbol_document_example)}
+Tuple{typeof(ProjecturedMathExample.make_math_text_document_example)}
+Tuple{typeof(ProjecturedMathExample.make_math_unary_operation_document_example)}
+Tuple{typeof(ProjecturedMathExample.make_math_variable_document_example)}

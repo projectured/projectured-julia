@@ -265,7 +265,7 @@ export versioning_example, warm_file_editor, xml_example, yaml_example
 export Example, AtomicDocument, domain_examples, domain_atomic_documents
 export precompile_atoms, precompile_atom_parsers
 export precompile_workload
-export record_precompile_statements, replay_precompile_statements,
+export record_precompile_statements, trace_precompile_statements, replay_precompile_statements,
        clean_precompile_trace, write_precompile_statements,
        bind_loaded_modules!, PRECOMPILE_STALE_RATIO
 export EDITOR_DOMAINS, EXTENSION_DOMAINS
