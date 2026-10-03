@@ -406,6 +406,13 @@ recommendation: "agreed on all". Section 5 logs them as D8 to D12.
 - **D22** (2026-10-03, T2). A checkbox and a switch carry a label of their own,
   as in a desktop toolkit, at the gap of the theme from the mark. A builder no
   longer puts a label beside them in a layout. The owner: "yes".
+- **D23** (2026-10-03, T2). A column of a grid can fill the width that its
+  parent offers and keep the width of its content when no width is offered, so
+  the cards of a form fill the pane and do not collapse where nothing is
+  offered. The owner: "yes".
+- **D24** (2026-10-03, T2). The column chooser of a table shows each column as a
+  checkbox with its own label, not as a button with "[x]" or "[ ]". The owner:
+  "yes".
 - **D15** (2026-10-02, T1). The pointer ring and the fault band of the video
   backend, and the glyph cursor of the SDL backend, stay as they are: they mark
   a recording or the system cursor, not the look of the editor.
@@ -646,6 +653,15 @@ inet-julia uses, the same step changes them, so that they always load.
     suites pass, and omnet-julia precompiles. The platform suite counts 16
     fewer tests than the run before, most likely the example walker on the
     changed object examples; I did not prove it.
+  - The windows and the collection: `TooltipTheme` (new, in the tooltip
+    slice) holds `offset`, `part_gap`, `minimum_size` and `maximum_size` of the
+    tooltip window; `WidgetTheme.context_menu_maximum_size` and `item_gap` give
+    the context menu window its size and its gap below a part. The two
+    wrappers read `parts.arguments[:appearance]`. `GraphicsTheme.collection_gap`
+    (8) is the gap of `CellVectorToVerticalLayout`. Two new edges of the slice
+    table: tooltip uses style, appearance uses tooltip. Check: the images are
+    equal; the platform suite, the tooltip window test and the application
+    test pass, and omnet-julia precompiles.
 - [ ] **T3.** omnet-julia: the themes of the NED, INI, test file, result and
   workbench views, and the values move into them. *In progress:* omnet-julia
   `7df48184` adds `NedTheme`, `IniTheme`, `TestFileTheme`, `ResultTheme` and
