@@ -732,6 +732,22 @@ inet-julia uses, the same step changes them, so that they always load.
     the font size".
 - [ ] **V3.** The tests that check a pixel size follow, for example the line box
   of 23 px for Ubuntu 20. The count of broken tests does not change.
+  *Done for the fonts and the widget spacing (2026-10-03), the line spacing
+  follows:* a helper agent updated 37 files of the platform and domain suites
+  (`ec62ae78b`) and 6 files of the integration suite (`043e13c86`), and the 4
+  legacy theme tests of omnet-julia (`1e89d27d`); I reviewed the changes. Three
+  of its changes weakened a check, and I changed the fixture instead: a table
+  of 20 rows so the wheel moves, a settings window 300 high so the tab
+  scrolls, the caret test on `UNSTYLED_TEXT_FONT`. A finding in the source:
+  the warm-up of a build pressed a fixed point, which with the old sizes hit
+  the new-tab button of the navigator, and its Ctrl+T never worked, because
+  the warm-up did not apply what a command posts. The warm-up now presses the
+  row of `b.md` by its drawn name and drains the inbox after each operation
+  (`7b6e9486a`). Check: the platform and the 19 domain suites pass; the
+  integration suite fails only where main fails (catalog coverage, table cell
+  editing, the history sweep of the two inspectors) and in the web and MCP
+  tests, which need a loopback network that `unshare -rn` has not, and pass
+  outside it; 5 `@test_broken` round trips pass, where main has 3.
 - [ ] **V4.** The owner looks at the live editor at 100% on the screen of
   section 2.1.
 
