@@ -363,7 +363,7 @@ OperationModule.jl        (OperationModule)             — the aggregator
         │                          child_reference_steps seam
         ├─ Rerooting.jl          — reroot_reference, and the reroot_operation /
         │                          operation_reference / retarget_operation /
-        │                          operation_travels_unchanged seams with their
+        │                          is_self_contained_operation seams with their
         │                          base methods
         ├─ Inversion.jl          — the way back: make_inverse_operation,
         │                          evaluate_invertible_operation! and the
@@ -468,13 +468,13 @@ that contract: a `ReplacePathOperation` answers `get_operation_path` and
 reroots it, proving the seam is genuinely open: you cannot depend on a concrete
 higher-layer type at layer 13.
 
-### An operation that names no place: `operation_travels_unchanged`
+### An operation that names no place: `is_self_contained_operation`
 
 An operation either says *where* it acts, with a reference, or says *what* it acts
 on, with the object in a field. A chain re-targets the first kind at each stage
 through `operation_reference` and `retarget_operation`. The second kind has
 nothing to re-target, so a stage either passes it up as it is or drops it.
-`operation_travels_unchanged(op)` answers which. The default is `false`, so a
+`is_self_contained_operation(op)` answers which. The default is `false`, so a
 stage drops what it can not place. `Rerooting.jl` answers `true` for the
 operations of this layer that name no place: `DoNothingOperation`,
 `QuitEditorOperation`, `InvalidateProjectionOperation`, `ToggleCollapseOperation`

@@ -22,7 +22,7 @@ struct SetDataFrameValueOperation <: Operation
 end
 
 # The operation names its view, so it travels up a chain as it is.
-operation_travels_unchanged(::SetDataFrameValueOperation) = true
+is_self_contained_operation(::SetDataFrameValueOperation) = true
 
 function evaluate_operation(editor, op::SetDataFrameValueOperation)
     op.view.frame[op.row, op.column] = op.value
@@ -70,7 +70,7 @@ struct CloseDataFrameCellOperation <: Operation
     column::String
 end
 
-operation_travels_unchanged(::Union{OpenDataFrameCellOperation,CloseDataFrameCellOperation}) = true
+is_self_contained_operation(::Union{OpenDataFrameCellOperation,CloseDataFrameCellOperation}) = true
 
 function evaluate_operation(editor, op::OpenDataFrameCellOperation)
     view = op.view

@@ -10,7 +10,7 @@ contract: it declares the two generics and nothing else, and the one base method
 must carry it.
 
 It also verifies `operation_reference`, `retarget_operation` and
-`operation_travels_unchanged` for the kernel operations and their defaults for an
+`is_self_contained_operation` for the kernel operations and their defaults for an
 operation that adds no method, and what the default reader of a test-local
 projection answers for them.
 """
@@ -109,9 +109,9 @@ function test_rerooting()
         @test reroot_operation(operation, (FieldReferenceStep("outer"),)) === operation
         @test retarget_operation(operation, Reference(FieldReferenceStep("other"))) ===
               operation
-        @test !operation_travels_unchanged(operation)
+        @test !is_self_contained_operation(operation)
         @test operation_reference(nothing) === nothing
-        @test !operation_travels_unchanged(nothing)
+        @test !is_self_contained_operation(nothing)
     end
 
     @testset "operation_reference answers the place of a selection and of a write" begin
@@ -141,11 +141,11 @@ function test_rerooting()
                           ToggleCollapseOperation(),
                           SelectNextInsertionOperation(_ -> false))
             @test operation_reference(operation) === nothing
-            @test operation_travels_unchanged(operation)
+            @test is_self_contained_operation(operation)
             # The default reader forwards it as it is, so a chain stops at it.
             @test read_intent(RerootProbeProjection(), nothing, operation) === operation
         end
-        @test !operation_travels_unchanged(ReplaceSelectionOperation(EmptyReference()))
+        @test !is_self_contained_operation(ReplaceSelectionOperation(EmptyReference()))
     end
 
     # Rerooting changes where an operation points, never what it is called.

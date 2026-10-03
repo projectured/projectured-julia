@@ -26,7 +26,7 @@ struct DeleteDataFrameRowOperation <: Operation
     row::Int
 end
 
-operation_travels_unchanged(::Union{InsertDataFrameRowOperation,DeleteDataFrameRowOperation}) = true
+is_self_contained_operation(::Union{InsertDataFrameRowOperation,DeleteDataFrameRowOperation}) = true
 
 function evaluate_operation(editor, op::InsertDataFrameRowOperation)
     view = op.view

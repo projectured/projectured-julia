@@ -108,7 +108,7 @@ evaluate_operation(editor, operation::SaveSettingsOperation) =
 
 make_inverse_operation(document, ::SaveSettingsOperation) = DoNothingOperation()
 describe_operation(operation::SaveSettingsOperation) = "save the settings to " * operation.path
-operation_travels_unchanged(::SaveSettingsOperation) = true
+is_self_contained_operation(::SaveSettingsOperation) = true
 
 """
     LoadSettingsOperation(settings, path)
@@ -139,4 +139,4 @@ make_inverse_operation(document, operation::LoadSettingsOperation) =
 
 describe_operation(operation::LoadSettingsOperation) =
     "load the settings from " * operation.path
-operation_travels_unchanged(::LoadSettingsOperation) = true
+is_self_contained_operation(::LoadSettingsOperation) = true

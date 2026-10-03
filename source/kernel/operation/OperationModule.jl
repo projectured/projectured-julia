@@ -69,7 +69,7 @@ export Operation, WrappingOperation, get_wrapped_operation, rewrap_operation,
        has_mouse_target, join_move_answers,
        # from Rerooting.jl
        reroot_reference, reroot_operation, operation_reference, retarget_operation,
-       operation_travels_unchanged,
+       is_self_contained_operation,
        # from Inversion.jl
        make_inverse_operation, evaluate_invertible_operation!, get_slot_at,
        # from Description.jl

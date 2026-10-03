@@ -88,7 +88,7 @@ OpenFileOperation(path::AbstractString; wrap = identity) =
 
 # It carries its own subject and names no reference, so every reader between
 # the gesture and the editor passes it up unchanged.
-OperationModule.operation_travels_unchanged(::OpenFileOperation) = true
+OperationModule.is_self_contained_operation(::OpenFileOperation) = true
 
 # The destination is a pane tree, in a new tab: `make_file_tab_content` reads the
 # file into the document type its extension owns, in a scroll pane, and `get_pane_file_group` asks the

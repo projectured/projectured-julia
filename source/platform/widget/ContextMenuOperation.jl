@@ -64,7 +64,7 @@ struct EditMenuPartOperation <: Operation
     description::String
 end
 
-operation_travels_unchanged(::EditMenuPartOperation) = true
+is_self_contained_operation(::EditMenuPartOperation) = true
 evaluate_operation(editor, ::EditMenuPartOperation) = nothing
 
 """

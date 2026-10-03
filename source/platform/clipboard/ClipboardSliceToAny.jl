@@ -267,7 +267,7 @@ struct CopyReferenceOperation <: Operation
     clipboard::ClipboardSlice
 end
 
-OperationModule.operation_travels_unchanged(::CopyReferenceOperation) = true
+OperationModule.is_self_contained_operation(::CopyReferenceOperation) = true
 
 # A copy writes the clipboard and no document, so there is nothing to undo.
 make_inverse_operation(document, ::CopyReferenceOperation) = DoNothingOperation()

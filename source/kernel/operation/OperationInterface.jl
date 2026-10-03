@@ -224,7 +224,7 @@ function operation_reference end
 function retarget_operation end
 
 """
-    operation_travels_unchanged(op) -> Bool
+    is_self_contained_operation(op) -> Bool
 
 Whether `op` should be passed up the chain as it is, rather than dropped, when it
 names no reference.
@@ -241,7 +241,7 @@ not understand is worse than one that declines: the kernel drops what it cannot
 place. A package whose operations carry their subject says so with one method,
 and the kernel names none of them.
 """
-function operation_travels_unchanged end
+function is_self_contained_operation end
 
 # ── The inversion protocol (methods in Inversion.jl) ───────────────────
 

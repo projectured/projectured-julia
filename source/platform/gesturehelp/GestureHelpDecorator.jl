@@ -48,7 +48,7 @@ chain as it is.
 """
 struct ToggleGestureHelpOperation <: Operation end
 
-OperationModule.operation_travels_unchanged(::ToggleGestureHelpOperation) = true
+OperationModule.is_self_contained_operation(::ToggleGestureHelpOperation) = true
 OperationModule.describe_operation(::ToggleGestureHelpOperation) = "open or close the gesture help"
 
 """

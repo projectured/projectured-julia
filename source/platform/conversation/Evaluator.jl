@@ -271,7 +271,7 @@ end
 # It names the toplevel it evaluates, not a path into one, so there is nothing
 # for a projection to re-root. It travels up the chain as it is, which is what
 # lets an evaluator in a pane tab reach the editor.
-OperationModule.operation_travels_unchanged(::EvaluateSelectedFormOperation) = true
+OperationModule.is_self_contained_operation(::EvaluateSelectedFormOperation) = true
 
 # The 1-based index of the `elements[i]` the caret sits in, or `nothing` when
 # the toplevel's selection does not reach into an element at all.
@@ -563,7 +563,7 @@ end
 
 # It names the toplevel it changes, not a path into one, so it travels up the
 # chain as it is.
-OperationModule.operation_travels_unchanged(::ToggleEvaluatorOptionOperation) = true
+OperationModule.is_self_contained_operation(::ToggleEvaluatorOptionOperation) = true
 
 function evaluate_operation(editor, op::ToggleEvaluatorOptionOperation)
     t = op.toplevel
@@ -628,7 +628,7 @@ end
 
 # It names the toplevel it acts on, not a path into one, so it travels up the
 # chain as it is.
-OperationModule.operation_travels_unchanged(::RecallEvaluatorFormOperation) = true
+OperationModule.is_self_contained_operation(::RecallEvaluatorFormOperation) = true
 
 function evaluate_operation(editor, op::RecallEvaluatorFormOperation)
     t = op.toplevel

@@ -44,7 +44,7 @@ The first stage maps `vertices[i].rest` to `vertex_layouts[i].vertex.rest` and b
 
 The second stage maps no reference backward. Its reader re-roots instead:
 
-- A left press inside a box goes to the reader of that content, with the point moved into the frame of the content. A `ReplaceSelectionOperation` that comes back is rooted under `vertex_layouts[i].vertex.content`. An operation for which `operation_travels_unchanged` is true passes unchanged. The reader drops every other operation.
+- A left press inside a box goes to the reader of that content, with the point moved into the frame of the content. A `ReplaceSelectionOperation` that comes back is rooted under `vertex_layouts[i].vertex.content`. An operation for which `is_self_contained_operation` is true passes unchanged. The reader drops every other operation.
 - A key goes to the reader of each content in turn, and the first answer wins.
 
 Edges and edge labels are decorations: a click on them selects nothing.

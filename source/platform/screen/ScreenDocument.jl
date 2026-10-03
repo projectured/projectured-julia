@@ -201,7 +201,7 @@ struct ChangeScreenPointerShapeOperation <: Operation
     shape::Union{Symbol,Nothing}
 end
 
-OperationModule.operation_travels_unchanged(::ChangeScreenPointerShapeOperation) = true
+OperationModule.is_self_contained_operation(::ChangeScreenPointerShapeOperation) = true
 
 """
     make_screen_pointer_shape_operation(shape) -> ReplaceViewStateOperation

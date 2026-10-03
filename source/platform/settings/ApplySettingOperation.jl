@@ -189,4 +189,4 @@ _describe_setting_value(value::Symbol) = String(value)
 _describe_setting_value(value) = repr(value)
 
 # It carries the group that it writes, so it travels up a chain as it is.
-operation_travels_unchanged(::ApplySettingOperation) = true
+is_self_contained_operation(::ApplySettingOperation) = true

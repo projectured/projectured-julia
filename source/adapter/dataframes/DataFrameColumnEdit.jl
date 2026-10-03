@@ -39,7 +39,7 @@ end
 const _DataFrameColumnOperation =
     Union{InsertDataFrameColumnOperation,DeleteDataFrameColumnOperation,MoveDataFrameColumnOperation}
 
-operation_travels_unchanged(::_DataFrameColumnOperation) = true
+is_self_contained_operation(::_DataFrameColumnOperation) = true
 
 function evaluate_operation(editor, op::InsertDataFrameColumnOperation)
     insertcols!(op.view.frame, op.index, op.name => op.vector; copycols = false)

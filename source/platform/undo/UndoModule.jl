@@ -55,7 +55,7 @@ using ..ProjectionAlgebraModule
 import ..DocumentModule: get_wrapped_document, replace_wrapped_document!, get_edited_field
 import ..OperationModule: evaluate_operation, make_inverse_operation,
                           get_wrapped_operation, rewrap_operation,
-                          operation_travels_unchanged
+                          is_self_contained_operation
 import ..ProjectionModule: get_projection_gesture_bindings
 import ..EditorModule: wrap_editor!, get_wrapper_layers
 import ..ProjectionModule: print_document, read_intent,

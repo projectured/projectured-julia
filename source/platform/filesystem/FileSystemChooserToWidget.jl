@@ -48,7 +48,7 @@ end
 WriteChosenNameOperation(chooser::FileSystemChooser, name::AbstractString) =
     WriteChosenNameOperation(chooser, String(name))
 
-OperationModule.operation_travels_unchanged(::WriteChosenNameOperation) = true
+OperationModule.is_self_contained_operation(::WriteChosenNameOperation) = true
 
 function evaluate_operation(editor, operation::WriteChosenNameOperation)
     operation.chooser.name = operation.name

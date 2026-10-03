@@ -23,7 +23,7 @@ import ..DocumentModule: get_document_title, copy_document, has_document_duplica
 import ..GestureBindingModule: get_document_gesture_bindings_own
 import ..ProjectionModule: print_document, read_intent, map_reference_backward
 import ..SelectionModule: get_selection
-import ..OperationModule: evaluate_operation, make_inverse_operation, operation_travels_unchanged
+import ..OperationModule: evaluate_operation, make_inverse_operation, is_self_contained_operation
 import ..DomainModule: compute_context_menu
 import ..WidgetModule: make_value_document, make_graphics_projection, refresh_document!
 

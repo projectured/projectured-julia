@@ -334,7 +334,7 @@ end
 # there is nothing for a projection to re-root and nothing for one to place.
 # They travel up the chain as they are, which is what lets ENTER and ALT+ENTER in
 # a conversation embedded in a page reach the editor at all.
-OperationModule.operation_travels_unchanged(
+OperationModule.is_self_contained_operation(
     ::Union{SubmitDraftTurnOperation, EvaluateDraftTurnOperation}) = true
 
 function evaluate_operation(editor, op::EvaluateDraftTurnOperation)

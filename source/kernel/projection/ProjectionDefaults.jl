@@ -130,7 +130,7 @@ document-replace and sequence-insert/delete, which are
 An operation type the kernel cannot name re-targets through the open
 `operation_reference` / `retarget_operation` seam — this is how the
 `Replace*RangeOperation`s of the package above travel back. An operation that
-reports no reference is forwarded unchanged when `operation_travels_unchanged`
+reports no reference is forwarded unchanged when `is_self_contained_operation`
 answers `true` for it, as for `DoNothingOperation` and `ToggleCollapseOperation`,
 and returns `nothing` otherwise.
 """
@@ -206,7 +206,7 @@ function read_intent(projection::Projection, iomap, operation)
         # `DoNothingOperation`, `ToggleCollapseOperation` and the other kernel
         # operations that name no place in a document are of the first kind.
         reference === nothing &&
-            return operation_travels_unchanged(operation) ? operation : nothing
+            return is_self_contained_operation(operation) ? operation : nothing
         input_reference = map_reference_backward(projection, iomap, reference)
         # A write to a part that a projection printed has no input pre-image.
         (input_reference === nothing || has_introduced_step(input_reference)) && return nothing

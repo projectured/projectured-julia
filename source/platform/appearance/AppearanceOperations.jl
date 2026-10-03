@@ -81,7 +81,7 @@ make_inverse_operation(document, ::Union{AdjustZoomOperation, AdjustScaleOperati
     DoNothingOperation()
 
 # Each carries the appearance that it writes, so it travels up a chain as it is.
-operation_travels_unchanged(::Union{AdjustZoomOperation, AdjustScaleOperation}) = true
+is_self_contained_operation(::Union{AdjustZoomOperation, AdjustScaleOperation}) = true
 
 """
     ReplaceThemeValueOperation(write)
@@ -127,7 +127,7 @@ function describe_operation(operation::ReplaceThemeValueOperation)
 end
 
 # It carries the theme that it writes, so it travels up a chain as it is.
-operation_travels_unchanged(::ReplaceThemeValueOperation) = true
+is_self_contained_operation(::ReplaceThemeValueOperation) = true
 
 """
     SaveAppearanceOperation(appearance, path = get_appearance_file())
@@ -171,4 +171,4 @@ describe_operation(operation::LoadAppearanceOperation) = "load the appearance"
 make_inverse_operation(document, ::Union{SaveAppearanceOperation, LoadAppearanceOperation}) =
     DoNothingOperation()
 
-operation_travels_unchanged(::Union{SaveAppearanceOperation, LoadAppearanceOperation}) = true
+is_self_contained_operation(::Union{SaveAppearanceOperation, LoadAppearanceOperation}) = true

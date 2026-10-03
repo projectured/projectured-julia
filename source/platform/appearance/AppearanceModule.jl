@@ -51,7 +51,7 @@ using ..WidgetModule
 import ..DocumentModule: get_wrapped_document
 import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default, make_wrapper_argument
 import ..OperationModule: evaluate_operation, describe_operation, make_inverse_operation,
-                          operation_travels_unchanged, get_wrapped_operation,
+                          is_self_contained_operation, get_wrapped_operation,
                           rewrap_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward,
                            map_reference_backward, get_child_iomaps

@@ -242,8 +242,8 @@ struct RedoOperation <: Operation
     buffer::UndoBuffer
 end
 
-operation_travels_unchanged(::UndoOperation) = true
-operation_travels_unchanged(::RedoOperation) = true
+is_self_contained_operation(::UndoOperation) = true
+is_self_contained_operation(::RedoOperation) = true
 
 """
     make_undoable_operation(buffer, operation) -> operation

@@ -16,7 +16,7 @@ import ProjecturedKernel.EditorModule: Editor, compute_wait_timeout, post_operat
                                        run_editor!, read!, evaluate!, print!
 import ProjecturedKernel.OperationModule: Operation, SetTimerOperation, QuitEditorOperation,
                                           DoNothingOperation, evaluate_operation,
-                                          operation_travels_unchanged,
+                                          is_self_contained_operation,
                                           make_inverse_operation, describe_operation
 
 @document struct TimerProbe
@@ -140,7 +140,7 @@ function test_editor_timer()
 
     @testset "a timer edits no document and passes every reader" begin
         operation = SetTimerOperation(:a, 1.0)
-        @test operation_travels_unchanged(operation)
+        @test is_self_contained_operation(operation)
         @test make_inverse_operation(TimerProbe(), operation) == DoNothingOperation()
         @test describe_operation(operation) == "set the timer a"
         @test SetTimerOperation(:a, 1) == SetTimerOperation(:a, 1.0)

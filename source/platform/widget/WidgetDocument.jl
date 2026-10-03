@@ -2906,7 +2906,7 @@ end
 # inside a document reach the editor at all. Without this the generic reader of
 # `Projection` drops every one of them, and a control inside a card, a pane or a
 # page is dead while it looks and draws exactly right.
-OperationModule.operation_travels_unchanged(::Union{
+OperationModule.is_self_contained_operation(::Union{
     InvokeActionOperation, CloseTabOperation, OpenTabOperation,
     DragTabOperation, DuplicateTabOperation, StartSplitterDragOperation,
     ResizeSplitPaneOperation, EndSplitterDragOperation}) = true
@@ -2993,12 +2993,12 @@ end
 
 # The width operation names its table, so it travels up a chain as it is, and the
 # owner of a table whose columns are a list reads it on the way.
-operation_travels_unchanged(::SetTableColumnWidthOperation) = true
+is_self_contained_operation(::SetTableColumnWidthOperation) = true
 
 # The opening, the commit and the drop of a cell name their table, so they travel
 # up a chain as they are, and the owner that holds the cell open converts them;
 # one that reaches the root found no owner, and does nothing.
-operation_travels_unchanged(::Union{EditTableCellOperation,CommitTableCellOperation,DropTableCellOperation}) = true
+is_self_contained_operation(::Union{EditTableCellOperation,CommitTableCellOperation,DropTableCellOperation}) = true
 evaluate_operation(editor, ::Union{EditTableCellOperation,CommitTableCellOperation,DropTableCellOperation}) = nothing
 
 function evaluate_operation(editor, op::SetTableColumnWidthOperation)

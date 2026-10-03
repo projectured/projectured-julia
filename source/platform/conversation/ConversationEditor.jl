@@ -271,7 +271,7 @@ end
 # so there is nothing for a projection to re-root and nothing for one to place.
 # They travel up the chain as they are — which is what lets a composer rendered
 # inside a page reach the editor at all.
-OperationModule.operation_travels_unchanged(::Union{
+OperationModule.is_self_contained_operation(::Union{
     ComposerInputOperation, ComposerBackspaceOperation, ComposerNewlineOperation,
     ComposerInsertPartOperation, ComposerCommitChooserOperation,
     ComposerCommitSourceOperation, ComposerEvaluateOperation,

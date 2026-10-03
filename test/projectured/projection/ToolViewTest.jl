@@ -76,7 +76,7 @@ end
     @test OpenFileOperation("a.json") isa Operation
     # It carries its own subject and names no reference, so every reader between
     # the click and the editor passes it up unchanged.
-    @test operation_travels_unchanged(OpenFileOperation("a.json"))
+    @test is_self_contained_operation(OpenFileOperation("a.json"))
 end
 
 @testset "a file names the tab that holds it" begin

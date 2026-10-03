@@ -55,7 +55,7 @@ After each operation, `sync_draft_selection!` puts the complete selection of the
 
 ### The operations hold the document
 
-A composer operation holds the draft, and not a path into it. `operation_travels_unchanged` is `true` for each of them, so no projection above changes or drops one. This is how a composer inside an assistant pane, or inside a page, reaches the editor.
+A composer operation holds the draft, and not a path into it. `is_self_contained_operation` is `true` for each of them, so no projection above changes or drops one. This is how a composer inside an assistant pane, or inside a page, reaches the editor.
 
 The composer loads before any host, so it can not name the operation of a host. `make_submit_operation(host)` and `make_evaluate_operation(host)` are generic functions whose default returns `nothing`. `resolve_composer_host_operation(draft.assistant, operation)` replaces the submit and the evaluation of the composer with what the host returns. The assistant slice adds a method for `Assistant` by qualification, which is `PAR-QUALIFIED-EXTENSION`. A draft with no host keeps the operations of the composer: Return finalizes the draft, and Alt+Return keeps the form as a part.
 

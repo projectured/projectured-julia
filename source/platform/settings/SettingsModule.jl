@@ -30,7 +30,7 @@ import TOML
 
 import ..DocumentModule: get_document_title
 import ..OperationModule: evaluate_operation, describe_operation, make_inverse_operation,
-                          operation_travels_unchanged, get_wrapped_operation,
+                          is_self_contained_operation, get_wrapped_operation,
                           rewrap_operation
 
 export SettingsGroup, SettingDescription, @settings, get_setting_descriptions,

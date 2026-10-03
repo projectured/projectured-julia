@@ -358,7 +358,7 @@ _reroot_vertex_answer(::Nothing, i::Int, content) = nothing
 _reroot_vertex_answer(op::CompoundOperation, i::Int, content) =
     join_move_answers((_reroot_vertex_answer(member, i, content) for member in op.operations)...)
 function _reroot_vertex_answer(op, i::Int, content)
-    op isa ReplacePathOperation || return operation_travels_unchanged(op) ? op : nothing
+    op isa ReplacePathOperation || return is_self_contained_operation(op) ? op : nothing
     path = get_operation_path(op)
     is_fully_typed_reference(path) ||
         (path = annotate_reference_types(content, strip_reference_types(path)))
@@ -386,7 +386,7 @@ function _route_click(iomap::GraphLayoutToGraphicsCanvasIoMap, g::MouseClick)
     local_evt = MouseClick(g.button, x, y, g.count, g.modifiers; time = g.time)
     op = read_intent(cim.projection, cim, local_evt)
     op isa ReplacePathOperation ||
-        return op !== nothing && operation_travels_unchanged(op) ? op : nothing
+        return op !== nothing && is_self_contained_operation(op) ? op : nothing
     _reroot_vertex_answer(op, i, cim.input)
 end
 
@@ -419,7 +419,7 @@ function _forward_to_selected(iomap::GraphLayoutToGraphicsCanvasIoMap, event)
         op = read_intent(cim.projection, cim, event)
         if op isa ReplacePathOperation
             return make_path_operation(op, @reference ::GraphLayout.vertex_layouts::CellVector[i]::VertexLayout.vertex::GraphVertex.content.^(get_operation_path(op)))
-        elseif op !== nothing && operation_travels_unchanged(op)
+        elseif op !== nothing && is_self_contained_operation(op)
             return op
         end
     end

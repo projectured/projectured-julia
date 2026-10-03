@@ -298,4 +298,4 @@ end
 # bridge builds through `map_reference_backward`.
 _needs_no_prefix(op) =
     op isa ReplaceReferencedValueOperation ? op.document !== nothing :
-    operation_travels_unchanged(op)
+    is_self_contained_operation(op)

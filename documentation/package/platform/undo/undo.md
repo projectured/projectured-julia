@@ -59,7 +59,7 @@ A buffer above a buffer keeps a copy of each step below. A run joins in both or 
 
 `PAR-READER-IS-PURE` in [architecture-invariants.md](../../../rule/architecture-invariants.md) forbids a reader to change anything. So the reader returns `RecordUndoOperation(buffer, operation)`, and its `evaluate_operation` takes the label and the caret, applies the operation through `evaluate_invertible_operation!` and pushes the entry. A new entry empties `redo_entries` and drops the oldest entry above `capacity`.
 
-`RecordUndoOperation` is a `WrappingOperation`: `get_wrapped_operation` and `rewrap_operation` reach the operation inside it. Every seam that maps a `CompoundOperation` member by member uses these two, so the wrapper needs no special case anywhere. `UndoOperation` and `RedoOperation` hold the buffer itself, so `operation_travels_unchanged` is `true` for both and they need no rerooting.
+`RecordUndoOperation` is a `WrappingOperation`: `get_wrapped_operation` and `rewrap_operation` reach the operation inside it. Every seam that maps a `CompoundOperation` member by member uses these two, so the wrapper needs no special case anywhere. `UndoOperation` and `RedoOperation` hold the buffer itself, so `is_self_contained_operation` is `true` for both and they need no rerooting.
 
 **The reader reads the content first and its own keys last.** It gives the gesture to the content, reroots the returned operation under `content` and wraps it. Only when the content returns no operation does the reader try Ctrl+Z and the redo keys. The source gives the reason: with a buffer inside a buffer, the inner one must take the key. The reader of `VersioningToAnyProjection` uses the opposite order on purpose; see [versioning.md](../versioning/versioning.md).
 

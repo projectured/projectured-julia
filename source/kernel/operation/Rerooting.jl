@@ -58,11 +58,11 @@ retarget_operation(op::ReplaceReferencedValueOperation, reference::Reference) =
     op.document === nothing ?
         ReplaceReferencedValueOperation(nothing, reference, op.value) : op
 
-operation_travels_unchanged(op) = false
+is_self_contained_operation(op) = false
 # These name no place in a document, so each travels up a chain as it is: the
 # no-op, the quit, the new print of the view, the flip of the node that it
 # carries, the move of the selection at the root, and the timer of the editor.
-operation_travels_unchanged(::Union{DoNothingOperation, QuitEditorOperation,
+is_self_contained_operation(::Union{DoNothingOperation, QuitEditorOperation,
                                     InvalidateProjectionOperation,
                                     ToggleCollapseOperation,
                                     SelectNextInsertionOperation,

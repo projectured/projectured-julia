@@ -61,7 +61,7 @@ chain as it is.
 """
 struct ToggleCommandPaletteOperation <: Operation end
 
-OperationModule.operation_travels_unchanged(::ToggleCommandPaletteOperation) = true
+OperationModule.is_self_contained_operation(::ToggleCommandPaletteOperation) = true
 OperationModule.describe_operation(::ToggleCommandPaletteOperation) = "open or close the command palette"
 
 """
