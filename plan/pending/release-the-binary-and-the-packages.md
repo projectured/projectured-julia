@@ -1390,8 +1390,12 @@ seals go beyond the kernel in time (only kernel files are sealed today).
       announcement of the registry we can always nuke the existing versions and
       overwrite it, there's no reason to keep the old versions, nobody uses them
       yet"). A new registry keeps the name, the uuid, the URL and the README of
-      `ProjecturedRegistry`; AutoIntegrations is registered first, then the
-      release in its order, and both repositories are pushed with `--force`.
+      `ProjecturedRegistry`, and every entry of a package of another repository
+      (AutoIntegrations, AutoPrecompile) as it is registered; then the release
+      registers in its order, and both repositories are pushed with `--force`.
+      An overwrite on 2026-10-03 dropped AutoPrecompile, which another session
+      had registered, because it kept only AutoIntegrations; the entry came back
+      unchanged from the replaced registry commit.
 - [ ] Before the announcement, the full suites: each test package in its own
       environment, `test_integration()`, and each failure compared with `main`.
       The release CI covers each package but the umbrella. The umbrella fails
