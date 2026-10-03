@@ -23,14 +23,15 @@ import ..DocumentModule: get_document_title, copy_document, has_document_duplica
 import ..GestureBindingModule: get_document_gesture_bindings_own
 import ..ProjectionModule: print_document, read_intent, map_reference_backward
 import ..SelectionModule: get_selection
-import ..OperationModule: evaluate_operation
+import ..OperationModule: evaluate_operation, make_inverse_operation, operation_travels_unchanged
 import ..DomainModule: compute_context_menu
 import ..WidgetModule: make_value_document, make_graphics_projection, refresh_document!
 
 export DataFrameColumnFilter, DataFrameSortKey, DataFrameQuery
 export DataFrameView, jump_to_row, make_data_frame_cell
 export DataFrameViewRows, DataFrameViewRow, DataFrameViewColumns, DataFrameColumn
-export RefreshDataFrameViewOperation
+export RefreshDataFrameViewOperation, SetDataFrameValueOperation, DataFrameCellEdit,
+       OpenDataFrameCellOperation, CloseDataFrameCellOperation
 export DataFrameViewToWidget, make_data_frame_view_projection
 
 include("DataFrameQuery.jl")
@@ -39,6 +40,7 @@ include("DataFrameExpression.jl")
 include("DataFrameSort.jl")
 include("DataFrameView.jl")
 include("DataFrameColumn.jl")
+include("DataFrameEdit.jl")
 include("DataFrameRefresh.jl")
 include("DataFrameFilterRow.jl")
 include("DataFrameValueList.jl")

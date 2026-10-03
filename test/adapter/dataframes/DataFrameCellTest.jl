@@ -186,6 +186,187 @@ function test_data_frame_cells()
             @test view.frame[2, :id] == 102
         end
 
+        @testset "the table holds the cell open: Escape drops it, and a reason marks it" begin
+            view, io = open_view()
+            table = table_of(io)
+            @test table.open_cells == Any[(row = 2, column = 1, reason = nothing)]
+            # A reason of the entry is the mark of the cell.
+            getfield(only(view.edits), :reason)[] = "not an Int"
+            @test only(table.open_cells).reason == "not an Int"
+            # Escape drops the entry and selects the whole cell.
+            evaluate_operation(_DataFrameFilterEditor(view), key(io, KeyDown(:escape, ModifierKeys(); time = 0.0)))
+            @test isempty(view.edits)
+            @test isempty(table.open_cells)
+            @test strip_reference_types(get_selection(view)) ==
+                  ConcreteReference(FieldReferenceStep("rows"), ConcreteReference(RangeReferenceStep(1, 2),
+                      ConcreteReference(RangeReferenceStep(0, 1), EmptyReference())))
+            @test shown(io, 2, 1) isa PrimitiveNumber && shown(io, 2, 1).value == 102
+        end
+
+        enter() = KeyDown(:return, ModifierKeys(); time = 0.0)
+        whole(r, c) = ConcreteReference(FieldReferenceStep("rows"), ConcreteReference(RangeReferenceStep(r - 1, r),
+            ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference())))
+        # Open the cell that shows `text` with the caret at the end of `text`.
+        function open_cell!(view, io, text, r, c)
+            (x, y) = place_of(io, text)
+            evaluate_operation(_DataFrameFilterEditor(view), press(io, x + 2, y + 2))
+            set_selection!(view, caret(r, c, length(text)))
+        end
+
+        @testset "Enter commits the value of an open cell into the frame, as one step of undo" begin
+            view, io = open_view()
+            editor = _DataFrameFilterEditor(view)
+            evaluate_operation(editor, key(io, KeyPress('5'; time = 0.0)))
+            version = view.frame_version
+            commit = key(io, enter())
+            @test is_undo_step(nothing, commit)
+            inverse = evaluate_invertible_operation!(editor, commit)
+            @test view.frame[2, :id] == 1025
+            @test isempty(view.edits) && isempty(table_of(io).open_cells)
+            @test view.frame_version > version
+            @test strip_reference_types(get_selection(view)) == whole(2, 1)
+            @test "1025" in texts_of(io) && shown(io, 2, 1).value == 1025
+            # The undo puts the value back and opens the cell again with the text
+            # of the edit, so the key before it takes back a key that shows.
+            redo = evaluate_invertible_operation!(editor, inverse)
+            @test view.frame[2, :id] == 102
+            @test only(view.edits).document.value == 1025
+            @test strip_reference_types(get_selection(view)) == caret(2, 1, 4)
+            @test shown(io, 2, 1).value == 1025 && only(table_of(io).open_cells).row == 2
+            evaluate_operation(editor, redo)
+            @test view.frame[2, :id] == 1025 && isempty(view.edits)
+            @test strip_reference_types(get_selection(view)) == whole(2, 1)
+        end
+
+        @testset "Escape after a key is a step of undo, and Escape with no change is none" begin
+            view, io = open_view()
+            editor = _DataFrameFilterEditor(view)
+            escape = KeyDown(:escape, ModifierKeys(); time = 0.0)
+            @test !is_undo_step(nothing, key(io, escape))
+            evaluate_operation(editor, key(io, KeyPress('5'; time = 0.0)))
+            drop = key(io, escape)
+            @test is_undo_step(nothing, drop)
+            inverse = evaluate_invertible_operation!(editor, drop)
+            @test isempty(view.edits) && view.frame[2, :id] == 102
+            evaluate_operation(editor, inverse)
+            @test only(view.edits).document.value == 1025
+            @test strip_reference_types(get_selection(view)) == caret(2, 1, 4)
+        end
+
+        @testset "a value that does not convert keeps the cell open, with the reason as its mark" begin
+            view, io = open_view()
+            editor = _DataFrameFilterEditor(view)
+            for character in ('.', '5')
+                evaluate_operation(editor, key(io, KeyPress(character; time = 0.0)))
+            end
+            evaluate_operation(editor, key(io, enter()))
+            @test view.frame[2, :id] == 102
+            entry = only(view.edits)
+            @test entry.reason == "102.5 is not a value of type Int64"
+            @test only(table_of(io).open_cells).reason == entry.reason
+            # An empty text in a column of no missing value has a reason too.
+            for _ in 1:5
+                evaluate_operation(editor, key(io, backspace()))
+            end
+            evaluate_operation(editor, key(io, enter()))
+            @test only(view.edits).reason == "A column of type Int64 takes no missing value"
+            @test view.frame[2, :id] == 102
+        end
+
+        @testset "an empty text writes missing where the column allows it" begin
+            view = DataFrameView(make_frame())
+            io = print_document(projection, nothing, view, context())
+            editor = _DataFrameFilterEditor(view)
+            open_cell!(view, io, "1.5", 1, 5)
+            for _ in 1:3
+                evaluate_operation(editor, key(io, backspace()))
+            end
+            evaluate_operation(editor, key(io, enter()))
+            @test ismissing(view.frame[1, :price])
+            @test isempty(view.edits)
+        end
+
+        @testset "a move out of an open cell commits it, and Tab commits a string" begin
+            view, io = open_view()
+            editor = _DataFrameFilterEditor(view)
+            (x, y) = place_of(io, "alpha")
+            @test !is_undo_step(nothing, press(io, x + 2, y + 2))
+            evaluate_operation(editor, key(io, KeyPress('5'; time = 0.0)))
+            move = press(io, x + 2, y + 2)
+            @test is_undo_step(nothing, move)
+            inverse = evaluate_invertible_operation!(editor, move)
+            @test view.frame[2, :id] == 1025
+            entry = only(view.edits)
+            @test entry.row == 1 && entry.column == "name"
+            # The undo opens the cell that the move left, and closes the cell
+            # that it opened.
+            redo = evaluate_invertible_operation!(editor, inverse)
+            @test view.frame[2, :id] == 102
+            @test only(view.edits).row == 2 && only(view.edits).document.value == 1025
+            @test strip_reference_types(get_selection(view)) == caret(2, 1, 4)
+            evaluate_operation(editor, redo)
+            @test view.frame[2, :id] == 1025
+            entry = only(view.edits)
+            @test entry.row == 1 && entry.column == "name"
+            set_selection!(view, caret(1, 2, 5))
+            evaluate_operation(editor, key(io, KeyPress('x'; time = 0.0)))
+            evaluate_operation(editor, key(io, KeyDown(:tab, ModifierKeys(); time = 0.0)))
+            @test view.frame[1, :name] == "alphax"
+            @test isempty(view.edits)
+        end
+
+        @testset "a Bool commits the value that its keys give, and an unchanged value writes nothing" begin
+            view = DataFrameView(make_frame())
+            io = print_document(projection, nothing, view, context())
+            editor = _DataFrameFilterEditor(view)
+            (x, y) = place_of(io, "false")
+            evaluate_operation(editor, press(io, x + 2, y + 2))
+            evaluate_operation(editor, key(io, KeyPress('t'; time = 0.0)))
+            evaluate_operation(editor, key(io, enter()))
+            @test view.frame[2, :ok] == true
+            version = view.frame_version
+            open_cell!(view, io, "103", 3, 1)
+            evaluate_operation(editor, key(io, enter()))
+            @test view.frame_version == version && isempty(view.edits)
+        end
+
+        @testset "a view of a SubDataFrame writes through to its parent" begin
+            parent = make_frame()
+            view = DataFrameView(@view parent[2:3, :])
+            io = print_document(projection, nothing, view, context())
+            editor = _DataFrameFilterEditor(view)
+            open_cell!(view, io, "102", 1, 1)
+            evaluate_operation(editor, key(io, KeyPress('7'; time = 0.0)))
+            evaluate_operation(editor, key(io, enter()))
+            @test parent[2, :id] == 1027
+        end
+
+        @testset "through a real editor, Enter commits and Ctrl+Z takes the commit back" begin
+            view = DataFrameView(make_frame())
+            backend = _ColumnWidthBackend()
+            editor = build_editor(view, NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                                  backend, devices = Device[Keyboard(), Mouse(), Display()], tabs = false,
+                                  undo = true, window = (; title = "W", width = 900, height = 400))
+            run_frame!(editor)
+            send!(event) = (push!(backend.events, WindowInput(:W, event)); run_frame!(editor))
+            (x, y) = only((t[1], t[2]) for t in _data_frame_texts(last(backend.rendered).windows[1].content)
+                          if t[3] == "102")
+            send!(MouseDown(:left, x + 30, y + 2, ModifierKeys(); time = 1.0))
+            send!(MouseUp(:left, x + 30, y + 2, ModifierKeys(); time = 1.05))
+            send!(KeyPress('5'; time = 1.2))
+            send!(KeyDown(:return, ModifierKeys(); time = 1.3))
+            @test view.frame[2, :id] == 1025 && isempty(view.edits)
+            # The first Ctrl+Z takes the commit back and opens the cell with the
+            # text of the edit; the second takes the key back.
+            send!(KeyDown(:z, ModifierKeys(ctrl = true); time = 1.4))
+            @test view.frame[2, :id] == 102 && only(view.edits).document.value == 1025
+            send!(KeyDown(:z, ModifierKeys(ctrl = true); time = 1.5))
+            @test only(view.edits).document.value == 102
+            send!(KeyDown(:y, ModifierKeys(ctrl = true); time = 1.6))
+            send!(KeyDown(:y, ModifierKeys(ctrl = true); time = 1.7))
+            @test view.frame[2, :id] == 1025 && isempty(view.edits)
+        end
+
         @testset "a duplicate opens no cell of its original" begin
             view = DataFrameView(make_frame())
             io = print_document(projection, nothing, view, context())

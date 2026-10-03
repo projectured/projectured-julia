@@ -1076,7 +1076,9 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     below; each key in an entry is a step of undo, as a key in a filter field
     is, and the undo of a commit puts back the old value but not the text of
     the edit; a `missing` value shows "missing" as the placeholder of the
-    primitive document of its cell.
+    primitive document of its cell. **Proposed change, waiting for the word of
+    the owner** (mine, 2026-10-03, see 4.6): the undo of a commit puts back the
+    old value and opens the cell again with the text of the edit.
 
   The design that follows from R1 to R5 (each point mine unless the owner made
   it above):
@@ -1132,7 +1134,8 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
   | `-` | `-`, red | `PrimitiveInsertion("-")` | `rows[5][3].value{1}` |
   | `5` | `-5` | `PrimitiveNumber(-5)` | `rows[5][3].value{2}` |
   | Enter | `-5` | a primitive document of the frame value | the row below (D10) |
-  | Ctrl+Z | `12` | — | — |
+  | Ctrl+Z | `-5`; the frame holds `12` again | entry: `PrimitiveNumber(-5)` | `rows[5][3].value{2}` |
+  | Ctrl+Z | `-` | `PrimitiveInsertion("-")` | `rows[5][3].value{1}` |
 
   Enter writes `-5` to the frame with `SetDataFrameValueOperation`, the
   version of the frame moves (trigger A), and the view sorts and filters
@@ -1298,10 +1301,79 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
       caret stay over a jump far away and back; through a real editor with
       undo, a press opens a cell, a key edits it and Ctrl+Z takes it back. 335
       data frame tests pass.
-  - [ ] **4.5** The generic commit, the mark and its tooltip, in the widget
-    table.
-  - [ ] **4.6** The commit of the view: `SetDataFrameValueOperation` and undo,
-    the write through a `SubDataFrame`, and trigger A of refresh.
+  - [x] **4.5** The generic commit, the mark and its tooltip, in the widget
+    table. Done 2026-10-02 (the design is mine, no flag: the rule against a flag
+    for a capability that every widget has is the owner's of 2026-09-17, and a
+    cell held open is no such capability, so the owner gives it as data):
+    - `WidgetTable` has `open_cells`, `(row, column, reason)` in the numbers of
+      its paths; a table with none behaves as before. In an open cell the table
+      takes Enter, Tab and Shift+Tab as `CommitTableCellOperation(table, row,
+      column, key)` and Escape as `DropTableCellOperation`, before the cell
+      reads them, in both forms. Both travel up as they are, as the width of a
+      column does, and do nothing at the root.
+    - A cell with a reason draws a frame of four bars in the `destructive`
+      color (`cell_mark_stroke` of the printer), and a rest of the pointer on
+      it shows the reason in a tooltip, in both forms. A table of a vector
+      draws its graphics behind each region, so a mark shows in each.
+    - The view gives the table its open cells from its entries, which have a
+      `reason` now (4.6 sets it), and converts the drop: the entry goes, as
+      view state, and the whole cell is selected. The commit is 4.6.
+    - Tests: the open cell in both forms of the table (the keys, a cell that is
+      not open, the mark and the tooltip); the view (its open cells, Enter, a
+      reason, Escape). The list table 234, the data frames 342.
+  - [x] **4.6** The commit of the view: `SetDataFrameValueOperation` and undo,
+    the write through a `SubDataFrame`, and trigger A of refresh. Done
+    2026-10-03:
+    - `SetDataFrameValueOperation(view, row, column, value)` writes the frame
+      and moves `frame_version`, so every computation that reads the frame
+      reads it again (trigger A). Its inverse writes the old value. It travels
+      up as it is. A view of a `SubDataFrame` writes through to its parent.
+    - The commit converts the document of the entry to the element type of the
+      column: a type-in parses its text within its `allowed_types`, an empty
+      text gives `missing` where the column allows it, and any other value goes
+      through `convert`. A value that does not convert writes the reason into
+      the entry, as view state, and the cell shows its mark. A value equal to
+      the value in the frame writes nothing.
+    - Enter, Tab and Shift+Tab commit and select the whole cell. A move of the
+      selection out of an open cell, by a click or by a key, commits that cell.
+      Tab does not go on to the next cell yet: that is D10, in 4.7.
+    - `OpenDataFrameCellOperation` and `CloseDataFrameCellOperation` change the
+      list of entries as they run, so one step that commits one cell and opens
+      another keeps both changes. Each is the inverse of the other, and the
+      close puts back the same entry.
+    - **The undo of a commit opens the cell again, with the text of the edit**
+      (mine; it changes R5, so it waits for the word of the owner). The fact
+      that moved it: each key in an entry is a step of undo (R5). When the
+      undo of a commit does not open the cell again, those steps act on an
+      entry that no cell shows, and each Ctrl+Z on them shows no change. Now
+      the first Ctrl+Z after Enter puts the old value back and opens the cell
+      with the text and the caret of the edit, and each next Ctrl+Z takes back
+      a key that shows. For the same reason, Escape on an entry with a change
+      is a step of undo, and Escape with no change is none.
+    - A step that writes the frame, or drops a change, holds its opens and
+      closes as they are. Any other step marks them as view state
+      (`_make_cell_step`), so a click that opens a cell, or a commit with no
+      change, is no step of undo. A close comes after the selection in its
+      step, so the undo opens the cell again before it puts the selection back
+      into it.
+    - The kernel does not change. A `ReplaceViewStateOperation` has no inverse,
+      and no step of undo of the view holds one. I tried an inverse that does
+      nothing for it, and took it back: with it, the undo of a commit put the
+      selection back into an entry that was gone, and failed with a
+      `SelectionMismatchException`.
+    - Open: an edit typed and then typed back to the value of the frame (`5`,
+      then Backspace) commits with no change. Its close is view state, so its
+      key steps stay in the history on an entry that no cell shows.
+    - The package `ProjecturedDataFrames` no longer imports the step that 4.2
+      removed, which gave a warning at load time.
+    - Tests: Enter commits, its undo opens the cell again with the text and
+      the caret, and its redo commits again; Escape after a key is a step of
+      undo, and Escape with no change is none; a value that does not convert;
+      an empty text gives `missing`; a move out commits, and its undo opens
+      the cell that it left and closes the cell that it opened; Tab commits a
+      string; a Bool; an unchanged value writes nothing; a `SubDataFrame`
+      writes through; in a real editor, Enter, then Ctrl+Z twice (the commit,
+      then the key), then Ctrl+Y twice. The data frames 383, the markdown 233.
   - [ ] **4.7** The sort and the filter again after a commit (D6), and the
     selection after it (D10).
 

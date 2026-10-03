@@ -912,5 +912,62 @@ end
     @test move isa SetTableColumnWidthOperation && move.column == 2 && move.width == 120
 end
 
+# The rects that a graphics tree draws in `color`, through viewports and down a
+# list for at most `limit` nodes in each direction.
+function rects_in(node, color, found = Ref(0); limit = 50)
+    if node isa GraphicsCanvas
+        elements = node.elements
+        if elements isa ListNode
+            for link in (:next, :prev)
+                n = link === :next ? elements : elements.prev; seen = 0
+                while n !== nothing && seen < limit
+                    rects_in(n.value, color, found; limit); n = getproperty(n, link); seen += 1
+                end
+            end
+        else
+            foreach(element -> rects_in(element, color, found; limit), elements)
+        end
+    elseif node isa GraphicsViewport
+        rects_in(node.content, color, found; limit)
+    elseif node isa GraphicsRect
+        unwrap_cell(node.color) == color && (found[] += 1)
+    end
+    found[]
+end
+
+@testset "an open cell takes Enter, Tab and Escape, and a failed commit marks it, in $form" for
+        form in ("a table of a list", "a table of a vector")
+    rows = form == "a table of a list" ? make_list(5, texts_of) :
+           Any[Any[texts_of(i, 1), texts_of(i, 2)] for i in 1:5]
+    table = make_table(rows; open_cells = Any[(row = 2, column = 1, reason = nothing)])
+    io = print_document(rec, nothing, table, context())
+    key(name; kw...) = read(io, KeyDown(name, ModifierKeys(; kw...); time = 0.0))
+    getfield(table, :selection)[] = cell_reference(2, 1)
+    commit = key(:return)
+    @test commit isa CommitTableCellOperation && commit.table === table
+    @test (commit.row, commit.column, commit.key) == (2, 1, :return)
+    @test key(:tab).key === :tab && key(:tab; shift = true).key === :backtab
+    drop = key(:escape)
+    @test drop isa DropTableCellOperation && (drop.row, drop.column) == (2, 1)
+    # A cell that is not open gives the keys to the table and to the cell as before.
+    getfield(table, :selection)[] = cell_reference(3, 1)
+    @test !(key(:return) isa CommitTableCellOperation)
+    @test key(:escape) === nothing
+    # A failed commit marks the cell with a frame of four bars, which each region
+    # of a table of a vector draws behind its pane, and a rest on it shows the
+    # reason.
+    marks = rects_in(io.output, ProjecturedPlatform.StyleModule.color_destructive)
+    getfield(table, :open_cells)[] = Any[(row = 2, column = 1, reason = "not a number")]
+    added = rects_in(io.output, ProjecturedPlatform.StyleModule.color_destructive) - marks
+    @test added > 0 && added % 4 == 0
+    (x, y) = place(io, 2, 1)
+    tooltip = read(io, MouseDwell(x + 2, y + 2; time = 0.0))
+    @test get_wrapped_operation(tooltip) isa OpenTooltipOperation
+    layers = get_wrapped_operation(tooltip).layers
+    @test any(layer -> last(layer) isa PrimitiveString && last(layer).value == "not a number", layers)
+    getfield(table, :open_cells)[] = Any[]
+    @test rects_in(io.output, ProjecturedPlatform.StyleModule.color_destructive) == marks
+end
+
 end
 end

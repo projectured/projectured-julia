@@ -2285,6 +2285,14 @@ in the content of a header goes to the header.
   on, as `(column, x, width)`, the column and the point and the width at the
   press, or `nothing`. A left press within 3 pixels of that edge starts it, and
   each move gives the column a width ([`SetTableColumnWidthOperation`](@ref)).
+- `open_cells` — the cells that the owner of the table holds open, a person's
+  edit there that is not committed yet, as `(row = k, column = c, reason)` in the
+  numbers of the paths of the table; `reason` is why the last commit of the cell
+  failed, or `nothing`. In an open cell Enter and Tab are the commit of the cell
+  ([`CommitTableCellOperation`](@ref)) and Escape is its drop
+  ([`DropTableCellOperation`](@ref)), which the owner converts; a cell with a
+  reason draws a mark, and a rest of the pointer on it shows the reason. A
+  table with no open cell gives every key to its cells.
 
 The string convenience constructor wraps each string in a `WidgetLabel` so
 existing call sites (`WidgetTable(pos, headers, rows)`) keep working unchanged.
@@ -2315,6 +2323,7 @@ See also `make_result_table` and `WidgetList` for one column.
     scroll_position::Point2D     # view state: the one offset of the parts of a table that scrolls itself
     top_row::Int                 # view state: the row at the top of a list of rows, counted from its head
     column_drag::Any             # view state: the drag of the edge of a column that is on, or nothing
+    open_cells::Any              # the cells that an owner holds open, as `(row, column, reason)`
     tooltip::Any
 end
 
@@ -2403,6 +2412,7 @@ function WidgetTable(; position::Point2D=Point2D(0, 0), column_headers::Union{Ve
                      column_policies=Any[], row_policies=Any[],
                      cell_policy::Symbol=:clip, column_cell_policies=Symbol[],
                      column_align=Symbol[], scroll_position::Point2D=Point2D(0, 0),
+                     open_cells=Any[],
                      margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing)
     cell_policy in (:clip, :wrap) ||
         error("WidgetTable: cell_policy is :clip or :wrap, not ", repr(cell_policy))
@@ -2433,7 +2443,7 @@ function WidgetTable(; position::Point2D=Point2D(0, 0), column_headers::Union{Ve
                 Cell(cell_policy), Cell(collect(Symbol, column_cell_policies)),
                 Cell(column_align isa ListNode ? column_align : collect(Symbol, column_align)),
                 Cell(visible), Cell(margin), Cell(border), Cell(padding), Cell(style),
-                Cell(scroll_position), Cell(1), Cell(nothing), Cell(tooltip))
+                Cell(scroll_position), Cell(1), Cell(nothing), Cell(collect(Any, open_cells)), Cell(tooltip))
 end
 
 """
@@ -2683,6 +2693,34 @@ struct SetTableColumnWidthOperation <: Operation
     width::Int
 end
 
+"""
+    CommitTableCellOperation(table, row, column, key)
+
+The commit of the open cell in row `row` and column `column` of `table`, in the
+numbers of the paths of the table: Enter (`key = :return`), Tab (`:tab`) or
+Shift+Tab (`:backtab`) in the cell. The owner of the table that holds the cell
+open converts it into its own commit and moves the selection by `key`; a table
+that no owner converts commits nothing.
+"""
+struct CommitTableCellOperation <: Operation
+    table::WidgetTable
+    row::Int
+    column::Int
+    key::Symbol
+end
+
+"""
+    DropTableCellOperation(table, row, column)
+
+The drop of the open cell in row `row` and column `column` of `table`, which
+Escape in the cell writes: the owner drops what was typed there.
+"""
+struct DropTableCellOperation <: Operation
+    table::WidgetTable
+    row::Int
+    column::Int
+end
+
 # ── Action (Stage 4) ────────────────────────────────────────────────────────
 
 """
@@ -2921,6 +2959,12 @@ end
 # The width operation names its table, so it travels up a chain as it is, and the
 # owner of a table whose columns are a list reads it on the way.
 operation_travels_unchanged(::SetTableColumnWidthOperation) = true
+
+# The commit and the drop of an open cell name their table, so they travel up a
+# chain as they are, and the owner that holds the cell open converts them; one
+# that reaches the root found no owner, and does nothing.
+operation_travels_unchanged(::Union{CommitTableCellOperation,DropTableCellOperation}) = true
+evaluate_operation(editor, ::Union{CommitTableCellOperation,DropTableCellOperation}) = nothing
 
 function evaluate_operation(editor, op::SetTableColumnWidthOperation)
     table = op.table

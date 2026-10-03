@@ -58,17 +58,20 @@ the data of the frame reads `frame_version` too.
 end
 
 """
-    DataFrameCellEdit(row, column, document)
+    DataFrameCellEdit(row, column, document, reason)
 
 A cell of a view that a person opened and did not commit: the row of the frame,
-the name of the column, and the primitive document that shows its value and
-takes the keys. A click in a cell opens one.
+the name of the column, the primitive document that shows its value and takes
+the keys, and `reason`, why its last commit failed, or `nothing`. A click in a
+cell opens one; the table marks a cell with a reason and shows the reason.
 """
 @document struct DataFrameCellEdit
     row::Int
     column::String
     document::Any
+    reason::Any
 end
+
 
 # The entry of the cell in row `row` of the frame and column `name`, or `nothing`.
 function _find_cell_edit(view::DataFrameView, row::Int, name::String)

@@ -8896,6 +8896,7 @@ _translate_pointer_event(evt::MouseDwell, dx, dy) = shift_event_position(evt, -d
     row_selected_color::StyleColor      # the band of the selected row, column or cell
     layer_hovered_color::StyleColor     # over a hovered row, column or cell, behind the band
     edge_hovered_stroke::StyleStroke    # over the right edge of a header that the pointer is on
+    cell_mark_stroke::StyleStroke       # the frame of an open cell whose last commit failed
     cell_padding::Inset                 # inside a cell: top and bottom, left and right
     row_radius::Int                     # corner radius of the hover and the selection band
 end
@@ -8909,11 +8910,13 @@ WidgetTableToGraphicsCanvas(theme::ScaledWidgetTheme;
                             row_selected_color = _themed(StyleColor, theme, t -> _with_alpha(t.selection_ring, 0.25)),
                             layer_hovered_color = _themed(StyleColor, theme, _get_hover_layer),
                             edge_hovered_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.ring, 3)),
+                            cell_mark_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.destructive, 2)),
                             cell_padding = _themed(Inset, theme, t -> t.control_padding),
                             row_radius = _themed(Int, theme, t -> t.radius_small)) =
     WidgetTableToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
                                 content_color, divider_stroke, header_row_color, row_selected_color,
-                                layer_hovered_color, edge_hovered_stroke, cell_padding, row_radius)
+                                layer_hovered_color, edge_hovered_stroke, cell_mark_stroke, cell_padding,
+                                row_radius)
 
 # The geometry of a table as if it were not scrolled, in the coordinates of its
 # content. `col_x` / `row_y` are the cumulative left/top edges, length
@@ -9347,6 +9350,22 @@ function _wt_make_graphics(p::WidgetTableToGraphicsCanvas, w::WidgetTable, geom:
     push!(result, _wt_make_band(() -> _find_wt_lit_reference(get_mouse_target(w)), geom,
                                 p.layer_hovered_color, p.row_radius))
     push!(result, _wt_make_band(() -> w.selection, geom, row_selected_color, p.row_radius))
+    # The frame of each open cell whose last commit failed.
+    marks = CellVector(@computation begin
+        rects = Any[]
+        for cell in w.open_cells
+            cell.reason === nothing && continue
+            gr, gc = cell.row + geom.row_offset, cell.column + geom.col_offset
+            (1 <= gr <= geom.grid_rows && 1 <= gc <= geom.grid_cols) || continue
+            append!(rects, _make_cell_mark_rects(geom.col_x[gc] + geom.bw, geom.row_y[gr] + geom.bw,
+                                                 geom.col_x[gc + 1] - geom.col_x[gc] - geom.bw,
+                                                 geom.row_y[gr + 1] - geom.row_y[gr] - geom.bw,
+                                                 p.cell_mark_stroke))
+        end
+        rects
+    end)
+    push!(result, GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(geom.total_w)),
+                                 Cell(Int32(geom.total_h)), marks, layout_none, true, Cell(nothing)))
     # Horizontal rules at row_y[gr] for gr in 1..grid_rows+1 (the top border,
     # the inner rules, the bottom border), and vertical rules likewise.
     for gr in 1:(geom.grid_rows + 1)
@@ -9520,6 +9539,8 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, 
                                            content_x + region_x, content_y + region_y, g))
     end
     if g isa KeyDown
+        op = _read_open_cell_key(iomap.input, g)
+        op === nothing || return Intent(g, op)
         op = _wt_key_navigate(iomap, g, iomap.geometry)
         op === nothing || return Intent(g, op)
     end
@@ -9705,6 +9726,47 @@ function _wt_key_navigate(iomap::WidgetTableToGraphicsCanvasIoMap, evt::KeyDown,
     return nothing
 end
 
+# ── The open cells ───────────────────────────────────────────────────────────
+
+# The open cell in row `k` and column `c` of `w`, `(row, column, reason)`, or
+# `nothing`.
+function _find_open_cell(w::WidgetTable, k::Int, c::Int)
+    for cell in w.open_cells
+        cell.row == k && cell.column == c && return cell
+    end
+    nothing
+end
+
+# Enter, Tab, Shift+Tab and Escape in the open cell that the selection is in,
+# before the cell reads them: the commit or the drop of the cell, which the owner
+# of the table converts; `nothing` for another key or another place.
+function _read_open_cell_key(w::WidgetTable, g::KeyDown)
+    g.key in (:return, :tab, :escape) || return nothing
+    isempty(w.open_cells) && return nothing
+    prefix = _wt_cell_prefix(w.selection)
+    prefix === nothing && return nothing
+    k, c = prefix
+    _find_open_cell(w, k, c) === nothing && return nothing
+    g.key === :escape && return DropTableCellOperation(w, k, c)
+    CommitTableCellOperation(w, k, c, g.key === :return ? :return : g.modifiers.shift ? :backtab : :tab)
+end
+
+# The frame of the mark of a cell: four bars of `stroke` inside the box at
+# `(x, y)`, `width` by `height`.
+function _make_cell_mark_rects(x::Int, y::Int, width::Int, height::Int, stroke::StyleStroke)
+    t, color = Int(stroke.width), stroke.color
+    Any[GraphicsRect(x, y, width, t; color), GraphicsRect(x, y + height - t, width, t; color),
+        GraphicsRect(x, y, t, height; color), GraphicsRect(x + width - t, y, t, height; color)]
+end
+
+# The tooltip of the reason of the mark of a cell, for a rest of the pointer on
+# it, rooted under the cell; `nothing` for a cell with no mark.
+function _read_cell_mark_dwell(w::WidgetTable, k::Int, c::Int, g::MouseDwell)
+    cell = _find_open_cell(w, k, c)
+    (cell === nothing || cell.reason === nothing) && return nothing
+    reroot_operation(make_tooltip_operation(w, PrimitiveString(cell.reason), g), _wt_get_cell_steps(k, c))
+end
+
 _wt_row_ref(r::Int) = ConcreteReference(FieldReferenceStep("rows"),
     ConcreteReference(RangeReferenceStep(r - 1, r), EmptyReference()))
 _wt_col_ref(c::Int) = ConcreteReference(FieldReferenceStep("columns"),
@@ -9747,6 +9809,13 @@ end
 # position goes to the cell under it. One with no position, such as a key or a
 # character, goes to the cell the selection is in.
 function _wt_route_event(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, event)
+    if event isa MouseDwell && !isempty(iomap.input.open_cells)
+        # A rest on an open cell whose last commit failed shows the reason of its mark.
+        x, y = _wt_get_unscrolled_point(p, iomap, Int(event.x), Int(event.y))
+        hit = _wt_hit_test(iomap.geometry, x, y)
+        op = hit[1] === :cell ? _read_cell_mark_dwell(iomap.input, hit[2], hit[3], event) : nothing
+        op === nothing || return op
+    end
     _positioned_event(event) && return _wt_route_to_cell_under(p, iomap, event)
     _wt_route_to_selected_cell(iomap, event)
 end

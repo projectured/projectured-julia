@@ -592,6 +592,14 @@ function _make_row_graphics(p::WidgetTableToGraphicsCanvas, w::WidgetTable,
         h = Int(height[])
         left, width = span[]
         out = Any[bands..., GraphicsRect(left, 0, width, bw; color = divider)]
+        # The frame of each open cell of this row whose last commit failed.
+        for cell in w.open_cells
+            (cell.row == k && cell.reason !== nothing) || continue
+            column = _get_table_column_span(st, cell.column)
+            column === nothing && continue
+            append!(out, _make_cell_mark_rects(column[1] + bw, bw, column[2] - bw, Int(band_height[]),
+                                               p.cell_mark_stroke))
+        end
         if !st.column_list
             for edge in st.edges[]
                 push!(out, GraphicsRect(edge, 0, bw, h; color = divider))
@@ -1590,6 +1598,19 @@ function _read_table_column_edge_dwell(p::WidgetTableToGraphicsCanvas, iomap::Wi
     reroot_operation(tooltip, (FieldReferenceStep("column_policies"), RangeReferenceStep(first(edge) - 1, first(edge))))
 end
 
+# A rest of the pointer on an open cell whose last commit failed shows the reason
+# of its mark; `nothing` anywhere else.
+function _read_table_mark_dwell(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, g::MouseDwell)
+    isempty(iomap.input.open_cells) && return nothing
+    found = _find_table_part_at(p, iomap, g.x, g.y)
+    (found === nothing || found[1] !== :cells) && return nothing
+    st = iomap.state
+    k = _find_table_row_at(st, found[3])
+    c = _find_table_column_at(st, found[2])
+    (k === nothing || c === nothing) && return nothing
+    _read_cell_mark_dwell(iomap.input, k, c, g)
+end
+
 """
     read_table_column_drag(table, gesture) -> Operation or nothing
 
@@ -1626,6 +1647,8 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent,
         if g isa MouseDwell
             op = _read_table_column_edge_dwell(p, iomap, g)
             op === nothing || return Intent(g, op)
+            op = _read_table_mark_dwell(p, iomap, g)
+            op === nothing || return Intent(g, op)
         end
         g isa MouseClick && g.button === :left && return Intent(g, _read_table_parts_press(p, iomap, g))
         # A pointer motion does not go into the cells: the part under the pointer
@@ -1633,6 +1656,8 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent,
         g isa MouseMove && return Intent(g, nothing)
         g isa MouseScroll && return Intent(g, _read_table_parts_wheel(p, iomap, g))
         if g isa KeyDown
+            op = _read_open_cell_key(iomap.input, g)
+            op === nothing || return Intent(g, op)
             op = _read_table_parts_key(iomap, g)
             op === nothing || return Intent(g, op)
         end
@@ -1654,6 +1679,8 @@ function read_intent(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap
     end
     if event isa MouseDwell
         op = _read_table_column_edge_dwell(p, iomap, event)
+        op === nothing || return op
+        op = _read_table_mark_dwell(p, iomap, event)
         op === nothing || return op
     end
     if event isa MouseClick || event isa KeyDown || event isa MouseScroll ||

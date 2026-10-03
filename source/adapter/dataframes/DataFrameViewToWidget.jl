@@ -148,7 +148,8 @@ function _make_view_table(p::DataFrameViewToWidget, view::DataFrameView)
                         Cell(:clip), Cell(Symbol[]), align,
                         Cell(true), Cell(nothing), Cell(nothing), Cell(nothing),
                         Cell(nothing), getfield(view, :scroll_position),
-                        getfield(view, :top_row), Cell(nothing), Cell(nothing),
+                        getfield(view, :top_row), Cell(nothing),
+                        Cell(@computation _get_table_open_cells(view, false)), Cell(nothing),
                         Cell(@computation _get_table_selection(view, false)))
     set_cell_computation!(getfield(table, :mouse_target), () -> _get_table_mouse_target(view))
     table
@@ -210,7 +211,8 @@ function _make_column_list_table(p::DataFrameViewToWidget, view::DataFrameView)
                         policies, Cell(Any[]), Cell(:clip), Cell(Symbol[]), align,
                         Cell(true), Cell(nothing), Cell(nothing), Cell(nothing),
                         Cell(nothing), getfield(view, :scroll_position),
-                        getfield(view, :top_row), Cell(nothing), Cell(nothing),
+                        getfield(view, :top_row), Cell(nothing),
+                        Cell(@computation _get_table_open_cells(view, true)), Cell(nothing),
                         Cell(@computation _get_table_selection(view, true)))
     set_cell_computation!(getfield(table, :mouse_target), () -> _get_table_mouse_target(view))
     table
@@ -234,6 +236,21 @@ function _get_table_selection(view::DataFrameView, column_list::Bool)
     end
     (selection isa ConcreteReference && selection.head isa FieldReferenceStep) || return nothing
     _find_table_part_path(view, selection, column_list)
+end
+
+# The open cells of the table, `(row, column, reason)` in the numbers of the
+# paths of the table, for the entries of `view` whose cells it shows.
+function _get_table_open_cells(view::DataFrameView, column_list::Bool)
+    cells = Any[]
+    frame_names = names(view.frame)
+    for edit in view.edits
+        k = _find_table_row(view, edit.row)
+        c = findfirst(==(edit.column), frame_names)
+        j = c === nothing ? nothing : _find_table_column(view, c, column_list)
+        (k === nothing || j === nothing) && continue
+        push!(cells, (row = k, column = j, reason = edit.reason))
+    end
+    cells
 end
 
 # The path in the table of the header of column `name`, followed by `tail`;
@@ -361,8 +378,18 @@ function read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
     target === nothing && return nothing
     view = iomap.input
     open = _make_open_cell_operation(view, target)
-    open === nothing || return CompoundOperation(Any[open, ReplaceSelectionOperation(target)])
-    ReplaceSelectionOperation(_find_cell_tail(target) === nothing ? annotate_reference_types(view, target) : target)
+    selection = ReplaceSelectionOperation(open === nothing && _find_cell_tail(target) === nothing ?
+                                          annotate_reference_types(view, target) : target)
+    # A move out of an open cell commits it; a value that does not convert keeps
+    # it open with its mark, and the selection moves on. The commit comes after
+    # the selection, so the undo opens the cell again before it selects in it.
+    left = _find_selected_open_cell(view)
+    commit = (left === nothing || _find_frame_cell(view, target) == left) ? nothing :
+             _make_cell_commit(view, left[1], left[2])
+    (open === nothing && commit === nothing) && return selection
+    operations = open === nothing ? Any[selection] : Any[open, selection]
+    commit === nothing || append!(operations, commit.members)
+    _make_cell_step(operations, commit !== nothing && commit.edits)
 end
 
 # The row of the frame, the column of the frame and the rest of `path`, a path of
@@ -380,8 +407,7 @@ end
 
 # The opening of the cell that `path`, a path of the view, goes on into: a new
 # entry, whose document is a new primitive document of the value, when the cell
-# is not open and takes keys; `nothing` otherwise. It is view state, so no step
-# of undo.
+# is not open and takes keys; `nothing` otherwise.
 function _make_open_cell_operation(view::DataFrameView, path)
     found = _find_cell_tail(path)
     found === nothing && return nothing
@@ -392,8 +418,7 @@ function _make_open_cell_operation(view::DataFrameView, path)
     _find_cell_edit(view, r, name) === nothing || return nothing
     document = make_data_frame_cell(frame[r, c], eltype(frame[!, c]))
     document isa PrimitiveDocument || return nothing
-    ReplaceViewStateOperation(ReplaceReferencedValueOperation(
-        view, "edits", Any[view.edits..., DataFrameCellEdit(r, name, document)]))
+    OpenDataFrameCellOperation(view, DataFrameCellEdit(r, name, document, nothing))
 end
 
 # A place in the table that has a place in the view maps back to it, as a
@@ -554,6 +579,10 @@ end
 function _convert_table_write(iomap::DataFrameViewToWidgetIoMap, operation, columns::Bool)
     cell = _convert_cell_operation(iomap, operation)
     cell === nothing || return cell
+    operation isa DropTableCellOperation && operation.table === iomap.table &&
+        return _convert_cell_drop(iomap, operation)
+    operation isa CommitTableCellOperation && operation.table === iomap.table &&
+        return _convert_cell_commit(iomap, operation)
     operation isa StartDragOperation && _find_table_path(get_operation_path(operation)) isa EmptyReference &&
         return StartDragOperation(annotate_reference_types(iomap.input, EmptyReference()), operation.dragged)
     width = operation isa ReplaceViewStateOperation ? get_wrapped_operation(operation) : operation
@@ -595,6 +624,43 @@ function _convert_cell_operation(iomap::DataFrameViewToWidgetIoMap, operation)
         return target === nothing ? nothing : ReplaceSelectionOperation(target)
     end
     nothing
+end
+
+# Escape in an open cell drops its entry, so the cell shows its value again, and
+# selects the whole cell.
+function _convert_cell_drop(iomap::DataFrameViewToWidgetIoMap, operation::DropTableCellOperation)
+    view = iomap.input
+    path = _find_view_path(iomap, ConcreteReference(FieldReferenceStep("rows"),
+        ConcreteReference(RangeReferenceStep(operation.row - 1, operation.row),
+                          ConcreteReference(RangeReferenceStep(operation.column - 1, operation.column),
+                                            EmptyReference()))))
+    found = path === nothing ? nothing : _find_frame_cell(view, path)
+    found === nothing ? nothing : _make_cell_drop_operation(view, found[1], found[2])
+end
+
+# Enter, Tab and Shift+Tab in an open cell commit it, and select the whole cell.
+function _convert_cell_commit(iomap::DataFrameViewToWidgetIoMap, operation::CommitTableCellOperation)
+    view = iomap.input
+    path = _find_view_path(iomap, ConcreteReference(FieldReferenceStep("rows"),
+        ConcreteReference(RangeReferenceStep(operation.row - 1, operation.row),
+                          ConcreteReference(RangeReferenceStep(operation.column - 1, operation.column),
+                                            EmptyReference()))))
+    found = path === nothing ? nothing : _find_frame_cell(view, path)
+    found === nothing && return nothing
+    _make_cell_commit_operation(view, found[1], found[2])
+end
+
+# The row of the frame and the name of the column of `path`, the path of the view
+# of a whole cell, `rows[r][c]`, or `nothing`.
+function _find_frame_cell(view::DataFrameView, path)
+    (path isa ConcreteReference && path.head == FieldReferenceStep("rows")) || return nothing
+    tail = path.tail
+    (tail isa ConcreteReference && tail.head isa RangeReferenceStep) || return nothing
+    rest = tail.tail
+    (rest isa ConcreteReference && rest.head isa RangeReferenceStep) || return nothing
+    c = rest.head.stop
+    frame_names = names(view.frame)
+    1 <= c <= length(frame_names) ? (tail.head.stop, frame_names[c]) : nothing
 end
 
 # The path of the view of `path`, a path of the output of the view, when it
