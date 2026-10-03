@@ -56,7 +56,7 @@ ProjecturEd.
 
 | Package | `[deps]` | Made by | Loaded by | Released |
 | --- | --- | --- | --- | --- |
-| `AutoPrecompile` | `TOML`, `UUIDs`, `PrecompileTools` | its own repository, as AutoIntegrations | the user, with `using AutoPrecompile` | yes, in `ProjecturedRegistry` |
+| `AutoPrecompile` | `TOML`, `UUIDs`, `PrecompileTools`, `Scratch` | its own repository, as AutoIntegrations | the user, with `using AutoPrecompile` | yes, in `ProjecturedRegistry` |
 | a leaf | `AutoPrecompile`, `PrecompileTools`, each package of its set | AutoPrecompile, at run time | AutoPrecompile | no |
 
 AutoPrecompile depends on `PrecompileTools` for its leaves: a leaf finds each
@@ -109,8 +109,8 @@ uuid of the leaf come from the key.
 
 ### 3.4 The leaf
 
-- AutoPrecompile keeps its leaves in a directory of the first depot (open
-  question: where), and adds that directory to the end of `LOAD_PATH`.
+- AutoPrecompile keeps its leaves in its scratch space (decision 17), and adds
+  that directory to the end of `LOAD_PATH`.
 - A leaf folder holds its `Project.toml`, its source and a copy of its selected
   statements. The copy keeps the leaf independent of the files of other packages.
 - The source imports each package of the set, declares a module
@@ -224,6 +224,12 @@ The owner, 2026-10-03, later:
     priority (section 3.5).
 16. The leaves have a limit of 2 GB in total by default, with a setting, and the
     leaf loaded longest ago goes first (section 3.6).
+17. The leaves live in the scratch space of AutoPrecompile, which `Scratch.jl`
+    gives (`~/.julia/scratchspaces/<uuid of AutoPrecompile>/`), so that `Pkg.gc`
+    removes them when AutoPrecompile is no longer installed. AutoPrecompile
+    depends on `Scratch`.
+18. The load of a valid leaf writes no log line, because it is fast. The build
+    writes the lines.
 
 ## 5. Steps
 
@@ -350,9 +356,4 @@ Each step is a commit. Mark it here when it is done.
 
 ## 6. Open questions
 
-- Where the leaves live. My proposal: the scratch space of AutoPrecompile in the
-  first depot (`~/.julia/scratchspaces/<uuid of AutoPrecompile>/`), where
-  `Scratch.jl` puts it, so that `Pkg.gc` removes it when AutoPrecompile is no
-  longer installed. That adds `Scratch` to the dependencies.
-- Whether the load of a valid leaf writes a log line. My proposal: no line,
-  because it is fast; the build writes lines.
+None at the moment.
