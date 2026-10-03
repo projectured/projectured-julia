@@ -403,10 +403,9 @@ Each step is a commit. Mark it here when it is done.
    release copies the `precompile/` folder of each package, and the README says
    what AutoPrecompile does.
 
-   Done 2026-10-03 on the branch `precompile-statements` of projectured-julia
-   (worktree `../projectured-julia-statements`), not on `main` yet, one commit
-   for each part: `e63b77335`, `eb4dc1762`, `2767bc01f`, `82e373126`,
-   `2f73e782a`. What was found and chosen:
+   Done 2026-10-03, one commit for each part: `fd42a55ac`, `03fa7d716`,
+   `92e0aefd1`, `fd5ce2dca`, `1905fffea`, landed on `main` of projectured-julia
+   at the owner's word. What was found and chosen:
    - The worktree is a sibling folder of the main checkout, not one under
      `.claude/worktrees/`, because `environment/all` and `package/Projectured`
      find AutoIntegrations at `../../../auto-integrations` (plan of
