@@ -397,11 +397,59 @@ Each step is a commit. Mark it here when it is done.
      Julia version before it compiles. The test plants a stale image and checks
      that the rebuild removed it, because a rebuild with the same flags writes
      the same file name and would pass without the removal.
-7. **ProjecturEd**: the recorder writes text, records the README scenarios, and
-   splits each recording by owner into the `precompile/` folders of the packages
-   (section 3.7). `ProjecturedREPL` reads the text files. The release copies the
-   `precompile/` folder of each package, and the README says what
-   AutoPrecompile does.
+7. **Done — ProjecturEd**: the recorder writes text, records the README
+   scenarios, and splits each recording by owner into the `precompile/` folders
+   of the packages (section 3.7). `ProjecturedREPL` reads the text files. The
+   release copies the `precompile/` folder of each package, and the README says
+   what AutoPrecompile does.
+
+   Done 2026-10-03 on the branch `precompile-statements` of projectured-julia
+   (worktree `../projectured-julia-statements`), not on `main` yet, one commit
+   for each part: `e63b77335`, `eb4dc1762`, `2767bc01f`, `82e373126`,
+   `2f73e782a`. What was found and chosen:
+   - The worktree is a sibling folder of the main checkout, not one under
+     `.claude/worktrees/`, because `environment/all` and `package/Projectured`
+     find AutoIntegrations at `../../../auto-integrations` (plan of
+     AutoIntegrations, 9.7). Julia reused the package images of the main
+     checkout, because it checks the sources by content: the first build of the
+     worktree took 2 minutes.
+   - `ProjecturedExample` keeps `record_precompile_statements(driver, output)`
+     and the Julia list, because `OmnetRepl` and `InetRepl` call it. It gets
+     `trace_precompile_statements`, which answers the cleaned lines of a run.
+   - The split lives in `ProjecturedREPL` (`source/tool/repl/ReplStatementFiles.jl`),
+     because only this repository knows its packages. The dependency graph comes
+     from the `Project.toml` files of `package/`, so `ProjecturedREPL` depends on
+     `TOML`. `PRECOMPILE_RECORDINGS` names each recording, its driver and its
+     environment; `record_precompile_statements(recording)` runs one.
+   - "The packages of a recording" in section 3.7 are the packages that its lines
+     name. In the recording "examples", the 549 lines that name no package of the
+     repository go to `ProjecturedTest`; in "readme-data-frame" they go to
+     `ProjecturedDataFrames` and `ProjecturedSDL`.
+   - Part 1 wrote the list of the repository as the recording "examples": 47
+     files, 15536 lines for 15403 statements, because 133 lines name two packages
+     that do not depend on each other. `ProjecturedPlatform` keeps 6617 lines.
+   - Part 2: `PRECOMPILE_STATEMENTS` is each line of each statement file, with
+     each file and each statement folder as an `include_dependency`. It holds the
+     same 15403 lines as the old list. At `:recorded` the leaf built in 211 s, and
+     a replay compiled 15403 and skipped none.
+   - Part 3: `environment/readme-data-frame` holds the five packages of the
+     README, with a tracked manifest as `environment/all` and `environment/build`
+     have. The driver `tool/precompile/readme-data-frame.jl` sends real SDL events
+     to the largest window that SDL knows, with each field of an event set by
+     name, as the SDL tests do; an event with window id 0 maps to no window. 2577
+     lines: `ProjecturedPlatform` 1676, `ProjecturedDataFrames` 372,
+     `ProjecturedSDL` 346, `ProjecturedKernel` 183. The files hold paths of the
+     wheel, the button and the keys; none of `F2` opening a cell, so the click at
+     the middle of the window selected no cell.
+   - Part 4: the release copies `package/<Name>/precompile/` beside `ext/`.
+   - Part 5: the front page of the release repository gets the section "Faster
+     sessions".
+   - Tests: `test_package_release()` 244 of 244; `test_package_graph()`,
+     `test_export_collisions()` and `test_naming()` together 368 of 368.
+   - Open for the owner: `ProjecturedPlatform` also ships the 6617 lines of
+     "examples", so the leaf of the README set holds them too. In step 2 a leaf
+     of 7575 lines took 86 s and 110 MB, against 41 s and 57 MB for the README
+     lines alone.
 8. **Measure the README scenario**: the count of compiled methods in the second
    session, and the times if the owner approves.
 9. **Release**: the owner registers AutoPrecompile in `ProjecturedRegistry`.
