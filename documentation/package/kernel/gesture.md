@@ -226,7 +226,7 @@ document, projection = make_tracking_screen(screen_document, screen_projection;
 
 - Tests: `test_gesture_module()` and `test_gesture_recognition()`
   (`test/kernel/gesture/`) cover the gesture types and the three recognitions;
-  `test_gesture_case()` covers the pattern syntax and `@gesture_case`;
+  `test_gesture_pattern()` covers the pattern syntax and `@gesture_case`;
   `test_gesture_tracking()` (`test/platform/projection/GestureTrackingTest.jl`)
   covers the wrapper that runs them.
 

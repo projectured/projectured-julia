@@ -83,7 +83,7 @@ function test_kernel()
         test_event_module()
         test_gesture_module()
         test_gesture_recognition()
-        test_gesture_case()
+        test_gesture_pattern()
         test_device_module()
         test_gesture_binding()
         test_iomap_reconcile()
@@ -129,7 +129,7 @@ export test_fault_defaults, test_fault_record, test_fault_store,
        test_type_reference, test_selection,
        test_rerooting,
        test_inversion, test_traversal, test_description, test_intent,
-       test_event_module, test_gesture_module, test_gesture_recognition, test_gesture_case,
+       test_event_module, test_gesture_module, test_gesture_recognition, test_gesture_pattern,
        test_device_module, test_gesture_binding,
        test_iomap_reconcile, test_iomap_defaults,
        test_headless_backend, test_llm_defaults, test_agent_defaults, test_agent_loop,

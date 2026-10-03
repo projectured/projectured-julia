@@ -1,4 +1,4 @@
-function test_gesture_case()
+function test_gesture_pattern()
 @testset "GestureCase" begin
 
 # ── type-only dispatch ──────────────────────────────────────────────────
@@ -115,4 +115,4 @@ end
 end
 end
 
-export test_gesture_case
+export test_gesture_pattern
