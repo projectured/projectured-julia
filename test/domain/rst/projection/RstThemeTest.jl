@@ -32,10 +32,10 @@ Some *em* text.
     @test !isempty(plain)
     @test draw_font_sizes(document, Appearance(font_scale = 1.5)) == round.(Int, plain .* 1.5)
 
-    @test RstTextToSyntaxLeaf().style.font.size == 20
+    @test RstTextToSyntaxLeaf().style.font.size == 14
     theme = get_scaled_theme!(Appearance(font_scale = 1.5), RstTheme)
     leaf = RstTextToSyntaxLeaf(; theme)
-    @test leaf.style.font.size == 30
+    @test leaf.style.font.size == 21
     @test is_color_equal(leaf.style.color, RstTheme().source_text.color)
 
     # The rendered form: a section title takes a bigger font than the body, and

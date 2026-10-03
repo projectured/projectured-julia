@@ -102,14 +102,14 @@ end
     appearance = Appearance()
     editor, backend = _aw_editor(WidgetLabel("Name"); projection = _aw_natural(appearance), appearance)
     printed = editor.iomap
-    @test _aw_font_size(backend, "Name") == 20
+    @test _aw_font_size(backend, "Name") == 13
     _aw_press!(editor, backend, _aw_key(:equals; alt = true), _aw_key(:equals; alt = true))
     @test appearance.font_scale == 1.1               # the second key waits for the new view
     @test editor.iomap !== printed
-    @test _aw_font_size(backend, "Name") == 22
+    @test _aw_font_size(backend, "Name") == 14
     run_frame!(editor)
     @test appearance.font_scale == 1.25
-    @test _aw_font_size(backend, "Name") == 25
+    @test _aw_font_size(backend, "Name") == 16
 end
 
 @testset "a write into the appearance or into one of its themes prints the view again" begin
@@ -145,26 +145,26 @@ end
     _aw_press!(first_editor, first_backend, _aw_key(:equals; alt = true))
     run_frame!(second_editor)
     @test one.font_scale == 1.1 && two.font_scale == 1.0
-    @test _aw_font_size(first_backend, "Name") == 22
-    @test _aw_font_size(second_backend, "Name") == 20
+    @test _aw_font_size(first_backend, "Name") == 14
+    @test _aw_font_size(second_backend, "Name") == 13
 end
 
 @testset "with no projection named, the editor's renderer takes the editor's appearance" begin
     editor, backend = _aw_editor(WidgetLabel("Name"))
     appearance = editor.document.appearance
-    @test _aw_font_size(backend, "Name") == 20
+    @test _aw_font_size(backend, "Name") == 13
     _aw_press!(editor, backend, _aw_key(:equals; alt = true))
     @test appearance.font_scale == 1.1
-    @test _aw_font_size(backend, "Name") == 22
+    @test _aw_font_size(backend, "Name") == 14
 end
 
 @testset "the tab strip of the tabs wrapper follows the appearance of the editor" begin
     editor, backend = _aw_editor(WidgetLabel("Name"); tabs = (; title = "Tab"))
     @test get_wrapped_document(editor.document) isa PaneTree
-    @test _aw_font_size(backend, "Tab") == 20
+    @test _aw_font_size(backend, "Tab") == 13
     _aw_press!(editor, backend, _aw_key(:equals; alt = true))
-    @test _aw_font_size(backend, "Tab") == 22
-    @test _aw_font_size(backend, "Name") == 22
+    @test _aw_font_size(backend, "Tab") == 14
+    @test _aw_font_size(backend, "Name") == 14
 end
 
 @testset "a change while the editor runs draws as an editor that starts with it" begin

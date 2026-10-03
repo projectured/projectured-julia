@@ -208,9 +208,9 @@ function test_widget_card_fold()
         bare = print_document(proj, proj, WidgetCard(; content = "abc", variant = :plain,
                                                      padding = Inset(0, 0, 0, 0)),
                               PrinterContext()).output
-        # The themed padding is 16 on each side; the bare card has none.
-        @test Int(bare.w[]) == Int(themed.w[]) - 32
-        @test Int(bare.h[]) == Int(themed.h[]) - 32
+        # The themed padding is 12 on each side; the bare card has none.
+        @test Int(bare.w[]) == Int(themed.w[]) - 24
+        @test Int(bare.h[]) == Int(themed.h[]) - 24
         # An Inset names each side: this one indents and does nothing else.
         indented = print_document(proj, proj, WidgetCard(; content = "abc", variant = :plain,
                                                          padding = Inset(0, 0, 12, 0)),

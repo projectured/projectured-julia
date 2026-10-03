@@ -174,7 +174,7 @@ end
     @test popup.id === :widget_popup
     @test popup.auto_dismiss === true
     @test popup.x == 0                          # at the left edge of the item
-    @test popup.y == _menu_iomap_of(iomap, item).control_height + 4   # just below it
+    @test popup.y == _menu_iomap_of(iomap, item).control_height + 2   # just below it
     @test popup.content === submenu             # the popup content is the submenu
     @test popup.height > 0
 end
@@ -208,7 +208,7 @@ end
     @test popup isa OpenPopupOperation
     @test ox > 0
     @test popup.x == ox
-    @test popup.y == oy + cim.control_height + 4
+    @test popup.y == oy + cim.control_height + 2
     @test popup.content === submenu
 end
 

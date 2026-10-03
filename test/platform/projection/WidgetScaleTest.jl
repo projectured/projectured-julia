@@ -72,8 +72,8 @@ end
 
 @testset "the font scale changes the fonts" begin
     appearance = Appearance(font_scale = 1.5)
-    @test default[button].fonts == [20]
-    @test draw(appearance, button).fonts == [30]
+    @test default[button].fonts == [13]
+    @test draw(appearance, button).fonts == [20]
     # The fixed measure gives a line the same height at each size, so no extent moves.
     @test all(make -> is_equal_except(appearance, make, :fonts), widgets)
 end
@@ -81,16 +81,17 @@ end
 @testset "the spacing scale changes the paddings and the gaps" begin
     appearance = Appearance(spacing_scale = 1.5)
     scaled = draw(appearance, button)
-    # The padding of a control is 9 above and below and 14 at the sides, so 14 and 21.
-    @test (scaled.w - default[button].w, scaled.h - default[button].h) == (2 * 7, 2 * 5)
+    # The padding of a control is 5 above and below and 10 at the sides; at a
+    # scale of 1.5 it is 8 and 15, so each side grows by 3 and by 5.
+    @test (scaled.w - default[button].w, scaled.h - default[button].h) == (2 * 5, 2 * 3)
     @test is_equal_except(appearance, button, :w, :h, :rects)
     @test is_equal_except(appearance, checkbox)
 end
 
 @testset "the radius scale changes the corners" begin
     appearance = Appearance(radius_scale = 1.5)
-    @test default[button].radii == [8]
-    @test draw(appearance, button).radii == [12]
+    @test default[button].radii == [6]
+    @test draw(appearance, button).radii == [9]
     @test is_equal_except(appearance, button, :radii)
 end
 
@@ -107,8 +108,8 @@ end
 @testset "the control scale changes the parts of a control that are not text" begin
     appearance = Appearance(control_scale = 1.5)
     box(lengths) = filter(r -> r[3] == r[4], lengths.rects)
-    @test any(r -> r[3] == 18, box(default[checkbox]))
-    @test any(r -> r[3] == 27, box(draw(appearance, checkbox)))
+    @test any(r -> r[3] == 16, box(default[checkbox]))
+    @test any(r -> r[3] == 24, box(draw(appearance, checkbox)))
     @test !is_equal_except(appearance, radio_group)
     @test is_equal_except(appearance, button) && is_equal_except(appearance, icon_button)
 end
@@ -137,7 +138,7 @@ end
     # does not reach.
     document = checkbox()
     lengths = _compute_drawn_lengths(print_document(projection, document).output)
-    x, y, w, h = only(filter(r -> r[3] == r[4] == 27, lengths.rects))
+    x, y, w, h = only(filter(r -> r[3] == r[4] == 24, lengths.rects))
     @test press(document, x + w - 2, y + h - 2) isa ReplaceReferencedValueOperation
     # The circle of the second option: the rows stand apart by the control size
     # and the gap of a section, both scaled.

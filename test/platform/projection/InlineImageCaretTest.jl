@@ -317,9 +317,10 @@ end
 
 @testset "beside an image, the style of the nearest text run" begin
     # `small` has ascent 12 and descent 4, `large` ascent 16, descent 6 and a
-    # line gap of 2; every character is 10 wide.
+    # line gap of 2; every character is 10 wide. `large` is the font of a text
+    # that names none.
     small = StyleFont("Ubuntu", 20)
-    large = StyleFont("Ubuntu Mono", 20)
+    large = UNSTYLED_TEXT_FONT
     measure = FixedMeasure(10, 12, 4, 0; fonts = Dict(large => FontMetrics(16, 6, 2)))
     projection = TextToGraphics(measure = measure)
     caret(block, k) = begin

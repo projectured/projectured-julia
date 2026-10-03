@@ -9,10 +9,10 @@ function test_math_theme()
     plain = draw_font_sizes(document, Appearance())
     @test !isempty(plain)
     @test draw_font_sizes(document, Appearance(font_scale = 1.5)) == round.(Int, plain .* 1.5)
-    @test MathVariableToSyntaxLeaf().style.font.size == 20
+    @test MathVariableToSyntaxLeaf().style.font.size == 14
     theme = get_scaled_theme!(Appearance(font_scale = 1.5), MathTheme)
     leaf = MathVariableToSyntaxLeaf(; theme)
-    @test leaf.style.font.size == 30
+    @test leaf.style.font.size == 21
     @test is_color_equal(leaf.style.color, MathTheme().variable_text.color)
 end
 
@@ -23,6 +23,6 @@ end
     offer = PrinterContext(EmptyReference(), Cell(800), Cell(600), Dict{Symbol,Any}())
     sizes = collect_font_sizes(print_document(projection, nothing, document, offer).output)
     @test !isempty(sizes)
-    @test all(==(30), sizes)
+    @test all(==(21), sizes)
 end
 end

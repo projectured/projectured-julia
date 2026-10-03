@@ -27,10 +27,10 @@ function test_markdown_theme()
     @test !isempty(plain)
     @test draw_font_sizes(document, Appearance(font_scale = 1.5)) == round.(Int, plain .* 1.5)
 
-    @test MarkdownTextToSyntaxLeaf().style.font.size == 20
+    @test MarkdownTextToSyntaxLeaf().style.font.size == 14
     theme = get_scaled_theme!(Appearance(font_scale = 1.5), MarkdownTheme)
     leaf = MarkdownTextToSyntaxLeaf(; theme)
-    @test leaf.style.font.size == 30
+    @test leaf.style.font.size == 21
     @test is_color_equal(leaf.style.color, MarkdownTheme().source_text.color)
 
     # The rendered form: a heading takes a bigger font than the body, and both

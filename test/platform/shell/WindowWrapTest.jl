@@ -231,7 +231,7 @@ end
     # screen coordinates. The window offers the select its height, so the
     # select's height is the one the scene printed.
     height = _wrap_iomap_of(iomap, select).control_height
-    @test (popup.x, popup.y) == (window.x, window.y + height + 4)
+    @test (popup.x, popup.y) == (window.x, window.y + height + 2)
     # The window takes the extent of what it draws, up to the bound of a popup. It
     # offers the dropdown that bound, and the dropdown draws its two options on
     # its surface, as wide as the select and no wider than the bound. The select

@@ -102,7 +102,7 @@ end
     translate(operation) = ProjecturedPlatform.AppearanceModule._translate_tab_operation(tab, operation)
     unwrap(operation) = operation isa ReplaceViewStateOperation ? get_wrapped_operation(operation) : operation
     # The spin box of the gap between items: a step to 5 writes `Spacing(5)`.
-    box = only(w for (w, _) in tab.writes if w isa WidgetSpinBox && w.value == 4 &&
+    box = only(w for (w, _) in tab.writes if w isa WidgetSpinBox && w.value == 2 &&
                translate(ReplaceReferencedValueOperation(w, "value", 5)) |> unwrap |>
                (op -> op.reference.head == FieldReferenceStep("item_gap")))
     write = unwrap(translate(ReplaceReferencedValueOperation(box, "value", 5)))
@@ -340,7 +340,7 @@ end
           ReplaceReferencedValueOperation
     inverse = make_inverse_operation(nothing, step)
     @test inverse isa ReplaceThemeValueOperation
-    @test inverse.operation.value == Spacing(4)
+    @test inverse.operation.value == Spacing(2)
     @test_throws ArgumentError ReplaceThemeValueOperation(
         ReplaceReferencedValueOperation(appearance, "zoom", 2.0))
 end

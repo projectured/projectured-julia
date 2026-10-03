@@ -255,8 +255,8 @@ end
     window = only(_cm_menus(scene))
     @test _cm_labels(window.content) == ["Cut", "Copy"]
     # With no point, the window stands below the wrapper, with the left edges
-    # aligned and a gap of 4 pixels.
-    @test (window.x, window.y) == (100, 100 + height + 4)
+    # aligned and a gap of 2 pixels.
+    @test (window.x, window.y) == (100, 100 + height + 2)
 end
 
 end # @testset

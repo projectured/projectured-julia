@@ -44,7 +44,7 @@ mktempdir() do folder
     @testset "a load writes a held theme in place, so its scaled theme follows" begin
         live = Appearance()
         scaled = get_scaled_theme!(live, WidgetTheme)
-        @test scaled.item_gap == 4
+        @test scaled.item_gap == 2
         load_appearance!(live, path)
         @test scaled.item_gap == 7
         @test live.zoom == 1.25
@@ -59,7 +59,7 @@ mktempdir() do folder
         load_appearance!(live, path)
         @test (live.zoom, live.font_scale) == (1.0, 2.0)
         @test scaled.item_gap == 9
-        @test get_theme(live, WidgetTheme).radius == Radius(8)
+        @test get_theme(live, WidgetTheme).radius == Radius(6)
         @test is_color_equal(get_theme(live, WidgetTheme).primary, WidgetTheme().primary)
         @test haskey(live.saved_themes, "NoSuchTheme")
     end

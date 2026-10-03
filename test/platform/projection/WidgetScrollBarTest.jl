@@ -19,7 +19,7 @@ function test_widget_scroll_bar()
     bar = WidgetScrollBar(:vertical; value = 0.5, thumb_size = 0.2)
     iomap = print_document(projection, nothing, bar, offer)
     canvas = iomap.output
-    @test (Int(canvas.w), Int(canvas.h)) == (12, 300)
+    @test (Int(canvas.w), Int(canvas.h)) == (10, 300)
     track, thumb = canvas.elements[end - 1], canvas.elements[end]
     @test (Int(track.y), Int(track.h)) == (0, 300)
     # The thumb is a fifth of the track, halfway along the rest.

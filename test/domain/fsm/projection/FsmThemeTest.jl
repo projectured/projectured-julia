@@ -22,10 +22,10 @@ function test_fsm_theme()
     @test !isempty(plain)
     @test draw(Appearance(font_scale = 1.5)) == round.(Int, plain .* 1.5)
 
-    @test FsmStateToSyntaxNode().keyword.font.size == 20
+    @test FsmStateToSyntaxNode().keyword.font.size == 14
     theme = get_scaled_theme!(Appearance(font_scale = 1.5), FsmTheme)
     node = FsmStateToSyntaxNode(; theme)
-    @test node.keyword.font.size == 30
+    @test node.keyword.font.size == 21
     @test is_color_equal(node.keyword.color, FsmTheme().keyword_text.color)
 end
 end

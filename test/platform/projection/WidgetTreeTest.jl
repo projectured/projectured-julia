@@ -13,7 +13,7 @@ using ProjecturedKernel.ReferenceModule: evaluate_reference
 function test_widget_tree()
 @testset "WidgetTree hover + collapse" begin
 
-# Deterministic measure ⇒ row_height = 16 + 2*4 = 24, indent 22, chevron column 18.
+# Deterministic measure ⇒ row_height = 16 + 2*2 = 20, indent 12, chevron column 16.
 _det = FixedMeasure(8, 12, 4, 0)
 _w2g = WidgetToGraphics(StyleFont("Ubuntu", 20); measure = _det)
 _treeproj = nothing
@@ -73,8 +73,8 @@ end
     @test [r.path for r in geom.rows] == [[1], [1, 1], [1, 2], [2]]
     @test _has_children(w, [1]) && [1] in w.expanded
     @test !_has_children(w, [2])                       # README is a leaf
-    @test geom.rows[1].chevron_x0 == 0 && geom.rows[1].chevron_x1 == 18
-    @test geom.rows[2].chevron_x0 == 22                # indented one level
+    @test geom.rows[1].chevron_x0 == 0 && geom.rows[1].chevron_x1 == 16
+    @test geom.rows[2].chevron_x0 == 12                # indented one level
 end
 
 @testset "a move onto a row makes it the part under the pointer; moving off it clears it" begin
@@ -132,7 +132,7 @@ end
     @test all(Int(r.h[]) == 0 for r in bands)           # neither active yet
     # Row 1 the part under the pointer → one of its bands gains the row's height.
     getfield(w, :mouse_target)[] = _node([1])
-    @test any(Int(r.h[]) == 24 for r in _bands(io, 1))
+    @test any(Int(r.h[]) == 20 for r in _bands(io, 1))
     @test all(Int(r.h[]) == 0 for r in _bands(io, 2))   # the next row stays dark
 end
 
@@ -158,7 +158,7 @@ end
     after = collect(_rows_canvas(io).elements)
     @test length(after) == 5
     @test after[1] === before[1] && after[4] === before[2] && after[5] === before[3]
-    @test Int(after[4].y) == 3 * 24
+    @test Int(after[4].y) == 3 * 20
     @test chevron(after[1]).text == down
     @test doc_chevron.text == right
 end
