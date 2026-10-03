@@ -5,9 +5,11 @@
 # folders above its entry file. Pkg installs only the folder of a package, so an
 # installed package would find no `source/`. The release copy puts each package
 # in a folder of its own that holds everything it reads: its `Project.toml`
-# without `[sources]`, its entry file with the include prefix `../source/`, its
-# slice, the folders it reads while it runs, and the licence files. The
-# repository keeps its own layout.
+# without `[sources]`, its entry file, its slice under `src/` (`source/<path>`
+# becomes `src/<path>`, and the include names the path from `src/`), the folders
+# it reads while it runs, and the licence files. `source/` and `src/` are both one
+# folder below the root, so a file keeps its depth, and a path from `@__DIR__`
+# reaches the same folder. The repository keeps its own layout.
 #
 # The release copy is one git repository with a folder for each package,
 # `<Name>/`. A registry names each version of a package by the tree of its
@@ -321,7 +323,7 @@ function _write_release_workflow(output, workflow, order)
     jobs = [(name = name,
              develop = [_collect_release_test_closure(output, name, order);
                         _collect_support_folders(output, name)],
-             coverage = [joinpath(name, folder) for folder in ("src", "source", "ext")
+             coverage = [joinpath(name, folder) for folder in ("src", "ext")
                          if isdir(joinpath(output, name, folder))])
             for name in order if isfile(joinpath(output, name, "test", "runtests.jl"))]
     path = joinpath(output, ".github", "workflows", "CI.yml")
@@ -476,13 +478,12 @@ function _write_package_content(context::BuildContext, name, destination;
                     eachmatch(r"include\(\"\.\./\.\./\.\./(source/[^\"]+)\"\)", text)]
         if !isempty(included)
             folder = _get_common_folder(included)
-            target = joinpath(destination, folder)
+            target = joinpath(destination, "src", relpath(folder, "source"))
             isdir(target) || _copy_tracked_files(context, folder, target)
         end
         target = joinpath(destination, relpath(path, package))
         mkpath(dirname(target))
-        write(target, replace(text,
-                              "include(\"../../../source/" => "include(\"../source/"))
+        write(target, replace(text, "include(\"../../../source/" => "include(\""))
     end
     # The extensions of a package include nothing of the repository.
     isdir(joinpath(context.root, package, "ext")) &&

@@ -210,9 +210,11 @@ function test_package_release()
             # One folder for each package, and the licence files and the
             # workflow at the root.
             @test sort(readdir(output)) == [".github", "FakeBase", "FakeTop", "LICENSE"]
-            @test occursin("include(\"../source/faketop/FakeTopCode.jl\")",
+            # The slice is under `src/`, at the depth that `source/` has.
+            @test occursin("include(\"faketop/FakeTopCode.jl\")",
                            read(joinpath(output, "FakeTop", "src", "FakeTop.jl"), String))
-            @test isfile(joinpath(output, "FakeTop", "source", "faketop", "FakeTopCode.jl"))
+            @test isfile(joinpath(output, "FakeTop", "src", "faketop", "FakeTopCode.jl"))
+            @test !isdir(joinpath(output, "FakeTop", "source"))
             @test isfile(joinpath(output, "FakeBase", "asset", "thing", "data.txt"))
             @test !isdir(joinpath(output, "FakeTop", "asset"))
             @test read(joinpath(output, "LICENSE"), String) == "the licence\n"
@@ -257,7 +259,7 @@ function test_package_release()
             @test read(joinpath(output, ".github", "workflows", "CI.yml"), String) ==
                   "FakeTop: FakeBase FakeTop FakeTop/test/support/FakeTopExample " *
                   "FakeTop/test/support/FakeTopTest | " *
-                  "FakeTop/src FakeTop/source FakeTop/ext\n"
+                  "FakeTop/src FakeTop/ext\n"
 
             # A released package that only a support package names is developed
             # too, and one that nothing names is not.
@@ -406,7 +408,7 @@ function test_package_release()
             changes = sort(split(read(`git -C $committed status --porcelain`, String),
                                  "\n"; keepempty = false))
             @test changes == [" M FakeTop/Project.toml",
-                              " M FakeTop/source/faketop/FakeTopCode.jl"]
+                              " M FakeTop/src/faketop/FakeTopCode.jl"]
             @test read(joinpath(committed, "README.md"), String) ==
                   "the release repository\n"
 

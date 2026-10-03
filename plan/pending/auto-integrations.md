@@ -567,6 +567,16 @@ The README of each released package changes too
         `test_autointegrations()` 22, `test_builder()` 473,
         `test_package_release()` 61 and 156, `test_package_graph()` 373, the
         four loading tests, and the naming, tree and documentation guards.
+- [x] **Step 10c, the slice under `src/` (added by the owner, 2026-10-03).**
+      The release copy puts `source/<path>` at `<package>/src/<path>`, and the
+      include of the entry file names the path from `src/`, so
+      `ProjecturedJSON/src/domain/json/JsonModule.jl`. `source/` and `src/`
+      are both one folder below the root, so each file keeps its depth and a
+      path from `@__DIR__` reaches the same folder; one rule serves every
+      package. Done in `_write_package_content`; the coverage of the workflow
+      reads `src` and `ext`. `test_package_release()` passes 62 of 62 and 156
+      of 156, and `ProjecturedJSON` loads from a generated release with the
+      kernel and the platform of the same release.
 - [ ] **Step 10b, before the publication.** The full suites: each package
       suite in its own environment as CI runs them, `test_integration()`, and
       the comparison with `main` for each failure.
