@@ -1335,6 +1335,35 @@ Each item corrects a fact about the code. No item changes what a rule requires.
   *Test:* None; the change is text only.
   *Done:* 35c200dbb. The export line of EditorModule.jl:54 (101 characters) stays for export-block-rule.md.
 
+## Phase 7 — The decided questions
+
+The owner decided 37 questions of the table below between 2026-09-30 and 2026-10-01, and asked on 2026-10-03 to implement them. The other questions stay open.
+
+**Where:** branch `kernel-audit-decisions`, worktree `projectured-julia-kernel-audit-decisions`, on main `599cee558`. omnet-julia and inet-julia get a branch of the same name when a step reaches them. One commit for each step.
+
+**Already done by another plan:** L07-1, L22-23 and the `_zoom_operation` part of L22-27 (plan/done/zoom-and-theme-controls.md).
+
+**Sealed files.** A step that changes a sealed file waits for the permission of the owner for that file. The files: `fault/FaultCascade.jl`, `fault/FaultStore.jl`, `fault/FaultRecord.jl`, `fault/FaultBarrier.jl`, `performance/PerformanceModule.jl`, `performance/PerformanceCounter.jl`, `selection/SelectionModule.jl`, `selection/SelectionInterface.jl`, `selection/SelectionDefaults.jl`, `backend/BackendModule.jl`, `backend/BackendDefaults.jl`, `iomap/IoMapModule.jl`, `reference/ReferenceInterface.jl`, `reference/ReferenceSearch.jl` (the owner allowed its docstring for L10-10).
+
+**L09-15 in part:** the two device generics are renamed now. `write_image` and `record_video` wait for L09-3, because its option C moves them out of the kernel under new names.
+
+**Baseline:** the suites of the three repositories at the base commits, in `/var/tmp/kad-baseline/`.
+
+- [ ] **D1. The law and the rules, text only.** PAR-NO-NESTED-CELL (L10-13); the carve-outs of PAR-PURE-THUNK and PAR-NO-WRITE-IN-THUNK (L01-17, and the new cell of L17-15); PAR-ONE-BASED-INDEXING (L11-25); PAR-AI-SAME-GUARANTEES (L18-27); system-anatomy.md (L14-6); code-quality-rules.md §5 (L06-10); the rows `run_` (L22-13) and `describe_` (L06-12) and the class of structural operations (L13-15, L14-2) in naming-rules.md.
+- [ ] **D2. POLICY-1 outside the fault layer.** L10-10 (`walk_document` takes `on_error`), L11-5 (the three reference walkers), L18-10 (the code tool acts as the Julia REPL), and every other catch-all arm of the kernel that does not ask `is_passthrough_exception`. PAR-REPORT-NEVER-THROWS states the rule and its one exception.
+- [ ] **D3. POLICY-1 in the fault layer** (L01-8). Sealed: FaultCascade.jl, FaultStore.jl, FaultRecord.jl.
+- [ ] **D4. Every default fault policy is strict** (L01-5), with the programs that a person starts in the three repositories.
+- [ ] **D5. One pair registers an operation that carries a path** (L13-8).
+- [ ] **D6. The template walk reads the blueprint with `peek`** (L17-15).
+- [ ] **D7. `ChildrenContainer.jl` goes** (L17-16), with its line and a new sentence in SEALING.md.
+- [ ] **D8. A kernel docstring shows kernel names only** (L11-17). Sealed: the docstrings of ReferenceInterface.jl and ReferenceSearch.jl.
+- [ ] **D9. `reference_pattern"…"`, 1-based, and `first_index`** (L11-24, L11-25), with omnet-julia.
+- [ ] **D10. The protocol methods of copy and sync take no default values** (L10-8), with omnet-julia.
+- [ ] **D11. `Tool` takes keywords** (L18-3).
+- [ ] **D12. The renames**, one commit each, with `workspace/bin/julia-rename.jl`: the builders with a 1-based index (L13-9); `is_self_contained_operation` (L13-15); the three stages (L22-13); the counters (L02-5, L22-27); `make_similar_cell` (L03-10); the two device generics (L09-15); the gesture getters, the file, `with_free_axis` and the word `template` (L15-12, L17-21); the reconcilers (L16-8); `set_selection!` and `@selected` (L12-3); `GesturePatternTest.jl` (L06-10).
+- [ ] **D13. The arguments** (POLICY-3): §4 of code-quality-rules.md, the guard, the count markers out, an `# @optional:` marker or a change for each definition that breaks the optional clause, in the three repositories.
+- [ ] **D14. The test sweep** against the baseline in the three repositories, the precompile assets, and the guides that name a renamed name.
+
 ## Items that wait for a decision
 
 These items need no decision of their own, but a decision on another finding can make them moot.
