@@ -1449,8 +1449,9 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
 
   4b, after 4a: the other operations of §3.6 (insert, delete, rename, move and
   convert of rows and columns) from a context menu on the header of a column
-  and on a row, and the `DataFrameRow`. **The design, 2026-10-03, waiting for
-  the word of the owner.** Each point is mine unless it names the owner.
+  and on a row, and the `DataFrameRow`. **The design, 2026-10-03.** The owner
+  chose B1, B7 and B10 on 2026-10-03 and changed no other point; each other
+  point is mine.
 
   Facts found for the design (2026-10-03, from the code):
   - A menu item posts its operation (`_make_menu_item` calls
@@ -1488,6 +1489,7 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     - Recommendation: (a). The item says what it does as data, and no item
       repeats the lift. "Hide column" and "Show column" become steps of undo
       too.
+    - **The owner: (a)** ("for 1, yes", 2026-10-03).
   - **B2. The operations**, each named by its view, so each travels up as it
     is, each with its inverse, as `SetDataFrameValueOperation` is (4.6). Each
     moves the version of the frame, so the view sorts and filters again.
@@ -1538,7 +1540,10 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     the frame's order); (b) the view (the query keeps an order, and the frame
     stays as the program made it). Recommendation: (b) for a drag of a header
     in phase 5, which only looks, and (a) for the menu items here, which
-    edit. The owner chooses.
+    edit.
+    - **The owner: the drag of a column is deferred** ("dragging a column
+      should be deferred, not important", 2026-10-03). The menu items move the
+      column in the frame, (a).
   - **B8. After an insert or a delete, the paths that name later rows move.**
     The step that inserts or deletes row `r` also moves by one the entries and
     the selection that name a row after `r`, and the selection goes to the
@@ -1559,7 +1564,8 @@ worktree. The first delivery is phases 0, 1, 2 and 4 (D1).
     row, and a projection that shows it turned, a column of the frame as a row
     of the table. Recommendation: (b): the entries, the commit, the undo, the
     mark and the refresh are there already, and only the printer and the map
-    of the paths are new. The owner chooses.
+    of the paths are new.
+    - **The owner: (b)** ("for 3, yes", 2026-10-03).
 
   The steps, after the owner's word:
   - [ ] **4b.1** B1, the menu item that edits, with "Hide column" and "Show
