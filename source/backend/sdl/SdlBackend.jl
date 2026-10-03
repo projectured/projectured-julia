@@ -3103,6 +3103,7 @@ Open an offscreen, `supersample`-oversized software renderer for a logical
 surface, its renderer, and the sizing it was built with, `width` and `height`
 among them. The saved image is the logical size times `density` (device pixels),
 so output stays crisp on HiDPI displays independent of the generating machine.
+The content draws at a zoom of 1; [`with_offscreen_zoom`](@ref) gives another.
 Pass the handle to [`close_offscreen_renderer`](@ref) at the end.
 """
 function open_offscreen_renderer(width::Integer, height::Integer;
@@ -3122,18 +3123,44 @@ function open_offscreen_renderer(width::Integer, height::Integer;
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND)
     SDL_RenderSetScale(renderer, Float32(sc * S), Float32(sc * S))
     (surface = surface, renderer = renderer, S = S, sc = sc, out_w = out_w, out_h = out_h,
-     width = Int(width), height = Int(height))
+     width = Int(width), height = Int(height), zoom = 1.0)
 end
 
+"""
+    with_offscreen_zoom(renderer, zoom) -> renderer
+
+The handle of the same offscreen renderer, with its content drawn at `zoom`, as
+a window at that zoom draws it: the content is `width / zoom × height / zoom`
+logical pixels, drawn at the density times the zoom, so it fills the same frame
+larger. An overlay of a frame, such as a pointer, still draws at the density of
+the frame, in its logical pixels.
+"""
+with_offscreen_zoom(off, zoom::Real) = merge(off, (; zoom = Float64(zoom)))
+
+# The logical size of the content of `off` at its zoom, and the scale that the
+# glyphs of the content rasterize at.
+_get_offscreen_content_size(off) = (round(Int, off.width / off.zoom), round(Int, off.height / off.zoom))
+_get_offscreen_content_scale(off) = off.sc * off.zoom
+
 # Clear `off` to `background` and render `canvas` (logical size `width × height`)
-# into it. The glyphs rasterize at the device size for the export density `off.sc`,
-# which matches the scale of the renderer.
+# into it, at the zoom of `off`. The glyphs rasterize at the device size for the
+# export density `off.sc` times the zoom, which is the scale of the renderer.
 function _render_canvas_offscreen!(off, canvas::GraphicsCanvas, width::Integer,
                                    height::Integer, background::NTuple{4,UInt8})
+    scale = _get_offscreen_content_scale(off)
+    SDL_RenderSetScale(off.renderer, Float32(scale * off.S), Float32(scale * off.S))
     r, g, b, a = background
     SDL_SetRenderDrawColor(off.renderer, r, g, b, a)
     SDL_RenderClear(off.renderer)
-    _render_canvas!(off.renderer, canvas, 0, 0, _ClipEdges(0, 0, Int(width), Int(height)), off.sc)
+    _render_canvas!(off.renderer, canvas, 0, 0, _ClipEdges(0, 0, Int(width), Int(height)), scale)
+    nothing
+end
+
+# Render `overlay` over the picture of `off`, in the logical pixels of the frame
+# and at the density of the frame, whatever the zoom of the content.
+function _render_overlay_offscreen!(off, overlay::GraphicsCanvas)
+    SDL_RenderSetScale(off.renderer, Float32(off.sc * off.S), Float32(off.sc * off.S))
+    _render_canvas!(off.renderer, overlay, 0, 0, _ClipEdges(0, 0, off.width, off.height), off.sc)
     nothing
 end
 
@@ -3378,16 +3405,20 @@ end
 
 
 """
-    write_offscreen_frames!(renderer, canvas; background, folder, frame, count = 1) -> nothing
+    write_offscreen_frames!(renderer, canvas; background, folder, frame, count = 1,
+                            overlay = nothing) -> nothing
 
-Render `canvas` once and write it as `count` identical frames, the state held on
-screen for `count` frames of video time, into `folder` as
-`frame_000001.png` and on, advancing the counter `frame`.
+Render `canvas` once at the zoom of `renderer`, with `overlay` (a canvas, or
+`nothing`) over it at the density of the frame, and write it as `count`
+identical frames, the state held on screen for `count` frames of video time,
+into `folder` as `frame_000001.png` and on, advancing the counter `frame`.
 """
 function write_offscreen_frames!(off, canvas::GraphicsCanvas; background::NTuple{4,UInt8},
-                                 folder::AbstractString, frame::Ref{Int}, count::Integer = 1)
+                                 folder::AbstractString, frame::Ref{Int}, count::Integer = 1,
+                                 overlay::Union{GraphicsCanvas,Nothing} = nothing)
     count <= 0 && return nothing
-    _render_canvas_offscreen!(off, canvas, off.width, off.height, background)
+    _render_canvas_offscreen!(off, canvas, _get_offscreen_content_size(off)..., background)
+    overlay === nothing || _render_overlay_offscreen!(off, overlay)
     out_surface = _offscreen_output_surface(off)
     try
         for _ in 1:count
@@ -3419,12 +3450,14 @@ end
     make_offscreen_paint_state(renderer) -> state
 
 What a partial paint into `renderer` keeps from frame to frame, for
-[`render_offscreen_changes!`](@ref).
+[`render_offscreen_changes!`](@ref), at the zoom of `renderer`: a renderer at
+another zoom needs a new one.
 """
 function make_offscreen_paint_state(off)
+    width, height = _get_offscreen_content_size(off)
     res = SdlWindowResources(C_NULL, off.renderer, :offscreen, UInt32(0), "",
-                             off.width, off.height, 0, 0, :default, (0x00, 0x00, 0x00, 0xff),
-                             off.S, off.sc, C_NULL, 0, 0, true,
+                             width, height, 0, 0, :default, (0x00, 0x00, 0x00, 0xff),
+                             off.S, _get_offscreen_content_scale(off), C_NULL, 0, 0, true,
                              Dict{UInt,NTuple{4,Int}}(), _PaintedGeometry(), Vector{NTuple{4,Int}}[])
     _OffscreenPaintState(res, NTuple{4,Int}[])
 end
@@ -3449,7 +3482,9 @@ function render_offscreen_changes!(off, state::_OffscreenPaintState, canvas::Gra
     rects = res.first_paint ? [(0, 0, res.width, res.height)] : _limit_dirty_rects(computed)
     res.first_paint = false
     isempty(rects) && return rects
-    _paint_dirty_rects!(off.renderer, canvas, rects, background, res.width, res.height, off.sc)
+    scale = _get_offscreen_content_scale(off)
+    SDL_RenderSetScale(off.renderer, Float32(scale * off.S), Float32(scale * off.S))
+    _paint_dirty_rects!(off.renderer, canvas, rects, background, res.width, res.height, scale)
     state.last_rects = rects
     rects
 end
@@ -3461,7 +3496,8 @@ Write the picture of `renderer` as the next frame into `folder`, with `overlay`
 (a canvas, or `nothing`) drawn over it and the red outline of the rects
 `outline` around it, advancing the counter `frame`. Both go on a copy of the
 picture and never into `renderer`, so a partial paint finds the surface as it
-left it.
+left it. The overlay is in the logical pixels of the frame, and the rects are
+in those of the content, which the zoom of `renderer` makes larger.
 """
 function write_offscreen_frame_with_overlay!(off, overlay; outline::Vector{NTuple{4,Int}},
                                              folder::AbstractString, frame::Ref{Int})
@@ -3476,7 +3512,8 @@ function write_offscreen_frame_with_overlay!(off, overlay; outline::Vector{NTupl
                 _render_canvas!(renderer, overlay, 0, 0, _ClipEdges(0, 0, off.width, off.height), off.sc)
             # Two pixels: a video halves the resolution of its colours, and a
             # line of one pixel fades to a trace.
-            _outline_dirty_rects!(renderer, outline, 2)
+            zoomed = [ntuple(i -> round(Int, rect[i] * off.zoom), 4) for rect in outline]
+            _outline_dirty_rects!(renderer, zoomed, 2)
             SDL_RenderFlush(renderer)
             _evict_renderer_textures!(renderer)
             SDL_DestroyRenderer(renderer)

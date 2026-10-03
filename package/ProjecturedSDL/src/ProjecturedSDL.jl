@@ -29,11 +29,11 @@ include("../../../source/backend/sdl/SdlModule.jl")
 
 # A person loads this package by name, so its names are exported here, with
 # `write_image`, the generic function of the kernel that this backend extends.
-using .SdlModule: SdlBackend, open_offscreen_renderer, close_offscreen_renderer,
+using .SdlModule: SdlBackend, open_offscreen_renderer, close_offscreen_renderer, with_offscreen_zoom,
                   GraphicsCanvasToImageFile, write_offscreen_frames!,
                   make_offscreen_paint_state, render_offscreen_changes!,
                   write_offscreen_frame_with_overlay!, write_offscreen_picture_with_overlay!
-export SdlBackend, write_image, open_offscreen_renderer, close_offscreen_renderer,
+export SdlBackend, write_image, open_offscreen_renderer, close_offscreen_renderer, with_offscreen_zoom,
        GraphicsCanvasToImageFile, write_offscreen_frames!, make_offscreen_paint_state,
        render_offscreen_changes!, write_offscreen_frame_with_overlay!,
        write_offscreen_picture_with_overlay!

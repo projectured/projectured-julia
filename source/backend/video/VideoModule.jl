@@ -18,7 +18,7 @@ import FFMPEG
 # Imported to extend: this module adds a method to each of these.
 import ..BackendModule: record_video, initialize_backend!, quit_backend!,
        write_to_devices, read_from_devices, wait_for_input, get_pointer_position,
-       get_display_size
+       get_display_size, configure_devices!
 import ..EditorModule: get_frame_clock_time
 import ..SettingsModule: apply_settings!, read_settings!
 

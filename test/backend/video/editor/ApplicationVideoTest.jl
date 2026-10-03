@@ -187,6 +187,39 @@ end
     @test any(entry -> ProjecturedPlatform.get_theme_type(entry.theme) === ProjecturedPlatform.WidgetTheme,
               values(appearance.themes))
 end
+@testset "at a zoom the frame shows the window larger, and a click lands where the frame shows" begin
+    width, height = 480, 360
+    # The Evaluator button of the toolbar is at (54, 52) in the window, so a
+    # frame at a zoom of 1.5 shows it at (81, 78).
+    takes = map((1.0, 1.5)) do zoom
+        opened = Ref(false)
+        timeline = Any[(event = MouseClick(:left, 81, 78, 1, ModifierKeys(); time = 0.0), hold = 0.6),
+                       (await = editor -> (opened[] = ProjecturedPlatform.find_pane(editor, "Evaluator") !== nothing;
+                                           true), hold = 1.0)]
+        filename = tempname() * ".mp4"
+        record_application_video(String[], timeline, filename; width, height, fps = 10, assistant = :none,
+                                 root = mktempdir(), initial_hold = 0.5, final_hold = 0.3, supersample = 1,
+                                 video_time = true, pointer = false,
+                                 appearance = ProjecturedPlatform.Appearance(zoom = zoom))
+        frame = _read_last_frame(filename, width, height)
+        rm(filename; force = true)
+        (opened = opened[], frame)
+    end
+    # The click opens the evaluator only where the frame shows its button there.
+    @test !takes[1].opened
+    @test takes[2].opened
+    # The menu text at the top left is half as tall again: the rows of its dark
+    # pixels, in a box that holds "File".
+    function text_rows(frame)
+        rows = [y for y in 1:40 if any(x -> sum(frame[y, x]) < 300, 1:40)]
+        isempty(rows) ? 0 : maximum(rows) - minimum(rows) + 1
+    end
+    if all(take -> take.frame !== nothing, takes)
+        plain, zoomed = text_rows(takes[1].frame), text_rows(takes[2].frame)
+        @test plain > 0
+        @test zoomed >= 1.3 * plain
+    end
+end
 @testset "a partial repaint draws what a full repaint draws" begin
     width, height = 480, 360
     # A mouse event first: from it on, the pointer is drawn over each frame.
