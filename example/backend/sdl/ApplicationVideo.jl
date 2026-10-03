@@ -15,7 +15,8 @@
                              llm=nothing, root=pwd(), initial_hold=0.5, final_hold=1.0,
                              supersample=2, density=1, video_time=false, pointer=true,
                              partial_render=false, debug_dirty=false, debug_dirty_hold=0,
-                             status_bar=true, measure=FontFileMeasure(), prepare=document -> nothing) -> String
+                             status_bar=true, gesture_overlay=false, measure=FontFileMeasure(),
+                             prepare=document -> nothing) -> String
 
 Record the application window of [`run_application`](@ref) — built the same
 way, over `paths` and `root`, with the same `assistant`/`model`/`context` — and
@@ -51,7 +52,9 @@ frames are slow to make. A take that waits for a model keeps the wall clock.
 as a live window with `partial_render` does, and `debug_dirty = true` outlines
 that in red on the frames, and `debug_dirty_hold` keeps each outline that many
 seconds (see `VideoBackend`). `status_bar = false` leaves out the status bar
-of the window (see [`make_application_wrappers`](@ref)).
+of the window (see [`make_application_wrappers`](@ref)). `gesture_overlay =
+true` draws the newest gestures, and what each one did, in a panel at the bottom
+right of the window (see the `gesture_log` wrapper).
 
 `prepare` is called with the document of the application, its pane tree,
 before the editor is made, so a take starts from the layout it wants, such as a
@@ -66,6 +69,11 @@ The frames land in a temporary directory the backend owns and are encoded with
 the same `ffmpeg` call [`record_video`](@ref) uses
 (`ProjecturedVideo.encode_frames_to_video!`), then discarded.
 """
+# The wrappers of the application, with the panel of the newest gestures over the
+# content when the take asks for it.
+_with_gesture_overlay(wrappers, gesture_overlay::Bool, measure) =
+    gesture_overlay ? merge(wrappers, (; gesture_log = (; overlay = true, measure))) : wrappers
+
 function record_application_video(paths::AbstractVector, timeline::AbstractVector,
                                   filename::AbstractString;
                                   width::Integer = 1280, height::Integer = 720,
@@ -77,6 +85,7 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
                                   video_time::Bool = false, pointer::Bool = true,
                                   partial_render::Bool = false, debug_dirty::Bool = false,
                                   debug_dirty_hold::Real = 0, status_bar::Bool = true,
+                                  gesture_overlay::Bool = false,
                                   measure = FontFileMeasure(), prepare = document -> nothing)
     lowercase(splitext(filename)[2]) == ".mp4" ||
         error("record_application_video: only .mp4 output is supported (got \"$filename\")")
@@ -101,8 +110,9 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
                                         opened_window_projections =
                                             make_application_content_projections(; measure,
                                                                                  settings)),
-                              make_application_wrappers(; root, assistant = chat, status_bar,
-                                                          measure)...)
+                              _with_gesture_overlay(make_application_wrappers(; root, assistant = chat,
+                                                                              status_bar, measure),
+                                                    gesture_overlay, measure)...)
         backend.editor = editor
         start_application!(editor; assistant, model)
         run_editor!(editor)

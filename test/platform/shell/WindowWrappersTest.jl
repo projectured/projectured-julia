@@ -116,6 +116,21 @@ end
     @test length(log.entries) > entries
 end
 
+@testset "gesture_log: with overlay, the newest gestures draw in a panel over the window" begin
+    log = get_session_gesture_log()
+    editor, backend = _ww_editor(PrimitiveString("x"); undo = true,
+                                 gesture_log = (; overlay = true, lines = 3))
+    @test "no gesture yet" in _shell_texts(last(rendered_output(backend)))
+    entries = length(log.entries)
+    _ww_focus_first_tab!(editor)
+    _ww_press!(editor, backend, _ww_ctrl(:t))
+    # The log of the session records as before, and the panel draws the gesture.
+    @test length(log.entries) > entries
+    texts = _shell_texts(last(rendered_output(backend)))
+    @test !("no gesture yet" in texts)
+    @test any(text -> strip(text) == "Ctrl+T", texts)
+end
+
 @testset "message_log: a capture of the logger while the loop runs, and a feed" begin
     replaced = Base.CoreLogging.global_logger()
     editor, _ = _ww_editor(PrimitiveString("x"); message_log = true)

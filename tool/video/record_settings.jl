@@ -4,10 +4,10 @@
 #
 # Screenplay S12: a setting takes effect at once. The Settings button opens the
 # settings of the running editor; the wheel goes down to the Render card, which
-# turns on the partial repaint and its red outline; the pointer stops on each
-# button of the toolbar, and the outline shows what the window paints again;
-# three presses of Ctrl+Z take the settings back, and the same stops show no
-# outline. The coordinates are logical pixels of the 1280×720 window, read off
+# turns on the partial repaint and its red outline; the pointer stops on a few
+# buttons of the toolbar, and the outline shows what the window paints again;
+# three presses of Ctrl+Z take the settings back, and the next stops show no
+# outline. The panel of the newest gestures shows each click and what it did. The coordinates are logical pixels of the 1280×720 window, read off
 # the frames of the rehearsals.
 
 using ProjecturedAll, ProjecturedKernelExample, ProjecturedSDLExample
@@ -20,8 +20,8 @@ const SETTINGS_PAGE = (760, 400)        # where the wheel scrolls the page
 const PARTIAL_RENDER = (454, 237)       # the switches of the Render card, after the scroll
 const REPAINT_OUTLINE = (454, 313)
 const OUTLINE_HOLD_PLUS = (509, 380)    # one step is half a second
-const TOOLBAR_BUTTONS = [(x, 52) for x in (19, 54, 89, 124, 159, 194, 229, 264, 299, 334)]
-const TABS = [(325, 96), (457, 96)]     # README.md and Settings
+const LOOK_ON = [(54, 52), (89, 52), (124, 52)]      # three buttons, with the outline on
+const LOOK_OFF = [(89, 52), (54, 52)]                # two buttons, after the undo
 
 # ── The gestures, in video time ─────────────────────────────────────────────
 
@@ -70,12 +70,12 @@ function make_timeline()
         click(PARTIAL_RENDER; hold = 1.2)...,                # 2. the partial repaint
         click(REPAINT_OUTLINE; hold = 1.2)...,               #    and its outline
         click(OUTLINE_HOLD_PLUS; hold = 1.2)...,             #    held half a second
-        rest_on([TOOLBAR_BUTTONS; TABS])...,                 # 3. what the window paints again
+        rest_on(LOOK_ON; hold = 0.8)...,                     # 3. what the window paints again
         pause(1.0),
         key(:z; hold = 0.8, ctrl = true),                    # 4. taken back like an edit
         key(:z; hold = 0.8, ctrl = true),
         key(:z; hold = 1.2, ctrl = true),
-        rest_on(TOOLBAR_BUTTONS)...,                         #    and no outline any more
+        rest_on(LOOK_OFF; hold = 0.8)...,                    #    and no outline any more
         pause(2.0),                                          # 5. hold
     ]
 end
@@ -91,7 +91,8 @@ function main()
     path = record_application_video([readme], timeline, OUTPUT;
                                     width = 1280, height = 720, fps = 30, assistant = :none,
                                     root = directory, initial_hold = 1.5, final_hold = 1.5,
-                                    supersample = 2, video_time = true, pointer = true)
+                                    supersample = 2, video_time = true, pointer = true,
+                                    gesture_overlay = true)
     println("recorded: ", path, " in ", round(time() - started; digits = 1), " s")
 end
 
