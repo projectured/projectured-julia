@@ -407,7 +407,7 @@ end
 # operation that sets a new colour.
 function _make_color_control(controls, read, write)
     color = read()
-    swatch = WidgetLabel(" "; border = Inset(1, 1, 1, 1), padding = Inset(0, 0, 8, 8),
+    swatch = WidgetLabel(" "; border = Inset(1, 1, 1, 1), padding = Inset(0, 0, 8, 8),  # @style: the swatch waits for a widget kind that draws a square
                          style = WidgetStyle(border_color = controls.theme.border,
                                              padding_color = color, content_color = color))
     HorizontalLayout(Any[swatch, controls.color_text(read, write)];

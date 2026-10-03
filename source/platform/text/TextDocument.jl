@@ -138,7 +138,7 @@ The font of a text that names none: a run that a document makes with no font,
 and the line of a block with no run. It is a default of the text document, the
 content that an author leaves out, and not a style of a projection.
 """
-const UNSTYLED_TEXT_FONT = StyleFont("Ubuntu Mono", 14)
+const UNSTYLED_TEXT_FONT = StyleFont("Ubuntu Mono", 14)  # @style: content of the document
 
 # font / font_color are passed RAW so they land in their ImmutableCell default;
 # content stays a reactive Cell. Passing a Cell for font/colour overrides the default.
@@ -169,7 +169,7 @@ function make_hinted_text(content_thunk; empty_thunk, placeholder::AbstractStrin
     TextString(
         Cell(@computation empty_thunk() ? placeholder : content_thunk()),
         style.font,                                                        # immutable (authored font)
-        Cell(@computation empty_thunk() ? color_solarized_gray : style.color),   # reactive (hint colour)
+        Cell(@computation empty_thunk() ? color_solarized_gray : style.color),   # reactive (hint colour); @style: content of the document
         Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
 end
 

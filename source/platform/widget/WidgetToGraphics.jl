@@ -7654,7 +7654,7 @@ const LUCIDE_ICON_GLYPHS = (
 )
 
 for (name, codepoint) in LUCIDE_ICON_GLYPHS
-    register_icon!(name, make_glyph_icon(StyleFont("Lucide", 20), codepoint))
+    register_icon!(name, make_glyph_icon(StyleFont("Lucide", 20), codepoint))  # @style: the size that an icon glyph is registered at; the box of the icon scales it
 end
 
 """

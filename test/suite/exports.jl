@@ -145,6 +145,7 @@ function _collect_defined_names!(found, expression, directory, seen_files)
     elseif head === :macrocall
         macro_name = expression.args[1]
         arguments = filter(a -> !(a isa LineNumberNode), expression.args[2:end])
+        # `@theme struct T` defines `T` and its scaled theme `ScaledT`.
         if macro_name === Symbol("@enum") && !isempty(arguments)
             push!(found, _get_defined_name(arguments[1]))
             for value in arguments[2:end]
@@ -156,6 +157,12 @@ function _collect_defined_names!(found, expression, directory, seen_files)
             for argument in arguments
                 _collect_defined_names!(found, argument, directory, seen_files)
             end
+        end
+        # `@theme struct T` defines `T` and, after it, its scaled theme `ScaledT`.
+        declared = isempty(arguments) ? nothing : arguments[end]
+        if macro_name === Symbol("@theme") && declared isa Expr && declared.head === :struct
+            name = _get_defined_name(declared.args[2])
+            name === nothing || push!(found, Symbol("Scaled", name))
         end
     elseif head === :call && expression.args[1] === :include &&
            length(expression.args) == 2 && expression.args[2] isa String

@@ -389,6 +389,7 @@ const _POINTER_GLYPH_SIZE = 22
 # The picture of the pointer of `shape` with its hot spot at `(x, y)`: the arrow
 # for `:default` and for a shape that this backend does not draw.
 function _make_pointer_shape_graphics(shape::Symbol, x::Int, y::Int)
+    # @style: a mark of the recording, not the look of the editor
     if haskey(_POINTER_GLYPHS, shape)
         glyph, across, down = _POINTER_GLYPHS[shape]
         font = with_font_size(StyleFont("Lucide", 20), _POINTER_GLYPH_SIZE)
@@ -439,7 +440,7 @@ end
 # under the pointer at the zoom of the frame.
 function _make_pointer_graphics(backend::VideoBackend, canvas::GraphicsCanvas)
     x, y = backend.pointer_x, backend.pointer_y
-    ring = color_solarized_orange
+    ring = color_solarized_orange  # @style: a mark of the recording, not the look of the editor
     since_release = _get_schedule_seconds(backend) - backend.pointer_released_at
     elements = Any[]
     if backend.pointer_held
@@ -569,6 +570,7 @@ end
 const _FAULT_BAND_HEIGHT = 28
 
 function _make_fault_line_graphics(backend::VideoBackend)
+    # @style: a mark of the recording, not the look of the editor
     top = backend.height - _FAULT_BAND_HEIGHT
     GraphicsCanvas(Any[GraphicsRect(0, top, backend.width, _FAULT_BAND_HEIGHT; color = color_solarized_red),
                        GraphicsText("The window can not paint: " * backend.fault_line, 8, top + 5;

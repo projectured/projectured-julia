@@ -4233,7 +4233,7 @@ _get_shape_cursor!(backend::SdlBackend, shape::Symbol) =
 # that it shows on any background, with its hot spot in the middle. The arrow of
 # the system when the glyph does not draw.
 function _make_glyph_cursor(glyph::Char, ratio::Float64)
-    handle = _get_font(with_font_size(StyleFont("Lucide", 20), _GLYPH_CURSOR_SIZE), ratio)
+    handle = _get_font(with_font_size(StyleFont("Lucide", 20), _GLYPH_CURSOR_SIZE), ratio)  # @style: the cursor of the system, not the look of the editor
     black = _render_glyph(handle, glyph, SDL_Color(0x00, 0x00, 0x00, 0xff))
     white = _render_glyph(handle, glyph, SDL_Color(0xff, 0xff, 0xff, 0xff))
     if black === nothing || white === nothing
