@@ -16,8 +16,10 @@ text, the fill, the border and the spacing of the command palette and its
 panel. Each field has a docstring that says what it draws, which the
 appearance tab shows under its name.
 
-A gesture-help projection reads the scaled theme through its `UntrackedCell`
-style fields; with no theme it holds the plain values of the default theme.
+`make_gesture_map_projection` and `make_command_palette_projection` give their
+projection its styles with `get_gesture_help_style`, from a theme scaled or
+not; a projection built with no styles holds the plain values of the default
+theme.
 """
 @theme struct GestureHelpTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
@@ -51,12 +53,6 @@ style fields; with no theme it holds the plain values of the default theme.
     "The space between the edge of the panel and its text."
     palette_padding::Spacing = Spacing(10)
 end
-
-# The style field of a gesture-help projection that holds the field `name` of
-# the theme `theme`, of the value type `T`: a `GestureHelpTheme`, a scaled one,
-# or `nothing` for the default values.
-_get_gesturehelp_style(theme, ::Type{T}, name::Symbol) where {T} =
-    make_style_field(GestureHelpTheme, scale_theme(theme), T; name)
 
 # The themes that a wrapper of the gesture help gives its chains: the gesture help
 # theme, the syntax theme and the text theme of the `Appearance` of the build, or

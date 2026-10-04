@@ -14,16 +14,31 @@
 # DejaVu, not Ubuntu: the palette writes the caret and the row marker as chevron
 # glyphs, and SDL draws a tofu box for a glyph the font lacks — it does no
 # fallback. Ubuntu Mono lacks both.
+#
+# The projection holds its styles and no theme; `make_command_palette_syntax_projection`
+# fills them from a theme.
 @projection UntrackedCell struct CommandPaletteToSyntax
-    theme::Any = nothing
-    query::StyleText = _get_gesturehelp_style(theme, StyleText, :palette_query_text)
+    query::StyleText = get_gesture_help_style(nothing, :palette_query_text)
     # A group heading is not the text the user typed, so it must not look like it.
     # Violet reads as structure beside the blue query, and stays clear of the green
     # of the chosen row and the gray of a row that cannot run.
-    header::StyleText = _get_gesturehelp_style(theme, StyleText, :palette_header_text)
-    selected::StyleText = _get_gesturehelp_style(theme, StyleText, :palette_selected_text)
-    command::StyleText = _get_gesturehelp_style(theme, StyleText, :palette_command_text)
-    muted::StyleText = _get_gesturehelp_style(theme, StyleText, :palette_muted_text)
+    header::StyleText = get_gesture_help_style(nothing, :palette_header_text)
+    selected::StyleText = get_gesture_help_style(nothing, :palette_selected_text)
+    command::StyleText = get_gesture_help_style(nothing, :palette_command_text)
+    muted::StyleText = get_gesture_help_style(nothing, :palette_muted_text)
+end
+
+"""
+    make_command_palette_syntax_projection(; theme = nothing) -> CommandPaletteToSyntax
+
+The projection of the command palette's lines, with the styles of `theme`: a
+`GestureHelpTheme`, scaled or not, or the default styles for `nothing`.
+"""
+function make_command_palette_syntax_projection(; theme = nothing)
+    get_style(name) = get_gesture_help_style(theme, name)
+    CommandPaletteToSyntax(; query = get_style(:palette_query_text), header = get_style(:palette_header_text),
+                           selected = get_style(:palette_selected_text),
+                           command = get_style(:palette_command_text), muted = get_style(:palette_muted_text))
 end
 
 # The caret sits at the end of the query: the palette has one selection and it names

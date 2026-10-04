@@ -9,12 +9,26 @@
 # Greyed (not-applicable) rows are styled muted and tagged, the v1 of the Lisp
 # `accessible` colouring: a row that cannot fire for the current selection is shown
 # but dimmed.
+#
+# The projection holds its styles and no theme; `make_gesture_map_syntax_projection`
+# fills them from a theme.
 @projection UntrackedCell struct GestureMapToSyntax
-    theme::Any = nothing
-    header::StyleText = _get_gesturehelp_style(theme, StyleText, :map_header_text)
-    gesture::StyleText = _get_gesturehelp_style(theme, StyleText, :map_gesture_text)
-    description::StyleText = _get_gesturehelp_style(theme, StyleText, :map_description_text)
-    muted::StyleText = _get_gesturehelp_style(theme, StyleText, :map_muted_text)
+    header::StyleText = get_gesture_help_style(nothing, :map_header_text)
+    gesture::StyleText = get_gesture_help_style(nothing, :map_gesture_text)
+    description::StyleText = get_gesture_help_style(nothing, :map_description_text)
+    muted::StyleText = get_gesture_help_style(nothing, :map_muted_text)
+end
+
+"""
+    make_gesture_map_syntax_projection(; theme = nothing) -> GestureMapToSyntax
+
+The projection of a gesture map, with the styles of `theme`: a
+`GestureHelpTheme`, scaled or not, or the default styles for `nothing`.
+"""
+function make_gesture_map_syntax_projection(; theme = nothing)
+    get_style(name) = get_gesture_help_style(theme, name)
+    GestureMapToSyntax(; header = get_style(:map_header_text), gesture = get_style(:map_gesture_text),
+                       description = get_style(:map_description_text), muted = get_style(:map_muted_text))
 end
 
 # One leaf per row ("<gesture> — <description>"), preceded by a domain heading

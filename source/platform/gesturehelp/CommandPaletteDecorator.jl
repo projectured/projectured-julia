@@ -112,7 +112,7 @@ style the syntax-to-text and the text-to-graphics stages.
 """
 make_command_palette_projection(measure::TextMeasure; theme = nothing, syntax_theme = nothing,
                                 text_theme = nothing) =
-    ChainingProjection(CommandPaletteToSyntax(; theme),
+    ChainingProjection(make_command_palette_syntax_projection(; theme),
                        RecursiveProjection(SyntaxToText(; theme = syntax_theme)),
                        WordWrapping(measure=measure),
                        TextToGraphics(; measure, theme = text_theme))
@@ -124,7 +124,7 @@ CommandPaletteDecoratorProjection(; inner, measure::TextMeasure,
                                                                        text_theme),
                            x::Integer = 60, y::Integer = 60) =
     CommandPaletteDecoratorProjection(inner, state, projection,
-                                      make_theme_values_field(GestureHelpTheme, scale_theme(theme)),
+                                      make_theme_values_field(GestureHelpTheme, theme),
                                       Int(x), Int(y))
 
 @iomap struct CommandPaletteDecoratorIoMap

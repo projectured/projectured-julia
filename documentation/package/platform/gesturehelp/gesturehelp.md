@@ -53,8 +53,7 @@ Nothing but declare its gestures with `@gestures`. The description of a rule is 
 ### The theme
 
 `GestureHelpTheme` holds the text of the header, a gesture, a description and the muted parts of the gesture map; the text of the query, a header, the selected row, a command and the muted parts of the command palette; and the background, the border, the radius, the border width and the padding of the panel of the palette. Each value has the default that the slice draws with no
-appearance. `GestureMapToSyntax`, `CommandPaletteToSyntax` and `CommandPaletteDecoratorProjection` take `theme`, a `GestureHelpTheme` or a scaled one; with none they hold the
-default values. The wrappers `command_palette` and `gesture_help` of `build_editor` give the palette and the window of the gesture map their theme and the syntax and the text themes of the `Appearance` of the `appearance` wrapper, and so does `make_opened_window_projections` of the shell wrapper, so both scale with the editor.
+appearance. `GestureMapToSyntax` and `CommandPaletteToSyntax` hold their styles and no theme. `make_gesture_map_projection` and `make_command_palette_projection` fill them with `get_gesture_help_style`, from a `GestureHelpTheme` scaled or not, or the default values for `nothing`; `CommandPaletteDecoratorProjection` holds every value of the theme as one field, with `make_theme_values_field`. The wrappers `command_palette` and `gesture_help` of `build_editor` give the palette and the window of the gesture map their theme and the syntax and the text themes of the `Appearance` of the `appearance` wrapper, and so does `make_opened_window_projections` of the shell wrapper, so both scale with the editor.
 
 ## How it fits
 

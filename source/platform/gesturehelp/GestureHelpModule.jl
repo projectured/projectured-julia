@@ -48,8 +48,8 @@ export CommandPalette, build_command_palette_selection, get_command_palette_sele
        get_command_palette_matches, get_command_palette_row, compute_command_palette_step,
        get_command_palette_settled_selection
 export GestureHelpTheme, ScaledGestureHelpTheme
-export GestureMapToSyntax
-export CommandPaletteToSyntax
+export GestureMapToSyntax, make_gesture_map_syntax_projection
+export CommandPaletteToSyntax, make_command_palette_syntax_projection
 export CommandPaletteDecoratorProjection, CommandPaletteState, CommandPaletteDecoratorIoMap,
        COMMAND_PALETTE_GESTURE, is_command_palette_gesture,
        make_command_palette_projection, ToggleCommandPaletteOperation

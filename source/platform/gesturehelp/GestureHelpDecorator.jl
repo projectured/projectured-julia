@@ -100,7 +100,7 @@ style the syntax-to-text and the text-to-graphics stages.
 """
 make_gesture_map_projection(measure::TextMeasure; theme = nothing, syntax_theme = nothing,
                             text_theme = nothing) =
-    ChainingProjection(GestureMapToSyntax(; theme),
+    ChainingProjection(make_gesture_map_syntax_projection(; theme),
                        RecursiveProjection(SyntaxToText(; theme = syntax_theme)),
                        WordWrapping(measure=measure),
                        TextToGraphics(; measure, theme = text_theme))

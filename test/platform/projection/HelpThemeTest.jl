@@ -24,8 +24,10 @@ function test_help_themes()
 
 @testset "GestureMapToSyntax reads GestureHelpTheme" begin
     defaults = make_scaled_theme(GestureHelpTheme())
-    plain = GestureMapToSyntax()
-    scaled = GestureMapToSyntax(theme = get_scaled_theme!(Appearance(font_scale = 1.5), GestureHelpTheme))
+    plain = make_gesture_map_syntax_projection()
+    @test !hasfield(typeof(plain), :theme)
+    scaled = make_gesture_map_syntax_projection(
+        theme = get_scaled_theme!(Appearance(font_scale = 1.5), GestureHelpTheme))
     _check_theme_roles(plain, scaled, defaults,
                        [(:header, :map_header_text), (:gesture, :map_gesture_text),
                         (:description, :map_description_text), (:muted, :map_muted_text)])
@@ -33,8 +35,10 @@ end
 
 @testset "CommandPaletteToSyntax reads GestureHelpTheme" begin
     defaults = make_scaled_theme(GestureHelpTheme())
-    plain = CommandPaletteToSyntax()
-    scaled = CommandPaletteToSyntax(theme = get_scaled_theme!(Appearance(font_scale = 1.5), GestureHelpTheme))
+    plain = make_command_palette_syntax_projection()
+    @test !hasfield(typeof(plain), :theme)
+    scaled = make_command_palette_syntax_projection(
+        theme = get_scaled_theme!(Appearance(font_scale = 1.5), GestureHelpTheme))
     _check_theme_roles(plain, scaled, defaults,
                        [(:query, :palette_query_text), (:header, :palette_header_text),
                         (:selected, :palette_selected_text), (:command, :palette_command_text),
