@@ -8,7 +8,7 @@
 
 ### The pipeline ends in text
 
-`write_to_devices` takes a `TextBlock`, the output of `SyntaxToText`, and not a `ScreenDocument`. A console pipeline has no `TextToGraphics` and no window. The JSON example builds one:
+`write_to_devices!` takes a `TextBlock`, the output of `SyntaxToText`, and not a `ScreenDocument`. A console pipeline has no `TextToGraphics` and no window. The JSON example builds one:
 
 ```julia
 WindowInputUnwrappingProjection(
@@ -20,7 +20,7 @@ WindowInputUnwrappingProjection(
 - `SelectionInverting` paints the selection into the colours of the spans as inverse video. The backend draws only colours and has no code for the selection.
 - `WindowInputUnwrappingProjection` takes the `WindowInput` off each gesture. In a window pipeline `ScreenToScreen` does that.
 
-For any other output, `write_to_devices` raises an error that says to drop the `TextToGraphics` step.
+For any other output, `write_to_devices!` raises an error that says to drop the `TextToGraphics` step.
 
 ### Draw
 
@@ -37,7 +37,7 @@ The backend has no text measure: a console pipeline ends in `TextBlock` and neve
 
 ### Events in
 
-`initialize_backend!` puts a TTY into raw mode with `jl_tty_set_mode` and starts a watcher task, and `quit_backend!` restores the mode. An input that is not a TTY, such as an `IOBuffer` in a test, skips both. `read_from_devices` appends the waiting bytes to a buffer and parses one event:
+`initialize_backend!` puts a TTY into raw mode with `jl_tty_set_mode` and starts a watcher task, and `quit_backend!` restores the mode. An input that is not a TTY, such as an `IOBuffer` in a test, skips both. `take_from_devices!` appends the waiting bytes to a buffer and parses one event:
 
 | Bytes | Event |
 | --- | --- |
@@ -61,7 +61,7 @@ The backend has no text measure: a console pipeline ends in `TextBlock` and neve
 
 The parameter `m` is 1 plus the sum of 1 for Shift, 2 for Alt, 4 for Ctrl and 8 for Meta, as xterm sends it. So `ESC [ 1 ; 5 D` is Ctrl+Left. Home with a modifier is `KeyDown(:home)` with that modifier, and only a plain Home selects the root. The parser drops a whole control sequence that has no key in the table, such as a mouse report or the marks of a bracketed paste.
 
-A lone ESC is Escape, and ESC followed by a key is that key with Alt. The two differ only in the time between the bytes. A terminal writes a whole escape sequence at once, so its bytes normally arrive in one read. When the bytes end in the start of a sequence, `read_from_devices` waits at most 50 ms for more. When no byte arrives in that time, the bytes are the keys that the user typed: a lone ESC is Escape, and `ESC [` is Alt+`[`. When more bytes arrive, the parser reads the sequence that they complete.
+A lone ESC is Escape, and ESC followed by a key is that key with Alt. The two differ only in the time between the bytes. A terminal writes a whole escape sequence at once, so its bytes normally arrive in one read. When the bytes end in the start of a sequence, `take_from_devices!` waits at most 50 ms for more. When no byte arrives in that time, the bytes are the keys that the user typed: a lone ESC is Escape, and `ESC [` is Alt+`[`. When more bytes arrive, the parser reads the sequence that they complete.
 
 Ctrl+C gives `WindowQuit`, and the editor quits. Escape reaches the readers as a key, as [devices-and-backends.md](../../kernel/devices-and-backends.md) requires, and the editor loop quits on an Escape that no reader handled.
 

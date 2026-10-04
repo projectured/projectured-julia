@@ -200,7 +200,7 @@ end
 function _write_output_to_devices!(editor::Editor)
     try
         with(_PAINTING_EDITOR => editor) do
-            write_to_devices(editor.backend, editor.devices, editor.iomap.output)
+            write_to_devices!(editor.backend, editor.devices, editor.iomap.output)
         end
     catch exception
         (exception isa RecordedFaultException && !isempty(editor.noted_barriers)) ||

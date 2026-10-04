@@ -1,7 +1,7 @@
 const _CB = ConsoleModule
 const _ED = EditorModule
 
-# Parse one event from a fresh byte buffer (mirrors how `read_from_devices`
+# Parse one event from a fresh byte buffer (mirrors how `take_from_devices!`
 # drains the input and consumes one event at a time).
 _parse(bytes...) = _CB._next_event!(collect(UInt8, bytes); time = 0.0)
 
@@ -62,7 +62,7 @@ function _highlighted(doc)
     io = IOBuffer()
     backend = ConsoleBackend(; io=io, ansi=true, clear=false)
     out = print_document(proj, doc).output
-    write_to_devices(backend, Device[], out)
+    write_to_devices!(backend, Device[], out)
     s = String(take!(io))
     rev = ""
     # Each styled slice is `<sgr codes>text\e[0m`; keep the ones whose codes
@@ -163,22 +163,22 @@ function test_console_backend()
         @test _parse(0x03) isa WindowQuit
     end
 
-    # ── read_from_devices settles a lone ESC when no byte follows ─────────
+    # ── take_from_devices! settles a lone ESC when no byte follows ─────────
     @testset "lone escape" begin
         b = ConsoleBackend(; io=IOBuffer(), input=IOBuffer(UInt8[0x1b]))
-        window_input = read_from_devices(b, Device[])
+        window_input = take_from_devices!(b, Device[])
         @test window_input isa WindowInput
         # The terminal gives no time, so an event has the time of the read.
         escape = window_input.event
         @test escape == KeyDown(:escape, ModifierKeys(); time = escape.time)
         @test isempty(b.inbuf)
         b = ConsoleBackend(; io=IOBuffer(), input=IOBuffer(UInt8[0x1b, UInt8('x')]))
-        alt_x = read_from_devices(b, Device[]).event
+        alt_x = take_from_devices!(b, Device[]).event
         @test alt_x == KeyPress('x', ModifierKeys(alt = true); time = alt_x.time)
-        @test read_from_devices(b, Device[]) === nothing
+        @test take_from_devices!(b, Device[]) === nothing
         # Bytes that make no event are skipped, and the next key is read.
         b = ConsoleBackend(; io=IOBuffer(), input=IOBuffer(collect(UInt8, "\e[200~q")))
-        q = read_from_devices(b, Device[]).event
+        q = take_from_devices!(b, Device[]).event
         @test q == KeyPress('q'; time = q.time)
     end
 
@@ -201,11 +201,11 @@ function test_console_backend()
         @test !(read_operation(collect(UInt8, "\e[1;5D")) isa QuitEditorOperation)
     end
 
-    # ── read_from_devices wraps events in a :console WindowInput ─────────
-    @testset "read_from_devices" begin
+    # ── take_from_devices! wraps events in a :console WindowInput ─────────
+    @testset "take_from_devices!" begin
         b = ConsoleBackend(; io=IOBuffer(), input=IOBuffer(UInt8[UInt8('a')]))
         before = time()
-        window_input = read_from_devices(b, Device[])
+        window_input = take_from_devices!(b, Device[])
         after = time()
         @test window_input isa WindowInput
         @test window_input.window_id === :console
@@ -213,7 +213,7 @@ function test_console_backend()
         @test typed == KeyPress('a'; time = typed.time)
         @test before <= typed.time <= after
         # Empty input → nothing.
-        @test read_from_devices(ConsoleBackend(; input=IOBuffer(UInt8[])), Device[]) === nothing
+        @test take_from_devices!(ConsoleBackend(; input=IOBuffer(UInt8[])), Device[]) === nothing
     end
 
     # ── selection highlight rendering ─────────────────────────────────────
@@ -308,7 +308,7 @@ function test_console_backend()
 
     # ── wrong pipeline output fails loud ──────────────────────────────────
     @testset "output type guard" begin
-        @test_throws ErrorException write_to_devices(ConsoleBackend(), Device[], 42)
+        @test_throws ErrorException write_to_devices!(ConsoleBackend(), Device[], 42)
     end
 
     # ── the wait and the wake ─────────────────────────────────────────────

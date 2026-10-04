@@ -26,8 +26,9 @@ end
 struct _ShellProbeBackend <: ProjecturedKernel.BackendModule.Backend end
 ProjecturedKernel.BackendModule.initialize_backend!(::_ShellProbeBackend) = nothing
 ProjecturedKernel.BackendModule.quit_backend!(::_ShellProbeBackend) = nothing
-ProjecturedKernel.BackendModule.read_from_devices(::_ShellProbeBackend, devices) = nothing
-ProjecturedKernel.BackendModule.write_to_devices(::_ShellProbeBackend, devices, output) = nothing
+ProjecturedKernel.BackendModule.take_from_devices!(::_ShellProbeBackend, devices) =
+    nothing
+ProjecturedKernel.BackendModule.write_to_devices!(::_ShellProbeBackend, devices, output) = nothing
 
 # Every text that `node` draws, read through its cells.
 function _shell_texts(node, found = String[])

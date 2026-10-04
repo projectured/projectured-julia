@@ -809,7 +809,7 @@ end
 
 # Non-blocking poll: hand back the next decoded event, or nothing. A pointer event
 # puts the pointer where the next frame finds the shape of the pointer.
-function BackendModule.read_from_devices(backend::WebBackend, devices)
+function BackendModule.take_from_devices!(backend::WebBackend, devices)
     isready(backend.inbound) || return nothing
     input = take!(backend.inbound)
     _track_pointer!(backend, input)
@@ -879,7 +879,7 @@ _window_meta(w::WindowDocument, draw; primary::Bool=false) = Dict(
     "style" => String(w.style), "draw" => draw)
 
 """
-    write_to_devices(backend::WebBackend, devices, screen::ScreenDocument)
+    write_to_devices!(backend::WebBackend, devices, screen::ScreenDocument)
 
 Reconcile the connected client against the projection-output `ScreenDocument`.
 A window is sent in full on first paint / after a forced resync; otherwise only a
@@ -900,7 +900,7 @@ size of each window divided by the zoom, and divides each pointer position by it
 so the server lays out and reads in logical pixels at every zoom. A new zoom sends
 every window in full, because the client draws it again at the new ratio.
 """
-function BackendModule.write_to_devices(backend::WebBackend, devices, screen::ScreenDocument)
+function BackendModule.write_to_devices!(backend::WebBackend, devices, screen::ScreenDocument)
     conn = backend.conn
     conn === nothing && return nothing  # no client; a resync on (re)connect sends full
 
@@ -991,8 +991,8 @@ function _get_display_zoom(devices)
 end
 
 # Fail loud on a miswired pipeline whose output is not a ScreenDocument.
-function BackendModule.write_to_devices(::WebBackend, devices, output)
-    error("write_to_devices(::WebBackend, …): pipeline output is $(typeof(output)), " *
+function BackendModule.write_to_devices!(::WebBackend, devices, output)
+    error("write_to_devices!(::WebBackend, …): pipeline output is $(typeof(output)), " *
           "expected a ScreenDocument. The web backend renders the multi-window " *
           "screen pipeline (same as the SDL backend).")
 end

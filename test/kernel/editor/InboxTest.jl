@@ -67,8 +67,8 @@ function BackendModule.quit_backend!(backend::InboxQuitBackend)
     backend.quit_exception === nothing || throw(backend.quit_exception)
     nothing
 end
-BackendModule.read_from_devices(::InboxQuitBackend, devices) = nothing
-BackendModule.write_to_devices(::InboxQuitBackend, devices, output) = nothing
+BackendModule.take_from_devices!(::InboxQuitBackend, devices) = nothing
+BackendModule.write_to_devices!(::InboxQuitBackend, devices, output) = nothing
 BackendModule.wait_for_input(::InboxQuitBackend, devices, timeout_seconds) = nothing
 
 _inbox_editor() =

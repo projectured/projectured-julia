@@ -31,7 +31,7 @@ Tear down the backend and release resources.
 function quit_backend! end
 
 """
-    write_to_devices(backend, devices, document)
+    write_to_devices!(backend, devices, document)
 
 Render `document` to all output devices in `devices` using `backend`. A concrete
 backend adds a method dispatched on its own type; there is deliberately no
@@ -39,14 +39,14 @@ catch-all, so an unimplemented backend raises `MethodError` rather than silently
 doing nothing.
 
 A backend that shows windows reports each frame that it shows and that differs
-from the frame before: its next `read_from_devices` answers
+from the frame before: its next `take_from_devices!` answers
 `WindowInput(window_id, DisplayUpdate(; time))` for that window, and its
 `wait_for_input` does not block while such an input waits. A frame that shows
 nothing new reports nothing, so the loop can sleep. A backend that can not tell
 reports nothing, and a reader that keeps a part of the view as its state then
 finds it again only at the next input.
 """
-function write_to_devices end
+function write_to_devices! end
 
 """
     open_native_windows!(backend, document)
@@ -67,7 +67,7 @@ A backend with no windows of its own leaves this at the no-op default.
 function open_native_windows! end
 
 """
-    read_from_devices(backend, devices) -> WindowInput or nothing
+    take_from_devices!(backend, devices) -> WindowInput or nothing
 
 Poll all input devices in one shot and return the next event — a `WindowInput`
 carrying an `Event` — or `nothing` when there is none. A concrete backend
@@ -76,7 +76,7 @@ and classifying events across device types), and it is where a platform's raw
 events are translated into that vocabulary: a device reports only what happened,
 never a gesture derived from several events.
 """
-function read_from_devices end
+function take_from_devices! end
 
 """
     wait_for_input(backend, devices, timeout_seconds) -> Nothing

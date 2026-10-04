@@ -635,7 +635,7 @@ function run_console_example(; document=make_json_document_example(),
         iomap = print_document(projection, document)
         output = iomap.output
         output = output isa Cell ? output[] : output
-        write_to_devices(backend, Device[], output)
+        write_to_devices!(backend, Device[], output)
     end
     return nothing
 end

@@ -55,9 +55,9 @@ mutable struct TimerProbeBackend <: Backend
     waits::Vector{Float64}
 end
 TimerProbeBackend(inputs::Vector{Any} = Any[]) = TimerProbeBackend(inputs, Float64[])
-BackendModule.read_from_devices(backend::TimerProbeBackend, devices) =
+BackendModule.take_from_devices!(backend::TimerProbeBackend, devices) =
     isempty(backend.inputs) ? nothing : popfirst!(backend.inputs)
-BackendModule.write_to_devices(::TimerProbeBackend, devices, output) = nothing
+BackendModule.write_to_devices!(::TimerProbeBackend, devices, output) = nothing
 function BackendModule.wait_for_input(backend::TimerProbeBackend, devices, timeout_seconds)
     push!(backend.waits, timeout_seconds)
     isempty(backend.inputs) && sleep(min(timeout_seconds, 1.0))

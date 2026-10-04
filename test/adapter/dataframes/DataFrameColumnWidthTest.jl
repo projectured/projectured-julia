@@ -10,9 +10,9 @@ end
 _ColumnWidthBackend() = _ColumnWidthBackend(Any[], Any[])
 BackendModule.initialize_backend!(::_ColumnWidthBackend) = nothing
 BackendModule.quit_backend!(::_ColumnWidthBackend) = nothing
-BackendModule.read_from_devices(backend::_ColumnWidthBackend, devices) =
+BackendModule.take_from_devices!(backend::_ColumnWidthBackend, devices) =
     isempty(backend.events) ? nothing : popfirst!(backend.events)
-BackendModule.write_to_devices(backend::_ColumnWidthBackend, devices, output) =
+BackendModule.write_to_devices!(backend::_ColumnWidthBackend, devices, output) =
     (push!(backend.rendered, output); nothing)
 
 # The first IO map of type `type` under `node`, through the fields of each IO map.

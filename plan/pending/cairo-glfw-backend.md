@@ -39,14 +39,14 @@ is closest to the SDL-free one:
   `_canvas_content_bounds`, plus the `KAPPA` rounded-rect/circle Bézier trick in
   Pdf. Splines/arrows/rounded rects come for free.
 - The **`Backend` / `Device` split** is designed for this. A new backend needs
-  only `init!`, `quit!`, `measure_text`, `read_from_devices`, `write_to_devices`
+  only `init!`, `quit!`, `measure_text`, `take_from_devices!`, `write_to_devices!`
   (+ optional `pointer_position`, `display_size` provider). See
   [package/kernel/doc/devices-and-backends.md](../../documentation/package/kernel/devices-and-backends.md)
   §"Adding a new backend".
-- **`write_to_devices(::CairoBackend, devices, ::ScreenDocument)`** is the same
+- **`write_to_devices!(::CairoBackend, devices, ::ScreenDocument)`** is the same
   window-reconciliation loop as SDL's (diff desired `WindowDocument.id`s against
   live windows; open/close/update-geometry; render each window's `content`
-  canvas). Copy the shape of `write_to_devices(::SdlBackend, …)` and
+  canvas). Copy the shape of `write_to_devices!(::SdlBackend, …)` and
   `_update_window_geometry!` in [package/sdl/main/ProjecturedSdl.jl](../../package/ProjecturedSdl/src/ProjecturedSdl.jl).
 - **Input is *better* than SDL's**: GLFW delivers events through callbacks with a
   clean, portable key enum (`GLFW.KEY_LEFT`, …) instead of SDL's magic keysym
@@ -61,10 +61,10 @@ surface.** We must get Cairo's pixels onto the GLFW framebuffer. See
 ## Architecture
 
 ```
-Editor.run! ─▶ read_from_devices(CairoBackend) ─▶ GLFW.PollEvents() drains
+Editor.run! ─▶ take_from_devices!(CairoBackend) ─▶ GLFW.PollEvents() drains
    ▲                                               callback-filled event queue
    │                                               ─▶ EventEnvelope(window_id, ev)
-   └── write_to_devices(CairoBackend, ScreenDocument)
+   └── write_to_devices!(CairoBackend, ScreenDocument)
          └─ reconcile GLFW windows by WindowDocument.id
               └─ paint_canvas!(cr, content)  (Cairo image surface, y-down)
                    └─ blit surface → GLFW framebuffer → SwapBuffers
@@ -181,7 +181,7 @@ area (mirror `sdl_display_size`).
 
 GLFW callbacks fire during `GLFW.PollEvents()`. Set per-window callbacks in
 `init!`/on window open that push translated events into `backend.events`;
-`read_from_devices` calls `PollEvents()` then pops one, wrapping it in
+`take_from_devices!` calls `PollEvents()` then pops one, wrapping it in
 `EventEnvelope(window_id, event)` (window id via `backend.window_ids`).
 
 | GLFW callback | → event |
@@ -233,13 +233,13 @@ callback, or `GLFW.GetCursorPos(win)`).
 - [ ] `init!`/`quit!`: `GLFW.Init()`/`Terminate()`; register `make_backend(:cairo)`.
 - [ ] Open one GLFW window; create matching Cairo surface; implement the blit
       (glDrawPixels v1).
-- [ ] `write_to_devices(::CairoBackend, devices, ::ScreenDocument)` — reconcile a
+- [ ] `write_to_devices!(::CairoBackend, devices, ::ScreenDocument)` — reconcile a
       single window, paint its `content` canvas, present.
 - [ ] Live smoke test = **user runs it in an external terminal** (heavy native
       run; hand off per memory `no-heavy-julia-runs-crash-vscode`).
 
 ### Phase 3 — input (becomes a live editor backend)
-- [ ] GLFW callbacks → event queue; `read_from_devices` pops + envelopes.
+- [ ] GLFW callbacks → event queue; `take_from_devices!` pops + envelopes.
 - [ ] `glfw_key_to_symbol` + `glfw_modifiers`; char/mouse/scroll/close/resize/focus.
 - [ ] Idle-motion rate-limit; escape→quit.
 - [ ] `run_cairo_example` helper (or document `run_example(...;
@@ -278,7 +278,7 @@ callback, or `GLFW.GetCursorPos(win)`).
 
 ## References
 - `package/sdl/main/ProjecturedSdl.jl` — interactive backend to mirror (windowing,
-  `read_from_devices`, `write_to_devices` reconciliation, key/mod maps, HiDPI).
+  `take_from_devices!`, `write_to_devices!` reconciliation, key/mod maps, HiDPI).
 - `package/pdf/main/Pdf.jl` — the SDL-free canvas walk to port to Cairo.
 - `package/console/main/Console.jl` — smallest complete non-SDL backend.
 - `package/kernel/main/backend/{BackendInterface,BackendDefaults}.jl` and `package/kernel/main/device/Device.jl` — the interface to implement.

@@ -124,10 +124,10 @@ const fault_map_example = Example("fault_map",
 """
     BrokenWriteBackend(inner)
 
-Delegates every seam to `inner`; `write_to_devices` throws while `broken`
+Delegates every seam to `inner`; `write_to_devices!` throws while `broken`
 holds. The device barrier counts the consecutive failures and degrades the
 seam at its limit — the screen freezes on the last good frame, and Escape
-still quits because `read_from_devices` keeps running.
+still quits because `take_from_devices!` keeps running.
 """
 mutable struct BrokenWriteBackend <: Backend
     inner::Backend
@@ -138,7 +138,7 @@ BrokenWriteBackend(inner::Backend) = BrokenWriteBackend(inner, false)
 
 BackendModule.initialize_backend!(b::BrokenWriteBackend) = initialize_backend!(b.inner)
 BackendModule.quit_backend!(b::BrokenWriteBackend) = quit_backend!(b.inner)
-BackendModule.read_from_devices(b::BrokenWriteBackend, devices) = read_from_devices(b.inner, devices)
+BackendModule.take_from_devices!(b::BrokenWriteBackend, devices) = take_from_devices!(b.inner, devices)
 BackendModule.open_native_windows!(b::BrokenWriteBackend, document) = open_native_windows!(b.inner, document)
 BackendModule.configure_devices!(b::BrokenWriteBackend, devices) = configure_devices!(b.inner, devices)
 BackendModule.get_display_size(b::BrokenWriteBackend) = get_display_size(b.inner)
@@ -147,9 +147,9 @@ BackendModule.wait_for_input(b::BrokenWriteBackend, devices, timeout_seconds) =
     wait_for_input(b.inner, devices, timeout_seconds)
 BackendModule.wake_backend!(b::BrokenWriteBackend) = wake_backend!(b.inner)
 
-BackendModule.write_to_devices(b::BrokenWriteBackend, devices, output) =
+BackendModule.write_to_devices!(b::BrokenWriteBackend, devices, output) =
     b.broken ? error("broken on purpose (device)") :
-               write_to_devices(b.inner, devices, output)
+               write_to_devices!(b.inner, devices, output)
 
 """
     run_fault_device_example(; backend = nothing, break_after = 3.0)

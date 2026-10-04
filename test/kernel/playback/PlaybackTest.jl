@@ -33,9 +33,9 @@ BackendModule.open_native_windows!(b::PbRecordingBackend, document) =
     (push!(b.calls, :open_native_windows!); nothing)
 BackendModule.quit_backend!(b::PbRecordingBackend) =
     (push!(b.calls, :quit_backend!); nothing)
-BackendModule.read_from_devices(b::PbRecordingBackend, devices) =
+BackendModule.take_from_devices!(b::PbRecordingBackend, devices) =
     WindowInput(:probe, WindowQuit(; time = 0.0))
-BackendModule.write_to_devices(b::PbRecordingBackend, devices, document) = nothing
+BackendModule.write_to_devices!(b::PbRecordingBackend, devices, document) = nothing
 
 function test_playback()
 @testset "PlaybackModule" begin

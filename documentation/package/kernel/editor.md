@@ -262,7 +262,7 @@ feeds (`attach_fault_wake!`). The whole rule is
 
 `run_read_stage!(editor)` drains input until one translates into an operation. A timer
 of `editor.timers` whose time has come is read first, as a bare `TimerExpire`,
-because a timer belongs to no window. Otherwise `read_from_devices(backend,
+because a timer belongs to no window. Otherwise `take_from_devices!(backend,
 devices)` polls the backend's event queue (in the SDL case, `SDL_PollEvent`)
 for a `WindowInput` wrapping a backend-agnostic event: `KeyDown`, `KeyUp`,
 `KeyPress`, `MouseDown`, `MouseUp`, `MouseMove`, `MouseScroll`, `WindowQuit`,
@@ -307,7 +307,7 @@ See [the operations guide](operation.md).
 
 If `editor.iomap` is `nothing`, `print_document(editor.projection,
 editor.document)` runs the whole pipeline and stores the result. The IoMap
-is then written to each output device with `write_to_devices(backend,
+is then written to each output device with `write_to_devices!(backend,
 devices, iomap.output)`. Because every intermediate value is a reactive
 `Cell`, subsequent reads only recompute the parts that were invalidated by
 the operation — the rest is served from the cache.
@@ -484,7 +484,7 @@ geometry the window system granted: a manager may grant less than it is asked
 for, and it answers only once the window exists, so a document projected first
 is projected at a size the window never has and computes a second time when the
 answer arrives. A window a projection opens later — a tooltip, a popup — is
-still opened on demand, by `write_to_devices` against the `ScreenDocument`
+still opened on demand, by `write_to_devices!` against the `ScreenDocument`
 output (the pipeline is expected to end in one).
 `run_editor!(editor)` runs the loop, and in a `finally` block when the loop ends
 answers every call still waiting in the inbox, runs the stop steps of
@@ -576,17 +576,17 @@ In the example packages this is wired up for you — see `play_live_example` and
   `ConsoleBackend` (a terminal) and `VideoBackend` (the frames of a video file),
   and the test double `HeadlessBackend`. The backend provides
   `initialize_backend!`, `quit_backend!`, the per-frame device I/O
-  `read_from_devices` / `write_to_devices`, and the wait between frames
+  `take_from_devices!` / `write_to_devices!`, and the wait between frames
   `wait_for_input` / `wake_backend!` — see
   [the devices and backends guide](devices-and-backends.md#backends).
 - Projections that need to measure text take a `measure::TextMeasure` argument
   (e.g. `TextToGraphics`); `FontFileMeasure()` of the style slice is the
   usual injection, and every backend draws what it measures.
 - The `ConsoleBackend` consumes the **TextBlock** domain directly (no
-  `TextToGraphics`): its `write_to_devices` renders a `TextBlock` to the terminal
+  `TextToGraphics`): its `write_to_devices!` renders a `TextBlock` to the terminal
   with ANSI colors, the selection encoded as inverse-video span colors by a
   `SelectionInverting` projection at the end of the pipeline, and
-  `read_from_devices` turns keystrokes into the same `KeyDown`/`KeyPress`/
+  `take_from_devices!` turns keystrokes into the same `KeyDown`/`KeyPress`/
   `WindowQuit` events. Because it has no screen/window layer, its pipeline adds an
   `WindowInputUnwrappingProjection` to strip the `WindowInput` that
   `ScreenToScreen` would otherwise strip. Run it with
@@ -704,7 +704,7 @@ instance in `editor.clock`, ticked once per frame with
 - `..IoMapModule` — `IoMap`, the type of `editor.iomap`.
 - `..DeviceModule` — `Device`, `Display`.
 - `..BackendModule` — `Backend`, `initialize_backend!`, `quit_backend!`,
-  `read_from_devices`, `write_to_devices`.
+  `take_from_devices!`, `write_to_devices!`.
 - `..EventModule` — `WindowInput`, `WindowQuit`, and the event type
   predicates (`KeyDown`, `MouseDown`, …).
 - `..PerformanceModule` — the counters bumped inline in the loop.

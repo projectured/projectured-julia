@@ -20,14 +20,14 @@ seconds after the first frame is on disk (not after [`initialize_backend!`](@ref
 loop's first `run_read_stage!` runs before its first `run_print_stage!`, and a window
 input delivered into that gap is lost, since the reader has no `iomap` yet to map it
 against), as the `WindowInput` `play_live!` builds for `window_id`, which is where
-`write_to_devices` also looks for the window to render — the same routing a real device
+`write_to_devices!` also looks for the window to render — the same routing a real device
 and window would give a single-window scene. `final_hold` seconds after the last entry's
 own hold has run out, the backend fires a `WindowQuit` of its own, appended after
 `timeline`, which ends the loop through the same `QuitEditorException` the window-close
 button raises.
 
 The frame count follows the wall clock rather than the render time: a call to
-`write_to_devices` that finds a real gap since the frame before first repeats
+`write_to_devices!` that finds a real gap since the frame before first repeats
 that frame, once per `1/fps` slot the gap covers — so a slow repaint holds the
 old state on screen for as long as it really took, instead of shrinking the
 video below the length of the session — then renders and writes the new one.
@@ -45,7 +45,7 @@ model, keeps the wall clock.
 
 A frame in which the editor paints nothing still takes its place in the video,
 so a take always ends. The editor paints nothing when a paint fails, when it has
-stopped calling `write_to_devices` after too many failures in a row, or when it
+stopped calling `write_to_devices!` after too many failures in a row, or when it
 has no window. The recorder then holds the last picture it painted: in wall-clock
 time, a copy for each `1/fps` slot, and in video time, one copy for each such
 frame. After a failed paint, the held picture carries a red line at the bottom
@@ -81,12 +81,12 @@ mutable struct VideoBackend <: Backend
     frames_dir::String
     window_id::Symbol
     # Each entry is `(event = …, fire_at = …)` — `fire_at` the second, counted
-    # from `start_time`, at which `read_from_devices` answers it. The last
+    # from `start_time`, at which `take_from_devices!` answers it. The last
     # entry is always the backend's own appended `WindowQuit`.
     timeline::Vector{Any}
     next_entry::Int
-    # Set by `read_from_devices` the moment it delivers an entry, and cleared
-    # by `write_to_devices` the moment it renders. While it is set, the next
+    # Set by `take_from_devices!` the moment it delivers an entry, and cleared
+    # by `write_to_devices!` the moment it renders. While it is set, the next
     # entry is held back even if its `fire_at` has passed — so a stretch of
     # real time slow enough to carry several entries' `fire_at` at once (a
     # cold JIT compile, a heavy layout) still renders one of them at a time,
@@ -210,7 +210,7 @@ function initialize_backend!(backend::VideoBackend)
     backend.off = open_offscreen_renderer(backend.width, backend.height;
                                            supersample = backend.supersample,
                                            density = backend.density)
-    # -1 marks the clock as not yet started (see `write_to_devices`): the loop's first
+    # -1 marks the clock as not yet started (see `write_to_devices!`): the loop's first
     # `run_read_stage!` runs before the first `run_print_stage!`, while `editor.iomap` is
     # still `nothing`, and a window input delivered into that gap is dropped by the reader
     # with no operation and no way back (`run_read_stage!`'s own
@@ -241,7 +241,7 @@ wait_for_input(backend::VideoBackend, devices, timeout_seconds) =
     (sleep(min(Float64(timeout_seconds), 1.0 / backend.fps)); nothing)
 
 """
-    read_from_devices(backend::VideoBackend, devices) -> WindowInput or nothing
+    take_from_devices!(backend::VideoBackend, devices) -> WindowInput or nothing
 
 The next `timeline` entry whose `fire_at` has passed, as the `WindowInput`
 `play_live!` builds for a live device: `entry.event` wrapped for
@@ -258,7 +258,7 @@ A read that starts after a frame in which the editor painted nothing first holds
 the last picture for that frame (see [`VideoBackend`](@ref)), and the held
 picture is the frame of an entry that waits for one.
 """
-function read_from_devices(backend::VideoBackend, devices)
+function take_from_devices!(backend::VideoBackend, devices)
     backend.start_time < 0 && return nothing   # no frame on disk yet — nothing to map an event onto
     backend.unpainted_reads > 0 && _hold_picture!(backend)
     input = _take_due_entry!(backend)
@@ -419,21 +419,21 @@ function _backfill_frames!(backend::VideoBackend)
 end
 
 """
-    write_to_devices(backend::VideoBackend, devices, screen::ScreenDocument)
+    write_to_devices!(backend::VideoBackend, devices, screen::ScreenDocument)
 
 Render the window named by `backend.window_id` (or, failing that, the first
-window of `screen` — the routing `read_from_devices` also uses) and write it as
+window of `screen` — the routing `take_from_devices!` also uses) and write it as
 the next frame, backfilling the wall-clock gap first (see
 [`VideoBackend`](@ref)). A window this backend does not recognise as
 `GraphicsCanvas` content is an error, exactly as `record_video` and
 `SdlBackend` treat it.
 """
-function write_to_devices(backend::VideoBackend, devices, screen::ScreenDocument)
+function write_to_devices!(backend::VideoBackend, devices, screen::ScreenDocument)
     window = _select_window(backend, screen)
     window === nothing && return nothing
     canvas = window.content
     canvas isa GraphicsCanvas ||
-        error("write_to_devices: WindowDocument(id=:$(window.id)).content is " *
+        error("write_to_devices!: WindowDocument(id=:$(window.id)).content is " *
               "$(typeof(canvas)), expected GraphicsCanvas")
     # The first frame starts the timeline's clock (see `initialize_backend!`);
     # there is nothing yet to backfill a gap against.

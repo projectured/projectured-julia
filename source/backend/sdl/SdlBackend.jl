@@ -172,10 +172,10 @@ the job of the gesture tracking projection, not the backend's.
 `WindowDocument.id` they mirror. `window_ids` is the reverse map from
 SDL `windowID` to `WindowDocument.id`, used when translating raw SDL
 events into `WindowInput`s. Both are reconciled by
-`write_to_devices(::SdlBackend, devices, ::ScreenDocument)`.
+`write_to_devices!(::SdlBackend, devices, ::ScreenDocument)`.
 
 `pending_input` and `pending_motion` are the one-event buffers
-`read_from_devices` needs to collapse a run of pointer motion into its newest
+`take_from_devices!` needs to collapse a run of pointer motion into its newest
 sample, and `last_hover_motion` is the time of the rate limit of idle motion.
 They live on the backend rather than at module level, so two backends in one
 process never hand each other an event or a delay. `partial_render`,
@@ -189,7 +189,7 @@ modifiers at their place in the queue, not at the time of the poll.
 `initialize_backend!` seeds it from `SDL_GetModState`.
 
 `display_updates` holds a `DisplayUpdate` for each window that showed a frame
-which differs from the one before, until `read_from_devices` answers it. A window
+which differs from the one before, until `take_from_devices!` answers it. A window
 that shows two changed frames before a read has one update, with the later time.
 
 `display` is the `Display` that the backend draws on. Its device pixel ratio
@@ -215,7 +215,7 @@ mutable struct SdlBackend <: Backend
     # The repaints of the last `debug_dirty_hold` seconds, with the time of each,
     # by the id of the window: the outline of a frame is the union of them.
     recent_repaints::Dict{Symbol, Vector{Tuple{Float64,Vector{NTuple{4,Int}}}}}
-    # Input coalescing state (see `read_from_devices`):
+    # Input coalescing state (see `take_from_devices!`):
     #   pending_input  — the event that arrived behind a held motion, owed next call
     #   pending_motion — the newest motion sample not yet delivered
     #   last_hover_motion — when the last idle motion was delivered (`time()`),
@@ -550,7 +550,7 @@ _get_held_mouse_buttons(bstate::UInt32) =
 
 # ════════════════════════════════════════════════════════════════════════
 # Native window lifecycle (internal helpers; driven by the reconciler in
-# `write_to_devices(::SdlBackend, devices, ::ScreenDocument)`).
+# `write_to_devices!(::SdlBackend, devices, ::ScreenDocument)`).
 # ════════════════════════════════════════════════════════════════════════
 
 # The flags a window of each style is created with. **Named, not numbered.** The
@@ -3681,7 +3681,7 @@ function BackendModule.wake_backend!(backend::SdlBackend)
 end
 
 """
-    read_from_devices(backend::SdlBackend, devices) -> WindowInput or nothing
+    take_from_devices!(backend::SdlBackend, devices) -> WindowInput or nothing
 
 Poll the SDL event queue once and return an `WindowInput` wrapping a
 backend-agnostic inner event, with the time that SDL stamped on it:
@@ -3723,10 +3723,10 @@ and dropping its last sample would leave the highlight one step behind for as
 long as the pointer rests there. A held sample is answered anyway when another
 event waits behind it, because order outranks the rate limit.
 
-The move that `write_to_devices` queues after a frame that changed a window waits
+The move that `write_to_devices!` queues after a frame that changed a window waits
 as a motion sample too, after the `DisplayUpdate` of that frame.
 """
-function BackendModule.read_from_devices(backend::SdlBackend, devices)
+function BackendModule.take_from_devices!(backend::SdlBackend, devices)
     # What a previous call owes: the event that ended a motion run.
     if backend.pending_input !== nothing
         owed = backend.pending_input
@@ -3777,7 +3777,7 @@ in which exactly one member is non-`nothing`: `motion` for a `MouseMove`,
 window event it ignores, a text input that maps to no key, a button with no name)
 is skipped here, so `(nothing, nothing)` means the queue is empty and nothing else.
 
-`read_from_devices` runs it in a loop and keeps only the newest motion.
+`take_from_devices!` runs it in a loop and keeps only the newest motion.
 """
 function _poll_window_input(backend::SdlBackend)
     # SDL reports device pixels; the events hold logical pixels.
@@ -3927,7 +3927,7 @@ document is laid out once at the size the window really has. A document laid out
 first is laid out at a size the window never has, and the manager's answer then
 arrives as a resize that computes the whole document a second time.
 
-This runs before `write_to_devices` ever sees a `ScreenDocument`, and it fills
+This runs before `write_to_devices!` ever sees a `ScreenDocument`, and it fills
 the same `backend.windows` / `backend.window_ids` tables, so the reconciler
 finds the windows already open and updates them instead of opening them.
 """
@@ -4022,7 +4022,7 @@ function _take_window_size_events!(opened::Vector{UInt32})
 end
 
 """
-    write_to_devices(backend::SdlBackend, devices, screen::ScreenDocument)
+    write_to_devices!(backend::SdlBackend, devices, screen::ScreenDocument)
 
 Reconcile live native SDL windows against the projection-output
 `ScreenDocument`. Windows whose id no longer appears are destroyed;
@@ -4042,10 +4042,10 @@ no pixel, so the next frame queues no more.
 
 The backend keeps the canvas of each window, and sets the cursor of the system to
 the shape that `find_pointer_shape` finds at the pointer in it: after each frame
-here, and at each motion in `read_from_devices`. It makes the cursor of each shape
+here, and at each motion in `take_from_devices!`. It makes the cursor of each shape
 once, and sets it only when the shape changes.
 """
-function BackendModule.write_to_devices(backend::SdlBackend, devices::Vector{Device}, screen::ScreenDocument)
+function BackendModule.write_to_devices!(backend::SdlBackend, devices::Vector{Device}, screen::ScreenDocument)
     _keep_device_size_at_new_zoom!(backend, screen)
     ratio = get_device_pixel_ratio(backend.display)
     desired_ids = Set{Symbol}()
@@ -4074,7 +4074,7 @@ function BackendModule.write_to_devices(backend::SdlBackend, devices::Vector{Dev
         w isa WindowDocument || continue
         canvas = w.content
         canvas isa GraphicsCanvas ||
-            error("write_to_devices: WindowDocument(id=:$(w.id)).content is $(typeof(canvas)), expected GraphicsCanvas")
+            error("write_to_devices!: WindowDocument(id=:$(w.id)).content is $(typeof(canvas)), expected GraphicsCanvas")
         # The size before the window is made, so the first frame a person sees
         # already fits, and before it is placed, because the place depends on it.
         _fit_window_size!(w, canvas)

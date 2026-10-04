@@ -989,7 +989,7 @@ by a verb. Chrome that only the printer produces is outside the editor.
 **Keep backends behind the `Backend`/`Device` seam; the same editor runs
 unchanged across them.** A backend provides `initialize_backend!`,
 `quit_backend!`, and the per-frame device I/O
-`read_from_devices`/`write_to_devices` — all declared in `BackendInterface.jl`
+`take_from_devices!`/`write_to_devices!` — all declared in `BackendInterface.jl`
 and dispatched on the concrete backend; the device layer supplies only the
 `Device`/`Keyboard`/`Mouse`/`Display` device types those two take as a list.
 Swapping `SdlBackend()` for

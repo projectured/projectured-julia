@@ -4,7 +4,7 @@
 # a window of its own when there are no tabs.
 
 import ProjecturedKernel.BackendModule: Backend, initialize_backend!, quit_backend!,
-                                        read_from_devices, write_to_devices
+                                        take_from_devices!, write_to_devices!
 import ProjecturedKernel.EditorModule: build_editor
 import ProjecturedKernel.DeviceModule: Device
 import ProjecturedKernel.ProjectionModule: Projection
@@ -24,8 +24,8 @@ import ProjecturedKernel.IoMapModule: get_iomap_output
 struct TabsProbeBackend <: Backend end
 initialize_backend!(::TabsProbeBackend) = nothing
 quit_backend!(::TabsProbeBackend) = nothing
-read_from_devices(::TabsProbeBackend, devices) = nothing
-write_to_devices(::TabsProbeBackend, devices, output) = nothing
+take_from_devices!(::TabsProbeBackend, devices) = nothing
+write_to_devices!(::TabsProbeBackend, devices, output) = nothing
 
 # The caller's projection: the natural renderer, which counts the documents that
 # it is asked to draw.

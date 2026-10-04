@@ -25,21 +25,21 @@ function test_headless_backend()
         @test quit_backend!(b) === nothing
     end
 
-    @testset "write_to_devices logs the document" begin
+    @testset "write_to_devices! logs the document" begin
         b = HeadlessBackend()
-        write_to_devices(b, Any[], :first)
-        write_to_devices(b, Any[], :second)
+        write_to_devices!(b, Any[], :first)
+        write_to_devices!(b, Any[], :second)
         @test rendered_output(b) == [:first, :second]
     end
 
-    @testset "read_from_devices pops the scripted queue" begin
+    @testset "take_from_devices! pops the scripted queue" begin
         b = HeadlessBackend()
-        @test read_from_devices(b, Any[]) === nothing
+        @test take_from_devices!(b, Any[]) === nothing
         push_event!(b, :ev1)
         push_event!(b, :ev2)
-        @test read_from_devices(b, Any[]) === :ev1
-        @test read_from_devices(b, Any[]) === :ev2
-        @test read_from_devices(b, Any[]) === nothing
+        @test take_from_devices!(b, Any[]) === :ev1
+        @test take_from_devices!(b, Any[]) === :ev2
+        @test take_from_devices!(b, Any[]) === nothing
     end
 
     @testset "get_display_size falls back to the display-free default" begin

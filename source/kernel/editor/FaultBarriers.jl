@@ -130,7 +130,7 @@ get_consecutive_fault_limit(counter::Symbol) =
 Whether the work counted under `counter` has failed often enough in a row that
 the editor is to stop doing it.
 
-A backend that throws in `write_to_devices` throws again on the next frame, a
+A backend that throws in `write_to_devices!` throws again on the next frame, a
 hundred times a second, and calling it again is worse than leaving it alone.
 
 The two halves of the device seam count apart — `:device_write` and
@@ -151,7 +151,7 @@ function _read_from_devices_guarded(editor::Editor)
     is_editor_degraded(editor, :device_read) && return nothing
     _run_barrier(editor, :device; counter = :device_read,
                  origin = typeof(editor.backend)) do
-        read_from_devices(editor.backend, editor.devices)
+        take_from_devices!(editor.backend, editor.devices)
     end
 end
 

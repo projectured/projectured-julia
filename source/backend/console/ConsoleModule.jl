@@ -6,7 +6,7 @@ straight to a terminal (stdout), preserving the spans' colors via ANSI SGR
 codes, and (interactively) translates terminal keystrokes into the
 backend-agnostic events the projection readers expect. Unlike the SDL backend
 it consumes the Text domain directly — the pipeline stops at `SyntaxToText` and
-does **not** run `TextToGraphics`, so `write_to_devices` receives a `TextBlock`,
+does **not** run `TextToGraphics`, so `write_to_devices!` receives a `TextBlock`,
 not a `ScreenDocument`.
 
 ## Interactivity (Phase 2) and its limits

@@ -7,8 +7,8 @@ struct _DisplayProbeBackend <: Backend end
 BackendModule.initialize_backend!(::_DisplayProbeBackend) = nothing
 BackendModule.wait_for_input(::_DisplayProbeBackend, devices, timeout_seconds) =
     (sleep(0.002); nothing)
-BackendModule.read_from_devices(::_DisplayProbeBackend, devices) = nothing
-BackendModule.write_to_devices(::_DisplayProbeBackend, devices, output) = nothing
+BackendModule.take_from_devices!(::_DisplayProbeBackend, devices) = nothing
+BackendModule.write_to_devices!(::_DisplayProbeBackend, devices, output) = nothing
 BackendModule.quit_backend!(::_DisplayProbeBackend) = nothing
 
 """

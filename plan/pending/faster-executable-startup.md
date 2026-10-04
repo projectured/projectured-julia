@@ -92,7 +92,7 @@ reader + evaluator + reprint. Closed by adding a headless interaction warm-up.
   over a `ScreenDocument` — through one print and a spread of synthetic events,
   **without opening a window**:
   - Builds a real `Editor` but never `init!`s it and never calls
-    `write_to_devices`, so no window/GPU context is created.
+    `write_to_devices!`, so no window/GPU context is created.
   - Uses the window-free **console backend** as the `Editor.backend` field
     (`evaluate_operation` dispatches on the *operation*, not the backend).
   - Faithful reader entry: `EventEnvelope(window_id, event)` →

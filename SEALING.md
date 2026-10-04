@@ -105,7 +105,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `gesture/KeyboardGesture.jl`
   - ⬜ `gesture/GesturePattern.jl`
 - **Layer 9 — backend** (`backend/`)
-  - 🔒 `backend/BackendModule.jl`
+  - ⬜ `backend/BackendModule.jl`
   - ⬜ `backend/BackendInterface.jl`
   - 🔒 `backend/BackendDefaults.jl`
 - **Layer 10 — document** (`document/`)

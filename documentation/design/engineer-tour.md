@@ -668,7 +668,7 @@ worked walkthrough is [new-domain-guide.md](../guide/new-domain-guide.md).
 ### 6.3 Add a backend
 
 Implement `initialize_backend!`, `quit_backend!`,
-`read_from_devices`, and `write_to_devices`. Translate your platform events into
+`take_from_devices!`, and `write_to_devices!`. Translate your platform events into
 the gesture vocabulary. Choose which document your renderer consumes. Nothing
 above the backend changes.
 

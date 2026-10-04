@@ -40,13 +40,13 @@ function test_web_backend()
     @testset "a decoded message is read from the queue" begin
         backend = WebBackend(port = 0)
         @test backend.server === nothing
-        @test read_from_devices(backend, Device[]) === nothing
+        @test take_from_devices!(backend, Device[]) === nothing
         _WEB._decode_and_enqueue!(backend, _WEB_ESCAPE_MESSAGE)
-        window_input = read_from_devices(backend, Device[])
+        window_input = take_from_devices!(backend, Device[])
         @test window_input isa WindowInput
         @test window_input.window_id === :main
         @test window_input.event == KeyDown(:escape, ModifierKeys(); time = 1.5)
-        @test read_from_devices(backend, Device[]) === nothing
+        @test take_from_devices!(backend, Device[]) === nothing
     end
 
     @testset "a letter key has the name of its lower-case letter" begin
@@ -54,11 +54,11 @@ function test_web_backend()
         _WEB._decode_and_enqueue!(backend,
             """{"type":"keydown","window":"main","key":"z","code":"KeyZ",
                 "mods":{"ctrl":true}}""")
-        @test read_from_devices(backend, Device[]).event.key === :z
+        @test take_from_devices!(backend, Device[]).event.key === :z
         _WEB._decode_and_enqueue!(backend,
             """{"type":"keydown","window":"main","key":"Z","code":"KeyZ",
                 "mods":{"ctrl":true,"shift":true}}""")
-        @test read_from_devices(backend, Device[]).event.key === :z
+        @test take_from_devices!(backend, Device[]).event.key === :z
     end
 
     @testset "the backslash key has the name that the SDL backend gives it" begin
@@ -67,7 +67,7 @@ function test_web_backend()
         _WEB._decode_and_enqueue!(backend,
             """{"type":"keydown","window":"main","key":"\\\\","code":"Backslash",
                 "mods":{"ctrl":true}}""")
-        down = read_from_devices(backend, Device[]).event
+        down = take_from_devices!(backend, Device[]).event
         @test down.key === :backslash
         @test down.modifiers.ctrl
     end
@@ -78,10 +78,10 @@ function test_web_backend()
             """{"type":"mousedown","window":"main","button":"back","x":5,"y":6}""")
         _WEB._decode_and_enqueue!(backend,
             """{"type":"mouseup","window":"main","button":"back","x":5,"y":6}""")
-        @test read_from_devices(backend, Device[]) === nothing
+        @test take_from_devices!(backend, Device[]) === nothing
         _WEB._decode_and_enqueue!(backend,
             """{"type":"mousedown","window":"main","button":"right","x":5,"y":6}""")
-        @test read_from_devices(backend, Device[]).event.button === :right
+        @test take_from_devices!(backend, Device[]).event.button === :right
     end
 
     @testset "letters, buttons and the wheel have the names of the event layer" begin
@@ -91,7 +91,7 @@ function test_web_backend()
             code = "Key" * uppercase(string(letter))
             _WEB._decode_and_enqueue!(backend,
                 """{"type":"keydown","window":"main","key":"$key","code":"$code"}""")
-            @test read_from_devices(backend, Device[]).event.key === Symbol(letter)
+            @test take_from_devices!(backend, Device[]).event.key === Symbol(letter)
         end
         # The page names the left, the middle and the right button. The server
         # drops another name, as the page sends none for a side button.
@@ -99,13 +99,13 @@ function test_web_backend()
                                ("forward", nothing))
             _WEB._decode_and_enqueue!(backend,
                 """{"type":"mousedown","window":"main","button":"$button","x":5,"y":6}""")
-            down = read_from_devices(backend, Device[])
+            down = take_from_devices!(backend, Device[])
             @test name === nothing ? down === nothing : down.event.button === name
         end
         # A turn of the wheel away from the user: the page sends a positive `dy`.
         _WEB._decode_and_enqueue!(backend,
             """{"type":"scroll","window":"main","dx":0,"dy":1,"x":5,"y":6}""")
-        scroll = read_from_devices(backend, Device[]).event
+        scroll = take_from_devices!(backend, Device[]).event
         @test scroll isa MouseScroll && scroll.dy > 0
     end
 
@@ -121,21 +121,21 @@ function test_web_backend()
         display = Display(zoom = 1.5)
         devices = Device[display, Keyboard(), Mouse()]
         take_message() = _WEB.JSON3.read(take!(backend.conn.outbox))
-        write_to_devices(backend, devices, screen)
+        write_to_devices!(backend, devices, screen)
         first_message = take_message()
         @test first_message[:zoom] == 1.5
         @test length(first_message[:full]) == 1
         # With no change, nothing is sent.
-        write_to_devices(backend, devices, screen)
+        write_to_devices!(backend, devices, screen)
         @test !isready(backend.conn.outbox)
         # A new zoom sends the window in full, with the new zoom.
         display.zoom = 2.0
-        write_to_devices(backend, devices, screen)
+        write_to_devices!(backend, devices, screen)
         message = take_message()
         @test message[:zoom] == 2.0
         @test length(message[:full]) == 1
         # With no `Display`, the zoom is 1.
-        write_to_devices(backend, Device[Keyboard()], screen)
+        write_to_devices!(backend, Device[Keyboard()], screen)
         @test take_message()[:zoom] == 1.0
     end
 
@@ -150,10 +150,10 @@ function test_web_backend()
         function move_to!(x)
             _WEB._decode_and_enqueue!(backend,
                 """{"type":"mousemove","window":"main","x":$x,"y":10,"buttons":0}""")
-            read_from_devices(backend, Device[])
-            write_to_devices(backend, Device[], screen)
+            take_from_devices!(backend, Device[])
+            write_to_devices!(backend, Device[], screen)
         end
-        write_to_devices(backend, Device[], screen)
+        write_to_devices!(backend, Device[], screen)
         @test take_message()[:type] == "update"
         # No pointer event was read yet, so no cursor goes.
         @test !isready(backend.conn.outbox)
@@ -169,7 +169,7 @@ function test_web_backend()
         @test take_message()[:cursor] == "default"
         # A new client gets every window in full, and the cursor again.
         _WEB._reset_for_full!(backend)
-        write_to_devices(backend, Device[], screen)
+        write_to_devices!(backend, Device[], screen)
         @test take_message()[:type] == "update"
         @test take_message()[:cursor] == "default"
         # Every shape has a CSS cursor.
@@ -181,14 +181,14 @@ function test_web_backend()
         # In the mask of a browser, 1 is the left, 2 the right and 4 the middle button.
         _WEB._decode_and_enqueue!(backend,
             """{"type":"mousemove","window":"main","x":5,"y":6,"buttons":3}""")
-        move = read_from_devices(backend, Device[]).event
+        move = take_from_devices!(backend, Device[]).event
         @test move isa MouseMove
         @test move.buttons == MouseButtons(:left, :right)
         # A motion with no button held goes on too, so the part under the
         # pointer lights in the browser.
         _WEB._decode_and_enqueue!(backend,
             """{"type":"mousemove","window":"main","x":7,"y":8,"buttons":0}""")
-        free = read_from_devices(backend, Device[]).event
+        free = take_from_devices!(backend, Device[]).event
         @test free isa MouseMove
         @test (free.x, free.y) == (7, 8)
         @test free.buttons == MouseButtons()
@@ -197,7 +197,7 @@ function test_web_backend()
     @testset "the pointer that leaves a window is a window event of that window" begin
         backend = WebBackend(port = 0)
         _WEB._decode_and_enqueue!(backend, """{"type":"leave","window":"main","t":2500}""")
-        window_input = read_from_devices(backend, Device[])
+        window_input = take_from_devices!(backend, Device[])
         @test window_input.window_id === :main
         @test window_input.event == WindowLeave(; time = 2.5)
     end
@@ -218,7 +218,7 @@ function test_web_backend()
         _WEB._decode_and_enqueue!(backend, """{"type":"keypress","window":"main","text":"a"}""")
         after = time()
         @test (@elapsed wait_for_input(backend, Device[], 30.0)) < 5.0
-        typed = read_from_devices(backend, Device[]).event
+        typed = take_from_devices!(backend, Device[]).event
         @test typed == KeyPress('a'; time = typed.time)
         @test before <= typed.time <= after
         # With the queue read, the next wait lasts until its timeout.
@@ -229,7 +229,7 @@ function test_web_backend()
         elapsed = @elapsed wait_for_input(backend, Device[], 30.0)
         wait(receiver)
         @test elapsed < 5.0
-        @test read_from_devices(backend, Device[]).event == KeyDown(:escape, ModifierKeys(); time = 1.5)
+        @test take_from_devices!(backend, Device[]).event == KeyDown(:escape, ModifierKeys(); time = 1.5)
 
         # A resync makes no event, but it ends the wait, so that a frame sends
         # every window in full.
@@ -238,7 +238,7 @@ function test_web_backend()
         wait(receiver)
         @test elapsed < 5.0
         @test backend.force_full
-        @test read_from_devices(backend, Device[]) === nothing
+        @test take_from_devices!(backend, Device[]) === nothing
 
         # A wake from another task ends a long wait.
         waker = @async (sleep(0.05); wake_backend!(backend))
@@ -278,7 +278,7 @@ function test_web_backend()
             @test backend.force_full
             notify(send)
             @test (@elapsed wait_for_input(backend, Device[], 60.0)) < 30.0
-            window_input = read_from_devices(backend, Device[])
+            window_input = take_from_devices!(backend, Device[])
             @test window_input isa WindowInput
             @test window_input.event == KeyDown(:escape, ModifierKeys(); time = 1.5)
             response = _WEB.HTTP.get("http://127.0.0.1:$(port)/client.js")

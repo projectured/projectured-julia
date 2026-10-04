@@ -3,7 +3,7 @@
 # alone.
 
 import ProjecturedKernel.BackendModule: Backend, initialize_backend!, quit_backend!,
-                                        read_from_devices, write_to_devices,
+                                        take_from_devices!, write_to_devices!,
                                         get_display_size
 import ProjecturedKernel.EditorModule: get_backend_output, build_editor
 import ProjecturedKernel.DeviceModule: Device
@@ -17,8 +17,8 @@ struct WindowWrapperProbeBackend <: Backend end
 struct WindowWrapperTextBackend <: Backend end
 initialize_backend!(::Union{WindowWrapperProbeBackend,WindowWrapperTextBackend}) = nothing
 quit_backend!(::Union{WindowWrapperProbeBackend,WindowWrapperTextBackend}) = nothing
-read_from_devices(::Union{WindowWrapperProbeBackend,WindowWrapperTextBackend}, devices) = nothing
-write_to_devices(::Union{WindowWrapperProbeBackend,WindowWrapperTextBackend}, devices,
+take_from_devices!(::Union{WindowWrapperProbeBackend,WindowWrapperTextBackend}, devices) = nothing
+write_to_devices!(::Union{WindowWrapperProbeBackend,WindowWrapperTextBackend}, devices,
                  output) = nothing
 get_backend_output(::Type{WindowWrapperTextBackend}) = :window_wrapper_text
 

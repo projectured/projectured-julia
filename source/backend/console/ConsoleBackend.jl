@@ -31,7 +31,7 @@ get_backend_output(::Type{ConsoleBackend}) = :text
 # ── Backend interface ────────────────────────────────────────────────────
 
 # Put a real terminal into raw mode (no line buffering, no echo) so individual
-# keystrokes — including arrows and Ctrl chords — reach `read_from_devices`
+# keystrokes — including arrows and Ctrl chords — reach `take_from_devices!`
 # immediately, and start libuv reading on the TTY so `bytesavailable` actually
 # reflects incoming bytes (without `start_reading` the internal buffer is never
 # filled and the poll always sees zero). No-op (and harmless) when `input` is
@@ -251,23 +251,23 @@ end
 # ── Device I/O ───────────────────────────────────────────────────────────
 
 """
-    write_to_devices(::ConsoleBackend, devices, text::TextBlock)
+    write_to_devices!(::ConsoleBackend, devices, text::TextBlock)
 
 Render the Text-domain output of the projection pipeline to the terminal.
 """
-BackendModule.write_to_devices(backend::ConsoleBackend, devices, text::TextBlock) =
+BackendModule.write_to_devices!(backend::ConsoleBackend, devices, text::TextBlock) =
     render_console(backend, text)
 
 # Fail loud on a miswired pipeline (e.g. one that still ends in `TextToGraphics`
 # and so produces a graphics/screen document instead of a `TextBlock`).
-function BackendModule.write_to_devices(::ConsoleBackend, devices, output)
-    error("write_to_devices(::ConsoleBackend, …): pipeline output is " *
+function BackendModule.write_to_devices!(::ConsoleBackend, devices, output)
+    error("write_to_devices!(::ConsoleBackend, …): pipeline output is " *
           "$(typeof(output)), expected a TextBlock. The console backend renders " *
           "the Text domain directly — drop the TextToGraphics step from the pipeline.")
 end
 
 """
-    read_from_devices(::ConsoleBackend, devices) -> WindowInput or nothing
+    take_from_devices!(::ConsoleBackend, devices) -> WindowInput or nothing
 
 Poll `backend.input` (non-blocking) and translate the next keystroke into a
 backend-agnostic event wrapped in an `WindowInput`. The window id is the
@@ -279,7 +279,7 @@ A buffer that ends in the start of an escape sequence gets
 When no byte arrives in that time, the bytes are the keys that the user typed:
 a lone ESC is Escape, and ESC with one more byte is that key with Alt.
 """
-function BackendModule.read_from_devices(backend::ConsoleBackend, devices)
+function BackendModule.take_from_devices!(backend::ConsoleBackend, devices)
     _drain_input!(backend)
     # The terminal gives no time with its bytes, so an event has the time of the read.
     read_time = time()

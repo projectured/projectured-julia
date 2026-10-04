@@ -32,7 +32,7 @@ using ProjecturedKernelExample
     value::Int = 0
 end
 
-# A backend that throws on demand: in `read_from_devices`, in `write_to_devices`
+# A backend that throws on demand: in `take_from_devices!`, in `write_to_devices!`
 # or in `get_frame_clock_time`, while the switch of that call is on. It counts
 # the calls of each half of the device seam, and its wait returns at once.
 mutable struct BarrierProbeBackend <: Backend
@@ -45,12 +45,12 @@ mutable struct BarrierProbeBackend <: Backend
 end
 BarrierProbeBackend() = BarrierProbeBackend(Any[], false, false, false, 0, 0)
 
-function BackendModule.read_from_devices(backend::BarrierProbeBackend, devices)
+function BackendModule.take_from_devices!(backend::BarrierProbeBackend, devices)
     backend.reads += 1
     backend.is_read_broken && error("the read failed")
     isempty(backend.events) ? nothing : popfirst!(backend.events)
 end
-function BackendModule.write_to_devices(backend::BarrierProbeBackend, devices, output)
+function BackendModule.write_to_devices!(backend::BarrierProbeBackend, devices, output)
     backend.writes += 1
     backend.is_write_broken && error("the write failed")
     nothing

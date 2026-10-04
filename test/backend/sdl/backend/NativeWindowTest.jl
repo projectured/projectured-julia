@@ -37,7 +37,7 @@ function test_native_window()
     resizes = 0
     deadline = time() + 0.5
     while time() < deadline
-        input = read_from_devices(backend, devices)
+        input = take_from_devices!(backend, devices)
         input isa Tuple && (input = input[1])
         input isa WindowInput && input.event isa WindowResize && (resizes += 1)
         sleep(0.005)
@@ -82,7 +82,7 @@ end
     screen = ScreenDocument([window])
 
     # One pass of the reconciler opens the window, paints it and shows it.
-    write_to_devices(backend, Device[Display()], screen)
+    write_to_devices!(backend, Device[Display()], screen)
     resource = backend.windows[:painted_window_test]
     @test SDL._is_native_window_shown(resource)
 
@@ -105,11 +105,11 @@ end
                                   width = 200, height = 100, style = :tooltip,
                                   content = canvas)
         screen = ScreenDocument([window])
-        write_to_devices(backend, Device[Display()], screen)   # opens, paints, shows
-        write_to_devices(backend, Device[Display()], screen)   # the paint after the show
+        write_to_devices!(backend, Device[Display()], screen)   # opens, paints, shows
+        write_to_devices!(backend, Device[Display()], screen)   # the paint after the show
         resource = backend.windows[id]
         before = length(resource.damage_history)
-        write_to_devices(backend, Device[Display()], screen)   # nothing changed
+        write_to_devices!(backend, Device[Display()], screen)   # nothing changed
         @test length(resource.damage_history) == before + grows
     end
     quit_backend!(partial)
@@ -129,31 +129,31 @@ end
                               x = 100, y = 100, width = 200, height = 100,
                               style = :tooltip, content = canvas)
     screen = ScreenDocument([window])
-    write_to_devices(backend, Device[Display()], screen)   # opens, paints, shows
-    write_to_devices(backend, Device[Display()], screen)   # the paint after the show
+    write_to_devices!(backend, Device[Display()], screen)   # opens, paints, shows
+    write_to_devices!(backend, Device[Display()], screen)   # the paint after the show
     resource = backend.windows[:render_settings_test]
     apply_settings!(backend, RenderSettings(partial_render = true))
     @test backend.partial_render && !backend.debug_dirty
     @test resource.first_paint
-    write_to_devices(backend, Device[Display()], screen)   # the whole window once
+    write_to_devices!(backend, Device[Display()], screen)   # the whole window once
     @test first(resource.damage_history) == [(0, 0, 200, 100)]
     before = length(resource.damage_history)
-    write_to_devices(backend, Device[Display()], screen)   # nothing changed
+    write_to_devices!(backend, Device[Display()], screen)   # nothing changed
     @test length(resource.damage_history) == before
     # The outline goes off: the next frame paints over the last outline.
     apply_settings!(backend, RenderSettings(partial_render = true, debug_dirty = true))
-    write_to_devices(backend, Device[Display()], screen)
+    write_to_devices!(backend, Device[Display()], screen)
     apply_settings!(backend, RenderSettings(partial_render = true, debug_dirty = false))
     @test resource.first_paint
     # The same values again ask for no repaint.
-    write_to_devices(backend, Device[Display()], screen)
+    write_to_devices!(backend, Device[Display()], screen)
     apply_settings!(backend, RenderSettings(partial_render = true))
     @test !resource.first_paint
     # A new supersample factor makes the target of the window again.
     width = resource.target_w
     apply_settings!(backend, RenderSettings(partial_render = true, supersample = 1))
     @test backend.supersample == 1 && resource.ss == 1
-    write_to_devices(backend, Device[Display()], screen)
+    write_to_devices!(backend, Device[Display()], screen)
     @test resource.target_w * 2 == width
     @test first(resource.damage_history) == [(0, 0, 200, 100)]
     quit_backend!(backend)
@@ -179,8 +179,8 @@ end
                               x = 100, y = 100, width = 200, height = 100,
                               style = :tooltip, content = canvas)
     screen = ScreenDocument([window])
-    write_to_devices(backend, Device[Display()], screen)
-    write_to_devices(backend, Device[Display()], screen)
+    write_to_devices!(backend, Device[Display()], screen)
+    write_to_devices!(backend, Device[Display()], screen)
     resource = backend.windows[:outline_hold_test]
     # With no hold, the outline is the rects of the frame.
     @test ProjecturedSDL.SdlModule._get_held_outline!(backend, resource, [(1, 2, 3, 4)]) ==
@@ -190,7 +190,7 @@ end
     @test backend.debug_dirty_hold == 5.0
     for position in (40, 120)
         x[] = position
-        write_to_devices(backend, Device[Display()], screen)
+        write_to_devices!(backend, Device[Display()], screen)
     end
     held = ProjecturedSDL.SdlModule._get_held_outline!(backend, resource, NTuple{4,Int}[])
     # The rects of both moves are still held.
@@ -218,23 +218,23 @@ end
                                   width = 200, height = 100, style = :tooltip,
                                   content = canvas)
         screen = ScreenDocument([window])
-        write_to_devices(backend, devices, screen)   # opens, paints, shows
-        write_to_devices(backend, devices, screen)   # the paint after the show
+        write_to_devices!(backend, devices, screen)   # opens, paints, shows
+        write_to_devices!(backend, devices, screen)   # the paint after the show
         # One update for the window, however many changed frames it showed.
         @test length(backend.display_updates) == 1
         # An update that waits ends a wait at once.
         started = time()
         wait_for_input(backend, devices, 5.0)
         @test time() - started < 1.0
-        input = read_from_devices(backend, devices)
+        input = take_from_devices!(backend, devices)
         @test input isa WindowInput && input.window_id === id &&
               input.event isa DisplayUpdate
         @test isempty(backend.display_updates)
-        write_to_devices(backend, devices, screen)   # nothing changed
+        write_to_devices!(backend, devices, screen)   # nothing changed
         @test isempty(backend.display_updates)
         x[] = 50
         backend.pending_motion = nothing
-        write_to_devices(backend, devices, screen)   # the rectangle moved
+        write_to_devices!(backend, devices, screen)   # the rectangle moved
         @test length(backend.display_updates) == 1
         # A move at the point of the pointer follows the frame, in the window
         # under the pointer, and none when the pointer is on no window of the
@@ -323,18 +323,18 @@ end
     window = WindowDocument(; id = :moved_window_test, title = "moved_window_test",
                               x = 100, y = 100, width = 200, height = 100, content = canvas)
     screen = ScreenDocument([window])
-    write_to_devices(backend, Device[Display()], screen)
+    write_to_devices!(backend, Device[Display()], screen)
     resource = backend.windows[:moved_window_test]
     placed() = (x = Ref{Cint}(0); y = Ref{Cint}(0);
                 LibSDL2.SDL_GetWindowPosition(resource.win, x, y); (Int(x[]), Int(y[])))
     # The window manager moves it.
     LibSDL2.SDL_SetWindowPosition(resource.win, Int32(300), Int32(200))
     moved = placed()
-    write_to_devices(backend, Device[Display()], screen)
+    write_to_devices!(backend, Device[Display()], screen)
     @test (window.x, window.y) == moved
     # The document asks for a place of its own, and the window goes there.
     window.x = moved[1] + 50
-    write_to_devices(backend, Device[Display()], screen)
+    write_to_devices!(backend, Device[Display()], screen)
     @test placed()[1] == window.x
     quit_backend!(backend)
 end
@@ -373,7 +373,7 @@ end
                                                       layout_none))
     screen = ScreenDocument([main, popup])
     for _ in 1:300
-        write_to_devices(backend, Device[Display()], screen)
+        write_to_devices!(backend, Device[Display()], screen)
     end
     @test LibSDL2.SDL_GetWindowFlags(backend.windows[:main_test].win) != 0
     quit_backend!(backend)
@@ -396,7 +396,7 @@ end
                                            UInt8(_SDL.SDL_DISPLAYEVENT_CONNECTED),
                                            0x00, 0x00, 0x00, Int32(0)))
     for _ in 1:100
-        read_from_devices(backend, Device[Display()]) === nothing && break
+        take_from_devices!(backend, Device[Display()]) === nothing && break
     end
     @test (backend.display.width, backend.display.height) == SDL.get_sdl_display_size()
     quit_backend!(backend)

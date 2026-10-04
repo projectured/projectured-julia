@@ -24,7 +24,7 @@ Each drawn text sends the ascent of its box (`b`), the pen offset of each charac
 
 ### Draw
 
-`write_to_devices(backend, devices, screen::ScreenDocument)` sends one message of type `update` for each frame that changed something, and nothing when no client is connected or nothing changed:
+`write_to_devices!(backend, devices, screen::ScreenDocument)` sends one message of type `update` for each frame that changed something, and nothing when no client is connected or nothing changed:
 
 - **`zoom`** is the zoom of the `Display` in `devices`, or 1 with none. The `appearance` wrapper copies the zoom of the editor into that `Display`. The client draws each logical pixel as `devicePixelRatio × zoom` pixels of the page, divides each size and each pointer position that it sends by `zoom`, and multiplies the size and the place of a window that it opens by `zoom`. A new zoom makes the client send the new logical size of each window and a `resync`.
 - **`full`** holds the whole draw list of a window. A window goes in full on its first paint, after a connection, after a `resync` from the client, after the queue overflowed, and after a new zoom.
@@ -53,7 +53,7 @@ The messages go through an ordered queue to a send task. A patch depends on the 
 
 ### Events in
 
-The socket handler decodes each JSON message and puts a `WindowInput` into the channel `inbound`. `read_from_devices` takes one event from the channel, or returns `nothing`.
+The socket handler decodes each JSON message and puts a `WindowInput` into the channel `inbound`. `take_from_devices!` takes one event from the channel, or returns `nothing`.
 
 Each client message holds `t`: the time of its browser event in milliseconds since the Unix epoch, `performance.timeOrigin + event.timeStamp`, or the time of the send for a message with no browser event. The event gets `t / 1000`, on the clock of `time()`. A message with no `t` gets the time when it arrives.
 

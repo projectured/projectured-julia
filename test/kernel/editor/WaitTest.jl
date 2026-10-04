@@ -49,8 +49,8 @@ BackendModule.wait_for_input(backend::ProbeWaitBackend, devices, timeout_seconds
     (push!(backend.waits, timeout_seconds); wait(backend.gate); nothing)
 BackendModule.wake_backend!(backend::ProbeWaitBackend) =
     (Threads.atomic_add!(backend.wakes, 1); notify(backend.gate); nothing)
-BackendModule.read_from_devices(::ProbeWaitBackend, devices) = nothing
-BackendModule.write_to_devices(backend::ProbeWaitBackend, devices, output) =
+BackendModule.take_from_devices!(::ProbeWaitBackend, devices) = nothing
+BackendModule.write_to_devices!(backend::ProbeWaitBackend, devices, output) =
     (Threads.atomic_add!(backend.writes, 1); nothing)
 # The loop quits the backend it ran on, and this one has nothing to close.
 BackendModule.quit_backend!(::ProbeWaitBackend) = nothing
@@ -64,8 +64,8 @@ end
 ProbeLifeBackend() = ProbeLifeBackend(0, 0, 0)
 BackendModule.initialize_backend!(backend::ProbeLifeBackend) = (backend.starts += 1; nothing)
 BackendModule.quit_backend!(backend::ProbeLifeBackend) = (backend.quits += 1; nothing)
-BackendModule.read_from_devices(::ProbeLifeBackend, devices) = nothing
-BackendModule.write_to_devices(backend::ProbeLifeBackend, devices, output) =
+BackendModule.take_from_devices!(::ProbeLifeBackend, devices) = nothing
+BackendModule.write_to_devices!(backend::ProbeLifeBackend, devices, output) =
     (backend.writes += 1; nothing)
 BackendModule.wait_for_input(::ProbeLifeBackend, devices, timeout_seconds) = nothing
 

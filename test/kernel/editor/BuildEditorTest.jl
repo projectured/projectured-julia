@@ -33,8 +33,8 @@ end
 BuildProbeBackend() = BuildProbeBackend(0)
 BackendModule.initialize_backend!(backend::BuildProbeBackend) = (backend.starts += 1; nothing)
 BackendModule.quit_backend!(::BuildProbeBackend) = nothing
-BackendModule.read_from_devices(::BuildProbeBackend, devices) = nothing
-BackendModule.write_to_devices(::BuildProbeBackend, devices, output) = nothing
+BackendModule.take_from_devices!(::BuildProbeBackend, devices) = nothing
+BackendModule.write_to_devices!(::BuildProbeBackend, devices, output) = nothing
 
 # Two more types, so that one output has two backends.
 struct BuildProbeFirstBackend <: Backend end

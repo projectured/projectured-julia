@@ -50,7 +50,7 @@ function test_sdl_wait_wake()
         _push_motion!(12, 34)
         elapsed = @elapsed wait_for_input(backend, Device[], 30.0)
         @test elapsed < _FAR_LESS
-        answered = read_from_devices(backend, Device[])
+        answered = take_from_devices!(backend, Device[])
         @test answered isa WindowInput
         @test answered.event isa MouseMove   # the motion survived the wait
     end

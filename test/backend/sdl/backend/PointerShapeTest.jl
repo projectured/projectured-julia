@@ -13,7 +13,7 @@ end
 # Read every input that waits, at most 50.
 function _read_waiting_input!(backend)
     for _ in 1:50
-        read_from_devices(backend, Device[]) === nothing && break
+        take_from_devices!(backend, Device[]) === nothing && break
     end
 end
 
@@ -31,7 +31,7 @@ function test_sdl_pointer_shape()
         window = WindowDocument(; id = :pointer_shape_test, title = "pointer_shape_test",
                                   x = 100, y = 100, width = 200, height = 100, content = canvas)
         screen = ScreenDocument([window])
-        write_to_devices(backend, Device[], screen)
+        write_to_devices!(backend, Device[], screen)
         resource = backend.windows[:pointer_shape_test]
         ratio = get_device_pixel_ratio(backend.display)
         _reset_input!(backend)

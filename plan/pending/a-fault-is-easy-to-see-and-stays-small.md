@@ -23,7 +23,7 @@ still not break the editor of possible".
    out of a child print inside a projection template, while the device read the
    output of the window.
 3. The barrier of the device write caught it and counted it as `:device_write`.
-   After eight in a row, the editor stopped calling `write_to_devices`, and the
+   After eight in a row, the editor stopped calling `write_to_devices!`, and the
    window never painted again, also after a repair of the document.
 4. A reader threw with the same cause ("[fault] read in editor"), so a key whose
    reader passes the broken node was lost.

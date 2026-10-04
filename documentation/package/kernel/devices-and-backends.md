@@ -100,8 +100,8 @@ abstract type Backend end
 initialize_backend!(::Backend)                       # load libraries, allocate caches
 configure_devices!(::Backend, devices)               # fill the properties of the devices
 open_native_windows!(::Backend, document)            # open the windows before the first print
-read_from_devices(::Backend, devices)                # the next input, or nothing
-write_to_devices(::Backend, devices, document)       # show the output of a frame
+take_from_devices!(::Backend, devices)                # the next input, or nothing
+write_to_devices!(::Backend, devices, document)       # show the output of a frame
 wait_for_input(::Backend, devices, timeout_seconds)  # block until input, a wake or the timeout
 wake_backend!(::Backend)                             # end a wait, from any task or thread
 get_display_size(::Backend)                          # the usable size in logical pixels
@@ -116,7 +116,7 @@ editor in place. A backend that draws with a device keeps that device: the SDL
 backend draws with the `Display` that it gets. `open_native_windows!` opens the
 native window of each window of the document, and corrects the document to the
 size that the window system gives. So the first layout has the final size. After
-that, `write_to_devices` reconciles the native windows with each new
+that, `write_to_devices!` reconciles the native windows with each new
 `ScreenDocument`.
 
 The wait is where the editor sleeps between frames, and the wake is how a
@@ -142,8 +142,8 @@ default of `BackendDefaults.jl`. A generic with no default and no method raises 
 | --- | --- | --- | --- | --- | --- | --- |
 | `initialize_backend!` | — | ✓ | ✓ | ✓ raw mode | ✓ | ✓ no-op |
 | `quit_backend!` | — | ✓ | ✓ | ✓ | ✓ | ✓ no-op |
-| `read_from_devices` | — | ✓ motion coalesced | ✓ | ✓ | ✓ timeline | ✓ queue |
-| `write_to_devices` | — | `ScreenDocument` | `ScreenDocument`, an error for another value | `TextBlock`, an error for another value | `ScreenDocument`, one window | any value |
+| `take_from_devices!` | — | ✓ motion coalesced | ✓ | ✓ | ✓ timeline | ✓ queue |
+| `write_to_devices!` | — | `ScreenDocument` | `ScreenDocument`, an error for another value | `TextBlock`, an error for another value | `ScreenDocument`, one window | any value |
 | `wait_for_input` | a sleep of at most 10 ms | ✓ | ✓ | ✓ | ✓ at most one frame | default |
 | `wake_backend!` | no-op | ✓ | ✓ | ✓ | default | default |
 | `open_native_windows!` | no-op | ✓ | default | default | default | default |
@@ -163,7 +163,7 @@ all of the above with SDL2 + SDL_ttf; [sdl.md](../backend/sdl/sdl.md) is its des
 - A font measurement cache shared across all windows.
 - `sdl_to_keydown` maps an SDL keysym and the modifier bits to a `KeyDown`, and
   `sdl_to_keypress` makes a `KeyPress` from an `SDL_TEXTINPUT` event.
-- Mouse events are mapped inline in `read_from_devices` (there is no
+- Mouse events are mapped inline in `take_from_devices!` (there is no
   `sdl_to_mouse` function) to the `Mouse*` structs.
 - The painter walks a `GraphicsCanvas` (and its nested
   `GraphicsViewport`/`GraphicsImage`/`GraphicsFence` children) and issues
@@ -180,15 +180,15 @@ all of the above with SDL2 + SDL_ttf; [sdl.md](../backend/sdl/sdl.md) is its des
 `ConsoleBackend` (in [source/backend/console/ConsoleBackend.jl](../../../source/backend/console/ConsoleBackend.jl))
 renders the **Text domain** straight to a terminal. Crucially it consumes a
 `TextBlock` directly and skips `TextToGraphics`: its pipeline is
-`JsonToSyntax → SyntaxToText` (no graphics step), so `write_to_devices` receives
+`JsonToSyntax → SyntaxToText` (no graphics step), so `write_to_devices!` receives
 a `TextBlock` rather than a `ScreenDocument`. Highlights:
 
-- `write_to_devices` flattens the spans to a character stream, preserving each
+- `write_to_devices!` flattens the spans to a character stream, preserving each
   span's `font_color`/`fill_color` as 24-bit ANSI SGR codes (set `ansi=false`
   for plain output). The selection is shown as inverse-video span colors baked
   in by the `SelectionInverting` projection at the end of the console pipeline,
   so the backend itself just emits each span's colors.
-- `read_from_devices` polls `backend.input` (default `stdin`) non-blockingly and
+- `take_from_devices!` polls `backend.input` (default `stdin`) non-blockingly and
   translates terminal bytes — printable chars, the `ESC [` sequences of the
   arrows, Home/End, Insert/Delete, Page Up/Down and the function keys with the
   modifiers of their xterm parameter, Enter/Backspace/Tab, Ctrl-Space, Ctrl-C,
@@ -224,9 +224,9 @@ cells, and the read-eval-print loop; a connected JavaScript client
 keyboard events and paints a JSON **draw-list** onto an HTML `<canvas>`.
 
 ```
- browser tab/popup (canvas) ─events─▶  WebSocket  ──▶  read_from_devices
+ browser tab/popup (canvas) ─events─▶  WebSocket  ──▶  take_from_devices!
         ▲                                                      │
-        └──── draw-list (full / patch) ◀── write_to_devices ◀──┘
+        └──── draw-list (full / patch) ◀── write_to_devices! ◀──┘
 ```
 
 #### Running it
@@ -266,11 +266,11 @@ arguments; `WebBackend`'s constructor defaults `host`/`port`.
   `Display` that each update carries, and divides each size and each pointer
   position that it sends by `zoom`, so the server stays in logical pixels. A new
   zoom sends every window in full.
-- **`write_to_devices`** serializes the projection-output `ScreenDocument` into a
+- **`write_to_devices!`** serializes the projection-output `ScreenDocument` into a
   per-window draw-list mirroring the SDL element set (`text`, `rect`, `line`,
   `circle`, `clip`=viewport, `group`=nested canvas, `image`; `GraphicsFence`
   skipped) and pushes it over the socket.
-- **`read_from_devices`** is non-blocking: a receive task decodes the client's
+- **`take_from_devices!`** is non-blocking: a receive task decodes the client's
   JSON events into the backend-agnostic vocabulary (`MouseDown`, `KeyPress`, …)
   wrapped in `WindowInput`s on a `Channel`; the editor drains it each frame.
   The backend makes no `MouseClick`: a gesture tracking projection makes
@@ -394,8 +394,8 @@ instead.
 ## Adding a new backend
 
 1. Subtype `Backend` (defined in `source/kernel/backend/`) in your backend package.
-2. Add a method of `initialize_backend!`, `quit_backend!`, `read_from_devices`
-   and `write_to_devices`, which have no default.
+2. Add a method of `initialize_backend!`, `quit_backend!`, `take_from_devices!`
+   and `write_to_devices!`, which have no default.
 3. If the platform can block until input arrives, add a method of
    `wait_for_input` and of `wake_backend!`. If the backend has native windows,
    add a method of `open_native_windows!`. If it can find the properties of the
@@ -513,7 +513,7 @@ DeviceModule.jl (DeviceModule) — the module: its docstring, exports, and fragm
 ```
 
 The devices carry their physical properties but no behaviour. The batch I/O
-that drives them — `read_from_devices` / `write_to_devices` — is declared
+that drives them — `take_from_devices!` / `write_to_devices!` — is declared
 higher, in the backend interface (see [Backends](#backends)), and dispatched on
 the concrete backend, which also fills in the physical properties at start-up
 via `configure_devices!`. That keeps the device and backend abstractions
@@ -606,7 +606,7 @@ BackendDefaults.jl  (BackendModule)         — the fallback behaviours the cont
 ### BackendModule
 
 Declares `Backend <: Any` and the backend generics `initialize_backend!`,
-`quit_backend!`, `write_to_devices`, `open_native_windows!`, `read_from_devices`,
+`quit_backend!`, `write_to_devices!`, `open_native_windows!`, `take_from_devices!`,
 `wait_for_input`, `wake_backend!`, `get_pointer_position`, `get_display_size`,
 `configure_devices!`, `write_image`, `record_video`, `render_canvas` and
 `decode_image`. A concrete backend lives in a package above the kernel, subtypes
@@ -628,7 +628,7 @@ leaves the devices at their default properties, `open_native_windows!` is a
 no-op for a backend that has no native windows to open, `wait_for_input` sleeps
 for at most 10 ms, and `wake_backend!` is a no-op. Each is a legal answer rather
 than a missing implementation. The batch generics deliberately have no
-such fallback: an unimplemented `write_to_devices` or `write_image` must raise a
+such fallback: an unimplemented `write_to_devices!` or `write_image` must raise a
 `MethodError` rather than fabricate a result.
 
 No document is imported here. The batch I/O generics are duck-typed on the
@@ -637,8 +637,8 @@ No document is imported here. The batch I/O generics are duck-typed on the
 ### The HeadlessBackend test double
 
 The dependency-free in-memory `HeadlessBackend` — which logs every
-`write_to_devices` document into `rendered` and pops scripted events on each
-`read_from_devices` (`push_event!` enqueues them) — is a **test double** for the `Backend` seam. By
+`write_to_devices!` document into `rendered` and pops scripted events on each
+`take_from_devices!` (`push_event!` enqueues them) — is a **test double** for the `Backend` seam. By
 PAR-NO-TEST-DOUBLES-IN-MAIN it lives in `ProjecturedKernelExample`, not here, so
 no double is reachable from a production build; the kernel editor tests import it
 from there to drive the loop without any real backend.

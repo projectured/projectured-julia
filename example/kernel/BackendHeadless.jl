@@ -22,23 +22,23 @@ BackendModule.initialize_backend!(::HeadlessBackend) = nothing
 BackendModule.quit_backend!(::HeadlessBackend) = nothing
 
 # Batch I/O:
-# - write_to_devices logs the document for later assertion
-# - read_from_devices pops the next scripted event, or nothing on drain
-BackendModule.write_to_devices(b::HeadlessBackend, devices, document) =
+# - write_to_devices! logs the document for later assertion
+# - take_from_devices! pops the next scripted event, or nothing on drain
+BackendModule.write_to_devices!(b::HeadlessBackend, devices, document) =
     (push!(b.rendered, document); nothing)
-BackendModule.read_from_devices(b::HeadlessBackend, devices) =
+BackendModule.take_from_devices!(b::HeadlessBackend, devices) =
     isempty(b.events) ? nothing : popfirst!(b.events)
 
 """
     rendered_output(b::HeadlessBackend) -> Vector
 
-Every document that `write_to_devices` has recorded, in order.
+Every document that `write_to_devices!` has recorded, in order.
 """
 rendered_output(b::HeadlessBackend) = b.rendered
 
 """
     push_event!(b::HeadlessBackend, event)
 
-Enqueue an event so the next `read_from_devices(b, …)` returns it.
+Enqueue an event so the next `take_from_devices!(b, …)` returns it.
 """
 push_event!(b::HeadlessBackend, event) = (push!(b.events, event); nothing)

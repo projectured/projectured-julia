@@ -1,4 +1,4 @@
-# `read_from_devices` collapses a run of pointer motion into its newest sample.
+# `take_from_devices!` collapses a run of pointer motion into its newest sample.
 # The events are pushed onto the real SDL queue, so what is tested is the path
 # the editor actually runs, not a stand-in for it.
 
@@ -90,14 +90,14 @@ function test_input_coalescing()
         for (x, y) in ((10, 10), (20, 20), (30, 30), (44, 55))
             _push_motion!(x, y)
         end
-        input = read_from_devices(backend, Device[])
+        input = take_from_devices!(backend, Device[])
         @test input isa WindowInput
         @test input.event isa MouseMove
         # The newest sample, not the oldest. Answering with (10, 10) here is what
         # left the highlight a frame behind the pointer.
         @test (input.event.x, input.event.y) == (_logical(44), _logical(55))
         # The whole run was consumed, so nothing stale is owed.
-        @test read_from_devices(backend, Device[]) === nothing
+        @test take_from_devices!(backend, Device[]) === nothing
     end
 
     @testset "an event behind a run does not overtake it" begin
@@ -105,27 +105,27 @@ function test_input_coalescing()
         _push_motion!(1, 1)
         _push_motion!(7, 9)
         _push_button_down!(7, 9)
-        first_input = read_from_devices(backend, Device[])
+        first_input = take_from_devices!(backend, Device[])
         @test first_input.event isa MouseMove
         @test (first_input.event.x, first_input.event.y) == (_logical(7), _logical(9))
-        second_input = read_from_devices(backend, Device[])
+        second_input = take_from_devices!(backend, Device[])
         @test second_input.event isa MouseDown          # the press, after the motion
-        @test read_from_devices(backend, Device[]) === nothing
+        @test take_from_devices!(backend, Device[]) === nothing
     end
 
     @testset "a sample the rate limit blocks is held, not dropped" begin
         _reset_input!(backend)
         _push_motion!(12, 34)
-        probe = read_from_devices(backend, Device[])
+        probe = take_from_devices!(backend, Device[])
         @test probe.event isa MouseMove
         # The rate limit applies to idle motion only. A button held during the
         # run makes it a drag, which is never rate-limited; skip the case then.
         if probe.event.buttons == MouseButtons()
             backend.last_hover_motion = time()   # the limit is now active
             _push_motion!(60, 70)
-            @test read_from_devices(backend, Device[]) === nothing   # held, not answered
+            @test take_from_devices!(backend, Device[]) === nothing   # held, not answered
             backend.last_hover_motion = 0.0     # the interval has passed
-            held = read_from_devices(backend, Device[])   # the queue is empty by now
+            held = take_from_devices!(backend, Device[])   # the queue is empty by now
             @test held isa WindowInput
             @test held.event isa MouseMove
             # A pointer that stops sends nothing more. Dropping this sample would
@@ -141,11 +141,11 @@ function test_input_coalescing()
         _reset_input!(backend)
         _push_motion!(20, 30; buttons = _SDL_BUTTON_LMASK)
         _push_button_up!(20, 30)
-        motion = read_from_devices(backend, Device[])
+        motion = take_from_devices!(backend, Device[])
         @test motion.event isa MouseMove
         @test motion.event.buttons == MouseButtons(:left)
-        @test read_from_devices(backend, Device[]).event isa MouseUp
-        @test read_from_devices(backend, Device[]) === nothing
+        @test take_from_devices!(backend, Device[]).event isa MouseUp
+        @test take_from_devices!(backend, Device[]) === nothing
     end
 
     @testset "a side button makes no mouse event" begin
@@ -154,7 +154,7 @@ function test_input_coalescing()
         _reset_input!(backend)
         _push_button_down!(10, 10; button = _SDL_BUTTON_X1)
         _push_button_up!(10, 10; button = _SDL_BUTTON_X1)
-        @test read_from_devices(backend, Device[]) === nothing
+        @test take_from_devices!(backend, Device[]) === nothing
     end
 
     @testset "the buttons and the wheel have the names of the event layer" begin
@@ -166,10 +166,10 @@ function test_input_coalescing()
             _push_button_down!(10, 10; button)
             _push_button_up!(10, 10; button)
             if name === nothing
-                @test read_from_devices(backend, Device[]) === nothing
+                @test take_from_devices!(backend, Device[]) === nothing
             else
-                down = read_from_devices(backend, Device[]).event
-                up = read_from_devices(backend, Device[]).event
+                down = take_from_devices!(backend, Device[]).event
+                up = take_from_devices!(backend, Device[]).event
                 @test down isa MouseDown && down.button === name
                 @test up isa MouseUp && up.button === name
             end
@@ -177,7 +177,7 @@ function test_input_coalescing()
         # A turn of the wheel away from the user scrolls up: a positive `dy`.
         _reset_input!(backend)
         _push_wheel!(1)
-        scroll = read_from_devices(backend, Device[]).event
+        scroll = take_from_devices!(backend, Device[]).event
         @test scroll isa MouseScroll && scroll.dy > 0
         _reset_input!(backend)
     end
@@ -189,14 +189,14 @@ function test_input_coalescing()
         _push_ctrl_key!(_SDL_KEYDOWN, _KMOD_LCTRL)
         _push_button_down!(10, 10)
         _push_ctrl_key!(_SDL_KEYUP, 0x0000)
-        @test read_from_devices(backend, Device[]).event isa KeyDown
-        down = read_from_devices(backend, Device[]).event
+        @test take_from_devices!(backend, Device[]).event isa KeyDown
+        down = take_from_devices!(backend, Device[]).event
         @test down isa MouseDown
         @test down.modifiers.ctrl
-        up = read_from_devices(backend, Device[]).event
+        up = take_from_devices!(backend, Device[]).event
         @test up isa KeyUp
         @test !up.modifiers.ctrl
-        @test read_from_devices(backend, Device[]) === nothing
+        @test take_from_devices!(backend, Device[]) === nothing
     end
 
     @testset "a press and a release keep the times that SDL stamps on them" begin
@@ -206,7 +206,7 @@ function test_input_coalescing()
         # (0.3 s), although the release was read 0.6 s after the press.
         _reset_input!(backend)
         _push_button_down!(10, 10)
-        down = read_from_devices(backend, Device[])
+        down = take_from_devices!(backend, Device[])
         @test down.event isa MouseDown
         sleep(0.1)
         _push_button_up!(10, 10)
@@ -215,7 +215,7 @@ function test_input_coalescing()
         # rate limit holds back can make a read answer nothing.
         release = nothing
         for _ in 1:20
-            input = read_from_devices(backend, Device[])
+            input = take_from_devices!(backend, Device[])
             input === nothing && (sleep(0.01); continue)
             input.event isa MouseUp && (release = input.event; break)
         end
@@ -232,7 +232,7 @@ function test_input_coalescing()
         other.display.density = 2.0
         _reset_input!(other)
         _push_motion!(12, 34)
-        probe = read_from_devices(other, Device[])
+        probe = take_from_devices!(other, Device[])
         @test probe.event isa MouseMove
         # The rate limit applies to idle motion only; skip the case when a
         # button is held.
@@ -240,7 +240,7 @@ function test_input_coalescing()
             backend.last_hover_motion = time()   # the limit of `backend` is active
             other.last_hover_motion = 0.0        # the limit of `other` is not
             _push_motion!(60, 70)
-            answered = read_from_devices(other, Device[])
+            answered = take_from_devices!(other, Device[])
             @test answered isa WindowInput
             @test (answered.event.x, answered.event.y) == (_logical(60), _logical(70))
         end
@@ -251,19 +251,19 @@ function test_input_coalescing()
     @testset "a window that loses the focus says so, and one that gains it says nothing" begin
         _reset_input!(backend)
         _push_window_event!(_SDL.SDL_WINDOWEVENT_FOCUS_LOST)
-        input = read_from_devices(backend, Device[])
+        input = take_from_devices!(backend, Device[])
         @test input isa WindowInput
         @test input.event isa WindowDefocus
         _reset_input!(backend)
         _push_window_event!(_SDL.SDL_WINDOWEVENT_FOCUS_GAINED)
-        @test read_from_devices(backend, Device[]) === nothing
+        @test take_from_devices!(backend, Device[]) === nothing
         _reset_input!(backend)
     end
 
     @testset "the pointer that leaves a window is a window event" begin
         _reset_input!(backend)
         _push_window_event!(_SDL.SDL_WINDOWEVENT_LEAVE)
-        input = read_from_devices(backend, Device[])
+        input = take_from_devices!(backend, Device[])
         @test input isa WindowInput
         @test input.event isa WindowLeave
         _reset_input!(backend)

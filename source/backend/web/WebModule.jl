@@ -15,7 +15,7 @@ using JSON3
 using Base64: base64encode
 
 # Imported to extend: this module adds a method to each of these. The backend
-# contract is extended by qualification instead, `BackendModule.write_to_devices`.
+# contract is extended by qualification instead, `BackendModule.write_to_devices!`.
 import ..EditorModule: get_backend_name, get_backend_output
 
 export WebBackend, get_web_asset_directory, convert_web_key_to_symbol

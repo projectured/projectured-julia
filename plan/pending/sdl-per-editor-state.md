@@ -23,7 +23,7 @@ The font zoom `_FONT_ZOOM` has a plan of its own:
 
 | Value | What it holds | Written by | Read by |
 | --- | --- | --- | --- |
-| `_LAST_HOVER_MOTION` | the time of the last pointer motion that `read_from_devices` answered with no button held | `read_from_devices` | `read_from_devices`, `wait_for_input` |
+| `_LAST_HOVER_MOTION` | the time of the last pointer motion that `take_from_devices!` answered with no button held | `take_from_devices!` | `take_from_devices!`, `wait_for_input` |
 | `_PARTIAL_RENDER` | whether a window repaints only the dirty rectangle | `initialize_backend!`, from `backend.partial_render` | `_render_window!` |
 | `_DEBUG_DIRTY` | whether a window outlines the dirty rectangle in red | `initialize_backend!`, from `backend.debug_dirty` | `_render_window!` |
 
@@ -38,11 +38,11 @@ The font zoom `_FONT_ZOOM` has a plan of its own:
 ### The change
 
 1. `SdlBackend` gets a field `last_hover_motion::Float64`, `0.0` for a new
-   backend. `read_from_devices` and `wait_for_input` read and write it. The
+   backend. `take_from_devices!` and `wait_for_input` read and write it. The
    tests `InputCoalescingTest.jl` (3 lines) and `WaitWakeTest.jl` (1 line) set
    the field in place of the global.
 2. `_render_window!` reads `partial_render` and `debug_dirty` from the backend.
-   It gets the backend as its first argument, from `write_to_devices` and
+   It gets the backend as its first argument, from `write_to_devices!` and
    `_show_painted_window!`. `initialize_backend!` stops copying them, and the two
    globals go.
 3. `VideoBackend.measure_text` calls `measure_sdl_text(text, font)`.
