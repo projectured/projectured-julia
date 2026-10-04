@@ -23,7 +23,7 @@ using SHA
 const WIDGET_EXAMPLES = [
     "widget", "widget_label", "widget_text", "widget_checkbox", "widget_button",
     "widget_button_action", "widget_button_image", "widget_tooltip",
-    "widget_menu_item", "widget_menu", "widget_toolbar", "widget_composite",
+    "widget_menu_item", "widget_menu", "widget_toolbar", "widget_toolbar_item", "widget_composite",
     "widget_title_pane", "widget_split_pane", "widget_scroll_bar",
     "widget_scroll_pane", "widget_transform_pane", "widget_shell",
     # The one example that hands its widgets a real offer on both axes.

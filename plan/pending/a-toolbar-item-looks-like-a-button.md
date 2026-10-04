@@ -220,7 +220,7 @@ pressed look. The owner wrote: "I agree with your recommendation".
       the selection of the window where it was;
     - the Alt+press tests of the toolbar pass without a change.
   - Commit.
-- [ ] **3. The example (D7).**
+- [x] **3. The example (D7).**
   - `make_widget_toolbar_item_document_example` in `WidgetDocumentExample.jl`,
     and `widget_toolbar_item_example` in `PlatformExamples.jl`, with the
     exports of `ProjecturedPlatformExample` and `ProjecturedExample` and the
@@ -228,8 +228,16 @@ pressed look. The owner wrote: "I agree with your recommendation".
   - `WidgetColorTest.jl` takes the example in place of
     `_make_toolbar_item_probe`.
   - `tool/widget-images.jl` lists `widget_toolbar_item`.
-  - Test: `test_example(widget_toolbar_item_example)`.
+  - Test: `test_printer`, `test_reader` and `test_repl` of
+    `widget_toolbar_item_example`.
   - Commit.
+  - **Done 2026-10-04.** `test_example` is not the check for a widget example.
+    The navigation sweep skips every widget example but `widget_text`, and the
+    type-in sweep covers five text examples (`ExampleSweeps.jl`). The
+    `widget_toolbar` example on this branch fails `test_example` in the same
+    way: 1 navigation check and 78 type-in checks. So the new example takes the
+    three checks that the sweeps give a widget example: they pass, 1143 of
+    1143. `test_widget_colors()` passes, 74 of 74.
 - [ ] **4. The documents.**
   - The docstring of `WidgetToolbarItem`: flat at rest, the outline of a button
     under the pointer, and the darker surface while it is held.

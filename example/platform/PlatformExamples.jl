@@ -64,6 +64,7 @@ const widget_tooltip_example     = Example("widget_tooltip",     make_widget_too
 const widget_menu_item_example   = Example("widget_menu_item",   make_widget_menu_item_document_example,   make_widget_projection_example)
 const widget_menu_example        = Example("widget_menu",        make_widget_menu_document_example,        make_widget_projection_example)
 const widget_toolbar_example     = Example("widget_toolbar",     make_widget_toolbar_document_example,     make_widget_projection_example)
+const widget_toolbar_item_example = Example("widget_toolbar_item", make_widget_toolbar_item_document_example, make_widget_projection_example)
 const widget_composite_example   = Example("widget_composite",   make_widget_composite_document_example,   make_widget_projection_example)
 const widget_title_pane_example  = Example("widget_title_pane",  make_widget_title_pane_document_example,  make_widget_projection_example)
 const widget_split_pane_example  = Example("widget_split_pane",  make_widget_split_pane_document_example,  make_widget_projection_example)
@@ -137,6 +138,7 @@ const platform_examples = Example[
     widget_menu_item_example,
     widget_menu_example,
     widget_toolbar_example,
+    widget_toolbar_item_example,
     widget_composite_example,
     widget_title_pane_example,
     widget_split_pane_example,
