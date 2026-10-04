@@ -847,7 +847,20 @@ its styles and a builder fills them with `get_<name>_style`.
     decorative line (`border`, `grid`) has no minimum, and a line that marks a
     control (`border_strong`, `focus_ring`, `selection_ring`) needs 3 (4.5 in a
     high contrast theme); a faint text needs 3 (4.5).
-  - C5 the colors section of the appearance tab.
+  - ~~C5~~ **Done.** The appearance tab has the group "Colors" under the
+    scales: a row for each of the five settings, with the buttons ‹ and › that
+    step through its values (the accent and the neutral with a swatch), and the
+    card of the colour theme of the present mode and contrast. A field of any
+    theme that holds a colour shows its swatch in the colour that it gives: a
+    fixed colour its text, as before; a role the buttons ‹ and › through the
+    roles; a step the buttons through the hues and through the steps. A role and
+    a step have "Fix", which writes the colour that they give, and every colour
+    that differs from its default has "Reset". "Reset all" also resets the five
+    settings. The wrapper treats a write of a colour theme as a write of a
+    theme, so the view prints again and the history takes it back. **A change
+    from section 12.12:** there is no separate list of named schemes; the rows
+    of the palette, the mode and the contrast choose the scheme, and they show
+    every combination without a list that grows with each palette.
 - **Part M, the themes name roles.** One package at a time, each with a
   table of its fields and their roles, which the owner sees before the change:
   M1 the widgets, M2 the graphics, the text, the syntax and the reference (the

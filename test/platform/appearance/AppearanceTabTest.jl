@@ -384,5 +384,56 @@ end
     @test changed in first.(drawn())
 end
 
+
+@testset "the colour settings step through their values, and a role and a step have their controls" begin
+    appearance = Appearance()
+    projection = NaturalToGraphics(; measure, appearance)
+    iomap = print_document(projection, nothing, appearance, offer)
+    texts = first.(_at_collect_texts(iomap.output))
+    for name in ("Colors", "Mode", "Contrast", "Palette", "Accent", "Neutral",
+                 "light", "normal", "radix", "blue", "slate")
+        @test name in texts
+    end
+    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
+    writes_setting(op, field) = op isa ReplaceReferencedValueOperation && op.document === appearance &&
+                                op.reference.head == FieldReferenceStep(String(field))
+    next_mode = only(op for (action, op) in tab.commands if action.label == "›" && writes_setting(op, :color_mode))
+    @test next_mode.value === :dark
+    @test is_appearance_change(appearance, next_mode)
+    previous_accent = only(op for (action, op) in tab.commands
+                           if action.label == "‹" && writes_setting(op, :color_accent))
+    @test previous_accent.value === :teal
+    evaluate_operation(nothing, next_mode)
+    @test appearance.color_mode === :dark
+    # The card of the colour theme holds the theme of the present mode and contrast.
+    theme = get_color_theme(appearance)
+    @test theme === appearance.color_themes[:dark]
+    appearance.open_sections = ["ColorTheme"]
+    iomap = print_document(projection, nothing, appearance, offer)
+    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
+    @test "ColorTheme" in collect(values(tab.folds))
+    texts = first.(_at_collect_texts(iomap.output))
+    @test "keyword" in texts && "violet" in texts
+    writes_role(op, role) = op isa ReplaceReferencedValueOperation && op.document === theme &&
+                            op.reference.head == FieldReferenceStep(String(role))
+    hue = only(op for (action, op) in tab.commands if action.label == "›" && writes_role(op, :keyword))
+    @test hue.value == PaletteColor(:pink, 11; minimum_contrast = 4.5)
+    step = only(op for (action, op) in tab.commands if action.label == "+" && writes_role(op, :keyword))
+    @test step.value == PaletteColor(:violet, 12; minimum_contrast = 4.5)
+    fix = only(op for (action, op) in tab.commands if action.label == "Fix" && writes_role(op, :keyword))
+    @test fix.value == resolve_theme_color(ColorRole(:keyword), appearance)
+    # A write of a colour theme is a write of a theme: the wrapper prints the view again.
+    @test ProjecturedPlatform.AppearanceModule._wrap_theme_writes(appearance, fix) isa ReplaceThemeValueOperation
+    @test is_appearance_change(appearance, fix)
+    # A fine-tuned role has a button that writes the default of its mode back.
+    @test !any(action.label == "Reset" && writes_role(op, :keyword) for (action, op) in tab.commands)
+    evaluate_operation(nothing, fix)
+    iomap = print_document(projection, nothing, appearance, offer)
+    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
+    reset = only(op for (action, op) in tab.commands if action.label == "Reset" && writes_role(op, :keyword))
+    @test reset.value == make_color_theme(:dark).keyword
+    @test format_style_color(fix.value) in first.(_at_collect_texts(iomap.output))
+end
+
 end
 end

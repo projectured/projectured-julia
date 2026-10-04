@@ -10,6 +10,10 @@ Show an `Appearance` as widgets, in a pane that scrolls:
   − button, its value in percent, a + button and a reset button, and under the
   rows the buttons "Reset all", "Save" and "Load", which save the appearance in
   the file of `get_appearance_file` and read it back;
+- the group "Colors": a row for each of the five colour settings, the mode, the
+  contrast, the palette, the accent and the neutral, each with its name, buttons
+  ‹ and › that step through its values, and its value; and the card of the
+  colour theme of the present mode and contrast, with a row for each role;
 - the themes of the appearance in three groups: "Editor", the widget, the text,
   the syntax and the reference themes, which every view draws with; "Tools", the
   other themes of `ProjecturedPlatform`; and "Documents", the themes of the other
@@ -23,7 +27,11 @@ Show an `Appearance` as widgets, in a pane that scrolls:
   color of the widget theme. A size has a spin box for each of its parts, a font has buttons that step through
   the font files and a spin box for its size, a colour has its swatch and its
   value as a text, `#rrggbbaa`, that a person edits, and a text style has the
-  controls of its colour over those of its font.
+  controls of its colour over those of its font. A role of the colour theme has
+  its swatch and buttons that step through the roles; a step of a ramp has
+  buttons that step through the hues and through the steps; both have a button
+  "Fix", which writes the colour that they give as a fixed colour. A colour that
+  differs from the default of its theme has a button "Reset".
 
 A press of a button answers the operation of the button, and a step of a spin box,
 a choice of a preset or an edit of a colour answers a write of the theme, so the
@@ -185,7 +193,8 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
             _compute_color_edit(read, write, start, stop, replacement)
         text
     end
-    controls = (; button, spin_box, checkbox, choice, color_text, theme, appearance, folds)
+    controls = (; button, spin_box, checkbox, choice, color_text, theme, appearance, folds,
+                defaults = IdDict{Any,Any}())
     cells = Any[]
     for (field, name) in _APPEARANCE_ROWS
         push!(cells, WidgetLabel(name),
@@ -194,14 +203,19 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
               button("+", _make_step_operation(appearance, field, 1)),
               button("Reset", _make_step_operation(appearance, field, 0)))
     end
-    reset_all = CompoundOperation(Any[_make_step_operation(appearance, field, 0)
-                                      for (field, _) in _APPEARANCE_ROWS])
+    reset_all = CompoundOperation(Any[Any[_make_step_operation(appearance, field, 0)
+                                          for (field, _) in _APPEARANCE_ROWS];
+                                      Any[_write_color_setting(appearance, field, value)
+                                          for (field, value) in pairs(_COLOR_SETTING_DEFAULTS)]])
     parts = Any[GridLayout(cells, 5; horizontal_gap = theme.label_gap, vertical_gap = theme.item_gap,
                            vertical_align = :center),
                 HorizontalLayout(Any[button("Reset all", reset_all),
                                      button("Save", SaveAppearanceOperation(appearance)),
                                      button("Load", LoadAppearanceOperation(appearance))];
                                  gap = theme.label_gap)]
+    push!(parts, WidgetLabel("Colors"; text_style = StyleText(theme.font_bold, theme.muted_foreground)),
+          _make_color_settings(controls),
+          _make_theme_section(controls, get_color_theme(appearance)))
     for (title, themes) in _get_theme_groups(appearance)
         isempty(themes) && continue
         push!(parts, WidgetLabel(title; text_style = StyleText(theme.font_bold, theme.muted_foreground)))
@@ -311,9 +325,10 @@ _make_field_control(controls, theme, field::Symbol, value::StyleFont) =
     _make_font_control(controls, () -> getproperty(theme, field),
                        font -> _write_theme_field(theme, field, font))
 
-_make_field_control(controls, theme, field::Symbol, value::StyleColor) =
-    _make_color_control(controls, () -> getproperty(theme, field),
-                        color -> _write_theme_field(theme, field, color))
+_make_field_control(controls, theme, field::Symbol, value::ThemeColor) =
+    _make_theme_color_control(controls, () -> getproperty(theme, field),
+                              color -> _write_theme_field(theme, field, color),
+                              _get_default_field(controls, theme, field))
 
 # A text style has the controls of its colour over those of its font. Each writes
 # a new style with the other part as it is.
@@ -334,9 +349,11 @@ _make_field_control(controls, theme, field::Symbol, value::FontRole) =
 # A text role has the controls of its colour over those of its font role.
 function _make_field_control(controls, theme, field::Symbol, value::TextRole)
     read = () -> getproperty(theme, field)
+    default = _get_default_field(controls, theme, field)
     VerticalLayout(Any[
-        _make_color_control(controls, () -> read().color,
-                            color -> _write_theme_field(theme, field, TextRole(read().font, color))),
+        _make_theme_color_control(controls, () -> read().color,
+                                  color -> _write_theme_field(theme, field, TextRole(read().font, color)),
+                                  default isa TextRole ? default.color : nothing),
         _make_role_control(controls, theme, () -> read().font,
                            role -> _write_theme_field(theme, field, TextRole(role, read().color))),
     ]; gap = controls.theme.item_gap)
@@ -407,6 +424,121 @@ end
 function _make_color_control(controls, read, write)
     HorizontalLayout(Any[WidgetSwatch(read()), controls.color_text(read, write)];
                      gap = controls.theme.label_gap, vertical_align = :center)
+end
+
+# The value of the field `field` in the default theme of `theme`: the colour theme
+# of the same mode and contrast for a colour theme of the appearance, and the
+# default theme of its type for any other. Each default theme is made once in a
+# print.
+function _get_default_field(controls, theme, field::Symbol)
+    default = get!(controls.defaults, theme) do
+        variant = findfirst(held -> held === theme, controls.appearance.color_themes)
+        variant === nothing ? get_theme_type(theme)() : make_color_theme(variant)
+    end
+    getproperty(default, field)
+end
+
+# The controls of the colour of a theme that `read()` answers, by its kind, and a
+# button "Reset" that writes `default` when the colour differs from it.
+# `write(color)` is the operation that sets a new colour.
+function _make_theme_color_control(controls, read, write, default)
+    color = read()
+    swatch = WidgetSwatch(resolve_theme_color(color, controls.appearance))
+    parts = Any[swatch]
+    if color isa StyleColor
+        push!(parts, controls.color_text(read, write))
+    elseif color isa ColorRole
+        append!(parts, Any[controls.button("‹", write(_step_color_role(color, -1))),
+                           WidgetLabel(format_theme_color(color)),
+                           controls.button("›", write(_step_color_role(color, 1)))])
+    else
+        append!(parts, Any[controls.button("‹", write(_step_palette_hue(color, -1))),
+                           WidgetLabel(String(color.hue)),
+                           controls.button("›", write(_step_palette_hue(color, 1))),
+                           controls.button("−", write(_step_palette_step(color, -1))),
+                           WidgetLabel(string(color.step)),
+                           controls.button("+", write(_step_palette_step(color, 1)))])
+    end
+    color isa StyleColor ||
+        push!(parts, controls.button("Fix", write(resolve_theme_color(color, controls.appearance))))
+    default === nothing || color == default || push!(parts, controls.button("Reset", write(default)))
+    HorizontalLayout(parts; gap = controls.theme.label_gap, vertical_align = :center)
+end
+
+# The role `delta` roles away from `role` in the order of the colour theme.
+function _step_color_role(role::ColorRole, delta::Integer)
+    names = get_theme_field_names(ColorTheme)
+    i = something(findfirst(==(role.role), names), 1)
+    ColorRole(names[mod1(i + delta, length(names))]; alpha = role.alpha)
+end
+
+# The hues that a step of a ramp steps through: the hues of every palette and the
+# accent.
+const _STEP_HUES = (PALETTE_HUES..., :accent)
+
+# `color` at the hue `delta` hues away, or at the step `delta` steps away, from 1
+# to 12.
+function _step_palette_hue(color::PaletteColor, delta::Integer)
+    i = something(findfirst(==(color.hue), _STEP_HUES), 1)
+    PaletteColor(_STEP_HUES[mod1(i + delta, length(_STEP_HUES))], color.step; alpha = color.alpha,
+                 minimum_contrast = color.minimum_contrast, against = color.against)
+end
+_step_palette_step(color::PaletteColor, delta::Integer) =
+    PaletteColor(color.hue, clamp(color.step + delta, 1, 12); alpha = color.alpha,
+                 minimum_contrast = color.minimum_contrast, against = color.against)
+
+# ── The colour settings ─────────────────────────────────────────────────────
+
+# The rows of the colour settings, in order: the field of the appearance and its
+# name, and the value of each in a new appearance.
+const _COLOR_SETTING_ROWS = ((:color_mode, "Mode"), (:color_contrast, "Contrast"),
+                             (:color_palette, "Palette"), (:color_accent, "Accent"),
+                             (:color_neutral, "Neutral"))
+const _COLOR_SETTING_DEFAULTS = (color_mode = :light, color_contrast = :normal,
+                                 color_palette = DEFAULT_PALETTE_NAME, color_accent = :blue,
+                                 color_neutral = :slate)
+
+# A write of the colour setting `field` of `appearance`. It changes the look, so
+# the `appearance` wrapper prints the view again, and a history records it.
+_write_color_setting(appearance::Appearance, field::Symbol, value) =
+    ReplaceReferencedValueOperation(appearance, String(field), value)
+
+# The values that the colour setting `field` of `appearance` steps through.
+function _get_color_setting_values(appearance::Appearance, field::Symbol)
+    field === :color_mode && return collect(COLOR_MODES)
+    field === :color_contrast && return collect(COLOR_CONTRASTS)
+    field === :color_palette && return get_palette_names()
+    field === :color_accent && return [hue for hue in PALETTE_HUES if hue !== :neutral]
+    palette = something(find_palette(appearance.color_palette), find_palette(DEFAULT_PALETTE_NAME))
+    copy(get_palette_neutrals(palette))
+end
+
+# The value `delta` values away from the colour setting `field` of `appearance`.
+function _step_color_setting(appearance::Appearance, field::Symbol, delta::Integer)
+    values = _get_color_setting_values(appearance, field)
+    i = something(findfirst(==(getproperty(appearance, field)), values), 1)
+    values[mod1(i + delta, length(values))]
+end
+
+# The rows of the colour settings: for each, its name, the buttons that step it,
+# its value, and for the accent and the neutral a swatch of the solid step.
+function _make_color_settings(controls)
+    appearance = controls.appearance
+    cells = Any[]
+    for (field, name) in _COLOR_SETTING_ROWS
+        swatch = field === :color_accent ? PaletteColor(:accent, 9) :
+                 field === :color_neutral ? PaletteColor(:neutral, 9) : nothing
+        push!(cells, WidgetLabel(name),
+              controls.button("‹", _write_color_setting(appearance, field,
+                                                        _step_color_setting(appearance, field, -1))),
+              WidgetLabel(string(getproperty(appearance, field))),
+              controls.button("›", _write_color_setting(appearance, field,
+                                                        _step_color_setting(appearance, field, 1))),
+              swatch === nothing ? WidgetLabel("") :
+                                   WidgetSwatch(resolve_theme_color(swatch, appearance)))
+    end
+    GridLayout(cells, 5; horizontal_gap = controls.theme.label_gap,
+               vertical_gap = controls.theme.item_gap, vertical_align = :center)
 end
 
 # A text that a colour text takes as typed: hex digits and `#`.

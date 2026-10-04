@@ -100,7 +100,7 @@ end
 _wrap_theme_writes(appearance::Appearance, operation) = operation
 _wrap_theme_writes(appearance::Appearance, operation::ReplaceThemeValueOperation) = operation
 _wrap_theme_writes(appearance::Appearance, operation::ReplaceReferencedValueOperation) =
-    any(entry -> operation.document === entry.theme, values(appearance.themes)) ?
+    _is_appearance_theme(appearance, operation.document) ?
         ReplaceThemeValueOperation(operation) : operation
 _wrap_theme_writes(appearance::Appearance, operation::CompoundOperation) =
     CompoundOperation(Any[_wrap_theme_writes(appearance, member) for member in operation.operations])
@@ -141,11 +141,18 @@ function _is_tab_state_write(appearance::Appearance, write::ReplaceReferencedVal
 end
 
 # Whether `object` is `appearance`, or the theme or the scaled theme of one of
-# its domains.
+# its domains, or one of its colour themes.
 function _is_appearance_part(appearance::Appearance, object)
     object === appearance && return true
-    any(entry -> object === entry.theme || object === entry.scaled, values(appearance.themes))
+    _is_appearance_theme(appearance, object) ||
+        any(entry -> object === entry.scaled, values(appearance.themes))
 end
+
+# Whether `object` is the theme of a domain of `appearance` or one of its colour
+# themes: a write of it is a write of a theme.
+_is_appearance_theme(appearance::Appearance, object) =
+    any(entry -> object === entry.theme, values(appearance.themes)) ||
+    any(theme -> object === theme, values(appearance.color_themes))
 
 # ── Reference mapping (transparent, through the `content` field) ───────────
 
