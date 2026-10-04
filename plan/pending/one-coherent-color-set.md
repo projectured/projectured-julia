@@ -951,6 +951,52 @@ its styles and a builder fills them with `get_<name>_style`.
     test passes for the four palettes in the four variants: 992 checks.
 - **Part S, the system mode.** Deferred.
 
+### 12.15 The checks, and what is open
+
+**Status (2026-10-04):** Parts C, M and P are done on the branch `color-set`;
+Part S is deferred by the owner. The branch is not on `main`: the owner reviews
+the look and the field-to-role table (Appendix B) and says when it lands.
+
+The checks, each run the same way on the branch point (`dc2b67e4a`) and on the
+branch:
+
+| Check | Branch point | Branch |
+| --- | --- | --- |
+| `test_platform()` | 93015 pass, 8 broken | 94023 pass, 8 broken |
+| 23 suites of the domains, the adapters and the backends | all pass (YAML 2 broken) | all pass after the test updates |
+| `ProjecturedTest.test_integration()` | 1207246 pass, 2 errors, 1578 broken | the same 2 errors (`ClickRoundtripTest.jl:323`, "right ↔ left") after the updates of `DocumentInsertionTest.jl` and `ApplicationTest.jl` |
+| the style, naming, tree, arguments and documentation guards | pass | pass |
+| the exports guard | fails | fails with the same lines |
+
+The tests that changed assert a role, not a value (rule 6). Three faults of the
+code were found by the tests and fixed: a field of Julia code took a role and
+not its colour (`JuliaCodePieces.jl`); the selection ring and the focus ring
+had the same colour; white text did not reach 4.5 on the accent of the OKLCH and
+the Solarized palettes.
+
+The screenshots of 24 examples, before and in the four variants of Radix and the
+light and dark modes of the three other palettes, are on the review page
+https://claude.ai/artifact/Nne5fmuXrpJQDfSNd3Tqsx (private to the owner). A
+chart document shows there as data, because the natural renderer draws its
+fields.
+
+**Open:**
+
+1. The binary carries no copy of the MIT notices of Radix and Tailwind (C0).
+2. A cycle of series colours that follows the mode needs the chart printers to
+   resolve the series roles (M5).
+3. A window that opens later, such as a popup, takes the fixed default
+   background (M6).
+4. `make_slate_light_theme` names the default widget theme with a font; a
+   rename waits, because omnet-julia calls it (M1).
+5. omnet-julia and inet-julia are not checked against the branch. A scratch
+   environment that points the projectured packages at the worktree, a
+   precompile, and the presentation suites of omnet-julia check them before the
+   branch lands. omnet-julia reads theme colours through scaled themes and
+   `get_theme_defaults`, which give colours, and its qtenv widget theme names
+   fixed colours, which stay valid.
+6. The system mode (Part S).
+
 ## Appendix A. The tables
 
 The tables come from the source as it stands on 2026-10-04 (main at
