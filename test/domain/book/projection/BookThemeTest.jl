@@ -1,7 +1,7 @@
 # The book syntax follows the scales of the appearance: the natural renderer
 # gives the book projections the scaled `BookTheme` of its appearance, so at a
 # font scale of 1.5 every text of a book document is 1.5 times as large, and a
-# book projection with no theme has the default styles.
+# book projection that a builder gives no style has the default styles.
 
 # The size of the font of each text `BookToSyntax` draws for `document` with
 # `appearance`, in a fixed measure. A book has no document-type natural
@@ -29,8 +29,13 @@ function test_book_theme()
 
     @test BookParagraphToSyntaxLeaf().style.font.size == 14
     theme = get_scaled_theme!(Appearance(font_scale = 1.5), BookTheme)
-    leaf = BookParagraphToSyntaxLeaf(; theme)
+    leaf = BookParagraphToSyntaxLeaf(; style = get_book_style(theme, :paragraph_text))
     @test leaf.style.font.size == 21
     @test is_color_equal(leaf.style.color, BookTheme().paragraph_text.color)
+    # A projection holds its styles and no theme, and its builder reads a theme
+    # that is not scaled as at no scale.
+    @test !hasfield(BookParagraphToSyntaxLeaf, :theme)
+    built = BookToSyntax(; theme = BookTheme())
+    @test unwrap_cell(only(rule for rule in built.dispatch if first(rule) === BookParagraph)[2].style).font.size == 14
 end
 end

@@ -34,9 +34,12 @@ The example chain adds `WordWrapping` between `SyntaxToText` and `TextToGraphics
 ### The theme
 
 `BookTheme` holds the look of the Book projections: the text of the title, the author and its prefix, a chapter title and its numbering, a paragraph (also the blank lines between the parts), a placeholder, a bullet and a picture. Each value has
-the default that the domain draws with no appearance. Each projection takes
-`theme`, a `BookTheme` or a scaled one; with none it holds the default values.
-`BookToSyntax(; theme)` gives the theme to every projection, and the book has no graphics row of its own, so a view draws it through the syntax and the text. The natural
+the default that the domain draws with no appearance. A projection holds its
+styles as fields, and no theme; nothing in it scales or asks whether a theme is
+scaled. `BookToSyntax(; theme)` gives each projection the style of its role
+with `get_book_style`, from `theme`, a `BookTheme` scaled or not, or the
+default styles for `nothing`, and the book has no graphics row of its own, so
+a view draws it through the syntax and the text. The natural
 registration gives the scaled theme of the `Appearance` of the editor, so the view
 follows its scales, and the appearance tab shows a section for `BookTheme`.
 

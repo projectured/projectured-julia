@@ -15,8 +15,9 @@ The fields are the text styles of a book's title, author, chapter heading,
 paragraph, placeholder, bullet and picture caption. Each field has a docstring
 that says what it draws, which the appearance tab shows under its name.
 
-A book projection reads the scaled theme through its `UntrackedCell` style
-fields; with no theme it holds the plain values of the default theme.
+The builder gives each Book projection its styles with `get_book_style`, from a
+theme scaled or not; a projection built with no styles holds the plain values
+of the default theme.
 """
 @theme struct BookTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
@@ -42,8 +43,3 @@ fields; with no theme it holds the plain values of the default theme.
     "The caption of a picture."
     picture_text::TextRole        = TextRole(color_solarized_magenta; base = :code_font)
 end
-
-# The style field of a Book projection that holds the text `name` of the
-# theme `theme`: a `BookTheme`, a scaled one, or `nothing` for the default
-# values.
-_get_book_style(theme, name::Symbol) = make_style_field(BookTheme, scale_theme(theme), StyleText; name)

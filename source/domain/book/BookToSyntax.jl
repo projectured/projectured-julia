@@ -27,8 +27,7 @@
 # `@projection_template` leaf (no `bound`): the engine wires ∅↔∅ and nothing else.
 
 @projection UntrackedCell struct BookInsertionToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_book_style(theme, :placeholder_text)
+    style::StyleText = get_book_style(nothing, :placeholder_text)
 end
 
 @projection_template BookInsertionToSyntaxLeaf BookInsertion (prj, doc) ->
@@ -55,11 +54,10 @@ end
 # Titles use a proportional (sans) font, distinct from the monospace body, and a
 # larger size; the author line is italic.
 @projection UntrackedCell struct BookBookToSyntaxNode
-    theme::Any = nothing
-    title::StyleText         = _get_book_style(theme, :title_text)
-    author_prefix::StyleText = _get_book_style(theme, :author_prefix_text)
-    author::StyleText        = _get_book_style(theme, :author_text)
-    sep_style::StyleText     = _get_book_style(theme, :paragraph_text)
+    title::StyleText         = get_book_style(nothing, :title_text)
+    author_prefix::StyleText = get_book_style(nothing, :author_prefix_text)
+    author::StyleText        = get_book_style(nothing, :author_text)
+    sep_style::StyleText     = get_book_style(nothing, :paragraph_text)
 end
 
 
@@ -237,12 +235,11 @@ end
 # into the same leaf. A `bound(:field)`/KeySlot binds a single field with no offset.
 
 @projection UntrackedCell struct BookChapterToSyntaxNode
-    theme::Any = nothing
-    title::StyleText     = _get_book_style(theme, :chapter_title_text)
+    title::StyleText     = get_book_style(nothing, :chapter_title_text)
     # Reserved for styling the numbering prefix distinctly; the title leaf
     # currently renders "numbering  title" in the title style.
-    numbering::StyleText = _get_book_style(theme, :numbering_text)
-    sep_style::StyleText = _get_book_style(theme, :paragraph_text)
+    numbering::StyleText = get_book_style(nothing, :numbering_text)
+    sep_style::StyleText = get_book_style(nothing, :paragraph_text)
 end
 
 
@@ -416,10 +413,9 @@ end
 # Selection forward:  .content → .value
 
 @projection UntrackedCell struct BookParagraphToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_book_style(theme, :paragraph_text)
+    style::StyleText = get_book_style(nothing, :paragraph_text)
     # Reserved for an empty-content placeholder hint (not yet rendered).
-    placeholder::StyleText = _get_book_style(theme, :placeholder_text)
+    placeholder::StyleText = get_book_style(nothing, :placeholder_text)
 end
 
 # A single bound leaf (like XmlTextToSyntaxLeaf / MarkdownTextToSyntaxLeaf): the
@@ -451,8 +447,7 @@ end
 # builds a node from x's *fields* — neither expresses "wrap the whole element".
 
 @projection UntrackedCell struct BookListToSyntaxNode
-    theme::Any = nothing
-    bullet::StyleText = _get_book_style(theme, :bullet_text)
+    bullet::StyleText = get_book_style(nothing, :bullet_text)
     indentation::Int = 2
 end
 
@@ -557,9 +552,8 @@ end
 # placeholder. Written as an `@projection_template` fixed-children node.
 
 @projection UntrackedCell struct BookPictureToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText       = _get_book_style(theme, :picture_text)
-    placeholder::StyleText = _get_book_style(theme, :placeholder_text)
+    style::StyleText       = get_book_style(nothing, :picture_text)
+    placeholder::StyleText = get_book_style(nothing, :placeholder_text)
 end
 
 # The value span for a picture's content: when the content is a path to an image
@@ -626,18 +620,26 @@ end
 """
     BookToSyntax(; theme = nothing)
 
-Build the Book → Syntax projection: one rule per document type. `theme` is a
-`BookTheme`, a scaled one, or `nothing` for the default styles.
+Build the Book → Syntax projection: one rule per document type. The builder
+gives each projection the style of its role with `get_book_style`, from
+`theme`, a `BookTheme` scaled or not, or the default styles for `nothing`.
 """
 function BookToSyntax(; theme = nothing)
-    theme = scale_theme(theme)
+    get_style(name) = get_book_style(theme, name)
     TypeDispatchingProjection(
-        BookInsertion => BookInsertionToSyntaxLeaf(; theme),
-        BookBook      => BookBookToSyntaxNode(; theme),
-        BookChapter   => BookChapterToSyntaxNode(; theme),
-        BookParagraph => BookParagraphToSyntaxLeaf(; theme),
-        BookList      => BookListToSyntaxNode(; theme),
-        BookPicture   => BookPictureToSyntaxLeaf(; theme),
+        BookInsertion => BookInsertionToSyntaxLeaf(; style = get_style(:placeholder_text)),
+        BookBook      => BookBookToSyntaxNode(; title = get_style(:title_text),
+                                                 author_prefix = get_style(:author_prefix_text),
+                                                 author = get_style(:author_text),
+                                                 sep_style = get_style(:paragraph_text)),
+        BookChapter   => BookChapterToSyntaxNode(; title = get_style(:chapter_title_text),
+                                                    numbering = get_style(:numbering_text),
+                                                    sep_style = get_style(:paragraph_text)),
+        BookParagraph => BookParagraphToSyntaxLeaf(; style = get_style(:paragraph_text),
+                                                      placeholder = get_style(:placeholder_text)),
+        BookList      => BookListToSyntaxNode(; bullet = get_style(:bullet_text)),
+        BookPicture   => BookPictureToSyntaxLeaf(; style = get_style(:picture_text),
+                                                    placeholder = get_style(:placeholder_text)),
     )
 end
 
