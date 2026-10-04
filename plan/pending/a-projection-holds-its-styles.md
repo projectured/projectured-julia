@@ -1,6 +1,6 @@
 # A projection holds its styles, and a builder fills them
 
-> **Status:** pending, not started. Written on 2026-10-03 at the owner's request.
+> **Status:** pending, in progress on the branch `projection-styles` (2026-10-04). Written on 2026-10-03 at the owner's request.
 > The owner decided the model (section 4) and every point of section 6. The work
 > waits: another agent changes the default values of the appearance, so some
 > defaults of the styles change. The work starts from the `main` that holds that
@@ -98,7 +98,8 @@ projections that it builds.
 All the work is in a worktree, and each step is a commit. The platform is one
 package, so the steps of its slices run one after another.
 
-- [ ] **M1. The style slice.** A read of a field of a theme gives the plain
+- [x] **M1. The style slice.** Done, except that `scale_theme` stays until the
+  last caller goes (M9); finding 1. A read of a field of a theme gives the plain
   value, and an accessor gives the kind (6.3); the appearance tab, the file and
   the scaled theme use it. `@theme` writes `get_<name>_style` (6.6), and the 29
   helpers by hand go. `make_theme_cell`, `make_style_field` and
@@ -201,4 +202,18 @@ suites that build a themed view, and the images of both tabs.
 
 ## 8. Findings during the work
 
-None yet.
+1. **A theme reads its fields as it stores them, and the style slice gives the
+   values** (M1, 2026-10-04). Since the plan of the default look (Part R), a text
+   field of a theme holds a `TextRole` or a `FontRole`, which the scaled theme
+   turns into the `StyleText` or the `StyleFont` over a base font of the theme.
+   The appearance tab, the file and the presets read the role and the kind of a
+   length as they are stored, so a read of a field must not change (6.3 said it
+   would). Instead `get_theme_value(theme, name)` gives the value that a
+   projection draws with: of a scaled theme its scaled value, of a theme its value
+   at no scale, a length as its number and a role as what it gives.
+   `get_theme_values(theme)` gives them by name, and `make_theme_cell`,
+   `make_style_field` and `make_theme_values_field` read through it, so they take
+   any theme. `make_style_field(K, theme; name)` takes the type of the value from
+   its default, and `@theme` writes `get_<name>_style(theme, field)` with it and
+   exports it. The goal of 6.3 holds: a builder gives a theme scaled or not, and
+   nothing checks.

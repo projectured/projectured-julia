@@ -128,6 +128,46 @@ scale_theme_value(role::TextRole, theme, appearance::Appearance) =
 
 make_scaled_theme(theme::Theme) = make_scaled_theme(theme, Appearance())
 
+# The appearance at no scale, which a theme that is not scaled is read with. It is
+# made at the first read, and no one writes it.
+const _UNIT_APPEARANCE = Ref{Any}(nothing)
+function _get_unit_appearance()
+    appearance = _UNIT_APPEARANCE[]
+    appearance === nothing && (appearance = _UNIT_APPEARANCE[] = Appearance())
+    appearance
+end
+
+"""
+    get_theme_value(theme, name) -> value
+
+The value of the field `name` of `theme` that a projection draws with. Of a
+scaled theme it is the scaled value. Of a theme it is the value at no scale: a
+length is its number, and a font role and a text role are the font and the text
+that they give over their base. So a builder can give a projection either, and an
+interface with no scales gives a theme as it is.
+"""
+get_theme_value(theme::ScaledTheme, name::Symbol) = getproperty(theme, name)
+get_theme_value(theme::Theme, name::Symbol) =
+    scale_theme_value(getproperty(theme, name), theme, _get_unit_appearance())
+
+# The values of a theme that is not scaled, by the names of its fields.
+struct _ThemeValues
+    theme::Theme
+end
+
+Base.getproperty(values::_ThemeValues, name::Symbol) =
+    get_theme_value(getfield(values, :theme), name)
+
+"""
+    get_theme_values(theme) -> values
+
+What gives the values of `theme` by the names of its fields, as
+[`get_theme_value`](@ref) reads them: a scaled theme itself, or a view of a theme
+at no scale. A builder reads a style of a projection from it.
+"""
+get_theme_values(theme::ScaledTheme) = theme
+get_theme_values(theme::Theme) = _ThemeValues(theme)
+
 # ── Save and load ───────────────────────────────────────────────────────────
 
 const _APPEARANCE_FACTORS = (:zoom, :font_scale, :icon_scale, :spacing_scale,

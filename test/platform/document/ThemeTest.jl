@@ -185,6 +185,42 @@ end
     @test_throws "a font role follows a font" make_scaled_theme(ThRoleOverRole()).wrong
 end
 
+@testset "a theme that is not scaled reads as at no scale" begin
+    theme = ThRoles()
+    @test get_theme_value(theme, :title) == StyleFont("Ubuntu", 36; weight = 700)
+    @test get_theme_value(theme, :keyword) == make_scaled_theme(theme).keyword
+    sample = ThSample()
+    @test get_theme_value(sample, :gap) == 4
+    # An inset and a point compare by identity, so the test compares their sides.
+    padding = get_theme_value(sample, :padding)
+    @test (padding.top[], padding.bottom[], padding.left[], padding.right[]) == (9, 9, 14, 14)
+    knob = get_theme_value(sample, :knob)
+    @test (knob.x[], knob.y[]) == (44, 24)
+    @test get_theme_value(sample, :columns) == 3
+    scaled = make_scaled_theme(sample, Appearance(spacing_scale = 2.0))
+    @test get_theme_value(scaled, :gap) == 8
+    @test get_theme_values(scaled) === scaled
+    @test get_theme_values(sample).gap == 4
+end
+
+@testset "@theme writes the function that gives a style" begin
+    @test StyleModule._get_style_function_name(:DbCatalogTheme) === :get_db_catalog_style
+    @test StyleModule._get_style_function_name(:JsonTheme) === :get_json_style
+    # With no theme, the plain default value.
+    @test get_th_sample_style(nothing, :gap) == 4
+    @test get_th_roles_style(nothing, :title) == StyleFont("Ubuntu", 36; weight = 700)
+    # With a theme, scaled or not, a cell that follows it and records no edge.
+    theme = ThSample()
+    gap = get_th_sample_style(theme, :gap)
+    @test gap isa UntrackedCell && gap[] == 4
+    theme.gap = Spacing(6)
+    @test gap[] == 6
+    scaled = make_scaled_theme(ThSample(), Appearance(spacing_scale = 2.0))
+    @test get_th_sample_style(scaled, :gap)[] == 8
+    padding = get_th_sample_style(ThSample(), :padding)
+    @test padding isa UntrackedCell{Inset} && padding[].left[] == 14
+end
+
 @testset "a role saves and loads" begin
     mktempdir() do folder
         path = joinpath(folder, "appearance.toml")

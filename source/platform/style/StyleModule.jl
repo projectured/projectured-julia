@@ -78,7 +78,8 @@ export Theme, ScaledTheme, ThemeLength, Spacing, Radius, LineWidth, ControlSize,
        get_base_theme, get_theme_appearance, make_theme_cell, get_theme_defaults,
        scale_theme, make_style_field, make_theme_values_field,
        get_appearance_file, save_appearance!, load_appearance!
-export Appearance, scale_theme_value, get_scaled_theme!, set_theme!, get_theme
+export Appearance, scale_theme_value, get_scaled_theme!, set_theme!, get_theme,
+       get_theme_value, get_theme_values
 export TextMeasure, FontMetrics, StringBox, measure_string, get_font_metrics,
        compute_caret_offsets, FontFileMeasure, FixedMeasure, compute_text_extent,
        PlacedGlyph, compute_placed_glyphs

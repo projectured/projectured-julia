@@ -182,23 +182,26 @@ from it for a length that is not a value of its theme.
 get_theme_appearance(scaled::ScaledTheme) = getfield(scaled, :appearance)
 
 """
-    make_theme_cell(T, scaled, f) -> UntrackedCell{T}
+    make_theme_cell(T, theme, f) -> UntrackedCell{T}
 
-A style field of a projection that reads `f(scaled)` at each read, with no edge: a
-value of the scaled theme `scaled`, or a value derived from it. A view shows a
-change of the theme when it prints again, so the field needs no edge. A projection
-declared `@projection UntrackedCell struct` holds it as it is.
+A style field of a projection that reads `f(values)` at each read, with no edge,
+where `values` gives the values of `theme` by the names of its fields
+([`get_theme_value`](@ref)): of a scaled theme its scaled values, of a theme its
+values at no scale. A view shows a change of the theme when it prints again, so
+the field needs no edge. A projection declared `@projection UntrackedCell struct`
+holds it as it is. The builder of the projection calls it; the projection does
+not know the theme.
 """
-make_theme_cell(::Type{T}, scaled::ScaledTheme, f) where {T} =
-    UntrackedCell{T}(Computation(() -> f(scaled)))
+make_theme_cell(::Type{T}, theme, f) where {T} =
+    UntrackedCell{T}(Computation(() -> f(get_theme_values(theme))))
 
 # An inset and a point hold cells of their own, and a read of a side records an
 # edge to it. So a derived inset or point is made once for each state of the
 # theme and kept in a computed cell, and the style field reads that cell with no
 # edge. A new one at each read would give a printer an edge to a new cell at each
 # print.
-function make_theme_cell(::Type{T}, scaled::ScaledTheme, f) where {T <: Union{Inset, Point2D}}
-    kept = Cell(Computation(() -> f(scaled)))
+function make_theme_cell(::Type{T}, theme, f) where {T <: Union{Inset, Point2D}}
+    kept = Cell(Computation(() -> f(get_theme_values(theme))))
     UntrackedCell{T}(Computation(() -> kept[]))
 end
 
@@ -237,22 +240,43 @@ scale_theme(theme::Union{ScaledTheme,Nothing}) = theme
     make_style_field(K, theme, T; name) -> T or UntrackedCell{T}
 
 The style field of type `T` of a projection that holds the field `name` of the
-theme type `K`. With a scaled theme of `K`, it is a cell that reads the value of
-`theme` at each read, with no edge ([`make_theme_cell`](@ref)). With `nothing`, it
-is the plain value of the default theme ([`get_theme_defaults`](@ref)), and the
-projection reads no cell.
+theme type `K`. With a theme of `K`, scaled or not, it is a cell that reads the
+value of `theme` at each read, with no edge ([`make_theme_cell`](@ref)). With
+`nothing`, it is the plain value of the default theme
+([`get_theme_defaults`](@ref)), and the projection reads no cell. `@theme` writes
+a function for each theme type that calls it, such as `get_json_style`.
 """
 make_style_field(::Type{K}, ::Nothing, ::Type{T}; name::Symbol) where {K,T} =
     convert(T, getproperty(get_theme_defaults(K), name))
-make_style_field(::Type{K}, theme::ScaledTheme, ::Type{T}; name::Symbol) where {K,T} =
-    make_theme_cell(T, theme, scaled -> getproperty(scaled, name))
+make_style_field(::Type{K}, theme, ::Type{T}; name::Symbol) where {K,T} =
+    make_theme_cell(T, theme, values -> getproperty(values, name))
+
+"""
+    make_style_field(K, theme; name) -> value or UntrackedCell
+
+[`make_style_field`](@ref) of the type of the default value of the field `name`
+of `K`, or of `Any` when that default is `nothing`.
+"""
+function make_style_field(::Type{K}, theme; name::Symbol) where {K}
+    default = getproperty(get_theme_defaults(K), name)
+    theme === nothing && return default
+    make_style_field(K, theme, default === nothing ? Any : typeof(default); name)
+end
+
+# The name of the function that `@theme` writes for the theme type `type_name`:
+# `get_json_style` for `JsonTheme`, `get_db_catalog_style` for `DbCatalogTheme`.
+function _get_style_function_name(type_name::Symbol)
+    stem = replace(String(type_name), r"Theme$" => "")
+    words = [lowercase(m.match) for m in eachmatch(r"[A-Z][a-z0-9]*|[a-z0-9]+", stem)]
+    Symbol("get_", join(words, "_"), "_style")
+end
 
 """
     make_theme_values_field(K, theme) -> NamedTuple or UntrackedCell{NamedTuple}
 
 The style field of a projection that holds every value of the theme type `K` as
-one `NamedTuple`, by the names of the fields. With a scaled theme of `K`, it is a
-cell that reads the values of `theme` at each read, with no edge; with `nothing`,
+one `NamedTuple`, by the names of the fields. With a theme of `K`, scaled or not,
+it is a cell that reads the values of `theme` at each read, with no edge; with `nothing`,
 it is the plain values of the default theme. A printer with many helpers reads
 the field once at each print, with `unwrap_cell`, and gives the tuple to them.
 """
@@ -260,7 +284,7 @@ function make_theme_values_field(::Type{K}, theme) where {K}
     theme === nothing && return get_theme_defaults(K)
     names = get_theme_field_names(K)
     make_theme_cell(NamedTuple, theme,
-                    scaled -> NamedTuple{names}(Tuple(getproperty(scaled, name) for name in names)))
+                    values -> NamedTuple{names}(Tuple(getproperty(values, name) for name in names)))
 end
 
 """
@@ -284,8 +308,14 @@ Declare the theme `T` of a domain, and its scaled theme `ScaledT`.
   `get_theme_field_texts(T)` holds them by name, so a type with no docstring of
   its own keeps them too; `find_theme_field_text(T, name)` answers one, and the
   appearance tab shows it.
+- `get_<name>_style(theme, field)`, such as `get_json_style`, gives the style of
+  the field: a cell that reads `theme`, scaled or not, with no edge, or the plain
+  default value when `theme` is `nothing` ([`make_style_field`](@ref)). The macro
+  exports it.
 
-A projection reads a scaled theme, not a theme.
+A projection holds its styles and no theme. A builder fills them with
+`get_<name>_style`, from the scaled theme of its appearance or from a theme as it
+is.
 
 # Example
 
@@ -334,6 +364,14 @@ macro theme(definition)
         text = nothing
     end
     scaled_name = Symbol("Scaled", name)
+    style_name = _get_style_function_name(name)
+    style_doc = """
+        $style_name(theme, field) -> style
+
+    The style of the field `field` of `$name`: a cell that reads `theme`, scaled or
+    not, with no edge, or the plain default value when `theme` is `nothing`. A
+    builder gives it to a projection.
+    """
     theme = gensym(:theme)
     appearance = gensym(:appearance)
     cells = [:($Cell($Computation(() -> $scale_theme_value(
@@ -357,6 +395,10 @@ macro theme(definition)
         $StyleModule.get_theme_field_names(::Type{$name}) = $(Tuple(fields))
         $StyleModule.get_theme_field_texts(::Type{$name}) = $(NamedTuple(texts))
         $StyleModule.get_theme_type(::$name) = $name
+        $(Expr(:macrocall, GlobalRef(Core, Symbol("@doc")), __source__, style_doc,
+               :($style_name(theme, field::Symbol) =
+                     $StyleModule.make_style_field($name, theme; name = field))))
+        export $style_name
         $name
     end)
 end
