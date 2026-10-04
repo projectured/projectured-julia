@@ -882,8 +882,8 @@ knows how many rows it has and which it is showing, and this asks:
 Both `from` and `total` are read as functions rather than taken as numbers, so
 the label follows a sequence that grows while the reader watches it.
 
-`theme` is the scaled widget theme of the place that builds the strip, or
-`nothing` for the default theme: the items stand `item_gap` apart, and each
+`theme` is the widget theme of the place that builds the strip, scaled or not,
+or `nothing` for the default theme: the items stand `item_gap` apart, and each
 button is as large as its label.
 """
 function make_pager_widget(; from, total, page::Integer, move, theme = nothing)
@@ -938,8 +938,8 @@ What it does NOT do is decide what the terms mean. A place is a place to
 whatever holds the records, and a regular expression is compiled by the thing
 that runs it, once, rather than here per keystroke.
 
-`theme` is the scaled widget theme of the place that builds the strip, or
-`nothing` for the default theme: the items stand `item_gap` apart, and each
+`theme` is the widget theme of the place that builds the strip, scaled or not,
+or `nothing` for the default theme: the items stand `item_gap` apart, and each
 button is as large as its label.
 """
 function make_filter_bar_widget(; text, place, regex, apply, theme = nothing)
@@ -984,8 +984,8 @@ It does not decide what happens when every column is turned off. A table that
 should keep one is the table that should say so, because which one is not a
 question this can answer.
 
-`theme` is the scaled widget theme of the place that builds the strip, or
-`nothing` for the default theme: the items stand `item_gap` apart, and each
+`theme` is the widget theme of the place that builds the strip, scaled or not,
+or `nothing` for the default theme: the items stand `item_gap` apart, and each
 button is as large as its label.
 """
 function make_column_chooser_widget(; columns, is_shown, choose, theme = nothing)

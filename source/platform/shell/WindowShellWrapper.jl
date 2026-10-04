@@ -96,4 +96,5 @@ make_opened_window_projections(; gesture_help::Bool = true,
              Pair{Type,Any}[],
          Pair{Type,Any}[content...],
          Pair{Type,Any}[WidgetToGraphics(; measure = measure,
-                                         theme = get_scaled_theme!(appearance, WidgetTheme)).dispatch...])
+                                         theme = get_scaled_theme!(appearance, WidgetTheme),
+                                         graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)).dispatch...])

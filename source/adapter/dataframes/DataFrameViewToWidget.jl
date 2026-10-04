@@ -354,7 +354,7 @@ function make_data_frame_view_projection(; measure::TextMeasure,
                                          appearance::Appearance = Appearance())
     theme = get_scaled_theme!(appearance, WidgetTheme)
     frame_theme = get_scaled_theme!(appearance, DataFrameTheme)
-    widgets = WidgetToGraphics(; measure, theme)
+    widgets = WidgetToGraphics(; measure, theme, graphics_theme = get_scaled_theme!(appearance, GraphicsTheme))
     table = last(only(p for p in widgets.dispatch if first(p) === WidgetTable))
     grid = last(only(p for p in LayoutToGraphics().dispatch if first(p) === GridLayout))
     row_height = UntrackedCell{Int}(@computation ceil(Int, compute_line_box(measure, "M", theme.font).height))

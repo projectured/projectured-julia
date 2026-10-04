@@ -74,7 +74,8 @@ include("AppearanceToWidget.jl")
 # widgets of the editor.
 function __init__()
     register_natural_graphics!(:appearance, (; measure, appearance) -> begin
-        widgets = WidgetToGraphics(; measure, theme = get_scaled_theme!(appearance, WidgetTheme))
+        widgets = WidgetToGraphics(; measure, theme = get_scaled_theme!(appearance, WidgetTheme),
+                                   graphics_theme = get_scaled_theme!(appearance, GraphicsTheme))
         pane = last(only(row for row in widgets.dispatch if first(row) === WidgetScrollPane))
         Pair{Type,Any}[Appearance => AppearanceToWidget(; scroll_pane = pane)]
     end)

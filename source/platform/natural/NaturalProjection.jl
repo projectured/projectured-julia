@@ -119,13 +119,13 @@ function NaturalToGraphics(; measure::TextMeasure,
                            extra = Pair{Type,Any}[],
                            appearance::Appearance = Appearance())
     widget_theme = get_scaled_theme!(appearance, WidgetTheme)
-    w2g = WidgetToGraphics(; measure, theme = widget_theme)
+    graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)
+    w2g = WidgetToGraphics(; measure, theme = widget_theme, graphics_theme)
     text_theme = get_scaled_theme!(appearance, TextTheme)
     # Prose: a text document, at the prose spacing of the text theme.
     text = TextToGraphics(; measure, theme = text_theme,
                           line_spacing = make_style_field(TextTheme, text_theme, LineSpacing;
                                                           name = :prose_line_spacing))
-    graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)
     # A stack of blocks draws the ring of the graphics theme, as every layout does.
     stack() = VerticalLayoutToGraphicsCanvas(;
         graphics_style = make_theme_values_field(GraphicsTheme, graphics_theme))

@@ -38,6 +38,7 @@ using ..ProjectionModule
 using ..ReferenceModule
 using ..SelectionModule
 using ..FocusModule
+using ..GraphicsModule
 using ..GestureHelpModule
 using ..GestureLogModule
 using ..HelpModule

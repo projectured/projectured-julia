@@ -167,7 +167,8 @@ function make_application_content_projections(; measure = FontFileMeasure(),
                 substitute = FaultToWidget())),
             RecursiveProjection(FaultCatchingProjection(
                 inner = WidgetToGraphics(; measure = measure,
-                                         theme = get_scaled_theme!(appearance, WidgetTheme)),
+                                         theme = get_scaled_theme!(appearance, WidgetTheme),
+                                         graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)),
                 substitute = FaultToGraphics()))),
         # A tab of its own: the pane group hands the assistant's own split pane
         # to a fresh renderer, rather than re-entering the one already dispatching

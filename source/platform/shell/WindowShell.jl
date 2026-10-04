@@ -65,6 +65,7 @@ make_window_shell_projection(projection; measure::TextMeasure = FontFileMeasure(
                              appearance::Appearance = Appearance()) =
     RecursiveProjection(TypeDispatchingProjection(vcat(
         WidgetToGraphics(; measure = measure,
-                         theme = get_scaled_theme!(appearance, WidgetTheme)).dispatch,
+                         theme = get_scaled_theme!(appearance, WidgetTheme),
+                         graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)).dispatch,
         Pair{Type,Any}[Any => NestingProjection(projection;
                                                 recursion = IdentityProjection())])))

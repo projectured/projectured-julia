@@ -19,7 +19,8 @@ docstring that says what it draws, which the appearance tab shows under its name
 
 The text styles, the hover layer and the pressed layer are no fields: a widget
 derives them from the fonts and the palette, so they follow a change of either.
-A widget projection reads a scaled theme through its `UntrackedCell` style fields.
+A widget projection holds its styles as `UntrackedCell` fields, and no theme: its
+builder fills them from a theme, scaled or not.
 """
 @theme struct WidgetTheme
     # ── Palette ──
@@ -116,6 +117,16 @@ A widget projection reads a scaled theme through its `UntrackedCell` style field
     form_row_gap::Spacing = Spacing(8)
     "The indent of a level of a tree."
     indent::Spacing = Spacing(12)
+    "The offset of the shadow under a button."
+    shadow_offset::Spacing = Spacing(2)
+    "How far the chevron of a card sits under the middle line of its header."
+    chevron_nudge::Spacing = Spacing(1)
+    "The space between the edge of a toggle group and its toggles."
+    toggle_group_padding::Spacing = Spacing(2)
+    "The space between the + and − marks of a spin box and the edge of its stepper."
+    stepper_glyph_inset::Spacing = Spacing(3)
+    "The space above the open body of an accordion item."
+    accordion_body_gap::Spacing = Spacing(2)
     # ── Radii ──
     "The radius of the corners of a control, a card and a popup."
     radius::Radius = Radius(6)
@@ -156,6 +167,10 @@ A widget projection reads a scaled theme through its `UntrackedCell` style field
     tree_chevron_column::IconSize = IconSize(16)
     "The width of the column of the icons of a tree."
     tree_icon_column::IconSize = IconSize(20)
+    "The size of an icon beside a text, as a part of the height of a line of that text."
+    icon_size::IconSize = IconSize(1.0)
+    "The smallest size of the + and − marks of a spin box."
+    stepper_glyph_minimum::IconSize = IconSize(8)
 end
 
 # ── Presets ─────────────────────────────────────────────────────────────────
@@ -226,7 +241,7 @@ get_theme_presets(::Type{WidgetTheme}) =
     Pair{String,Any}["Slate light" => make_slate_light_theme, "Slate dark" => make_slate_dark_theme,
                      "Light" => make_light_theme, "Dark" => make_dark_theme]
 
-# ── Values that a widget derives from a scaled theme ────────────────────────
+# ── Values that a widget derives from a theme ───────────────────────────────
 
 # The same color at another alpha: what makes a layer or a highlight read over the
 # surface that it covers, and not in place of it.
@@ -234,49 +249,41 @@ _with_alpha(color::StyleColor, alpha::Real) =
     StyleColor(color.red, color.green, color.blue, Float64(alpha))
 
 # The four text styles, and the layers of a hovered and of a pressed widget. They
-# are no fields of the theme, so they follow the fonts and the palette.
-_get_body_text(theme::ScaledWidgetTheme) = StyleText(theme.font, theme.foreground)
-_get_title_text(theme::ScaledWidgetTheme) = StyleText(theme.font_bold, theme.foreground)
-_get_caption_text(theme::ScaledWidgetTheme) = StyleText(theme.font_small, theme.muted_foreground)
-_get_label_text(theme::ScaledWidgetTheme) = StyleText(theme.font, theme.foreground)
-_get_hover_layer(theme::ScaledWidgetTheme) = _with_alpha(theme.primary, 0.12)
-_get_pressed_layer(theme::ScaledWidgetTheme) = _with_alpha(theme.primary, 0.20)
+# are no fields of the theme, so they follow the fonts and the palette. Each takes
+# the values of a widget theme, scaled or not (`get_theme_values`).
+_get_body_text(theme) = StyleText(theme.font, theme.foreground)
+_get_title_text(theme) = StyleText(theme.font_bold, theme.foreground)
+_get_caption_text(theme) = StyleText(theme.font_small, theme.muted_foreground)
+_get_label_text(theme) = StyleText(theme.font, theme.foreground)
+_get_hover_layer(theme) = _with_alpha(theme.primary, 0.12)
+_get_pressed_layer(theme) = _with_alpha(theme.primary, 0.20)
 
-# The ring around a part selected as a whole, and the band of a selected row. They
-# are values of the graphics theme of the appearance of `theme`, which the layouts
-# under the widgets draw with too. A constructor reads them, and a print does not.
-_get_graphics_theme(theme::ScaledWidgetTheme) =
-    get_scaled_theme!(get_theme_appearance(theme), GraphicsTheme)
-_make_graphics_style(theme::ScaledWidgetTheme) =
-    make_theme_values_field(GraphicsTheme, _get_graphics_theme(theme))
-_make_selected_row_color(theme::ScaledWidgetTheme) =
-    make_theme_cell(StyleColor, _get_graphics_theme(theme), scaled -> _with_alpha(scaled.selection_ring, 0.25))
+# The ring around a part selected as a whole, and the band of a selected row: values
+# of the graphics theme `graphics_theme`, scaled or not, or of the default graphics
+# theme for `nothing`. The layouts under the widgets draw with the same theme. A
+# constructor reads them, and a print does not.
+_make_graphics_style(graphics_theme) = make_theme_values_field(GraphicsTheme, graphics_theme)
+_make_selected_row_color(graphics_theme) =
+    graphics_theme === nothing ?
+        _with_alpha(get_theme_defaults(GraphicsTheme).selection_ring, 0.25) :
+        make_theme_cell(StyleColor, graphics_theme, values -> _with_alpha(values.selection_ring, 0.25))
 
 # The gap between the items that a builder of widgets puts in a row or a column:
-# the `item_gap` of the scaled widget theme `theme`, or of the default theme for
+# the `item_gap` of the widget theme `theme`, or of the default theme for
 # `nothing`. A builder that runs outside a printer takes the theme of its caller.
 _get_bar_item_gap(theme) = _get_theme_values(theme).item_gap
 
-# The values of the scaled widget theme `theme`, or of the default theme for
+# The values of the widget theme `theme`, scaled or not, or of the default theme for
 # `nothing`, for a builder that runs outside a printer.
-_get_theme_values(theme) = theme === nothing ? get_theme_defaults(WidgetTheme) : theme
+_get_theme_values(theme) = theme === nothing ? get_theme_defaults(WidgetTheme) : get_theme_values(theme)
 
 # The inset of `width` on every side, for a border.
 _make_uniform_inset(width::Integer) = Inset(width, width, width, width)
 
-# A small offset of a widget that is no value of the theme, times the spacing
-# scale of the appearance of `theme`.
-_scale_space(length, theme::ScaledWidgetTheme) =
-    scale_length(length, get_theme_appearance(theme).spacing_scale)
-
-# The icon scale of the appearance of `theme`. The box of a named icon is the box
-# that its widget gives, times this scale.
-_get_icon_scale(theme::ScaledWidgetTheme) = get_theme_appearance(theme).icon_scale
-
 """
     _themed(T, theme, f) -> UntrackedCell{T}
 
-A style field of a widget projection: [`make_theme_cell`](@ref) of the scaled
-widget theme `theme`.
+A style field of a widget projection: [`make_theme_cell`](@ref) of the widget
+theme `theme`, scaled or not.
 """
-_themed(::Type{T}, theme::ScaledWidgetTheme, f) where {T} = make_theme_cell(T, theme, f)
+_themed(::Type{T}, theme, f) where {T} = make_theme_cell(T, theme, f)

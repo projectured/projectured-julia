@@ -236,7 +236,8 @@ function __init__()
                                                         substitute = FaultToWidget())),
             RecursiveProjection(FaultCatchingProjection(
                 inner = WidgetToGraphics(; measure = measure,
-                                         theme = get_scaled_theme!(appearance, WidgetTheme)),
+                                         theme = get_scaled_theme!(appearance, WidgetTheme),
+                                         graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)),
                 substitute = FaultToGraphics()))),
     ])
 end

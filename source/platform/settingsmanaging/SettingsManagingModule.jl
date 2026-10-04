@@ -27,6 +27,7 @@ using ..EditorModule
 using ..EventModule
 using ..GestureBindingModule
 using ..GestureModule
+using ..GraphicsModule
 using ..IntentModule
 using ..IoMapModule
 using ..LayoutModule
@@ -64,7 +65,8 @@ include("SettingsToWidget.jl")
 # every renderer builds its own projection instances.
 function __init__()
     register_natural_graphics!(:settings, (; measure, appearance) -> begin
-        widgets = WidgetToGraphics(; measure, theme = get_scaled_theme!(appearance, WidgetTheme))
+        widgets = WidgetToGraphics(; measure, theme = get_scaled_theme!(appearance, WidgetTheme),
+                                   graphics_theme = get_scaled_theme!(appearance, GraphicsTheme))
         pane = last(only(row for row in widgets.dispatch if first(row) === WidgetScrollPane))
         Pair{Type,Any}[Settings => ChainingProjection(
             SettingsToWidget(; theme = get_scaled_theme!(appearance, WidgetTheme)), pane)]

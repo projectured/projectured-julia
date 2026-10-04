@@ -123,7 +123,7 @@ The `context_menu` field of `WidgetShell` holds the menu of the window itself. T
 
 ## How it fits
 
-The shell slice depends on the kernel and on the clipboard, domain, file-format, file-system, focus, gesturehelp, gesturelog, help, pane, projection, screen, style, tooltip and widget slices. The help slice gives the Help menu its three documents; [help.md](../help/help.md) describes them. Six more slices are there for the tools of the toolbar: assistant, conversation, fault, inspector, log and statistics. None of them depends on the shell.
+The shell slice depends on the kernel and on the clipboard, domain, file-format, file-system, focus, gesturehelp, gesturelog, graphics, help, pane, projection, screen, style, tooltip and widget slices. The help slice gives the Help menu its three documents; [help.md](../help/help.md) describes them. Six more slices are there for the tools of the toolbar: assistant, conversation, fault, inspector, log and statistics. None of them depends on the shell.
 
 The [application slice](../application/application.md) builds its window with the wrappers of `build_editor` and the chrome of this slice, and a downstream window host uses the same toolbar. The [display slice](../display/display.md) turns the `shell` wrapper on by its keyword, and does not depend on this slice. The shell slice has no `__init__` and registers no row or file type. A binary calls its functions.
 
