@@ -369,7 +369,9 @@ suites that build a themed view, and the images of both tabs.
    - `test_platform`: 90983 pass, 8 broken, and the one failure of `main`
      (`FileSystemDocumentTest.jl:42`).
    - `test_integration`: 1201817 pass, 1578 broken, and 2 errors, which are
-     `@test_broken` assertions of `ClickRoundtripTest.jl:323` that pass.
+     `@test_broken` assertions of `ClickRoundtripTest.jl:323` that pass. They
+     come from `test_text_navigation_invariants_all`, which gives 377 pass, 2
+     errors and 10 broken on the branch and on `main` alike.
    - A fresh precompile prints a warning of a stack overflow on `main` too.
    - `test_all` as one process does not fit in 8 GB, because its precompile
      runs many packages at a time; its groups run in three processes instead.
