@@ -307,6 +307,68 @@ function compute_contrast_ratio(a::StyleColor, b::StyleColor)
 end
 
 """
+    convert_color_to_oklch(color) -> (lightness, chroma, hue)
+
+`color` in OKLCH: its perceived lightness from 0 to 1, its chroma, and its hue
+angle in degrees. The alpha of `color` takes no part.
+"""
+function convert_color_to_oklch(color::StyleColor)
+    lightness, a, b = _convert_color_to_oklab(color)
+    (lightness, hypot(a, b), mod(rad2deg(atan(b, a)), 360.0))
+end
+
+"""
+    convert_oklch_to_color(lightness, chroma, hue; alpha = 1) -> StyleColor
+
+The colour of a point of OKLCH. A point outside sRGB takes the most chroma at its
+lightness and its hue that stays inside, so the hue and the lightness hold.
+"""
+function convert_oklch_to_color(lightness::Real, chroma::Real, hue::Real; alpha::Real = 1.0)
+    a, b = cosd(hue), sind(hue)
+    inside(c) = all(x -> -1e-6 <= x <= 1 + 1e-6, _convert_oklab_to_linear(lightness, c * a, c * b))
+    if !inside(chroma)
+        low, high = 0.0, Float64(chroma)
+        for _ in 1:30
+            middle = (low + high) / 2
+            inside(middle) ? (low = middle) : (high = middle)
+        end
+        chroma = low
+    end
+    _convert_linear_to_color(_convert_oklab_to_linear(lightness, chroma * a, chroma * b), alpha)
+end
+
+# OKLab of a colour, and the linear sRGB of a point of OKLab (Björn Ottosson, 2020).
+function _convert_color_to_oklab(color::StyleColor)
+    linear(c) = c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055)^2.4
+    r, g, b = linear(color.red), linear(color.green), linear(color.blue)
+    l = cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+    m = cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+    s = cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+    (0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s,
+     1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
+     0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s)
+end
+function _convert_oklab_to_linear(lightness::Real, a::Real, b::Real)
+    l = (lightness + 0.3963377774 * a + 0.2158037573 * b)^3
+    m = (lightness - 0.1055613458 * a - 0.0638541728 * b)^3
+    s = (lightness - 0.0894841775 * a - 1.2914855480 * b)^3
+    (4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+     -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+     -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s)
+end
+function _convert_linear_to_color(linear, alpha::Real)
+    encode(c) = (c = clamp(c, 0.0, 1.0); c <= 0.0031308 ? 12.92 * c : 1.055 * c^(1 / 2.4) - 0.055)
+    StyleColor(encode(linear[1]), encode(linear[2]), encode(linear[3]), Float64(alpha))
+end
+
+# The colour `fraction` of the way from `a` to `b` in OKLab, with the alpha of `a`.
+function _mix_colors_in_oklab(a::StyleColor, b::StyleColor, fraction::Real)
+    la, lb = _convert_color_to_oklab(a), _convert_color_to_oklab(b)
+    mixed = la .+ (lb .- la) .* fraction
+    _convert_linear_to_color(_convert_oklab_to_linear(mixed...), a.alpha)
+end
+
+"""
     color_lighten_selection(color, selection; default_color=color) -> StyleColor
 
 Lighten `color` based on selection depth.

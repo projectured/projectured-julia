@@ -37,9 +37,10 @@ abstract type Palette end
     TablePalette(name; light, dark, hues, neutrals)
 
 A palette whose ramps are data. `light` and `dark` map the name of each ramp to
-its 12 colours as `#rrggbb` texts; `hues` maps each hue of
+its 12 colours, as `#rrggbb` texts or as colours; `hues` maps each hue of
 [`PALETTE_HUES`](@ref) but `:neutral` to the name of its ramp; `neutrals` names
-the ramps that are neutral, the default first.
+the ramps that are neutral, the default first. [`make_resampled_ramp`](@ref) and
+[`make_generated_ramp`](@ref) make the ramps of a palette that is not data.
 """
 struct TablePalette <: Palette
     name::String
@@ -52,7 +53,7 @@ end
 function TablePalette(name::AbstractString; light::AbstractDict, dark::AbstractDict,
                       hues::AbstractDict, neutrals::AbstractVector)
     ramps(table) = Dict{Symbol,NTuple{12,StyleColor}}(
-        ramp => map(_convert_ramp_text, Tuple(texts)) for (ramp, texts) in table)
+        ramp => map(_convert_ramp_value, Tuple(texts)) for (ramp, texts) in table)
     palette = TablePalette(String(name), ramps(light), ramps(dark), Dict{Symbol,Symbol}(hues),
                            collect(Symbol, neutrals))
     for hue in PALETTE_HUES
@@ -67,11 +68,12 @@ function TablePalette(name::AbstractString; light::AbstractDict, dark::AbstractD
     palette
 end
 
-function _convert_ramp_text(text::AbstractString)
+function _convert_ramp_value(text::AbstractString)
     color = convert_text_to_style_color(text)
     color === nothing && throw(ArgumentError("$(repr(text)) is no colour of a ramp"))
     color
 end
+_convert_ramp_value(color::StyleColor) = color
 
 """
     get_palette_name(palette) -> String
@@ -187,3 +189,74 @@ function _compute_contrasting_color(color::StyleColor, ramp, backgrounds, minimu
     end
     color_interpolate(color, target, high)
 end
+
+# ── Ramps that are not data ─────────────────────────────────────────────────
+
+"""
+    compute_step_lightness(hue, mode) -> NTuple{12,Float64}
+
+The OKLCH lightness of each step of the ramp of `hue` in `mode`, in the Radix
+palette: the lightness that gives each step its purpose. A palette that is not
+data takes it, so its steps keep the same purposes.
+"""
+compute_step_lightness(hue::Symbol, mode::Symbol) =
+    map(color -> convert_color_to_oklch(color)[1],
+        something(find_palette_ramp(RADIX_PALETTE, hue, mode), find_palette_ramp(RADIX_PALETTE, :blue, mode)))
+
+"""
+    compute_step_chroma(hue, mode) -> NTuple{12,Float64}
+
+The OKLCH chroma of each step of the ramp of `hue` in `mode`, in the Radix
+palette, as a part of the chroma of step 9: low at the backgrounds, highest at
+the solid fill.
+"""
+function compute_step_chroma(hue::Symbol, mode::Symbol)
+    ramp = something(find_palette_ramp(RADIX_PALETTE, hue, mode), find_palette_ramp(RADIX_PALETTE, :blue, mode))
+    chroma = map(color -> convert_color_to_oklch(color)[2], ramp)
+    chroma ./ max(chroma[9], 1e-6)
+end
+
+"""
+    make_resampled_ramp(anchors, hue, mode) -> NTuple{12,StyleColor}
+
+A ramp of 12 steps from the colours `anchors` of a ramp of another design, such as
+the 11 shades of a Tailwind colour: each step is the point of the anchors, mixed
+in OKLab, at the lightness that [`compute_step_lightness`](@ref) gives the step
+of `hue` in `mode`. A step lighter than the lightest anchor takes it, and a step
+darker than the darkest takes that.
+"""
+function make_resampled_ramp(anchors::AbstractVector, hue::Symbol, mode::Symbol)
+    colors = sort([_convert_ramp_value(anchor) for anchor in anchors];
+                  by = color -> -convert_color_to_oklch(color)[1])
+    lightness = [convert_color_to_oklch(color)[1] for color in colors]
+    map(compute_step_lightness(hue, mode)) do target
+        target >= lightness[1] && return colors[1]
+        target <= lightness[end] && return colors[end]
+        i = findlast(l -> l >= target, lightness)
+        _mix_colors_in_oklab(colors[i], colors[i + 1],
+                             (lightness[i] - target) / (lightness[i] - lightness[i + 1]))
+    end
+end
+
+"""
+    make_generated_ramp(color, hue, mode; anchor = true) -> NTuple{12,StyleColor}
+
+A ramp of 12 steps around the colour `color`, in OKLCH: each step has the hue
+angle of `color`, the lightness that [`compute_step_lightness`](@ref) gives the
+step of `hue` in `mode`, and the chroma of `color` times the part that
+[`compute_step_chroma`](@ref) gives the step. With `anchor`, step 9 is `color`
+itself, and the steps of the lines and of the solid fill around it, 6 to 10,
+move their lightness toward it, so the ramp keeps its order; the backgrounds and
+the texts keep the lightness of their purpose.
+"""
+function make_generated_ramp(color::StyleColor, hue::Symbol, mode::Symbol; anchor::Bool = true)
+    lightness, chroma, angle = convert_color_to_oklch(color)
+    profile = compute_step_lightness(hue, mode)
+    shift = anchor ? lightness - profile[9] : 0.0
+    steps = map((l, c, w) -> convert_oklch_to_color(clamp(l + shift * w, 0.0, 1.0), chroma * c, angle),
+                profile, compute_step_chroma(hue, mode), _ANCHOR_WEIGHTS)
+    anchor ? ntuple(i -> i == 9 ? color : steps[i], 12) : steps
+end
+
+# How far each step follows the lightness of the anchor of a generated ramp.
+const _ANCHOR_WEIGHTS = (0.0, 0.0, 0.0, 0.0, 0.0, 0.2, 0.4, 0.7, 1.0, 0.9, 0.0, 0.0)

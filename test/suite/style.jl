@@ -31,8 +31,9 @@
 "The folders the rule covers: the code a person writes, and not the tests or the examples."
 const STYLE_ROOTS = ["source"]
 
-"The files that hold style values: the palette and the registry of font faces."
-const STYLE_PLACES = ["source/platform/style/Color.jl", "source/platform/style/FontFace.jl"]
+"The files that hold style values: the palette, the Solarized palette, which takes its colours from it, and the registry of font faces."
+const STYLE_PLACES = ["source/platform/style/Color.jl", "source/platform/style/FontFace.jl",
+                      "source/platform/style/SolarizedPalette.jl"]
 
 "The file whose theme and presets may name a palette colour: the colour theme."
 const STYLE_COLOR_PLACES = ["source/platform/style/ColorTheme.jl"]

@@ -52,10 +52,10 @@ backgrounds, and 7 in a high contrast theme.
     "A grid line and a hairline of a chart."
     grid::StyleColor = PaletteColor(:neutral, 4)
     # ── Accent ──
-    "A solid fill of the accent: a default button, a checked box, a progress bar."
-    accent::StyleColor = PaletteColor(:accent, 9)
+    "A solid fill of the accent: a default button, a checked box, a progress bar; white text reads on it."
+    accent::StyleColor = PaletteColor(:accent, 9; minimum_contrast = 4.5, against = color_white)
     "The solid fill of the accent under the pointer."
-    accent_hover::StyleColor = PaletteColor(:accent, 10)
+    accent_hover::StyleColor = PaletteColor(:accent, 10; minimum_contrast = 4.5, against = color_white)
     "A text in the accent: a link, the current item."
     accent_text::StyleColor = PaletteColor(:accent, 11; minimum_contrast = 4.5)
     "A tint of the accent: the fill of a hovered or a chosen item of a list or a menu."

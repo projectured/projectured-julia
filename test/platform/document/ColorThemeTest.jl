@@ -136,8 +136,8 @@ end
     appearance.color_neutral = :sand
     @test format_style_color(resolve_theme_color(ColorRole(:background), appearance)) == "#111110ff"
     appearance.color_accent = :pink
-    @test resolve_theme_color(ColorRole(:accent), appearance) ==
-          find_palette_ramp(RADIX_PALETTE, :pink, :dark)[9]
+    @test resolve_theme_color(ColorRole(:accent_tint), appearance) ==
+          find_palette_ramp(RADIX_PALETTE, :pink, :dark)[3]
     # A fine-tune of a role in the dark theme stays in the dark theme.
     appearance.color_themes[:dark].field = color_red
     @test scaled.key === color_red

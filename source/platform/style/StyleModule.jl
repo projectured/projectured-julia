@@ -20,7 +20,8 @@ import ..SerializationModule: is_pred_constructible
 
 export StyleColor, make_style_color, format_style_color, convert_text_to_style_color,
        is_color_equal, is_color_transparent, color_interpolate, color_lighten, color_darken,
-       compute_relative_luminance, compute_contrast_ratio,
+       compute_relative_luminance, compute_contrast_ratio, convert_color_to_oklch,
+       convert_oklch_to_color,
        color_lighten_selection, color_darken_selection,
        color_default,
        color_black, color_white, color_transparent, color_red, color_green, color_blue,
@@ -50,8 +51,12 @@ export StyleColor, make_style_color, format_style_color, convert_text_to_style_c
 export PaletteColor, ColorRole, ThemeColor, format_theme_color
 export PALETTE_HUES, Palette, TablePalette, get_palette_name, get_palette_neutrals,
        find_palette_ramp, DEFAULT_PALETTE_NAME, register_palette!, find_palette,
-       get_palette_names, compute_palette_color
+       get_palette_names, compute_palette_color, compute_step_lightness, compute_step_chroma,
+       make_resampled_ramp, make_generated_ramp
 export RADIX_PALETTE
+export TAILWIND_PALETTE
+export SOLARIZED_PALETTE
+export OKLCH_PALETTE
 export StyleFont, make_style_font, font_logical_size, font_device_size, step_factor,
        _FONT_DIR
 export font_ascent, font_descent, font_line_height,
@@ -93,6 +98,9 @@ include("Color.jl")
 include("ThemeColor.jl")
 include("Palette.jl")
 include("RadixPalette.jl")
+include("TailwindPalette.jl")
+include("SolarizedPalette.jl")
+include("OklchPalette.jl")
 include("Font.jl")
 include("TrueType.jl")
 include("FontFace.jl")
