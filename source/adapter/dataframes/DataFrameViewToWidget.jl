@@ -9,7 +9,7 @@
 
 """
     DataFrameViewToWidget(; row_height = 0, row_step = 0, scroll_bar_width,
-                            theme = nothing)
+                            query_field_width, …)
 
 Projects a `DataFrameView` to a `WidgetTable`, which scrolls its own parts, and
 a vertical `WidgetScrollBar` beside it, under the expression bar, in a
@@ -51,8 +51,9 @@ The reader gives the view a key that the table does not take, so the gestures
 of `DataFrameView` answer Ctrl+Home and Ctrl+End. A scroll of the table passes
 on.
 
-`theme` is a `DataFrameTheme`, a scaled one, or `nothing` for the default
-styles: the width of a field of the filter row and of the expression bar, the
+The projection holds its styles and no theme; `make_data_frame_view_projection`
+fills them from the `DataFrameTheme` of its appearance, and with none it holds
+the default styles: the width of a field of the filter row and of the expression bar, the
 gaps of their parts, the color of a query that does not parse and of the
 glyph of a column that does not sort, and `list_column_width`.
 `scroll_bar_width` is the width of the scroll bar beside the table: by default
@@ -62,16 +63,15 @@ one of its appearance.
 @projection UntrackedCell struct DataFrameViewToWidget
     row_height::Int = 0
     row_step::Int = 0
-    scroll_bar_width::Int = get_theme_defaults(WidgetTheme).scroll_bar_thickness
-    theme::Any = nothing
-    query_field_width::Int = _get_data_frame_style(theme, :query_field_width, Int)
-    expression_field_width::Int = _get_data_frame_style(theme, :expression_field_width, Int)
-    find_field_width::Int = _get_data_frame_style(theme, :find_field_width, Int)
-    filter_gap::Int = _get_data_frame_style(theme, :filter_gap, Int)
-    expression_gap::Int = _get_data_frame_style(theme, :expression_gap, Int)
-    invalid_query::StyleColor = _get_data_frame_style(theme, :invalid_query, StyleColor)
-    unsorted_glyph::StyleColor = _get_data_frame_style(theme, :unsorted_glyph, StyleColor)
-    list_column_width::Int = _get_data_frame_style(theme, :list_column_width, Int)
+    scroll_bar_width::Int = get_widget_style(nothing, :scroll_bar_thickness)
+    query_field_width::Int = get_data_frame_style(nothing, :query_field_width)
+    expression_field_width::Int = get_data_frame_style(nothing, :expression_field_width)
+    find_field_width::Int = get_data_frame_style(nothing, :find_field_width)
+    filter_gap::Int = get_data_frame_style(nothing, :filter_gap)
+    expression_gap::Int = get_data_frame_style(nothing, :expression_gap)
+    invalid_query::StyleColor = get_data_frame_style(nothing, :invalid_query)
+    unsorted_glyph::StyleColor = get_data_frame_style(nothing, :unsorted_glyph)
+    list_column_width::Int = get_data_frame_style(nothing, :list_column_width)
 end
 
 @iomap struct DataFrameViewToWidgetIoMap
@@ -359,8 +359,17 @@ function make_data_frame_view_projection(; measure::TextMeasure,
     grid = last(only(p for p in LayoutToGraphics().dispatch if first(p) === GridLayout))
     row_height = UntrackedCell{Int}(@computation ceil(Int, compute_line_box(measure, "M", theme.font).height))
     row_step = UntrackedCell{Int}(@computation row_height[] + 2 * Int(table.cell_padding.top[]) + 1)
-    scroll_bar_width = UntrackedCell{Int}(@computation theme.scroll_bar_thickness)
-    ChainingProjection(DataFrameViewToWidget(; row_height, row_step, scroll_bar_width, theme = frame_theme), grid)
+    scroll_bar_width = get_widget_style(theme, :scroll_bar_thickness)
+    get_style(name) = get_data_frame_style(frame_theme, name)
+    view = DataFrameViewToWidget(; row_height, row_step, scroll_bar_width,
+                                 query_field_width = get_style(:query_field_width),
+                                 expression_field_width = get_style(:expression_field_width),
+                                 find_field_width = get_style(:find_field_width),
+                                 filter_gap = get_style(:filter_gap), expression_gap = get_style(:expression_gap),
+                                 invalid_query = get_style(:invalid_query),
+                                 unsorted_glyph = get_style(:unsorted_glyph),
+                                 list_column_width = get_style(:list_column_width))
+    ChainingProjection(view, grid)
 end
 
 # The name of a column and its element type. A type that allows `missing`

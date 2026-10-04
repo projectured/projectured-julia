@@ -17,9 +17,10 @@ function test_data_frame_theme()
     @test is_color_equal(plain.invalid_query, defaults.invalid_query)
     @test is_color_equal(plain.unsorted_glyph, defaults.unsorted_glyph)
 
+    @test !hasfield(DataFrameViewToWidget, :theme)
     appearance = Appearance(control_scale = 1.5, spacing_scale = 1.5)
-    theme = get_scaled_theme!(appearance, DataFrameTheme)
-    scaled = DataFrameViewToWidget(; theme)
+    chain = make_data_frame_view_projection(; measure = FixedMeasure(8, 12, 4, 0), appearance)
+    scaled = first(chain.projections)
     @test scaled.query_field_width == 120
     @test scaled.expression_field_width == 720
     @test scaled.list_column_width == 240

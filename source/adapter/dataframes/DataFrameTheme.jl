@@ -16,8 +16,9 @@ The theme of the `DataFrameViewToWidget` projection. `@theme` declares it, so
 `ScaledDataFrameTheme` holds each value times its scale, and `DataFrameTheme()`
 is the default theme.
 
-A data frame projection reads the scaled theme through its `UntrackedCell` style
-fields; with no theme it holds the plain values of the default theme. The table
+A data frame projection holds its styles and no theme;
+`make_data_frame_view_projection` gives them with `get_data_frame_style`, and a
+projection built with no styles holds the plain values of the default theme. The table
 and the scroll bar beside it draw with the widget theme of the appearance, not
 with this one.
 """
@@ -43,8 +44,3 @@ with this one.
     "The width and the height of the window of the dialog of the values of a column."
     value_list_window_size::ControlSize = ControlSize(Point2D(400, 460))
 end
-
-# The style field `name` of `theme`, of the kind `T`: a `DataFrameTheme`, a scaled
-# one, or `nothing` for the default values.
-_get_data_frame_style(theme, name::Symbol, ::Type{T}) where {T} =
-    make_style_field(DataFrameTheme, scale_theme(theme), T; name)
