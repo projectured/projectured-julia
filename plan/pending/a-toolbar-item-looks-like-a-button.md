@@ -4,7 +4,9 @@
 > `projectured-julia-toolbar-item` on the branch
 > `toolbar-item-looks-like-a-button`. Written on 2026-10-04 at the owner's
 > request. The owner chose the look on 2026-10-04 (section 3) and answered the
-> two questions the same day (section 6). No question is open.
+> first two questions the same day (section 6). Steps 0 to 5 are done. Two new
+> questions are open (section 7), and the branch waits for the owner's word to
+> land.
 
 ## 1. The request
 
@@ -115,6 +117,16 @@ pressed look. The owner wrote: "I agree with your recommendation".
     ([ChildMove.jl:73](../../source/platform/graphics/ChildMove.jl#L73)). So
     the toolbar can send a down and an up through `_route_toolbar_gesture`,
     which re-roots the answer into `elements[i]`.
+15. **Found in step 5: a toolbar loses its right and bottom padding.** The box of
+    a toolbar has no color by default, and `_push_panel!` pushes nothing for a
+    panel with no color and no outline
+    ([WidgetToGraphics.jl:41](../../source/platform/widget/WidgetToGraphics.jl#L41)).
+    So `_compute_bar_extent` takes the extent from the items alone, and it ends
+    at the right and bottom edges of the last item. `main` has the same code.
+    The new outline shows it: in the image of `widget_toolbar_item`, the outline
+    of the lit "Log" item touches the right and the bottom edges of the toolbar.
+    In the window chrome the gap under the band gives the outline its space.
+    This plan does not fix it (Q3).
 
 ## 3. The decisions
 
@@ -250,7 +262,7 @@ pressed look. The owner wrote: "I agree with your recommendation".
     another session writes it. This branch does not change it. The new use for
     its catalog: `border` is the outline of the layer of a toolbar item.
   - Commit.
-- [ ] **5. The checks.**
+- [x] **5. The checks.**
   - Narrow tests: `test_widget_toolbar()`, `test_widget_button_behavior()`,
     `test_widget_colors()`, `test_pointer_light()`, `test_window_shell()`.
   - Images: `tool/widget-images.jl write after`, then `compare before after`.
@@ -259,6 +271,17 @@ pressed look. The owner wrote: "I agree with your recommendation".
   - The live window: open the editor with the window chrome. Push SDL events:
     a move onto a toolbar button, a left down, a left up. Keep one frame at
     rest, one lit and one held. The owner looks at the three frames.
+  - **Done 2026-10-04.** `test_pointer_light()` 23 of 23, `test_window_shell()`
+    138 of 138; the other tests are in steps 1 to 3. The images: 42 unchanged,
+    `widget_toolbar_item` new. The example in four states, with no window:
+    `/var/tmp/toolbar-item/frames/states.png`. The live window
+    (`/var/tmp/toolbar-item/live.jl`, `build_editor` with `shell = true` on
+    `SdlBackend`, pushed SDL events, pixels read from `res.target`): the
+    Explorer button lit under the pointer and stayed lit after 5 more frames,
+    showed the press while the left button was held down, and ended the press
+    at the release. The frames are in `/var/tmp/toolbar-item/live/`, and
+    `toolbar-states.png` holds the toolbar of each state. A pushed event does
+    not pass the X server, so a press by hand is the last check.
 - [ ] **6. Report, then ask.** Report the commits, the test results, the image
   compare and the frames. Land on `main` only when the owner says so. Then move
   this plan to `plan/done/`.
@@ -270,3 +293,16 @@ pressed look. The owner wrote: "I agree with your recommendation".
   toolbar example, that is fine". So D7 adds a new example, and step 3 makes it.
 - **Q2. A file that holds a toolbar item** (fact 11). A saved window leaves out
   its bands, so no saved file holds the toolbar of a window. Nothing to decide.
+
+## 7. Open questions
+
+- **Q3. The padding of a toolbar** (fact 15). A fix makes the extent of a
+  toolbar include its own padding. A toolbar then grows by its right and
+  bottom padding, so the images of the examples that hold a toolbar can
+  change, and the bands of a window can move by 4 pixels. Claude's recommendation: a separate small change after this
+  branch lands. The owner decides.
+- **Q4. The contrast of the outline.** The outline is `border`
+  (`color_slate_300`) on a band of `color_slate_100`, as on a `WidgetButton`.
+  It is faint. A darker outline is a change of a color, which
+  [one-coherent-color-set.md](one-coherent-color-set.md) decides for every
+  control. The owner looks at the frames and decides.
