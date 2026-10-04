@@ -16,8 +16,9 @@ colors of the typed text of the insertion hole by its commitability. Each
 field has a docstring that says what it draws, which the appearance tab shows
 under its name.
 
-A Julia projection reads the scaled theme through its `UntrackedCell` style
-fields; with no theme it holds the plain values of the default theme.
+The builder gives each Julia projection its styles with `get_julia_style`,
+from a theme scaled or not; a projection built with no styles holds the plain
+values of the default theme.
 """
 @theme struct JuliaTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
@@ -47,9 +48,3 @@ fields; with no theme it holds the plain values of the default theme.
     "The color of the typed text of the insertion while it names one thing."
     found_color::StyleColor = color_solarized_green
 end
-
-# The style field of type `T` of a Julia projection that holds the field `name`
-# of the theme `theme`: a `JuliaTheme`, a scaled one, or `nothing` for the
-# default values.
-_get_julia_style(theme, ::Type{T}, name::Symbol) where {T} =
-    make_style_field(JuliaTheme, scale_theme(theme), T; name)

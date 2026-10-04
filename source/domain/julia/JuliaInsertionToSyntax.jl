@@ -112,10 +112,10 @@ is a `JuliaTheme`, a scaled one, or `nothing` for the default styles.
 end
 
 JuliaInsertionToSyntaxLeaf(; theme = nothing) = JuliaInsertionToSyntaxLeaf(
-    _get_julia_style(theme, StyleText, :plain_text),
-    _get_julia_style(theme, StyleText, :hint_text),
-    _get_julia_style(theme, StyleColor, :wrong_color),
-    _get_julia_style(theme, StyleColor, :found_color))
+    get_julia_style(theme, :plain_text),
+    get_julia_style(theme, :hint_text),
+    get_julia_style(theme, :wrong_color),
+    get_julia_style(theme, :found_color))
 
 # `value{k}` char-cursor ↔ the rendered `SyntaxLeaf`'s value span (identity offset).
 # The completion after the buffer is a part that the leaf printed.

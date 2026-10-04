@@ -55,11 +55,14 @@ A `JuliaFunction` gives its call signature as its tooltip, and a `JuliaDocstring
 ### The theme
 
 `JuliaTheme` holds the look of the Julia projections: the text of an identifier, a literal, punctuation, a keyword, a symbol, an operator, a called function, a module name and plain text, the completion hint, and the colors of a typed name that names nothing and of one that names one thing. Each value has
-the default that the domain draws with no appearance. Each projection takes
-`theme`, a `JuliaTheme` or a scaled one; with none it holds the default values.
-`JuliaToSyntax(entries...; theme, syntax_theme)` gives the theme to every projection, and the entries that a domain adds keep their own styles. The natural
-registration gives the scaled theme of the `Appearance` of the editor, so the view
-follows its scales, and the appearance tab shows a section for `JuliaTheme`.
+the default that the domain draws with no appearance. A projection holds its
+styles as fields, and no theme; nothing in it scales or asks whether a theme is
+scaled. `JuliaToSyntax(entries...; theme, syntax_theme)` gives each projection the style of
+its role with `get_julia_style`, from `theme`, a `JuliaTheme` scaled or not, or the
+default styles for `nothing`, and the entries that a domain adds keep their own
+styles. The natural registration gives the scaled theme of the `Appearance` of
+the editor, so the view follows its scales, and the appearance tab shows a
+section for `JuliaTheme`.
 
 ## How it fits
 
