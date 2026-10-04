@@ -3,9 +3,10 @@
 > **Status:** pending, decided, not started. Part 1, the catalog of every
 > color, is done (2026-10-04). The owner decided the design of Part 2 on
 > 2026-10-04 in two rounds of answers (section 12.1), and no question is open.
-> The work starts after the branch `projection-styles` of
-> [a-projection-holds-its-styles.md](a-projection-holds-its-styles.md) lands,
-> and only on the owner's word. No code changed.
+> The work had to wait for the branch `projection-styles` of
+> [a-projection-holds-its-styles.md](a-projection-holds-its-styles.md); it
+> landed on main at `63a8a5e74` on 2026-10-04. So the work can start, on the
+> owner's word. No code changed.
 
 ## 1. The request
 
@@ -779,13 +780,14 @@ The owner answered each question on 2026-10-04.
 | 4 | Where a fine-tune of a role stays | In the mode and the contrast where the person made it: the appearance holds four color themes. |
 | 5 | The licence of the palette data | The license-compliance-officer checks the licence of the Radix and the Tailwind data before the data enters the code (step C0). |
 | 6 | The 996 names of `Color.jl` with no use | They go when the palettes come (step C1). No file of omnet-julia or inet-julia names one of them (checked on 2026-10-04). |
-| 7 | The order of the work | This work starts after the branch `projection-styles` lands. |
+| 7 | The order of the work | This work starts after the branch `projection-styles` lands. It landed on main at `63a8a5e74` on 2026-10-04. |
 | 8 | The default neutral | Slate: a cool neutral, which goes with the blue accent and is near the widgets now. |
 
 ### 12.14 The steps (sketch)
 
-Not started. The work starts after the branch `projection-styles` lands,
-and only on the owner's word (decision 7).
+Not started. The branch `projection-styles` landed (decision 7), so the work
+starts on the owner's word. It starts from a `main` where a projection holds
+its styles and a builder fills them with `get_<name>_style`.
 
 - **Part C, the colors computed.** C0 the license-compliance-officer checks
   the licence of the Radix and the Tailwind data (decision 5). C1 the palette
