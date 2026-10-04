@@ -87,9 +87,9 @@ The directive needs no parser rule: an unknown directive name becomes an `RstDir
 ### The theme
 
 `RstTheme` holds the look of the RST projections: the text of the markers, the source text, a literal, a target, a value, a reference, a substitution, a directive, an admonition and a section title; for the rendered form the body text, the bold and the italic font, the four title fonts, the color of a title, the caption, the rendered markers, and the gap between the blocks of a page. The color of a role takes the color of the text of its kind. Each value has
-the default that the domain draws with no appearance. Each projection takes
-`theme`, a `RstTheme` or a scaled one; with none it holds the default values.
-`RstToSyntax(; style, theme)` gives the theme to every projection, and the layouts of a page and of a section take `block_gap`. The natural
+the default that the domain draws with no appearance. A projection holds its
+styles as fields, and no theme; nothing in it scales or asks whether a theme is
+scaled. `RstToSyntax(; style, theme)` gives each projection the style of its role with `get_rst_style`, from `theme`, a `RstTheme` scaled or not, or the default styles for `nothing`, and the layouts of a page and of a section take `block_gap` the same way. A section title holds the font of each of its levels and its color as fields, picked by the level while it prints, rather than a `theme` field read at print time. The natural
 registration gives the scaled theme of the `Appearance` of the editor, so the view
 follows its scales, and the appearance tab shows a section for `RstTheme`.
 

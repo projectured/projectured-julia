@@ -18,8 +18,10 @@ the fonts and the colors of the rendered form, plus the gap between the
 blocks of a page. Each field has a docstring that says what it draws, which
 the appearance tab shows under its name.
 
-An RST projection reads the scaled theme through its `UntrackedCell` style
-fields; with no theme it holds the plain values of the default theme.
+The builder gives each RST projection its styles with `get_rst_style`, from a
+theme scaled or not; a projection built with no styles holds the plain values
+of the default theme. A section title holds the font of each level and its
+color, picked by the level while it prints.
 """
 @theme struct RstTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
@@ -68,18 +70,4 @@ fields; with no theme it holds the plain values of the default theme.
     rendered_marker_text::TextRole = TextRole(color_solarized_gray; base = :code_font, family = "DejaVu Sans Mono")
     "The gap between the blocks of an RST page."
     block_gap::Spacing              = Spacing(8)
-end
-
-# The style field of an RST projection that holds the text `name` of the
-# theme `theme`: an `RstTheme`, a scaled one, or `nothing` for the default
-# values.
-_get_rst_style(theme, name::Symbol) = make_style_field(RstTheme, scale_theme(theme), StyleText; name)
-
-# The font of a section title at `level` (1-based; every level past the third
-# takes `title_font`), read from the theme `theme`.
-function _title_font(theme, level::Int)
-    name = level <= 1 ? :title_1_font :
-           level == 2 ? :title_2_font :
-           level == 3 ? :title_3_font : :title_font
-    make_style_field(RstTheme, scale_theme(theme), StyleFont; name)
 end

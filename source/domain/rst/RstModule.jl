@@ -91,14 +91,20 @@ function __init__()
                              extension = ".rst",
                              parse     = parse_rst)
 
-    register_natural_graphics!(:rst_page, (; measure, appearance) -> Pair{Type,Any}[
-        RstRoot    => ChainingProjection(RstRootToVerticalLayout(
-                                             theme = get_scaled_theme!(appearance, RstTheme)),
-                                         VerticalLayoutToGraphicsCanvas()),
-        RstSection => ChainingProjection(RstSectionToVerticalLayout(
-                                             theme = get_scaled_theme!(appearance, RstTheme)),
-                                         VerticalLayoutToGraphicsCanvas()),
-    ])
+    register_natural_graphics!(:rst_page, (; measure, appearance) -> begin
+        theme = get_scaled_theme!(appearance, RstTheme)
+        get_style(name) = get_rst_style(theme, name)
+        title_styles = (title_1_font = get_style(:title_1_font), title_2_font = get_style(:title_2_font),
+                        title_3_font = get_style(:title_3_font), title_font = get_style(:title_font),
+                        title_color = get_style(:title_color))
+        Pair{Type,Any}[
+            RstRoot    => ChainingProjection(RstRootToVerticalLayout(; gap = get_style(:block_gap)),
+                                             VerticalLayoutToGraphicsCanvas()),
+            RstSection => ChainingProjection(RstSectionToVerticalLayout(; gap = get_style(:block_gap),
+                                                                        title_styles...),
+                                             VerticalLayoutToGraphicsCanvas()),
+        ]
+    end)
 end
 
 end # module

@@ -1,8 +1,8 @@
 # The RST syntax follows the scales of the appearance: the natural renderer
 # gives the RST projections the scaled `RstTheme` of its appearance, so at a
 # font scale of 1.5 every text of an RST document is 1.5 times as large in the
-# source form and in the rendered form, and an RST projection with no theme has
-# the default styles.
+# source form and in the rendered form, and an RST projection that a builder
+# gives no style has the default styles.
 
 # The size of the font of each text the rendered RST form draws for `document`
 # with `appearance`, in a fixed measure: the source form goes through the
@@ -34,9 +34,16 @@ Some *em* text.
 
     @test RstTextToSyntaxLeaf().style.font.size == 14
     theme = get_scaled_theme!(Appearance(font_scale = 1.5), RstTheme)
-    leaf = RstTextToSyntaxLeaf(; theme)
+    leaf = RstTextToSyntaxLeaf(; style = get_rst_style(theme, :source_text))
     @test leaf.style.font.size == 21
     @test is_color_equal(leaf.style.color, RstTheme().source_text.color)
+    # A projection holds its styles and no theme, and its builder reads a theme
+    # that is not scaled as at no scale.
+    @test !hasfield(RstTextToSyntaxLeaf, :theme)
+    @test !hasfield(RstSectionToStyledNode, :theme)
+    @test !hasfield(RstSectionToVerticalLayout, :theme)
+    built = RstToSyntax(; theme = RstTheme())
+    @test unwrap_cell(only(rule for rule in built.dispatch if first(rule) === RstText)[2].style).font.size == 14
 
     # The rendered form: a section title takes a bigger font than the body, and
     # both scale with the appearance — headings scale too.
