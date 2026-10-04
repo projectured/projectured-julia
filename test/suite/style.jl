@@ -32,10 +32,7 @@ const STYLE_ROOTS = ["source"]
 const STYLE_PLACES = ["source/platform/style/Color.jl", "source/platform/style/FontFace.jl"]
 
 "The files whose values wait for a decision of the owner, with the reason."
-const STYLE_EXEMPT_FILES = Dict(
-    "source/domain/julia/JuliaCodePieces.jl" =>
-        "the colors of the pieces of code wait for a decision of the owner",
-)
+const STYLE_EXEMPT_FILES = Dict{String,String}()
 
 # A length type and the arguments of its call, up to the first parenthesis.
 const STYLE_LENGTH = r"\b(?:Inset|Spacing|Radius|LineWidth|ControlSize|IconSize)\(([^()]*)"

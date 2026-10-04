@@ -373,6 +373,7 @@ WidgetLabelToGraphicsCanvas(theme; measure,
     focus_ring_stroke::StyleStroke                # the widget holds the focus
     graphics_style::NamedTuple                    # the ring of the widget selected as a whole
     corner_radius::Int
+    appearance::Any                               # whose theme of a language colors a field of code
 end
 
 WidgetTextToGraphicsCanvas(theme; graphics_theme = nothing, measure,
@@ -393,11 +394,13 @@ WidgetTextToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                            focus_ring_stroke =
                                _themed(StyleStroke, theme, t -> StyleStroke(t.ring, t.ring_width)),
                            graphics_style = _make_graphics_style(graphics_theme),
-                           corner_radius = _themed(Int, theme, t -> t.radius)) =
+                           corner_radius = _themed(Int, theme, t -> t.radius),
+                           appearance = theme isa ScaledTheme ? get_theme_appearance(theme) : nothing) =
     WidgetTextToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                padding_color, content_color, padding_disabled_color,
                                content_disabled_color, label_text, label_disabled_text,
-                               placeholder_text, focus_ring_stroke, graphics_style, corner_radius)
+                               placeholder_text, focus_ring_stroke, graphics_style, corner_radius,
+                               appearance)
 
 @projection UntrackedCell struct WidgetCheckboxToGraphicsCanvas
     measure::TextMeasure
@@ -1688,12 +1691,12 @@ end
 # the edit is again a range of the field.
 
 # The spans of a field of code: a span for each piece of its text, in the color
-# of the piece, or of the field.
-function _make_code_spans(w, style::StyleText)
+# of the piece, or of the field. `appearance` gives the colors of the language.
+function _make_code_spans(w, style::StyleText, appearance)
     text = string(w.content)
     spans = Any[]
     start = 1
-    for (count, color) in _get_plain_text_pieces(w, text)
+    for (count, color) in _get_plain_text_pieces(w, text, appearance)
         stop = count == 0 ? start - 1 : nextind(text, start, count) - 1
         push!(spans, TextString(text[start:min(stop, lastindex(text))],
                                 color === nothing ? style : StyleText(style.font, color)))
@@ -1703,16 +1706,16 @@ function _make_code_spans(w, style::StyleText)
 end
 
 # The pieces of the text of `w`: one, or the pieces of the code of its language.
-function _get_plain_text_pieces(w, text::AbstractString)
+function _get_plain_text_pieces(w, text::AbstractString, appearance)
     language = hasproperty(w, :language) ? w.language : nothing
     language === nothing && return Tuple{Int,Any}[(length(text), nothing)]
-    Base.invokelatest(compute_code_pieces, Val(language), text)
+    Base.invokelatest(compute_code_pieces, Val(language), text, appearance)
 end
 
-function _make_plain_text_view(w, style::StyleText)
+function _make_plain_text_view(w, style::StyleText, appearance)
     language = hasproperty(w, :language) ? w.language : nothing
     view = language === nothing ? TextBlock(TextString(() -> string(w.content), style)) :
-                                  TextBlock(() -> _make_code_spans(w, style))
+                                  TextBlock(() -> _make_code_spans(w, style, appearance))
     set_cell_computation!(getfield(view, :selection),
                           () -> _get_plain_text_caret(w.selection))
     set_cell_computation!(getfield(view, :mouse_target),
@@ -1720,8 +1723,10 @@ function _make_plain_text_view(w, style::StyleText)
     view
 end
 
-function _print_plain_text_view(p, recursion, w, style::StyleText, ctx)
-    view = _make_plain_text_view(w, style)
+# `appearance` is the appearance of a field of code, whose theme of its language
+# gives the colors, or `nothing`.
+function _print_plain_text_view(p, recursion, w, style::StyleText, ctx; appearance = nothing)
+    view = _make_plain_text_view(w, style, appearance)
     measure = p.measure
     make_reconciled_child_iomap_cell(() -> view,
                           v -> print_document(TextToGraphics(measure = measure), recursion, v, ctx))
@@ -1763,9 +1768,11 @@ function _map_plain_text_reference(w, reference)
        steps[2] isa RangeReferenceStep &&
        steps[3] isa FieldReferenceStep && steps[3].name == "content"
         # A range in span `k` of the pieces is that range moved by the length of
-        # the spans before it.
+        # the spans before it. The lengths do not depend on the colors, so the
+        # pieces need no appearance.
         text = string(w.content)
-        before = sum((first(piece) for piece in _get_plain_text_pieces(w, text)[1:steps[2].start]); init = 0)
+        before = sum((first(piece) for piece in _get_plain_text_pieces(w, text, nothing)[1:steps[2].start]);
+                     init = 0)
         return _make_content_range_reference(before + range.start, before + range.stop)
     end
     nothing
@@ -1794,7 +1801,8 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
     content_ctx = _get_inner_content_context(p, w, ctx)
     content_iomap = w.content isa Document ?
         make_reconciled_child_iomap_cell(() -> w.content, c -> print_child(recursion, c, content_ctx)) :
-        _print_plain_text_view(p, recursion, w, _get_state_text(p, w, :label; state), content_ctx)
+        _print_plain_text_view(p, recursion, w, _get_state_text(p, w, :label; state), content_ctx;
+                               appearance = p.appearance)
     build = Cell(@computation begin
         radius = p.corner_radius
         inner = content_iomap[].output::GraphicsCanvas

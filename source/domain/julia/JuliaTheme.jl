@@ -29,6 +29,8 @@ values of the default theme.
     literal_text::TextRole = TextRole(color_solarized_green)
     "A quote, a delimiter, a separator, a brace and a fence."
     punctuation_text::TextRole = TextRole(color_solarized_gray)
+    "A comment, in a field of code that colors Julia as a person types it."
+    comment_text::TextRole = TextRole(color_solarized_gray)
     "A keyword, `true`, `false` and `nothing`."
     keyword_text::TextRole = TextRole(color_solarized_magenta; weight = 700)
     "A symbol, `<:`, `->`, and the dollar sign of a string interpolation."

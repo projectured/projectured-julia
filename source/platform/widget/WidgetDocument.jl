@@ -154,15 +154,16 @@ function WidgetText(content; position::Point2D=Point2D(0, 0),
 end
 
 """
-    compute_code_pieces(language::Val, text::AbstractString) -> Vector{Tuple{Int,Any}}
+    compute_code_pieces(language::Val, text::AbstractString, appearance) -> Vector{Tuple{Int,Any}}
 
 The pieces of `text` in a field of code in `language`, such as `Val(:julia)`, in
 order: the count of the characters of each piece, and its `StyleColor`, or
 `nothing` for the color of the field. The counts add up to the length of the
-text. The default is one piece of the color of the field; the package of a
-language adds a method for it.
+text. `appearance` is the `Appearance` of the field, whose theme of the language
+gives the colors, or `nothing` for the default theme. The default is one piece of
+the color of the field; the package of a language adds a method for it.
 """
-compute_code_pieces(::Val, text::AbstractString) = Tuple{Int,Any}[(length(text), nothing)]
+compute_code_pieces(::Val, text::AbstractString, appearance) = Tuple{Int,Any}[(length(text), nothing)]
 
 set_cell_computation!(w::WidgetText, f::Function) = (set_cell_computation!(getfield(w, :content), f); w)
 

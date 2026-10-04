@@ -3,7 +3,7 @@ mutable struct _WidgetTextMockEditor
 end
 
 # A language of the tests: its first character is red.
-ProjecturedPlatform.WidgetModule.compute_code_pieces(::Val{:widget_text_test_code}, text::AbstractString) =
+ProjecturedPlatform.WidgetModule.compute_code_pieces(::Val{:widget_text_test_code}, text::AbstractString, appearance) =
     isempty(text) ? Tuple{Int,Any}[(0, nothing)] : Tuple{Int,Any}[(1, color_red), (length(text) - 1, nothing)]
 
 function test_widget_text_editing()

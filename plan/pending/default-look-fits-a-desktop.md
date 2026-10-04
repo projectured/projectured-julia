@@ -429,6 +429,18 @@ recommendation: "agreed on all". Section 5 logs them as D8 to D12.
   text stage draws at that spacing when its context holds one. So a value in a
   cell and the number of its row stand on one line. The owner: "option A is
   ok".
+- **D28** (2026-10-04, T2). A field of Julia code, such as the filter box of a
+  data frame, takes the colors of its tokens from the text roles of the
+  `JuliaTheme` of its appearance, so the same code looks the same in the field
+  and in the code view, and an edit in the appearance tab reaches the field.
+  Later the field draws through the Julia domain and does not tokenize the code
+  again (section 9). The owner: "yes but eventually it should be using the
+  julia domain and should not reimplement".
+- **D29** (2026-10-04, T2). The views of the view registry of omnet-julia get the
+  appearance of the editor after the first release. The owner: "agreed".
+- **D30** (2026-10-04, T2). The color swatch of the appearance tab is a widget
+  of its own kind now, which draws a square of a given size. The owner: "add a
+  swatch now".
 - **D15** (2026-10-02, T1). The pointer ring and the fault band of the video
   backend, and the glyph cursor of the SDL backend, stay as they are: they mark
   a recording or the system cursor, not the look of the editor.
@@ -567,8 +579,16 @@ inet-julia uses, the same step changes them, so that they always load.
     (window chrome, assistant, object card, pane border); the selection ring
     and the fault mark of the graphics and layout slices, below every theme;
     the colors of `compute_code_pieces`. The owner did not understand the
-    question about the colors of `compute_code_pieces` (2026-10-02). It stays
-    open, and no step does work on it.
+    question about the colors of `compute_code_pieces` (2026-10-02). It stayed
+    open until D28. *Done (2026-10-04):* `compute_code_pieces(language, text,
+    appearance)` takes the appearance of the field, which the printer of
+    `WidgetText` holds; the Julia method reads the text role of each token
+    from the `JuliaTheme` of that appearance, unscaled because a color does
+    not scale, or from the default theme. `JuliaTheme` gets `comment_text`.
+    `true`, `false` and `nothing` take `keyword_text`, as the theme says, and
+    `missing` is a name, which keeps the color of the field. A symbol is
+    magenta, as in the code view. The style guard exempts no file now. The
+    Julia piece test, the text field test and `test_dataframes` pass.
   - Open, found in the rebase onto main (2026-10-04): the panel of the newest
     gestures. `GestureLogTheme.panel_background` is a translucent black, and
     the panel that the `gesture_log` wrapper puts over a window is an opaque
@@ -889,6 +909,10 @@ runs `Pkg.precompile` and the tests of each package that a step touches.
 - A text size that follows the settings of the desktop.
 - A dark theme that follows the operating system.
 - A text without a font that takes the font of the theme (D11).
+- A field of Julia code that draws through the Julia domain, in place of the
+  tokens of `compute_code_pieces` (D28).
+- The appearance of the editor for the views of the view registry of
+  omnet-julia (D29).
 
 ## 10. Findings during the work
 
