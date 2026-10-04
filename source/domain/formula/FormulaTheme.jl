@@ -17,8 +17,9 @@ name, an operator and a result, and the plain font of an environment's lines.
 Each field has a docstring that says what it draws, which the appearance tab
 shows under its name.
 
-A Formula projection reads the scaled theme through its `UntrackedCell` style
-fields; with no theme it holds the plain values of the default theme.
+The builder gives each Formula projection its styles with `get_formula_style`,
+from a theme scaled or not; a projection built with no styles holds the plain
+values of the default theme.
 """
 @theme struct FormulaTheme
     "The \"insert formula\" placeholder."
@@ -35,17 +36,9 @@ fields; with no theme it holds the plain values of the default theme.
     plain_font::StyleFont = StyleFont("Ubuntu Mono", 14)
 end
 
-# The style field of type `T` of a Formula projection that holds the field
-# `name` of the theme `theme`: a `FormulaTheme`, a scaled one, or `nothing` for
-# the default values.
-_get_formula_style(theme, ::Type{T}, name::Symbol) where {T} =
-    make_style_field(FormulaTheme, scale_theme(theme), T; name)
-
 # The font that a plain Formula projection field draws with: the font of
-# `plain_font`, read from the scaled theme, or from the default theme with no
-# theme.
+# `plain_font` in the theme `theme`, scaled or not.
 function _get_formula_font(theme)
-    scaled = scale_theme(theme)
-    scaled === nothing ? get_theme_defaults(FormulaTheme).plain_font :
-                         make_theme_cell(StyleFont, scaled, s -> s.plain_font)
+    theme === nothing && return get_theme_defaults(FormulaTheme).plain_font
+    make_theme_cell(StyleFont, theme, values -> values.plain_font)
 end

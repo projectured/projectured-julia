@@ -44,11 +44,14 @@ The domain has no file type and no parser of its own. It stores formulas in `.pr
 ### The theme
 
 `FormulaTheme` holds the look of the Formula projections: the text of the insertion, a reference, a name, an operator and a result, and the plain font of an environment. Each value has
-the default that the domain draws with no appearance. Each projection takes
-`theme`, a `FormulaTheme` or a scaled one; with none it holds the default values.
-`FormulaToSyntax(; theme, julia_theme, syntax_theme)` gives the theme to every projection, and the Julia code of a formula takes `julia_theme`. The natural
-registration gives the scaled theme of the `Appearance` of the editor, so the view
-follows its scales, and the appearance tab shows a section for `FormulaTheme`.
+the default that the domain draws with no appearance. A projection holds its
+styles as fields, and no theme; nothing in it scales or asks whether a theme is
+scaled. `FormulaToSyntax(; theme, julia_theme, syntax_theme)` gives each
+projection the style of its role with `get_formula_style`, from `theme`, a
+`FormulaTheme` scaled or not, or the default styles for `nothing`, and the
+Julia code of a formula takes `julia_theme`. The natural registration gives the
+scaled theme of the `Appearance` of the editor, so the view follows its
+scales, and the appearance tab shows a section for `FormulaTheme`.
 
 ## How it fits
 

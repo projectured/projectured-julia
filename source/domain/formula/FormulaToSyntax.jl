@@ -40,8 +40,7 @@ function _make_forward_path_leaf(p, input, make_leaf)
 end
 
 @projection UntrackedCell struct FormulaInsertionToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_formula_style(theme, StyleText, :insertion_text)
+    style::StyleText = get_formula_style(nothing, :insertion_text)
 end
 
 print_document(p::FormulaInsertionToSyntaxLeaf, recursion, b::FormulaInsertion, ctx) =
@@ -56,8 +55,7 @@ print_document(p::FormulaInsertionToSyntaxLeaf, recursion, b::FormulaInsertion, 
 # selects the whole reference).
 
 @projection UntrackedCell struct FormulaReferenceToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_formula_style(theme, StyleText, :reference_text)
+    style::StyleText = get_formula_style(nothing, :reference_text)
 end
 
 print_document(p::FormulaReferenceToSyntaxLeaf, recursion, r::FormulaReference, ctx) =
@@ -82,11 +80,10 @@ print_document(p::FormulaReferenceToSyntaxLeaf, recursion, r::FormulaReference, 
 # delegation; its output child index depends on the mode.
 
 @projection UntrackedCell struct FormulaFormulaToSyntaxNode
-    theme::Any = nothing
-    name::StyleText = _get_formula_style(theme, StyleText, :name_text)
-    op::StyleText   = _get_formula_style(theme, StyleText, :operator_text)
+    name::StyleText = get_formula_style(nothing, :name_text)
+    op::StyleText   = get_formula_style(nothing, :operator_text)
     # The result run shares the op font but is coloured distinctly (green).
-    result::StyleText = _get_formula_style(theme, StyleText, :result_text)
+    result::StyleText = get_formula_style(nothing, :result_text)
 end
 
 # Flatten a result TextBlock into a single rendered string.
@@ -189,8 +186,7 @@ end
 # A plain list — one formula per line — like BookmarkList in the tutorial.
 
 @projection UntrackedCell struct FormulaEnvironmentToSyntaxNode
-    theme::Any = nothing
-    font::StyleFont = _get_formula_font(theme)
+    font::StyleFont = _get_formula_font(nothing)
 end
 
 function print_document(p::FormulaEnvironmentToSyntaxNode, recursion, e::FormulaEnvironment, ctx)
@@ -253,15 +249,18 @@ end
 # JuliaToSyntax / JsonToSyntax / BookToSyntax); callers wrap it once in a
 # `RecursiveProjection` so node projections can recurse children.
 #
-# `theme` is a `FormulaTheme`, a scaled one, or `nothing` for the default
-# styles; `julia_theme` and `syntax_theme` style the Julia nodes a formula's
-# code is built from, through `JuliaToSyntax`.
+# The builder gives each projection the style of its role with
+# `get_formula_style`, from `theme`, a `FormulaTheme` scaled or not, or the
+# default styles for `nothing`; `julia_theme` and `syntax_theme` style the
+# Julia nodes a formula's code is built from, through `JuliaToSyntax`.
 function FormulaToSyntax(; theme = nothing, julia_theme = nothing, syntax_theme = nothing)
-    theme = scale_theme(theme)
+    get_style(name) = get_formula_style(theme, name)
     JuliaToSyntax(
-        FormulaInsertion   => FormulaInsertionToSyntaxLeaf(; theme),
-        FormulaReference   => FormulaReferenceToSyntaxLeaf(; theme),
-        FormulaFormula     => FormulaFormulaToSyntaxNode(; theme),
-        FormulaEnvironment => FormulaEnvironmentToSyntaxNode(; theme);
+        FormulaInsertion   => FormulaInsertionToSyntaxLeaf(; style = get_style(:insertion_text)),
+        FormulaReference   => FormulaReferenceToSyntaxLeaf(; style = get_style(:reference_text)),
+        FormulaFormula     => FormulaFormulaToSyntaxNode(; name = get_style(:name_text),
+                                                            op = get_style(:operator_text),
+                                                            result = get_style(:result_text)),
+        FormulaEnvironment => FormulaEnvironmentToSyntaxNode(; font = _get_formula_font(theme));
         theme = julia_theme, syntax_theme)
 end
