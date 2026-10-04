@@ -7533,6 +7533,47 @@ function print_document(p::WidgetSkeletonToGraphicsCanvas, recursion, w::WidgetS
 end
 @_printer_only WidgetSkeletonToGraphicsCanvas
 
+# ── WidgetSwatch ────────────────────────────────────────────────────────────
+
+# The square of a swatch: its color fills the padding and the content, inside a
+# border of the theme, so a color near the background shows too.
+@projection UntrackedCell struct WidgetSwatchToGraphicsCanvas
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    swatch_size::Int
+    corner_radius::Int
+end
+
+WidgetSwatchToGraphicsCanvas(theme;
+                             margin = inset_default,
+                             border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
+                             padding = inset_default,
+                             margin_color = color_transparent,
+                             border_color = _themed(StyleColor, theme, t -> t.border),
+                             swatch_size = _themed(Int, theme, t -> t.swatch_size),
+                             corner_radius = _themed(Int, theme, t -> t.radius_small)) =
+    WidgetSwatchToGraphicsCanvas(margin, border, padding, margin_color, border_color, swatch_size,
+                                 corner_radius)
+
+function print_document(p::WidgetSwatchToGraphicsCanvas, recursion, w::WidgetSwatch, ctx)
+    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    position = w.position::Point2D
+    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+        side = w.size === nothing ? p.swatch_size : _sc(Int(w.size))
+        box = _get_box_insets(p, w)
+        colors = (margin = _get_state_color(p, w, :margin), border = _get_state_color(p, w, :border),
+                  padding = w.color, content = w.color)
+        inset_width, inset_height = _inset_total(p, w)
+        elements = Any[]
+        _push_box_parts!(elements, box, colors, side, side; radius = p.corner_radius)
+        (width=side + inset_width, height=side + inset_height, elements=elements)
+    end))
+end
+@_printer_only WidgetSwatchToGraphicsCanvas
+
 # Push a small chevron centered at (cx, cy), `s` pixels from its center to its
 # tips: the glyph of the icon font. `dir` ∈ :down :right.
 function _push_chevron!(elems::Vector, cx::Int, cy::Int, s::Int, dir::Symbol, color::StyleColor)
@@ -10544,6 +10585,7 @@ function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphic
         WidgetAvatar     => WidgetAvatarToGraphicsCanvas(theme; measure = measure),
         WidgetAlert      => WidgetAlertToGraphicsCanvas(theme; measure = measure),
         WidgetSkeleton   => WidgetSkeletonToGraphicsCanvas(theme),
+        WidgetSwatch     => WidgetSwatchToGraphicsCanvas(theme),
         WidgetHighlight  => WidgetHighlightToGraphicsCanvas(theme),
         WidgetToggle      => WidgetToggleToGraphicsCanvas(theme; measure = measure),
         WidgetToggleGroup => WidgetToggleGroupToGraphicsCanvas(theme; measure = measure),

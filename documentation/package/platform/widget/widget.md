@@ -14,7 +14,7 @@ The widget slice of `ProjecturedPlatform` holds the documents of a user interfac
 
 | Kind | Types |
 | --- | --- |
-| Text and values | `WidgetLabel`, `WidgetText`, `WidgetTextarea`, `WidgetBadge`, `WidgetAvatar`, `WidgetAlert`, `WidgetProgress`, `WidgetSkeleton`, `WidgetHighlight`, `WidgetSeparator`, `WidgetTooltip`, `WidgetStatusBar` |
+| Text and values | `WidgetLabel`, `WidgetText`, `WidgetTextarea`, `WidgetBadge`, `WidgetAvatar`, `WidgetAlert`, `WidgetProgress`, `WidgetSkeleton`, `WidgetSwatch`, `WidgetHighlight`, `WidgetSeparator`, `WidgetTooltip`, `WidgetStatusBar` |
 | Controls | `WidgetButton`, `WidgetCheckbox`, `WidgetSwitch`, `WidgetToggle`, `WidgetToggleGroup`, `WidgetRadioGroup`, `WidgetSlider`, `WidgetSpinBox`, `WidgetSelect`, `WidgetOption`, `WidgetScrollBar` |
 | Menus and bars | `WidgetMenu`, `WidgetMenuItem`, `WidgetContextMenu`, `WidgetToolbar`, `WidgetToolbarItem` |
 | Containers | `WidgetComposite`, `WidgetShell`, `WidgetTitlePane`, `WidgetCard`, `WidgetAccordion`, `WidgetAccordionItem`, `WidgetSplitPane`, `WidgetTabbedPane`, `WidgetTabPage`, `WidgetScrollPane`, `WidgetTransformPane`, `WidgetDialog` |
@@ -52,10 +52,12 @@ A `WidgetSplitPane` makes its per-slot cells and child IO maps for the number of
 - eighteen spacings: the padding of a control, of a card and of an alert (`control_padding`, `container_padding`), of a badge (`compact_padding`), of a command of a menu and of a context menu (`menu_item_padding`), of the name of a menu on a menu bar (`menu_name_padding`), of a menu bar, of a toolbar and of a button of a toolbar (`menu_bar_padding`, `toolbar_padding`, `toolbar_item_padding`), of a status bar (`status_bar_padding`), and of the edge of a tabbed pane around its strip and its page (`tabbed_pane_padding`); the gaps `item_gap`, `title_gap`, `label_gap`, `section_gap` and `bar_gap`; the gaps of a form, between its label column and its control column and between its rows (`form_column_gap`, `form_row_gap`); and the tree level `indent`;
 - two radii: `radius`, and `radius_small` for a checkbox, a row band, a highlight and a skeleton;
 - three line widths: `border_width`, `stroke` and `ring_width`;
-- eleven sizes of the parts of controls: the indicator of a checkbox and a radio button and its dot, the track and the knob padding of a switch, the height, the track and the knob of a slider, the height of a progress bar, the thickness and the minimum thumb of a scroll bar, and the largest width and height of the window of a context menu (`context_menu_maximum_size`);
+- twelve sizes of the parts of controls: the indicator of a checkbox and a radio button and its dot, the side of a color swatch, the track and the knob padding of a switch, the height, the track and the knob of a slider, the height of a progress bar, the thickness and the minimum thumb of a scroll bar, and the largest width and height of the window of a context menu (`context_menu_maximum_size`);
 - three icon sizes: `chevron`, and the chevron column and the icon column of a tree.
 
 A widget, a menu, a bar or a pane that sets no padding of its own takes the padding of its own kind from the theme, as a browser gives a default style to each kind of element. A menu item that opens a menu — the name of a menu on a menu bar, the variant `submenu` — takes `menu_name_padding` in place of `menu_item_padding`.
+
+A `WidgetSwatch` shows a color as a square inside a border of the theme, so a color near the background shows too. Its side is its `size`, or the `swatch_size` of the theme, and it takes no input. The appearance tab shows the swatch of a color beside its text.
 
 A checkbox and a switch carry their own `label`, as in a desktop toolkit. They draw it after the mark, at the `label_gap` of the theme, so no builder puts a label beside them in a layout. A form that puts its labels in a column of their own gives them none.
 

@@ -1919,6 +1919,36 @@ WidgetSkeleton(; position::Point2D=Point2D(0, 0), width::Integer=240, height::In
     WidgetSkeleton(Cell(position), Cell(Int(width)), Cell(Int(height)), Cell(visible),
                   Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
 
+# ── WidgetSwatch ────────────────────────────────────────────────────────────
+
+"""
+    WidgetSwatch(color; position, size = nothing, <base kwargs>)
+
+A square that shows `color`, such as the color of a field of a theme beside its
+text. `size` is the side of the square in pixels, or `nothing` for the
+`swatch_size` of the widget theme. A border of the theme frames the square, so a
+color near the background shows too. A swatch takes no input.
+
+# Example
+
+    open_pane!(editor, WidgetSwatch(color_solarized_blue); title = "Color")
+"""
+@document struct WidgetSwatch <: WidgetDocument
+    position::Point2D
+    color::StyleColor
+    size::Any
+    visible::Bool
+    margin::Inset
+    border::Inset
+    padding::Inset
+    style::Any
+    tooltip::Any
+end
+WidgetSwatch(color::StyleColor; position::Point2D=Point2D(0, 0), size=nothing, visible::Bool=true,
+             margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
+    WidgetSwatch(Cell(position), Cell(color), Cell(size), Cell(visible),
+                 Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
+
 # ── WidgetHighlight ─────────────────────────────────────────────────────────
 
 """

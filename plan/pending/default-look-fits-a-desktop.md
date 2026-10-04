@@ -669,6 +669,15 @@ inet-julia uses, the same step changes them, so that they always load.
     000; outside the namespace it passes.
   - Open: the color swatch of the appearance tab is a label with fixed
     paddings, because no widget kind draws a square of a given size.
+    *Done (2026-10-04, D30):* `WidgetSwatch(color; size = nothing)` is a
+    widget kind that takes no input. Its color fills a square inside a border
+    of the theme, with `radius_small`. Its side is `size`, or the new
+    `WidgetTheme.swatch_size` (16, the size of a checkbox). The appearance tab
+    shows it beside the text of a color. The catalog has an example and an
+    atom of it. Check: the new `test_widget_swatch` and the appearance tab
+    test pass. `test_example(widget_swatch_example)` fails one navigation
+    check, "a state exists", which the skeleton example fails the same way,
+    because a widget with no input has no state to reach.
   - D22, a label of its own: `WidgetCheckbox` and `WidgetSwitch` have a field
     `label`, drawn after the mark at `label_gap`, and a press on it flips the
     value. The value list of a data frame, the two options of the evaluator

@@ -280,6 +280,7 @@ function test_platform()
         test_layout_point()
         test_widget_point()
         test_column_chooser()
+        test_widget_swatch()
         test_baseline_alignment()
         test_widget_forward()
         test_widget_round_trip()
@@ -350,7 +351,7 @@ export test_object_to_widget, test_projection_configuring,
        test_layout_closeout, test_grid_span, test_widget_forms, test_anchor_point, test_anchored_layout
 export test_clipboard, test_tooltip, test_window_fit, test_window_wrapper, test_document_composition,
        test_tabs_wrapper, test_split_pane_drag, test_part_pointer_shape, test_routed_gesture,
-       test_layout_point, test_widget_point, test_column_chooser, test_baseline_alignment,
+       test_layout_point, test_widget_point, test_column_chooser, test_widget_swatch, test_baseline_alignment,
        test_widget_forward,
        test_widget_round_trip,
        test_scroll_pane_hover,

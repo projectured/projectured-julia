@@ -511,6 +511,14 @@ make_widget_skeleton_document_example() =
         WidgetSkeleton(; width=230, height=20),
     ]; gap=12)
 
+# WidgetSwatch — the squares of three colors in a row; the last names its own size.
+make_widget_swatch_document_example() =
+    HorizontalLayout(Any[
+        WidgetSwatch(color_solarized_blue),
+        WidgetSwatch(color_solarized_green),
+        WidgetSwatch(color_solarized_red; size=24),
+    ]; gap=8, vertical_align=:center)
+
 # WidgetToggle — a pressed and an unpressed toggle, stacked by a VerticalLayout.
 make_widget_toggle_document_example() =
     VerticalLayout(Any[
@@ -709,6 +717,11 @@ make_widget_separator_atom_document_example() =
 # `make_widget_skeleton_document_example` above (which stacks three).
 make_widget_skeleton_atom_document_example() =
     WidgetSkeleton(; position = Point2D(40, 40), width=260, height=20)
+
+# WidgetSwatch — a single swatch, distinct from `make_widget_swatch_document_example`
+# above (which shows three).
+make_widget_swatch_atom_document_example() =
+    WidgetSwatch(color_solarized_blue; position = Point2D(40, 40))
 
 # WidgetSwitch — a single switch, distinct from `make_widget_switch_document_example`
 # above (which stacks on/off/instant variants).

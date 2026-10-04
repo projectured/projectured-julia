@@ -87,6 +87,7 @@ const widget_radio_group_example = Example("widget_radio_group", make_widget_rad
 const widget_avatar_example      = Example("widget_avatar",      make_widget_avatar_document_example,      make_widget_projection_example)
 const widget_alert_example       = Example("widget_alert",       make_widget_alert_document_example,       make_widget_projection_example)
 const widget_skeleton_example    = Example("widget_skeleton",    make_widget_skeleton_document_example,    make_widget_projection_example)
+const widget_swatch_example      = Example("widget_swatch",      make_widget_swatch_document_example,      make_widget_projection_example)
 const widget_toggle_example      = Example("widget_toggle",      make_widget_toggle_document_example,      make_widget_projection_example)
 const widget_toggle_group_example = Example("widget_toggle_group", make_widget_toggle_group_document_example, make_widget_projection_example)
 const widget_select_example      = Example("widget_select",      make_widget_select_document_example,      make_widget_projection_example)
@@ -161,6 +162,7 @@ const platform_examples = Example[
     widget_avatar_example,
     widget_alert_example,
     widget_skeleton_example,
+    widget_swatch_example,
     widget_toggle_example,
     widget_toggle_group_example,
     widget_select_example,
@@ -246,6 +248,7 @@ const platform_atomic_documents = AtomicDocument[
     AtomicDocument(:widget, "spin_box",              make_widget_spin_box_document_example),
     AtomicDocument(:widget, "split_pane",            make_widget_split_pane_document_example),
     AtomicDocument(:widget, "status_bar",            make_widget_status_bar_document_example),
+    AtomicDocument(:widget, "swatch",                make_widget_swatch_atom_document_example),
     AtomicDocument(:widget, "switch",                make_widget_switch_atom_document_example),
     AtomicDocument(:widget, "tabbed_pane",           make_widget_tabbed_pane_atom_document_example),
     AtomicDocument(:widget, "table",                 make_widget_table_document_example),

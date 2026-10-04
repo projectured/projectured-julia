@@ -144,6 +144,8 @@ builder fills them from a theme, scaled or not.
     indicator_size::ControlSize = ControlSize(16)
     "The radius of the dot of a selected radio button."
     indicator_dot::ControlSize = ControlSize(4)
+    "The side of the square of a color swatch."
+    swatch_size::ControlSize = ControlSize(16)
     "The width and the height of the track of a switch."
     switch_track::ControlSize = ControlSize(Point2D(36, 20))
     "The space between the knob of a switch and its track."
