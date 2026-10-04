@@ -9351,6 +9351,9 @@ end
 
 function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    # A cell is one line of a row, so the text of every cell, header and corner
+    # draws at single spacing, as the label of a row number does.
+    ctx === nothing || (ctx = with_property(ctx, :line_spacing, SingleSpacing()))
     # The printer reads the type of `rows` and nothing else says which table
     # this is: a list draws the rows a viewport shows, a vector draws them all.
     # A corner makes a table of a list, whose rows can be an empty vector at
