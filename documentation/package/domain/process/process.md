@@ -129,8 +129,7 @@ Both views read the session. The flowchart draws the ring and the edge. The nota
 ### The theme
 
 `ProcessTheme` holds the text of a keyword, a name, an action, the chrome, the current step and a breakpoint, and the label of a terminal in a diagram. Each value has the default that the slice draws with no
-appearance. `ProcessToSyntax(; session, theme, julia_theme, syntax_theme)` and `ProcessToSyntaxLabel` take `theme`, a `ProcessTheme` or a scaled one; with none they hold the
-default values. The Julia code of a step takes `julia_theme`. Process has no view in this repository's application, so a builder that has the themes passes them.
+appearance. A projection holds its styles as fields, and no theme; nothing in it scales or asks whether a theme is scaled. `ProcessToSyntax(; session, theme, julia_theme, syntax_theme)` and `ProcessToSyntaxLabel` give each projection the style of its role with `get_process_style`, from `theme`, a `ProcessTheme` scaled or not, or the default styles for `nothing`. The Julia code of a step takes `julia_theme`. Process has no view in this repository's application, so a builder that has the themes passes them.
 
 ## How it fits
 

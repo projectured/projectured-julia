@@ -17,8 +17,9 @@ the live run and its breakpoint, and the terminal of a diagram. Each field
 has a docstring that says what it draws, which the appearance tab shows under
 its name.
 
-A Process projection reads the scaled theme through its `UntrackedCell` style
-fields; with no theme it holds the plain values of the default theme.
+The builder gives each Process projection its styles with `get_process_style`,
+from a theme scaled or not; a projection built with no styles holds the plain
+values of the default theme.
 """
 @theme struct ProcessTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
@@ -38,8 +39,3 @@ fields; with no theme it holds the plain values of the default theme.
     "The label of the start or the stop terminal in a diagram."
     terminal_text::TextRole   = TextRole(color_solarized_green; weight = 700)
 end
-
-# The style field of a Process projection that holds the text `name` of the
-# theme `theme`: a `ProcessTheme`, a scaled one, or `nothing` for the default
-# values.
-_get_process_style(theme, name::Symbol) = make_style_field(ProcessTheme, scale_theme(theme), StyleText; name)

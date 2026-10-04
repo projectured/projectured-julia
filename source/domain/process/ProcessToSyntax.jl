@@ -59,8 +59,9 @@
 #
 # Control-flow keywords take the Julia projection's keyword colour: an embedded
 # expression and the structure holding it are one language on the page. Each
-# role comes from the projection's theme (`_get_process_style`), so a document
-# with no theme renders the plain values of `ProcessTheme`.
+# role comes from a style the builder gives the projection (`get_process_style`),
+# so a projection that a builder gives no style renders the plain values of
+# `ProcessTheme`.
 #
 # Where a realized run is, and where it is set to stop are both style swaps on
 # a keyword that is printed anyway — nothing is added to the line, so a live
@@ -108,10 +109,9 @@ end
 # ── ProcessModelToSyntaxNode ─────────────────────────────────────────────────
 
 @projection UntrackedCell struct ProcessModelToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText = _get_process_style(theme, :keyword_text)
-    name::StyleText    = _get_process_style(theme, :name_text)
-    chrome::StyleText  = _get_process_style(theme, :chrome_text)
+    keyword::StyleText = get_process_style(nothing, :keyword_text)
+    name::StyleText    = get_process_style(nothing, :name_text)
+    chrome::StyleText  = get_process_style(nothing, :chrome_text)
 end
 
 @projection_template ProcessModelToSyntaxNode ProcessModel (p, doc) ->
@@ -137,12 +137,11 @@ end
 # neither still renders its description leaf so there is somewhere to type.
 
 @projection UntrackedCell struct ProcessStepToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText    = _get_process_style(theme, :keyword_text)
-    text::StyleText       = _get_process_style(theme, :action_text)
-    chrome::StyleText     = _get_process_style(theme, :chrome_text)
-    current::StyleText    = _get_process_style(theme, :current_text)
-    breakpoint::StyleText = _get_process_style(theme, :breakpoint_text)
+    keyword::StyleText    = get_process_style(nothing, :keyword_text)
+    text::StyleText       = get_process_style(nothing, :action_text)
+    chrome::StyleText     = get_process_style(nothing, :chrome_text)
+    current::StyleText    = get_process_style(nothing, :current_text)
+    breakpoint::StyleText = get_process_style(nothing, :breakpoint_text)
     session::Any = nothing
 end
 
@@ -174,11 +173,10 @@ end
 # one (the `JuliaIf` precedent, for the same reason).
 
 @projection UntrackedCell struct ProcessDecisionToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText    = _get_process_style(theme, :keyword_text)
-    chrome::StyleText     = _get_process_style(theme, :chrome_text)
-    current::StyleText    = _get_process_style(theme, :current_text)
-    breakpoint::StyleText = _get_process_style(theme, :breakpoint_text)
+    keyword::StyleText    = get_process_style(nothing, :keyword_text)
+    chrome::StyleText     = get_process_style(nothing, :chrome_text)
+    current::StyleText    = get_process_style(nothing, :current_text)
+    breakpoint::StyleText = get_process_style(nothing, :breakpoint_text)
     session::Any = nothing
 end
 
@@ -198,11 +196,10 @@ end
 # ── ProcessWhileToSyntaxNode ─────────────────────────────────────────────────
 
 @projection UntrackedCell struct ProcessWhileToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText    = _get_process_style(theme, :keyword_text)
-    chrome::StyleText     = _get_process_style(theme, :chrome_text)
-    current::StyleText    = _get_process_style(theme, :current_text)
-    breakpoint::StyleText = _get_process_style(theme, :breakpoint_text)
+    keyword::StyleText    = get_process_style(nothing, :keyword_text)
+    chrome::StyleText     = get_process_style(nothing, :chrome_text)
+    current::StyleText    = get_process_style(nothing, :current_text)
+    breakpoint::StyleText = get_process_style(nothing, :breakpoint_text)
     session::Any = nothing
 end
 
@@ -218,11 +215,10 @@ end
 # ── ProcessForeachToSyntaxNode ───────────────────────────────────────────────
 
 @projection UntrackedCell struct ProcessForeachToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText    = _get_process_style(theme, :keyword_text)
-    chrome::StyleText     = _get_process_style(theme, :chrome_text)
-    current::StyleText    = _get_process_style(theme, :current_text)
-    breakpoint::StyleText = _get_process_style(theme, :breakpoint_text)
+    keyword::StyleText    = get_process_style(nothing, :keyword_text)
+    chrome::StyleText     = get_process_style(nothing, :chrome_text)
+    current::StyleText    = get_process_style(nothing, :current_text)
+    breakpoint::StyleText = get_process_style(nothing, :breakpoint_text)
     session::Any = nothing
 end
 
@@ -241,10 +237,9 @@ end
 # ── Jumps ────────────────────────────────────────────────────────────────────
 
 @projection UntrackedCell struct ProcessBreakToSyntaxLeaf
-    theme::Any = nothing
-    keyword::StyleText    = _get_process_style(theme, :keyword_text)
-    current::StyleText    = _get_process_style(theme, :current_text)
-    breakpoint::StyleText = _get_process_style(theme, :breakpoint_text)
+    keyword::StyleText    = get_process_style(nothing, :keyword_text)
+    current::StyleText    = get_process_style(nothing, :current_text)
+    breakpoint::StyleText = get_process_style(nothing, :breakpoint_text)
     session::Any = nothing
 end
 
@@ -252,10 +247,9 @@ end
     SyntaxLeaf(TextString(() -> "break", _keyword_style(p, doc)))
 
 @projection UntrackedCell struct ProcessContinueToSyntaxLeaf
-    theme::Any = nothing
-    keyword::StyleText    = _get_process_style(theme, :keyword_text)
-    current::StyleText    = _get_process_style(theme, :current_text)
-    breakpoint::StyleText = _get_process_style(theme, :breakpoint_text)
+    keyword::StyleText    = get_process_style(nothing, :keyword_text)
+    current::StyleText    = get_process_style(nothing, :current_text)
+    breakpoint::StyleText = get_process_style(nothing, :breakpoint_text)
     session::Any = nothing
 end
 
@@ -263,11 +257,10 @@ end
     SyntaxLeaf(TextString(() -> "continue", _keyword_style(p, doc)))
 
 @projection UntrackedCell struct ProcessReturnToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText    = _get_process_style(theme, :keyword_text)
-    chrome::StyleText     = _get_process_style(theme, :chrome_text)
-    current::StyleText    = _get_process_style(theme, :current_text)
-    breakpoint::StyleText = _get_process_style(theme, :breakpoint_text)
+    keyword::StyleText    = get_process_style(nothing, :keyword_text)
+    chrome::StyleText     = get_process_style(nothing, :chrome_text)
+    current::StyleText    = get_process_style(nothing, :current_text)
+    breakpoint::StyleText = get_process_style(nothing, :breakpoint_text)
     session::Any = nothing
 end
 
@@ -284,23 +277,40 @@ end
 # ── Compound convenience constructor ─────────────────────────────────────────
 #
 # Merged with the Julia table so an embedded action/condition/iterable renders
-# through the same recursion (the `FsmToSyntax` precedent). `theme` is a
-# `ProcessTheme`, a scaled one, or `nothing` for the default styles;
-# `julia_theme` and `syntax_theme` style the embedded Julia nodes, through
-# `JuliaToSyntax`.
+# through the same recursion (the `FsmToSyntax` precedent). The builder gives
+# each projection the style of its role with `get_process_style`, from
+# `theme`, a `ProcessTheme` scaled or not, or the default styles for
+# `nothing`; `julia_theme` and `syntax_theme` style the embedded Julia nodes,
+# through `JuliaToSyntax`.
 
 function ProcessToSyntax(; session = nothing, theme = nothing, julia_theme = nothing, syntax_theme = nothing)
-    theme = scale_theme(theme)
+    get_style(name) = get_process_style(theme, name)
+    live_styles = (current = get_style(:current_text), breakpoint = get_style(:breakpoint_text))
     JuliaToSyntax(
         ProcessSequence  => ProcessSequenceToSyntaxNode(),
-        ProcessModel     => ProcessModelToSyntaxNode(; theme),
-        ProcessStep      => ProcessStepToSyntaxNode(; theme, session),
-        ProcessDecision  => ProcessDecisionToSyntaxNode(; theme, session),
-        ProcessWhile     => ProcessWhileToSyntaxNode(; theme, session),
-        ProcessForeach   => ProcessForeachToSyntaxNode(; theme, session),
-        ProcessBreak     => ProcessBreakToSyntaxLeaf(; theme, session),
-        ProcessContinue  => ProcessContinueToSyntaxLeaf(; theme, session),
-        ProcessReturn    => ProcessReturnToSyntaxNode(; theme, session),
+        ProcessModel     => ProcessModelToSyntaxNode(; keyword = get_style(:keyword_text),
+                                                        name = get_style(:name_text),
+                                                        chrome = get_style(:chrome_text)),
+        ProcessStep      => ProcessStepToSyntaxNode(; keyword = get_style(:keyword_text),
+                                                       text = get_style(:action_text),
+                                                       chrome = get_style(:chrome_text),
+                                                       live_styles..., session),
+        ProcessDecision  => ProcessDecisionToSyntaxNode(; keyword = get_style(:keyword_text),
+                                                           chrome = get_style(:chrome_text),
+                                                           live_styles..., session),
+        ProcessWhile     => ProcessWhileToSyntaxNode(; keyword = get_style(:keyword_text),
+                                                        chrome = get_style(:chrome_text),
+                                                        live_styles..., session),
+        ProcessForeach   => ProcessForeachToSyntaxNode(; keyword = get_style(:keyword_text),
+                                                          chrome = get_style(:chrome_text),
+                                                          live_styles..., session),
+        ProcessBreak     => ProcessBreakToSyntaxLeaf(; keyword = get_style(:keyword_text),
+                                                        live_styles..., session),
+        ProcessContinue  => ProcessContinueToSyntaxLeaf(; keyword = get_style(:keyword_text),
+                                                           live_styles..., session),
+        ProcessReturn    => ProcessReturnToSyntaxNode(; keyword = get_style(:keyword_text),
+                                                         chrome = get_style(:chrome_text),
+                                                         live_styles..., session),
         ProcessInsertion => ProcessInsertionToSyntaxLeaf(theme = syntax_theme),
         ProcessNothing   => InsertionNothingToSyntaxLeaf(theme = syntax_theme);
         theme = julia_theme, syntax_theme)

@@ -56,8 +56,7 @@
 # inline both its branches into the box the branches hang off.
 
 @projection UntrackedCell struct ProcessStepToSyntaxLabel
-    theme::Any = nothing
-    text::StyleText = _get_process_style(theme, :action_text)
+    text::StyleText = get_process_style(nothing, :action_text)
 end
 
 # A described step shows its prose; a code-only step shows its code, which is
@@ -78,8 +77,7 @@ end
     end)
 
 @projection UntrackedCell struct ProcessDecisionToSyntaxLabel
-    theme::Any = nothing
-    chrome::StyleText = _get_process_style(theme, :chrome_text)
+    chrome::StyleText = get_process_style(nothing, :chrome_text)
 end
 
 @projection_template ProcessDecisionToSyntaxLabel ProcessDecision (p, doc) ->
@@ -88,9 +86,8 @@ end
                                    project(:condition) ])
 
 @projection UntrackedCell struct ProcessWhileToSyntaxLabel
-    theme::Any = nothing
-    keyword::StyleText = _get_process_style(theme, :keyword_text)
-    chrome::StyleText  = _get_process_style(theme, :chrome_text)
+    keyword::StyleText = get_process_style(nothing, :keyword_text)
+    chrome::StyleText  = get_process_style(nothing, :chrome_text)
 end
 
 @projection_template ProcessWhileToSyntaxLabel ProcessWhile (p, doc) ->
@@ -100,9 +97,8 @@ end
                                    project(:condition) ])
 
 @projection UntrackedCell struct ProcessForeachToSyntaxLabel
-    theme::Any = nothing
-    keyword::StyleText = _get_process_style(theme, :keyword_text)
-    chrome::StyleText  = _get_process_style(theme, :chrome_text)
+    keyword::StyleText = get_process_style(nothing, :keyword_text)
+    chrome::StyleText  = get_process_style(nothing, :chrome_text)
 end
 
 @projection_template ProcessForeachToSyntaxLabel ProcessForeach (p, doc) ->
@@ -117,16 +113,14 @@ end
     end)
 
 @projection UntrackedCell struct ProcessTerminalToSyntaxLabel
-    theme::Any = nothing
-    style::StyleText = _get_process_style(theme, :terminal_text)
+    style::StyleText = get_process_style(nothing, :terminal_text)
 end
 
 @projection_template ProcessTerminalToSyntaxLabel ProcessTerminal (p, doc) ->
     SyntaxLeaf(TextString(() -> String(doc.kind), p.style))
 
 @projection UntrackedCell struct ProcessEdgeLabelToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_process_style(theme, :chrome_text)
+    style::StyleText = get_process_style(nothing, :chrome_text)
 end
 
 @projection_template ProcessEdgeLabelToSyntaxLeaf ProcessEdgeLabel (p, doc) ->
@@ -137,21 +131,26 @@ end
 
 The diagram's label table: the compact per-node forms above, with the full
 notation as the fallback so a box holding a foreign content type still renders.
-`theme` is a `ProcessTheme`, a scaled one, or `nothing` for the default styles;
-`julia_theme` and `syntax_theme` reach the fallback's embedded Julia nodes.
+The builder gives each projection the style of its role with
+`get_process_style`, from `theme`, a `ProcessTheme` scaled or not, or the
+default styles for `nothing`; `julia_theme` and `syntax_theme` reach the
+fallback's embedded Julia nodes.
 """
 function ProcessToSyntaxLabel(; theme = nothing, julia_theme = nothing, syntax_theme = nothing)
-    scaled = scale_theme(theme)
+    get_style(name) = get_process_style(theme, name)
+    live_styles = (current = get_style(:current_text), breakpoint = get_style(:breakpoint_text))
+    keyword_chrome_styles = (keyword = get_style(:keyword_text), chrome = get_style(:chrome_text))
     TypeDispatchingProjection(
-        ProcessStep     => ProcessStepToSyntaxLabel(theme = scaled),
-        ProcessDecision => ProcessDecisionToSyntaxLabel(theme = scaled),
-        ProcessWhile    => ProcessWhileToSyntaxLabel(theme = scaled),
-        ProcessForeach  => ProcessForeachToSyntaxLabel(theme = scaled),
-        ProcessBreak    => ProcessBreakToSyntaxLeaf(theme = scaled),
-        ProcessContinue => ProcessContinueToSyntaxLeaf(theme = scaled),
-        ProcessReturn   => ProcessReturnToSyntaxNode(theme = scaled),
-        ProcessTerminal => ProcessTerminalToSyntaxLabel(theme = scaled),
-        ProcessEdgeLabel => ProcessEdgeLabelToSyntaxLeaf(theme = scaled),
+        ProcessStep     => ProcessStepToSyntaxLabel(; text = get_style(:action_text)),
+        ProcessDecision => ProcessDecisionToSyntaxLabel(; chrome = get_style(:chrome_text)),
+        ProcessWhile    => ProcessWhileToSyntaxLabel(; keyword_chrome_styles...),
+        ProcessForeach  => ProcessForeachToSyntaxLabel(; keyword_chrome_styles...),
+        ProcessBreak    => ProcessBreakToSyntaxLeaf(; keyword = get_style(:keyword_text), live_styles...),
+        ProcessContinue => ProcessContinueToSyntaxLeaf(; keyword = get_style(:keyword_text), live_styles...),
+        ProcessReturn   => ProcessReturnToSyntaxNode(; keyword = get_style(:keyword_text),
+                                                        chrome = get_style(:chrome_text), live_styles...),
+        ProcessTerminal => ProcessTerminalToSyntaxLabel(; style = get_style(:terminal_text)),
+        ProcessEdgeLabel => ProcessEdgeLabelToSyntaxLeaf(; style = get_style(:chrome_text)),
         Any             => ProcessToSyntax(; theme, julia_theme, syntax_theme),
     )
 end
