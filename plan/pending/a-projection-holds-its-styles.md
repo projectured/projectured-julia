@@ -145,22 +145,24 @@ package, so the steps of its slices run one after another.
   theme of any kind; the five offsets and the box of a glyph become fields of
   `WidgetTheme` (6.1); the five printers that size an icon beside a text read a
   style for it (6.2).
-- [ ] **M7. omnet**: a call scan for the factories whose keyword changed.
+- [x] **M7. omnet**: a call scan for the factories whose keyword changed.
   Done as a scan (finding 6). The omnet branch `projection-styles` (`42c67b16`,
   not landed) makes the three calls follow: `FsmToSyntaxLabel` for the labels,
-  and `graphics_theme` for the widgets of a simulation. The conversion of
-  omnet's own themes waits for the owner.
+  and `graphics_theme` for the widgets of a simulation. The owner asked for
+  the conversion of omnet's own themes too (finding 11): omnet `9a8fc630`
+  (NED, INI, test file), `9a969fcb` and `502397d9` (result), `87d730d2`
+  (simulator); and inet `784b0e5` (the packet diagram).
 - [x] **M8. The tests**: the 15 files that build a projection with `theme` build
   it through its factory, or pass the style. Each step changed the theme test
   of its package, and added a check that the projection has no field `theme`
   and that a theme that is not scaled draws at no scale.
-- [ ] **M9. The guides**: the style slice, the widget slice, the guide for a new
+- [x] **M9. The guides**: the style slice, the widget slice, the guide for a new
   domain, the section "The theme" of each domain, and a rule in
   `architecture-rules.md`: a projection holds its styles, a builder fills them,
   and only a builder with an appearance scales.
   - [x] The guides (`2a3080d65`, `c46c10dcc`) and the docstrings of every theme.
-  - [ ] `scale_theme` goes: it waits for omnet (finding 6). No caller in this
-    repository is left.
+  - [x] `scale_theme` goes (`a5d4eee50`), after omnet and inet follow
+    (finding 11).
 
 Checks after each step: the theme test and the suite of the package that
 changed. At the end: the suites of every domain, the tool and the guard tests,
@@ -393,4 +395,14 @@ suites that build a themed view, and the images of both tabs.
     card closed; the seven new fields of `WidgetTheme` show only in the open Widget card, which
     the tests of the appearance tab cover. omnet `7c89b11d` over it gives the results of omnet
     `main` before the landing.
+11. **omnet and inet follow the rule, and `scale_theme` goes** (2026-10-04, by the owner's
+    "you can continue with those 3 points"). omnet's legacy views in three packages lose their
+    `theme` fields, 26 + 7 + 5, and their helpers by hand; their factories fill the styles
+    with `get_ned_style`, `get_ini_style`, `get_test_file_style`, `get_result_style` and
+    `get_simulation_style`, which each package exports. A page of a run that built its card
+    with its theme at each print holds the card. The filter form of a simulation, built in two
+    places, gets `make_simulation_filter_form_projection`. inet's packet diagram, the last
+    caller of `scale_theme`, holds its font and its colors and gets
+    `make_packet_diagram_text_projection`. A scan of inet found that caller, which the
+    scan of finding 6 did not look for.
 
