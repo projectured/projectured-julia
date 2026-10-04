@@ -4,8 +4,7 @@
 # separators.
 
 @projection UntrackedCell struct JsonNullToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_json_style(theme, :null_text)
+    style::StyleText = get_json_style(nothing, :null_text)
 end
 
 @projection_template JsonNullToSyntaxLeaf JsonNull (prj, doc) ->
@@ -21,8 +20,7 @@ JsonInsertionToSyntaxLeaf(; theme = nothing) =
     DomainInsertionToSyntaxLeaf(JsonDocument; placeholder = "enter json value", theme)
 
 @projection UntrackedCell struct JsonBoolToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_json_style(theme, :bool_text)
+    style::StyleText = get_json_style(nothing, :bool_text)
 end
 
 # `bound` editing can transiently clear the value (the reactive `value` cell is
@@ -37,8 +35,7 @@ end
                                       style = prj.style)))
 
 @projection UntrackedCell struct JsonNumberToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_json_style(theme, :number_text)
+    style::StyleText = get_json_style(nothing, :number_text)
 end
 
 @projection_template JsonNumberToSyntaxLeaf JsonNumber (prj, doc) ->
@@ -50,9 +47,8 @@ end
                      retype = ReplaceNumberRangeOperation))
 
 @projection UntrackedCell struct JsonStringToSyntaxLeaf
-    theme::Any = nothing
-    quote_style::StyleText = _get_json_style(theme, :quote_text)
-    value_style::StyleText = _get_json_style(theme, :string_text)
+    quote_style::StyleText = get_json_style(nothing, :quote_text)
+    value_style::StyleText = get_json_style(nothing, :string_text)
 end
 
 @projection_template JsonStringToSyntaxLeaf JsonString (prj, doc) ->
@@ -65,9 +61,8 @@ end
                close=TextString("\"", prj.quote_style))
 
 @projection UntrackedCell struct JsonArrayToSyntaxNode
-    theme::Any = nothing
-    delimiter_style::StyleText = _get_json_style(theme, :delimiter_text)
-    separator_style::StyleText = _get_json_style(theme, :separator_text)
+    delimiter_style::StyleText = get_json_style(nothing, :delimiter_text)
+    separator_style::StyleText = get_json_style(nothing, :separator_text)
 end
 
 @projection_template JsonArrayToSyntaxNode JsonArray (prj, doc) ->
@@ -81,9 +76,8 @@ end
 # inlining it, so a bare `JsonObjectEntry` also projects on its own.
 
 @projection UntrackedCell struct JsonObjectEntryToSyntaxNode
-    theme::Any = nothing
-    key_style::StyleText = _get_json_style(theme, :key_text)
-    colon_style::StyleText = _get_json_style(theme, :separator_text)
+    key_style::StyleText = get_json_style(nothing, :key_text)
+    colon_style::StyleText = get_json_style(nothing, :separator_text)
 end
 
 @projection_template JsonObjectEntryToSyntaxNode JsonObjectEntry (prj, e) ->
@@ -100,9 +94,8 @@ end
                0, false, getfield(e, :selection))
 
 @projection UntrackedCell struct JsonObjectToSyntaxNode
-    theme::Any = nothing
-    delimiter_style::StyleText = _get_json_style(theme, :delimiter_text)
-    separator_style::StyleText = _get_json_style(theme, :separator_text)
+    delimiter_style::StyleText = get_json_style(nothing, :delimiter_text)
+    separator_style::StyleText = get_json_style(nothing, :separator_text)
 end
 
 @projection_template JsonObjectToSyntaxNode JsonObject (prj, doc) ->
@@ -112,23 +105,27 @@ end
                sep=TextString(", ", prj.separator_style),
                indentation=1)
 
-# The projection of the whole domain: one rule per document type. `theme` is a
-# `JsonTheme`, a scaled one, or `nothing` for the default styles; `syntax_theme`
-# styles the insertion and the empty placeholder, which are the syntax slice's.
+# The projection of the whole domain: one rule per document type. The builder
+# gives each projection its styles from `theme`, a `JsonTheme` scaled or not, or
+# the default styles for `nothing`; `syntax_theme` styles the insertion and the
+# empty placeholder, which are the syntax slice's.
 
 function JsonToSyntax(; theme = nothing, syntax_theme = nothing)
-    theme = scale_theme(theme)
-    syntax_theme = scale_theme(syntax_theme)
+    style(name) = get_json_style(theme, name)
     TypeDispatchingProjection(
-        JsonNull        => JsonNullToSyntaxLeaf(; theme),
-        JsonBool        => JsonBoolToSyntaxLeaf(; theme),
-        JsonNumber      => JsonNumberToSyntaxLeaf(; theme),
-        JsonString      => JsonStringToSyntaxLeaf(; theme),
-        JsonArray       => JsonArrayToSyntaxNode(; theme),
-        JsonObject      => JsonObjectToSyntaxNode(; theme),
+        JsonNull        => JsonNullToSyntaxLeaf(; style = style(:null_text)),
+        JsonBool        => JsonBoolToSyntaxLeaf(; style = style(:bool_text)),
+        JsonNumber      => JsonNumberToSyntaxLeaf(; style = style(:number_text)),
+        JsonString      => JsonStringToSyntaxLeaf(; quote_style = style(:quote_text),
+                                                    value_style = style(:string_text)),
+        JsonArray       => JsonArrayToSyntaxNode(; delimiter_style = style(:delimiter_text),
+                                                   separator_style = style(:separator_text)),
+        JsonObject      => JsonObjectToSyntaxNode(; delimiter_style = style(:delimiter_text),
+                                                    separator_style = style(:separator_text)),
         JsonInsertion   => JsonInsertionToSyntaxLeaf(; theme = syntax_theme),
         JsonNothing     => InsertionNothingToSyntaxLeaf(; theme = syntax_theme),
-        JsonObjectEntry => JsonObjectEntryToSyntaxNode(; theme),
+        JsonObjectEntry => JsonObjectEntryToSyntaxNode(; key_style = style(:key_text),
+                                                         colon_style = style(:separator_text)),
         Vector{Cell}    => CopyingProjection(),
     )
 end
