@@ -146,7 +146,7 @@ ProjectionModule.read_intent(p::MtmHeldObjectView, iomap::SimpleIoMap, op::Compo
 # The widget stage, where a reflected object goes through `ReflectionToWidget`.
 function _mtm_reflection_stage()
     base = vcat(LayoutToGraphics().dispatch,
-                WidgetToGraphics(font_ubuntu_regular_20; measure = _mtm_measure()).dispatch)
+                WidgetToGraphics(StyleFont("Ubuntu", 20); measure = _mtm_measure()).dispatch)
     RecursiveProjection(TypeDispatchingProjection(vcat(base, Pair{Type,Any}[
         AReflectedNode => ChainingProjection(ReflectionToWidget(),
                                              RecursiveProjection(TypeDispatchingProjection(base)))])))
