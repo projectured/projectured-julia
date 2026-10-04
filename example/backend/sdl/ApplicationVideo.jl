@@ -111,11 +111,17 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
                            supersample = supersample, density = density, video_time = video_time,
                            pointer = pointer, partial_render = partial_render,
                            debug_dirty = debug_dirty, debug_dirty_hold = debug_dirty_hold)
+    # The take records the application as a person sees it, so the editor takes the
+    # fault policy of the settings, as `run_application` does.
+    fault = get_settings_group!(settings, FaultSettings)
+    policy = FaultPolicy(; is_barrier_enabled = fault.is_barrier_enabled,
+                         is_console_enabled = fault.is_console_enabled,
+                         is_sound_enabled = fault.is_sound_enabled)
     try
         # One appearance for the views, the windows they open, the wrappers and the
         # Appearance tab, as in `run_application`, so a change of the look shows.
         editor = build_editor(document, make_application_projection(; measure, appearance, settings);
-                              backend, appearance, settings,
+                              backend, appearance, settings, fault_policy = policy,
                               window = (; title, width, height,
                                         opened_window_projections =
                                             make_application_content_projections(; measure, appearance,
