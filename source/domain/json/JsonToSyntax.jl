@@ -111,21 +111,21 @@ end
 # empty placeholder, which are the syntax slice's.
 
 function JsonToSyntax(; theme = nothing, syntax_theme = nothing)
-    style(name) = get_json_style(theme, name)
+    get_style(name) = get_json_style(theme, name)
     TypeDispatchingProjection(
-        JsonNull        => JsonNullToSyntaxLeaf(; style = style(:null_text)),
-        JsonBool        => JsonBoolToSyntaxLeaf(; style = style(:bool_text)),
-        JsonNumber      => JsonNumberToSyntaxLeaf(; style = style(:number_text)),
-        JsonString      => JsonStringToSyntaxLeaf(; quote_style = style(:quote_text),
-                                                    value_style = style(:string_text)),
-        JsonArray       => JsonArrayToSyntaxNode(; delimiter_style = style(:delimiter_text),
-                                                   separator_style = style(:separator_text)),
-        JsonObject      => JsonObjectToSyntaxNode(; delimiter_style = style(:delimiter_text),
-                                                    separator_style = style(:separator_text)),
+        JsonNull        => JsonNullToSyntaxLeaf(; style = get_style(:null_text)),
+        JsonBool        => JsonBoolToSyntaxLeaf(; style = get_style(:bool_text)),
+        JsonNumber      => JsonNumberToSyntaxLeaf(; style = get_style(:number_text)),
+        JsonString      => JsonStringToSyntaxLeaf(; quote_style = get_style(:quote_text),
+                                                    value_style = get_style(:string_text)),
+        JsonArray       => JsonArrayToSyntaxNode(; delimiter_style = get_style(:delimiter_text),
+                                                   separator_style = get_style(:separator_text)),
+        JsonObject      => JsonObjectToSyntaxNode(; delimiter_style = get_style(:delimiter_text),
+                                                    separator_style = get_style(:separator_text)),
         JsonInsertion   => JsonInsertionToSyntaxLeaf(; theme = syntax_theme),
         JsonNothing     => InsertionNothingToSyntaxLeaf(; theme = syntax_theme),
-        JsonObjectEntry => JsonObjectEntryToSyntaxNode(; key_style = style(:key_text),
-                                                         colon_style = style(:separator_text)),
+        JsonObjectEntry => JsonObjectEntryToSyntaxNode(; key_style = get_style(:key_text),
+                                                         colon_style = get_style(:separator_text)),
         Vector{Cell}    => CopyingProjection(),
     )
 end

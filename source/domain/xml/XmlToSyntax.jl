@@ -108,15 +108,15 @@ end
 # empty placeholder, which are the syntax slice's.
 
 function XmlToSyntax(; theme = nothing, syntax_theme = nothing)
-    style(name) = get_xml_style(theme, name)
+    get_style(name) = get_xml_style(theme, name)
     TypeDispatchingProjection(
-        XmlText      => XmlTextToSyntaxLeaf(; style = style(:content_text)),
-        XmlAttribute => XmlAttributeToSyntaxNode(; delim = style(:delimiter_text),
-                                                   attr_name = style(:attribute_name_text),
-                                                   quote_style = style(:quote_text),
-                                                   attr_value = style(:attribute_value_text)),
-        XmlElement   => XmlElementToSyntaxNode(; tag = style(:tag_text),
-                                                  delim = style(:delimiter_text)),
+        XmlText      => XmlTextToSyntaxLeaf(; style = get_style(:content_text)),
+        XmlAttribute => XmlAttributeToSyntaxNode(; delim = get_style(:delimiter_text),
+                                                   attr_name = get_style(:attribute_name_text),
+                                                   quote_style = get_style(:quote_text),
+                                                   attr_value = get_style(:attribute_value_text)),
+        XmlElement   => XmlElementToSyntaxNode(; tag = get_style(:tag_text),
+                                                  delim = get_style(:delimiter_text)),
         XmlInsertion => XmlInsertionToSyntaxLeaf(; theme = syntax_theme),
         XmlNothing   => InsertionNothingToSyntaxLeaf(; theme = syntax_theme),
     )
