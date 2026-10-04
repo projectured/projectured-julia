@@ -13,7 +13,10 @@
 #
 # The places that hold them are a `@theme` declaration, a preset of a theme (a
 # function whose name ends in `_theme`), the palette (`Color.jl`), the registry
-# of font faces (`FontFace.jl`), a docstring and a comment. `color_transparent`
+# of font faces (`FontFace.jl`), a docstring and a comment. A colour is stricter:
+# a theme names a role of the colour theme, so a `@theme` declaration and a
+# preset hold no palette colour and no colour of numbers, except in the colour
+# theme (`ColorTheme.jl`), which maps the roles to the palette. `color_transparent`
 # and `color_default` are no style. A line that holds a value on purpose says why
 # with `# @style: <reason>`, on that line or on the line above it: the content of
 # a document, a mark that is not the look of the editor, a value that waits for
@@ -30,6 +33,9 @@ const STYLE_ROOTS = ["source"]
 
 "The files that hold style values: the palette and the registry of font faces."
 const STYLE_PLACES = ["source/platform/style/Color.jl", "source/platform/style/FontFace.jl"]
+
+"The file whose theme and presets may name a palette colour: the colour theme."
+const STYLE_COLOR_PLACES = ["source/platform/style/ColorTheme.jl"]
 
 "The files whose values wait for a decision of the owner, with the reason."
 const STYLE_EXEMPT_FILES = Dict{String,String}()
@@ -48,6 +54,19 @@ function find_palette_names(root::AbstractString)
     names = Set{String}(m.captures[1] for m in eachmatch(r"^const (color_\w+)\s*="m, text))
     setdiff!(names, ["color_transparent", "color_default"])
     names
+end
+
+"""
+    find_color_problem(code, palette) -> String or nothing
+
+What literal colour the code of one line of a theme holds, or `nothing`.
+"""
+function find_color_problem(code::AbstractString, palette::Set{String})
+    occursin(r"\bStyleColor\(\s*[0-9]", code) && return "a color of numbers"
+    for m in eachmatch(r"\bcolor_\w+", code)
+        m.match in palette && return "the palette color $(m.match)"
+    end
+    nothing
 end
 
 """
@@ -112,22 +131,30 @@ function compute_file_style_violations(path::AbstractString, relative::AbstractS
             in_theme = true
             continue
         end
+        # In a theme and in a preset, a colour names a role.
+        check_color() = relative in STYLE_COLOR_PLACES || occursin("@style:", line) ||
+            (problem = find_color_problem(first(split(line, '#')), palette)) === nothing ||
+            push!(violations, "$(relative):$(k): $(problem) in a theme — $(stripped)")
         if in_theme
             stripped == "end" && (in_theme = false)
+            check_color()
             continue
         end
         if preset === :block
             line == "end" && (preset = :none)
+            check_color()
             continue
         elseif preset === :short
             if isempty(stripped) || !startswith(line, " ")
                 preset = :none
             else
+                check_color()
                 continue
             end
         end
         if _is_preset_start(line)
             preset = startswith(line, "function") ? :block : :short
+            check_color()
             continue
         end
         occursin("@style:", line) && continue
