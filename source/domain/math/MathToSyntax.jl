@@ -23,8 +23,7 @@
 # ── MathInsertionToSyntaxLeaf ─────────────────────────────────────────────────
 
 @projection UntrackedCell struct MathInsertionToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_math_style(theme, StyleText, :chrome_text)
+    style::StyleText = get_math_style(nothing, :chrome_text)
 end
 
 function print_document(p::MathInsertionToSyntaxLeaf, recursion, m::MathInsertion, ctx)
@@ -36,8 +35,7 @@ end
 # ── MathVariableToSyntaxLeaf ──────────────────────────────────────────────────
 
 @projection UntrackedCell struct MathVariableToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_math_style(theme, StyleText, :variable_text)
+    style::StyleText = get_math_style(nothing, :variable_text)
 end
 
 function map_reference_forward(p::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, reference)
@@ -75,8 +73,7 @@ end
 # ── MathBinaryOperationToSyntaxNode ───────────────────────────────────────────
 
 @projection UntrackedCell struct MathBinaryOperationToSyntaxNode
-    theme::Any = nothing
-    op::StyleText = _get_math_style(theme, StyleText, :operator_text)
+    op::StyleText = get_math_style(nothing, :operator_text)
 end
 
 # Selection mapping (School A). The output node's children are
@@ -178,8 +175,7 @@ end
 # ── MathParenthesizedToSyntaxNode ─────────────────────────────────────────────
 
 @projection UntrackedCell struct MathParenthesizedToSyntaxNode
-    theme::Any = nothing
-    delim::StyleText = _get_math_style(theme, StyleText, :chrome_text)
+    delim::StyleText = get_math_style(nothing, :chrome_text)
 end
 
 # Selection mapping (School A). The single content child is output index 1; the
@@ -252,8 +248,7 @@ end
 # ── MathAssignmentToSyntaxNode ────────────────────────────────────────────────
 
 @projection UntrackedCell struct MathAssignmentToSyntaxNode
-    theme::Any = nothing
-    eq::StyleText = _get_math_style(theme, StyleText, :equals_text)
+    eq::StyleText = get_math_style(nothing, :equals_text)
 end
 
 # Selection mapping (School A). Output children are
@@ -387,8 +382,7 @@ end
 # referent name.
 
 @projection UntrackedCell struct MathSymbolToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_math_style(theme, StyleText, :symbol_text)
+    style::StyleText = get_math_style(nothing, :symbol_text)
 end
 
 @projection_template MathSymbolToSyntaxLeaf MathSymbol (p, doc) ->
@@ -397,8 +391,7 @@ end
 # ── MathTextToSyntaxLeaf ─────────────────────────────────────────────────────
 
 @projection UntrackedCell struct MathTextToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_math_style(theme, StyleText, :word_text)
+    style::StyleText = get_math_style(nothing, :word_text)
 end
 
 @projection_template MathTextToSyntaxLeaf MathText (p, doc) ->
@@ -407,8 +400,7 @@ end
 # ── MathSpaceToSyntaxLeaf ────────────────────────────────────────────────────
 
 @projection UntrackedCell struct MathSpaceToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_math_style(theme, StyleText, :chrome_text)
+    style::StyleText = get_math_style(nothing, :chrome_text)
 end
 
 # `\\,`, `\\:`, `\\;` and `\\quad`, so that an explicit space and the gap between
@@ -423,8 +415,7 @@ const _MATH_SPACE_TEXTS = Dict{Symbol,String}(:thin => "\\,", :medium => "\\:", 
 # Juxtaposition prints as its elements with one space between them.
 
 @projection UntrackedCell struct MathRowToSyntaxNode
-    theme::Any = nothing
-    style::StyleText = _get_math_style(theme, StyleText, :chrome_text)
+    style::StyleText = get_math_style(nothing, :chrome_text)
 end
 
 @projection_template MathRowToSyntaxNode MathRow (p, doc) ->
@@ -433,9 +424,8 @@ end
 # ── MathUnaryOperationToSyntaxNode ───────────────────────────────────────────
 
 @projection UntrackedCell struct MathUnaryOperationToSyntaxNode
-    theme::Any = nothing
-    op::StyleText = _get_math_style(theme, StyleText, :operator_text)
-    chrome::StyleText = _get_math_style(theme, StyleText, :chrome_text)
+    op::StyleText = get_math_style(nothing, :operator_text)
+    chrome::StyleText = get_math_style(nothing, :chrome_text)
 end
 
 @projection_template MathUnaryOperationToSyntaxNode MathUnaryOperation (p, doc) ->
@@ -451,9 +441,8 @@ end
 # ── MathFractionToSyntaxNode ─────────────────────────────────────────────────
 
 @projection UntrackedCell struct MathFractionToSyntaxNode
-    theme::Any = nothing
-    op::StyleText = _get_math_style(theme, StyleText, :operator_text)
-    chrome::StyleText = _get_math_style(theme, StyleText, :chrome_text)
+    op::StyleText = get_math_style(nothing, :operator_text)
+    chrome::StyleText = get_math_style(nothing, :chrome_text)
 end
 
 @projection_template MathFractionToSyntaxNode MathFraction (p, doc) ->
@@ -468,8 +457,7 @@ end
 # ── MathScriptToSyntaxNode ───────────────────────────────────────────────────
 
 @projection UntrackedCell struct MathScriptToSyntaxNode
-    theme::Any = nothing
-    chrome::StyleText = _get_math_style(theme, StyleText, :chrome_text)
+    chrome::StyleText = get_math_style(nothing, :chrome_text)
 end
 
 @projection_template MathScriptToSyntaxNode MathScript (p, doc) ->
@@ -486,9 +474,8 @@ end
 # ── MathRadicalToSyntaxNode ──────────────────────────────────────────────────
 
 @projection UntrackedCell struct MathRadicalToSyntaxNode
-    theme::Any = nothing
-    name::StyleText = _get_math_style(theme, StyleText, :name_text)
-    chrome::StyleText = _get_math_style(theme, StyleText, :chrome_text)
+    name::StyleText = get_math_style(nothing, :name_text)
+    chrome::StyleText = get_math_style(nothing, :chrome_text)
 end
 
 @projection_template MathRadicalToSyntaxNode MathRadical (p, doc) ->
@@ -508,9 +495,8 @@ end
 # ── MathBigOperatorToSyntaxNode ──────────────────────────────────────────────
 
 @projection UntrackedCell struct MathBigOperatorToSyntaxNode
-    theme::Any = nothing
-    name::StyleText = _get_math_style(theme, StyleText, :name_text)
-    chrome::StyleText = _get_math_style(theme, StyleText, :chrome_text)
+    name::StyleText = get_math_style(nothing, :name_text)
+    chrome::StyleText = get_math_style(nothing, :chrome_text)
 end
 
 @projection_template MathBigOperatorToSyntaxNode MathBigOperator (p, doc) ->
@@ -526,8 +512,7 @@ end
 # ── MathDifferentialToSyntaxNode ─────────────────────────────────────────────
 
 @projection UntrackedCell struct MathDifferentialToSyntaxNode
-    theme::Any = nothing
-    name::StyleText = _get_math_style(theme, StyleText, :name_text)
+    name::StyleText = get_math_style(nothing, :name_text)
 end
 
 @projection_template MathDifferentialToSyntaxNode MathDifferential (p, doc) ->
@@ -538,10 +523,9 @@ end
 # ── MathDerivativeToSyntaxNode ───────────────────────────────────────────────
 
 @projection UntrackedCell struct MathDerivativeToSyntaxNode
-    theme::Any = nothing
-    name::StyleText = _get_math_style(theme, StyleText, :name_text)
-    op::StyleText = _get_math_style(theme, StyleText, :operator_text)
-    chrome::StyleText = _get_math_style(theme, StyleText, :chrome_text)
+    name::StyleText = get_math_style(nothing, :name_text)
+    op::StyleText = get_math_style(nothing, :operator_text)
+    chrome::StyleText = get_math_style(nothing, :chrome_text)
 end
 
 # `d(P)/d(t)`, and `d^2(P)/d(t)^2` for a higher order.
@@ -561,9 +545,8 @@ end
 # ── MathFunctionToSyntaxNode ─────────────────────────────────────────────────
 
 @projection UntrackedCell struct MathFunctionToSyntaxNode
-    theme::Any = nothing
-    name::StyleText = _get_math_style(theme, StyleText, :name_text)
-    chrome::StyleText = _get_math_style(theme, StyleText, :chrome_text)
+    name::StyleText = get_math_style(nothing, :name_text)
+    chrome::StyleText = get_math_style(nothing, :chrome_text)
 end
 
 @projection_template MathFunctionToSyntaxNode MathFunction (p, doc) ->
@@ -582,9 +565,8 @@ end
 # ── MathAccentToSyntaxNode ───────────────────────────────────────────────────
 
 @projection UntrackedCell struct MathAccentToSyntaxNode
-    theme::Any = nothing
-    name::StyleText = _get_math_style(theme, StyleText, :name_text)
-    chrome::StyleText = _get_math_style(theme, StyleText, :chrome_text)
+    name::StyleText = get_math_style(nothing, :name_text)
+    chrome::StyleText = get_math_style(nothing, :chrome_text)
 end
 
 @projection_template MathAccentToSyntaxNode MathAccent (p, doc) ->
@@ -599,9 +581,8 @@ end
 # structure survives the one-line form.
 
 @projection UntrackedCell struct MathMatrixToSyntaxNode
-    theme::Any = nothing
-    name::StyleText = _get_math_style(theme, StyleText, :name_text)
-    chrome::StyleText = _get_math_style(theme, StyleText, :chrome_text)
+    name::StyleText = get_math_style(nothing, :name_text)
+    chrome::StyleText = get_math_style(nothing, :chrome_text)
 end
 
 @projection_template MathMatrixToSyntaxNode MathMatrix (p, doc) ->
@@ -615,8 +596,7 @@ end
 # ── MathCaseToSyntaxNode / MathCasesToSyntaxNode ─────────────────────────────
 
 @projection UntrackedCell struct MathCaseToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText = _get_math_style(theme, StyleText, :name_text)
+    keyword::StyleText = get_math_style(nothing, :name_text)
 end
 
 @projection_template MathCaseToSyntaxNode MathCase (p, doc) ->
@@ -632,9 +612,8 @@ end
     end)
 
 @projection UntrackedCell struct MathCasesToSyntaxNode
-    theme::Any = nothing
-    name::StyleText = _get_math_style(theme, StyleText, :name_text)
-    chrome::StyleText = _get_math_style(theme, StyleText, :chrome_text)
+    name::StyleText = get_math_style(nothing, :name_text)
+    chrome::StyleText = get_math_style(nothing, :chrome_text)
 end
 
 @projection_template MathCasesToSyntaxNode MathCases (p, doc) ->
@@ -650,35 +629,40 @@ end
 """
     MathToSyntax(; theme = nothing, syntax_theme = nothing) -> TypeDispatchingProjection
 
-The Math notation, one rule per document type. `theme` is a `MathTheme`, a
-scaled one, or `nothing` for the default styles; `syntax_theme` styles the
-shared `PrimitiveNumberToSyntaxLeaf`, which is the syntax slice's own.
+The Math notation, one rule per document type. The builder gives each
+projection the style of its role with `get_math_style`, from `theme`, a
+`MathTheme` scaled or not, or the default styles for `nothing`; `syntax_theme`
+styles the shared `PrimitiveNumberToSyntaxLeaf`, which is the syntax slice's own.
 """
 function MathToSyntax(; theme = nothing, syntax_theme = nothing)
-    theme = scale_theme(theme)
-    syntax_theme = scale_theme(syntax_theme)
+    get_style(name) = get_math_style(theme, name)
+    chrome_style      = (style = get_style(:chrome_text),)
+    op_chrome_style   = (op = get_style(:operator_text), chrome = get_style(:chrome_text))
+    name_chrome_style = (name = get_style(:name_text), chrome = get_style(:chrome_text))
     TypeDispatchingProjection(
-        MathInsertion        => MathInsertionToSyntaxLeaf(; theme),
-        MathVariable         => MathVariableToSyntaxLeaf(; theme),
-        MathSymbol           => MathSymbolToSyntaxLeaf(; theme),
-        MathText             => MathTextToSyntaxLeaf(; theme),
-        MathSpace            => MathSpaceToSyntaxLeaf(; theme),
-        MathRow              => MathRowToSyntaxNode(; theme),
-        MathBinaryOperation  => MathBinaryOperationToSyntaxNode(; theme),
-        MathUnaryOperation   => MathUnaryOperationToSyntaxNode(; theme),
-        MathParenthesized    => MathParenthesizedToSyntaxNode(; theme),
-        MathAssignment       => MathAssignmentToSyntaxNode(; theme),
-        MathFraction         => MathFractionToSyntaxNode(; theme),
-        MathScript           => MathScriptToSyntaxNode(; theme),
-        MathRadical          => MathRadicalToSyntaxNode(; theme),
-        MathBigOperator      => MathBigOperatorToSyntaxNode(; theme),
-        MathDifferential     => MathDifferentialToSyntaxNode(; theme),
-        MathDerivative       => MathDerivativeToSyntaxNode(; theme),
-        MathFunction         => MathFunctionToSyntaxNode(; theme),
-        MathAccent           => MathAccentToSyntaxNode(; theme),
-        MathMatrix           => MathMatrixToSyntaxNode(; theme),
-        MathCase             => MathCaseToSyntaxNode(; theme),
-        MathCases            => MathCasesToSyntaxNode(; theme),
+        MathInsertion        => MathInsertionToSyntaxLeaf(; chrome_style...),
+        MathVariable         => MathVariableToSyntaxLeaf(; style = get_style(:variable_text)),
+        MathSymbol           => MathSymbolToSyntaxLeaf(; style = get_style(:symbol_text)),
+        MathText             => MathTextToSyntaxLeaf(; style = get_style(:word_text)),
+        MathSpace            => MathSpaceToSyntaxLeaf(; chrome_style...),
+        MathRow              => MathRowToSyntaxNode(; chrome_style...),
+        MathBinaryOperation  => MathBinaryOperationToSyntaxNode(; op = get_style(:operator_text)),
+        MathUnaryOperation   => MathUnaryOperationToSyntaxNode(; op_chrome_style...),
+        MathParenthesized    => MathParenthesizedToSyntaxNode(; delim = get_style(:chrome_text)),
+        MathAssignment       => MathAssignmentToSyntaxNode(; eq = get_style(:equals_text)),
+        MathFraction         => MathFractionToSyntaxNode(; op_chrome_style...),
+        MathScript           => MathScriptToSyntaxNode(; chrome = get_style(:chrome_text)),
+        MathRadical          => MathRadicalToSyntaxNode(; name_chrome_style...),
+        MathBigOperator      => MathBigOperatorToSyntaxNode(; name_chrome_style...),
+        MathDifferential     => MathDifferentialToSyntaxNode(; name = get_style(:name_text)),
+        MathDerivative       => MathDerivativeToSyntaxNode(; name = get_style(:name_text),
+                                                              op = get_style(:operator_text),
+                                                              chrome = get_style(:chrome_text)),
+        MathFunction         => MathFunctionToSyntaxNode(; name_chrome_style...),
+        MathAccent           => MathAccentToSyntaxNode(; name_chrome_style...),
+        MathMatrix           => MathMatrixToSyntaxNode(; name_chrome_style...),
+        MathCase             => MathCaseToSyntaxNode(; keyword = get_style(:name_text)),
+        MathCases            => MathCasesToSyntaxNode(; name_chrome_style...),
         PrimitiveNumber      => PrimitiveNumberToSyntaxLeaf(; theme = syntax_theme),
     )
 end

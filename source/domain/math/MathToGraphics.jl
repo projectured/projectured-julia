@@ -134,7 +134,7 @@ _box_output(b) = b.output
 What every rule of one renderer shares: the two faces, the text measurer and the
 two ink colors. One value is built by `MathToGraphics` and handed to each rule,
 so a formula cannot end up half in one font and half in another. `theme` is a
-`MathTheme`, a scaled one, or `nothing` for the default values; a field given
+`MathTheme`, scaled or not, or `nothing` for the default values; a field given
 explicitly overrides the theme's own.
 """
 @cell_struct UntrackedCell struct MathConfig
@@ -148,11 +148,11 @@ end
 
 MathConfig(; theme = nothing,
              measure::TextMeasure = FontFileMeasure(),
-             font = _get_math_style(theme, StyleFont, :font),
-             slanted = _get_math_style(theme, StyleFont, :slanted_font),
-             ink = _get_math_style(theme, StyleColor, :ink),
-             hint = _get_math_style(theme, StyleColor, :hint),
-             selection_wash = _get_math_style(theme, StyleColor, :selection_wash)) =
+             font = get_math_style(theme, :font),
+             slanted = get_math_style(theme, :slanted_font),
+             ink = get_math_style(theme, :ink),
+             hint = get_math_style(theme, :hint),
+             selection_wash = get_math_style(theme, :selection_wash)) =
     MathConfig(font, slanted, measure, ink, hint, selection_wash)
 
 """
@@ -1948,7 +1948,7 @@ Every math rule, sharing one configuration. Splice `.dispatch` into a bigger
 table the way `WidgetToGraphics(…).dispatch` is spliced, so a formula renders
 the same wherever it appears.
 
-`theme` is a `MathTheme`, a scaled one, or `nothing` for the default values.
+`theme` is a `MathTheme`, scaled or not, or `nothing` for the default values.
 `font`, `slanted`, `ink` and `hint` each give a fixed value when they are not
 `nothing`, and the theme's own value otherwise.
 
@@ -1963,12 +1963,11 @@ function MathToGraphics(; measure::TextMeasure = FontFileMeasure(),
                         slanted::Union{StyleFont,Nothing} = nothing,
                         ink::Union{StyleColor,Nothing} = nothing,
                         hint::Union{StyleColor,Nothing} = nothing)
-    theme = scale_theme(theme)
     c = MathConfig(; theme, measure,
-                     font = something(font, _get_math_style(theme, StyleFont, :font)),
-                     slanted = something(slanted, _get_math_style(theme, StyleFont, :slanted_font)),
-                     ink = something(ink, _get_math_style(theme, StyleColor, :ink)),
-                     hint = something(hint, _get_math_style(theme, StyleColor, :hint)))
+                     font = something(font, get_math_style(theme, :font)),
+                     slanted = something(slanted, get_math_style(theme, :slanted_font)),
+                     ink = something(ink, get_math_style(theme, :ink)),
+                     hint = something(hint, get_math_style(theme, :hint)))
     TypeDispatchingProjection(
         MathVariable        => MathVariableToGraphics(c, style),
         MathSymbol          => MathSymbolToGraphics(c, style),

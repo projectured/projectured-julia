@@ -15,8 +15,9 @@ The fields are in two groups: the text styles of the linear form
 (`MathConfig`). Each field has a docstring that says what it draws, which the
 appearance tab shows under its name.
 
-A Math projection reads the scaled theme through its `UntrackedCell` style
-fields; with no theme it holds the plain values of the default theme.
+The builder gives each Math projection its styles with `get_math_style`, from a
+theme scaled or not; a projection built with no styles holds the plain values
+of the default theme.
 """
 @theme struct MathTheme
     "The font that the code of this theme follows: its family, its weight and its size."
@@ -46,9 +47,3 @@ fields; with no theme it holds the plain values of the default theme.
     "The color that washes a selected box."
     selection_wash::StyleColor = StyleColor(0.15, 0.39, 0.68, 0.22)
 end
-
-# The style field of type `T` of a Math projection that holds the field `name`
-# of the theme `theme`: a `MathTheme`, a scaled one, or `nothing` for the
-# default values.
-_get_math_style(theme, ::Type{T}, name::Symbol) where {T} =
-    make_style_field(MathTheme, scale_theme(theme), T; name)

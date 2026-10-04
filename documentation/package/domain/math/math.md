@@ -108,11 +108,15 @@ A key goes to the selected child first, and a node acts only when the child retu
 ### The theme
 
 `MathTheme` holds the look of the Math projections: the text of a variable, an operator, the chrome, a symbol, a name, a word and the equals sign of the linear form, and for the typeset form its font, its slanted font, its ink, its hint color and the wash of a selection. Each value has
-the default that the domain draws with no appearance. Each projection takes
-`theme`, a `MathTheme` or a scaled one; with none it holds the default values.
-`MathToSyntax(; theme, syntax_theme)` and `MathToGraphics(; measure, theme)` gives the theme to every projection, and a font or a color that a keyword of `MathToGraphics` names stays fixed. The natural
-registration gives the scaled theme of the `Appearance` of the editor, so the view
-follows its scales, and the appearance tab shows a section for `MathTheme`.
+the default that the domain draws with no appearance. A projection holds its
+styles as fields, and no theme; nothing in it scales or asks whether a theme is
+scaled. `MathToSyntax(; theme, syntax_theme)` gives each projection the style of
+its role with `get_math_style`, from `theme`, a `MathTheme` scaled or not, or
+the default styles for `nothing`. `MathToGraphics(; measure, theme, …)` builds
+one `MathConfig` the same way, and a font or a color that a keyword of
+`MathToGraphics` names stays fixed. The natural registration gives the scaled
+theme of the `Appearance` of the editor, so the view follows its scales, and
+the appearance tab shows a section for `MathTheme`.
 
 ## How it fits
 
