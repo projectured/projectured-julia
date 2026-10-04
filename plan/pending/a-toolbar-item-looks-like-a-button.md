@@ -238,7 +238,8 @@ pressed look. The owner wrote: "I agree with your recommendation".
     way: 1 navigation check and 78 type-in checks. So the new example takes the
     three checks that the sweeps give a widget example: they pass, 1143 of
     1143. `test_widget_colors()` passes, 74 of 74.
-- [ ] **4. The documents.**
+- [x] **4. The documents.** **Done 2026-10-04:** the docstring changed in
+  step 2. No other guide says that a toolbar item is flat or gives no down.
   - The docstring of `WidgetToolbarItem`: flat at rest, the outline of a button
     under the pointer, and the darker surface while it is held.
   - [widget.md](../../documentation/package/platform/widget/widget.md): line
