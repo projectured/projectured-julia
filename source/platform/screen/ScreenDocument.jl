@@ -24,7 +24,7 @@ ScreenDocument(windows::CellVector) = ScreenDocument(windows, Cell(nothing), Cel
 
 # ── WindowDocument ────────────────────────────────────────────────────────
 
-const DEFAULT_BG = (UInt8(253), UInt8(246), UInt8(227), UInt8(255))
+const DEFAULT_BG = (UInt8(249), UInt8(249), UInt8(251), UInt8(255))
 
 # The defaults live on the fields, so `WindowDocument(; content = doc, …)` is the
 # macro's keyword constructor. `content` is the one field without a default, and
@@ -122,7 +122,7 @@ OpenWindowOperation(; id::Symbol,
                       height::Integer = 0,
                       minimum_size = (0, 0),
                       maximum_size = (0, 0),
-                      bg::NTuple{4,Integer} = (UInt8(253), UInt8(246), UInt8(227), UInt8(255)),
+                      bg::NTuple{4,Integer} = (UInt8(249), UInt8(249), UInt8(251), UInt8(255)),
                       style::Symbol = :tooltip,
                       auto_dismiss::Bool = false,
                       modal::Bool = false,

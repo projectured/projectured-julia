@@ -14,7 +14,7 @@ end
 """
     record_video(document, projection; gestures, filename::AbstractString,
                  fps=30, width=1200, height=800,
-                 background=(0xfd,0xf6,0xe3,0xff),
+                 background=(0xf9,0xf9,0xfb,0xff),
                  initial_hold=0.5, final_hold=initial_hold,
                  supersample=2, density=1) -> String
 
@@ -73,7 +73,7 @@ function record_video(document, projection; gestures::AbstractVector,
                       fps::Integer = 30,
                       width::Integer = 1200,
                       height::Integer = 800,
-                      background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff),
+                      background::NTuple{4,UInt8} = (0xf9, 0xf9, 0xfb, 0xff),
                       initial_hold::Real = 0.5,
                       final_hold::Real = initial_hold,
                       initial_selection = nothing,

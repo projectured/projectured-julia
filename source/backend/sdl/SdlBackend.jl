@@ -3196,7 +3196,7 @@ end
 """
     write_image(canvas::GraphicsCanvas, filename::AbstractString;
                 width::Integer = 800, height::Integer = 600,
-                background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff)) -> ImageFile
+                background::NTuple{4,UInt8} = (0xf9, 0xf9, 0xfb, 0xff)) -> ImageFile
 
 Low-level overload. Render `canvas` to an offscreen SDL2 software renderer and
 save the result to `filename`. Returns an `ImageFile` document.
@@ -3210,7 +3210,7 @@ Most callers should use `write_image(document, projection, filename)` instead.
 function BackendModule.write_image(canvas::GraphicsCanvas, filename::AbstractString;
                      width::Integer = 800,
                      height::Integer = 600,
-                     background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff),
+                     background::NTuple{4,UInt8} = (0xf9, 0xf9, 0xfb, 0xff),
                      supersample::Integer = 2,
                      density::Real = 1)
     off = open_offscreen_renderer(width, height; supersample=supersample, density=density)
@@ -3253,7 +3253,7 @@ end
     write_image(document, projection, filename::AbstractString;
                 width=nothing, height=nothing,
                 max_width::Integer = 1200, max_height::Integer = 800,
-                background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff)) -> ImageFile
+                background::NTuple{4,UInt8} = (0xf9, 0xf9, 0xfb, 0xff)) -> ImageFile
 
 Run `print_document(projection, document)` to obtain a `GraphicsCanvas`,
 render it offscreen and save to `filename` (BMP or PNG). Returns an `ImageFile`.
@@ -3288,7 +3288,7 @@ function BackendModule.write_image(document, projection, filename::AbstractStrin
                      height::Union{Nothing,Integer} = nothing,
                      max_width::Integer = 1200,
                      max_height::Integer = 800,
-                     background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff),
+                     background::NTuple{4,UInt8} = (0xf9, 0xf9, 0xfb, 0xff),
                      supersample::Integer = 2,
                      density::Real = 1)
     # Initialize before printing: the projection measures text (opening fonts),
@@ -3350,7 +3350,7 @@ end
 
 """
     GraphicsCanvasToImageFile(filename; width=800, height=600,
-                               background=(0xfd,0xf6,0xe3,0xff))
+                               background=(0xf9,0xf9,0xfb,0xff))
 
 Printer-only projection. On `print_document` it renders the input
 `GraphicsCanvas` offscreen and saves to `filename` (BMP). The `output` field
@@ -3377,7 +3377,7 @@ end
 function GraphicsCanvasToImageFile(filename::AbstractString;
                                     width::Integer = 800,
                                     height::Integer = 600,
-                                    background = (0xfd, 0xf6, 0xe3, 0xff))
+                                    background = (0xf9, 0xf9, 0xfb, 0xff))
     GraphicsCanvasToImageFile(String(filename), Int(width), Int(height),
                                NTuple{4,UInt8}(background))
 end

@@ -1,7 +1,7 @@
 # Fragment of `PdfModule` — the PDF backend: the page it writes, the
 # graphics operators it emits, and the Bézier arithmetic behind the curves.
 
-const DEFAULT_BG = (0xfd, 0xf6, 0xe3, 0xff)
+const DEFAULT_BG = (0xf9, 0xf9, 0xfb, 0xff)
 const KAPPA = 0.5522847498307936   # circle/quarter-arc Bézier constant
 
 # ════════════════════════════════════════════════════════════════════════
@@ -688,7 +688,7 @@ end
 """
     write_pdf(canvas::GraphicsCanvas, filename::AbstractString;
               width::Integer, height::Integer, paginate::Bool = false,
-              background::NTuple{4,UInt8} = (0xfd,0xf6,0xe3,0xff)) -> ImageFile
+              background::NTuple{4,UInt8} = (0xf9,0xf9,0xfb,0xff)) -> ImageFile
 
 Low-level overload. Emit `canvas` as a vector PDF where each page is
 `width × height` points (1 pt == 1 logical px). Shapes become PDF paths, text
@@ -720,7 +720,7 @@ end
     write_pdf(document, projection, filename::AbstractString;
               width=nothing, height=nothing, paginate::Bool = false,
               max_width::Integer = 1200, max_height::Integer = 800,
-              background::NTuple{4,UInt8} = (0xfd,0xf6,0xe3,0xff)) -> ImageFile
+              background::NTuple{4,UInt8} = (0xf9,0xf9,0xfb,0xff)) -> ImageFile
 
 Run `print_document(projection, document)` to obtain a `GraphicsCanvas` and
 write the vector PDF. Throws if the projection output is not a `GraphicsCanvas`.
@@ -803,7 +803,7 @@ end
 
 """
     GraphicsCanvasToPdfFile(filename; width=800, height=600,
-                            background=(0xfd,0xf6,0xe3,0xff), paginate=false)
+                            background=(0xf9,0xf9,0xfb,0xff), paginate=false)
 
 Printer-only projection. On `print_document` it renders the input
 `GraphicsCanvas` to a vector PDF and saves to `filename`. With `paginate=true`,
