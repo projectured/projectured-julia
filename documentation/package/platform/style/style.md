@@ -15,7 +15,7 @@ The style slice of `ProjecturedPlatform` holds the values that everything drawn 
 | `Inset`, `Point2D`, `AffineTransform` | a box of margins, a point, a 2D transform with `∘` |
 | `ImageFile`, `ImageMemory` | an image from a file or from memory |
 
-The package also defines about a thousand colour constants (`color_black`, `color_solarized_blue`, the `color_slate_*` and `color_indigo_*` ramps). A font has no constants: a font is a description, and a theme or a document writes it where it is used.
+The package also defines about 80 colour constants, in curated ramps: `color_black`, `color_solarized_blue`, the Tailwind `color_zinc_*`, `color_slate_*` and `color_indigo_*` ramps. These are fixed colours for a document or a theme field that no colour setting follows; the palette that a role or a step of a ramp draws from is a separate set of ramps, under ["Colours"](#colours) below. A font has no constants: a font is a description, and a theme or a document writes it where it is used.
 
 ### Value documents
 
@@ -95,11 +95,13 @@ relative to the base. A `TextRole` is a font role and a color.
     "The font that the texts of this theme follow: its family, its weight and its size."
     font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The key of an object member, with its quotes."
-    key_text::TextRole = TextRole(color_solarized_blue)
+    key_text::TextRole = TextRole(:field)
     "The brackets of an array and the braces of an object."
-    delimiter_text::TextRole = TextRole(color_solarized_gray; weight = 700)
+    delimiter_text::TextRole = TextRole(:punctuation; weight = 700)
 end
 ```
+
+`TextRole(:field)` is `TextRole(ColorRole(:field))`: the colour of the role `field` of the colour theme, under ["Colours"](#colours) below. A field of a theme can also hold a fixed colour, such as a constant of [Color.jl](../../../../source/platform/style/Color.jl), for a colour that no colour setting changes.
 
 The scaled theme holds the `StyleFont` or the `StyleText` that each role gives:
 `apply_font_role(role, base)`, then the font scale. Its cell reads the base font,
@@ -163,6 +165,132 @@ the `appearance` wrapper prints it again. A plain struct holds a style in an `An
 field and reads it with `unwrap_cell`. `make_theme_values_field(K, theme)` gives
 all the values of a theme as one `NamedTuple` field, for a printer that reads many
 of them, such as a chart.
+
+### Colours
+
+A colour field of a theme holds a fixed colour, a step of a palette, or a role
+of the colour theme. The three kinds scale together: a `PaletteColor` and a
+`ColorRole` follow the colour settings of the appearance, in the same way that
+a `Spacing` follows the spacing scale.
+
+**The palette.** A [`Palette`](../../../../source/platform/style/Palette.jl) gives a
+ramp of 12 colours for each of nine hues, `:neutral` and the eight accents
+`:red`, `:orange`, `:amber`, `:green`, `:teal`, `:blue`, `:violet` and `:pink`
+([`PALETTE_HUES`](../../../../source/platform/style/Palette.jl)), in a light mode and
+in a dark mode. Every palette gives the same hues at the same steps, and each
+step has one purpose:
+
+| Step | Purpose |
+| --- | --- |
+| 1 | the background of a window |
+| 2 | a raised or a sunken surface |
+| 3–5 | the fill of a part: at rest, under the pointer, pressed or chosen |
+| 6–8 | a faint line, a line, a strong line |
+| 9–10 | a solid fill, and the same under the pointer |
+| 11 | a text of low contrast, and a token |
+| 12 | a text of high contrast |
+
+`register_palette!(palette)` puts a palette into the registry under its name;
+`find_palette(name)` finds one, and `get_palette_names()` lists every name.
+`DEFAULT_PALETTE_NAME` is `"radix"`:
+[RadixPalette.jl](../../../../source/platform/style/RadixPalette.jl) holds the data of
+Radix Colors, six neutral ramps (slate, gray, mauve, sage, olive and sand, slate
+first) and the eight accent ramps, where the hue `:blue` is the Radix scale
+`indigo`. These ramps are a set apart from the constants of
+[Color.jl](../../../../source/platform/style/Color.jl): a theme field that names a
+step of a ramp draws from the palette of the appearance, never from a constant.
+
+**The three kinds of colour.** The union
+[`ThemeColor`](../../../../source/platform/style/ThemeColor.jl) is:
+
+- a `StyleColor`, a fixed colour that no setting changes;
+- `PaletteColor(hue, step; alpha = 1, minimum_contrast = 0, against = nothing)`,
+  a step of a ramp of the palette, where `:accent` as the hue names the hue of
+  the accent of the appearance. With a `minimum_contrast` above 0, a step that
+  falls short moves along its own ramp toward the end with more contrast, just
+  far enough to reach that ratio against `against`, or against the background
+  steps of the neutral ramp when `against` is `nothing`;
+- `ColorRole(role; alpha = 1)`, a role of the colour theme, such as
+  `ColorRole(:keyword)`.
+
+`format_theme_color(color)` gives the text that a person reads for any of the
+three: `#rrggbbaa` for a fixed colour, `"blue 11"` for a step, and `"@keyword"`
+for a role, each with the alpha in percent when it is below 1.
+
+**The colour theme and its roles.**
+[`ColorTheme`](../../../../source/platform/style/ColorTheme.jl) is the theme whose 63
+fields are the roles: what a colour does, such as `background`, `text_muted`,
+`accent` or `keyword`. `@theme` declares it, with a default step of a ramp for
+each role, so `ColorTheme()` is the default colour theme, and the appearance
+holds one `ColorTheme` for each pair of a mode and a contrast. The roles are
+in nine groups:
+
+| Group | Example roles |
+| --- | --- |
+| Surfaces | `background`, `surface`, `surface_sunken`, `surface_inverse` |
+| Texts | `text`, `text_muted`, `text_faint`, `text_on_accent` |
+| Lines | `border`, `border_strong`, `grid` |
+| Accent | `accent`, `accent_text`, `accent_tint`, `focus_ring` |
+| The layers of a state | `hover`, `pressed`, `selection_band`, `selection_ring`, `caret` |
+| Status | `error_fill`, `error_text`, `warning_text`, `success_text`, `info_text` |
+| Tokens | `keyword`, `definition`, `function_name`, `field`, `string_literal`, `constant`, `type_name`, `reference`, `link`, `operator`, `punctuation`, `punctuation_lit`, `comment`, `markup`, `heading` |
+| The series of a chart | `series_1` … `series_8` |
+| Overlays | `shadow`, `scrim` |
+
+Almost every field holds a `PaletteColor`; a few hold a fixed colour instead,
+such as `text_on_accent = color_white` and the overlays `shadow` and `scrim`.
+A field of every theme other than `ColorTheme` names a role with a `ColorRole`,
+so it follows the colour settings: `key_text::TextRole = TextRole(:field)` of
+`JsonTheme` draws with the colour that the role `field` gives,
+`PaletteColor(:blue, 11; minimum_contrast = 4.5)` by default, which resolves to
+step 11 of the blue ramp of the palette of the appearance, in its mode — Radix
+indigo by default — or a step closer to the end of the ramp with more
+contrast, where step 11 itself falls short of 4.5:1. A person can also
+fine-tune a role of
+`ColorTheme` itself to a `ColorRole`, so that it takes the colour of another
+role; `resolve_theme_color` follows such a chain up to 8 steps deep, and
+raises an `ArgumentError` on a cycle.
+
+A `@theme` declaration and a preset of a theme hold no fixed palette colour and
+no colour written as numbers, except `ColorTheme.jl` itself, which is the one
+place that maps a role to a step of the palette; `test_style()` checks every
+other file of `source/` for one (see
+[testing-guide.md](../../../guide/testing-guide.md#the-style-guard)).
+
+**The colour settings of the appearance.** Five fields of `Appearance` choose
+the colours of every view:
+
+| Field | Values |
+| --- | --- |
+| `color_mode` | `:light` or `:dark` ([`COLOR_MODES`](../../../../source/platform/style/Appearance.jl)) |
+| `color_contrast` | `:normal` or `:high` ([`COLOR_CONTRASTS`](../../../../source/platform/style/Appearance.jl)) |
+| `color_palette` | the name of a palette of the registry |
+| `color_accent` | the hue that `:accent` names |
+| `color_neutral` | the neutral ramp of the palette, such as slate |
+
+`color_themes` holds one `ColorTheme` for each pair of a mode and a contrast,
+four in all, by the name that `get_color_variant(mode, contrast)` gives the
+pair; so a fine-tune of a role stays with the mode and the contrast where a
+person made it. `get_color_theme(appearance)` answers the colour theme of the
+present pair.
+
+**How a colour is computed, like a scaled length.** `scale_theme_value(value,
+theme, appearance)` computes a `Spacing` field by the `spacing_scale` of the
+appearance, and a `PaletteColor` or a `ColorRole` field by the colour settings,
+in the same function. A `PaletteColor` resolves through
+`compute_palette_color`, in the palette, the mode, the neutral and the accent
+that the colour settings name. A `ColorRole` resolves through
+`resolve_theme_color`, which reads the field of that role in
+`get_color_theme(appearance)` and resolves what it finds the same way. A
+`StyleColor` stays as it is, at every scale. So a change of `color_mode` from
+light to dark, or of `color_palette` from Radix to another palette,
+recomputes every colour of every view in one print of the whole view, as a
+change of a scale recomputes every length.
+
+An appearance file saves a fixed colour as its `#rrggbbaa` text, a role as a
+table that names it, and a step of a ramp as a table of its hue and its step,
+each with its alpha when it is below 1 (`save_appearance!`,
+`load_appearance!`).
 
 ### The zoom and the scales
 

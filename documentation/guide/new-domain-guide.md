@@ -178,8 +178,13 @@ written, and it generates the reference mapping and the reader for you.
 
 A domain declares a theme for its fonts and its colors, and a projection never
 holds one as a literal value: it reads the theme instead, through a small
-helper that every projection of the domain shares. `BookmarkTheme` holds the
-base font and the two text roles that color a title and an address:
+helper that every projection of the domain shares. Each colour of the theme
+names a role of the colour theme, such as `:definition` or `:link`
+([style.md](../package/platform/style/style.md#colours)), and not a fixed
+colour: the style guard that `test_style()` runs over `source/` fails on a
+`@theme` declaration that names a fixed palette colour instead (see
+[testing-guide.md](testing-guide.md#the-style-guard)). `BookmarkTheme` holds
+the base font and the two text roles that color a title and an address:
 
 ```julia
 # ──────────────────────────────────────────────────────────────────────────
@@ -197,11 +202,19 @@ The colors and the fonts of a list of bookmarks: a title and an address.
     "The font that the texts of this theme follow: its family, its weight and its size."
     font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The title of a bookmark."
-    title_text::TextRole = TextRole(color_solarized_blue; weight = 700)
+    title_text::TextRole = TextRole(:definition; weight = 700)
     "The address of a bookmark."
-    url_text::TextRole = TextRole(color_solarized_cyan)
+    url_text::TextRole = TextRole(:link)
 end
 ```
+
+`TextRole(:definition; weight = 700)` is `TextRole(ColorRole(:definition); weight = 700)`:
+the bold weight of the title is its own, and its colour is the role
+`definition` of the colour theme, the name of a declared thing. `url_text`
+takes the role `link`, the role of a link, a URL and a cross-reference.
+Naming a role, and not a fixed colour, is what lets the colour settings of the
+appearance — the mode, the palette, the accent and the rest — recolour a
+bookmark with every other domain.
 
 The texts are roles over the base font `font`, so a person who changes the
 family or the size of `font` changes both. A projection holds a `StyleText`:
