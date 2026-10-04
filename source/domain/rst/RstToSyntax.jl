@@ -1007,7 +1007,7 @@ end
 
 # The font of a section title at `level` (1-based; every level past the third
 # takes `title_font`), read from the projection's own field for that level.
-_title_font(p, level::Int) =
+_get_title_font(p, level::Int) =
     unwrap_cell(level <= 1 ? p.title_1_font :
                 level == 2 ? p.title_2_font :
                 level == 3 ? p.title_3_font : p.title_font)
@@ -1028,7 +1028,7 @@ end
 
 function ProjectionModule.print_document(p::RstSectionToStyledNode, recursion, doc::RstSection, ctx)
     indent = _ambient(ctx)
-    title_style = StyleText(_title_font(p, doc.level), unwrap_cell(p.title_color))
+    title_style = StyleText(_get_title_font(p, doc.level), unwrap_cell(p.title_color))
     child_iomaps = Cell(@computation begin
         maps = Any[]
         for (i, child) in enumerate(doc.title)

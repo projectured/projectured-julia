@@ -93,7 +93,7 @@ end
 # The title as one prose line in the level's font, read from the projection's
 # own fields.
 _title_block(p, section::RstSection) =
-    TextBlock([TextString(_title_text(section), StyleText(_title_font(p, section.level), unwrap_cell(p.title_color)))])
+    TextBlock([TextString(_title_text(section), StyleText(_get_title_font(p, section.level), unwrap_cell(p.title_color)))])
 
 function _title_text(section::RstSection)
     buffer = IOBuffer()
