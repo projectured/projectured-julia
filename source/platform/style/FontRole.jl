@@ -35,19 +35,22 @@ FontRole(; base::Symbol = :font, family::Union{Nothing,AbstractString} = nothing
     TextRole(color; base = :font, family = nothing, weight = nothing, italic = nothing,
                     relative_size = 1.0)
 
-A text of a theme: a [`FontRole`](@ref) and a color. It is to `StyleText` what a
-font role is to `StyleFont`, and the scaled theme holds the `StyleText` that it
-gives.
+A text of a theme: a [`FontRole`](@ref) and a colour of any kind of
+[`ThemeColor`](@ref). It is to `StyleText` what a font role is to `StyleFont`,
+and the scaled theme holds the `StyleText` that it gives. A symbol names a role
+of the colour theme: `TextRole(:keyword; weight = 700)` is
+`TextRole(ColorRole(:keyword); weight = 700)`.
 """
 struct TextRole
     font::FontRole
-    color::StyleColor
+    color::ThemeColor
 end
 
-TextRole(color::StyleColor; base::Symbol = :font, family::Union{Nothing,AbstractString} = nothing,
+TextRole(color::ThemeColor; base::Symbol = :font, family::Union{Nothing,AbstractString} = nothing,
          weight::Union{Nothing,Integer} = nothing, italic::Union{Nothing,Bool} = nothing,
          relative_size::Real = 1.0) =
     TextRole(FontRole(; base, family, weight, italic, relative_size), color)
+TextRole(role::Symbol; keywords...) = TextRole(ColorRole(role); keywords...)
 
 """
     apply_font_role(role, base) -> StyleFont

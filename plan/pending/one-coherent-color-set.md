@@ -1,6 +1,6 @@
 # One coherent color set
 
-> **Status:** pending, decided, not started. Part 1, the catalog of every
+> **Status:** pending, decided, in progress on the branch `color-set`. Part 1, the catalog of every
 > color, is done (2026-10-04). The owner decided the design of Part 2 on
 > 2026-10-04 in two rounds of answers (section 12.1), and no question is open.
 > The work had to wait for the branch `projection-styles` of
@@ -783,20 +783,71 @@ The owner answered each question on 2026-10-04.
 | 7 | The order of the work | This work starts after the branch `projection-styles` lands. It landed on main at `63a8a5e74` on 2026-10-04. |
 | 8 | The default neutral | Slate: a cool neutral, which goes with the blue accent and is near the widgets now. |
 
-### 12.14 The steps (sketch)
+### 12.14 The steps
 
-Not started. The branch `projection-styles` landed (decision 7), so the work
-starts on the owner's word. It starts from a `main` where a projection holds
+In progress on the branch `color-set` (worktree
+`projectured-julia-color-set`), started on 2026-10-04 at the owner's word
+("yes, implement it"). The branch starts from a `main` where a projection holds
 its styles and a builder fills them with `get_<name>_style`.
 
-- **Part C, the colors computed.** C0 the license-compliance-officer checks
-  the licence of the Radix and the Tailwind data (decision 5). C1 the palette
-  type and the registry, with the Radix data; the 977 names of the Wikipedia
-  list and the 19 pastel colors leave `Color.jl` (decision 6). C2 `ColorRole` and `PaletteColor`, the methods of
-  `scale_theme_value`, and save and load. C3 the five settings of the
-  appearance. C4 `ColorTheme` with its roles in the four pairs, and a test of
-  the contrast rules for each palette, mode and contrast. C5 the colors section
-  of the appearance tab.
+- **Part C, the colors computed.**
+  - ~~C0~~ **Done (2026-10-04).** The license-compliance-officer found the
+    MIT License for all three: Radix Colors 3.0.0 ("Copyright (c) 2021
+    Radix"), Tailwind CSS ("Copyright (c) Tailwind Labs, Inc.") and Solarized
+    ("Copyright (c) 2011 Ethan Schoonover"). The copyright line and the
+    permission notice of each are in the header of
+    [RadixPalette.jl](../../source/platform/style/RadixPalette.jl) and of
+    [Color.jl](../../source/platform/style/Color.jl). **Open, for the
+    owner:** the binary carries no copy yet. `extra_texts` of the builder puts a
+    text under `share/licenses/stdlib/`, the folder of the libraries of Julia,
+    so a text of data needs a folder of its own, which is a change of the
+    builder. The check also advises counsel before a prominent use of the names
+    "Radix", "Tailwind" and "Solarized" in the names of the schemes.
+  - ~~C1~~ **Done.** [Palette.jl](../../source/platform/style/Palette.jl)
+    holds `PALETTE_HUES`, `Palette`, `TablePalette`, the registry and
+    `compute_palette_color`.
+    [RadixPalette.jl](../../source/platform/style/RadixPalette.jl) holds 14
+    ramps of Radix in both modes: the neutrals slate (the default), gray,
+    mauve, sage, olive and sand, and the eight hues; the hue `blue` is the
+    Radix scale `indigo` (`#3e63dd` at step 9), the deep blue of decision 3.
+    The 996 unused names left `Color.jl`, which now holds 80 constants and
+    `compute_relative_luminance` and `compute_contrast_ratio` (WCAG 2).
+  - ~~C2~~ **Done.** [ThemeColor.jl](../../source/platform/style/ThemeColor.jl)
+    holds `PaletteColor`, `ColorRole`, `ThemeColor` and `format_theme_color`.
+    A `TextRole` takes any `ThemeColor`, and a symbol names a role:
+    `TextRole(:keyword; weight = 700)`. `resolve_theme_color` gives the colour;
+    `scale_theme_value` calls it. The file saves a step of a ramp and a role
+    as a TOML table.
+  - **A fact found in C1:** Radix tunes its step 11 for the APCA contrast,
+    not for WCAG 2. In the light mode, orange 11 has 4.40 and teal 11 4.45
+    against step 1, and green and amber are under 4.5 against step 2; white on
+    red 9 has 3.91 and on green 9 3.16. So `PaletteColor` has a
+    `minimum_contrast`: a step that does not reach it moves along its own ramp
+    toward the end with more contrast, just far enough, so the hue stays. It is
+    measured against the steps 1 and 2 of the neutral, or against the colour
+    that `against` names (white for a solid fill with white text). The rule then
+    holds by construction for every palette.
+  - ~~C3~~ **Done.** `Appearance` has `color_mode`, `color_contrast`,
+    `color_palette`, `color_accent` and `color_neutral`, and `color_themes`,
+    the four colour themes. Save writes the settings and the roles that differ
+    from the default of their variant; load takes the default of each variant
+    and then the saved roles. A mode that is not known is light.
+  - ~~C4~~ **Done.** [ColorTheme.jl](../../source/platform/style/ColorTheme.jl)
+    holds `ColorTheme` with 62 roles, `make_color_theme(variant)` for the four
+    variants, and `resolve_theme_color`. Some names differ from sections 12.8
+    and 12.10: a field of a document can not be named `selection`, and a field
+    named `error` or `string` would hide the function of Base in the keyword
+    constructor, so the roles are `selection_band`, `error_fill`,
+    `warning_fill`, `success_fill`, `info_fill`, `string_literal`, `type_name`
+    and `function_name`. Two roles are new: `accent_hover` and
+    `text_inverse_muted`. A role can name another role; a cycle is an error.
+    [ColorThemeTest.jl](../../test/platform/document/ColorThemeTest.jl) checks
+    303 points, among them the contrast rules for each palette, mode and
+    contrast. The rules are as section 12.5 says, with two refinements: a
+    decorative line (`border`, `grid`) has no minimum, and a line that marks a
+    control (`border_strong`, `focus_ring`, `selection_ring`) needs 3 (4.5 in a
+    high contrast theme); a faint text needs 3 (4.5).
+  - C5 the colors section of the appearance tab.
 - **Part M, the themes name roles.** One package at a time, each with a
   table of its fields and their roles, which the owner sees before the change:
   M1 the widgets, M2 the graphics, the text, the syntax and the reference (the

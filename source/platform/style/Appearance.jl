@@ -1,13 +1,38 @@
 # Fragment of `StyleModule` — the appearance of an editor: the zoom, the six
-# scales, and the theme and the scaled theme of each domain.
+# scales, the colour settings and the colour themes, and the theme and the scaled
+# theme of each domain.
+
+"""
+    COLOR_MODES
+
+The modes of the colours of an appearance: `:light` and `:dark`.
+"""
+const COLOR_MODES = (:light, :dark)
+
+"""
+    COLOR_CONTRASTS
+
+The contrasts of the colours of an appearance: `:normal` and `:high`.
+"""
+const COLOR_CONTRASTS = (:normal, :high)
 
 """
     Appearance(; zoom = 1.0, font_scale = 1.0, icon_scale = 1.0, spacing_scale = 1.0,
-                 control_scale = 1.0, radius_scale = 1.0, line_scale = 1.0)
+                 control_scale = 1.0, radius_scale = 1.0, line_scale = 1.0,
+                 color_mode = :light, color_contrast = :normal, color_palette = "radix",
+                 color_accent = :blue, color_neutral = :slate)
 
 What a person sets about the look of one editor: the zoom of the interface, the
-six scales, and for each domain its theme and its scaled theme, found by the type
-of the theme. `saved_themes` holds the values of each theme that a loaded file
+six scales, the five colour settings, and for each domain its theme and its scaled
+theme, found by the type of the theme.
+
+The colour settings say how a [`PaletteColor`](@ref) and a [`ColorRole`](@ref)
+become a colour: `color_mode` is one of [`COLOR_MODES`](@ref), `color_contrast`
+one of [`COLOR_CONTRASTS`](@ref), `color_palette` the name of a palette of the
+registry, `color_accent` the hue of the accent and `color_neutral` the neutral
+ramp. `color_themes` holds a [`ColorTheme`](@ref) for each pair of a mode and a
+contrast, by the name that [`get_color_variant`](@ref) gives the pair, so a
+fine-tune of a role stays with its mode and its contrast. `saved_themes` holds the values of each theme that a loaded file
 names and that the appearance does not hold yet, by the name of its type; the
 theme takes them when it is made (see [`load_appearance!`](@ref)).
 
@@ -22,9 +47,9 @@ open, for the same reason; it is view state too.
 
 The main builder of an editor makes one, builds its projection with it, and gives
 it to the `appearance` wrapper of `build_editor`. A projection takes the scaled
-theme of its domain with [`get_scaled_theme!`](@ref) while it is built. The zoom
-and the scales are cells, so a scaled theme follows a change of a scale; the
-wrapper then makes the view print again.
+theme of its domain with [`get_scaled_theme!`](@ref) while it is built. The zoom,
+the scales and the colour settings are cells, so a scaled theme follows a change
+of each; the wrapper then makes the view print again.
 """
 @document struct Appearance
     zoom::Float64 = 1.0
@@ -34,6 +59,12 @@ wrapper then makes the view print again.
     control_scale::Float64 = 1.0
     radius_scale::Float64 = 1.0
     line_scale::Float64 = 1.0
+    color_mode::Symbol = :light
+    color_contrast::Symbol = :normal
+    color_palette::String = DEFAULT_PALETTE_NAME
+    color_accent::Symbol = :blue
+    color_neutral::Symbol = :slate
+    color_themes::Dict{Symbol,Any} = make_color_themes()
     themes::Dict{Type,Any} = Dict{Type,Any}()
     saved_themes::Dict{String,Any} = Dict{String,Any}()
     scroll_position::Point2D = Point2D(0, 0)
@@ -116,15 +147,16 @@ scale_theme_value(length::IconSize, appearance::Appearance) =
 
 `value` of a field of `theme` times the scale of its kind in `appearance`. A
 [`FontRole`](@ref) takes the font that it gives over its base font in `theme`, and
-then the font scale; a [`TextRole`](@ref) does the same for its font and keeps its
-color. Every other value scales as [`scale_theme_value`](@ref)`(value, appearance)`
+then the font scale; a [`TextRole`](@ref) does the same for its font, and takes the
+colour that [`resolve_theme_color`](@ref) gives its colour. Every other value scales as [`scale_theme_value`](@ref)`(value, appearance)`
 says. The scaled theme reads the base font, so a role follows a change of it.
 """
 scale_theme_value(value, theme, appearance::Appearance) = scale_theme_value(value, appearance)
 scale_theme_value(role::FontRole, theme, appearance::Appearance) =
     scale_theme_value(apply_font_role(role, get_role_base(role, theme)), appearance)
 scale_theme_value(role::TextRole, theme, appearance::Appearance) =
-    StyleText(scale_theme_value(role.font, theme, appearance), role.color)
+    StyleText(scale_theme_value(role.font, theme, appearance),
+              resolve_theme_color(role.color, appearance))
 
 make_scaled_theme(theme::Theme) = make_scaled_theme(theme, Appearance())
 
@@ -185,14 +217,33 @@ get_appearance_file() = joinpath(get_configuration_folder(), "appearance.toml")
 """
     save_appearance!(appearance, path = get_appearance_file()) -> path
 
-Write `appearance` into the TOML file `path`: the zoom, the six scales, and a table
-for each theme that it holds, with the base value of each field. A color is
-`#rrggbbaa`, a font is a table of its file and its size, a size is a number, or a
-list for an inset (top, bottom, left, right) and for a point (x, y). A value of a
-kind that the file can not say is left out.
+Write `appearance` into the TOML file `path`: the zoom, the six scales, the five
+colour settings, the roles of each colour theme that differ from the default of
+its mode and contrast, and a table for each theme that it holds, with the base
+value of each field. A fixed colour is `#rrggbbaa`, a step of a ramp a table of
+its hue and its step, a role a table of its role; a font is a table of its file
+and its size, a size is a number, or a list for an inset (top, bottom, left,
+right) and for a point (x, y). A value of a kind that the file can not say is
+left out.
 """
 function save_appearance!(appearance::Appearance, path::AbstractString = get_appearance_file())
     data = Dict{String,Any}(String(f) => Float64(getproperty(appearance, f)) for f in _APPEARANCE_FACTORS)
+    for field in _APPEARANCE_COLOR_SETTINGS
+        data[String(field)] = String(getproperty(appearance, field))
+    end
+    fine_tunes = Dict{String,Any}()
+    for (variant, theme) in appearance.color_themes
+        default = make_color_theme(variant)
+        table = Dict{String,Any}()
+        for field in get_theme_field_names(ColorTheme)
+            value = getproperty(theme, field)
+            value == getproperty(default, field) && continue
+            encoded = _encode_appearance_value(value)
+            encoded === nothing || (table[String(field)] = encoded)
+        end
+        isempty(table) || (fine_tunes[String(variant)] = table)
+    end
+    isempty(fine_tunes) || (data[_COLOR_THEME_KEY] = fine_tunes)
     for (T, entry) in appearance.themes
         table = Dict{String,Any}()
         for field in get_theme_field_names(T)
@@ -214,8 +265,9 @@ end
     load_appearance!(appearance, path = get_appearance_file()) -> appearance
 
 Read the TOML file `path` into `appearance`, in place, so that every view built
-with it follows. A factor or a field that the file does not name takes its
-default, and a key that is not known is ignored. A theme that `appearance` holds
+with it follows. A factor, a colour setting or a field that the file does not name
+takes its default, and a key that is not known is ignored. Each colour theme takes
+the default of its mode and contrast, and then the roles that the file names. A theme that `appearance` holds
 takes the values of its table at once. The table of a theme that it does not hold
 yet waits in `saved_themes`, and the theme takes it when a builder makes it. A
 missing file changes nothing.
@@ -226,6 +278,13 @@ function load_appearance!(appearance::Appearance, path::AbstractString = get_app
     for field in _APPEARANCE_FACTORS
         value = get(data, String(field), 1.0)
         setproperty!(appearance, field, value isa Real && value > 0 ? Float64(value) : 1.0)
+    end
+    _load_color_settings!(appearance, data)
+    fine_tunes = pop!(data, _COLOR_THEME_KEY, Dict{String,Any}())
+    for (variant, theme) in appearance.color_themes
+        table = fine_tunes isa AbstractDict ? get(fine_tunes, String(variant), nothing) : nothing
+        _write_saved_color_theme!(theme, make_color_theme(variant),
+                                  table isa AbstractDict ? table : Dict{String,Any}())
     end
     held = Dict(string(nameof(T)) => entry.theme for (T, entry) in appearance.themes)
     empty!(appearance.saved_themes)
@@ -239,6 +298,44 @@ function load_appearance!(appearance::Appearance, path::AbstractString = get_app
         haskey(data, name) || _write_saved_theme!(theme, Dict{String,Any}(); defaults = true)
     end
     appearance
+end
+
+# The keys of the colour settings in the file, and the key of the table of the
+# roles of the colour themes that differ from their defaults.
+const _APPEARANCE_COLOR_SETTINGS = (:color_mode, :color_contrast, :color_palette,
+                                    :color_accent, :color_neutral)
+const _COLOR_THEME_KEY = "ColorTheme"
+
+# Read the colour settings of `data` into `appearance`: a setting that `data` does
+# not name, or names as no text or as a mode or a contrast that is not known,
+# takes its default.
+function _load_color_settings!(appearance::Appearance, data::AbstractDict)
+    default = (color_mode = :light, color_contrast = :normal, color_palette = DEFAULT_PALETTE_NAME,
+               color_accent = :blue, color_neutral = :slate)
+    for field in _APPEARANCE_COLOR_SETTINGS
+        saved = get(data, String(field), nothing)
+        value = getproperty(default, field)
+        if saved isa AbstractString && !isempty(saved)
+            value = value isa Symbol ? Symbol(saved) : String(saved)
+            field === :color_mode && !(value in COLOR_MODES) && (value = default.color_mode)
+            field === :color_contrast && !(value in COLOR_CONTRASTS) && (value = default.color_contrast)
+        end
+        setproperty!(appearance, field, value)
+    end
+end
+
+# Write into the colour theme `theme` each role of `default`, and then the roles
+# that the table `saved` names.
+function _write_saved_color_theme!(theme, default, saved::AbstractDict)
+    for field in get_theme_field_names(ColorTheme)
+        value = getproperty(default, field)
+        if haskey(saved, String(field))
+            decoded = _decode_appearance_value(value, saved[String(field)])
+            decoded === nothing || (value = decoded)
+        end
+        setproperty!(theme, field, value)
+    end
+    theme
 end
 
 # Write the values of the table `saved` into `theme`. With `defaults`, a field that
@@ -262,6 +359,18 @@ end
 # A value of a theme as the TOML file says it, or `nothing` for a kind that the
 # file can not say.
 _encode_appearance_value(color::StyleColor) = format_style_color(color)
+function _encode_appearance_value(color::PaletteColor)
+    table = Dict{String,Any}("hue" => String(color.hue), "step" => color.step)
+    color.alpha == 1 || (table["alpha"] = color.alpha)
+    color.minimum_contrast == 0 || (table["minimum_contrast"] = color.minimum_contrast)
+    color.against === nothing || (table["against"] = format_style_color(color.against))
+    table
+end
+function _encode_appearance_value(color::ColorRole)
+    table = Dict{String,Any}("role" => String(color.role))
+    color.alpha == 1 || (table["alpha"] = color.alpha)
+    table
+end
 _encode_appearance_value(font::StyleFont) =
     Dict{String,Any}("family" => font.family, "size" => font.size,
                      "weight" => Int(font.weight), "italic" => font.italic)
@@ -292,8 +401,27 @@ _encode_appearance_value(_) = nothing
 
 # The value that the TOML value `saved` says, of the kind of `current`, or
 # `nothing` when it says no such value.
-_decode_appearance_value(current::StyleColor, saved) =
-    saved isa AbstractString ? convert_text_to_style_color(saved) : nothing
+# A colour field of a theme takes a colour of any kind: a text names a fixed
+# colour, a table with a `role` a role, and a table with a `hue` and a `step` a step
+# of a ramp. A colour of a text style and of a stroke is a fixed colour.
+_decode_appearance_value(current::ThemeColor, saved) = _decode_theme_color(saved)
+_decode_style_color(saved) = saved isa AbstractString ? convert_text_to_style_color(saved) : nothing
+_decode_theme_color(saved::AbstractString) = convert_text_to_style_color(saved)
+function _decode_theme_color(saved::AbstractDict)
+    alpha = get(saved, "alpha", 1.0)
+    alpha isa Real && 0 <= alpha <= 1 || return nothing
+    role = get(saved, "role", nothing)
+    role isa AbstractString && return ColorRole(Symbol(role); alpha)
+    hue = get(saved, "hue", nothing)
+    step = get(saved, "step", nothing)
+    minimum_contrast = get(saved, "minimum_contrast", 0.0)
+    against = get(saved, "against", nothing)
+    against = against === nothing ? nothing : _decode_style_color(against)
+    (hue isa AbstractString && step isa Integer && 1 <= step <= 12 &&
+     minimum_contrast isa Real) || return nothing
+    PaletteColor(Symbol(hue), step; alpha, minimum_contrast, against)
+end
+_decode_theme_color(saved) = nothing
 function _decode_appearance_value(current::StyleFont, saved)
     saved isa AbstractDict || return nothing
     family = get(saved, "family", nothing)
@@ -326,7 +454,9 @@ end
 function _decode_appearance_value(current::TextRole, saved)
     saved isa AbstractDict || return nothing
     _is_absolute_font_table(get(saved, "font", nothing)) &&
-        return _decode_appearance_value(StyleText(StyleFont(_DEFAULT_FONT_FAMILY, 1), current.color), saved)
+        return _decode_appearance_value(StyleText(StyleFont(_DEFAULT_FONT_FAMILY, 1),
+                                                  current.color isa StyleColor ? current.color : color_default),
+                                        saved)
     font = _decode_appearance_value(current.font, get(saved, "font", nothing))
     color = _decode_appearance_value(current.color, get(saved, "color", nothing))
     TextRole(something(font, current.font), something(color, current.color))
@@ -334,12 +464,12 @@ end
 function _decode_appearance_value(current::StyleText, saved)
     saved isa AbstractDict || return nothing
     font = _decode_appearance_value(current.font, get(saved, "font", nothing))
-    color = _decode_appearance_value(current.color, get(saved, "color", nothing))
+    color = _decode_style_color(get(saved, "color", nothing))
     StyleText(something(font, current.font), something(color, current.color))
 end
 function _decode_appearance_value(current::StyleStroke, saved)
     saved isa AbstractDict || return nothing
-    color = _decode_appearance_value(current.color, get(saved, "color", nothing))
+    color = _decode_style_color(get(saved, "color", nothing))
     width = get(saved, "width", current.width)
     width isa Real || return nothing
     StyleStroke(something(color, current.color), width, current.dash)

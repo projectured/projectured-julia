@@ -1,8 +1,9 @@
 """
     StyleModule
 
-Color style value type and named color constants. Colors are stored as
-normalized Float64 components in [0, 1].
+Color style value type and named color constants, the palettes and the colour
+theme, the fonts, the geometry, the themes and the appearance. Colors are stored
+as normalized Float64 components in [0, 1].
 """
 module StyleModule
 
@@ -19,6 +20,7 @@ import ..SerializationModule: is_pred_constructible
 
 export StyleColor, make_style_color, format_style_color, convert_text_to_style_color,
        is_color_equal, is_color_transparent, color_interpolate, color_lighten, color_darken,
+       compute_relative_luminance, compute_contrast_ratio,
        color_lighten_selection, color_darken_selection,
        color_default,
        color_black, color_white, color_transparent, color_red, color_green, color_blue,
@@ -35,16 +37,6 @@ export StyleColor, make_style_color, format_style_color, convert_text_to_style_c
        color_solarized_content_darker, color_solarized_content_dark,
        color_solarized_content_light, color_solarized_content_lighter,
        color_completion_hint,
-       color_pastel_turquoise, color_pastel_green_sea,
-       color_pastel_emerland, color_pastel_nephritis,
-       color_pastel_peter_river, color_pastel_belize_hole,
-       color_pastel_amethyst, color_pastel_wisteria,
-       color_pastel_wet_asphalt, color_pastel_midnight_blue,
-       color_pastel_sun_flower, color_pastel_orange,
-       color_pastel_carrot, color_pastel_pumpkin,
-       color_pastel_alizarin, color_pastel_pomegranate,
-       color_pastel_clouds, color_pastel_silver,
-       color_pastel_concrete, color_pastel_asbestos,
        color_zinc_50, color_zinc_100, color_zinc_200, color_zinc_300,
        color_zinc_400, color_zinc_500, color_zinc_600, color_zinc_700,
        color_zinc_800, color_zinc_900, color_zinc_950,
@@ -55,6 +47,11 @@ export StyleColor, make_style_color, format_style_color, convert_text_to_style_c
        color_indigo_400, color_indigo_500, color_indigo_600, color_indigo_700,
        color_indigo_800, color_indigo_900, color_indigo_950,
        color_destructive, color_destructive_fg
+export PaletteColor, ColorRole, ThemeColor, format_theme_color
+export PALETTE_HUES, Palette, TablePalette, get_palette_name, get_palette_neutrals,
+       find_palette_ramp, DEFAULT_PALETTE_NAME, register_palette!, find_palette,
+       get_palette_names, compute_palette_color
+export RADIX_PALETTE
 export StyleFont, make_style_font, font_logical_size, font_device_size, step_factor,
        _FONT_DIR
 export font_ascent, font_descent, font_line_height,
@@ -78,8 +75,10 @@ export Theme, ScaledTheme, ThemeLength, Spacing, Radius, LineWidth, ControlSize,
        get_base_theme, get_theme_appearance, make_theme_cell, get_theme_defaults,
        make_style_field, make_theme_values_field,
        get_appearance_file, save_appearance!, load_appearance!
-export Appearance, scale_theme_value, get_scaled_theme!, set_theme!, get_theme,
-       get_theme_value, get_theme_values
+export COLOR_MODES, COLOR_CONTRASTS, Appearance, scale_theme_value, get_scaled_theme!,
+       set_theme!, get_theme, get_theme_value, get_theme_values
+export ColorTheme, COLOR_VARIANTS, get_color_variant, make_color_theme, make_color_themes,
+       get_color_theme, resolve_theme_color
 export TextMeasure, FontMetrics, StringBox, measure_string, get_font_metrics,
        compute_caret_offsets, FontFileMeasure, FixedMeasure, compute_text_extent,
        PlacedGlyph, compute_placed_glyphs
@@ -91,6 +90,9 @@ export TrueTypeFont, load_truetype_font, get_glyph_id, get_glyph_advance_1000,
 
 
 include("Color.jl")
+include("ThemeColor.jl")
+include("Palette.jl")
+include("RadixPalette.jl")
 include("Font.jl")
 include("TrueType.jl")
 include("FontFace.jl")
@@ -103,5 +105,6 @@ include("StyleText.jl")
 include("FontRole.jl")
 include("Theme.jl")
 include("Appearance.jl")
+include("ColorTheme.jl")
 
 end # module
