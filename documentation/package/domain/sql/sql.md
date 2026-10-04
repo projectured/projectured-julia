@@ -56,11 +56,14 @@ A `+` or a `-` in front of a number is the sign of that number where the grammar
 ### The theme
 
 `SqlTheme` holds the look of the SQL projections: the text of a keyword, the plain text of columns, values, expressions and types, and the text of a table name; the plain text also styles the commas and the parentheses that the printers build. Each value has
-the default that the domain draws with no appearance. Each projection takes
-`theme`, a `SqlTheme` or a scaled one; with none it holds the default values.
-`SqlToSyntax(; theme, syntax_theme)` gives the theme to every projection, and the insertion and the empty placeholder take `syntax_theme`. The natural
-registration gives the scaled theme of the `Appearance` of the editor, so the view
-follows its scales, and the appearance tab shows a section for `SqlTheme`.
+the default that the domain draws with no appearance. A projection holds its
+styles as fields, and no theme; nothing in it scales or asks whether a theme is
+scaled. `SqlToSyntax(; theme, syntax_theme)` gives each projection the style of
+its role with `get_sql_style`, from `theme`, a `SqlTheme` scaled or not, or the
+default styles for `nothing`; the insertion and the empty placeholder take
+`syntax_theme`. The natural registration gives the scaled theme of the
+`Appearance` of the editor, so the view follows its scales, and the appearance
+tab shows a section for `SqlTheme`.
 
 ## How it fits
 

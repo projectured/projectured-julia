@@ -36,8 +36,7 @@ _newline_body_compact(f::Function) = SyntaxNode(f; indentation=-1)
 # ── SqlAllColumnsToSyntaxLeaf ─────────────────────────────────────────────────
 
 @projection UntrackedCell struct SqlAllColumnsToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_sql_style(theme, :plain_text)
+    style::StyleText = get_sql_style(nothing, :plain_text)
 end
 
 # Opaque display leaf (no marker): the rendered text is a pure multi-field
@@ -52,8 +51,7 @@ end
 # ── SqlColumnReferenceToSyntaxLeaf ────────────────────────────────────────────
 
 @projection UntrackedCell struct SqlColumnReferenceToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_sql_style(theme, :plain_text)
+    style::StyleText = get_sql_style(nothing, :plain_text)
 end
 
 @projection_template SqlColumnReferenceToSyntaxLeaf SqlColumnReference (p, doc) ->
@@ -67,8 +65,7 @@ end
 # Bare column name, used in INSERT column lists and UPDATE assignments.
 
 @projection UntrackedCell struct SqlColumnNameToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_sql_style(theme, :plain_text)
+    style::StyleText = get_sql_style(nothing, :plain_text)
 end
 
 @projection_template SqlColumnNameToSyntaxLeaf SqlColumnName (p, doc) ->
@@ -78,8 +75,7 @@ end
 # Bare table name (with optional schema), used as the INSERT/UPDATE target.
 
 @projection UntrackedCell struct SqlTableNameToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_sql_style(theme, :name_text)
+    style::StyleText = get_sql_style(nothing, :name_text)
 end
 
 @projection_template SqlTableNameToSyntaxLeaf SqlTableName (p, doc) ->
@@ -89,8 +85,7 @@ end
 # ── SqlTableExpressionToSyntaxLeaf ────────────────────────────────────────────
 
 @projection UntrackedCell struct SqlTableExpressionToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_sql_style(theme, :name_text)
+    style::StyleText = get_sql_style(nothing, :name_text)
 end
 
 @projection_template SqlTableExpressionToSyntaxLeaf SqlTableExpression (p, doc) ->
@@ -104,11 +99,10 @@ end
 # ── SqlSubqueryFromItemToSyntaxNode ──────────────────────────────────────────
 
 @projection UntrackedCell struct SqlSubqueryFromItemToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText = _get_sql_style(theme, :keyword_text)
-    name::StyleFont = _get_sql_font(theme)
-    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
-    plain::StyleText = _get_sql_style(theme, :plain_text)
+    keyword::StyleText = get_sql_style(nothing, :keyword_text)
+    name::StyleFont = _get_sql_font(nothing)
+    punctuation::StyleText = get_sql_style(nothing, :punctuation_text)
+    plain::StyleText = get_sql_style(nothing, :plain_text)
 end
 
 function print_document(p::SqlSubqueryFromItemToSyntaxNode, recursion, doc::SqlSubqueryFromItem, ctx)
@@ -116,9 +110,8 @@ function print_document(p::SqlSubqueryFromItemToSyntaxNode, recursion, doc::SqlS
                                          make_child_context(ctx, FieldReferenceStep("subquery")))))
     child_iomaps_cell = Cell(@computation Any[subq_im[]])
 
-    plain = _get_sql_text(p.theme, :plain_text)
-    paren_node = SyntaxNode(() -> SyntaxDocument[subq_im[].output]; open = TextString("(", plain),
-                            close = TextString(")", plain), sep = TextString(" ", plain))
+    paren_node = SyntaxNode(() -> SyntaxDocument[subq_im[].output]; open = TextString("(", p.plain),
+                            close = TextString(")", p.plain), sep = TextString(" ", p.plain))
 
     iomap_cell = Cell(nothing)
     paths = make_output_path_cells(doc, path -> begin
@@ -187,8 +180,7 @@ _join_type_display(::SqlCrossJoin)      = "CROSS JOIN"
 # ── SqlJoinTypeToSyntaxLeaf ───────────────────────────────────────────────────
 
 @projection UntrackedCell struct SqlJoinTypeToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_sql_style(theme, :keyword_text)
+    style::StyleText = get_sql_style(nothing, :keyword_text)
 end
 
 # The join keyword ("INNER JOIN", …) is a fixed display for the document's type.
@@ -198,11 +190,10 @@ end
 # ── SqlSelectItemToSyntaxNode ─────────────────────────────────────────────────
 
 @projection UntrackedCell struct SqlSelectItemToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText = _get_sql_style(theme, :keyword_text)
-    name::StyleFont = _get_sql_font(theme)
-    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
-    plain::StyleText = _get_sql_style(theme, :plain_text)
+    keyword::StyleText = get_sql_style(nothing, :keyword_text)
+    name::StyleFont = _get_sql_font(nothing)
+    punctuation::StyleText = get_sql_style(nothing, :punctuation_text)
+    plain::StyleText = get_sql_style(nothing, :plain_text)
 end
 
 function print_document(p::SqlSelectItemToSyntaxNode, recursion, doc::SqlSelectItem, ctx)
@@ -271,9 +262,9 @@ read_intent(::SqlSelectItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 # ── SqlSelectClauseToSyntaxNode ───────────────────────────────────────────────
 
 @projection UntrackedCell struct SqlSelectClauseToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText = _get_sql_style(theme, :keyword_text)
-    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
+    keyword::StyleText = get_sql_style(nothing, :keyword_text)
+    punctuation::StyleText = get_sql_style(nothing, :punctuation_text)
+    plain::StyleText = get_sql_style(nothing, :plain_text)
 end
 
 function print_document(p::SqlSelectClauseToSyntaxNode, recursion, doc::SqlSelectClause, ctx)
@@ -281,8 +272,7 @@ function print_document(p::SqlSelectClauseToSyntaxNode, recursion, doc::SqlSelec
         print_document(recursion, recursion, item, make_child_context(ctx, ElementReferenceStep(i)))
         for (i, item) in enumerate(doc.items)]))
 
-    items_body = _comma_body(() -> SyntaxDocument[im.output for im in item_ims[]],
-                             _get_sql_text(p.theme, :plain_text))
+    items_body = _comma_body(() -> SyntaxDocument[im.output for im in item_ims[]], p.plain)
 
     iomap_cell = Cell(nothing)
     paths = make_output_path_cells(doc, path -> begin
@@ -351,9 +341,8 @@ read_intent(::SqlSelectClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 # ── SqlJoinedFromItemToSyntaxNode ─────────────────────────────────────────────
 
 @projection UntrackedCell struct SqlJoinedFromItemToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText = _get_sql_style(theme, :keyword_text)
-    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
+    keyword::StyleText = get_sql_style(nothing, :keyword_text)
+    punctuation::StyleText = get_sql_style(nothing, :punctuation_text)
 end
 
 function print_document(p::SqlJoinedFromItemToSyntaxNode, recursion, doc::SqlJoinedFromItem, ctx)
@@ -456,9 +445,8 @@ read_intent(::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 # ── SqlJoinOnConditionToSyntaxNode ─────────────────────────────────────────────
 
 @projection UntrackedCell struct SqlJoinOnConditionToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText = _get_sql_style(theme, :keyword_text)
-    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
+    keyword::StyleText = get_sql_style(nothing, :keyword_text)
+    punctuation::StyleText = get_sql_style(nothing, :punctuation_text)
 end
 
 function print_document(p::SqlJoinOnConditionToSyntaxNode, recursion, doc::SqlJoinOnCondition, ctx)
@@ -523,9 +511,8 @@ read_intent(::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, op) = nothin
 # them is a part that this projection printed, named by its own introduced step.
 
 @projection UntrackedCell struct SqlJoinUsingConditionToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText = _get_sql_style(theme, :keyword_text)
-    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
+    keyword::StyleText = get_sql_style(nothing, :keyword_text)
+    punctuation::StyleText = get_sql_style(nothing, :punctuation_text)
 end
 
 @projection_template SqlJoinUsingConditionToSyntaxNode SqlJoinUsingCondition (p, doc) ->
@@ -540,9 +527,8 @@ end
 # ── SqlFromItemToSyntaxNode ───────────────────────────────────────────────────
 
 @projection UntrackedCell struct SqlFromItemToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText = _get_sql_style(theme, :keyword_text)
-    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
+    keyword::StyleText = get_sql_style(nothing, :keyword_text)
+    punctuation::StyleText = get_sql_style(nothing, :punctuation_text)
 end
 
 function print_document(p::SqlFromItemToSyntaxNode, recursion, doc::SqlFromItem, ctx)
@@ -638,9 +624,9 @@ read_intent(::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 # ── SqlFromClauseToSyntaxNode ─────────────────────────────────────────────────
 
 @projection UntrackedCell struct SqlFromClauseToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText = _get_sql_style(theme, :keyword_text)
-    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
+    keyword::StyleText = get_sql_style(nothing, :keyword_text)
+    punctuation::StyleText = get_sql_style(nothing, :punctuation_text)
+    plain::StyleText = get_sql_style(nothing, :plain_text)
 end
 
 function print_document(p::SqlFromClauseToSyntaxNode, recursion, doc::SqlFromClause, ctx)
@@ -648,8 +634,7 @@ function print_document(p::SqlFromClauseToSyntaxNode, recursion, doc::SqlFromCla
         print_document(recursion, recursion, item, make_child_context(ctx, ElementReferenceStep(i)))
         for (i, item) in enumerate(doc.items)]))
 
-    items_body = _comma_body(() -> SyntaxDocument[im.output for im in item_ims[]],
-                             _get_sql_text(p.theme, :plain_text))
+    items_body = _comma_body(() -> SyntaxDocument[im.output for im in item_ims[]], p.plain)
 
     iomap_cell = Cell(nothing)
     paths = make_output_path_cells(doc, path -> begin
@@ -710,8 +695,7 @@ read_intent(::SqlFromClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 # ── SqlWhereFilterConditionToSyntaxNode ──────────────────────────────────────
 
 @projection UntrackedCell struct SqlWhereFilterConditionToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText = _get_sql_style(theme, :keyword_text)
+    keyword::StyleText = get_sql_style(nothing, :keyword_text)
 end
 
 function print_document(p::SqlWhereFilterConditionToSyntaxNode, recursion, doc::SqlWhereFilterCondition, ctx)
@@ -772,9 +756,8 @@ read_intent(::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, op) = n
 # ── SqlWhereClauseToSyntaxNode ────────────────────────────────────────────────
 
 @projection UntrackedCell struct SqlWhereClauseToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText = _get_sql_style(theme, :keyword_text)
-    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
+    keyword::StyleText = get_sql_style(nothing, :keyword_text)
+    punctuation::StyleText = get_sql_style(nothing, :punctuation_text)
 end
 
 function print_document(p::SqlWhereClauseToSyntaxNode, recursion, doc::SqlWhereClause, ctx)
@@ -843,8 +826,7 @@ read_intent(::SqlWhereClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 # ── SqlScalarValueToSyntaxLeaf ───────────────────────────────────────────────
 
 @projection UntrackedCell struct SqlScalarValueToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_sql_style(theme, :plain_text)
+    style::StyleText = get_sql_style(nothing, :plain_text)
 end
 
 @projection_template SqlScalarValueToSyntaxLeaf SqlScalarValue (p, doc) ->
@@ -863,8 +845,7 @@ _quote_string_literal(value::AbstractString) = "'" * replace(value, "'" => "''")
 # The source text of an expression that the model does not have, as it is written.
 
 @projection UntrackedCell struct SqlRawExpressionToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_sql_style(theme, :plain_text)
+    style::StyleText = get_sql_style(nothing, :plain_text)
 end
 
 @projection_template SqlRawExpressionToSyntaxLeaf SqlRawExpression (p, doc) ->
@@ -874,8 +855,7 @@ end
 # The source text of a condition that the model does not have, as it is written.
 
 @projection UntrackedCell struct SqlRawConditionToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_sql_style(theme, :plain_text)
+    style::StyleText = get_sql_style(nothing, :plain_text)
 end
 
 @projection_template SqlRawConditionToSyntaxLeaf SqlRawCondition (p, doc) ->
@@ -884,9 +864,8 @@ end
 # ── SqlComparisonToSyntaxNode ─────────────────────────────────────────────────
 
 @projection UntrackedCell struct SqlComparisonToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText = _get_sql_style(theme, :keyword_text)
-    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
+    keyword::StyleText = get_sql_style(nothing, :keyword_text)
+    punctuation::StyleText = get_sql_style(nothing, :punctuation_text)
 end
 
 function print_document(p::SqlComparisonToSyntaxNode, recursion, doc::SqlComparison, ctx)
@@ -971,8 +950,8 @@ read_intent(::SqlComparisonToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
     punctuation::StyleText
 end
 SqlBooleanBinaryToSyntaxNode(keyword; theme = nothing,
-                             keyword_style = _get_sql_style(theme, :keyword_text),
-                             punctuation = _get_sql_style(theme, :punctuation_text)) =
+                             keyword_style = get_sql_style(theme, :keyword_text),
+                             punctuation = get_sql_style(theme, :punctuation_text)) =
     SqlBooleanBinaryToSyntaxNode(keyword, keyword_style, punctuation)
 
 function print_document(p::SqlBooleanBinaryToSyntaxNode, recursion, doc, ctx)
@@ -1054,9 +1033,8 @@ read_intent(::SqlBooleanBinaryToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 # ── SqlNotToSyntaxNode ────────────────────────────────────────────────────────
 
 @projection UntrackedCell struct SqlNotToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText = _get_sql_style(theme, :keyword_text)
-    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
+    keyword::StyleText = get_sql_style(nothing, :keyword_text)
+    punctuation::StyleText = get_sql_style(nothing, :punctuation_text)
 end
 
 function print_document(p::SqlNotToSyntaxNode, recursion, doc::SqlNot, ctx)
@@ -1127,8 +1105,7 @@ read_intent(::SqlNotToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 # in `_get_printed_select_clauses`.
 
 @projection UntrackedCell struct SqlSelectStatementToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText = _get_sql_style(theme, :keyword_text)
+    keyword::StyleText = get_sql_style(nothing, :keyword_text)
 end
 
 # The fields of the clauses that a statement prints, in order. A `FROM` with no
@@ -1222,9 +1199,9 @@ end
 # deeper, inside their parenthesised comma list.
 
 @projection UntrackedCell struct SqlInsertStatementToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText = _get_sql_style(theme, :keyword_text)
-    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
+    keyword::StyleText = get_sql_style(nothing, :keyword_text)
+    punctuation::StyleText = get_sql_style(nothing, :punctuation_text)
+    plain::StyleText = get_sql_style(nothing, :plain_text)
 end
 
 function print_document(p::SqlInsertStatementToSyntaxNode, recursion, stmt::SqlInsertStatement, ctx)
@@ -1244,15 +1221,14 @@ function print_document(p::SqlInsertStatementToSyntaxNode, recursion, stmt::SqlI
         Any[table_im; col_ims; val_ims]
     end)
 
-    plain = _get_sql_text(p.theme, :plain_text)
     columns_paren = SyntaxNode(() -> begin
         _, col_ims, _ = projected[]
         SyntaxDocument[c.output for c in col_ims]
-    end; open = TextString("(", plain), close = TextString(")", plain), sep = TextString(", ", plain))
+    end; open = TextString("(", p.plain), close = TextString(")", p.plain), sep = TextString(", ", p.plain))
     values_paren = SyntaxNode(() -> begin
         _, _, val_ims = projected[]
         SyntaxDocument[v.output for v in val_ims]
-    end; open = TextString("(", plain), close = TextString(")", plain), sep = TextString(", ", plain))
+    end; open = TextString("(", p.plain), close = TextString(")", p.plain), sep = TextString(", ", p.plain))
 
     iomap_cell = Cell(nothing)
     paths = make_output_path_cells(stmt, path -> begin
@@ -1364,9 +1340,8 @@ read_intent(::SqlInsertStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothin
 # keyword sits at children[2], like SqlComparison).
 
 @projection UntrackedCell struct SqlUpdateAssignmentToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText = _get_sql_style(theme, :keyword_text)
-    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
+    keyword::StyleText = get_sql_style(nothing, :keyword_text)
+    punctuation::StyleText = get_sql_style(nothing, :punctuation_text)
 end
 
 function print_document(p::SqlUpdateAssignmentToSyntaxNode, recursion, doc::SqlUpdateAssignment, ctx)
@@ -1454,9 +1429,9 @@ read_intent(::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMap, op) = nothi
 # statement on one line.
 
 @projection UntrackedCell struct SqlUpdateStatementToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText = _get_sql_style(theme, :keyword_text)
-    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
+    keyword::StyleText = get_sql_style(nothing, :keyword_text)
+    punctuation::StyleText = get_sql_style(nothing, :punctuation_text)
+    plain::StyleText = get_sql_style(nothing, :plain_text)
 end
 
 function print_document(p::SqlUpdateStatementToSyntaxNode, recursion, stmt::SqlUpdateStatement, ctx)
@@ -1479,7 +1454,7 @@ function print_document(p::SqlUpdateStatementToSyntaxNode, recursion, stmt::SqlU
     assignments_body = _comma_node(() -> begin
         _, assign_ims, _ = projected[]
         SyntaxDocument[a.output for a in assign_ims]
-    end, _get_sql_text(p.theme, :plain_text))
+    end, p.plain)
 
     iomap_cell = Cell(nothing)
     paths = make_output_path_cells(stmt, path -> begin
@@ -1587,8 +1562,7 @@ read_intent(::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothin
 # String on the document, so it has no projected child of its own).
 
 @projection UntrackedCell struct SqlColumnDefinitionToSyntaxNode
-    theme::Any = nothing
-    type::StyleText = _get_sql_style(theme, :plain_text)
+    type::StyleText = get_sql_style(nothing, :plain_text)
 end
 
 function print_document(p::SqlColumnDefinitionToSyntaxNode, recursion, doc::SqlColumnDefinition, ctx)
@@ -1659,9 +1633,9 @@ read_intent(::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMap, op) = nothi
 # parenthesised comma body at children[4].
 
 @projection UntrackedCell struct SqlCreateTableStatementToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText = _get_sql_style(theme, :keyword_text)
-    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
+    keyword::StyleText = get_sql_style(nothing, :keyword_text)
+    punctuation::StyleText = get_sql_style(nothing, :punctuation_text)
+    plain::StyleText = get_sql_style(nothing, :plain_text)
 end
 
 function print_document(p::SqlCreateTableStatementToSyntaxNode, recursion, stmt::SqlCreateTableStatement, ctx)
@@ -1678,11 +1652,10 @@ function print_document(p::SqlCreateTableStatementToSyntaxNode, recursion, stmt:
         Any[table_im; col_ims]
     end)
 
-    plain = _get_sql_text(p.theme, :plain_text)
     columns_body = SyntaxNode(() -> begin
         _, col_ims = projected[]
         SyntaxDocument[c.output for c in col_ims]
-    end; open = TextString("(", plain), close = TextString(")", plain), sep = TextString(",", plain),
+    end; open = TextString("(", p.plain), close = TextString(")", p.plain), sep = TextString(",", p.plain),
        indentation = 1)
 
     iomap_cell = Cell(nothing)
@@ -1770,11 +1743,10 @@ read_intent(::SqlCreateTableStatementToSyntaxNode, iomap::ChildrenIoMap, op) = n
 # statement has no child iomaps; only whole-statement (∅) selection is mapped.
 
 @projection UntrackedCell struct SqlCreateSchemaStatementToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText = _get_sql_style(theme, :keyword_text)
-    name::StyleFont = _get_sql_font(theme)
-    punctuation::StyleText = _get_sql_style(theme, :punctuation_text)
-    name_style::StyleText = _get_sql_style(theme, :name_text)
+    keyword::StyleText = get_sql_style(nothing, :keyword_text)
+    name::StyleFont = _get_sql_font(nothing)
+    punctuation::StyleText = get_sql_style(nothing, :punctuation_text)
+    name_style::StyleText = get_sql_style(nothing, :name_text)
 end
 
 function print_document(p::SqlCreateSchemaStatementToSyntaxNode, recursion, stmt::SqlCreateSchemaStatement, ctx)
@@ -1828,9 +1800,8 @@ read_intent(::SqlCreateSchemaStatementToSyntaxNode, iomap::ChildrenIoMap, op) = 
 # is statements[i].
 
 @projection UntrackedCell struct SqlStatementListToSyntaxNode
-    theme::Any = nothing
-    name::StyleFont = _get_sql_font(theme)
-    plain::StyleText = _get_sql_style(theme, :plain_text)
+    name::StyleFont = _get_sql_font(nothing)
+    plain::StyleText = get_sql_style(nothing, :plain_text)
 end
 
 _has_own_semicolon(statement) = statement isa Union{SqlCreateTableStatement, SqlCreateSchemaStatement}
@@ -1914,52 +1885,65 @@ read_intent(::SqlStatementListToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── Compound constructor ──────────────────────────────────────────────────────
 
-# The projection of the whole domain: one rule per document type. `theme` is a
-# `SqlTheme`, a scaled one, or `nothing` for the default styles; `syntax_theme`
-# styles the insertion and the empty placeholder, which are the syntax slice's.
+# The projection of the whole domain: one rule per document type. The builder
+# gives each projection the style of its role with `get_sql_style`, from
+# `theme`, a `SqlTheme` scaled or not, or the default styles for `nothing`;
+# `syntax_theme` styles the insertion and the empty placeholder, which are the
+# syntax slice's.
 
 function SqlToSyntax(; theme = nothing, syntax_theme = nothing)
-    theme = scale_theme(theme)
-    syntax_theme = scale_theme(syntax_theme)
-    jt = SqlJoinTypeToSyntaxLeaf(; theme)
+    get_style(name) = get_sql_style(theme, name)
+    leaf_plain_style = (style = get_style(:plain_text),)
+    leaf_name_style = (style = get_style(:name_text),)
+    keyword_style = (keyword = get_style(:keyword_text),)
+    clause_styles = (keyword = get_style(:keyword_text), punctuation = get_style(:punctuation_text))
+    clause_plain_styles = (keyword = get_style(:keyword_text), punctuation = get_style(:punctuation_text),
+                           plain = get_style(:plain_text))
+    item_styles = (keyword = get_style(:keyword_text), name = _get_sql_font(theme),
+                  punctuation = get_style(:punctuation_text), plain = get_style(:plain_text))
+    jt = SqlJoinTypeToSyntaxLeaf(; style = get_style(:keyword_text))
     TypeDispatchingProjection(
         SqlInsertion            => SqlInsertionToSyntaxLeaf(; theme = syntax_theme),
         SqlNothing              => InsertionNothingToSyntaxLeaf(; theme = syntax_theme),
-        SqlSelectStatement      => SqlSelectStatementToSyntaxNode(; theme),
-        SqlSelectClause         => SqlSelectClauseToSyntaxNode(; theme),
-        SqlFromClause           => SqlFromClauseToSyntaxNode(; theme),
-        SqlWhereClause          => SqlWhereClauseToSyntaxNode(; theme),
-        SqlSelectItem           => SqlSelectItemToSyntaxNode(; theme),
-        SqlAllColumns           => SqlAllColumnsToSyntaxLeaf(; theme),
-        SqlColumnReference      => SqlColumnReferenceToSyntaxLeaf(; theme),
-        SqlColumnName           => SqlColumnNameToSyntaxLeaf(; theme),
-        SqlTableName            => SqlTableNameToSyntaxLeaf(; theme),
-        SqlTableExpression      => SqlTableExpressionToSyntaxLeaf(; theme),
-        SqlSubqueryFromItem     => SqlSubqueryFromItemToSyntaxNode(; theme),
-        SqlFromItem             => SqlFromItemToSyntaxNode(; theme),
-        SqlJoinedFromItem       => SqlJoinedFromItemToSyntaxNode(; theme),
-        SqlJoinOnCondition      => SqlJoinOnConditionToSyntaxNode(; theme),
-        SqlJoinUsingCondition   => SqlJoinUsingConditionToSyntaxNode(; theme),
-        SqlWhereFilterCondition => SqlWhereFilterConditionToSyntaxNode(; theme),
+        SqlSelectStatement      => SqlSelectStatementToSyntaxNode(; keyword_style...),
+        SqlSelectClause         => SqlSelectClauseToSyntaxNode(; clause_plain_styles...),
+        SqlFromClause           => SqlFromClauseToSyntaxNode(; clause_plain_styles...),
+        SqlWhereClause          => SqlWhereClauseToSyntaxNode(; clause_styles...),
+        SqlSelectItem           => SqlSelectItemToSyntaxNode(; item_styles...),
+        SqlAllColumns           => SqlAllColumnsToSyntaxLeaf(; leaf_plain_style...),
+        SqlColumnReference      => SqlColumnReferenceToSyntaxLeaf(; leaf_plain_style...),
+        SqlColumnName           => SqlColumnNameToSyntaxLeaf(; leaf_plain_style...),
+        SqlTableName            => SqlTableNameToSyntaxLeaf(; leaf_name_style...),
+        SqlTableExpression      => SqlTableExpressionToSyntaxLeaf(; leaf_name_style...),
+        SqlSubqueryFromItem     => SqlSubqueryFromItemToSyntaxNode(; item_styles...),
+        SqlFromItem             => SqlFromItemToSyntaxNode(; clause_styles...),
+        SqlJoinedFromItem       => SqlJoinedFromItemToSyntaxNode(; clause_styles...),
+        SqlJoinOnCondition      => SqlJoinOnConditionToSyntaxNode(; clause_styles...),
+        SqlJoinUsingCondition   => SqlJoinUsingConditionToSyntaxNode(; clause_styles...),
+        SqlWhereFilterCondition => SqlWhereFilterConditionToSyntaxNode(; keyword_style...),
         SqlInnerJoin            => jt,
         SqlLeftOuterJoin        => jt,
         SqlRightOuterJoin       => jt,
         SqlFullOuterJoin        => jt,
         SqlCrossJoin            => jt,
-        SqlScalarValue          => SqlScalarValueToSyntaxLeaf(; theme),
-        SqlRawExpression        => SqlRawExpressionToSyntaxLeaf(; theme),
-        SqlRawCondition         => SqlRawConditionToSyntaxLeaf(; theme),
-        SqlComparison           => SqlComparisonToSyntaxNode(; theme),
+        SqlScalarValue          => SqlScalarValueToSyntaxLeaf(; leaf_plain_style...),
+        SqlRawExpression        => SqlRawExpressionToSyntaxLeaf(; leaf_plain_style...),
+        SqlRawCondition         => SqlRawConditionToSyntaxLeaf(; leaf_plain_style...),
+        SqlComparison           => SqlComparisonToSyntaxNode(; clause_styles...),
         SqlAnd                  => SqlBooleanBinaryToSyntaxNode("AND"; theme),
         SqlOr                   => SqlBooleanBinaryToSyntaxNode("OR"; theme),
-        SqlNot                  => SqlNotToSyntaxNode(; theme),
-        SqlInsertStatement      => SqlInsertStatementToSyntaxNode(; theme),
-        SqlUpdateAssignment     => SqlUpdateAssignmentToSyntaxNode(; theme),
-        SqlUpdateStatement      => SqlUpdateStatementToSyntaxNode(; theme),
-        SqlColumnDefinition     => SqlColumnDefinitionToSyntaxNode(; theme),
-        SqlCreateTableStatement => SqlCreateTableStatementToSyntaxNode(; theme),
-        SqlCreateSchemaStatement => SqlCreateSchemaStatementToSyntaxNode(; theme),
-        SqlStatementList        => SqlStatementListToSyntaxNode(; theme),
+        SqlNot                  => SqlNotToSyntaxNode(; clause_styles...),
+        SqlInsertStatement      => SqlInsertStatementToSyntaxNode(; clause_plain_styles...),
+        SqlUpdateAssignment     => SqlUpdateAssignmentToSyntaxNode(; clause_styles...),
+        SqlUpdateStatement      => SqlUpdateStatementToSyntaxNode(; clause_plain_styles...),
+        SqlColumnDefinition     => SqlColumnDefinitionToSyntaxNode(; type = get_style(:plain_text)),
+        SqlCreateTableStatement => SqlCreateTableStatementToSyntaxNode(; clause_plain_styles...),
+        SqlCreateSchemaStatement => SqlCreateSchemaStatementToSyntaxNode(; keyword = get_style(:keyword_text),
+                                                                           name = _get_sql_font(theme),
+                                                                           punctuation = get_style(:punctuation_text),
+                                                                           name_style = get_style(:name_text)),
+        SqlStatementList        => SqlStatementListToSyntaxNode(; name = _get_sql_font(theme),
+                                                                  plain = get_style(:plain_text)),
     )
 end
 
