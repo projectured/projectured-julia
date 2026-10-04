@@ -102,7 +102,7 @@ end
 
 A Julia source-insertion hole. Renders the typed buffer plus a pale-green keyword
 completion continuation; all editing/commit is `@gestures JuliaInsertion`. `theme`
-is a `JuliaTheme`, a scaled one, or `nothing` for the default styles.
+is a `JuliaTheme`, scaled or not, or `nothing` for the default styles.
 """
 @projection UntrackedCell struct JuliaInsertionToSyntaxLeaf <: Projection
     value::StyleText

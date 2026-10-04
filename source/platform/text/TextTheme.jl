@@ -15,8 +15,8 @@ The fields are the font of unstyled text, the caret, the highlight, and the
 text styles of a boolean, a number and a string. Each field has a docstring
 that says what it draws, which the appearance tab shows under its name.
 
-A text projection reads the scaled theme through its `UntrackedCell` style
-fields. The fonts and the colors of a text document stay as its author set them.
+A text projection holds its styles and no theme; its builder gives them with
+`get_text_style`, from a theme scaled or not. The fonts and the colors of a text document stay as its author set them.
 `TextHighlighting`, `SelectionInverting` and `TextLineNumbering` take their
 colors and fonts as keywords: no view of the platform builds them.
 """

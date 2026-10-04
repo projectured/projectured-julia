@@ -330,7 +330,7 @@ _is_under_pointer(w) = get_mouse_target(w) !== nothing
 # replaces, and a color for each of its four box parts.
 #
 # Each projection is `@projection UntrackedCell struct`: a field that the
-# constructor fills from the theme reads the scaled theme at each read, with no
+# constructor fills from the theme, scaled or not, reads it at each read, with no
 # edge (`_themed`), and the appearance wrapper makes the view print again after a
 # change of the theme. A field can not be written after the projection is built.
 

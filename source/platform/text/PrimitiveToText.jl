@@ -359,7 +359,7 @@ _make_bool_operation(b::PrimitiveBool, value::Bool) = b.value === value ? nothin
     PrimitiveToText(; theme = nothing, bool_kw=(), number_kw=(), string_kw=())
 
 Composite projection that converts all `PrimitiveDocument` types directly
-to single-span `TextBlock` documents. `theme`, a `TextTheme` or a scaled one,
+to single-span `TextBlock` documents. `theme`, a `TextTheme` scaled or not,
 gives the text of each kind; with none, the texts of the default theme.
 """
 function PrimitiveToText(; theme = nothing, bool_kw=(), number_kw=(), string_kw=())

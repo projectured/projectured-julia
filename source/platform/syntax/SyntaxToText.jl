@@ -1296,7 +1296,7 @@ function SyntaxToText(; indent_size::Int = 2,
                         delimiter_light_levels::Int = 4)
     # Every compound is printed by the same projection instance — the configuration
     # is the projection's, the structure is the document's. `theme`, a
-    # `SyntaxTheme` or a scaled one, gives the colour that lights the delimiters
+    # `SyntaxTheme` scaled or not, gives the colour that lights the delimiters
     # and the font of the decorations of a node with no delimiter.
     compound = SyntaxCompoundToText(theme=theme,
                                     indent_size=indent_size,

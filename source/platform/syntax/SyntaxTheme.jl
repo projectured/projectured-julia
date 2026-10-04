@@ -16,8 +16,9 @@ collections, the insertion, the delimiter under the pointer and the font of
 an undelimited node. Each field has a docstring that says what it draws,
 which the appearance tab shows under its name.
 
-A syntax projection reads the scaled theme through its `UntrackedCell` style
-fields; with no theme it holds the plain values of the default theme. A domain
+A syntax projection holds its styles and no theme; its builder gives them with `get_syntax_style`,
+from a theme scaled or not, and with no theme it holds the plain values of the
+default theme. A domain
 that prints its own leaves styles them with a theme of its own.
 """
 @theme struct SyntaxTheme

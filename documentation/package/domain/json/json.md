@@ -64,9 +64,11 @@ The retype rules have the guard `_json_replaceable`. It returns `false` when the
 ### The theme
 
 `JsonTheme` holds the look of the JSON projections: the text of a null, a bool, a number and a string, the quotes, a key, the brackets and braces, and the separators. Each value has
-the default that the domain draws with no appearance. Each projection takes
-`theme`, a `JsonTheme` or a scaled one; with none it holds the default values.
-`JsonToSyntax(; theme, syntax_theme)` gives the theme to every projection, and the insertion and the empty placeholder, which come from the syntax slice, take `syntax_theme`. The natural
+the default that the domain draws with no appearance. A projection holds its
+styles as fields, and no theme; nothing in it scales or asks whether a theme is
+scaled. `JsonToSyntax(; theme, syntax_theme)` gives each projection the style of
+its role with `get_json_style`, from `theme`, a `JsonTheme` scaled or not, or the
+default styles for `nothing`, and the insertion and the empty placeholder, which come from the syntax slice, take `syntax_theme`. The natural
 registration gives the scaled theme of the `Appearance` of the editor, so the view
 follows its scales, and the appearance tab shows a section for `JsonTheme`.
 

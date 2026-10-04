@@ -9,8 +9,9 @@ the pointer rested, its gap below a part, and its least and largest size.
 
 The theme of `TooltipWindowProjection`. `@theme` declares it, so
 `ScaledTooltipTheme` holds each value times its scale, and `TooltipTheme()` is
-the default theme. The projection reads the scaled theme each time it opens a
-window, so a change of the appearance shows at the next tooltip.
+the default theme. The projection holds the values that it reads, as cells that
+read the theme, scaled or not; it reads them each time it opens a window, so a
+change of the appearance shows at the next tooltip.
 """
 @theme struct TooltipTheme
     "The offset of the window from the point where the pointer rested."

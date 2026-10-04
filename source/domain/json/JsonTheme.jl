@@ -14,8 +14,9 @@ The fields are the text styles of a value of each kind, a string's quotes, an
 object's key, a delimiter and a separator. Each field has a docstring that
 says what it draws, which the appearance tab shows under its name.
 
-A JSON projection reads the scaled theme through its `UntrackedCell` style fields;
-with no theme it holds the plain values of the default theme.
+A JSON projection holds its styles and no theme; its builder gives them with `get_json_style`,
+from a theme scaled or not, and with no theme it holds the plain values of the
+default theme.
 """
 @theme struct JsonTheme
     "The font that the texts of this theme follow: its family, its weight and its size."

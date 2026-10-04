@@ -85,7 +85,7 @@ Decorator over `inner`, a content pipeline that prints down to graphics. The
 palette gesture opens a type-in field at `(x, y)` listing the commands available
 where the user is. `measure` is the `TextMeasure` the palette's own rendering
 chain needs, the same one the content pipeline uses. `theme` is a
-[`GestureHelpTheme`](@ref), a scaled one, or `nothing` for the default styles of
+[`GestureHelpTheme`](@ref), scaled or not, or `nothing` for the default styles of
 the palette's rows and its panel; `syntax_theme` and `text_theme` reach the
 syntax-to-text and the text-to-graphics stages of the palette's own chain.
 

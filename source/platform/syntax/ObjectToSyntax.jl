@@ -299,7 +299,7 @@ end
 
 # ── Compound convenience constructor ────────────────────────────────────────
 
-# `theme`, a `SyntaxTheme` or a scaled one, styles the leaves. A font or a color
+# `theme`, a `SyntaxTheme` scaled or not, styles the leaves. A font or a color
 # that a keyword names replaces the one of the theme in its style, which then
 # keeps that value.
 function ObjectToSyntax(; theme = nothing,
