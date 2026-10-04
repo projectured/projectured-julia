@@ -21,20 +21,32 @@
 # with no reader and no reference mappers.
 
 """
-    FaultLogToSyntax(; theme)
+    FaultLogToSyntax()
 
-One `FaultLog` as a `SyntaxNode`, one line per fault. `theme` is a `FaultTheme`,
-a scaled one, or `nothing` for the default styles.
+One `FaultLog` as a `SyntaxNode`, one line per fault. The projection holds its
+styles and no theme; `make_fault_log_projection` fills them from a theme.
 
 See also `FaultLogOverlayProjection`, which puts it on the screen.
 """
 @projection UntrackedCell struct FaultLogToSyntax
-    theme::Any = nothing
-    count_text::StyleText = _get_fault_style(theme, :count_text)
-    site_text::StyleText = _get_fault_style(theme, :site_text)
-    origin_text::StyleText = _get_fault_style(theme, :origin_text)
-    message_text::StyleText = _get_fault_style(theme, :message_text)
-    empty_text::StyleText = _get_fault_style(theme, :empty_text)
+    count_text::StyleText = get_fault_style(nothing, :count_text)
+    site_text::StyleText = get_fault_style(nothing, :site_text)
+    origin_text::StyleText = get_fault_style(nothing, :origin_text)
+    message_text::StyleText = get_fault_style(nothing, :message_text)
+    empty_text::StyleText = get_fault_style(nothing, :empty_text)
+end
+
+"""
+    make_fault_log_projection(; theme = nothing) -> FaultLogToSyntax
+
+The projection of a fault log, with the styles of `theme`: a `FaultTheme`,
+scaled or not, or the default styles for `nothing`.
+"""
+function make_fault_log_projection(; theme = nothing)
+    get_style(name) = get_fault_style(theme, name)
+    FaultLogToSyntax(; count_text = get_style(:count_text), site_text = get_style(:site_text),
+                     origin_text = get_style(:origin_text), message_text = get_style(:message_text),
+                     empty_text = get_style(:empty_text))
 end
 
 # The width of the two fixed columns, in characters. The font is monospaced, so
@@ -75,5 +87,5 @@ end
 # runtime state that a person reads and then fixes what it points at.
 function __init__()
     register_natural_syntax!(:fault, (; appearance) -> Pair{Type,Any}[
-        FaultLog => FaultLogToSyntax(; theme = get_scaled_theme!(appearance, FaultTheme))])
+        FaultLog => make_fault_log_projection(; theme = get_scaled_theme!(appearance, FaultTheme))])
 end

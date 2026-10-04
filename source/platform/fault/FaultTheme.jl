@@ -14,8 +14,9 @@ The fields are the text styles of a fault's count, site, origin, message and
 the line the log shows when empty. Each field has a docstring that says what
 it draws, which the appearance tab shows under its name.
 
-A fault log reads the scaled theme through its `UntrackedCell` style fields;
-with no theme it holds the plain values of the default theme.
+`make_fault_log_projection` gives the projection of a fault log its styles with
+`get_fault_style`, from a theme scaled or not; a projection built with no styles
+holds the plain values of the default theme.
 """
 @theme struct FaultTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
@@ -39,11 +40,6 @@ with no theme it holds the plain values of the default theme.
     "The radius of the corners of the panel."
     panel_radius::Radius = Radius(4)
 end
-
-# The style field of a fault log projection that holds the text `name` of the
-# theme `theme`: a `FaultTheme`, a scaled one, or `nothing` for the default
-# values.
-_get_fault_style(theme, name::Symbol) = make_style_field(FaultTheme, scale_theme(theme), StyleText; name)
 
 """
     make_fault_log_panel_theme() -> FaultTheme

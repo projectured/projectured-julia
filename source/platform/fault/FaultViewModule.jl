@@ -77,7 +77,7 @@ import ..ProjectionModule: print_document, read_intent,
 
 export FaultLog, FaultLogEntry, get_session_fault_log, clear_fault_log!,
        FaultTheme, ScaledFaultTheme,
-       FaultLogToSyntax, FaultLogOverlayProjection, FaultLogOverlayIoMap,
+       FaultLogToSyntax, make_fault_log_projection, FaultLogOverlayProjection, FaultLogOverlayIoMap,
        make_fault_log_content_projection, make_fault_tolerant_projection,
        make_fault_log_panel_theme,
        FaultSafeModeProjection, FaultSafeModeIoMap,

@@ -30,11 +30,11 @@ const _FAULT_WIDTH_SLACK = 8
 """
     make_fault_log_panel_syntax_projection(; theme = make_fault_log_panel_theme()) -> FaultLogToSyntax
 
-A `FaultLogToSyntax` with the texts of `theme`: by default the light text of the
+A `FaultLogToSyntax` with the styles of `theme`: by default the light text of the
 panel theme, for the dark background of the panel.
 """
 make_fault_log_panel_syntax_projection(; theme = make_fault_log_panel_theme()) =
-    FaultLogToSyntax(; theme)
+    make_fault_log_projection(; theme)
 
 """
     make_fault_log_content_projection(; syntax = FaultLogToSyntax(),
@@ -88,10 +88,10 @@ function FaultLogOverlayProjection(; inner, log::FaultLog,
                                      content = make_fault_log_content_projection(
                                          syntax = make_fault_log_panel_syntax_projection(; theme)),
                                      anchor::Symbol = :bottom_left,
-                                     margin::Integer = scale_theme(theme).panel_margin,
-                                     padding::Integer = scale_theme(theme).panel_padding,
-                                     radius::Integer = scale_theme(theme).panel_radius,
-                                     background::StyleColor = scale_theme(theme).panel_background)
+                                     margin::Integer = get_theme_value(theme, :panel_margin),
+                                     padding::Integer = get_theme_value(theme, :panel_padding),
+                                     radius::Integer = get_theme_value(theme, :panel_radius),
+                                     background::StyleColor = get_theme_value(theme, :panel_background))
     anchor in (:top_right, :top_left, :bottom_right, :bottom_left) ||
         error("FaultLogOverlayProjection: unknown anchor :$anchor")
     FaultLogOverlayProjection(inner, log, content, anchor, Int(margin), Int(padding),

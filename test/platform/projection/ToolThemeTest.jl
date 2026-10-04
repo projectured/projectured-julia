@@ -26,7 +26,7 @@ function test_tool_themes()
 @testset "the tools follow the scales of the appearance" begin
 
 @testset "FaultLogToSyntax reads FaultTheme" begin
-    _check_tool_theme(FaultLogToSyntax, FaultTheme,
+    _check_tool_theme(make_fault_log_projection, FaultTheme,
                       (:count_text, :site_text, :origin_text, :message_text, :empty_text), 13)
 
     log = FaultLog()

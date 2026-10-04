@@ -136,8 +136,9 @@ The editor layer holds one limit for each counter, and `get_consecutive_fault_li
 ### The theme
 
 `FaultTheme` holds the text of the count, the site, the origin and the message of a line of the fault log, and of an empty log. Each value has the default that the slice draws with no
-appearance. `FaultLogToSyntax` takes `theme`, a `FaultTheme` or a scaled one; with none it holds the
-default values. The registration of the fault log gives the scaled theme of the `Appearance`. The overlay of the fault log and the substitutes of a fault barrier keep their own styles, because no builder of them has an `Appearance`.
+appearance. `FaultLogToSyntax` holds its styles and no theme. `make_fault_log_projection(; theme)`
+fills them with `get_fault_style`, from a `FaultTheme` scaled or not, or the default values for
+`nothing`. The registration of the fault log gives the scaled theme of the `Appearance`. The overlay of the fault log and the substitutes of a fault barrier keep their own styles, built the same way through `make_fault_log_panel_syntax_projection`, because no builder of them has an `Appearance`.
 
 ## How it fits
 
