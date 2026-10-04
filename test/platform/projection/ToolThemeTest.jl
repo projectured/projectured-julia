@@ -64,7 +64,7 @@ end
 end
 
 @testset "UndoBufferToSyntax reads UndoTheme" begin
-    _check_tool_theme(UndoBufferToSyntax, UndoTheme,
+    _check_tool_theme(make_undo_projection, UndoTheme,
                       (:index_text, :step_text, :ahead_text, :marker_text, :barrier_text, :empty_text), 13)
 end
 

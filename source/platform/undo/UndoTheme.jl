@@ -15,8 +15,9 @@ back or put back, the empty line, the current marker and a barrier step. Each
 field has a docstring that says what it draws, which the appearance tab shows
 under its name.
 
-The history reads the scaled theme through its `UntrackedCell` style fields;
-with no theme it holds the plain values of the default theme.
+`make_undo_projection` gives the projection of the undo history its styles with
+`get_undo_style`, from a theme scaled or not; a projection built with no styles
+holds the plain values of the default theme.
 """
 @theme struct UndoTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
@@ -34,7 +35,3 @@ with no theme it holds the plain values of the default theme.
     "A step the history stops at, because it can not be undone."
     barrier_text::TextRole = TextRole(color_solarized_orange; weight = 700)
 end
-
-# The style field of an undo projection that holds the text `name` of the theme
-# `theme`: an `UndoTheme`, a scaled one, or `nothing` for the default values.
-_get_undo_style(theme, name::Symbol) = make_style_field(UndoTheme, scale_theme(theme), StyleText; name)

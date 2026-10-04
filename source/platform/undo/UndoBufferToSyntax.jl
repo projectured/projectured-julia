@@ -16,14 +16,29 @@
 #
 # Read-only. There is nothing to author here, so this is a plain leaf printer
 # with no reader and no reference mappers.
+#
+# The projection holds its styles and no theme; `make_undo_projection` fills
+# them from a theme.
 @projection UntrackedCell struct UndoBufferToSyntax
-    theme::Any = nothing
-    index_text::StyleText = _get_undo_style(theme, :index_text)
-    step_text::StyleText = _get_undo_style(theme, :step_text)
-    ahead_text::StyleText = _get_undo_style(theme, :ahead_text)
-    marker_text::StyleText = _get_undo_style(theme, :marker_text)
-    barrier_text::StyleText = _get_undo_style(theme, :barrier_text)
-    empty_text::StyleText = _get_undo_style(theme, :empty_text)
+    index_text::StyleText = get_undo_style(nothing, :index_text)
+    step_text::StyleText = get_undo_style(nothing, :step_text)
+    ahead_text::StyleText = get_undo_style(nothing, :ahead_text)
+    marker_text::StyleText = get_undo_style(nothing, :marker_text)
+    barrier_text::StyleText = get_undo_style(nothing, :barrier_text)
+    empty_text::StyleText = get_undo_style(nothing, :empty_text)
+end
+
+"""
+    make_undo_projection(; theme = nothing) -> UndoBufferToSyntax
+
+The projection of the undo history, with the styles of `theme`: an `UndoTheme`,
+scaled or not, or the default styles for `nothing`.
+"""
+function make_undo_projection(; theme = nothing)
+    get_style(name) = get_undo_style(theme, name)
+    UndoBufferToSyntax(; index_text = get_style(:index_text), step_text = get_style(:step_text),
+                       ahead_text = get_style(:ahead_text), marker_text = get_style(:marker_text),
+                       barrier_text = get_style(:barrier_text), empty_text = get_style(:empty_text))
 end
 
 # The width of the column that says what a line is, in characters. The font is

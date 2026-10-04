@@ -111,8 +111,9 @@ A tool, a driver or a script that must record its change wraps it with `make_und
 ### The theme
 
 `UndoTheme` holds the text of the index, a step, a step ahead, the marker of the present place, a barrier, and an empty history. Each value has the default that the slice draws with no
-appearance. `UndoBufferToSyntax` takes `theme`, an `UndoTheme` or a scaled one; with none it holds the
-default values. The history has no view in the application, so a builder that has a theme passes it.
+appearance. `UndoBufferToSyntax` holds its styles and no theme. `make_undo_projection(; theme)`
+fills them with `get_undo_style`, from an `UndoTheme` scaled or not, or the default values for
+`nothing`. The history has no view in the application, so a builder that has a theme calls it.
 
 ## How it fits
 

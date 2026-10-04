@@ -67,7 +67,7 @@ export UndoDocument, UndoBuffer, UndoEntry, is_undo_barrier,
        TYPING_PAUSE, get_typing_caret,
        find_undo_buffer, register_undo_tools!,
        UndoBufferToAnyProjection, UndoBufferToAnyIoMap,
-       UndoTheme, ScaledUndoTheme, UndoBufferToSyntax,
+       UndoTheme, ScaledUndoTheme, UndoBufferToSyntax, make_undo_projection,
        HistorySettings
 
 include("UndoDocument.jl")
