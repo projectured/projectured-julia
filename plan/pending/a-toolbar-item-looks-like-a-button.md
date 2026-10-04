@@ -4,9 +4,8 @@
 > `projectured-julia-toolbar-item` on the branch
 > `toolbar-item-looks-like-a-button`. Written on 2026-10-04 at the owner's
 > request. The owner chose the look on 2026-10-04 (section 3) and answered the
-> first two questions the same day (section 6). Steps 0 to 5 are done. Two new
-> questions are open (section 7), and the branch waits for the owner's word to
-> land.
+> other questions the same day (section 6). No question is open. Steps 0 to 5b
+> are done. The owner said "land it" on 2026-10-04.
 
 ## 1. The request
 
@@ -126,7 +125,8 @@ pressed look. The owner wrote: "I agree with your recommendation".
     The new outline shows it: in the image of `widget_toolbar_item`, the outline
     of the lit "Log" item touches the right and the bottom edges of the toolbar.
     In the window chrome the gap under the band gives the outline its space.
-    This plan does not fix it (Q3).
+    A menu bar loses its bottom padding in the same way. Step 5b fixes both
+    (Q3).
 
 ## 3. The decisions
 
@@ -169,6 +169,10 @@ pressed look. The owner wrote: "I agree with your recommendation".
   no icon, which is the content of the color probe. The probe of
   `WidgetColorTest.jl` then takes the example. The `widget_toolbar` example
   keeps its menu items. The owner agreed on 2026-10-04 (Q1).
+- **D8. The extent of a bar is its box.** A toolbar and a menu are as large as
+  their insets around their content, whether or not the box has a color, and
+  as large as what their items draw. The fix is in the function that both
+  share, so a menu bar keeps its padding as a toolbar does (Q3).
 
 ## 4. What does not change
 
@@ -282,6 +286,26 @@ pressed look. The owner wrote: "I agree with your recommendation".
     at the release. The frames are in `/var/tmp/toolbar-item/live/`, and
     `toolbar-states.png` holds the toolbar of each state. A pushed event does
     not pass the X server, so a press by hand is the last check.
+- [x] **5b. The padding of a bar (Q3, D8).**
+  - `_compute_bar_extent` takes the size of the box, the insets of the bar
+    around its content, in place of the box parts that the bar draws. A box
+    with no color draws nothing, and the bar still keeps its padding.
+  - The toolbar computes its content height as the height of its tallest item,
+    and at least a line of its font, as a horizontal menu does. Before, it gave
+    its box one line of the font, which is less than an item with an icon.
+  - The test "a toolbar is as large as what its items draw" becomes "a toolbar
+    holds what its items draw, and its padding": a toolbar is at least as large
+    as what it draws, and a padding of `Inset(3, 5, 7, 9)` makes it larger by
+    exactly that padding.
+  - **Done 2026-10-04.** `test_widget_toolbar()` 83 of 83, `test_widget_menu()`
+    42 of 42, `test_widget_context_menu()` 20 of 20, `test_widget_shell_layout()`
+    14 of 14, `test_widget_shell_pointer()` 6 of 6, `test_window_shell()` 138 of
+    138, `test_pointer_light()` 23 of 23, and `test_widget_selection()` pass.
+    The images: `widget` and `widget_shell` change, and the other 41 are equal.
+    In `widget_shell` the menu bar keeps its bottom padding of 2, so the toolbar
+    row moves down 2 pixels, and the toolbar keeps its bottom padding of 4, so the
+    content moves down 6 pixels. An image of a toolbar alone does not change,
+    because `write_image` cuts an image to what it draws.
 - [ ] **6. Report, then ask.** Report the commits, the test results, the image
   compare and the frames. Land on `main` only when the owner says so. Then move
   this plan to `plan/done/`.
@@ -293,16 +317,11 @@ pressed look. The owner wrote: "I agree with your recommendation".
   toolbar example, that is fine". So D7 adds a new example, and step 3 makes it.
 - **Q2. A file that holds a toolbar item** (fact 11). A saved window leaves out
   its bands, so no saved file holds the toolbar of a window. Nothing to decide.
-
-## 7. Open questions
-
-- **Q3. The padding of a toolbar** (fact 15). A fix makes the extent of a
-  toolbar include its own padding. A toolbar then grows by its right and
-  bottom padding, so the images of the examples that hold a toolbar can
-  change, and the bands of a window can move by 4 pixels. Claude's recommendation: a separate small change after this
-  branch lands. The owner decides.
+- **Q3. The padding of a toolbar** (fact 15). Claude recommended a separate
+  change after this branch. The owner answered on 2026-10-04: "fix padding",
+  and then "land it". So step 5b fixes it on this branch, and the fix covers the
+  menu bar too, because the two bars share `_compute_bar_extent` (D8).
 - **Q4. The contrast of the outline.** The outline is `border`
-  (`color_slate_300`) on a band of `color_slate_100`, as on a `WidgetButton`.
-  It is faint. A darker outline is a change of a color, which
-  [one-coherent-color-set.md](one-coherent-color-set.md) decides for every
-  control. The owner looks at the frames and decides.
+  (`color_slate_300`) on a band of `color_slate_100`, as on a `WidgetButton`,
+  and it is faint. The owner answered on 2026-10-04: "will fix that later". It
+  belongs to [one-coherent-color-set.md](one-coherent-color-set.md).

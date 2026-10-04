@@ -2899,18 +2899,16 @@ function _menu_item_height(cim)
         (cim.output isa GraphicsCanvas ? Int(cim.output.h[]) : 0)
 end
 
-# The extent that a bar reaches: the box parts in `box`, and each item of
-# `child_iomaps` at its place. A menu item and a toolbar item draw inside the size
+# The extent that a bar reaches: its box, `box_width` by `box_height`, and each
+# item of `child_iomaps` at its place. The box is the insets of the bar around its
+# content, also where the box has no color and draws nothing, so the bar keeps
+# its padding on every side. A menu item and a toolbar item draw inside the size
 # they state, so the bar takes that size, and a parent that asks the size of the
 # bar reads no graphic inside such an item, such as the layer that a hover
 # changes: a hover does not move what lies under the bar. Any other item is
 # measured, because it can draw outside its size, as the shadow of a button does.
-function _compute_bar_extent(box::Vector, child_iomaps::Vector, measure)
-    width, height = 0, 0
-    for part in box
-        part_width, part_height = _element_size(part, measure)
-        width = max(width, part_width); height = max(height, part_height)
-    end
+function _compute_bar_extent(box_width::Int, box_height::Int, child_iomaps::Vector, measure)
+    width, height = box_width, box_height
     for (x, y, cim) in child_iomaps
         item_width, item_height =
             get_iomap_input(cim) isa Union{WidgetMenuItem,WidgetToolbarItem} ?
@@ -2970,7 +2968,9 @@ function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu,
         elems = Any[]
         _push_box_parts!(elems, _get_box_insets(p, w; variant), _get_box_colors(p, w; variant),
                          content_width, content_height)
-        width, height = _compute_bar_extent(elems, child_iomaps, _p_measure(p))
+        inset_width, inset_height = _inset_total(p, w; variant)
+        width, height = _compute_bar_extent(inset_width + content_width, inset_height + content_height,
+                                            child_iomaps, _p_measure(p))
         append!(elems, items)
         # A menu is an overlay: capped by the window, never stretched to it.
         (width = _resolve_overlay(ctx, :x, 0, width), height = _resolve_overlay(ctx, :y, 0, height),
@@ -5938,6 +5938,8 @@ function print_document(p::WidgetToolbarToGraphicsCanvas, recursion, w::WidgetTo
         child_iomaps = Any[]
         items = Any[]
         x_cursor = 0
+        # The row is as tall as its tallest item, and at least a line of the font.
+        content_height = item_h
         for cim in child_cells[]
             push!(child_iomaps, (content_x + x_cursor, content_y, cim))
             push!(items, _make_canvas(content_x + x_cursor, content_y, Any[cim.output]))
@@ -5946,11 +5948,14 @@ function print_document(p::WidgetToolbarToGraphicsCanvas, recursion, w::WidgetTo
             iw = _menu_item_width(cim)
             iw <= 0 && (iw = first(compute_text_extent(p.measure, "    ", p.font)))
             x_cursor += iw + item_gap
+            content_height = max(content_height, _menu_item_height(cim))
         end
         content_width = max(0, x_cursor - item_gap)
         elems = Any[]
-        _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w), content_width, item_h)
-        width, height = _compute_bar_extent(elems, child_iomaps, _p_measure(p))
+        _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w), content_width, content_height)
+        inset_width, inset_height = _inset_total(p, w)
+        width, height = _compute_bar_extent(inset_width + content_width, inset_height + content_height,
+                                            child_iomaps, _p_measure(p))
         append!(elems, items)
         (width = width, height = height, elements = elems, child_iomaps = child_iomaps)
     end)

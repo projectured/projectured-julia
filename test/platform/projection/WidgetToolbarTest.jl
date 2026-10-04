@@ -84,13 +84,19 @@ end
 end
 
 # A toolbar item states its size, and the bar takes it. A button can draw outside
-# its size, as its shadow does, so the bar measures it.
-@testset "a toolbar is as large as what its items draw" begin
+# its size, as its shadow does, so the bar measures it. The box of a toolbar has no
+# color, so its padding draws nothing, and the toolbar still keeps it on every side.
+@testset "a toolbar holds what its items draw, and its padding" begin
     for items in (Any[WidgetToolbarItem("Run"; icon = :play), WidgetMenuItem("Save")],
                   Any[WidgetToolbarItem("Run"; icon = :play), WidgetButton("Go")])
         c = print_document(proj, WidgetToolbar(items)).output
-        @test (Int(c.w[]), Int(c.h[])) == get_graphics_size(c, _det)
+        drawn_width, drawn_height = get_graphics_size(c, _det)
+        @test Int(c.w[]) >= drawn_width && Int(c.h[]) >= drawn_height
     end
+    make_items() = Any[WidgetToolbarItem("Run"; icon = :play), WidgetMenuItem("Save")]
+    bare = print_document(proj, WidgetToolbar(make_items(); padding = Inset(0, 0, 0, 0))).output
+    padded = print_document(proj, WidgetToolbar(make_items(); padding = Inset(3, 5, 7, 9))).output
+    @test (Int(padded.w[]), Int(padded.h[])) == (Int(bare.w[]) + 7 + 9, Int(bare.h[]) + 3 + 5)
 end
 
 # What a canvas would draw, forced the way a backend forces it.
