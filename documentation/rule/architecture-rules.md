@@ -221,6 +221,18 @@ can express them.
   in `ReferenceStep.jl`). No concrete structs, no state, no algorithms. Everything an
   interface file declares is exported: the export list *is* the layer's API surface.
   See architecture requirement PAR-INTERFACE-DECLARES-ONLY.
+- **A projection holds its styles, and its builder fills them.** A projection
+  holds one field for each style that it draws, and no theme; nothing in a
+  projection scales, or asks whether a theme is scaled, or reads the appearance
+  of a theme. A builder gives the styles: the factory of a domain, an outer
+  keyword constructor that takes `theme`, or `make_<name>_projection(; theme)`.
+  It reads them with `get_<name>_style(theme, :field)`, which `@theme` writes,
+  from a theme scaled or not, or the default theme for `nothing`. Only a builder
+  that holds an `Appearance` scales (`get_scaled_theme!`), so a user interface
+  with no scales passes a theme as it is. A length that a projection draws is a
+  field of its theme, of a kind that a scale scales, never a number that the
+  projection scales itself. See
+  [style.md](../package/platform/style/style.md#themes-and-the-appearance).
 - **No orphans shape the structure.** A file nothing imports gets wired or deleted
   before it gets a home.
 - **No test doubles in `main`.** A fake, mock, stub, or any canned/scripted

@@ -201,19 +201,20 @@ The colors and the fonts of a list of bookmarks: a title and an address.
     "The address of a bookmark."
     url_text::TextRole = TextRole(color_solarized_cyan)
 end
-
-_get_bookmark_style(theme, name::Symbol) =
-    make_style_field(BookmarkTheme, scale_theme(theme), StyleText; name)
 ```
 
 The texts are roles over the base font `font`, so a person who changes the
-family or the size of `font` changes both. A projection reads a `StyleText`:
-the scaled theme holds the text that each role gives.
+family or the size of `font` changes both. A projection holds a `StyleText`:
+the theme gives the text that each role gives. `@theme` also writes and exports
+`get_bookmark_style(theme, name)`, which gives the style of the field `name`: a
+cell that reads a `BookmarkTheme`, scaled or not, or the plain value of the
+default theme for `nothing`.
 
-The two projections below take `theme` as a keyword and read their style
-fields through `_get_bookmark_style`, the same shape that
+The two projections below hold their styles and no theme, and the factory
+`BookmarkToSyntax` gives them the styles of their roles, the same shape that
 [`JsonTheme.jl`](../../source/domain/json/JsonTheme.jl) and
-[`JsonToSyntax.jl`](../../source/domain/json/JsonToSyntax.jl) use for `JsonTheme`:
+[`JsonToSyntax.jl`](../../source/domain/json/JsonToSyntax.jl) use for `JsonTheme`.
+Nothing in a projection scales or asks whether a theme is scaled:
 
 ```julia
 # ──────────────────────────────────────────────────────────────────────────
@@ -222,9 +223,8 @@ fields through `_get_bookmark_style`, the same shape that
 # are the entry nodes.
 
 @projection UntrackedCell struct BookmarkEntryToSyntaxNode
-    theme::Any = nothing
-    title_style::StyleText = _get_bookmark_style(theme, :title_text)
-    url_style::StyleText   = _get_bookmark_style(theme, :url_text)
+    title_style::StyleText = get_bookmark_style(nothing, :title_text)
+    url_style::StyleText   = get_bookmark_style(nothing, :url_text)
 end
 
 @projection_template BookmarkEntryToSyntaxNode BookmarkEntry (p, entry) ->
@@ -234,24 +234,25 @@ end
         0, false, nothing)
 
 @projection UntrackedCell struct BookmarkListToSyntaxNode
-    theme::Any = nothing
-    sep_style::StyleText = _get_bookmark_style(theme, :title_text)
+    sep_style::StyleText = get_bookmark_style(nothing, :title_text)
 end
 
 @projection_template BookmarkListToSyntaxNode BookmarkList (p, list) ->
     SyntaxNode(collection(:entries); sep = TextString("\n", p.sep_style))
 
 function BookmarkToSyntax(; theme = nothing)
+    get_style(name) = get_bookmark_style(theme, name)
     RecursiveProjection(TypeDispatchingProjection(
-        BookmarkEntry => BookmarkEntryToSyntaxNode(; theme),
-        BookmarkList  => BookmarkListToSyntaxNode(; theme),
+        BookmarkEntry => BookmarkEntryToSyntaxNode(; title_style = get_style(:title_text),
+                                                   url_style = get_style(:url_text)),
+        BookmarkList  => BookmarkListToSyntaxNode(; sep_style = get_style(:title_text)),
     ))
 end
 ```
 
 With no `theme`, each projection holds the plain values of the default
-`BookmarkTheme`, so `BookmarkToSyntax()` works with no argument. A
-caller that holds an `Appearance` passes
+`BookmarkTheme`, so `BookmarkToSyntax()` works with no argument, and a
+`BookmarkTheme()` draws at no scale. A caller that holds an `Appearance` passes
 `theme = get_scaled_theme!(appearance, BookmarkTheme)` instead, and the view
 then follows the scales and the edits of the appearance tab; see
 [style.md](../package/platform/style/style.md#themes-and-the-appearance).

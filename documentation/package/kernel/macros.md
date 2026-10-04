@@ -383,8 +383,7 @@ A minimal worked example, the null-and-bool leaves of the JSON domain
 
 ```julia
 @projection UntrackedCell struct JsonBoolToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_json_style(theme, :bool_text)
+    style::StyleText = get_json_style(nothing, :bool_text)
 end
 
 @projection_template JsonBoolToSyntaxLeaf JsonBool (prj, doc) ->
@@ -395,11 +394,13 @@ end
                                       style = prj.style)))
 ```
 
-`_get_json_style(theme, name) = make_style_field(JsonTheme, scale_theme(theme), StyleText; name)`
-reads the theme's `bool_text`: a `StyleText` of the scaled theme with no
-`theme` keyword, or the plain value of the default `JsonTheme` with `nothing`.
-A projection never holds a font or a colour as a literal value; it reads its
-theme instead, as [style.md](../platform/style/style.md#themes-and-the-appearance)
+`get_json_style(theme, name)`, which `@theme struct JsonTheme` writes, gives the
+style of the field `name` of a `JsonTheme`: a cell that reads `bool_text` of a
+theme, scaled or not, or the plain value of the default `JsonTheme` with
+`nothing`. The projection holds its style and no theme, and the factory
+`JsonToSyntax(; theme)` gives it `style = get_json_style(theme, :bool_text)`. A
+projection never holds a font or a colour as a literal value; its builder reads
+the theme, as [style.md](../platform/style/style.md#themes-and-the-appearance)
 describes.
 
 Printing a `JsonBool` through it needs no hand-written printer at all:
@@ -454,9 +455,8 @@ only job is to fill in defaults:
 ```julia
 @projection UntrackedCell struct ReferenceToHumanReadableText   # <: Projection is defaulted in
     document::Any
-    theme::Any         = nothing                                        # default
-    font::StyleFont    = _get_reference_style(theme, StyleFont, :font)   # reads the field above
-    style::NamedTuple  = make_theme_values_field(ReferenceTheme, scale_theme(theme))
+    font::StyleFont   = get_reference_style(nothing, :font)          # default
+    style::NamedTuple = get_theme_defaults(ReferenceTheme)
 end
 ```
 
@@ -464,7 +464,7 @@ When **at least one** field carries a default, the macro additionally emits a
 **keyword** constructor:
 
 ```julia
-ReferenceToHumanReadableText(; document)                 # theme=nothing, font and style follow from it
+ReferenceToHumanReadableText(; document)                 # font and style of the default theme
 ReferenceToHumanReadableText(; document, font = StyleFont("Ubuntu", 20))
 ```
 

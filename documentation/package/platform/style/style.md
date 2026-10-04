@@ -120,10 +120,11 @@ of a theme type, which the tab offers; a type has none unless it adds a method.
 
 `@theme` also declares the **scaled theme**, `ScaledJsonTheme`: for each field, a
 computed cell that holds the value of the theme times its scale. The cell follows a
-change of the field and of the scale. A projection reads the scaled theme; a person
-edits the theme. A scaled theme also keeps the appearance whose scales it follows
-(`get_theme_appearance`), so a projection can scale a length that is not a value
-of its theme.
+change of the field and of the scale. A builder gives the styles of the scaled
+theme to a projection; a person edits the theme. A scaled theme also keeps the
+appearance whose scales it follows (`get_theme_appearance`). A projection never
+reads it: every length that a projection draws is a value of its theme, of a kind
+that a scale scales.
 
 An **`Appearance`** holds what a person sets about the look of one editor: the
 `zoom`, the six scales (`font_scale`, `icon_scale`, `spacing_scale`, `control_scale`,
@@ -135,16 +136,33 @@ built, never while it prints. `set_theme!(appearance, theme)` puts another theme
 place, such as a preset. `make_scaled_theme(theme)` scales a theme with no
 appearance, at a scale of 1.
 
-**A projection reads a theme through its style fields.** A projection declared
-`@projection UntrackedCell struct` holds one field for each value that it draws.
-Its constructor takes `theme`, calls `scale_theme(theme)` once, and gives each
-field `make_style_field(K, theme, T; name)`: with a scaled theme of `K`, a cell
-that reads the value at each read with no edge (`make_theme_cell`); with no theme,
-the plain value of the default theme (`get_theme_defaults(K)`, made once for each
-theme type). So a projection that a printer builds at each print makes no theme,
-and a view shows a change of a theme when the `appearance` wrapper prints it
-again. A plain struct holds such a field in an `Any` field and reads it with
-`unwrap_cell`.
+**A projection holds its styles, and its builder fills them.** A projection
+declared `@projection UntrackedCell struct` holds one field for each value that it
+draws, and no theme. Nothing in a projection scales, or asks whether a theme is
+scaled. `@theme struct JsonTheme` writes and exports `get_json_style(theme, name)`
+(the name of the type without `Theme`, in snake case): with a theme of the type,
+scaled or not, a cell that reads the value of the field `name` at each read with
+no edge (`make_theme_cell`); with `nothing`, the plain value of the default theme
+(`get_theme_defaults`, made once for each theme type). A style field defaults to
+`get_json_style(nothing, :role)`, and a builder gives the styles:
+
+- a factory of the domain, such as `JsonToSyntax(; theme, syntax_theme)`, which
+  passes each projection the styles of its roles;
+- an outer keyword constructor that takes `theme`, beside a struct with no theme
+  field, such as the second constructor of a widget printer;
+- `make_<name>_projection(; theme)`, for a projection that has no factory, such
+  as `make_message_log_projection`.
+
+Only a builder that holds an `Appearance` calls `get_scaled_theme!`. A user
+interface with no scales passes a theme as it is, and it draws at no scale:
+`get_theme_value(theme, name)` gives the value of one field of a theme, scaled or
+not, a length as its number and a role as the font or the text it gives, and
+`get_theme_values(theme)` gives them all by name. So a projection that a printer
+builds at each print makes no theme, and a view shows a change of a theme when
+the `appearance` wrapper prints it again. A plain struct holds a style in an `Any`
+field and reads it with `unwrap_cell`. `make_theme_values_field(K, theme)` gives
+all the values of a theme as one `NamedTuple` field, for a printer that reads many
+of them, such as a chart.
 
 ### The zoom and the scales
 
