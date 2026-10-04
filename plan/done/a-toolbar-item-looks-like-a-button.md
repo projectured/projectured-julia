@@ -1,11 +1,10 @@
 # A toolbar item looks like a button
 
-> **Status:** in progress since 2026-10-04, in the worktree
-> `projectured-julia-toolbar-item` on the branch
-> `toolbar-item-looks-like-a-button`. Written on 2026-10-04 at the owner's
+> **Status:** done on 2026-10-04. The branch
+> `toolbar-item-looks-like-a-button` landed on `main` by a fast-forward. Written on 2026-10-04 at the owner's
 > request. The owner chose the look on 2026-10-04 (section 3) and answered the
-> other questions the same day (section 6). No question is open. Steps 0 to 5b
-> are done. The owner said "land it" on 2026-10-04.
+> other questions the same day (section 6). No question is open. The owner said
+> "land it" on 2026-10-04.
 
 ## 1. The request
 
@@ -140,7 +139,7 @@ pressed look. The owner wrote: "I agree with your recommendation".
   hover layer and the held surface is the pressed layer. These are the values
   that a `WidgetButton` draws, so a lit toolbar item has the outline of a
   button. No new color comes into the theme, so
-  [one-coherent-color-set.md](one-coherent-color-set.md) can recolor the item
+  [one-coherent-color-set.md](../pending/one-coherent-color-set.md) can recolor the item
   with every other control.
 - **D3. The border is on the layer.** The border is a part of the hover layer,
   not of the box of the item. The layer already reads the pointer and `pressed`
@@ -155,7 +154,7 @@ pressed look. The owner wrote: "I agree with your recommendation".
   ([widget.md:70](../../documentation/package/platform/widget/widget.md#L70)):
   `layer_stroke` is the stroke of the layer in each state that shows it.
   `corner_radius` is the name that `WidgetButton` uses.
-  [a-projection-holds-its-styles.md](a-projection-holds-its-styles.md) moves
+  [a-projection-holds-its-styles.md](../pending/a-projection-holds-its-styles.md) moves
   these fields later with all the others.
 - **D5. The pressed state copies `WidgetButton`.** The item gets a transient
   `pressed::Bool` field. Its reader writes it with `_write_view_state` on a
@@ -262,8 +261,9 @@ pressed look. The owner wrote: "I agree with your recommendation".
     70, the toolbar item holds the pressed layer and a stroke on its layer;
     line 126, the toolbar gives the down to its items, and an item answers it
     with its pressed look, so the focus stays in the content.
-  - The color catalog: `one-coherent-color-set.md` is not in git yet, because
-    another session writes it. This branch does not change it. The new use for
+  - The color catalog: another session writes `one-coherent-color-set.md`,
+    which came into git on `main` while this branch was open. This branch does
+    not change it. The new use for
     its catalog: `border` is the outline of the layer of a toolbar item.
   - Commit.
 - [x] **5. The checks.**
@@ -306,9 +306,17 @@ pressed look. The owner wrote: "I agree with your recommendation".
     row moves down 2 pixels, and the toolbar keeps its bottom padding of 4, so the
     content moves down 6 pixels. An image of a toolbar alone does not change,
     because `write_image` cuts an image to what it draws.
-- [ ] **6. Report, then ask.** Report the commits, the test results, the image
+- [x] **6. Report, then ask.** Report the commits, the test results, the image
   compare and the frames. Land on `main` only when the owner says so. Then move
   this plan to `plan/done/`.
+  - **Done 2026-10-04.** The branch was rebased onto `main` at `6def9b527`
+    with no conflict. On the rebased branch `test_platform()` passes: 89432
+    pass, 8 broken, no failure and no error, and this branch adds no
+    `@test_broken`. `test_application()`, the one test outside the platform
+    package that uses the window chrome, passes: 344 pass and 2 broken. Then
+    `main` took the branch by `git merge --ff-only`. Not checked: omnet-julia,
+    whose windows also hold the chrome, so a test there that presses a fixed
+    point under the bands can see them 2 or 6 pixels lower.
 
 ## 6. Answered questions
 
@@ -324,4 +332,4 @@ pressed look. The owner wrote: "I agree with your recommendation".
 - **Q4. The contrast of the outline.** The outline is `border`
   (`color_slate_300`) on a band of `color_slate_100`, as on a `WidgetButton`,
   and it is faint. The owner answered on 2026-10-04: "will fix that later". It
-  belongs to [one-coherent-color-set.md](one-coherent-color-set.md).
+  belongs to [one-coherent-color-set.md](../pending/one-coherent-color-set.md).
