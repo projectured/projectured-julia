@@ -569,6 +569,15 @@ inet-julia uses, the same step changes them, so that they always load.
     gray (`_GESTURE_LOG_PANEL_BACKGROUND`), so that the text under the panel
     does not show through. The line carries a marker until the owner chooses
     one color for the theme.
+  - Open, found after the landing (2026-10-04): a value in a cell of a data
+    frame stands about 3 px below the number of its row, and 7 checks of
+    `test_dataframes` fail (`DataFrameViewTest.jl` lines 134, 141, 176 and
+    177, `DataFrameFilterTest.jl` line 83). A cell holds the primitive
+    document of its value, which the text stage of the natural view draws at
+    the code line spacing of the text theme (1.35); the row number is a widget
+    label at single spacing. A probe with single spacing in the text theme
+    puts both at the same height. The table must give its cells single
+    spacing; how it tells the text stage is a question for the owner.
   - The graphics theme (D19): `GraphicsTheme` in the graphics slice holds
     `font`, `fault_text`, `selection_ring` and `selection_ring_width`.
     `SELECTION_RING_COLOR` and `WidgetTheme.selection_ring` go.
