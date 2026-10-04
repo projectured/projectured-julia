@@ -26,29 +26,29 @@ plain values of the default theme.
 """
 @theme struct SequenceChartTheme
     "The whole canvas, behind the body."
-    background::StyleColor = color_solarized_background_lighter
+    background::StyleColor = ColorRole(:background)
     "The body, where the lanes and their events draw."
-    body_background::StyleColor = StyleColor(1.0, 1.0, 1.0, 1.0)
+    body_background::StyleColor = ColorRole(:surface)
     "A lane's line, when the lane names no color of its own."
-    axis::StyleColor = color_solarized_content_dark
+    axis::StyleColor = ColorRole(:border_strong)
     "A tick, a lane name, a title, a readout, and a label."
-    text_color::StyleColor = color_solarized_content_darker
+    text_color::StyleColor = ColorRole(:text_muted)
     "The time-scale strip, when the chart names no color of its own."
-    gutter::StyleColor = StyleColor(1.0, 1.0, 0.94, 1.0)
+    gutter::StyleColor = ColorRole(:surface_sunken)
     "The border of the gutter strip."
-    gutter_border::StyleColor = StyleColor(0.0, 0.0, 0.0, 0.25)
+    gutter_border::StyleColor = ColorRole(:border)
     "The dotted line a tick draws down through the body."
-    hairline::StyleColor = StyleColor(0.0, 0.0, 0.0, 0.14)
+    hairline::StyleColor = ColorRole(:grid)
     "The wash over a stretch where the clock stands still."
-    zero_time::StyleColor = StyleColor(0.0, 0.0, 0.0, 0.055)
+    zero_time::StyleColor = ColorRole(:hover)
     "An arrow, when its kind names no color of its own."
-    arrow::StyleColor = color_solarized_blue
+    arrow::StyleColor = ColorRole(:series_1)
     "An occurrence, when its kind names no color of its own."
-    event::StyleColor = StyleColor(0xd3 / 255, 0x36 / 255, 0x82 / 255, 1.0)
+    event::StyleColor = ColorRole(:series_4)
     "The ring, the highlight and the cursor line of a selection."
-    selected::StyleColor = StyleColor(0x26 / 255, 0x8b / 255, 0xd2 / 255, 0.9)
+    selected::StyleColor = ColorRole(:selection_ring)
     "The ring and the highlight of what the pointer is over."
-    hover::StyleColor = StyleColor(0x26 / 255, 0x8b / 255, 0xd2 / 255, 0.45)
+    hover::StyleColor = ColorRole(:selection_ring; alpha = 0.5)
     "The opacity of a state band's generated color, when it names none of its own."
     band_overlay_alpha::Float64 = 0.45
     "The font of the chart's title."

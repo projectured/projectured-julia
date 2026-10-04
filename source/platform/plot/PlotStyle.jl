@@ -12,16 +12,21 @@
 
 # ── Colour and marker cycles ─────────────────────────────────────────────
 
+# The hues of the series of a plot, in the order of the roles `series_1` to
+# `series_8` of the colour theme.
+const _SERIES_HUES = (:blue, :orange, :green, :pink, :teal, :violet, :amber, :red)
+
 """
     default_color_cycle() -> Vector{StyleColor}
 
-The per-series color cycle: the Solarized accents, in the order a plot hands
-them out to series that leave `color` unset.
+The per-series color cycle, in the order a plot hands them out to series that
+leave `color` unset: the solid step of eight hues of the default palette, in the
+light mode, as the roles `series_1` to `series_8` of the colour theme give them.
+The cycle is content of the document, so it does not follow the mode.
 """
-default_color_cycle() = StyleColor[
-    color_solarized_blue, color_solarized_red, color_solarized_green,  # @style: content of the document, the default colors of the series of a chart
-    color_solarized_orange, color_solarized_violet, color_solarized_cyan,  # @style: content of the document, the default colors of the series of a chart
-    color_solarized_magenta, color_solarized_yellow]  # @style: content of the document, the default colors of the series of a chart
+default_color_cycle() =
+    StyleColor[compute_palette_color(find_palette(DEFAULT_PALETTE_NAME), PaletteColor(hue, 9), :light)
+               for hue in _SERIES_HUES]
 
 """
     default_symbol_cycle() -> Vector{Symbol}
@@ -46,7 +51,7 @@ a series shifts the colors after it — the same rule the reference charts use.
 """
 function get_series_color(color, index::Integer, cycle)
     color === nothing || return color
-    isempty(cycle) && return color_solarized_blue  # @style: content of the document, the default colors of the series of a chart
+    isempty(cycle) && return first(default_color_cycle())
     cycle[mod1(index, length(cycle))]
 end
 

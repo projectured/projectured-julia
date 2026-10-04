@@ -639,7 +639,7 @@ function test_chart_projection()
             # colours and any one of them would misname the rest.
             own = filter(it -> it[1] != 0, items)
             @test [it[2] for it in own] == ["a", "b", "c"]
-            @test all(it -> it[3] == ChartTheme().strip_swatch, own)
+            @test all(it -> it[3] == get_theme_value(ChartTheme(), :strip_swatch), own)
             # ...and specifically not the colour the series cycle would give it.
             @test own[1][3] != get_series_color(nothing, 1, ChartStyle().color_cycle)
 
@@ -670,7 +670,7 @@ function test_chart_projection()
             bare = Chart("m", [ChartStripSeries("a", t, codes)])
             bare_items = _chart_layout(bare).legend.items
             @test length(bare_items) == 1
-            @test bare_items[1][3] == ChartTheme().strip_swatch
+            @test bare_items[1][3] == get_theme_value(ChartTheme(), :strip_swatch)
 
             # A state entry names no series, so it neither toggles nor hovers —
             # a click on one means the legend, the way empty space in the box
