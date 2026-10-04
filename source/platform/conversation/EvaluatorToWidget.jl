@@ -19,22 +19,46 @@
 # code reaches it.
 
 @projection UntrackedCell struct EvaluatorFormToVerticalLayout
-    theme::Any = nothing
-    row_gap::Int = _get_conversation_style(theme, Int, :row_gap)
-    prompt_gap::Int = _get_conversation_style(theme, Int, :prompt_gap)
-    prompt_text::StyleText = _get_conversation_style(theme, StyleText, :prompt_text)
-    error_prompt_text::StyleText = _get_conversation_style(theme, StyleText, :error_prompt_text)
+    row_gap::Int = get_conversation_style(nothing, :row_gap)
+    prompt_gap::Int = get_conversation_style(nothing, :prompt_gap)
+    prompt_text::StyleText = get_conversation_style(nothing, :prompt_text)
+    error_prompt_text::StyleText = get_conversation_style(nothing, :error_prompt_text)
 end
 
 @projection UntrackedCell struct EvaluatorToplevelToWidgetComposite
-    theme::Any = nothing
-    element_gap::Int = _get_conversation_style(theme, Int, :element_gap)
-    row_gap::Int = _get_conversation_style(theme, Int, :row_gap)
-    option_gap::Int = _get_conversation_style(theme, Int, :option_gap)
+    element_gap::Int = get_conversation_style(nothing, :element_gap)
+    row_gap::Int = get_conversation_style(nothing, :row_gap)
+    option_gap::Int = get_conversation_style(nothing, :option_gap)
 end
 
 # `("form", 1)` / `("result", 2)`: which row of a form each field prints as.
 const _FORM_ROWS = (("form", 1), ("result", 2))
+
+"""
+    make_evaluator_form_projection(; theme = nothing) -> EvaluatorFormToVerticalLayout
+
+The projection of a bare form, with the prompts and the gaps of `theme`: a
+`ConversationTheme`, scaled or not, or the default values for `nothing`.
+"""
+function make_evaluator_form_projection(; theme = nothing)
+    get_style(name) = get_conversation_style(theme, name)
+    EvaluatorFormToVerticalLayout(; row_gap = get_style(:row_gap), prompt_gap = get_style(:prompt_gap),
+                                  prompt_text = get_style(:prompt_text),
+                                  error_prompt_text = get_style(:error_prompt_text))
+end
+
+"""
+    make_evaluator_toplevel_projection(; theme = nothing) -> EvaluatorToplevelToWidgetComposite
+
+The projection of an evaluator, with the gaps of `theme`: a `ConversationTheme`,
+scaled or not, or the default values for `nothing`.
+"""
+function make_evaluator_toplevel_projection(; theme = nothing)
+    get_style(name) = get_conversation_style(theme, name)
+    EvaluatorToplevelToWidgetComposite(; element_gap = get_style(:element_gap),
+                                       row_gap = get_style(:row_gap),
+                                       option_gap = get_style(:option_gap))
+end
 
 # ── print_document: a bare form → a prompt column beside its code and result ──
 #
@@ -258,10 +282,10 @@ _is_options_path(steps) =
 function __init__()
     register_natural_graphics!(:evaluator, (; measure, appearance) -> Pair{Type,Any}[
         EvaluatorToplevel => ChainingProjection(
-            EvaluatorToplevelToWidgetComposite(theme = get_scaled_theme!(appearance, ConversationTheme)),
+            make_evaluator_toplevel_projection(theme = get_scaled_theme!(appearance, ConversationTheme)),
             GridLayoutToGraphicsCanvas()),
         EvaluatorForm     => ChainingProjection(
-            EvaluatorFormToVerticalLayout(theme = get_scaled_theme!(appearance, ConversationTheme)),
+            make_evaluator_form_projection(theme = get_scaled_theme!(appearance, ConversationTheme)),
             VerticalLayoutToGraphicsCanvas()),
     ])
 end

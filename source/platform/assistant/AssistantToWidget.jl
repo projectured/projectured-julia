@@ -19,12 +19,11 @@ keeps the least height that the `ConversationTheme` gives, and the transcript
 takes the rest. With no theme it takes the value of the default theme.
 """
 @projection UntrackedCell struct AssistantToWidgetSplitPane
-    composer_min_height::Int = get_theme_defaults(ConversationTheme).composer_min_height
+    composer_min_height::Int = get_conversation_style(nothing, :composer_min_height)
 end
 
-AssistantToWidgetSplitPane(theme::ScaledConversationTheme) =
-    AssistantToWidgetSplitPane(; composer_min_height =
-        make_style_field(ConversationTheme, theme, Int; name = :composer_min_height))
+AssistantToWidgetSplitPane(theme::Union{ConversationTheme,ScaledConversationTheme}) =
+    AssistantToWidgetSplitPane(; composer_min_height = get_conversation_style(theme, :composer_min_height))
 
 """
     AssistantToWidgetCard(; title, transcript_height, cell_height, gap)

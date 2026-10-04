@@ -26,7 +26,7 @@ assistant, as a chat bubble that reads every gesture itself.
 """
 make_conversation_draft_row(; measure::TextMeasure, appearance::Appearance = Appearance()) =
     ConversationDraft => ChainingProjection(
-        RecursiveProjection(FaultCatchingProjection(inner = ConversationComposerToWidget(;
+        RecursiveProjection(FaultCatchingProjection(inner = make_conversation_composer_projection(;
                                                     theme = get_scaled_theme!(appearance, ConversationTheme)),
                                                     substitute = FaultToWidget())),
         NaturalToGraphics(measure = measure, appearance = appearance))

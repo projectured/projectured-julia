@@ -19,8 +19,11 @@ the composer draws a typed part with, and the gaps between the parts of the
 widgets. Each field has a docstring that says what it draws, which the
 appearance tab shows under its name.
 
-A conversation projection reads the scaled theme through its `UntrackedCell`
-style fields; with no theme it holds the plain values of the default theme.
+A conversation projection holds its styles and no theme. Its builder
+(`ConversationToWidget`, `make_conversation_composer_projection`,
+`make_evaluator_form_projection`, `make_evaluator_toplevel_projection`) gives
+them with `get_conversation_style`, from a theme scaled or not; a projection built
+with no styles holds the plain values of the default theme.
 """
 @theme struct ConversationTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
@@ -82,9 +85,3 @@ style fields; with no theme it holds the plain values of the default theme.
     "The least height of the composer under the transcript of the assistant."
     composer_min_height::ControlSize = ControlSize(200)
 end
-
-# The style field of type `T` of a conversation projection that holds the
-# field `name` of the theme `theme`: a `ConversationTheme`, a scaled one, or
-# `nothing` for the default values.
-_get_conversation_style(theme, ::Type{T}, name::Symbol) where {T} =
-    make_style_field(ConversationTheme, scale_theme(theme), T; name)

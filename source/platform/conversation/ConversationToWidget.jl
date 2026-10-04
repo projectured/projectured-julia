@@ -39,33 +39,30 @@
 # `ConversationTheme.jl`.
 
 @projection UntrackedCell struct ConversationConversationToWidgetComposite
-    theme::Any = nothing
-    turn_gap::Int = _get_conversation_style(theme, Int, :turn_gap)
+    turn_gap::Int = get_conversation_style(nothing, :turn_gap)
 end
 
 @projection UntrackedCell struct ConversationTurnToWidgetComposite
-    theme::Any = nothing
-    part_gap::Int = _get_conversation_style(theme, Int, :part_gap)
-    role_gap::Int = _get_conversation_style(theme, Int, :role_gap)
-    user_role_text::StyleText = _get_conversation_style(theme, StyleText, :user_role_text)
-    assistant_role_text::StyleText = _get_conversation_style(theme, StyleText, :assistant_role_text)
-    other_role_text::StyleText = _get_conversation_style(theme, StyleText, :other_role_text)
-    user_role_icon::StyleText = _get_conversation_style(theme, StyleText, :user_role_icon)
-    assistant_role_icon::StyleText = _get_conversation_style(theme, StyleText, :assistant_role_icon)
-    other_role_icon::StyleText = _get_conversation_style(theme, StyleText, :other_role_icon)
+    part_gap::Int = get_conversation_style(nothing, :part_gap)
+    role_gap::Int = get_conversation_style(nothing, :role_gap)
+    user_role_text::StyleText = get_conversation_style(nothing, :user_role_text)
+    assistant_role_text::StyleText = get_conversation_style(nothing, :assistant_role_text)
+    other_role_text::StyleText = get_conversation_style(nothing, :other_role_text)
+    user_role_icon::StyleText = get_conversation_style(nothing, :user_role_icon)
+    assistant_role_icon::StyleText = get_conversation_style(nothing, :assistant_role_icon)
+    other_role_icon::StyleText = get_conversation_style(nothing, :other_role_icon)
 end
 
 @projection UntrackedCell struct ConversationPartToWidget
-    theme::Any = nothing
-    kind_text::StyleText = _get_conversation_style(theme, StyleText, :kind_text)
-    section_text::StyleText = _get_conversation_style(theme, StyleText, :section_text)
-    error_text::StyleText = _get_conversation_style(theme, StyleText, :error_text)
-    section_gap::Int = _get_conversation_style(theme, Int, :section_gap)
+    kind_text::StyleText = get_conversation_style(nothing, :kind_text)
+    section_text::StyleText = get_conversation_style(nothing, :section_text)
+    error_text::StyleText = get_conversation_style(nothing, :error_text)
+    section_gap::Int = get_conversation_style(nothing, :section_gap)
     # A section sits under the header of the card around it, indented by the
     # column that card's chevron takes: two half-sizes of the theme's chevron
     # and the title gap, so a section's own chevron starts where the header's
     # word starts.
-    section_padding::Inset = _get_conversation_style(theme, Inset, :section_indent)
+    section_padding::Inset = get_conversation_style(nothing, :section_indent)
 end
 
 # The role's label, beside its glyph: smaller than the message it introduces —
@@ -660,13 +657,24 @@ end
     ConversationToWidget(; theme = nothing)
 
 Type-dispatching projection over the conversation document types. Wrap in
-`RecursiveProjection` at the call site. `theme` is a `ConversationTheme`, a
-scaled one, or `nothing` for the default values.
+`RecursiveProjection` at the call site. It gives each projection its styles from
+`theme`, a `ConversationTheme` scaled or not, or the default values for `nothing`.
 """
 function ConversationToWidget(; theme = nothing)
+    get_style(name) = get_conversation_style(theme, name)
     TypeDispatchingProjection(
-        ConversationConversation => ConversationConversationToWidgetComposite(; theme),
-        ConversationTurn         => ConversationTurnToWidgetComposite(; theme),
-        ConversationPart         => ConversationPartToWidget(; theme),
+        ConversationConversation => ConversationConversationToWidgetComposite(; turn_gap = get_style(:turn_gap)),
+        ConversationTurn         => ConversationTurnToWidgetComposite(;
+            part_gap = get_style(:part_gap), role_gap = get_style(:role_gap),
+            user_role_text = get_style(:user_role_text),
+            assistant_role_text = get_style(:assistant_role_text),
+            other_role_text = get_style(:other_role_text),
+            user_role_icon = get_style(:user_role_icon),
+            assistant_role_icon = get_style(:assistant_role_icon),
+            other_role_icon = get_style(:other_role_icon)),
+        ConversationPart         => ConversationPartToWidget(;
+            kind_text = get_style(:kind_text), section_text = get_style(:section_text),
+            error_text = get_style(:error_text), section_gap = get_style(:section_gap),
+            section_padding = get_style(:section_indent)),
     )
 end

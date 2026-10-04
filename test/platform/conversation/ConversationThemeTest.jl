@@ -1,10 +1,13 @@
 # The conversation projections follow the scales of the appearance: each of
-# the six projections of `ConversationModule` reads the scaled
-# `ConversationTheme` through its style fields, so at a font scale of 1.5
-# every text is 1.5 times as large, at a spacing scale of 1.5 every gap and
-# indent is 1.5 times as large, and a projection built with no theme holds the
-# default values. `ConversationToWidget` gives the same theme to its three
+# the six projections of `ConversationModule` holds the styles that its builder
+# reads from the scaled `ConversationTheme`, so at a font scale of 1.5 every
+# text is 1.5 times as large, at a spacing scale of 1.5 every gap and indent is
+# 1.5 times as large, and a projection built with no styles holds the default
+# values. `ConversationToWidget` gives the styles of one theme to its three
 # composites.
+
+# The projection that the type-dispatching projection `projection` gives to `T`.
+_find_conversation_rule(projection, T) = last(only(rule for rule in projection.dispatch if first(rule) === T))
 
 """
     test_conversation_theme()
@@ -23,7 +26,8 @@ theme = get_scaled_theme!(scales, ConversationTheme)
 @testset "ConversationConversationToWidgetComposite reads the gap between turns" begin
     plain = ConversationConversationToWidgetComposite()
     @test plain.turn_gap == 8
-    scaled = ConversationConversationToWidgetComposite(; theme)
+    @test !hasfield(ConversationConversationToWidgetComposite, :theme)
+    scaled = _find_conversation_rule(ConversationToWidget(; theme), ConversationConversation)
     @test scaled.turn_gap == round(Int, 8 * 1.5)
 end
 
@@ -41,7 +45,7 @@ end
         @test icon.font.size == 14 && icon.font.family == "Lucide"
         @test is_color_equal(icon.color, color)
     end
-    scaled = ConversationTurnToWidgetComposite(; theme)
+    scaled = _find_conversation_rule(ConversationToWidget(; theme), ConversationTurn)
     @test (scaled.part_gap, scaled.role_gap) == (round(Int, 8 * 1.5), round(Int, 10 * 1.5))
     @test scaled.user_role_text.font.size == round(Int, 13 * 1.5)
     @test scaled.user_role_icon.font.size == round(Int, 14 * 1.5)
@@ -57,7 +61,7 @@ end
     @test (plain.section_padding.top[], plain.section_padding.bottom[],
            plain.section_padding.left[], plain.section_padding.right[]) == (0, 0, 12, 0)
 
-    scaled = ConversationPartToWidget(; theme)
+    scaled = _find_conversation_rule(ConversationToWidget(; theme), ConversationPart)
     @test scaled.kind_text.font.size == round(Int, 11 * 1.5)
     @test scaled.section_gap == round(Int, 10 * 1.5)
     @test scaled.section_padding.left[] == round(Int, 12 * 1.5)
@@ -72,13 +76,13 @@ end
     @test is_color_equal(plain.prompt_text.color, color_slate_500)
     @test is_color_equal(plain.error_prompt_text.color, color_destructive)
 
-    scaled = EvaluatorFormToVerticalLayout(; theme)
+    scaled = make_evaluator_form_projection(; theme)
     @test scaled.prompt_text.font.size == round(Int, 14 * 1.5)
     @test scaled.row_gap == round(Int, 4 * 1.5)
 
     top_plain = EvaluatorToplevelToWidgetComposite()
     @test (top_plain.element_gap, top_plain.row_gap, top_plain.option_gap) == (8, 4, 12)
-    top_scaled = EvaluatorToplevelToWidgetComposite(; theme)
+    top_scaled = make_evaluator_toplevel_projection(; theme)
     @test top_scaled.element_gap == round(Int, 8 * 1.5)
     @test top_scaled.option_gap == round(Int, 12 * 1.5)
 end
@@ -96,7 +100,10 @@ end
     # evaluation the same way, from the same fields.
     @test is_color_equal(plain.section_text.color, defaults.section_text.color)
 
-    scaled = ConversationComposerToWidget(; theme)
+    scaled = make_conversation_composer_projection(; theme)
+    # A theme that is not scaled reads as at no scale.
+    @test make_conversation_composer_projection(; theme = ConversationTheme()).code_font ==
+          StyleFont("Ubuntu Mono", 14)
     @test scaled.code_font == StyleFont("Ubuntu Mono", 21)
     @test scaled.part_gap == round(Int, 8 * 1.5)
 end

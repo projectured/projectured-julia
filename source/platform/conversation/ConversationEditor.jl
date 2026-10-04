@@ -497,19 +497,37 @@ as the root projection, chained through the widget→graphics pipeline (wrap in
 `RecursiveProjection`).
 """
 @projection UntrackedCell struct ConversationComposerToWidget
-    theme::Any = nothing
-    part_gap::Int = _get_conversation_style(theme, Int, :part_gap)
-    code_font::StyleFont = _get_conversation_style(theme, StyleFont, :code_font)
-    kind_text::StyleText = _get_conversation_style(theme, StyleText, :kind_text)
-    section_text::StyleText = _get_conversation_style(theme, StyleText, :section_text)
-    error_text::StyleText = _get_conversation_style(theme, StyleText, :error_text)
-    section_gap::Int = _get_conversation_style(theme, Int, :section_gap)
-    section_padding::Inset = _get_conversation_style(theme, Inset, :section_indent)
-    plain_color::StyleColor = _get_conversation_style(theme, StyleColor, :plain_color)
-    placeholder_color::StyleColor = _get_conversation_style(theme, StyleColor, :placeholder_color)
-    valid_color::StyleColor = _get_conversation_style(theme, StyleColor, :valid_color)
-    invalid_color::StyleColor = _get_conversation_style(theme, StyleColor, :invalid_color)
-    completion_hint_color::StyleColor = _get_conversation_style(theme, StyleColor, :completion_hint_color)
+    part_gap::Int = get_conversation_style(nothing, :part_gap)
+    code_font::StyleFont = get_conversation_style(nothing, :code_font)
+    kind_text::StyleText = get_conversation_style(nothing, :kind_text)
+    section_text::StyleText = get_conversation_style(nothing, :section_text)
+    error_text::StyleText = get_conversation_style(nothing, :error_text)
+    section_gap::Int = get_conversation_style(nothing, :section_gap)
+    section_padding::Inset = get_conversation_style(nothing, :section_indent)
+    plain_color::StyleColor = get_conversation_style(nothing, :plain_color)
+    placeholder_color::StyleColor = get_conversation_style(nothing, :placeholder_color)
+    valid_color::StyleColor = get_conversation_style(nothing, :valid_color)
+    invalid_color::StyleColor = get_conversation_style(nothing, :invalid_color)
+    completion_hint_color::StyleColor = get_conversation_style(nothing, :completion_hint_color)
+end
+
+"""
+    make_conversation_composer_projection(; theme = nothing) -> ConversationComposerToWidget
+
+The composer, with the font, the gaps and the colors of `theme`: a
+`ConversationTheme`, scaled or not, or the default values for `nothing`.
+"""
+function make_conversation_composer_projection(; theme = nothing)
+    get_style(name) = get_conversation_style(theme, name)
+    ConversationComposerToWidget(; part_gap = get_style(:part_gap), code_font = get_style(:code_font),
+                                 kind_text = get_style(:kind_text), section_text = get_style(:section_text),
+                                 error_text = get_style(:error_text), section_gap = get_style(:section_gap),
+                                 section_padding = get_style(:section_indent),
+                                 plain_color = get_style(:plain_color),
+                                 placeholder_color = get_style(:placeholder_color),
+                                 valid_color = get_style(:valid_color),
+                                 invalid_color = get_style(:invalid_color),
+                                 completion_hint_color = get_style(:completion_hint_color))
 end
 
 const _PLACEHOLDER = "type here…"
