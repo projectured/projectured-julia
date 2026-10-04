@@ -227,16 +227,6 @@ const _THEME_DEFAULTS = IdDict{Type,Any}()
 const _THEME_DEFAULTS_LOCK = ReentrantLock()
 
 """
-    scale_theme(theme) -> ScaledTheme or nothing
-
-The scaled theme of `theme` at no scale, a scaled theme as it is, or `nothing`
-for no theme. A constructor of a projection calls it once on its keyword
-`theme`, and gives the result to [`make_style_field`](@ref) for each field.
-"""
-scale_theme(theme::Theme) = make_scaled_theme(theme)
-scale_theme(theme::Union{ScaledTheme,Nothing}) = theme
-
-"""
     make_style_field(K, theme, T; name) -> T or UntrackedCell{T}
 
 The style field of type `T` of a projection that holds the field `name` of the

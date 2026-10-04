@@ -76,7 +76,7 @@ export Theme, ScaledTheme, ThemeLength, Spacing, Radius, LineWidth, ControlSize,
        scale_length, convert_theme_value, @theme, make_scaled_theme, get_theme_field_names,
        get_theme_type, get_theme_presets, find_theme_field_text, get_theme_field_texts,
        get_base_theme, get_theme_appearance, make_theme_cell, get_theme_defaults,
-       scale_theme, make_style_field, make_theme_values_field,
+       make_style_field, make_theme_values_field,
        get_appearance_file, save_appearance!, load_appearance!
 export Appearance, scale_theme_value, get_scaled_theme!, set_theme!, get_theme,
        get_theme_value, get_theme_values
