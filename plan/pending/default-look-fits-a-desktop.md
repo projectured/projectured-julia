@@ -548,9 +548,14 @@ inet-julia uses, the same step changes them, so that they always load.
   a value of window chrome that one field of `WidgetTheme` already says, such
   as the padding of a pane or the gap of a tooltip, takes that field instead.
   *Done (2026-10-04):* the owner accepted the lists ("fine").
-- [ ] **T2.** projectured-julia: each style value moves into a theme. A domain
-  with no theme gets one. *In progress:* batches, each checked by the image
-  check and the suites of the slices it touches.
+- [x] **T2.** projectured-julia: each style value moves into a theme. A domain
+  with no theme gets one. Batches, each checked by the image check and the
+  suites of the slices it touches. *Done (2026-10-04):* the owner closed the
+  step. Later decisions answer its open questions: the documents of the chrome
+  builders (D18, D21, D23), the ring and the fault mark (D19), the colors of
+  the code pieces (D28), the spacing of a cell (D27), the swatch (D30) and the
+  panel of the gesture log (D31). Left as they are: the defaults of two
+  geometry helpers of the charts, which their callers pass.
   - Domain syntax (`cd52731ea`): `SqlTheme.punctuation_text`, the brackets of
     a Julia operation take `JuliaTheme.punctuation_text`.
     `TextString(content, font)` is a separator that draws no ink.
@@ -970,6 +975,7 @@ runs `Pkg.precompile` and the tests of each package that a step touches.
   (`asset/precompile/PrecompileStatements.jl`) skip 7,272 of 10,857
   statements. Only 287 statements name `StyleFont`, so at least 6,985 were
   stale before this work. The recording needs a new run, best after Part V.
+  The owner chose not to record them again in this plan (2026-10-04).
 
 ### Step T2, the graphics theme
 
