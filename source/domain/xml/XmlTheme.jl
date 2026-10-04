@@ -33,7 +33,3 @@ with no theme it holds the plain values of the default theme.
     "The value of an attribute."
     attribute_value_text::TextRole = TextRole(color_solarized_cyan)
 end
-
-# The style field of an XML projection that holds the text `name` of the theme
-# `theme`: an `XmlTheme`, a scaled one, or `nothing` for the default values.
-_get_xml_style(theme, name::Symbol) = make_style_field(XmlTheme, scale_theme(theme), StyleText; name)

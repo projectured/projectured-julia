@@ -32,8 +32,7 @@
 # A bound leaf: `.content{k}` edits map to the leaf's own `.value{k}` span.
 
 @projection UntrackedCell struct XmlTextToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_xml_style(theme, :content_text)
+    style::StyleText = get_xml_style(nothing, :content_text)
 end
 
 # The text is entity-escaped on the way out, as an attribute value already is,
@@ -58,11 +57,10 @@ XmlInsertionToSyntaxLeaf(; theme = nothing) = DomainInsertionToSyntaxLeaf(XmlDoc
 # inline by the element that happens to hold it.
 
 @projection UntrackedCell struct XmlAttributeToSyntaxNode
-    theme::Any = nothing
-    delim::StyleText       = _get_xml_style(theme, :delimiter_text)
-    attr_name::StyleText   = _get_xml_style(theme, :attribute_name_text)
-    quote_style::StyleText = _get_xml_style(theme, :quote_text)
-    attr_value::StyleText  = _get_xml_style(theme, :attribute_value_text)
+    delim::StyleText       = get_xml_style(nothing, :delimiter_text)
+    attr_name::StyleText   = get_xml_style(nothing, :attribute_name_text)
+    quote_style::StyleText = get_xml_style(nothing, :quote_text)
+    attr_value::StyleText  = get_xml_style(nothing, :attribute_value_text)
 end
 
 @projection_template XmlAttributeToSyntaxNode XmlAttribute (p, a) ->
@@ -76,9 +74,8 @@ end
 # ── XmlElementToSyntaxNode ──────────────────────────────────────────────────
 
 @projection UntrackedCell struct XmlElementToSyntaxNode
-    theme::Any = nothing
-    tag::StyleText   = _get_xml_style(theme, :tag_text)
-    delim::StyleText = _get_xml_style(theme, :delimiter_text)
+    tag::StyleText   = get_xml_style(nothing, :tag_text)
+    delim::StyleText = get_xml_style(nothing, :delimiter_text)
 end
 
 # Fixed-children node `[tag, attrs, body, close]`. The tag leaf is `bound(:tag)`;
@@ -105,17 +102,21 @@ end
 
 # ── XmlToSyntax (composite) ─────────────────────────────────────────────────
 
-# The projection of the whole domain: one rule per document type. `theme` is an
-# `XmlTheme`, a scaled one, or `nothing` for the default styles; `syntax_theme`
-# styles the insertion and the empty placeholder, which are the syntax slice's.
+# The projection of the whole domain: one rule per document type. The builder
+# gives each projection its styles from `theme`, an `XmlTheme` scaled or not, or
+# the default styles for `nothing`; `syntax_theme` styles the insertion and the
+# empty placeholder, which are the syntax slice's.
 
 function XmlToSyntax(; theme = nothing, syntax_theme = nothing)
-    theme = scale_theme(theme)
-    syntax_theme = scale_theme(syntax_theme)
+    style(name) = get_xml_style(theme, name)
     TypeDispatchingProjection(
-        XmlText      => XmlTextToSyntaxLeaf(; theme),
-        XmlAttribute => XmlAttributeToSyntaxNode(; theme),
-        XmlElement   => XmlElementToSyntaxNode(; theme),
+        XmlText      => XmlTextToSyntaxLeaf(; style = style(:content_text)),
+        XmlAttribute => XmlAttributeToSyntaxNode(; delim = style(:delimiter_text),
+                                                   attr_name = style(:attribute_name_text),
+                                                   quote_style = style(:quote_text),
+                                                   attr_value = style(:attribute_value_text)),
+        XmlElement   => XmlElementToSyntaxNode(; tag = style(:tag_text),
+                                                  delim = style(:delimiter_text)),
         XmlInsertion => XmlInsertionToSyntaxLeaf(; theme = syntax_theme),
         XmlNothing   => InsertionNothingToSyntaxLeaf(; theme = syntax_theme),
     )

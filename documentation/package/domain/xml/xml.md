@@ -55,11 +55,14 @@ A letter or a digit on a placeholder is not a retype key, so it goes into the na
 ### The theme
 
 `XmlTheme` holds the look of the XML projections: the text of a text node, a tag, a delimiter, the name and the value of an attribute, and the quotes. Each value has
-the default that the domain draws with no appearance. Each projection takes
-`theme`, a `XmlTheme` or a scaled one; with none it holds the default values.
-`XmlToSyntax(; theme, syntax_theme)` gives the theme to every projection, and the insertion and the empty placeholder take `syntax_theme`. The natural
-registration gives the scaled theme of the `Appearance` of the editor, so the view
-follows its scales, and the appearance tab shows a section for `XmlTheme`.
+the default that the domain draws with no appearance. A projection holds its
+styles as fields, and no theme; nothing in it scales or asks whether a theme is
+scaled. `XmlToSyntax(; theme, syntax_theme)` gives each projection the style of
+its role with `get_xml_style`, from `theme`, a `XmlTheme` scaled or not, or the
+default styles for `nothing`; the insertion and the empty placeholder take
+`syntax_theme`. The natural registration gives the scaled theme of the
+`Appearance` of the editor, so the view follows its scales, and the appearance
+tab shows a section for `XmlTheme`.
 
 ## How it fits
 
