@@ -14,8 +14,9 @@ The fields are the text styles of a gesture log entry's index, gesture,
 operation, muted line and empty line. Each field has a docstring that says
 what it draws, which the appearance tab shows under its name.
 
-A gesture log reads the scaled theme through its `UntrackedCell` style fields;
-with no theme it holds the plain values of the default theme.
+`make_gesture_log_projection` gives the projection of a gesture log its styles
+with `get_gesture_log_style`, from a theme scaled or not; a projection built
+with no styles holds the plain values of the default theme.
 """
 @theme struct GestureLogTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
@@ -39,12 +40,6 @@ with no theme it holds the plain values of the default theme.
     "The radius of the corners of the panel."
     panel_radius::Radius = Radius(4)
 end
-
-# The style field of a gesture log projection that holds the text `name` of the
-# theme `theme`: a `GestureLogTheme`, a scaled one, or `nothing` for the default
-# values.
-_get_gesturelog_style(theme, name::Symbol) =
-    make_style_field(GestureLogTheme, scale_theme(theme), StyleText; name)
 
 """
     make_gesture_log_panel_theme() -> GestureLogTheme

@@ -52,7 +52,7 @@ export GestureLogEntry, GestureLog, get_session_gesture_log,
        record_gesture!, clear_gesture_log!,
        describe_gesture, describe_operation, default_gesture_log_filter
 export GestureLogTheme, ScaledGestureLogTheme
-export GestureLogToSyntax
+export GestureLogToSyntax, make_gesture_log_projection
 export GestureLogRecordingProjection, GestureLogRecordingIoMap
 export GestureLogOverlayProjection, GestureLogOverlayIoMap,
        make_gesture_log_content_projection, make_gesture_log_panel_theme

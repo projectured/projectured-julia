@@ -23,13 +23,13 @@ const _WIDTH_SLACK = 8
     make_gesture_log_panel_syntax_projection(; operation_width = typemax(Int),
                                                theme = make_gesture_log_panel_theme()) -> GestureLogToSyntax
 
-A `GestureLogToSyntax` with the texts of `theme`: by default the light text of
+A `GestureLogToSyntax` with the styles of `theme`: by default the light text of
 the panel theme, for the dark background of the panel. `operation_width` is the
 most characters of an operation that a line shows.
 """
 make_gesture_log_panel_syntax_projection(; operation_width::Integer = typemax(Int),
                                            theme = make_gesture_log_panel_theme()) =
-    GestureLogToSyntax(; theme, operation_width = Int(operation_width))
+    make_gesture_log_projection(; theme, operation_width)
 
 """
     make_gesture_log_content_projection(; measure::TextMeasure = FontFileMeasure(),
@@ -80,10 +80,10 @@ function GestureLogOverlayProjection(; inner, log::GestureLog,
                                        theme = make_gesture_log_panel_theme(),
                                        content = make_gesture_log_content_projection(; theme),
                                        anchor::Symbol = :top_right,
-                                       margin::Integer = scale_theme(theme).panel_margin,
-                                       padding::Integer = scale_theme(theme).panel_padding,
-                                       radius::Integer = scale_theme(theme).panel_radius,
-                                       background::StyleColor = scale_theme(theme).panel_background)
+                                       margin::Integer = get_theme_value(theme, :panel_margin),
+                                       padding::Integer = get_theme_value(theme, :panel_padding),
+                                       radius::Integer = get_theme_value(theme, :panel_radius),
+                                       background::StyleColor = get_theme_value(theme, :panel_background))
     anchor in (:top_right, :top_left, :bottom_right, :bottom_left) ||
         error("GestureLogOverlayProjection: unknown anchor :$anchor")
     GestureLogOverlayProjection(inner, log, content, anchor, Int(margin), Int(padding),

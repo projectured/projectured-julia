@@ -41,8 +41,9 @@ The panel reads the maximum width and height of the range in the printer context
 ### The theme
 
 `GestureLogTheme` holds the text of the index, the gesture, the operation and the muted parts of a line of the gesture log, and of an empty log. Each value has the default that the slice draws with no
-appearance. `GestureLogToSyntax` takes `theme`, a `GestureLogTheme` or a scaled one; with none it holds the
-default values. The registration of the gesture log gives the scaled theme of the `Appearance`. The overlay keeps its own styles.
+appearance. `GestureLogToSyntax` holds its styles and no theme. `make_gesture_log_projection(; theme)`
+fills them with `get_gesture_log_style`, from a `GestureLogTheme` scaled or not, or the default values for
+`nothing`. The registration of the gesture log gives the scaled theme of the `Appearance`. The overlay keeps its own styles, built the same way through `make_gesture_log_panel_syntax_projection`.
 
 ## How it fits
 

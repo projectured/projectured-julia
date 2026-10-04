@@ -37,7 +37,7 @@ function test_tool_themes()
 end
 
 @testset "GestureLogToSyntax reads GestureLogTheme" begin
-    _check_tool_theme(GestureLogToSyntax, GestureLogTheme,
+    _check_tool_theme(make_gesture_log_projection, GestureLogTheme,
                       (:index_text, :gesture_text, :operation_text, :muted_text, :empty_text), 13)
 end
 

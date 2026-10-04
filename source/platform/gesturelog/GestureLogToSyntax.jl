@@ -18,16 +18,32 @@
 #
 # Read-only. There is nothing to author here, so this is a plain leaf printer with
 # no reader and no reference mappers.
+#
+# The projection holds its styles and no theme; `make_gesture_log_projection`
+# fills them from a theme.
 @projection UntrackedCell struct GestureLogToSyntax
-    theme::Any = nothing
-    index_text::StyleText = _get_gesturelog_style(theme, :index_text)
-    gesture_text::StyleText = _get_gesturelog_style(theme, :gesture_text)
-    operation_text::StyleText = _get_gesturelog_style(theme, :operation_text)
-    muted_text::StyleText = _get_gesturelog_style(theme, :muted_text)
-    empty_text::StyleText = _get_gesturelog_style(theme, :empty_text)
+    index_text::StyleText = get_gesture_log_style(nothing, :index_text)
+    gesture_text::StyleText = get_gesture_log_style(nothing, :gesture_text)
+    operation_text::StyleText = get_gesture_log_style(nothing, :operation_text)
+    muted_text::StyleText = get_gesture_log_style(nothing, :muted_text)
+    empty_text::StyleText = get_gesture_log_style(nothing, :empty_text)
     # The most characters of an operation that a line shows. A longer operation is
     # cut, and ends in `…`. The font is monospaced, so this bounds the width too.
     operation_width::Int = typemax(Int)
+end
+
+"""
+    make_gesture_log_projection(; theme = nothing, operation_width = typemax(Int)) -> GestureLogToSyntax
+
+The projection of a gesture log, with the styles of `theme`: a `GestureLogTheme`,
+scaled or not, or the default styles for `nothing`. `operation_width` is the most
+characters of an operation that a line shows.
+"""
+function make_gesture_log_projection(; theme = nothing, operation_width::Integer = typemax(Int))
+    get_style(name) = get_gesture_log_style(theme, name)
+    GestureLogToSyntax(; index_text = get_style(:index_text), gesture_text = get_style(:gesture_text),
+                       operation_text = get_style(:operation_text), muted_text = get_style(:muted_text),
+                       empty_text = get_style(:empty_text), operation_width = Int(operation_width))
 end
 
 # The width of the gesture column, in characters. The font is monospaced, so a
@@ -75,5 +91,5 @@ _cut_text(text::AbstractString, width::Integer) =
 
 function __init__()
     register_natural_syntax!(:gesturelog, (; appearance) -> Pair{Type,Any}[
-        GestureLog => GestureLogToSyntax(; theme = get_scaled_theme!(appearance, GestureLogTheme))])
+        GestureLog => make_gesture_log_projection(; theme = get_scaled_theme!(appearance, GestureLogTheme))])
 end
