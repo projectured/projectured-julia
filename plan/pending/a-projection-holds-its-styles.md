@@ -354,3 +354,23 @@ suites that build a themed view, and the images of both tabs.
    sequence chart and the graph hold all the values of their theme as one
    `NamedTuple` field already, which `make_theme_values_field` fills from a theme
    scaled or not.
+9. **The checks at the end** (2026-10-04, branch `177407250`, `main` `759a7ce2a`).
+   - The images of the 105 examples equal those of `main` byte for byte, in two
+     passes: each example with its own projection, and each document through
+     `NaturalToGraphics` with an `Appearance` at the scales 1.5, 1.5, 1.5, 1.5,
+     2.0 and 2.0, where 97 images differ from those at scale 1. The one error of
+     the second pass (the assistant gives a widget, not graphics) is the same on
+     `main`.
+   - The guards and every domain suite (`test_tree` … `test_dataframes`): 4383
+     pass on the branch, 4350 on `main`, and the same 34 failures on both, in
+     the export and the argument guards and in the row numbers of a data frame.
+     Two more failures of the export guard came from the help slice, whose
+     exports did not follow its fragments; `177407250` repairs them.
+   - `test_platform`: 90983 pass, 8 broken, and the one failure of `main`
+     (`FileSystemDocumentTest.jl:42`).
+   - `test_integration`: 1201817 pass, 1578 broken, and 2 errors, which are
+     `@test_broken` assertions of `ClickRoundtripTest.jl:323` that pass.
+   - A fresh precompile prints a warning of a stack overflow on `main` too.
+   - `test_all` as one process does not fit in 8 GB, because its precompile
+     runs many packages at a time; its groups run in three processes instead.
+
