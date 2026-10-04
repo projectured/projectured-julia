@@ -189,11 +189,11 @@ end
 end
 @testset "at a zoom the frame shows the window larger, and a click lands where the frame shows" begin
     width, height = 480, 360
-    # The Evaluator button of the toolbar is at (54, 52) in the window, so a
-    # frame at a zoom of 1.5 shows it at (81, 78).
+    # The Evaluator button of the toolbar is at (42, 43) in the window, so a
+    # frame at a zoom of 1.5 shows it at (63, 65).
     takes = map((1.0, 1.5)) do zoom
         opened = Ref(false)
-        timeline = Any[(event = MouseClick(:left, 81, 78, 1, ModifierKeys(); time = 0.0), hold = 0.6),
+        timeline = Any[(event = MouseClick(:left, 63, 65, 1, ModifierKeys(); time = 0.0), hold = 0.6),
                        (await = editor -> (opened[] = ProjecturedPlatform.find_pane(editor, "Evaluator") !== nothing;
                                            true), hold = 1.0)]
         filename = tempname() * ".mp4"
@@ -209,9 +209,9 @@ end
     @test !takes[1].opened
     @test takes[2].opened
     # The menu text at the top left is half as tall again: the rows of its dark
-    # pixels, in a box that holds "File".
+    # pixels, in a box that holds "File" and ends above the toolbar.
     function text_rows(frame)
-        rows = [y for y in 1:40 if any(x -> sum(frame[y, x]) < 300, 1:40)]
+        rows = [y for y in 1:32 if any(x -> sum(frame[y, x]) < 300, 1:40)]
         isempty(rows) ? 0 : maximum(rows) - minimum(rows) + 1
     end
     if all(take -> take.frame !== nothing, takes)
