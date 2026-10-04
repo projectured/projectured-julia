@@ -379,6 +379,25 @@ function test_widget_selection()
         @test b.first.content === false
     end
 
+    # A toolbar item answers the down with its pressed look, so a click on it runs
+    # the action and the focus stays on the control of the content.
+    @testset "a press on a toolbar item of a shell leaves the focus in the content" begin
+        projection = _selection_projection()
+        b = _selection_boxes()
+        count = Ref(0)
+        item = WidgetToolbarItem("Run"; icon = :play, action = (_editor) -> (count[] += 1))
+        shell = WidgetShell(b.layout; toolbar = WidgetToolbar(Any[item]))
+        iomap = print_document(projection, projection, shell, PrinterContext())
+        (x, y) = first((x, y) for y in 0:2:60, x in 0:2:120
+                       if read_intent(projection, iomap, _press(x, y)) isa InvokeActionOperation)
+        down = read_intent(projection, iomap, MouseDown(:left, x, y, ModifierKeys(); time = 0.0))
+        @test down isa ReplaceViewStateOperation
+        _selection_click!(projection, iomap, shell, x, y)
+        @test count[] == 1
+        @test item.pressed == false
+        @test find_whole_selected_index(b.layout.selection, "children") == 1
+    end
+
     @testset "a press in a transformed pane gives the focus to the control under the pointer" begin
         projection = _selection_projection()
         b = _selection_boxes()

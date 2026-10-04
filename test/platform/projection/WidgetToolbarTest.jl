@@ -196,6 +196,69 @@ end
     @test try_evaluate_reference(tb, op.path, missing) === tb.elements[2]
 end
 
+# What the toolbar `io` answers to the pointer event `evt`, and the write of
+# pointer state inside that answer.
+_read_event(io, evt) = begin
+    answer = read_intent(proj, nothing, Intent(evt, nothing), io)
+    answer isa Intent ? answer.operation : answer
+end
+_toolbar_state_write(op) = op isa ReplaceViewStateOperation ? get_wrapped_operation(op) : nothing
+
+# A left down on an item, through the toolbar, writes the `pressed` of that item
+# and of no other, and its layer shows the pressed color until the up. The down
+# is the answer of the item, so it moves no focus.
+@testset "a held toolbar item shows its press" begin
+    theme = make_scaled_theme(make_slate_light_theme())
+    tb = WidgetToolbar(Any[WidgetToolbarItem("Explorer"; icon = :folder),
+                           WidgetToolbarItem("Log"; icon = :list)])
+    io = print_document(proj, tb)
+    item = tb.elements[2]
+    x, y = _centre(_items(io)[2])
+    layer = only(r for r in _drawn(_items(io)[2], GraphicsRect) if Int(r.border_width) > 0)
+    down = _read_event(io, MouseDown(:left, x, y, _mods; time = 0.0))
+    held = _toolbar_state_write(down)
+    @test held isa ReplaceReferencedValueOperation
+    @test held.document === item && held.value == true
+    evaluate_operation((document = tb,), down)
+    @test item.pressed == true && tb.elements[1].pressed == false
+    @test Int(layer.w) > 0 && Int(layer.h) > 0
+    @test layer.color == WidgetModule._get_pressed_layer(theme)
+    up = _read_event(io, MouseUp(:left, x, y, _mods; time = 0.1))
+    @test _toolbar_state_write(up).document === item && _toolbar_state_write(up).value == false
+    evaluate_operation((document = tb,), up)
+    @test item.pressed == false
+    replace_mouse_target!(item, EmptyReference())
+    @test layer.color == WidgetModule._get_hover_layer(theme)
+    # The press that the gesture tracking makes after the up runs the action.
+    @test _read_event(io, MouseClick(:left, x, y, _mods; time = 0.1)) isa InvokeActionOperation
+end
+
+# A press released off the item ends when the pointer leaves the item, as on a
+# button.
+@testset "a move off a held toolbar item ends its press" begin
+    tb = WidgetToolbar(Any[WidgetToolbarItem("Explorer"; icon = :folder),
+                           WidgetToolbarItem("Log"; icon = :list)])
+    io = print_document(proj, tb)
+    driver = MttDriver(proj, tb)
+    for (i, away) in ((2, _centre(_items(io)[1])), (1, (500, 500)))
+        x, y = _centre(_items(io)[i])
+        _mtt_move!(driver, x, y, 1.0 + i)
+        evaluate_operation((document = tb,), _read_event(io, MouseDown(:left, x, y, _mods; time = 0.0)))
+        @test tb.elements[i].pressed == true
+        _mtt_move!(driver, away..., 1.5 + i)
+        @test tb.elements[i].pressed == false
+    end
+end
+
+@testset "a disabled toolbar item shows no press" begin
+    tb = WidgetToolbar(Any[WidgetToolbarItem("Stop"; icon = :stop, enabled = false)])
+    io = print_document(proj, tb)
+    x, y = _centre(only(_items(io)))
+    @test _read_event(io, MouseDown(:left, x, y, _mods; time = 0.0)) === nothing
+    @test _read_event(io, MouseUp(:left, x, y, _mods; time = 0.0)) === nothing
+    @test only(tb.elements).pressed == false
+end
+
 @testset "a toolbar item says its label when it has no tooltip" begin
     # The content of the one layer that the dwell binding answers.
     dwell(item) = let operation = read_gesture(item, MouseDwell(0, 0; time = 0.0))

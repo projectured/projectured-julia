@@ -190,7 +190,14 @@ pressed look. The owner wrote: "I agree with your recommendation".
     color of the theme. The test "a hover changes the layer of an item and
     nothing else" passes without a change.
   - Commit.
-- [ ] **2. The pressed look.**
+- [x] **2. The pressed look.** **Done 2026-10-04:** the docstring of
+  `WidgetToolbarItem` changed in this step, with the field, so step 4 changes
+  only `widget.md`. The test under a shell is in `WidgetSelectionTest.jl`, beside
+  "a press under a shell gives the focus to the control under the pointer". It
+  drives the projection and not an `Editor`, as its neighbours do. The step 5
+  live check drives the real editor. `test_widget_toolbar()` passes 82 of 82
+  (66 before, 16 new). `test_widget_selection()` and
+  `test_widget_button_behavior()` pass with no failure.
   - Add `pressed::Bool` to `WidgetToolbarItem` after `style`, as in
     `WidgetButton`. The constructor gives `Cell(false)`. The docstring says
     that it is transient pointer state.

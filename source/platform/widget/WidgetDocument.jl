@@ -732,9 +732,15 @@ label when it has none. The label stays on the action, because it names the
 command: an item with no tooltip of its own says the label as its tooltip, so
 a button that shows only a picture still says what it does.
 
-It is flat: it draws a surface behind itself only while the pointer is on it.
-A left press on an enabled item invokes the action. A disabled item, or one
-bound to a disabled action, is inert.
+It is flat at rest. While the pointer is on it, it draws the surface and the
+outline of a button, and while the left button is held down on it, a darker
+surface. A left press on an enabled item invokes the action. A disabled item,
+or one bound to a disabled action, is inert: it draws no surface and shows no
+press.
+
+`pressed` is transient pointer state, as on a [`WidgetButton`](@ref): it is
+`true` while the left button is held down on the item, and the reader of the
+item writes it.
 """
 @document struct WidgetToolbarItem <: WidgetDocument
     action::Any
@@ -745,6 +751,7 @@ bound to a disabled action, is inert.
     border::Inset
     padding::Inset
     style::Any
+    pressed::Bool
     tooltip::Any
 end
 
@@ -758,7 +765,7 @@ function WidgetToolbarItem(content;
                            style=nothing, tooltip=nothing)
     WidgetToolbarItem(Cell(resolve_action(content, icon, action)), Cell(gestures),
                       Cell(visible), Cell(enabled), Cell(margin), Cell(border), Cell(padding),
-                      Cell(style), Cell(tooltip))
+                      Cell(style), Cell(false), Cell(tooltip))
 end
 get_instance_gesture_bindings(w::WidgetToolbarItem) = w.gestures
 
