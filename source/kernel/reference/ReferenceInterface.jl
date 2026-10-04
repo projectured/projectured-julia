@@ -41,8 +41,8 @@ abstract type ReferenceStep end
 
 The address of a place in a document: which field, which element, how deep.
 
-Use it to name a place without holding what is there: a selection, the target of
-an edit, the tab a verb opened. A reference stays meaningful while the document
+Use it to name a place without holding what is there: a selection, or the target
+of an edit. A reference stays meaningful while the document
 changes around it, and a projection can carry it from what is held to what is
 shown and back.
 
@@ -53,7 +53,7 @@ of the path.
 # Example
 
     place = @reference(document, rows[2].name)
-    value = get_referenced_value(editor, place)
+    value = evaluate_reference(document, place)
 
 See also `ReferenceStep`, the one step it is built of, `get_selection`, and the
 guide `kernel/reference`.

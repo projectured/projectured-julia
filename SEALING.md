@@ -121,11 +121,11 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `document/ForwardProtocol.jl`
 - **Layer 11 — reference** (`reference/`)
   - ⬜ `reference/ReferenceModule.jl`
-  - 🔒 `reference/ReferenceInterface.jl`
+  - ⬜ `reference/ReferenceInterface.jl`
   - ⬜ `reference/ReferenceStep.jl`
   - ⬜ `reference/ReferencePath.jl`
   - ⬜ `reference/ReferenceEvaluation.jl`
-  - 🔒 `reference/ReferenceSearch.jl`
+  - ⬜ `reference/ReferenceSearch.jl`
   - ⬜ `reference/ReferenceSyntax.jl`
   - ⬜ `reference/ReferenceGlob.jl`
   - ⬜ `reference/ReferenceCase.jl`

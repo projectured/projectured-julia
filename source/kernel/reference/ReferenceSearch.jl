@@ -41,7 +41,7 @@ end
 
 Walk any object and return a `Reference` to every match. Pass a predicate, or
 a `String` (substring) / `Regex` that matches leaf nodes by their string form,
-e.g. `search_references(editor.document, "Alice")` or `search_references(doc, r"TODO|FIXME")`.
+e.g. `search_references(document, "Alice")` or `search_references(document, r"TODO|FIXME")`.
 Cells are unwrapped transparently (no path step); struct fields contribute a
 `FieldReferenceStep`, and array / `CellVector` elements an `ElementReferenceStep`.
 
@@ -58,8 +58,12 @@ checks those types; pass a result through `strip_reference_types` first if a
 consumer needs the plain navigation-only path.
 
 ```julia
-for ref in search_references(editor.document, v -> v isa JsonString && occursin("TODO", v.value))
-    node = evaluate_reference(editor.document, ref)   # the matching JsonString
+@document struct Note
+    text::String
+end
+
+for reference in search_references(document, v -> v isa Note && occursin("TODO", v.text))
+    note = evaluate_reference(document, reference)   # the matching Note
 end
 ```
 
