@@ -833,7 +833,7 @@ its styles and a builder fills them with `get_<name>_style`.
     from the default of their variant; load takes the default of each variant
     and then the saved roles. A mode that is not known is light.
   - ~~C4~~ **Done.** [ColorTheme.jl](../../source/platform/style/ColorTheme.jl)
-    holds `ColorTheme` with 62 roles, `make_color_theme(variant)` for the four
+    holds `ColorTheme` with 63 roles, `make_color_theme(variant)` for the four
     variants, and `resolve_theme_color`. Some names differ from sections 12.8
     and 12.10: a field of a document can not be named `selection`, and a field
     named `error` or `string` would hide the function of Base in the keyword
@@ -853,7 +853,10 @@ its styles and a builder fills them with `get_<name>_style`.
     card of the colour theme of the present mode and contrast. A field of any
     theme that holds a colour shows its swatch in the colour that it gives: a
     fixed colour its text, as before; a role the buttons ‹ and › through the
-    roles; a step the buttons through the hues and through the steps. A role and
+    roles and a button "Step", which writes the step of a ramp that the role
+    names (asked by the owner on 2026-10-04: a person changes the colour of the
+    JSON strings and of no other strings, and the colour still follows the
+    mode); a step the buttons through the hues and through the steps. A role and
     a step have "Fix", which writes the colour that they give, and every colour
     that differs from its default has "Reset". "Reset all" also resets the five
     settings. The wrapper treats a write of a colour theme as a write of a
@@ -861,16 +864,91 @@ its styles and a builder fills them with `get_<name>_style`.
     from section 12.12:** there is no separate list of named schemes; the rows
     of the palette, the mode and the contrast choose the scheme, and they show
     every combination without a list that grows with each palette.
-- **Part M, the themes name roles.** One package at a time, each with a
-  table of its fields and their roles, which the owner sees before the change:
-  M1 the widgets, M2 the graphics, the text, the syntax and the reference (the
-  delimiter in grays, 3 levels), M3 the logs and the panels, M4 the domains,
-  M5 the charts and the sequence charts, M6 the window background from the
-  role `background`, M7 the rule of the guard. The look changes on purpose,
-  so the check is a screenshot of each domain in each mode that the owner
-  reviews, not an equality of images.
-- **Part P, more palettes.** P1 Tailwind, P2 Solarized, P3 the OKLCH
-  generator.
+- **Part M, the themes name roles.** The owner said "yes, implement it" on
+  2026-10-04, so the field-to-role table is in Appendix B, and the owner
+  reviews it with the screenshots before the branch lands.
+  - ~~M1~~ **Done.** Every colour of `WidgetTheme` names a role. Two fields are
+    new, `hover` and `pressed`: the layers of a hovered and of a pressed widget
+    are the neutral text colour at 6% and 12%, no longer the accent, because the
+    pointer changes the lightness and not the hue (principle 3). The colour
+    presets `make_light_theme`, `make_dark_theme` and `make_slate_dark_theme`
+    are gone; the mode and the neutral of the appearance replace them.
+    `make_slate_light_theme(; font)` stays, as the default theme with a font,
+    because omnet-julia calls it; its name no longer says what it is, so a
+    rename is a follow-up.
+  - ~~M2~~ **Done.** The graphics, the text, the syntax and the reference themes
+    name roles. `GraphicsTheme` has a new field `selection_band`, the band of a
+    selected row of the widgets. The delimiters around the part under the
+    pointer take `punctuation_lit` (the text neutral) and fade to `punctuation`
+    over 3 levels (`delimiter_light_levels` is 3). **A fact found:** a text box
+    selected as a whole must ring in another colour than a text box with the
+    caret, so the roles `selection_ring` and `focus_ring` differ in each variant:
+    step 9 of the accent against step 8 in the light mode, step 11 against step
+    8 in the dark mode, step 12 against step 11 in a high contrast theme. Step 8
+    is the step of a focus ring in the Radix model.
+  - ~~M3~~ **Done.** The logs, the panels, the conversation, the help, the
+    inspector, the file system and the data frames name roles. The "Panel"
+    presets of `FaultTheme` and `GestureLogTheme` use the text that reads on a
+    solid fill (the fault panel is the red of an error at 92%) and the texts of
+    the inverse surface (the gesture log panel is the inverse surface). The
+    presets are named "Plain" and "Panel". The `gesture_log` wrapper scales the
+    "Panel" theme with the appearance of the editor, and the background of the
+    panel is a cell that reads the theme at each print, so the panel follows the
+    colour settings. `FaultLogOverlayProjection` builds with the unscaled "Panel"
+    theme, but no wrapper of the editor puts it on a window.
+  - ~~M4~~ **Done.** The 16 domain themes name roles. `JuliaTheme` has a new
+    field `constant_text`: a Julia number, `true`, `false` and `nothing` take
+    the role `constant`, as in every other domain, and so does a number in a
+    field of Julia code (`JuliaCodePieces.jl`).
+  - ~~M5~~ **Done, with a follow-up.** The chart and the sequence chart themes
+    name roles. The default colour cycle of the series is the solid step of the
+    eight series hues of the default palette in the light mode. The cycle is
+    content of the chart document, so it does not follow the mode; a cycle that
+    follows it needs the chart printers to resolve the roles `series_1` to
+    `series_8`. **Open.**
+  - ~~M6~~ **Done.** The `appearance` wrapper gives each window of the screen of
+    the editor a computed background, the role `background`, which follows the
+    colour settings (`follow_window_backgrounds!`). The fixed default of a
+    window and of an image export is the light background of the default
+    palette, `#f9f9fb`. **Open:** a window that opens later, such as a popup,
+    takes the fixed default; its content paints its own surface.
+  - ~~M7~~ **Done.** The style guard fails on a palette colour or a colour of
+    numbers in a `@theme` declaration or a preset outside `ColorTheme.jl`. On
+    the code before Part M it finds 286; on the branch none.
+  - The tests: the suite of the platform passes on the branch point with
+    93015 checks and 8 marked broken. On the branch, 97 checks first failed, all
+    of them on a colour that changed or on a raw read of a theme field that is
+    now a role. The tests assert a role where they can (rule 6).
+- **Part P, more palettes.**
+  - **A design fact of Part P:** the Radix scales give each of the 12 steps
+    its lightness, for each hue and each mode. A palette that is not data is
+    made at that lightness, so its steps keep the same purposes and the
+    contrast rules hold. `compute_step_lightness` and `compute_step_chroma`
+    read the profiles from the Radix palette; `make_resampled_ramp` resamples
+    the shades of another design in OKLab, and `make_generated_ramp` makes a
+    ramp in OKLCH around one colour. Each palette is a `TablePalette`, so no new
+    type is needed. `Color.jl` holds `convert_color_to_oklch` and
+    `convert_oklch_to_color`, which keeps the hue and the lightness of a point
+    outside sRGB and takes the most chroma that stays inside.
+  - ~~P1~~ **Done.** [TailwindPalette.jl](../../source/platform/style/TailwindPalette.jl):
+    the 11 shades of 13 colours of Tailwind CSS 3.4.17 (MIT notice in the
+    header), resampled. The neutrals are slate (the default), gray, zinc,
+    neutral and stone; the hue `green` is the Tailwind `emerald`, and `blue` is
+    the Tailwind `blue`, whose shade 600 is `#2563eb`.
+  - ~~P2~~ **Done.** [SolarizedPalette.jl](../../source/platform/style/SolarizedPalette.jl):
+    the neutral ramp `base` resampled from the eight base tones, so the window
+    of the light mode is base3 and that of the dark mode is base03, and a ramp
+    around each accent with the accent itself at step 9. The steps of the lines
+    and of the solid fill, 6 to 10, move their lightness toward the accent, so
+    the ramp keeps its order.
+  - ~~P3~~ **Done.** [OklchPalette.jl](../../source/platform/style/OklchPalette.jl):
+    a ramp for each hue from an angle and a chroma, at the lightness of the
+    neutral ramp for every hue, so all token hues have the same lightness at the
+    same step. The neutrals are slate, gray and sand.
+  - **A fact found in P:** white text reached only 3.38 on the accent fill of
+    the OKLCH palette and 3.68 on that of Solarized, so the roles `accent` and
+    `accent_hover` reach 4.5 against white, as `error_fill` does. The contrast
+    test passes for the four palettes in the four variants: 992 checks.
 - **Part S, the system mode.** Deferred.
 
 ## Appendix A. The tables
@@ -1555,3 +1633,437 @@ values that hold it, and the themes that use each value.
 | success | `#859900` | solarized_green | Syntax.found_color, Conversation.valid_color, Julia.found_color |
 | warning | `#cb4b16` | solarized_orange | Undo.barrier_text, Process.current_text |
 |  | `#b58900` | solarized_yellow | MessageLog.warning_level_text |
+
+## Appendix B. The role of each field
+
+The role that each colour field of a theme takes in Part M, with the colour that
+it had before. A field of a text role keeps its font changes. `constant_text`
+of `JuliaTheme` is new: the numbers and `true`, `false` and `nothing` of Julia
+take it, so that they have the colour of a constant as in every other domain.
+
+#### `WidgetTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `background` | `#f1f5f9` | `background` |
+| `foreground` | `#020617` | `text` |
+| `card` | `#f8fafc` | `surface` |
+| `card_foreground` | `#020617` | `text` |
+| `popover` | `#f8fafc` | `surface` |
+| `popover_foreground` | `#020617` | `text` |
+| `muted` | `#e2e8f0` | `surface_sunken` |
+| `muted_foreground` | `#64748b` | `text_muted` |
+| `primary` | `#4f46e5` | `accent` |
+| `primary_foreground` | `#f8fafc` | `text_on_accent` |
+| `secondary` | `#e2e8f0` | `surface_sunken` |
+| `secondary_foreground` | `#0f172a` | `text` |
+| `accent` | `#e0e7ff` | `accent_tint` |
+| `accent_foreground` | `#4338ca` | `accent_text` |
+| `destructive` | `#ef4444` | `error_fill` |
+| `destructive_foreground` | `#fafafa` | `text_on_accent` |
+| `border` | `#cbd5e1` | `border` |
+| `input` | `#cbd5e1` | `border_strong` |
+| `ring` | `#6366f1` | `focus_ring` |
+| `track_off` | `#cbd5e1` | `border_strong` |
+| `shadow` | `#00000014` | `shadow` |
+| `scrim` | `#00000066` | `scrim` |
+| `knob` | `#ffffff` | `text_on_accent` |
+
+#### `GraphicsTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `fault_text` | `#dc322f` | `error_text` |
+| `selection_ring` | `#2563eb` | `selection_ring` |
+
+#### `TextTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `caret` | `#000000` | `caret` |
+| `dormant_caret` | `#8c8c8c` | `caret_dormant` |
+| `highlight` | `#88bbee40` | `selection_band` |
+| `dormant_highlight` | `#88888828` | `selection_band_dormant` |
+| `bool_text` | `#2aa198` | `constant` |
+| `number_text` | `#d33682` | `constant` |
+| `string_text` | `#859900` | `string_literal` |
+| `wrong_color` | `#dc322f` | `error_text` |
+| `placeholder_text` | `#85990080` | `text_faint` |
+| `plain_text` | `#000000` | `text` |
+| `line_number_text` | `#586e75` | `text_muted` |
+| `match_highlight` | `#ffff00` | `search_match` |
+| `inverted_background` | `#073642` | `text` |
+| `inverted_foreground` | `#93a1a1` | `background` |
+| `fault_text` | `#dc322f` | `error_text` |
+
+#### `SyntaxTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `bool_text` | `#2aa198` | `constant` |
+| `number_text` | `#d33682` | `constant` |
+| `string_text` | `#859900` | `string_literal` |
+| `quote_text` | `#b58900` | `punctuation` |
+| `symbol_text` | `#268bd2` | `constant` |
+| `nothing_text` | `#d33682` | `constant` |
+| `reflected_bool_text` | `#b58900` | `constant` |
+| `type_name_text` | `#268bd2` | `type_name` |
+| `field_name_text` | `#859900` | `field` |
+| `note_text` | `#808080` | `text_muted` |
+| `delimiter_text` | `#808080` | `punctuation` |
+| `separator_text` | `#808080` | `punctuation` |
+| `label_text` | `#808080` | `text_faint` |
+| `typed_text` | `#000000` | `text` |
+| `hint_text` | `#85990080` | `text_faint` |
+| `wrong_color` | `#dc322f` | `error_text` |
+| `found_color` | `#859900` | `success_text` |
+| `lit_delimiter` | `#cb4b16` | `punctuation_lit` |
+| `object_delimiter_text` | `#000000` | `punctuation` |
+| `ellipsis_text` | `#808080` | `text_muted` |
+| `fault_text` | `#dc322f` | `error_text` |
+
+#### `ReferenceTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `punctuation_color` | `#808080` | `punctuation` |
+| `name_color` | `#2aa198` | `field` |
+| `index_color` | `#d33682` | `constant` |
+| `type_color` | `#cb4b16` | `type_name` |
+| `projection_color` | `#b58900` | `definition` |
+| `unknown_color` | `#dc322f` | `error_text` |
+
+#### `ConversationTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `user_role_text` | `#4f46e5` | `accent_text` |
+| `assistant_role_text` | `#2aa198` | `PaletteColor(:teal, 11; minimum_contrast = 4.5)` |
+| `other_role_text` | `#475569` | `text_muted` |
+| `user_role_icon` | `#4f46e5` | `accent_text` |
+| `assistant_role_icon` | `#2aa198` | `PaletteColor(:teal, 11; minimum_contrast = 4.5)` |
+| `other_role_icon` | `#475569` | `text_muted` |
+| `kind_text` | `#475569` | `text_muted` |
+| `section_text` | `#64748b` | `text_muted` |
+| `error_text` | `#ef4444` | `error_text` |
+| `prompt_text` | `#64748b` | `text_muted` |
+| `error_prompt_text` | `#ef4444` | `error_text` |
+| `plain_color` | `#000000` | `text` |
+| `placeholder_color` | `#808080` | `text_faint` |
+| `valid_color` | `#859900` | `success_text` |
+| `invalid_color` | `#dc322f` | `error_text` |
+| `completion_hint_color` | `#85990080` | `text_faint` |
+
+#### `GestureHelpTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `map_header_text` | `#268bd2` | `heading` |
+| `map_gesture_text` | `#859900` | `accent_text` |
+| `map_description_text` | `#000000` | `text` |
+| `map_muted_text` | `#808080` | `text_faint` |
+| `palette_query_text` | `#268bd2` | `text` |
+| `palette_header_text` | `#6c71c4` | `heading` |
+| `palette_selected_text` | `#859900` | `accent_text` |
+| `palette_command_text` | `#000000` | `text` |
+| `palette_muted_text` | `#808080` | `text_faint` |
+| `palette_background` | `#fdf6e3` | `surface` |
+| `palette_border` | `#268bd2` | `border_strong` |
+
+#### `GestureLogTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `index_text` | `#64748b` | `text_muted` |
+| `gesture_text` | `#2aa198` | `accent_text` |
+| `operation_text` | `#334155` | `text` |
+| `muted_text` | `#64748b` | `text_faint` |
+| `empty_text` | `#64748b` | `text_faint` |
+| `panel_background` | `#000000b8` | `surface_inverse` |
+
+#### `UndoTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `index_text` | `#64748b` | `text_muted` |
+| `step_text` | `#334155` | `text` |
+| `ahead_text` | `#64748b` | `text_faint` |
+| `empty_text` | `#64748b` | `text_faint` |
+| `marker_text` | `#2aa198` | `accent_text` |
+| `barrier_text` | `#cb4b16` | `warning_text` |
+
+#### `MessageLogTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `level_text` | `#2aa198` | `info_text` |
+| `error_level_text` | `#dc322f` | `error_text` |
+| `warning_level_text` | `#b58900` | `warning_text` |
+| `debug_level_text` | `#64748b` | `text_muted` |
+| `message_text` | `#334155` | `text` |
+| `empty_text` | `#64748b` | `text_faint` |
+
+#### `FaultTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `count_text` | `#64748b` | `text_muted` |
+| `site_text` | `#64748b` | `text_muted` |
+| `origin_text` | `#dc322f` | `error_text` |
+| `message_text` | `#334155` | `text` |
+| `empty_text` | `#64748b` | `text_faint` |
+| `panel_background` | `#2e0505cc` | `ColorRole(:error_fill; alpha = 0.92)` |
+
+#### `FrameStatisticsTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `header_text` | `#2aa198` | `heading` |
+| `row_text` | `#334155` | `text` |
+| `empty_text` | `#64748b` | `text_faint` |
+
+#### `HelpTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `heading_text` | `#475569` | `text_muted` |
+| `name_text` | `#0f172a` | `heading` |
+| `detail_text` | `#64748b` | `text_muted` |
+| `description_text` | `#334155` | `text` |
+| `muted_text` | `#94a3b8` | `text_faint` |
+| `title_text` | `#0f172a` | `heading` |
+
+#### `InspectorTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `header_color` | `#268bd2` | `heading` |
+
+#### `FileSystemTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `file_text` | `#268bd2` | `text` |
+| `directory_text` | `#dc322f` | `definition` |
+
+#### `DataFrameTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `invalid_query` | `#ffbfbf` | `error_tint` |
+| `unsorted_glyph` | `#9f9f9f` | `text_faint` |
+
+#### `JsonTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `null_text` | `#d33682` | `constant` |
+| `bool_text` | `#b58900` | `constant` |
+| `number_text` | `#d33682` | `constant` |
+| `string_text` | `#859900` | `string_literal` |
+| `quote_text` | `#b58900` | `punctuation` |
+| `key_text` | `#268bd2` | `field` |
+| `delimiter_text` | `#808080` | `punctuation` |
+| `separator_text` | `#808080` | `punctuation` |
+
+#### `YamlTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `null_text` | `#d33682` | `constant` |
+| `bool_text` | `#b58900` | `constant` |
+| `number_text` | `#d33682` | `constant` |
+| `string_text` | `#859900` | `string_literal` |
+| `key_text` | `#268bd2` | `field` |
+| `delimiter_text` | `#808080` | `punctuation` |
+| `separator_text` | `#808080` | `punctuation` |
+
+#### `XmlTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `content_text` | `#000000` | `text` |
+| `tag_text` | `#268bd2` | `keyword` |
+| `delimiter_text` | `#808080` | `punctuation` |
+| `attribute_name_text` | `#859900` | `field` |
+| `quote_text` | `#b58900` | `punctuation` |
+| `attribute_value_text` | `#2aa198` | `string_literal` |
+
+#### `SqlTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `keyword_text` | `#268bd2` | `keyword` |
+| `plain_text` | `#000000` | `text` |
+| `name_text` | `#859900` | `definition` |
+| `punctuation_text` | `#000000` | `punctuation` |
+
+#### `DbCatalogTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `column_text` | `#d33682` | `field` |
+| `table_text` | `#859900` | `definition` |
+| `schema_text` | `#268bd2` | `definition` |
+| `database_text` | `#dc322f` | `definition` |
+| `keyword_text` | `#000000` | `text_muted` |
+
+#### `JuliaTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `identifier_text` | `#6c71c4` | `reference` |
+| `literal_text` | `#859900` | `string_literal` |
+| `punctuation_text` | `#808080` | `punctuation` |
+| `comment_text` | (new) | `comment` |
+| `keyword_text` | `#d33682` | `keyword` |
+| `symbol_text` | `#d33682` | `constant` |
+| `operator_text` | `#2aa198` | `operator` |
+| `callee_text` | `#268bd2` | `function_name` |
+| `name_text` | `#268bd2` | `definition` |
+| `plain_text` | `#000000` | `text` |
+| `hint_text` | `#85990080` | `text_faint` |
+| `wrong_color` | `#dc322f` | `error_text` |
+| `found_color` | `#859900` | `success_text` |
+
+#### `MathTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `variable_text` | `#268bd2` | `reference` |
+| `operator_text` | `#2aa198` | `operator` |
+| `chrome_text` | `#808080` | `punctuation` |
+| `symbol_text` | `#6c71c4` | `constant` |
+| `name_text` | `#859900` | `function_name` |
+| `word_text` | `#000000` | `text` |
+| `equals_text` | `#b58900` | `operator` |
+| `ink` | `#000000` | `text` |
+| `hint` | `#808080` | `text_faint` |
+| `selection_wash` | `#2663ad38` | `selection_band` |
+
+#### `FormulaTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `insertion_text` | `#808080` | `text_faint` |
+| `reference_text` | `#6c71c4` | `link` |
+| `name_text` | `#268bd2` | `definition` |
+| `operator_text` | `#808080` | `operator` |
+| `result_text` | `#859900` | `constant` |
+
+#### `FsmTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `keyword_text` | `#268bd2` | `keyword` |
+| `name_text` | `#859900` | `definition` |
+| `reference_text` | `#6c71c4` | `reference` |
+| `chrome_text` | `#808080` | `punctuation` |
+| `state_label_text` | `#859900` | `definition` |
+| `trigger_text` | `#268bd2` | `keyword` |
+
+#### `ProcessTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `keyword_text` | `#d33682` | `keyword` |
+| `name_text` | `#859900` | `definition` |
+| `action_text` | `#2aa198` | `text` |
+| `chrome_text` | `#808080` | `punctuation` |
+| `current_text` | `#cb4b16` | `warning_text` |
+| `breakpoint_text` | `#dc322f` | `error_text` |
+| `terminal_text` | `#859900` | `definition` |
+
+#### `GraphTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `node_fill` | `#ffffff` | `surface` |
+| `node_border` | `#586e75` | `border_strong` |
+| `edge` | `#586e75` | `border_strong` |
+| `highlight` | `#b58900` | `accent` |
+
+#### `ChartTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `background` | `#fdf6e3` | `background` |
+| `plot_background` | `#ffffff` | `surface` |
+| `axis` | `#657b83` | `border_strong` |
+| `grid` | `#0000001a` | `grid` |
+| `text_color` | `#586e75` | `text_muted` |
+| `selected_fill` | `#88bbee60` | `selection_band` |
+| `selected_edge` | `#268bd2e6` | `selection_ring` |
+| `hover_fill` | `#88bbee28` | `hover` |
+| `strip_swatch` | `#8080808c` | `border_strong` |
+| `strip_edge` | `#0000001a` | `grid` |
+| `strip_contrast_text` | `#ffffff` | `text_on_accent` |
+| `crosshair` | `#dc322fb2` | `ColorRole(:accent; alpha = 0.7)` |
+| `band_fill` | `#88bbee30` | `selection_band` |
+
+#### `SequenceChartTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `background` | `#fdf6e3` | `background` |
+| `body_background` | `#ffffff` | `surface` |
+| `axis` | `#657b83` | `border_strong` |
+| `text_color` | `#586e75` | `text_muted` |
+| `gutter` | `#fffff0` | `surface_sunken` |
+| `gutter_border` | `#00000040` | `border` |
+| `hairline` | `#00000024` | `grid` |
+| `zero_time` | `#0000000e` | `hover` |
+| `arrow` | `#268bd2` | `series_1` |
+| `event` | `#d33682` | `series_4` |
+| `selected` | `#268bd2e6` | `selection_ring` |
+| `hover` | `#268bd273` | `ColorRole(:selection_ring; alpha = 0.5)` |
+
+#### `MarkdownTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `marker_text` | `#808080` | `markup` |
+| `source_text` | `#000000` | `text` |
+| `code_text` | `#859900` | `string_literal` |
+| `language_text` | `#d33682` | `keyword` |
+| `heading_marker_text` | `#268bd2` | `markup` |
+| `url_text` | `#6c71c4` | `link` |
+| `alt_text` | `#2aa198` | `string_literal` |
+| `body_text` | `#000000` | `text` |
+| `heading_color` | `#268bd2` | `heading` |
+| `link_color` | `#268bd2` | `link` |
+| `caption_text` | `#808080` | `text_muted` |
+| `rendered_marker_text` | `#808080` | `markup` |
+
+#### `RstTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `marker_text` | `#808080` | `markup` |
+| `source_text` | `#000000` | `text` |
+| `literal_text` | `#859900` | `string_literal` |
+| `target_text` | `#6c71c4` | `link` |
+| `value_text` | `#2aa198` | `string_literal` |
+| `reference_text` | `#268bd2` | `link` |
+| `substitution_text` | `#cb4b16` | `constant` |
+| `directive_text` | `#d33682` | `keyword` |
+| `admonition_text` | `#b58900` | `keyword` |
+| `title_text` | `#268bd2` | `heading` |
+| `body_text` | `#000000` | `text` |
+| `title_color` | `#268bd2` | `heading` |
+| `caption_text` | `#808080` | `text_muted` |
+| `rendered_marker_text` | `#808080` | `markup` |
+
+#### `BookTheme`
+
+| Field | Before | Role |
+| --- | --- | --- |
+| `title_text` | `#268bd2` | `heading` |
+| `author_prefix_text` | `#808080` | `text_muted` |
+| `author_text` | `#2aa198` | `text` |
+| `chapter_title_text` | `#268bd2` | `heading` |
+| `numbering_text` | `#d33682` | `text_muted` |
+| `paragraph_text` | `#000000` | `text` |
+| `placeholder_text` | `#808080` | `text_faint` |
+| `bullet_text` | `#b58900` | `markup` |
+| `picture_text` | `#d33682` | `text_muted` |
