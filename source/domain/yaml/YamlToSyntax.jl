@@ -263,16 +263,12 @@ function YamlToSyntax(; style::Symbol = :block, theme = nothing, syntax_theme = 
         YamlSequenceToSyntaxNode(; delimiter_style = get_style(:delimiter_text),
                                    separator_style = get_style(:separator_text)) :
         YamlSequenceToBlockSyntaxNode(; marker_style = get_style(:delimiter_text))
+    mapping_styles = (delimiter_style = get_style(:delimiter_text),
+                      separator_style = get_style(:separator_text),
+                      key_style = get_style(:key_text), colon_style = get_style(:separator_text))
     mapping  = style === :flow ?
-        YamlMappingToSyntaxNode(; open="{", close="}", sep=", ", indent=1,
-                                 delimiter_style = get_style(:delimiter_text),
-                                 separator_style = get_style(:separator_text),
-                                 key_style = get_style(:key_text),
-                                 colon_style = get_style(:separator_text)) :
-        YamlMappingToSyntaxNode(; delimiter_style = get_style(:delimiter_text),
-                                 separator_style = get_style(:separator_text),
-                                 key_style = get_style(:key_text),
-                                 colon_style = get_style(:separator_text))
+        YamlMappingToSyntaxNode(; open="{", close="}", sep=", ", indent=1, mapping_styles...) :
+        YamlMappingToSyntaxNode(; mapping_styles...)
     TypeDispatchingProjection(
         YamlNull         => YamlNullToSyntaxLeaf(; style = get_style(:null_text)),
         YamlBool         => YamlBoolToSyntaxLeaf(; style = get_style(:bool_text)),
