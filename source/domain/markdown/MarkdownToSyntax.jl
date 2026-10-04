@@ -366,7 +366,7 @@ MarkdownHeadingToStyledNode(; theme = nothing) =
 
 # The font that `p` holds for a heading at `level` (1-based; every level past
 # the third takes `heading_font`).
-_heading_font(p::MarkdownHeadingToStyledNode, level::Int) =
+_get_heading_font(p::MarkdownHeadingToStyledNode, level::Int) =
     unwrap_cell(level <= 1 ? p.heading_1_font :
                 level == 2 ? p.heading_2_font :
                 level == 3 ? p.heading_3_font : p.heading_font)
@@ -381,7 +381,7 @@ _mode_style(p::MarkdownEmphasisToStyledNode, ambient::StyleText, doc) =
 _mode_style(p::MarkdownLinkToStyledNode, ambient::StyleText, doc) =
     StyleText(ambient.font, unwrap_cell(p.link_color))
 _mode_style(p::MarkdownHeadingToStyledNode, ambient::StyleText, doc) =
-    StyleText(_heading_font(p, clamp(doc.level, 1, 6)), unwrap_cell(p.heading_color))
+    StyleText(_get_heading_font(p, clamp(doc.level, 1, 6)), unwrap_cell(p.heading_color))
 
 function print_document(p::MarkdownStyledInline, recursion, doc, ctx)
     ambient = get_property(ctx, :md_style, unwrap_cell(p.body_text))
