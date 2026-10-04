@@ -46,7 +46,7 @@ export FrameStatisticsRow, FrameStatistics, get_session_frame_statistics,
 export FrameTimeSeries, get_session_frame_time_series, flush_frame_time_series!
 export FrameStatisticsFeed
 export FrameStatisticsTheme, ScaledFrameStatisticsTheme
-export FrameStatisticsToSyntax
+export FrameStatisticsToSyntax, make_frame_statistics_projection
 
 include("FrameStatisticsDocument.jl")
 include("FrameStatisticsFeed.jl")
@@ -58,7 +58,7 @@ include("FrameStatisticsToSyntax.jl")
 # projection instance.
 function __init__()
     register_natural_syntax!(:statistics,
-        (; appearance) -> Pair{Type,Any}[FrameStatistics => FrameStatisticsToSyntax(;
+        (; appearance) -> Pair{Type,Any}[FrameStatistics => make_frame_statistics_projection(;
             theme = get_scaled_theme!(appearance, FrameStatisticsTheme))])
 end
 

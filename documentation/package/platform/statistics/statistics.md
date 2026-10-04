@@ -32,8 +32,9 @@ One table and one series of frame times exist for each session, `get_session_fra
 ### The theme
 
 `FrameStatisticsTheme` holds the text of the header and of a row of the frame statistics, and of an empty table. Each value has the default that the slice draws with no
-appearance. `FrameStatisticsToSyntax` takes `theme`, a `FrameStatisticsTheme` or a scaled one; with none it holds the
-default values. The registration of the statistics gives the scaled theme of the `Appearance`.
+appearance. `FrameStatisticsToSyntax` holds its styles and no theme. `make_frame_statistics_projection(; theme)`
+fills them with `get_frame_statistics_style`, from a `FrameStatisticsTheme` scaled or not, or the default values for
+`nothing`. The registration of the statistics gives the scaled theme of the `Appearance`.
 
 ## How it fits
 

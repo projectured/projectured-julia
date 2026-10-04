@@ -7,11 +7,25 @@
 #
 # Read-only. There is nothing to author here, so this is a plain leaf printer
 # with no reader and no reference mappers.
+#
+# The projection holds its styles and no theme; `make_frame_statistics_projection`
+# fills them from a theme.
 @projection UntrackedCell struct FrameStatisticsToSyntax
-    theme::Any = nothing
-    header_text::StyleText = _get_frame_statistics_style(theme, :header_text)
-    row_text::StyleText = _get_frame_statistics_style(theme, :row_text)
-    empty_text::StyleText = _get_frame_statistics_style(theme, :empty_text)
+    header_text::StyleText = get_frame_statistics_style(nothing, :header_text)
+    row_text::StyleText = get_frame_statistics_style(nothing, :row_text)
+    empty_text::StyleText = get_frame_statistics_style(nothing, :empty_text)
+end
+
+"""
+    make_frame_statistics_projection(; theme = nothing) -> FrameStatisticsToSyntax
+
+The projection of the statistics table, with the styles of `theme`: a
+`FrameStatisticsTheme`, scaled or not, or the default styles for `nothing`.
+"""
+function make_frame_statistics_projection(; theme = nothing)
+    get_style(name) = get_frame_statistics_style(theme, name)
+    FrameStatisticsToSyntax(; header_text = get_style(:header_text), row_text = get_style(:row_text),
+                            empty_text = get_style(:empty_text))
 end
 
 # Column widths in characters: the name, the unit, then six number columns.

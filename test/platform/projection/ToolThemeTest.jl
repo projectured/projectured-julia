@@ -53,7 +53,7 @@ end
 end
 
 @testset "FrameStatisticsToSyntax reads FrameStatisticsTheme" begin
-    _check_tool_theme(FrameStatisticsToSyntax, FrameStatisticsTheme,
+    _check_tool_theme(make_frame_statistics_projection, FrameStatisticsTheme,
                       (:header_text, :row_text, :empty_text), 13)
 
     statistics = FrameStatistics()

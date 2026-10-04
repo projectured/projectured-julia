@@ -15,8 +15,9 @@ The fields are the text styles of the table's header, its rows and its empty
 line. Each field has a docstring that says what it draws, which the
 appearance tab shows under its name.
 
-The statistics table reads the scaled theme through its `UntrackedCell` style
-fields; with no theme it holds the plain values of the default theme.
+`make_frame_statistics_projection` gives the projection of the statistics table
+its styles with `get_frame_statistics_style`, from a theme scaled or not; a
+projection built with no styles holds the plain values of the default theme.
 """
 @theme struct FrameStatisticsTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
@@ -28,9 +29,3 @@ fields; with no theme it holds the plain values of the default theme.
     "The line the table shows while it holds no frame."
     empty_text::TextRole = TextRole(color_slate_500)
 end
-
-# The style field of a statistics projection that holds the text `name` of the
-# theme `theme`: a `FrameStatisticsTheme`, a scaled one, or `nothing` for the
-# default values.
-_get_frame_statistics_style(theme, name::Symbol) =
-    make_style_field(FrameStatisticsTheme, scale_theme(theme), StyleText; name)
