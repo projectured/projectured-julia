@@ -14,8 +14,9 @@ The fields are the text styles of a value of each kind, a mapping's key, a
 delimiter and a separator. Each field has a docstring that says what it
 draws, which the appearance tab shows under its name.
 
-A YAML projection reads the scaled theme through its `UntrackedCell` style
-fields; with no theme it holds the plain values of the default theme.
+The builder gives each YAML projection its styles with `get_yaml_style`, from a
+theme scaled or not; a projection built with no styles holds the plain values
+of the default theme.
 """
 @theme struct YamlTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
@@ -35,7 +36,3 @@ fields; with no theme it holds the plain values of the default theme.
     "A comma, and the colon of a mapping entry."
     separator_text::TextRole = TextRole(color_solarized_gray)
 end
-
-# The style field of a YAML projection that holds the text `name` of the theme
-# `theme`: a `YamlTheme`, a scaled one, or `nothing` for the default values.
-_get_yaml_style(theme, name::Symbol) = make_style_field(YamlTheme, scale_theme(theme), StyleText; name)

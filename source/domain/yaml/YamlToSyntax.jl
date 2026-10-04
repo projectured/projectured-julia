@@ -19,8 +19,7 @@
 # ── YamlNullToSyntaxLeaf ─────────────────────────────────────────────────────
 
 @projection UntrackedCell struct YamlNullToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_yaml_style(theme, :null_text)
+    style::StyleText = get_yaml_style(nothing, :null_text)
 end
 
 @projection_template YamlNullToSyntaxLeaf YamlNull (prj, doc) ->
@@ -38,8 +37,7 @@ YamlInsertionToSyntaxLeaf(; theme = nothing) = DomainInsertionToSyntaxLeaf(YamlD
 # ── YamlBoolToSyntaxLeaf ─────────────────────────────────────────────────────
 
 @projection UntrackedCell struct YamlBoolToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_yaml_style(theme, :bool_text)
+    style::StyleText = get_yaml_style(nothing, :bool_text)
 end
 
 # See JsonBoolToSyntaxLeaf: `make_hinted_text` guards the `doc.value ? …` thunk against a
@@ -54,8 +52,7 @@ end
 # ── YamlNumberToSyntaxLeaf ───────────────────────────────────────────────────
 
 @projection UntrackedCell struct YamlNumberToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_yaml_style(theme, :number_text)
+    style::StyleText = get_yaml_style(nothing, :number_text)
 end
 
 @projection_template YamlNumberToSyntaxLeaf YamlNumber (prj, doc) ->
@@ -72,8 +69,7 @@ end
 # lives on the leaf's `.value` span with empty open/close delimiters.
 
 @projection UntrackedCell struct YamlStringToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_yaml_style(theme, :string_text)
+    style::StyleText = get_yaml_style(nothing, :string_text)
 end
 
 @projection_template YamlStringToSyntaxLeaf YamlString (prj, doc) ->
@@ -90,11 +86,10 @@ end
 # lines) — see `YamlToSyntax`.
 
 @projection UntrackedCell struct YamlMappingToSyntaxNode
-    theme::Any = nothing
-    delimiter_style::StyleText = _get_yaml_style(theme, :delimiter_text)
-    separator_style::StyleText = _get_yaml_style(theme, :separator_text)
-    key_style::StyleText = _get_yaml_style(theme, :key_text)
-    colon_style::StyleText = _get_yaml_style(theme, :separator_text)
+    delimiter_style::StyleText = get_yaml_style(nothing, :delimiter_text)
+    separator_style::StyleText = get_yaml_style(nothing, :separator_text)
+    key_style::StyleText = get_yaml_style(nothing, :key_text)
+    colon_style::StyleText = get_yaml_style(nothing, :separator_text)
     open::String = ""      # "{" flow, "" block
     close::String = ""     # "}" flow, "" block
     sep::String = ""       # ", " flow, "" block (indentation provides the newline)
@@ -124,9 +119,8 @@ end
 # ── YamlSequenceToSyntaxNode (template; flow style [a, b]) ────────────────────
 
 @projection UntrackedCell struct YamlSequenceToSyntaxNode
-    theme::Any = nothing
-    delimiter_style::StyleText = _get_yaml_style(theme, :delimiter_text)
-    separator_style::StyleText = _get_yaml_style(theme, :separator_text)
+    delimiter_style::StyleText = get_yaml_style(nothing, :delimiter_text)
+    separator_style::StyleText = get_yaml_style(nothing, :separator_text)
 end
 
 @projection_template YamlSequenceToSyntaxNode YamlSequence (prj, doc) ->
@@ -152,8 +146,7 @@ end
 # single source of truth for the printer's selection cell and the readers.
 
 @projection UntrackedCell struct YamlSequenceToBlockSyntaxNode
-    theme::Any = nothing
-    marker_style::StyleText = _get_yaml_style(theme, :delimiter_text)
+    marker_style::StyleText = get_yaml_style(nothing, :delimiter_text)
 end
 
 function print_document(p::YamlSequenceToBlockSyntaxNode, recursion, seq::YamlSequence, ctx)
@@ -258,22 +251,33 @@ end
     YamlToSyntax(; style::Symbol = :block, theme = nothing, syntax_theme = nothing)
 
 Build the YAML → Syntax projection. `style` is `:block` (idiomatic block YAML) or
-`:flow` (JSON-superset flow YAML). See the module docstring. `theme` is a
-`YamlTheme`, a scaled one, or `nothing` for the default styles; `syntax_theme`
+`:flow` (JSON-superset flow YAML). See the module docstring. The builder gives
+each projection the style of its role with `get_yaml_style`, from `theme`, a
+`YamlTheme` scaled or not, or the default styles for `nothing`; `syntax_theme`
 styles the insertion and the empty placeholder, which are the syntax slice's.
 """
 function YamlToSyntax(; style::Symbol = :block, theme = nothing, syntax_theme = nothing)
     style in (:block, :flow) || error("YamlToSyntax: style must be :block or :flow, got :$style")
-    theme = scale_theme(theme)
-    syntax_theme = scale_theme(syntax_theme)
-    sequence = style === :flow ? YamlSequenceToSyntaxNode(; theme) : YamlSequenceToBlockSyntaxNode(; theme)
-    mapping  = style === :flow ? YamlMappingToSyntaxNode(; open="{", close="}", sep=", ", indent=1, theme) :
-                                 YamlMappingToSyntaxNode(; theme)
+    get_style(name) = get_yaml_style(theme, name)
+    sequence = style === :flow ?
+        YamlSequenceToSyntaxNode(; delimiter_style = get_style(:delimiter_text),
+                                   separator_style = get_style(:separator_text)) :
+        YamlSequenceToBlockSyntaxNode(; marker_style = get_style(:delimiter_text))
+    mapping  = style === :flow ?
+        YamlMappingToSyntaxNode(; open="{", close="}", sep=", ", indent=1,
+                                 delimiter_style = get_style(:delimiter_text),
+                                 separator_style = get_style(:separator_text),
+                                 key_style = get_style(:key_text),
+                                 colon_style = get_style(:separator_text)) :
+        YamlMappingToSyntaxNode(; delimiter_style = get_style(:delimiter_text),
+                                 separator_style = get_style(:separator_text),
+                                 key_style = get_style(:key_text),
+                                 colon_style = get_style(:separator_text))
     TypeDispatchingProjection(
-        YamlNull         => YamlNullToSyntaxLeaf(; theme),
-        YamlBool         => YamlBoolToSyntaxLeaf(; theme),
-        YamlNumber       => YamlNumberToSyntaxLeaf(; theme),
-        YamlString       => YamlStringToSyntaxLeaf(; theme),
+        YamlNull         => YamlNullToSyntaxLeaf(; style = get_style(:null_text)),
+        YamlBool         => YamlBoolToSyntaxLeaf(; style = get_style(:bool_text)),
+        YamlNumber       => YamlNumberToSyntaxLeaf(; style = get_style(:number_text)),
+        YamlString       => YamlStringToSyntaxLeaf(; style = get_style(:string_text)),
         YamlSequence     => sequence,
         YamlMapping      => mapping,
         YamlInsertion    => YamlInsertionToSyntaxLeaf(; theme = syntax_theme),
