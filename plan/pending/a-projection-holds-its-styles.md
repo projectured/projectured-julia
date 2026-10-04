@@ -116,10 +116,21 @@ package, so the steps of its slices run one after another.
     the factory of YAML has a keyword `style` already (`6d20f49d6`).
   - [x] YAML (`12841097d`, `53ea2cc4b`).
   - [x] SQL, with its plain text (`fef2db90f`).
+  - [x] Julia (`804761740`). [x] Math, with `MathConfig` (`f5f31898e`).
+  - A check reads a factory and the style fields of each projection it builds,
+    and prints each projection that misses a style:
+    `python3 /var/tmp/projection-styles/check_factory.py <file> <get_x_style> <factory>`.
+    JSON, XML, YAML, SQL, Julia and Math give `bad 0`.
 - [ ] **M4. The charts, the graph, process, FSM and the database catalog.**
-- [ ] **M5. The tools**: the fault log, the gesture log, the message log, the
+- [x] **M5. The tools**: the fault log, the gesture log, the message log, the
   frame statistics, undo, the file explorer, the gesture help and the palette,
-  help, the inspector, the settings tab.
+  help, the inspector, the settings tab; finding 7. Also the tooltip window, the
+  layouts, the conversation and the assistant, and the data frames.
+  - [x] settings (`1bbd6bf6b`), message log, the model (`6d5fffc24`), undo
+    (`3596d9c71`), statistics (`396e6d1aa`), gesture log (`c265e5005`), fault
+    log (`8e8f03925`), help (`be10fe33e`), gesture help (`9e79bc97d`), file
+    system (`3e0627ca5`), tooltip and layout (`1e28c7b0d`), conversation and
+    assistant (`862e77d9e`), data frames (`e79e8681d`).
 - [x] **M6. The widgets** (`abc11f068`); finding 4. The second constructors of the widget printers take a
   theme of any kind; the five offsets and the box of a glyph become fields of
   `WidgetTheme` (6.1); the five printers that size an icon beside a text read a
@@ -294,4 +305,27 @@ suites that build a themed view, and the images of both tabs.
    with no `graphics_theme`, so at a scale other than 1 the ring of a selected
    part draws at no scale. omnet calls `ConversationToWidget()` and
    `WidgetToGraphics(font; measure, theme)` in other places, which still work.
+7. **A tool with no factory gets a builder** (M5, 2026-10-04). A tool
+   projection of the form of Part P is built by its registration, and often by
+   an overlay or a test too. Its `@projection` keyword constructor takes the
+   styles, so a builder `make_<tool>_projection(; theme)` reads them from a
+   theme, as `make_reference_inspector_projection` does: `make_message_log_projection`,
+   `make_undo_projection`, `make_frame_statistics_projection`,
+   `make_gesture_log_projection` (with `operation_width`, which is no style),
+   `make_fault_log_projection`, `make_help_list_projection`,
+   `make_about_page_projection`, `make_gesture_map_syntax_projection`,
+   `make_command_palette_syntax_projection`, `make_conversation_composer_projection`,
+   `make_evaluator_form_projection` and `make_evaluator_toplevel_projection`.
+   Where a factory exists (`FileSystemToSyntax`, `ConversationToWidget`,
+   `make_data_frame_view_projection`), it fills the styles and no name is added.
+   The gesture help had factories of a whole chain, so the two syntax builders
+   are their first stage. The panels of the gesture log and the fault log read
+   their margin, padding, radius and background with `get_theme_value`. The
+   settings tab, the tooltip window and the context menu window hold the values
+   they read as fields. The value list of a data frame, a builder of widgets in
+   an operation, takes either theme or `nothing`. The suites of the tools, the
+   help, the conversation, the tooltips, the settings, the widgets and the data
+   frames give 1124 pass and 1 fail; the fail
+   (`DataFrameFilterTest.jl:83`, a row number 2 px above its cells) fails on
+   `main` at `759a7ce2a` in the same way.
 
