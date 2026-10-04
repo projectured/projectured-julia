@@ -4,14 +4,15 @@
 # scale of 1.5 every text of a tool is 1.5 times as large, and a tool projection
 # with no theme has the default styles.
 
-# Every style field named in `roles` of `projection_type()` holds the font size
-# `base_size` and the color of `theme_type()`, and of
-# `projection_type(theme = …)` at a font scale of 1.5 a font `base_size * 1.5`
-# large, with the same color.
-function _check_tool_theme(projection_type, theme_type, roles, base_size::Integer)
+# Every style field named in `roles` of `build()` holds the font size `base_size`
+# and the color of `theme_type()`, and of `build(theme = …)` at a font scale of
+# 1.5 a font `base_size * 1.5` large, with the same color. `build` is the builder
+# of a tool projection, and the projection holds no theme.
+function _check_tool_theme(build, theme_type, roles, base_size::Integer)
     defaults = theme_type()
-    plain = projection_type()
-    scaled = projection_type(theme = get_scaled_theme!(Appearance(font_scale = 1.5), theme_type))
+    plain = build()
+    @test !hasfield(typeof(plain), :theme)
+    scaled = build(theme = get_scaled_theme!(Appearance(font_scale = 1.5), theme_type))
     for role in roles
         color = getproperty(defaults, role).color
         @test getproperty(plain, role).font.size == base_size
@@ -41,7 +42,7 @@ end
 end
 
 @testset "MessageLogToSyntax reads MessageLogTheme" begin
-    _check_tool_theme(MessageLogToSyntax, MessageLogTheme,
+    _check_tool_theme(make_message_log_projection, MessageLogTheme,
                       (:level_text, :message_text, :empty_text), 13)
 
     log = MessageLog()

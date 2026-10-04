@@ -14,8 +14,9 @@ The fields are the text styles of a message's level, one for each kind of
 level, its message and the empty line. Each field has a docstring that says what it draws, which the
 appearance tab shows under its name.
 
-A message log reads the scaled theme through its `UntrackedCell` style fields;
-with no theme it holds the plain values of the default theme.
+`make_message_log_projection` gives the projection of a message log its styles
+with `get_message_log_style`, from a theme scaled or not; a projection built with
+no styles holds the plain values of the default theme.
 """
 @theme struct MessageLogTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
@@ -33,9 +34,3 @@ with no theme it holds the plain values of the default theme.
     "The line the log shows while it holds no message."
     empty_text::TextRole = TextRole(color_slate_500)
 end
-
-# The style field of a message log projection that holds the text `name` of the
-# theme `theme`: a `MessageLogTheme`, a scaled one, or `nothing` for the default
-# values.
-_get_messagelog_style(theme, name::Symbol) =
-    make_style_field(MessageLogTheme, scale_theme(theme), StyleText; name)

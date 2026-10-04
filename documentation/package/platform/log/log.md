@@ -19,8 +19,9 @@ A message travels through three parts. This is the feed pattern of the editor; [
 ### The theme
 
 `MessageLogTheme` holds the text of the level and the message of a line of the message log, and of an empty log. Each value has the default that the slice draws with no
-appearance. `MessageLogToSyntax` takes `theme`, a `MessageLogTheme` or a scaled one; with none it holds the
-default values. The registration of the message log gives the scaled theme of the `Appearance`.
+appearance. `MessageLogToSyntax` holds its styles and no theme. `make_message_log_projection(; theme)`
+fills them with `get_message_log_style`, from a `MessageLogTheme` scaled or not, or the default values for
+`nothing`. The registration of the message log gives the scaled theme of the `Appearance`.
 
 ## How it fits
 

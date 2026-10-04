@@ -15,14 +15,31 @@
 #
 # Read-only. There is nothing to author here, so this is a plain leaf printer
 # with no reader and no reference mappers.
+#
+# The projection holds its styles and no theme; `make_message_log_projection`
+# fills them from a theme.
 @projection UntrackedCell struct MessageLogToSyntax
-    theme::Any = nothing
-    level_text::StyleText = _get_messagelog_style(theme, :level_text)
-    error_level_text::StyleText = _get_messagelog_style(theme, :error_level_text)
-    warning_level_text::StyleText = _get_messagelog_style(theme, :warning_level_text)
-    debug_level_text::StyleText = _get_messagelog_style(theme, :debug_level_text)
-    message_text::StyleText = _get_messagelog_style(theme, :message_text)
-    empty_text::StyleText = _get_messagelog_style(theme, :empty_text)
+    level_text::StyleText = get_message_log_style(nothing, :level_text)
+    error_level_text::StyleText = get_message_log_style(nothing, :error_level_text)
+    warning_level_text::StyleText = get_message_log_style(nothing, :warning_level_text)
+    debug_level_text::StyleText = get_message_log_style(nothing, :debug_level_text)
+    message_text::StyleText = get_message_log_style(nothing, :message_text)
+    empty_text::StyleText = get_message_log_style(nothing, :empty_text)
+end
+
+"""
+    make_message_log_projection(; theme = nothing) -> MessageLogToSyntax
+
+The projection of a message log, with the styles of `theme`: a
+`MessageLogTheme`, scaled or not, or the default styles for `nothing`.
+"""
+function make_message_log_projection(; theme = nothing)
+    get_style(name) = get_message_log_style(theme, name)
+    MessageLogToSyntax(; level_text = get_style(:level_text),
+                       error_level_text = get_style(:error_level_text),
+                       warning_level_text = get_style(:warning_level_text),
+                       debug_level_text = get_style(:debug_level_text),
+                       message_text = get_style(:message_text), empty_text = get_style(:empty_text))
 end
 
 # The width of the level column, in characters. The font is monospaced, so a
@@ -73,5 +90,5 @@ end
 
 function __init__()
     register_natural_syntax!(:messagelog, (; appearance) -> Pair{Type,Any}[
-        MessageLog => MessageLogToSyntax(; theme = get_scaled_theme!(appearance, MessageLogTheme))])
+        MessageLog => make_message_log_projection(; theme = get_scaled_theme!(appearance, MessageLogTheme))])
 end

@@ -45,7 +45,7 @@ export MessageLogEntry, MessageLog, get_session_message_log,
        record_message!, clear_message_log!
 export MessageLogLogger, install_message_log_capture!, remove_message_log_capture!
 export MessageLogTheme, ScaledMessageLogTheme
-export MessageLogToSyntax
+export MessageLogToSyntax, make_message_log_projection
 
 include("MessageLogDocument.jl")
 include("MessageLogStore.jl")
