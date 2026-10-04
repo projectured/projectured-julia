@@ -1407,12 +1407,9 @@ seals go beyond the kernel in time (only kernel files are sealed today).
       commit, which starts no workflow that has a path filter.
 - [ ] Before the announcement, the full suites: each test package in its own
       environment, `test_integration()`, and each failure compared with `main`.
-      The release CI covers each package but the umbrella. The umbrella fails
-      on two faults of `main` (2026-10-03): a typed character in a JSON string
-      cell of a table gives no operation, because the projection of the JSON
-      string in the cell reads no key with the caret before its opening quote;
-      and 3 `@test_broken` of `test_click_roundtrips()` pass in the full run
-      only.
+      The owner, 2026-10-04: they wait until the owner lands the other work of
+      the first release. The 32 workflows of the release `19fe700`, the
+      umbrella too, pass.
 - [ ] The owner pushes the release copy and the registry, and makes both
       repositories public.
 - [x] The build guide names `ProjecturedRegistry` where it says `<registry>`.

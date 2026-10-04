@@ -423,6 +423,12 @@ recommendation: "agreed on all". Section 5 logs them as D8 to D12.
   do, so a label or a prompt beside a text of another line spacing stands on
   the same baseline. The evaluator aligns its prompt rows so. The owner:
   "option 1, agreed with recommendation: baseline alignment".
+- **D27** (2026-10-04, after the landing). A table gives the text of its cells
+  single spacing through the printer context, as CSS passes `line-height` down
+  to the cells of a table: the table sets the property `:line_spacing`, and the
+  text stage draws at that spacing when its context holds one. So a value in a
+  cell and the number of its row stand on one line. The owner: "option A is
+  ok".
 - **D15** (2026-10-02, T1). The pointer ring and the fault band of the video
   backend, and the glyph cursor of the SDL backend, stay as they are: they mark
   a recording or the system cursor, not the look of the editor.
@@ -576,8 +582,12 @@ inet-julia uses, the same step changes them, so that they always load.
     document of its value, which the text stage of the natural view draws at
     the code line spacing of the text theme (1.35); the row number is a widget
     label at single spacing. A probe with single spacing in the text theme
-    puts both at the same height. The table must give its cells single
-    spacing; how it tells the text stage is a question for the owner.
+    puts both at the same height. D27 decides how the table gives its cells
+    single spacing. *Done:* `WidgetTableToGraphicsCanvas` puts
+    `:line_spacing => SingleSpacing()` in the context of its parts, and
+    `TextToGraphics` prints with a copy of itself at that spacing
+    (`_with_line_spacing`, which keeps the theme cells). `test_dataframes`
+    passes, 555 of 555, and the table tests of the platform pass.
   - The graphics theme (D19): `GraphicsTheme` in the graphics slice holds
     `font`, `fault_text`, `selection_ring` and `selection_ring_width`.
     `SELECTION_RING_COLOR` and `WidgetTheme.selection_ring` go.

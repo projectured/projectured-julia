@@ -86,7 +86,10 @@ Draw a `TextBlock` as graphics, with its caret and the band under its selection.
 none, it draws those of the default theme, and builds no theme. `line_spacing` is
 a `LineSpacing`, or a cell that reads one of the theme, such as its
 `code_line_spacing` or `prose_line_spacing`; a builder of code or of prose passes
-the one it draws, and a widget keeps single spacing.
+the one it draws, and a widget keeps single spacing. A container that sets the
+spacing of the text inside it, as a table sets single spacing for its cells,
+puts the property `:line_spacing` in the printer context, and the text draws at
+that spacing in place of its own.
 """
 function TextToGraphics(; start_x::Int=0, start_y::Int=0, measure::TextMeasure,
                         line_spacing = SingleSpacing(), theme = nothing)
@@ -99,6 +102,14 @@ function TextToGraphics(; start_x::Int=0, start_y::Int=0, measure::TextMeasure,
                    _get_text_style(theme, StyleColor, :dormant_highlight),
                    _get_text_style(theme, Int, :highlight_radius))
 end
+
+# `p` at the line spacing `spacing`, with the same cells for every other field, so
+# the copy follows the theme as `p` does.
+_with_line_spacing(p::TextToGraphics, spacing::LineSpacing) =
+    TextToGraphics(getfield(p, :start_x), getfield(p, :start_y), getfield(p, :measure), spacing,
+                   getfield(p, :caret_color), getfield(p, :dormant_caret_color),
+                   getfield(p, :caret_width), getfield(p, :highlight_color),
+                   getfield(p, :dormant_highlight_color), getfield(p, :highlight_radius))
 
 # The x of the character boundary `position` of `text` in `font`, from the start
 # of the text: the pen position where the character after it starts.
@@ -421,6 +432,10 @@ relevant cell in the `TextBlock`, so any value or structural change
 invalidates the layout; recomputation happens only when the `Cell` is read.
 """
 function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
+    # A container that sets the spacing of its text, such as a table for its
+    # cells, says so in the context.
+    spacing = ctx === nothing ? nothing : get_property(ctx, :line_spacing, nothing)
+    spacing === nothing || (p = _with_line_spacing(p, spacing))
     # ListNode path: lazy paragraph-level mapping
     if styled.elements isa ListNode
         return _print_listnode(p, styled, ctx)
