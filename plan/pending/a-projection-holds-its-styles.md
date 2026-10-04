@@ -280,3 +280,18 @@ suites that build a themed view, and the images of both tabs.
    `make_theme_cell`. No caller outside `source/domain/sql/` passes `theme` to a
    SQL projection constructor, and neither omnet-julia nor inet-julia reference
    a SQL projection or `SqlTheme` at all.
+6. **omnet holds themes of its own in the old form** (M7 scan, 2026-10-04, omnet
+   `f72ccd5c`). Fourteen files under `source/legacy/` (ini, ned, result,
+   simulator, testfile) declare their own themes and projections with a field
+   `theme`, 40 of them, and helpers by hand that call `scale_theme`, 13 calls.
+   They work while `scale_theme` exists, so M9 can remove it only after omnet
+   follows the same rule; that is a change in a second repository, and it waits
+   for the owner. Three calls reach the projections of this branch:
+   `WorkbenchRender.jl` builds `FsmStateToSyntaxLabel(theme = fsm)` and
+   `FsmTransitionToSyntaxLabel(theme = fsm)`, which the FSM step breaks unless it
+   gives omnet a builder for the labels; and `build_widget_graphics` in
+   `SimulationToWidget.jl` passes a scaled widget theme to `WidgetToGraphics`
+   with no `graphics_theme`, so at a scale other than 1 the ring of a selected
+   part draws at no scale. omnet calls `ConversationToWidget()` and
+   `WidgetToGraphics(font; measure, theme)` in other places, which still work.
+
