@@ -105,7 +105,7 @@ package, so the steps of its slices run one after another.
   helpers by hand go. `make_theme_cell`, `make_style_field` and
   `make_theme_values_field` take any theme or `nothing`, and `scale_theme`
   goes. The guide of the style slice says the model.
-- [ ] **M2. The text and the syntax.** Their projections lose the field
+- [x] **M2. The text and the syntax.** Done; finding 2. Their projections lose the field
   `theme`, their factories (`SyntaxToText`, `TextToGraphics`, the insertion
   leaf of a domain) fill the styles.
 - [ ] **M3. The ten document domains**, one commit each: JSON, XML, YAML, SQL
@@ -217,3 +217,21 @@ suites that build a themed view, and the images of both tabs.
    its default, and `@theme` writes `get_<name>_style(theme, field)` with it and
    exports it. The goal of 6.3 holds: a builder gives a theme scaled or not, and
    nothing checks.
+2. **Two forms of a builder, one rule** (M2, 2026-10-04). The projections of the
+   text and the syntax already hold only their styles, as the widget printers
+   do: an outer constructor with the keyword `theme` fills them, such as
+   `PrimitiveNumberToSyntaxLeaf(; theme, style = get_syntax_style(theme,
+   :number_text))`. Such a constructor is a builder that stands beside its
+   projection, as 6.1 says of the widgets, so they keep it; only `scale_theme`
+   and the helpers by hand go (`get_text_style` and `get_syntax_style` from the
+   macro). A projection that stored the theme in a field (Part P) has a keyword
+   constructor that `@projection` writes from its defaults, and a second keyword
+   constructor would overwrite it, so it takes option 1: its fields default to
+   the default theme, and the builder passes the styles. The reference printers
+   took option 1, and the inspector, which stored a `ReferenceTheme` and built
+   them while it printed, holds the values of that theme
+   (`reference_style`); `make_reference_inspector_projection(; theme,
+   reference_theme)` builds it, for the natural registration and for
+   `SelectionInspectorToText`. The rule for both forms: a projection holds styles
+   and no theme, and nothing in it scales. The tests of the text, the syntax, the
+   themes, the inspector and of JSON and SQL give 1600 pass.
