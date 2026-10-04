@@ -876,8 +876,10 @@ function _get_fallback_font(path::String, size::Int)
     end
 end
 
-# SDL_ttf, for the functions of it that the generated binding lacks.
-const _SDL_TTF_LIBRARY = LibSDL2.libsdl2_ttf
+# SDL_ttf, for the functions of it that the generated binding lacks. Each call
+# names `LibSDL2.libsdl2_ttf`, which the JLL sets when it loads, so the library is
+# found at run time. A constant keeps the path of the build machine, and a bundle
+# then opens a second SDL_ttf that has none of the fonts of the first.
 
 # Where SDL_ttf puts the glyph of `character` in the font `handle`, in device
 # pixels: the column of its pen origin and the row of its baseline in the surface
@@ -888,7 +890,7 @@ const _SDL_TTF_LIBRARY = LibSDL2.libsdl2_ttf
 # `nothing` when the font has no metrics for the glyph.
 function _get_glyph_geometry(handle::Ptr{TTF_Font}, character::Char)
     left, right, bottom, top, advance = (Ref{Cint}(0) for _ in 1:5)
-    status = ccall((:TTF_GlyphMetrics32, _SDL_TTF_LIBRARY), Cint,
+    status = ccall((:TTF_GlyphMetrics32, LibSDL2.libsdl2_ttf), Cint,
                    (Ptr{TTF_Font}, UInt32, Ref{Cint}, Ref{Cint}, Ref{Cint}, Ref{Cint}, Ref{Cint}),
                    handle, UInt32(character), left, right, bottom, top, advance)
     status == 0 || return nothing
@@ -906,7 +908,7 @@ end
 function _render_glyph(handle::Ptr{TTF_Font}, character::Char, color::SDL_Color)
     geometry = _get_glyph_geometry(handle, character)
     geometry === nothing && return nothing
-    surface = ccall((:TTF_RenderGlyph32_Blended, _SDL_TTF_LIBRARY), Ptr{SDL_Surface},
+    surface = ccall((:TTF_RenderGlyph32_Blended, LibSDL2.libsdl2_ttf), Ptr{SDL_Surface},
                     (Ptr{TTF_Font}, UInt32, SDL_Color), handle, UInt32(character), color)
     surface == C_NULL && return nothing
     origin, baseline, _, _ = geometry
@@ -3642,11 +3644,6 @@ end
 # Device I/O
 # ════════════════════════════════════════════════════════════════════════
 
-# The library handle the GC-safe wait calls into directly: the generated
-# LibSDL2 wrapper carries no `gc_safe` option, and a collection on another
-# thread must not stall behind a blocked wait.
-const _LIBSDL2 = SimpleDirectMediaLayer.LibSDL2.libsdl2
-
 # How long one wait slice blocks this thread. On a single-threaded process
 # the cooperative tasks of this thread — the MCP server, the assistant — run
 # only between slices, so the slice is the 10 ms cadence the polling loop
@@ -3658,9 +3655,15 @@ _get_wait_slice_seconds() = Threads.nthreads() == 1 ? 0.01 : 0.1
 # removing anything: the NULL event pointer is SDL's look-only form, so
 # everything stays queued for `run_read_stage!`. Must run on the thread that
 # initialized the video subsystem — it pumps events.
+#
+# The wait calls SDL directly: the generated LibSDL2 wrapper carries no `gc_safe`
+# option, and a collection on another thread must not stall behind a blocked
+# wait. The call names `LibSDL2.libsdl2`, which the JLL sets when it loads, so the
+# library is found at run time. A constant keeps the path of the build machine,
+# and a bundle then waits on a second SDL that has no window and no events.
 _wait_for_queued_event(milliseconds::Integer) =
-    (@ccall gc_safe=true _LIBSDL2.SDL_WaitEventTimeout(C_NULL::Ptr{Cvoid},
-                                                       Cint(milliseconds)::Cint)::Cint) == 1
+    (@ccall gc_safe=true LibSDL2.libsdl2.SDL_WaitEventTimeout(
+        C_NULL::Ptr{Cvoid}, Cint(milliseconds)::Cint)::Cint) == 1
 
 """
     wait_for_input(backend::SdlBackend, devices, timeout_seconds) -> Nothing
