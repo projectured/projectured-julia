@@ -48,8 +48,9 @@
 # introduced step.
 # ── Shared styles ────────────────────────────────────────────────────────────
 #
-# Each role comes from the projection's theme (`_get_fsm_style`), so a document
-# with no theme renders the plain values of `FsmTheme`.
+# Each role is a style field of the projection, filled by the factory with
+# `get_fsm_style`; a projection built with no styles holds the plain values of
+# `FsmTheme`.
 
 # The name of a referenced part, read reactively so a rename propagates. An
 # unresolved reference renders `?` rather than erroring — a machine under
@@ -63,9 +64,8 @@ FsmInsertionToSyntaxLeaf(; theme = nothing) = DomainInsertionToSyntaxLeaf(FsmDoc
 # ── FsmTimerToSyntaxLeaf ─────────────────────────────────────────────────────
 
 @projection UntrackedCell struct FsmTimerToSyntaxLeaf
-    theme::Any = nothing
-    keyword::StyleText = _get_fsm_style(theme, :keyword_text)
-    name::StyleText    = _get_fsm_style(theme, :name_text)
+    keyword::StyleText = get_fsm_style(nothing, :keyword_text)
+    name::StyleText    = get_fsm_style(nothing, :name_text)
 end
 
 @projection_template FsmTimerToSyntaxLeaf FsmTimer (p, doc) ->
@@ -78,9 +78,8 @@ end
 # ── FsmEventToSyntaxLeaf ─────────────────────────────────────────────────────
 
 @projection UntrackedCell struct FsmEventToSyntaxLeaf
-    theme::Any = nothing
-    keyword::StyleText = _get_fsm_style(theme, :keyword_text)
-    name::StyleText    = _get_fsm_style(theme, :name_text)
+    keyword::StyleText = get_fsm_style(nothing, :keyword_text)
+    name::StyleText    = get_fsm_style(nothing, :name_text)
 end
 
 @projection_template FsmEventToSyntaxLeaf FsmEvent (p, doc) ->
@@ -97,10 +96,9 @@ end
 # through the shared recursion; absent ones contribute no child at all.
 
 @projection UntrackedCell struct FsmVariableToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText = _get_fsm_style(theme, :keyword_text)
-    name::StyleText    = _get_fsm_style(theme, :name_text)
-    chrome::StyleText  = _get_fsm_style(theme, :chrome_text)
+    keyword::StyleText = get_fsm_style(nothing, :keyword_text)
+    name::StyleText    = get_fsm_style(nothing, :name_text)
+    chrome::StyleText  = get_fsm_style(nothing, :chrome_text)
 end
 
 @projection_template FsmVariableToSyntaxNode FsmVariable (p, doc) ->
@@ -130,10 +128,9 @@ end
 # of this transition.
 
 @projection UntrackedCell struct FsmTransitionToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText = _get_fsm_style(theme, :keyword_text)
-    ref::StyleText     = _get_fsm_style(theme, :reference_text)
-    chrome::StyleText  = _get_fsm_style(theme, :chrome_text)
+    keyword::StyleText = get_fsm_style(nothing, :keyword_text)
+    ref::StyleText     = get_fsm_style(nothing, :reference_text)
+    chrome::StyleText  = get_fsm_style(nothing, :chrome_text)
 end
 
 # `on EVENT` / `on timeout(TIMER)`; a condition-only transition has no trigger
@@ -171,10 +168,9 @@ end
 # so each transition lands on its own indented line.
 
 @projection UntrackedCell struct FsmStateToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText = _get_fsm_style(theme, :keyword_text)
-    name::StyleText    = _get_fsm_style(theme, :name_text)
-    chrome::StyleText  = _get_fsm_style(theme, :chrome_text)
+    keyword::StyleText = get_fsm_style(nothing, :keyword_text)
+    name::StyleText    = get_fsm_style(nothing, :name_text)
+    chrome::StyleText  = get_fsm_style(nothing, :chrome_text)
 end
 
 @projection_template FsmStateToSyntaxNode FsmState (p, doc) ->
@@ -203,10 +199,9 @@ end
 # ── FsmMachineToSyntaxNode ───────────────────────────────────────────────────
 
 @projection UntrackedCell struct FsmMachineToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText = _get_fsm_style(theme, :keyword_text)
-    name::StyleText    = _get_fsm_style(theme, :name_text)
-    ref::StyleText     = _get_fsm_style(theme, :reference_text)
+    keyword::StyleText = get_fsm_style(nothing, :keyword_text)
+    name::StyleText    = get_fsm_style(nothing, :name_text)
+    ref::StyleText     = get_fsm_style(nothing, :reference_text)
 end
 
 @projection_template FsmMachineToSyntaxNode FsmMachine (p, doc) ->
@@ -238,9 +233,8 @@ end
 # use simply do not appear.
 
 @projection UntrackedCell struct FsmComponentToSyntaxNode
-    theme::Any = nothing
-    keyword::StyleText = _get_fsm_style(theme, :keyword_text)
-    name::StyleText    = _get_fsm_style(theme, :name_text)
+    keyword::StyleText = get_fsm_style(nothing, :keyword_text)
+    name::StyleText    = get_fsm_style(nothing, :name_text)
 end
 
 @projection_template FsmComponentToSyntaxNode FsmComponent (p, doc) ->
@@ -264,20 +258,29 @@ end
 # ── Compound convenience constructor ─────────────────────────────────────────
 #
 # Merged with the Julia table so an embedded guard/action/entry/helper renders
-# through the same recursion (the `FormulaToSyntax` precedent). `theme` is a
-# `FsmTheme`, a scaled one, or `nothing` for the default styles; `julia_theme`
-# and `syntax_theme` style the embedded Julia nodes, through `JuliaToSyntax`.
+# through the same recursion (the `FormulaToSyntax` precedent). The builder
+# gives each projection the style of its role with `get_fsm_style`, from
+# `theme`, a `FsmTheme` scaled or not, or the default styles for `nothing`;
+# `julia_theme` and `syntax_theme` style the embedded Julia nodes, through
+# `JuliaToSyntax`.
 
 function FsmToSyntax(; theme = nothing, julia_theme = nothing, syntax_theme = nothing)
-    theme = scale_theme(theme)
+    get_style(name) = get_fsm_style(theme, name)
+    keyword_name_style = (keyword = get_style(:keyword_text), name = get_style(:name_text))
+    keyword_name_chrome_style = (keyword = get_style(:keyword_text), name = get_style(:name_text),
+                                 chrome = get_style(:chrome_text))
     JuliaToSyntax(
-        FsmVariable   => FsmVariableToSyntaxNode(; theme),
-        FsmTimer      => FsmTimerToSyntaxLeaf(; theme),
-        FsmEvent      => FsmEventToSyntaxLeaf(; theme),
-        FsmTransition => FsmTransitionToSyntaxNode(; theme),
-        FsmState      => FsmStateToSyntaxNode(; theme),
-        FsmMachine    => FsmMachineToSyntaxNode(; theme),
-        FsmComponent  => FsmComponentToSyntaxNode(; theme),
+        FsmVariable   => FsmVariableToSyntaxNode(; keyword_name_chrome_style...),
+        FsmTimer      => FsmTimerToSyntaxLeaf(; keyword_name_style...),
+        FsmEvent      => FsmEventToSyntaxLeaf(; keyword_name_style...),
+        FsmTransition => FsmTransitionToSyntaxNode(; keyword = get_style(:keyword_text),
+                                                     ref = get_style(:reference_text),
+                                                     chrome = get_style(:chrome_text)),
+        FsmState      => FsmStateToSyntaxNode(; keyword_name_chrome_style...),
+        FsmMachine    => FsmMachineToSyntaxNode(; keyword = get_style(:keyword_text),
+                                                  name = get_style(:name_text),
+                                                  ref = get_style(:reference_text)),
+        FsmComponent  => FsmComponentToSyntaxNode(; keyword_name_style...),
         FsmInsertion  => FsmInsertionToSyntaxLeaf(theme = syntax_theme),
         FsmNothing    => InsertionNothingToSyntaxLeaf(theme = syntax_theme);
         theme = julia_theme, syntax_theme)

@@ -16,11 +16,7 @@ end
 function make_fsm_diagram_projection_example(; measure=FontFileMeasure(),
                                              engine=GridEmbedding())
     label = ChainingProjection(
-        RecursiveProjection(TypeDispatchingProjection(
-            FsmState      => FsmStateToSyntaxLabel(),
-            FsmTransition => FsmTransitionToSyntaxLabel(),
-            Any           => FsmToSyntax(),
-        )),
+        RecursiveProjection(FsmToSyntaxLabel()),
         RecursiveProjection(SyntaxToText()),
         TextToGraphics(measure=measure),
     )

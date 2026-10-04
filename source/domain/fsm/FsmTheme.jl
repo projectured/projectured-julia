@@ -15,8 +15,9 @@ The fields are the text styles of a keyword, a name, a reference, chrome, and
 the label and the trigger of a diagram. Each field has a docstring that says
 what it draws, which the appearance tab shows under its name.
 
-A Fsm projection reads the scaled theme through its `UntrackedCell` style
-fields; with no theme it holds the plain values of the default theme.
+The builder gives each Fsm projection its styles with `get_fsm_style`, from a
+theme scaled or not; a projection built with no styles holds the plain values
+of the default theme.
 """
 @theme struct FsmTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
@@ -34,7 +35,3 @@ fields; with no theme it holds the plain values of the default theme.
     "The keyword of a transition label in a diagram."
     trigger_text::TextRole     = TextRole(color_solarized_blue)
 end
-
-# The style field of a Fsm projection that holds the text `name` of the theme
-# `theme`: a `FsmTheme`, a scaled one, or `nothing` for the default values.
-_get_fsm_style(theme, name::Symbol) = make_style_field(FsmTheme, scale_theme(theme), StyleText; name)

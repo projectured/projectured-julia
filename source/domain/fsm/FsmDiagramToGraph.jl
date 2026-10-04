@@ -29,8 +29,7 @@
 # repeating it on the label would be noise.
 
 @projection UntrackedCell struct FsmStateToSyntaxLabel
-    theme::Any = nothing
-    name::StyleText = _get_fsm_style(theme, :state_label_text)
+    name::StyleText = get_fsm_style(nothing, :state_label_text)
 end
 
 @projection_template FsmStateToSyntaxLabel FsmState (p, doc) ->
@@ -40,10 +39,9 @@ end
                                       style = p.name)))
 
 @projection UntrackedCell struct FsmTransitionToSyntaxLabel
-    theme::Any = nothing
-    keyword::StyleText = _get_fsm_style(theme, :trigger_text)
-    ref::StyleText     = _get_fsm_style(theme, :reference_text)
-    chrome::StyleText  = _get_fsm_style(theme, :chrome_text)
+    keyword::StyleText = get_fsm_style(nothing, :trigger_text)
+    ref::StyleText     = get_fsm_style(nothing, :reference_text)
+    chrome::StyleText  = get_fsm_style(nothing, :chrome_text)
 end
 
 _trigger_label(doc) = begin
@@ -71,6 +69,26 @@ end
         isempty(children) && push!(children, SyntaxLeaf(TextString("always", p.chrome)))
         children
     end)
+
+"""
+    FsmToSyntaxLabel(; theme = nothing, julia_theme = nothing, syntax_theme = nothing)
+
+The diagram's label table: the two compact forms above, with the full notation
+as the fallback so a box holding a foreign content type still renders. The
+builder gives each projection the style of its role with `get_fsm_style`, from
+`theme`, a `FsmTheme` scaled or not, or the default styles for `nothing`;
+`julia_theme` and `syntax_theme` reach the fallback's embedded Julia nodes.
+"""
+function FsmToSyntaxLabel(; theme = nothing, julia_theme = nothing, syntax_theme = nothing)
+    get_style(name) = get_fsm_style(theme, name)
+    TypeDispatchingProjection(
+        FsmState      => FsmStateToSyntaxLabel(; name = get_style(:state_label_text)),
+        FsmTransition => FsmTransitionToSyntaxLabel(; keyword = get_style(:trigger_text),
+                                                      ref = get_style(:reference_text),
+                                                      chrome = get_style(:chrome_text)),
+        Any           => FsmToSyntax(; theme, julia_theme, syntax_theme),
+    )
+end
 
 # ── The diagram stage ────────────────────────────────────────────────────────
 

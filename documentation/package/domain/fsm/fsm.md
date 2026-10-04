@@ -68,7 +68,7 @@ FsmMachine ──FsmToFsmDiagram──▶ FsmDiagram ──FsmDiagramToGraph─�
 
 `FsmDiagramToGraph` builds a `GraphGraph`: one vertex for each state, with the `FsmState` itself as content, and one directed edge for each transition that has a target, with the `FsmTransition` itself as label. A stay has no edge. The two highlights of the graph are computed cells that turn `live_state` and `live_transition` into the vertex and the edge. The graph stages then draw everything; see [graph.md](../graph/graph.md#the-highlight). A new live state repaints the ring and runs no layout.
 
-The labels use compact rules: `FsmStateToSyntaxLabel` prints the name of a state, and `FsmTransitionToSyntaxLabel` prints the trigger, the guard and the action. A click on a box selects the real state.
+The labels use compact rules: `FsmStateToSyntaxLabel` prints the name of a state, and `FsmTransitionToSyntaxLabel` prints the trigger, the guard and the action. `FsmToSyntaxLabel` builds the table of the two, with the full notation as its fallback. A click on a box selects the real state.
 
 ### The generated code
 
@@ -102,8 +102,8 @@ A timer works in two ways, and the reference machines use both: as a timeout tri
 ### The theme
 
 `FsmTheme` holds the text of a keyword, a name, a reference and the chrome, and the name of a state and the trigger of a transition in a diagram. Each value has the default that the slice draws with no
-appearance. `FsmToSyntax(; theme, julia_theme, syntax_theme)` and the two label projections of a diagram take `theme`, a `FsmTheme` or a scaled one; with none they hold the
-default values. The Julia code of a guard or an action takes `julia_theme`. The FSM has no view in this repository's application, so a builder that has the themes passes them.
+appearance. A projection holds its styles as fields, and no theme; nothing in it scales or asks whether a theme is scaled. `FsmToSyntax(; theme, julia_theme, syntax_theme)` and `FsmToSyntaxLabel(; theme, julia_theme, syntax_theme)` give each projection the style of its role with `get_fsm_style`, from `theme`, a `FsmTheme` scaled or not, or the
+default styles for `nothing`. The Julia code of a guard or an action takes `julia_theme`. The FSM has no view in this repository's application, so a builder that has the themes passes them.
 
 ## How it fits
 

@@ -44,7 +44,7 @@ export FsmVariableToSyntaxNode, FsmTimerToSyntaxLeaf, FsmEventToSyntaxLeaf,
        FsmComponentToSyntaxNode, FsmInsertionToSyntaxLeaf, FsmToSyntax
 export FsmToFsmDiagram, FsmToFsmDiagramIoMap
 export FsmDiagramToGraph, FsmDiagramToGraphIoMap,
-       FsmStateToSyntaxLabel, FsmTransitionToSyntaxLabel
+       FsmStateToSyntaxLabel, FsmTransitionToSyntaxLabel, FsmToSyntaxLabel
 export generate_component, generate_component_text, export_component,
        get_fsm_state_constant_name, get_fsm_field_name, dispatch_function_name,
        get_fsm_event_constant_name
