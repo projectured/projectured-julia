@@ -52,20 +52,21 @@ _article(name::AbstractString) =
 # ─────────────────────────────────────────────────────────────────────────
 
 """
-    ReferenceToText(; theme=nothing, font=…)
+    ReferenceToText(; font=…, style=…)
 
 Projection that renders a `Reference` as a single-line, color-coded
 `TextBlock`. Mirrors the shape of `Base.show` for references but each
 token (delimiter, name, index, type) is a separate `TextString` span
 with its own color.
 
-`theme` is a [`ReferenceTheme`](@ref), a scaled one, or `nothing` for the
-default styles; `font` is the font of every token, defaulting to the theme's.
+`font` is the font of every token, and `style` holds the values of a
+[`ReferenceTheme`](@ref) as one `NamedTuple`; both default to the default theme. A
+builder gives `get_reference_style(theme, :font)` and
+`make_theme_values_field(ReferenceTheme, theme)` to follow a theme.
 """
 @projection UntrackedCell struct ReferenceToText
-    theme::Any = nothing
-    font::StyleFont = _get_reference_style(theme, StyleFont, :font)
-    style::NamedTuple = make_theme_values_field(ReferenceTheme, scale_theme(theme))
+    font::StyleFont = get_reference_style(nothing, :font)
+    style::NamedTuple = get_theme_defaults(ReferenceTheme)
 end
 
 map_reference_forward(::ReferenceToText, ::SimpleIoMap, _) = nothing
@@ -174,7 +175,7 @@ print_document(p::ReferenceToText, recursion, ref::ConcreteReference, ctx) =
 # ─────────────────────────────────────────────────────────────────────────
 
 """
-    ReferenceToHumanReadableText(document; theme=nothing, font=…)
+    ReferenceToHumanReadableText(; document, font=…, style=…)
 
 Projection that renders a `Reference` as a multi-line narrative
 `TextBlock`. One phrase per line, in **reverse order** (innermost step
@@ -188,14 +189,13 @@ document is captured at construction time — reactive callers should
 rebuild the projection inside a `Cell` keyed on the document if they
 need live updates.
 
-`theme` is a [`ReferenceTheme`](@ref), a scaled one, or `nothing` for the
-default styles; `font` is the font of every line, defaulting to the theme's.
+`font` is the font of every line, and `style` holds the values of a
+[`ReferenceTheme`](@ref) as one `NamedTuple`; both default to the default theme.
 """
 @projection UntrackedCell struct ReferenceToHumanReadableText
     document::Any
-    theme::Any = nothing
-    font::StyleFont = _get_reference_style(theme, StyleFont, :font)
-    style::NamedTuple = make_theme_values_field(ReferenceTheme, scale_theme(theme))
+    font::StyleFont = get_reference_style(nothing, :font)
+    style::NamedTuple = get_theme_defaults(ReferenceTheme)
 end
 
 map_reference_forward(::ReferenceToHumanReadableText, ::SimpleIoMap, _) = nothing

@@ -87,7 +87,7 @@ end
 end
 
 PrimitiveBoolToText(; theme = nothing,
-                    style = _get_text_style(scale_theme(theme), StyleText, :bool_text)) =
+                    style = get_text_style(theme, :bool_text)) =
     PrimitiveBoolToText(style)
 
 map_reference_forward(::PrimitiveBoolToText, iomap::SimpleIoMap, reference) =
@@ -125,7 +125,7 @@ read_intent(::PrimitiveBoolToText, iomap::SimpleIoMap, ::ReplaceRangeOperation) 
 end
 
 PrimitiveNumberToText(; theme = nothing,
-                      style = _get_text_style(scale_theme(theme), StyleText, :number_text),
+                      style = get_text_style(theme, :number_text),
                       allows_type_in::Bool = false) =
     PrimitiveNumberToText(style, allows_type_in)
 
@@ -172,12 +172,11 @@ end
 end
 
 function PrimitiveInsertionToText(; theme = nothing)
-    theme = scale_theme(theme)
-    PrimitiveInsertionToText(_get_text_style(theme, StyleText, :bool_text),
-                             _get_text_style(theme, StyleText, :number_text),
-                             _get_text_style(theme, StyleText, :string_text),
-                             _get_text_style(theme, StyleColor, :wrong_color),
-                             _get_text_style(theme, StyleText, :placeholder_text))
+    PrimitiveInsertionToText(get_text_style(theme, :bool_text),
+                             get_text_style(theme, :number_text),
+                             get_text_style(theme, :string_text),
+                             get_text_style(theme, :wrong_color),
+                             get_text_style(theme, :placeholder_text))
 end
 
 # The style of the text of `ins`: the placeholder while it is empty, the style of
@@ -249,7 +248,7 @@ end
     placeholder_style::StyleText
 end
 PrimitiveStringToTextBlock(; theme = nothing,
-                            style = _get_text_style(scale_theme(theme), StyleText, :string_text),
+                            style = get_text_style(theme, :string_text),
                             placeholder = "", placeholder_style = style) =
     PrimitiveStringToTextBlock(style, placeholder, placeholder_style)
 
@@ -364,7 +363,6 @@ to single-span `TextBlock` documents. `theme`, a `TextTheme` or a scaled one,
 gives the text of each kind; with none, the texts of the default theme.
 """
 function PrimitiveToText(; theme = nothing, bool_kw=(), number_kw=(), string_kw=())
-    theme = scale_theme(theme)
     TypeDispatchingProjection(
         PrimitiveBool      => PrimitiveBoolToText(; theme, bool_kw...),
         PrimitiveNumber    => PrimitiveNumberToText(; theme, allows_type_in = true, number_kw...),

@@ -93,14 +93,13 @@ that spacing in place of its own.
 """
 function TextToGraphics(; start_x::Int=0, start_y::Int=0, measure::TextMeasure,
                         line_spacing = SingleSpacing(), theme = nothing)
-    theme = scale_theme(theme)
     TextToGraphics(start_x, start_y, measure, line_spacing,
-                   _get_text_style(theme, StyleColor, :caret),
-                   _get_text_style(theme, StyleColor, :dormant_caret),
-                   _get_text_style(theme, Int, :caret_width),
-                   _get_text_style(theme, StyleColor, :highlight),
-                   _get_text_style(theme, StyleColor, :dormant_highlight),
-                   _get_text_style(theme, Int, :highlight_radius))
+                   get_text_style(theme, :caret),
+                   get_text_style(theme, :dormant_caret),
+                   get_text_style(theme, :caret_width),
+                   get_text_style(theme, :highlight),
+                   get_text_style(theme, :dormant_highlight),
+                   get_text_style(theme, :highlight_radius))
 end
 
 # `p` at the line spacing `spacing`, with the same cells for every other field, so

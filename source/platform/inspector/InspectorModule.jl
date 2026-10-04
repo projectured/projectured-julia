@@ -27,7 +27,7 @@ import ..ProjectionModule: print_document, map_reference_forward, map_reference_
 import ..SerializationModule: pred_arguments
 
 export InspectorTheme, ScaledInspectorTheme
-export ReferenceInspectorToText
+export ReferenceInspectorToText, make_reference_inspector_projection
 export ReferenceInspector
 export SelectionInspector, SelectionInspectorToText,
        find_inspected_selection, get_inspected_document
@@ -53,7 +53,7 @@ function __init__()
         reference_theme = get_scaled_theme!(appearance, ReferenceTheme)
         text = TextToGraphics(; measure, theme = get_scaled_theme!(appearance, TextTheme))
         Pair{Type,Any}[
-            ReferenceInspector => ChainingProjection(ReferenceInspectorToText(; theme, reference_theme),
+            ReferenceInspector => ChainingProjection(make_reference_inspector_projection(; theme, reference_theme),
                                                      WordWrapping(measure = measure),
                                                      text),
             SelectionInspector => ChainingProjection(SelectionInspectorToText(; theme, reference_theme),

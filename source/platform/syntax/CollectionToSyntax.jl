@@ -14,8 +14,8 @@
 end
 
 CollectionCellVectorToSyntax(; theme = nothing,
-                             delim = _get_syntax_style(scale_theme(theme), StyleText, :delimiter_text),
-                             sep = _get_syntax_style(scale_theme(theme), StyleText, :separator_text)) =
+                             delim = get_syntax_style(theme, :delimiter_text),
+                             sep = get_syntax_style(theme, :separator_text)) =
     CollectionCellVectorToSyntax(delim, sep)
 
 # A bracket, a separator or the layout of the array is a part that this projection
@@ -185,7 +185,7 @@ Usage:
 """
 function CollectionToSyntax(; theme = nothing)
     TypeDispatchingProjection(
-        CellVector => CollectionCellVectorToSyntax(; theme = scale_theme(theme)),
+        CellVector => CollectionCellVectorToSyntax(; theme),
         ListNode   => CollectionListNodeToSyntax(),
     )
 end

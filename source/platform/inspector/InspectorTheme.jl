@@ -29,8 +29,3 @@ with no theme it holds the plain values of the default theme.
     header_color::StyleColor = color_solarized_blue
 end
 
-# The style field of an inspector projection that holds the field `name` of the
-# theme `theme`, of the value type `T`: an `InspectorTheme`, a scaled one, or
-# `nothing` for the default values.
-_get_inspector_style(theme, ::Type{T}, name::Symbol) where {T} =
-    make_style_field(InspectorTheme, scale_theme(theme), T; name)

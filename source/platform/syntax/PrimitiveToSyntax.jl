@@ -16,7 +16,7 @@
 end
 
 PrimitiveBoolToSyntaxLeaf(; theme = nothing,
-                          style = _get_syntax_style(scale_theme(theme), StyleText, :bool_text)) =
+                          style = get_syntax_style(theme, :bool_text)) =
     PrimitiveBoolToSyntaxLeaf(style)
 
 function map_reference_forward(p::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, reference)
@@ -69,7 +69,7 @@ read_intent(::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, ::ReplaceRangeOpera
 end
 
 PrimitiveNumberToSyntaxLeaf(; theme = nothing,
-                            style = _get_syntax_style(scale_theme(theme), StyleText, :number_text),
+                            style = get_syntax_style(theme, :number_text),
                             allows_type_in::Bool = false) =
     PrimitiveNumberToSyntaxLeaf(style, allows_type_in)
 
@@ -123,8 +123,8 @@ end
 end
 
 function PrimitiveStringToSyntaxLeaf(; theme = nothing,
-                                     quote_style = _get_syntax_style(scale_theme(theme), StyleText, :quote_text),
-                                     value = _get_syntax_style(scale_theme(theme), StyleText, :string_text))
+                                     quote_style = get_syntax_style(theme, :quote_text),
+                                     value = get_syntax_style(theme, :string_text))
     PrimitiveStringToSyntaxLeaf(quote_style, value)
 end
 
@@ -217,7 +217,6 @@ site if recursive child dispatch is needed. `theme`, a `SyntaxTheme` or a scaled
 one, styles the leaves; with none, the leaves have the default styles.
 """
 function PrimitiveToSyntax(; theme = nothing, bool_kw=(), number_kw=(), string_kw=())
-    theme = scale_theme(theme)
     TypeDispatchingProjection(
         PrimitiveBool      => PrimitiveBoolToSyntaxLeaf(; theme, bool_kw...),
         PrimitiveNumber    => PrimitiveNumberToSyntaxLeaf(; theme, allows_type_in = true, number_kw...),

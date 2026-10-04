@@ -254,11 +254,10 @@ SyntaxCompoundToText(; indent_size::Int = 2,
                        collapsed_marker::TextString = TextString(""),
                        marker_eligible = _default_marker_eligible,
                        theme = nothing,
-                       ellipsis_style = _get_syntax_style(scale_theme(theme), StyleText, :ellipsis_text),
-                       delimiter_light_color = _get_syntax_style(scale_theme(theme), StyleColor,
-                                                                 :lit_delimiter),
+                       ellipsis_style = get_syntax_style(theme, :ellipsis_text),
+                       delimiter_light_color = get_syntax_style(theme, :lit_delimiter),
                        delimiter_light_levels::Int = 4,
-                       decoration_font = _get_syntax_style(scale_theme(theme), StyleFont, :font)) =
+                       decoration_font = get_syntax_style(theme, :font)) =
     SyntaxCompoundToText(indent_size, expanded_marker, collapsed_marker, marker_eligible,
                          ellipsis_style, delimiter_light_color, delimiter_light_levels,
                          decoration_font)
@@ -1293,8 +1292,7 @@ function SyntaxToText(; indent_size::Int = 2,
                         collapsed_marker::TextString = TextString(""),
                         marker_eligible = _default_marker_eligible,
                         theme = nothing,
-                        delimiter_light_color = _get_syntax_style(scale_theme(theme), StyleColor,
-                                                                  :lit_delimiter),
+                        delimiter_light_color = get_syntax_style(theme, :lit_delimiter),
                         delimiter_light_levels::Int = 4)
     # Every compound is printed by the same projection instance — the configuration
     # is the projection's, the structure is the document's. `theme`, a

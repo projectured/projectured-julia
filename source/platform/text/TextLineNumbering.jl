@@ -14,8 +14,7 @@
 end
 
 TextLineNumbering(; width::Int = 0, separator::String = " | ", theme = nothing,
-                  style::StyleText = unwrap_cell(_get_text_style(scale_theme(theme), StyleText,
-                                                                  :line_number_text))) =
+                  style::StyleText = unwrap_cell(get_text_style(theme, :line_number_text))) =
     TextLineNumbering(width, separator, style)
 
 # Projection print: wraps input.elements in a reactive Cell that rebuilds

@@ -36,7 +36,7 @@ of a form wants.
 end
 
 ObjectFieldToSyntax(; theme = nothing,
-                    field_name = _get_syntax_style(scale_theme(theme), StyleText, :field_name_text),
+                    field_name = get_syntax_style(theme, :field_name_text),
                     newlines::Bool = false) = ObjectFieldToSyntax(field_name, newlines)
 
 function print_document(p::ObjectFieldToSyntax, recursion, field::ObjectField, ctx)

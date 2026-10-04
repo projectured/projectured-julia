@@ -13,7 +13,7 @@
     include_selection::Bool
 end
 
-NothingToSyntaxLeaf(; theme = nothing, style = _get_syntax_style(scale_theme(theme), StyleText, :nothing_text),
+NothingToSyntaxLeaf(; theme = nothing, style = get_syntax_style(theme, :nothing_text),
        include_selection::Bool = false) = NothingToSyntaxLeaf(style, include_selection)
 
 function print_document(p::NothingToSyntaxLeaf, recursion, ::Nothing, ctx)
@@ -28,7 +28,7 @@ end
     include_selection::Bool
 end
 
-BoolToSyntaxLeaf(; theme = nothing, style = _get_syntax_style(scale_theme(theme), StyleText, :reflected_bool_text),
+BoolToSyntaxLeaf(; theme = nothing, style = get_syntax_style(theme, :reflected_bool_text),
        include_selection::Bool = false) = BoolToSyntaxLeaf(style, include_selection)
 
 function print_document(p::BoolToSyntaxLeaf, recursion, b::Bool, ctx)
@@ -43,7 +43,7 @@ end
     include_selection::Bool
 end
 
-NumberToSyntaxLeaf(; theme = nothing, style = _get_syntax_style(scale_theme(theme), StyleText, :number_text),
+NumberToSyntaxLeaf(; theme = nothing, style = get_syntax_style(theme, :number_text),
        include_selection::Bool = false) = NumberToSyntaxLeaf(style, include_selection)
 
 function print_document(p::NumberToSyntaxLeaf, recursion, n::Number, ctx)
@@ -60,8 +60,8 @@ end
 end
 
 function StringToSyntaxLeaf(; theme = nothing,
-                quote_style = _get_syntax_style(scale_theme(theme), StyleText, :quote_text),
-                value = _get_syntax_style(scale_theme(theme), StyleText, :string_text),
+                quote_style = get_syntax_style(theme, :quote_text),
+                value = get_syntax_style(theme, :string_text),
                 include_selection::Bool = false)
     StringToSyntaxLeaf(quote_style, value, include_selection)
 end
@@ -81,7 +81,7 @@ end
     include_selection::Bool
 end
 
-SymbolToSyntaxLeaf(; theme = nothing, style = _get_syntax_style(scale_theme(theme), StyleText, :symbol_text),
+SymbolToSyntaxLeaf(; theme = nothing, style = get_syntax_style(theme, :symbol_text),
        include_selection::Bool = false) = SymbolToSyntaxLeaf(style, include_selection)
 
 function print_document(p::SymbolToSyntaxLeaf, recursion, s::Symbol, ctx)
@@ -98,8 +98,8 @@ end
 end
 
 function CharToSyntaxLeaf(; theme = nothing,
-                quote_style = _get_syntax_style(scale_theme(theme), StyleText, :quote_text),
-                value = _get_syntax_style(scale_theme(theme), StyleText, :string_text),
+                quote_style = get_syntax_style(theme, :quote_text),
+                value = get_syntax_style(theme, :string_text),
                 include_selection::Bool = false)
     CharToSyntaxLeaf(quote_style, value, include_selection)
 end
@@ -119,7 +119,7 @@ end
     cycle::StyleText
 end
 
-CellToSyntax(; theme = nothing, cycle = _get_syntax_style(scale_theme(theme), StyleText, :note_text)) =
+CellToSyntax(; theme = nothing, cycle = get_syntax_style(theme, :note_text)) =
     CellToSyntax(cycle)
 
 function print_document(p::CellToSyntax, recursion, cell::Cell, ctx)
@@ -170,10 +170,10 @@ end
 end
 
 function ObjectNodeToSyntaxNode(; theme = nothing,
-                                type_name = _get_syntax_style(scale_theme(theme), StyleText, :type_name_text),
-                                field_name = _get_syntax_style(scale_theme(theme), StyleText, :field_name_text),
-                                undef = _get_syntax_style(scale_theme(theme), StyleText, :note_text),
-                                delimiter = _get_syntax_style(scale_theme(theme), StyleText, :object_delimiter_text),
+                                type_name = get_syntax_style(theme, :type_name_text),
+                                field_name = get_syntax_style(theme, :field_name_text),
+                                undef = get_syntax_style(theme, :note_text),
+                                delimiter = get_syntax_style(theme, :object_delimiter_text),
                                 include_selection::Bool = false, open_delimiter::AbstractString = "",
                                 close_delimiter::AbstractString = "", newlines::Bool = true,
                                 filter = nothing)
@@ -314,10 +314,9 @@ function ObjectToSyntax(; theme = nothing,
                           include_selection=false,
                           open_delimiter="", close_delimiter="",
                           newlines::Bool=true, filter=nothing)
-    theme = scale_theme(theme)
     style(name, font, color) = (font === nothing && color === nothing) ?
-        _get_syntax_style(theme, StyleText, name) :
-        _replace_style(unwrap_cell(_get_syntax_style(theme, StyleText, name)), font, color)
+        get_syntax_style(theme, name) :
+        _replace_style(unwrap_cell(get_syntax_style(theme, name)), font, color)
     TypeDispatchingProjection(
         Cell           => CellToSyntax(; theme),
         Nothing        => NothingToSyntaxLeaf(style=style(:nothing_text, nothing, nothing_color), include_selection=include_selection),

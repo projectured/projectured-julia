@@ -68,6 +68,3 @@ that prints its own leaves styles them with a theme of its own.
                                     relative_size = 0.8)
 end
 
-# The style field of type `T` of a syntax projection that holds the field `name`
-# of the syntax theme: `make_style_field` of `SyntaxTheme`.
-_get_syntax_style(theme, ::Type{T}, name::Symbol) where {T} = make_style_field(SyntaxTheme, theme, T; name)

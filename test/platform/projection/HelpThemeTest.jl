@@ -76,7 +76,9 @@ end
 @testset "ReferenceToText reads ReferenceTheme" begin
     defaults = make_scaled_theme(ReferenceTheme())
     plain = ReferenceToText()
-    scaled = ReferenceToText(theme = get_scaled_theme!(Appearance(font_scale = 1.5), ReferenceTheme))
+    theme = get_scaled_theme!(Appearance(font_scale = 1.5), ReferenceTheme)
+    scaled = ReferenceToText(font = get_reference_style(theme, :font),
+                             style = make_theme_values_field(ReferenceTheme, theme))
     @test plain.font.size == defaults.font.size
     @test scaled.font.size == round(Int, plain.font.size * 1.5)
     @test plain.style.aside_font.size == defaults.aside_font.size
@@ -90,7 +92,8 @@ end
 @testset "ReferenceInspectorToText reads InspectorTheme" begin
     defaults = make_scaled_theme(InspectorTheme())
     plain = ReferenceInspectorToText()
-    scaled = ReferenceInspectorToText(theme = get_scaled_theme!(Appearance(font_scale = 1.5), InspectorTheme))
+    scaled = make_reference_inspector_projection(
+        theme = get_scaled_theme!(Appearance(font_scale = 1.5), InspectorTheme))
     @test plain.font.size == defaults.font.size
     @test scaled.font.size == round(Int, plain.font.size * 1.5)
     @test plain.header_font.size == defaults.header_font.size
@@ -98,8 +101,9 @@ end
     @test is_color_equal(plain.header_color, defaults.header_color)
     @test is_color_equal(scaled.header_color, plain.header_color)
     # A value given for a keyword stays fixed regardless of the theme.
-    fixed = ReferenceInspectorToText(theme = get_scaled_theme!(Appearance(font_scale = 1.5), InspectorTheme),
-                                     font = StyleFont("Ubuntu Mono", 20))
+    fixed = make_reference_inspector_projection(
+        theme = get_scaled_theme!(Appearance(font_scale = 1.5), InspectorTheme),
+        font = StyleFont("Ubuntu Mono", 20))
     @test fixed.font.size == 20
 end
 

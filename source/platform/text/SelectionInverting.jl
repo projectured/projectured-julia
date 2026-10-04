@@ -48,10 +48,8 @@ projection is stateless beyond its style options.
 end
 
 SelectionInverting(; theme = nothing,
-                     default_bg::StyleColor = unwrap_cell(_get_text_style(scale_theme(theme), StyleColor,
-                                                                          :inverted_background)),
-                     default_fg::StyleColor = unwrap_cell(_get_text_style(scale_theme(theme), StyleColor,
-                                                                          :inverted_foreground)),
+                     default_bg::StyleColor = unwrap_cell(get_text_style(theme, :inverted_background)),
+                     default_fg::StyleColor = unwrap_cell(get_text_style(theme, :inverted_foreground)),
                      block_cursor::Bool=true) =
     SelectionInverting(default_bg, default_fg, block_cursor)
 

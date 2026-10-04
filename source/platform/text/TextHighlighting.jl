@@ -35,8 +35,7 @@ struct TextHighlighting <: Projection
 end
 
 TextHighlighting(pattern::Cell; case_insensitive=false, theme = nothing,
-                 color::StyleColor = unwrap_cell(_get_text_style(scale_theme(theme), StyleColor,
-                                                                 :match_highlight))) =
+                 color::StyleColor = unwrap_cell(get_text_style(theme, :match_highlight))) =
     TextHighlighting(pattern, case_insensitive isa Cell ? case_insensitive : Cell(case_insensitive), color)
 TextHighlighting(pattern::Regex; kw...) = TextHighlighting(Cell(pattern); kw...)
 TextHighlighting(pattern::AbstractString; kw...) = TextHighlighting(Cell(String(pattern)); kw...)

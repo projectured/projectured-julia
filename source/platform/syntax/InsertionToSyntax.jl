@@ -76,13 +76,12 @@ function InsertionToSyntaxLeaf(commit; prefix::AbstractString = "", suffix::Abst
                                cancel = nothing, theme = nothing,
                                label = nothing, value = nothing, hint = nothing,
                                placeholder::Union{Nothing,AbstractString,Function} = nothing)
-    theme = scale_theme(theme)
     InsertionToSyntaxLeaf(String(prefix), String(suffix), commit, completion, commit_at_key, cancel,
-                          something(label, _get_syntax_style(theme, StyleText, :label_text)),
-                          something(value, _get_syntax_style(theme, StyleText, :typed_text)),
-                          something(hint, _get_syntax_style(theme, StyleText, :hint_text)),
-                          _get_syntax_style(theme, StyleColor, :wrong_color),
-                          _get_syntax_style(theme, StyleColor, :found_color),
+                          something(label, get_syntax_style(theme, :label_text)),
+                          something(value, get_syntax_style(theme, :typed_text)),
+                          something(hint, get_syntax_style(theme, :hint_text)),
+                          get_syntax_style(theme, :wrong_color),
+                          get_syntax_style(theme, :found_color),
                           placeholder isa AbstractString ? String(placeholder) : placeholder)
 end
 
@@ -458,7 +457,7 @@ domain's insertion) fires from the document-level table.
 end
 
 InsertionNothingToSyntaxLeaf(; theme = nothing) =
-    InsertionNothingToSyntaxLeaf(_get_syntax_style(scale_theme(theme), StyleText, :note_text))
+    InsertionNothingToSyntaxLeaf(get_syntax_style(theme, :note_text))
 
 # The rendered leaf's selection is the *forward image* of the document's own — not
 # the raw path. A cursor on the label is carried on the placeholder as a
