@@ -24,7 +24,7 @@ Report `record` at the first tier that works, and answer the tier it reached:
 runs when everything else failed, and sometimes that includes the code that was
 meant to report. A test asserts it against a store that throws and a backend that
 throws, both at once. An exception that means stop (`is_passthrough_exception`)
-goes on, because it asks for a stopped editor.
+goes on, because it is a request to stop the editor.
 
 A fault raised while a fault is reported does not recurse: the store carries a
 depth, and a nested call goes straight to the console and stops.

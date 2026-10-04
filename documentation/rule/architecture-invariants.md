@@ -1111,8 +1111,8 @@ An exception that means the program is to stop or can not go on is never caught:
 owns a control-flow exception adds its own method. **Every catch-all arm asks it
 first and rethrows when it answers true**, in every layer: a barrier, the report
 path, a walk, a search, a fallback for a text. "A report never throws" is about an
-ordinary exception; an exception that means stop asks for a stopped editor, and a
-report lets it go on. A catch that hands the exception on to its caller,
+ordinary exception; an exception that means stop is a request to stop the editor,
+and a report lets it go on. A catch that hands the exception on to its caller,
 as the build of an editor does through a channel, keeps it.
 
 **One accepted exception: the model code of the code tool.** The code tool acts as
