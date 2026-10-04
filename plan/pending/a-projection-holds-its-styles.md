@@ -111,14 +111,15 @@ package, so the steps of its slices run one after another.
 - [ ] **M3. The ten document domains**, one commit each: JSON, XML, YAML, SQL
   (with its plain text), Julia, Math (`MathConfig`), Formula, Markdown (with its
   heading fonts), RST (with its title fonts and its roles), Book.
-  - [x] JSON, the model (`da62a6196`). [x] XML (`050afba98`). The local function
+  - [x] JSON, the model (`ea994afb4`). [x] XML (`55ec211b2`). The local function
     of a factory that gives a style is `get_style(name)`, a name with a verb;
-    the factory of YAML has a keyword `style` already (`7319a403f`).
+    the factory of YAML has a keyword `style` already (`6d20f49d6`).
+  - [x] YAML (`12841097d`, `53ea2cc4b`).
 - [ ] **M4. The charts, the graph, process, FSM and the database catalog.**
 - [ ] **M5. The tools**: the fault log, the gesture log, the message log, the
   frame statistics, undo, the file explorer, the gesture help and the palette,
   help, the inspector, the settings tab.
-- [ ] **M6. The widgets.** The second constructors of the widget printers take a
+- [x] **M6. The widgets** (`abc11f068`); finding 4. The second constructors of the widget printers take a
   theme of any kind; the five offsets and the box of a glyph become fields of
   `WidgetTheme` (6.1); the five printers that size an icon beside a text read a
   style for it (6.2).
@@ -240,4 +241,21 @@ suites that build a themed view, and the images of both tabs.
    themes, the inspector and of JSON and SQL give 1600 pass.
 3. **The images do not change after M1, M2 and JSON** (2026-10-04). Each of the
    105 examples renders to an image equal byte for byte to the image of `main`
-   (`bccfd39d6`), for the branch at `da62a6196`.
+   (`bccfd39d6`), for the branch at the JSON commit. The branch is rebased on
+   `main` at `759a7ce2a` after YAML, with no conflict.
+4. **The widgets take the graphics theme from their builder** (M6, 2026-10-04).
+   The ring around a part selected as a whole and the band of a selected row are
+   values of `GraphicsTheme`. The printers read them from the appearance of the
+   scaled widget theme, so they knew of the scale. `WidgetToGraphics` and the
+   seven second constructors that draw them take the keyword `graphics_theme`
+   instead, and each of the ten builders with an appearance gives
+   `get_scaled_theme!(appearance, GraphicsTheme)`. So the settings and the shell
+   slices use the graphics slice directly: two new rows in
+   `PLATFORM_SLICE_EDGES`, an edge that they had through the widget slice. The
+   context menu window holds its largest size and its item gap, and no theme. The
+   theme gains seven fields: five offsets of the kind `Spacing`
+   (`shadow_offset`, `chevron_nudge`, `toggle_group_padding`,
+   `stepper_glyph_inset`, `accordion_body_gap`), `icon_size` and
+   `stepper_glyph_minimum`. The data frame theme test fails at `bccfd39d6`
+   (`_make_query_field` takes five arguments, the find field gave three); `main`
+   repairs it in `db864f69d`, which the rebase brings.
