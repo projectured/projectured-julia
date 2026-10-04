@@ -344,8 +344,6 @@ suites that build a themed view, and the images of both tabs.
    frames give 1124 pass and 1 fail; the fail
    (`DataFrameFilterTest.jl:83`, a row number 2 px above its cells) fails on
    `main` at `759a7ce2a` in the same way.
-
-
 8. **A heading and a title choose a font by level from fields** (M3,
    2026-10-04). A Markdown heading and an RST section title held the theme only
    to choose one of four fonts by the level while they print. Each holds the four
