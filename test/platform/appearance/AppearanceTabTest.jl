@@ -211,6 +211,13 @@ end
                      op.reference.head == FieldReferenceStep("bool_text"))
     @test next_role.value isa TextRole && next_role.value.font == before.font
     @test next_role.value.color == ColorRole(:type_name)
+    # The button "Step" writes the step of a ramp that the role names, so the field
+    # leaves the role and keeps its colour, and still follows the mode.
+    to_step = only(op for (action, op) in tab.commands if action.label == "Step" &&
+                   op isa ReplaceReferencedValueOperation && op.document === syntax &&
+                   op.reference.head == FieldReferenceStep("bool_text"))
+    @test to_step.value.color == get_color_theme(appearance).constant
+    @test to_step.value.color isa PaletteColor && to_step.value.font == before.font
     # The step to a heavier weight sets the weight of the role and keeps the colour.
     step = only(op for (action, op) in tab.commands if action.label == "+" &&
                 op isa ReplaceReferencedValueOperation && op.document === syntax &&

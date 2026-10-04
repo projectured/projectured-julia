@@ -125,12 +125,15 @@ panel holds the last `lines` entries (8 by default) in a log of its own,
 `measure` measures its text (`FontFileMeasure()` by default),
 `operation_width` limits the operation of a line (60 characters by default), and
 `background` is its color, by default the translucent `panel_background` of the
-gesture log theme.
+gesture log theme. The panel takes the "Panel" preset of the gesture log theme,
+scaled with the `Appearance` of the build when the editor has one, so its colours
+follow the colour settings of the appearance.
 """
 function wrap_editor!(::Val{:gesture_log}, layer::Symbol, argument, parts::EditorParts)
     options = argument === true ? (;) : argument
     inner = get(options, :overlay, false) === true ?
-            _make_gesture_log_panel(parts.projection, options) : parts.projection
+            _make_gesture_log_panel(parts.projection, options,
+                                    get(parts.arguments, :appearance, nothing)) : parts.projection
     parts.projection = GestureLogRecordingProjection(inner = inner,
                                                      log = get_session_gesture_log(),
                                                      fold_typing = true)
@@ -139,17 +142,21 @@ end
 
 # The panel of the newest gestures over `projection`. It has a short log of its
 # own, so it stays as tall as its lines, and it records into that log as the
-# wrapper records into the log of the session.
-function _make_gesture_log_panel(projection, options)
+# wrapper records into the log of the session. With an `appearance`, the panel
+# theme is scaled with it, so its colours follow the colour settings.
+function _make_gesture_log_panel(projection, options, appearance)
     log = GestureLog(; capacity = get(options, :lines, 8))
+    theme = appearance isa Appearance ? make_scaled_theme(make_gesture_log_panel_theme(), appearance) :
+                                        make_gesture_log_panel_theme()
     content = make_gesture_log_content_projection(; measure = get(options, :measure, FontFileMeasure()),
-                                                    operation_width = get(options, :operation_width, 60))
+                                                    operation_width = get(options, :operation_width, 60),
+                                                    theme)
     # A background that the options name replaces the one of the theme.
     background = haskey(options, :background) ? (; background = options[:background]) : (;)
     GestureLogRecordingProjection(inner = GestureLogOverlayProjection(; inner = projection, log = log,
                                                                       content = content,
                                                                       anchor = get(options, :anchor, :bottom_right),
-                                                                      background...),
+                                                                      theme, background...),
                                   log = log, fold_typing = true)
 end
 

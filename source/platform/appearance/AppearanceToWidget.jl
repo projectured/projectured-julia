@@ -28,9 +28,11 @@ Show an `Appearance` as widgets, in a pane that scrolls:
   the font files and a spin box for its size, a colour has its swatch and its
   value as a text, `#rrggbbaa`, that a person edits, and a text style has the
   controls of its colour over those of its font. A role of the colour theme has
-  its swatch and buttons that step through the roles; a step of a ramp has
-  buttons that step through the hues and through the steps; both have a button
-  "Fix", which writes the colour that they give as a fixed colour. A colour that
+  its swatch, buttons that step through the roles, and a button "Step", which
+  writes the step of a ramp that the role names, so the field leaves the role and
+  still follows the mode; a step of a ramp has buttons that step through the hues
+  and through the steps; both have a button "Fix", which writes the colour that
+  they give as a fixed colour. A colour that
   differs from the default of its theme has a button "Reset".
 
 A press of a button answers the operation of the button, and a step of a spin box,
@@ -459,10 +461,25 @@ function _make_theme_color_control(controls, read, write, default)
                            WidgetLabel(string(color.step)),
                            controls.button("+", write(_step_palette_step(color, 1)))])
     end
+    if color isa ColorRole
+        step = _find_role_step(color, controls.appearance)
+        step === nothing || push!(parts, controls.button("Step", write(step)))
+    end
     color isa StyleColor ||
         push!(parts, controls.button("Fix", write(resolve_theme_color(color, controls.appearance))))
     default === nothing || color == default || push!(parts, controls.button("Reset", write(default)))
     HorizontalLayout(parts; gap = controls.theme.label_gap, vertical_align = :center)
+end
+
+# The step of a ramp that `role` names in the colour theme of the present mode
+# and contrast of `appearance`, with the alpha of `role`; `nothing` when the role
+# holds no step. A field that takes it leaves the role and keeps its colour, and
+# still follows the palette and the mode.
+function _find_role_step(role::ColorRole, appearance::Appearance)
+    value = getproperty(get_color_theme(appearance), role.role)
+    value isa PaletteColor || return nothing
+    PaletteColor(value.hue, value.step; alpha = value.alpha * role.alpha,
+                 minimum_contrast = value.minimum_contrast, against = value.against)
 end
 
 # The role `delta` roles away from `role` in the order of the colour theme.

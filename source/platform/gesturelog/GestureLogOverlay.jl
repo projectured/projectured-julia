@@ -73,7 +73,7 @@ struct GestureLogOverlayProjection <: Projection
     margin::Int
     padding::Int
     radius::Int
-    background::StyleColor
+    background::Any         # a StyleColor, or a cell that reads it from the theme at each print
 end
 
 function GestureLogOverlayProjection(; inner, log::GestureLog,
@@ -83,7 +83,8 @@ function GestureLogOverlayProjection(; inner, log::GestureLog,
                                        margin::Integer = get_theme_value(theme, :panel_margin),
                                        padding::Integer = get_theme_value(theme, :panel_padding),
                                        radius::Integer = get_theme_value(theme, :panel_radius),
-                                       background::StyleColor = get_theme_value(theme, :panel_background))
+                                       background = make_theme_cell(StyleColor, theme,
+                                                                    values -> values.panel_background))
     anchor in (:top_right, :top_left, :bottom_right, :bottom_left) ||
         error("GestureLogOverlayProjection: unknown anchor :$anchor")
     GestureLogOverlayProjection(inner, log, content, anchor, Int(margin), Int(padding),
@@ -122,7 +123,8 @@ function print_document(p::GestureLogOverlayProjection, recursion, input, ctx)
     set_cell_computation!(getfield(body, :w), () -> Int32(body_width()))
     set_cell_computation!(getfield(body, :h), () -> Int32(body_height()))
 
-    background = GraphicsRect(0, 0, 0, 0; color = p.background, radius = p.radius)
+    fill = p.background isa StyleColor ? p.background : p.background[]
+    background = GraphicsRect(0, 0, 0, 0; color = fill, radius = p.radius)
     set_cell_computation!(getfield(background, :w), () -> Int32(panel_width()))
     set_cell_computation!(getfield(background, :h), () -> Int32(panel_height()))
 
