@@ -146,7 +146,10 @@ package, so the steps of its slices run one after another.
   `WidgetTheme` (6.1); the five printers that size an icon beside a text read a
   style for it (6.2).
 - [ ] **M7. omnet**: a call scan for the factories whose keyword changed.
-  Done as a scan (finding 6); the change in omnet waits for the owner.
+  Done as a scan (finding 6). The omnet branch `projection-styles` (`42c67b16`,
+  not landed) makes the three calls follow: `FsmToSyntaxLabel` for the labels,
+  and `graphics_theme` for the widgets of a simulation. The conversion of
+  omnet's own themes waits for the owner.
 - [x] **M8. The tests**: the 15 files that build a projection with `theme` build
   it through its factory, or pass the style. Each step changed the theme test
   of its package, and added a check that the projection has no field `theme`
@@ -375,4 +378,12 @@ suites that build a themed view, and the images of both tabs.
    - A fresh precompile prints a warning of a stack overflow on `main` too.
    - `test_all` as one process does not fit in 8 GB, because its precompile
      runs many packages at a time; its groups run in three processes instead.
+   - omnet, in an environment of the omnet branch over this branch and one of
+     omnet `main` over `main`: the seven tests of the workbench and the result
+     chart give 30 pass, 2 fail and 6 errors on both, the same ones (the errors
+     are `Projectured` undefined in `OmnetPresentation` in such an environment,
+     the fails a card padding of the default look). The diagram rows and the
+     widgets of a simulation build with a scaled `Appearance`, and a state label
+     of `FsmToSyntaxLabel` draws at 21 for a font scale of 1.5. The whole
+     presentation and legacy suites run longer than 40 minutes and were stopped.
 
