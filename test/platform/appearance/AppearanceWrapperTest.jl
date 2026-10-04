@@ -179,5 +179,23 @@ end
     @test (Int(running_output.w[]), Int(running_output.h[])) == (Int(started_output.w[]), Int(started_output.h[]))
 end
 
+
+@testset "each window takes the colour of the role background, and follows the mode" begin
+    backend = HeadlessBackend()
+    appearance = Appearance()
+    editor = build_editor(WidgetLabel("Name"); backend, devices = Device[Keyboard(), Mouse(), Display()],
+                          window = (; title = "T", width = 400, height = 300), tabs = false,
+                          appearance)
+    run_frame!(editor)
+    background(a) = (c = resolve_theme_color(ColorRole(:background), a);
+                     Tuple(UInt8(round(Int, x * 255)) for x in (c.red, c.green, c.blue, c.alpha)))
+    window() = only(last(rendered_output(backend)).windows)
+    @test window().bg == background(appearance)
+    appearance.color_mode = :dark
+    run_frame!(editor)
+    @test window().bg == background(appearance)
+    @test window().bg != background(Appearance())
+end
+
 end
 end
