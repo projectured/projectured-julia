@@ -47,6 +47,10 @@ The package makes no connection. A caller builds the tree from ordinary vectors,
 
 A keyword group starts collapsed unless its child collection is already computed. `_children_realized` reads the `valid` flag of the backing cell and does not compute it. So the first print of a live catalog runs no query, and a click that opens a group runs the query of that group only. `is_dbcatalog_marker_eligible` gives `SyntaxToText` the nodes that get an open or a closed marker: a node with a label. It does not read the children, because a read of the children of a live group runs its query.
 
+#### The theme
+
+`DbCatalogTheme` holds the look of the catalog tree: the text of a column, a table, a schema, a database and an RDBMS, and the keyword that opens a group of children. Each value has the default that the domain draws with no appearance. A projection holds its styles as fields, and no theme; nothing in it scales or asks whether a theme is scaled. `DbCatalogToSyntax(; theme)` gives each projection the style of its role with `get_db_catalog_style`, from `theme`, a `DbCatalogTheme` scaled or not, or the default styles for `nothing`; the database node and the RDBMS node take the same style, built once.
+
 ## How it fits
 
 `ProjecturedDatabase` depends only on `ProjecturedKernel`. `ProjecturedDBCatalog` depends on `ProjecturedSQL`, the kernel and the platform, and it takes the DDL document types from the SQL domain; see [sql.md](../sql/sql.md). `ProjecturedODBC` depends on both of them; see [odbc.md](../../adapter/odbc/odbc.md).

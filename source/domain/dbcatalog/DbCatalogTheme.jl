@@ -16,8 +16,9 @@ The fields are the text styles of a column, a table, a schema, a database and
 the keyword that opens a group of children. Each field has a docstring that
 says what it draws, which the appearance tab shows under its name.
 
-A DbCatalog projection reads the scaled theme through its `UntrackedCell` style
-fields; with no theme it holds the plain values of the default theme.
+The builder gives each DbCatalog projection its styles with
+`get_db_catalog_style`, from a theme scaled or not; a projection built with no
+styles holds the plain values of the default theme.
 """
 @theme struct DbCatalogTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
@@ -33,8 +34,3 @@ fields; with no theme it holds the plain values of the default theme.
     "The keyword that opens a group of children, such as \"Columns\", \"Tables\", \"Schemas\" or \"Databases\"."
     keyword_text::TextRole  = TextRole(color_default)
 end
-
-# The style field of a DbCatalog projection that holds the text `name` of the
-# theme `theme`: a `DbCatalogTheme`, a scaled one, or `nothing` for the default
-# values.
-_get_dbcatalog_style(theme, name::Symbol) = make_style_field(DbCatalogTheme, scale_theme(theme), StyleText; name)

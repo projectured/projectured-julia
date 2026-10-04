@@ -26,8 +26,7 @@
 # ── DbCatalogColumnToSyntaxLeaf ───────────────────────────────────────────────
 
 @projection UntrackedCell struct DbCatalogColumnToSyntaxLeaf
-    theme::Any = nothing
-    style::StyleText = _get_dbcatalog_style(theme, :column_text)
+    style::StyleText = get_db_catalog_style(nothing, :column_text)
 end
 
 function print_document(p::DbCatalogColumnToSyntaxLeaf, recursion, col::DbCatalogColumn, ctx)
@@ -216,9 +215,8 @@ end
 # ── DbCatalogTableToSyntaxNode ────────────────────────────────────────────────
 
 @projection UntrackedCell struct DbCatalogTableToSyntaxNode
-    theme::Any = nothing
-    name::StyleText    = _get_dbcatalog_style(theme, :table_text)
-    keyword::StyleText = _get_dbcatalog_style(theme, :keyword_text)
+    name::StyleText    = get_db_catalog_style(nothing, :table_text)
+    keyword::StyleText = get_db_catalog_style(nothing, :keyword_text)
 end
 
 function print_document(p::DbCatalogTableToSyntaxNode, recursion, table::DbCatalogTable, ctx)
@@ -240,9 +238,8 @@ read_intent(p::DbCatalogTableToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePath
 # ── DbCatalogSchemaToSyntaxNode ───────────────────────────────────────────────
 
 @projection UntrackedCell struct DbCatalogSchemaToSyntaxNode
-    theme::Any = nothing
-    name::StyleText    = _get_dbcatalog_style(theme, :schema_text)
-    keyword::StyleText = _get_dbcatalog_style(theme, :keyword_text)
+    name::StyleText    = get_db_catalog_style(nothing, :schema_text)
+    keyword::StyleText = get_db_catalog_style(nothing, :keyword_text)
 end
 
 function print_document(p::DbCatalogSchemaToSyntaxNode, recursion, schema::DbCatalogSchema, ctx)
@@ -264,9 +261,8 @@ read_intent(p::DbCatalogSchemaToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePat
 # ── DbCatalogDatabaseToSyntaxNode ─────────────────────────────────────────────
 
 @projection UntrackedCell struct DbCatalogDatabaseToSyntaxNode
-    theme::Any = nothing
-    name::StyleText    = _get_dbcatalog_style(theme, :database_text)
-    keyword::StyleText = _get_dbcatalog_style(theme, :keyword_text)
+    name::StyleText    = get_db_catalog_style(nothing, :database_text)
+    keyword::StyleText = get_db_catalog_style(nothing, :keyword_text)
 end
 
 function print_document(p::DbCatalogDatabaseToSyntaxNode, recursion, db::DbCatalogDatabase, ctx)
@@ -288,9 +284,8 @@ read_intent(p::DbCatalogDatabaseToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceP
 # ── DbCatalogRdbmsToSyntaxNode ────────────────────────────────────────────────
 
 @projection UntrackedCell struct DbCatalogRdbmsToSyntaxNode
-    theme::Any = nothing
-    name::StyleText    = _get_dbcatalog_style(theme, :database_text)
-    keyword::StyleText = _get_dbcatalog_style(theme, :keyword_text)
+    name::StyleText    = get_db_catalog_style(nothing, :database_text)
+    keyword::StyleText = get_db_catalog_style(nothing, :keyword_text)
 end
 
 function print_document(p::DbCatalogRdbmsToSyntaxNode, recursion, rdbms::DbCatalogRdbms, ctx)
@@ -332,15 +327,20 @@ is_dbcatalog_marker_eligible(node::SyntaxNode) =
 
 # ── Compound constructor ──────────────────────────────────────────────────────
 
-# `theme` is a `DbCatalogTheme`, a scaled one, or `nothing` for the default
-# styles.
+# The builder gives each projection the style of its role with
+# `get_db_catalog_style`, from `theme`, a `DbCatalogTheme` scaled or not, or the
+# default styles for `nothing`. The database and the RDBMS node take the same
+# group of styles, built once.
 function DbCatalogToSyntax(; theme = nothing)
-    theme = scale_theme(theme)
+    get_style(name) = get_db_catalog_style(theme, name)
+    database_style = (name = get_style(:database_text), keyword = get_style(:keyword_text))
     TypeDispatchingProjection(
-        DbCatalogRdbms      => DbCatalogRdbmsToSyntaxNode(; theme),
-        DbCatalogDatabase   => DbCatalogDatabaseToSyntaxNode(; theme),
-        DbCatalogSchema     => DbCatalogSchemaToSyntaxNode(; theme),
-        DbCatalogTable      => DbCatalogTableToSyntaxNode(; theme),
-        DbCatalogColumn     => DbCatalogColumnToSyntaxLeaf(; theme),
+        DbCatalogRdbms      => DbCatalogRdbmsToSyntaxNode(; database_style...),
+        DbCatalogDatabase   => DbCatalogDatabaseToSyntaxNode(; database_style...),
+        DbCatalogSchema     => DbCatalogSchemaToSyntaxNode(; name = get_style(:schema_text),
+                                                              keyword = get_style(:keyword_text)),
+        DbCatalogTable      => DbCatalogTableToSyntaxNode(; name = get_style(:table_text),
+                                                             keyword = get_style(:keyword_text)),
+        DbCatalogColumn     => DbCatalogColumnToSyntaxLeaf(; style = get_style(:column_text)),
     )
 end
