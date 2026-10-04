@@ -265,24 +265,29 @@ end
     set_process_position!(session, model; node = get_node_index(model, hand), previous = 0)
     @test _text(ProcessToSyntax(session = session)) == plain
 
+    # The live position takes the role of a warning, and a breakpoint the role of
+    # an error.
+    live_color = resolve_theme_color(ColorRole(:warning_text), Appearance())
+    breakpoint_color = resolve_theme_color(ColorRole(:error_text), Appearance())
+
     # A node's whole keyword chrome takes the live colour: one leaf for a bare
     # keyword, and both quotes for a step that renders a description.
-    @test _colored(_syntax(ProcessToSyntax()), color_solarized_orange) == 0
-    @test _colored(_syntax(ProcessToSyntax(session = session)), color_solarized_orange) == 2
+    @test _colored(_syntax(ProcessToSyntax()), live_color) == 0
+    @test _colored(_syntax(ProcessToSyntax(session = session)), live_color) == 2
 
     set_process_position!(session, model; node = get_node_index(model, model.body.steps[2]),
                           previous = 0)
-    @test _colored(_syntax(ProcessToSyntax(session = session)), color_solarized_orange) == 1
+    @test _colored(_syntax(ProcessToSyntax(session = session)), live_color) == 1
 
     # A breakpoint colours its own keyword, in its own colour.
     toggle_breakpoint!(session, model.body.steps[1])      # a code-only step: `step`
-    @test _colored(_syntax(ProcessToSyntax(session = session)), color_solarized_red) == 1
+    @test _colored(_syntax(ProcessToSyntax(session = session)), breakpoint_color) == 1
 
     # Where the run stands on a node that also has a breakpoint, the live
     # position wins — that is the one you need to see.
     toggle_breakpoint!(session, model.body.steps[2])
-    @test _colored(_syntax(ProcessToSyntax(session = session)), color_solarized_orange) == 1
-    @test _colored(_syntax(ProcessToSyntax(session = session)), color_solarized_red) == 1
+    @test _colored(_syntax(ProcessToSyntax(session = session)), live_color) == 1
+    @test _colored(_syntax(ProcessToSyntax(session = session)), breakpoint_color) == 1
 end
 
 end # @testset "ProcessDebug"

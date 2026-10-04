@@ -22,7 +22,7 @@ function test_dbcatalog_theme()
     theme = get_scaled_theme!(Appearance(font_scale = 1.5), DbCatalogTheme)
     leaf = DbCatalogColumnToSyntaxLeaf(; style = get_db_catalog_style(theme, :column_text))
     @test leaf.style.font.size == 21
-    @test is_color_equal(leaf.style.color, DbCatalogTheme().column_text.color)
+    @test is_color_equal(leaf.style.color, get_theme_value(DbCatalogTheme(), :column_text).color)
     # A projection holds its styles and no theme, and its builder reads a theme
     # that is not scaled as at no scale.
     @test !hasfield(DbCatalogColumnToSyntaxLeaf, :theme)

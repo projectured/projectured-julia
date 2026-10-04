@@ -13,7 +13,7 @@ function test_sql_theme()
     theme = get_scaled_theme!(Appearance(font_scale = 1.5), SqlTheme)
     leaf = SqlColumnReferenceToSyntaxLeaf(; style = get_sql_style(theme, :plain_text))
     @test leaf.style.font.size == 21
-    @test is_color_equal(leaf.style.color, SqlTheme().plain_text.color)
+    @test is_color_equal(leaf.style.color, get_theme_value(SqlTheme(), :plain_text).color)
     # A projection holds its styles and no theme, and its builder reads a theme
     # that is not scaled as at no scale.
     @test !hasfield(SqlColumnReferenceToSyntaxLeaf, :theme)

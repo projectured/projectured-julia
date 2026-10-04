@@ -24,7 +24,7 @@ end
 # ── JuliaIntegerToSyntaxLeaf ────────────────────────────────────────────────
 
 @projection UntrackedCell struct JuliaIntegerToSyntaxLeaf
-    style::StyleText = get_julia_style(nothing, :literal_text)
+    style::StyleText = get_julia_style(nothing, :constant_text)
 end
 
 @projection_template JuliaIntegerToSyntaxLeaf JuliaInteger (p, v) ->
@@ -33,7 +33,7 @@ end
 # ── JuliaFloatToSyntaxLeaf ──────────────────────────────────────────────────
 
 @projection UntrackedCell struct JuliaFloatToSyntaxLeaf
-    style::StyleText = get_julia_style(nothing, :literal_text)
+    style::StyleText = get_julia_style(nothing, :constant_text)
 end
 
 @projection_template JuliaFloatToSyntaxLeaf JuliaFloat (p, v) ->
@@ -56,7 +56,7 @@ end
 # ── JuliaBoolToSyntaxLeaf ───────────────────────────────────────────────────
 
 @projection UntrackedCell struct JuliaBoolToSyntaxLeaf
-    style::StyleText = get_julia_style(nothing, :keyword_text)
+    style::StyleText = get_julia_style(nothing, :constant_text)
 end
 
 # Guard the `? :` against a transient non-`Bool` value (a mid-edit `bound` read can clear
@@ -68,7 +68,7 @@ end
 # ── JuliaNothingToSyntaxLeaf ────────────────────────────────────────────────
 
 @projection UntrackedCell struct JuliaNothingToSyntaxLeaf
-    style::StyleText = get_julia_style(nothing, :keyword_text)
+    style::StyleText = get_julia_style(nothing, :constant_text)
 end
 
 @projection_template JuliaNothingToSyntaxLeaf JuliaNothing (p, v) ->
@@ -929,8 +929,8 @@ through, for an entry of its own that styles through `SyntaxModule`.
 function JuliaToSyntax(entries::Pair...; theme = nothing, syntax_theme = nothing)
     get_style(name) = get_julia_style(theme, name)
     literal_style       = (style = get_style(:literal_text),)
+    constant_style      = (style = get_style(:constant_text),)
     literal_quote_style = (style = get_style(:literal_text), quote_style = get_style(:punctuation_text))
-    leaf_keyword_style  = (style = get_style(:keyword_text),)
     op_delimiter_style  = (op = get_style(:operator_text), delimiter = get_style(:punctuation_text))
     delim_callee_style  = (delim = get_style(:punctuation_text), callee = get_style(:callee_text))
     keyword_sep_style   = (keyword_style = get_style(:keyword_text), sep_style = get_style(:punctuation_text))
@@ -941,11 +941,11 @@ function JuliaToSyntax(entries::Pair...; theme = nothing, syntax_theme = nothing
     TypeDispatchingProjection(
         JuliaInsertion       => JuliaInsertionToSyntaxLeaf(; theme),
         JuliaIdentifier      => JuliaIdentifierToSyntaxLeaf(; style = get_style(:identifier_text)),
-        JuliaInteger         => JuliaIntegerToSyntaxLeaf(; literal_style...),
-        JuliaFloat           => JuliaFloatToSyntaxLeaf(; literal_style...),
+        JuliaInteger         => JuliaIntegerToSyntaxLeaf(; constant_style...),
+        JuliaFloat           => JuliaFloatToSyntaxLeaf(; constant_style...),
         JuliaString          => JuliaStringToSyntaxLeaf(; literal_quote_style...),
-        JuliaBool            => JuliaBoolToSyntaxLeaf(; leaf_keyword_style...),
-        JuliaNothing         => JuliaNothingToSyntaxLeaf(; leaf_keyword_style...),
+        JuliaBool            => JuliaBoolToSyntaxLeaf(; constant_style...),
+        JuliaNothing         => JuliaNothingToSyntaxLeaf(; constant_style...),
         JuliaSymbol          => JuliaSymbolToSyntaxLeaf(; style = get_style(:symbol_text)),
         JuliaChar            => JuliaCharToSyntaxLeaf(; literal_quote_style...),
         JuliaBinaryOperation        => JuliaBinaryOperationToSyntaxNode(; op_delimiter_style...),

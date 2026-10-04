@@ -29,27 +29,27 @@ color, picked by the level while it prints.
     "The font that the code of this theme follows: its family, its weight and its size."
     code_font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "A marker: an insertion placeholder, a tick, an emphasis or strong mark, a bullet, a transition, a comment, a directive's chrome, or any other marker."
-    marker_text::TextRole          = TextRole(color_solarized_gray; base = :code_font)
+    marker_text::TextRole          = TextRole(:markup; base = :code_font)
     "The text, the root, a value and an argument, in the source form."
-    source_text::TextRole          = TextRole(color_black; base = :code_font)
+    source_text::TextRole          = TextRole(:text; base = :code_font)
     "A literal, a literal block, and a code block's code."
-    literal_text::TextRole         = TextRole(color_solarized_green; base = :code_font)
+    literal_text::TextRole         = TextRole(:string_literal; base = :code_font)
     "A role name, a target, a path, and a role definition."
-    target_text::TextRole          = TextRole(color_solarized_violet; base = :code_font)
+    target_text::TextRole          = TextRole(:link; base = :code_font)
     "A role's value and a math block."
-    value_text::TextRole           = TextRole(color_solarized_cyan; base = :code_font)
+    value_text::TextRole           = TextRole(:string_literal; base = :code_font)
     "A reference, a footnote label, a field name, a toctree entry, and a section's adornment."
-    reference_text::TextRole       = TextRole(color_solarized_blue; base = :code_font)
+    reference_text::TextRole       = TextRole(:link; base = :code_font)
     "A substitution reference and the name of a substitution definition."
-    substitution_text::TextRole    = TextRole(color_solarized_orange; base = :code_font)
+    substitution_text::TextRole    = TextRole(:constant; base = :code_font)
     "The name of a directive and the language of a code block."
-    directive_text::TextRole       = TextRole(color_solarized_magenta; base = :code_font)
+    directive_text::TextRole       = TextRole(:keyword; base = :code_font)
     "The `.. kind::` marker of an admonition."
-    admonition_text::TextRole      = TextRole(color_solarized_yellow; base = :code_font, weight = 700)
+    admonition_text::TextRole      = TextRole(:keyword; base = :code_font, weight = 700)
     "The title of a section, in the source form."
-    title_text::TextRole           = TextRole(color_solarized_blue; base = :code_font, weight = 700)
+    title_text::TextRole           = TextRole(:heading; base = :code_font, weight = 700)
     "The plain prose of the rendered form."
-    body_text::TextRole            = TextRole(color_black)
+    body_text::TextRole            = TextRole(:text)
     "The font a bold run takes in the rendered form."
     bold_font::FontRole            = FontRole(weight = 700)
     "The font an italic run takes in the rendered form."
@@ -63,11 +63,11 @@ color, picked by the level while it prints.
     "The font of a section title past the third level, in the rendered form."
     title_font::FontRole           = FontRole(weight = 700, relative_size = 0.9)
     "The color of a section title in the rendered form."
-    title_color::StyleColor         = color_solarized_blue
+    title_color::StyleColor         = ColorRole(:heading)
     "The caption under a rendered figure."
-    caption_text::TextRole         = TextRole(color_solarized_gray; italic = true)
+    caption_text::TextRole         = TextRole(:text_muted; italic = true)
     "A marker of the rendered form: a transition rule, and the arrow of a literal include."
-    rendered_marker_text::TextRole = TextRole(color_solarized_gray; base = :code_font, family = "DejaVu Sans Mono")
+    rendered_marker_text::TextRole = TextRole(:markup; base = :code_font, family = "DejaVu Sans Mono")
     "The gap between the blocks of an RST page."
     block_gap::Spacing              = Spacing(8)
 end

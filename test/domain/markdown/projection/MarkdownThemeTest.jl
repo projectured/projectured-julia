@@ -31,7 +31,7 @@ function test_markdown_theme()
     theme = get_scaled_theme!(Appearance(font_scale = 1.5), MarkdownTheme)
     leaf = MarkdownTextToSyntaxLeaf(; style = get_markdown_style(theme, :source_text))
     @test leaf.style.font.size == 21
-    @test is_color_equal(leaf.style.color, MarkdownTheme().source_text.color)
+    @test is_color_equal(leaf.style.color, get_theme_value(MarkdownTheme(), :source_text).color)
     # A projection holds its styles and no theme, and its builder reads a theme
     # that is not scaled as at no scale.
     @test !hasfield(MarkdownTextToSyntaxLeaf, :theme)

@@ -24,29 +24,31 @@ values of the default theme.
     "The font that the texts of this theme follow: its family, its weight and its size."
     font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "A variable, and the label of an object that stands in the code, such as a widget pasted into a form."
-    identifier_text::TextRole = TextRole(color_solarized_violet)
-    "A number, a string, a character, a chunk of an interpolated string, the quotes of a string interpolation, and a docstring."
-    literal_text::TextRole = TextRole(color_solarized_green)
+    identifier_text::TextRole = TextRole(:reference)
+    "A string, a character, a chunk of an interpolated string, the quotes of a string interpolation, and a docstring."
+    literal_text::TextRole = TextRole(:string_literal)
+    "A number, `true`, `false` and `nothing`."
+    constant_text::TextRole = TextRole(:constant)
     "A quote, a delimiter, a separator, a brace and a fence."
-    punctuation_text::TextRole = TextRole(color_solarized_gray)
+    punctuation_text::TextRole = TextRole(:punctuation)
     "A comment, in a field of code that colors Julia as a person types it."
-    comment_text::TextRole = TextRole(color_solarized_gray)
-    "A keyword, `true`, `false` and `nothing`."
-    keyword_text::TextRole = TextRole(color_solarized_magenta; weight = 700)
+    comment_text::TextRole = TextRole(:comment)
+    "A keyword."
+    keyword_text::TextRole = TextRole(:keyword; weight = 700)
     "A symbol, `<:`, `->`, and the dollar sign of a string interpolation."
-    symbol_text::TextRole = TextRole(color_solarized_magenta)
+    symbol_text::TextRole = TextRole(:constant)
     "An operator, the dot of a field access, a range, `::`, `=` and `?:`."
-    operator_text::TextRole = TextRole(color_solarized_cyan)
+    operator_text::TextRole = TextRole(:operator)
     "The called function, and the name of a macro."
-    callee_text::TextRole = TextRole(color_solarized_blue)
+    callee_text::TextRole = TextRole(:function_name)
     "The name of a module."
-    name_text::TextRole = TextRole(color_solarized_blue; weight = 700)
+    name_text::TextRole = TextRole(:definition; weight = 700)
     "The path of a `using`, and the typed text of the insertion."
-    plain_text::TextRole = TextRole(color_default)
+    plain_text::TextRole = TextRole(:text)
     "The completion that the insertion offers."
-    hint_text::TextRole = TextRole(color_completion_hint)
+    hint_text::TextRole = TextRole(:text_faint)
     "The color of the typed text of the insertion while it names nothing."
-    wrong_color::StyleColor = color_solarized_red
+    wrong_color::StyleColor = ColorRole(:error_text)
     "The color of the typed text of the insertion while it names one thing."
-    found_color::StyleColor = color_solarized_green
+    found_color::StyleColor = ColorRole(:success_text)
 end

@@ -13,7 +13,7 @@ function test_xml_theme()
     theme = get_scaled_theme!(Appearance(font_scale = 1.5), XmlTheme)
     leaf = XmlTextToSyntaxLeaf(; style = get_xml_style(theme, :content_text))
     @test leaf.style.font.size == 21
-    @test is_color_equal(leaf.style.color, XmlTheme().content_text.color)
+    @test is_color_equal(leaf.style.color, get_theme_value(XmlTheme(), :content_text).color)
     # A projection holds its styles and no theme, and its builder reads a theme
     # that is not scaled as at no scale.
     @test !hasfield(XmlTextToSyntaxLeaf, :theme)

@@ -26,7 +26,7 @@ function test_fsm_theme()
     theme = get_scaled_theme!(Appearance(font_scale = 1.5), FsmTheme)
     node = FsmStateToSyntaxNode(; keyword = get_fsm_style(theme, :keyword_text))
     @test node.keyword.font.size == 21
-    @test is_color_equal(node.keyword.color, FsmTheme().keyword_text.color)
+    @test is_color_equal(node.keyword.color, get_theme_value(FsmTheme(), :keyword_text).color)
     # A projection holds its styles and no theme, and its builder reads a theme
     # that is not scaled as at no scale.
     @test !hasfield(FsmStateToSyntaxNode, :theme)

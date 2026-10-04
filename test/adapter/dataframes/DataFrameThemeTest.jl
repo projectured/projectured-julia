@@ -14,8 +14,8 @@ function test_data_frame_theme()
     @test plain.list_column_width == 160
     @test plain.filter_gap == 4
     @test plain.expression_gap == 8
-    @test is_color_equal(plain.invalid_query, defaults.invalid_query)
-    @test is_color_equal(plain.unsorted_glyph, defaults.unsorted_glyph)
+    @test is_color_equal(plain.invalid_query, get_theme_value(defaults, :invalid_query))
+    @test is_color_equal(plain.unsorted_glyph, get_theme_value(defaults, :unsorted_glyph))
 
     @test !hasfield(DataFrameViewToWidget, :theme)
     appearance = Appearance(control_scale = 1.5, spacing_scale = 1.5)

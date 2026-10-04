@@ -23,15 +23,17 @@ function test_julia_code_pieces()
     text = ":id > 3 && startswith(:name, \"B\") # a note"
     @test sum(first, pieces_of(text)) == length(text)
     found = Dict(colored(text))
-    @test found[":id"] == style.color_solarized_magenta
-    @test found["3"] == style.color_solarized_green
-    @test found["&&"] == style.color_solarized_cyan
-    @test found["\"B\""] == style.color_solarized_green
-    @test found["# a note"] == style.color_solarized_gray
+    # The colour of a role of the colour theme, in the default appearance.
+    role(name) = style.resolve_theme_color(style.ColorRole(name), style.Appearance())
+    @test found[":id"] == role(:constant)
+    @test found["3"] == role(:constant)
+    @test found["&&"] == role(:operator)
+    @test found["\"B\""] == role(:string_literal)
+    @test found["# a note"] == role(:comment)
     @test found["startswith"] === nothing
     # The colors are the text roles of the Julia theme of the appearance, so an
     # edit of a role in the appearance tab colors the field too.
-    @test Dict(colored("x === nothing"))["nothing"] == style.color_solarized_magenta
+    @test Dict(colored("x === nothing"))["nothing"] == role(:constant)
     appearance = style.Appearance()
     style.set_theme!(appearance, JuliaTheme(symbol_text = style.TextRole(style.color_solarized_red)))
     marked = Dict(begin
@@ -45,7 +47,13 @@ function test_julia_code_pieces()
         out
     end)
     @test marked[":id"] == style.color_solarized_red
-    @test marked["3"] == style.color_solarized_green
+    @test marked["3"] == role(:constant)
+    # In the dark mode, a role takes its dark colour.
+    appearance.color_mode = :dark
+    dark = Dict(String(collect(text)[1:3]) => last(first(pieces_of(text, appearance))))
+    @test dark[":id"] == style.color_solarized_red
+    @test last(pieces_of("3", appearance)[1]) ==
+          style.resolve_theme_color(style.ColorRole(:constant), appearance) != role(:constant)
     @test pieces_of("") == [(0, nothing)]
     # The counts are characters, also for a character of more than one byte.
     @test sum(first, pieces_of("é ∈ :x")) == length("é ∈ :x")

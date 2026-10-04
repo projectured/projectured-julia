@@ -23,27 +23,27 @@ of the default theme.
     "The font that the code of this theme follows: its family, its weight and its size."
     code_font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "A variable."
-    variable_text::TextRole = TextRole(color_solarized_blue; base = :code_font)
+    variable_text::TextRole = TextRole(:reference; base = :code_font)
     "An operator, and the `/` of a fraction."
-    operator_text::TextRole = TextRole(color_solarized_cyan; base = :code_font)
+    operator_text::TextRole = TextRole(:operator; base = :code_font)
     "A parenthesis, a brace, a bracket and the insertion leaf."
-    chrome_text::TextRole = TextRole(color_solarized_gray; base = :code_font)
+    chrome_text::TextRole = TextRole(:punctuation; base = :code_font)
     "A symbol."
-    symbol_text::TextRole = TextRole(color_solarized_violet; base = :code_font)
+    symbol_text::TextRole = TextRole(:constant; base = :code_font)
     "The name of a function, a radical, a big operator, a differential, a derivative, an accent, a matrix or a case list."
-    name_text::TextRole = TextRole(color_solarized_green; base = :code_font)
+    name_text::TextRole = TextRole(:function_name; base = :code_font)
     "A run of plain text."
-    word_text::TextRole = TextRole(color_default; base = :code_font)
+    word_text::TextRole = TextRole(:text; base = :code_font)
     "The `=` of an assignment."
-    equals_text::TextRole = TextRole(color_solarized_yellow; base = :code_font)
+    equals_text::TextRole = TextRole(:operator; base = :code_font)
     "The upright face: a number, an operator, a function name, a symbol."
     font::StyleFont = StyleFont("DejaVu Sans", 14)
     "The oblique face: a variable."
     slanted_font::FontRole = FontRole(italic = true)
     "The color of every part."
-    ink::StyleColor = color_default
+    ink::StyleColor = ColorRole(:text)
     "The color of an empty slot."
-    hint::StyleColor = color_solarized_gray
+    hint::StyleColor = ColorRole(:text_faint)
     "The color that washes a selected box."
-    selection_wash::StyleColor = StyleColor(0.15, 0.39, 0.68, 0.22)
+    selection_wash::StyleColor = ColorRole(:selection_band)
 end

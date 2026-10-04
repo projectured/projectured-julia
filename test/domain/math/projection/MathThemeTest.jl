@@ -14,7 +14,7 @@ function test_math_theme()
     theme = get_scaled_theme!(Appearance(font_scale = 1.5), MathTheme)
     leaf = MathVariableToSyntaxLeaf(; style = get_math_style(theme, :variable_text))
     @test leaf.style.font.size == 21
-    @test is_color_equal(leaf.style.color, MathTheme().variable_text.color)
+    @test is_color_equal(leaf.style.color, get_theme_value(MathTheme(), :variable_text).color)
     # A projection holds its styles and no theme, and its builder reads a theme
     # that is not scaled as at no scale.
     @test !hasfield(MathVariableToSyntaxLeaf, :theme)

@@ -36,7 +36,7 @@ Some *em* text.
     theme = get_scaled_theme!(Appearance(font_scale = 1.5), RstTheme)
     leaf = RstTextToSyntaxLeaf(; style = get_rst_style(theme, :source_text))
     @test leaf.style.font.size == 21
-    @test is_color_equal(leaf.style.color, RstTheme().source_text.color)
+    @test is_color_equal(leaf.style.color, get_theme_value(RstTheme(), :source_text).color)
     # A projection holds its styles and no theme, and its builder reads a theme
     # that is not scaled as at no scale.
     @test !hasfield(RstTextToSyntaxLeaf, :theme)

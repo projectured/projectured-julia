@@ -13,7 +13,7 @@ function test_json_theme()
     theme = get_scaled_theme!(Appearance(font_scale = 1.5), JsonTheme)
     leaf = JsonNumberToSyntaxLeaf(; style = get_json_style(theme, :number_text))
     @test leaf.style.font.size == 21
-    @test is_color_equal(leaf.style.color, JsonTheme().number_text.color)
+    @test is_color_equal(leaf.style.color, get_theme_value(JsonTheme(), :number_text).color)
     # A projection holds its styles and no theme, and its builder reads a theme
     # that is not scaled as at no scale.
     @test !hasfield(JsonNumberToSyntaxLeaf, :theme)

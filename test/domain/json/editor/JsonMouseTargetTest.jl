@@ -88,7 +88,11 @@ end
         sort!(drawn; by = d -> (d[1], d[2], d[3]))
         [d[5] for d in drawn if d[4] == bracket]
     end
-    light(level) = color_interpolate(color_solarized_orange, color_solarized_gray, level / 4)
+    # The lit bracket is the text neutral, and it fades to the punctuation gray over
+    # 3 levels.
+    lit = resolve_theme_color(ColorRole(:punctuation_lit), Appearance())
+    gray = resolve_theme_color(ColorRole(:punctuation), Appearance())
+    light(level) = color_interpolate(lit, gray, min(level, 3) / 3)
     is_lit(colors, levels) = length(colors) == length(levels) &&
         all(is_color_equal(c, light(l)) for (c, l) in zip(colors, levels))
 
@@ -106,8 +110,8 @@ end
     # Off the document, every bracket is in the gray of the delimiter. A move off
     # the view clears the part under the pointer at the root.
     replace_mouse_target!(document, nothing)
-    @test all(c -> is_color_equal(c, color_solarized_gray), bracket_colors('['))
-    @test all(c -> is_color_equal(c, color_solarized_gray), bracket_colors(']'))
+    @test all(c -> is_color_equal(c, gray), bracket_colors('['))
+    @test all(c -> is_color_equal(c, gray), bracket_colors(']'))
 end
 end # test_json_mouse_target
 

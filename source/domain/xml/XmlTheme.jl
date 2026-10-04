@@ -22,15 +22,15 @@ default theme.
     "The font that the texts of this theme follow: its family, its weight and its size."
     font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The text of a text node."
-    content_text::TextRole         = TextRole(color_black)
+    content_text::TextRole         = TextRole(:text)
     "The name of an element's opening and closing tag."
-    tag_text::TextRole             = TextRole(color_solarized_blue; weight = 700)
+    tag_text::TextRole             = TextRole(:keyword; weight = 700)
     "The angle brackets of a tag."
-    delimiter_text::TextRole       = TextRole(color_solarized_gray)
+    delimiter_text::TextRole       = TextRole(:punctuation)
     "The name of an attribute."
-    attribute_name_text::TextRole  = TextRole(color_solarized_green)
+    attribute_name_text::TextRole  = TextRole(:field)
     "The quotes around an attribute value."
-    quote_text::TextRole           = TextRole(color_solarized_yellow)
+    quote_text::TextRole           = TextRole(:punctuation)
     "The value of an attribute."
-    attribute_value_text::TextRole = TextRole(color_solarized_cyan)
+    attribute_value_text::TextRole = TextRole(:string_literal)
 end

@@ -11,9 +11,11 @@ function test_julia_theme()
     @test draw_font_sizes(document, Appearance(font_scale = 1.5)) == round.(Int, plain .* 1.5)
     @test JuliaIntegerToSyntaxLeaf().style.font.size == 14
     theme = get_scaled_theme!(Appearance(font_scale = 1.5), JuliaTheme)
-    leaf = JuliaIntegerToSyntaxLeaf(; style = get_julia_style(theme, :literal_text))
+    leaf = JuliaIntegerToSyntaxLeaf(; style = get_julia_style(theme, :constant_text))
     @test leaf.style.font.size == 21
-    @test is_color_equal(leaf.style.color, JuliaTheme().literal_text.color)
+    @test is_color_equal(leaf.style.color, get_theme_value(JuliaTheme(), :constant_text).color)
+    @test is_color_equal(JuliaIntegerToSyntaxLeaf().style.color,
+                         resolve_theme_color(ColorRole(:constant), Appearance()))
     # A projection holds its styles and no theme, and its builder reads a theme
     # that is not scaled as at no scale.
     @test !hasfield(JuliaIntegerToSyntaxLeaf, :theme)

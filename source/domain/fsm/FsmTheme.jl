@@ -23,15 +23,15 @@ of the default theme.
     "The font that the texts of this theme follow: its family, its weight and its size."
     font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The keywords: `component`, `variable`, `timer`, `event`, `machine`, `state`, `initial`, `on`, `when`, `stay`, `ignore`, `entry` and `ignoring unhandled`."
-    keyword_text::TextRole     = TextRole(color_solarized_blue; weight = 700)
+    keyword_text::TextRole     = TextRole(:keyword; weight = 700)
     "The name of a component, a variable, a timer, an event, a machine or a state."
-    name_text::TextRole        = TextRole(color_solarized_green)
+    name_text::TextRole        = TextRole(:definition)
     "A trigger, a target and an `initial`, read from the referenced part, and the reference of a transition label in a diagram."
-    reference_text::TextRole   = TextRole(color_solarized_violet)
+    reference_text::TextRole   = TextRole(:reference)
     "The punctuation around a part, and the chrome of a transition label in a diagram."
-    chrome_text::TextRole      = TextRole(color_solarized_gray)
+    chrome_text::TextRole      = TextRole(:punctuation)
     "The name of a state in a diagram."
-    state_label_text::TextRole = TextRole(color_solarized_green; weight = 700)
+    state_label_text::TextRole = TextRole(:definition; weight = 700)
     "The keyword of a transition label in a diagram."
-    trigger_text::TextRole     = TextRole(color_solarized_blue)
+    trigger_text::TextRole     = TextRole(:keyword)
 end

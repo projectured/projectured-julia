@@ -24,9 +24,9 @@ function test_graph_theme()
     # outside it and 3 wide.
     @test (box.x, box.y, box.w, box.h) == (2, 2, 96, 46)
     @test box.border_width == 2
-    @test is_color_equal(box.color, GraphTheme().node_fill)
+    @test is_color_equal(box.color, get_theme_value(GraphTheme(), :node_fill))
     @test (ring.x, ring.w) == (-4, 108)
-    @test is_color_equal(ring.color, GraphTheme().highlight)
+    @test is_color_equal(ring.color, get_theme_value(GraphTheme(), :highlight))
     @test plain.lines[1].width == 2
     @test plain.lines[1].arrow_size == 10
 
