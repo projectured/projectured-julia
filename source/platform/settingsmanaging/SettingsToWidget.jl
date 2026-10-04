@@ -13,9 +13,11 @@ after the label. Under the cards, a button resets all of them, and two buttons
 save the settings to their file and load them from it; these two are off for
 settings with no file.
 
-`theme` is the scaled `WidgetTheme` of the tab, or `nothing` for the default
-values: a summary and a description take its small font and its muted color, as
-the description of a card does.
+The projection holds its styles and no theme. Its keyword constructor fills them
+from `theme`, a `WidgetTheme` scaled or not, or the default theme for `nothing`:
+a summary and a description take its small font and its muted color, as the
+description of a card does, and the cards, the rows, the columns and the buttons
+take its gaps.
 
 - A `Bool` is a switch, a number is a spin box with the step of its values, a
   `Symbol` is a choice of its values, and a `String` is a text.
@@ -37,10 +39,26 @@ normal edit of a group, a `ReplaceReferencedValueOperation` of one setting, and
 the `settings` wrapper turns it into an applied setting.
 """
 struct SettingsToWidget <: Projection
-    theme::Any        # the scaled widget theme of the tab, or nothing
+    caption::Any        # the style of a summary and a description: a `StyleText` or a cell of one
+    label_gap::Any      # between the buttons under the cards: a number or a cell of one
+    section_gap::Any    # between the cards
+    column_gap::Any     # between the columns of a card
+    row_gap::Any        # between the rows of a card
 end
 
-SettingsToWidget(; theme = nothing) = SettingsToWidget(theme)
+SettingsToWidget(; theme = nothing, caption = _make_caption_style(theme),
+                 label_gap = get_widget_style(theme, :label_gap),
+                 section_gap = get_widget_style(theme, :section_gap),
+                 column_gap = get_widget_style(theme, :form_column_gap),
+                 row_gap = get_widget_style(theme, :form_row_gap)) =
+    SettingsToWidget(caption, label_gap, section_gap, column_gap, row_gap)
+
+# The style of a summary and a description: the small font and the muted color of
+# the widget theme `theme`, scaled or not, as the description of a card, or of the
+# default theme for `nothing`.
+_make_caption_style(::Nothing) = _compute_caption_style(get_theme_defaults(WidgetTheme))
+_make_caption_style(theme) = make_theme_cell(StyleText, theme, _compute_caption_style)
+_compute_caption_style(values) = StyleText(values.font_small, values.muted_foreground)
 
 # `controls` holds `(control, group, name, convert)` for each control of a setting,
 # so the reader turns the write of a control into the write of its setting:
@@ -60,9 +78,9 @@ const _DESCRIPTION_GAP = 0
 function print_document(p::SettingsToWidget, recursion, settings::Settings, ctx)
     controls = Tuple{Any,Any,Symbol,Any}[]
     groups = get_settings_groups(settings)
-    values = _get_widget_values(p.theme)
-    caption = StyleText(values.font_small, values.muted_foreground)
-    cards = Any[_make_group_card(settings, group, controls, caption, values) for group in groups]
+    caption = unwrap_cell(p.caption)
+    gaps = (column = unwrap_cell(p.column_gap), row = unwrap_cell(p.row_gap))
+    cards = Any[_make_group_card(settings, group, controls, caption, gaps) for group in groups]
     reset = _make_command_button("Reset all", "Give every setting its default.",
                                () -> _make_reset_operation(groups))
     save = _make_command_button("Save", "Write the settings to their file.",
@@ -72,8 +90,8 @@ function print_document(p::SettingsToWidget, recursion, settings::Settings, ctx)
     for button in (save, load)
         set_cell_computation!(getfield(button, :enabled), () -> !isempty(settings.file))
     end
-    buttons = HorizontalLayout(Any[reset, save, load]; gap = values.label_gap)
-    output = WidgetScrollPane(VerticalLayout(Any[cards..., buttons]; gap = values.section_gap))
+    buttons = HorizontalLayout(Any[reset, save, load]; gap = unwrap_cell(p.label_gap))
+    output = WidgetScrollPane(VerticalLayout(Any[cards..., buttons]; gap = unwrap_cell(p.section_gap)))
     # Each kind of path of the settings names a part of the tab: the output holds
     # its image, and each document below it the part of its parent's path.
     set_output_path_computations!(output, settings, path -> find_introduced_path(p, path))
@@ -81,17 +99,12 @@ function print_document(p::SettingsToWidget, recursion, settings::Settings, ctx)
     SettingsToWidgetIoMap(p, settings, output, controls)
 end
 
-# The values of the scaled widget theme of the tab, or of the default theme. A
-# summary and a description take its small font and its muted color, as the
-# description of a card, and the cards, the rows and the columns its gaps.
-_get_widget_values(theme) = theme === nothing ? get_theme_defaults(WidgetTheme) : theme
-
 # A card of one group: its name, the summary of its type and a note when the
 # editor does not use it, and for each setting a row and its description under it,
 # across the three columns. The note and the state of the controls follow the
 # unused types of the settings, which the start step of the editor finds after the
 # first print.
-function _make_group_card(settings::Settings, group, controls, caption::StyleText, values)
+function _make_group_card(settings::Settings, group, controls, caption::StyleText, gaps)
     T = get_settings_group_type(group)
     is_used = () -> !(T in settings.unused_types)
     cells = Any[]
@@ -112,7 +125,7 @@ function _make_group_card(settings::Settings, group, controls, caption::StyleTex
             push!(row_gaps, _DESCRIPTION_GAP)
         end
     end
-    grid = GridLayout(cells, 3; horizontal_gap = values.form_column_gap, vertical_gap = values.form_row_gap,
+    grid = GridLayout(cells, 3; horizontal_gap = gaps.column, vertical_gap = gaps.row,
                       vertical_align = :center, row_gaps)
     card = WidgetCard(; title = WidgetLabel(_make_group_title(T)),
                       content = WidgetComposite(Any[grid]))
