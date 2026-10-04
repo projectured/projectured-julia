@@ -66,6 +66,7 @@ one of its appearance.
     theme::Any = nothing
     query_field_width::Int = _get_data_frame_style(theme, :query_field_width, Int)
     expression_field_width::Int = _get_data_frame_style(theme, :expression_field_width, Int)
+    find_field_width::Int = _get_data_frame_style(theme, :find_field_width, Int)
     filter_gap::Int = _get_data_frame_style(theme, :filter_gap, Int)
     expression_gap::Int = _get_data_frame_style(theme, :expression_gap, Int)
     invalid_query::StyleColor = _get_data_frame_style(theme, :invalid_query, StyleColor)

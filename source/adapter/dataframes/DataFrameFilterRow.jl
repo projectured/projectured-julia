@@ -159,8 +159,8 @@ function _make_expression_bar(p, view)
                               () -> last(view.expression_result), p.expression_field_width, p.invalid_query;
                               language = :julia,
                               placeholder = () -> (view.frame_version; _make_expression_example(view.frame)))
-    find = _make_query_field(() -> view.find_text, () -> _find_find_range(view), () -> _get_find_reason(view);
-                             width = _FIND_FIELD_WIDTH, placeholder = () -> "Find (Ctrl+F)")
+    find = _make_query_field(() -> view.find_text, () -> _find_find_range(view), () -> _get_find_reason(view),
+                             p.find_field_width, p.invalid_query; placeholder = () -> "Find (Ctrl+F)")
     bar = GridLayout(Any[WidgetLabel("Rows where"), field, WidgetLabel(""), find, _make_refresh_glyph(view)], 5;
                      horizontal_gap = p.expression_gap, vertical_align = :center,
                      column_policies = Any[Content, Content, Fill, Content, Content])
@@ -172,9 +172,6 @@ function _make_expression_bar(p, view)
     end)
     bar
 end
-
-# The width of the find field.
-const _FIND_FIELD_WIDTH = 160
 
 # The glyph that reads the frame of `view` again: a flat toolbar item, whose
 # tooltip names the key that does the same.

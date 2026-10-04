@@ -26,9 +26,11 @@ with this one.
     query_field_width::ControlSize = ControlSize(80)
     "The width of the field of the expression bar."
     expression_field_width::ControlSize = ControlSize(480)
+    "The width of the find field of the expression bar."
+    find_field_width::ControlSize = ControlSize(160)
     "The gap between the name of a column and the glyph of its sort, in its header."
     filter_gap::Spacing = Spacing(4)
-    "The gap between the parts of the expression bar: the words, the field and the glyph."
+    "The gap between the parts of the expression bar: the words, the fields and the glyph."
     expression_gap::Spacing = Spacing(8)
     "A field of the filter row or of the expression bar whose text does not parse."
     invalid_query::StyleColor = color_lighten(color_red, 0.75)
