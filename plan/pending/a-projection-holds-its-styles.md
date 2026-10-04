@@ -111,6 +111,9 @@ package, so the steps of its slices run one after another.
 - [ ] **M3. The ten document domains**, one commit each: JSON, XML, YAML, SQL
   (with its plain text), Julia, Math (`MathConfig`), Formula, Markdown (with its
   heading fonts), RST (with its title fonts and its roles), Book.
+  - [x] JSON, the model (`da62a6196`). [x] XML (`050afba98`). The local function
+    of a factory that gives a style is `get_style(name)`, a name with a verb;
+    the factory of YAML has a keyword `style` already (`7319a403f`).
 - [ ] **M4. The charts, the graph, process, FSM and the database catalog.**
 - [ ] **M5. The tools**: the fault log, the gesture log, the message log, the
   frame statistics, undo, the file explorer, the gesture help and the palette,
@@ -235,3 +238,6 @@ suites that build a themed view, and the images of both tabs.
    `SelectionInspectorToText`. The rule for both forms: a projection holds styles
    and no theme, and nothing in it scales. The tests of the text, the syntax, the
    themes, the inspector and of JSON and SQL give 1600 pass.
+3. **The images do not change after M1, M2 and JSON** (2026-10-04). Each of the
+   105 examples renders to an image equal byte for byte to the image of `main`
+   (`bccfd39d6`), for the branch at `da62a6196`.
