@@ -386,4 +386,11 @@ suites that build a themed view, and the images of both tabs.
      widgets of a simulation build with a scaled `Appearance`, and a state label
      of `FsmToSyntaxLabel` draws at 21 for a font scale of 1.5. The whole
      presentation and legacy suites run longer than 40 minutes and were stopped.
+10. **After the landing** (2026-10-04, `main` `63a8a5e74` against `a1ddd776e`, by the owner's
+    "land first, test after"). The 106 examples render equal in both passes; the guards and the
+    domain suites, and `test_platform`, have the same failures. The appearance tab and the
+    settings tab render equal at scale 1 and scaled, through `NaturalToGraphics`, with every
+    card closed; the seven new fields of `WidgetTheme` show only in the open Widget card, which
+    the tests of the appearance tab cover. omnet `7c89b11d` over it gives the results of omnet
+    `main` before the landing.
 
