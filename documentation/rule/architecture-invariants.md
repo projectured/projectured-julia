@@ -1087,10 +1087,11 @@ conflict PAR-PER-EDITOR-STATE targets.
 ### PAR-REPORT-NEVER-THROWS
 
 **A fault report never throws, and a barrier never swallows a fault in
-silence.** `report_fault!` may not raise: it runs when everything else has
-already failed, and an exception from it turns one broken frame into a dead
-editor. It reports at the first tier that works — a mark in the document, the
-message log, the console, a sound, nothing — and each tier falls to the next. A
+silence.** `report_fault!` may not raise an ordinary exception: it runs when
+everything else has already failed, and an exception from it turns one broken
+frame into a dead editor. It reports at the first tier that works — a mark in the
+document, the message log, the console, a sound, nothing — and each tier falls to
+the next. A
 store that throws and a backend that throws, both at once, still answer a tier,
 and a log target that throws does not stop the drain. Tests assert both.
 
@@ -1108,8 +1109,10 @@ An exception that means the program is to stop or can not go on is never caught:
 `is_passthrough_exception` names them one at a time — `QuitEditorException`,
 `InterruptException`, `StackOverflowError`, `OutOfMemoryError` — and a layer that
 owns a control-flow exception adds its own method. **Every catch-all arm asks it
-first and rethrows when it answers true**, in every layer: a barrier, a walk, a
-search, a fallback for a text. A catch that hands the exception on to its caller,
+first and rethrows when it answers true**, in every layer: a barrier, the report
+path, a walk, a search, a fallback for a text. "A report never throws" is about an
+ordinary exception; an exception that means stop asks for a stopped editor, and a
+report lets it go on. A catch that hands the exception on to its caller,
 as the build of an editor does through a channel, keeps it.
 
 **One accepted exception: the model code of the code tool.** The code tool acts as

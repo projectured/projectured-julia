@@ -20,6 +20,10 @@ end
 FaultModule.append_fault!(target::QuietTarget, record) = push!(target.seen, record)
 FaultModule.append_fault!(::AngryTarget, record) = error("this target refuses records")
 
+# A target that a person stops while it takes a record.
+struct InterruptedTarget end
+FaultModule.append_fault!(::InterruptedTarget, record) = throw(InterruptException())
+
 function test_fault_store()
 @testset "the fault store" begin
 
@@ -163,6 +167,17 @@ function test_fault_store()
         attach_fault_wake!(store, () -> error("the wake is broken"))
         @test record_fault!(store, :print; origin = :P,
                             exception = ErrorException("e")) !== nothing
+    end
+
+    @testset "an exception that means stop goes through the drain and the wake" begin
+        store = FaultStore()
+        attach_fault_target!(store, InterruptedTarget())
+        record_fault!(store, :print; origin = :P, exception = ErrorException("e"))
+        @test_throws InterruptException drain_faults!(store)
+        woken = FaultStore()
+        attach_fault_wake!(woken, () -> throw(InterruptException()))
+        @test_throws InterruptException record_fault!(woken, :print; origin = :P,
+                                                      exception = ErrorException("e"))
     end
 end
 end

@@ -102,14 +102,15 @@ attach_fault_wake!(store::FaultStore, wake) = (store.wake = wake; store)
 attach_fault_wake!(::Nothing, wake) = nothing
 
 # Best effort, and it must stay that: `record_fault!` runs inside reactive
-# computations and inside barriers, so a wake that throws must not throw through
-# them (PAR-REPORT-NEVER-THROWS).
+# computations and inside barriers, so an ordinary exception of the wake must not
+# throw through them (PAR-REPORT-NEVER-THROWS). An exception that means stop goes on.
 function _notify_fault_wake!(store::FaultStore)
     wake = store.wake
     wake === nothing && return nothing
     try
         wake()
-    catch
+    catch exception
+        is_passthrough_exception(exception) && rethrow()
     end
     nothing
 end
@@ -220,6 +221,7 @@ function drain_faults!(store::FaultStore; policy = FaultPolicy())
             try
                 append_fault!(target, record)
             catch exception
+                is_passthrough_exception(exception) && rethrow()
                 _log_fault_report_failure(policy, target, exception)
             end
         end

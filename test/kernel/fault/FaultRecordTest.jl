@@ -11,6 +11,11 @@ Confirms:
 using Test
 using ProjecturedKernel.FaultModule
 
+# An exception whose message a person stops while it is written.
+struct InterruptedShowException <: Exception end
+Base.showerror(::IO, ::InterruptedShowException) = throw(InterruptException())
+Base.showerror(::IO, ::InterruptedShowException, traceback) = throw(InterruptException())
+
 function test_fault_record()
 @testset "fault record" begin
 
@@ -35,6 +40,13 @@ function test_fault_record()
         @test union_record.origin === Symbol(string(Union{Int, String}))
         bottom_record = make_fault_record(:print; origin = Union{}, exception)
         @test bottom_record.origin === Symbol("Union{}")
+    end
+
+    @testset "an exception that means stop goes through the formatting" begin
+        exception = InterruptedShowException()
+        @test_throws InterruptException FaultModule._format_fault_message(exception)
+        @test_throws InterruptException FaultModule._format_fault_traceback(exception,
+                                                                           backtrace())
     end
 
 end

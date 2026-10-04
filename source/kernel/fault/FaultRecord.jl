@@ -71,13 +71,15 @@ _compute_fault_key(site::Symbol, origin::Symbol, exception_type::Symbol) =
 The message of `exception`, as one line, truncated to `maximum_length`
 characters.
 
-It never throws. An exception whose own `showerror` fails answers its type name,
-because a report that can not be written is worse than a report that is short.
+It never throws an ordinary exception. An exception whose own `showerror` fails
+answers its type name, because a report that can not be written is worse than a
+report that is short. An exception that means stop goes on.
 """
 function _format_fault_message(exception; maximum_length::Integer = 400)
     text = try
         sprint(showerror, exception)
-    catch
+    catch failure
+        is_passthrough_exception(failure) && rethrow()
         string(nameof(typeof(exception)))
     end
     text = replace(text, '\n' => ' ')
@@ -89,7 +91,8 @@ end
 
 The traceback of `exception`, truncated to the frames nearest the failure.
 
-It never throws, and it answers `""` where no traceback was taken. Formatting a
+It never throws an ordinary exception, and it answers `""` where no traceback was
+taken. Formatting a
 traceback is expensive, so `record_fault!` formats one only for a key the store
 has not seen.
 """
@@ -97,7 +100,8 @@ function _format_fault_traceback(exception, traceback; maximum_lines::Integer = 
     traceback === nothing && return ""
     text = try
         sprint(showerror, exception, traceback)
-    catch
+    catch failure
+        is_passthrough_exception(failure) && rethrow()
         return ""
     end
     lines = split(text, '\n')

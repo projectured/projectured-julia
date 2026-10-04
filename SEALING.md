@@ -56,10 +56,10 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `fault/FaultModule.jl`
   - 🔒 `fault/FaultInterface.jl`
   - 🔒 `fault/FaultDefaults.jl`
-  - 🔒 `fault/FaultRecord.jl`
-  - 🔒 `fault/FaultStore.jl`
+  - ⬜ `fault/FaultRecord.jl`
+  - ⬜ `fault/FaultStore.jl`
   - ⬜ `fault/FaultPolicy.jl`
-  - 🔒 `fault/FaultCascade.jl`
+  - ⬜ `fault/FaultCascade.jl`
   - 🔒 `fault/FaultBarrier.jl`
 - **Layer 2 — performance** (`performance/`)
   - 🔒 `performance/PerformanceModule.jl`

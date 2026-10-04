@@ -47,6 +47,10 @@ function FaultModule.play_fault_sound!(backend::NestedReportBackend)
     nothing
 end
 
+# A backend whose sound is stopped by a person.
+struct InterruptedSoundBackend end
+FaultModule.play_fault_sound!(::InterruptedSoundBackend) = throw(InterruptException())
+
 # Run `body` with the log sent to a test logger. Answer the value of `body` and
 # the number of error lines.
 function _run_with_test_logger(body)
@@ -131,6 +135,15 @@ function test_fault_cascade()
         @test backend.nested_tiers == [:console]
         @test backend.sounds == 1
         @test errors == 2
+        @test store.depth == 0
+    end
+
+    @testset "an exception that means stop goes through the report" begin
+        store = FaultStore()
+        record = _record_cascade_fault!(store, :device)
+        quiet = FaultPolicy(is_console_enabled = false)
+        @test_throws InterruptException report_fault!(store, record; policy = quiet,
+                                                      backend = InterruptedSoundBackend())
         @test store.depth == 0
     end
 end
