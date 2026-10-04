@@ -108,7 +108,7 @@ package, so the steps of its slices run one after another.
 - [x] **M2. The text and the syntax.** Done; finding 2. Their projections lose the field
   `theme`, their factories (`SyntaxToText`, `TextToGraphics`, the insertion
   leaf of a domain) fill the styles.
-- [ ] **M3. The ten document domains**, one commit each: JSON, XML, YAML, SQL
+- [x] **M3. The ten document domains**, one commit each: JSON, XML, YAML, SQL
   (with its plain text), Julia, Math (`MathConfig`), Formula, Markdown (with its
   heading fonts), RST (with its title fonts and its roles), Book.
   - [x] JSON, the model (`ea994afb4`). [x] XML (`55ec211b2`). The local function
@@ -121,7 +121,17 @@ package, so the steps of its slices run one after another.
     and prints each projection that misses a style:
     `python3 /var/tmp/projection-styles/check_factory.py <file> <get_x_style> <factory>`.
     JSON, XML, YAML, SQL, Julia and Math give `bad 0`.
-- [ ] **M4. The charts, the graph, process, FSM and the database catalog.**
+  - [x] Formula (`76a7f4c47`, `03030616d`: a helper by hand that read one field
+    goes). [x] Markdown (`27f803964`, `1d3d5669a`), finding 8. [x] RST
+    (`ff1cc507d`, `6fe919b09`), finding 8. [x] Book (`a11a09069`). Every
+    factory gives `bad 0`, except extra keywords that are no styles.
+- [x] **M4. The charts, the graph, process, FSM and the database catalog.**
+  Chart, sequence chart and graph (`f21842adf`): their printers hold the values
+  of the theme in one field already, so only `scale_theme` goes, and the plan of
+  a chart names those values `theme_values` beside the `ChartStyle` of the
+  chart (6.7). Process (`39a332180`), DB catalog (`54f8db940`), FSM
+  (`69ce8fd81`): FSM gains `FsmToSyntaxLabel`, the table of the labels of its
+  diagram, in the form of `ProcessToSyntaxLabel`, for omnet (finding 6).
 - [x] **M5. The tools**: the fault log, the gesture log, the message log, the
   frame statistics, undo, the file explorer, the gesture help and the palette,
   help, the inspector, the settings tab; finding 7. Also the tooltip window, the
@@ -136,12 +146,18 @@ package, so the steps of its slices run one after another.
   `WidgetTheme` (6.1); the five printers that size an icon beside a text read a
   style for it (6.2).
 - [ ] **M7. omnet**: a call scan for the factories whose keyword changed.
-- [ ] **M8. The tests**: the 15 files that build a projection with `theme` build
-  it through its factory, or pass the style.
+  Done as a scan (finding 6); the change in omnet waits for the owner.
+- [x] **M8. The tests**: the 15 files that build a projection with `theme` build
+  it through its factory, or pass the style. Each step changed the theme test
+  of its package, and added a check that the projection has no field `theme`
+  and that a theme that is not scaled draws at no scale.
 - [ ] **M9. The guides**: the style slice, the widget slice, the guide for a new
   domain, the section "The theme" of each domain, and a rule in
   `architecture-rules.md`: a projection holds its styles, a builder fills them,
   and only a builder with an appearance scales.
+  - [x] The guides (`2a3080d65`, `c46c10dcc`) and the docstrings of every theme.
+  - [ ] `scale_theme` goes: it waits for omnet (finding 6). No caller in this
+    repository is left.
 
 Checks after each step: the theme test and the suite of the package that
 changed. At the end: the suites of every domain, the tool and the guard tests,
@@ -329,3 +345,14 @@ suites that build a themed view, and the images of both tabs.
    (`DataFrameFilterTest.jl:83`, a row number 2 px above its cells) fails on
    `main` at `759a7ce2a` in the same way.
 
+
+8. **A heading and a title choose a font by level from fields** (M3,
+   2026-10-04). A Markdown heading and an RST section title held the theme only
+   to choose one of four fonts by the level while they print. Each holds the four
+   fonts as fields named as the fields of the theme (`heading_1_font` …
+   `heading_font`, `title_1_font` … `title_font`), and `_get_heading_font` or
+   `_get_title_font` chooses one. The role chip of RST chose one of six colors by
+   the name of a role in the same way; it holds the six styles. The chart, the
+   sequence chart and the graph hold all the values of their theme as one
+   `NamedTuple` field already, which `make_theme_values_field` fills from a theme
+   scaled or not.
