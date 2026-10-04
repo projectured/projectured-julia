@@ -96,6 +96,7 @@ end
     appearance = Appearance()
     projection = NaturalToGraphics(; measure, appearance)
     theme = get_theme(appearance, WidgetTheme)
+    get_scaled_theme!(appearance, FaultTheme)
     iomap = print_document(projection, nothing, appearance, offer)
     tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
     @test tab !== nothing
@@ -109,16 +110,18 @@ end
     @test write.document === theme && write.value == Spacing(5)
     evaluate_operation(nothing, translate(ReplaceReferencedValueOperation(box, "value", 5)))
     @test get_scaled_theme!(appearance, WidgetTheme).item_gap == 5
-    # The choice of the dark preset writes every field of the preset. Other themes
-    # have presets too; the choice of the widget theme writes the widget theme.
-    writes_widget_theme(op) = op isa CompoundOperation &&
-                              all(member -> unwrap(member).document === theme, op.operations)
-    choice = only(w for (w, write) in tab.writes if w isa WidgetRadioGroup && writes_widget_theme(write(2)))
+    # The choice of the panel preset of the fault theme writes every field of the
+    # preset. The widget theme has no preset: its colours are roles.
+    fault = get_theme(appearance, FaultTheme)
+    writes_theme(op, target) = op isa CompoundOperation &&
+                                all(member -> unwrap(member).document === target, op.operations)
+    @test !any(w isa WidgetRadioGroup && writes_theme(write(1), theme) for (w, write) in tab.writes)
+    choice = only(w for (w, write) in tab.writes if w isa WidgetRadioGroup && writes_theme(write(2), fault))
     preset = translate(ReplaceReferencedValueOperation(choice, "selected", 2))
     @test preset isa CompoundOperation
-    @test length(preset.operations) == length(get_theme_field_names(WidgetTheme))
+    @test length(preset.operations) == length(get_theme_field_names(FaultTheme))
     evaluate_operation(nothing, preset)
-    @test is_color_equal(theme.background, make_slate_dark_theme().background)
+    @test fault.message_text == ProjecturedPlatform.FaultViewModule.make_fault_log_panel_theme().message_text
     # The step of a font goes to the next font file, at the same size.
     font_step = only(op for (action, op) in tab.commands if action.label == "›" &&
                      unwrap(op).document === theme &&
@@ -193,26 +196,27 @@ end
     texts = first.(_at_collect_texts(iomap.output))
     @test "bool text" in texts
     @test !any(t -> startswith(t, "TextRole") || startswith(t, "StyleText"), texts)
-    @test format_style_color(syntax.bool_text.color) in texts
+    @test format_theme_color(syntax.bool_text.color) == "@constant"
+    @test "@constant" in texts
     # The base font of the theme shows its family once; a role shows its size in
     # percent of the base.
     @test count(==("Ubuntu Mono"), texts) == 1
     @test "% of font" in texts
     tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
     before = syntax.bool_text
-    # The colour text of `bool_text`: a typed digit writes a role with the new
-    # colour and the same font role.
-    writes = [first(edit(1, 1, "f")) for edit in values(tab.edits) if edit(1, 1, "f") !== nothing]
-    write = only(w for w in writes
-                 if w.document === syntax && w.reference.head == FieldReferenceStep("bool_text"))
-    @test write.value isa TextRole && write.value.font == before.font
-    @test format_style_color(write.value.color)[2] == 'f'
+    # The button › of the colour of `bool_text` writes a text role with the next
+    # role of the colour theme and the same font role.
+    next_role = only(op for (action, op) in tab.commands if action.label == "›" &&
+                     op isa ReplaceReferencedValueOperation && op.document === syntax &&
+                     op.reference.head == FieldReferenceStep("bool_text"))
+    @test next_role.value isa TextRole && next_role.value.font == before.font
+    @test next_role.value.color == ColorRole(:type_name)
     # The step to a heavier weight sets the weight of the role and keeps the colour.
     step = only(op for (action, op) in tab.commands if action.label == "+" &&
                 op isa ReplaceReferencedValueOperation && op.document === syntax &&
                 op.reference.head == FieldReferenceStep("bool_text"))
     @test step.value.font.weight == 700 && step.value.font.relative_size == 1.0
-    @test is_color_equal(step.value.color, before.color)
+    @test step.value.color == before.color
     # The size of the role in percent writes its relative size.
     writes_bool_text(op) = op isa ReplaceReferencedValueOperation && op.document === syntax &&
                            op.reference.head == FieldReferenceStep("bool_text")
@@ -287,6 +291,9 @@ end
     run_frame!(editor)
     appearance = find_editor_appearance(editor)
     theme = get_theme(appearance, WidgetTheme)
+    # The primary colour is a role; a fixed colour, as the button "Fix" writes it,
+    # shows as a text.
+    theme.primary = resolve_theme_color(theme.primary, appearance)
     before = format_style_color(theme.primary)
     time = Ref(1.0)
     send!(events...) = begin
@@ -353,6 +360,9 @@ end
     run_frame!(editor)
     appearance = find_editor_appearance(editor)
     theme = get_theme(appearance, WidgetTheme)
+    # The primary colour is a role; a fixed colour, as the button "Fix" writes it,
+    # shows as a text.
+    theme.primary = resolve_theme_color(theme.primary, appearance)
     before = format_style_color(theme.primary)
     changed = "#f" * before[3:end]
     time = Ref(1.0)

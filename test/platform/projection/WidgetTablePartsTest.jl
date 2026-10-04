@@ -976,9 +976,9 @@ end
     # A failed commit marks the cell with a frame of four bars, which each region
     # of a table of a vector draws behind its pane, and a rest on it shows the
     # reason.
-    marks = rects_in(io.output, ProjecturedPlatform.StyleModule.color_destructive)
+    marks = rects_in(io.output, get_theme_defaults(WidgetTheme).destructive)
     getfield(table, :open_cells)[] = Any[(row = 2, column = 1, reason = "not a number")]
-    added = rects_in(io.output, ProjecturedPlatform.StyleModule.color_destructive) - marks
+    added = rects_in(io.output, get_theme_defaults(WidgetTheme).destructive) - marks
     @test added > 0 && added % 4 == 0
     (x, y) = place(io, 2, 1)
     tooltip = read(io, MouseDwell(x + 2, y + 2; time = 0.0))
@@ -986,7 +986,7 @@ end
     layers = get_wrapped_operation(tooltip).layers
     @test any(layer -> last(layer) isa PrimitiveString && last(layer).value == "not a number", layers)
     getfield(table, :open_cells)[] = Any[]
-    @test rects_in(io.output, ProjecturedPlatform.StyleModule.color_destructive) == marks
+    @test rects_in(io.output, get_theme_defaults(WidgetTheme).destructive) == marks
 end
 
 end

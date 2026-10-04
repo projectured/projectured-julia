@@ -88,7 +88,7 @@ end
     theme = get_scaled_theme!(Appearance(font_scale = 1.5), SyntaxTheme)
     leaf = PrimitiveNumberToSyntaxLeaf(; theme)
     @test leaf.style.font.size == 21
-    @test is_color_equal(leaf.style.color, SyntaxTheme().number_text.color)
+    @test is_color_equal(leaf.style.color, get_theme_value(SyntaxTheme(), :number_text).color)
 end
 
 end

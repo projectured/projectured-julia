@@ -22,17 +22,17 @@ with no styles holds the plain values of the default theme.
     "The font that the texts of this theme follow: its family, its weight and its size."
     font::StyleFont = StyleFont("DejaVu Sans Mono", 13)
     "The number of the entry."
-    index_text::TextRole = TextRole(color_slate_500)
+    index_text::TextRole = TextRole(:text_muted)
     "The gesture that the entry records."
-    gesture_text::TextRole = TextRole(color_solarized_cyan; weight = 700)
+    gesture_text::TextRole = TextRole(:accent_text; weight = 700)
     "The operation the gesture makes."
-    operation_text::TextRole = TextRole(color_slate_700)
+    operation_text::TextRole = TextRole(:text)
     "A line that records a selection, which is context and not a change."
-    muted_text::TextRole = TextRole(color_slate_500)
+    muted_text::TextRole = TextRole(:text_faint)
     "The line the log shows while it holds no gesture."
-    empty_text::TextRole = TextRole(color_slate_500)
+    empty_text::TextRole = TextRole(:text_faint)
     "The surface of the panel that shows the log over the content of a window: dark and translucent, so the content stays readable and the light text of the log reads over any content."
-    panel_background::StyleColor = StyleColor(0.0, 0.0, 0.0, 0.72)
+    panel_background::StyleColor = ColorRole(:surface_inverse)
     "The space between the panel and the edges of the window."
     panel_margin::Spacing = Spacing(12)
     "The space inside the panel, around the lines of the log."
@@ -44,13 +44,15 @@ end
 """
     make_gesture_log_panel_theme() -> GestureLogTheme
 
-The gesture log theme of the panel over a window: light text for the dark
-background of the panel.
+The gesture log theme of the panel over a window: the texts of the inverse
+surface of the panel, dark in the light mode and light in the dark mode.
 """
 make_gesture_log_panel_theme() =
-    GestureLogTheme(index_text = TextRole(color_gray159), operation_text = TextRole(color_gray223),
-                    muted_text = TextRole(color_solarized_gray), empty_text = TextRole(color_solarized_gray))
+    GestureLogTheme(index_text = TextRole(:text_inverse_muted),
+                    gesture_text = TextRole(:text_inverse; weight = 700),
+                    operation_text = TextRole(:text_inverse), muted_text = TextRole(:text_inverse_muted),
+                    empty_text = TextRole(:text_inverse_muted))
 
-# The two presets, for the appearance tab.
+# The two presets, for the appearance tab: the log on a surface, and on its panel.
 get_theme_presets(::Type{GestureLogTheme}) =
-    Pair{String,Any}["Light" => GestureLogTheme, "Panel" => make_gesture_log_panel_theme]
+    Pair{String,Any}["Plain" => GestureLogTheme, "Panel" => make_gesture_log_panel_theme]

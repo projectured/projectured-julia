@@ -90,8 +90,8 @@ end
     panel = output.elements[1]
     panel = panel isa CellModule.Cell ? panel[] : panel
     @test panel isa GraphicsRect
-    @test is_color_equal(panel.color, theme.popover)
-    @test is_color_equal(panel.border_color, theme.border)
+    @test is_color_equal(panel.color, get_theme_value(theme, :popover))
+    @test is_color_equal(panel.border_color, get_theme_value(theme, :border))
     @test (Int(panel.w), Int(panel.h)) == (Int(output.w), Int(output.h))
 end
 

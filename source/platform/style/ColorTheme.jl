@@ -24,9 +24,9 @@ backgrounds, and 7 in a high contrast theme.
 @theme struct ColorTheme
     # ── Surfaces ──
     "The background of a window and of an editor."
-    background::StyleColor = PaletteColor(:neutral, 1)
-    "A raised surface: a card, a menu, a popup, a panel."
-    surface::StyleColor = PaletteColor(:neutral, 2)
+    background::StyleColor = PaletteColor(:neutral, 2)
+    "A raised surface: a card, a menu, a popup, a panel. It is lighter than the background in both modes."
+    surface::StyleColor = PaletteColor(:neutral, 1)
     "A quiet surface: a track, a gutter, a disabled control, a sunken field."
     surface_sunken::StyleColor = PaletteColor(:neutral, 3)
     "A panel over the content of a window, such as the fault log: dark in the light mode, light in the dark mode."
@@ -60,8 +60,8 @@ backgrounds, and 7 in a high contrast theme.
     accent_text::StyleColor = PaletteColor(:accent, 11; minimum_contrast = 4.5)
     "A tint of the accent: the fill of a hovered or a chosen item of a list or a menu."
     accent_tint::StyleColor = PaletteColor(:accent, 3)
-    "The ring around the control that holds the keyboard."
-    focus_ring::StyleColor = PaletteColor(:accent, 9; minimum_contrast = 3.0)
+    "The ring around the control that holds the keyboard. It differs from the selection ring, so a control selected as a whole and a control with the caret look different."
+    focus_ring::StyleColor = PaletteColor(:accent, 8; minimum_contrast = 3.0)
     # ── Layers of a state ──
     "The layer over a part under the pointer."
     hover::StyleColor = PaletteColor(:neutral, 12; alpha = 0.06)
@@ -183,16 +183,24 @@ get_color_variant(appearance::Appearance) =
 """
     make_color_theme(variant) -> ColorTheme
 
-The default colour theme of `variant`, one of [`COLOR_VARIANTS`](@ref). A dark
-theme has darker shadows and scrims; a high contrast theme takes its texts, its
-tokens and its lines to a contrast of 7, and its layers further from the surface.
+The default colour theme of `variant`, one of [`COLOR_VARIANTS`](@ref). A raised
+surface is lighter than the background: step 1 on step 2 in the light mode, and
+step 2 on step 1 in the dark mode. The selection ring differs from the focus ring
+in each variant: step 9 of the accent against step 8 in the light mode, step 11
+against step 8 in the dark mode, and step 12 against step 11 in a high contrast
+theme. A dark theme has darker shadows and scrims; a
+high contrast theme has one surface, takes its texts, its tokens and its lines to
+a contrast of 7, and its layers further from the surface.
 """
 function make_color_theme(variant::Symbol)
     variant in COLOR_VARIANTS ||
         throw(ArgumentError("$(repr(variant)) is no colour variant; the variants are $(COLOR_VARIANTS)"))
     dark = variant in (:dark, :dark_high_contrast) ?
-        (shadow = StyleColor(0.0, 0.0, 0.0, 0.4), scrim = StyleColor(0.0, 0.0, 0.0, 0.6)) : (;)
+        (background = PaletteColor(:neutral, 1), surface = PaletteColor(:neutral, 2),
+         selection_ring = PaletteColor(:accent, 11; minimum_contrast = 3.0),
+         shadow = StyleColor(0.0, 0.0, 0.0, 0.4), scrim = StyleColor(0.0, 0.0, 0.0, 0.6)) : (;)
     high = variant in (:light_high_contrast, :dark_high_contrast) ? (
+        background = PaletteColor(:neutral, 1),
         surface = PaletteColor(:neutral, 1),
         surface_sunken = PaletteColor(:neutral, 2),
         surface_inverse = PaletteColor(:neutral, 12),
@@ -208,7 +216,7 @@ function make_color_theme(variant::Symbol)
         pressed = PaletteColor(:neutral, 12; alpha = 0.2),
         selection_band = PaletteColor(:accent, 9; alpha = 0.4),
         selection_band_dormant = PaletteColor(:neutral, 9; alpha = 0.35),
-        selection_ring = PaletteColor(:accent, 11; minimum_contrast = 4.5),
+        selection_ring = PaletteColor(:accent, 12),
         search_match = PaletteColor(:amber, 9; alpha = 0.7),
         error_fill = PaletteColor(:red, 11; minimum_contrast = 7.0, against = color_white),
         error_text = PaletteColor(:red, 11; minimum_contrast = 7.0),
@@ -232,7 +240,7 @@ function make_color_theme(variant::Symbol)
         series_3 = PaletteColor(:green, 10), series_4 = PaletteColor(:pink, 10),
         series_5 = PaletteColor(:teal, 10), series_6 = PaletteColor(:violet, 10),
         series_7 = PaletteColor(:amber, 10), series_8 = PaletteColor(:red, 10)) : (;)
-    ColorTheme(; dark..., high...)
+    ColorTheme(; merge(dark, high)...)
 end
 
 """

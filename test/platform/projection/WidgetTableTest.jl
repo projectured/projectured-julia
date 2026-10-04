@@ -84,7 +84,7 @@ end
     _ = _rects(io)
     # The light band is the faint (alpha≈0x20) translucent rect; before the
     # pointer arrives it is collapsed to 0 height.
-    _hover_band(io) = only(r for r in _rects(io) if 0.1 < r.color.alpha[] < 0.2)
+    _hover_band(io) = only(r for r in _rects(io) if is_color_equal(r.color, get_theme_defaults(WidgetTheme).hover))
     @test Int(_hover_band(io).h[]) == 0
     driver = MttDriver(_rec, w)
     _mtt_move!(driver, _bx(g), _rowy(g, 1), 1.0)

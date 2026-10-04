@@ -25,27 +25,27 @@ theme.
     "The font that the texts of this theme follow: its family, its weight and its size."
     font::StyleFont = StyleFont("DejaVu Sans Mono", 14)
     "The heading of a domain's group of rows in the gesture map."
-    map_header_text::TextRole = TextRole(color_solarized_blue; family = "Ubuntu Mono", weight = 700)
+    map_header_text::TextRole = TextRole(:heading; family = "Ubuntu Mono", weight = 700)
     "A gesture that can fire."
-    map_gesture_text::TextRole = TextRole(color_solarized_green; family = "Ubuntu Mono", weight = 700)
+    map_gesture_text::TextRole = TextRole(:accent_text; family = "Ubuntu Mono", weight = 700)
     "What a gesture does."
-    map_description_text::TextRole = TextRole(color_default; family = "Ubuntu Mono")
+    map_description_text::TextRole = TextRole(:text; family = "Ubuntu Mono")
     "A row that cannot fire for the current selection."
-    map_muted_text::TextRole = TextRole(color_solarized_gray; family = "Ubuntu Mono")
+    map_muted_text::TextRole = TextRole(:text_faint; family = "Ubuntu Mono")
     "The line the person types into."
-    palette_query_text::TextRole = TextRole(color_solarized_blue; weight = 700)
+    palette_query_text::TextRole = TextRole(:text; weight = 700)
     "The heading of a domain's group of rows in the palette."
-    palette_header_text::TextRole = TextRole(color_solarized_violet; weight = 700)
+    palette_header_text::TextRole = TextRole(:heading; weight = 700)
     "The chosen row."
-    palette_selected_text::TextRole = TextRole(color_solarized_green; weight = 700)
+    palette_selected_text::TextRole = TextRole(:accent_text; weight = 700)
     "A row that can run."
-    palette_command_text::TextRole = TextRole(color_default)
+    palette_command_text::TextRole = TextRole(:text)
     "A row that cannot run right now."
-    palette_muted_text::TextRole = TextRole(color_solarized_gray)
+    palette_muted_text::TextRole = TextRole(:text_faint)
     "The fill of the panel the palette draws itself on."
-    palette_background::StyleColor = color_solarized_background_lighter
+    palette_background::StyleColor = ColorRole(:surface)
     "The border of the panel the palette draws itself on."
-    palette_border::StyleColor = color_solarized_blue
+    palette_border::StyleColor = ColorRole(:border_strong)
     "The radius of the corners of the panel."
     palette_radius::Radius = Radius(6)
     "The width of the border of the panel."

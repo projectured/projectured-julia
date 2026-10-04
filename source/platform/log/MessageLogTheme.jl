@@ -22,15 +22,15 @@ no styles holds the plain values of the default theme.
     "The font that the texts of this theme follow: its family, its weight and its size."
     font::StyleFont = StyleFont("DejaVu Sans Mono", 13)
     "The level of a message of information, such as `Info`."
-    level_text::TextRole = TextRole(color_solarized_cyan; weight = 700)
+    level_text::TextRole = TextRole(:info_text; weight = 700)
     "The level of an error, such as `Error`."
-    error_level_text::TextRole = TextRole(color_solarized_red; weight = 700)
+    error_level_text::TextRole = TextRole(:error_text; weight = 700)
     "The level of a warning, such as `Warn`."
-    warning_level_text::TextRole = TextRole(color_solarized_yellow; weight = 700)
+    warning_level_text::TextRole = TextRole(:warning_text; weight = 700)
     "The level of a message for debugging, such as `Debug`."
-    debug_level_text::TextRole = TextRole(color_slate_500; weight = 700)
+    debug_level_text::TextRole = TextRole(:text_muted; weight = 700)
     "The text of the message."
-    message_text::TextRole = TextRole(color_slate_700)
+    message_text::TextRole = TextRole(:text)
     "The line the log shows while it holds no message."
-    empty_text::TextRole = TextRole(color_slate_500)
+    empty_text::TextRole = TextRole(:text_faint)
 end

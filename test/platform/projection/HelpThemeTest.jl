@@ -52,8 +52,8 @@ end
     @test style.palette_radius == 6
     @test style.palette_border_width == 2
     @test style.palette_padding == 10
-    @test is_color_equal(style.palette_background, color_solarized_background_lighter)
-    @test is_color_equal(style.palette_border, color_solarized_blue)
+    @test is_color_equal(style.palette_background, get_theme_value(GestureHelpTheme(), :palette_background))
+    @test is_color_equal(style.palette_border, get_theme_value(GestureHelpTheme(), :palette_border))
 
     scaled = CommandPaletteDecoratorProjection(inner = IdentityProjection(), measure = measure,
         theme = get_scaled_theme!(Appearance(radius_scale = 2.0), GestureHelpTheme))

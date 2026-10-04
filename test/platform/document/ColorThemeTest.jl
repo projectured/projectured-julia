@@ -93,6 +93,14 @@ end
     end
 end
 
+@testset "the selection ring and the focus ring differ in each variant" begin
+    for mode in COLOR_MODES, contrast in COLOR_CONTRASTS
+        appearance = Appearance(color_mode = mode, color_contrast = contrast)
+        @test resolve_theme_color(ColorRole(:selection_ring), appearance) !=
+              resolve_theme_color(ColorRole(:focus_ring), appearance)
+    end
+end
+
 @testset "a role and a step resolve in the colour settings of the appearance" begin
     appearance = Appearance()
     @test get_color_variant(appearance) === :light
@@ -100,7 +108,8 @@ end
     @test get_color_variant(:system, :normal) === :light
     @test Set(keys(appearance.color_themes)) == Set(COLOR_VARIANTS)
     background = resolve_theme_color(ColorRole(:background), appearance)
-    @test format_style_color(background) == "#fcfcfdff"
+    @test format_style_color(background) == "#f9f9fbff"
+    @test format_style_color(resolve_theme_color(ColorRole(:surface), appearance)) == "#fcfcfdff"
     @test resolve_theme_color(color_red, appearance) === color_red
     faint = resolve_theme_color(ColorRole(:text; alpha = 0.5), appearance)
     @test faint.alpha == 0.5

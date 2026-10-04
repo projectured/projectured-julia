@@ -1,6 +1,5 @@
-# Fragment of `WidgetModule` — the theme of the widgets: the palette, the fonts and
-# the named sizes, the four presets, and the values that the widgets derive from a
-# scaled theme.
+# Fragment of `WidgetModule` — the theme of the widgets: the colours, the fonts and
+# the named sizes, and the values that the widgets derive from a scaled theme.
 
 """
     WidgetTheme
@@ -10,67 +9,71 @@ card, a menu, a checkbox and a slider.
 
 The theme of the widgets: the colors, the fonts and the sizes that every widget
 projection draws with. `@theme` declares it, so `ScaledWidgetTheme` holds each
-value times its scale, and `WidgetTheme()` is the default theme, the slate light
-preset.
+value times its scale, and `WidgetTheme()` is the default theme. Each colour is a
+role of the colour theme, so the colour settings of the appearance choose it.
 
 The fields are in groups: the palette, the decorations, the fonts, the spacing,
 the radii, the lines, the parts of controls and the icons. Each field has a
 docstring that says what it draws, which the appearance tab shows under its name.
 
-The text styles, the hover layer and the pressed layer are no fields: a widget
-derives them from the fonts and the palette, so they follow a change of either.
+The text styles are no fields: a widget derives them from the fonts and the
+palette, so they follow a change of either.
 A widget projection holds its styles as `UntrackedCell` fields, and no theme: its
 builder fills them from a theme, scaled or not.
 """
 @theme struct WidgetTheme
     # ── Palette ──
     "The surface behind the widgets of a window."
-    background::StyleColor = color_slate_100
+    background::StyleColor = ColorRole(:background)
     "The text and the marks on the background."
-    foreground::StyleColor = color_slate_950
+    foreground::StyleColor = ColorRole(:text)
     "The surface of a card, an alert and a panel."
-    card::StyleColor = color_slate_50
+    card::StyleColor = ColorRole(:surface)
     "The text on a card."
-    card_foreground::StyleColor = color_slate_950
+    card_foreground::StyleColor = ColorRole(:text)
     "The surface of a menu, a popup and a tooltip."
-    popover::StyleColor = color_slate_50
+    popover::StyleColor = ColorRole(:surface)
     "The text on a menu, a popup and a tooltip."
-    popover_foreground::StyleColor = color_slate_950
+    popover_foreground::StyleColor = ColorRole(:text)
     "A quiet surface: a disabled control, a skeleton, a track."
-    muted::StyleColor = color_slate_200
+    muted::StyleColor = ColorRole(:surface_sunken)
     "Quiet text: a caption, a hint, a placeholder."
-    muted_foreground::StyleColor = color_slate_500
+    muted_foreground::StyleColor = ColorRole(:text_muted)
     "The color of the main action: a default button, a checked box, a selected item."
-    primary::StyleColor = color_indigo_600
+    primary::StyleColor = ColorRole(:accent)
     "The text on the primary color."
-    primary_foreground::StyleColor = color_slate_50
+    primary_foreground::StyleColor = ColorRole(:text_on_accent)
     "The surface of a secondary button."
-    secondary::StyleColor = color_slate_200
+    secondary::StyleColor = ColorRole(:surface_sunken)
     "The text on a secondary button."
-    secondary_foreground::StyleColor = color_slate_900
+    secondary_foreground::StyleColor = ColorRole(:text)
     "The surface of a hovered or a selected item in a list or a menu."
-    accent::StyleColor = color_indigo_100
+    accent::StyleColor = ColorRole(:accent_tint)
     "The text on the accent color."
-    accent_foreground::StyleColor = color_indigo_700
+    accent_foreground::StyleColor = ColorRole(:accent_text)
     "The color of an action that deletes or an error."
-    destructive::StyleColor = color_destructive
+    destructive::StyleColor = ColorRole(:error_fill)
     "The text on the destructive color."
-    destructive_foreground::StyleColor = color_destructive_fg
+    destructive_foreground::StyleColor = ColorRole(:text_on_accent)
     "The border of a card, a pane and a separator."
-    border::StyleColor = color_slate_300
+    border::StyleColor = ColorRole(:border)
     "The border of a control that takes text or a value."
-    input::StyleColor = color_slate_300
+    input::StyleColor = ColorRole(:border_strong)
     "The focus ring of a control."
-    ring::StyleColor = color_indigo_500
+    ring::StyleColor = ColorRole(:focus_ring)
     "The track of a switch that is off."
-    track_off::StyleColor = color_slate_300
+    track_off::StyleColor = ColorRole(:border_strong)
     # ── Decorations ──
     "The shadow under a card and a popup."
-    shadow::StyleColor = StyleColor(0.0, 0.0, 0.0, 0x14 / 255)
+    shadow::StyleColor = ColorRole(:shadow)
     "The layer that covers the window behind a dialog."
-    scrim::StyleColor = StyleColor(0.0, 0.0, 0.0, 0x66 / 255)
+    scrim::StyleColor = ColorRole(:scrim)
+    "The layer over a widget under the pointer."
+    hover::StyleColor = ColorRole(:hover)
+    "The layer over a pressed widget."
+    pressed::StyleColor = ColorRole(:pressed)
     "The knob of a switch and of a slider."
-    knob::StyleColor = color_white
+    knob::StyleColor = ColorRole(:text_on_accent)
     # ── Fonts ──
     "The font of the text of a widget."
     font::StyleFont = StyleFont("Ubuntu", 13)
@@ -175,73 +178,16 @@ builder fills them from a theme, scaled or not.
     stepper_glyph_minimum::IconSize = IconSize(8)
 end
 
-# ── Presets ─────────────────────────────────────────────────────────────────
-
-"""
-    make_light_theme(; font = StyleFont("Ubuntu", 13)) -> WidgetTheme
-
-The neutral zinc light theme: a zinc palette on a white background. The slate
-theme is the default, see [`make_slate_light_theme`](@ref).
-"""
-make_light_theme(; font::StyleFont = StyleFont("Ubuntu", 13)) =
-    WidgetTheme(; background = color_white,       foreground = color_zinc_950,
-                  card = color_white,             card_foreground = color_zinc_950,
-                  popover = color_white,          popover_foreground = color_zinc_950,
-                  muted = color_zinc_100,         muted_foreground = color_zinc_500,
-                  primary = color_zinc_900,       primary_foreground = color_zinc_50,
-                  secondary = color_zinc_100,     secondary_foreground = color_zinc_900,
-                  accent = color_zinc_100,        accent_foreground = color_zinc_900,
-                  border = color_zinc_200,        input = color_zinc_200,
-                  ring = color_zinc_400,          track_off = color_zinc_300,
-                  font)
-
-"""
-    make_dark_theme(; font = StyleFont("Ubuntu", 13)) -> WidgetTheme
-
-The neutral zinc dark theme, on zinc-950 surfaces. For the slate dark theme see
-[`make_slate_dark_theme`](@ref).
-"""
-make_dark_theme(; font::StyleFont = StyleFont("Ubuntu", 13)) =
-    WidgetTheme(; background = color_zinc_950,    foreground = color_zinc_50,
-                  card = color_zinc_900,          card_foreground = color_zinc_50,
-                  popover = color_zinc_900,       popover_foreground = color_zinc_50,
-                  muted = color_zinc_800,         muted_foreground = color_zinc_400,
-                  primary = color_zinc_50,        primary_foreground = color_zinc_900,
-                  secondary = color_zinc_800,     secondary_foreground = color_zinc_50,
-                  accent = color_zinc_800,        accent_foreground = color_zinc_50,
-                  border = color_zinc_800,        input = color_zinc_800,
-                  ring = color_zinc_600,          track_off = color_zinc_700,
-                  font)
+# ── The theme with a font ───────────────────────────────────────────────────
 
 """
     make_slate_light_theme(; font = StyleFont("Ubuntu", 13)) -> WidgetTheme
 
-The default light theme: a cool slate palette with an indigo accent, on tinted
-surfaces, so the colors read as chosen and not washed out.
+The default widget theme with the font `font`. Its colours are roles of the
+colour theme, so the colour settings of the appearance choose the palette, the
+mode and the contrast.
 """
 make_slate_light_theme(; font::StyleFont = StyleFont("Ubuntu", 13)) = WidgetTheme(; font)
-
-"""
-    make_slate_dark_theme(; font = StyleFont("Ubuntu", 13)) -> WidgetTheme
-
-The dark slate theme: deep slate surfaces with a bright indigo accent.
-"""
-make_slate_dark_theme(; font::StyleFont = StyleFont("Ubuntu", 13)) =
-    WidgetTheme(; background = color_slate_950,   foreground = color_slate_50,
-                  card = color_slate_900,         card_foreground = color_slate_50,
-                  popover = color_slate_900,      popover_foreground = color_slate_50,
-                  muted = color_slate_800,        muted_foreground = color_slate_400,
-                  primary = color_indigo_500,     primary_foreground = color_slate_50,
-                  secondary = color_slate_800,    secondary_foreground = color_slate_50,
-                  accent = color_indigo_950,      accent_foreground = color_indigo_200,
-                  border = color_slate_800,       input = color_slate_800,
-                  ring = color_indigo_400,        track_off = color_slate_700,
-                  font)
-
-# The four presets, for the appearance tab.
-get_theme_presets(::Type{WidgetTheme}) =
-    Pair{String,Any}["Slate light" => make_slate_light_theme, "Slate dark" => make_slate_dark_theme,
-                     "Light" => make_light_theme, "Dark" => make_dark_theme]
 
 # ── Values that a widget derives from a theme ───────────────────────────────
 
@@ -250,15 +196,15 @@ get_theme_presets(::Type{WidgetTheme}) =
 _with_alpha(color::StyleColor, alpha::Real) =
     StyleColor(color.red, color.green, color.blue, Float64(alpha))
 
-# The four text styles, and the layers of a hovered and of a pressed widget. They
-# are no fields of the theme, so they follow the fonts and the palette. Each takes
-# the values of a widget theme, scaled or not (`get_theme_values`).
+# The four text styles, and the layers of a hovered and of a pressed widget. The
+# styles are no fields of the theme, so they follow the fonts and the palette. Each
+# takes the values of a widget theme, scaled or not (`get_theme_values`).
 _get_body_text(theme) = StyleText(theme.font, theme.foreground)
 _get_title_text(theme) = StyleText(theme.font_bold, theme.foreground)
 _get_caption_text(theme) = StyleText(theme.font_small, theme.muted_foreground)
 _get_label_text(theme) = StyleText(theme.font, theme.foreground)
-_get_hover_layer(theme) = _with_alpha(theme.primary, 0.12)
-_get_pressed_layer(theme) = _with_alpha(theme.primary, 0.20)
+_get_hover_layer(theme) = theme.hover
+_get_pressed_layer(theme) = theme.pressed
 
 # The ring around a part selected as a whole, and the band of a selected row: values
 # of the graphics theme `graphics_theme`, scaled or not, or of the default graphics
@@ -266,9 +212,8 @@ _get_pressed_layer(theme) = _with_alpha(theme.primary, 0.20)
 # constructor reads them, and a print does not.
 _make_graphics_style(graphics_theme) = make_theme_values_field(GraphicsTheme, graphics_theme)
 _make_selected_row_color(graphics_theme) =
-    graphics_theme === nothing ?
-        _with_alpha(get_theme_defaults(GraphicsTheme).selection_ring, 0.25) :
-        make_theme_cell(StyleColor, graphics_theme, values -> _with_alpha(values.selection_ring, 0.25))
+    graphics_theme === nothing ? get_theme_defaults(GraphicsTheme).selection_band :
+                                 make_theme_cell(StyleColor, graphics_theme, values -> values.selection_band)
 
 # The gap between the items that a builder of widgets puts in a row or a column:
 # the `item_gap` of the widget theme `theme`, or of the default theme for

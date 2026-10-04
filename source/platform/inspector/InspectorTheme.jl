@@ -27,6 +27,6 @@ default theme.
     "The \"Compact\" and \"Human-readable\" section headers."
     header_font::FontRole = FontRole(family = "Liberation Sans", weight = 700, relative_size = 1.5)
     "The \"Compact\" and \"Human-readable\" section headers."
-    header_color::StyleColor = color_solarized_blue
+    header_color::StyleColor = ColorRole(:heading)
 end
 

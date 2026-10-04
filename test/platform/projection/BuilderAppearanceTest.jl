@@ -49,11 +49,11 @@ widgets() = VerticalLayout(Any[WidgetLabel("Name"), WidgetButton("Save"), Widget
 natural(appearance) = NaturalToGraphics(; measure, appearance)
 
 @testset "two renderers with two appearances draw with their own widget themes" begin
-    light, dark = Appearance(), Appearance()
-    set_theme!(dark, make_slate_dark_theme())
+    light, dark = Appearance(), Appearance(color_mode = :dark)
     color(appearance) = last(_collect_text_styles(print_output(natural(appearance), WidgetLabel("Name")))["Name"])
-    @test is_color_equal(color(light), WidgetTheme().foreground)
-    @test is_color_equal(color(dark), make_slate_dark_theme().foreground)
+    @test is_color_equal(color(light), resolve_theme_color(ColorRole(:text), light))
+    @test is_color_equal(color(dark), resolve_theme_color(ColorRole(:text), dark))
+    @test !is_color_equal(color(light), color(dark))
 end
 
 @testset "every text that a builder draws grows with the font scale" begin

@@ -41,7 +41,6 @@ import ..DocumentModule: has_document_duplicate, get_wrapped_document, get_edite
                          get_document_title
 import ..DomainModule: compute_context_menu
 import ..SerializationModule: pred_arguments
-import ..StyleModule: get_theme_presets
 import ..GestureBindingModule: get_instance_gesture_bindings, get_document_gesture_bindings_own
 import ..GraphicsModule: map_operation_position, find_first_baseline
 import ..OperationModule: evaluate_operation, is_self_contained_operation,
@@ -77,8 +76,7 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
        WidgetScrollPaneToGraphicsCanvas, WidgetScrollPaneToGraphicsCanvasIoMap,
        WidgetTransformPaneToGraphicsCanvas, WidgetTransformPaneToGraphicsCanvasIoMap,
        WidgetToolbarToGraphicsCanvas, WidgetStatusBarToGraphicsCanvas, WidgetScrollBarToGraphicsCanvas,
-       WidgetToGraphics, WidgetTheme, ScaledWidgetTheme, make_light_theme, make_dark_theme,
-       make_slate_light_theme, make_slate_dark_theme,
+       WidgetToGraphics, WidgetTheme, ScaledWidgetTheme, make_slate_light_theme,
        WidgetSelectToGraphicsCanvas, WidgetSelectToGraphicsCanvasIoMap,
        WidgetToggleGroupToGraphicsCanvas, WidgetToggleGroupToGraphicsCanvasIoMap,
        WidgetSliderToGraphicsCanvasIoMap,

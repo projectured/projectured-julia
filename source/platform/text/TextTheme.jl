@@ -24,15 +24,15 @@ colors and fonts as keywords: no view of the platform builds them.
     "The font of a text that no document styles, such as the line of a placeholder."
     font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The caret of the text that holds the keyboard."
-    caret::StyleColor = color_black
+    caret::StyleColor = ColorRole(:caret)
     "The caret of a text that keeps its place while another holds the keyboard."
-    dormant_caret::StyleColor = StyleColor(0.55, 0.55, 0.55, 1.0)
+    dormant_caret::StyleColor = ColorRole(:caret_dormant)
     "The width of a caret."
     caret_width::LineWidth = LineWidth(2)
     "The band under the selected text, while its text holds the keyboard."
-    highlight::StyleColor = StyleColor(0x88 / 255, 0xbb / 255, 0xee / 255, 0x40 / 255)
+    highlight::StyleColor = ColorRole(:selection_band)
     "The band under the selected text, while another text holds the keyboard."
-    dormant_highlight::StyleColor = StyleColor(0x88 / 255, 0x88 / 255, 0x88 / 255, 0x28 / 255)
+    dormant_highlight::StyleColor = ColorRole(:selection_band_dormant)
     "The radius of the corners of the band under the selected text."
     highlight_radius::Radius = Radius(4)
     "The distance between the lines of code, as a multiple of the natural line height of its font."
@@ -40,27 +40,27 @@ colors and fonts as keywords: no view of the platform builds them.
     "The distance between the lines of prose, as a multiple of the natural line height of its font."
     prose_line_spacing::LineSpacing = MultipleSpacing(1.3)
     "A boolean that a primitive projection prints as text."
-    bool_text::TextRole = TextRole(color_solarized_cyan)
+    bool_text::TextRole = TextRole(:constant)
     "A number that a primitive projection prints as text."
-    number_text::TextRole = TextRole(color_solarized_magenta)
+    number_text::TextRole = TextRole(:constant)
     "A string that a primitive projection prints as text."
-    string_text::TextRole = TextRole(color_solarized_green)
+    string_text::TextRole = TextRole(:string_literal)
     "The text of a type-in that is no value yet, such as `1e` on the way to a number."
-    wrong_color::StyleColor = color_solarized_red
+    wrong_color::StyleColor = ColorRole(:error_text)
     "What an empty type-in shows, such as `missing` in a cell of a data frame."
-    placeholder_text::TextRole = TextRole(color_completion_hint)
+    placeholder_text::TextRole = TextRole(:text_faint)
     "A text that no other field styles, such as the name of an empty document."
-    plain_text::TextRole = TextRole(color_default)
+    plain_text::TextRole = TextRole(:text)
     "The number before each line of a text with line numbers."
-    line_number_text::TextRole = TextRole(StyleColor(88 / 255, 110 / 255, 117 / 255, 1.0))
+    line_number_text::TextRole = TextRole(:text_muted)
     "The surface behind each match of a search in a text."
-    match_highlight::StyleColor = color_yellow
+    match_highlight::StyleColor = ColorRole(:search_match)
     "The surface of the character under a block caret, which shows inverted."
-    inverted_background::StyleColor = color_solarized_background_dark
+    inverted_background::StyleColor = ColorRole(:text)
     "The character under a block caret, which shows inverted."
-    inverted_foreground::StyleColor = color_solarized_content_lighter
+    inverted_foreground::StyleColor = ColorRole(:background)
     "The mark of a part whose projection failed, in place of that part."
-    fault_text::TextRole = TextRole(color_solarized_red; family = "DejaVu Sans Mono", weight = 700,
+    fault_text::TextRole = TextRole(:error_text; family = "DejaVu Sans Mono", weight = 700,
                                     relative_size = 0.8)
 end
 

@@ -48,7 +48,7 @@ end # @testset
     fills = _fills(out)
     fgs = _fgs(out)
     # Inverted run: fg ← original fill (nothing → default_bg), fill ← original fg.
-    @test fgs[1] == color_solarized_background_dark   # default_bg (orig fill was nothing)
+    @test fgs[1] == get_theme_value(TextTheme(), :inverted_background)   # default_bg (orig fill was nothing)
     @test fills[1] == color_red                       # original fg becomes the fill
     # Untouched trailing run keeps the original colors.
     @test fgs[2] == color_red

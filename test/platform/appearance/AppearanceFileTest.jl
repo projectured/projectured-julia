@@ -30,7 +30,7 @@ mktempdir() do folder
         inset = saved.control_padding.value
         @test (inset.top[], inset.bottom[], inset.left[], inset.right[]) == (1, 2, 3, 4)
         @test (saved.switch_track.value.x[], saved.switch_track.value.y[]) == (50, 20)
-        @test is_color_equal(saved.background, WidgetTheme().background)
+        @test saved.background == WidgetTheme().background
     end
 
     @testset "a theme that the appearance does not hold yet takes its table when it is made" begin
@@ -60,7 +60,7 @@ mktempdir() do folder
         @test (live.zoom, live.font_scale) == (1.0, 2.0)
         @test scaled.item_gap == 9
         @test get_theme(live, WidgetTheme).radius == Radius(6)
-        @test is_color_equal(get_theme(live, WidgetTheme).primary, WidgetTheme().primary)
+        @test get_theme(live, WidgetTheme).primary == WidgetTheme().primary
         @test haskey(live.saved_themes, "NoSuchTheme")
     end
 

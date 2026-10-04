@@ -34,12 +34,13 @@ end
 @testset "ConversationTurnToWidgetComposite reads the role's label, its glyph and the gaps" begin
     plain = ConversationTurnToWidgetComposite()
     @test (plain.part_gap, plain.role_gap) == (8, 10)
-    for (text_field, icon_field, color) in (
-        (:user_role_text, :user_role_icon, color_indigo_600),
-        (:assistant_role_text, :assistant_role_icon, color_solarized_cyan),
-        (:other_role_text, :other_role_icon, color_slate_600))
+    for (text_field, icon_field) in (
+        (:user_role_text, :user_role_icon),
+        (:assistant_role_text, :assistant_role_icon),
+        (:other_role_text, :other_role_icon))
         text = getproperty(plain, text_field)
         icon = getproperty(plain, icon_field)
+        color = get_theme_value(defaults, text_field).color
         @test text.font.size == 13 && text.font.weight == 700 && text.font.family == "Ubuntu"
         @test is_color_equal(text.color, color)
         @test icon.font.size == 14 && icon.font.family == "Lucide"
@@ -56,7 +57,7 @@ end
     @test plain.kind_text.font.size == 11 && plain.kind_text.font.weight == 700
     @test plain.section_text.font.size == 11 && plain.section_text.font.weight == 400
     @test plain.error_text.font.size == 11 && plain.error_text.font.weight == 700
-    @test is_color_equal(plain.error_text.color, color_destructive)
+    @test is_color_equal(plain.error_text.color, get_theme_value(defaults, :error_text).color)
     @test plain.section_gap == 10
     @test (plain.section_padding.top[], plain.section_padding.bottom[],
            plain.section_padding.left[], plain.section_padding.right[]) == (0, 0, 12, 0)
@@ -73,8 +74,8 @@ end
     @test (plain.row_gap, plain.prompt_gap) == (4, 8)
     @test plain.prompt_text.font.size == 14 && plain.prompt_text.font.family == "Ubuntu Mono"
     @test plain.prompt_text.font.weight == 400
-    @test is_color_equal(plain.prompt_text.color, color_slate_500)
-    @test is_color_equal(plain.error_prompt_text.color, color_destructive)
+    @test is_color_equal(plain.prompt_text.color, get_theme_value(defaults, :prompt_text).color)
+    @test is_color_equal(plain.error_prompt_text.color, get_theme_value(defaults, :error_prompt_text).color)
 
     scaled = make_evaluator_form_projection(; theme)
     @test scaled.prompt_text.font.size == round(Int, 14 * 1.5)
@@ -91,14 +92,14 @@ end
     plain = ConversationComposerToWidget()
     @test plain.code_font == StyleFont("Ubuntu Mono", 14)
     @test plain.part_gap == 8
-    @test is_color_equal(plain.plain_color, defaults.plain_color)
-    @test is_color_equal(plain.placeholder_color, defaults.placeholder_color)
-    @test is_color_equal(plain.valid_color, defaults.valid_color)
-    @test is_color_equal(plain.invalid_color, defaults.invalid_color)
-    @test is_color_equal(plain.completion_hint_color, defaults.completion_hint_color)
+    @test is_color_equal(plain.plain_color, get_theme_value(defaults, :plain_color))
+    @test is_color_equal(plain.placeholder_color, get_theme_value(defaults, :placeholder_color))
+    @test is_color_equal(plain.valid_color, get_theme_value(defaults, :valid_color))
+    @test is_color_equal(plain.invalid_color, get_theme_value(defaults, :invalid_color))
+    @test is_color_equal(plain.completion_hint_color, get_theme_value(defaults, :completion_hint_color))
     # The composer and the transcript draw the committed sections of an
     # evaluation the same way, from the same fields.
-    @test is_color_equal(plain.section_text.color, defaults.section_text.color)
+    @test is_color_equal(plain.section_text.color, get_theme_value(defaults, :section_text).color)
 
     scaled = make_conversation_composer_projection(; theme)
     # A theme that is not scaled reads as at no scale.

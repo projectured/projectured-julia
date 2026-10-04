@@ -23,15 +23,15 @@ holds the plain values of the default theme.
     "The font that the texts of this theme follow: its family, its weight and its size."
     font::StyleFont = StyleFont("DejaVu Sans Mono", 13)
     "The label and the number of a step."
-    index_text::TextRole = TextRole(color_slate_500)
+    index_text::TextRole = TextRole(:text_muted)
     "A step that can be taken back."
-    step_text::TextRole = TextRole(color_slate_700)
+    step_text::TextRole = TextRole(:text)
     "A step that can be put back."
-    ahead_text::TextRole = TextRole(color_slate_500)
+    ahead_text::TextRole = TextRole(:text_faint)
     "The line the history shows while it holds no step."
-    empty_text::TextRole = TextRole(color_slate_500)
+    empty_text::TextRole = TextRole(:text_faint)
     "The line for where the document stands now."
-    marker_text::TextRole = TextRole(color_solarized_cyan; weight = 700)
+    marker_text::TextRole = TextRole(:accent_text; weight = 700)
     "A step the history stops at, because it can not be undone."
-    barrier_text::TextRole = TextRole(color_solarized_orange; weight = 700)
+    barrier_text::TextRole = TextRole(:warning_text; weight = 700)
 end

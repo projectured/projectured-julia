@@ -57,7 +57,7 @@ function _make_probe_theme()
     values = Dict{Symbol, Any}()
     for name in get_theme_field_names(WidgetTheme)
         value = getproperty(base, name)
-        values[name] = value isa StyleColor ? probe() : value
+        values[name] = value isa ThemeColor ? probe() : value
     end
     WidgetTheme(; values...)
 end
@@ -182,7 +182,7 @@ end
     on(style) = WidgetToggle("Bold"; pressed = true, style)
     normal_only = _drawn_colors(render(default_projection,
         on(WidgetToggleStyle(padding_color = red, content_color = red))))
-    @test !_has_color(normal_only, red) && _has_color(normal_only, theme.accent)
+    @test !_has_color(normal_only, red) && _has_color(normal_only, get_theme_value(theme, :accent))
     @test _has_color(_drawn_colors(render(default_projection,
         on(WidgetToggleStyle(padding_checked_color = red, content_checked_color = red)))), red)
 end
@@ -226,8 +226,8 @@ end
                        style = WidgetStyle(padding_color = color_transparent, content_color = color_transparent))
     rects = _drawn_rects(render(default_projection, clear))
     @test any(r -> is_color_transparent(r.color) && Int(r.border_width) == 1 &&
-                   is_color_equal(r.border_color, theme.input), rects)
-    @test !any(r -> is_color_equal(r.color, theme.background), rects)
+                   is_color_equal(r.border_color, get_theme_value(theme, :input)), rects)
+    @test !any(r -> is_color_equal(r.color, get_theme_value(theme, :background)), rects)
 end
 
 end

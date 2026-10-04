@@ -14,7 +14,7 @@ function _check_tool_theme(build, theme_type, roles, base_size::Integer)
     @test !hasfield(typeof(plain), :theme)
     scaled = build(theme = get_scaled_theme!(Appearance(font_scale = 1.5), theme_type))
     for role in roles
-        color = getproperty(defaults, role).color
+        color = get_theme_value(defaults, role).color
         @test getproperty(plain, role).font.size == base_size
         @test is_color_equal(getproperty(plain, role).color, color)
         @test getproperty(scaled, role).font.size == round(Int, base_size * 1.5)

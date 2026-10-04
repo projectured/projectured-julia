@@ -256,7 +256,7 @@ SyntaxCompoundToText(; indent_size::Int = 2,
                        theme = nothing,
                        ellipsis_style = get_syntax_style(theme, :ellipsis_text),
                        delimiter_light_color = get_syntax_style(theme, :lit_delimiter),
-                       delimiter_light_levels::Int = 4,
+                       delimiter_light_levels::Int = 3,
                        decoration_font = get_syntax_style(theme, :font)) =
     SyntaxCompoundToText(indent_size, expanded_marker, collapsed_marker, marker_eligible,
                          ellipsis_style, delimiter_light_color, delimiter_light_levels,
@@ -1293,7 +1293,7 @@ function SyntaxToText(; indent_size::Int = 2,
                         marker_eligible = _default_marker_eligible,
                         theme = nothing,
                         delimiter_light_color = get_syntax_style(theme, :lit_delimiter),
-                        delimiter_light_levels::Int = 4)
+                        delimiter_light_levels::Int = 3)
     # Every compound is printed by the same projection instance — the configuration
     # is the projection's, the structure is the document's. `theme`, a
     # `SyntaxTheme` scaled or not, gives the colour that lights the delimiters
