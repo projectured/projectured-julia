@@ -115,6 +115,7 @@ package, so the steps of its slices run one after another.
     of a factory that gives a style is `get_style(name)`, a name with a verb;
     the factory of YAML has a keyword `style` already (`6d20f49d6`).
   - [x] YAML (`12841097d`, `53ea2cc4b`).
+  - [x] SQL, with its plain text (`fef2db90f`).
 - [ ] **M4. The charts, the graph, process, FSM and the database catalog.**
 - [ ] **M5. The tools**: the fault log, the gesture log, the message log, the
   frame statistics, undo, the file explorer, the gesture help and the palette,
@@ -259,3 +260,23 @@ suites that build a themed view, and the images of both tabs.
    `stepper_glyph_minimum`. The data frame theme test fails at `bccfd39d6`
    (`_make_query_field` takes five arguments, the find field gave three); `main`
    repairs it in `db864f69d`, which the rebase brings.
+5. **SQL has thirty projections over six style roles, so the factory builds each
+   role group once** (M3, 2026-10-04). `SqlToSyntax` makes six named tuples —
+   one `style` field for `:plain_text` (six leaves) and one for `:name_text`
+   (two leaves); `keyword` alone for two nodes; `keyword` and `punctuation` for
+   eight nodes; `keyword`, `punctuation` and `plain` for five nodes that build a
+   delimiter or a comma list (`SqlSelectClause`, `SqlFromClause`,
+   `SqlInsertStatement`, `SqlUpdateStatement`, `SqlCreateTableStatement`); and
+   `keyword`, `name`, `punctuation` and `plain` for the two from-item/select-item
+   nodes — and splats the matching tuple into each constructor, as `53ea2cc4b`
+   does for the YAML mapping. The five nodes of the third group read
+   `_get_sql_text(p.theme, :plain_text)` while printing a parenthesis or a
+   comma; each gains a `plain::StyleText` field instead, and the printer reads
+   `p.plain`. `SqlBooleanBinaryToSyntaxNode` is a plain `<: Projection` struct
+   with no `theme` field and an outer constructor that takes `theme`; it keeps
+   that form (finding 2), only `_get_sql_style` becomes `get_sql_style`.
+   `_get_sql_font` drops `scale_theme` the same way `make_style_field` did
+   (finding 1): `nothing` gives the default font, anything else goes through
+   `make_theme_cell`. No caller outside `source/domain/sql/` passes `theme` to a
+   SQL projection constructor, and neither omnet-julia nor inet-julia reference
+   a SQL projection or `SqlTheme` at all.
