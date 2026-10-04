@@ -194,8 +194,9 @@ function _app_drawn_at(node, ox = 0, oy = 0, found = Tuple{String,Int,Int}[])
 end
 
 # Every live caret a printed window draws, at its position in the window. A text
-# layer draws its caret as a black rectangle two pixels wide, and a caret the
-# keyboard is not on in a muted color.
+# layer draws its caret as a rectangle two pixels wide in the colour of the role
+# `caret`, and a caret the keyboard is not on in a muted color.
+_app_caret_color() = resolve_theme_color(ColorRole(:caret), Appearance())
 function _app_drawn_carets(node, ox = 0, oy = 0, found = Tuple{Int,Int}[])
     node = _app_value(node)
     node === nothing && return found
@@ -203,7 +204,7 @@ function _app_drawn_carets(node, ox = 0, oy = 0, found = Tuple{Int,Int}[])
     y = hasproperty(node, :y) ? oy + Int(_app_value(node.y)) : oy
     if node isa GraphicsRect
         _app_value(node.w) == 2 && _app_value(node.h) > 0 &&
-            _app_value(node.color) == color_black && push!(found, (x, y))
+            _app_value(node.color) == _app_caret_color() && push!(found, (x, y))
     elseif hasproperty(node, :elements)
         foreach(element -> _app_drawn_carets(element, x, y, found), _app_value(node.elements))
     elseif hasproperty(node, :content)

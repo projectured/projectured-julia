@@ -19,6 +19,12 @@ struct InsertionReflectionProbe <: Document
 end
 InsertionReflectionProbe() = InsertionReflectionProbe(nothing)
 
+
+# The colour of a role of the colour theme in the default appearance: the colour
+# of the typed text of an insertion while it names nothing (`text`), one thing
+# (`success_text`) or a wrong thing (`error_text`), and of its hint (`text_faint`).
+_insertion_role(name) = resolve_theme_color(ColorRole(name), Appearance())
+
 function test_document_insertion()
     @testset "DocumentInsertion insert-by-typing" begin
         @testset "factory + completion" begin
@@ -214,20 +220,20 @@ function test_document_insertion()
             leaf = node.content
             @test leaf isa SyntaxLeaf
             # Empty buffer: neutral colour, no hint.
-            @test leaf.value.font_color == color_default
+            @test leaf.value.font_color == _insertion_role(:text)
             @test leaf.close.content == ""
             # Ambiguous prefix: green typed text, no hint (Tab-only LCP).
             ins.value = "jso"
-            @test leaf.value.font_color == color_solarized_green
+            @test leaf.value.font_color == _insertion_role(:success_text)
             @test leaf.close.content == ""
             # Unambiguous prefix: green + the continuation hint, pale green.
             ins.value = "json str"
-            @test leaf.value.font_color == color_solarized_green
+            @test leaf.value.font_color == _insertion_role(:success_text)
             @test leaf.close.content == "ing"
-            @test leaf.close.font_color == color_completion_hint
+            @test leaf.close.font_color == _insertion_role(:text_faint)
             # Dead end: red, no hint.
             ins.value = "zzz"
-            @test leaf.value.font_color == color_solarized_red
+            @test leaf.value.font_color == _insertion_role(:error_text)
             @test leaf.close.content == ""
             # The value cursor round-trips through the wrapper's `.content`.
             fwd = map_reference_forward(proj, iom, _ins_vpath(2))
@@ -306,7 +312,7 @@ function test_document_insertion()
             # Unambiguous prefix-free hint + green, and Enter commits JsonString.
             leaf = jiom.output.content
             @test leaf.close.content == "ing"
-            @test leaf.value.font_color == color_solarized_green
+            @test leaf.value.font_color == _insertion_role(:success_text)
             commit = read_intent(jproj, jiom, KeyDown(:return, ModifierKeys(); time = 0.0))
             @test _written_doc(commit) isa JsonString
             # Escape aborts to the domain's own placeholder.
@@ -330,15 +336,15 @@ function test_document_insertion()
             ji.selection = _ins_vpath(0)
             jiom = print_document(jproj, jproj, ji, nothing)
             leaf = jiom.output
-            @test leaf.value.font_color == color_default          # empty: neutral
+            @test leaf.value.font_color == _insertion_role(:text)          # empty: neutral
             ji.value = "fun"
-            @test leaf.value.font_color == color_solarized_green  # keyword prefix
+            @test leaf.value.font_color == _insertion_role(:success_text)  # keyword prefix
             @test leaf.close.content == "ction"
-            @test leaf.close.font_color == color_completion_hint
+            @test leaf.close.font_color == _insertion_role(:text_faint)
             ji.value = "n * factorial(n"
-            @test leaf.value.font_color == color_solarized_red    # incomplete source
+            @test leaf.value.font_color == _insertion_role(:error_text)    # incomplete source
             ji.value = "n * factorial(n - 1)"
-            @test leaf.value.font_color == color_solarized_green  # parses
+            @test leaf.value.font_color == _insertion_role(:success_text)  # parses
         end
 
         @testset "JuliaInsertion commits source via parse_julia" begin
