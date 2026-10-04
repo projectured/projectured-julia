@@ -177,7 +177,7 @@ function test_document_insertion()
                 @test op isa CompoundOperation
                 written = _written_doc(op)
                 @test written isa I
-                # `with_selection` decorates the cursor with type checkpoints,
+                # `set_selection!` decorates the cursor with type checkpoints,
                 # so compare the printed form. The cursor terminal records
                 # `::Position` (the value a zero-width caret evaluates to).
                 @test string(getfield(written, :selection)[]) ==

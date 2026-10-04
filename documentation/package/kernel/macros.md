@@ -290,7 +290,7 @@ Insert ⇄ Escape loop between placeholder and insertion. Not generated
 ## `@insertion`
 
 ```julia
-@insertion JsonString    = @with_selection JsonString("") value{0}
+@insertion JsonString    = @selected JsonString("") value{0}
 @insertion JuliaFunction = make_julia_scaffold("function")
 ```
 

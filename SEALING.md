@@ -134,9 +134,9 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `reference/ReferenceBuilder.jl`
   - ⬜ `reference/ReferencedDocument.jl`
 - **Layer 12 — selection** (`selection/`)
-  - 🔒 `selection/SelectionModule.jl`
-  - 🔒 `selection/SelectionInterface.jl`
-  - 🔒 `selection/SelectionDefaults.jl`
+  - ⬜ `selection/SelectionModule.jl`
+  - ⬜ `selection/SelectionInterface.jl`
+  - ⬜ `selection/SelectionDefaults.jl`
 - **Layer 13 — operation** (`operation/`)
   - ⬜ `operation/OperationModule.jl`
   - ⬜ `operation/OperationInterface.jl`

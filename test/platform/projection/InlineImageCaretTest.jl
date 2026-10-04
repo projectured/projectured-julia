@@ -65,7 +65,7 @@ end
 
 @testset "an offset beside an image is a place of the image" begin
     place(block, k) = TextModule.get_flat_cursor_coordinate(
-        with_selection(block, TextModule.make_flat_caret_reference(k)))
+        set_selection!(block, TextModule.make_flat_caret_reference(k)))
     # A text run holds the offsets at its ends, so the image of "ab"[image]"cd"
     # has no place of its own: 2 is the end of "ab", 3 the start of "cd".
     middle = TextBlock(_run("ab"), _image(), _run("cd"))
@@ -100,7 +100,7 @@ end
         out
     end
     caret_x(block, k) = rects(print_document(TextToGraphics(measure = measure),
-        with_selection(block, TextModule.make_flat_caret_reference(k))).output)
+        set_selection!(block, TextModule.make_flat_caret_reference(k))).output)
     @test [caret_x(TextBlock(_run("ab"), _image(), _run("cd")), k) for k in 0:5] ==
           [[0], [10], [20], [44], [54], [64]]
     @test [caret_x(TextBlock(_image(), _run("ab")), k) for k in 0:3] == [[0], [24], [34], [44]]

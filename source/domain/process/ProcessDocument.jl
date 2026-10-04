@@ -251,8 +251,8 @@ is_executable(root) = isempty(get_unrefined_nodes(root))
 # Only the types with a required field need one; everything else is zero-arg
 # constructible, which is what `insertable(T)`'s probe asks for.
 
-@insertion ProcessModel = @with_selection ProcessModel("") name{0}
-@insertion ProcessStep  = @with_selection ProcessStep("") description{0}
+@insertion ProcessModel = @selected ProcessModel("") name{0}
+@insertion ProcessStep  = @selected ProcessStep("") description{0}
 
 # ── Structural-insert gestures ───────────────────────────────────────────
 

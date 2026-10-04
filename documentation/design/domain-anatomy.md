@@ -30,7 +30,7 @@ Each concrete type is an `@document` struct. The macro wraps each field in a rea
 
 A container field holds a `CellVector`. A structural change of the vector invalidates only the cells that read that vector, so an insert repaints one container and not the whole document.
 
-`@insertion JsonString = @with_selection JsonString("") value{0}` says what a committed insertion of a type becomes, with the caret already in place. A type without `@insertion` becomes its zero-argument constructor.
+`@insertion JsonString = @selected JsonString("") value{0}` says what a committed insertion of a type becomes, with the caret already in place. A type without `@insertion` becomes its zero-argument constructor.
 
 ## The printer chain
 

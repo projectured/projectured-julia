@@ -121,7 +121,7 @@ In [Text.jl](../../source/text/Text.jl):
 ### `@insertion` factories — one, not five *(decided during implementation)*
 
 ```julia
-@insertion TextBlock = @with_selection TextBlock([TextString("")]) elements[1].content{0}
+@insertion TextBlock = @selected TextBlock([TextString("")]) elements[1].content{0}
 ```
 
 That single line is the bug fix: an inserted text now arrives with one empty span and a caret in it,

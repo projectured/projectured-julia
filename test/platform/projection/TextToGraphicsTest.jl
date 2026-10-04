@@ -379,12 +379,12 @@ cflat(op)    = (r = strip_reference_types(op isa ReplaceSelectionOperation ? op.
                 (r.head::TextRangeReferenceStep).start)
 coord(op)    = TextModule._flat_to_span(mkblock(), cflat(op))   # (span_path, char)
 caret(block) = [(r.x, r.y, r.h) for r in _rects(print_document(p, block).output) if r.w == 2]
-@test caret(with_selection(mkblock(), TextModule.make_flat_caret_reference(fb(Int[1, 1], 0)))) == [(20, 0, 18)]
-@test caret(with_selection(mkblock(), TextModule.make_flat_caret_reference(fb(Int[2, 1], 3)))) == [(30, 18, 18)]
+@test caret(set_selection!(mkblock(), TextModule.make_flat_caret_reference(fb(Int[1, 1], 0)))) == [(20, 0, 18)]
+@test caret(set_selection!(mkblock(), TextModule.make_flat_caret_reference(fb(Int[2, 1], 3)))) == [(30, 18, 18)]
 
 # A click on the second row selects inside *that line's* span; Down crosses into
 # it; End goes to the end of the line the caret is already on.
-iomap = print_document(p, with_selection(mkblock(), TextModule.make_flat_caret_reference(fb(Int[1, 1], 0))))
+iomap = print_document(p, set_selection!(mkblock(), TextModule.make_flat_caret_reference(fb(Int[1, 1], 0))))
 click = read_intent(p, iomap, MouseClick(:left, 31, 20; time = 0.0))
 @test click isa ReplaceSelectionOperation
 @test coord(click) == ([2, 1], 3)
@@ -432,7 +432,7 @@ rects = TextModule._compute_column_geo(coord_map, span_flat_offsets, 1, 11, p)
 sel = ConcreteReference(TextColumnReferenceStep(1, 11), EmptyReference())
 @test TextModule.is_structural_selection(sel)
 @test TextModule._text_flat_selection(
-          with_selection(TextBlock(TextString("abcdef", _font, color_default)), sel)) === nothing
+          set_selection!(TextBlock(TextString("abcdef", _font, color_default)), sel)) === nothing
 
 end # @testset "TextColumnReferenceStep column-box geometry"
 
@@ -488,7 +488,7 @@ m = _test_measure(10, 18)
 for projection in (TextToGraphics(measure=m),
                    ChainingProjection(WordWrapping(max_width=200, measure=m), TextToGraphics(measure=m)))
     block = TextBlock(TextString("", font_ubuntu_monospace_regular_20, color_red))
-    canvas = print_document(projection, with_selection(block, TextModule.make_flat_caret_reference(0))).output
+    canvas = print_document(projection, set_selection!(block, TextModule.make_flat_caret_reference(0))).output
     @test [(r.x, r.y, r.w, r.h) for r in _rects(canvas)] == [(0, 0, 2, 18)]
     @test Int(canvas.h) == 18
 end
@@ -496,7 +496,7 @@ end
 # A caret after a '\n' at the end of a span stands on a line with no glyph yet,
 # and it is as tall as a line all the same.
 block = TextBlock(TextString("ab\n", font_ubuntu_monospace_regular_20, color_red))
-canvas = print_document(TextToGraphics(measure=m), with_selection(block, TextModule.make_flat_caret_reference(3))).output
+canvas = print_document(TextToGraphics(measure=m), set_selection!(block, TextModule.make_flat_caret_reference(3))).output
 @test [(r.x, r.y, r.w, r.h) for r in _rects(canvas)] == [(0, 18, 2, 18)]
 
 end # @testset "TextToGraphics empty span"
@@ -505,7 +505,7 @@ end # @testset "TextToGraphics empty span"
 
 m = _test_measure(10, 18)
 p = TextToGraphics(measure=m)
-block(text, k) = with_selection(TextBlock(TextString(text, font_ubuntu_monospace_regular_20, color_red)),
+block(text, k) = set_selection!(TextBlock(TextString(text, font_ubuntu_monospace_regular_20, color_red)),
                                 TextModule.make_flat_caret_reference(k))
 flat(op) = (strip_reference_types(op.path).head::TextRangeReferenceStep).start
 press(text, k, key) = (op = read_intent(p, print_document(p, block(text, k)), KeyDown(key, ModifierKeys(); time = 0.0));

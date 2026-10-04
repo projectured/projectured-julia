@@ -2,15 +2,15 @@
 `SelectionModule` — the writers of the selection, over test-local documents.
 
 Covers:
-- `with_selection`, `set_selection!` and `clear_selection!` write and clear the
-  path in each document along it,
+- `set_selection!` and `clear_selection!` write and clear the path in each
+  document along it, and `set_selection!` answers the document it wrote,
 - a path that does not match throws `SelectionMismatchException` and writes no cell,
 - `replace_selection!` clears the branch that the new path leaves,
 - a caret move in one leaf writes no `selection` cell of an ancestor,
 - a keeper keeps the branch that the focus leaves as dormant, and a later write
   makes it live again,
 - `map_selection_forward` carries the live or dormant state to the image,
-- `@with_selection` builds a path typed against the document that it builds.
+- `@selected` builds a path typed against the document that it builds.
 """
 
 using Test
@@ -45,17 +45,17 @@ SelectionModule.has_dormant_selection(::SelectionKeeper) = true
 function test_selection()
 @testset "Selection" begin
 
-    @testset "with_selection selects a path and answers the document" begin
+    @testset "set_selection! selects a path and answers the document" begin
         leaf = SelectionLeaf(text = "a")
         path = Reference(FieldReferenceStep("text"))
-        @test with_selection(leaf, path) === leaf
+        @test set_selection!(leaf, path) === leaf
         # The writer adds the node types to the path, so the test compares the
         # path without them.
         @test strip_reference_types(get_selection(leaf)) == path
     end
 
     @testset "clear_selection! clears the selection of a document" begin
-        leaf = with_selection(SelectionLeaf(text = "a"),
+        leaf = set_selection!(SelectionLeaf(text = "a"),
                               Reference(FieldReferenceStep("text")))
         clear_selection!(leaf)
         @test get_selection(leaf) === nothing
@@ -205,8 +205,8 @@ function test_selection()
                                     map_missing = true) == (nothing, :image)
     end
 
-    @testset "@with_selection builds a path typed against the new document" begin
-        caret = @with_selection SelectionLeaf(text = "abc") text{1}
+    @testset "@selected builds a path typed against the new document" begin
+        caret = @selected SelectionLeaf(text = "abc") text{1}
         @test caret isa SelectionLeaf
         path = get_selection(caret)
         @test is_fully_typed_reference(path)
@@ -214,9 +214,9 @@ function test_selection()
         @test strip_reference_types(path) ==
               Reference(FieldReferenceStep("text"), PositionReferenceStep(1))
 
-        whole = @with_selection SelectionLeaf(text = "abc")
+        whole = @selected SelectionLeaf(text = "abc")
         @test get_selection(whole) == EmptyReference(SelectionLeaf)
-        @test_throws LoadError @eval @with_selection SelectionLeaf() text other
+        @test_throws LoadError @eval @selected SelectionLeaf() text other
     end
 
 end

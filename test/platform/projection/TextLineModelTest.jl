@@ -66,14 +66,14 @@ function test_text_line_model()
 
     @testset "the caret stands on the baseline, as high as the font at its place" begin
         block = TextBlock(TextString("ab", small, color_black), TextString("cd", large, color_black))
-        caret(k) = [r for r in rects(print_block(with_selection(block,
+        caret(k) = [r for r in rects(print_block(set_selection!(block,
                         TextModule.make_flat_caret_reference(k))).output) if r[3] == 2]
         @test caret(1) == [(10, 17 - 12, 2, 12 + 4)]
         @test caret(3) == [(30, 17 - 16, 2, 16 + 6)]
     end
 
     @testset "a selection covers each line box, with no gap between them" begin
-        canvas = print_block(with_selection(three_lines(), TextModule.make_flat_range_reference(1, 7))).output
+        canvas = print_block(set_selection!(three_lines(), TextModule.make_flat_range_reference(1, 7))).output
         @test [(y, h) for (_, y, w, h) in rects(canvas) if w != 2] == [(0, 16), (16, 16), (32, 24)]
     end
 

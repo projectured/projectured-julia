@@ -195,12 +195,12 @@ A fresh document committed for candidate `T`. The fallback is the zero-arg
 constructor; per-type methods (write them with `@insertion`) add cursor
 placement / scaffolds where the empty instance is not enough — an empty text
 leaf, say, wants a caret at position 0 rather than a whole-node selection (see
-`@with_selection`).
+`@selected`).
 """
 make_insertion_document(::Type{T}) where {T} = T()
 
 """
-    @insertion JsonString = @with_selection JsonString("") value{0}
+    @insertion JsonString = @selected JsonString("") value{0}
     @insertion JuliaFunction = make_julia_scaffold("function")
 
 The document a committed insertion of `JsonString` becomes: one
@@ -477,7 +477,7 @@ pre-placed at the start of its `value` buffer.
 """
 insert_document_operation(::Type{I}) where {I} =
     make_replace_document_operation(EmptyReference(),
-                                     with_selection(I(), _INSERTION_CURSOR))
+                                     set_selection!(I(), _INSERTION_CURSOR))
 
 """
     replace_selected_document(document, replacement) -> Operation

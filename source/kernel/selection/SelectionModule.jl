@@ -3,8 +3,8 @@
 
 **Selection**: a document's current-focus state, expressed as a reference path
 stored on the document's `selection` field. The primitives read
-(`get_selection`), clear (`clear_selection!`), set (`set_selection!` /
-`with_selection`), and replace (`replace_selection!`) that state. Setting a
+(`get_selection`), clear (`clear_selection!`), set (`set_selection!`), and
+replace (`replace_selection!`) that state. Setting a
 selection propagates the path down the document hierarchy — each step navigates
 to a child document and stores the remaining tail as that child's selection —
 and canonicalizes the path against the live document, folding each node's type
@@ -36,8 +36,8 @@ using ..CellModule
 using ..DocumentModule
 using ..ReferenceModule
 
-export get_selection, clear_selection!, set_selection!, with_selection,
-       var"@with_selection", replace_selection!, SelectionMismatchException,
+export get_selection, clear_selection!, set_selection!,
+       var"@selected", replace_selection!, SelectionMismatchException,
        has_dormant_selection, get_stored_selection,
        is_live_selection, map_selection_forward
 

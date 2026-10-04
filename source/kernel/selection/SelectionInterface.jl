@@ -47,9 +47,10 @@ another branch stays, for example a dormant one.
 function clear_selection! end
 
 """
-    set_selection!(document, path)
+    set_selection!(document, path) -> document
 
-Put the cursor at a place in a document.
+Put the cursor at a place in a document, and return `document`, so a
+freshly-built document literal can be selected in a single expression.
 
 Use it to build a document that nothing holds yet, so that it opens with
 something already selected. The path is made canonical against the document
@@ -59,8 +60,10 @@ first, so a path written by hand reaches the same place as one the editor built.
 
     set_selection!(document, @reference(document, rows[2].name))
 
-See also `get_selection`, `clear_selection!`, `with_selection`, which does
-this while building, and `replace_selection!`, which moves the cursor.
+See also `get_selection`, `clear_selection!`, and `replace_selection!`, which
+moves the cursor. To select a path that must be *typed against* the document
+being built, use [`@selected`](@ref): it binds the freshly-built document once
+and hands it to the `@reference` DSL.
 
 Recursively sets the selection on `document` and its children to `path`.
 
@@ -80,20 +83,6 @@ applies or fails; it is never half-written. (A terminal caret is accepted by
 reachability, since a text leaf exposes no length/index to replay it against.)
 """
 function set_selection! end
-
-"""
-    with_selection(document, path) -> document
-
-Construct-and-select convenience: `set_selection!(document, path)` then return
-`document`, so a freshly-built document literal can be selected in a single
-expression. See [`set_selection!`](@ref) for the propagation/canonicalization
-semantics.
-
-To select a path that must be *typed against* the document being built, use
-[`@with_selection`](@ref): it binds the freshly-built document once and hands it
-to the `@reference` DSL.
-"""
-function with_selection end
 
 """
     replace_selection!(document, path)

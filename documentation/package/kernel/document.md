@@ -60,8 +60,8 @@ concrete documents belong to the packages built on top of it.
    group, holds a dormant one. A read of the property `selection` passes the
    value of the cell through `unwrap_selection`: a live `SelectionDocument` gives
    its reference, and a dormant one gives `nothing`. The generics that *read and
-   write* the selection — `get_selection` / `clear_selection!` / `set_selection!` /
-   `with_selection` — are the **selection layer's** (Layer 12), not this one's; see
+   write* the selection — `get_selection` / `clear_selection!` / `set_selection!`
+   — are the **selection layer's** (Layer 12), not this one's; see
    [selection.md](selection.md).
 3. **Field names ARE the reference vocabulary.** A `FieldReferenceStep("foo")` in a
    reference path is resolved by `getfield(document, :foo)` — so struct field

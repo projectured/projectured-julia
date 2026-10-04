@@ -297,7 +297,7 @@ const SpanPath = Vector{Int}
 # make them committable at a *top-level* insertion, where a lone span is the root
 # document — and the text pipeline prints a `TextBlock`, not a bare span. Making
 # spans insertable belongs with a caret-level "insert a span here" gesture.
-@insertion TextBlock = @with_selection TextBlock([TextString("")]) elements[1].content{0}
+@insertion TextBlock = @selected TextBlock([TextString("")]) elements[1].content{0}
 
 
 # ── splice_value! methods for the text representations ──────────────

@@ -254,7 +254,7 @@ chrome — a delimiter/separator with no document pre-image). If the isolated st
 forward-map to an editable position, or the gesture has no binding there).
 
 A companion trick: forward-project a hand-built input with the caret placed at each
-candidate offset (`@with_selection Doc(...) field{k}` from
+candidate offset (`@selected Doc(...) field{k}` from
 `ProjecturedKernel.SelectionModule`) and feed the same key to each — the offsets that
 decline vs. succeed pin the boundary that breaks (e.g. an insertion at a value's *start*
 declining while its interior succeeds points at the delimiter|content span boundary).

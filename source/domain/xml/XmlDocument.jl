@@ -82,9 +82,9 @@ _xml_replaceable(doc, sel) = _xml_selected(doc) isa Union{XmlNothing, XmlInserti
 
 # ── Insertion factories ─────────────────────────────────────────────────────
 
-@insertion XmlText      = @with_selection XmlText("") content{0}
-@insertion XmlAttribute = @with_selection XmlAttribute("", "") name{0}
-@insertion XmlElement   = @with_selection XmlElement("") tag{0}
+@insertion XmlText      = @selected XmlText("") content{0}
+@insertion XmlAttribute = @selected XmlAttribute("", "") name{0}
+@insertion XmlElement   = @selected XmlElement("") tag{0}
 
 @gestures XmlDocument begin
     when(_xml_replaceable(doc, sel))

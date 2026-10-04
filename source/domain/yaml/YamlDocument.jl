@@ -78,24 +78,24 @@ _yaml_replaceable(doc, sel) =
 
 # ── Insertion factories ─────────────────────────────────────────────────────
 
-@insertion YamlBool         = @with_selection YamlBool(false)
-@insertion YamlNumber       = @with_selection YamlNumber(nothing)
-@insertion YamlString       = @with_selection YamlString("") value{0}
-@insertion YamlSequence     = @with_selection YamlSequence([YamlInsertion()]) elements[1]
-@insertion YamlMappingEntry = @with_selection YamlMappingEntry("", YamlInsertion()) key{0}
-@insertion YamlMapping      = @with_selection YamlMapping([YamlMappingEntry("", YamlInsertion())]) entries[1].key{0}
+@insertion YamlBool         = @selected YamlBool(false)
+@insertion YamlNumber       = @selected YamlNumber(nothing)
+@insertion YamlString       = @selected YamlString("") value{0}
+@insertion YamlSequence     = @selected YamlSequence([YamlInsertion()]) elements[1]
+@insertion YamlMappingEntry = @selected YamlMappingEntry("", YamlInsertion()) key{0}
+@insertion YamlMapping      = @selected YamlMapping([YamlMappingEntry("", YamlInsertion())]) entries[1].key{0}
 
 @gestures YamlDocument begin
     when(_yaml_replaceable(doc, sel))
-    KeyPress('n') => "Replace with null"   => replace_selected_document(doc, @with_selection YamlNull())
+    KeyPress('n') => "Replace with null"   => replace_selected_document(doc, @selected YamlNull())
     KeyPress('f') => "Replace with false"  => replace_selected_document(doc, make_insertion_document(YamlBool))
-    KeyPress('t') => "Replace with true"   => replace_selected_document(doc, @with_selection YamlBool(true))
+    KeyPress('t') => "Replace with true"   => replace_selected_document(doc, @selected YamlBool(true))
     KeyPress('"') => "Replace with a string" => replace_selected_document(doc, make_insertion_document(YamlString))
     KeyPress('-') => "Replace with a sequence" => replace_selected_document(doc, make_insertion_document(YamlSequence))
     KeyPress(':') => "Replace with a mapping entry" => replace_selected_document(doc, make_insertion_document(YamlMappingEntry))
     KeyPress('{') => "Replace with a mapping" => replace_selected_document(doc, make_insertion_document(YamlMapping))
     when(KeyPress(c), isdigit(c)) => "Replace with a number" =>
-        replace_selected_document(doc, @with_selection YamlNumber(parse(Int, string(c))) value{1})
+        replace_selected_document(doc, @selected YamlNumber(parse(Int, string(c))) value{1})
 end
 
 @gestures YamlSequence begin

@@ -494,8 +494,8 @@ function test_sequencechart_projection()
             # mark's own colour carries its kind, and overwriting it would cost
             # the reader the thing they selected it to see.
             plot.selection = lift_sequence_chart_reference(plot, get_event_reference(chart, 2))
-            with_selection = _sc_flatten(iomap.output)
-            rings = [e for e in with_selection
+            selected = _sc_flatten(iomap.output)
+            rings = [e for e in selected
                      if e isa GraphicsCircle && Int(e.border_width) > 0]
             @test length(rings) == 1
             @test Int(rings[1].radius) > chart.style.event_radius

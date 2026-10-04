@@ -1574,7 +1574,7 @@ definition over a comment above the call. Two comments saying the same thing in
 two files is one comment too many, and when a comment and the code drift apart,
 the comment is the bug. Precedent: JSON's insertion-factory block shed a
 paragraph restating `make_insertion_document`'s own docstring and
-`@with_selection`'s semantics, keeping only the one line no reader could derive
+`@selected`'s semantics, keeping only the one line no reader could derive
 — why an empty `JsonNumber` is selected whole while an empty `JsonString` gets
 a caret at position 0.
 

@@ -98,7 +98,7 @@ end
 # Replay an event script from a fresh root `JuliaInsertion` through `JuliaToSyntax`.
 function _jt_interactive(script)
     proj = RecursiveProjection(JuliaToSyntax())
-    doc  = with_selection(JuliaInsertion(""), _jt_v0())
+    doc  = set_selection!(JuliaInsertion(""), _jt_v0())
     for ev in script
         doc = _jt_feed(proj, doc, ev)
     end
@@ -135,7 +135,7 @@ function test_julia_typein()
         end
 
         @testset "gesture operations build the factorial tree" begin
-            ed = _JtEditor(with_selection(JuliaInsertion(""), _jt_v0()), nothing)
+            ed = _JtEditor(set_selection!(JuliaInsertion(""), _jt_v0()), nothing)
             _jt_step!(ed, "function")               # -> JuliaFunction scaffold, cursor on name
             @test ed.document isa JuliaFunction
             _jt_step!(ed, "factorial")              # name

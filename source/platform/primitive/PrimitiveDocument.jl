@@ -411,7 +411,7 @@ end
 `document`, a primitive document, with its caret at `k` in its value.
 """
 with_value_caret(document::PrimitiveDocument, k::Integer) =
-    with_selection(document, annotate_reference_types(document,
+    set_selection!(document, annotate_reference_types(document,
         ConcreteReference(FieldReferenceStep("value"),
                           ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))))
 
@@ -431,7 +431,7 @@ type-in puts in its place. A Bool always has a value, so it is a whole `false`.
 make_empty_primitive_document(::Type{PrimitiveNumber}) = with_value_caret(PrimitiveNumber(nothing), 0)
 make_empty_primitive_document(::Type{PrimitiveString}) = with_value_caret(PrimitiveString(""), 0)
 make_empty_primitive_document(::Type{PrimitiveBool}) =
-    (document = PrimitiveBool(false); with_selection(document, annotate_reference_types(document, EmptyReference())))
+    (document = PrimitiveBool(false); set_selection!(document, annotate_reference_types(document, EmptyReference())))
 
 """
     find_value_range(document) -> Union{RangeReferenceStep, Nothing}

@@ -59,7 +59,7 @@ The domain slice depends on the kernel only. Every domain uses it, and so do the
 
 ```julia
 @domain Json
-@insertion JsonString = @with_selection JsonString("") value{0}
+@insertion JsonString = @selected JsonString("") value{0}
 
 get_insertion_candidates(JsonDocument)       # every insertable JsonDocument type
 complete_insertion(JsonDocument, "str")      # :unambiguous, with the continuation "ing"

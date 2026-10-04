@@ -99,24 +99,24 @@ _json_replaceable(doc, sel) =
 
 # ── Insertion factories ─────────────────────────────────────────────────────
 
-@insertion JsonBool        = @with_selection JsonBool(false)
-@insertion JsonNumber      = @with_selection JsonNumber(nothing)
-@insertion JsonString      = @with_selection JsonString("") value{0}
-@insertion JsonArray       = @with_selection JsonArray([JsonInsertion()]) elements[1]
-@insertion JsonObjectEntry = @with_selection JsonObjectEntry("", JsonInsertion()) key{0}
-@insertion JsonObject      = @with_selection JsonObject([JsonObjectEntry("", JsonInsertion())]) entries[1].key{0}
+@insertion JsonBool        = @selected JsonBool(false)
+@insertion JsonNumber      = @selected JsonNumber(nothing)
+@insertion JsonString      = @selected JsonString("") value{0}
+@insertion JsonArray       = @selected JsonArray([JsonInsertion()]) elements[1]
+@insertion JsonObjectEntry = @selected JsonObjectEntry("", JsonInsertion()) key{0}
+@insertion JsonObject      = @selected JsonObject([JsonObjectEntry("", JsonInsertion())]) entries[1].key{0}
 
 @gestures JsonDocument begin
     when(_json_replaceable(doc, sel))
-    KeyPress('n') => "Replace with null"   => replace_selected_document(doc, @with_selection JsonNull())
+    KeyPress('n') => "Replace with null"   => replace_selected_document(doc, @selected JsonNull())
     KeyPress('f') => "Replace with false"  => replace_selected_document(doc, make_insertion_document(JsonBool))
-    KeyPress('t') => "Replace with true"   => replace_selected_document(doc, @with_selection JsonBool(true))
+    KeyPress('t') => "Replace with true"   => replace_selected_document(doc, @selected JsonBool(true))
     KeyPress('"') => "Replace with a string" => replace_selected_document(doc, make_insertion_document(JsonString))
     KeyPress('[') => "Replace with an array" => replace_selected_document(doc, make_insertion_document(JsonArray))
     KeyPress(':') => "Replace with an object entry" => replace_selected_document(doc, make_insertion_document(JsonObjectEntry))
     KeyPress('{') => "Replace with an object" => replace_selected_document(doc, make_insertion_document(JsonObject))
     when(KeyPress(c), isdigit(c)) => "Replace with a number" =>
-        replace_selected_document(doc, @with_selection JsonNumber(parse(Int, string(c))) value{1})
+        replace_selected_document(doc, @selected JsonNumber(parse(Int, string(c))) value{1})
 end
 
 # A `,` on the closing bracket or brace of a container is the parent's: the caret

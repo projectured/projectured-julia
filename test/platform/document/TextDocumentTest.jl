@@ -79,7 +79,7 @@ block = mkblock()
 # is the flat offset of char `k` in the span at the structural `path` — the shape
 # the old `content{c}` cursor named; the selection is now a flat `TextRangeReferenceStep`.
 fb(path, k) = TextModule.get_flat_base(mkblock(), path) + k
-caret(f)    = with_selection(mkblock(), TextModule.make_flat_caret_reference(f))
+caret(f)    = set_selection!(mkblock(), TextModule.make_flat_caret_reference(f))
 # flat offset carried by a caret op / ref
 cflat(x)    = (r = strip_reference_types(x isa ReplaceSelectionOperation ? x.path : x);
                (r.head::TextRangeReferenceStep).start)
@@ -135,7 +135,7 @@ evaluate_operation((document = bb,), bop)
 @test bb.elements[2].elements[1].content == "second"
 
 # A flat block: single-index spans, the newline counted as one flat char.
-flat = with_selection(TextBlock(TextString("ab"),
+flat = set_selection!(TextBlock(TextString("ab"),
                                 TextNewline(font = font_ubuntu_monospace_regular_20),
                                 TextString("cd")),
                       TextModule.make_flat_caret_reference(4))   # char 1 of "cd" → flat 4
@@ -149,7 +149,7 @@ end # @testset "TextLine: line-structured blocks"
 @testset "Shift and a motion key select a range" begin
     shift = ModifierKeys(; shift = true)
     ctrl_shift = ModifierKeys(; ctrl = true, shift = true)
-    at(selection) = with_selection(TextBlock(TextString("hello world")), selection)
+    at(selection) = set_selection!(TextBlock(TextString("hello world")), selection)
     pair(op) = (op.path.head.start, op.path.head.stop)
     caret = TextModule.make_flat_caret_reference(5)
     range = TextModule.make_flat_range_reference(3, 5)

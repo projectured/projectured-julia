@@ -19,7 +19,7 @@ function make_formula_document_example()
         display_mode=:both)
 
     env = FormulaEnvironment([a1, b1, a2, tax])
-    with_selection(env, @reference(env, formulas[1]))
+    set_selection!(env, @reference(env, formulas[1]))
 end
 
 # Atomic documents for the catalog.

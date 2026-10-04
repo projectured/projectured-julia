@@ -222,12 +222,12 @@ end
 # Every type with a required field needs one, or `insertable(T)`'s `T()` probe
 # silently drops it from the completion list.
 
-@insertion FsmVariable   = @with_selection FsmVariable("") name{0}
-@insertion FsmTimer      = @with_selection FsmTimer("") name{0}
-@insertion FsmEvent      = @with_selection FsmEvent("") name{0}
-@insertion FsmState      = @with_selection FsmState("") name{0}
-@insertion FsmMachine    = @with_selection FsmMachine("") name{0}
-@insertion FsmComponent  = @with_selection FsmComponent("") name{0}
+@insertion FsmVariable   = @selected FsmVariable("") name{0}
+@insertion FsmTimer      = @selected FsmTimer("") name{0}
+@insertion FsmEvent      = @selected FsmEvent("") name{0}
+@insertion FsmState      = @selected FsmState("") name{0}
+@insertion FsmMachine    = @selected FsmMachine("") name{0}
+@insertion FsmComponent  = @selected FsmComponent("") name{0}
 
 # ── Structural-insert gestures ───────────────────────────────────────────
 

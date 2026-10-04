@@ -240,7 +240,7 @@ get_insertion_aliases(::Type{EvaluatorToplevel}) = ["repl", "evaluator"]
 # A fresh loop: one empty form, caret at the start of its (empty) source, ready
 # to type into at once.
 @insertion EvaluatorToplevel =
-    @with_selection EvaluatorToplevel([EvaluatorForm(PrimitiveString(""))]) elements[1].form.value{0}
+    @selected EvaluatorToplevel([EvaluatorForm(PrimitiveString(""))]) elements[1].form.value{0}
 
 # ── EvaluateSelectedFormOperation ────────────────────────────────────────────
 

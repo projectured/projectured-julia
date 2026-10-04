@@ -474,7 +474,7 @@ function test_document_contract()
 
         @testset "the selection is copied" begin
             path = extend_reference(EmptyReference(), FieldReferenceStep("label"))
-            root = with_selection(ToyNode("root", nothing, nothing), path)
+            root = set_selection!(ToyNode("root", nothing, nothing), path)
             duplicate = make_document_duplicate(root)
             @test strip_reference_types(get_selection(duplicate)) ==
                   strip_reference_types(get_selection(root))

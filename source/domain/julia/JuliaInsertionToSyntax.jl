@@ -30,17 +30,17 @@
 # offset 0), so it is ready to type into the moment the keyword commits.
 const _JULIA_KEYWORD_SCAFFOLDS = Tuple{String,Function}[
     ("function", () -> (d = JuliaFunction(JuliaInsertion(), Any[JuliaInsertion()], JuliaBlock(Any[JuliaInsertion()]));
-        with_selection(d, @reference(d, name.value{0})))),
+        set_selection!(d, @reference(d, name.value{0})))),
     ("if", () -> (d = JuliaIf(JuliaInsertion(), JuliaBlock(Any[JuliaInsertion()]), JuliaBlock(Any[JuliaInsertion()]));
-        with_selection(d, @reference(d, condition.value{0})))),
+        set_selection!(d, @reference(d, condition.value{0})))),
     ("while", () -> (d = JuliaWhile(JuliaInsertion(), JuliaBlock(Any[JuliaInsertion()]));
-        with_selection(d, @reference(d, condition.value{0})))),
+        set_selection!(d, @reference(d, condition.value{0})))),
     ("for", () -> (d = JuliaFor(Any[JuliaForIterator(JuliaInsertion(), JuliaInsertion())], JuliaBlock(Any[JuliaInsertion()]));
-        with_selection(d, @reference(d, iterators[1].variable.value{0})))),
+        set_selection!(d, @reference(d, iterators[1].variable.value{0})))),
     ("begin", () -> (d = JuliaBegin(JuliaBlock(Any[JuliaInsertion()]));
-        with_selection(d, @reference(d, body.statements[1].value{0})))),
+        set_selection!(d, @reference(d, body.statements[1].value{0})))),
     ("return", () -> (d = JuliaReturn(JuliaInsertion());
-        with_selection(d, @reference(d, value.value{0})))),
+        set_selection!(d, @reference(d, value.value{0})))),
 ]
 
 """

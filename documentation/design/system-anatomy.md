@@ -436,7 +436,7 @@ includes them in:
 11 reference   ReferenceStep / Reference and the step seam, evaluate_reference,
                search_references, the @reference / @reference_case /
                @reference_rules DSLs
-12 selection   get_selection / set_selection! / clear_selection! / with_selection
+12 selection   get_selection / set_selection! / clear_selection!
 13 operation   the Operation supertype, evaluate_operation, the reroot_operation seam
 14 intent      Intent and ClaimedGesture, the unit that flows back through the
                readers, CollectIntents and CollectedIntentsOperation
