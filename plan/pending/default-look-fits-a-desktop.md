@@ -515,7 +515,7 @@ inet-julia uses, the same step changes them, so that they always load.
 
 ### Part T: every style value in a theme
 
-- [ ] **T1.** Classify each fixed value of section 2.6 as a style, content or
+- [x] **T1.** Classify each fixed value of section 2.6 as a style, content or
   not a style. Record the lists in section 10. The owner reviews the lists of
   content and of "not a style". *In progress (2026-10-02):* an agent wrote the
   lists `/var/tmp/default-look/t1-projectured.md` (320 style, 155 content
@@ -526,7 +526,7 @@ inet-julia uses, the same step changes them, so that they always load.
   agent proposed 17 new themes in projectured-julia and 24 in omnet-julia;
   a value of window chrome that one field of `WidgetTheme` already says, such
   as the padding of a pane or the gap of a tooltip, takes that field instead.
-  Waiting for the review of the owner.
+  *Done (2026-10-04):* the owner accepted the lists ("fine").
 - [ ] **T2.** projectured-julia: each style value moves into a theme. A domain
   with no theme gets one. *In progress:* batches, each checked by the image
   check and the suites of the slices it touches.
@@ -737,7 +737,7 @@ inet-julia uses, the same step changes them, so that they always load.
 
 ### Part V: the new defaults
 
-- [ ] **V1.** Images of a fixed set of views at the density 1 and 2: the IDE
+- [x] **V1.** Images of a fixed set of views at the density 1 and 2: the IDE
   window with the explorer, a JSON document, Julia code, a Markdown document,
   the settings tab, the appearance tab and a chart, and the omnet workbench with
   a NED file. Each view in three looks: now, the look of the owner (0.8 and
@@ -750,7 +750,8 @@ inet-julia uses, the same step changes them, so that they always load.
   Mono 14 or DejaVu Sans Mono 14 as the code font. The proposal sets the base
   fonts through an `Appearance`, so it needs no change of code. Not yet shown:
   the line spacing of D9, which needs step V2, the density 2, and the omnet
-  workbench. The script is `/var/tmp/default-look/v1/looks.jl`.
+  workbench. The script is `/var/tmp/default-look/v1/looks.jl`. *Done:* the
+  owner chose the values from this page, and step V2 put them in.
 - [x] **V2.** The chosen values go into every theme, with the line spacing of
   section 3.6. *Done (2026-10-03), before T3 by the owner's choice:*
   - Fonts: the rule of step V1 sets 41 base fonts in 35 theme files of the
@@ -812,8 +813,8 @@ inet-julia uses, the same step changes them, so that they always load.
   editing, the history sweep of the two inspectors) and in the web and MCP
   tests, which need a loopback network that `unshare -rn` has not, and pass
   outside it; 5 `@test_broken` round trips pass, where main has 3.
-- [ ] **V4.** The owner looks at the live editor at 100% on the screen of
-  section 2.1.
+- [x] **V4.** The owner looks at the live editor at 100% on the screen of
+  section 2.1. *Done (2026-10-04):* "looks good".
 
 ### Part G: the guides
 
