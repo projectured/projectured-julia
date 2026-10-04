@@ -18,8 +18,10 @@ the fonts and the colors of the rendered form, plus the gap between the
 blocks of a page. Each field has a docstring that says what it draws, which
 the appearance tab shows under its name.
 
-A markdown projection reads the scaled theme through its `UntrackedCell`
-style fields; with no theme it holds the plain values of the default theme.
+The builder gives each Markdown projection its styles with `get_markdown_style`,
+from a theme scaled or not; a projection built with no styles holds the plain
+values of the default theme. A heading holds the four fonts of its levels,
+`heading_1_font` through `heading_font`, as its own fields.
 """
 @theme struct MarkdownTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
@@ -64,18 +66,4 @@ style fields; with no theme it holds the plain values of the default theme.
     rendered_marker_text::TextRole = TextRole(color_solarized_gray; base = :code_font, family = "DejaVu Sans Mono")
     "The gap between the blocks of a markdown page."
     block_gap::Spacing              = Spacing(8)
-end
-
-# The style field of a Markdown projection that holds the text `name` of the
-# theme `theme`: a `MarkdownTheme`, a scaled one, or `nothing` for the default
-# values.
-_get_markdown_style(theme, name::Symbol) = make_style_field(MarkdownTheme, scale_theme(theme), StyleText; name)
-
-# The font of a heading at `level` (1-based; every level past the third takes
-# `heading_font`), read from the theme `theme`.
-function _heading_font(theme, level::Int)
-    name = level <= 1 ? :heading_1_font :
-           level == 2 ? :heading_2_font :
-           level == 3 ? :heading_3_font : :heading_font
-    make_style_field(MarkdownTheme, scale_theme(theme), StyleFont; name)
 end

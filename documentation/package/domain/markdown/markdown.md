@@ -36,11 +36,16 @@ This route exists for a block that is not Markdown. A page can hold any file doc
 ### The theme
 
 `MarkdownTheme` holds the look of the Markdown projections: the text of the markers, of the source text, of code and of a language, of the marker of a heading, of a URL and an alt text; for the rendered form the body text, the bold and the italic font, the four heading fonts, the color of a heading and of a link, the caption, the rendered markers, and the gap between the blocks of a page. Each value has
-the default that the domain draws with no appearance. Each projection takes
-`theme`, a `MarkdownTheme` or a scaled one; with none it holds the default values.
-`MarkdownToSyntax(; style, theme)` gives the theme to every projection, and the layout of a page takes `block_gap`. The natural
-registration gives the scaled theme of the `Appearance` of the editor, so the view
-follows its scales, and the appearance tab shows a section for `MarkdownTheme`.
+the default that the domain draws with no appearance. A projection holds its
+styles as fields, and no theme; nothing in it scales or asks whether a theme is
+scaled. `MarkdownToSyntax(; style, theme)` gives each projection the style of
+its role with `get_markdown_style`, from `theme`, a `MarkdownTheme` scaled or
+not, or the default styles for `nothing`, and the layout of a page takes
+`block_gap` the same way. A heading holds the four fonts of its levels as its
+own fields, `heading_1_font` through `heading_font`, and picks among them by
+the level it draws. The natural registration gives the scaled theme of the
+`Appearance` of the editor, so the view follows its scales, and the appearance
+tab shows a section for `MarkdownTheme`.
 
 ## How it fits
 

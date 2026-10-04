@@ -67,7 +67,7 @@ function __init__()
     # thematic break do not, and fall to the fabric, which never breaks a line.
     register_natural_graphics!(:markdown_page, (; measure, appearance) -> Pair{Type,Any}[
         MarkdownRoot => ChainingProjection(MarkdownRootToVerticalLayout(
-                                               theme = get_scaled_theme!(appearance, MarkdownTheme)),
+                                               gap = get_markdown_style(get_scaled_theme!(appearance, MarkdownTheme), :block_gap)),
                                            VerticalLayoutToGraphicsCanvas()),
         MarkdownHeading   => make_natural_prose_graphics(; measure, appearance),
         MarkdownParagraph => make_natural_prose_graphics(; measure, appearance),

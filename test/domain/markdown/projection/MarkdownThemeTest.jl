@@ -1,8 +1,8 @@
 # The markdown syntax follows the scales of the appearance: the natural renderer
 # gives the markdown projections the scaled `MarkdownTheme` of its appearance, so
 # at a font scale of 1.5 every text of a markdown document is 1.5 times as large
-# in the source form and in the rendered form, and a markdown projection with no
-# theme has the default styles.
+# in the source form and in the rendered form, and a markdown projection that a
+# builder gives no style has the default styles.
 
 # The size of the font of each text the rendered markdown form draws for
 # `document` with `appearance`, in a fixed measure: the source form goes through
@@ -29,9 +29,15 @@ function test_markdown_theme()
 
     @test MarkdownTextToSyntaxLeaf().style.font.size == 14
     theme = get_scaled_theme!(Appearance(font_scale = 1.5), MarkdownTheme)
-    leaf = MarkdownTextToSyntaxLeaf(; theme)
+    leaf = MarkdownTextToSyntaxLeaf(; style = get_markdown_style(theme, :source_text))
     @test leaf.style.font.size == 21
     @test is_color_equal(leaf.style.color, MarkdownTheme().source_text.color)
+    # A projection holds its styles and no theme, and its builder reads a theme
+    # that is not scaled as at no scale.
+    @test !hasfield(MarkdownTextToSyntaxLeaf, :theme)
+    @test !hasfield(MarkdownHeadingToStyledNode, :theme)
+    built = MarkdownToSyntax(; theme = MarkdownTheme())
+    @test unwrap_cell(only(rule for rule in built.dispatch if first(rule) === MarkdownText)[2].style).font.size == 14
 
     # The rendered form: a heading takes a bigger font than the body, and both
     # scale with the appearance — headings scale too.

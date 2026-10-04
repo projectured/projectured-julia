@@ -19,9 +19,8 @@
 # mirrors `CellVectorToVerticalLayout`, which does the same for a bare
 # collection.
 @projection UntrackedCell struct MarkdownRootToVerticalLayout
-    theme::Any = nothing
     horizontal_align::Symbol = :left
-    gap::Int = make_style_field(MarkdownTheme, scale_theme(theme), Int; name = :block_gap)
+    gap::Int = get_markdown_style(nothing, :block_gap)
 end
 
 function print_document(p::MarkdownRootToVerticalLayout, recursion, root::MarkdownRoot, ctx)
