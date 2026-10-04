@@ -124,8 +124,8 @@ watches the window sees each gesture and what it did, as a video shows them. The
 panel holds the last `lines` entries (8 by default) in a log of its own,
 `measure` measures its text (`FontFileMeasure()` by default),
 `operation_width` limits the operation of a line (60 characters by default), and
-`background` is its color, an opaque gray by default, so the text of the window
-under the panel does not show through its lines.
+`background` is its color, by default the translucent `panel_background` of the
+gesture log theme.
 """
 function wrap_editor!(::Val{:gesture_log}, layer::Symbol, argument, parts::EditorParts)
     options = argument === true ? (;) : argument
@@ -137,10 +137,6 @@ function wrap_editor!(::Val{:gesture_log}, layer::Symbol, argument, parts::Edito
     parts
 end
 
-# The gray that the translucent panel shows over a light page, as an opaque color.
-# @style: waits for a decision of the owner: the panel of the theme is translucent, the panel of a window is opaque
-const _GESTURE_LOG_PANEL_BACKGROUND = StyleColor(0.26, 0.27, 0.28, 1.0)
-
 # The panel of the newest gestures over `projection`. It has a short log of its
 # own, so it stays as tall as its lines, and it records into that log as the
 # wrapper records into the log of the session.
@@ -148,11 +144,12 @@ function _make_gesture_log_panel(projection, options)
     log = GestureLog(; capacity = get(options, :lines, 8))
     content = make_gesture_log_content_projection(; measure = get(options, :measure, FontFileMeasure()),
                                                     operation_width = get(options, :operation_width, 60))
-    GestureLogRecordingProjection(inner = GestureLogOverlayProjection(inner = projection, log = log,
+    # A background that the options name replaces the one of the theme.
+    background = haskey(options, :background) ? (; background = options[:background]) : (;)
+    GestureLogRecordingProjection(inner = GestureLogOverlayProjection(; inner = projection, log = log,
                                                                       content = content,
                                                                       anchor = get(options, :anchor, :bottom_right),
-                                                                      background = get(options, :background,
-                                                                                       _GESTURE_LOG_PANEL_BACKGROUND)),
+                                                                      background...),
                                   log = log, fold_typing = true)
 end
 

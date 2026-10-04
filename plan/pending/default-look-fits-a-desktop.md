@@ -438,6 +438,9 @@ recommendation: "agreed on all". Section 5 logs them as D8 to D12.
   julia domain and should not reimplement".
 - **D29** (2026-10-04, T2). The views of the view registry of omnet-julia get the
   appearance of the editor after the first release. The owner: "agreed".
+- **D31** (2026-10-04, T2). The panel of the newest gestures over a window is the
+  translucent `panel_background` of the gesture log theme, as every overlay of
+  the log. The owner: "the overlay I liked it semi transparent".
 - **D30** (2026-10-04, T2). The color swatch of the appearance tab is a widget
   of its own kind now, which draws a square of a given size. The owner: "add a
   swatch now".
@@ -594,7 +597,9 @@ inet-julia uses, the same step changes them, so that they always load.
     the panel that the `gesture_log` wrapper puts over a window is an opaque
     gray (`_GESTURE_LOG_PANEL_BACKGROUND`), so that the text under the panel
     does not show through. The line carries a marker until the owner chooses
-    one color for the theme.
+    one color for the theme. *Done (2026-10-04, D31):* the overlay stays
+    translucent; the wrapper takes `panel_background` of the theme, and a
+    `background` in its options still replaces it.
   - Open, found after the landing (2026-10-04): a value in a cell of a data
     frame stands about 3 px below the number of its row, and 7 checks of
     `test_dataframes` fail (`DataFrameViewTest.jl` lines 134, 141, 176 and
