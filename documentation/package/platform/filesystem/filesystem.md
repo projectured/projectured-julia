@@ -46,8 +46,9 @@ Enter on a row, or a double click, makes an `OpenFileOperation(path; wrap)`. The
 ### The theme
 
 `FileSystemTheme` holds the text of a file and of a directory in the syntax form. Each value has the default that the slice draws with no
-appearance. `FileSystemToSyntax` takes `theme`, a `FileSystemTheme` or a scaled one; with none it holds the
-default values. The registration gives the scaled theme of the `Appearance`. The tree of the explorer is made of widgets, so it follows the widget theme.
+appearance. `FileSystemFileToSyntaxLeaf` and `FileSystemDirectoryToSyntaxNode` hold their styles and no theme.
+`FileSystemToSyntax(; theme)` fills them with `get_file_system_style`, from a `FileSystemTheme` scaled or not, or the
+default values for `nothing`. The registration gives the scaled theme of the `Appearance`. The tree of the explorer is made of widgets, so it follows the widget theme.
 
 ## How it fits
 

@@ -69,8 +69,10 @@ end
 end
 
 @testset "FileSystemFileToSyntaxLeaf and FileSystemDirectoryToSyntaxNode read FileSystemTheme" begin
-    _check_tool_theme(FileSystemFileToSyntaxLeaf, FileSystemTheme, (:file_text,), 14)
-    _check_tool_theme(FileSystemDirectoryToSyntaxNode, FileSystemTheme, (:directory_text,), 14)
+    _check_tool_theme((; theme = nothing) -> FileSystemFileToSyntaxLeaf(;
+        file_text = get_file_system_style(theme, :file_text)), FileSystemTheme, (:file_text,), 14)
+    _check_tool_theme((; theme = nothing) -> FileSystemDirectoryToSyntaxNode(;
+        directory_text = get_file_system_style(theme, :directory_text)), FileSystemTheme, (:directory_text,), 14)
 end
 
 end

@@ -14,9 +14,10 @@ The fields are the text styles of a file and a directory. Each field has a
 docstring that says what it draws, which the appearance tab shows under its
 name.
 
-A file-system projection reads the scaled theme through its `UntrackedCell`
-style fields; with no theme it holds the plain values of the default theme.
-The widget tree of the file system follows the widget theme instead.
+`FileSystemToSyntax` gives the projections of the file-system tree their
+styles with `get_file_system_style`, from a theme scaled or not; a projection
+built with no styles holds the plain values of the default theme. The widget
+tree of the file system follows the widget theme instead.
 """
 @theme struct FileSystemTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
@@ -26,9 +27,3 @@ The widget tree of the file system follows the widget theme instead.
     "The name of a directory."
     directory_text::TextRole = TextRole(color_solarized_red; weight = 700)
 end
-
-# The style field of a file-system projection that holds the text `name` of
-# the theme `theme`: a `FileSystemTheme`, a scaled one, or `nothing` for the
-# default values.
-_get_filesystem_style(theme, name::Symbol) =
-    make_style_field(FileSystemTheme, scale_theme(theme), StyleText; name)

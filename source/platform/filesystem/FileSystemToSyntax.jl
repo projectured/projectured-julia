@@ -16,8 +16,7 @@
 # ── FileSystemFileToSyntaxLeaf ────────────────────────────────────────────────
 
 @projection UntrackedCell struct FileSystemFileToSyntaxLeaf
-    theme::Any = nothing
-    file_text::StyleText = _get_filesystem_style(theme, :file_text)
+    file_text::StyleText = get_file_system_style(nothing, :file_text)
 end
 
 function print_document(p::FileSystemFileToSyntaxLeaf, recursion, f::FileSystemFile, ctx)
@@ -87,8 +86,7 @@ read_intent(::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceStringR
 #   .elements[i] + rest  →  .children[2].children[i] + child_sel
 
 @projection UntrackedCell struct FileSystemDirectoryToSyntaxNode
-    theme::Any = nothing
-    directory_text::StyleText = _get_filesystem_style(theme, :directory_text)
+    directory_text::StyleText = get_file_system_style(nothing, :directory_text)
 end
 
 
@@ -209,14 +207,16 @@ end
     FileSystemToSyntax(; theme = nothing)
 
 The projection of the whole file-system tree: a file as a leaf, a directory as
-a node. `theme` is a `FileSystemTheme`, a scaled one, or `nothing` for the
-default styles.
+a node. Each projection has no theme of its own; this gives it the style of its
+role from `theme`, a `FileSystemTheme` scaled or not, or the default styles for
+`nothing`.
 """
 function FileSystemToSyntax(; theme = nothing)
-    theme = scale_theme(theme)
     TypeDispatchingProjection(
-        FileSystemFile      => FileSystemFileToSyntaxLeaf(; theme),
-        FileSystemDirectory => FileSystemDirectoryToSyntaxNode(; theme),
+        FileSystemFile      => FileSystemFileToSyntaxLeaf(;
+            file_text = get_file_system_style(theme, :file_text)),
+        FileSystemDirectory => FileSystemDirectoryToSyntaxNode(;
+            directory_text = get_file_system_style(theme, :directory_text)),
     )
 end
 
