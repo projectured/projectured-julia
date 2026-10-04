@@ -563,6 +563,12 @@ inet-julia uses, the same step changes them, so that they always load.
     the colors of `compute_code_pieces`. The owner did not understand the
     question about the colors of `compute_code_pieces` (2026-10-02). It stays
     open, and no step does work on it.
+  - Open, found in the rebase onto main (2026-10-04): the panel of the newest
+    gestures. `GestureLogTheme.panel_background` is a translucent black, and
+    the panel that the `gesture_log` wrapper puts over a window is an opaque
+    gray (`_GESTURE_LOG_PANEL_BACKGROUND`), so that the text under the panel
+    does not show through. The line carries a marker until the owner chooses
+    one color for the theme.
   - The graphics theme (D19): `GraphicsTheme` in the graphics slice holds
     `font`, `fault_text`, `selection_ring` and `selection_ring_width`.
     `SELECTION_RING_COLOR` and `WidgetTheme.selection_ring` go.
