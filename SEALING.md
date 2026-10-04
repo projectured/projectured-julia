@@ -62,7 +62,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `fault/FaultCascade.jl`
   - ⬜ `fault/FaultBarrier.jl`
 - **Layer 2 — performance** (`performance/`)
-  - 🔒 `performance/PerformanceModule.jl`
+  - ⬜ `performance/PerformanceModule.jl`
   - ⬜ `performance/PerformanceCounter.jl`
   - 🔒 `performance/FrameMeasurement.jl`
 - **Layer 3 — cell** (`cell/`)

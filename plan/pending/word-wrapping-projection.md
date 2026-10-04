@@ -36,7 +36,7 @@ files would live alongside the test.
 test exists in `package/substrate/test/projection/WordWrappingTest.jl`. Note the
 API this item should use has itself been renamed since the plan was written:
 there is no bare `perf_counters()` function any more — the current API is
-`with_performance_counters(f)` / `get_performance_counters()` /
+`run_with_performance_counters(f)` / `get_performance_counters()` /
 `record_performance!` (`package/kernel/main/cell/PerformanceCounter.jl`,
 documented in `package/kernel/doc/cell.md`, "PerformanceCounterModule —
 instrumentation").

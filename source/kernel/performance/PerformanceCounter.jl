@@ -21,7 +21,7 @@ _make_performance_counter_store() = _PerformanceCounterStore(
     Dict{Symbol,Int}())
 
 # The active counter store: a task-local dynamic binding, `nothing` outside any
-# `with_performance_counters` scope.
+# `run_with_performance_counters` scope.
 const _counters = ScopedValue{Union{Nothing,_PerformanceCounterStore}}(nothing)
 
 # Add to a count or to a time of the bound store; a no-op when none is bound.
@@ -39,7 +39,7 @@ end
 end
 
 """
-    with_performance_counters(f) -> f()'s value
+    run_with_performance_counters(f) -> f()'s value
 
 Bind a fresh counter store for the dynamic extent of `f`, run `f`, and return
 its value. Each call gets its own store, with the seeded counts at zero and no
@@ -52,14 +52,14 @@ stages. The counters exist only when the switch compiled them in.
 
 # Example
 
-    counters = with_performance_counters() do
+    counters = run_with_performance_counters() do
         run_frame!(editor)
         get_performance_counters()
     end
 
 See also [`get_performance_counters`](@ref), which reads the store of the scope.
 """
-function with_performance_counters(f)
+function run_with_performance_counters(f)
     # `PERFORMANCE_COUNTERS_ENABLED` is a `const`, so this branch is constant-folded
     # and the disabled build compiles down to `f()`.
     PERFORMANCE_COUNTERS_ENABLED || return f()
@@ -73,19 +73,19 @@ Copies of the counters of the current scope. `counts` holds the seeded counts
 `:reads`, `:computes`, `:invalidations` and `:writes`, and every key that
 `@count_performance` added. `times` holds every key that
 `@measure_performance_time` recorded, in nanoseconds. Outside a
-`with_performance_counters` scope, both are empty.
+`run_with_performance_counters` scope, both are empty.
 
 Use it inside a scope to read how much work the scope did so far: how many cells
 it read, computed, invalidated and wrote, and how long each timed stage took.
 
 # Example
 
-    reads = with_performance_counters() do
+    reads = run_with_performance_counters() do
         run_frame!(editor)
         get_performance_counters().counts[:reads]
     end
 
-See also [`with_performance_counters`](@ref), which binds the store.
+See also [`run_with_performance_counters`](@ref), which binds the store.
 """
 function get_performance_counters()
     store = _counters[]

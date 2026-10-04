@@ -191,7 +191,7 @@ function measure_printer_locality(document, projection, mutate!)
 
     # Count the reactive traffic of the mutation + re-force inside a scoped
     # counter store (there is no process-global counter to reset).
-    invalidated, after_objs, perf = with_performance_counters() do
+    invalidated, after_objs, perf = run_with_performance_counters() do
         try
             mutate!(document)
         catch e

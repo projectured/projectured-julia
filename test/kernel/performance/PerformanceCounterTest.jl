@@ -1,7 +1,7 @@
 """
 `PerformanceModule` — conditionally-compiled reactive instrumentation.
 The active counter store is a task-local binding established by
-`with_performance_counters`. `@count_performance` adds to its counts, and
+`run_with_performance_counters`. `@count_performance` adds to its counts, and
 `@measure_performance_time` adds to its times, which it keeps apart.
 """
 
@@ -37,9 +37,9 @@ function test_performance_counter()
 
     if !PERFORMANCE_COUNTERS_ENABLED
         # Counting is compiled out: the machinery is inert but still transparent.
-        # `with_performance_counters` runs the body and returns its value, and
+        # `run_with_performance_counters` runs the body and returns its value, and
         # `@measure_performance_time` yields its expression.
-        counters = with_performance_counters() do
+        counters = run_with_performance_counters() do
             a = Cell(1); b = Cell(@computation a[] + 1)
             _ = b[]; a[] = 2; _ = b[]
             @test (@measure_performance_time :timed_expr (1 + 2)) == 3
@@ -52,7 +52,7 @@ function test_performance_counter()
     # Counting is compiled in: a scope binds a fresh store the engine counts into.
     # We test only the *sign* of the deltas (>= 1) — the exact bump count is an
     # engine-internal detail and would over-specify the test.
-    counters = with_performance_counters() do
+    counters = run_with_performance_counters() do
         a = Cell(1)
         b = Cell(@computation a[] + 1)
         _ = b[]           # first read: 1 compute + at least 2 reads (a, b)
@@ -74,7 +74,7 @@ function test_performance_counter()
     @test !haskey(counters.counts, :timed_expr)
 
     # Each scope gets its own fresh store — counts do not leak across scopes.
-    fresh = with_performance_counters() do
+    fresh = run_with_performance_counters() do
         get_performance_counters()
     end
     @test fresh.counts[:reads] == 0

@@ -207,7 +207,7 @@ function run_editor!(editor::Editor; mcp::Union{Bool,NamedTuple}=false,
             # cell operations below count into it and `_log_performance_counters!` reads
             # it.
             frame_started = time_ns()
-            with_performance_counters() do
+            run_with_performance_counters() do
                 wall_time = (frame_started - t_start) / 1e9
                 # A backend whose time throws is recorded, and the frame shows
                 # the wall time.

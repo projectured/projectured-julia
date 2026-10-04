@@ -233,7 +233,7 @@ the HTTP clients of the model providers are in the opt-in `ProjecturedMCP`,
   registers every cell read during a computation as an upstream dependency.
 - **Invalidation:** writing a cell (`c[] = v`) marks all transitive
   downstream dependents invalid; they recompute lazily on next read.
-- **Performance counters:** `with_performance_counters()` binds a per-frame store and
+- **Performance counters:** `run_with_performance_counters()` binds a per-frame store and
   `get_performance_counters()` reads it — per-frame read/compute/write tallies, with no
   process-global state.
 

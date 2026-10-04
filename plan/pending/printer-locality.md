@@ -145,7 +145,7 @@ the intent — noted inline.
 
   Built as `printer_locality_report(document, projection, mutate!)` — no `expect`
   kwarg; each dimension has its own `explore_*`/`test_*` driver instead (see
-  Phase 2). Uses `with_performance_counters() do … end` scoping rather than a
+  Phase 2). Uses `run_with_performance_counters() do … end` scoping rather than a
   global `perf_reset!()`. All three numbered sub-steps are present:
   `_collect_locality!` reflexively forces every cell and snapshots identity;
   `mutate!` runs inside the scoped counters; the returned `LocalityReport` carries

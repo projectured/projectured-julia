@@ -317,7 +317,7 @@ that starts, also one that throws. The editor measures its stages into the times
 `@measure_performance_time`.
 
 The active store is a **task-local dynamic binding** (`ScopedValue`).
-`with_performance_counters(f)` binds a new store while `f` runs, and everything
+`run_with_performance_counters(f)` binds a new store while `f` runs, and everything
 that runs inside `f` counts into it. Outside such a scope the binding is
 `nothing`, so a cell operation outside a scope counts nothing and shares no
 state. So many editors can run in one process, and their counters stay apart
@@ -333,7 +333,7 @@ environment variable to `true` and compile again.
 
 Public surface:
 
-- `with_performance_counters(f)` binds a new store while `f` runs.
+- `run_with_performance_counters(f)` binds a new store while `f` runs.
 - `get_performance_counters()` returns copies of the counts and the times of the
   active store. Both are empty outside a scope.
 - `@measure_performance_time key expr` times `expr`, and adds the nanoseconds to

@@ -186,7 +186,7 @@ function test_editor_frame_performance()
             editor = Editor(FrameMeasurementProbe(), FrameMeasurementProbeProjection();
                             backend = HeadlessBackend(), devices = Device[])
             # A time that no list names reaches the store all the same.
-            with_performance_counters() do
+            run_with_performance_counters() do
                 @measure_performance_time :probe_time (1 + 2)
                 EditorModule.record_frame_performance!(editor, 0.016)
             end

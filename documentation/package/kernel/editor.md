@@ -94,7 +94,7 @@ while true
         yield()                      # the turn of the other tasks of this thread
     end
     Threads.atomic_xchg!(editor.wake_pending, false) # this frame owns every wake so far
-    with_performance_counters() do   # bind a fresh per-frame counter store
+    run_with_performance_counters() do   # bind a fresh per-frame counter store
         wall_time = (time_ns() - t_start) / 1e9
         set_clock_time!(editor.clock, get_frame_clock_time(editor.backend, wall_time))
         drain_feeds!(editor)         # the inbox first, then every registered feed
@@ -622,7 +622,7 @@ The server is stopped in the `finally` block of `run_editor!`.
 
 ## Performance counters
 
-Each frame the editor binds a fresh counter store with `with_performance_counters()`
+Each frame the editor binds a fresh counter store with `run_with_performance_counters()`
 and calls `_log_performance_counters!()` after rendering, which logs
 
 ```

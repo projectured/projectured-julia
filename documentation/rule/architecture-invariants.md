@@ -1053,7 +1053,7 @@ engine keeps its computing stack, which tracks dependencies, in task-local
 storage, so concurrent evaluations never cross-register dependencies. The
 performance counters live in the scope of one frame of one editor:
 `run_editor!` binds a fresh counter store for each frame with
-`with_performance_counters`, a task-local binding. The animation clock is a
+`run_with_performance_counters`, a task-local binding. The animation clock is a
 per-editor `Clock` (a `@cell_struct`, not a document — `clock/ClockModule.jl`);
 `run_editor!` advances `editor.clock`, and every animated cell subscribes to the
 clock the printer context carries, so two editors in one process never
