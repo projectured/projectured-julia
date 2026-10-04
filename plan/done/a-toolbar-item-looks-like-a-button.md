@@ -154,7 +154,7 @@ pressed look. The owner wrote: "I agree with your recommendation".
   ([widget.md:70](../../documentation/package/platform/widget/widget.md#L70)):
   `layer_stroke` is the stroke of the layer in each state that shows it.
   `corner_radius` is the name that `WidgetButton` uses.
-  [a-projection-holds-its-styles.md](../pending/a-projection-holds-its-styles.md) moves
+  [a-projection-holds-its-styles.md](a-projection-holds-its-styles.md) moves
   these fields later with all the others.
 - **D5. The pressed state copies `WidgetButton`.** The item gets a transient
   `pressed::Bool` field. Its reader writes it with `_write_view_state` on a
