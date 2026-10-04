@@ -58,8 +58,9 @@ end
 
 @testset "HelpListToSyntax reads HelpTheme" begin
     defaults = make_scaled_theme(HelpTheme())
-    plain = HelpListToSyntax()
-    scaled = HelpListToSyntax(theme = get_scaled_theme!(Appearance(font_scale = 1.5), HelpTheme))
+    plain = make_help_list_projection()
+    @test !hasfield(typeof(plain), :theme)
+    scaled = make_help_list_projection(theme = get_scaled_theme!(Appearance(font_scale = 1.5), HelpTheme))
     _check_theme_roles(plain, scaled, defaults,
                        [(:heading, :heading_text), (:name, :name_text), (:detail, :detail_text),
                         (:description, :description_text), (:muted, :muted_text)])
@@ -67,8 +68,9 @@ end
 
 @testset "AboutPageToSyntax reads HelpTheme" begin
     defaults = make_scaled_theme(HelpTheme())
-    plain = AboutPageToSyntax()
-    scaled = AboutPageToSyntax(theme = get_scaled_theme!(Appearance(font_scale = 1.5), HelpTheme))
+    plain = make_about_page_projection()
+    @test !hasfield(typeof(plain), :theme)
+    scaled = make_about_page_projection(theme = get_scaled_theme!(Appearance(font_scale = 1.5), HelpTheme))
     _check_theme_roles(plain, scaled, defaults,
                        [(:name, :title_text), (:summary, :description_text), (:detail, :detail_text)])
 end

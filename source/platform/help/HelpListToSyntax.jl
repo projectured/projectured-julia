@@ -11,13 +11,28 @@
 #
 # Read-only. There is nothing to author here, so this is a plain leaf printer
 # with no reader and no reference mappers.
+#
+# The projection holds its styles and no theme; `make_help_list_projection`
+# fills them from a theme.
 @projection UntrackedCell struct HelpListToSyntax
-    theme::Any = nothing
-    heading::StyleText = _get_help_style(theme, :heading_text)
-    name::StyleText = _get_help_style(theme, :name_text)
-    detail::StyleText = _get_help_style(theme, :detail_text)
-    description::StyleText = _get_help_style(theme, :description_text)
-    muted::StyleText = _get_help_style(theme, :muted_text)
+    heading::StyleText = get_help_style(nothing, :heading_text)
+    name::StyleText = get_help_style(nothing, :name_text)
+    detail::StyleText = get_help_style(nothing, :detail_text)
+    description::StyleText = get_help_style(nothing, :description_text)
+    muted::StyleText = get_help_style(nothing, :muted_text)
+end
+
+"""
+    make_help_list_projection(; theme = nothing) -> HelpListToSyntax
+
+The projection of a document type list or a projection list, with the styles of
+`theme`: a `HelpTheme`, scaled or not, or the default styles for `nothing`.
+"""
+function make_help_list_projection(; theme = nothing)
+    get_style(name) = get_help_style(theme, name)
+    HelpListToSyntax(; heading = get_style(:heading_text), name = get_style(:name_text),
+                     detail = get_style(:detail_text), description = get_style(:description_text),
+                     muted = get_style(:muted_text))
 end
 
 """

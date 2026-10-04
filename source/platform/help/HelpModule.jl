@@ -35,6 +35,9 @@ import ..ProjectionModule: print_document
 import ..SerializationModule: pred_arguments
 
 export compute_help_entries
+export HelpTheme, ScaledHelpTheme
+export HelpListToSyntax, make_help_list_projection
+export AboutPageToSyntax, make_about_page_projection
 
 include("HelpDocument.jl")
 include("HelpTheme.jl")
@@ -46,9 +49,9 @@ function __init__()
     register_natural_syntax!(:help, (; appearance) -> begin
         theme = get_scaled_theme!(appearance, HelpTheme)
         Pair{Type,Any}[
-            DocumentTypeList => HelpListToSyntax(; theme),
-            ProjectionList   => HelpListToSyntax(; theme),
-            AboutPage        => AboutPageToSyntax(; theme),
+            DocumentTypeList => make_help_list_projection(; theme),
+            ProjectionList   => make_help_list_projection(; theme),
+            AboutPage        => make_about_page_projection(; theme),
         ]
     end)
 end

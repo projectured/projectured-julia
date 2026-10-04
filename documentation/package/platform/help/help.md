@@ -38,8 +38,9 @@ With the packages of the application loaded, the Documents list holds 170 types 
 ### The theme
 
 `HelpTheme` holds the text of a heading, a name, a detail, a description and a muted note of the lists of help, and the title of the about page. Each value has the default that the slice draws with no
-appearance. `HelpListToSyntax` and `AboutPageToSyntax` take `theme`, a `HelpTheme` or a scaled one; with none they hold the
-default values. The registration of help gives the scaled theme of the `Appearance`.
+appearance. `HelpListToSyntax` and `AboutPageToSyntax` hold their styles and no theme. `make_help_list_projection(; theme)`
+and `make_about_page_projection(; theme)` fill them with `get_help_style`, from a `HelpTheme` scaled or not, or the
+default values for `nothing`. The registration of help gives the scaled theme of the `Appearance`.
 
 ## How it fits
 

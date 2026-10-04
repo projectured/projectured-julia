@@ -7,11 +7,25 @@
 # The lines are made in a thunk, so a change of a field of the page draws again.
 # Read-only. There is nothing to author here, so this is a plain leaf printer
 # with no reader and no reference mappers.
+#
+# The projection holds its styles and no theme; `make_about_page_projection`
+# fills them from a theme.
 @projection UntrackedCell struct AboutPageToSyntax
-    theme::Any = nothing
-    name::StyleText = _get_help_style(theme, :title_text)
-    summary::StyleText = _get_help_style(theme, :description_text)
-    detail::StyleText = _get_help_style(theme, :detail_text)
+    name::StyleText = get_help_style(nothing, :title_text)
+    summary::StyleText = get_help_style(nothing, :description_text)
+    detail::StyleText = get_help_style(nothing, :detail_text)
+end
+
+"""
+    make_about_page_projection(; theme = nothing) -> AboutPageToSyntax
+
+The projection of the about page, with the styles of `theme`: a `HelpTheme`,
+scaled or not, or the default styles for `nothing`.
+"""
+function make_about_page_projection(; theme = nothing)
+    get_style(name) = get_help_style(theme, name)
+    AboutPageToSyntax(; name = get_style(:title_text), summary = get_style(:description_text),
+                      detail = get_style(:detail_text))
 end
 
 function print_document(p::AboutPageToSyntax, recursion, page::AboutPage, ctx::PrinterContext)
