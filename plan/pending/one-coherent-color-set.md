@@ -1,12 +1,11 @@
 # One coherent color set
 
-> **Status:** pending, decided, in progress on the branch `color-set`. Part 1, the catalog of every
-> color, is done (2026-10-04). The owner decided the design of Part 2 on
-> 2026-10-04 in two rounds of answers (section 12.1), and no question is open.
-> The work had to wait for the branch `projection-styles` of
-> [a-projection-holds-its-styles.md](a-projection-holds-its-styles.md); it
-> landed on main at `63a8a5e74` on 2026-10-04. So the work can start, on the
-> owner's word. No code changed.
+> **Status:** pending; landed on `main` at `b2d95c294` on 2026-10-04, not
+> pushed. Part 1, the catalog of every color, is done. The owner decided the
+> design of Part 2 in two rounds of answers (section 12.1). Parts C, M and P
+> are done; Part S, the system mode, is deferred. Section 12.15 holds the checks
+> and what is open. The plan moves to `plan/done/` when the checks after the
+> landing pass and the open items have an owner.
 
 ## 1. The request
 
@@ -953,9 +952,11 @@ its styles and a builder fills them with `get_<name>_style`.
 
 ### 12.15 The checks, and what is open
 
-**Status (2026-10-04):** Parts C, M and P are done on the branch `color-set`;
-Part S is deferred by the owner. The branch is not on `main`: the owner reviews
-the look and the field-to-role table (Appendix B) and says when it lands.
+**Status (2026-10-04):** Parts C, M and P are done; Part S is deferred by the
+owner. The owner said "rebase and land first, test afterwards": the branch
+`color-set` was rebased onto `main` with no conflict and landed by a
+fast-forward at `b2d95c294`. It is not pushed. The checks below ran on the
+branch before the rebase; the checks after the landing follow.
 
 The checks, each run the same way on the branch point (`dc2b67e4a`) and on the
 branch:
@@ -967,6 +968,12 @@ branch:
 | `ProjecturedTest.test_integration()` | 1207246 pass, 2 errors, 1578 broken | the same 2 errors (`ClickRoundtripTest.jl:323`, "right ↔ left") after the updates of `DocumentInsertionTest.jl` and `ApplicationTest.jl` |
 | the style, naming, tree, arguments and documentation guards | pass | pass |
 | the exports guard | fails | fails with the same lines |
+
+**After the landing** (on `b2d95c294`, 2026-10-04 and 2026-10-05):
+`test_platform()` 94023 pass, 8 broken; the 23 suites of the domains, the
+adapters and the backends all pass (YAML 2 broken); `test_integration()`
+1206326 pass, 1578 broken, and the same 2 errors of `ClickRoundtripTest.jl:323`
+that the branch point has.
 
 The tests that changed assert a role, not a value (rule 6). Three faults of the
 code were found by the tests and fixed: a field of Julia code took a role and
@@ -989,12 +996,19 @@ fields.
    background (M6).
 4. `make_slate_light_theme` names the default widget theme with a font; a
    rename waits, because omnet-julia calls it (M1).
-5. omnet-julia and inet-julia are not checked against the branch. A scratch
-   environment that points the projectured packages at the worktree, a
-   precompile, and the presentation suites of omnet-julia check them before the
-   branch lands. omnet-julia reads theme colours through scaled themes and
-   `get_theme_defaults`, which give colours, and its qtenv widget theme names
-   fixed colours, which stay valid.
+5. ~~omnet-julia is not checked.~~ **Checked after the landing (2026-10-05).**
+   omnet-julia `87d730d2` loads with `main`. Sixteen targeted tests that draw
+   themed views (the result chart, the topology card, the panels of the watch
+   example, the module, log, configuration, timeline, execution, telemetry and
+   inspector views, and the qtenv suite) give the same results against `main`
+   and against the commit before the landing (`273bc9d60`, in a scratch
+   environment). The failures that both show are known on omnet `main`: the
+   card padding of `ResultChartTest.jl:150`, the counts of `test_topology_card`
+   and `test_sim_dashboard_panel`, the allocation cost of
+   `test_workbench_composite`, one check of `test_inspector_disclosure`, and
+   `test_sim_control_panel`, which fails on a warm run because the engine reaches
+   the end of its simulation time. The whole presentation suite does not end with
+   `-t 2`, so it was stopped. inet-julia is not checked.
 6. The system mode (Part S).
 
 ## Appendix A. The tables
