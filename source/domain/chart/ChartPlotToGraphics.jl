@@ -43,7 +43,7 @@ _veiled(color::StyleColor, on::Bool, veil::Real) =
 # on some *other* series.
 function _draw_color(g, index::Int, own)
     color = get_series_color(own, index, g.style.color_cycle)
-    _veiled(color, g.lit_index != 0 && g.lit_index != index, g.theme.veil_alpha)
+    _veiled(color, g.lit_index != 0 && g.lit_index != index, g.theme_values.veil_alpha)
 end
 
 """
@@ -55,9 +55,10 @@ The chart renderer. `measure::TextMeasure` is how tick and title text is sized:
 `width`/`height` are the fallback canvas size, used when the printer context
 carries no allocation from a parent layout.
 
-`theme` is a [`ChartTheme`](@ref), a scaled one, or `nothing` for the default
+`theme` is a [`ChartTheme`](@ref), scaled or not, or `nothing` for the default
 values; `style` holds every value of the theme as one `NamedTuple`, read once at
-each print with `unwrap_cell`.
+each print with `unwrap_cell`, and the plan of a print carries it as
+`theme_values`, beside the `ChartStyle` of the chart, `style`.
 
 A plain struct rather than an `@projection`: `measure` is fixed at
 construction and needs no reactive field.
@@ -71,7 +72,7 @@ end
 
 ChartPlotToGraphicsCanvas(; measure::TextMeasure, width::Integer=760, height::Integer=460, theme=nothing) =
     ChartPlotToGraphicsCanvas(measure, Int(width), Int(height),
-                              make_theme_values_field(ChartTheme, scale_theme(theme)))
+                              make_theme_values_field(ChartTheme, theme))
 
 @iomap struct ChartPlotToGraphicsCanvasIoMap
     projection::Any
@@ -406,7 +407,7 @@ function _legend_elements!(out, g)
     plan = g.legend
     plan === nothing && return out
     style = g.style
-    t = g.theme
+    t = g.theme_values
     text_color = _or(style.title_color, t.text_color)
     box = plan.box
 
@@ -570,7 +571,7 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
         i => _compute_strip_spans(xs, view, s)
         for (i, s) in series if s isa ChartStripSeries && haskey(strip_rows, i))
 
-    (; w, h, chart, style, theme = t, view, series, legend,
+    (; w, h, chart, style, theme_values = t, view, series, legend,
        selected_index, selected_part, whole_selected,
        measure_label, measure_legend_label,
        plot_x, plot_y, plot_w, plot_h, xs, ys,
@@ -584,7 +585,7 @@ end
 
 function _frame_elements!(out, g)
     style = g.style
-    t = g.theme
+    t = g.theme_values
     grid_color = _or(style.grid_color, t.grid)
     text_color = _or(style.title_color, t.text_color)
     px, py, pw, ph = g.plot_x, g.plot_y, g.plot_w, g.plot_h
@@ -658,7 +659,7 @@ end
 # the whole chart gets a frame of its own.
 function _selection_elements!(out, g)
     px, py, pw, ph = g.plot_x, g.plot_y, g.plot_w, g.plot_h
-    t = g.theme
+    t = g.theme_values
     if g.whole_selected
         _outline!(out, 1, 1, g.w - 2, g.h - 2, t.selected_edge, t.selected_width)
         return out
@@ -745,7 +746,7 @@ end
 
 function _line_elements!(out, g, index::Int, s::ChartLineSeries)
     style = g.style
-    t = g.theme
+    t = g.theme_values
     color = _draw_color(g, index, s.color)
     pts = _series_points(g, index, s)
     isempty(pts) && return out
@@ -895,7 +896,7 @@ function _bar_elements!(out, g, bar_series)
     bl = round(Int, baseline)
     if 0 <= bl <= g.plot_h
         push!(out, GraphicsLine(0, bl, g.plot_w, bl;
-                                color = _or(chart.bar_baseline_color, g.theme.axis)))
+                                color = _or(chart.bar_baseline_color, g.theme_values.axis)))
     end
     out
 end
@@ -904,7 +905,7 @@ end
 
 function _histogram_elements!(out, g, index::Int, s::ChartHistogramSeries)
     style = g.style
-    t = g.theme
+    t = g.theme_values
     color = _draw_color(g, index, s.color)
     edges = s.binedges
     values = _histogram_shown_values(s)
@@ -1046,7 +1047,7 @@ function _strip_elements!(out, g, index::Int, s::ChartStripSeries)
     spans = _strip_spans(g, index)
     cycle = g.style.color_cycle
     veiled = g.lit_index != 0 && g.lit_index != index
-    t = g.theme
+    t = g.theme_values
 
     for (l, r, code) in spans
         color = _veiled(strip_state_color(s, code, cycle), veiled, t.veil_alpha)
@@ -1097,7 +1098,7 @@ function _snap_point(g, lx::Int, ly::Int)
 end
 
 function _overlay_elements!(out, g, plot::ChartPlot)
-    t = g.theme
+    t = g.theme_values
     rect = plot.drag_rect
     if rect !== nothing
         rx, ry, rw, rh = rect
@@ -1185,7 +1186,7 @@ function _selected_strip!(out, g, index::Int, s::ChartStripSeries, k::Integer)
         end
     end
     _outline!(out, left - g.plot_x, band[1] - g.plot_y,
-              max(right - left, 1), max(band[2] - band[1], 1), g.theme.selected_edge, g.theme.selected_width)
+              max(right - left, 1), max(band[2] - band[1], 1), g.theme_values.selected_edge, g.theme_values.selected_width)
 end
 
 # What the pointer is over inside a band: the strip and the state holding at
@@ -1338,7 +1339,7 @@ function _legend_hit(g, x::Integer, y::Integer)
     plan = g.legend
     plan === nothing && return nothing
     _in_rect(x, y, plan.x, plan.y, plan.box_w, plan.box_h) || return nothing
-    for (index, ix, iy, iw, ih) in get_legend_item_rects(plan, g.theme.legend_padding)
+    for (index, ix, iy, iw, ih) in get_legend_item_rects(plan, g.theme_values.legend_padding)
         _in_rect(x, y, ix, iy, iw, ih) && return index
     end
     0    # inside the box but between items: consumed, but names no series

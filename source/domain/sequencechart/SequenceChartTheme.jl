@@ -19,8 +19,9 @@ padding, the gaps and the lane spacing; and the radius, the width, the dash
 and the opacity of what it draws. Each field has a docstring that says what it
 draws, which the appearance tab shows under its name.
 
-A SequenceChart projection reads the scaled theme through its `style` field,
-one `NamedTuple` built by `make_theme_values_field`; with no theme it holds the
+A SequenceChart projection holds the values of the theme, and no theme, in its
+`style` field: one `NamedTuple` that its builder reads with
+`make_theme_values_field` from a theme, scaled or not; with no theme it holds the
 plain values of the default theme.
 """
 @theme struct SequenceChartTheme

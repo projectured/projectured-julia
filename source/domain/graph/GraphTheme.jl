@@ -11,9 +11,9 @@ The theme of `GraphLayoutToGraphicsCanvas`. `@theme` declares it, so
 `ScaledGraphTheme` holds each value times its scale, and `GraphTheme()` is the
 default theme.
 
-The drawing reads the scaled theme through the `style` field of the projection,
-which holds every value as one `NamedTuple`; with no theme it holds the plain
-values of the default theme.
+The drawing holds the values of the theme, and no theme, in the `style` field of
+the projection: one `NamedTuple` that its builder reads from a theme, scaled or
+not; with no theme it holds the plain values of the default theme.
 """
 @theme struct GraphTheme
     "The fill of the box of a node, under its content."

@@ -45,7 +45,7 @@ in a test.
 `width`/`height` are the fallback canvas size, used when the printer context
 carries no allocation from a parent layout.
 
-`theme` is a `SequenceChartTheme`, a scaled one, or `nothing` for the default
+`theme` is a `SequenceChartTheme`, scaled or not, or `nothing` for the default
 values. A chart's own `SequenceChartStyle`, and a kind's own color, still take
 priority over it; the theme only replaces what neither names.
 
@@ -62,7 +62,7 @@ end
 SequenceChartPlotToGraphicsCanvas(; measure::TextMeasure, width::Integer=900,
                                   height::Integer=520, theme=nothing) =
     SequenceChartPlotToGraphicsCanvas(measure, Int(width), Int(height),
-                                      make_theme_values_field(SequenceChartTheme, scale_theme(theme)))
+                                      make_theme_values_field(SequenceChartTheme, theme))
 
 @iomap struct SequenceChartPlotToGraphicsCanvasIoMap
     projection::Any

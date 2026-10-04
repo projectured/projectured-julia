@@ -16,9 +16,10 @@ layout and the look of a drawn line: its dash and its opacity. Each field has
 a docstring that says what it draws, which the appearance tab shows under its
 name.
 
-A chart projection reads the scaled theme through `ChartPlotToGraphicsCanvas`'s
-`style` field, which holds every value as one `NamedTuple`; with no theme it
-holds the plain values of the default theme. A value that a chart's own
+A chart projection holds the values of the theme, and no theme, in the `style`
+field of `ChartPlotToGraphicsCanvas`: one `NamedTuple` that its builder reads
+from a theme, scaled or not; with no theme it holds the plain values of the
+default theme. A value that a chart's own
 `ChartStyle` sets keeps its priority over the theme.
 """
 @theme struct ChartTheme

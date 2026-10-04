@@ -44,7 +44,7 @@ end
 """
     GraphLayoutToGraphicsCanvas(; theme = nothing)
 
-The drawing of a `GraphLayout`. `theme` is a [`GraphTheme`](@ref), a scaled one,
+The drawing of a `GraphLayout`. `theme` is a [`GraphTheme`](@ref), scaled or not,
 or `nothing` for the default values; `style` holds every value of the theme as one
 `NamedTuple`, read once at each print with `unwrap_cell`.
 """
@@ -53,7 +53,7 @@ struct GraphLayoutToGraphicsCanvas <: Projection
 end
 
 GraphLayoutToGraphicsCanvas(; theme = nothing) =
-    GraphLayoutToGraphicsCanvas(make_theme_values_field(GraphTheme, scale_theme(theme)))
+    GraphLayoutToGraphicsCanvas(make_theme_values_field(GraphTheme, theme))
 
 @iomap struct GraphLayoutToGraphicsCanvasIoMap
     projection::Any

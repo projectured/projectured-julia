@@ -98,9 +98,9 @@ nothing: the colors of the backgrounds, the axis, the grid, the text, a selectio
 the hover, a strip and the crosshair band, the title, axis and legend fonts, and
 the padding, the tick length, the gap of a label, the spacing of the ticks, the
 swatch and the gap of the legend. A value that `ChartStyle` sets keeps its
-priority; the legend draws with `legend_font`. The printer takes `theme`, holds
-all its values as one style field, reads it once at each print, and gives the
-tuple to its helpers. The natural registration of a frame time series gives the
+priority; the legend draws with `legend_font`. The printer takes `theme`, scaled
+or not, holds all its values as one style field and no theme, reads it once at
+each print, and gives the tuple to its helpers as `theme_values`. The natural registration of a frame time series gives the
 scaled theme of the `Appearance`. The colors and the symbols that cycle over the
 series are the chart's own (`ChartStyle.color_cycle`), not the theme's.
 
