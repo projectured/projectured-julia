@@ -1,8 +1,9 @@
 # Strict document types
 
-**Status (2026-09-30): PENDING. Not started.** The owner asked for this plan in the decision
+**Status (2026-10-04): PENDING. Not started.** The owner asked for this plan in the decision
 walk of [kernel-audit-fixes.md](kernel-audit-fixes.md), at L10-13. Do not implement it until the
-owner asks. The questions of §7 come first.
+owner asks. The questions of §7 come first: S-2, S-3 and S-5 are decided, and S-1, S-4 and S-6
+are open.
 
 **Goal:** the declared type of a `@document` field becomes a contract that the reactive layout
 keeps. An intermediate state of an edit gets a type of its own, a *boundary type*, and a field
@@ -89,8 +90,11 @@ Each domain declares its boundary types under its own abstract type:
 - `JuliaNothing <: JuliaDocument`: an empty place. It exists.
 - `JuliaForeign <: JuliaDocument`: a document of another domain, in the field `content::Document`.
   It is new.
-- In the primitive domain, an incomplete number: a text that does not parse yet. It is new, and it
-  is option B of L13-1.
+- An incomplete number, a text that does not parse yet, becomes the insertion type of its domain
+  (S-5). The primitive domain does this already: `make_number_edit_operation`
+  ([PrimitiveDocument.jl:384-406](../../source/platform/primitive/PrimitiveDocument.jl#L384-L406))
+  replaces the number with a `PrimitiveInsertion` of the text, limited to a number. This is
+  option D of L13-1.
 
 A field declared `JuliaDocument` then admits all of them, with no `Union` in each field. Julia has
 single inheritance, so one kernel `Foreign` type can not be a subtype of every domain. Each domain
@@ -217,23 +221,101 @@ The laws change only when the pilot lands (§6).
   *Recommended (mine):* all at once, with no flag. A field declared `Any` or `Document` passes
   everything anyway, so the check changes only the fields that already claim a narrower type. Step
   0 shows how many writes break in the other domains before the check throws.
+  *Open (owner, 2026-10-04):* first see how the JSON domain works in the strict model.
 - **S-2: the element type of a list.** `CellVector.elements` is an untyped `Vector`. Does a list
   field declare its element type, for example `arguments::Vector{JuliaDocument}`, and does the
   `CellVector` check each element write? This changes the collection package.
+  **Decided by the owner, 2026-10-04: yes.** A list field declares its element type, and the
+  `CellVector` checks each element write. Today a field declared `Vector{T}` becomes a
+  `CellVector` in the reactive layout and the `T` is lost
+  ([CellVector.jl:33-56](../../source/platform/collection/CellVector.jl#L33-L56)), so the
+  `CellVector` must keep it.
 - **S-3: a cell that a constructor gets.** It becomes the cell of the field, and later writes to it
   can come from another place. Does the constructor check only the value at construction, or does
   it refuse a cell that another place can write?
+  **Decided by the owner, 2026-10-04: the constructor checks only the value at construction.**
 - **S-4: the seam.** Its name, and the layer that declares it. The operation layer calls it, and
   each domain gives a method.
+  *Recommended (mine), 2026-10-04:* `convert_to_declared_type(declared_type, value)` in the kernel
+  layer `document` (10). The name uses the verb `convert_` of naming-rules.md, and it does what
+  `Base.convert(T, x)` does: it answers a value of the type, or it refuses. It does not use the
+  word "slot", because layout-rules.md uses "slot" for the space that a parent gives a child.
+  The layer `document` records the declared types (`_declared_value_types`,
+  [DocumentCopy.jl:244](../../source/kernel/document/DocumentCopy.jl#L244)) and holds the check of
+  §3.2. The operation layer (13) and the clipboard are above it, so both can call it. The
+  clipboard check `_is_slot_accepting`
+  ([Clipboard.jl:210](../../source/platform/clipboard/Clipboard.jl#L210)) then asks the same
+  function, so a paste target and the write agree. The kernel method keeps a value of the type,
+  and converts by the rule of §3.4. `@domain` generates the method of each domain, as it
+  generates the insertion kit: text becomes the insertion (the trait `get_domain_insertion`
+  exists), and a document of another domain becomes the foreign type (a new trait
+  `get_domain_foreign`). The form of a refusal follows S-6.
 - **S-5: the incomplete number.** A type in the primitive domain (L13-1, option B), and do the
   number fields of the Julia domain (`JuliaInteger.value::Int`, `JuliaFloat.value::Float64`) use it
   or go through `JuliaInsertion`?
+  **Decided by the owner, 2026-10-04: always the insertion type of the domain, if the domain has
+  one.**
 - **S-6: the refusal.** A new exception type for a write that the check refuses, and what a person
   sees when an edit meets it.
+
+### 7.1 The JSON domain in the strict model (a study for S-1, 2026-10-04)
+
+The JSON domain has 7 types and 11 fields in
+[JsonDocument.jl](../../source/domain/json/JsonDocument.jl). A search of projectured-julia,
+omnet-julia and inet-julia found every construction and every write of a JSON field.
+
+| Field | Today | Strict |
+| --- | --- | --- |
+| `JsonBool.value`, the three `collapsed` | `Bool` | no change |
+| `JsonString.value`, `JsonObjectEntry.key` | `String` | no change |
+| `JsonNumber.value` | `Union{Real, Nothing}` | no change; a text that does not parse becomes a `JsonInsertion` (S-5) |
+| `JsonArray.elements` | `CellVector` | `Vector{JsonDocument}` (S-2) |
+| `JsonObject.entries` | `CellVector` | `Vector{JsonObjectEntry}`, or a `Union` with the placeholders (open) |
+| `JsonObjectEntry.value` | `Document` | `JsonDocument` |
+
+**The writes today are correct where a field is narrow.** The parser writes only values of the
+declared types. All other constructor calls in the examples and the tests are correct. No code
+writes a raw Julia value or a number text into a JSON field, because `splice_number` answers an
+`Int`, a `Float64` or `nothing`. So the check of §3.2 alone breaks nothing in JSON.
+
+**The narrowing breaks three places.** Each one puts a document of another domain into a JSON
+field on purpose, and each one must write `JsonForeign(document)`:
+
+1. `test/projectured/serializer/FileProjectTest.jl`: about 15 places put an `XmlElement`, and one
+   place a test document, into a `JsonObject` or a `JsonArray`. The test checks a node that two
+   files of different domains hold. In the strict model, the path to that node in the JSON file
+   gets one more step, `.content`. Step 0 must show if the code that splices the files finds the
+   node by its identity or by its path.
+2. `test/platform/fault/FaultPartTest.jl:46` puts a `FaultPartProbe` into a `JsonArray`. The test
+   checks that a fault in one leaf costs only that leaf.
+3. omnet-julia `test/legacy/simulation/MiniProjectRoundTripTest.jl:59-62` puts a Markdown, an INI
+   and a NED document into a `JsonObject`. So a JSON-only pilot touches omnet-julia too.
+
+A JSON document inside a document of another domain does not change: `GraphVertex.content` and
+the cells of a table are `Any`.
+
+**The incomplete number is lost today.** A key `e` after `42` sets `JsonNumber.value` to
+`nothing` ([JsonToSyntaxTest.jl:158-160](../../test/domain/json/projection/JsonToSyntaxTest.jl#L158-L160)).
+With S-5, the JSON reader replaces the number with a `JsonInsertion` of the text, as the primitive
+domain does. But the generated `JsonInsertion` is only a buffer for a type name
+([Domain.jl:681-692](../../source/platform/domain/Domain.jl#L681-L692)). It must also hold the text
+of a number, and become a `JsonNumber` when the text parses.
+
+**What it shows for S-1.** In JSON, opt-in and all at once give the same result. The check
+changes nothing where a field is narrow and every write is correct, and the narrowing of a field
+is an edit of its declaration in both cases. JSON can not show the cost of all at once in the
+other domains. Only the inventory of Step 0 for those domains can show it.
+
+**A question that JSON adds: what can an element of `JsonObject.entries` be?** The sort rule
+([JsonDocument.jl:130-133](../../source/domain/json/JsonDocument.jl#L130-L133)) expects an element
+that is not a `JsonObjectEntry`, "an entry still under construction". No test and no gesture puts
+one there. If the element type is `JsonObjectEntry`, no placeholder can sit there, and the seam
+refuses text and foreign documents there.
 
 ## 8. Related items
 
 - L10-13 of [kernel-audit-fixes.md](kernel-audit-fixes.md): decided A for now. This plan changes
   it again when the pilot lands.
-- L13-1: the home of a number text that does not parse. S-5 connects them.
+- L13-1: the home of a number text that does not parse. S-5 connects them. The answer to S-5 is
+  option D of L13-1. L13-1 itself is not marked as decided.
 - L10-21: the public seam for the declared types of a field. The check and the clipboard need it.
