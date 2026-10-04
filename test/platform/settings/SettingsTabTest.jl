@@ -273,7 +273,7 @@ end
     backend = HeadlessBackend()
     editor = build_editor(WidgetLabel("Name"); backend,
                           devices = Device[Keyboard(), Mouse(), Display()],
-                          window = (; title = "T", width = 900, height = 400),
+                          window = (; title = "T", width = 900, height = 300),
                           tabs = (; title = "Doc"), settings)
     run_frame!(editor)
     function send!(events...)
@@ -286,14 +286,16 @@ end
     drawn() = _stab_drawn(only(last(rendered_output(backend)).windows).content)
     place(label) = only(text for text in drawn() if text[1] == label)[3]
     bottom = place("Reset all")
-    @test bottom > 400
+    @test bottom > 300
+    # The row of the undo steps starts below the window, which is 300 high.
+    @test place("Undo steps") > 300
     (_, x, y) = only(text for text in drawn() if text[1] == "Catch faults")
     # The wheel scrolls the tab until the row of the undo steps is in the window.
     for i in 1:20
-        place("Undo steps") <= 350 && break
+        place("Undo steps") <= 250 && break
         send!(MouseScroll(0, -1, x, y, ModifierKeys(); time = 0.1 * i))
     end
-    @test 0 < place("Undo steps") <= 350
+    @test 0 < place("Undo steps") <= 250
     scrolled = place("Reset all")
     @test scrolled < bottom
     # The step up of the undo steps is the upper arrow in the row of its label.
@@ -307,7 +309,7 @@ end
     # flag, which a report reads from the editor: the view does not print again.
     fault = get_settings_group!(settings, FaultSettings)
     row = place("Log faults")
-    @test 0 < row < 400
+    @test 0 < row < 300
     for (i, px) in enumerate(100:4:400)
         fault.is_console_enabled || break
         send!(MouseDown(:left, px, row + 6, ModifierKeys(); time = 10.0 + i),

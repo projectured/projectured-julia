@@ -10,7 +10,7 @@ _view_state_write(op) = op isa ReplaceViewStateOperation ? get_wrapped_operation
 
 function test_widget_button_behavior()
 
-_font = font_ubuntu_monospace_regular_20
+_font = StyleFont("Ubuntu Mono", 20)
 _stub = FixedMeasure(10, 18, 6, 0)
 
 # Recursively scan a canvas's elements for a GraphicsImage (canvases nest other
@@ -575,7 +575,7 @@ function test_widget_button_labels()
 @testset "a button is as wide as its widest label" begin
     measure = FixedMeasure(10, 18, 6, 0)
     projection = RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(font_ubuntu_monospace_regular_20; measure = measure).dispatch))
+        WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = measure).dispatch))
     width_of(button) = Int(print_document(projection, nothing, button, PrinterContext()).output.w[])
     plain_pause = WidgetButton("Pause"; size = Point2D(0, 30))
     plain_resume = WidgetButton("Resume"; size = Point2D(0, 30))

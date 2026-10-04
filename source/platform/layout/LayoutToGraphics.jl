@@ -18,26 +18,25 @@
 
 # ── Projection structs ─────────────────────────────────────────────────────
 
-# A layout that draws a ring around a child selected as a whole holds the stroke
-# of that ring. The layout slice has no theme, so the default is the ring of the
-# graphics slice; the widget factory builds the layouts with the selection of
-# its theme. The field is an `UntrackedCell`, so the factory can give a ring that
-# reads the theme at each read, as the widgets read it.
+# A layout that draws a ring around a child selected as a whole holds the values
+# of the `GraphicsTheme`, which give the ring. The default is the default theme.
+# The field is an `UntrackedCell`, so `LayoutToGraphics(; theme)` gives values
+# that read a scaled theme at each read, as the widgets read it.
 
 @projection UntrackedCell struct HorizontalLayoutToGraphicsCanvas
-    selection_ring_stroke::StyleStroke = StyleStroke(SELECTION_RING_COLOR, 2)
+    graphics_style::NamedTuple = get_theme_defaults(GraphicsTheme)
 end
 
 @projection UntrackedCell struct VerticalLayoutToGraphicsCanvas
-    selection_ring_stroke::StyleStroke = StyleStroke(SELECTION_RING_COLOR, 2)
+    graphics_style::NamedTuple = get_theme_defaults(GraphicsTheme)
 end
 
 @projection UntrackedCell struct GridLayoutToGraphicsCanvas
-    selection_ring_stroke::StyleStroke = StyleStroke(SELECTION_RING_COLOR, 2)
+    graphics_style::NamedTuple = get_theme_defaults(GraphicsTheme)
 end
 
 @projection UntrackedCell struct FlowLayoutToGraphicsCanvas
-    selection_ring_stroke::StyleStroke = StyleStroke(SELECTION_RING_COLOR, 2)
+    graphics_style::NamedTuple = get_theme_defaults(GraphicsTheme)
 end
 
 struct StackLayoutToGraphicsCanvas      <: Projection end
@@ -54,7 +53,7 @@ for real LP-based constraint solving — same injection pattern as
 """
 @projection UntrackedCell struct ConstraintLayoutToGraphicsCanvas
     solver::ConstraintSolver = FallbackConstraintSolver()
-    selection_ring_stroke::StyleStroke = StyleStroke(SELECTION_RING_COLOR, 2)
+    graphics_style::NamedTuple = get_theme_defaults(GraphicsTheme)
 end
 
 # ── GridLayout iomap (geometry-bearing) ─────────────────────────────────────
@@ -199,16 +198,16 @@ function _is_event_on_child(child_iomap, event)
 end
 
 """
-    make_layout_selection_ring(layout, entries, stroke) -> GraphicsRect
+    make_layout_selection_ring(layout, entries, style) -> GraphicsRect
 
 The ring over the child that `layout`'s selection names as a whole
 (`children[i]`). `entries()` answers the layout's routing entries, the
 `(x, y, child_iomap)` triples of its children in order. A child that takes the
 focus gets no ring, because it draws its own focus ring when it is selected.
+`style` holds the values of the `GraphicsTheme` that the ring takes.
 """
-make_layout_selection_ring(layout, entries::Function, stroke::StyleStroke) =
-    make_selection_ring(() -> _find_whole_selected_child_box(layout, entries());
-                        color = stroke.color, width = stroke.width)
+make_layout_selection_ring(layout, entries::Function, style::NamedTuple) =
+    make_selection_ring(() -> _find_whole_selected_child_box(layout, entries()), style)
 
 function _find_whole_selected_child_box(layout, entries)
     i = find_whole_selected_index(layout.selection, "children")
@@ -774,17 +773,23 @@ function _vl_alloc_child_y_cell(i::Int, actual_h_cells::Vector{Cell}, gap_cell::
     end))
 end
 
-function _hl_child_y_cell(i::Int, child_iomaps::Vector, outer_h::Cell, align_cell::Cell)
+function _hl_child_y_cell(i::Int, child_iomaps::Vector, outer_h::Cell, align_cell::Cell,
+                          row_baseline::Cell)
     Cell(Computation(function ()
         ch = _child_h(child_iomaps[i])
         oh = outer_h[]
         a  = align_cell[]
-        y = a === :center ? div(oh - ch, 2) :
-            a === :bottom ? oh - ch         :
-                            0
+        y = a === :center   ? div(oh - ch, 2) :
+            a === :bottom   ? oh - ch         :
+            a === :baseline ? row_baseline[] - _child_baseline(child_iomaps[i]) :
+                              0
         Int32(y)
     end))
 end
+
+# The baseline of a child of a row on the baseline: the baseline of its first line,
+# or its bottom edge when it draws no text, as CSS takes it.
+_child_baseline(cim) = something(find_first_baseline(cim), _child_h(cim))
 
 function _vl_child_y_cell(i::Int, child_iomaps::Vector, gap_cell::Cell)
     Cell(Computation(function ()
@@ -886,10 +891,22 @@ function _hl_build(recursion, doc, ctx)
         end)
     end
 
+    # A row on the baseline stands each child so that its baseline meets the
+    # lowest baseline of the row; the row is as tall as the lowest child reaches.
+    row_baseline = Cell(Computation(function ()
+        align_cell[] === :baseline || return 0
+        b = 0
+        for cim in child_iomaps
+            b = max(b, _child_baseline(cim))
+        end
+        b
+    end))
     outer_h = Cell(Computation(function ()
+        on_baseline = align_cell[] === :baseline
         h = 0
         for cim in child_iomaps
             ch = _child_h(cim)
+            on_baseline && (ch += row_baseline[] - _child_baseline(cim))
             ch > h && (h = ch)
         end
         h
@@ -910,7 +927,7 @@ function _hl_build(recursion, doc, ctx)
     child_y = Cell[]
     for i in 1:n
         push!(child_x, _hl_child_x_cell(i, child_iomaps, gap_cell))
-        push!(child_y, _hl_child_y_cell(i, child_iomaps, outer_h, align_cell))
+        push!(child_y, _hl_child_y_cell(i, child_iomaps, outer_h, align_cell, row_baseline))
     end
 
     wrapped = Any[]
@@ -934,7 +951,7 @@ function print_document(p::HorizontalLayoutToGraphicsCanvas,
     # children a viewport shows, a vector draws them all.
     doc.children isa ListNode && return _print_layout_list(p, recursion, doc, ctx, :x)
     build = Cell(@computation _hl_build(recursion, doc, ctx))
-    ring = make_layout_selection_ring(doc, () -> build[].entries, p.selection_ring_stroke)
+    ring = make_layout_selection_ring(doc, () -> build[].entries, p.graphics_style)
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            Cell(@computation Int32(build[].w[])),
                            Cell(@computation Int32(build[].h[])),
@@ -1166,7 +1183,7 @@ function print_document(p::VerticalLayoutToGraphicsCanvas,
     # entries are all derived reactively from it, so adding/removing a child
     # repaints without reprinting the projection (and without `iomap = nothing`).
     build = Cell(@computation _vl_build(recursion, doc, ctx))
-    ring = make_layout_selection_ring(doc, () -> build[].entries, p.selection_ring_stroke)
+    ring = make_layout_selection_ring(doc, () -> build[].entries, p.graphics_style)
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            Cell(@computation Int32(build[].w[])),
                            Cell(@computation Int32(build[].h[])),
@@ -1282,6 +1299,14 @@ _col_align(v, col::Int, default::Symbol) =
 # the grid's own default when it does not.
 _gl_policy_at(v, i::Int, default) =
     (v isa AbstractVector && 1 <= i <= length(v) && v[i] isa SizePolicy) ? v[i] : default
+
+# The policy of a column or a row on an axis that the grid was `offered` an
+# extent on, or not. A weighted one with no offer has no share to take, so it
+# takes the extent of its cells, as a weighted child of a stack does: it acts as
+# `Content` and keeps its minimum and its maximum. So a `Fill` column fills a
+# pane, and keeps the width of its cells where nothing is offered.
+_gl_unoffered_policy(p::SizePolicy, offered::Bool) =
+    (offered || p.weight === nothing || p.weight <= 0) ? p : SizePolicy(p.min, nothing, p.max, 0.0)
 
 # The four allocator inputs of one column or one row.
 #
@@ -1420,12 +1445,21 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     # grid. Its NUMBERS are read inside the extent cells, so a policy that is a
     # computed cell — a header row that takes the widths of the grid under it —
     # follows what it reads, and a new number does not print the grid again.
-    policy_of_column(k::Int) = _gl_policy_at(doc.column_policies, k, doc.column_policy)
-    policy_of_row(k::Int)    = _gl_policy_at(doc.row_policies, k, doc.row_policy)
-    peek_column_policy(k::Int) = _gl_policy_at(peek(getfield(doc, :column_policies)), k,
-                                               peek(getfield(doc, :column_policy)))
-    peek_row_policy(k::Int)    = _gl_policy_at(peek(getfield(doc, :row_policies)), k,
-                                               peek(getfield(doc, :row_policy)))
+    #
+    # A weighted column or row on an axis that the grid was offered no extent on
+    # has no share to take, so it takes the extent of its cells
+    # (`_gl_unoffered_policy`).
+    offered_w, offered_h = avail_w !== nothing, avail_h !== nothing
+    policy_of_column(k::Int) =
+        _gl_unoffered_policy(_gl_policy_at(doc.column_policies, k, doc.column_policy), offered_w)
+    policy_of_row(k::Int) =
+        _gl_unoffered_policy(_gl_policy_at(doc.row_policies, k, doc.row_policy), offered_h)
+    peek_column_policy(k::Int) =
+        _gl_unoffered_policy(_gl_policy_at(peek(getfield(doc, :column_policies)), k,
+                                           peek(getfield(doc, :column_policy))), offered_w)
+    peek_row_policy(k::Int) =
+        _gl_unoffered_policy(_gl_policy_at(peek(getfield(doc, :row_policies)), k,
+                                           peek(getfield(doc, :row_policy))), offered_h)
     # A column that was given an extent hands it to its cells unless the grid
     # was told not to for that column; a column that was not given one has
     # nothing to hand out either way.
@@ -1602,7 +1636,7 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     for i in 1:n
         push!(entries, (child_x[i], child_y[i], child_iomaps[i]))
     end
-    push!(outer.elements, make_layout_selection_ring(doc, () -> entries, p.selection_ring_stroke))
+    push!(outer.elements, make_layout_selection_ring(doc, () -> entries, p.graphics_style))
 
     row_count = row_count_cell
 
@@ -1810,7 +1844,7 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
         end
         (wrapped = wrapped, w = outer_w, h = outer_h, entries = entries)
     end)
-    ring = make_layout_selection_ring(doc, () -> build[].entries, p.selection_ring_stroke)
+    ring = make_layout_selection_ring(doc, () -> build[].entries, p.graphics_style)
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            Cell(@computation Int32(build[].w[])),
                            Cell(@computation Int32(build[].h[])),
@@ -2162,7 +2196,7 @@ function print_document(p::ConstraintLayoutToGraphicsCanvas,
                           recursion, doc::ConstraintLayout, ctx)
     solver = p.solver
     build = Cell(@computation _cl_build(solver, recursion, doc, ctx))
-    ring = make_layout_selection_ring(doc, () -> build[].entries, p.selection_ring_stroke)
+    ring = make_layout_selection_ring(doc, () -> build[].entries, p.graphics_style)
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            Cell(@computation Int32(build[].w[])),
                            Cell(@computation Int32(build[].h[])),
@@ -2198,7 +2232,7 @@ Project an [`AnchoredLayout`](@ref): the content, with each anchored child
 composited over it beside its target.
 """
 @projection UntrackedCell struct AnchoredLayoutToGraphicsCanvas
-    selection_ring_stroke::StyleStroke = StyleStroke(SELECTION_RING_COLOR, 2)
+    graphics_style::NamedTuple = get_theme_defaults(GraphicsTheme)
 end
 
 # Where a target sits, as `(x, y, w, h)` in the content's own coordinates.
@@ -2308,7 +2342,7 @@ end
 function print_document(p::AnchoredLayoutToGraphicsCanvas, recursion,
                         doc::AnchoredLayout, ctx)
     build = Cell(@computation _al_build(recursion, doc, ctx))
-    ring = make_layout_selection_ring(doc, () -> build[].entries, p.selection_ring_stroke)
+    ring = make_layout_selection_ring(doc, () -> build[].entries, p.graphics_style)
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            Cell(@computation Int32(build[].w[])),
                            Cell(@computation Int32(build[].h[])),
@@ -2344,25 +2378,26 @@ read_intent(::AnchoredLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt) =
 # ── Factory ────────────────────────────────────────────────────────────────
 
 """
-    LayoutToGraphics(; selection_ring_stroke = StyleStroke(SELECTION_RING_COLOR, 2))
+    LayoutToGraphics(; theme = nothing)
 
 A type-dispatching projection that routes any layout document to its
-`…ToGraphicsCanvas` projection. `selection_ring_stroke` is the ring around a
-child selected as a whole; the widget factory passes the selection of its
-theme. Wrap in a `RecursiveProjection` (or
-include in a larger dispatcher) so children re-enter the recursion.
+`…ToGraphicsCanvas` projection. A layout draws the ring around a child selected
+as a whole with the `GraphicsTheme` `theme`: a scaled theme, which the layouts
+read at each read, or `nothing` for the default theme. Wrap in a
+`RecursiveProjection` (or include in a larger dispatcher) so children re-enter
+the recursion.
 """
-function LayoutToGraphics(; selection_ring_stroke::Union{StyleStroke, UntrackedCell{StyleStroke}} =
-                              StyleStroke(SELECTION_RING_COLOR, 2))
+function LayoutToGraphics(; theme::Union{GraphicsTheme, ScaledGraphicsTheme, Nothing} = nothing)
+    graphics_style = make_theme_values_field(GraphicsTheme, scale_theme(theme))
     TypeDispatchingProjection(
-        HorizontalLayout => HorizontalLayoutToGraphicsCanvas(; selection_ring_stroke),
-        VerticalLayout   => VerticalLayoutToGraphicsCanvas(; selection_ring_stroke),
-        GridLayout       => GridLayoutToGraphicsCanvas(; selection_ring_stroke),
-        FlowLayout       => FlowLayoutToGraphicsCanvas(; selection_ring_stroke),
+        HorizontalLayout => HorizontalLayoutToGraphicsCanvas(; graphics_style),
+        VerticalLayout   => VerticalLayoutToGraphicsCanvas(; graphics_style),
+        GridLayout       => GridLayoutToGraphicsCanvas(; graphics_style),
+        FlowLayout       => FlowLayoutToGraphicsCanvas(; graphics_style),
         StackLayout      => StackLayoutToGraphicsCanvas(),
         LayoutConstraint => LayoutConstraintToGraphicsCanvas(),
-        ConstraintLayout => ConstraintLayoutToGraphicsCanvas(; selection_ring_stroke),
-        AnchoredLayout   => AnchoredLayoutToGraphicsCanvas(; selection_ring_stroke),
+        ConstraintLayout => ConstraintLayoutToGraphicsCanvas(; graphics_style),
+        AnchoredLayout   => AnchoredLayoutToGraphicsCanvas(; graphics_style),
     )
 end
 

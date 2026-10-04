@@ -538,14 +538,14 @@ function test_package_release()
         @test all(version -> occursin("'$version'", versions), PROJECTURED_CI_JULIA_VERSIONS)
         develop = split(match(r"- \{package: ProjecturedJSON, develop: '([^']*)'", workflow)[1])
         @test issubset(["ProjecturedKernel", "ProjecturedPlatform", "ProjecturedJSON"], develop)
-        # A job adds AutoIntegrations from its repository, and no private registry.
-        @test occursin("Pkg.add(url = \"$AUTOINTEGRATIONS_URL\")", workflow)
+        # A job adds AutoIntegration from its repository, and no private registry.
+        @test occursin("Pkg.add(url = \"$AUTOINTEGRATION_URL\")", workflow)
         @test !occursin("Registry.add", workflow)
-        # AutoIntegrations, a package of a sibling repository, gets the bound of the
+        # AutoIntegration, a package of a sibling repository, gets the bound of the
         # version that the manifest names.
         umbrella = ProjecturedBuilder.BuilderModule.TOML.parsefile(
             joinpath(output, "Projectured", "Project.toml"))
-        @test umbrella["compat"]["AutoIntegrations"] == "0.1.0"
+        @test umbrella["compat"]["AutoIntegration"] == "0.1.0"
         # The test of the umbrella loads the umbrella, which its test package does not.
         @test occursin("using Projectured\nusing ProjecturedTest\n",
                        read(joinpath(output, "Projectured", "test", "runtests.jl"), String))
@@ -562,7 +562,7 @@ function test_package_release()
         @test occursin("| Package | &nbsp;", front)
         # The front page says which repository is which.
         @test occursin("| [projectured-julia]($PROJECTURED_SOURCE) |", front) &&
-              occursin("| [AutoIntegrations.jl]($AUTOINTEGRATIONS_URL) |", front)
+              occursin("| [AutoIntegration.jl]($AUTOINTEGRATION_URL) |", front)
         @test occursin("| [ProjecturedJSON](ProjecturedJSON) | [![tests](" *
                        "$PROJECTURED_RELEASE_URL/actions/workflows/ProjecturedJSON.yml/badge.svg)]", front)
         @test all(name -> occursin("| [$name]($name) | ", front), names)
@@ -574,9 +574,9 @@ function test_package_release()
         @test occursin(PROJECTURED_PACKAGE_READMES["ProjecturedJSON"].summary, readme)
         @test occursin("pkg> registry add General\npkg> registry add $PROJECTURED_REGISTRY_URL\n" *
                        "pkg> add ProjecturedJSON\n", readme)
-        # A README says when AutoIntegrations loads the package, from the triggers
+        # A README says when AutoIntegration loads the package, from the triggers
         # that its `Project.toml` declares.
-        @test occursin("AutoIntegrations also loads it by itself when `Projectured` is loaded",
+        @test occursin("AutoIntegration also loads it by itself when `Projectured` is loaded",
                        readme)
         sdl = read(joinpath(output, "ProjecturedSDL", "README.md"), String)
         @test occursin("when `Projectured` and `SimpleDirectMediaLayer` are loaded", sdl)

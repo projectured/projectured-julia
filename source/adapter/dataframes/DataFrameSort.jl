@@ -8,9 +8,6 @@
 # adds the column as the next key, or turns its key the same way among the
 # others.
 
-# The color of the glyph of a column that does not sort.
-const _UNSORTED_GLYPH_COLOR = color_gray159
-
 # The sort of column `name` in `query`, as `(descending, place)` of its key, or
 # `nothing` when the column does not sort.
 function _find_sort_state(query, name::String)
@@ -64,8 +61,9 @@ end
 
 # The parts of the header of column `name` after its name: the glyph, a flat
 # toolbar item whose own gestures sort, and the place of its key when more than
-# one column sorts. The label of the item is its tooltip.
-function _make_sort_glyph(view, name::String)
+# one column sorts. The label of the item is its tooltip. `p` carries the style
+# of the data frame theme.
+function _make_sort_glyph(p, view, name::String)
     query = view.query
     state = _find_sort_state(query, name)
     icon = state === nothing ? :arrow_up_down : state[1] ? :arrow_down : :arrow_up
@@ -75,7 +73,7 @@ function _make_sort_glyph(view, name::String)
     gestures = GestureBinding[
         bind(MouseClickPattern(:left; modifiers = Symbol[]), false, "Order the rows by the column"),
         bind(MouseClickPattern(:left; modifiers = [:shift]), true, "Add the column to the order of the rows")]
-    style = state === nothing ? WidgetStyle(; label_text_color = _UNSORTED_GLYPH_COLOR) : nothing
+    style = state === nothing ? WidgetStyle(; label_text_color = p.unsorted_glyph) : nothing
     item = WidgetToolbarItem("Sort by $(name); Shift adds it to the sort"; icon, gestures, style)
     (state !== nothing && length(query.sort_keys) > 1) || return Any[item]
     Any[item, WidgetLabel(string(state[2]))]

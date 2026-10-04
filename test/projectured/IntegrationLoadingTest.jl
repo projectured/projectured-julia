@@ -1,5 +1,5 @@
 # A session loads the packages that it names, and nothing more. With the umbrella,
-# AutoIntegrations also loads each installed package whose triggers are loaded and
+# AutoIntegration also loads each installed package whose triggers are loaded and
 # whose state is "auto". Each case is a new Julia process that sees only one
 # environment and the standard library: a scratch environment that names the
 # packages of a user, or the development environment, which names every package.
@@ -13,7 +13,7 @@ const _UUIDS = Dict(
     "ProjecturedSDL"         => "f0002b97-94ba-416c-b93c-86cdc095626f",
     "SimpleDirectMediaLayer" => "98e33af6-2ee5-5afd-9e75-cbc738b767c4")
 
-const _INTEGRATION_NAMES = ("AutoIntegrations", "Projectured", "ProjecturedAnthropic",
+const _INTEGRATION_NAMES = ("AutoIntegration", "Projectured", "ProjecturedAnthropic",
                             "ProjecturedDataFrames", "ProjecturedIntegrations", "ProjecturedJSON",
                             "ProjecturedMCP",
                             "ProjecturedODBC", "ProjecturedOllama", "ProjecturedOpenRouter",
@@ -69,9 +69,9 @@ function test_umbrella_loads_integrations()
             "using DataFrames, ProjecturedSDL, ProjecturedDataFrames; " *
             "display_in_editor isa Function || error(\"display_in_editor is not visible\")") ==
               ["ProjecturedDataFrames", "ProjecturedSDL"]
-        # With the umbrella, AutoIntegrations loads the domain, and each integration
+        # With the umbrella, AutoIntegration loads the domain, and each integration
         # whose third-party package is loaded, in each order.
-        both = ["AutoIntegrations", "Projectured", "ProjecturedDataFrames", "ProjecturedJSON",
+        both = ["AutoIntegration", "Projectured", "ProjecturedDataFrames", "ProjecturedJSON",
                 "ProjecturedSDL"]
         @test _read_loaded_integrations(user,
             "using Projectured, DataFrames, SimpleDirectMediaLayer") == both
@@ -79,32 +79,32 @@ function test_umbrella_loads_integrations()
             "using SimpleDirectMediaLayer; using DataFrames; using Projectured") == both
         # The umbrella alone loads the domain and no integration.
         @test _read_loaded_integrations(user, "using Projectured") ==
-              ["AutoIntegrations", "Projectured", "ProjecturedJSON"]
+              ["AutoIntegration", "Projectured", "ProjecturedJSON"]
 
         # The environment of the user turns a package off.
         write(joinpath(user, "LocalPreferences.toml"), """
-            [AutoIntegrations]
+            [AutoIntegration]
             ProjecturedDataFrames = "manual"
             ProjecturedJSON = "manual"
             """)
         @test _read_loaded_integrations(user,
             "using Projectured, DataFrames, SimpleDirectMediaLayer") ==
-              ["AutoIntegrations", "Projectured", "ProjecturedSDL"]
+              ["AutoIntegration", "Projectured", "ProjecturedSDL"]
 
         # An integration that the environment does not name stays out, with no
         # warning.
         loaded, errors = _read_loaded_integrations_and_errors(
             _make_scratch_environment(repository, ["Projectured", "SimpleDirectMediaLayer"]),
             "using SimpleDirectMediaLayer, Projectured")
-        @test loaded == ["AutoIntegrations", "Projectured"]
-        @test !occursin("AutoIntegrations", errors)
+        @test loaded == ["AutoIntegration", "Projectured"]
+        @test !occursin("AutoIntegration", errors)
 
         # Each of the other triggers, in the development environment, where every
         # domain and model adapter loads with the umbrella. Video loads SDL, which
         # it needs. The web backend declares no trigger.
         @test _read_loaded_integrations(joinpath(repository, "environment", "all"),
             "using FFMPEG, ODBC, Tulip, ModelContextProtocol, Projectured") ==
-              ["AutoIntegrations", "Projectured", "ProjecturedAnthropic", "ProjecturedJSON",
+              ["AutoIntegration", "Projectured", "ProjecturedAnthropic", "ProjecturedJSON",
                "ProjecturedMCP", "ProjecturedODBC", "ProjecturedOllama", "ProjecturedOpenRouter",
                "ProjecturedSDL", "ProjecturedTulip", "ProjecturedVideo"]
     end
@@ -115,16 +115,16 @@ function test_integrations_load_with_extensions()
         repository = normpath(joinpath(@__DIR__, "..", ".."))
         environment = _make_scratch_environment(repository,
                                                 ["ProjecturedIntegrations", "DataFrames"])
-        loaded = ["AutoIntegrations", "Projectured", "ProjecturedDataFrames",
+        loaded = ["AutoIntegration", "Projectured", "ProjecturedDataFrames",
                   "ProjecturedIntegrations"]
         @test _read_loaded_integrations(environment,
             "using ProjecturedIntegrations, DataFrames") == loaded
         # Without the package that it joins, an integration does not load.
         @test _read_loaded_integrations(environment, "using ProjecturedIntegrations") ==
-              ["AutoIntegrations", "Projectured", "ProjecturedIntegrations"]
+              ["AutoIntegration", "Projectured", "ProjecturedIntegrations"]
         # The extension loads an integration that the user sets to "manual".
         write(joinpath(environment, "LocalPreferences.toml"),
-              "[AutoIntegrations]\nProjecturedDataFrames = \"manual\"\n")
+              "[AutoIntegration]\nProjecturedDataFrames = \"manual\"\n")
         @test _read_loaded_integrations(environment,
             "using ProjecturedIntegrations, DataFrames") == loaded
     end
@@ -170,7 +170,7 @@ function _read_project_packages(repository, name)
            if startswith(dependency, "Projectured")])
 end
 
-# The names of the triggers that the package `name` declares for AutoIntegrations,
+# The names of the triggers that the package `name` declares for AutoIntegration,
 # and its default.
 function _read_declared_triggers(repository, name)
     project = TOML.parsefile(joinpath(repository, "package", name, "Project.toml"))

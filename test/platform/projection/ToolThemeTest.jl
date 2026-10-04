@@ -26,7 +26,7 @@ function test_tool_themes()
 
 @testset "FaultLogToSyntax reads FaultTheme" begin
     _check_tool_theme(FaultLogToSyntax, FaultTheme,
-                      (:count_text, :site_text, :origin_text, :message_text, :empty_text), 16)
+                      (:count_text, :site_text, :origin_text, :message_text, :empty_text), 13)
 
     log = FaultLog()
     push!(log.entries, FaultLogEntry(1, UInt64(1), :print, :Test, "boom", 1))
@@ -37,12 +37,12 @@ end
 
 @testset "GestureLogToSyntax reads GestureLogTheme" begin
     _check_tool_theme(GestureLogToSyntax, GestureLogTheme,
-                      (:index_text, :gesture_text, :operation_text, :muted_text, :empty_text), 16)
+                      (:index_text, :gesture_text, :operation_text, :muted_text, :empty_text), 13)
 end
 
 @testset "MessageLogToSyntax reads MessageLogTheme" begin
     _check_tool_theme(MessageLogToSyntax, MessageLogTheme,
-                      (:level_text, :message_text, :empty_text), 16)
+                      (:level_text, :message_text, :empty_text), 13)
 
     log = MessageLog()
     record_message!(log, "Info", "hello")
@@ -53,7 +53,7 @@ end
 
 @testset "FrameStatisticsToSyntax reads FrameStatisticsTheme" begin
     _check_tool_theme(FrameStatisticsToSyntax, FrameStatisticsTheme,
-                      (:header_text, :row_text, :empty_text), 16)
+                      (:header_text, :row_text, :empty_text), 13)
 
     statistics = FrameStatistics()
     push!(statistics.rows, FrameStatisticsRow("frame_time", :second, 10, 1.0, 2.0, 1.5, 0.3, 15.0))
@@ -64,12 +64,12 @@ end
 
 @testset "UndoBufferToSyntax reads UndoTheme" begin
     _check_tool_theme(UndoBufferToSyntax, UndoTheme,
-                      (:index_text, :step_text, :ahead_text, :marker_text, :barrier_text, :empty_text), 16)
+                      (:index_text, :step_text, :ahead_text, :marker_text, :barrier_text, :empty_text), 13)
 end
 
 @testset "FileSystemFileToSyntaxLeaf and FileSystemDirectoryToSyntaxNode read FileSystemTheme" begin
-    _check_tool_theme(FileSystemFileToSyntaxLeaf, FileSystemTheme, (:file_text,), 20)
-    _check_tool_theme(FileSystemDirectoryToSyntaxNode, FileSystemTheme, (:directory_text,), 20)
+    _check_tool_theme(FileSystemFileToSyntaxLeaf, FileSystemTheme, (:file_text,), 14)
+    _check_tool_theme(FileSystemDirectoryToSyntaxNode, FileSystemTheme, (:directory_text,), 14)
 end
 
 end

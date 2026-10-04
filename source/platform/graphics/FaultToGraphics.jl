@@ -15,8 +15,8 @@ Give it to the last barrier of a chain, the one whose step answers the backend:
                             substitute = FaultToGraphics())
 """
 @projection struct FaultToGraphics
-    font::ImmutableCell{StyleFont} = font_dejavu_monospace_bold_16
-    color::ImmutableCell{StyleColor} = color_solarized_red
+    font::ImmutableCell{StyleFont} = get_theme_defaults(GraphicsTheme).fault_text.font
+    color::ImmutableCell{StyleColor} = get_theme_defaults(GraphicsTheme).fault_text.color
 end
 
 function print_document(p::FaultToGraphics, recursion, report::FaultReport,

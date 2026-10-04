@@ -15,13 +15,13 @@ To use the packages in a project of your own, without the source, add them from 
 ## Start the application
 
 ```sh
-git clone https://github.com/projectured/AutoIntegrations.jl auto-integrations
+git clone https://github.com/projectured/AutoIntegration.jl auto-integration
 git clone https://github.com/projectured/projectured-julia
 cd projectured-julia
 bin/projectured
 ```
 
-The folder `auto-integrations` goes beside `projectured-julia`, because the umbrella and `environment/all` name it by that folder.
+The folder `auto-integration` goes beside `projectured-julia`, because the umbrella and `environment/all` name it by that folder.
 
 The window has the file navigator on the left, the open files in the middle, and the assistant on the right. A double click in the navigator opens a file. Files named on the command line open at once:
 
@@ -51,7 +51,7 @@ run_value_viewer(my_value)              # a window on any value of your own
 
 Press **Escape** to close the window.
 
-`environment/all` holds every package of the repository. `using Projectured` gives the essential names (`display_in_editor`, `run_editor!` and the few others most programs call) and loads AutoIntegrations, which loads an installed domain or integration when its triggers are loaded; `using ProjecturedAll` gives the names of every package in one namespace, as the tests and the examples use them. A program of your own uses the packages by path instead; [own-project-guide.md](own-project-guide.md) says how.
+`environment/all` holds every package of the repository. `using Projectured` gives the essential names (`display_in_editor`, `run_editor!` and the few others most programs call) and loads AutoIntegration, which loads an installed domain or integration when its triggers are loaded; `using ProjecturedAll` gives the names of every package in one namespace, as the tests and the examples use them. A program of your own uses the packages by path instead; [own-project-guide.md](own-project-guide.md) says how.
 
 ## Look at a view without a window
 

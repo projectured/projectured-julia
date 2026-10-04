@@ -57,6 +57,11 @@ true` draws the newest gestures, and what each one did, in a panel at the bottom
 right of the window; a named tuple such as `(; anchor = :bottom_left)` gives the
 options of the panel (see the `gesture_log` wrapper).
 
+`appearance` is the `Appearance` of the window, which every view of the window
+draws with and which its Appearance tab changes. The default is the default
+look, not the appearance that a person saved, so a take does not depend on the
+files of the computer that records it.
+
 `prepare` is called with the document of the application, its pane tree,
 before the editor is made, so a take starts from the layout it wants, such as a
 pane with the session's gesture log below a file. The wrappers carry the
@@ -88,7 +93,7 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
                                   video_time::Bool = false, pointer::Bool = true,
                                   partial_render::Bool = false, debug_dirty::Bool = false,
                                   debug_dirty_hold::Real = 0, status_bar::Bool = true,
-                                  gesture_overlay = false,
+                                  gesture_overlay = false, appearance::Appearance = Appearance(),
                                   measure = FontFileMeasure(), prepare = document -> nothing)
     lowercase(splitext(filename)[2]) == ".mp4" ||
         error("record_application_video: only .mp4 output is supported (got \"$filename\")")
@@ -107,14 +112,17 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
                            pointer = pointer, partial_render = partial_render,
                            debug_dirty = debug_dirty, debug_dirty_hold = debug_dirty_hold)
     try
-        editor = build_editor(document, make_application_projection(; measure, settings);
-                              backend, settings,
+        # One appearance for the views, the windows they open, the wrappers and the
+        # Appearance tab, as in `run_application`, so a change of the look shows.
+        editor = build_editor(document, make_application_projection(; measure, appearance, settings);
+                              backend, appearance, settings,
                               window = (; title, width, height,
                                         opened_window_projections =
-                                            make_application_content_projections(; measure,
+                                            make_application_content_projections(; measure, appearance,
                                                                                  settings)),
                               _with_gesture_overlay(make_application_wrappers(; root, assistant = chat,
-                                                                              status_bar, measure),
+                                                                              status_bar, measure,
+                                                                              appearance),
                                                     gesture_overlay, measure)...)
         backend.editor = editor
         start_application!(editor; assistant, model)

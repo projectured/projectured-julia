@@ -37,13 +37,6 @@ window, which is the palette's read-only twin.
 const COMMAND_PALETTE_GESTURE = KeyDownPattern(:p; modifiers = [:ctrl, :shift])
 
 """
-    PALETTE_PADDING
-
-Pixels between the palette's panel edge and its text.
-"""
-const PALETTE_PADDING = 10
-
-"""
     is_command_palette_gesture(event) -> Bool
 
 True when `event` is the gesture that summons the palette.

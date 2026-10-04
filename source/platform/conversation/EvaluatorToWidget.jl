@@ -18,18 +18,23 @@
 # tail of a `form`/`result` reference through unchanged, so a caret inside the
 # code reaches it.
 
-struct EvaluatorFormToVerticalLayout      <: Projection end
-struct EvaluatorToplevelToWidgetComposite <: Projection end
+@projection UntrackedCell struct EvaluatorFormToVerticalLayout
+    theme::Any = nothing
+    row_gap::Int = _get_conversation_style(theme, Int, :row_gap)
+    prompt_gap::Int = _get_conversation_style(theme, Int, :prompt_gap)
+    prompt_text::StyleText = _get_conversation_style(theme, StyleText, :prompt_text)
+    error_prompt_text::StyleText = _get_conversation_style(theme, StyleText, :error_prompt_text)
+end
+
+@projection UntrackedCell struct EvaluatorToplevelToWidgetComposite
+    theme::Any = nothing
+    element_gap::Int = _get_conversation_style(theme, Int, :element_gap)
+    row_gap::Int = _get_conversation_style(theme, Int, :row_gap)
+    option_gap::Int = _get_conversation_style(theme, Int, :option_gap)
+end
 
 # `("form", 1)` / `("result", 2)`: which row of a form each field prints as.
 const _FORM_ROWS = (("form", 1), ("result", 2))
-
-const _ELEMENT_GAP = 8    # between the forms of a toplevel
-const _ROW_GAP     = 4    # between the code of a form and its result
-const _PROMPT_GAP  = 8    # between a prompt and what follows it
-
-const _PROMPT_STYLE       = StyleText(font_ubuntu_monospace_regular_20, color_slate_500)
-const _PROMPT_ERROR_STYLE = StyleText(font_ubuntu_monospace_regular_20, color_destructive)
 
 # ── print_document: a bare form → a prompt column beside its code and result ──
 #
@@ -47,15 +52,15 @@ const _PROMPT_ERROR_STYLE = StyleText(font_ubuntu_monospace_regular_20, color_de
 
 function print_document(projection::EvaluatorFormToVerticalLayout,
                           recursion, form::EvaluatorForm, ctx)
-    code_prompt   = _make_prompt(">", _PROMPT_STYLE)
-    result_prompt = _make_prompt("=", _PROMPT_STYLE)
-    error_prompt  = _make_prompt("=", _PROMPT_ERROR_STYLE)
-    code_row = _make_prompt_row(() -> Any[code_prompt, form.form])
-    result_row = _make_prompt_row(() -> Any[form.is_error === true ? error_prompt : result_prompt,
+    code_prompt   = _make_prompt(">", projection.prompt_text)
+    result_prompt = _make_prompt("=", projection.prompt_text)
+    error_prompt  = _make_prompt("=", projection.error_prompt_text)
+    code_row = _make_prompt_row(projection, () -> Any[code_prompt, form.form])
+    result_row = _make_prompt_row(projection, () -> Any[form.is_error === true ? error_prompt : result_prompt,
                                             form.result])
     rows = (code_row, result_row)
     output = VerticalLayout(CellVector(@computation _has_result(form) ? Any[rows...] : Any[code_row]),
-                            Cell(:left), Cell(_ROW_GAP), Cell(Fill), Cell(nothing), Cell(nothing))
+                            Cell(:left), Cell(projection.row_gap), Cell(Fill), Cell(nothing), Cell(nothing))
     iomap = SimpleIoMap(projection, form, output)
     _follow_selection!(output, form, projection, iomap, Any[])
     for (_, index) in _FORM_ROWS
@@ -71,8 +76,10 @@ _is_plain_left_press(event) =
 _make_prompt(text, style) =
     LayoutConstraint(WidgetLabel(text; text_style = style); width = Content)
 
-_make_prompt_row(children::Function) =
-    HorizontalLayout(CellVector(Computation(children)), Cell(:top), Cell(_PROMPT_GAP),
+# A prompt stands on the baseline of the first line of its code, whose lines can
+# have another spacing than the prompt.
+_make_prompt_row(projection, children::Function) =
+    HorizontalLayout(CellVector(Computation(children)), Cell(:baseline), Cell(projection.prompt_gap),
                      Cell(Content), Cell(nothing), Cell(nothing))
 
 _has_result(form::EvaluatorForm) = !(form.result isa TextBlock && isempty(form.result.elements))
@@ -146,12 +153,12 @@ const _FORMS_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1, 2),
 function print_document(projection::EvaluatorToplevelToWidgetComposite,
                           recursion, t::EvaluatorToplevel, ctx)
     layout = VerticalLayout(CellVector(@computation Any[element for element in t.elements]),
-                            Cell(:left), Cell(_ELEMENT_GAP),
+                            Cell(:left), Cell(projection.element_gap),
                             Cell(Fill), Cell(Content), Cell(nothing))
     # The pane paints no background, so the forms stand on the page of the tab.
     pane = WidgetScrollPane(layout; follow_end = getfield(t, :follow_end),
                             style = WidgetStyle(content_color = color_transparent))
-    output = GridLayout(Any[_make_option_row(t), pane], 1; vertical_gap = _ROW_GAP,
+    output = GridLayout(Any[_make_option_row(projection, t), pane], 1; vertical_gap = projection.row_gap,
                         column_policy = Fill, row_policies = Any[Content, Fill])
     iomap = SimpleIoMap(projection, t, output)
     for (widget, depth) in ((output, 0), (pane, 2), (layout, 3))
@@ -164,22 +171,20 @@ end
 # a box, or Space or Enter on a box that has the selection, answers
 # `ToggleEvaluatorOptionOperation`, which the per-instance bindings of the box
 # give ahead of its own toggle.
-function _make_option_row(t::EvaluatorToplevel)
-    HorizontalLayout(Any[_make_option_checkbox(t, :parse_evaluated_forms),
-                         WidgetLabel("Parse evaluated forms"; text_style = _PROMPT_STYLE),
-                         _make_option_checkbox(t, :type_structured_forms),
-                         WidgetLabel("Structured forms"; text_style = _PROMPT_STYLE)];
-                     vertical_align = :center, gap = _PROMPT_GAP)
+function _make_option_row(projection, t::EvaluatorToplevel)
+    HorizontalLayout(Any[_make_option_checkbox(t, :parse_evaluated_forms, "Parse evaluated forms"),
+                         _make_option_checkbox(t, :type_structured_forms, "Structured forms")];
+                     vertical_align = :center, gap = projection.option_gap)
 end
 
-function _make_option_checkbox(t::EvaluatorToplevel, option::Symbol)
+function _make_option_checkbox(t::EvaluatorToplevel, option::Symbol, label::AbstractString)
     toggle = (document, event) -> ToggleEvaluatorOptionOperation(t, option)
     bind(pattern) = GestureBinding(pattern, toggle; description = "Turn the option on or off",
                                    domain = "evaluator")
     gestures = GestureBinding[bind(MouseClickPattern(:left; modifiers = Symbol[])),
                               bind(KeyDownPattern(:space; modifiers = Symbol[])),
                               bind(KeyDownPattern(:return; modifiers = Symbol[]))]
-    box = WidgetCheckbox( getproperty(t, option) === true; gestures)
+    box = WidgetCheckbox(getproperty(t, option) === true; label, gestures)
     set_cell_computation!(box, () -> getproperty(t, option) === true)
 end
 
@@ -252,9 +257,11 @@ _is_options_path(steps) =
 
 function __init__()
     register_natural_graphics!(:evaluator, (; measure, appearance) -> Pair{Type,Any}[
-        EvaluatorToplevel => ChainingProjection(EvaluatorToplevelToWidgetComposite(),
-                                                GridLayoutToGraphicsCanvas()),
-        EvaluatorForm     => ChainingProjection(EvaluatorFormToVerticalLayout(),
-                                                VerticalLayoutToGraphicsCanvas()),
+        EvaluatorToplevel => ChainingProjection(
+            EvaluatorToplevelToWidgetComposite(theme = get_scaled_theme!(appearance, ConversationTheme)),
+            GridLayoutToGraphicsCanvas()),
+        EvaluatorForm     => ChainingProjection(
+            EvaluatorFormToVerticalLayout(theme = get_scaled_theme!(appearance, ConversationTheme)),
+            VerticalLayoutToGraphicsCanvas()),
     ])
 end

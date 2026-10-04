@@ -115,13 +115,11 @@ using ProjecturedConsoleTest
 using ProjecturedPDFTest
 using ProjecturedWebTest
 using ProjecturedMCPTest
-using ProjecturedAll: ElementReferenceStep, RangeReferenceStep, PositionReferenceStep, FieldReferenceStep, PointReferenceStep,
-                   TextSpanReferenceStep,
-                   ConcreteReference, EmptyReference, Reference,
-                   map_reference_forward, map_reference_backward,
-                   color_red, color_blue, color_green, color_white, color_default,
-                   color_solarized_background_dark,
-                   font_ubuntu_monospace_regular_20
+using ProjecturedAll: ElementReferenceStep, RangeReferenceStep, PositionReferenceStep,
+       FieldReferenceStep, PointReferenceStep, TextSpanReferenceStep, ConcreteReference,
+       EmptyReference, Reference, map_reference_forward, map_reference_backward, color_red,
+       color_blue, color_green, color_white, color_default, color_solarized_background_dark,
+       StyleFont
 
 # Built lazily in __init__ (runtime, after the SDL extension has loaded) rather
 # than as a precompile-time const, so precompilation doesn't depend on the extension.
@@ -144,6 +142,7 @@ include("../suite/naming.jl")
 include("../suite/arguments.jl")
 include("../suite/exports.jl")
 include("../suite/documentation.jl")
+include("../suite/style.jl")
 # Suites that rose from the domain test package when it dissolved: each
 # fixture names several domains, so none of them belongs to one.
 include("backend/AssistantConversationVideoTest.jl")
@@ -344,6 +343,25 @@ function test_exports()
 end
 
 """
+    test_style()
+
+The style guard: a font, a color and a size come from a theme. A font
+description, a color of numbers or of the palette, or a length with a number
+outside a theme, a preset, the palette and the registry of font faces fails,
+unless a `# @style:` marker says why it stands there. It loads nothing and runs
+in about a second.
+"""
+function test_style()
+    @testset "style" begin
+        root = normpath(joinpath(@__DIR__, "..", ".."))
+        for violation in style_violations(root)
+            @test violation == ""
+        end
+        @test isempty(style_violations(root))
+    end
+end
+
+"""
     test_documentation()
 
 The writing guard: the part of
@@ -386,6 +404,7 @@ function test_all()
     test_arguments()
     test_exports()
     test_documentation()
+    test_style()
     # The per-package suites: the kernel unit tests, the platform's documents and
     # projections, every domain, and the layering guard of each package.
     test_kernel()
@@ -542,7 +561,7 @@ end
 export test_all, test_integration, test_repository, test_umbrella_loads_integrations, test_integrations_load_with_extensions,
        test_packages_declare_triggers, test_essential_names, test_documents, test_projections, test_domain_examples,
        test_package_graph, test_tree, test_naming,
-       test_arguments, test_exports, test_documentation
+       test_arguments, test_exports, test_documentation, test_style
 export test_kernel, test_platform, test_domain
 export test_export_collisions, test_export_collision_checker, export_collisions
 export test_search_scale, test_search_corpus, test_call_site, test_search_ranking

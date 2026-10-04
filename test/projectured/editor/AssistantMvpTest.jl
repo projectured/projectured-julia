@@ -353,7 +353,7 @@ function _mvp_test_card_fills_its_page()
     @testset "the assistant card fills its page" begin
         a = make_assistant_mvp_setup()
         widgets = WidgetModule.WidgetToGraphics(
-            StyleModule.font_ubuntu_regular_20; measure = _mvp_measure)
+            StyleModule.StyleFont("Ubuntu", 20); measure = _mvp_measure)
         renderer = RecursiveProjection(
             ProjectionAlgebraModule.TypeDispatchingProjection(vcat(
             Pair{Type,Any}[

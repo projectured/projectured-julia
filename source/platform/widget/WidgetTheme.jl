@@ -68,74 +68,92 @@ A widget projection reads a scaled theme through its `UntrackedCell` style field
     shadow::StyleColor = StyleColor(0.0, 0.0, 0.0, 0x14 / 255)
     "The layer that covers the window behind a dialog."
     scrim::StyleColor = StyleColor(0.0, 0.0, 0.0, 0x66 / 255)
-    "The ring around a document that is selected as a whole."
-    selection_ring::StyleColor = SELECTION_RING_COLOR
     "The knob of a switch and of a slider."
     knob::StyleColor = color_white
     # ── Fonts ──
     "The font of the text of a widget."
-    font::StyleFont = font_ubuntu_regular_20
+    font::StyleFont = StyleFont("Ubuntu", 13)
     "The font of a title and of a header."
-    font_bold::StyleFont = font_ubuntu_bold_20
+    font_bold::FontRole = FontRole(weight = 700)
     "The font of a caption and of a badge."
-    font_small::StyleFont = font_ubuntu_regular_18
+    font_small::FontRole = FontRole(relative_size = 0.9)
     # ── Spacing ──
     "The space inside a button, a text box and the other controls."
-    control_padding::Spacing = Spacing(Inset(9, 9, 14, 14))
+    control_padding::Spacing = Spacing(Inset(5, 5, 10, 10))
     "The space inside a card and an alert."
-    container_padding::Spacing = Spacing(16)
+    container_padding::Spacing = Spacing(12)
     "The space inside a badge."
-    compact_padding::Spacing = Spacing(Inset(3, 3, 10, 10))
+    compact_padding::Spacing = Spacing(Inset(2, 2, 6, 6))
+    "The space inside a command of a menu and of a context menu."
+    menu_item_padding::Spacing = Spacing(Inset(4, 4, 12, 12))
+    "The space inside the name of a menu on a menu bar: an item that opens a menu."
+    menu_name_padding::Spacing = Spacing(Inset(4, 4, 6, 6))
+    "The space inside a menu bar."
+    menu_bar_padding::Spacing = Spacing(Inset(2, 2, 2, 2))
+    "The space inside a toolbar."
+    toolbar_padding::Spacing = Spacing(Inset(4, 4, 4, 4))
+    "The space inside a button of a toolbar."
+    toolbar_item_padding::Spacing = Spacing(Inset(4, 4, 4, 4))
+    "The space inside a status bar."
+    status_bar_padding::Spacing = Spacing(Inset(4, 4, 8, 8))
+    "The space between the edge of a tabbed pane and its tab strip and page."
+    tabbed_pane_padding::Spacing = Spacing(Inset(8, 8, 8, 8))
+    "The largest width and height of the window of a context menu."
+    context_menu_maximum_size::ControlSize = ControlSize(Point2D(640, 800))
     "The space between the items of a bar, a list or a popup."
-    item_gap::Spacing = Spacing(4)
+    item_gap::Spacing = Spacing(2)
     "The space under a title."
-    title_gap::Spacing = Spacing(6)
+    title_gap::Spacing = Spacing(4)
     "The space between an icon or a mark and its label."
     label_gap::Spacing = Spacing(6)
     "The space between sections, and between the rows of a radio group."
-    section_gap::Spacing = Spacing(10)
+    section_gap::Spacing = Spacing(8)
     "The space between the items of a menu bar."
-    bar_gap::Spacing = Spacing(12)
+    bar_gap::Spacing = Spacing(8)
+    "The space between the label column and the control column of a form."
+    form_column_gap::Spacing = Spacing(12)
+    "The space between the rows of a form."
+    form_row_gap::Spacing = Spacing(8)
     "The indent of a level of a tree."
-    indent::Spacing = Spacing(22)
+    indent::Spacing = Spacing(12)
     # ── Radii ──
     "The radius of the corners of a control, a card and a popup."
-    radius::Radius = Radius(8)
+    radius::Radius = Radius(6)
     "The radius of the corners of a checkbox, a row band, a highlight and a skeleton."
-    radius_small::Radius = Radius(4)
+    radius_small::Radius = Radius(3)
     # ── Lines ──
     "The width of a border."
     border_width::LineWidth = LineWidth(1)
     "The width of a checkmark, of the ring of a radio button and of the ring of a knob."
     stroke::LineWidth = LineWidth(2)
-    "The width of a focus ring and of a selection ring."
+    "The width of a focus ring."
     ring_width::LineWidth = LineWidth(2)
     # ── Parts of controls ──
     "The size of the box of a checkbox and of the circle of a radio button."
-    indicator_size::ControlSize = ControlSize(18)
+    indicator_size::ControlSize = ControlSize(16)
     "The radius of the dot of a selected radio button."
-    indicator_dot::ControlSize = ControlSize(5)
+    indicator_dot::ControlSize = ControlSize(4)
     "The width and the height of the track of a switch."
-    switch_track::ControlSize = ControlSize(Point2D(44, 24))
+    switch_track::ControlSize = ControlSize(Point2D(36, 20))
     "The space between the knob of a switch and its track."
-    switch_knob_padding::ControlSize = ControlSize(3)
+    switch_knob_padding::ControlSize = ControlSize(2)
     "The height of a slider."
-    slider_height::ControlSize = ControlSize(24)
+    slider_height::ControlSize = ControlSize(20)
     "The height of the track of a slider."
     slider_track::ControlSize = ControlSize(4)
     "The radius of the knob of a slider."
-    slider_knob::ControlSize = ControlSize(9)
+    slider_knob::ControlSize = ControlSize(7)
     "The height of a progress bar."
-    progress_height::ControlSize = ControlSize(8)
+    progress_height::ControlSize = ControlSize(4)
     "The thickness of a scroll bar."
-    scroll_bar_thickness::ControlSize = ControlSize(12)
+    scroll_bar_thickness::ControlSize = ControlSize(10)
     "The smallest length of the thumb of a scroll bar."
     scroll_thumb_minimum::ControlSize = ControlSize(8)
     # ── Icons ──
     "Half the side of a chevron."
     chevron::IconSize = IconSize(4)
     "The width of the column of the chevrons of a tree."
-    tree_chevron_column::IconSize = IconSize(18)
+    tree_chevron_column::IconSize = IconSize(16)
     "The width of the column of the icons of a tree."
     tree_icon_column::IconSize = IconSize(20)
 end
@@ -143,12 +161,12 @@ end
 # ── Presets ─────────────────────────────────────────────────────────────────
 
 """
-    make_light_theme(; font = font_ubuntu_regular_20) -> WidgetTheme
+    make_light_theme(; font = StyleFont("Ubuntu", 13)) -> WidgetTheme
 
 The neutral zinc light theme: a zinc palette on a white background. The slate
 theme is the default, see [`make_slate_light_theme`](@ref).
 """
-make_light_theme(; font::StyleFont = font_ubuntu_regular_20) =
+make_light_theme(; font::StyleFont = StyleFont("Ubuntu", 13)) =
     WidgetTheme(; background = color_white,       foreground = color_zinc_950,
                   card = color_white,             card_foreground = color_zinc_950,
                   popover = color_white,          popover_foreground = color_zinc_950,
@@ -161,12 +179,12 @@ make_light_theme(; font::StyleFont = font_ubuntu_regular_20) =
                   font)
 
 """
-    make_dark_theme(; font = font_ubuntu_regular_20) -> WidgetTheme
+    make_dark_theme(; font = StyleFont("Ubuntu", 13)) -> WidgetTheme
 
 The neutral zinc dark theme, on zinc-950 surfaces. For the slate dark theme see
 [`make_slate_dark_theme`](@ref).
 """
-make_dark_theme(; font::StyleFont = font_ubuntu_regular_20) =
+make_dark_theme(; font::StyleFont = StyleFont("Ubuntu", 13)) =
     WidgetTheme(; background = color_zinc_950,    foreground = color_zinc_50,
                   card = color_zinc_900,          card_foreground = color_zinc_50,
                   popover = color_zinc_900,       popover_foreground = color_zinc_50,
@@ -179,19 +197,19 @@ make_dark_theme(; font::StyleFont = font_ubuntu_regular_20) =
                   font)
 
 """
-    make_slate_light_theme(; font = font_ubuntu_regular_20) -> WidgetTheme
+    make_slate_light_theme(; font = StyleFont("Ubuntu", 13)) -> WidgetTheme
 
 The default light theme: a cool slate palette with an indigo accent, on tinted
 surfaces, so the colors read as chosen and not washed out.
 """
-make_slate_light_theme(; font::StyleFont = font_ubuntu_regular_20) = WidgetTheme(; font)
+make_slate_light_theme(; font::StyleFont = StyleFont("Ubuntu", 13)) = WidgetTheme(; font)
 
 """
-    make_slate_dark_theme(; font = font_ubuntu_regular_20) -> WidgetTheme
+    make_slate_dark_theme(; font = StyleFont("Ubuntu", 13)) -> WidgetTheme
 
 The dark slate theme: deep slate surfaces with a bright indigo accent.
 """
-make_slate_dark_theme(; font::StyleFont = font_ubuntu_regular_20) =
+make_slate_dark_theme(; font::StyleFont = StyleFont("Ubuntu", 13)) =
     WidgetTheme(; background = color_slate_950,   foreground = color_slate_50,
                   card = color_slate_900,         card_foreground = color_slate_50,
                   popover = color_slate_900,      popover_foreground = color_slate_50,
@@ -223,6 +241,25 @@ _get_caption_text(theme::ScaledWidgetTheme) = StyleText(theme.font_small, theme.
 _get_label_text(theme::ScaledWidgetTheme) = StyleText(theme.font, theme.foreground)
 _get_hover_layer(theme::ScaledWidgetTheme) = _with_alpha(theme.primary, 0.12)
 _get_pressed_layer(theme::ScaledWidgetTheme) = _with_alpha(theme.primary, 0.20)
+
+# The ring around a part selected as a whole, and the band of a selected row. They
+# are values of the graphics theme of the appearance of `theme`, which the layouts
+# under the widgets draw with too. A constructor reads them, and a print does not.
+_get_graphics_theme(theme::ScaledWidgetTheme) =
+    get_scaled_theme!(get_theme_appearance(theme), GraphicsTheme)
+_make_graphics_style(theme::ScaledWidgetTheme) =
+    make_theme_values_field(GraphicsTheme, _get_graphics_theme(theme))
+_make_selected_row_color(theme::ScaledWidgetTheme) =
+    make_theme_cell(StyleColor, _get_graphics_theme(theme), scaled -> _with_alpha(scaled.selection_ring, 0.25))
+
+# The gap between the items that a builder of widgets puts in a row or a column:
+# the `item_gap` of the scaled widget theme `theme`, or of the default theme for
+# `nothing`. A builder that runs outside a printer takes the theme of its caller.
+_get_bar_item_gap(theme) = _get_theme_values(theme).item_gap
+
+# The values of the scaled widget theme `theme`, or of the default theme for
+# `nothing`, for a builder that runs outside a printer.
+_get_theme_values(theme) = theme === nothing ? get_theme_defaults(WidgetTheme) : theme
 
 # The inset of `width` on every side, for a border.
 _make_uniform_inset(width::Integer) = Inset(width, width, width, width)

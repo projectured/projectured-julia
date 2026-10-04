@@ -452,7 +452,11 @@ Each step is a commit. Mark it here when it is done.
    - Part 5: the front page of the release repository gets the section "Faster
      sessions".
    - Tests: `test_package_release()` 244 of 244; `test_package_graph()`,
-     `test_export_collisions()` and `test_naming()` together 368 of 368.
+     `test_export_collisions()` and `test_naming()` together 368 of 368. The
+     static guard `test/suite/tree.jl` was not run, and CI failed on it: it
+     allowed only `src/`, `ext/` and `deps/` in a package directory. Fixed on
+     2026-10-03 by `9624b51ed`, which allows `precompile/` and says why in the
+     guard and in `naming-rules.md`.
    - Open for the owner: `ProjecturedPlatform` also ships the 6617 lines of
      "examples", so the leaf of the README set holds them too. In step 2 a leaf
      of 7575 lines took 86 s and 110 MB, against 41 s and 57 MB for the README
@@ -502,16 +506,29 @@ Each step is a commit. Mark it here when it is done.
      leaf, the second call compiles 5.45 s of AutoPrecompile's own code when its
      timer starts the build. The using line compiles about 1 s more with
      AutoPrecompile and loads the image of 127 MB.
-9. **Release**: the owner registers AutoPrecompile in `ProjecturedRegistry`.
+9. **Done — release**: the owner registers AutoPrecompile in `ProjecturedRegistry`.
 
    Version 0.1.0, the version of step 3 that does nothing, is registered
    2026-10-03 at the owner's word: commit `fcbf66b` in the clone
    `~/.julia/registries/ProjecturedRegistry`, made with LocalRegistry.jl from
    `@localregistry` as for AutoIntegrations, tree `4c5c951b…` of `688a8e2`. The
-   owner pushed it the same day. The registered 0.1.0 is still the version that
-   does nothing. By decision 21 the version stays 0.1.0 until the public
-   announcement, so this step waits for it; the registry then needs the tree of
-   the version that works.
+   owner pushed it the same day.
+
+   The fresh release of 2026-10-03 registered 0.1.0 again, with tree `2095cef`
+   of `ba2da6a`, the working code of step 6, and the overwrite after it kept that
+   entry. The README commit `6afd380`, with the times of step 8, is newer than
+   the registered tree. By decision 21 the version stays 0.1.0 until the public
+   announcement, so this step waits for it. The owner made
+   `projectured/AutoPrecompile.jl` public on 2026-10-03; it is not announced,
+   and the registry is not known yet.
+
+   Done 2026-10-03 at the owner's word: the entry 0.1.0 of AutoPrecompile points
+   to tree `26ee88b5…` of `6afd380`, whose README holds the times of step 8,
+   with the dependencies and the compat bounds as they were, because only the
+   README changed since `ba2da6a`. LocalRegistry refuses a second registration of
+   a version with another tree, so `Versions.toml` was changed by hand, in commit
+   `11b7d77` of the registry, pushed without force on top of `3c1019d`, a fresh
+   overwrite by another session that kept the entry.
 
 ## 6. Open questions
 

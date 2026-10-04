@@ -4,7 +4,7 @@ _test_measure(cw, lh) = FixedMeasure(cw, lh - lh÷4, lh÷4, 0)
 @testset "WordWrapping characters preserved" begin
 
 src = "Lorem ipsum dolor sit amet"
-input = TextBlock(TextString(src, font_ubuntu_monospace_regular_20, color_default))
+input = TextBlock(TextString(src, StyleFont("Ubuntu Mono", 20), color_default))
 m = _test_measure(10, 18)
 out = print_document(WordWrapping(max_width=100, measure=m), input).output
 
@@ -18,7 +18,7 @@ end # @testset "WordWrapping characters preserved"
 
 @testset "WordWrapping no-wrap fits on one line" begin
 
-input = TextBlock(TextString("short", font_ubuntu_monospace_regular_20, color_default))
+input = TextBlock(TextString("short", StyleFont("Ubuntu Mono", 20), color_default))
 m = _test_measure(10, 18)
 out = print_document(WordWrapping(max_width=1000, measure=m), input).output
 @test length(out.elements) == 1
@@ -30,7 +30,7 @@ end # @testset "WordWrapping no-wrap"
 @testset "WordWrapping selection round-trip" begin
 
 src = "Lorem ipsum dolor"           # words at chars [0..4), [6..10), [12..16)
-input = TextBlock(TextString(src, font_ubuntu_monospace_regular_20, color_default))
+input = TextBlock(TextString(src, StyleFont("Ubuntu Mono", 20), color_default))
 m = _test_measure(10, 18)
 proj = WordWrapping(max_width=80, measure=m)
 iomap = print_document(proj, input)
@@ -56,7 +56,7 @@ end # @testset "WordWrapping selection round-trip"
 @testset "WordWrapping maps a range across a soft break" begin
 
 src = "Lorem ipsum dolor"
-input = TextBlock(TextString(src, font_ubuntu_monospace_regular_20, color_default))
+input = TextBlock(TextString(src, StyleFont("Ubuntu Mono", 20), color_default))
 proj = WordWrapping(max_width=80, measure=_test_measure(10, 18))
 iomap = print_document(proj, input)
 @test count(e -> e isa TextNewline, iomap.output.elements) >= 1
@@ -79,7 +79,7 @@ end # @testset "WordWrapping maps a range across a soft break"
 
 # "Lorem " ⏎ "ipsum " ⏎ "dolor": each soft break adds one flat offset.
 box(s, e) = ConcreteReference(TextSpanReferenceStep(s, e), EmptyReference())
-font = font_ubuntu_monospace_regular_20
+font = StyleFont("Ubuntu Mono", 20)
 input = TextBlock(TextString("Lorem ipsum dolor", font, color_default))
 proj = WordWrapping(max_width=80, measure=_test_measure(10, 18))
 iomap = print_document(proj, input)
@@ -112,7 +112,7 @@ end # @testset "WordWrapping maps a whole-element box past a soft break"
 @testset "WordWrapping reads the maximum width from the context" begin
 
 src = "alpha beta gamma delta"
-input = TextBlock(TextString(src, font_ubuntu_monospace_regular_20, color_default))
+input = TextBlock(TextString(src, StyleFont("Ubuntu Mono", 20), color_default))
 m = _test_measure(10, 18)
 # Construct with a generous max_width fallback; the context value should win.
 proj = WordWrapping(max_width=10_000, measure=m)
@@ -134,7 +134,7 @@ m = _test_measure(10, 18)
 # (cx=60) but 60+64 > 80, so a soft TextNewline must be inserted *before*
 # the image, dropping it whole onto the next line (never split).
 input = TextBlock(
-    TextString("abcdef", font_ubuntu_monospace_regular_20, color_default),
+    TextString("abcdef", StyleFont("Ubuntu Mono", 20), color_default),
     TextGraphics(ImageMemory(nothing), 64, 64),
 )
 out = print_document(WordWrapping(max_width=80, measure=m), input).output
@@ -154,7 +154,7 @@ end # @testset "WordWrapping image unbreakable"
 m = _test_measure(10, 18)
 # Short string (20px) + 40px image under a generous wrap width: no newline.
 input = TextBlock(
-    TextString("ab", font_ubuntu_monospace_regular_20, color_default),
+    TextString("ab", StyleFont("Ubuntu Mono", 20), color_default),
     TextGraphics(ImageMemory(nothing), 40, 40),
 )
 out = print_document(WordWrapping(max_width=1000, measure=m), input).output
@@ -168,7 +168,7 @@ end # @testset "WordWrapping image fits"
 
 m = _test_measure(10, 18)
 input = TextBlock(
-    TextString("abcdef", font_ubuntu_monospace_regular_20, color_default),
+    TextString("abcdef", StyleFont("Ubuntu Mono", 20), color_default),
     TextGraphics(ImageMemory(nothing), 64, 64),
 )
 proj  = WordWrapping(max_width=80, measure=m)
@@ -189,7 +189,7 @@ end # @testset "WordWrapping image selection round-trips"
 
 @testset "WordWrapping keeps an empty span, and the caret in it" begin
 
-input = TextBlock(TextString("", font_ubuntu_monospace_regular_20, color_default))
+input = TextBlock(TextString("", StyleFont("Ubuntu Mono", 20), color_default))
 set_selection!(input, TextModule.make_flat_caret_reference(0))
 m = _test_measure(10, 18)
 proj = WordWrapping(max_width=80, measure=m)

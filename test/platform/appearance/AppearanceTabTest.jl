@@ -102,15 +102,18 @@ end
     translate(operation) = ProjecturedPlatform.AppearanceModule._translate_tab_operation(tab, operation)
     unwrap(operation) = operation isa ReplaceViewStateOperation ? get_wrapped_operation(operation) : operation
     # The spin box of the gap between items: a step to 5 writes `Spacing(5)`.
-    box = only(w for (w, _) in tab.writes if w isa WidgetSpinBox && w.value == 4 &&
+    box = only(w for (w, _) in tab.writes if w isa WidgetSpinBox && w.value == 2 &&
                translate(ReplaceReferencedValueOperation(w, "value", 5)) |> unwrap |>
                (op -> op.reference.head == FieldReferenceStep("item_gap")))
     write = unwrap(translate(ReplaceReferencedValueOperation(box, "value", 5)))
     @test write.document === theme && write.value == Spacing(5)
     evaluate_operation(nothing, translate(ReplaceReferencedValueOperation(box, "value", 5)))
     @test get_scaled_theme!(appearance, WidgetTheme).item_gap == 5
-    # The choice of the dark preset writes every field of the preset.
-    choice = only(w for (w, _) in tab.writes if w isa WidgetRadioGroup)
+    # The choice of the dark preset writes every field of the preset. Other themes
+    # have presets too; the choice of the widget theme writes the widget theme.
+    writes_widget_theme(op) = op isa CompoundOperation &&
+                              all(member -> unwrap(member).document === theme, op.operations)
+    choice = only(w for (w, write) in tab.writes if w isa WidgetRadioGroup && writes_widget_theme(write(2)))
     preset = translate(ReplaceReferencedValueOperation(choice, "selected", 2))
     @test preset isa CompoundOperation
     @test length(preset.operations) == length(get_theme_field_names(WidgetTheme))
@@ -121,7 +124,20 @@ end
                      unwrap(op).document === theme &&
                      unwrap(op).reference.head == FieldReferenceStep("font"))
     next_font = unwrap(font_step).value
-    @test next_font.size == theme.font.size && next_font.filename != theme.font.filename
+    @test next_font.size == theme.font.size && next_font.family != theme.font.family
+    # The step of a weight goes to the next weight of the family: Ubuntu has a
+    # medium face between the regular and the bold.
+    # The "+" of a scale row adjusts a scale; the "+" of the font writes the theme.
+    writes_font(op) = unwrap(op) isa ReplaceReferencedValueOperation && unwrap(op).document === theme &&
+                      unwrap(op).reference.head == FieldReferenceStep("font")
+    weight_step = only(op for (action, op) in tab.commands if action.label == "+" && writes_font(op))
+    heavier = unwrap(weight_step).value
+    @test (heavier.family, heavier.size, heavier.weight) == (theme.font.family, theme.font.size, 500)
+    # The checkbox of the font makes it italic and keeps the rest.
+    italic_box = only(w for (w, write) in tab.writes if w isa WidgetCheckbox && writes_font(write(true)))
+    italic = unwrap(translate(ReplaceReferencedValueOperation(italic_box, "content", true))).value
+    @test italic.italic && (italic.family, italic.size, italic.weight) ==
+                           (theme.font.family, theme.font.size, theme.font.weight)
 end
 
 @testset "the sections are in three groups, the editor themes first, and each folds" begin
@@ -167,7 +183,7 @@ end
     @test !any(t -> occursin('`', t[1]), texts)
 end
 
-@testset "a text style has the controls of its colour and of its font" begin
+@testset "a text role has the controls of its colour and of its font role" begin
     appearance = Appearance()
     get_scaled_theme!(appearance, SyntaxTheme)
     syntax = get_theme(appearance, SyntaxTheme)
@@ -176,24 +192,33 @@ end
     iomap = print_document(projection, nothing, appearance, offer)
     texts = first.(_at_collect_texts(iomap.output))
     @test "bool text" in texts
-    @test !any(t -> startswith(t, "StyleText"), texts)
+    @test !any(t -> startswith(t, "TextRole") || startswith(t, "StyleText"), texts)
     @test format_style_color(syntax.bool_text.color) in texts
+    # The base font of the theme shows its family once; a role shows its size in
+    # percent of the base.
+    @test count(==("Ubuntu Mono"), texts) == 1
+    @test "% of font" in texts
     tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
     before = syntax.bool_text
-    # The colour text of `bool_text`: a typed digit writes a style with the new
-    # colour and the same font.
+    # The colour text of `bool_text`: a typed digit writes a role with the new
+    # colour and the same font role.
     writes = [first(edit(1, 1, "f")) for edit in values(tab.edits) if edit(1, 1, "f") !== nothing]
     write = only(w for w in writes
                  if w.document === syntax && w.reference.head == FieldReferenceStep("bool_text"))
-    @test write.value isa StyleText
-    @test (write.value.font.filename, write.value.font.size) == (before.font.filename, before.font.size)
+    @test write.value isa TextRole && write.value.font == before.font
     @test format_style_color(write.value.color)[2] == 'f'
-    # The next font keeps the colour.
-    step = only(op for (action, op) in tab.commands if action.label == "›" &&
-                op.document === syntax && op.reference.head == FieldReferenceStep("bool_text"))
-    @test step.value.font.filename != before.font.filename
-    @test step.value.font.size == before.font.size
+    # The step to a heavier weight sets the weight of the role and keeps the colour.
+    step = only(op for (action, op) in tab.commands if action.label == "+" &&
+                op isa ReplaceReferencedValueOperation && op.document === syntax &&
+                op.reference.head == FieldReferenceStep("bool_text"))
+    @test step.value.font.weight == 700 && step.value.font.relative_size == 1.0
     @test is_color_equal(step.value.color, before.color)
+    # The size of the role in percent writes its relative size.
+    writes_bool_text(op) = op isa ReplaceReferencedValueOperation && op.document === syntax &&
+                           op.reference.head == FieldReferenceStep("bool_text")
+    box = only(w for (w, write) in tab.writes if w isa WidgetSpinBox && w.value == 100 &&
+               writes_bool_text(write(150)))
+    @test tab.writes[box](150).value.font.relative_size == 1.5
 end
 
 @testset "in an editor, Ctrl+, opens the tab, and a press prints the new value" begin
@@ -315,7 +340,7 @@ end
           ReplaceReferencedValueOperation
     inverse = make_inverse_operation(nothing, step)
     @test inverse isa ReplaceThemeValueOperation
-    @test inverse.operation.value == Spacing(4)
+    @test inverse.operation.value == Spacing(2)
     @test_throws ArgumentError ReplaceThemeValueOperation(
         ReplaceReferencedValueOperation(appearance, "zoom", 2.0))
 end

@@ -66,7 +66,7 @@ function test_assistant_composer_panel()
             base = Pair{Type,Any}[PrimitiveDocument => ChainingProjection(
                 RecursiveProjection(PrimitiveToText()), TextToGraphics(measure = measure))]
             natural(extra) = NaturalToGraphics(measure = measure,
-                                               font = font_ubuntu_monospace_regular_20, extra = extra)
+                                               font = StyleFont("Ubuntu Mono", 20), extra = extra)
             chat = Pair{Type,Any}[
                 ConversationDraft => ChainingProjection(
                     RecursiveProjection(ConversationComposerToWidget()), natural(base)),
@@ -128,7 +128,7 @@ function test_assistant_composer_panel()
             # A click inside the text lands where it was aimed.
             texts = _tr_texts(_tr_window(backend))
             (x, y, _) = texts[findfirst(t -> t[3] == "hel", texts)]
-            press(MouseClick(:left, x + first(compute_text_extent("h", font_ubuntu_monospace_regular_20)),
+            press(MouseClick(:left, x + first(compute_text_extent("h", StyleFont("Ubuntu Mono", 20))),
                              y + 8, none; time = 0.0))
             at("hel\no", (1, 1))
 

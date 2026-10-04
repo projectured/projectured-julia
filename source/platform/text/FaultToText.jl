@@ -13,8 +13,7 @@ Give it to a text-domain barrier as its substitute:
     FaultCatchingProjection(inner = SyntaxToText(), substitute = FaultToText())
 """
 @projection struct FaultToText
-    style::ImmutableCell{StyleText} =
-        StyleText(font_dejavu_monospace_bold_16, color_solarized_red)
+    style::ImmutableCell{StyleText} = get_theme_defaults(TextTheme).fault_text
 end
 
 function print_document(p::FaultToText, recursion, report::FaultReport,

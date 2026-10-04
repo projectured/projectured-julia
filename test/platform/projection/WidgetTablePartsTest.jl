@@ -18,7 +18,7 @@ function test_widget_table_list_header_floor()
     det = FixedMeasure(8, 12, 4, 0)
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
-        WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
+        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = det).dispatch)))
     grow = SizePolicy(nothing, nothing, nothing, 1.0)
     head = ListNode(make_widget_table_row(Any["a", "b"]))
     table = WidgetTable(; column_headers = Any["id", "a much longer header"],
@@ -46,7 +46,7 @@ function test_widget_table_list()
 det = FixedMeasure(8, 12, 4, 0)
 rec = RecursiveProjection(TypeDispatchingProjection(vcat(
     LayoutToGraphics().dispatch,
-    WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
+    WidgetToGraphics(StyleFont("Ubuntu", 20); measure = det).dispatch)))
 context() = with_exact_size(PrinterContext(); width = Cell(Int32(600)), height = Cell(Int32(300)))
 mods = ModifierKeys()
 alt = ModifierKeys(alt = true)
@@ -350,8 +350,9 @@ end
 end
 
 @testset "a stored offset past an end draws the end, and the wheel turns back at once" begin
-    # The head is row 5 of 10, and the offset is far above row 1.
-    table, io = print_table(make_indexed_list(10, texts_of; at = 5); scroll_y = -10_000)
+    # The head is row 10 of 20, and the offset is far above row 1. The rows are
+    # more than the viewport holds, so the wheel has rows to move.
+    table, io = print_table(make_indexed_list(20, texts_of; at = 10); scroll_y = -10_000)
     first_row = body_top(io)
     @test label_y(io, "row 1") == first_row
     # The first turn moves one whole step, as the second does: no part of it

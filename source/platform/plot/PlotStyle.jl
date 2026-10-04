@@ -19,9 +19,9 @@ The per-series color cycle: the Solarized accents, in the order a plot hands
 them out to series that leave `color` unset.
 """
 default_color_cycle() = StyleColor[
-    color_solarized_blue, color_solarized_red, color_solarized_green,
-    color_solarized_orange, color_solarized_violet, color_solarized_cyan,
-    color_solarized_magenta, color_solarized_yellow]
+    color_solarized_blue, color_solarized_red, color_solarized_green,  # @style: content of the document, the default colors of the series of a chart
+    color_solarized_orange, color_solarized_violet, color_solarized_cyan,  # @style: content of the document, the default colors of the series of a chart
+    color_solarized_magenta, color_solarized_yellow]  # @style: content of the document, the default colors of the series of a chart
 
 """
     default_symbol_cycle() -> Vector{Symbol}
@@ -46,7 +46,7 @@ a series shifts the colors after it — the same rule the reference charts use.
 """
 function get_series_color(color, index::Integer, cycle)
     color === nothing || return color
-    isempty(cycle) && return color_solarized_blue
+    isempty(cycle) && return color_solarized_blue  # @style: content of the document, the default colors of the series of a chart
     cycle[mod1(index, length(cycle))]
 end
 

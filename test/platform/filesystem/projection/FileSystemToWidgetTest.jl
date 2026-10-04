@@ -37,7 +37,7 @@ end
         pane = print_document(RecursiveProjection(FileSystemToWidget()), make_filesystem_pathname(dir)).output
         tree = pane.content
         @test tree.expanded == Set([[1]])
-        widgets = WidgetToGraphics(font_ubuntu_regular_20; measure = FixedMeasure(8, 12, 4, 0))
+        widgets = WidgetToGraphics(StyleFont("Ubuntu", 20); measure = FixedMeasure(8, 12, 4, 0))
         tree_projection = only(pr for (T, pr) in widgets.dispatch if T === WidgetTree)
         iomap = print_document(tree_projection, tree)
         @test [r.path for r in iomap.geometry.rows] == [[1], [1, 1], [1, 2]]
@@ -68,7 +68,7 @@ end
         write(joinpath(dir, "top.jl"), "")
         folder = make_filesystem_pathname(dir)
         pane = print_document(RecursiveProjection(FileSystemToWidget()), folder).output
-        widgets = WidgetToGraphics(font_ubuntu_regular_20; measure = FixedMeasure(8, 12, 4, 0))
+        widgets = WidgetToGraphics(StyleFont("Ubuntu", 20); measure = FixedMeasure(8, 12, 4, 0))
         tree_projection = only(pr for (T, pr) in widgets.dispatch if T === WidgetTree)
         tree = pane.content
         iomap = print_document(tree_projection, tree)

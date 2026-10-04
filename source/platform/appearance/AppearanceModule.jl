@@ -31,6 +31,7 @@ using ..DocumentModule
 using ..EditorModule
 using ..EventModule
 using ..GestureBindingModule
+using ..GraphicsModule
 using ..IntentModule
 using ..IoMapModule
 using ..LayoutModule
@@ -46,6 +47,7 @@ using ..StyleModule
 using ..SyntaxModule
 using ..TextModule
 using ..ToolModule
+using ..TooltipModule
 using ..WidgetModule
 
 import ..DocumentModule: get_wrapped_document

@@ -107,7 +107,7 @@ end
                                            FieldReferenceStep("items"), RangeReferenceStep(1, 2))
     # Below the rows, the list itself is the part.
     @test at(1, 5, 280) == extend_reference(EmptyReference(), window(1)..., FieldReferenceStep("content"))
-    @test at(2, 5, 30) == extend_reference(EmptyReference(), window(2)..., FieldReferenceStep("elements"),
+    @test at(2, 5, 50) == extend_reference(EmptyReference(), window(2)..., FieldReferenceStep("elements"),
                                            RangeReferenceStep(1, 2))
     @test at(2, 5, 140) === nothing
 end
@@ -133,7 +133,7 @@ end
     lit() = [item.action.label for item in menu.elements if get_mouse_target(item) !== nothing]
     lit_row() = WidgetModule._widget_element_selected(get_mouse_target(list), "items")
 
-    move!(:widget_popup, 5, 30, 1.0)
+    move!(:widget_popup, 5, 50, 1.0)
     @test lit() == ["Beta"]
     move!(:widget_popup, 5, 10, 1.1)
     @test lit() == ["Alpha"]
@@ -181,7 +181,7 @@ end
     # A popup window with a menu draws the names of its items.
     menu = WidgetMenu(Any[WidgetMenuItem("New tab"), WidgetMenuItem("Close tab")])
     push!(scene.windows, Cell(WindowDocument(; id = :widget_popup, x = 10, y = 20, width = 120,
-                                              height = 60, style = :popup, content = menu)))
+                                              height = 100, style = :popup, content = menu)))
     shown = print_document(projection, scene)
     output = shown.output
     canvas = output.windows[2].content
@@ -199,9 +199,10 @@ end
     end
     walk(canvas, 0)
     @test first.(placed) == ["New tab", "Close tab"]
-    # The window offers its height, and each item is as tall as its label and not
-    # as the window, so both items are drawn inside the window, one below the other.
-    @test placed[1][2] < placed[2][2] < 60 - 20
+    # The window offers its height, and each item is as tall as its label and its
+    # padding and not as the window, so both items are drawn inside the window, one
+    # below the other.
+    @test placed[1][2] < placed[2][2] < 100 - 20
     # Both items are as wide as the wider one, also through the wrapper that the
     # screen puts around each of them, so the highlight of a row spans the menu.
     new_tab, close_tab = (_wrap_iomap_of(shown, item) for item in collect(menu.elements))
@@ -230,7 +231,7 @@ end
     # screen coordinates. The window offers the select its height, so the
     # select's height is the one the scene printed.
     height = _wrap_iomap_of(iomap, select).control_height
-    @test (popup.x, popup.y) == (window.x, window.y + height + 4)
+    @test (popup.x, popup.y) == (window.x, window.y + height + 2)
     # The window takes the extent of what it draws, up to the bound of a popup. It
     # offers the dropdown that bound, and the dropdown draws its two options on
     # its surface, as wide as the select and no wider than the bound. The select

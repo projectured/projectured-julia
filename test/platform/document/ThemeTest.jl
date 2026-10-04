@@ -9,8 +9,8 @@ using ProjecturedPlatform.StyleModule
 using ProjecturedKernel.CellModule
 
 @theme struct ThSample
-    body::StyleText       = StyleText(font_ubuntu_regular_20, color_black)
-    caption::StyleFont    = font_ubuntu_regular_14
+    body::StyleText       = StyleText(StyleFont("Ubuntu", 20), color_black)
+    caption::StyleFont    = StyleFont("Ubuntu", 14)
     rule::StyleStroke     = StyleStroke(color_black, 2)
     padding::Spacing      = Spacing(Inset(9, 9, 14, 14))
     gap::Spacing          = Spacing(4)
@@ -32,6 +32,20 @@ end
     in two lines.
     """
     line::StyleColor = color_black
+end
+
+@theme struct ThRoles
+    font::StyleFont = StyleFont("Ubuntu", 20)
+    code_font::StyleFont = StyleFont("Ubuntu Mono", 14)
+    title::FontRole = FontRole(weight = 700, relative_size = 1.8)
+    keyword::TextRole = TextRole(color_solarized_blue; base = :code_font, weight = 700)
+    marker::TextRole = TextRole(color_black; base = :code_font, family = "DejaVu Sans Mono")
+end
+
+@theme struct ThRoleOverRole
+    font::StyleFont = StyleFont("Ubuntu", 20)
+    title::FontRole = FontRole(weight = 700)
+    wrong::FontRole = FontRole(base = :title)
 end
 
 @theme struct ThUndocumented
@@ -149,6 +163,47 @@ end
     @test get_scaled_theme!(appearance, ThSample) === other
     @test other.gap == 10
     @test get_theme(Appearance(), ThSample) === nothing
+end
+
+@testset "a role follows its base font" begin
+    scaled = make_scaled_theme(ThRoles())
+    @test scaled.title == StyleFont("Ubuntu", 36; weight = 700)
+    @test scaled.keyword == StyleText(StyleFont("Ubuntu Mono", 14; weight = 700), color_solarized_blue)
+    @test scaled.marker == StyleText(StyleFont("DejaVu Sans Mono", 14), color_black)
+    # The font scale applies to the font that the role gives.
+    @test make_scaled_theme(ThRoles(), Appearance(font_scale = 1.5)).title.size == 54
+    # A change of the base reaches the role.
+    theme = ThRoles()
+    scaled = make_scaled_theme(theme)
+    theme.font = StyleFont("DejaVu Sans", 10; italic = true)
+    @test scaled.title == StyleFont("DejaVu Sans", 18; weight = 700, italic = true)
+    # A role field can hold a text as it is, which scales as a text does.
+    fixed = StyleText(StyleFont("Liberation Serif", 12), color_red)
+    @test make_scaled_theme(ThRoles(keyword = fixed), Appearance(font_scale = 2.0)).keyword ==
+          StyleText(StyleFont("Liberation Serif", 24), color_red)
+    # A role follows a font, not another role.
+    @test_throws "a font role follows a font" make_scaled_theme(ThRoleOverRole()).wrong
+end
+
+@testset "a role saves and loads" begin
+    mktempdir() do folder
+        path = joinpath(folder, "appearance.toml")
+        appearance = Appearance()
+        get_scaled_theme!(appearance, ThRoles)
+        theme = get_theme(appearance, ThRoles)
+        theme.title = FontRole(italic = true, relative_size = 1.25)
+        theme.keyword = TextRole(color_red; base = :code_font, family = "Liberation Mono", weight = 300)
+        theme.marker = StyleText(StyleFont("Ubuntu", 30), color_white)
+        save_appearance!(appearance, path)
+        loaded = Appearance()
+        get_scaled_theme!(loaded, ThRoles)
+        load_appearance!(loaded, path)
+        saved = get_theme(loaded, ThRoles)
+        @test saved.title == FontRole(italic = true, relative_size = 1.25)
+        @test saved.keyword.font == FontRole(base = :code_font, family = "Liberation Mono", weight = 300)
+        @test is_color_equal(saved.keyword.color, color_red)
+        @test saved.marker isa StyleText && saved.marker.font == StyleFont("Ubuntu", 30)
+    end
 end
 
 @testset "two appearances are independent" begin

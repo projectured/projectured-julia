@@ -24,9 +24,9 @@ Every package name is `Projectured<Slice>` in CamelCase, and the umbrella is
 `Projectured` alone. The package directory is `package/<PackageName>/`, one
 folder per package, carrying the name exactly.
 
-`AutoIntegrations`, which the umbrella depends on, is no package of this
+`AutoIntegration`, which the umbrella depends on, is no package of this
 repository. It is generic, it lives in its own repository,
-`projectured/AutoIntegrations.jl`, and it carries no `Projectured` prefix.
+`projectured/AutoIntegration.jl`, and it carries no `Projectured` prefix.
 
 The slice is the lower-case name with the prefix removed, and it is the folder
 its code lives in: `ProjecturedSequenceChart` is
@@ -65,7 +65,9 @@ on, and why a leaf matters.
 A package directory holds its `Project.toml` and `src/<PackageName>.jl`, and
 that root file holds the docstring, the imports, the module aliases and the
 ordered `include`s. The code it includes lives in `source/`, `test/` or
-`example/`. The rule and what it cost are in
+`example/`. A package directory can also hold `precompile/`, the recorded
+precompile statements of the package, because AutoPrecompile reads them in the
+folder of a loaded package and nowhere else. The rule and what it cost are in
 [plan/done/repository-tree.md](../../plan/done/repository-tree.md).
 
 ## A file is named for what it defines

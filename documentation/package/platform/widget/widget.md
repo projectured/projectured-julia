@@ -34,7 +34,7 @@ Most widgets have `visible`, a `tooltip`, the box insets `margin`, `border` and 
 `WidgetToGraphics(font; measure, theme)` returns a `TypeDispatchingProjection` with one rule for each widget type and one for `GridLayout`. `WidgetTabPage` and `WidgetAccordionItem` have no rule, because the printer of the parent draws them, so the table has 42 widget rules. A caller wraps the result in `RecursiveProjection`, or puts its `.dispatch` pairs into a larger table:
 
 ```julia
-widgets    = WidgetToGraphics(font_ubuntu_regular_20; measure = FontFileMeasure())
+widgets    = WidgetToGraphics(StyleFont("Ubuntu", 20); measure = FontFileMeasure())
 projection = RecursiveProjection(TypeDispatchingProjection(vcat(
     LayoutToGraphics().dispatch, widgets.dispatch)))
 ```
@@ -47,13 +47,21 @@ A `WidgetSplitPane` makes its per-slot cells and child IO maps for the number of
 
 ### The theme
 
-`WidgetTheme` holds what the widgets draw with, and `@theme` declares it, as [style.md](../style/style.md#themes-and-the-appearance) describes. It holds the palette, the decorations `shadow`, `scrim`, `selection_ring` and `knob`, the fonts `font`, `font_bold` and `font_small`, and the named sizes. Each size has a kind of length, which says which scale applies to it:
+`WidgetTheme` holds what the widgets draw with, and `@theme` declares it, as [style.md](../style/style.md#themes-and-the-appearance) describes. It holds the palette, the decorations `shadow`, `scrim` and `knob`, the fonts `font`, `font_bold` and `font_small`, and the named sizes. Each size has a kind of length, which says which scale applies to it:
 
-- nine spacings: `control_padding`, `container_padding`, `compact_padding`, `item_gap`, `title_gap`, `label_gap`, `section_gap`, `bar_gap` and `indent`;
+- eighteen spacings: the padding of a control, of a card and of an alert (`control_padding`, `container_padding`), of a badge (`compact_padding`), of a command of a menu and of a context menu (`menu_item_padding`), of the name of a menu on a menu bar (`menu_name_padding`), of a menu bar, of a toolbar and of a button of a toolbar (`menu_bar_padding`, `toolbar_padding`, `toolbar_item_padding`), of a status bar (`status_bar_padding`), and of the edge of a tabbed pane around its strip and its page (`tabbed_pane_padding`); the gaps `item_gap`, `title_gap`, `label_gap`, `section_gap` and `bar_gap`; the gaps of a form, between its label column and its control column and between its rows (`form_column_gap`, `form_row_gap`); and the tree level `indent`;
 - two radii: `radius`, and `radius_small` for a checkbox, a row band, a highlight and a skeleton;
 - three line widths: `border_width`, `stroke` and `ring_width`;
-- ten sizes of the parts of controls: the indicator of a checkbox and a radio button and its dot, the track and the knob padding of a switch, the height, the track and the knob of a slider, the height of a progress bar, and the thickness and the minimum thumb of a scroll bar;
+- eleven sizes of the parts of controls: the indicator of a checkbox and a radio button and its dot, the track and the knob padding of a switch, the height, the track and the knob of a slider, the height of a progress bar, the thickness and the minimum thumb of a scroll bar, and the largest width and height of the window of a context menu (`context_menu_maximum_size`);
 - three icon sizes: `chevron`, and the chevron column and the icon column of a tree.
+
+A widget, a menu, a bar or a pane that sets no padding of its own takes the padding of its own kind from the theme, as a browser gives a default style to each kind of element. A menu item that opens a menu — the name of a menu on a menu bar, the variant `submenu` — takes `menu_name_padding` in place of `menu_item_padding`.
+
+A checkbox and a switch carry their own `label`, as in a desktop toolkit. They draw it after the mark, at the `label_gap` of the theme, so no builder puts a label beside them in a layout. A form that puts its labels in a column of their own gives them none.
+
+A builder that makes widgets outside a printer — the bar of a pager, of a filter or of a column chooser, and the input dialog — takes the theme of the place that calls it: a scaled widget theme, or `nothing` for the default. It places its items `item_gap` apart. `make_column_chooser_widget` makes one labelled checkbox for each column it offers, not a button that reads "[x]" or "[ ]", and a press on a box asks the caller to show or to hide that column. The value list of a data frame takes the widget and the data frame themes of the editor that opens it (`find_editor_appearance`), for the gap of its rows and for the size of its list and its window. A button that one of these builders makes is as large as its label, as are the plain closing buttons of the message box and of the file dialog, which take no theme.
+
+A row of widgets or of mixed text stands on one baseline with `vertical_align = :baseline` of a `HorizontalLayout`, which reads the baseline of each child from `find_first_baseline`; [layout.md](../layout/layout.md) describes it.
 
 The text styles and the layers of a hovered and of a pressed widget are no fields: a widget derives them from the fonts and the palette, so they follow a change of either. Four presets exist: `make_light_theme` and `make_dark_theme` are neutral zinc, and `make_slate_light_theme` and `make_slate_dark_theme` are slate with an indigo accent. The default, `WidgetTheme()`, is the slate light preset.
 
@@ -63,7 +71,7 @@ A projection holds one style field for each part that it draws, in each variant 
 
 `nothing` has one meaning: the layer gives no value, and the next one applies. A theme token and a style field of a projection are never `nothing`. `color_transparent` is the one color that draws nothing: the printer adds no element for a transparent part, and a container routes a press only over an element that a widget drew, so a transparent surface takes no press. The colors of another domain belong to the projection that makes widgets from it, in the way that `JsonToSyntax` owns the colors of JSON; such a projection gives its colors to the widgets as overrides.
 
-An icon is a `Symbol`, not an image. `register_icon!(:name, renderer)` stores a renderer `(elements, x, y, size, color) -> nothing`, so an icon takes the color of its label and scales with the font. Every built-in icon is a glyph of the Lucide icon font (`asset/font/lucide.ttf`, ISC licence in `Lucide-ISC.txt`), drawn through the text renderer, so it has smooth edges on every backend; `LUCIDE_ICON_GLYPHS` maps each name to its code point, and a name says what the picture shows. `find_icon_character(name)` answers the character for a label that writes an icon as text, in `font_lucide_icons_20` given as its `text_style`. A renderer can also draw a glyph of another icon font with `make_glyph_icon`, which draws at the size of the icon box, or an image with `make_image_icon`. An image does not take the color. An unknown name draws nothing.
+An icon is a `Symbol`, not an image. `register_icon!(:name, renderer)` stores a renderer `(elements, x, y, size, color) -> nothing`, so an icon takes the color of its label and scales with the font. Every built-in icon is a glyph of the Lucide icon font (`asset/font/lucide.ttf`, ISC licence in `Lucide-ISC.txt`), drawn through the text renderer, so it has smooth edges on every backend; `LUCIDE_ICON_GLYPHS` maps each name to its code point, and a name says what the picture shows. `find_icon_character(name)` answers the character for a label that writes an icon as text, in `StyleFont("Lucide", 20)` given as its `text_style`. A renderer can also draw a glyph of another icon font with `make_glyph_icon`, which draws at the size of the icon box, or an image with `make_image_icon`. An image does not take the color. An unknown name draws nothing.
 
 ### A press goes by coordinate
 
@@ -121,7 +129,7 @@ The focus moves on the down, and the control acts on the press that a gesture tr
 
 A left press with Alt and no other modifier selects the innermost document under the pointer as a whole. The rule is in `read_child_event`, which every widget container calls, and it uses `convert_to_whole_selection` of the focus package. A control never acts on an Alt+press, because the rule drops the action that the control returns. No widget declares that it can be selected.
 
-A container whose selection names a child as a whole draws a ring over that child with `make_selection_ring`. The composite, the card, the tabbed pane and every layout keep one ring as the last element, with no size while nothing is selected. A focusable control gets no ring, because it draws its own focus ring. So a projection must not write a fixed routing path into the `selection` cell of a container, or the container draws a ring.
+A container whose selection names a child as a whole draws a ring over that child with `make_selection_ring`, in the color of the `GraphicsTheme` of the same appearance. The composite, the card, the tabbed pane and every layout keep one ring as the last element, with no size while nothing is selected. A focusable control gets no ring, because it draws its own focus ring. So a projection must not write a fixed routing path into the `selection` cell of a container, or the container draws a ring.
 
 A projection can draw a widget that no document of the domain stands behind, such as the table of a form. An `OutputReferenceStep` of the focus package names such a widget from the document that it was drawn for.
 
@@ -132,7 +140,7 @@ Each control has a reader in `WidgetToGraphics.jl`. The keys in the table work w
 | Widget | A press | A key |
 | --- | --- | --- |
 | `WidgetButton` | a left press invokes its action, or opens its dialog | Return, Space |
-| `WidgetCheckbox`, `WidgetSwitch` | a left press flips the value | Return, Space |
+| `WidgetCheckbox`, `WidgetSwitch` | a left press on the mark or on its label flips the value | Return, Space |
 | `WidgetToggle` | a left press flips `pressed` | Return, Space |
 | `WidgetToggleGroup` | a left press on a segment selects it | none |
 | `WidgetRadioGroup` | a left press on the row of an option, on its circle or its label, selects it | Down and Right select the next option, Up and Left the previous one, around the ends. Return and Space select the first option when no option is on. |
@@ -207,8 +215,8 @@ A `WidgetDialog` opens as a window with `modal = true`. `WindowManagingProjectio
 
 Three projections turn objects of a domain into widgets:
 
-- **`ObjectToWidget(; fields)`** reflects one object into a form: a `WidgetComposite` with a two-column `GridLayout` of labels and controls. A `Bool` becomes a `WidgetCheckbox`, and a string or a number becomes a `WidgetText`, which a person can edit when the field is a cell. A nested struct with cell fields and a vector become a collapsible `WidgetCard`. Below depth 16 the walk shows a nested value read only. The IO map holds a `(control, path)` pair for each control, and the reader turns an edit into `ReplaceReferencedValueOperation(root, path, value)`.
-- **`ObjectFieldToWidget()`** projects one `ObjectField(object, path)` to a control without a label. So a `FormLayout` can put fields of different objects in rows that the author labels. The control writes through the path, so it can edit an element of a vector, which `ObjectToWidget` shows read only. It uses the classification and the coercion of `ObjectToWidget`.
+- **`ObjectToWidget(; fields, theme)`** reflects one object into a form: a `WidgetComposite` with a two-column `GridLayout` of labels and controls, the label column `Content` and the control column `Fill`. A grid column of the policy `Fill` that is offered no width on its axis keeps the width of its cells instead of collapsing, as a weighted child of a stack does, so a card of the form fills the pane that offers it a width and is as wide as its controls where none is offered. A `Bool` becomes a `WidgetCheckbox`, and a string or a number becomes a `WidgetText`, which a person can edit when the field is a cell. A nested struct with cell fields and a vector become a collapsible `WidgetCard` with no width of its own. Below depth 16 the walk shows a nested value read only. `theme` is the scaled widget theme of the place that builds the form, or `nothing` for the default: the label and the value of a field draw in its body text, its font and its foreground color, and its `form_column_gap` and `form_row_gap` give the gaps of the grid. The IO map holds a `(control, path)` pair for each control, and the reader turns an edit into `ReplaceReferencedValueOperation(root, path, value)`.
+- **`ObjectFieldToWidget(; theme, controls)`** projects one `ObjectField(object, path)` to a control without a label. So a `FormLayout` can put fields of different objects in rows that the author labels. The control writes through the path, so it can edit an element of a vector, which `ObjectToWidget` shows read only. It uses the classification and the coercion of `ObjectToWidget`, and the same `theme` keyword for the font and the color of an editable control.
 - **`CellTableToWidgetTable()`** wraps a `CellTable` in a `WidgetTable`. Row 1 holds the headers. Each value becomes a `PrimitiveString`, `PrimitiveNumber` or `PrimitiveBool`, so the table draws it through its content recursion and names no domain.
 
 `ProjectionConfiguringProjection` uses `ObjectToWidget` on a projection object. It shows the parameters of the projection above the document in a `WidgetSplitPane`, and Ctrl+F toggles them. A control writes the same cells that the projection reads, so the document prints again at once.

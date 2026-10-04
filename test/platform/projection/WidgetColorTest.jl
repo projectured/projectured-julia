@@ -72,7 +72,10 @@ function _theme_colors(theme)
         value isa StyleColor && push!(colors, value)
     end
     see_through(color, alpha) = StyleColor(color.red, color.green, color.blue, alpha)
-    push!(colors, see_through(theme.selection_ring, 0.25),             # the band of a selected row
+    # The ring of a part selected as a whole and the band of a selected row come
+    # from the graphics theme, which the probe leaves at its default.
+    ring = get_theme_defaults(GraphicsTheme).selection_ring
+    push!(colors, ring, see_through(ring, 0.25),                       # the band of a selected row
                   see_through(theme.primary, 0.25),                   # the area of a highlight
                   color_interpolate(theme.muted, theme.background, 0.5))  # a tinted card
     colors
@@ -151,14 +154,14 @@ function test_widget_colors()
 
 render(projection, widget) = print_document(projection, nothing, widget, PrinterContext()).output
 default_projection = RecursiveProjection(TypeDispatchingProjection(
-    WidgetToGraphics(font_ubuntu_regular_20; measure = _color_test_measure).dispatch))
+    WidgetToGraphics(StyleFont("Ubuntu", 20); measure = _color_test_measure).dispatch))
 theme = make_slate_light_theme()
 red = StyleColor(1.0, 0.0, 0.0, 1.0)
 
 @testset "every color comes from the theme or from a style" begin
     probe = _make_probe_theme()
     projection = RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(font_ubuntu_regular_20; measure = _color_test_measure, theme = probe).dispatch))
+        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = _color_test_measure, theme = probe).dispatch))
     allowed = _theme_colors(probe)
     for make in _PROBED_WIDGET_DOCUMENTS
         @testset "$(nameof(make))" begin

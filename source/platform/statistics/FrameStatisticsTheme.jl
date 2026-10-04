@@ -19,12 +19,14 @@ The statistics table reads the scaled theme through its `UntrackedCell` style
 fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct FrameStatisticsTheme
+    "The font that the texts of this theme follow: its family, its weight and its size."
+    font::StyleFont = StyleFont("DejaVu Sans Mono", 13)
     "The head line and the column header."
-    header_text::StyleText = StyleText(font_dejavu_monospace_bold_16, color_solarized_cyan)
+    header_text::TextRole = TextRole(color_solarized_cyan; weight = 700)
     "One measurement."
-    row_text::StyleText = StyleText(font_dejavu_monospace_regular_16, color_slate_700)
+    row_text::TextRole = TextRole(color_slate_700)
     "The line the table shows while it holds no frame."
-    empty_text::StyleText = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
+    empty_text::TextRole = TextRole(color_slate_500)
 end
 
 # The style field of a statistics projection that holds the text `name` of the

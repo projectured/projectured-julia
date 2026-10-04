@@ -86,7 +86,7 @@ function test_part_pointer_shape()
     @testset "the edge of a column is a double arrow where a press starts its drag" begin
         tables = RecursiveProjection(TypeDispatchingProjection(vcat(
             LayoutToGraphics().dispatch,
-            WidgetToGraphics(font_ubuntu_regular_20; measure = FixedMeasure(8, 12, 4, 0)).dispatch)))
+            WidgetToGraphics(StyleFont("Ubuntu", 20); measure = FixedMeasure(8, 12, 4, 0)).dispatch)))
         context = with_exact_size(PrinterContext(); width = Cell(Int32(600)), height = Cell(Int32(300)))
         rows = _make_pointer_part_list([make_widget_table_row(Any["row $(i)", string(i)]) for i in 1:5])
         vector_columns = WidgetTable(; column_headers = Any["name", "value"], rows, column_count = 2,
@@ -128,7 +128,7 @@ function test_part_pointer_shape()
     @testset "a text is an I-beam over its box, where a click puts the caret" begin
         # A text answers a click at any point with the nearest caret; the
         # container that holds it gives it only the clicks in its box.
-        text = TextBlock(TextString("hello world", font_ubuntu_monospace_regular_20, color_black))
+        text = TextBlock(TextString("hello world", StyleFont("Ubuntu Mono", 20), color_black))
         projection = TextToGraphics(measure = _POINTER_PART_MEASURE)
         iomap = print_document(projection, text)
         width, height = Int(iomap.output.w), Int(iomap.output.h)

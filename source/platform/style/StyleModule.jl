@@ -55,61 +55,14 @@ export StyleColor, make_style_color, format_style_color, convert_text_to_style_c
        color_indigo_400, color_indigo_500, color_indigo_600, color_indigo_700,
        color_indigo_800, color_indigo_900, color_indigo_950,
        color_destructive, color_destructive_fg
-export StyleFont, make_style_font, font_logical_size, font_device_size,
-       step_factor, _FONT_DIR,
-       font_inconsolata_regular_18,
-       font_ubuntu_monospace_regular_14, font_ubuntu_monospace_italic_14, font_ubuntu_monospace_bold_14,
-       font_ubuntu_monospace_regular_16, font_ubuntu_monospace_italic_16, font_ubuntu_monospace_bold_16,
-       font_ubuntu_monospace_regular_18, font_ubuntu_monospace_italic_18, font_ubuntu_monospace_bold_18,
-       font_ubuntu_monospace_regular_20, font_ubuntu_monospace_italic_20, font_ubuntu_monospace_bold_20,
-       font_ubuntu_monospace_regular_22, font_ubuntu_monospace_italic_22, font_ubuntu_monospace_bold_22,
-       font_ubuntu_monospace_regular_24, font_ubuntu_monospace_italic_24, font_ubuntu_monospace_bold_24,
-       font_ubuntu_monospace_regular_36, font_ubuntu_monospace_italic_36, font_ubuntu_monospace_bold_36,
-       font_ubuntu_monospace_regular_48, font_ubuntu_monospace_italic_48, font_ubuntu_monospace_bold_48,
-       font_ubuntu_regular_14, font_ubuntu_italic_14, font_ubuntu_bold_14,
-       font_ubuntu_regular_16, font_ubuntu_italic_16, font_ubuntu_bold_16,
-       font_ubuntu_regular_18, font_ubuntu_italic_18, font_ubuntu_bold_18,
-       font_ubuntu_regular_20, font_ubuntu_italic_20, font_ubuntu_bold_20,
-       font_ubuntu_regular_22, font_ubuntu_italic_22, font_ubuntu_bold_22,
-       font_ubuntu_regular_24, font_ubuntu_italic_24, font_ubuntu_bold_24,
-       font_ubuntu_regular_36, font_ubuntu_italic_36, font_ubuntu_bold_36,
-       font_liberation_sans_regular_14, font_liberation_sans_italic_14, font_liberation_sans_bold_14,
-       font_liberation_sans_regular_16, font_liberation_sans_italic_16, font_liberation_sans_bold_16,
-       font_liberation_sans_regular_18, font_liberation_sans_italic_18, font_liberation_sans_bold_18,
-       font_liberation_sans_regular_20, font_liberation_sans_italic_20, font_liberation_sans_bold_20,
-       font_liberation_sans_regular_22, font_liberation_sans_italic_22, font_liberation_sans_bold_22,
-       font_liberation_sans_regular_24, font_liberation_sans_italic_24, font_liberation_sans_bold_24,
-       font_liberation_sans_regular_30, font_liberation_sans_italic_30, font_liberation_sans_bold_30,
-       font_liberation_sans_regular_36, font_liberation_sans_italic_36, font_liberation_sans_bold_36,
-       font_liberation_serif_regular_14, font_liberation_serif_italic_14, font_liberation_serif_bold_14,
-       font_liberation_serif_regular_16, font_liberation_serif_italic_16, font_liberation_serif_bold_16,
-       font_liberation_serif_regular_18, font_liberation_serif_italic_18, font_liberation_serif_bold_18,
-       font_liberation_serif_regular_20, font_liberation_serif_italic_20, font_liberation_serif_bold_20,
-       font_liberation_serif_regular_22, font_liberation_serif_italic_22, font_liberation_serif_bold_22,
-       font_liberation_serif_regular_24, font_liberation_serif_italic_24, font_liberation_serif_bold_24,
-       font_liberation_serif_regular_30, font_liberation_serif_italic_30, font_liberation_serif_bold_30,
-       font_liberation_serif_regular_36, font_liberation_serif_italic_36, font_liberation_serif_bold_36,
-       font_liberation_serif_regular_42, font_liberation_serif_italic_42, font_liberation_serif_bold_42,
-       font_dejavu_monospace_regular_14, font_dejavu_monospace_italic_14, font_dejavu_monospace_bold_14,
-       font_dejavu_monospace_regular_16, font_dejavu_monospace_italic_16, font_dejavu_monospace_bold_16,
-       font_dejavu_monospace_regular_18, font_dejavu_monospace_italic_18, font_dejavu_monospace_bold_18,
-       font_dejavu_monospace_regular_20, font_dejavu_monospace_italic_20, font_dejavu_monospace_bold_20,
-       font_dejavu_monospace_regular_22, font_dejavu_monospace_italic_22, font_dejavu_monospace_bold_22,
-       font_dejavu_monospace_regular_24, font_dejavu_monospace_italic_24, font_dejavu_monospace_bold_24,
-       font_dejavu_monospace_regular_36, font_dejavu_monospace_italic_36, font_dejavu_monospace_bold_36,
-       font_dejavu_monospace_regular_48, font_dejavu_monospace_italic_48, font_dejavu_monospace_bold_48,
-       font_dejavu_sans_regular_14, font_dejavu_sans_italic_14, font_dejavu_sans_bold_14,
-       font_dejavu_sans_regular_16, font_dejavu_sans_italic_16, font_dejavu_sans_bold_16,
-       font_dejavu_sans_regular_18, font_dejavu_sans_italic_18, font_dejavu_sans_bold_18,
-       font_dejavu_sans_regular_20, font_dejavu_sans_italic_20, font_dejavu_sans_bold_20,
-       font_dejavu_sans_regular_22, font_dejavu_sans_italic_22, font_dejavu_sans_bold_22,
-       font_dejavu_sans_regular_24, font_dejavu_sans_italic_24, font_dejavu_sans_bold_24,
-       font_dejavu_sans_regular_36, font_dejavu_sans_italic_36, font_dejavu_sans_bold_36,
-       font_lucide_icons_20
+export StyleFont, make_style_font, font_logical_size, font_device_size, step_factor,
+       _FONT_DIR
 export font_ascent, font_descent, font_line_height,
        font_x_height, font_cap_height, font_glyph_bounds, font_file,
        get_fallback_font_files, find_glyph_font_file, has_font_glyph,
        is_presentation_selector
+export FontFace, find_font_face, get_font_families, get_font_weights, get_font_face_path,
+       compute_font_path, with_font_size
 export Inset, Point2D, inset_default,
        inset_size, inset_width, inset_height,
        inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right,
@@ -118,6 +71,7 @@ export Inset, Point2D, inset_default,
 export ImageDocument, set_cell_computation!
 export StyleStroke, make_style_stroke
 export StyleText, make_style_text
+export FontRole, TextRole, apply_font_role, get_role_base
 export Theme, ScaledTheme, ThemeLength, Spacing, Radius, LineWidth, ControlSize, IconSize,
        scale_length, convert_theme_value, @theme, make_scaled_theme, get_theme_field_names,
        get_theme_type, get_theme_presets, find_theme_field_text, get_theme_field_texts,
@@ -138,12 +92,14 @@ export TrueTypeFont, load_truetype_font, get_glyph_id, get_glyph_advance_1000,
 include("Color.jl")
 include("Font.jl")
 include("TrueType.jl")
+include("FontFace.jl")
 include("TextMeasure.jl")
 include("LineSpacing.jl")
 include("Geometry.jl")
 include("Image.jl")
 include("StyleStroke.jl")
 include("StyleText.jl")
+include("FontRole.jl")
 include("Theme.jl")
 include("Appearance.jl")
 

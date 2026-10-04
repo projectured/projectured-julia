@@ -95,7 +95,7 @@ names. Every other value, such as a color, stays as it is.
 """
 scale_theme_value(value, ::Appearance) = value
 scale_theme_value(font::StyleFont, appearance::Appearance) =
-    StyleFont(font.filename, scale_length(font.size, appearance.font_scale))
+    with_font_size(font, scale_length(font.size, appearance.font_scale))
 scale_theme_value(text::StyleText, appearance::Appearance) =
     StyleText(scale_theme_value(text.font, appearance), text.color)
 scale_theme_value(stroke::StyleStroke, appearance::Appearance) =
@@ -110,6 +110,21 @@ scale_theme_value(length::ControlSize, appearance::Appearance) =
     scale_length(length.value, appearance.control_scale)
 scale_theme_value(length::IconSize, appearance::Appearance) =
     scale_length(length.value, appearance.icon_scale)
+
+"""
+    scale_theme_value(value, theme, appearance)
+
+`value` of a field of `theme` times the scale of its kind in `appearance`. A
+[`FontRole`](@ref) takes the font that it gives over its base font in `theme`, and
+then the font scale; a [`TextRole`](@ref) does the same for its font and keeps its
+color. Every other value scales as [`scale_theme_value`](@ref)`(value, appearance)`
+says. The scaled theme reads the base font, so a role follows a change of it.
+"""
+scale_theme_value(value, theme, appearance::Appearance) = scale_theme_value(value, appearance)
+scale_theme_value(role::FontRole, theme, appearance::Appearance) =
+    scale_theme_value(apply_font_role(role, get_role_base(role, theme)), appearance)
+scale_theme_value(role::TextRole, theme, appearance::Appearance) =
+    StyleText(scale_theme_value(role.font, theme, appearance), role.color)
 
 make_scaled_theme(theme::Theme) = make_scaled_theme(theme, Appearance())
 
@@ -207,19 +222,32 @@ end
 # A value of a theme as the TOML file says it, or `nothing` for a kind that the
 # file can not say.
 _encode_appearance_value(color::StyleColor) = format_style_color(color)
-function _encode_appearance_value(font::StyleFont)
-    file = normpath(dirname(font.filename)) == normpath(_FONT_DIR) ? basename(font.filename) : font.filename
-    Dict{String,Any}("file" => file, "size" => font.size)
-end
+_encode_appearance_value(font::StyleFont) =
+    Dict{String,Any}("family" => font.family, "size" => font.size,
+                     "weight" => Int(font.weight), "italic" => font.italic)
 _encode_appearance_value(text::StyleText) =
     Dict{String,Any}("font" => _encode_appearance_value(text.font),
                      "color" => _encode_appearance_value(text.color))
+function _encode_appearance_value(role::FontRole)
+    table = Dict{String,Any}("base" => String(role.base), "relative_size" => role.relative_size)
+    role.family === nothing || (table["family"] = role.family)
+    role.weight === nothing || (table["weight"] = Int(role.weight))
+    role.italic === nothing || (table["italic"] = role.italic)
+    table
+end
+_encode_appearance_value(role::TextRole) =
+    Dict{String,Any}("font" => _encode_appearance_value(role.font),
+                     "color" => _encode_appearance_value(role.color))
 _encode_appearance_value(stroke::StyleStroke) =
     Dict{String,Any}("color" => _encode_appearance_value(stroke.color), "width" => stroke.width)
 _encode_appearance_value(length::ThemeLength) = _encode_appearance_value(length.value)
 _encode_appearance_value(inset::Inset) = Any[inset.top[], inset.bottom[], inset.left[], inset.right[]]
 _encode_appearance_value(point::Point2D) = Any[point.x[], point.y[]]
 _encode_appearance_value(value::Union{Real, AbstractString}) = value
+_encode_appearance_value(::SingleSpacing) = Dict{String,Any}("single" => true)
+_encode_appearance_value(spacing::MultipleSpacing) = Dict{String,Any}("multiple" => spacing.factor)
+_encode_appearance_value(spacing::ExactSpacing) = Dict{String,Any}("exact" => spacing.distance)
+_encode_appearance_value(spacing::AtLeastSpacing) = Dict{String,Any}("at_least" => spacing.distance)
 _encode_appearance_value(_) = nothing
 
 # The value that the TOML value `saved` says, of the kind of `current`, or
@@ -228,10 +256,40 @@ _decode_appearance_value(current::StyleColor, saved) =
     saved isa AbstractString ? convert_text_to_style_color(saved) : nothing
 function _decode_appearance_value(current::StyleFont, saved)
     saved isa AbstractDict || return nothing
-    file = get(saved, "file", nothing)
+    family = get(saved, "family", nothing)
     size = get(saved, "size", current.size)
-    (file isa AbstractString && size isa Integer && size > 0) || return nothing
-    StyleFont(isabspath(file) ? file : joinpath(_FONT_DIR, file), size)
+    weight = get(saved, "weight", Int(current.weight))
+    italic = get(saved, "italic", current.italic)
+    (family isa AbstractString && size isa Integer && size > 0 &&
+     weight isa Integer && 1 <= weight <= 1000 && italic isa Bool) || return nothing
+    StyleFont(family, size; weight, italic)
+end
+# A role field can hold a font or a text that a person set as it is; the table of
+# such a value names a size, and a role names none.
+_is_absolute_font_table(saved) = saved isa AbstractDict && haskey(saved, "size")
+
+function _decode_appearance_value(current::FontRole, saved)
+    saved isa AbstractDict || return nothing
+    _is_absolute_font_table(saved) &&
+        return _decode_appearance_value(StyleFont(_DEFAULT_FONT_FAMILY, 1), saved)
+    base = get(saved, "base", String(current.base))
+    relative_size = get(saved, "relative_size", current.relative_size)
+    family = get(saved, "family", nothing)
+    weight = get(saved, "weight", nothing)
+    italic = get(saved, "italic", nothing)
+    (base isa AbstractString && relative_size isa Real && relative_size > 0 &&
+     (family === nothing || family isa AbstractString) &&
+     (weight === nothing || weight isa Integer && 1 <= weight <= 1000) &&
+     (italic === nothing || italic isa Bool)) || return nothing
+    FontRole(; base = Symbol(base), family, weight, italic, relative_size)
+end
+function _decode_appearance_value(current::TextRole, saved)
+    saved isa AbstractDict || return nothing
+    _is_absolute_font_table(get(saved, "font", nothing)) &&
+        return _decode_appearance_value(StyleText(StyleFont(_DEFAULT_FONT_FAMILY, 1), current.color), saved)
+    font = _decode_appearance_value(current.font, get(saved, "font", nothing))
+    color = _decode_appearance_value(current.color, get(saved, "color", nothing))
+    TextRole(something(font, current.font), something(color, current.color))
 end
 function _decode_appearance_value(current::StyleText, saved)
     saved isa AbstractDict || return nothing
@@ -261,4 +319,17 @@ end
 _decode_appearance_value(current::Integer, saved) = saved isa Integer ? saved : nothing
 _decode_appearance_value(current::AbstractFloat, saved) = saved isa Real ? Float64(saved) : nothing
 _decode_appearance_value(current::AbstractString, saved) = saved isa AbstractString ? String(saved) : nothing
+# A line spacing is saved as a table of one key, its kind, and its number.
+function _decode_appearance_value(current::LineSpacing, saved)
+    saved isa AbstractDict || return nothing
+    haskey(saved, "single") && return SingleSpacing()
+    number(key) = (value = get(saved, key, nothing); value isa Real ? value : nothing)
+    factor = number("multiple")
+    factor === nothing || return MultipleSpacing(factor)
+    exact = number("exact")
+    exact === nothing || return ExactSpacing(exact)
+    least = number("at_least")
+    least === nothing || return AtLeastSpacing(least)
+    nothing
+end
 _decode_appearance_value(current, saved) = nothing

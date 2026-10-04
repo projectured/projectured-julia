@@ -44,8 +44,8 @@ function test_sdl_text_baseline_ink()
     baseline = 60
     # An "x" has no descender, so its ink ends on the baseline. The fonts
     # differ in their ascent, and one is larger.
-    faces = [font_ubuntu_regular_20, font_ubuntu_monospace_regular_20,
-             font_dejavu_sans_regular_20, font_ubuntu_bold_36]
+    faces = [StyleFont("Ubuntu", 20), StyleFont("Ubuntu Mono", 20),
+             StyleFont("DejaVu Sans", 20), StyleFont("Ubuntu", 36; weight = 700)]
     column = 20
     texts = Any[]
     spans = UnitRange{Int}[]
@@ -84,16 +84,16 @@ function test_sdl_text_pen_positions()
     # advances that are not whole pixels, and moved SDL_ttf's own layout away
     # from the layout by up to 1.78 device pixels. The arrow is a glyph that
     # Ubuntu Mono lacks and a fallback font draws.
-    ubuntu = font_ubuntu_regular_20.filename
-    bold = font_ubuntu_bold_20.filename
-    cases = [(StyleFont(ubuntu, 20), "WWWWWWWWWW"),
-             (StyleFont(ubuntu, 20), "Selection stored in each"),
-             (StyleFont(ubuntu, 20), "office fi"),
-             (StyleFont(ubuntu, 14), "LTAV"),
-             (StyleFont(bold, 36), "AVAWAToTy"),
-             (font_dejavu_sans_regular_20, "Type yj"),
-             (font_ubuntu_monospace_regular_20, "abc def"),
-             (font_ubuntu_monospace_regular_20, "a→b")]
+    ubuntu = StyleFont("Ubuntu", 20)
+    bold = StyleFont("Ubuntu", 20; weight = 700)
+    cases = [(with_font_size(ubuntu, 20), "WWWWWWWWWW"),
+             (with_font_size(ubuntu, 20), "Selection stored in each"),
+             (with_font_size(ubuntu, 20), "office fi"),
+             (with_font_size(ubuntu, 14), "LTAV"),
+             (with_font_size(bold, 36), "AVAWAToTy"),
+             (StyleFont("DejaVu Sans", 20), "Type yj"),
+             (StyleFont("Ubuntu Mono", 20), "abc def"),
+             (StyleFont("Ubuntu Mono", 20), "a→b")]
     x0 = 10
     for (font, text) in cases, ratio in (1, 2)
         width, ascent, descent = compute_text_extent(text * "|", font)
@@ -114,7 +114,7 @@ function test_sdl_text_pen_positions()
             pen = compute_caret_offsets(FontFileMeasure(), prefix * "|", font)[k + 1]
             push!(errors, column - x0 * ratio - bearing - pen * ratio)
         end
-        @testset "$(basename(font.filename)) $(font.size) $(repr(text)) at ratio $ratio" begin
+        @testset "$(basename(compute_font_path(font))) $(font.size) $(repr(text)) at ratio $ratio" begin
             @test maximum(abs, errors) <= 1
         end
     end

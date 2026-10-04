@@ -10,20 +10,28 @@ line it shows when empty.
 The theme of the message log. `@theme` declares it, so `ScaledMessageLogTheme`
 holds each value times its scale, and `MessageLogTheme()` is the default theme.
 
-The fields are the text styles of a message's level, its message and the
-empty line. Each field has a docstring that says what it draws, which the
+The fields are the text styles of a message's level, one for each kind of
+level, its message and the empty line. Each field has a docstring that says what it draws, which the
 appearance tab shows under its name.
 
 A message log reads the scaled theme through its `UntrackedCell` style fields;
 with no theme it holds the plain values of the default theme.
 """
 @theme struct MessageLogTheme
-    "The level of a message, such as `Info` or `Warn`."
-    level_text::StyleText = StyleText(font_dejavu_monospace_bold_16, color_solarized_cyan)
+    "The font that the texts of this theme follow: its family, its weight and its size."
+    font::StyleFont = StyleFont("DejaVu Sans Mono", 13)
+    "The level of a message of information, such as `Info`."
+    level_text::TextRole = TextRole(color_solarized_cyan; weight = 700)
+    "The level of an error, such as `Error`."
+    error_level_text::TextRole = TextRole(color_solarized_red; weight = 700)
+    "The level of a warning, such as `Warn`."
+    warning_level_text::TextRole = TextRole(color_solarized_yellow; weight = 700)
+    "The level of a message for debugging, such as `Debug`."
+    debug_level_text::TextRole = TextRole(color_slate_500; weight = 700)
     "The text of the message."
-    message_text::StyleText = StyleText(font_dejavu_monospace_regular_16, color_slate_700)
+    message_text::TextRole = TextRole(color_slate_700)
     "The line the log shows while it holds no message."
-    empty_text::StyleText = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
+    empty_text::TextRole = TextRole(color_slate_500)
 end
 
 # The style field of a message log projection that holds the text `name` of the

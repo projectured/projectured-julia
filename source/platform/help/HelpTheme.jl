@@ -19,18 +19,20 @@ A help projection reads the scaled theme through its `UntrackedCell` style
 fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct HelpTheme
+    "The font that the texts of this theme follow: its family, its weight and its size."
+    font::StyleFont = StyleFont("DejaVu Sans", 13)
     "The line that says what a list holds."
-    heading_text::StyleText = StyleText(font_dejavu_sans_regular_16, color_slate_600)
+    heading_text::TextRole = TextRole(color_slate_600)
     "The name of a type, in a list."
-    name_text::StyleText = StyleText(font_dejavu_sans_bold_18, color_slate_900)
+    name_text::TextRole = TextRole(color_slate_900; weight = 700, relative_size = 1.125)
     "The package and the typed names of a type, in a list; the version, the Julia version and the home page, on the about page."
-    detail_text::StyleText = StyleText(font_dejavu_sans_regular_16, color_slate_500)
+    detail_text::TextRole = TextRole(color_slate_500)
     "The first paragraph of a type's docstring, in a list; the sentence of the about page."
-    description_text::StyleText = StyleText(font_dejavu_sans_regular_16, color_slate_700)
+    description_text::TextRole = TextRole(color_slate_700)
     "The line a list shows for a type with no docstring."
-    muted_text::StyleText = StyleText(font_dejavu_sans_italic_16, color_slate_400)
+    muted_text::TextRole = TextRole(color_slate_400; italic = true)
     "The name of the program, on the about page."
-    title_text::StyleText = StyleText(font_dejavu_sans_bold_24, color_slate_900)
+    title_text::TextRole = TextRole(color_slate_900; weight = 700, relative_size = 1.5)
 end
 
 # The style field of a help projection that holds the text `name` of the theme

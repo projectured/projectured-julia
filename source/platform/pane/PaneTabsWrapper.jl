@@ -24,7 +24,7 @@ renderer, in the scaled widget theme of `appearance` and measured with
 """
 function make_tabs_projection(projection; appearance::Appearance = Appearance(),
                               measure::TextMeasure = FontFileMeasure())
-    rows = Pair{Type,Any}[LayoutToGraphics().dispatch;
+    rows = Pair{Type,Any}[LayoutToGraphics(; theme = get_scaled_theme!(appearance, GraphicsTheme)).dispatch;
                           WidgetToGraphics(; measure = measure,
                                            theme = get_scaled_theme!(appearance, WidgetTheme)).dispatch;
                           Any => NestingProjection(projection; recursion = IdentityProjection())]

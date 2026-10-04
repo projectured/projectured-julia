@@ -28,7 +28,7 @@ make_chart_strip_projection_example(; measure=FontFileMeasure()) =
 # also all it takes to open a chart as a pane tab or drop one into any other
 # document that recurses its children.
 function make_chart_projection_example(; measure=FontFileMeasure())
-    NaturalToGraphics(measure=measure, font=font_ubuntu_regular_20,
+    NaturalToGraphics(measure=measure, font=StyleFont("Ubuntu", 20),
         extra=Pair{Type,Any}[
             Chart => make_chart_pipeline_example(; measure=measure,
                                                  width=430, height=300)])
@@ -39,7 +39,7 @@ end
 # back to the series' own cells. Two projections over one document — which is
 # what makes a chart property editable without a bespoke property editor.
 function make_chart_inspector_projection_example(; measure=FontFileMeasure())
-    font = font_ubuntu_monospace_regular_20
+    font = StyleFont("Ubuntu Mono", 20)
     w2g = WidgetToGraphics(font; measure=measure)
     # Named fields, not reflection over everything: the data columns are not
     # properties, and a form with one row per sample would be both useless and,
@@ -52,7 +52,7 @@ function make_chart_inspector_projection_example(; measure=FontFileMeasure())
             LayoutToGraphics().dispatch,
             w2g.dispatch,
             Pair{Type,Any}[TextBlock => TextToGraphics(measure=measure)]))))
-    NaturalToGraphics(measure=measure, font=font_ubuntu_regular_20,
+    NaturalToGraphics(measure=measure, font=StyleFont("Ubuntu", 20),
         extra=Pair{Type,Any}[
             Chart => make_chart_pipeline_example(; measure=measure, width=520, height=340),
             ChartSeries => form])

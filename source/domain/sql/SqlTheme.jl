@@ -18,12 +18,16 @@ A SQL projection reads the scaled theme through its `UntrackedCell` style
 fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct SqlTheme
+    "The font that the texts of this theme follow: its family, its weight and its size."
+    font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "A reserved word, such as `SELECT`, `FROM`, `WHERE` or `AND`."
-    keyword_text::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    keyword_text::TextRole = TextRole(color_solarized_blue; weight = 700)
     "A column, a value, a raw expression, a data type, or any other identifier that is not a keyword or a table name."
-    plain_text::StyleText   = StyleText(font_ubuntu_monospace_regular_20, color_default)
+    plain_text::TextRole   = TextRole(color_default)
     "A table name."
-    name_text::StyleText    = StyleText(font_ubuntu_monospace_regular_20, color_solarized_green)
+    name_text::TextRole    = TextRole(color_solarized_green)
+    "The brackets, the commas, the spaces and the semicolons between the parts of a statement."
+    punctuation_text::TextRole = TextRole(color_default; weight = 700)
 end
 
 # The style field of a SQL projection that holds the text `name` of the theme

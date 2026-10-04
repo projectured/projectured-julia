@@ -16,15 +16,16 @@
 # ── Projection struct ───────────────────────────────────────────────────────
 
 """
-    TextHighlighting(pattern; color=color_yellow)
-    TextHighlighting(; pattern=nothing, color=color_yellow)
+    TextHighlighting(pattern; theme = nothing, color)
+    TextHighlighting(; pattern = nothing, theme = nothing, color)
 
 Paint a background swatch behind every match of `pattern` (a `Regex`, a pattern
 string, a `Cell` holding either, or `nothing`).
 
 `pattern` is held in a reactive `Cell`, so updating it re-highlights live; a
 `nothing` pattern adds no highlights. `color` is the `fill_color` set on matched
-sub-spans (glyph color is left untouched so matched text stays readable). Regex
+sub-spans (glyph color is left untouched so matched text stays readable); its
+default is the `match_highlight` of the `TextTheme` `theme`. Regex
 flags live in the `Regex` the caller builds.
 """
 struct TextHighlighting <: Projection
@@ -33,7 +34,9 @@ struct TextHighlighting <: Projection
     color::StyleColor
 end
 
-TextHighlighting(pattern::Cell; case_insensitive=false, color::StyleColor=color_yellow) =
+TextHighlighting(pattern::Cell; case_insensitive=false, theme = nothing,
+                 color::StyleColor = unwrap_cell(_get_text_style(scale_theme(theme), StyleColor,
+                                                                 :match_highlight))) =
     TextHighlighting(pattern, case_insensitive isa Cell ? case_insensitive : Cell(case_insensitive), color)
 TextHighlighting(pattern::Regex; kw...) = TextHighlighting(Cell(pattern); kw...)
 TextHighlighting(pattern::AbstractString; kw...) = TextHighlighting(Cell(String(pattern)); kw...)

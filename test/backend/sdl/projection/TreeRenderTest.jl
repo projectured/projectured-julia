@@ -16,7 +16,7 @@ function test_tree_render()
         folder = make_filesystem_pathname(dir)
         pane = print_document(RecursiveProjection(FileSystemToWidget()), folder).output
         pane.size = Point2D(300, 240)
-        widgets = RecursiveProjection(WidgetToGraphics(font_ubuntu_regular_20;
+        widgets = RecursiveProjection(WidgetToGraphics(StyleFont("Ubuntu", 20);
                                                        measure = FixedMeasure(8, 12, 4, 0)))
         canvas = print_document(widgets, pane).output
         entries = getfield(folder.elements, :elements)[]
@@ -33,11 +33,11 @@ function test_tree_render()
         @test length(entries) == 1000
         @test isempty(read_entries())
 
-        # A row is 24 pixels high, so the pane shows the root and about ten entries.
+        # A row is 20 pixels high, so the pane shows the root and about twelve entries.
         render()
         shown = read_entries()
         @test first(shown) == 1 && shown == collect(1:length(shown))
-        @test 8 <= length(shown) <= 11
+        @test 10 <= length(shown) <= 13
         # The folders it shows read their listings; a folder it does not show
         # reads none.
         @test all(k -> is_listing_read(folder.elements[k]), shown)
@@ -45,7 +45,7 @@ function test_tree_render()
 
         # Scrolled to row 501, the pane shows about entries 500 to 510, and the
         # entries between were never read.
-        pane.scroll_position = Point2D(0, 24 * 500)
+        pane.scroll_position = Point2D(0, 20 * 500)
         render()
         scrolled = setdiff(read_entries(), shown, [50])
         @test !isempty(scrolled) && all(k -> 499 <= k <= 512, scrolled)

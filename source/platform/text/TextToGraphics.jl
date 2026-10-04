@@ -52,7 +52,12 @@ text segment with character range, pixel position, font, and text.
     output::GraphicsCanvas
     char_to_coord::Cell  # Cell{Vector{SegmentCoordinate}}
     highlight_offset::Cell  # Cell{Int} — number of highlight rects prepended before text segments
+    first_baseline::Cell    # Cell{Union{Int,Nothing}} — the baseline of the first line, from the top
 end
+
+# The baseline of the first line of the text, for a row that aligns its children
+# on their baselines.
+find_first_baseline(iomap::TextToGraphicsIoMap) = unwrap_cell(iomap.first_baseline)
 
 # ── Projection struct ──────────────────────────────────────────────────
 
@@ -78,10 +83,13 @@ end
 
 Draw a `TextBlock` as graphics, with its caret and the band under its selection.
 `theme` is a `TextTheme` or a scaled one, whose caret and selection it draws; with
-none, it draws those of the default theme, and builds no theme.
+none, it draws those of the default theme, and builds no theme. `line_spacing` is
+a `LineSpacing`, or a cell that reads one of the theme, such as its
+`code_line_spacing` or `prose_line_spacing`; a builder of code or of prose passes
+the one it draws, and a widget keeps single spacing.
 """
 function TextToGraphics(; start_x::Int=0, start_y::Int=0, measure::TextMeasure,
-                        line_spacing::LineSpacing = SingleSpacing(), theme = nothing)
+                        line_spacing = SingleSpacing(), theme = nothing)
     theme = scale_theme(theme)
     TextToGraphics(start_x, start_y, measure, line_spacing,
                    _get_text_style(theme, StyleColor, :caret),
@@ -614,7 +622,15 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
                                    Cell(ibeam)])
     canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), canvas_w, canvas_h,
                             top_elements, layout_none, true, Cell(nothing))
-    TextToGraphicsIoMap(p, styled, canvas, char_to_coord, highlight_offset)
+    # The baseline of the first line: the one of the layout of the first line,
+    # at the place of that line.
+    first_baseline = Cell(Computation(function ()
+        isempty(lines_cell[]) && return nothing
+        first_line = get_line_cells(1)
+        baseline = first_line.layout[].first_baseline
+        baseline === nothing ? nothing : Int(first_line.y[]) + baseline
+    end))
+    TextToGraphicsIoMap(p, styled, canvas, char_to_coord, highlight_offset, first_baseline)
 end
 
 # ── Line grouping ─────────────────────────────────────────────────────────────
@@ -807,7 +823,8 @@ function _layout_group(p::TextToGraphics, group, y0::Int, cursor_pos,
     filter!(sc -> _draws_glyph(sc) || !(sc.y in glyph_rows), g.coord_map)
 
     (spans = g.result, by_key = g.by_key, coord_map = g.coord_map, width = g.max_x,
-     height = g.bottom - y0, distance = g.distance, cursor = g.cursor)
+     height = g.bottom - y0, distance = g.distance, cursor = g.cursor,
+     first_baseline = g.first_baseline)
 end
 
 # The state of `_layout_group` while it lays out one group: the pen, the lines
@@ -827,11 +844,12 @@ mutable struct _GroupLayout
     result::Vector{Any}
     by_key::Dict{Any,Any}
     coord_map::Vector{SegmentCoordinate}
+    first_baseline::Union{Int,Nothing}  # the baseline of the first line closed, once one is
 end
 
 _GroupLayout(y0::Int, start_x::Int) =
     _GroupLayout(y0, Float64(start_x), start_x, 0.0, y0, 0, FontMetrics[], 0, Any[],
-                 nothing, nothing, Any[], Dict{Any,Any}(), SegmentCoordinate[])
+                 nothing, nothing, Any[], Dict{Any,Any}(), SegmentCoordinate[], nothing)
 
 # Close the open line of `g`: find its baseline, place its pieces on it, and move
 # the distance on. `font` sizes a line that has no box. A line that does not
@@ -888,6 +906,7 @@ function _close_line!(g::_GroupLayout, p::TextToGraphics, font, counts::Bool, co
         g.cursor = (x, baseline - ascent, max(ascent + descent, 1))
     end
     if counts
+        metrics === nothing || g.first_baseline !== nothing || (g.first_baseline = baseline)
         g.distance += distance
         g.closed += 1
         g.bottom = max(g.bottom, top + height, baseline + g.ink_descent)
@@ -1030,7 +1049,7 @@ function _get_image_caret_font(group, index::Int, block_font::Cell)
         span = spans[k][2]
         span isa TextString && return span.font::StyleFont
     end
-    something(block_font[], font_ubuntu_monospace_regular_20)
+    something(block_font[], UNSTYLED_TEXT_FONT)
 end
 
 # At least one span to put a caret beside, at either depth: a `TextString`, or an
@@ -1246,7 +1265,7 @@ function _print_listnode(p::TextToGraphics, styled::TextBlock, ctx)
     head_node = styled.elements::ListNode
     output_head = _build_paragraph_node(p, head_node, 0.0)
     canvas = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0), output_head, layout_vertical, false, Cell(nothing))
-    TextToGraphicsIoMap(p, styled, canvas, Cell(SegmentCoordinate[]), Cell(0))
+    TextToGraphicsIoMap(p, styled, canvas, Cell(SegmentCoordinate[]), Cell(0), Cell(nothing))
 end
 
 """

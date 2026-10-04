@@ -4,9 +4,9 @@ uuid = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 version = "0.1.0"
 
 [deps]
-AutoIntegrations = "40fd747d-4b08-4b8c-98c4-74a2b6295b1b"
+AutoIntegration = "40fd747d-4b08-4b8c-98c4-74a2b6295b1b"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 
 [sources]
-AutoIntegrations = {path = "../../../auto-integrations"}
+AutoIntegration = {path = "../../../auto-integration"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}

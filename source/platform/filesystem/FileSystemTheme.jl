@@ -19,10 +19,12 @@ style fields; with no theme it holds the plain values of the default theme.
 The widget tree of the file system follows the widget theme instead.
 """
 @theme struct FileSystemTheme
+    "The font that the texts of this theme follow: its family, its weight and its size."
+    font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The basename of a file."
-    file_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+    file_text::TextRole = TextRole(color_solarized_blue)
     "The name of a directory."
-    directory_text::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_red)
+    directory_text::TextRole = TextRole(color_solarized_red; weight = 700)
 end
 
 # The style field of a file-system projection that holds the text `name` of

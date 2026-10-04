@@ -3,7 +3,7 @@
 # of the space agrees on it.
 
 _image() = TextGraphics(ImageMemory(nothing), 24, 24)
-_run(text) = TextString(text, font_ubuntu_monospace_regular_20, color_default)
+_run(text) = TextString(text, StyleFont("Ubuntu Mono", 20), color_default)
 const _splice_value! = ProjecturedKernel.OperationModule.splice_value!
 
 # The editor an operation is applied against: the document, and no view.
@@ -154,7 +154,7 @@ end
 
     # Up and Down keep the x of the caret; each half of an image is one side.
     # Line 1: [image] 0..24, "ab" 24..44. Line 2: "cd" 0..20, [image] 20..44.
-    lines = TextBlock(_image(), _run("ab"), TextNewline(font = font_ubuntu_monospace_regular_20),
+    lines = TextBlock(_image(), _run("ab"), TextNewline(font = StyleFont("Ubuntu Mono", 20)),
                       _run("cd"), _image())
     @test after(lines, 3, key(:down)) == 7      # x 44: after the image
     @test after(lines, 7, key(:up)) == 3        # x 44: the end of "ab"
@@ -200,11 +200,11 @@ end
 
         # A character after an image with no run after it starts a new run, in
         # the style of the run before the image.
-        e = editor(TextBlock(TextString("ab", font_ubuntu_regular_20, color_red), _image()))
+        e = editor(TextBlock(TextString("ab", StyleFont("Ubuntu", 20), color_red), _image()))
         op, inverse = edit!(e, projection, at(3), type('x'))
         @test TextModule.is_text_element_write(op)
         @test get_flat_string(e.document) == "ab\uFFFCx"
-        @test e.document.elements[3].font == font_ubuntu_regular_20
+        @test e.document.elements[3].font == StyleFont("Ubuntu", 20)
         @test e.document.elements[3].font_color == color_red
         @test caret_of(e.document) == (4, 4, true)
         undo!(e, inverse)
@@ -213,7 +213,7 @@ end
 
         # Before an image with no run before it, the new run takes the style of
         # the run after the image.
-        e = editor(TextBlock(_image(), TextString("ab", font_ubuntu_regular_20, color_red)))
+        e = editor(TextBlock(_image(), TextString("ab", StyleFont("Ubuntu", 20), color_red)))
         edit!(e, projection, at(0), type('x'))
         @test get_flat_string(e.document) == "x\uFFFCab"
         @test e.document.elements[1].font_color == color_red
@@ -317,9 +317,10 @@ end
 
 @testset "beside an image, the style of the nearest text run" begin
     # `small` has ascent 12 and descent 4, `large` ascent 16, descent 6 and a
-    # line gap of 2; every character is 10 wide.
-    small = font_ubuntu_regular_20
-    large = font_ubuntu_monospace_regular_20
+    # line gap of 2; every character is 10 wide. `large` is the font of a text
+    # that names none.
+    small = StyleFont("Ubuntu", 20)
+    large = UNSTYLED_TEXT_FONT
     measure = FixedMeasure(10, 12, 4, 0; fonts = Dict(large => FontMetrics(16, 6, 2)))
     projection = TextToGraphics(measure = measure)
     caret(block, k) = begin
@@ -377,7 +378,7 @@ end
 @testset "the string of a text is its flat string" begin
     to_string(block) = (o = print_document(RecursiveProjection(TextToString()), block).output;
                         o isa AbstractString ? o : o[])
-    spacing = TextSpacing(4; font = font_ubuntu_monospace_regular_20)
+    spacing = TextSpacing(4; font = StyleFont("Ubuntu Mono", 20))
     block = TextBlock(TextLine(_run("ab"), _image()), TextLine(_run("c"), spacing, _image(); indentation = 2))
     @test to_string(block) == "ab\uFFFC\n  c \uFFFC"
     @test to_string(block) == get_flat_string(block)
@@ -398,7 +399,7 @@ end
         [(Int(r.x), Int(r.x) + Int(r.w)) for r in highlight.elements if Int(r.w) > 0]
     end
     plain = TextToGraphics(measure = measure)
-    nl() = TextNewline(font = font_ubuntu_monospace_regular_20)
+    nl() = TextNewline(font = StyleFont("Ubuntu Mono", 20))
 
     # Across a `TextNewline`, which is one position: 'b', the break and 'c'.
     @test rows(plain, TextBlock(_run("ab"), nl(), _run("cd")), 1, 4) == [(10, 20), (0, 10)]

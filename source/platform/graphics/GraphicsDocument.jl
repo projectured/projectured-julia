@@ -64,7 +64,7 @@ and a backend paints them.
 
 # Example
 
-    GraphicsText("delay", 10, 20; font = font_ubuntu_monospace_regular_20, color = color_black)
+    GraphicsText("delay", 10, 20; font = StyleFont("Ubuntu Mono", 20), color = color_black)
 
 See also `GraphicsCanvas`, which holds what is drawn, and `GraphicsRect`.
 
@@ -90,7 +90,7 @@ backend converts it to its own device encoding at draw time.
 end
 
 function GraphicsText(text::_LiveText, x::_LiveNumber, y::_LiveNumber;
-                      font::StyleFont, color::StyleColor=color_white)
+                      font::StyleFont, color::StyleColor=color_white)  # @style: content of the document
     GraphicsText(_make_text_cell(text), _make_pixel_cell(x), _make_pixel_cell(y),
                  Cell(font), Cell(color),
                  Cell(nothing))
@@ -144,7 +144,7 @@ _norm_border(::Nothing) = color_transparent
 _norm_border(c::StyleColor) = c
 
 function GraphicsRect(x::_LiveNumber, y::_LiveNumber, w::_LiveNumber, h::_LiveNumber;
-                      color::StyleColor=color_white, radius::Integer=0,
+                      color::StyleColor=color_white, radius::Integer=0,  # @style: content of the document
                       radius_tl::Integer=radius, radius_tr::Integer=radius,
                       radius_br::Integer=radius, radius_bl::Integer=radius,
                       border_width::Integer=0, border_color=nothing)
@@ -188,7 +188,7 @@ _norm_dash(n::Integer) = (Int(n), Int(n))
 _norm_dash(d) = (Int(d[1]), Int(d[2]))
 
 function GraphicsLine(x1::_LiveNumber, y1::_LiveNumber, x2::_LiveNumber, y2::_LiveNumber;
-                      color::StyleColor=color_black,
+                      color::StyleColor=color_black,  # @style: content of the document
                       width::Integer=1, dash=nothing)
     GraphicsLine(_make_pixel_cell(x1), _make_pixel_cell(y1), _make_pixel_cell(x2), _make_pixel_cell(y2),
                  Cell(color),
@@ -219,7 +219,7 @@ switch knobs and slider thumbs.
 end
 
 function GraphicsCircle(cx::_LiveNumber, cy::_LiveNumber, radius::_LiveNumber;
-                        color::StyleColor=color_black,
+                        color::StyleColor=color_black,  # @style: content of the document
                         border_width::Integer=0, border_color=nothing)
     GraphicsCircle(_make_pixel_cell(cx), _make_pixel_cell(cy), _make_pixel_cell(radius),
                    Cell(color),
@@ -255,7 +255,7 @@ the adjacent segment.
 end
 
 function GraphicsPolyline(points::_LivePoints;
-                          color::StyleColor=color_black,
+                          color::StyleColor=color_black,  # @style: content of the document
                           width::Integer=1, dash=nothing, start_arrow::Bool=false,
                           end_arrow::Bool=false, arrow_size::Integer=8)
     GraphicsPolyline(_make_points_cell(points), Cell(color),
@@ -287,7 +287,7 @@ rather than fan it. Self-intersecting outlines are not supported.
 end
 
 function GraphicsPolygon(points::_LivePoints;
-                         color::StyleColor=color_black,
+                         color::StyleColor=color_black,  # @style: content of the document
                          border_width::Integer=0, border_color=nothing)
     GraphicsPolygon(_make_points_cell(points), Cell(color),
                     Cell(Int32(border_width)),
@@ -323,7 +323,7 @@ behave as on `GraphicsPolyline`.
 end
 
 function GraphicsSpline(points::_LivePoints;
-                        color::StyleColor=color_black,
+                        color::StyleColor=color_black,  # @style: content of the document
                         kind::Symbol=:catmullrom, width::Integer=1, dash=nothing,
                         start_arrow::Bool=false, end_arrow::Bool=false,
                         arrow_size::Integer=8, segments::Integer=12)
@@ -440,7 +440,7 @@ elements are drawn in order, and a canvas may hold other canvases.
 
 # Example
 
-    canvas = GraphicsCanvas([GraphicsText("hello", 4, 4; font = font_ubuntu_monospace_regular_20,
+    canvas = GraphicsCanvas([GraphicsText("hello", 4, 4; font = StyleFont("Ubuntu Mono", 20),
                                           color = color_black)];
                             w = 200, h = 50)
 

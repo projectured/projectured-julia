@@ -30,49 +30,50 @@
 
 
 # ── Projection structs ──────────────────────────────────────────────────────
-
-struct ConversationConversationToWidgetComposite <: Projection end
-struct ConversationTurnToWidgetComposite         <: Projection end
-struct ConversationPartToWidget                  <: Projection end
-
-# ── Constants / glyphs ────────────────────────────────────────────────────────
-
+#
 # No card width. A turn card and a part card take the width they are offered —
 # the transcript says `child_width = Fill` and the card resolves it — so a
 # conversation is as wide as the pane holding it.
-const _GAP           = 8    # between the parts of one turn
-# Between turns. A transcript is read by turn, so the eye needs the boundary to
-# be louder than the one inside a turn. Each turn card already keeps its own
-# padding above and below what it holds, so a small gap on top of that is what
-# separates two turns without pushing them apart.
-const _TURN_GAP      = 8
-# Between the two sections of an evaluation, which are one thing read together.
-const _SECTION_GAP   = 10
-# A section sits under the header of the card around it, indented by the column
-# that card's chevron takes: two half-sizes of the theme's chevron and the title
-# gap, so a section's own chevron starts where the header's word starts.
-const _SECTION_INDENT = 12
+#
+# Each theme field it reads is documented on `ConversationTheme`, in
+# `ConversationTheme.jl`.
 
-# The role line is metadata, and the message is the content, so it renders
-# smaller than the body it introduces — but it is still read, so it is not the
-# size of a footnote. It was bold 22, bigger than the words it labelled, which
-# made a transcript read as a stack of headings; 14 answered that and went too
-# far the other way. The role keeps its color, because color is what tells a
-# person who spoke.
-const _ROLE_FONT = font_ubuntu_bold_18
-_role_color(role::Symbol) = role === :user      ? color_indigo_600 :
-                            role === :assistant ? color_solarized_cyan : color_slate_600
-_role_style(role::Symbol) = StyleText(_ROLE_FONT, _role_color(role))
+@projection UntrackedCell struct ConversationConversationToWidgetComposite
+    theme::Any = nothing
+    turn_gap::Int = _get_conversation_style(theme, Int, :turn_gap)
+end
 
-# A part's tag names a kind, which is a smaller thing to say than who spoke, so
-# it stays smaller and stays neutral. It is 16 and not 14: at 14 the word sat
-# below the middle of the chevron beside it, and the two read as two rows.
-const _KIND_STYLE = StyleText(font_ubuntu_bold_16, color_slate_600)
-# A section of an evaluation is a smaller thing again, so its title is the same
-# size and not bold. An error is the one section title that carries a color,
-# because it is the one a reader must not miss.
-const _SECTION_STYLE = StyleText(font_ubuntu_regular_16, color_slate_500)
-const _ERROR_STYLE   = StyleText(font_ubuntu_bold_16, color_destructive)
+@projection UntrackedCell struct ConversationTurnToWidgetComposite
+    theme::Any = nothing
+    part_gap::Int = _get_conversation_style(theme, Int, :part_gap)
+    role_gap::Int = _get_conversation_style(theme, Int, :role_gap)
+    user_role_text::StyleText = _get_conversation_style(theme, StyleText, :user_role_text)
+    assistant_role_text::StyleText = _get_conversation_style(theme, StyleText, :assistant_role_text)
+    other_role_text::StyleText = _get_conversation_style(theme, StyleText, :other_role_text)
+    user_role_icon::StyleText = _get_conversation_style(theme, StyleText, :user_role_icon)
+    assistant_role_icon::StyleText = _get_conversation_style(theme, StyleText, :assistant_role_icon)
+    other_role_icon::StyleText = _get_conversation_style(theme, StyleText, :other_role_icon)
+end
+
+@projection UntrackedCell struct ConversationPartToWidget
+    theme::Any = nothing
+    kind_text::StyleText = _get_conversation_style(theme, StyleText, :kind_text)
+    section_text::StyleText = _get_conversation_style(theme, StyleText, :section_text)
+    error_text::StyleText = _get_conversation_style(theme, StyleText, :error_text)
+    section_gap::Int = _get_conversation_style(theme, Int, :section_gap)
+    # A section sits under the header of the card around it, indented by the
+    # column that card's chevron takes: two half-sizes of the theme's chevron
+    # and the title gap, so a section's own chevron starts where the header's
+    # word starts.
+    section_padding::Inset = _get_conversation_style(theme, Inset, :section_indent)
+end
+
+# The role's label, beside its glyph: smaller than the message it introduces —
+# but it is still read, so it is not the size of a footnote. The role keeps its
+# own color, because color is what tells a person who spoke.
+_role_text(p, role::Symbol) =
+    role === :user      ? p.user_role_text :
+    role === :assistant ? p.assistant_role_text : p.other_role_text
 
 # The mark beside a role. It is drawn as text and not as a `WidgetAvatar`,
 # because an avatar is a disc with initials: at this size the disc is a pale ring
@@ -83,8 +84,9 @@ const _ERROR_STYLE   = StyleText(font_ubuntu_bold_16, color_destructive)
 # from, so the mark beside a turn looks like the pictures of the toolbar. A mark
 # must not read as a smudge beside the bold word: Lucide draws a stroke of a
 # twelfth of its size, which at this size is as heavy as the stem of a letter.
-const _ICON_FONT = font_lucide_icons_20
-_icon_style(role::Symbol) = StyleText(_ICON_FONT, _role_color(role))
+_role_icon(p, role::Symbol) =
+    role === :user      ? p.user_role_icon :
+    role === :assistant ? p.assistant_role_icon : p.other_role_icon
 
 # A person, a bot, and a dot for any other role. None is a letter, and none needs
 # a legend.
@@ -129,11 +131,11 @@ _format_label(key::Symbol)          = get(FORMAT_LABELS, key, String(key))
 # ── Helpers ────────────────────────────────────────────────────────────────
 
 # A header row: a role mark followed by the role, both in the role's color.
-_role_header(role::Symbol) =
+_role_header(p, role::Symbol) =
     HorizontalLayout(Any[
-        WidgetLabel(_role_glyph(role); text_style = _icon_style(role)),
-        WidgetLabel(String(role); text_style = _role_style(role)),
-    ]; vertical_align = :center, gap = 10)
+        WidgetLabel(_role_glyph(role); text_style = _role_icon(p, role)),
+        WidgetLabel(String(role); text_style = _role_text(p, role)),
+    ]; vertical_align = :center, gap = p.role_gap)
 
 # A card that folds. Its `collapsed` cell reads the flag on the domain node,
 # because the toggle reader re-targets every fold to that node and the kernel
@@ -176,7 +178,7 @@ function print_document(projection::ConversationConversationToWidgetComposite,
     ]))
     # Every turn fills the width it is given and grows with what it holds.
     layout = VerticalLayout(CellVector(@computation Any[im.output for im in ioms[]]),
-                            Cell(:left), Cell(_TURN_GAP),
+                            Cell(:left), Cell(projection.turn_gap),
                             Cell(Fill), Cell(Content), Cell(nothing))
     iomap = ChildrenIoMap(projection, c, layout, ioms)
     _follow_selection!(layout, c, projection, iomap, Any[])
@@ -194,7 +196,7 @@ function print_document(projection::ConversationTurnToWidgetComposite,
     ]))
     # And so does every part inside a turn.
     body = VerticalLayout(CellVector(@computation Any[im.output for im in ioms[]]),
-                          Cell(:left), Cell(_GAP),
+                          Cell(:left), Cell(projection.part_gap),
                           Cell(Fill), Cell(Content), Cell(nothing))
     # A turn is a band and not a box. The user's band is tinted and the model's
     # is plain, which is what tells the two apart — the same job a border did,
@@ -202,7 +204,7 @@ function print_document(projection::ConversationTurnToWidgetComposite,
     # its chevron still folds it and the collapse reader below still finds
     # the turn that a produced card came from.
     card = WidgetCard(;
-                      title = _role_header(t.role),
+                      title = _role_header(projection, t.role),
                       content = body,
                       variant = t.role === :user ? :tinted : :plain,
                       collapsible = true)
@@ -244,9 +246,9 @@ function print_document(projection::ConversationPartToWidget,
                           recursion, part::ConversationPart, ctx)
     content = part.content
     folds = Pair{Any,Any}[]
-    output = content isa EvaluatorForm        ? _eval_card(content, part, folds) :
-             content isa ConversationThinking ? _thinking_card(content, part)    :
-             _is_code(content)                ? _code_card(content, part)        :
+    output = content isa EvaluatorForm        ? _eval_card(projection, content, part, folds) :
+             content isa ConversationThinking ? _thinking_card(projection, content, part)    :
+             _is_code(content)                ? _code_card(projection, content, part)        :
              content
     iomap = ConversationPartToWidgetIoMap(projection, part, output, folds)
     content isa EvaluatorForm && _follow_section_selection!(output, part, projection, iomap)
@@ -274,30 +276,30 @@ end
 #
 # A quiet tag: the one line a chromed part draws to name itself. No avatar — a
 # glyph beside a word says the word twice.
-_tag(label::AbstractString) =
-    WidgetLabel(String(label); text_style = _KIND_STYLE)
+_tag(p, label::AbstractString) =
+    WidgetLabel(String(label); text_style = p.kind_text)
 
 # The panel of a part: a muted card with a tag, that folds with the part.
-_part_card(tag::AbstractString, body, part::ConversationPart) =
+_part_card(p, tag::AbstractString, body, part::ConversationPart) =
     _follow_fold!(WidgetCard(;
-                             title = _tag(tag), content = body,
+                             title = _tag(p, tag), content = body,
                              variant = :muted, collapsible = true),
                   () -> part.collapsed)
 
 # Code is separated from the prose around it, and its language named, because a
 # panel cannot say which language it holds.
-_code_card(content, part::ConversationPart) =
-    _part_card(_kind_label(content), content, part)
+_code_card(p, content, part::ConversationPart) =
+    _part_card(p, _kind_label(content), content, part)
 
 # Reasoning is secondary, so it starts folded, and folded it is the bare word.
 # The tag is a word like every other tag.
-_thinking_card(t::ConversationThinking, part::ConversationPart) =
-    _part_card("thinking", _thinking_body(t), part)
+_thinking_card(p, t::ConversationThinking, part::ConversationPart) =
+    _part_card(p, "thinking", _thinking_body(t), part)
 
 # An evaluation is its header over its two sections. The header names the tool
 # or the resource, and the part folds as a whole; each section folds on its own.
-_eval_card(ef::EvaluatorForm, part::ConversationPart, folds) =
-    _part_card(get_evaluation_title(ef), _eval_sections(ef, folds), part)
+_eval_card(p, ef::EvaluatorForm, part::ConversationPart, folds) =
+    _part_card(p, get_evaluation_title(ef), _eval_sections(p, ef, folds), part)
 
 # The two sections of a form: its code (or its arguments) over its result. Each
 # is a bare card with a small title, indented under the panel's header and with
@@ -308,27 +310,31 @@ _eval_card(ef::EvaluatorForm, part::ConversationPart, folds) =
 # With `folds`, each section folds on its own, and `folds` receives what a fold
 # on each card means, so the reader can say it back to the domain. With no
 # `folds` the sections do not fold — the composer draws a draft that way.
-function _eval_sections(ef::EvaluatorForm, folds)
+#
+# `p` is a projection that holds `section_text`, `error_text`, `section_gap`
+# and `section_padding`: `ConversationPartToWidget` in a transcript, and
+# `ConversationComposerToWidget` for the committed evaluation of a draft.
+function _eval_sections(p, ef::EvaluatorForm, folds)
     form_label, result_label = get_evaluation_section_labels(ef)
     foldable = folds !== nothing
-    form_card   = _section_card(form_label, ef.form, _SECTION_STYLE, foldable)
+    form_card   = _section_card(form_label, ef.form, p.section_text, p.section_padding, foldable)
     result_card = _section_card(result_label, ef.result,
-                                ef.is_error === true ? _ERROR_STYLE : _SECTION_STYLE,
-                                foldable)
+                                ef.is_error === true ? p.error_text : p.section_text,
+                                p.section_padding, foldable)
     if foldable
         _follow_fold!(form_card,   () -> ef.form_collapsed)
         _follow_fold!(result_card, () -> ef.result_collapsed)
         push!(folds, form_card   => ToggleEvaluatorSectionOperation(ef, :form))
         push!(folds, result_card => ToggleEvaluatorSectionOperation(ef, :result))
     end
-    VerticalLayout(Any[form_card, result_card]; gap = _SECTION_GAP)
+    VerticalLayout(Any[form_card, result_card]; gap = p.section_gap)
 end
 
-_section_card(label::AbstractString, body, style::StyleText, foldable::Bool) =
+_section_card(label::AbstractString, body, style::StyleText, padding::Inset, foldable::Bool) =
     WidgetCard(;
                title = WidgetLabel(String(label); text_style = style),
                content = body, variant = :plain, collapsible = foldable,
-               padding = Inset(0, 0, _SECTION_INDENT, 0))
+               padding = padding)
 
 # A thinking part's body is its reasoning text, recursed like any other text
 # content. Redacted blocks (and `display: "omitted"`, which yields empty text)
@@ -651,15 +657,16 @@ end
 # ── Factory ──────────────────────────────────────────────────────────────────
 
 """
-    ConversationToWidget()
+    ConversationToWidget(; theme = nothing)
 
 Type-dispatching projection over the conversation document types. Wrap in
-`RecursiveProjection` at the call site.
+`RecursiveProjection` at the call site. `theme` is a `ConversationTheme`, a
+scaled one, or `nothing` for the default values.
 """
-function ConversationToWidget()
+function ConversationToWidget(; theme = nothing)
     TypeDispatchingProjection(
-        ConversationConversation => ConversationConversationToWidgetComposite(),
-        ConversationTurn         => ConversationTurnToWidgetComposite(),
-        ConversationPart         => ConversationPartToWidget(),
+        ConversationConversation => ConversationConversationToWidgetComposite(; theme),
+        ConversationTurn         => ConversationTurnToWidgetComposite(; theme),
+        ConversationPart         => ConversationPartToWidget(; theme),
     )
 end

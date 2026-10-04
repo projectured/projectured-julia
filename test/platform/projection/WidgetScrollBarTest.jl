@@ -14,12 +14,12 @@ thumb under the pointer; a move with no button writes nothing.
 function test_widget_scroll_bar()
 @testset "a scroll bar takes its length, and the pointer moves its thumb" begin
     projection = RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(font_ubuntu_monospace_regular_20; measure = FixedMeasure(10, 18, 6, 0)).dispatch))
+        WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FixedMeasure(10, 18, 6, 0)).dispatch))
     offer = with_exact_size(PrinterContext(); height = Cell(Int32(300)))
     bar = WidgetScrollBar(:vertical; value = 0.5, thumb_size = 0.2)
     iomap = print_document(projection, nothing, bar, offer)
     canvas = iomap.output
-    @test (Int(canvas.w), Int(canvas.h)) == (12, 300)
+    @test (Int(canvas.w), Int(canvas.h)) == (10, 300)
     track, thumb = canvas.elements[end - 1], canvas.elements[end]
     @test (Int(track.y), Int(track.h)) == (0, 300)
     # The thumb is a fifth of the track, halfway along the rest.

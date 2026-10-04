@@ -32,12 +32,12 @@ function test_widget_shell_layout()
     # drawn text take their height from the font files, so a measure that
     # answered less would leave every text a little taller than the line it sits
     # in.
-    _, ascent, descent = compute_text_extent("", font_ubuntu_regular_20)
+    _, ascent, descent = compute_text_extent("", StyleFont("Ubuntu", 20))
     line = ascent + descent
     det = FixedMeasure(8, ascent, descent, 0)
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
-        WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
+        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = det).dispatch)))
     offer(w, h) = with_exact_size(PrinterContext();
                                   width = Cell(Int32(w)), height = Cell(Int32(h)))
     shell() = WidgetShell(WidgetScrollPane(WidgetLabel("body");
@@ -94,12 +94,12 @@ end
 # that band's frame, and a drag keeps the band it started in until the release.
 function test_widget_shell_pointer()
 @testset "a shell hands the pointer to its bands" begin
-    _, ascent, descent = compute_text_extent("", font_ubuntu_regular_20)
+    _, ascent, descent = compute_text_extent("", StyleFont("Ubuntu", 20))
     line = ascent + descent
     det = FixedMeasure(8, ascent, descent, 0)
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
-        WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
+        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = det).dispatch)))
     offer(w, h) = with_exact_size(PrinterContext();
                                   width = Cell(Int32(w)), height = Cell(Int32(h)))
     # A menu bar and a toolbar above the content, so the content's frame starts

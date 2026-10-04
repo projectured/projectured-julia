@@ -7,16 +7,27 @@
 # literals and a step comparison; sharing them would mean one package reaching
 # into another's private surface.
 # ── Layout tokens ───────────────────────────────────────────────────────────
-const _PAD5  = Inset(5, 5, 5, 5)
-# The composer's floor on the split axis, and the transcript's share of what is
-# left over.
-const _INPUT_MIN_HEIGHT = 200
-const _MAIN_WEIGHT      = 1.0
-
-struct AssistantToWidgetSplitPane <: Projection end
+# The transcript's share of what is left over on the split axis.
+const _MAIN_WEIGHT = 1.0
 
 """
-    AssistantToWidgetCard(; title, transcript_height, cell_height)
+    AssistantToWidgetSplitPane(theme)
+    AssistantToWidgetSplitPane(; composer_min_height)
+
+The assistant as a split pane: the transcript over the composer. The composer
+keeps the least height that the `ConversationTheme` gives, and the transcript
+takes the rest. With no theme it takes the value of the default theme.
+"""
+@projection UntrackedCell struct AssistantToWidgetSplitPane
+    composer_min_height::Int = get_theme_defaults(ConversationTheme).composer_min_height
+end
+
+AssistantToWidgetSplitPane(theme::ScaledConversationTheme) =
+    AssistantToWidgetSplitPane(; composer_min_height =
+        make_style_field(ConversationTheme, theme, Int; name = :composer_min_height))
+
+"""
+    AssistantToWidgetCard(; title, transcript_height, cell_height, gap)
 
 The same assistant, as a card of a fixed height rather than a pane that fills a
 window. It is what an assistant embedded in a DOCUMENT needs: a page of prose
@@ -25,7 +36,8 @@ transcript would push the rest of the page down on every keystroke.
 
 So each half scrolls inside the card, and the page stays the length it was.
 The card has no width of its own: it is as wide as its page, and so are the two
-halves.
+halves. `gap` is the space between the halves; its default
+is the `card_gap` of the default `ConversationTheme`.
 
 The output is a `VerticalLayout`, so a renderer row can end in
 `VerticalLayoutToGraphicsCanvas` and everything inside re-enters the renderer
@@ -36,12 +48,14 @@ struct AssistantToWidgetCard <: Projection
     title::String
     transcript_height::Int
     cell_height::Int
+    gap::Int
 end
 
 AssistantToWidgetCard(; title::AbstractString = ASSISTANT_TITLE,
                                transcript_height::Integer = 460,
-                               cell_height::Integer = 120) =
-    AssistantToWidgetCard(String(title), Int(transcript_height), Int(cell_height))
+                               cell_height::Integer = 120,
+                               gap::Integer = get_theme_defaults(ConversationTheme).card_gap) =
+    AssistantToWidgetCard(String(title), Int(transcript_height), Int(cell_height), Int(gap))
 
 function print_document(projection::AssistantToWidgetSplitPane,
                            recursion, a::Assistant, ctx)
@@ -54,21 +68,19 @@ function print_document(projection::AssistantToWidgetSplitPane,
     # `PrimitiveStringToSyntaxLeaf` reader receive `KeyPress` events.
     # Stick to the bottom: as streamed turns/parts are appended, the latest
     # message stays in view instead of scrolling below the fold (standard chat UX).
-    conv_pane  = WidgetScrollPane(a.conversation;
-                                  follow_end=true,
-                                  padding=_PAD5)
+    conv_pane  = WidgetScrollPane(a.conversation; follow_end=true)
     # The input pane is the composer on `a.draft` (a `ConversationDraft`, so it
     # dispatches to the composer rather than the history presentation; it already
     # back-links the assistant for submit).
-    input_pane = WidgetScrollPane(a.draft;
-                                  padding=_PAD5)
+    input_pane = WidgetScrollPane(a.draft)
     # Conversation takes the main weight; the input box stays at its minimum
     # (≈3 monospace rows) and does not grow with the window.
     column = WidgetSplitPane(:vertical, Any[
         LayoutConstraint(conv_pane;
                          min_height=0, preferred_height=0, weight_height=_MAIN_WEIGHT),
         LayoutConstraint(input_pane;
-                         min_height=_INPUT_MIN_HEIGHT, preferred_height=_INPUT_MIN_HEIGHT),
+                         min_height=projection.composer_min_height,
+                         preferred_height=projection.composer_min_height),
     ])
     iomap = SimpleIoMap(projection, a, column)
     # A key is routed by selection: the split pane sends it to the pane that the
@@ -96,13 +108,11 @@ function print_document(p::AssistantToWidgetCard,
     # Each half authors its height and a width of 0, so it is as wide as the card,
     # and the card is as wide as the page.
     transcript = WidgetScrollPane(a.conversation; follow_end=true,
-                                  size=Point2D(0, p.transcript_height),
-                                  padding=_PAD5)
-    cell = WidgetScrollPane(a.draft; size=Point2D(0, p.cell_height),
-                            padding=_PAD5)
+                                  size=Point2D(0, p.transcript_height))
+    cell = WidgetScrollPane(a.draft; size=Point2D(0, p.cell_height))
     card = WidgetCard(; title=p.title,
-                      content=VerticalLayout(Any[transcript, cell]; gap=6, child_width=Fill))
-    column = VerticalLayout(Any[card]; gap=6, child_width=Fill)
+                      content=VerticalLayout(Any[transcript, cell]; gap=p.gap, child_width=Fill))
+    column = VerticalLayout(Any[card]; child_width=Fill)
     iomap = SimpleIoMap(p, a, column)
     # A keystroke is routed by SELECTION, and every container between the root
     # and the cell has to carry one or the key stops at the first that does not.
@@ -288,5 +298,6 @@ end
 
 function __init__()
     register_natural_graphics!(:assistant,
-        (; measure, appearance) -> Pair{Type,Any}[Assistant => AssistantToWidgetSplitPane()])
+        (; measure, appearance) -> Pair{Type,Any}[Assistant =>
+            AssistantToWidgetSplitPane(get_scaled_theme!(appearance, ConversationTheme))])
 end

@@ -20,7 +20,7 @@ function test_layout_list()
 det = FixedMeasure(8, 12, 4, 0)
 rec = RecursiveProjection(TypeDispatchingProjection(vcat(
     LayoutToGraphics().dispatch,
-    WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
+    WidgetToGraphics(StyleFont("Ubuntu", 20); measure = det).dispatch)))
 context() = with_exact_size(PrinterContext(); width = Cell(Int32(600)), height = Cell(Int32(300)))
 alt = ModifierKeys(alt = true)
 

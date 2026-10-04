@@ -57,10 +57,10 @@ dependency. It deliberately does not aggregate `ProjecturedSDL`, `ProjecturedODB
 `ProjecturedVideo`, `ProjecturedAnthropic`, `ProjecturedOllama`, `ProjecturedMCP`,
 `ProjecturedWeb`, `ProjecturedDataFrames` or
 `ProjecturedAdaptagrams`, each of which owns one. The umbrella `Projectured`
-depends on `ProjecturedPlatform` and `AutoIntegrations`, and re-exports only the
-names of `ProjecturedPlatform.EssentialsModule`. AutoIntegrations loads each
+depends on `ProjecturedPlatform` and `AutoIntegration`, and re-exports only the
+names of `ProjecturedPlatform.EssentialsModule`. AutoIntegration loads each
 other installed package whose triggers are all loaded and whose state is
-`"auto"`; [autointegrations.md](../package/autointegrations/autointegrations.md)
+`"auto"`; [autointegration.md](../package/autointegration/autointegration.md)
 says how.
 
 The rule: a sub-stem is a layer and carries no third-party dependency of its
@@ -74,7 +74,7 @@ each one is a `[weakdeps]` entry behind a package extension — but it still
 installs every third-party package that the six integrations own, because
 `add` installs the `[deps]` of each one. A user who wants all of them names
 this package; a user who does not stays with the ones installed by name. See
-[autointegrations.md](../package/autointegrations/autointegrations.md).
+[autointegration.md](../package/autointegration/autointegration.md).
 
 ## Why the leaf matters
 
@@ -249,8 +249,8 @@ embeds. [domain-inventory.md](../design/domain-inventory.md) has the table.
 
 | package | depends on |
 | --- | --- |
-| `Projectured` (umbrella) | the platform, AutoIntegrations |
-| `AutoIntegrations` | — (its own repository, `projectured/AutoIntegrations.jl`; the TOML standard library alone) |
+| `Projectured` (umbrella) | the platform, AutoIntegration |
+| `AutoIntegration` | — (its own repository, `projectured/AutoIntegration.jl`; the TOML standard library alone) |
 | `ProjecturedIntegrations` | the umbrella, the six packages that own a third-party dependency |
 | `ProjecturedAll` (released) | Kernel, the platform, Console, PDF, the 17 domains |
 | `ProjecturedPlatformExample` | the platform, KernelExample |

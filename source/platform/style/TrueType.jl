@@ -40,6 +40,8 @@ mutable struct TrueTypeFont
     x_height::Int                 # OS/2 sxHeight if present, else half the cap height
     italic_angle::Float64
     is_fixed_pitch::Bool
+    weight_class::Int             # OS/2 usWeightClass, 100 to 900; 400 without an OS/2 table
+    is_italic::Bool               # OS/2 fsSelection bit 0 or 9; else a nonzero italic angle
     cmap_off::Int                 # byte offset of chosen cmap subtable, 0 if none
     cmap_kind::Int                # 4, 12, or 0
     loca_off::Int                 # byte offset of the loca table, 0 if none (CFF)
@@ -162,6 +164,10 @@ function _parse_ttf(b::Vector{UInt8})
     use_typo      = has_os2 && (_u16(b, os2_off + 62) & 0x0080) != 0
     italic_angle = (post_off != 0 && post_len >= 8) ? _s32(b, post_off + 4) / 65536 : 0.0
     is_fixed = (post_off != 0 && post_len >= 16) ? _u32(b, post_off + 12) != 0 : false
+    # `usWeightClass` and `fsSelection` are in every version of the OS/2 table.
+    # A face declares its slant with the ITALIC bit or the OBLIQUE bit.
+    weight_class = os2_off != 0 ? Int(_u16(b, os2_off + 4)) : 400
+    is_italic = os2_off != 0 ? (_u16(b, os2_off + 62) & 0x0201) != 0 : italic_angle != 0
 
     loca_off, _ = _find_table(b, "loca")
     glyf_off, _ = _find_table(b, "glyf")
@@ -170,7 +176,8 @@ function _parse_ttf(b::Vector{UInt8})
     font = TrueTypeFont(b, units, num_glyphs, advances, ascent, descent, line_gap,
                         typo_ascent, typo_descent, typo_line_gap, win_ascent, win_descent,
                         use_typo, bbox,
-                        cap_height, x_height, italic_angle, is_fixed, cmap_sub, cmap_kind,
+                        cap_height, x_height, italic_angle, is_fixed, weight_class, is_italic,
+                        cmap_sub, cmap_kind,
                         loca_off, glyf_off, long_loca,
                         Dict{UInt32,UInt16}(), _parse_kern(b))
 
@@ -355,72 +362,12 @@ end
 
 get_ascent_pixels(f::TrueTypeFont, size::Real) = f.ascent * size / f.units_per_em
 
-# ════════════════════════════════════════════════════════════════════════
-# Fallback fonts
-# ════════════════════════════════════════════════════════════════════════
-#
-# A font draws only the characters it carries. For a character it lacks, a
-# renderer draws with the font `find_glyph_font_file` names, and
-# `FontFileMeasure` measures with the same font, so a line is drawn as wide as it
-# was measured.
-
-const _EMOJI_FONT_FILE       = joinpath(_FONT_DIR, "NotoEmoji-Regular.ttf")
-const _DEJAVU_MONO_FILE      = joinpath(_FONT_DIR, "DejaVuSansMono.ttf")
-const _DEJAVU_MONO_BOLD_FILE = joinpath(_FONT_DIR, "DejaVuSansMono-Bold.ttf")
-
-const _FALLBACK_FONT_FILES = [_DEJAVU_MONO_FILE, _EMOJI_FONT_FILE]
-# DejaVu Sans Mono Bold lacks some glyphs of the regular face, so the regular
-# face follows it.
-const _BOLD_FALLBACK_FONT_FILES = [_DEJAVU_MONO_BOLD_FILE, _DEJAVU_MONO_FILE, _EMOJI_FONT_FILE]
-
-"""
-    get_fallback_font_files(path) -> Vector{String}
-
-The fonts that a text set in the font at `path` falls back to, in order: DejaVu
-Sans Mono, which carries arrows, check marks, stars, geometric shapes and box
-drawing, and then Noto Emoji. A bold font, whose file name ends in `-B` or
-`-Bold`, takes the bold face of DejaVu first.
-"""
-get_fallback_font_files(path::AbstractString) =
-    occursin(r"-B(old)?(I|Italic|Oblique)?\.[ot]tf$", basename(path)) ?
-        _BOLD_FALLBACK_FONT_FILES : _FALLBACK_FONT_FILES
-
-const _FONT_AVAILABLE = Dict{String,Bool}()
-
-_is_font_available(path::AbstractString) =
-    get!(() -> isfile(font_file(path)), _FONT_AVAILABLE, String(path))
-
 """
     has_font_glyph(font::TrueTypeFont, character) -> Bool
 
 Whether `font` carries a glyph for `character`.
 """
 has_font_glyph(font::TrueTypeFont, character::UInt32) = get_glyph_id(font, character) != 0
-
-"""
-    find_glyph_font_file(path, character) -> String or nothing
-
-The file of the font that draws `character` in a text set in the font at `path`:
-that font when it carries the character, else the first font of
-[`get_fallback_font_files`](@ref) that does. `nothing` when no font carries it,
-and the caller then draws the character in its own font, which draws the
-missing-glyph box. A fallback file that is not installed is skipped.
-
-A character outside the basic plane is nearly always a pictograph, and Noto
-Emoji draws it even when the font carries one: DejaVu Sans does, in a style of
-its own.
-"""
-function find_glyph_font_file(path::AbstractString, character::UInt32)
-    character > 0xFFFF && _has_file_glyph(_EMOJI_FONT_FILE, character) && return _EMOJI_FONT_FILE
-    has_font_glyph(load_truetype_font(path), character) && return String(path)
-    for fallback in get_fallback_font_files(path)
-        _has_file_glyph(fallback, character) && return fallback
-    end
-    nothing
-end
-
-_has_file_glyph(path::AbstractString, character::UInt32) =
-    _is_font_available(path) && has_font_glyph(load_truetype_font(path), character)
 
 """
     is_presentation_selector(character) -> Bool
@@ -444,7 +391,7 @@ is_presentation_selector(character::UInt32) = character == 0xFE0E || character =
 # own to follow a change of the font scale.
 
 _font_metric(font::StyleFont, units::Integer) =
-    round(Int, units * font_logical_size(font) / load_truetype_font(font.filename).units_per_em)
+    round(Int, units * font_logical_size(font) / load_truetype_font(compute_font_path(font)).units_per_em)
 
 """
     font_ascent(font::StyleFont) -> Int
@@ -478,14 +425,14 @@ font_line_height(font::StyleFont) = font_ascent(font) + font_descent(font)
 The height of a lowercase `x`, in logical pixels. Math sets the axis — the
 height a fraction bar and a large operator center on — at half of it.
 """
-font_x_height(font::StyleFont) = _font_metric(font, load_truetype_font(font.filename).x_height)
+font_x_height(font::StyleFont) = _font_metric(font, load_truetype_font(compute_font_path(font)).x_height)
 
 """
     font_cap_height(font::StyleFont) -> Int
 
 The height of a capital letter, in logical pixels.
 """
-font_cap_height(font::StyleFont) = _font_metric(font, load_truetype_font(font.filename).cap_height)
+font_cap_height(font::StyleFont) = _font_metric(font, load_truetype_font(compute_font_path(font)).cap_height)
 
 """
     font_glyph_bounds(font::StyleFont, ch) -> (Int, Int)
@@ -497,7 +444,7 @@ A caller that tiles a tall delimiter out of the Unicode extension pieces needs
 this: the pieces stack by their ink, not by their text boxes.
 """
 function font_glyph_bounds(font::StyleFont, ch::AbstractChar)
-    f = load_truetype_font(font.filename)
+    f = load_truetype_font(compute_font_path(font))
     ymin, ymax = _glyph_bounds(f, ch)
     scale = font_logical_size(font) / f.units_per_em
     (round(Int, ymin * scale), round(Int, ymax * scale))

@@ -63,6 +63,13 @@ rendering itself is `ProjecturedSDL`'s
 offscreen renderer (`open_offscreen_renderer`), opened here and closed by
 [`quit_backend!`](@ref).
 
+The zoom of the `Display` of the editor, which `configure_devices!` keeps, is
+the zoom of the frames, as it is the zoom of the windows of an `SdlBackend`: the
+frame keeps its size, the window gets the size of the frame over the zoom, and
+its content draws that much larger. A point of the timeline is a point of the
+frame, so a mouse event reaches the part of the window that the frame shows
+there, and the pointer keeps its size.
+
 With `partial_render = true` a frame repaints only the rects that changed, as
 an `SdlBackend` with `partial_render` does: the offscreen surface keeps its
 pixels, and the dirty walk of `ProjecturedSDL` finds what to paint again. The
@@ -136,6 +143,10 @@ mutable struct VideoBackend <: Backend
     background::NTuple{4,UInt8}
     fault_line::Union{String,Nothing}
     held_file::Union{String,Nothing}
+    # The `Display` of the editor, which `configure_devices!` keeps, and the zoom
+    # of the last drawn frame.
+    display::Union{Display,Nothing}
+    drawn_zoom::Float64
 end
 
 function VideoBackend(timeline::AbstractVector, window_id::Symbol;
@@ -167,7 +178,7 @@ function VideoBackend(timeline::AbstractVector, window_id::Symbol;
                 Int(supersample), Float64(density), video_time, pointer, false, -Inf,
                 partial_render, debug_dirty, Float64(debug_dirty_hold), nothing,
                 Tuple{Float64,Vector{NTuple{4,Int}}}[], 0, nothing, (0x00, 0x00, 0x00, 0xff),
-                nothing, nothing)
+                nothing, nothing, nothing, 1.0)
 end
 
 # The render settings of an editor reach the take here. A change of the mode
@@ -225,6 +236,16 @@ function initialize_backend!(backend::VideoBackend)
     backend.painted_file = nothing
     backend.fault_line = nothing
     backend.held_file = nothing
+    backend.drawn_zoom = 1.0
+    nothing
+end
+
+# The first `Display` of the editor: its `zoom`, which the appearance of the
+# editor steps, is the zoom of the frames, as it is the zoom of the windows of an
+# `SdlBackend`.
+function configure_devices!(backend::VideoBackend, devices)
+    index = findfirst(device -> device isa Display, devices)
+    index === nothing || (backend.display = devices[index]::Display)
     nothing
 end
 
@@ -279,14 +300,19 @@ function _take_due_entry!(backend::VideoBackend)
     backend.next_entry += 1
     backend.awaiting_render = true
     _track_pointer!(backend, entry.event)
-    WindowInput(backend.window_id, _restamp_event(entry.event, backend.start_time + elapsed))
+    WindowInput(backend.window_id, _restamp_event(entry.event, backend.start_time + elapsed,
+                                                  backend.drawn_zoom))
 end
 
-# `event` with the time `time` in place of its own. The time is the last field of
-# every event (see `Event`), and the full constructor takes every field.
-function _restamp_event(event, time::Float64)
+# `event` with the time `time` in place of its own, and a point of the frame at
+# the place in the window that the frame shows there at `zoom`. The time is the
+# last field of every event (see `Event`), and the full constructor takes every
+# field.
+function _restamp_event(event, time::Float64, zoom::Float64)
     type = typeof(event)
-    type(ntuple(i -> getfield(event, i), fieldcount(type) - 1)..., time)
+    names = fieldnames(type)
+    field(i) = names[i] in (:x, :y) && zoom != 1.0 ? round(Int, getfield(event, i) / zoom) : getfield(event, i)
+    type(ntuple(field, fieldcount(type) - 1)..., time)
 end
 
 # An `await` entry holds the schedule until its predicate answers true, or
@@ -361,9 +387,10 @@ const _POINTER_GLYPH_SIZE = 22
 # The picture of the pointer of `shape` with its hot spot at `(x, y)`: the arrow
 # for `:default` and for a shape that this backend does not draw.
 function _make_pointer_shape_graphics(shape::Symbol, x::Int, y::Int)
+    # @style: a mark of the recording, not the look of the editor
     if haskey(_POINTER_GLYPHS, shape)
         glyph, across, down = _POINTER_GLYPHS[shape]
-        font = StyleFont(font_lucide_icons_20.filename, _POINTER_GLYPH_SIZE)
+        font = with_font_size(StyleFont("Lucide", 20), _POINTER_GLYPH_SIZE)
         left = x - round(Int, across * _POINTER_GLYPH_SIZE)
         top = y - round(Int, down * _POINTER_GLYPH_SIZE)
         outline = Any[GraphicsText(string(glyph), left + dx, top + dy; font, color = color_white)
@@ -382,12 +409,36 @@ function _make_pointer_shape_graphics(shape::Symbol, x::Int, y::Int)
     elements
 end
 
+# The pointer of the frame, as a canvas over it in the logical pixels of the frame,
+# or `nothing` when the take draws no pointer or no mouse event came yet. A
+# pointer keeps its size at every zoom, as the pointer of a system does.
+_make_pointer_overlay(backend::VideoBackend, canvas::GraphicsCanvas) =
+    backend.pointer && backend.pointer_x >= 0 ?
+        GraphicsCanvas(_make_pointer_graphics(backend, canvas); w = backend.width, h = backend.height) :
+        nothing
+
+# Draw the window at the zoom of the display. A new zoom keeps the size of the
+# frame: the window takes the size of the frame over the zoom, in its logical
+# pixels, and the next print lays it out for that size, as an `SdlBackend` keeps
+# the device size of its windows. A partial paint then paints the whole frame.
+function _follow_display_zoom!(backend::VideoBackend, window::WindowDocument)
+    zoom = backend.display === nothing ? 1.0 : Float64(backend.display.zoom)
+    zoom == backend.drawn_zoom && return nothing
+    backend.off = with_offscreen_zoom(backend.off, zoom)
+    backend.paint_state = nothing
+    backend.drawn_zoom = zoom
+    window.width = max(1, round(Int, backend.width / zoom))
+    window.height = max(1, round(Int, backend.height / zoom))
+    nothing
+end
+
 # The pointer where the timeline left it, over `canvas`, the window of the frame:
 # the ring while the left button is held or while it fades out, and the picture of
-# the shape at the pointer on top.
+# the shape at the pointer on top. The shape is the one of the part of the window
+# under the pointer at the zoom of the frame.
 function _make_pointer_graphics(backend::VideoBackend, canvas::GraphicsCanvas)
     x, y = backend.pointer_x, backend.pointer_y
-    ring = color_solarized_orange
+    ring = color_solarized_orange  # @style: a mark of the recording, not the look of the editor
     since_release = _get_schedule_seconds(backend) - backend.pointer_released_at
     elements = Any[]
     if backend.pointer_held
@@ -399,7 +450,9 @@ function _make_pointer_graphics(backend::VideoBackend, canvas::GraphicsCanvas)
         push!(elements, GraphicsCircle(x, y, _POINTER_RING_RADIUS + 6 * (1 - left); color = color_transparent,
                                        border_width = _POINTER_RING_WIDTH, border_color = faded))
     end
-    append!(elements, _make_pointer_shape_graphics(find_pointer_shape(canvas, x, y), x, y))
+    zoom = backend.drawn_zoom
+    shape = find_pointer_shape(canvas, round(Int, x / zoom), round(Int, y / zoom))
+    append!(elements, _make_pointer_shape_graphics(shape, x, y))
     elements
 end
 
@@ -440,16 +493,14 @@ function write_to_devices!(backend::VideoBackend, devices, screen::ScreenDocumen
     backend.start_time < 0 ? (backend.start_time = time()) :
         (backend.video_time || _backfill_frames!(backend))
     backend.background = window.bg
+    _follow_display_zoom!(backend, window)
     try
         if backend.partial_render
             _write_partial_frame!(backend, canvas, window.bg)
         else
-            if backend.pointer && backend.pointer_x >= 0
-                canvas = GraphicsCanvas(Any[canvas; _make_pointer_graphics(backend, canvas)];
-                                        w = backend.width, h = backend.height)
-            end
             write_offscreen_frames!(backend.off, canvas; background = window.bg,
-                                    folder = backend.frames_dir, frame = backend.frame)
+                                    folder = backend.frames_dir, frame = backend.frame,
+                                    overlay = _make_pointer_overlay(backend, canvas))
         end
     catch exception
         # The frames hold the last picture with this fault on it until a paint
@@ -502,8 +553,8 @@ function _render_held_picture!(backend::VideoBackend)
     backend.held_file === nothing || return backend.held_file
     overlay = _make_fault_line_graphics(backend)
     if backend.painted_file === nothing
-        write_offscreen_frames!(backend.off, overlay; background = backend.background,
-                                folder = backend.frames_dir, frame = backend.frame)
+        write_offscreen_frames!(backend.off, GraphicsCanvas(Any[]); background = backend.background,
+                                folder = backend.frames_dir, frame = backend.frame, overlay)
         backend.held_file = _video_frame_path(backend.frames_dir, backend.frame[])
     else
         backend.held_file = joinpath(backend.frames_dir, "held_$(backend.frame[]).png")
@@ -517,10 +568,11 @@ end
 const _FAULT_BAND_HEIGHT = 28
 
 function _make_fault_line_graphics(backend::VideoBackend)
+    # @style: a mark of the recording, not the look of the editor
     top = backend.height - _FAULT_BAND_HEIGHT
     GraphicsCanvas(Any[GraphicsRect(0, top, backend.width, _FAULT_BAND_HEIGHT; color = color_solarized_red),
                        GraphicsText("The window can not paint: " * backend.fault_line, 8, top + 5;
-                                    font = font_dejavu_monospace_bold_16, color = color_white)];
+                                    font = StyleFont("DejaVu Sans Mono", 16; weight = 700), color = color_white)];
                    w = backend.width, h = backend.height)
 end
 
@@ -532,9 +584,7 @@ function _write_partial_frame!(backend::VideoBackend, canvas::GraphicsCanvas, ba
         (backend.paint_state = make_offscreen_paint_state(backend.off))
     state = backend.paint_state
     painted = render_offscreen_changes!(backend.off, state, canvas; background)
-    pointer = backend.pointer && backend.pointer_x >= 0 ?
-              GraphicsCanvas(_make_pointer_graphics(backend, canvas); w = backend.width, h = backend.height) :
-              nothing
+    pointer = _make_pointer_overlay(backend, canvas)
     outline = backend.debug_dirty ? _get_held_outline(backend, painted, state.last_rects) :
               NTuple{4,Int}[]
     write_offscreen_frame_with_overlay!(backend.off, pointer; outline,

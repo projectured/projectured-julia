@@ -20,24 +20,26 @@ A gesture-help projection reads the scaled theme through its `UntrackedCell`
 style fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct GestureHelpTheme
+    "The font that the texts of this theme follow: its family, its weight and its size."
+    font::StyleFont = StyleFont("DejaVu Sans Mono", 14)
     "The heading of a domain's group of rows in the gesture map."
-    map_header_text::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+    map_header_text::TextRole = TextRole(color_solarized_blue; family = "Ubuntu Mono", weight = 700)
     "A gesture that can fire."
-    map_gesture_text::StyleText = StyleText(font_ubuntu_monospace_bold_20, color_solarized_green)
+    map_gesture_text::TextRole = TextRole(color_solarized_green; family = "Ubuntu Mono", weight = 700)
     "What a gesture does."
-    map_description_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_default)
+    map_description_text::TextRole = TextRole(color_default; family = "Ubuntu Mono")
     "A row that cannot fire for the current selection."
-    map_muted_text::StyleText = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    map_muted_text::TextRole = TextRole(color_solarized_gray; family = "Ubuntu Mono")
     "The line the person types into."
-    palette_query_text::StyleText = StyleText(font_dejavu_monospace_bold_20, color_solarized_blue)
+    palette_query_text::TextRole = TextRole(color_solarized_blue; weight = 700)
     "The heading of a domain's group of rows in the palette."
-    palette_header_text::StyleText = StyleText(font_dejavu_monospace_bold_20, color_solarized_violet)
+    palette_header_text::TextRole = TextRole(color_solarized_violet; weight = 700)
     "The chosen row."
-    palette_selected_text::StyleText = StyleText(font_dejavu_monospace_bold_20, color_solarized_green)
+    palette_selected_text::TextRole = TextRole(color_solarized_green; weight = 700)
     "A row that can run."
-    palette_command_text::StyleText = StyleText(font_dejavu_monospace_regular_20, color_default)
+    palette_command_text::TextRole = TextRole(color_default)
     "A row that cannot run right now."
-    palette_muted_text::StyleText = StyleText(font_dejavu_monospace_regular_20, color_solarized_gray)
+    palette_muted_text::TextRole = TextRole(color_solarized_gray)
     "The fill of the panel the palette draws itself on."
     palette_background::StyleColor = color_solarized_background_lighter
     "The border of the panel the palette draws itself on."

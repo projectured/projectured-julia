@@ -44,7 +44,7 @@ end
         TextToGraphics(measure = measure))
     renderer = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
-        WidgetToGraphics(font_ubuntu_regular_20; measure = measure).dispatch,
+        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = measure).dispatch,
         Pair{Type,Any}[PrimitiveDocument => primitive])))
     chain = ChainingProjection(view, renderer)
     iomap = print_document(chain, ct)

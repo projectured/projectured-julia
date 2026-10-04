@@ -17,7 +17,7 @@ ProjecturedPlatform = {path = "../ProjecturedPlatform"}
 [compat]
 SDL2_jll = "2.32.10"
 
-# AutoIntegrations loads this package when Projectured and SimpleDirectMediaLayer are loaded,
+# AutoIntegration loads this package when Projectured and SimpleDirectMediaLayer are loaded,
 # unless the environment of the user sets it to "manual".
 [auto-integration]
 default = "auto"

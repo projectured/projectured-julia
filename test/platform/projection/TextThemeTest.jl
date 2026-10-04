@@ -67,9 +67,9 @@ end
     projection = NaturalToGraphics(; measure, appearance)
     document = PrimitiveNumber(42)
     print_size() = only(unique(collect_font_sizes(print_document(projection, nothing, document, offer).output)))
-    @test print_size() == 20
+    @test print_size() == 14
     appearance.font_scale = 2.0
-    @test print_size() == 40
+    @test print_size() == 28
 end
 
 @testset "the caret and the band of a selection follow the line and the radius scales" begin
@@ -84,10 +84,10 @@ end
 end
 
 @testset "a syntax leaf with no theme has the default style, and with a theme its scaled one" begin
-    @test PrimitiveNumberToSyntaxLeaf().style.font.size == 20
+    @test PrimitiveNumberToSyntaxLeaf().style.font.size == 14
     theme = get_scaled_theme!(Appearance(font_scale = 1.5), SyntaxTheme)
     leaf = PrimitiveNumberToSyntaxLeaf(; theme)
-    @test leaf.style.font.size == 30
+    @test leaf.style.font.size == 21
     @test is_color_equal(leaf.style.color, SyntaxTheme().number_text.color)
 end
 

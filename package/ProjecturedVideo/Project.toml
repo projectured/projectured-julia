@@ -14,7 +14,7 @@ ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
 ProjecturedSDL = {path = "../ProjecturedSDL"}
 
-# AutoIntegrations loads this package when Projectured and FFMPEG are loaded,
+# AutoIntegration loads this package when Projectured and FFMPEG are loaded,
 # unless the environment of the user sets it to "manual".
 [auto-integration]
 default = "auto"

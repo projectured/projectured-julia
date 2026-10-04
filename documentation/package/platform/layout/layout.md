@@ -10,7 +10,7 @@ The layout slice of `ProjecturedPlatform` places documents of any kind next to e
 
 | Document | What it places |
 | --- | --- |
-| `HorizontalLayout`, `VerticalLayout` | a row or a column, with `gap` and alignment |
+| `HorizontalLayout`, `VerticalLayout` | a row or a column, with `gap` and alignment; a row can align its children on the baseline of their first line |
 | `GridLayout`, `FormLayout` | cells in `columns`, with a size policy for each column and row; a form is a two-column grid |
 | `FlowLayout` | a row that wraps at the edge of its range, or at `max_width` when that is less; it is as wide as its widest line, or as the edge of an exact range, but not wider than `max_width` unless one child is |
 | `StackLayout` | children on top of each other, the last on top |
@@ -25,6 +25,10 @@ Each layout projection works in two phases. It first prints each child through t
 
 The whole placement is in one outer computed cell, which reads `doc.children`. So a structural change, a child added or removed, builds the layout again. A child that only changes its size changes only the position cells that read that size.
 
+A `HorizontalLayout` places its children with `vertical_align ∈ (:top, :center, :bottom, :baseline)`. At `:baseline`, each child stands so that the baseline of its first line of text, `find_first_baseline` of the [graphics package](../graphics/graphics.md), meets the lowest baseline of the row; a child with no text, such as an image, stands on its bottom edge instead, as CSS takes it. So a label beside a text of another font or of another line spacing reads on one line.
+
+A layout that can hold a selection draws the ring around a whole-selected child with the values of a `GraphicsTheme`: the color, the width and the corner radius come from the theme of the appearance that `LayoutToGraphics(; theme)` is built with, or from the default theme with no `theme`; [graphics.md](../graphics/graphics.md#selection-and-clicks) describes it.
+
 ### The size that a parent offers
 
 A layout sizes itself to its content by default. A parent gives a range on each axis through the printer context: an exact range, a slot (`with_exact_size`); a bounded range, an edge with no slot (`with_bounded_size`, or `with_size_range` with a minimum); or a free axis (`with_free_axis`). If a layout has an edge on its main axis, exact or bounded, and at least one child has a weight, the layout divides the edge among the weighted children:
@@ -37,6 +41,8 @@ A layout sizes itself to its content by default. A parent gives a range on each 
 The policy is a property of the placement, not of the child: `child_width` and `child_height` on the layout, or a `LayoutConstraint` around one child. So the same card fills a column in one place and is as wide as its content in a toolbar.
 
 A grid column that is offered a size must not read its cells to find its own width, or the cell graph has a cycle. `column_offers` lets a caller keep the offer from a sized column; the column then clips its cells with `clip_child_to_slot` instead of making them flow again. `row_offers` does the same for a sized row. A table uses both: the cells of a table clip, and the header column measures its headers in rows whose heights the cells decide. A column or a row is never narrower than the `min` nor wider than the `max` of its policy, whether a weight shares the offer or not. `GridLayoutIoMap` also gives the column and row positions as cells, so a table can draw its lines over a grid that has no code for tables. A cell wider than its column, or taller than its row, starts at the left or the top edge of its slot whatever its alignment, so a slot that clips it shows its start; the grid of a list does the same.
+
+A weighted column or row that the grid itself was offered no extent on has no share to take: it acts as `Content` instead, and keeps its minimum, its maximum and the width or the height of its cells, as a weighted child of a stack does. So a `Fill` column fills the pane that offers the grid a width, and is as wide as its cells where the grid is offered none, such as inside a form that a walker prints with no width.
 
 A child of a grid takes more than one column with `LayoutConstraint(child; column_span = n)` (`get_column_span`). The grid fills its rows in order; a spanning child starts a new row when its row has fewer columns left, and a span past the number of columns takes the whole row. A spanning child widens no column. When every column it spans hands out its extent, it gets their width with the gaps; otherwise it may reach from its first column to the edge that the grid was offered, so a text in it breaks there, and the grid is as wide as such a child. A grid that was offered no width gives it no edge, and it draws as wide as it measures. The settings tab and the appearance tab use it for the description of a field, under the row of its name and its control. A grid of a list takes no span.
 

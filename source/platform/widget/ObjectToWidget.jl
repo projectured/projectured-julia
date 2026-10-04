@@ -64,17 +64,15 @@ an explicit `Vector{Symbol}` to restrict/order the controls of the **root** obje
 struct ObjectToWidget <: Projection
     fields::Union{Vector{Symbol},Nothing}
     style::StyleText
+    column_gap::Int     # between the label column and the control column
+    row_gap::Int        # between the rows of the form
 end
 
-ObjectToWidget(; fields=nothing,
-               style::StyleText=StyleText(font_ubuntu_monospace_regular_20, color_default)) = ObjectToWidget(fields, style)
-
-# Inter-column / inter-row gaps for the parameter form. The label column width
-# and row heights are content-driven by GridLayout; only these spacing tokens are
-# fixed. Card chrome: the default card width.
-const _COLUMN_GAP = 12
-const _ROW_GAP = 6
-const _CARD_WIDTH = 480
+ObjectToWidget(; fields=nothing, theme=nothing,
+               style::StyleText=StyleText(_get_theme_values(theme).font, _get_theme_values(theme).foreground),
+               column_gap::Integer=_get_theme_values(theme).form_column_gap,
+               row_gap::Integer=_get_theme_values(theme).form_row_gap) =
+    ObjectToWidget(fields, style, Int(column_gap), Int(row_gap))
 # Recursion bound: stop descending into composite values past this depth and show
 # them read-only, so a cyclic or pathologically deep object graph can't loop
 # forever (the editor would otherwise hang printing it).
@@ -141,9 +139,11 @@ function _struct_grid(p::ObjectToWidget, obj, basepath::Reference, controls, dep
         push!(children, WidgetLabel(String(nm)))
         push!(children, _print_value(p, value, f isa Cell ? f : nothing, path, controls, depth))
     end
+    # The controls fill the width that the form is offered, so the cards of the
+    # nested values line up; with no width offered they keep their own.
     GridLayout(children, 2;
-               horizontal_gap=_COLUMN_GAP, vertical_gap=_ROW_GAP,
-               vertical_align=:center)
+               horizontal_gap=p.column_gap, vertical_gap=p.row_gap,
+               vertical_align=:center, column_policies=Any[Content, Fill])
 end
 
 # Project one value into a widget. `cell` is the backing `Cell` (or `nothing` when
@@ -188,7 +188,7 @@ function _print_vector(p::ObjectToWidget, vec, path::Reference, controls, depth:
         elpath = extend_reference(path, ElementReferenceStep(i))   # 1-based
         push!(items, _print_value(p, element, nothing, elpath, controls, depth))
     end
-    body = VerticalLayout(items; horizontal_align=:left, gap=_ROW_GAP)
+    body = VerticalLayout(items; horizontal_align=:left, gap=p.row_gap)
     _collapsible_card(p, _vector_title(vec), body)
 end
 
@@ -199,7 +199,7 @@ end
 # drops the body, so the toggle re-renders without reprinting the projection.
 _collapsible_card(p::ObjectToWidget, title::AbstractString, body) =
     WidgetCard(; title = WidgetLabel(title),
-               content = body, width = _CARD_WIDTH, collapsible = true)
+               content = body, collapsible = true)
 
 _type_title(obj) = String(nameof(typeof(obj)))
 _vector_title(vec) = string(length(vec)) * (length(vec) == 1 ? " item" : " items")

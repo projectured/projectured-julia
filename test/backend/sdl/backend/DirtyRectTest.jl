@@ -528,7 +528,7 @@ end
 
 @testset "a leaf has a signature only when its hash follows what it draws" begin
     @test SDL._compute_leaf_signature(GraphicsRect(0, 0, 10, 10; color = color_red)) !== nothing
-    @test SDL._compute_leaf_signature(GraphicsText("a", 0, 0; font = font_ubuntu_regular_20)) !== nothing
+    @test SDL._compute_leaf_signature(GraphicsText("a", 0, 0; font = StyleFont("Ubuntu", 20))) !== nothing
     # `hash` reads a sample of a large array, so a change in place could keep it.
     @test SDL._compute_leaf_signature(GraphicsImage(0, 0, 100, 100, zeros(UInt8, 40_000))) === nothing
     @test SDL._compute_leaf_signature(GraphicsImage(0, 0, 10, 10, zeros(UInt8, 400))) !== nothing

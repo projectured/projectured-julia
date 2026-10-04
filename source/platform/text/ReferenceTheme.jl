@@ -24,9 +24,9 @@ of the default theme.
 """
 @theme struct ReferenceTheme
     "The body of both forms."
-    font::StyleFont = font_ubuntu_monospace_regular_20
+    font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The italic \"which is\" that connects one line of the human-readable form to the line below it."
-    aside_font::StyleFont = font_ubuntu_monospace_italic_20
+    aside_font::FontRole = FontRole(italic = true)
     "A delimiter, a comma or a colon, and the plain words of a phrase, such as \"the \" or \"of \"."
     punctuation_color::StyleColor = color_solarized_gray
     "The name of a field or of a step."

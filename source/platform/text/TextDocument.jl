@@ -131,13 +131,27 @@ refers to the cursor within the span's `content` field:  `.content{k}`
     padding::Inset
 end
 
+"""
+    UNSTYLED_TEXT_FONT
+
+The font of a text that names none: a run that a document makes with no font,
+and the line of a block with no run. It is a default of the text document, the
+content that an author leaves out, and not a style of a projection.
+"""
+const UNSTYLED_TEXT_FONT = StyleFont("Ubuntu Mono", 14)  # @style: content of the document
+
 # font / font_color are passed RAW so they land in their ImmutableCell default;
 # content stays a reactive Cell. Passing a Cell for font/colour overrides the default.
 TextString(content::AbstractString, font::StyleFont, font_color::StyleColor) =
     TextString(Cell(content), font, font_color, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
 
+# A space, a newline or an empty text between two parts draws no ink, so it names
+# only its font, which sets its width and its line; its color is the default
+# color of a text.
+TextString(content::AbstractString, font::StyleFont) = TextString(content, font, color_default)
+
 TextString(content::AbstractString) =
-    TextString(Cell(content), font_ubuntu_monospace_regular_20, color_default, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+    TextString(Cell(content), UNSTYLED_TEXT_FONT, color_default, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
 
 TextString(content::Function, font::StyleFont, font_color::StyleColor) =
     TextString(Cell(Computation(content)), font, font_color, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
@@ -155,7 +169,7 @@ function make_hinted_text(content_thunk; empty_thunk, placeholder::AbstractStrin
     TextString(
         Cell(@computation empty_thunk() ? placeholder : content_thunk()),
         style.font,                                                        # immutable (authored font)
-        Cell(@computation empty_thunk() ? color_solarized_gray : style.color),   # reactive (hint colour)
+        Cell(@computation empty_thunk() ? color_solarized_gray : style.color),   # reactive (hint colour); @style: content of the document
         Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
 end
 

@@ -163,12 +163,13 @@ function test_data_frame_filter()
 
         @testset "the list of the values of a column writes the ticked ones into its filter" begin
             view = DataFrameView(DataFrame(id = 1:6, kind = ["b", "a", "b", "c", missing, "a, b"]))
-            rows_of(dialog) = dialog.content.content.children
+            boxes_of(dialog) = dialog.content.content.children
             dialog, take = module_._make_value_list_dialog(view, "kind")
-            # The values that are not missing, sorted, each with the count of its rows.
-            @test [row.children[2].content for row in rows_of(dialog)] ==
+            # The values that are not missing, sorted, each with the count of its rows,
+            # as the labels of the boxes.
+            @test [box.label for box in boxes_of(dialog)] ==
                   ["a  (1)", "a, b  (1)", "b  (2)", "c  (1)"]
-            boxes = [row.children[1] for row in rows_of(dialog)]
+            boxes = boxes_of(dialog)
             @test all(box -> box.content, boxes)
             # Every value ticked is no filter.
             evaluate_operation(_DataFrameFilterEditor(view), take())
@@ -180,8 +181,8 @@ function test_data_frame_filter()
             @test view.kept_rows == [2, 6]
             # The next list starts from the filter, and no value ticked changes nothing.
             dialog, take = module_._make_value_list_dialog(view, "kind")
-            @test [row.children[1].content for row in rows_of(dialog)] == [true, true, false, false]
-            foreach(row -> getfield(row.children[1], :content)[] = false, rows_of(dialog))
+            @test [box.content for box in boxes_of(dialog)] == [true, true, false, false]
+            foreach(box -> getfield(box, :content)[] = false, boxes_of(dialog))
             @test take() === nothing
         end
 

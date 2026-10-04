@@ -29,6 +29,7 @@ using ..OperationModule
 using ..ProjectionModule
 using ..ReferenceModule
 using ..ScreenModule
+using ..StyleModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_wrapped_document
@@ -46,12 +47,14 @@ export OpenTooltipOperation, make_tooltip_operation, make_tooltip_binding
 export TooltipContent
 export TooltipWindowState, TooltipWindowProjection, TooltipWindowIoMap
 export make_tooltip_window_document, make_tooltip_window_projection, wrap_tooltip_window
+export TooltipTheme, ScaledTooltipTheme
 
 
 include("TooltipDocument.jl")
 include("TooltipDecorator.jl")
 include("TooltipOperation.jl")
 include("TooltipContent.jl")
+include("TooltipTheme.jl")
 include("TooltipWindow.jl")
 
 end # module

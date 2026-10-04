@@ -25,7 +25,7 @@ draws.
 
 # Example
 
-    StyleText(StyleFont("DejaVuSans.ttf", 14), color_black)
+    StyleText(StyleFont("DejaVu Sans", 14), color_black)
 
 See also `StyleFont`, `StyleColor` and `GraphicsText`.
 

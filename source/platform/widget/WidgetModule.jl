@@ -43,7 +43,7 @@ import ..DomainModule: compute_context_menu
 import ..SerializationModule: pred_arguments
 import ..StyleModule: get_theme_presets
 import ..GestureBindingModule: get_instance_gesture_bindings, get_document_gesture_bindings_own
-import ..GraphicsModule: map_operation_position
+import ..GraphicsModule: map_operation_position, find_first_baseline
 import ..OperationModule: evaluate_operation, is_self_contained_operation,
                           is_collecting_operation, join_collected_operations,
                           operation_reference, retarget_operation

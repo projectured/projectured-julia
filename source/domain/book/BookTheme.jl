@@ -19,24 +19,28 @@ A book projection reads the scaled theme through its `UntrackedCell` style
 fields; with no theme it holds the plain values of the default theme.
 """
 @theme struct BookTheme
+    "The font that the texts of this theme follow: its family, its weight and its size."
+    font::StyleFont = StyleFont("Ubuntu", 14)
+    "The font that the code of this theme follows: its family, its weight and its size."
+    code_font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The title of a book."
-    title_text::StyleText          = StyleText(font_ubuntu_bold_36, color_solarized_blue)
+    title_text::TextRole          = TextRole(color_solarized_blue; weight = 700, relative_size = 1.8)
     "The \"Written by \" that introduces the author."
-    author_prefix_text::StyleText  = StyleText(font_ubuntu_italic_20, color_solarized_gray)
+    author_prefix_text::TextRole  = TextRole(color_solarized_gray; italic = true)
     "The author of a book."
-    author_text::StyleText         = StyleText(font_ubuntu_italic_20, color_solarized_cyan)
+    author_text::TextRole         = TextRole(color_solarized_cyan; italic = true)
     "The title of a chapter."
-    chapter_title_text::StyleText  = StyleText(font_ubuntu_bold_24, color_solarized_blue)
+    chapter_title_text::TextRole  = TextRole(color_solarized_blue; weight = 700, relative_size = 1.2)
     "The numbering of a chapter."
-    numbering_text::StyleText      = StyleText(font_ubuntu_bold_24, color_solarized_magenta)
+    numbering_text::TextRole      = TextRole(color_solarized_magenta; weight = 700, relative_size = 1.2)
     "A paragraph, and the blank line between the elements of a book or a chapter."
-    paragraph_text::StyleText      = StyleText(font_ubuntu_monospace_regular_20, color_black)
+    paragraph_text::TextRole      = TextRole(color_black; base = :code_font)
     "The insertion leaf, and a picture with no path yet."
-    placeholder_text::StyleText    = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+    placeholder_text::TextRole    = TextRole(color_solarized_gray; base = :code_font)
     "The bullet of a list item."
-    bullet_text::StyleText         = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+    bullet_text::TextRole         = TextRole(color_solarized_yellow; base = :code_font)
     "The caption of a picture."
-    picture_text::StyleText        = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
+    picture_text::TextRole        = TextRole(color_solarized_magenta; base = :code_font)
 end
 
 # The style field of a Book projection that holds the text `name` of the

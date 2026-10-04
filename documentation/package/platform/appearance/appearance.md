@@ -51,16 +51,17 @@ the window (`find_editor_appearance`).
 
 - A row for the zoom and one for each scale: the name, −, the value in percent, +
   and a reset button. Under the rows: "Reset all", "Save" and "Load".
-- The themes in three groups: "Editor" holds the widget, the text, the syntax
-  and the reference themes, in this order, because every view draws with them;
-  "Tools" holds the other themes of `ProjecturedPlatform`; "Documents" holds the
-  themes of the other packages. A group shows its themes in the order of their
-  names.
+- The themes in three groups: "Editor" holds the widget, the text, the syntax,
+  the reference, the graphics and the tooltip themes, in this order, because
+  every view draws with them; "Tools" holds the other themes of
+  `ProjecturedPlatform`; "Documents" holds the themes of the other packages. A
+  group shows its themes in the order of their names.
 - A card for each theme, which folds to its title and is closed at the start. In
   the card: the presets as a radio group, which writes every field of the preset
   into the theme in place, so the views that read the theme follow; a spin box
   for each part of a size; buttons that step through the font files and a spin
-  box for the size of a font; the swatch of a color and its text, `#rrggbbaa`,
+  box for the size of a font; a spin box in percent for a multiple line
+  spacing; the swatch of a color and its text, `#rrggbbaa`,
   which a person edits; and for a text style, the controls of its color over
   those of its font, each of which writes a new style and keeps the other part.
   Under the row of the name and the control of a field, a row of its own holds

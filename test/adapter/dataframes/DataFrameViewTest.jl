@@ -104,10 +104,10 @@ function test_data_frame_view()
             io = print_document(scaled, nothing, view, context())
             view_projection = _data_frame_view_iomap(io).projection
             step = view_projection.row_step
-            # The padding of a cell is the control padding of the theme, 9 above
-            # and 9 below, so a spacing scale of 2 adds 18 to the step of a row.
+            # The padding of a cell is the control padding of the theme, 5 above
+            # and 5 below, so a spacing scale of 2 adds 10 to the step of a row.
             appearance.spacing_scale = 2.0
-            @test view_projection.row_step == step + 18
+            @test view_projection.row_step == step + 10
             size_of(text, canvas) = begin
                 found = Ref(0)
                 walk(node) = if node isa GraphicsCanvas

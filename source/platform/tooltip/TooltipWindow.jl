@@ -24,9 +24,7 @@ end
 get_wrapped_document(state::TooltipWindowState) = get_wrapped_document(state.content)
 
 """
-    TooltipWindowProjection(; inner, id = :tooltip, offset = (16, 20),
-                              minimum_size = (120, 32), maximum_size = (560, 400),
-                              title = "tooltip")
+    TooltipWindowProjection(; inner, id = :tooltip, theme = nothing, title = "tooltip")
 
 Show the content of a [`TooltipWindowState`](@ref) through `inner`, and keep the
 tooltip window: the one place that opens and closes it, because a window belongs
@@ -36,12 +34,14 @@ another part.
 **Opening.** The meaning is not here: a part answers a dwell with an
 [`OpenTooltipOperation`](@ref) from its own gesture table, and each part around it
 adds its layer. This projection takes that operation out of the answer and opens
-the window with the nearest layer, `offset` from the point where the pointer
-rested, in screen coordinates. A command that runs the binding answers with no
-point, and the window opens below the part, with the left edges aligned
-(`find_part_place`), so it does not cover the part.
-The window is printed at `maximum_size` and ends with the extent of what it
-holds, never smaller than `minimum_size`.
+the window with the nearest layer, at the `offset` of the [`TooltipTheme`](@ref)
+from the point where the pointer rested, in screen coordinates. A command that
+runs the binding answers with no point, and the window opens below the part, with
+the left edges aligned and the `part_gap` between them (`find_part_place`), so it
+does not cover the part. The window is printed at the `maximum_size` of the theme
+and ends with the extent of what it holds, never smaller than its `minimum_size`.
+`theme` is a scaled `TooltipTheme`, or `nothing` for the default theme; the
+projection reads it each time it opens a window.
 
 **Closing.** While a tooltip is open, a move of the pointer off the part closes it
 (the point is mapped backward, and the path no longer passes through the part),
@@ -58,18 +58,20 @@ to the part at its point.
 struct TooltipWindowProjection <: Projection
     inner::Projection
     id::Symbol
-    offset::Tuple{Int,Int}
-    minimum_size::Tuple{Int,Int}
-    maximum_size::Tuple{Int,Int}
+    theme::Union{ScaledTooltipTheme,Nothing}
     title::String
 end
 
-TooltipWindowProjection(; inner::Projection, id::Symbol = :tooltip, offset = (16, 20),
-                          minimum_size = (120, 32), maximum_size = (560, 400),
+TooltipWindowProjection(; inner::Projection, id::Symbol = :tooltip, theme = nothing,
                           title::AbstractString = "tooltip") =
-    TooltipWindowProjection(inner, id, (Int(offset[1]), Int(offset[2])),
-                            (Int(minimum_size[1]), Int(minimum_size[2])),
-                            (Int(maximum_size[1]), Int(maximum_size[2])), String(title))
+    TooltipWindowProjection(inner, id, scale_theme(theme), String(title))
+
+# The values of the theme of `p`, or of the default theme.
+_get_tooltip_values(p::TooltipWindowProjection) =
+    p.theme === nothing ? get_theme_defaults(TooltipTheme) : p.theme
+
+# The two numbers of a point of a theme.
+_get_pair(point::Point2D) = (Int(point.x[]), Int(point.y[]))
 
 # `output` forwards the output of the content reactively, so the IoMap keeps its
 # identity while the content re-derives, and a swap of the content rebuilds the
@@ -177,18 +179,21 @@ _take_tooltip(answer) = (nothing, answer)
 
 # Open the window of `tooltip`, and keep what it shows. It stands `offset` from
 # the point where the pointer rested; with no point, below the part with the left
-# edges aligned and `_PART_GAP` between them; with neither, at the corner.
+# edges aligned and `part_gap` between them; with neither, at the corner.
 function _open_tooltip(p::TooltipWindowProjection, iomap::TooltipWindowIoMap, tooltip::OpenTooltipOperation)
     state = iomap.input
+    values = _get_tooltip_values(p)
+    offset = _get_pair(values.offset)
+    minimum_size, maximum_size = _get_pair(values.minimum_size), _get_pair(values.maximum_size)
     x, y = if tooltip.point !== nothing
-        (tooltip.point[1] + p.offset[1], tooltip.point[2] + p.offset[2])
+        (tooltip.point[1] + offset[1], tooltip.point[2] + offset[2])
     else
         below = find_part_place(p, iomap, tooltip.source)
-        below === nothing ? p.offset : (below[1], below[2] + _PART_GAP)
+        below === nothing ? offset : (below[1], below[2] + Int(values.part_gap))
     end
     window = OpenWindowOperation(; id = p.id, title = p.title, x = x, y = y,
-                                   width = p.maximum_size[1], height = p.maximum_size[2],
-                                   minimum_size = p.minimum_size, maximum_size = p.maximum_size,
+                                   width = maximum_size[1], height = maximum_size[2],
+                                   minimum_size, maximum_size,
                                    style = :tooltip,
                                    content = _make_tooltip_content(tooltip.layers, 1))
     CompoundOperation(Any[_write_state(state, "layers", tooltip.layers),
@@ -197,9 +202,6 @@ function _open_tooltip(p::TooltipWindowProjection, iomap::TooltipWindowIoMap, to
                           _write_state(state, "window", window),
                           window])
 end
-
-# The pixels between a part and a window that stands below it.
-const _PART_GAP = 4
 
 function _close_tooltip(p::TooltipWindowProjection, state::TooltipWindowState)
     CompoundOperation(Any[_write_state(state, "layers", Tuple{String,Document}[]),
@@ -280,24 +282,27 @@ make_tooltip_window_projection(projection; keywords...) =
     TooltipWindowProjection(; inner = projection, keywords...)
 
 """
-    wrap_tooltip_window(document, projection) -> (document, projection)
+    wrap_tooltip_window(document, projection; theme = nothing) -> (document, projection)
 
 Both halves at once, the shape that `make_tracking_screen` takes in its list of
-`inner_wrappers`.
+`inner_wrappers`. `theme` is the scaled `TooltipTheme` of the window.
 """
-wrap_tooltip_window(document, projection) =
-    (make_tooltip_window_document(document), make_tooltip_window_projection(projection))
+wrap_tooltip_window(document, projection; theme = nothing) =
+    (make_tooltip_window_document(document), make_tooltip_window_projection(projection; theme))
 
 """
     tooltip = true
 
 The wrapper of `build_editor` that keeps the tooltip window of the screen. It
 gives [`wrap_tooltip_window`](@ref) to the wrapper of the window, which puts it
-around the screen, inside the trackers. It is on by default, and
-`tooltip = false` leaves an editor with no tooltip window.
+around the screen, inside the trackers, with the `TooltipTheme` of the appearance
+of the editor. It is on by default, and `tooltip = false` leaves an editor with
+no tooltip window.
 """
 function wrap_editor!(::Val{:tooltip}, layer::Symbol, argument, parts::EditorParts)
-    push!(parts.window_wrappers, wrap_tooltip_window)
+    appearance = get(parts.arguments, :appearance, nothing)
+    theme = appearance === nothing ? nothing : get_scaled_theme!(appearance, TooltipTheme)
+    push!(parts.window_wrappers, (document, projection) -> wrap_tooltip_window(document, projection; theme))
     parts
 end
 

@@ -33,8 +33,8 @@ const PLATFORM_SLICE_EDGES = Dict{String, Vector{String}}(
     "component" => [],
     "serialization" => [],
     "style" => ["serialization", "settings"],
-    "appearance" => ["layout", "natural", "primitive", "projection", "screen", "style", "syntax",
-                     "text", "widget"],
+    "appearance" => ["graphics", "layout", "natural", "primitive", "projection", "screen", "style",
+                     "syntax", "text", "tooltip", "widget"],
     "settingsmanaging" => ["collection", "layout", "natural", "primitive", "projection",
                            "screen", "settings", "style", "widget"],
     "domain" => [],
@@ -52,7 +52,7 @@ const PLATFORM_SLICE_EDGES = Dict{String, Vector{String}}(
     "text" => ["collection", "domain", "graphics", "primitive", "projection", "style"],
     "clipboard" => ["collection", "domain", "focus", "primitive", "projection",
                     "serialization", "text"],
-    "tooltip" => ["graphics", "screen"],
+    "tooltip" => ["graphics", "screen", "style"],
     "widget" => ["collection", "domain", "focus", "graphics", "layout", "primitive",
                  "projection", "screen", "serialization", "style", "text", "tooltip"],
     "natural" => ["collection", "domain", "graphics", "layout", "primitive", "projection",
@@ -161,6 +161,7 @@ function test_platform()
         test_line_spacing()
         test_theme()
         test_font_fallback()
+        test_font_face()
         test_graphics_layout()
         test_layout_allocator()
         test_layout_constraint_helpers()
@@ -278,6 +279,8 @@ function test_platform()
         test_routed_gesture()
         test_layout_point()
         test_widget_point()
+        test_column_chooser()
+        test_baseline_alignment()
         test_widget_forward()
         test_widget_round_trip()
         test_scroll_pane_hover()
@@ -323,7 +326,7 @@ export test_versioning_to_any
 export test_text_file, test_marker_language
 export _text_leaf_length, _walk_document, collect_position_selections, collect_tree_selections
 export test_point_reference
-export test_syntax, test_text, test_graphics, test_pointer_shape, test_affine_transform, test_font_metrics, test_text_measure, test_line_spacing, test_theme, test_font_fallback,
+export test_syntax, test_text, test_graphics, test_pointer_shape, test_affine_transform, test_font_metrics, test_text_measure, test_line_spacing, test_theme, test_font_fallback, test_font_face,
        test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers,
        test_primitive, test_primitive_type_in, test_pane_surgery, test_pane_geometry, test_pane_to_widget,
        test_pane_reader, test_pane_gestures, test_pane_drag,
@@ -347,7 +350,9 @@ export test_object_to_widget, test_projection_configuring,
        test_layout_closeout, test_grid_span, test_widget_forms, test_anchor_point, test_anchored_layout
 export test_clipboard, test_tooltip, test_window_fit, test_window_wrapper, test_document_composition,
        test_tabs_wrapper, test_split_pane_drag, test_part_pointer_shape, test_routed_gesture,
-       test_layout_point, test_widget_point, test_widget_forward, test_widget_round_trip,
+       test_layout_point, test_widget_point, test_column_chooser, test_baseline_alignment,
+       test_widget_forward,
+       test_widget_round_trip,
        test_scroll_pane_hover,
        test_widget_popup_example, test_collapse_roundtrip
 export POSITION_NAVIGATION_KEYS, POSITION_SEED_GESTURE, TREE_NAVIGATION_KEYS, TREE_SEED_GESTURE,

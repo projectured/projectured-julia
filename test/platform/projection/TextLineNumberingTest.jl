@@ -1,6 +1,6 @@
 function test_text_line_numbering()
 
-_font = font_ubuntu_monospace_regular_20
+_font = StyleFont("Ubuntu Mono", 20)
 _span(text) = TextString(text, _font, color_default)
 _caret(k) = make_flat_caret_reference(k)
 

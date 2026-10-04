@@ -34,6 +34,7 @@ using ..EventModule
 using ..GestureBindingModule
 using ..GestureModule
 using ..GraphicsModule
+import ..GraphicsModule: find_first_baseline
 using ..IoMapModule
 using ..OperationModule
 using ..PrimitiveModule
@@ -70,7 +71,7 @@ export TextHighlighting, TextHighlightingIoMap, HighlightSegment
 export SelectionInverting, SelectionInvertingIoMap, SelectionSegment
 export PrimitiveBoolToText, PrimitiveNumberToText, PrimitiveStringToTextBlock, PrimitiveInsertionToText, PrimitiveToText
 export ReferenceToText, ReferenceToHumanReadableText
-export TextBlock, TextLine, TextString, TextNewline, TextGraphics, TextDocument
+export TextBlock, TextLine, TextString, TextNewline, TextGraphics, TextDocument, UNSTYLED_TEXT_FONT
 export FaultToText
 
 

@@ -713,11 +713,11 @@ function test_application()
                 @test popup.content isa WidgetMenu
                 @test popup.style === :popup
                 # The item has 6 pixels of room left of its name and 4 above it, and
-                # the menu opens 4 pixels below the item, at its left edge.
+                # the menu opens 2 pixels below the item, at its left edge.
                 item_height = print_document(make_window_shell_projection(IdentityProjection()),
                                              make_window_file_menu()).control_height
                 @test popup.x == window.x + x - 6
-                @test popup.y == window.y + y - 4 + item_height + 4
+                @test popup.y == window.y + y - 4 + item_height + 2
             end
 
             @testset "a press that no layer claims gives no operation" begin

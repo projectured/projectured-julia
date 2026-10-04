@@ -36,16 +36,14 @@ end
 
 # Hovering one series fades the others, so the one under the pointer reads
 # clearly without anything being hidden.
-const _VEIL = 0.25
-
-_veiled(color::StyleColor, on::Bool) =
-    on ? StyleColor(color.red, color.green, color.blue, color.alpha * _VEIL) : color
+_veiled(color::StyleColor, on::Bool, veil::Real) =
+    on ? StyleColor(color.red, color.green, color.blue, color.alpha * veil) : color
 
 # The colour a series draws in: its own or the cycle's, faded when the pointer is
 # on some *other* series.
 function _draw_color(g, index::Int, own)
     color = get_series_color(own, index, g.style.color_cycle)
-    _veiled(color, g.lit_index != 0 && g.lit_index != index)
+    _veiled(color, g.lit_index != 0 && g.lit_index != index, g.theme.veil_alpha)
 end
 
 """
@@ -350,7 +348,7 @@ function _legend_plan(p::ChartPlotToGraphicsCanvas, chart::Chart, series,
     area_w = horizontal ? w - 2 * t.padding : w ÷ 3
     area_h = horizontal ? h ÷ 3 : h - 2 * t.padding
     box = compute_legend_layout(sizes; horizontal, area_w, area_h, swatch=t.swatch,
-                                gap=t.legend_gap)
+                                gap=t.legend_gap, line_gap=t.legend_line_gap, pad=t.legend_padding)
     (; position = legend.position, anchor = legend.anchor, border = legend.border,
        font, items, sizes, box, box_w = box.box_w, box_h = box.box_h,
        gap = t.legend_gap, x = 0, y = 0)
@@ -383,17 +381,17 @@ function _place_legend(plan, plot_x, plot_y, plot_w, plot_h, w, h, top, bottom, 
 end
 
 """
-    get_legend_item_rects(legend) -> Vector{Tuple{Int,Int,Int,Int,Int}}
+    get_legend_item_rects(legend, pad=6) -> Vector{Tuple{Int,Int,Int,Int,Int}}
 
 Each drawn legend item as `(series_index, x, y, w, h)` in canvas coordinates —
 what the printer draws into and what the reader hit-tests against, so the two
-can never disagree about where an item is.
+can never disagree about where an item is. `pad` is the legend's own padding,
+the theme's `legend_padding`.
 """
-function get_legend_item_rects(plan)
+function get_legend_item_rects(plan, pad::Integer = get_theme_defaults(ChartTheme).legend_padding)
     out = Tuple{Int,Int,Int,Int,Int}[]
     plan === nothing && return out
     box = plan.box
-    pad = 6
     for k in 1:min(box.shown, length(plan.items))
         col = (k - 1) ÷ box.rows
         row = (k - 1) % box.rows
@@ -415,11 +413,11 @@ function _legend_elements!(out, g)
     # Opaque, because a bordered rect paints the border colour underneath its
     # fill: a translucent legend background would take on the border's colour.
     push!(out, GraphicsRect(plan.x, plan.y, plan.box_w, plan.box_h;
-                            color = t.plot_background, radius = 3,
-                            border_width = plan.border ? 1 : 0,
+                            color = t.plot_background, radius = t.radius,
+                            border_width = plan.border ? t.border_width : 0,
                             border_color = plan.border ? t.axis : nothing))
 
-    rects = get_legend_item_rects(plan)
+    rects = get_legend_item_rects(plan, t.legend_padding)
     for (k, (index, x, y, item_w, row_h)) in enumerate(rects)
         _, label, color = plan.items[k]
         cy = y + row_h ÷ 2
@@ -427,13 +425,14 @@ function _legend_elements!(out, g)
         # the one place every series has a fixed, findable spot. An entry that
         # names no series has nothing to call out.
         if index != 0
+            inset = t.highlight_inset
             if index == g.selected_index
-                push!(out, GraphicsRect(x - 3, y, item_w + 6, row_h; color = t.selected_fill, radius = 3))
+                push!(out, GraphicsRect(x - inset, y, item_w + 2inset, row_h; color = t.selected_fill, radius = t.radius))
             elseif index == g.lit_index
-                push!(out, GraphicsRect(x - 3, y, item_w + 6, row_h; color = t.hover_fill, radius = 3))
+                push!(out, GraphicsRect(x - inset, y, item_w + 2inset, row_h; color = t.hover_fill, radius = t.radius))
             end
         end
-        push!(out, GraphicsRect(x, cy - 4, t.swatch, 8; color, radius = 2))
+        push!(out, GraphicsRect(x, cy - 4, t.swatch, 8; color, radius = t.swatch_radius))
         # `plan.font` is `legend_font`, the font `g.measure_legend_label` is bound to.
         line = g.measure_legend_label(label)
         th = line.height
@@ -446,8 +445,8 @@ function _legend_elements!(out, g)
         hidden = length(plan.items) - box.shown
         col = box.shown ÷ box.rows
         row = box.shown % box.rows
-        x = plan.x + 6 + col * (box.col_w + t.legend_gap)
-        y = plan.y + 6 + row * box.row_h
+        x = plan.x + t.legend_padding + col * (box.col_w + t.legend_gap)
+        y = plan.y + t.legend_padding + row * box.row_h
         line = g.measure_legend_label("… and $hidden more")
         push!(out, GraphicsText("… and $hidden more", x, y + line.text_y;
                                 font = plan.font, color = text_color))
@@ -485,7 +484,7 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
         y_title_text_y = 0
     else
         y_title_line = compute_line_box(p.measure, y_title, axis_font)
-        y_title_h = y_title_line.height + 2
+        y_title_h = y_title_line.height + t.axis_title_gap
         y_title_text_y = y_title_line.text_y
     end
     x_title = _axis_shows_title(x_axis) ? _axis_title(x_axis) : ""
@@ -494,7 +493,7 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
         x_title_text_y = 0
     else
         x_title_line = compute_line_box(p.measure, x_title, axis_font)
-        x_title_h = x_title_line.height + 2
+        x_title_h = x_title_line.height + t.axis_title_gap
         x_title_text_y = x_title_line.text_y
     end
 
@@ -603,14 +602,14 @@ function _frame_elements!(out, g)
         for tick in g.yticks
             y = round(Int, to_pixel(g.ys, tick))
             (py <= y <= py + ph) || continue
-            push!(out, GraphicsLine(px, y, px + pw, y; color = grid_color, dash=(2, 3)))
+            push!(out, GraphicsLine(px, y, px + pw, y; color = grid_color, dash=t.grid_dash))
         end
     end
     if grid_x !== :none
         for tick in g.xticks
             x = round(Int, to_pixel(g.xs, tick))
             (px <= x <= px + pw) || continue
-            push!(out, GraphicsLine(x, py, x, py + ph; color = grid_color, dash=(2, 3)))
+            push!(out, GraphicsLine(x, py, x, py + ph; color = grid_color, dash=t.grid_dash))
         end
     end
 
@@ -661,23 +660,27 @@ function _selection_elements!(out, g)
     px, py, pw, ph = g.plot_x, g.plot_y, g.plot_w, g.plot_h
     t = g.theme
     if g.whole_selected
-        _outline!(out, 1, 1, g.w - 2, g.h - 2, t.selected_edge)
+        _outline!(out, 1, 1, g.w - 2, g.h - 2, t.selected_edge, t.selected_width)
         return out
     end
     part = g.selected_part
     if part == 1 && !isempty(g.title)
         line = g.measure_label(g.title)
         tw, th = line.width, line.height
-        push!(out, GraphicsRect(px - 3, t.padding - 2, tw + 6, g.title_h + 2; color = t.selected_fill, radius = 3))
+        inset, margin = t.highlight_inset, t.title_highlight_margin
+        push!(out, GraphicsRect(px - inset, t.padding - margin, tw + 2inset, g.title_h + 2margin;
+                                color = t.selected_fill, radius = t.radius))
     elseif part == 2
         push!(out, GraphicsRect(px, py + ph + t.tick_length, pw, g.h - (py + ph + t.tick_length) - t.padding ÷ 2;
-                                color = t.selected_fill, radius = 3))
+                                color = t.selected_fill, radius = t.radius))
     elseif part == 3
         push!(out, GraphicsRect(t.padding ÷ 2, py, px - t.tick_length - t.padding ÷ 2, ph;
-                                color = t.selected_fill, radius = 3))
+                                color = t.selected_fill, radius = t.radius))
     elseif part == 4 && g.legend !== nothing
         plan = g.legend
-        _outline!(out, plan.x - 3, plan.y - 3, plan.box_w + 6, plan.box_h + 6, t.selected_edge)
+        inset = t.highlight_inset
+        _outline!(out, plan.x - inset, plan.y - inset, plan.box_w + 2inset, plan.box_h + 2inset,
+                 t.selected_edge, t.selected_width)
     end
     out
 end
@@ -685,11 +688,11 @@ end
 # An outline drawn as its four edges. A rect with a border paints the border
 # colour across the whole shape and insets the fill on top, so it cannot express
 # "outline only" over content that has to stay visible.
-function _outline!(out, x::Integer, y::Integer, w::Integer, h::Integer, color::StyleColor)
-    push!(out, GraphicsLine(x, y, x + w, y; color, width=2))
-    push!(out, GraphicsLine(x, y + h, x + w, y + h; color, width=2))
-    push!(out, GraphicsLine(x, y, x, y + h; color, width=2))
-    push!(out, GraphicsLine(x + w, y, x + w, y + h; color, width=2))
+function _outline!(out, x::Integer, y::Integer, w::Integer, h::Integer, color::StyleColor, width::Integer)
+    push!(out, GraphicsLine(x, y, x + w, y; color, width))
+    push!(out, GraphicsLine(x, y + h, x + w, y + h; color, width))
+    push!(out, GraphicsLine(x, y, x, y + h; color, width))
+    push!(out, GraphicsLine(x + w, y, x + w, y + h; color, width))
     out
 end
 
@@ -698,9 +701,9 @@ end
 # A line style as the primitive's (on, off) pixel pattern. `:dashdot` would need
 # a four-element pattern, which the primitive does not carry, so it is not among
 # the styles offered; anything unrecognised draws solid.
-_dash_pattern(style::Symbol) =
-    style === :dotted ? (1, 3) :
-    style === :dashed ? (6, 4) : nothing
+_dash_pattern(style::Symbol, t) =
+    style === :dotted ? t.dotted_line_dash :
+    style === :dashed ? t.dashed_line_dash : nothing
 
 # Marker shapes. The straight-edged ones are filled polygons; the rest are the
 # primitives whose shape they already are.
@@ -742,6 +745,7 @@ end
 
 function _line_elements!(out, g, index::Int, s::ChartLineSeries)
     style = g.style
+    t = g.theme
     color = _draw_color(g, index, s.color)
     pts = _series_points(g, index, s)
     isempty(pts) && return out
@@ -750,13 +754,13 @@ function _line_elements!(out, g, index::Int, s::ChartLineSeries)
         baseline = round(Int, to_pixel(g.ys, 0.0)) - g.plot_y
         for (x, ytop, ybot) in build_pins_segments(pts, baseline)
             push!(out, GraphicsLine(x, ytop, x, ybot; color, width=max(s.line_width, 1),
-                                    dash=_dash_pattern(s.line_style)))
+                                    dash=_dash_pattern(s.line_style, t)))
         end
     elseif s.draw_style !== :none
         shaped = s.draw_style === :linear ? pts : step_points(pts, s.draw_style)
         length(shaped) >= 2 &&
             push!(out, GraphicsPolyline(shaped; color, width=max(s.line_width, 1),
-                                        dash=_dash_pattern(s.line_style)))
+                                        dash=_dash_pattern(s.line_style, t)))
     end
 
     shape = get_series_symbol(s.symbol, index, style.symbol_cycle)
@@ -900,6 +904,7 @@ end
 
 function _histogram_elements!(out, g, index::Int, s::ChartHistogramSeries)
     style = g.style
+    t = g.theme
     color = _draw_color(g, index, s.color)
     edges = s.binedges
     values = _histogram_shown_values(s)
@@ -923,7 +928,7 @@ function _histogram_elements!(out, g, index::Int, s::ChartHistogramSeries)
         if !isempty(pts)
             pushfirst!(pts, (first(bars)[1], baseline))
             push!(pts, (last(bars)[2], baseline))
-            push!(out, GraphicsPolyline(pts; color, width=2))
+            push!(out, GraphicsPolyline(pts; color, width=t.histogram_outline_width))
         end
     else
         for (l, r, lo, hi) in bars
@@ -932,14 +937,14 @@ function _histogram_elements!(out, g, index::Int, s::ChartHistogramSeries)
             y0, y1 = min(ytop, ybot, baseline), max(ytop, ybot, baseline)
             push!(out, GraphicsRect(l, round(Int, y0), max(r - l, 1),
                                     max(round(Int, y1 - y0), 1); color,
-                                    border_width=1, border_color=g.theme.axis))
+                                    border_width=t.border_width, border_color=t.axis))
         end
     end
 
     # Under/overflow cells span from the axis edge to the outermost bin, drawn
     # translucent so they read as "everything beyond here" rather than as data.
     if s.show_overflow
-        faint = StyleColor(color.red, color.green, color.blue, color.alpha * 0.5)
+        faint = StyleColor(color.red, color.green, color.blue, color.alpha * t.overflow_alpha)
         if s.underflows > 0
             l = round(Int, to_pixel(g.xs, g.view.x_min)) - ox
             r = first(lefts)
@@ -1028,9 +1033,9 @@ function _compute_strip_spans(xs::AxisScale, view, s::ChartStripSeries)
 end
 
 # Enough contrast to read a state name against whatever colour that state took.
-_strip_label_color(color::StyleColor, text_color::StyleColor) =
+_strip_label_color(color::StyleColor, text_color::StyleColor, light::StyleColor) =
     (0.299 * color.red + 0.587 * color.green + 0.114 * color.blue) > 0.55 ?
-    text_color : StyleColor(1.0, 1.0, 1.0, 1.0)
+    text_color : light
 
 function _strip_elements!(out, g, index::Int, s::ChartStripSeries)
     band = _strip_band(g, index)
@@ -1041,12 +1046,13 @@ function _strip_elements!(out, g, index::Int, s::ChartStripSeries)
     spans = _strip_spans(g, index)
     cycle = g.style.color_cycle
     veiled = g.lit_index != 0 && g.lit_index != index
+    t = g.theme
 
     for (l, r, code) in spans
-        color = _veiled(strip_state_color(s, code, cycle), veiled)
+        color = _veiled(strip_state_color(s, code, cycle), veiled, t.veil_alpha)
         push!(out, s.draw_edges ?
             GraphicsRect(l - ox, top - oy, max(r - l, 1), height; color,
-                         border_width=1, border_color=g.theme.strip_edge) :
+                         border_width=t.border_width, border_color=t.strip_edge) :
             GraphicsRect(l - ox, top - oy, max(r - l, 1), height; color))
     end
 
@@ -1063,7 +1069,8 @@ function _strip_elements!(out, g, index::Int, s::ChartStripSeries)
             color = strip_state_color(s, code, cycle)
             push!(out, GraphicsText(name, l - ox + (r - l - tw) ÷ 2,
                                     top - oy + (height - th) ÷ 2 + line.text_y;
-                                    font = g.axis_font, color = _strip_label_color(color, g.theme.text_color)))
+                                    font = g.axis_font,
+                                    color = _strip_label_color(color, t.text_color, t.strip_contrast_text)))
         end
     end
     out
@@ -1116,7 +1123,7 @@ function _overlay_elements!(out, g, plot::ChartPlot)
                 sy = round(Int, to_pixel(g.ys, point[2])) - g.plot_y
                 color = get_series_color(series.color, sample[1], g.style.color_cycle)
                 push!(out, GraphicsCircle(sx, sy, 6; color = color_transparent,
-                                          border_width=2, border_color=t.selected_edge))
+                                          border_width=t.selected_width, border_color=t.selected_edge))
                 push!(out, GraphicsCircle(sx, sy, 3; color))
             end
         end
@@ -1126,8 +1133,8 @@ function _overlay_elements!(out, g, plot::ChartPlot)
     cursor === nothing && return out
     cx = round(Int, to_pixel(g.xs, cursor[1])) - g.plot_x
     cy = round(Int, to_pixel(g.ys, cursor[2])) - g.plot_y
-    push!(out, GraphicsLine(cx, 0, cx, g.plot_h; color = t.crosshair, dash=(3, 3)))
-    push!(out, GraphicsLine(0, cy, g.plot_w, cy; color = t.crosshair, dash=(3, 3)))
+    push!(out, GraphicsLine(cx, 0, cx, g.plot_h; color = t.crosshair, dash=t.crosshair_dash))
+    push!(out, GraphicsLine(0, cy, g.plot_w, cy; color = t.crosshair, dash=t.crosshair_dash))
 
     snapped = _snap_point(g, cx, cy)
     text_color = _or(g.style.title_color, t.text_color)
@@ -1143,7 +1150,7 @@ function _overlay_elements!(out, g, plot::ChartPlot)
 
     index, px, py = snapped
     color = get_series_color(g.chart.series[index].color, index, g.style.color_cycle)
-    push!(out, GraphicsCircle(px, py, 4; color, border_width=1, border_color=t.plot_background))
+    push!(out, GraphicsCircle(px, py, 4; color, border_width=t.border_width, border_color=t.plot_background))
     label = string(_series_label(g.chart.series[index]), "  ",
                    format_tick(to_data(g.xs, px + g.plot_x)), ", ",
                    format_tick(to_data(g.ys, py + g.plot_y)))
@@ -1153,7 +1160,8 @@ function _overlay_elements!(out, g, plot::ChartPlot)
     tw, th = line.width, line.height
     lx = px + tw + 12 > g.plot_w ? px - tw - 8 : px + 8
     push!(out, GraphicsRect(lx - 4, py - th - 8, tw + 8, th + 6;
-                            color = t.plot_background, radius = 3, border_width=1, border_color=t.axis))
+                            color = t.plot_background, radius = t.radius,
+                            border_width=t.border_width, border_color=t.axis))
     push!(out, GraphicsText(label, lx, py - th - 5 + line.text_y; font = g.axis_font, color = text_color))
     out
 end
@@ -1177,7 +1185,7 @@ function _selected_strip!(out, g, index::Int, s::ChartStripSeries, k::Integer)
         end
     end
     _outline!(out, left - g.plot_x, band[1] - g.plot_y,
-              max(right - left, 1), max(band[2] - band[1], 1), g.theme.selected_edge)
+              max(right - left, 1), max(band[2] - band[1], 1), g.theme.selected_edge, g.theme.selected_width)
 end
 
 # What the pointer is over inside a band: the strip and the state holding at
@@ -1281,8 +1289,8 @@ end
 function _empty_elements(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, ctx, t)
     w, h = _canvas_size(p, ctx)
     Any[GraphicsRect(0, 0, w, h; color = t.background),
-        GraphicsRect(t.padding, t.padding, w - 2 * t.padding, h - 2 * t.padding; color = t.plot_background, radius = 4,
-                     border_width=1, border_color=t.axis),
+        GraphicsRect(t.padding, t.padding, w - 2 * t.padding, h - 2 * t.padding; color = t.plot_background,
+                     radius = t.placeholder_radius, border_width=t.border_width, border_color=t.axis),
         GraphicsText("empty chart", t.padding * 2, h ÷ 2; font = t.axis_font, color = t.text_color)]
 end
 
@@ -1330,7 +1338,7 @@ function _legend_hit(g, x::Integer, y::Integer)
     plan = g.legend
     plan === nothing && return nothing
     _in_rect(x, y, plan.x, plan.y, plan.box_w, plan.box_h) || return nothing
-    for (index, ix, iy, iw, ih) in get_legend_item_rects(plan)
+    for (index, ix, iy, iw, ih) in get_legend_item_rects(plan, g.theme.legend_padding)
         _in_rect(x, y, ix, iy, iw, ih) && return index
     end
     0    # inside the box but between items: consumed, but names no series

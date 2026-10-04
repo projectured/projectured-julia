@@ -558,6 +558,57 @@ fail reports zero whether or not anything is wrong:
 `test_verdict_stability(names)` additionally requires that the same leaves
 measured forward, forward again and backward give identical counts.
 
+## The static guards
+
+`test/suite/*.jl` holds the guards of the rules that a program can check. Each
+reads the repository as text, loads no package, and runs in about a second:
+
+| Function | What it guards |
+|---|---|
+| `test_tree()` | every top-level folder holds one kind of thing, the rule of [repository-tree.md](../../plan/done/repository-tree.md) §3. |
+| `test_naming()` | the mechanical rules of [naming-rules.md](../rule/naming-rules.md): a module name against its file and its slice, an alias no file declares, a banned abbreviation, a test package's entry point, and a definition two files of one module state twice. |
+| `test_arguments()` | the rule of three positional arguments of [code-quality-rules.md](../rule/code-quality-rules.md) §4, unless a `# @positional:` marker says why a definition stands over the line. |
+| `test_exports()` | the rule of the export block of [code-quality-rules.md](../rule/code-quality-rules.md) §1: one `export` statement per fragment, in the order of the includes. |
+| `test_documentation()` | the part of [writing-rules.md](../rule/writing-rules.md) that a program can check: a dead link, an unknown `resource://guide/…`, a document with no header or no summary, and a forbidden phrase. |
+| `test_style()` | every font, color and length comes from a theme; see below. |
+| `test_kernel_layering()`, `test_platform_layering()`, … | the layering guard of each package; see [Per-package tests](#per-package-tests) below. |
+
+Each is callable alone from the REPL, and `test_all()` runs them first, before
+any per-package suite.
+
+### The style guard
+
+`test_style()` is the style guard: a font, a color or a size that a line of
+`source/` writes as a literal value, outside a theme, fails. It reads the code
+as text and loads nothing, so it also runs standalone, with no environment:
+
+```bash
+julia test/suite/style.jl
+```
+
+It fails on a line of `source/` that holds:
+
+- a font description, `StyleFont("…`;
+- a color of numbers, `StyleColor(0.…`, or a color of the palette by its name
+  (a constant that [Color.jl](../../source/platform/style/Color.jl) declares,
+  other than `color_transparent` and `color_default`);
+- a length with a number other than 0: `Inset(`, `Spacing(`, `Radius(`,
+  `LineWidth(`, `ControlSize(` or `IconSize(`.
+
+It skips a `@theme` declaration, a preset of a theme (a function whose name
+ends in `_theme`), the palette and the registry of font faces
+(`source/platform/style/FontFace.jl`), a docstring, a comment, and an `export`,
+`import` or `using` statement.
+
+A line that holds such a value on purpose carries the marker
+`# @style: <reason>`, on that line or on the line above it: the content of a document
+that its author set, a mark that is not the look of the editor, or a value
+that waits for a decision of the owner. A marker on a line of its own covers
+every line below it, up to the next blank line, so a table of several values
+needs one marker and not one for each line. `STYLE_EXEMPT_FILES` in
+`test/suite/style.jl` lists a whole file that is exempt by name, with its
+reason — for example, a file whose colors wait on an open question.
+
 ## CI
 
 [CI.yml](../../.github/workflows/CI.yml) runs on each push to `main` and on each
@@ -568,7 +619,7 @@ pull request, except a push that changes only `plan/`:
 - One job runs the suite of each test package in its own environment, for
   example `test_json()` in `package/ProjecturedJSONTest`. A suite that uses a
   package that its `Project.toml` does not name fails there, and passes in
-  `environment/all`, where AutoIntegrations finds every trigger as a direct
+  `environment/all`, where AutoIntegration finds every trigger as a direct
   dependency. Two jobs run the umbrella's suite: `test_integration()` and
   `test_repository()`.
 - Each job collects the coverage of the files of this repository and sends it

@@ -60,7 +60,7 @@ depend on, and why the leaf the alias loads is the only place a
 
 ProjecturEd is organized as **one kernel, one platform package of
 thirty-nine slices, seventeen domain packages, five backends and eight
-adapters**, plus the umbrella `Projectured`, `AutoIntegrations`,
+adapters**, plus the umbrella `Projectured`, `AutoIntegration`,
 `ProjecturedIntegrations`, the released package `ProjecturedAll` and the
 tools. The kernel
 is the one *layered* package: its twenty-three layers depend only downward,
@@ -117,17 +117,17 @@ The seventeen domain packages  one package per concrete source domain
         │                      and the domains it embeds. See
         │                      [domain-inventory.md](domain-inventory.md).
 Projectured (projectured/)     umbrella: depends on the platform and on
-                               AutoIntegrations, and re-exports the twelve
+                               AutoIntegration, and re-exports the twelve
                                names of the platform's essentials slice
                                (`ProjecturedPlatform.EssentialsModule`).
-AutoIntegrations               loads an installed package when the packages it
+AutoIntegration               loads an installed package when the packages it
                                names as triggers are loaded and its state is
                                "auto" — a domain, Console, Pdf, a model adapter
                                or an integration (SDL, Video, DataFrames, ODBC,
                                Tulip, MCP). Depends on the TOML standard
                                library alone, names no ProjecturEd package,
                                and lives in its own repository,
-                               projectured/AutoIntegrations.jl, beside this one.
+                               projectured/AutoIntegration.jl, beside this one.
 ProjecturedIntegrations        depends on Projectured and the six packages that
                                own a third-party dependency, and loads each one
                                with a package extension when the package it
@@ -379,7 +379,7 @@ ProjecturedKernel ◄── ProjecturedPlatform ◄── the 17 domains ◄─�
        │                  │   Projectured      Odbc, Adaptagrams
        │                  │        ▲
        │                  │        │
-   Mcp, Anthropic,  Console, Pdf, AutoIntegrations
+   Mcp, Anthropic,  Console, Pdf, AutoIntegration
    Ollama,          Sdl, Web,
    OpenRouter       Video, Tulip,
                      DataFrames
@@ -389,11 +389,11 @@ ProjecturedIntegrations ◄── Projectured, and the six packages above that o
                              Odbc, Tulip, Mcp)
 ```
 
-The umbrella depends on the platform and on `AutoIntegrations`, and re-exports
+The umbrella depends on the platform and on `AutoIntegration`, and re-exports
 only the twelve names of the platform's essentials slice
-(`ProjecturedPlatform.EssentialsModule`). AutoIntegrations loads an installed
+(`ProjecturedPlatform.EssentialsModule`). AutoIntegration loads an installed
 package whose triggers are all loaded and whose state is `auto`; see
-[autointegrations.md](../package/autointegrations/autointegrations.md). Every
+[autointegration.md](../package/autointegration/autointegration.md). Every
 other package is one that a user adds by name. `ProjecturedIntegrations`
 depends on `Projectured` and the six packages that own a third-party
 dependency, and loads each one with a package extension when the package it

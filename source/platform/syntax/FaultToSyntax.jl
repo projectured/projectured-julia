@@ -21,8 +21,7 @@ Give it to a syntax-domain barrier as its substitute:
 See also `FaultCatchingProjection`, which says why a substitute is not optional.
 """
 @projection struct FaultToSyntax
-    style::ImmutableCell{StyleText} =
-        StyleText(font_dejavu_monospace_bold_16, color_solarized_red)
+    style::ImmutableCell{StyleText} = get_theme_defaults(SyntaxTheme).fault_text
 end
 
 function print_document(p::FaultToSyntax, recursion, report::FaultReport,

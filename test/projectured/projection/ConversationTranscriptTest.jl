@@ -90,7 +90,7 @@ const _TRANSCRIPT_ALT = ModifierKeys(alt = true)
 # each.
 function _scan_whole_selections(proj, io)
     found = Dict{String,Any}()
-    for y in 2:2:900, x in (20, 40, 70, 100, 130)
+    for y in 2:2:900, x in 10:10:150
         op = try
             read_intent(proj, io, MouseClick(:left, x, y, _TRANSCRIPT_ALT; time = 0.0))
         catch
@@ -113,8 +113,8 @@ function _transcript_rings(node, x = 0, y = 0, out = Tuple{Int,Int,Int,Int}[])
     elseif node isa GraphicsViewport
         _transcript_rings(node.content, x + Int(node.x), y + Int(node.y), out)
     elseif node isa GraphicsRect && Int(node.border_width) > 0 &&
-           node.border_color.blue == SELECTION_RING_COLOR.blue &&
-           node.border_color.red == SELECTION_RING_COLOR.red
+           node.border_color.blue == get_theme_defaults(GraphicsTheme).selection_ring.blue &&
+           node.border_color.red == get_theme_defaults(GraphicsTheme).selection_ring.red
         push!(out, (x + Int(node.x), y + Int(node.y), Int(node.w), Int(node.h)))
     end
     out

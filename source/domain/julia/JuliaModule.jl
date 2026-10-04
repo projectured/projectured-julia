@@ -92,7 +92,9 @@ function __init__()
                 theme = get_scaled_theme!(appearance, JuliaTheme),
                 syntax_theme = get_scaled_theme!(appearance, SyntaxTheme))),
             RecursiveProjection(SyntaxToText(; theme = get_scaled_theme!(appearance, SyntaxTheme))),
-            TextToGraphics(; measure, theme = get_scaled_theme!(appearance, TextTheme)))])
+            TextToGraphics(; measure, theme = get_scaled_theme!(appearance, TextTheme),
+                           line_spacing = make_style_field(TextTheme, get_scaled_theme!(appearance, TextTheme),
+                                                           LineSpacing; name = :code_line_spacing)))])
 end
 
 end # module

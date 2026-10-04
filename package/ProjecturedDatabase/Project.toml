@@ -11,7 +11,7 @@ ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 [sources]
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 
-# AutoIntegrations loads this package when Projectured is loaded, unless the
+# AutoIntegration loads this package when Projectured is loaded, unless the
 # environment of the user sets it to "manual".
 [auto-integration]
 default = "auto"

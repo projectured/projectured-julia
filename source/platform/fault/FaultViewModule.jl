@@ -71,6 +71,7 @@ import ..FaultModule: append_fault!
 import ..SettingsModule: apply_settings!, read_settings!, is_settings_group_applied
 import ..SerializationModule: pred_arguments
 import ..EditorModule: wrap_editor!, get_wrapper_layers
+import ..StyleModule: get_theme_presets
 import ..ProjectionModule: print_document, read_intent,
                            map_reference_forward, map_reference_backward
 
@@ -78,7 +79,7 @@ export FaultLog, FaultLogEntry, get_session_fault_log, clear_fault_log!,
        FaultTheme, ScaledFaultTheme,
        FaultLogToSyntax, FaultLogOverlayProjection, FaultLogOverlayIoMap,
        make_fault_log_content_projection, make_fault_tolerant_projection,
-       FAULT_LOG_BACKGROUND,
+       make_fault_log_panel_theme,
        FaultSafeModeProjection, FaultSafeModeIoMap,
        FaultSettings
 

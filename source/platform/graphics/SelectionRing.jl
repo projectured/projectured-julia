@@ -2,28 +2,23 @@
 # whole.
 
 """
-    SELECTION_RING_COLOR
-
-The color of the ring around an object that is selected as a whole.
-"""
-const SELECTION_RING_COLOR = StyleColor(0x25 / 255, 0x63 / 255, 0xeb / 255, 1.0)
-
-"""
-    make_selection_ring(bounds; color = SELECTION_RING_COLOR, width = 2) -> GraphicsRect
+    make_selection_ring(bounds, style = get_theme_defaults(GraphicsTheme)) -> GraphicsRect
 
 The outline that marks an object selected as a whole. `bounds()` answers the
 box `(x, y, w, h)` of the selected object in the frame the ring is drawn in, or
 `nothing` when no object there is selected; the ring then has no size and draws
-nothing. A projection with a theme passes the color and the width of its ring.
+nothing. `style` holds the values of a [`GraphicsTheme`](@ref), and the ring
+takes its color, its width and the radius of its corners from them. A projection
+passes the values of the scaled theme of its appearance.
 
 A container keeps the ring in its element list at all times, and only the
 ring's geometry follows the selection. So the list keeps its shape, and a
 selection move repaints the ring and nothing else.
 """
-function make_selection_ring(bounds::Function; color::StyleColor = SELECTION_RING_COLOR,
-                             width::Integer = 2)
-    ring = GraphicsRect(0, 0, 0, 0; color = color_transparent, radius = 3,
-                        border_width = width, border_color = color)
+function make_selection_ring(bounds::Function, style::NamedTuple = get_theme_defaults(GraphicsTheme))
+    width = Int(style.selection_ring_width)
+    ring = GraphicsRect(0, 0, 0, 0; color = color_transparent, radius = Int(style.selection_ring_radius),
+                        border_width = width, border_color = style.selection_ring)
     box = Cell(@computation something(bounds(), (0, 0, 0, 0)))
     set_cell_computation!(getfield(ring, :border_width), () -> Int32(box[][3] > 0 ? width : 0))
     set_cell_computation!(getfield(ring, :x), () -> Int32(box[][1]))

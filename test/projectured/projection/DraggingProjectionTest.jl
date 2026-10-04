@@ -136,7 +136,8 @@ function test_dragging()
 
     # End-to-end through the real json → syntax → text → graphics pipeline: a move
     # names the element under the pointer, as the window of an editor does. The
-    # array renders one element per line at y = 24/48/72, x ≈ 24.
+    # array renders one element per line, 14 high; the middle of each line is at
+    # y = 21/35/49, and x ≈ 21 is the middle of the two digits.
     @testset "real pipeline: drag an array element to reorder" begin
         content = JsonArray(JsonNumber(10), JsonNumber(20), JsonNumber(30))
         c1 = get_cell_at(content.elements, 1)
@@ -146,13 +147,13 @@ function test_dragging()
         iomap = DraggingIoMap(proj, state, inner.output, inner)
         point!(x, y) = _drag_apply!(content, read_child_move(inner, MouseMove(x, y; time = 0.0)))
 
-        point!(24, 24)                                                   # over element 1
-        _drag_apply!(state, _feed(proj, iomap, MouseDown(:left, 24, 24, ModifierKeys(); time = 0.0)))
-        start = _feed(proj, iomap, _drag_held(24, 48))                  # cross the threshold
+        point!(21, 21)                                                   # over element 1
+        _drag_apply!(state, _feed(proj, iomap, MouseDown(:left, 21, 21, ModifierKeys(); time = 0.0)))
+        start = _feed(proj, iomap, _drag_held(21, 35))                  # cross the threshold
         @test _drag_holds(start, StartDragOperation)
         _drag_apply!(state, start)
-        point!(24, 72)                                                   # over element 3
-        op = _feed(proj, iomap, DragEnd(24, 72; time = 0.0))
+        point!(21, 49)                                                   # over element 3
+        op = _feed(proj, iomap, DragEnd(21, 49; time = 0.0))
         move = _drag_move_of(op)
         @test move isa MoveRangeOperation
         @test move.source_start == 1 && move.destination_index == 3

@@ -75,7 +75,7 @@ para(text) = BookParagraph(TextBlock(TextString(text)))
         # An edit of the leaf goes back into the text by `splice_value!` at the
         # same offset, so the leaf holds one character for each flat position:
         # here the break of the `TextNewline` between the two runs.
-        content = TextBlock(TextString("ab"), TextNewline(font = font_ubuntu_monospace_regular_20),
+        content = TextBlock(TextString("ab"), TextNewline(font = StyleFont("Ubuntu Mono", 20)),
                             TextString("cd"))
         @test occursin("ab\ncd", render(BookParagraph(content)))
     end

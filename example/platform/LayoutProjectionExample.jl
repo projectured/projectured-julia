@@ -7,7 +7,7 @@ nodes to their `…ToGraphicsCanvas` projections and any other document
 (widgets in this example) to `WidgetToGraphics`.
 """
 function make_layout_projection_example(; measure=FontFileMeasure())
-    font = font_ubuntu_regular_20
+    font = StyleFont("Ubuntu", 20)
     # Dark foreground — this example renders directly onto the backend's
     # default (light) background, without a `WidgetShell` to provide a
     # dark fill behind it.
@@ -37,7 +37,7 @@ from the opt-in `ProjecturedTulip` package for real constraint solving; the
 """
 function make_constraint_layout_projection_example(; measure=FontFileMeasure(),
                                                    solver=FallbackConstraintSolver())
-    font = font_ubuntu_regular_20
+    font = StyleFont("Ubuntu", 20)
     ChainingProjection(
         RecursiveProjection(TypeDispatchingProjection(
             ConstraintLayout => ConstraintLayoutToGraphicsCanvas(solver=solver),

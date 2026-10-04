@@ -496,9 +496,22 @@ to a composer operation by dispatching on the **active** (last) part's state. Us
 as the root projection, chained through the widget→graphics pipeline (wrap in
 `RecursiveProjection`).
 """
-struct ConversationComposerToWidget <: Projection end
+@projection UntrackedCell struct ConversationComposerToWidget
+    theme::Any = nothing
+    part_gap::Int = _get_conversation_style(theme, Int, :part_gap)
+    code_font::StyleFont = _get_conversation_style(theme, StyleFont, :code_font)
+    kind_text::StyleText = _get_conversation_style(theme, StyleText, :kind_text)
+    section_text::StyleText = _get_conversation_style(theme, StyleText, :section_text)
+    error_text::StyleText = _get_conversation_style(theme, StyleText, :error_text)
+    section_gap::Int = _get_conversation_style(theme, Int, :section_gap)
+    section_padding::Inset = _get_conversation_style(theme, Inset, :section_indent)
+    plain_color::StyleColor = _get_conversation_style(theme, StyleColor, :plain_color)
+    placeholder_color::StyleColor = _get_conversation_style(theme, StyleColor, :placeholder_color)
+    valid_color::StyleColor = _get_conversation_style(theme, StyleColor, :valid_color)
+    invalid_color::StyleColor = _get_conversation_style(theme, StyleColor, :invalid_color)
+    completion_hint_color::StyleColor = _get_conversation_style(theme, StyleColor, :completion_hint_color)
+end
 
-const _FONT        = font_ubuntu_monospace_regular_20
 const _PLACEHOLDER = "type here…"
 
 # A range at offsets `s..e` inside span `span` (1-based) of a body `TextBlock`, in
@@ -521,36 +534,36 @@ const _INS_SUFFIX = " here"
 _value_span(::DocumentInsertion) = 2
 _value_span(::Any) = 1
 
-function _editable_body(c::DocumentInsertion)
+function _editable_body(p, c::DocumentInsertion)
     # The value span carries the live commitability colour (green = names a
     # type, red = dead end, neutral while empty) and is followed by the pale
     # completion hint span — the same feedback the syntax-leaf insertion shows.
     # font_color is driven by `set_cell_computation!` below, so it must be a reactive
     # Cell, not the immutable default — pass it explicitly. font stays immutable
     # (authored).
-    value_span = TextString(Cell(@computation _value(c)), _FONT, Cell(color_default),
+    value_span = TextString(Cell(@computation _value(c)), p.code_font, Cell(p.plain_color),
                             nothing, nothing, nothing)
     set_cell_computation!(getfield(value_span, :font_color), function ()
         state = name_completion(c).state
-        state === :invalid ? color_solarized_red :
-        state === :empty   ? color_default      : color_solarized_green
+        state === :invalid ? p.invalid_color :
+        state === :empty   ? p.plain_color  : p.valid_color
     end)
     TextBlock([
-        TextString(_INS_PREFIX, _FONT, color_solarized_gray),
+        TextString(_INS_PREFIX, p.code_font, p.placeholder_color),
         value_span,
-        TextString(() -> name_completion(c).hint, _FONT, color_completion_hint),
-        TextString(_INS_SUFFIX, _FONT, color_solarized_gray),
+        TextString(() -> name_completion(c).hint, p.code_font, p.completion_hint_color),
+        TextString(_INS_SUFFIX, p.code_font, p.placeholder_color),
     ])
 end
 
 # Plain editable text (a `PrimitiveString` or a domain's insertion): one span, and
 # a pale placeholder while empty.
-function _editable_body(c)
+function _editable_body(p, c)
     show() = (v = _value(c); isempty(v) ? _PLACEHOLDER : v)
     # reactive font_color (set below); font stays immutable.
-    ts = TextString(Cell(Computation(show)), _FONT, Cell(color_default), nothing, nothing, nothing)
+    ts = TextString(Cell(Computation(show)), p.code_font, Cell(p.plain_color), nothing, nothing, nothing)
     set_cell_computation!(getfield(ts, :font_color),
-           () -> isempty(_value(c)) ? color_solarized_gray : color_default)
+           () -> isempty(_value(c)) ? p.placeholder_color : p.plain_color)
     TextBlock(ts)
 end
 
@@ -587,8 +600,8 @@ end
 # ── Committed part body — recurse the real content document through the inner
 # dispatch, so committed code renders as a parsed Julia document, prose as text,
 # and an evaluation as its form stacked over its result.
-_committed_body(c::EvaluatorForm) = _eval_sections(c, nothing)
-_committed_body(c) = c
+_committed_body(p, c::EvaluatorForm) = _eval_sections(p, c, nothing)
+_committed_body(p, c) = c
 
 # The composer draws the chrome the transcript draws, for the same reason: the
 # content says what it is, so a frame is for the kinds it cannot say. Code and an
@@ -609,12 +622,12 @@ function _make_draft_part_card(p, d::ConversationDraft, iomap_ref::Ref, i::Int, 
     editable = active && _is_editable(content)
     lead = Any[FieldReferenceStep("children"), RangeReferenceStep(i - 1, i)]
     body = editable ?
-        _follow_draft!(_editable_body(content), d, p, iomap_ref,
+        _follow_draft!(_editable_body(p, content), d, p, iomap_ref,
                        vcat(lead, FieldReferenceStep("content")); dormant = true) :
-        _committed_body(content)
+        _committed_body(p, content)
     card = WidgetCard(;
                       title = tag === nothing ? nothing :
-                              WidgetLabel(tag; text_style = _KIND_STYLE),
+                              WidgetLabel(tag; text_style = p.kind_text),
                       content = body,
                       variant = variant)
     # A card passes a key to its content only while it holds a selection.
@@ -633,7 +646,7 @@ function print_document(p::ConversationComposerToWidget, recursion, d::Conversat
     body = VerticalLayout(
         CellVector(@computation((n = length(d.parts);
                           Any[_make_draft_part_card(p, d, iomap_ref, i, d.parts[i].content, i == n) for i in 1:n]))),
-        Cell(:left), Cell(_GAP), Cell(Fill), Cell(Content), Cell(nothing))
+        Cell(:left), Cell(p.part_gap), Cell(Fill), Cell(Content), Cell(nothing))
     iomap = SimpleIoMap(p, d, body)
     iomap_ref[] = iomap
     # The paths, carried down. A key is routed by selection and stops at the first

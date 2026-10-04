@@ -17,12 +17,12 @@ function test_chart_theme()
 
     plain = draw(nothing)
     @test !isempty(plain)
-    @test sort(unique(plain)) == [14, 16]
+    @test sort(unique(plain)) == [12, 14]
 
     theme = get_scaled_theme!(Appearance(font_scale = 1.5), ChartTheme)
     large = draw(theme)
     @test large == round.(Int, plain .* 1.5)
-    @test sort(unique(large)) == [21, 24]
+    @test sort(unique(large)) == [18, 21]
 end
 
 @testset "a renderer with no theme holds the default values, and a theme scales a length" begin
@@ -38,7 +38,7 @@ end
 @testset "a chart's own legend font reaches the legend text" begin
     styled = Chart("Signal",
         [ChartLineSeries("sin", collect(0.0:0.05:10.0), sin.(0.0:0.05:10.0))];
-        style = ChartStyle(; legend_font = StyleFont(font_ubuntu_bold_16.filename, 30)))
+        style = ChartStyle(; legend_font = with_font_size(StyleFont("Ubuntu", 16; weight = 700), 30)))
     projection = ChainingProjection(ChartToChartPlot(),
         ChartPlotToGraphicsCanvas(; measure = FixedMeasure(8, 12, 4, 0)))
     canvas = print_document(projection, projection, styled, PrinterContext()).output

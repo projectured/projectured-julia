@@ -9,19 +9,27 @@ The style slice of `ProjecturedPlatform` holds the values that everything drawn 
 | Type | What it is |
 | --- | --- |
 | `StyleColor` | `red`, `green`, `blue`, `alpha`, each a `Float64` from 0 to 1 |
-| `StyleFont` | a font file name and a size |
+| `StyleFont` | a family, a size in logical pixels, a weight and a slant |
 | `StyleText` | a `StyleFont` and a `StyleColor`, the pair that every text needs |
 | `StyleStroke` | a colour, a width and a `dash` |
 | `Inset`, `Point2D`, `AffineTransform` | a box of margins, a point, a 2D transform with `∘` |
 | `ImageFile`, `ImageMemory` | an image from a file or from memory |
 
-The package also defines about a thousand colour constants (`color_black`, `color_solarized_blue`, the `color_slate_*` and `color_indigo_*` ramps) and a font constant for each font file and size under `asset/font/`, for example `font_ubuntu_monospace_regular_20`.
+The package also defines about a thousand colour constants (`color_black`, `color_solarized_blue`, the `color_slate_*` and `color_indigo_*` ramps). A font has no constants: a font is a description, and a theme or a document writes it where it is used.
 
 ### Value documents
 
 `StyleColor`, `StyleFont` and `StyleText` are declared with `@document ImmutableCell [DC] struct`. `ImmutableCell` makes every field immutable, and `[DC]` gives the plain type name to that form. So `StyleText` is a value with no reactive cell and no selection, and a projection stores it in an `ImmutableCell{StyleText}` field. The reactive forms exist under prefixed names, such as `RCStyleFont`, for the rare case that needs one. [The layout list](../../kernel/macros.md#the-layout-list) in macros.md describes the prefixes.
 
 `StyleStroke`, `Inset`, `Point2D` and `AffineTransform` are plain structs. They have no identity in a reference path. A `.pred` file can hold an `Inset` and a `Point2D`, because the slice adds `is_pred_constructible` for them: a saved window keeps its size, its scroll position and its margins.
+
+### Fonts and their faces
+
+A font is a description, as in CSS: `StyleFont("Ubuntu Mono", 14; weight = 700, italic = true)`. The weight is on the scale of CSS and OpenType, from 100 to 900, where 400 is regular and 700 is bold. A font is 24 bytes and is stored inline, so a new font allocates nothing and two equal fonts are one value. `with_font_size(font, size)` gives the font at another size.
+
+A [`FontFace`](../../../../source/platform/style/FontFace.jl) is one face of a bundled family: its family, its weight, its slant and its file under `asset/font/`. The table of the faces is a constant, and `test_font_face` checks each face against the OS/2 table of its file. `find_font_face(family, weight, italic)` finds a face by the font matching of CSS: the slant first, then the nearest weight, with the family matched with no regard to case. `get_font_families()` names the bundled families, and `get_font_weights(family)` the weights of the faces of a family.
+
+`compute_font_path(font)` is the file that draws a font: the file of the face that `find_font_face` finds, or of DejaVu Sans when no bundled face has the family. The measure, the backends and the caches of fonts key on this path, and `font_file` resolves it where a file is opened. It allocates nothing.
 
 ### Measurement without a display
 
@@ -35,7 +43,7 @@ Every value is a real number in logical pixels; a `TextMeasure` rounds nothing. 
 
 `FontFileMeasure()` reads the font files, as every backend draws them: the `hmtx` advance of each glyph, the `kern` pairs between two glyphs of one font, the fallback font of a character the font lacks, and the vertical metrics by FreeType's rule. It is the measure of the application and the exports, and the PDF and web backends use it. `FixedMeasure(advance, ascent, descent, line_gap; fonts = Dict())` answers fixed numbers for a test: every character is `advance` wide, there is no kerning, and every font has the given metrics, except a font that `fonts` gives its own `FontMetrics`.
 
-A font does not carry every glyph. `find_glyph_font_file(path, character)` finds the file that has a glyph: the font itself, then DejaVu Sans Mono, then Noto Emoji. `FontFileMeasure` measures each character in the font that draws it. The variation selectors U+FE0E and U+FE0F measure as zero width, because the SDL renderer does no shaping.
+A font does not carry every glyph. `find_glyph_font_file(font, character)` finds the file that has a glyph: the face of the font, then the faces of `get_fallback_font_files(font)`. These are DejaVu Sans Mono and then Noto Emoji, each at the weight of the font and then regular, and always upright. `FontFileMeasure` measures each character in the font that draws it. The variation selectors U+FE0E and U+FE0F measure as zero width, because the SDL renderer does no shaping.
 
 ### Line spacing
 
@@ -48,7 +56,7 @@ A [`LineSpacing`](../../../../source/platform/style/LineSpacing.jl) sets the dis
 
 `compute_line_box(measure, text, font; spacing = SingleSpacing())` gives the box of a line that holds one text alone, as a label or a title does: a [`LineBox`](../../../../source/platform/style/LineSpacing.jl) with the width, the height, the baseline and the `y` of the text in the box. The baseline sits half of the leading below the top of the box, then the ascent, and never higher than the rounded ascent of the text, so the ink never rises above the box.
 
-**Example.** Ubuntu 20 has an ascent of 18.64, a descent of 3.78 and a line gap of 0.56 logical pixels, so its natural distance is 22.98. `compute_line_box(FontFileMeasure(), "delay", font_ubuntu_regular_20)` at `SingleSpacing()` gives a line box 23 pixels high, with the baseline 19 pixels below its top: half of the line gap, 0.28, and the ascent, rounded.
+**Example.** Ubuntu 20 has an ascent of 18.64, a descent of 3.78 and a line gap of 0.56 logical pixels, so its natural distance is 22.98. `compute_line_box(FontFileMeasure(), "delay", StyleFont("Ubuntu", 20))` at `SingleSpacing()` gives a line box 23 pixels high, with the baseline 19 pixels below its top: half of the line gap, 0.28, and the ascent, rounded.
 
 ### Themes and the appearance
 
@@ -60,6 +68,7 @@ field says which scale applies to it:
 | Type of the field | Scale |
 | --- | --- |
 | `StyleFont`, and the font of a `StyleText` | font scale |
+| `FontRole`, and the font of a `TextRole` | font scale, after the role takes its base |
 | `StyleStroke`, its width | line scale |
 | `Spacing` | spacing scale |
 | `Radius` | radius scale |
@@ -73,6 +82,31 @@ cell whose declared type is not checked, so the declared type decides the kind:
 a bare number in a field declared `Radius` scales as a radius
 (`convert_theme_value`). `scale_length` multiplies a length
 and keeps a length above 0 at least 1, so a line or a gap never disappears.
+
+**Base fonts and roles.** A theme holds its fonts as base fonts and roles. A base
+font is a `StyleFont` field, usually `font`, and `code_font` in a theme that draws
+both prose and code. Every other font of the theme is a role over a base: a
+[`FontRole`](../../../../source/platform/style/FontRole.jl) names the field of its
+base, and sets only what differs from it: a family, a weight, a slant, and a size
+relative to the base. A `TextRole` is a font role and a color.
+
+```julia
+@theme struct JsonTheme
+    "The font that the texts of this theme follow: its family, its weight and its size."
+    font::StyleFont = StyleFont("Ubuntu Mono", 14)
+    "The key of an object member, with its quotes."
+    key_text::TextRole = TextRole(color_solarized_blue)
+    "The brackets of an array and the braces of an object."
+    delimiter_text::TextRole = TextRole(color_solarized_gray; weight = 700)
+end
+```
+
+The scaled theme holds the `StyleFont` or the `StyleText` that each role gives:
+`apply_font_role(role, base)`, then the font scale. Its cell reads the base font,
+so a person who changes the family or the size of the base changes every role of
+the theme, and a heading of `relative_size = 1.8` stays 1.8 times the body. A
+role field can also hold a `StyleFont` or a `StyleText` as it is, which scales as
+before; the appearance tab and an appearance file accept both forms.
 
 A string before a field is the docstring of the field, as in a plain struct, and
 it says what the value draws. `@theme` keeps the docstrings in
@@ -151,10 +185,10 @@ The style slice depends on the kernel and on the serialization slice, whose seam
 ## Usage
 
 ```julia
-style = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+style = StyleText(StyleFont("Ubuntu Mono", 20), color_solarized_blue)
 faint = StyleColor(0.0, 0.0, 0.0, 0.25)
-width, ascent, descent = compute_text_extent("hello", font_ubuntu_monospace_regular_20)
-font_logical_size(font_ubuntu_monospace_regular_20)   # 20, the font's own size
+width, ascent, descent = compute_text_extent("hello", StyleFont("Ubuntu Mono", 20))
+font_logical_size(StyleFont("Ubuntu Mono", 20))   # 20, the font's own size
 ```
 
 - Test: no package suite exists. `test_font_metrics()`, `test_font_fallback()` and `test_affine_transform()` in `test/platform/document/` cover the parser and the geometry; `test_text_measure()` and `test_line_spacing()`, in the same folder, cover the measure contract and the line spacing.

@@ -35,6 +35,7 @@ export RefreshDataFrameViewOperation, SetDataFrameValueOperation, DataFrameCellE
        OpenDataFrameCellOperation, CloseDataFrameCellOperation,
        InsertDataFrameRowOperation, DeleteDataFrameRowOperation,
        InsertDataFrameColumnOperation, DeleteDataFrameColumnOperation, MoveDataFrameColumnOperation
+export DataFrameTheme, ScaledDataFrameTheme
 export DataFrameViewToWidget, make_data_frame_view_projection
 
 include("DataFrameQuery.jl")
@@ -48,6 +49,7 @@ include("DataFrameRowEdit.jl")
 include("DataFrameColumnEdit.jl")
 include("DataFrameFind.jl")
 include("DataFrameRefresh.jl")
+include("DataFrameTheme.jl")
 include("DataFrameFilterRow.jl")
 include("DataFrameValueList.jl")
 include("DataFrameViewToWidget.jl")

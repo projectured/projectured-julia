@@ -46,6 +46,7 @@ import ..DomainModule: get_insertion_aliases, make_insertion_document
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SerializationModule: pred_arguments
 import ..EditorModule: wrap_editor!, get_wrapper_layers
+import ..StyleModule: get_theme_presets
 
 export GestureLogEntry, GestureLog, get_session_gesture_log,
        record_gesture!, clear_gesture_log!,
@@ -54,7 +55,7 @@ export GestureLogTheme, ScaledGestureLogTheme
 export GestureLogToSyntax
 export GestureLogRecordingProjection, GestureLogRecordingIoMap
 export GestureLogOverlayProjection, GestureLogOverlayIoMap,
-       make_gesture_log_content_projection, GESTURE_LOG_BACKGROUND
+       make_gesture_log_content_projection, make_gesture_log_panel_theme
 
 
 include("GestureLogDocument.jl")

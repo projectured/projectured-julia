@@ -19,18 +19,20 @@ The history reads the scaled theme through its `UntrackedCell` style fields;
 with no theme it holds the plain values of the default theme.
 """
 @theme struct UndoTheme
+    "The font that the texts of this theme follow: its family, its weight and its size."
+    font::StyleFont = StyleFont("DejaVu Sans Mono", 13)
     "The label and the number of a step."
-    index_text::StyleText = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
+    index_text::TextRole = TextRole(color_slate_500)
     "A step that can be taken back."
-    step_text::StyleText = StyleText(font_dejavu_monospace_regular_16, color_slate_700)
+    step_text::TextRole = TextRole(color_slate_700)
     "A step that can be put back."
-    ahead_text::StyleText = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
+    ahead_text::TextRole = TextRole(color_slate_500)
     "The line the history shows while it holds no step."
-    empty_text::StyleText = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
+    empty_text::TextRole = TextRole(color_slate_500)
     "The line for where the document stands now."
-    marker_text::StyleText = StyleText(font_dejavu_monospace_bold_16, color_solarized_cyan)
+    marker_text::TextRole = TextRole(color_solarized_cyan; weight = 700)
     "A step the history stops at, because it can not be undone."
-    barrier_text::StyleText = StyleText(font_dejavu_monospace_bold_16, color_solarized_orange)
+    barrier_text::TextRole = TextRole(color_solarized_orange; weight = 700)
 end
 
 # The style field of an undo projection that holds the text `name` of the theme

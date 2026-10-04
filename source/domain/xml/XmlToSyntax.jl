@@ -92,7 +92,7 @@ end
 
     attrs_node = SyntaxNode(collection(:attrs);
                             close=TextString(">", p.delim),
-                            sep=TextString(" ", p.delim.font, color_default))
+                            sep=TextString(" ", p.delim.font))
 
     body_node = SyntaxNode(collection(:children); indentation=1)
 

@@ -48,7 +48,7 @@ end
     # as wide as the window, and the next item would start past its right edge.
     det = FixedMeasure(8, 12, 4, 0)
     rec = RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch))
+        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = det).dispatch))
     bar = WidgetMenu(Any[WidgetMenuItem("File"), WidgetMenuItem("View"), WidgetMenuItem("Help")];
                      orientation = :horizontal)
     ctx = with_exact_size(PrinterContext(); width = Cell(Int32(1000)), height = Cell(Int32(600)))
@@ -75,7 +75,7 @@ end
     # spans the row and the menu is as large as its items, not as the window.
     det = FixedMeasure(8, 12, 4, 0)
     rec = RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch))
+        WidgetToGraphics(StyleFont("Ubuntu", 20); measure = det).dispatch))
     menu = WidgetMenu(Any[WidgetMenuItem("Documents"), WidgetMenuItem("About")])
     ctx = with_exact_size(PrinterContext(); width = Cell(Int32(640)), height = Cell(Int32(800)))
     iomap = print_document(rec, nothing, menu, ctx)
@@ -86,7 +86,7 @@ end
     @test Int(output.w) < 640 && Int(output.h) < 800
     # The popover of the theme: its fill and its hairline border, as large as the
     # menu.
-    theme = make_slate_light_theme(font = font_ubuntu_regular_20)
+    theme = make_slate_light_theme(font = StyleFont("Ubuntu", 20))
     panel = output.elements[1]
     panel = panel isa CellModule.Cell ? panel[] : panel
     @test panel isa GraphicsRect
@@ -174,7 +174,7 @@ end
     @test popup.id === :widget_popup
     @test popup.auto_dismiss === true
     @test popup.x == 0                          # at the left edge of the item
-    @test popup.y == _menu_iomap_of(iomap, item).control_height + 4   # just below it
+    @test popup.y == _menu_iomap_of(iomap, item).control_height + 2   # just below it
     @test popup.content === submenu             # the popup content is the submenu
     @test popup.height > 0
 end
@@ -208,7 +208,7 @@ end
     @test popup isa OpenPopupOperation
     @test ox > 0
     @test popup.x == ox
-    @test popup.y == oy + cim.control_height + 4
+    @test popup.y == oy + cim.control_height + 2
     @test popup.content === submenu
 end
 

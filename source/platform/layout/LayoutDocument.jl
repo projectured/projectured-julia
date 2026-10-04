@@ -27,7 +27,9 @@ Four policies say everything:
 
 A policy is a statement about a **relationship**, which is why it lives here and
 not on the widget: `Relative(1.0)` means nothing without a parent that divides,
-and `Fill` means nothing without a parent that offers. The same card fills the
+and `Fill` means nothing without a parent that offers. A parent that is offered
+no extent on an axis has nothing to divide there, so a weighted child, column or
+row takes the extent of its content on that axis. The same card fills the
 width in a conversation column and is content-wide in a toolbar, because the
 container it is placed in says so and the card is placed twice, unchanged.
 """
@@ -122,9 +124,13 @@ const Fill = Relative(1.0)
 
 A row of children. The projection places each child at an
 increasing x cursor, with vertical alignment chosen by
-`vertical_align ∈ (:top, :center, :bottom)`. The outer canvas has
-width = sum of child widths + gaps and height = max of child
-heights.
+`vertical_align ∈ (:top, :center, :bottom, :baseline)`. On `:baseline` each
+child stands so that the baseline of its first line of text
+(`find_first_baseline`) meets the lowest one of the row, and a child with no
+text stands on its bottom edge, so a label beside a text of another size or
+line spacing reads on one line. The outer canvas has
+width = sum of child widths + gaps and height = the lowest point that a child
+reaches.
 
 Use it to put widgets or documents side by side in one row, from left to right.
 

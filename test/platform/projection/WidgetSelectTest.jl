@@ -50,7 +50,7 @@ end
     @test op.auto_dismiss === true
     # Opens just below the box, in the select's own frame.
     @test op.x == 0
-    @test op.y == _select_iomap_of(iomap, select).control_height + 4
+    @test op.y == _select_iomap_of(iomap, select).control_height + 2
     # Content is a dropdown of one option per selectable value.
     @test op.content isa WidgetMenu
     @test length(op.content.elements) == 3
@@ -85,7 +85,7 @@ end
     @test op isa OpenPopupOperation
     @test oy > 0
     @test op.x == ox
-    @test op.y == oy + cim.control_height + 4
+    @test op.y == oy + cim.control_height + 2
 end
 
 @testset "a scrolled pane moves the popup of a select by its scroll offset" begin
@@ -100,7 +100,7 @@ end
     op = _select_popup(read_intent(proj, iomap, MouseClick(:left, 5, oy - 10 + 5, ModifierKeys(); time = 0.0)))
     @test op isa OpenPopupOperation
     @test op.x == 0
-    @test op.y == oy - 10 + cim.control_height + 4
+    @test op.y == oy - 10 + cim.control_height + 2
 end
 
 @testset "a zoomed pane moves the popup of a select through its transform" begin
@@ -114,7 +114,7 @@ end
     op = _select_popup(read_intent(proj, iomap, MouseClick(:left, 10, 10, ModifierKeys(); time = 0.0)))
     @test op isa OpenPopupOperation
     @test op.x == 0
-    @test op.y == 2 * (height + 4)
+    @test op.y == 2 * (height + 2)
     @test (op.width, op.height) == (640, 800)
 end
 

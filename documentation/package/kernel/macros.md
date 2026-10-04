@@ -382,15 +382,25 @@ A minimal worked example, the null-and-bool leaves of the JSON domain
 (`source/domain/json/JsonToSyntax.jl`):
 
 ```julia
-@projection struct JsonBoolToSyntaxLeaf
-    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)
+@projection UntrackedCell struct JsonBoolToSyntaxLeaf
+    theme::Any = nothing
+    style::StyleText = _get_json_style(theme, :bool_text)
 end
 
 @projection_template JsonBoolToSyntaxLeaf JsonBool (prj, doc) ->
     SyntaxLeaf(bound(:value, Bool,
-                     make_hinted_text(() -> doc.value ? "true" : "false",
-                                 () -> !(doc.value isa Bool), "enter json bool", prj.style)))
+                     make_hinted_text(() -> doc.value ? "true" : "false";
+                                      empty_thunk = () -> !(doc.value isa Bool),
+                                      placeholder = "enter json bool",
+                                      style = prj.style)))
 ```
+
+`_get_json_style(theme, name) = make_style_field(JsonTheme, scale_theme(theme), StyleText; name)`
+reads the theme's `bool_text`: a `StyleText` of the scaled theme with no
+`theme` keyword, or the plain value of the default `JsonTheme` with `nothing`.
+A projection never holds a font or a colour as a literal value; it reads its
+theme instead, as [style.md](../platform/style/style.md#themes-and-the-appearance)
+describes.
 
 Printing a `JsonBool` through it needs no hand-written printer at all:
 
@@ -442,9 +452,11 @@ defaults on fields, so you no longer need an outer convenience constructor whose
 only job is to fill in defaults:
 
 ```julia
-@projection struct ReferenceToHumanReadableText          # <: Projection is defaulted in
+@projection UntrackedCell struct ReferenceToHumanReadableText   # <: Projection is defaulted in
     document::Any
-    font::StyleFont = font_ubuntu_monospace_regular_20   # default
+    theme::Any         = nothing                                        # default
+    font::StyleFont    = _get_reference_style(theme, StyleFont, :font)   # reads the field above
+    style::NamedTuple  = make_theme_values_field(ReferenceTheme, scale_theme(theme))
 end
 ```
 
@@ -452,8 +464,8 @@ When **at least one** field carries a default, the macro additionally emits a
 **keyword** constructor:
 
 ```julia
-ReferenceToHumanReadableText(; document)                 # font=font_ubuntu_monospace_regular_20
-ReferenceToHumanReadableText(; document, font = font_ubuntu_regular_20)
+ReferenceToHumanReadableText(; document)                 # theme=nothing, font and style follow from it
+ReferenceToHumanReadableText(; document, font = StyleFont("Ubuntu", 20))
 ```
 
 Semantics deliberately match `Base.@kwdef`:

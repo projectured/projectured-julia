@@ -1,6 +1,6 @@
 # Essentials
 
-> **Kind:** design · **Status:** current · **Stands on:** [display.md](../display/display.md), [natural.md](../natural/natural.md), [autointegrations.md](../../autointegrations/autointegrations.md)
+> **Kind:** design · **Status:** current · **Stands on:** [display.md](../display/display.md), [natural.md](../natural/natural.md), [autointegration.md](../../autointegration/autointegration.md)
 
 `EssentialsModule` is the slice of the platform that holds the few names of the kernel and the platform that most users call. It has no code of its own. The umbrella, each integration and each backend re-export its names, so the package that a user names gives them.
 

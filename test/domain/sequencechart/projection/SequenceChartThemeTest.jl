@@ -16,12 +16,12 @@ function test_sequencechart_theme()
 
     plain = draw(nothing)
     @test !isempty(plain)
-    @test sort(unique(plain)) == [14, 16]
+    @test sort(unique(plain)) == [12, 14]
 
     theme = get_scaled_theme!(Appearance(font_scale = 1.5), SequenceChartTheme)
     large = draw(theme)
     @test large == round.(Int, plain .* 1.5)
-    @test sort(unique(large)) == [21, 24]
+    @test sort(unique(large)) == [18, 21]
 end
 
 @testset "a renderer with no theme holds the default values, and a theme scales a length" begin

@@ -4,7 +4,7 @@ end
 
 function test_projection_configuring()
 
-_font = font_ubuntu_monospace_regular_20
+_font = StyleFont("Ubuntu Mono", 20)
 _mkchange(g, o) = IntentModule.Intent(g, o)
 _content_ref() = ConcreteReference(FieldReferenceStep("content"), EmptyReference())
 _input() = TextBlock(TextString("alpha dolor", _font, color_default))
@@ -75,7 +75,7 @@ end # @testset
 @testset "end-to-end: clicking a control-bar checkbox flips the inner field" begin
 
     stub = FixedMeasure(10, 18, 6, 0)
-    font = font_ubuntu_monospace_regular_20
+    font = StyleFont("Ubuntu Mono", 20)
     fg   = (0xee, 0xee, 0xee, 0xff)
 
     inner = TextFiltering()                       # case_insensitive=false, invert=false
@@ -109,7 +109,7 @@ end # @testset
 @testset "a point on the document maps to the text position drawn there, and a point on the control to the control" begin
 
     stub = FixedMeasure(10, 18, 6, 0)
-    font = font_ubuntu_monospace_regular_20
+    font = StyleFont("Ubuntu Mono", 20)
     pcp  = ProjectionConfiguringProjection(inner=TextHighlighting("dolor"))
     w2g  = WidgetToGraphics(font; measure=stub)
     renderer = RecursiveProjection(TypeDispatchingProjection(vcat(
@@ -139,7 +139,7 @@ end # @testset
 @testset "end-to-end: typing edits the inner projection's pattern live" begin
 
     stub = FixedMeasure(10, 18, 6, 0)
-    font = font_ubuntu_monospace_regular_20
+    font = StyleFont("Ubuntu Mono", 20)
 
     inner = TextHighlighting("dolor")
     pcp   = ProjectionConfiguringProjection(inner=inner)

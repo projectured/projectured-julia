@@ -20,9 +20,8 @@ function make_widget_document_example(; width=1024, height=768)
                              WidgetText("alice"; border=fb, padding=Inset(4, 4, 8, 8))]; gap=12),
         HorizontalLayout(Any[WidgetLabel("Email:"),
                              WidgetText("alice@example.com"; border=fb, padding=Inset(4, 4, 8, 8))]; gap=12),
-        HorizontalLayout(Any[WidgetCheckbox(true; border=fb, padding=Inset(4, 4, 4, 4)),
-                             WidgetLabel("Enable notifications")]; gap=12),
-        WidgetSwitch(; checked = true),
+        WidgetCheckbox(true; label = "Enable notifications"),
+        WidgetSwitch(; checked = true, label = "Live update"),
         WidgetRadioGroup(["Default", "Comfortable", "Compact"]; selected=2),
         WidgetSelect("Apple"; options=["Apple", "Banana", "Cherry", "Date"], width=220),
         WidgetSlider(0.4; width=260),
@@ -184,7 +183,7 @@ make_widget_label_document_example() =
 # backward). Click to place the cursor, then type / backspace to edit. Render
 # with make_widget_text_projection_example.
 function make_widget_text_document_example()
-    content = TextBlock(TextString("edit me", font_ubuntu_monospace_regular_20, color_default))
+    content = TextBlock(TextString("edit me", StyleFont("Ubuntu Mono", 20), color_default))
     WidgetText(content;
                position = Point2D(40, 40), border=Inset(1, 1, 1, 1),
                padding=Inset(8, 8, 12, 12))

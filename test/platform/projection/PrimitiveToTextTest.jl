@@ -21,7 +21,7 @@ function test_primitive_to_text()
     @test out isa TextBlock
     @test length(out.elements) == 1
     @test out.elements[1].content == "true"
-    @test out.elements[1].font == font_ubuntu_monospace_regular_20
+    @test out.elements[1].font == StyleFont("Ubuntu Mono", 14)
     @test out.elements[1].font_color == color_solarized_cyan
 end
 

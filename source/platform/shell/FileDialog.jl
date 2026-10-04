@@ -9,7 +9,8 @@
     make_file_dialog(directory, title, confirm) -> WidgetDialog
 
 A modal dialog over a file chooser: `title` names what it is for, and `confirm`
-is the label of the button that takes the chosen path.
+is the label of the button that takes the chosen path. Each button is as large
+as its label.
 
 `directory` is where it opens. The chooser it holds is what answers the path, so
 a caller reads `get_chosen_path` of it when the person confirms.
@@ -17,9 +18,7 @@ a caller reads `get_chosen_path` of it when the person confirms.
 function make_file_dialog(directory::AbstractString, title::AbstractString,
                           confirm::AbstractString)
     chooser = make_filesystem_chooser(directory)
-    dialog = WidgetDialog(title, chooser,
-                          Any[WidgetButton("Cancel"; size = Point2D(88, 0)),
-                              WidgetButton(confirm; size = Point2D(88, 0))];
+    dialog = WidgetDialog(title, chooser, Any[WidgetButton("Cancel"), WidgetButton(confirm)];
                           popup_id = :file_dialog)
     (dialog, chooser)
 end

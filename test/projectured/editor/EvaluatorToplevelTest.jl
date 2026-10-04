@@ -713,10 +713,13 @@ end
         operation
     end
     caret_steps() = get_reference_steps(strip_reference_types(toplevel.selection))
-    # Each box stands 26 pixels left of its name, and only the parse box is checked.
+    # Each box stands left of its name by its own size and the label gap, and only
+    # the parse box is checked.
     (px, py) = label("Parse evaluated forms")
     (sx, sy) = label("Structured forms")
-    @test checks() == [px - 26]
+    defaults = get_theme_defaults(WidgetTheme)
+    offset = defaults.indicator_size + defaults.label_gap
+    @test checks() == [px - offset]
     @test press!(px - 17, py + 12) isa ToggleEvaluatorOptionOperation
     @test !toplevel.parse_evaluated_forms
     # The press leaves the caret in the code, where the next key goes.
@@ -726,7 +729,7 @@ end
     @test toplevel.elements[1].form isa JuliaInsertion
     @test caret_steps()[end] == RangeReferenceStep(0, 0) && caret_steps()[3] == FieldReferenceStep("form")
     # The boxes draw the new state.
-    @test checks() == [sx - 26]
+    @test checks() == [sx - offset]
 end
 
 @testset "a form that holds an object runs with that very object" begin

@@ -28,7 +28,7 @@ _rects(c) = [(x = ax, y = ay, w = Int(e.w), h = Int(e.h), color = e.color) for (
 
 # basic layout (wrapping is now done by WordWrapping upstream)
 st_wrap = TextBlock(
-    TextString("Hello world this is a long text", font_ubuntu_monospace_regular_20, color_red),
+    TextString("Hello world this is a long text", StyleFont("Ubuntu Mono", 20), color_red),
 )
 m = _test_measure(10, 18)
 chain = ChainingProjection(WordWrapping(max_width=200, measure=m), TextToGraphics(measure=m))
@@ -40,7 +40,7 @@ texts = _texts(sdl_cell)
 
 # newline handling
 st_nl = TextBlock(
-    TextString("line1\nline2\nline3", font_ubuntu_monospace_regular_20, color_white),
+    TextString("line1\nline2\nline3", StyleFont("Ubuntu Mono", 20), color_white),
 )
 sdl_nl = print_document(TextToGraphics(measure=_test_measure(10, 20)), st_nl).output
 items_nl = _texts(sdl_nl)
@@ -54,8 +54,8 @@ items_nl = _texts(sdl_nl)
 
 # color preservation
 st_color = TextBlock(
-    TextString("red text", font_ubuntu_monospace_regular_20, color_red),
-    TextString(" blue text", font_ubuntu_monospace_regular_20, color_blue),
+    TextString("red text", StyleFont("Ubuntu Mono", 20), color_red),
+    TextString(" blue text", StyleFont("Ubuntu Mono", 20), color_blue),
 )
 sdl_color = print_document(TextToGraphics(measure=_test_measure(10, 48)), st_color).output
 items_c = _texts(sdl_color)
@@ -69,7 +69,7 @@ items_c = _texts(sdl_color)
 # reactivity: a text change invalidates that line's segment vector (but, by
 # per-line locality, NOT the top-level line list — see the locality testset).
 st_react = TextBlock(
-    TextString("short", font_ubuntu_monospace_regular_20, color_white),
+    TextString("short", StyleFont("Ubuntu Mono", 20), color_white),
 )
 sdl_react = print_document(TextToGraphics(measure=_test_measure(10, 48)), st_react).output
 line1 = sdl_react.elements[2].elements[1]   # top[2]=line stack, [1]=first line sub-canvas
@@ -81,7 +81,7 @@ items_r = _texts(sdl_react)
 @test items_r[1].text == "changed"
 
 # hex color parsing
-st_hex = TextBlock(TextString("hex", font_ubuntu_monospace_regular_20, StyleColor(1.0, 0.53, 0.0, 1.0)))
+st_hex = TextBlock(TextString("hex", StyleFont("Ubuntu Mono", 20), StyleColor(1.0, 0.53, 0.0, 1.0)))
 sdl_hex = print_document(TextToGraphics(measure=_test_measure(10, 48)), st_hex).output
 h = _texts(sdl_hex)[1]
 # StyleColor is now carried through unchanged (no byte round-trip).
@@ -92,9 +92,9 @@ end # @testset "TextToGraphics"
 @testset "TextToGraphics ListNode path" begin
 
 # Build a TextBlock with ListNode elements: two paragraphs separated by TextNewline
-node = ListNode(TextString("Hello world", font_ubuntu_monospace_regular_20, color_red))
-push!(node, TextNewline(font=font_ubuntu_monospace_regular_20))
-push!(node, TextString("Second paragraph", font_ubuntu_monospace_regular_20, color_blue))
+node = ListNode(TextString("Hello world", StyleFont("Ubuntu Mono", 20), color_red))
+push!(node, TextNewline(font=StyleFont("Ubuntu Mono", 20)))
+push!(node, TextString("Second paragraph", StyleFont("Ubuntu Mono", 20), color_blue))
 
 tt = TextBlock()
 tt.elements = node
@@ -133,14 +133,14 @@ end # @testset "TextToGraphics ListNode path"
 
 # Verify laziness: next paragraphs are not computed until forced
 counter = Ref(0)
-node = ListNode(TextString("Para 1", font_ubuntu_monospace_regular_20, color_white))
+node = ListNode(TextString("Para 1", StyleFont("Ubuntu Mono", 20), color_white))
 
 # Build a lazy chain of paragraphs
-node2 = ListNode(TextNewline(font=font_ubuntu_monospace_regular_20))
+node2 = ListNode(TextNewline(font=StyleFont("Ubuntu Mono", 20)))
 node.next = node2
 node2.prev = node
 
-node3 = ListNode(TextString("Para 2", font_ubuntu_monospace_regular_20, color_white))
+node3 = ListNode(TextString("Para 2", StyleFont("Ubuntu Mono", 20), color_white))
 set_cell_computation!(getfield(node2, :next), () -> begin
     counter[] += 1
     node3.prev = node2
@@ -170,7 +170,7 @@ end # @testset "TextToGraphics ListNode lazy evaluation"
 # Ten thousand paragraphs, each link computed when it is first read. The printer
 # reads the first paragraph; a key must read no more, because a list can be
 # endless and a list block keeps no line geometry for a key to move along.
-font = font_ubuntu_monospace_regular_20
+font = StyleFont("Ubuntu Mono", 20)
 computed = Ref(0)
 function make_paragraph(i)
     text = ListNode(TextString("paragraph $i", font, color_white))
@@ -202,9 +202,9 @@ end # @testset "TextToGraphics reads a key on a list of text without walking it"
 
 m = _test_measure(10, 18)
 st = TextBlock(
-    TextString("ab", font_ubuntu_monospace_regular_20, color_white),
+    TextString("ab", StyleFont("Ubuntu Mono", 20), color_white),
     TextGraphics(ImageMemory(nothing), 64, 64),
-    TextString("cd", font_ubuntu_monospace_regular_20, color_white),
+    TextString("cd", StyleFont("Ubuntu Mono", 20), color_white),
 )
 canvas = print_document(TextToGraphics(measure=m), st).output
 
@@ -233,9 +233,9 @@ end # @testset "TextToGraphics inline image"
 m = _test_measure(10, 18)
 p = TextToGraphics(measure=m)
 st = TextBlock(
-    TextString("ab", font_ubuntu_monospace_regular_20, color_white),
+    TextString("ab", StyleFont("Ubuntu Mono", 20), color_white),
     TextGraphics(ImageMemory(nothing), 64, 64),
-    TextString("cd", font_ubuntu_monospace_regular_20, color_white),
+    TextString("cd", StyleFont("Ubuntu Mono", 20), color_white),
 )
 iomap = print_document(p, st)
 
@@ -263,7 +263,7 @@ end # @testset "TextToGraphics inline image hit-test"
 
 m = _test_measure(10, 18)
 p = TextToGraphics(measure=m)
-st = TextBlock(TextString("abc", font_ubuntu_monospace_regular_20, color_white))
+st = TextBlock(TextString("abc", StyleFont("Ubuntu Mono", 20), color_white))
 iomap = print_document(p, st)
 # Ten pixels to a character, from where the segment starts: a point 12 pixels in
 # is nearest the boundary after "a", and one 28 pixels in the end of "abc".
@@ -284,9 +284,9 @@ end # @testset "TextToGraphics maps a point back to the caret at it"
 @testset "TextToGraphics renders fill_color as a background rect" begin
 
 m = _test_measure(10, 18)
-hl = TextString("hi", font_ubuntu_monospace_regular_20, color_red)
+hl = TextString("hi", StyleFont("Ubuntu Mono", 20), color_red)
 hl.fill_color = color_blue              # a highlighted span opts into a swatch
-plain = TextString("xy", font_ubuntu_monospace_regular_20, color_red)
+plain = TextString("xy", StyleFont("Ubuntu Mono", 20), color_red)
 st = TextBlock(hl, plain)
 canvas = print_document(TextToGraphics(measure=m), st).output
 
@@ -315,11 +315,11 @@ end # @testset "TextToGraphics fill_color rect"
 # top-level line list (so the backend dirty-walk descends and repaints just the
 # edited line) and never an earlier line.
 m = _test_measure(10, 20)
-nl() = TextNewline(font=font_ubuntu_monospace_regular_20)
+nl() = TextNewline(font=StyleFont("Ubuntu Mono", 20))
 st = TextBlock(
-    TextString("alpha", font_ubuntu_monospace_regular_20, color_white), nl(),
-    TextString("beta",  font_ubuntu_monospace_regular_20, color_white), nl(),
-    TextString("gamma", font_ubuntu_monospace_regular_20, color_white),
+    TextString("alpha", StyleFont("Ubuntu Mono", 20), color_white), nl(),
+    TextString("beta",  StyleFont("Ubuntu Mono", 20), color_white), nl(),
+    TextString("gamma", StyleFont("Ubuntu Mono", 20), color_white),
 )
 canvas = print_document(TextToGraphics(measure=m), st).output
 
@@ -359,7 +359,7 @@ end # @testset "TextToGraphics per-line locality"
 
 m = _test_measure(10, 18)
 p = TextToGraphics(measure=m)
-_span(s) = TextString(s, font_ubuntu_monospace_regular_20, color_white)
+_span(s) = TextString(s, StyleFont("Ubuntu Mono", 20), color_white)
 mkblock() = TextBlock(TextLine(_span("hello"); indentation = 2), TextLine(_span("world")))
 
 # One row per line, the break between them implied by the second line. The indent
@@ -399,7 +399,7 @@ blank = print_document(p, TextBlock(TextLine(_span("a")), TextLine(), TextLine(_
 
 # The empty group a *trailing* newline leaves behind is not a line, and must not
 # grow a phantom blank row.
-trailing = print_document(p, TextBlock(_span("a"), TextNewline(font = font_ubuntu_monospace_regular_20))).output
+trailing = print_document(p, TextBlock(_span("a"), TextNewline(font = StyleFont("Ubuntu Mono", 20)))).output
 @test Int(trailing.h) == 18
 
 end # @testset "TextToGraphics lays out TextLine blocks"
@@ -408,7 +408,7 @@ end # @testset "TextToGraphics lays out TextLine blocks"
 
 # Variant 2 (`TextColumnReferenceStep`) is reserved but has no producer yet; assert its
 # geometry function directly on a hand-built two-row coord map (monospace, 10px/glyph).
-_font = font_ubuntu_monospace_regular_20
+_font = StyleFont("Ubuntu Mono", 20)
 measure = FixedMeasure(10, 14, 4, 0)
 p = TextToGraphics(measure = measure)
 SC = TextModule.SegmentCoordinate
@@ -443,7 +443,7 @@ end # @testset "TextColumnReferenceStep column-box geometry"
 # as one rect per row hugging that row's *content* — not a bounding box. Model the
 # JSON `address` shape (monospace, 10px/glyph): a first line at indent 0, an interior
 # line whose leading indent is a separate whitespace span, and a close line.
-_font = font_ubuntu_monospace_regular_20
+_font = StyleFont("Ubuntu Mono", 20)
 measure = FixedMeasure(10, 14, 4, 0)
 p = TextToGraphics(measure = measure)
 SC = TextModule.SegmentCoordinate
@@ -487,7 +487,7 @@ end # @testset "TextSpanReferenceStep content-hugging per-row rects"
 m = _test_measure(10, 18)
 for projection in (TextToGraphics(measure=m),
                    ChainingProjection(WordWrapping(max_width=200, measure=m), TextToGraphics(measure=m)))
-    block = TextBlock(TextString("", font_ubuntu_monospace_regular_20, color_red))
+    block = TextBlock(TextString("", StyleFont("Ubuntu Mono", 20), color_red))
     canvas = print_document(projection, set_selection!(block, TextModule.make_flat_caret_reference(0))).output
     @test [(r.x, r.y, r.w, r.h) for r in _rects(canvas)] == [(0, 0, 2, 18)]
     @test Int(canvas.h) == 18
@@ -495,7 +495,7 @@ end
 
 # A caret after a '\n' at the end of a span stands on a line with no glyph yet,
 # and it is as tall as a line all the same.
-block = TextBlock(TextString("ab\n", font_ubuntu_monospace_regular_20, color_red))
+block = TextBlock(TextString("ab\n", StyleFont("Ubuntu Mono", 20), color_red))
 canvas = print_document(TextToGraphics(measure=m), set_selection!(block, TextModule.make_flat_caret_reference(3))).output
 @test [(r.x, r.y, r.w, r.h) for r in _rects(canvas)] == [(0, 18, 2, 18)]
 
@@ -505,7 +505,7 @@ end # @testset "TextToGraphics empty span"
 
 m = _test_measure(10, 18)
 p = TextToGraphics(measure=m)
-block(text, k) = set_selection!(TextBlock(TextString(text, font_ubuntu_monospace_regular_20, color_red)),
+block(text, k) = set_selection!(TextBlock(TextString(text, StyleFont("Ubuntu Mono", 20), color_red)),
                                 TextModule.make_flat_caret_reference(k))
 flat(op) = (strip_reference_types(op.path).head::TextRangeReferenceStep).start
 press(text, k, key) = (op = read_intent(p, print_document(p, block(text, k)), KeyDown(key, ModifierKeys(); time = 0.0));
@@ -532,7 +532,7 @@ end # @testset "TextToGraphics empty line"
 @testset "TextToGraphics maps a text reference to the characters that draw it" begin
     measure = _test_measure(10, 18)
     projection = TextToGraphics(measure = measure)
-    text_block = TextBlock(TextString("hello world", font_ubuntu_monospace_regular_20, color_black))
+    text_block = TextBlock(TextString("hello world", StyleFont("Ubuntu Mono", 20), color_black))
     iomap = print_document(projection, text_block)
     output = iomap.output
     box_of(reference) = find_reference_box(output, map_reference_forward(projection, iomap, reference);
@@ -548,7 +548,7 @@ end # @testset "TextToGraphics empty line"
     @test map_reference_forward(projection, iomap, EmptyReference()) == EmptyReference()
     # A range across two visual lines maps to the region of its rows, after the
     # canvas of its line group: 50 pixels wide, and as high as both rows.
-    two_lines = TextBlock(TextString("hello\nworld", font_ubuntu_monospace_regular_20, color_black))
+    two_lines = TextBlock(TextString("hello\nworld", StyleFont("Ubuntu Mono", 20), color_black))
     two_iomap = print_document(projection, two_lines)
     both = map_reference_forward(projection, two_iomap, make_flat_range_reference(0, 11))
     @test last(collect(get_reference_steps(both))) isa RegionReferenceStep
@@ -563,7 +563,7 @@ end
 @testset "TextToGraphics maps a span of a lazy list to the text that draws it" begin
     measure = FixedMeasure(10, 18, 6, 0)
     projection = TextToGraphics(measure = measure)
-    font = font_ubuntu_monospace_regular_20
+    font = StyleFont("Ubuntu Mono", 20)
     head = ListNode(TextString("one", font, color_black))
     push!(head, TextString("two", font, color_black))
     push!(head, TextNewline(font = font))

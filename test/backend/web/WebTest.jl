@@ -23,7 +23,7 @@ function test_web_backend()
         # The browser draws each character at its pen position on the baseline,
         # so the node carries the ascent of the box, one offset per character,
         # and the fonts in the order the other backends fall back in.
-        font = StyleModule.font_ubuntu_regular_20
+        font = StyleModule.StyleFont("Ubuntu", 20)
         node = _WEB._serialize_node(GraphicsText("AV→", 10, 20; font, color = color_black))
         _, ascent, _ = compute_text_extent("AV→", font)
         @test node["b"] == ascent
@@ -34,7 +34,7 @@ function test_web_backend()
         @test node["o"][2] < measure_string(FontFileMeasure(), "A", font).width
         @test node["f"][1] == "Ubuntu-R"
         @test node["f"][2:end] == [splitext(basename(file))[1]
-                                   for file in get_fallback_font_files(font.filename)]
+                                   for file in get_fallback_font_files(font)]
     end
 
     @testset "a decoded message is read from the queue" begin

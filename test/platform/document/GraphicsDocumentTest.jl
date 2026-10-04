@@ -1,7 +1,7 @@
 function test_graphics()
 @testset "ReactiveSDL" begin
 
-sdlt = GraphicsText("test", 10, 20; font = font_ubuntu_monospace_regular_20, color = color_red)
+sdlt = GraphicsText("test", 10, 20; font = StyleFont("Ubuntu Mono", 20), color = color_red)
 @test sdlt.text == "test"
 @test sdlt.x == 10
 @test sdlt.y == 20
@@ -16,7 +16,7 @@ sdlt2 = GraphicsText(
     Cell("hi"),
     Cell(@computation Int32(off[] * 10)),
     Cell(Int32(0)),
-    Cell(font_ubuntu_monospace_regular_20),
+    Cell(StyleFont("Ubuntu Mono", 20)),
     Cell(color_black),
     Cell(nothing)
 )
@@ -86,12 +86,12 @@ end
     trace = GraphicsPolyline(() -> [(i, 2.6 * i) for i in 0:2]; color = color_black, width = 2)
     @test trace.points == [(0, 0), (1, 3), (2, 5)]
     # A text can be live too.
-    label = GraphicsText(() -> string("t = ", round(Int, angle[])), 0, 0; font = font_ubuntu_monospace_regular_20)
+    label = GraphicsText(() -> string("t = ", round(Int, angle[])), 0, 0; font = StyleFont("Ubuntu Mono", 20))
     @test label.text == "t = 2"
 end
 
 @testset "IdentityProjection" begin
-    canvas = GraphicsCanvas([GraphicsText("a", 0, 0; font = font_ubuntu_monospace_regular_20)])
+    canvas = GraphicsCanvas([GraphicsText("a", 0, 0; font = StyleFont("Ubuntu Mono", 20))])
     proj = IdentityProjection()
     iomap = print_document(proj, nothing, canvas, nothing)
     @test iomap.input === canvas
@@ -134,7 +134,7 @@ end
     # The hit test of a rasterized canvas is its backward mapping, and the reader of
     # a click reads it: the element at the point, and the point inside that element.
     rect = GraphicsRect(10, 10, 30, 20)
-    text = GraphicsText("ab", 50, 0; font = font_ubuntu_monospace_regular_20)
+    text = GraphicsText("ab", 50, 0; font = StyleFont("Ubuntu Mono", 20))
     canvas = GraphicsCanvas(CellVector(Cell[Cell(rect), Cell(text)]))
     p = GraphicsCanvasToGraphicsImage()
     iomap = print_document(p, canvas)

@@ -56,7 +56,7 @@ module _FixedChildrenBlueprintProbe
     import ProjecturedKernel.ProjectionModule: var"@projection_template", bound
     import ProjecturedPlatform.SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation, SyntaxDocument
     import ProjecturedPlatform.TextModule: TextString
-    import ProjecturedPlatform.StyleModule: font_ubuntu_monospace_regular_20
+    import ProjecturedPlatform.StyleModule: StyleFont
     import ProjecturedPlatform.StyleModule: color_default
 
     @document struct Pair2 <: Document
@@ -65,8 +65,8 @@ module _FixedChildrenBlueprintProbe
     end
 
     _leaves(doc) = SyntaxDocument[
-        SyntaxLeaf(bound(:a, String, TextString(() -> doc.a, font_ubuntu_monospace_regular_20, color_default))),
-        SyntaxLeaf(bound(:b, String, TextString(() -> doc.b, font_ubuntu_monospace_regular_20, color_default)))]
+        SyntaxLeaf(bound(:a, String, TextString(() -> doc.a, StyleFont("Ubuntu Mono", 20), color_default))),
+        SyntaxLeaf(bound(:b, String, TextString(() -> doc.b, StyleFont("Ubuntu Mono", 20), color_default)))]
 
     # The long positional form: children land in the field as a raw Vector.
     @projection struct PairToNode <: Projection end
@@ -106,7 +106,7 @@ module _ConditionalChildrenProbe
     import ProjecturedKernel.ProjectionModule: var"@projection_template"
     import ProjecturedPlatform.SyntaxModule: SyntaxLeaf, SyntaxConcatenation
     import ProjecturedPlatform.TextModule: TextString
-    import ProjecturedPlatform.StyleModule: font_ubuntu_monospace_regular_20
+    import ProjecturedPlatform.StyleModule: StyleFont
     import ProjecturedPlatform.StyleModule: color_default
 
     @document struct Word <: Document
@@ -119,7 +119,7 @@ module _ConditionalChildrenProbe
         note::Union{Word,Nothing}
     end
 
-    _text(content) = TextString(content, font_ubuntu_monospace_regular_20, color_default)
+    _text(content) = TextString(content, StyleFont("Ubuntu Mono", 20), color_default)
 
     @projection struct WordToLeaf <: Projection end
     @projection_template WordToLeaf Word (p, doc) ->
@@ -229,7 +229,7 @@ module _ReconciledChildrenProbe
     import ProjecturedPlatform.CollectionModule: CellVector
     import ProjecturedPlatform.SyntaxModule: SyntaxLeaf, SyntaxNode
     import ProjecturedPlatform.TextModule: TextString
-    import ProjecturedPlatform.StyleModule: font_ubuntu_monospace_regular_20
+    import ProjecturedPlatform.StyleModule: StyleFont
     import ProjecturedPlatform.StyleModule: color_default
 
     @document struct Item <: Document
@@ -247,7 +247,7 @@ module _ReconciledChildrenProbe
         notes::CellVector
     end
 
-    _text(content) = TextString(content, font_ubuntu_monospace_regular_20, color_default)
+    _text(content) = TextString(content, StyleFont("Ubuntu Mono", 20), color_default)
 
     @projection struct ItemToLeaf <: Projection end
     @projection_template ItemToLeaf Item (p, doc) ->
@@ -309,7 +309,7 @@ module _ValueFieldProbe
     import ProjecturedKernel.ProjectionModule: var"@projection_template"
     import ProjecturedPlatform.SyntaxModule: SyntaxNode
     import ProjecturedPlatform.TextModule: TextString
-    import ProjecturedPlatform.StyleModule: font_ubuntu_monospace_regular_20
+    import ProjecturedPlatform.StyleModule: StyleFont
     import ProjecturedPlatform.StyleModule: color_default
 
     @document struct Named <: Document
@@ -321,7 +321,7 @@ module _ValueFieldProbe
         label::Any
     end
 
-    _text(content) = TextString(content, font_ubuntu_monospace_regular_20, color_default)
+    _text(content) = TextString(content, StyleFont("Ubuntu Mono", 20), color_default)
 
     @projection struct NamedToNode <: Projection end
     @projection_template NamedToNode Named (p, doc) ->
@@ -365,7 +365,7 @@ module _TemplateWiringsProbe
     import ProjecturedPlatform.CollectionModule: CellVector
     import ProjecturedPlatform.SyntaxModule: SyntaxLeaf, SyntaxNode, SyntaxConcatenation
     import ProjecturedPlatform.TextModule: TextString
-    import ProjecturedPlatform.StyleModule: font_ubuntu_monospace_regular_20
+    import ProjecturedPlatform.StyleModule: StyleFont
     import ProjecturedPlatform.StyleModule: color_default
 
     @document struct Word <: Document
@@ -388,7 +388,7 @@ module _TemplateWiringsProbe
         note::Union{Word,Nothing}
     end
 
-    _text(content) = TextString(content, font_ubuntu_monospace_regular_20, color_default)
+    _text(content) = TextString(content, StyleFont("Ubuntu Mono", 20), color_default)
 
     @projection struct WordToLeaf <: Projection end
     @projection_template WordToLeaf Word (p, doc) ->

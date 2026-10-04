@@ -22,7 +22,7 @@ end
 _icon_value(v) = v isa CellModule.Cell ? v[] : v
 
 # The texts a canvas draws in the icon font, and the character of an icon name.
-_is_icon_glyph(t) = endswith(_icon_value(t.font).filename, "lucide.ttf")
+_is_icon_glyph(t) = endswith(compute_font_path(_icon_value(t.font)), "lucide.ttf")
 _glyphs_of(canvas) = [String(string(_icon_value(t.text)))
                       for t in _prims_of(canvas, GraphicsText) if _is_icon_glyph(t)]
 _glyph(name) = string(find_icon_character(name))
@@ -62,16 +62,16 @@ end
 end
 
 @testset "a glyph-font icon is drawn at the size of its box" begin
-    register_icon!(:test_glyph_A, make_glyph_icon(font_ubuntu_regular_20, 'A'))
+    register_icon!(:test_glyph_A, make_glyph_icon(StyleFont("Ubuntu", 20), 'A'))
     b = _btn(icon = :test_glyph_A)
     @test "A" in [string(_icon_value(t.text)) for t in _prims_of(b, GraphicsText)]
     # The font names a size; the box decides it.
     elements = Any[]
-    make_glyph_icon(font_ubuntu_regular_20, 'A')(elements, 3, 4, 37, StyleColor(0.0, 0.0, 0.0, 1.0))
+    make_glyph_icon(StyleFont("Ubuntu", 20), 'A')(elements, 3, 4, 37, StyleColor(0.0, 0.0, 0.0, 1.0))
     t = only(elements)
     @test (Int(_icon_value(t.x)), Int(_icon_value(t.y))) == (3, 4)
     @test _icon_value(t.font).size == 37
-    @test _icon_value(t.font).filename == font_ubuntu_regular_20.filename
+    @test compute_font_path(_icon_value(t.font)) == compute_font_path(StyleFont("Ubuntu", 20))
 end
 
 @testset "a menu item shows a leading icon" begin
@@ -111,7 +111,7 @@ end
 
 @testset "every built-in icon is a glyph the icon font has, drawn in its box" begin
     registry = ProjecturedPlatform.WidgetModule.ICON_REGISTRY
-    font = load_truetype_font(font_lucide_icons_20.filename)
+    font = load_truetype_font(compute_font_path(StyleFont("Lucide", 20)))
     color = StyleColor(0.1, 0.2, 0.3, 1.0)
     for (name, codepoint) in ProjecturedPlatform.WidgetModule.LUCIDE_ICON_GLYPHS
         # A code point the font does not have draws nothing, or a box.
@@ -131,7 +131,7 @@ end
 @testset "a label with a font of its own writes an icon in the theme's color" begin
     plain = only(_prims_of(print_document(proj, WidgetLabel("x")).output, GraphicsText))
     icon = only(_prims_of(print_document(proj, WidgetLabel(_glyph(:loader);
-                                                           text_style = font_lucide_icons_20)).output,
+                                                           text_style = StyleFont("Lucide", 20))).output,
                           GraphicsText))
     @test _is_icon_glyph(icon)
     @test string(_icon_value(icon.text)) == _glyph(:loader)

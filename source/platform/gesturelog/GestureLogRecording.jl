@@ -138,6 +138,7 @@ function wrap_editor!(::Val{:gesture_log}, layer::Symbol, argument, parts::Edito
 end
 
 # The gray that the translucent panel shows over a light page, as an opaque color.
+# @style: waits for a decision of the owner: the panel of the theme is translucent, the panel of a window is opaque
 const _GESTURE_LOG_PANEL_BACKGROUND = StyleColor(0.26, 0.27, 0.28, 1.0)
 
 # The panel of the newest gestures over `projection`. It has a short log of its

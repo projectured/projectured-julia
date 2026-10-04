@@ -8,8 +8,8 @@ _projection() = RecursiveProjection(MathToGraphics(measure = FontFileMeasure()))
 _print(doc) = print_document(_projection(), doc)
 
 # The metrics the rules are derived from, at the default face and size.
-_config() = MathConfig(font = font_dejavu_sans_regular_20,
-                       slanted = font_dejavu_sans_italic_20,
+_config() = MathConfig(font = StyleFont("DejaVu Sans", 14),
+                       slanted = StyleFont("DejaVu Sans", 14; italic = true),
                        measure = FontFileMeasure())
 _metrics(style = :display) = compute_math_metrics(_config(), style)
 
@@ -108,9 +108,9 @@ end
 @testset "a script is set smaller, and a script inside one smaller again" begin
     # The level rides in the printer context, so the same rule table gives
     # three sizes.
-    @test compute_math_metrics(_config(), :display).size == 20
-    @test compute_math_metrics(_config(), :script).size == 14
-    @test compute_math_metrics(_config(), :scriptscript).size == 10
+    @test compute_math_metrics(_config(), :display).size == 14
+    @test compute_math_metrics(_config(), :script).size == 10
+    @test compute_math_metrics(_config(), :scriptscript).size == 7
 
     nested = _print(MathSuperscript(MathVariable("x"),
                                     MathSuperscript(MathVariable("y"), PrimitiveNumber(2))))

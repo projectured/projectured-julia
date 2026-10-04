@@ -50,6 +50,7 @@ function map_reference_backward(::GraphicsCanvasToGraphicsImage, iomap, referenc
 end
 
 # Color palette for distinguishing cached images
+# @style: a tint of the paint flashing, a view for debugging
 const _checker_colors = [
     StyleColor(255 / 255, 230 / 255, 230 / 255, 40 / 255),  # pale red
     StyleColor(230 / 255, 255 / 255, 230 / 255, 40 / 255),  # pale green

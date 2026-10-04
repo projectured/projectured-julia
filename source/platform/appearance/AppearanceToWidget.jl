@@ -93,19 +93,41 @@ _get_percent_text(factor::Real) = string(round(Int, factor * 100), "%")
 _write_theme_field(theme, field::Symbol, value) =
     ReplaceReferencedValueOperation(theme, String(field), value)
 
-# The font files that a font of a theme can take, in the order of their names:
-# the files of the font folder, without the icon font and the emoji font.
-_get_theme_font_files() =
-    sort!([f for f in readdir(_FONT_DIR) if endswith(f, ".ttf") &&
-           !(f in ("lucide.ttf", "NotoEmoji-Regular.ttf"))])
+# The families that a font of a theme can take, in the order of their names: the
+# bundled families, without the icon font and the emoji font.
+_get_theme_font_families() =
+    filter(family -> !(family in ("Lucide", "Noto Emoji")), get_font_families())
 
-# The font `delta` files away from `font` in the list of the font files, at the
-# size of `font`.
-function _step_font_file(font::StyleFont, delta::Integer)
-    files = _get_theme_font_files()
-    i = something(findfirst(==(basename(font.filename)), files), 1)
-    StyleFont(joinpath(_FONT_DIR, files[mod1(i + delta, length(files))]), font.size)
+# The font `delta` families away from `font` in the list of the families, at the
+# size, the weight and the slant of `font`.
+function _step_font_family(font::StyleFont, delta::Integer)
+    families = _get_theme_font_families()
+    i = something(findfirst(==(font.family), families), 1)
+    StyleFont(families[mod1(i + delta, length(families))], font.size;
+              weight = font.weight, italic = font.italic)
 end
+
+# The names of the weights on the scale of CSS.
+const _FONT_WEIGHT_NAMES = Dict(100 => "Thin", 200 => "Extra Light", 300 => "Light",
+                                400 => "Regular", 500 => "Medium", 600 => "Semi Bold",
+                                700 => "Bold", 800 => "Extra Bold", 900 => "Black")
+
+_get_font_weight_name(weight::Integer) = get(_FONT_WEIGHT_NAMES, Int(weight), string(weight))
+
+# The font `delta` weights of its family away from `font`: one heavier for 1, one
+# lighter for -1, and no further than the heaviest or the lightest. A weight that
+# the family does not have steps from the nearest one that it has.
+function _step_font_weight(font::StyleFont, delta::Integer)
+    weights = get_font_weights(font.family)
+    isempty(weights) && return font
+    i = something(findfirst(==(Int(font.weight)), weights), argmin(abs.(weights .- font.weight)))
+    StyleFont(font.family, font.size; weight = weights[clamp(i + delta, 1, length(weights))],
+              italic = font.italic)
+end
+
+# `font` upright, or italic when `italic` is true.
+_with_font_italic(font::StyleFont, italic::Bool) =
+    StyleFont(font.family, font.size; weight = font.weight, italic)
 
 # A size of a theme with `part` replaced by `value`: a part of an inset, of a
 # point, or the size itself.
@@ -142,6 +164,12 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
         writes[box] = write
         box
     end
+    # A checkbox of `value` that says `label`; a click answers `write(!value)`.
+    function checkbox(value, write; label = nothing)
+        box = WidgetCheckbox(value; label)
+        writes[box] = write
+        box
+    end
     # A choice of `labels`, with none chosen; the choice of an index answers
     # `write(index)`.
     function choice(labels, write)
@@ -157,7 +185,7 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
             _compute_color_edit(read, write, start, stop, replacement)
         text
     end
-    controls = (; button, spin_box, choice, color_text, theme, appearance, folds)
+    controls = (; button, spin_box, checkbox, choice, color_text, theme, appearance, folds)
     cells = Any[]
     for (field, name) in _APPEARANCE_ROWS
         push!(cells, WidgetLabel(name),
@@ -182,11 +210,9 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
         end
     end
     content = VerticalLayout(parts; gap = theme.section_gap)
-    margin = theme.container_padding
     # The pane scrolls the cell of the appearance: the next print, which a write of
     # the appearance starts, makes a new pane at the same place.
-    pane = WidgetScrollPane(content; padding = Inset(margin, margin, margin, margin),
-                            scroll_position = getfield(appearance, :scroll_position))
+    pane = WidgetScrollPane(content; scroll_position = getfield(appearance, :scroll_position))
     _follow_tab_paths!(p, appearance, pane)
     child = print_document(p.scroll_pane, recursion, pane, ctx)
     AppearanceToWidgetIoMap(p, appearance, child.output, child, commands, writes, edits, folds)
@@ -194,7 +220,7 @@ end
 
 # The themes that every view of the editor draws with, in the order of the group
 # "Editor" of the tab.
-const _EDITOR_THEME_TYPES = (WidgetTheme, TextTheme, SyntaxTheme, ReferenceTheme)
+const _EDITOR_THEME_TYPES = (WidgetTheme, TextTheme, SyntaxTheme, ReferenceTheme, GraphicsTheme, TooltipTheme)
 
 # The groups of the tab: each a title and the themes of `appearance` that it shows.
 # A theme of `ProjecturedPlatform` that is no editor theme is the theme of a tool,
@@ -301,19 +327,79 @@ function _make_field_control(controls, theme, field::Symbol, value::StyleText)
     ]; gap = controls.theme.item_gap)
 end
 
+_make_field_control(controls, theme, field::Symbol, value::FontRole) =
+    _make_role_control(controls, theme, () -> getproperty(theme, field),
+                       role -> _write_theme_field(theme, field, role))
+
+# A text role has the controls of its colour over those of its font role.
+function _make_field_control(controls, theme, field::Symbol, value::TextRole)
+    read = () -> getproperty(theme, field)
+    VerticalLayout(Any[
+        _make_color_control(controls, () -> read().color,
+                            color -> _write_theme_field(theme, field, TextRole(read().font, color))),
+        _make_role_control(controls, theme, () -> read().font,
+                           role -> _write_theme_field(theme, field, TextRole(role, read().color))),
+    ]; gap = controls.theme.item_gap)
+end
+
+# A multiple of the natural line height has a spin box in percent.
+_make_field_control(controls, theme, field::Symbol, value::MultipleSpacing) =
+    HorizontalLayout(Any[controls.spin_box(round(Int, value.factor * 100),
+                                           v -> _write_theme_field(theme, field, MultipleSpacing(v / 100));
+                                           min = 50, max = 400),
+                         WidgetLabel("% of the natural line height")];
+                     gap = controls.theme.label_gap, vertical_align = :center)
+
 _make_field_control(controls, theme, field::Symbol, value) = WidgetLabel(string(value))
 
-# The controls of the font that `read()` answers: buttons that step through the font
-# files, its name, and a spin box for its size. `write(font)` is the operation that
-# sets a new font.
+# `role` with its weight, its slant or its relative size replaced.
+_with_font_role(role::FontRole; weight = role.weight, italic = role.italic,
+                relative_size = role.relative_size) =
+    FontRole(; base = role.base, family = role.family, weight, italic, relative_size)
+
+# The controls of the font role that `read()` answers, in one row: its family when
+# it sets one, the steps through the weights of the family of the font that it
+# gives, a checkbox for italic, and its size in percent of its base font. A step or
+# a check sets the weight or the slant of the role, which then no longer follows
+# the base in it. `write(role)` is the operation that sets a new role.
+function _make_role_control(controls, theme, read, write)
+    role = read()
+    font = apply_font_role(role, get_role_base(role, theme))
+    parts = Any[]
+    role.family === nothing || push!(parts, WidgetLabel(role.family))
+    append!(parts, Any[
+        controls.button("−", write(_with_font_role(role; weight = _step_font_weight(font, -1).weight))),
+        WidgetLabel(_get_font_weight_name(font.weight)),
+        controls.button("+", write(_with_font_role(role; weight = _step_font_weight(font, 1).weight))),
+        controls.checkbox(font.italic, v -> write(_with_font_role(read(); italic = v)); label = "italic"),
+        controls.spin_box(round(Int, role.relative_size * 100),
+                          v -> write(_with_font_role(read(); relative_size = v / 100)); min = 25, max = 400),
+        WidgetLabel("% of " * replace(String(role.base), "_" => " ")),
+    ])
+    HorizontalLayout(parts; gap = controls.theme.label_gap, vertical_align = :center)
+end
+
+# The controls of the font that `read()` answers. The first row steps through the
+# families and names the family of the font. The second row steps through the
+# weights of the family and names the weight, then a checkbox chooses italic and a
+# spin box the size. `write(font)` is the operation that sets a new font.
 function _make_font_control(controls, read, write)
     font = read()
-    HorizontalLayout(Any[
-        controls.button("‹", write(_step_font_file(font, -1))),
-        WidgetLabel(splitext(basename(font.filename))[1]),
-        controls.button("›", write(_step_font_file(font, 1))),
-        controls.spin_box(font.size, v -> write(StyleFont(read().filename, v)); min = 6, max = 96),
-    ]; gap = controls.theme.label_gap, vertical_align = :center)
+    gap = controls.theme.label_gap
+    VerticalLayout(Any[
+        HorizontalLayout(Any[
+            controls.button("‹", write(_step_font_family(font, -1))),
+            WidgetLabel(font.family),
+            controls.button("›", write(_step_font_family(font, 1))),
+        ]; gap, vertical_align = :center),
+        HorizontalLayout(Any[
+            controls.button("−", write(_step_font_weight(font, -1))),
+            WidgetLabel(_get_font_weight_name(font.weight)),
+            controls.button("+", write(_step_font_weight(font, 1))),
+            controls.checkbox(font.italic, v -> write(_with_font_italic(read(), v)); label = "italic"),
+            controls.spin_box(font.size, v -> write(with_font_size(read(), v)); min = 6, max = 96),
+        ]; gap, vertical_align = :center),
+    ]; gap)
 end
 
 # The controls of the colour that `read()` answers: its swatch, with a border so a
@@ -321,7 +407,7 @@ end
 # operation that sets a new colour.
 function _make_color_control(controls, read, write)
     color = read()
-    swatch = WidgetLabel(" "; border = Inset(1, 1, 1, 1), padding = Inset(0, 0, 8, 8),
+    swatch = WidgetLabel(" "; border = Inset(1, 1, 1, 1), padding = Inset(0, 0, 8, 8),  # @style: the swatch waits for a widget kind that draws a square
                          style = WidgetStyle(border_color = controls.theme.border,
                                              padding_color = color, content_color = color))
     HorizontalLayout(Any[swatch, controls.color_text(read, write)];

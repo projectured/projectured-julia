@@ -24,7 +24,7 @@ ProjecturedSQL = {path = "../ProjecturedSQL"}
 DBInterface = "2.6.1"
 ODBC = "1.2.1"
 
-# AutoIntegrations loads this package when Projectured and ODBC are loaded,
+# AutoIntegration loads this package when Projectured and ODBC are loaded,
 # unless the environment of the user sets it to "manual".
 [auto-integration]
 default = "auto"

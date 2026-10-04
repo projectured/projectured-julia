@@ -161,6 +161,7 @@ end
     type_name::StyleText
     field_name::StyleText
     undef::StyleText
+    delimiter::StyleText
     include_selection::Bool
     open_delimiter::String
     close_delimiter::String
@@ -172,18 +173,19 @@ function ObjectNodeToSyntaxNode(; theme = nothing,
                                 type_name = _get_syntax_style(scale_theme(theme), StyleText, :type_name_text),
                                 field_name = _get_syntax_style(scale_theme(theme), StyleText, :field_name_text),
                                 undef = _get_syntax_style(scale_theme(theme), StyleText, :note_text),
+                                delimiter = _get_syntax_style(scale_theme(theme), StyleText, :object_delimiter_text),
                                 include_selection::Bool = false, open_delimiter::AbstractString = "",
                                 close_delimiter::AbstractString = "", newlines::Bool = true,
                                 filter = nothing)
-    ObjectNodeToSyntaxNode(type_name, field_name, undef, include_selection, String(open_delimiter),
+    ObjectNodeToSyntaxNode(type_name, field_name, undef, delimiter, include_selection, String(open_delimiter),
                            String(close_delimiter), newlines, filter)
 end
 
-# A delimiter or a separator of a reflected object, in the font of the field names
-# and the default color, so its size follows the theme and the indentation that
-# takes its font follows too. An empty one stays empty, so the node has no span.
+# A delimiter or a separator of a reflected object, in the delimiter text of the
+# theme, so its size follows the theme and the indentation that takes its font
+# follows too. An empty one stays empty, so the node has no span.
 _object_delimiter(p::ObjectNodeToSyntaxNode, text::AbstractString) =
-    isempty(text) ? text : TextString(text, p.field_name.font, color_default)
+    isempty(text) ? text : TextString(text, p.delimiter)
 
 # Unwrap a Cell for predicate/filter testing; pass non-cells through.
 _unwrap_cell(x) = x isa Cell ? x[] : x

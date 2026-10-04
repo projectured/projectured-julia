@@ -9,10 +9,10 @@ function test_sql_theme()
     plain = draw_font_sizes(document, Appearance())
     @test !isempty(plain)
     @test draw_font_sizes(document, Appearance(font_scale = 1.5)) == round.(Int, plain .* 1.5)
-    @test SqlColumnReferenceToSyntaxLeaf().style.font.size == 20
+    @test SqlColumnReferenceToSyntaxLeaf().style.font.size == 14
     theme = get_scaled_theme!(Appearance(font_scale = 1.5), SqlTheme)
     leaf = SqlColumnReferenceToSyntaxLeaf(; theme)
-    @test leaf.style.font.size == 30
+    @test leaf.style.font.size == 21
     @test is_color_equal(leaf.style.color, SqlTheme().plain_text.color)
 end
 end

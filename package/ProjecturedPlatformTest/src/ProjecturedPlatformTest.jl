@@ -123,6 +123,7 @@ include("../../../test/platform/document/TextMeasureTest.jl")
 include("../../../test/platform/document/LineSpacingTest.jl")
 include("../../../test/platform/document/ThemeTest.jl")
 include("../../../test/platform/document/FontFallbackTest.jl")
+include("../../../test/platform/document/FontFaceTest.jl")
 include("../../../test/platform/document/GraphicsLayoutTest.jl")
 include("../../../test/platform/document/LayoutAllocatorTest.jl")
 include("../../../test/platform/document/PrimitiveDocumentTest.jl")
@@ -224,6 +225,8 @@ include("../../../test/platform/projection/PartPointerShapeTest.jl")
 include("../../../test/platform/projection/RoutedGestureTest.jl")
 include("../../../test/platform/projection/LayoutPointTest.jl")
 include("../../../test/platform/projection/WidgetPointTest.jl")
+include("../../../test/platform/projection/ColumnChooserTest.jl")
+include("../../../test/platform/projection/BaselineAlignmentTest.jl")
 include("../../../test/platform/projection/WidgetForwardTest.jl")
 include("../../../test/platform/projection/WidgetRoundTripTest.jl")
 include("../../../test/platform/projection/ScrollPaneHoverTest.jl")
@@ -362,6 +365,7 @@ for _src in _SOURCES
 end
 
 include("../../../test/platform/conversation/AssistantApiTest.jl")
+include("../../../test/platform/conversation/ConversationThemeTest.jl")
 
 include("../../../test/platform/conversation/ConversationSuite.jl")
 end # module ConversationTests

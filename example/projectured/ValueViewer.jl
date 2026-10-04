@@ -32,7 +32,7 @@ function make_value_viewer(value; tree::Bool = true, depth::Integer = 1,
     tree || return (value, NaturalToGraphics(measure = measure))
     document = reflect_document(value, _make_value_viewer_policy(depth, elements))
     projection = ChainingProjection(ReflectionToWidget(),
-                                    WidgetToGraphics(font_ubuntu_monospace_regular_20;
+                                    WidgetToGraphics(StyleFont("Ubuntu Mono", 20);
                                                      measure = measure))
     (document, projection)
 end

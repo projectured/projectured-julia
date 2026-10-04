@@ -97,8 +97,8 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | `ProjecturedREPL` | [repl.md](tool/repl/repl.md) | the leaf that a session loads, with the precompile workload |
 | `ProjecturedBuilder` | [builder.md](tool/builder/builder.md) | the build of a native binary |
 
-## AutoIntegrations
+## AutoIntegration
 
 | Package | Document | What it holds |
 | --- | --- | --- |
-| `AutoIntegrations` | [autointegrations.md](autointegrations/autointegrations.md) | loads an installed package when its triggers are loaded, as the settings of the user choose |
+| `AutoIntegration` | [autointegration.md](autointegration/autointegration.md) | loads an installed package when its triggers are loaded, as the settings of the user choose |

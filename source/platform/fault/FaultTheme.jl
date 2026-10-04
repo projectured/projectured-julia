@@ -18,19 +18,43 @@ A fault log reads the scaled theme through its `UntrackedCell` style fields;
 with no theme it holds the plain values of the default theme.
 """
 @theme struct FaultTheme
+    "The font that the texts of this theme follow: its family, its weight and its size."
+    font::StyleFont = StyleFont("DejaVu Sans Mono", 13)
     "The count of the occurrences of a fault."
-    count_text::StyleText = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
+    count_text::TextRole = TextRole(color_slate_500)
     "The barrier that catches a fault, such as `print`, `device` or `tool`."
-    site_text::StyleText = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
+    site_text::TextRole = TextRole(color_slate_500)
     "The name of the type or the function whose code fails."
-    origin_text::StyleText = StyleText(font_dejavu_monospace_bold_16, color_solarized_red)
+    origin_text::TextRole = TextRole(color_solarized_red; weight = 700)
     "The message of the first occurrence of a fault."
-    message_text::StyleText = StyleText(font_dejavu_monospace_regular_16, color_slate_700)
+    message_text::TextRole = TextRole(color_slate_700)
     "The line the log shows while it holds no fault."
-    empty_text::StyleText = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
+    empty_text::TextRole = TextRole(color_slate_500)
+    "The surface of the panel that shows the log over the content of a window: dark and translucent, with a red cast, so the content stays readable and the panel says that it is not chrome."
+    panel_background::StyleColor = StyleColor(0.18, 0.02, 0.02, 0.80)
+    "The space between the panel and the edges of the window."
+    panel_margin::Spacing = Spacing(12)
+    "The space inside the panel, around the lines of the log."
+    panel_padding::Spacing = Spacing(8)
+    "The radius of the corners of the panel."
+    panel_radius::Radius = Radius(4)
 end
 
 # The style field of a fault log projection that holds the text `name` of the
 # theme `theme`: a `FaultTheme`, a scaled one, or `nothing` for the default
 # values.
 _get_fault_style(theme, name::Symbol) = make_style_field(FaultTheme, scale_theme(theme), StyleText; name)
+
+"""
+    make_fault_log_panel_theme() -> FaultTheme
+
+The fault theme of the panel over a window: light text for the dark background
+of the panel.
+"""
+make_fault_log_panel_theme() =
+    FaultTheme(count_text = TextRole(color_gray159), site_text = TextRole(color_solarized_gray),
+               message_text = TextRole(color_gray223), empty_text = TextRole(color_solarized_gray))
+
+# The two presets, for the appearance tab.
+get_theme_presets(::Type{FaultTheme}) =
+    Pair{String,Any}["Light" => FaultTheme, "Panel" => make_fault_log_panel_theme]

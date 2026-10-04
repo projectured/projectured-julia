@@ -17,7 +17,7 @@ ProjecturedJulia = {path = "../ProjecturedJulia"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
 
-# AutoIntegrations loads this package when Projectured is loaded, unless the
+# AutoIntegration loads this package when Projectured is loaded, unless the
 # environment of the user sets it to "manual".
 [auto-integration]
 default = "auto"
