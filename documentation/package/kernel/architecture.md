@@ -54,7 +54,7 @@ Layer 18 — tool/        the editor's capability surface — Tool/Resource/Tool
 Layer 19 — llm/         the LLM provider abstraction — Llm, stream_turn/render_tool_schema, LlmMessage/LlmRequest, LlmEvent (side-stack)
 Layer 20 — agent/       the AI control surface — AgentModule, with the inbound MCP seam and the outbound Agent and run_turn! loop (side-stack)
 Layer 21 — feed/        the feed contract — a registered inflow that the editor moves into a target document once per frame
-Layer 22 — editor/      the run_editor! loop — read!, evaluate!, print! and the frame
+Layer 22 — editor/      the run_editor! loop — run_read_stage!, run_evaluate_stage!, run_print_stage! and the frame
 Layer 23 — playback/    scripted live playback — a timeline that fires in the editor loop on a wall-clock schedule
 ```
 

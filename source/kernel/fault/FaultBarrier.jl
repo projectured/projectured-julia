@@ -38,7 +38,7 @@ passing quietly.
 
     run_fault_barrier!(editor.faults; policy = editor.fault_policy,
                        backend = editor.backend, site = :print) do
-        print!(editor)
+        run_print_stage!(editor)
     end
 
 See also [`FaultPolicy`](@ref), [`record_fault!`](@ref) and

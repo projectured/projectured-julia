@@ -97,7 +97,7 @@ reader + evaluator + reprint. Closed by adding a headless interaction warm-up.
     (`evaluate_operation` dispatches on the *operation*, not the backend).
   - Faithful reader entry: `EventEnvelope(window_id, event)` →
     `projection_read(composed, nothing, Change(env), iomap)` — the same path live
-    input takes (mirrors `Editor.read!` / `_timeline_operation`).
+    input takes (mirrors `Editor.run_read_stage!` / `_timeline_operation`).
   - `_force_reactive!` walks the printed iomap forcing every `Cell` (with
     depth/node caps), so the printer **cell bodies** compile, not just graph
     assembly. Self-contained (no dependency on the test package's `_walk!`).

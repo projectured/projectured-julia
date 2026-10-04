@@ -1,6 +1,6 @@
 # The timers of the editor. A reader sets a timer with `SetTimerOperation`, the
 # editor keeps its time under its name, the wait ends at the earliest timer, and
-# `read!` reads a `TimerExpire` for a timer whose time came, before any device
+# `run_read_stage!` reads a `TimerExpire` for a timer whose time came, before any device
 # input.
 
 using Test
@@ -13,7 +13,8 @@ using ProjecturedKernel.EventModule
 import ProjecturedKernel.BackendModule
 import ProjecturedKernel.BackendModule: Backend
 import ProjecturedKernel.EditorModule: Editor, compute_wait_timeout, post_operation!,
-                                       run_editor!, read!, evaluate!, print!
+                                       run_editor!, run_read_stage!,
+                                       run_evaluate_stage!, run_print_stage!
 import ProjecturedKernel.OperationModule: Operation, SetTimerOperation, QuitEditorOperation,
                                           DoNothingOperation, evaluate_operation,
                                           is_self_contained_operation,
@@ -67,7 +68,7 @@ BackendModule.quit_backend!(::TimerProbeBackend) = nothing
 function _timer_editor(backend::TimerProbeBackend, log::Vector{Any}; delay::Real = 0.1)
     editor = Editor(TimerProbe(), TimerProbeProjection(log, Float64(delay));
                     backend = backend, devices = Device[])
-    print!(editor)
+    run_print_stage!(editor)
     editor
 end
 
@@ -95,7 +96,7 @@ function test_editor_timer()
         log = Any[]
         editor = _timer_editor(TimerProbeBackend(), log)
         evaluate_operation(editor, SetTimerOperation(:a, time() + 10))
-        @test read!(editor) == false
+        @test run_read_stage!(editor) == false
         @test isempty(log)
         @test haskey(editor.timers, :a)
     end
@@ -107,15 +108,15 @@ function test_editor_timer()
         now = time()
         evaluate_operation(editor, SetTimerOperation(:late, now - 1))
         evaluate_operation(editor, SetTimerOperation(:early, now - 2))
-        @test read!(editor) == true
-        evaluate!(editor)
+        @test run_read_stage!(editor) == true
+        run_evaluate_stage!(editor)
         @test log == Any[TimerExpire(:early, now - 2)]
-        @test read!(editor) == true
-        evaluate!(editor)
+        @test run_read_stage!(editor) == true
+        run_evaluate_stage!(editor)
         @test log == Any[TimerExpire(:early, now - 2), TimerExpire(:late, now - 1)]
         @test isempty(editor.timers)
         # The device input waited behind the timers, and it sets a timer of its own.
-        @test read!(editor) == true
+        @test run_read_stage!(editor) == true
         @test editor.operation == SetTimerOperation(:x, 0.1)
     end
 

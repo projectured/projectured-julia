@@ -51,9 +51,9 @@ Two consequences follow at once, and they are the reason the system exists.
 The editor runs a read-evaluate-print loop. One frame does four steps.
 
 ```julia
-read!(editor)      # poll the devices, run the reader chain → an Operation
-evaluate!(editor)  # apply the Operation to the document
-print!(editor)     # run the printer chain → the output document, then render
+run_read_stage!(editor)      # poll the devices, run the reader chain → an Operation
+run_evaluate_stage!(editor)  # apply the Operation to the document
+run_print_stage!(editor)     # run the printer chain → the output document, then render
 _log_performance_counters!(editor)      # report the reactive counters of this frame
 ```
 

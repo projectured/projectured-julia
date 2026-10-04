@@ -2,7 +2,7 @@
 # inputs and gives the content each input and the gestures that the recognitions
 # find. A small driver plays the part of the editor: it evaluates each answer,
 # keeps the timers that the answer sets, and reads the timer that brings in a
-# waiting input before the next input, as `read!` does. The times of the inputs
+# waiting input before the next input, as `run_read_stage!` does. The times of the inputs
 # make every case exact.
 
 # The content: it logs what it reads, with the state it sees then, and it answers

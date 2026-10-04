@@ -3,7 +3,7 @@
 # ── Read-Eval-Print ──────────────────────────────────────────────────
 
 """
-    read!(editor::Editor) -> Bool
+    run_read_stage!(editor::Editor) -> Bool
 
 Drain input window inputs via the backend until one translates into an
 operation. Returns `true` when an operation was produced (stored in
@@ -27,7 +27,7 @@ A timer of `editor.timers` whose time has come is read first, as a bare
 `TimerExpire`: a timer belongs to no window. The earliest one goes first, and it
 leaves the timers when it is read.
 """
-function read!(editor::Editor)
+function run_read_stage!(editor::Editor)
     while true
         window_input = _pop_due_timer!(editor)
         window_input === nothing && (window_input = _read_from_devices_guarded(editor))
@@ -131,19 +131,20 @@ function _is_quit_gesture(window_input)
 end
 
 """
-    evaluate!(editor::Editor)
+    run_evaluate_stage!(editor::Editor)
 
 Apply the current operation to the document. Logs the operation, in the words
 of `describe_operation`, when it is non-nothing.
 
-When the fault policy of the editor enables the barriers, `evaluate!` makes the
-inverse of the operation first, and then runs the operation in the `:evaluate`
-barrier. When the operation throws, the barrier records the fault, and `evaluate!`
-runs three repairs: it applies the inverse where there is one, it drops the IoMap
-so that the next print starts from scratch, and it clears a selection that does
-not resolve. With the barriers off, the exception goes on to the caller.
+When the fault policy of the editor enables the barriers, `run_evaluate_stage!` makes
+the inverse of the operation first, and then runs the operation in the `:evaluate`
+barrier. When the operation throws, the barrier records the fault, and
+`run_evaluate_stage!` runs three repairs: it applies the inverse where there is one,
+it drops the IoMap so that the next print starts from scratch, and it clears a
+selection that does not resolve. With the barriers off, the exception goes on to the
+caller.
 """
-function evaluate!(editor::Editor)
+function run_evaluate_stage!(editor::Editor)
     # Log via @info, not a raw println: a call of the code tool runs on a
     # concurrent task that globally redirects `stdout`/`stderr` to a pipe (and
     # closes it), so a raw write to the live global stdout from this loop can land
@@ -155,7 +156,7 @@ function evaluate!(editor::Editor)
 end
 
 """
-    print!(editor::Editor)
+    run_print_stage!(editor::Editor)
 
 Project the editor's document through its projection pipeline. The root
 `PrinterContext` holds the editor's own `clock`, so an animated cell that a
@@ -166,7 +167,7 @@ It also carries the editor's own document under `:root`. A projection deep in
 the tree cannot reach the root any other way, and one that shows something about
 the whole editor — where the selection is, which tabs are open — needs it.
 """
-function print!(editor::Editor)
+function run_print_stage!(editor::Editor)
     if editor.iomap === nothing
         # The store and the policy ride down with the context. A projection
         # barrier deep in the tree records into the store from inside a

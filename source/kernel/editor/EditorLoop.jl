@@ -42,15 +42,15 @@ repaint once. `run_editor!` runs this once per tick; call it directly to drive a
 editor one frame at a time — a test harness, an embedder, or a scripted timeline
 that interleaves its own work between frames.
 
-`read!` answers one operation, so the frame loops it. Input arrives faster than a
-frame can paint, and a frame that applied a single operation made a burst of
+`run_read_stage!` answers one operation, so the frame loops it. Input arrives faster
+than a frame can paint, and a frame that applied a single operation made a burst of
 input cost one frame — plus one `sleep` — for each step in it. That is what made
 a hover highlight fall behind a pointer crossing several widgets. At most
 `MAX_OPERATIONS_PER_FRAME` operations are applied before the repaint.
 
 An operation that dropped the cached projection (a whole-root swap calls
-`invalidate_projection!`) ends the frame. `read!` reads against the stored IoMap
-and *discards* an input it has none for, so input behind such a swap has to wait
+`invalidate_projection!`) ends the frame. `run_read_stage!` reads against the stored
+IoMap and *discards* an input it has none for, so input behind such a swap has to wait
 for the repaint that rebuilds the projection, or it would be thrown away.
 
 A frame whose reads end before the input runs out, at the bound, at a read that
@@ -58,9 +58,9 @@ threw or at a dropped IoMap, sets `editor.wake_pending`. `run_editor!` then runs
 the next frame without a wait, so the input that is left does not wait for new
 input.
 
-The loop leaves the last applied operation in `editor.operation`. `read!` clears that
-field when the input runs out, and `_log_performance_counters!` reads it to tell a frame
-that did something from an idle one.
+The loop leaves the last applied operation in `editor.operation`. `run_read_stage!`
+clears that field when the input runs out, and `_log_performance_counters!` reads it
+to tell a frame that did something from an idle one.
 """
 function run_frame!(editor::Editor)
     # Every fault the last frame collected, shown before this one reads
@@ -80,7 +80,7 @@ function run_frame!(editor::Editor)
         # the frame goes on, and the fault says which reader lost it.
         has_input = @measure_performance_time :read_time begin
             _run_barrier(editor, :read; fallback = _BARRIER_FAILED) do
-                read!(editor)
+                run_read_stage!(editor)
             end
         end
         has_input === _BARRIER_FAILED && break
@@ -88,7 +88,7 @@ function run_frame!(editor::Editor)
             is_input_left = false
             break
         end
-        @measure_performance_time :evaluate_time evaluate!(editor)
+        @measure_performance_time :evaluate_time run_evaluate_stage!(editor)
         applied = editor.operation
         editor.iomap === nothing && break     # repaint before reading anything else
     end
@@ -100,7 +100,7 @@ function run_frame!(editor::Editor)
     editor.is_retry_pending && _retry_marked_barriers!(editor)
     @measure_performance_time :print_time begin
         _run_barrier(editor, :print; origin = typeof(editor.projection)) do
-            print!(editor)
+            run_print_stage!(editor)
         end
     end
     _consider_safe_mode!(editor)
@@ -129,7 +129,7 @@ Execute the read-eval-print loop. Between frames the editor sleeps in
 has subscribers, the nearest feed deadline, else never. Each frame:
 `drain_feeds!` moves what producers posted or stored from outside — the
 inbox first, then every registered feed — then `run_frame!` applies every
-operation the backend has waiting and repaints once. `read!` internally
+operation the backend has waiting and repaints once. `run_read_stage!` internally
 swallows envelopes that don't translate to an operation, so no outer drain
 is needed. An editor with no IoMap, as `Editor(…)` makes it, prints once before
 its first frame, so the first frame reads its input against an IoMap.
@@ -172,10 +172,10 @@ function run_editor!(editor::Editor; mcp::Union{Bool,NamedTuple}=false,
         server = mcp === false ? nothing : _make_mcp_server(editor, mcp)
         server === nothing || start_agent_server!(server)
         # An editor that has no IoMap prints once before its first frame, because
-        # `read!` drops an input that no IoMap can read.
+        # `run_read_stage!` drops an input that no IoMap can read.
         if editor.iomap === nothing
             _run_barrier(editor, :print; origin = typeof(editor.projection)) do
-                print!(editor)
+                run_print_stage!(editor)
             end
         end
         # Advance this editor's private animation clock once per frame;
@@ -319,7 +319,7 @@ function make_editor(document::Document, projection; backend::Backend,
         editor = Editor(document, projection; backend = backend, devices = devices,
                         feeds = feeds, fault_policy = fault_policy)
         _run_barrier(editor, :print; origin = typeof(editor.projection)) do
-            print!(editor)
+            run_print_stage!(editor)
         end
         return editor
     catch

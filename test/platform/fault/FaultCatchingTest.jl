@@ -316,14 +316,14 @@ function test_fault_catching()
         # the fault.
         strict = Editor(_probe_branch(2), projection;
                         backend = HeadlessBackend(), devices = Device[])
-        print!(strict)
+        run_print_stage!(strict)
         @test_throws ErrorException _drawn_children(strict.iomap.output)
         # The policy of a loop that a person sits in front of turns it on.
         tolerant = Editor(_probe_branch(2), projection;
                           backend = HeadlessBackend(), devices = Device[])
         tolerant.fault_policy = FaultPolicy(is_console_enabled = false,
                                             is_sound_enabled = false)
-        print!(tolerant)
+        run_print_stage!(tolerant)
         @test_throws RecordedFaultException _drawn_children(tolerant.iomap.output)
         # The frame shows the mark of the barrier that took the fault.
         report_frame_faults!(tolerant)

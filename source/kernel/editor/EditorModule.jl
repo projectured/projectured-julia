@@ -2,8 +2,8 @@
     EditorModule
 
 The generalised Read-Eval-Print loop. Each frame: poll input via the
-backend, call read! to produce a domain operation, apply the operation
-to the document via evaluate!, call print! and render the updated canvas.
+backend, call run_read_stage! to produce a domain operation, apply the operation to
+the document via run_evaluate_stage!, call run_print_stage! and render the updated canvas.
 The latest IoMap is retained between frames so the reader has access to
 the current coordinate mapping.
 
@@ -16,7 +16,8 @@ The module lives in ten fragments that share this namespace:
 - [`Feeds.jl`](Feeds.jl) — `InboxFeed`, the timeout of the wait, the frame
   measurements, and `drain_feeds!`.
 - [`ReadEvaluatePrint.jl`](ReadEvaluatePrint.jl) — the three stages of a frame,
-  `read!`, `evaluate!` and `print!`, and `read_rooted_operation`.
+  `run_read_stage!`, `run_evaluate_stage!` and `run_print_stage!`, and
+  `read_rooted_operation`.
 - [`DocumentEdits.jl`](DocumentEdits.jl) — `find_rooted_operation`,
   `insert_elements!` and `delete_elements!`.
 - [`SafeMode.jl`](SafeMode.jl) — the safe mode, which shows the fault list in
@@ -55,7 +56,7 @@ using ..ToolModule
 # Imported to extend: `InboxFeed` answers `drain_changes!` with the drain of the inbox.
 import ..FeedModule: drain_changes!
 
-export Editor, make_editor, run_editor!, read!, read_rooted_operation, evaluate!, print!, run_frame!,
+export Editor, make_editor, run_editor!, run_read_stage!, read_rooted_operation, run_evaluate_stage!, run_print_stage!, run_frame!,
        find_rooted_operation, insert_elements!, delete_elements!,
        get_frame_clock_time,
        post_operation!, drain_operations!, is_editor_degraded,

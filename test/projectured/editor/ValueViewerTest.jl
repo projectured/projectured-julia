@@ -71,13 +71,13 @@ function test_value_viewer()
             editor = Editor(document, projection; backend = HeadlessBackend(),
                             devices = Device[],
                             feeds = make_value_viewer_feeds(document, value))
-            print!(editor)
+            run_print_stage!(editor)
             node = document.children[1]
             @test node.children isa AUnsyncedDocument
             @test !occursin("x = 1", drawn(editor.iomap.output))
             # What a click on the chevron of the node reads to.
             editor.operation = SetReflectedDisclosureOperation(Pair{Any,Bool}[node => true])
-            evaluate!(editor)
+            run_evaluate_stage!(editor)
             # The request asks for a frame at once, and that frame opens the node.
             @test EditorModule.compute_wait_timeout(editor) == 0
             drain_feeds!(editor)

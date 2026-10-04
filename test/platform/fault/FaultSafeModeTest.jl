@@ -91,7 +91,7 @@ function test_fault_safe_mode()
         end
         @test is_editor_in_safe_mode(editor)
         # One frame to paint the safe mode. Entering it drops the cached IoMap,
-        # and `read!` discards an input it has no IoMap for, so a gesture sent
+        # and `run_read_stage!` discards an input it has no IoMap for, so a gesture sent
         # before that paint would be thrown away — which is the documented
         # behaviour of every projection swap, not something the safe mode adds.
         run_frame!(editor)

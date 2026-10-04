@@ -154,7 +154,7 @@ function _barrier_editor(; feeds::Vector{Feed} = Feed[])
     editor = Editor(BarrierProbe(), BarrierProbeProjection(log);
                     backend = backend, devices = Device[],
                     fault_policy = _quiet_barrier_policy(), feeds = feeds)
-    EditorModule.print!(editor)
+    EditorModule.run_print_stage!(editor)
     (editor, backend, log)
 end
 
@@ -164,7 +164,7 @@ function test_editor_fault_barriers()
     @testset "repairs 0 and 1: a failed operation is taken back and prints again" begin
         editor, backend, log = _barrier_editor()
         editor.operation = HalfWayBarrierOperation(7)
-        EditorModule.evaluate!(editor)
+        EditorModule.run_evaluate_stage!(editor)
         @test editor.document.value == 0             # the way back
         @test editor.iomap === nothing               # the next print starts from scratch
         record = only(get_fault_records(editor.faults))
@@ -175,14 +175,15 @@ function test_editor_fault_barriers()
     @testset "repair 2: a selection that no longer resolves is cleared" begin
         editor, backend, log = _barrier_editor()
         editor.operation = LoseSelectionBarrierOperation()
-        @test_logs (:warn, r"selection") match_mode = :any EditorModule.evaluate!(editor)
+        @test_logs (:warn, r"selection") match_mode = :any (
+            EditorModule.run_evaluate_stage!(editor))
         @test get_selection(editor.document) === nothing
     end
 
     @testset "an inverse that can not be made is recorded, and the operation runs" begin
         editor, backend, log = _barrier_editor()
         editor.operation = UninvertibleBarrierOperation(log)
-        EditorModule.evaluate!(editor)
+        EditorModule.run_evaluate_stage!(editor)
         @test log == [:applied]
         record = only(get_fault_records(editor.faults))
         @test record.site === :evaluate
@@ -192,7 +193,7 @@ function test_editor_fault_barriers()
     @testset "a way back that fails is recorded, and the other repairs still run" begin
         editor, backend, log = _barrier_editor()
         editor.operation = BrokenWayBackBarrierOperation(ArgumentError("no way back"))
-        EditorModule.evaluate!(editor)
+        EditorModule.run_evaluate_stage!(editor)
         @test editor.iomap === nothing
         origins = Set(record.origin for record in get_fault_records(editor.faults))
         @test origins == Set([:BrokenWayBackBarrierOperation, :ThrowBarrierOperation])
@@ -201,7 +202,7 @@ function test_editor_fault_barriers()
     @testset "an interrupt from the way back goes through the repair" begin
         editor, backend, log = _barrier_editor()
         editor.operation = BrokenWayBackBarrierOperation(InterruptException())
-        @test_throws InterruptException EditorModule.evaluate!(editor)
+        @test_throws InterruptException EditorModule.run_evaluate_stage!(editor)
     end
 
     @testset "the input breaker stops the reads at its limit, and the editor paints" begin

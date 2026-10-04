@@ -124,7 +124,7 @@ paint of a frame.
 
 # Example
 
-    @measure_performance_time :print_time print!(editor)
+    @measure_performance_time :print_time run_print_stage!(editor)
 
 See also [`@count_performance`](@ref), which adds a count and not a time.
 """

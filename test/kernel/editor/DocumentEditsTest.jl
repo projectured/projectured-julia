@@ -52,7 +52,8 @@ ProjectionModule.print_document(::UnroutedEditProjection, recursion, input, ctx)
 function _rooted_edit_editor(projection)
     document = RootedEditRoot(RootedEditBranch(RootedEditLeaf()))
     editor = Editor(document, projection; backend = HeadlessBackend(), devices = Device[])
-    EditorModule.print!(editor)          # a reader is only reached once an iomap exists
+    # a reader is only reached once an iomap exists
+    EditorModule.run_print_stage!(editor)
     editor
 end
 

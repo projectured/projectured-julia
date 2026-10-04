@@ -45,7 +45,7 @@ end
 function _escape_editor(projection)
     editor = Editor(EscapeProbe(), projection;
                     backend = HeadlessBackend(), devices = Device[])
-    EditorModule.print!(editor)                       # the loop skips the pipeline with no iomap
+    EditorModule.run_print_stage!(editor)                       # the loop skips the pipeline with no iomap
     editor
 end
 
@@ -58,14 +58,14 @@ function test_escape_quit()
     @testset "an Escape no reader wanted closes the editor" begin
         editor = _escape_editor(EscapeDecliningProjection())
         _press!(editor, KeyDown(:escape, none; time = 0.0))
-        @test EditorModule.read!(editor)
+        @test EditorModule.run_read_stage!(editor)
         @test editor.operation isa QuitEditorOperation
     end
 
     @testset "an Escape a reader claimed does not" begin
         editor = _escape_editor(EscapeClaimingProjection())
         _press!(editor, KeyDown(:escape, none; time = 0.0))
-        @test EditorModule.read!(editor)
+        @test EditorModule.run_read_stage!(editor)
         @test editor.operation isa DoNothingOperation
         @test !(editor.operation isa QuitEditorOperation)
     end
@@ -73,31 +73,31 @@ function test_escape_quit()
     @testset "a modified Escape is left to the projections" begin
         editor = _escape_editor(EscapeDecliningProjection())
         _press!(editor, KeyDown(:escape, ModifierKeys(ctrl=true); time = 0.0))
-        @test !EditorModule.read!(editor)                        # drained, nothing produced
+        @test !EditorModule.run_read_stage!(editor)                        # drained, nothing produced
         @test editor.operation === nothing
     end
 
     @testset "a real quit still closes the editor whatever the readers say" begin
         editor = _escape_editor(EscapeClaimingProjection())
         _press!(editor, WindowQuit(; time = 0.0))
-        @test EditorModule.read!(editor)
+        @test EditorModule.run_read_stage!(editor)
         @test editor.operation isa QuitEditorOperation
     end
 
     @testset "another key is not a quit" begin
         editor = _escape_editor(EscapeDecliningProjection())
         _press!(editor, KeyDown(:home, none; time = 0.0))
-        @test !EditorModule.read!(editor)
+        @test !EditorModule.run_read_stage!(editor)
         @test editor.operation === nothing
     end
 
-    @testset "evaluate! logs the operation in the words of describe_operation" begin
+    @testset "run_evaluate_stage! logs the operation in the words of describe_operation" begin
         editor = _escape_editor(EscapeDecliningProjection())
         path = annotate_reference_types(editor.document,
                                         Reference(FieldReferenceStep("value")))
         editor.operation = ReplaceSelectionOperation(path)
         line = "[operation] " * describe_operation(editor.operation)
-        @test_logs (:info, line) EditorModule.evaluate!(editor)
+        @test_logs (:info, line) EditorModule.run_evaluate_stage!(editor)
     end
 end
 end

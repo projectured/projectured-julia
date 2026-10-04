@@ -629,7 +629,7 @@ The number of the frames follows the wall clock, so one second of the session is
 
 - [x] G1: `VideoBackend` and `record_application_video` (commit 5b2b0cc6). The clip of 5 s shows the menu bar, the toolbar, the two tabs and the evaluator with its prompt. `test_video()` passes 15/15, `test_video_layering()` 7/7.
 
-      Two faults of the first cut, both found and fixed in that commit: an entry that fires before the first print is dropped, because `read!` has no IO map yet, so the clock of the timeline starts when the first frame is on disk; and `run_frame!` batches up to 32 operations into one repaint, so the backend holds the next entry until the frame of the one before it is rendered. `ProjecturedVideo` now also depends on `ProjecturedScreen`, and the table of `package-rules.md` says so.
+      Two faults of the first cut, both found and fixed in that commit: an entry that fires before the first print is dropped, because `run_read_stage!` has no IO map yet, so the clock of the timeline starts when the first frame is on disk; and `run_frame!` batches up to 32 operations into one repaint, so the backend holds the next entry until the frame of the one before it is rendered. `ProjecturedVideo` now also depends on `ProjecturedScreen`, and the table of `package-rules.md` says so.
 - [x] G2: the frames follow the wall clock. The clip of 5 s scripted 5.0 s and recorded 4.93 s, which is one frame.
 - [ ] G3: the pointer, the name of each pressed key for about one second, and the caption bar of the timeline.
 - [x] `record_video` stays as it is. Only the `ffmpeg` call moved into `_encode_frames_to_video!`, which both recorders use.

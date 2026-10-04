@@ -60,10 +60,10 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `fault/FaultStore.jl`
   - ⬜ `fault/FaultPolicy.jl`
   - ⬜ `fault/FaultCascade.jl`
-  - 🔒 `fault/FaultBarrier.jl`
+  - ⬜ `fault/FaultBarrier.jl`
 - **Layer 2 — performance** (`performance/`)
   - 🔒 `performance/PerformanceModule.jl`
-  - 🔒 `performance/PerformanceCounter.jl`
+  - ⬜ `performance/PerformanceCounter.jl`
   - 🔒 `performance/FrameMeasurement.jl`
 - **Layer 3 — cell** (`cell/`)
   - ⬜ `cell/CellModule.jl`

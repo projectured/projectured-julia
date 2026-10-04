@@ -84,7 +84,7 @@ happened and attaches no meaning, so it must not turn one key into a quit before
 any reader has seen it. A dialog, an insertion and the command palette all bind
 Escape, and a quit the backend issues directly leaves no reader able to stop it.
 The editor loop quits on an unmodified
-Escape that the pipeline did not handle; `read!` in
+Escape that the pipeline did not handle; `run_read_stage!` in
 [editor/ReadEvaluatePrint.jl](../../../source/kernel/editor/ReadEvaluatePrint.jl)
 recognises no other gesture itself.
 
@@ -169,7 +169,7 @@ all of the above with SDL2 + SDL_ttf; [sdl.md](../backend/sdl/sdl.md) is its des
   `GraphicsViewport`/`GraphicsImage`/`GraphicsFence` children) and issues
   SDL draw calls. `render_sdl_canvas` is a stub that returns an empty image.
 - `wait_for_input` blocks in `SDL_WaitEventTimeout` with a NULL event
-  pointer — SDL's look-only form, so everything stays queued for `read!` —
+  pointer — SDL's look-only form, so everything stays queued for `run_read_stage!` —
   in GC-safe slices with a `yield` between them. `wake_backend!` pushes a
   user event registered at `initialize_backend!`; `SDL_PushEvent` is SDL's
   documented thread-safe entry, and `_poll_window_input` skips the event
@@ -577,7 +577,7 @@ gesture with a gesture type and a recognition; see
 [gesturetracking.md](../platform/gesturetracking/gesturetracking.md) for the full
 protocol.
 
-`read!` gives the projection each input of the backend: a `WindowInput` with
+`run_read_stage!` gives the projection each input of the backend: a `WindowInput` with
 an event or a gesture and a window id, or a due timer, a `TimerExpire`. The
 editor recognizes no gesture. `GestureTrackingProjection`, in the platform's
 gesturetracking slice, runs the recognitions over the inputs,

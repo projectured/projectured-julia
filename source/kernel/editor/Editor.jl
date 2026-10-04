@@ -67,7 +67,7 @@ Holds the state for a read-eval-print loop:
                    (internal).
   - `timers`     — the timers that readers set with `SetTimerOperation`: the
                    time of each, by its name. The loop wakes at the earliest,
-                   and [`read!`](@ref) reads a `TimerExpire` for each one whose
+                   and [`run_read_stage!`](@ref) reads a `TimerExpire` for each one whose
                    time has come (internal).
   - `stop_steps` — the functions `editor -> nothing` that run when the loop of
                    [`run_editor!`](@ref) ends, such as the removal of a log
@@ -144,7 +144,8 @@ function OperationModule.evaluate_operation(editor::Editor, operation::SetTimerO
     nothing
 end
 
-# Drop the cached IoMap so the next `print!` rebuilds the projection from scratch.
+# Drop the cached IoMap so the next `run_print_stage!` rebuilds the projection from
+# scratch.
 # `invalidate_projection!` is a no-op for an object that caches nothing; this method
 # is what an operation like a whole-root `ReplaceReferencedValueOperation` swap
 # actually reaches when it runs against a real `Editor`.

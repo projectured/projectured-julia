@@ -15,7 +15,7 @@ end
 """
     _timeline_operation(editor::Editor, entry, window_id::Symbol, op_prefix::Tuple) -> Operation or nothing
 
-Turn one timeline entry into an operation, mirroring `read!`. An entry carrying
+Turn one timeline entry into an operation, mirroring `run_read_stage!`. An entry carrying
 `event` is wrapped in `WindowInput(window_id, event)` and run through the
 reader pipeline (the same path live input takes), which already roots the
 resulting operation in the document root. An entry carrying `operation` is taken
@@ -83,7 +83,7 @@ function play_live!(editor::Editor, timeline; window_id::Symbol, initial_hold::R
     next = 1
     try
         while true
-            EditorModule.read!(editor)
+            EditorModule.run_read_stage!(editor)
             # When no real-input operation is pending and the next scheduled entry
             # is due, inject it. Real input wins the frame; the scheduled entry
             # retries on the following frame.
@@ -91,8 +91,8 @@ function play_live!(editor::Editor, timeline; window_id::Symbol, initial_hold::R
                 editor.operation = _timeline_operation(editor, timeline[next], window_id, prefix_steps)
                 next += 1
             end
-            evaluate!(editor)
-            print!(editor)
+            run_evaluate_stage!(editor)
+            run_print_stage!(editor)
             sleep(0.01)
         end
     catch e

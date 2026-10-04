@@ -14,18 +14,17 @@
 A `Backend` whose input is a scripted `timeline` and whose output is one PNG
 per repainted frame, so `run_editor!` records a session instead of showing one.
 
-`timeline` is a vector of `(event = …, hold = …)` entries — the `event` half of
-the shape `record_video` and `play_live!` take. Entry `i` fires
-`initial_hold + Σ hold[1..i-1]` seconds after the first frame is on disk (not
-after [`initialize_backend!`](@ref) — the loop's first `read!` runs before its
-first `print!`, and a window input delivered into that gap is lost, since the
-reader has no `iomap` yet to map it against), as the `WindowInput` `play_live!`
-builds for `window_id`, which is where
-`write_to_devices` also looks for the window to render — the same routing a
-real device and window would give a single-window scene. `final_hold` seconds
-after the last entry's own hold has run out, the backend fires a `WindowQuit`
-of its own, appended after `timeline`, which ends the loop through the same
-`QuitEditorException` the window-close button raises.
+`timeline` is a vector of `(event = …, hold = …)` entries — the `event` half of the shape
+`record_video` and `play_live!` take. Entry `i` fires `initial_hold + Σ hold[1..i-1]`
+seconds after the first frame is on disk (not after [`initialize_backend!`](@ref) — the
+loop's first `run_read_stage!` runs before its first `run_print_stage!`, and a window
+input delivered into that gap is lost, since the reader has no `iomap` yet to map it
+against), as the `WindowInput` `play_live!` builds for `window_id`, which is where
+`write_to_devices` also looks for the window to render — the same routing a real device
+and window would give a single-window scene. `final_hold` seconds after the last entry's
+own hold has run out, the backend fires a `WindowQuit` of its own, appended after
+`timeline`, which ends the loop through the same `QuitEditorException` the window-close
+button raises.
 
 The frame count follows the wall clock rather than the render time: a call to
 `write_to_devices` that finds a real gap since the frame before first repeats
@@ -211,13 +210,12 @@ function initialize_backend!(backend::VideoBackend)
     backend.off = open_offscreen_renderer(backend.width, backend.height;
                                            supersample = backend.supersample,
                                            density = backend.density)
-    # -1 marks the clock as not yet started (see `write_to_devices`): the loop's
-    # first `read!` runs before the first `print!`, while `editor.iomap` is
-    # still `nothing`, and a window input delivered into that gap is dropped by
-    # the reader with no operation and no way back (`read!`'s own
-    # `editor.iomap === nothing` branch). Starting the clock only once the
-    # first frame is on disk guarantees no entry can fire before the pipeline
-    # is ready to read one.
+    # -1 marks the clock as not yet started (see `write_to_devices`): the loop's first
+    # `run_read_stage!` runs before the first `run_print_stage!`, while `editor.iomap` is
+    # still `nothing`, and a window input delivered into that gap is dropped by the reader
+    # with no operation and no way back (`run_read_stage!`'s own
+    # `editor.iomap === nothing` branch). Starting the clock only once the first frame is
+    # on disk guarantees no entry can fire before the pipeline is ready to read one.
     backend.start_time = -1.0
     backend.next_entry = 1
     backend.awaiting_render = false

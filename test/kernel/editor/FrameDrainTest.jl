@@ -84,7 +84,8 @@ function _frame_editor(log)
     backend = HeadlessBackend()
     editor = Editor(FrameDrainProbe(), FrameDrainProjection(log);
                     backend = backend, devices = Device[])
-    EditorModule.print!(editor)          # a reader is only reached once an iomap exists
+    # a reader is only reached once an iomap exists
+    EditorModule.run_print_stage!(editor)
     (editor, backend)
 end
 
@@ -114,7 +115,7 @@ function test_editor_frame_drain()
 
     @testset "the last applied operation stays in `operation`" begin
         # `_log_performance_counters!` reads this field to tell a frame that did something
-        # from an idle one, and `read!` clears it when the input runs out.
+        # from an idle one, and `run_read_stage!` clears it when the input runs out.
         log = Any[]
         editor, backend = _frame_editor(log)
         push_event!(backend, :first)
@@ -127,8 +128,9 @@ function test_editor_frame_drain()
     end
 
     @testset "an operation that drops the projection ends the frame" begin
-        # `read!` discards an input it has no IoMap for. Input behind a whole-root
-        # swap therefore has to wait for the repaint that rebuilds the projection.
+        # `run_read_stage!` discards an input it has no IoMap for. Input behind a
+        # whole-root swap therefore has to wait for the repaint that rebuilds the
+        # projection.
         log = Any[]
         editor, backend = _frame_editor(log)
         push_event!(backend, :before)

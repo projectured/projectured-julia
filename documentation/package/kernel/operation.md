@@ -293,7 +293,7 @@ When you do need a new one:
 
 - **Mutate existing cells in place — or drop the iomap.** The editor builds the
   projection iomap **once** and never rebuilds it on its own; between frames,
-  updates flow *only* through reactive Cell writes (`print!` reuses
+  updates flow *only* through reactive Cell writes (`run_print_stage!` reuses
   `editor.iomap` whenever it is non-`nothing`). So an `evaluate_operation` must
   change the document by writing into the Cells that are already wired into the
   projection graph. If an operation instead swaps a whole value/subtree out from

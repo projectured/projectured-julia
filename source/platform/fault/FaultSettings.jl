@@ -21,7 +21,7 @@ it prints. The log and the sound act from the next fault, with no new print.
     is_sound_enabled::Bool = true
 end
 
-# The settings become the fault policy of the editor. `print!` puts the policy
+# The settings become the fault policy of the editor. `run_print_stage!` puts the policy
 # into the printer context, and a barrier decides while it prints whether it
 # catches, so a change of `is_barrier_enabled` needs a new print, as in
 # `run_editor!`. A report reads the log and the sound flags from the editor.

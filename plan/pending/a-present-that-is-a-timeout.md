@@ -19,11 +19,11 @@ The editor's loop is `set_clock_time!` → `drain_operations!` → `run_frame!` 
 | | |
 | --- | --- |
 | frames a second | **1** |
-| `read!` + `evaluate!` | 0.0 ms |
-| `print!` | **990 ms** |
+| `run_read_stage!` + `run_evaluate_stage!` | 0.0 ms |
+| `run_print_stage!` | **990 ms** |
 | `sleep(0.01)` | 11 ms — correct |
 
-`print!` is the whole of it, and inside `print!`:
+`run_print_stage!` is the whole of it, and inside `run_print_stage!`:
 
 | stage of `_render_window!` | a second's worth |
 | --- | --- |

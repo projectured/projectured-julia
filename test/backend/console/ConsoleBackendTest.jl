@@ -15,11 +15,11 @@ function _drive_console(bytes::Vector{UInt8}, steps::Int)
     sels = String[]
     # The editor logs every applied operation via @info; quiet it for the test.
     Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
-        _ED.print!(editor)
+        _ED.run_print_stage!(editor)
         for _ in 1:steps
-            _ED.read!(editor)
-            _ED.evaluate!(editor)
-            _ED.print!(editor)
+            _ED.run_read_stage!(editor)
+            _ED.run_evaluate_stage!(editor)
+            _ED.run_print_stage!(editor)
             # Snapshot the selection as a stripped string so later replace_selection!
             # mutations (which reuse cells in-place) do not change already-recorded
             # entries.  strip_reference_types removes TypeReferenceStep checkpoints so
@@ -39,11 +39,11 @@ function _drive_console_doc(bytes::Vector{UInt8}, steps::Int)
     editor = Editor(doc, proj; backend = backend, devices = Device[Keyboard()])
     sels = String[]
     Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
-        _ED.print!(editor)
+        _ED.run_print_stage!(editor)
         for _ in 1:steps
-            _ED.read!(editor)
-            _ED.evaluate!(editor)
-            _ED.print!(editor)
+            _ED.run_read_stage!(editor)
+            _ED.run_evaluate_stage!(editor)
+            _ED.run_print_stage!(editor)
             # Snapshot stripped string (see _drive_console comment above).
             push!(sels, string(strip_reference_types(getfield(doc, :selection)[])))
         end
@@ -190,8 +190,8 @@ function test_console_backend()
                             make_json_console_projection_example();
                             backend = backend, devices = Device[Keyboard()])
             Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
-                _ED.print!(editor)
-                _ED.read!(editor)
+                _ED.run_print_stage!(editor)
+                _ED.run_read_stage!(editor)
             end
             return editor.operation
         end

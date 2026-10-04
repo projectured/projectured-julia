@@ -54,7 +54,7 @@ Its `__init__` registers the natural row `:gesturelog`. `get_insertion_aliases` 
 
 ## Design decisions
 
-- **A decorator, not code in the editor loop.** The editor has no reference to a log or a panel. A recorder in `Editor.evaluate!` was rejected, because it puts a view concern in the loop. A `GestureLogOperation` beside the real operation was rejected, because an operation changes the edited document and the log is not part of it. See [plan/done/gesture-log-overlay.md](../../../../plan/done/gesture-log-overlay.md).
+- **A decorator, not code in the editor loop.** The editor has no reference to a log or a panel. A recorder in `Editor.run_evaluate_stage!` was rejected, because it puts a view concern in the loop. A `GestureLogOperation` beside the real operation was rejected, because an operation changes the edited document and the log is not part of it. See [plan/done/gesture-log-overlay.md](../../../../plan/done/gesture-log-overlay.md).
 - **Two decorators share one log.** The complete record exists only at the root, and the panel needs a canvas, which only the chain of a window has.
 - **An entry holds text.** An operation holds a reference into the document, and the document changes when the operation runs. A live operation would print differently a moment later.
 - **The panel is an element of the window canvas.** The help window and the tooltip open a window of their own; the log stays over the content that it describes.

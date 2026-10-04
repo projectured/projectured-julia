@@ -128,9 +128,9 @@ function test_editor_inbox()
 
     @testset "draining leaves `operation` alone" begin
         # `editor.operation` means "what the reader made of this frame's input";
-        # `_log_performance_counters!` uses it to tell a frame the user acted in from an
-        # idle one, and `evaluate!` logs it. A sync arriving ten times a second is
-        # neither.
+        # `_log_performance_counters!` uses it to tell a frame the user acted in from
+        # an idle one, and `run_evaluate_stage!` logs it. A sync arriving ten times a
+        # second is neither.
         editor = _inbox_editor()
         post_operation!(editor, ProbeInboxOperation(Any[], :quiet))
         drain_operations!(editor)
@@ -234,7 +234,8 @@ function test_editor_inbox()
     @testset "a frame applies what was posted before it reads" begin
         editor = _inbox_editor()
         log = Any[]
-        EditorModule.print!(editor)              # the loop skips a pipeline with no iomap
+        # the loop skips a pipeline with no iomap
+        EditorModule.run_print_stage!(editor)
         post_operation!(editor, ProbeInboxOperation(log, :before_frame))
         drain_operations!(editor)
         EditorModule.run_frame!(editor)

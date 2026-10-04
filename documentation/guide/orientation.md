@@ -22,7 +22,7 @@ browsing tools below. Do not guess names — search for them.
 | Selection | `set_selection!`, `clear_selection!`, `replace_selection!`, `get_selection` | `kernel/selection` |
 | Search (by content) | `search_references`, `search_documents`, `print_object` (search a document **or an iomap** — the whole pipeline) | `kernel/finding-and-selecting`, `guide/debugging-guide` |
 | Operation | `Operation`, `evaluate_operation`, `ReplaceSelectionOperation`, `ReplaceReferencedValueOperation` (+ `make_replace_document_operation` / `make_insert_elements_operation` / `make_delete_elements_operation`), `ReplaceStringRangeOperation`, `CompoundOperation` | `kernel/operation` |
-| Editor & loop | `Editor`, `run_editor!`, `run_frame!`, `read!`/`evaluate!`/`print!`, `McpServer`, `execute_julia_code!` | `kernel/editor` |
+| Editor & loop | `Editor`, `run_editor!`, `run_frame!`, `run_read_stage!`/`run_evaluate_stage!`/`run_print_stage!`, `McpServer`, `execute_julia_code!` | `kernel/editor` |
 | Screen / pane tree | `ScreenDocument` → `WindowDocument` → `PaneTree` → `PaneSplit`/`PaneGroup` → `PaneTab`; `ScreenToScreen`, `WindowManagingProjection` | `pane/pane`, `kernel/editor` |
 | Backends / devices | `Backend`/`SdlBackend`, `Device`/`Display`/`Keyboard`/`Mouse`, `KeyPress`, `MouseClick` | `kernel/devices-and-backends` |
 

@@ -1,6 +1,6 @@
 # The SDL wait and wake — the editor blocks on the real SDL queue between
 # frames, and `wake_backend!` ends the block by pushing the registered wake
-# event. The wait only looks at the queue: everything stays for `read!`.
+# event. The wait only looks at the queue: everything stays for `run_read_stage!`.
 
 # Every name this file calls — the seam functions, the event types — arrives
 # through the `using` lines of the test package.

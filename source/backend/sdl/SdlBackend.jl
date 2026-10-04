@@ -3619,7 +3619,7 @@ _get_wait_slice_seconds() = Threads.nthreads() == 1 ? 0.01 : 0.1
 
 # Block until the SDL queue holds an event or `milliseconds` pass, without
 # removing anything: the NULL event pointer is SDL's look-only form, so
-# everything stays queued for `read!`. Must run on the thread that
+# everything stays queued for `run_read_stage!`. Must run on the thread that
 # initialized the video subsystem — it pumps events.
 _wait_for_queued_event(milliseconds::Integer) =
     (@ccall gc_safe=true _LIBSDL2.SDL_WaitEventTimeout(C_NULL::Ptr{Cvoid},
@@ -3630,7 +3630,7 @@ _wait_for_queued_event(milliseconds::Integer) =
 
 Block until the SDL queue holds an event, [`wake_backend!`](@ref) pushes the
 wake event, or `timeout_seconds` passes. The queue is only looked at, never
-read: everything stays for `read!`. An event this backend already owes
+read: everything stays for `run_read_stage!`. An event this backend already owes
 (`pending_input`) ends the wait before it starts, and a held motion sample
 caps the timeout at the rest of its rate-limit interval, so the last sample
 of a pointer that stopped is delivered on time.

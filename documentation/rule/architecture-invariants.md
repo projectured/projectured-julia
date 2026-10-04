@@ -260,7 +260,7 @@ of that node with `peek`, and completes its cells.
 direct write.** A producer on any task — a logger, a simulation driver, a
 barrier inside a computation — writes a plain store outside the reactive graph; the
 write never blocks and never touches a cell. The editor drains the store into
-the target document on its own task, once per frame, before `read!`
+the target document on its own task, once per frame, before `run_read_stage!`
 (`drain_feeds!`; the fault report at the top of `run_frame!` is the same
 motion). Only the editor task writes a document a running editor shows. The
 heartbeat of a wall clock is the accepted exception: `start_wall_clock!` writes
@@ -1168,7 +1168,7 @@ half the boundary, though — `XxxModule._private` reaches a non-exported name
 just as far, and bypasses the export list entirely.
 `qualified_reference_errors` closes that half (PAR-QUALIFIED-EXTENSION), with no
 same-layer exemption. Known remaining instance: `PlaybackModule` reaches into
-`EditorModule`'s non-exported `read!`/`evaluate!`/`print!`/`_log_performance_counters!` — fix by
+`EditorModule`'s non-exported `run_read_stage!`/`run_evaluate_stage!`/`run_print_stage!`/`_log_performance_counters!` — fix by
 making Playback a fragment of the editor module, or by exporting the loop
 steps.
 

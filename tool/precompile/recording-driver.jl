@@ -15,7 +15,7 @@ using ProjecturedAll
 using ProjecturedExample
 using ProjecturedSDL: SdlBackend
 
-using ProjecturedAll.EditorModule: Editor, evaluate!, print!
+using ProjecturedAll.EditorModule: Editor, run_evaluate_stage!, run_print_stage!
 using ProjecturedAll.BackendModule: initialize_backend!, quit_backend!, configure_devices!
 using ProjecturedAll.DeviceModule: Device, Display, Keyboard, Mouse
 using ProjecturedAll.ClockModule: set_clock_time!
@@ -71,15 +71,15 @@ function drive_example!(document, projection)
     composed = ProjecturedExample._multi_window_projection(Any[projection])
     editor = Editor(screen, composed; backend = backend, devices = devices)
     set_clock_time!(editor.clock, time() - t0)
-    print!(editor)
+    run_print_stage!(editor)
     for event in GESTURES
         set_clock_time!(editor.clock, time() - t0)
         change = read_intent(editor.projection, nothing,
                              Intent(WindowInput(:example, event), nothing), editor.iomap)
         operation = change isa Intent ? change.operation : change
         editor.operation = operation isa Operation ? operation : nothing
-        evaluate!(editor)
-        print!(editor)
+        run_evaluate_stage!(editor)
+        run_print_stage!(editor)
     end
     nothing
 end

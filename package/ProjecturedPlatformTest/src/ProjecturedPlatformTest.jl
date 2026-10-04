@@ -279,7 +279,7 @@ using ProjecturedPlatform.OperationModule
 import ProjecturedJSON
 using ProjecturedJSON.JsonModule
 
-import ProjecturedKernel.EditorModule: read!
+import ProjecturedKernel.EditorModule: run_read_stage!
 
 include("../../../test/platform/fault/FaultCatchingTest.jl")
 include("../../../test/platform/fault/FaultSafeModeTest.jl")

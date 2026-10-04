@@ -396,9 +396,9 @@ verb, and none carries a banned abbreviation. I checked each of the three.
 
 | old | new | status |
 | --- | --- | --- |
-| `evaluate!` | — | no change |
-| `print!` | — | no change |
-| `read!` | — | no change |
+| `run_evaluate_stage!` | — | no change |
+| `run_print_stage!` | — | no change |
+| `run_read_stage!` | — | no change |
 
 **source/kernel/llm/LlmModule.jl**
 

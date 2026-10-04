@@ -158,7 +158,7 @@ end
 # The barrier of one operation. It applies `operation`, and when the operation
 # fails half way, it takes the change back where there is a way back and runs the
 # repairs below. It writes no log line and leaves `editor.operation` alone, so
-# `evaluate!` and the drain of the inbox apply an operation the same way.
+# `run_evaluate_stage!` and the drain of the inbox apply an operation the same way.
 function _evaluate_operation_guarded!(editor::Editor, operation)
     editor.fault_policy.is_barrier_enabled ||
         return evaluate_operation(editor, operation)

@@ -51,7 +51,7 @@ end
   [The inbox](#the-inbox)
 - `iomap` — the most recent IoMap from `print_document`; needed by
   `read_intent` to translate the next event back to a domain operation
-- `operation` — the most recent operation; used by `evaluate!` and the
+- `operation` — the most recent operation; used by `run_evaluate_stage!` and the
   per-frame log
 - `faults` — the `FaultStore` of this editor: every barrier writes to it, and
   each frame drains it; see [fault.md](../platform/fault/fault.md)
@@ -82,7 +82,8 @@ end
 `run_editor!(editor)` executes (the fault barriers around each stage elided):
 
 ```julia
-editor.iomap === nothing && print!(editor)   # an editor with no IoMap prints first
+# an editor with no IoMap prints first
+editor.iomap === nothing && run_print_stage!(editor)
 t_start = time_ns()                          # the monotonic clock
 while true
     # A pending wake skips the wait; else animation, feed deadlines, timers, else Inf.
@@ -97,7 +98,7 @@ while true
         wall_time = (time_ns() - t_start) / 1e9
         set_clock_time!(editor.clock, get_frame_clock_time(editor.backend, wall_time))
         drain_feeds!(editor)         # the inbox first, then every registered feed
-        run_frame!(editor)           # read!/evaluate! up to MAX_OPERATIONS_PER_FRAME, then print!
+        run_frame!(editor)           # run_read_stage!/run_evaluate_stage! up to MAX_OPERATIONS_PER_FRAME, then run_print_stage!
         _log_performance_counters!(editor)                # log reactive counters
         record_frame_performance!(editor, …)  # record this frame in editor.frame_measurements
     end
@@ -113,7 +114,7 @@ editor's clock (an animation), else the nearest feed deadline or timer, else
 A timer is how a reader waits for a pattern that ends when no event arrives. The
 reader answers `SetTimerOperation(name, time)`, the editor keeps the time under
 the name in `editor.timers`, and a timer set again under the same name replaces
-the one before. When the time comes, `read!` reads a `TimerExpire(name, time)`
+the one before. When the time comes, `run_read_stage!` reads a `TimerExpire(name, time)`
 before any device input. It is a bare event, because a timer belongs to no
 window, and it leaves the timers when it is read. The reader checks its own state
 when the event comes, so a timer that a newer event made stale needs no cancel.
@@ -139,17 +140,18 @@ function run_frame!(editor)
     applied = nothing
     is_input_left = true
     for _ in 1:MAX_OPERATIONS_PER_FRAME    # = 32
-        if !read!(editor)                  # poll devices → read_intent → editor.operation
+        # poll devices → read_intent → editor.operation
+        if !run_read_stage!(editor)
             is_input_left = false
             break
         end
-        evaluate!(editor)                  # evaluate_operation(editor, editor.operation)
+        run_evaluate_stage!(editor)  # evaluate_operation(editor, editor.operation)
         applied = editor.operation
         editor.iomap === nothing && break  # a projection-invalidating op ends the frame early
     end
     is_input_left && (editor.wake_pending[] = true)  # the next frame does not wait
     editor.operation = applied
-    print!(editor)                         # print_document → editor.iomap; render to devices
+    run_print_stage!(editor)                         # print_document → editor.iomap; render to devices
     # then the safe mode, when the print failed in too many frames in a row
 end
 ```
@@ -159,7 +161,7 @@ Input arrives faster than a frame can paint — a pointer in motion delivers a
 `MAX_OPERATIONS_PER_FRAME` (32) operations before it repaints once, instead of
 repainting after every single one. An operation that invalidates the cached
 projection (a whole-root `ReplaceReferencedValueOperation` swap, say) ends the
-frame early: `read!` has nothing to read the next event against until the
+frame early: `run_read_stage!` has nothing to read the next event against until the
 projection rebuilds, so remaining input waits for the next frame rather than
 being discarded against a stale IoMap. Call `run_frame!` directly to drive an
 editor one frame at a time — a test harness, an embedder, or a scripted
@@ -176,17 +178,17 @@ post_operation!(editor, ReplaceSelectionOperation(path))   # from any task
 ```
 
 The operation is applied by the editor's own task, at the top of the next
-frame, before `read!` — so the frame paints what it just applied. This is what
+frame, before `run_read_stage!` — so the frame paints what it just applied. This is what
 anything with a loop of its own uses to reach the editor: a driver advancing a
 simulation, a file watcher, an agent, a timer.
 
 The channel is bounded (`INBOX_CAPACITY`), so a producer faster than the editor
 waits rather than queueing work that will be stale before it is applied.
 
-Posted operations go through `evaluate_operation` and not `evaluate!`, so they
+Posted operations go through `evaluate_operation` and not `run_evaluate_stage!`, so they
 do not become `editor.operation` — that field means "what the reader made of
 this frame's input", which is what `_log_performance_counters!` uses to tell a frame the user acted
-in from an idle one, and what `evaluate!` writes to the operation log.
+in from an idle one, and what `run_evaluate_stage!` writes to the operation log.
 
 A `QuitEditorException` thrown out of `evaluate_operation` exits the loop
 cleanly. The MCP server is started when the loop starts, before the first
@@ -229,7 +231,7 @@ Every feed has the same three stations — a producer on any task writes the
 feed's **store** without blocking; the store is a plain object, not a
 document; and the **drain step** (`drain_changes!(feed, editor)`) moves what
 is new into a target document, on the editor task, once per frame, before
-`read!`. The target is a normal document, mounted in the shown tree by the
+`run_read_stage!`. The target is a normal document, mounted in the shown tree by the
 embedder, so a person opens views on it like on any document. The contract is
 `FeedModule` (`Feed`, `drain_changes!`, `compute_wake_deadline`,
 `attach_wake_callback!`); feeds are given at construction
@@ -258,7 +260,7 @@ feeds (`attach_fault_wake!`). The whole rule is
 
 ### Read
 
-`read!(editor)` drains input until one translates into an operation. A timer
+`run_read_stage!(editor)` drains input until one translates into an operation. A timer
 of `editor.timers` whose time has come is read first, as a bare `TimerExpire`,
 because a timer belongs to no window. Otherwise `read_from_devices(backend,
 devices)` polls the backend's event queue (in the SDL case, `SDL_PollEvent`)
@@ -386,7 +388,7 @@ turns it into a `MouseDwell`. See
 `DisplayUpdate(; time)` is the event of a display that shows a frame
 different from the one before. A backend reports it, wrapped in a
 `WindowInput` of the window that changed, after it draws that frame, and no
-other code makes one. `read!` reads it as it reads any other input, but no
+other code makes one. `run_read_stage!` reads it as it reads any other input, but no
 reader has a pattern for it, so it answers no operation and the read moves on
 to whatever is queued behind it, such as the move described in
 [mouse-target.md](mouse-target.md#a-view-that-changes-under-a-still-pointer).
@@ -671,7 +673,8 @@ EditorModule.jl        (EditorModule) — the module: its docstring, imports, ex
     │                         calls that another task runs on the editor task
     ├─ Feeds.jl             — InboxFeed, the timeout of the wait, the frame
     │                         measurements, and drain_feeds!
-    ├─ ReadEvaluatePrint.jl — read!, evaluate!, print! and read_rooted_operation
+    ├─ ReadEvaluatePrint.jl — run_read_stage!, run_evaluate_stage!,
+    │                         run_print_stage! and read_rooted_operation
     ├─ DocumentEdits.jl     — find_rooted_operation, insert_elements! and delete_elements!
     ├─ SafeMode.jl          — the safe mode, which shows the fault list in place of a
     │                         projection that fails
@@ -697,7 +700,7 @@ instance in `editor.clock`, ticked once per frame with
 
 - `..ProjectionModule` — `Projection`, `print_document`, `read_intent`,
   `PrinterContext`.
-- `..IntentModule` — `Intent`, the unit that `read!` passes to the readers.
+- `..IntentModule` — `Intent`, the unit that `run_read_stage!` passes to the readers.
 - `..IoMapModule` — `IoMap`, the type of `editor.iomap`.
 - `..DeviceModule` — `Device`, `Display`.
 - `..BackendModule` — `Backend`, `initialize_backend!`, `quit_backend!`,

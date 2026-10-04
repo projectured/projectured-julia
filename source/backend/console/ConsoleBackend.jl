@@ -239,7 +239,7 @@ function render_console(backend::ConsoleBackend, text::TextBlock)
     end
     frame = String(take!(buf))
     # Skip the write when the frame is identical to the last one. The editor's
-    # loop calls print! every tick; without this the screen would clear+redraw
+    # loop calls run_print_stage! every tick; without this the screen would clear+redraw
     # continuously and flicker.
     frame == backend.last_frame && return nothing
     backend.last_frame = frame

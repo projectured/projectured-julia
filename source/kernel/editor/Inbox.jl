@@ -51,16 +51,17 @@ end
 
 Apply the operations that wait in the inbox when the drain starts, at most
 `INBOX_CAPACITY`, and answer how many there were. Called once per frame by
-`run_editor!`, before `read!`, so the frame paints what it just applied.
+`run_editor!`, before `run_read_stage!`, so the frame paints what it just applied.
 
 An operation posted during the drain waits for the next drain, so a producer
 that posts as fast as the editor applies can not hold off the paint. When
 operations are left, the drain sets `editor.wake_pending`, and the next frame
 runs without a wait.
 
-Each operation applies in the operation barrier of [`evaluate!`](@ref), with the same
-repairs: an operation that fails half way is taken back where it has a way back, the fault
-is recorded, and the next operation still applies. It is not `evaluate!` itself: posted
+Each operation applies in the operation barrier of [`run_evaluate_stage!`](@ref), with
+the same repairs: an operation that fails half way is taken back where it has a way back,
+the fault is recorded, and the next operation still applies. It is not
+`run_evaluate_stage!` itself: posted
 operations do not become `editor.operation`, because that field means "what the reader
 made of this frame's input" and is what `_log_performance_counters!` uses to tell a frame
 in which the user did something from an idle one. It also keeps a sync arriving ten times

@@ -85,7 +85,7 @@ end
     drain_feeds!(editor) -> Int
 
 Drain every registered feed, in registration order, and answer how many
-items moved in total. Runs once per frame on the editor task, before `read!` —
+items moved in total. Runs once per frame on the editor task, before `run_read_stage!` —
 so the frame paints what its feeds just wrote.
 
 Each drain runs in its own `:evaluate` barrier. A drain that throws is recorded
