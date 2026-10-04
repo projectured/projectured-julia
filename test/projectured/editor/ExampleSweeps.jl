@@ -400,9 +400,7 @@ end
 # widened-indent round-trip (that one is handled in `_backward_zone`):
 #   * text / text_with_image — a left/right asymmetry in the plain Text pipeline,
 #     with no projection involved.
-#   * markdown_rendered — rendered inline chrome (styled links/images) has no
-#     backward caret for every rendered glyph.
-const NAV_LEFT_WALK_STALLS = ("text", "text_with_image", "markdown_rendered")
+const NAV_LEFT_WALK_STALLS = ("text", "text_with_image")
 
 # @broken: the rightward walk ends somewhere other than where Ctrl+End lands
 # (`:right_reaches_end`). No example is known to.
