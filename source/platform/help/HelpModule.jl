@@ -34,10 +34,8 @@ import ..DomainModule: get_insertion_aliases
 import ..ProjectionModule: print_document
 import ..SerializationModule: pred_arguments
 
-export compute_help_entries
-export HelpTheme, ScaledHelpTheme
-export HelpListToSyntax, make_help_list_projection
-export AboutPageToSyntax, make_about_page_projection
+export make_help_list_projection, compute_help_entries
+export make_about_page_projection
 
 include("HelpDocument.jl")
 include("HelpTheme.jl")
