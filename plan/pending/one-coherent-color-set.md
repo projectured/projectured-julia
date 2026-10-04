@@ -1,11 +1,11 @@
 # One coherent color set
 
-> **Status:** pending. Part 1, the catalog of every color, is done
-> (2026-10-04). Part 2, the design, follows the answers of the owner of
-> 2026-10-04 (section 12.1): many palettes, light, dark and high contrast,
-> colors computed from the appearance like the scaled sizes, and fine-tuning.
-> Section 12.13 holds the questions that are still open. The work has not
-> started, and no code changed.
+> **Status:** pending, decided, not started. Part 1, the catalog of every
+> color, is done (2026-10-04). The owner decided the design of Part 2 on
+> 2026-10-04 in two rounds of answers (section 12.1), and no question is open.
+> The work starts after the branch `projection-styles` of
+> [a-projection-holds-its-styles.md](a-projection-holds-its-styles.md) lands,
+> and only on the owner's word. No code changed.
 
 ## 1. The request
 
@@ -387,10 +387,9 @@ decisions.
 
 ## 12. Part 2: the design
 
-The owner answered the questions of the first draft on 2026-10-04 (section
-12.1). This section is the design that follows from the answers. The points
-that the owner decided are marked **decided**. The other points are
-proposals of the agent, and section 12.13 asks about them.
+The owner answered the questions of the first draft, and then the questions
+of section 12.13, both on 2026-10-04 (section 12.1). This section is the
+design that the answers accept. No question is open.
 
 ### 12.1 Owner input
 
@@ -426,6 +425,10 @@ And the request that frames the design:
 > oklch. I'm not really sure, so you should design. I envision something like
 > this: when I change the appearance settings then it immediately applies to
 > the scheme of colors but I can also fine tune colors.
+
+**The answers to the questions of section 12.13** (2026-10-04): "agreed" (1),
+"yes" (2, 3, 5, 6 and 7), and "as you suggest" (4 and 8). Section 12.13 gives
+each decision.
 
 ### 12.2 Facts that bear on the design
 
@@ -620,7 +623,7 @@ person that must stay as it is.
 **The settings of the appearance.** Five new fields of `Appearance`, saved
 in `appearance.toml` with the scales:
 
-| Field | Values | Default (proposal) |
+| Field | Values | Default |
 | --- | --- | --- |
 | `color_mode` | `:light`, `:dark`, later `:system` | `:light` |
 | `color_contrast` | `:normal`, `:high` | `:normal` |
@@ -651,8 +654,8 @@ of `scale_theme_value`, the new types, and the fields of the appearance.
 
 ### 12.8 The token roles and their hues
 
-The proposal of the agent for question 2, in the spirit of One Dark and
-GitHub, which many people find readable: five hues, all at step 11, and
+Decided on 2026-10-04 (section 12.13, decision 2). Five hues in the spirit
+of One Dark and GitHub, which many people find readable, all at step 11, and
 neutrals for the rest.
 
 | Token role | Hue | What it colors (examples from the domains) |
@@ -684,7 +687,7 @@ neutrals for the rest.
 
 ### 12.9 The accent
 
-The proposal of the agent for question 4: **blue**, a deep blue near
+Decided on 2026-10-04 (section 12.13, decision 3): **blue**, a deep blue near
 `#2563eb`, the color of the selection ring now. The reasons:
 
 - The three desktop systems use a blue for the focus and the selection, so a
@@ -724,7 +727,7 @@ color presets of `WidgetTheme`.
   A scheme is a preset: it sets the settings, and the settings stay editable.
 - **The palettes.**
   - Radix: the data of the 12-step scales, light and dark. Hand-tuned, so the
-    yellows and the browns do not look muddy. The proposal for the default.
+    yellows and the browns do not look muddy. The default (decision 1).
   - Tailwind: the data of the 11-step ramps, mapped to the 12 purposes; the
     dark mode reads the ramp from the other end.
   - Solarized: the neutral ramp from the 8 base tones, and for each accent a
@@ -764,32 +767,30 @@ Every change applies at once. A fixed color in a field of a domain theme
 stays in every mode; the tab says so beside it, and offers a palette step,
 which follows the mode.
 
-### 12.13 Questions for the owner
+### 12.13 The decisions of the owner
 
-1. The default palette: Radix (the proposal: hand-tuned and tested), or the
-   generated OKLCH palette (equal lightness by construction, any accent
-   angle)?
-2. The token hues of section 12.8: accept them, or change some?
-3. The accent: blue (section 12.9)?
-4. A fine-tune of a role is kept for one mode and one contrast (four color
-   themes in the appearance). Accept?
-5. The palette data of Radix and Tailwind is under the MIT licence, as far
-   as the agent knows. The license-compliance-officer must check it before the
-   data enters the code. Accept?
-6. 996 names of `Color.jl` have no use: the 977 names of the Wikipedia list
-   and the 19 pastel colors. Can they go when the palettes come?
-7. The order: this work starts after the branch `projection-styles` of
-   [a-projection-holds-its-styles.md](a-projection-holds-its-styles.md) lands,
-   because both change the theme fields. Accept?
-8. The default neutral: slate (cool, near the widgets now), gray, or sand
-   (warm, near the cream window now)?
+The owner answered each question on 2026-10-04.
+
+| # | Question | Decision |
+| --- | --- | --- |
+| 1 | The default palette | Radix: hand-tuned and tested. The OKLCH generator is a second palette. |
+| 2 | The token hues | The five hues of section 12.8, all at step 11, and neutrals for the rest. |
+| 3 | The accent | Blue, a deep blue near `#2563eb`. The setting `color_accent` lets a person choose another hue. |
+| 4 | Where a fine-tune of a role stays | In the mode and the contrast where the person made it: the appearance holds four color themes. |
+| 5 | The licence of the palette data | The license-compliance-officer checks the licence of the Radix and the Tailwind data before the data enters the code (step C0). |
+| 6 | The 996 names of `Color.jl` with no use | They go when the palettes come (step C1). No file of omnet-julia or inet-julia names one of them (checked on 2026-10-04). |
+| 7 | The order of the work | This work starts after the branch `projection-styles` lands. |
+| 8 | The default neutral | Slate: a cool neutral, which goes with the blue accent and is near the widgets now. |
 
 ### 12.14 The steps (sketch)
 
-Not started. The owner says when the work starts.
+Not started. The work starts after the branch `projection-styles` lands,
+and only on the owner's word (decision 7).
 
-- **Part C, the colors computed.** C1 the palette type and the registry, with
-  the Radix data. C2 `ColorRole` and `PaletteColor`, the methods of
+- **Part C, the colors computed.** C0 the license-compliance-officer checks
+  the licence of the Radix and the Tailwind data (decision 5). C1 the palette
+  type and the registry, with the Radix data; the 977 names of the Wikipedia
+  list and the 19 pastel colors leave `Color.jl` (decision 6). C2 `ColorRole` and `PaletteColor`, the methods of
   `scale_theme_value`, and save and load. C3 the five settings of the
   appearance. C4 `ColorTheme` with its roles in the four pairs, and a test of
   the contrast rules for each palette, mode and contrast. C5 the colors section
