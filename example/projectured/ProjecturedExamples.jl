@@ -7,6 +7,7 @@ const examples = [
     widget_label_example, widget_text_example, widget_checkbox_example, widget_button_example,
     widget_button_action_example, widget_button_image_example,
     widget_tooltip_example, widget_menu_item_example, widget_menu_example, widget_toolbar_example,
+    widget_toolbar_item_example,
     widget_composite_example, widget_title_pane_example, widget_split_pane_example,
     widget_scroll_bar_example, widget_scroll_pane_example, widget_transform_pane_example,
     widget_offered_example,

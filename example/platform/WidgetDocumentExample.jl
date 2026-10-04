@@ -251,6 +251,13 @@ make_widget_toolbar_document_example() =
                    WidgetMenuItem("Undo"), WidgetMenuItem("Redo")];
                   padding=Inset(4, 4, 4, 4))
 
+# WidgetToolbarItem — the buttons of a toolbar: a picture, a disabled picture and
+# a label with no picture. Each is flat at rest and a button under the pointer.
+make_widget_toolbar_item_document_example() =
+    WidgetToolbar(Any[WidgetToolbarItem("Run"; icon = :play),
+                      WidgetToolbarItem("Stop"; icon = :stop, enabled = false),
+                      WidgetToolbarItem("Log")])
+
 # WidgetComposite — a positioned container of child widgets.
 make_widget_composite_document_example() =
     WidgetComposite(Any[

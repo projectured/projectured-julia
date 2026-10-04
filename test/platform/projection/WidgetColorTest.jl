@@ -110,17 +110,10 @@ function _style_colors(document)
     out
 end
 
-# A toolbar of `WidgetToolbarItem`s, which no example holds: the toolbar of the
-# gallery shows menu items, and the items of a window belong to the shell.
-_make_toolbar_item_probe() =
-    WidgetToolbar(Any[WidgetToolbarItem("Run"; icon = :play),
-                      WidgetToolbarItem("Stop"; icon = :stop, enabled = false),
-                      WidgetToolbarItem("Log")])
-
 # The widget examples that the probe theme renders. The editable text box and
 # the popup are left out: one needs the text domain and the other the screen
 # domain, and their colors are not the widget layer's.
-const _PROBED_WIDGET_DOCUMENTS = (make_widget_document_example, _make_toolbar_item_probe,
+const _PROBED_WIDGET_DOCUMENTS = (make_widget_document_example,
     make_widget_accordion_document_example, make_widget_alert_atom_document_example,
     make_widget_alert_document_example, make_widget_avatar_document_example,
     make_widget_badge_atom_document_example, make_widget_badge_document_example,
@@ -146,7 +139,8 @@ const _PROBED_WIDGET_DOCUMENTS = (make_widget_document_example, _make_toolbar_it
     make_widget_table_offered_document_example, make_widget_textarea_document_example,
     make_widget_title_pane_document_example, make_widget_toggle_atom_document_example,
     make_widget_toggle_document_example, make_widget_toggle_group_document_example,
-    make_widget_toolbar_document_example, make_widget_tooltip_document_example,
+    make_widget_toolbar_document_example, make_widget_toolbar_item_document_example,
+    make_widget_tooltip_document_example,
     make_widget_transform_pane_document_example, make_widget_tree_document_example)
 
 function test_widget_colors()

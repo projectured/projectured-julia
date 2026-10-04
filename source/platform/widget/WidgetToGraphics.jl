@@ -264,13 +264,18 @@ end
 # `pressed` cell of `w`, as the focus ring reads the selection. A move onto `w` or
 # off it then changes the layer and not the element list or the extent of the
 # widget, so only the layer is painted again. While the pointer is off `w` and `w` is not
-# pressed, the layer has no size and draws nothing.
+# pressed, the layer has no size and draws nothing. A `stroke` draws the outline
+# of the layer, so a widget that is flat at rest shows the shape of a button
+# while the layer shows.
 function _push_hover_layer!(elements::Vector, w::WidgetDocument, x::Int, y::Int,
                             width::Int, height::Int; hovered_color::StyleColor,
-                            pressed_color = nothing, radius::Int = 0)
+                            pressed_color = nothing, stroke = nothing, radius::Int = 0)
     is_pressed() = pressed_color !== nothing && w.pressed === true
     is_shown() = is_pressed() || _is_under_pointer(w)
-    layer = GraphicsRect(x, y, 0, 0; color = hovered_color, radius = radius)
+    layer = stroke === nothing ?
+        GraphicsRect(x, y, 0, 0; color = hovered_color, radius = radius) :
+        GraphicsRect(x, y, 0, 0; color = hovered_color, radius = radius,
+                     border_width = stroke.width, border_color = stroke.color)
     set_cell_computation!(getfield(layer, :w), () -> is_shown() ? Int32(width) : Int32(0))
     set_cell_computation!(getfield(layer, :h), () -> is_shown() ? Int32(height) : Int32(0))
     pressed_color === nothing ||
@@ -614,6 +619,9 @@ WidgetMenuItemToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
     label_text::StyleText            # font (the size of the icon) + foreground
     label_disabled_text::StyleText   # icon and label when disabled
     layer_hovered_color::StyleColor                 # the layer while the pointer is on the item
+    layer_pressed_color::StyleColor  # the layer while the left button is held on the item
+    layer_stroke::StyleStroke        # the outline of the layer: the item shows as a button
+    corner_radius::Int
     icon_scale::Float64              # times the box of the icon, one line of the label
 end
 
@@ -626,10 +634,15 @@ WidgetToolbarItemToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                                   label_disabled_text =
                                       _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
                                   layer_hovered_color = _themed(StyleColor, theme, _get_hover_layer),
+                                  layer_pressed_color = _themed(StyleColor, theme, _get_pressed_layer),
+                                  layer_stroke =
+                                      _themed(StyleStroke, theme, t -> StyleStroke(t.border, t.border_width)),
+                                  corner_radius = _themed(Int, theme, t -> t.radius),
                                   icon_scale = _themed(Float64, theme, _get_icon_scale)) =
     WidgetToolbarItemToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                       padding_color, content_color, label_text, label_disabled_text,
-                                      layer_hovered_color, icon_scale)
+                                      layer_hovered_color, layer_pressed_color, layer_stroke,
+                                      corner_radius, icon_scale)
 
 @projection UntrackedCell struct WidgetCompositeToGraphicsCanvas
     margin::Inset
@@ -2778,8 +2791,12 @@ function print_document(p::WidgetToolbarItemToGraphicsCanvas, recursion, w::Widg
         # item, and not only on the strokes of its picture.
         drawn = Any[GraphicsRect(0, 0, width, height; color = color_transparent, radius = 0)]
         _push_box_parts!(drawn, _get_box_insets(p, w), _get_box_colors(p, w; state),
-                         content_width, content_height)
-        enabled && _push_hover_layer!(drawn, w, 0, 0, width, height; hovered_color = p.layer_hovered_color)
+                         content_width, content_height; radius = p.corner_radius)
+        # Flat at rest; under the pointer the layer draws the surface and the
+        # outline of a button, and a darker surface while it is held.
+        enabled && _push_hover_layer!(drawn, w, 0, 0, width, height; hovered_color = p.layer_hovered_color,
+                                      pressed_color = p.layer_pressed_color,
+                                      stroke = p.layer_stroke, radius = p.corner_radius)
         append!(drawn, elements)
         (width = width, height = height, elements = drawn)
     end))
@@ -2791,23 +2808,32 @@ map_reference_backward(::WidgetToolbarItemToGraphicsCanvas, iomap, reference) = 
 # A left press on an enabled item invokes its action. The item's own gestures come
 # first, as on a button.
 #
+# A left down and up on an enabled item write its transient `pressed`, as on a
+# button. The down is the answer of the item, so it does not move the focus.
+#
 # Alt and a left press select the item as a whole, as they select any widget, so
 # the item declines that press and the layers above select it.
 function read_intent(::WidgetToolbarItemToGraphicsCanvas, iomap::SimpleIoMap, evt)
     w = iomap.input
     w.visible == false && return nothing
+    # A move off the item reaches it only while it is the part under the pointer,
+    # so the pointer left it: a press that was released off the item ends here.
+    if evt isa MouseMove && _outside_widget(iomap, evt)
+        return w.pressed === true ? _write_view_state(w, "pressed", false) : nothing
+    end
     _outside_widget(iomap, evt) && return nothing
     is_whole_selection_press(evt) && return nothing
     enabled = _toolbar_item_enabled(w)
-    if enabled
-        operation = read_bound_gesture(w, evt)
-        operation === nothing || return operation
+    enabled || return nothing
+    operation = read_bound_gesture(w, evt)
+    operation === nothing || return operation
+    @gesture_case evt begin
+        MouseClick(button, x, y) =>
+            button === :left ? InvokeActionOperation(_toolbar_item_command(w)) : nothing
+        MouseDown(button, x, y) => button === :left ? _write_view_state(w, "pressed", true) : nothing
+        MouseUp(button, x, y)   => button === :left ? _write_view_state(w, "pressed", false) : nothing
+        _ => nothing
     end
-    if evt isa MouseClick
-        (evt.button === :left && enabled) || return nothing
-        return InvokeActionOperation(_toolbar_item_command(w))
-    end
-    nothing
 end
 
 # ── WidgetMenu ──────────────────────────────────────────────────────────────
@@ -2873,18 +2899,16 @@ function _menu_item_height(cim)
         (cim.output isa GraphicsCanvas ? Int(cim.output.h[]) : 0)
 end
 
-# The extent that a bar reaches: the box parts in `box`, and each item of
-# `child_iomaps` at its place. A menu item and a toolbar item draw inside the size
+# The extent that a bar reaches: its box, `box_width` by `box_height`, and each
+# item of `child_iomaps` at its place. The box is the insets of the bar around its
+# content, also where the box has no color and draws nothing, so the bar keeps
+# its padding on every side. A menu item and a toolbar item draw inside the size
 # they state, so the bar takes that size, and a parent that asks the size of the
 # bar reads no graphic inside such an item, such as the layer that a hover
 # changes: a hover does not move what lies under the bar. Any other item is
 # measured, because it can draw outside its size, as the shadow of a button does.
-function _compute_bar_extent(box::Vector, child_iomaps::Vector, measure)
-    width, height = 0, 0
-    for part in box
-        part_width, part_height = _element_size(part, measure)
-        width = max(width, part_width); height = max(height, part_height)
-    end
+function _compute_bar_extent(box_width::Int, box_height::Int, child_iomaps::Vector, measure)
+    width, height = box_width, box_height
     for (x, y, cim) in child_iomaps
         item_width, item_height =
             get_iomap_input(cim) isa Union{WidgetMenuItem,WidgetToolbarItem} ?
@@ -2944,7 +2968,9 @@ function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu,
         elems = Any[]
         _push_box_parts!(elems, _get_box_insets(p, w; variant), _get_box_colors(p, w; variant),
                          content_width, content_height)
-        width, height = _compute_bar_extent(elems, child_iomaps, _p_measure(p))
+        inset_width, inset_height = _inset_total(p, w; variant)
+        width, height = _compute_bar_extent(inset_width + content_width, inset_height + content_height,
+                                            child_iomaps, _p_measure(p))
         append!(elems, items)
         # A menu is an overlay: capped by the window, never stretched to it.
         (width = _resolve_overlay(ctx, :x, 0, width), height = _resolve_overlay(ctx, :y, 0, height),
@@ -5912,6 +5938,8 @@ function print_document(p::WidgetToolbarToGraphicsCanvas, recursion, w::WidgetTo
         child_iomaps = Any[]
         items = Any[]
         x_cursor = 0
+        # The row is as tall as its tallest item, and at least a line of the font.
+        content_height = item_h
         for cim in child_cells[]
             push!(child_iomaps, (content_x + x_cursor, content_y, cim))
             push!(items, _make_canvas(content_x + x_cursor, content_y, Any[cim.output]))
@@ -5920,11 +5948,14 @@ function print_document(p::WidgetToolbarToGraphicsCanvas, recursion, w::WidgetTo
             iw = _menu_item_width(cim)
             iw <= 0 && (iw = first(compute_text_extent(p.measure, "    ", p.font)))
             x_cursor += iw + item_gap
+            content_height = max(content_height, _menu_item_height(cim))
         end
         content_width = max(0, x_cursor - item_gap)
         elems = Any[]
-        _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w), content_width, item_h)
-        width, height = _compute_bar_extent(elems, child_iomaps, _p_measure(p))
+        _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w), content_width, content_height)
+        inset_width, inset_height = _inset_total(p, w)
+        width, height = _compute_bar_extent(inset_width + content_width, inset_height + content_height,
+                                            child_iomaps, _p_measure(p))
         append!(elems, items)
         (width = width, height = height, elements = elems, child_iomaps = child_iomaps)
     end)
@@ -5940,18 +5971,19 @@ function read_intent(::WidgetToolbarToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     evt isa MouseMove && return _read_children_move(iomap, evt)
     _outside_widget(iomap, evt) && return nothing
     entries = getfield(iomap, :child_iomaps)[]::Vector
-    (evt isa MouseClick || evt isa MouseDwell) &&
+    (evt isa MouseClick || evt isa MouseDwell || evt isa MouseDown || evt isa MouseUp) &&
         return _route_toolbar_gesture(iomap.input, entries, evt)
     evt isa MouseScroll || return nothing
     _route_scroll_to_children(entries, evt)
 end
 
-# A press or a dwell goes to the item under the pointer, and its answer is re-rooted
-# into `elements[i]`, as a composite re-roots: an Alt+press then selects that item
-# rather than the whole toolbar, and an action travels unchanged. The toolbar lays
-# out only its widget elements, so a laid-out index is mapped back to the element it
-# came from. For a dwell and a right click the toolbar then reads its own stretch
-# (`read_container_gesture`).
+# A press, a down, an up or a dwell goes to the item under the pointer, and its
+# answer is re-rooted into `elements[i]`, as a composite re-roots: an Alt+press then
+# selects that item rather than the whole toolbar, and an action travels unchanged.
+# An item answers a down with its pressed look, so the down leaves the focus where
+# it is. The toolbar lays out only its widget elements, so a laid-out index is
+# mapped back to the element it came from. For a dwell and a right click the
+# toolbar then reads its own stretch (`read_container_gesture`).
 function _route_toolbar_gesture(toolbar::WidgetToolbar, entries::Vector, gesture)
     found = _route_composite_event(entries, gesture.x, gesture.y,
                 (x, y) -> shift_event_position(gesture, x - gesture.x, y - gesture.y))

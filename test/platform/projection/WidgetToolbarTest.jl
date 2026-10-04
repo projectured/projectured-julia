@@ -65,14 +65,38 @@ end
     end
 end
 
+# A toolbar item is flat at rest. Under the pointer its layer is a button: the
+# light of the theme, with the outline and the corners of a control, as a
+# `WidgetButton` draws them.
+@testset "a lit toolbar item shows the outline of a button" begin
+    theme = make_scaled_theme(make_slate_light_theme())
+    item = WidgetToolbarItem("Run"; icon = :play)
+    c = print_document(proj, item).output
+    rects = [e for e in map(_unwrap, collect(c.elements)) if e isa GraphicsRect]
+    @test all(Int(r.border_width) == 0 for r in rects if Int(r.w) > 0)
+    layer = only(r for r in rects if Int(r.w) == 0 && Int(r.h) == 0)
+    replace_mouse_target!(item, EmptyReference())
+    @test (Int(layer.w), Int(layer.h)) == (Int(c.w[]), Int(c.h[]))
+    @test layer.color == WidgetModule._get_hover_layer(theme)
+    @test Int(layer.border_width) == Int(theme.border_width)
+    @test layer.border_color == theme.border
+    @test Int(layer.radius_tl) == Int(theme.radius) > 0
+end
+
 # A toolbar item states its size, and the bar takes it. A button can draw outside
-# its size, as its shadow does, so the bar measures it.
-@testset "a toolbar is as large as what its items draw" begin
+# its size, as its shadow does, so the bar measures it. The box of a toolbar has no
+# color, so its padding draws nothing, and the toolbar still keeps it on every side.
+@testset "a toolbar holds what its items draw, and its padding" begin
     for items in (Any[WidgetToolbarItem("Run"; icon = :play), WidgetMenuItem("Save")],
                   Any[WidgetToolbarItem("Run"; icon = :play), WidgetButton("Go")])
         c = print_document(proj, WidgetToolbar(items)).output
-        @test (Int(c.w[]), Int(c.h[])) == get_graphics_size(c, _det)
+        drawn_width, drawn_height = get_graphics_size(c, _det)
+        @test Int(c.w[]) >= drawn_width && Int(c.h[]) >= drawn_height
     end
+    make_items() = Any[WidgetToolbarItem("Run"; icon = :play), WidgetMenuItem("Save")]
+    bare = print_document(proj, WidgetToolbar(make_items(); padding = Inset(0, 0, 0, 0))).output
+    padded = print_document(proj, WidgetToolbar(make_items(); padding = Inset(3, 5, 7, 9))).output
+    @test (Int(padded.w[]), Int(padded.h[])) == (Int(bare.w[]) + 7 + 9, Int(bare.h[]) + 3 + 5)
 end
 
 # What a canvas would draw, forced the way a backend forces it.
@@ -176,6 +200,69 @@ end
     op = _press(io, _centre(_items(io)[2]); modifiers = ModifierKeys(alt = true))
     @test op isa ReplaceSelectionOperation
     @test try_evaluate_reference(tb, op.path, missing) === tb.elements[2]
+end
+
+# What the toolbar `io` answers to the pointer event `evt`, and the write of
+# pointer state inside that answer.
+_read_event(io, evt) = begin
+    answer = read_intent(proj, nothing, Intent(evt, nothing), io)
+    answer isa Intent ? answer.operation : answer
+end
+_toolbar_state_write(op) = op isa ReplaceViewStateOperation ? get_wrapped_operation(op) : nothing
+
+# A left down on an item, through the toolbar, writes the `pressed` of that item
+# and of no other, and its layer shows the pressed color until the up. The down
+# is the answer of the item, so it moves no focus.
+@testset "a held toolbar item shows its press" begin
+    theme = make_scaled_theme(make_slate_light_theme())
+    tb = WidgetToolbar(Any[WidgetToolbarItem("Explorer"; icon = :folder),
+                           WidgetToolbarItem("Log"; icon = :list)])
+    io = print_document(proj, tb)
+    item = tb.elements[2]
+    x, y = _centre(_items(io)[2])
+    layer = only(r for r in _drawn(_items(io)[2], GraphicsRect) if Int(r.border_width) > 0)
+    down = _read_event(io, MouseDown(:left, x, y, _mods; time = 0.0))
+    held = _toolbar_state_write(down)
+    @test held isa ReplaceReferencedValueOperation
+    @test held.document === item && held.value == true
+    evaluate_operation((document = tb,), down)
+    @test item.pressed == true && tb.elements[1].pressed == false
+    @test Int(layer.w) > 0 && Int(layer.h) > 0
+    @test layer.color == WidgetModule._get_pressed_layer(theme)
+    up = _read_event(io, MouseUp(:left, x, y, _mods; time = 0.1))
+    @test _toolbar_state_write(up).document === item && _toolbar_state_write(up).value == false
+    evaluate_operation((document = tb,), up)
+    @test item.pressed == false
+    replace_mouse_target!(item, EmptyReference())
+    @test layer.color == WidgetModule._get_hover_layer(theme)
+    # The press that the gesture tracking makes after the up runs the action.
+    @test _read_event(io, MouseClick(:left, x, y, _mods; time = 0.1)) isa InvokeActionOperation
+end
+
+# A press released off the item ends when the pointer leaves the item, as on a
+# button.
+@testset "a move off a held toolbar item ends its press" begin
+    tb = WidgetToolbar(Any[WidgetToolbarItem("Explorer"; icon = :folder),
+                           WidgetToolbarItem("Log"; icon = :list)])
+    io = print_document(proj, tb)
+    driver = MttDriver(proj, tb)
+    for (i, away) in ((2, _centre(_items(io)[1])), (1, (500, 500)))
+        x, y = _centre(_items(io)[i])
+        _mtt_move!(driver, x, y, 1.0 + i)
+        evaluate_operation((document = tb,), _read_event(io, MouseDown(:left, x, y, _mods; time = 0.0)))
+        @test tb.elements[i].pressed == true
+        _mtt_move!(driver, away..., 1.5 + i)
+        @test tb.elements[i].pressed == false
+    end
+end
+
+@testset "a disabled toolbar item shows no press" begin
+    tb = WidgetToolbar(Any[WidgetToolbarItem("Stop"; icon = :stop, enabled = false)])
+    io = print_document(proj, tb)
+    x, y = _centre(only(_items(io)))
+    @test _read_event(io, MouseDown(:left, x, y, _mods; time = 0.0)) === nothing
+    @test _read_event(io, MouseUp(:left, x, y, _mods; time = 0.0)) === nothing
+    @test only(tb.elements).pressed == false
 end
 
 @testset "a toolbar item says its label when it has no tooltip" begin
