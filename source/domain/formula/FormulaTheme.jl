@@ -35,10 +35,3 @@ values of the default theme.
     "The font the lines of an environment separate on."
     plain_font::StyleFont = StyleFont("Ubuntu Mono", 14)
 end
-
-# The font that a plain Formula projection field draws with: the font of
-# `plain_font` in the theme `theme`, scaled or not.
-function _get_formula_font(theme)
-    theme === nothing && return get_theme_defaults(FormulaTheme).plain_font
-    make_theme_cell(StyleFont, theme, values -> values.plain_font)
-end

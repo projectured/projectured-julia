@@ -186,7 +186,7 @@ end
 # A plain list — one formula per line — like BookmarkList in the tutorial.
 
 @projection UntrackedCell struct FormulaEnvironmentToSyntaxNode
-    font::StyleFont = _get_formula_font(nothing)
+    font::StyleFont = get_formula_style(nothing, :plain_font)
 end
 
 function print_document(p::FormulaEnvironmentToSyntaxNode, recursion, e::FormulaEnvironment, ctx)
@@ -261,6 +261,6 @@ function FormulaToSyntax(; theme = nothing, julia_theme = nothing, syntax_theme 
         FormulaFormula     => FormulaFormulaToSyntaxNode(; name = get_style(:name_text),
                                                             op = get_style(:operator_text),
                                                             result = get_style(:result_text)),
-        FormulaEnvironment => FormulaEnvironmentToSyntaxNode(; font = _get_formula_font(theme));
+        FormulaEnvironment => FormulaEnvironmentToSyntaxNode(; font = get_style(:plain_font));
         theme = julia_theme, syntax_theme)
 end
