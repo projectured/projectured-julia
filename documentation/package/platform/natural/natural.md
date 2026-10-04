@@ -56,7 +56,7 @@ The parser is keyed by the format and not by a type, so a package can register a
 
 `NaturalToGraphics(; measure, font, wrap, extra, appearance)` returns a `RecursiveProjection` over one `TypeDispatchingProjection` that draws almost any document to a `GraphicsCanvas`. The first row whose type matches the document wins, and each child of a matched row enters the same dispatcher again. So a JSON value inside a page and a widget inside a diagram each draw in their own domain. The dispatcher adds no printer, reader or reference map of its own; see [plan/done/natural-projection.md](../../../../plan/done/natural-projection.md).
 
-Three keyed factory lists fill the table. The key of a factory is a `Symbol` that names the domain and makes a second call do nothing. A factory runs on each table build with the `Appearance` of the editor, so each renderer gets its own projection instances, and each instance takes the scaled theme of its domain from that editor. A row is never registered ready-made, because a projection holds the scaled themes of one editor.
+Three keyed factory lists fill the table. The key of a factory is a `Symbol` that names the domain and makes a second call do nothing. A factory runs on each table build with the `Appearance` of the editor, so each renderer gets its own projection instances, and the factory fills the styles of each instance from the scaled theme of its domain in that editor. A row is never registered ready-made, because a projection holds the styles of one editor.
 
 | List | Filled by | Read by |
 | --- | --- | --- |

@@ -9,16 +9,16 @@ tooltip can be prose, markdown, a table or a widget. When more than one layer
 shows, each layer starts with a label that names the part it comes from, and a
 separator stands between two layers. A tooltip is read, never edited, so the
 column maps no reference of its own. The gap between the layers is the
-`item_gap` of `theme`, a `WidgetTheme` or a scaled one, or of the default theme.
+`item_gap` of `theme`, a `WidgetTheme` scaled or not, or of the default theme.
 """
 # `gap`, between the layers, is the `item_gap` of a `WidgetTheme`: a number, or a
-# cell that reads the scaled theme.
+# cell that reads the theme.
 struct TooltipContentToVerticalLayout <: Projection
     gap::Any
 end
 
 TooltipContentToVerticalLayout(; theme = nothing) =
-    TooltipContentToVerticalLayout(make_style_field(WidgetTheme, scale_theme(theme), Int; name = :item_gap))
+    TooltipContentToVerticalLayout(get_widget_style(theme, :item_gap))
 
 function print_document(p::TooltipContentToVerticalLayout, recursion, content::TooltipContent, ctx)
     layers = content.layers

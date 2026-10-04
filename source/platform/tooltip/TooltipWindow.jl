@@ -40,8 +40,9 @@ runs the binding answers with no point, and the window opens below the part, wit
 the left edges aligned and the `part_gap` between them (`find_part_place`), so it
 does not cover the part. The window is printed at the `maximum_size` of the theme
 and ends with the extent of what it holds, never smaller than its `minimum_size`.
-`theme` is a scaled `TooltipTheme`, or `nothing` for the default theme; the
-projection reads it each time it opens a window.
+`theme` is a `TooltipTheme`, scaled or not, or `nothing` for the default theme;
+the projection holds the offset, the part gap and the two sizes that it reads from
+it, and reads them each time it opens a window.
 
 **Closing.** While a tooltip is open, a move of the pointer off the part closes it
 (the point is mapped backward, and the path no longer passes through the part),
@@ -58,17 +59,19 @@ to the part at its point.
 struct TooltipWindowProjection <: Projection
     inner::Projection
     id::Symbol
-    theme::Union{ScaledTooltipTheme,Nothing}
     title::String
+    offset::Any             # from the point of the pointer, a `Point2D` or a cell of one
+    part_gap::Any           # between the part and a tooltip below it, a number or a cell
+    minimum_size::Any       # of the window, a `Point2D` or a cell of one
+    maximum_size::Any       # of the window, a `Point2D` or a cell of one
 end
 
 TooltipWindowProjection(; inner::Projection, id::Symbol = :tooltip, theme = nothing,
                           title::AbstractString = "tooltip") =
-    TooltipWindowProjection(inner, id, scale_theme(theme), String(title))
-
-# The values of the theme of `p`, or of the default theme.
-_get_tooltip_values(p::TooltipWindowProjection) =
-    p.theme === nothing ? get_theme_defaults(TooltipTheme) : p.theme
+    TooltipWindowProjection(inner, id, String(title), get_tooltip_style(theme, :offset),
+                            get_tooltip_style(theme, :part_gap),
+                            get_tooltip_style(theme, :minimum_size),
+                            get_tooltip_style(theme, :maximum_size))
 
 # The two numbers of a point of a theme.
 _get_pair(point::Point2D) = (Int(point.x[]), Int(point.y[]))
@@ -182,14 +185,14 @@ _take_tooltip(answer) = (nothing, answer)
 # edges aligned and `part_gap` between them; with neither, at the corner.
 function _open_tooltip(p::TooltipWindowProjection, iomap::TooltipWindowIoMap, tooltip::OpenTooltipOperation)
     state = iomap.input
-    values = _get_tooltip_values(p)
-    offset = _get_pair(values.offset)
-    minimum_size, maximum_size = _get_pair(values.minimum_size), _get_pair(values.maximum_size)
+    offset = _get_pair(unwrap_cell(p.offset))
+    minimum_size = _get_pair(unwrap_cell(p.minimum_size))
+    maximum_size = _get_pair(unwrap_cell(p.maximum_size))
     x, y = if tooltip.point !== nothing
         (tooltip.point[1] + offset[1], tooltip.point[2] + offset[2])
     else
         below = find_part_place(p, iomap, tooltip.source)
-        below === nothing ? offset : (below[1], below[2] + Int(values.part_gap))
+        below === nothing ? offset : (below[1], below[2] + Int(unwrap_cell(p.part_gap)))
     end
     window = OpenWindowOperation(; id = p.id, title = p.title, x = x, y = y,
                                    width = maximum_size[1], height = maximum_size[2],
@@ -285,7 +288,7 @@ make_tooltip_window_projection(projection; keywords...) =
     wrap_tooltip_window(document, projection; theme = nothing) -> (document, projection)
 
 Both halves at once, the shape that `make_tracking_screen` takes in its list of
-`inner_wrappers`. `theme` is the scaled `TooltipTheme` of the window.
+`inner_wrappers`. `theme` is the `TooltipTheme` of the window, scaled or not.
 """
 wrap_tooltip_window(document, projection; theme = nothing) =
     (make_tooltip_window_document(document), make_tooltip_window_projection(projection; theme))

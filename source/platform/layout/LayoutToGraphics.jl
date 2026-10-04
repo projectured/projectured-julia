@@ -2382,13 +2382,13 @@ read_intent(::AnchoredLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt) =
 
 A type-dispatching projection that routes any layout document to its
 `…ToGraphicsCanvas` projection. A layout draws the ring around a child selected
-as a whole with the `GraphicsTheme` `theme`: a scaled theme, which the layouts
+as a whole with the `GraphicsTheme` `theme`, scaled or not, which the layouts
 read at each read, or `nothing` for the default theme. Wrap in a
 `RecursiveProjection` (or include in a larger dispatcher) so children re-enter
 the recursion.
 """
 function LayoutToGraphics(; theme::Union{GraphicsTheme, ScaledGraphicsTheme, Nothing} = nothing)
-    graphics_style = make_theme_values_field(GraphicsTheme, scale_theme(theme))
+    graphics_style = make_theme_values_field(GraphicsTheme, theme)
     TypeDispatchingProjection(
         HorizontalLayout => HorizontalLayoutToGraphicsCanvas(; graphics_style),
         VerticalLayout   => VerticalLayoutToGraphicsCanvas(; graphics_style),
