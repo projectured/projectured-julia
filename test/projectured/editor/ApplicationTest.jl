@@ -497,14 +497,14 @@ function test_application()
             @testset "the settings come from the defaults, the file, the environment and the command line" begin
                 folder = mktempdir()
                 path = joinpath(folder, "settings.toml")
-                write(path, "[render]\npartial_render = true\nsupersample = 3\n\n" *
+                write(path, "[render]\npartial_render = false\nsupersample = 3\n\n" *
                             "[fault]\nis_sound_enabled = false\n")
                 settings = withenv("PROJECTURED_SUPERSAMPLE" => "1") do
                     make_application_settings(path)
                 end
                 render = get_settings_group!(settings, RenderSettings)
                 fault = get_settings_group!(settings, FaultSettings)
-                @test render.partial_render                  # the file
+                @test !render.partial_render                 # the file
                 @test render.supersample == 1                # the environment wins
                 @test !fault.is_sound_enabled
                 @test settings.file == path && !settings.is_read_from_targets

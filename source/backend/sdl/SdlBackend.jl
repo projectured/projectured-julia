@@ -249,7 +249,7 @@ end
 # The keywords are the defaults of the `RenderSettings` of an editor. An editor
 # with the `settings` wrapper applies its settings to the backend when it starts,
 # and the environment variables reach the backend through those settings.
-SdlBackend(; partial_render::Bool = false, debug_dirty::Bool = false,
+SdlBackend(; partial_render::Bool = true, debug_dirty::Bool = false,
              debug_dirty_hold::Real = 0.0, supersample::Integer = 2) =
     SdlBackend(Dict{Symbol, SdlWindowResources}(),
                Dict{UInt32, Symbol}(),
@@ -304,13 +304,13 @@ const _TEXT_TEXTURE_CACHE_CAP = 16384
 
 # ── Dirty-rectangle partial repaint controls ─────────────────────────────
 #
-# Each editor frame currently repaints the whole window. Nothing needs to be
-# repainted that has not been *invalidated* in the reactive graph, so we walk
-# the canvas tree, find the smallest rectangle covering every invalidated
-# graphic, clip to it and repaint only that region into a retained target.
+# Nothing needs to be repainted that has not been *invalidated* in the reactive
+# graph, so we walk the canvas tree, find the smallest rectangle covering every
+# invalidated graphic, clip to it and repaint only that region into a retained
+# target.
 #
-# `partial_render` of the backend is the master switch (false forces the
-# full-frame repaint). `debug_dirty` of the backend, when on, outlines the
+# `partial_render` of the backend is the master switch, on by default (false
+# forces the full-frame repaint). `debug_dirty` of the backend, when on, outlines the
 # repainted region in red so it is visible which part of the screen was painted.
 # `_render_window!` reads both from the backend of the window, and the
 # `RenderSettings` of an editor set them through `apply_settings!`.

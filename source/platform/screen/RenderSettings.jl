@@ -1,7 +1,7 @@
 # Fragment of `ScreenModule` — the settings of the repaint of the windows.
 
 """
-    RenderSettings(; partial_render = false, debug_dirty = false,
+    RenderSettings(; partial_render = true, debug_dirty = false,
                      debug_dirty_hold = 0.0, supersample = 2)
 
 How the editor repaints its windows: only the parts that changed, an outline
@@ -16,7 +16,7 @@ ignores it.
 """
 @settings struct RenderSettings
     "Partial render: repaint only the parts of a window that changed."
-    partial_render::Bool = false
+    partial_render::Bool = true
     "Repaint outline: outline in red the parts of a window that a frame repaints."
     debug_dirty::Bool = false
     "Outline hold: keep each outline for this number of seconds."

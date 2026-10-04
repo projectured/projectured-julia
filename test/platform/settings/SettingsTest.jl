@@ -193,13 +193,13 @@ end
           [:partial_render, :debug_dirty, :debug_dirty_hold, :supersample]
     render = RenderSettings()
     @test (render.partial_render, render.debug_dirty, render.debug_dirty_hold,
-           render.supersample) == (false, false, 0.0, 2)
+           render.supersample) == (true, false, 0.0, 2)
     settings = make_settings()
-    read_settings_environment!(settings, Dict("PROJECTURED_PARTIAL_RENDER" => "1",
+    read_settings_environment!(settings, Dict("PROJECTURED_PARTIAL_RENDER" => "0",
                                               "PROJECTURED_DEBUG_DIRTY" => "yes",
                                               "PROJECTURED_SUPERSAMPLE" => "1"))
     render = get_settings_group!(settings, RenderSettings)
-    @test (render.partial_render, render.debug_dirty, render.supersample) == (true, true, 1)
+    @test (render.partial_render, render.debug_dirty, render.supersample) == (false, true, 1)
 end
 
 @testset "the fault settings become the fault policy of the editor" begin

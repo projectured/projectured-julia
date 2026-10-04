@@ -117,7 +117,7 @@ end
     toggle = make_toggle_setting_operation(settings, RenderSettings, :partial_render)
     @test toggle isa ApplySettingOperation
     evaluate_operation(editor, toggle)
-    @test get_settings_group!(settings, RenderSettings).partial_render
+    @test !get_settings_group!(settings, RenderSettings).partial_render
     @test make_toggle_setting_operation(Settings(), RenderSettings, :partial_render) isa
           DoNothingOperation
 end
@@ -165,12 +165,12 @@ end
     @test !editor.fault_policy.is_barrier_enabled
     @test !get_settings_group!(settings, FaultSettings).is_barrier_enabled
     # An environment variable wins for one run.
-    environment_editor = withenv("PROJECTURED_PARTIAL_RENDER" => "1") do
+    environment_editor = withenv("PROJECTURED_PARTIAL_RENDER" => "0") do
         build_editor(WidgetLabel("Name"), _sw_natural(); backend = HeadlessBackend(),
                      devices = Device[], window = false, tabs = false, appearance = false)
     end
     render = get_settings_group!(environment_editor.document.settings, RenderSettings)
-    @test render.partial_render
+    @test !render.partial_render
 end
 
 @testset "a Settings from the caller wins over the targets" begin
@@ -179,10 +179,10 @@ end
     editor, _ = _sw_editor(WidgetLabel("Name"); settings)
     @test !editor.fault_policy.is_sound_enabled
     # The environment is the main builder's to read.
-    other = withenv("PROJECTURED_PARTIAL_RENDER" => "1") do
+    other = withenv("PROJECTURED_PARTIAL_RENDER" => "0") do
         first(_sw_editor(WidgetLabel("Name"); settings = make_settings()))
     end
-    @test !get_settings_group!(other.document.settings, RenderSettings).partial_render
+    @test get_settings_group!(other.document.settings, RenderSettings).partial_render
 end
 
 @testset "the undo of a window keeps the steps of the history settings" begin

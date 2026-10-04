@@ -44,7 +44,7 @@ For each changed unit the walk adds the bounds that the unit had at the last pai
 
 The offscreen renderer paints the same way for `VideoBackend(...; partial_render = true)`: its surface is the kept target, and `render_offscreen_changes!` paints only the rectangles of the walk. `write_offscreen_frame_with_overlay!` draws the pointer of the video and, with `debug_dirty`, the red outline on a copy of the frame, so neither enters the surface.
 
-`partial_render`, `debug_dirty`, `debug_dirty_hold` and `supersample` are keywords of `SdlBackend`, off, off, 0 and 2 by default. The `RenderSettings` of an editor set them through `apply_settings!`, also while the editor runs, and the environment variables `PROJECTURED_PARTIAL_RENDER`, `PROJECTURED_DEBUG_DIRTY` and `PROJECTURED_SUPERSAMPLE` reach the backend through those settings (see [settings.md](../../platform/settings/settings.md)). A change of the mode or of the outline repaints each window in full at the next frame, and a new supersample factor makes the target of each window again.
+`partial_render`, `debug_dirty`, `debug_dirty_hold` and `supersample` are keywords of `SdlBackend`, on, off, 0 and 2 by default. The `RenderSettings` of an editor set them through `apply_settings!`, also while the editor runs, and the environment variables `PROJECTURED_PARTIAL_RENDER`, `PROJECTURED_DEBUG_DIRTY` and `PROJECTURED_SUPERSAMPLE` reach the backend through those settings (see [settings.md](../../platform/settings/settings.md)). A change of the mode or of the outline repaints each window in full at the next frame, and a new supersample factor makes the target of each window again.
 
 The walk runs in both modes, because it also tells whether a frame differs from the one before. A window that shows such a frame gets a `DisplayUpdate`: `write_to_devices!` queues `WindowInput(id, DisplayUpdate(; time))` in `display_updates`, one for each window, `take_from_devices!` answers the queued updates before it polls SDL, and `wait_for_input` does not block while one waits. A frame with no change queues nothing, so the loop can sleep. A full frame still repaints and presents the whole window, whatever the walk found: the full mode does not depend on the walk to draw right, only to report.
 
@@ -126,7 +126,7 @@ The code is the slice `SdlModule`, in `source/backend/sdl/`: `SdlModule.jl` hold
 
 ```julia
 run_editor!(document, projection; backend = SdlBackend())
-backend = SdlBackend(; partial_render = true, debug_dirty = true)
+backend = SdlBackend(; debug_dirty = true)
 write_image(document, projection, "snapshot.png")
 projection = TextToGraphics(measure = FontFileMeasure())
 ```

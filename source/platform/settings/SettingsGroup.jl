@@ -169,7 +169,7 @@ values that it can take after `in`:
 
     @settings struct RenderSettings
         "Partial render: repaint only the parts of a window that changed."
-        partial_render::Bool = false
+        partial_render::Bool = true
         "Supersample: pixels in each direction for each pixel of a window."
         supersample::Int = 2 in 1:4
     end
