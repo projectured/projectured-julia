@@ -1,8 +1,10 @@
 # One coherent color set
 
 > **Status:** pending. Part 1, the catalog of every color, is done
-> (2026-10-04). Part 2, the design of the new color set, is not started. The
-> owner decides its direction after reading the catalog. No code changed.
+> (2026-10-04). Part 2, the design of the new color set, is a draft: section
+> 12 gives the principles, the rules and the options that the owner chooses
+> from, and section 12.9 the questions. No decision is made yet, apart from
+> the owner input in section 12.1. No code changed.
 
 ## 1. The request
 
@@ -381,9 +383,264 @@ decisions.
   newest gestures, and the colors of `compute_code_pieces` (both in section 6,
   Part T of [default-look-fits-a-desktop.md](default-look-fits-a-desktop.md)).
 
-## 12. Part 2: the design
+## 12. Part 2: the design (draft)
 
-Not started. The owner decides the direction after reading the catalog.
+This section is a draft for a discussion with the owner. The principles, the
+rules and the recommendation in it are proposals of the agent. The owner
+decides each of them; section 12.9 lists the questions.
+
+### 12.1 Owner input
+
+On 2026-10-04 the owner wrote about the delimiters that light up under the
+pointer:
+
+> I don't like how the syntax delimiter highligh colors light up under the
+> mouse right now, maybe it should just be different shades of gray
+
+Now the delimiters around the part under the pointer take
+`SyntaxTheme.lit_delimiter` (Solarized orange `#cb4b16`), and the delimiters
+of the levels around them mix from orange into the delimiter gray over 4
+levels (`_compute_delimiter_color` in
+[SyntaxToText.jl:812](../../source/platform/syntax/SyntaxToText.jl#L812)).
+The owner input points to principle 3 below: the pointer changes the
+lightness of a delimiter, not its hue.
+
+### 12.2 Facts that bear on the design
+
+The contrast ratio (WCAG 2) of the present text colors against three
+backgrounds, and their lightness in OKLCH. 4.5:1 is the usual minimum for
+text, 3:1 for a large text, a line and a focus ring.
+
+| Color | Value | OKLCH L | On `#fdf6e3` (window) | On `#ffffff` | On `#002b36` (Solarized dark) |
+| --- | --- | --- | --- | --- | --- |
+| Solarized yellow | `#b58900` | 0.65 | 2.98 | 3.21 | 4.68 |
+| Solarized cyan | `#2aa198` | 0.64 | 2.93 | 3.16 | 4.75 |
+| Solarized green | `#859900` | 0.64 | 2.97 | 3.20 | 4.69 |
+| Solarized blue | `#268bd2` | 0.61 | 3.41 | 3.68 | 4.08 |
+| Solarized violet | `#6c71c4` | 0.58 | 4.06 | 4.38 | 3.43 |
+| Solarized magenta | `#d33682` | 0.59 | 4.21 | 4.55 | 3.30 |
+| Solarized orange | `#cb4b16` | 0.58 | 4.27 | 4.61 | 3.26 |
+| Solarized red | `#dc322f` | 0.59 | 4.29 | 4.63 | 3.25 |
+| solarized gray | `#808080` | 0.60 | 3.66 | 3.95 | 3.80 |
+| slate_500 | `#64748b` | 0.55 | 4.41 | 4.76 | 3.15 |
+| black | `#000000` | 0.00 | 19.47 | 21.00 | 1.40 |
+
+- On the window background, no Solarized accent reaches 4.5:1. The three
+  most used token colors, green, cyan and yellow, are near 3:1.
+- The eight accents have nearly the same lightness (L 0.58 to 0.65). This is
+  the good property of Solarized: no token color shouts. Their level is too
+  light for a light background, and too dark for a dark one.
+- Prose and plain text are black (19.5:1), so a line of code has two weight
+  classes: black text next to tokens at 3:1.
+
+### 12.3 How other tools build a color scheme
+
+- **Solarized** has 8 base tones and 8 accents. The light and the dark scheme
+  swap the base tones, and keep the same accents.
+- **Material Design 3** makes a tonal palette of 13 tones for each of six
+  key colors (primary, secondary, tertiary, neutral, neutral variant, error).
+  The components name roles: `surface`, `surface-container` (five levels),
+  `on-surface`, `outline`, `primary`, `on-primary`, `primary-container`,
+  `inverse-surface`, `scrim`, `shadow`. The light and the dark scheme map the
+  same roles to other tones of the same palettes.
+- **Radix Colors** gives each hue a scale of 12 steps, with a purpose for
+  each step: 1–2 backgrounds, 3–5 the fill of a component (normal, hover,
+  pressed), 6–8 borders, 9–10 a solid fill, 11 text of low contrast, 12 text
+  of high contrast. A light and a dark scale exist for each hue, made
+  separately.
+- **VS Code** splits a color theme in two: about 600 colors of the user
+  interface by name, and the token colors by the scope of a token (TextMate
+  scopes, semantic token types). A theme declares its base: light, dark or
+  high contrast.
+
+The common model has three layers:
+
+1. **The palette:** ramps of steps for a few hues, with a light and a dark
+   version.
+2. **The roles:** names of what a color does (surface, text, border, accent,
+   error, keyword, string). A scheme maps each role to a step of the palette.
+   The light scheme and the dark scheme are two maps.
+3. **The consumers:** a component or a token names a role, never a step.
+
+Here the palette is `Color.jl` and the consumers are the 32 themes, but the
+middle layer does not exist: each theme names palette colors directly. That
+is the cause of most findings of section 10.
+
+### 12.4 Principles (proposal)
+
+1. **Three layers.** The palette holds the ramps. One color scheme maps the
+   roles to steps of the ramps. A theme field names a role. Only the scheme
+   names a palette color.
+2. **A small palette.** One neutral ramp and a fixed set of hue ramps, each
+   with a light and a dark version, with the same steps and the same purpose
+   for each step.
+3. **Hue gives meaning, lightness gives state.** One hue means one thing
+   everywhere. The pointer, the hover, a press, a dormant selection and an
+   emphasis change the lightness, the weight or an alpha layer, never the
+   hue. The delimiter under the pointer becomes a darker gray (owner input).
+4. **Neutrals carry the structure.** Delimiters, separators, markers, chrome,
+   comments, placeholders and captions use three steps of the neutral ramp:
+   text, muted and faint. Hue is for the parts that a reader looks for.
+5. **One accent.** The color of identity and of interaction: the focus ring,
+   the primary action, the selection, the current item. The selection is the
+   accent at named alpha steps, the same in every view: text, widget, chart,
+   math, graph.
+6. **Status hues are reserved.** Error, warning, success and info each have
+   one hue, and a domain does not use the error hue for a category such as a
+   directory or a database.
+7. **One token vocabulary for all domains.** Each domain maps its parts to a
+   shared set of token roles: keyword, definition, reference, type, function,
+   field, string, number, constant, symbol, operator, punctuation, comment,
+   markup, link, heading. The same kind of part has the same color in JSON,
+   YAML, Julia, SQL and Markdown.
+8. **Equal lightness for the token hues.** All token colors have about the
+   same perceived lightness (OKLCH L) in a scheme, so no token shouts by
+   accident. Weight and italic are for emphasis.
+9. **One set of surfaces.** The window, a domain view, a widget panel, a
+   chart and a plot use the same surface roles: background, raised, sunken
+   and inverse. The window background is a value of the scheme.
+10. **Light and dark are designed, not inverted.** Each role has a value in
+    both schemes, and each scheme passes the contrast rules on its own.
+11. **No color is written as numbers in a theme.** An alpha layer is a role
+    with a named alpha step (hover, pressed, selection, wash).
+12. **Data colors are their own set.** A chart takes a categorical set of
+    series colors with equal lightness, made from the same hue ramps, which
+    a person with a common color vision deficiency can tell apart.
+
+### 12.5 Rules (proposal)
+
+These are the rules that a guard or a test can check.
+
+1. A domain theme names roles, not palette colors. The style guard of
+   [test/suite/style.jl](../../test/suite/style.jl) fails on a palette name
+   outside the palette and the scheme.
+2. Each text role has a contrast of at least 4.5:1 against each surface that
+   it sits on, in each scheme. A line, a ring and a large text have at least
+   3:1.
+3. Each role has a value in the light scheme and in the dark scheme.
+4. The error hue occurs only in status roles.
+5. An alpha step is one of a short named list.
+6. A color test asserts a role, not a value, where it can, so that a change of
+   the scheme does not change the test.
+
+### 12.6 The roles of the scheme (first list)
+
+| Group | Roles |
+| --- | --- |
+| Surface | `background` (window and editor), `surface` (card, popover, panel), `surface_sunken` (quiet fill, track, gutter), `surface_inverse` (a panel over a window: the fault log, the gesture log) |
+| Text | `text`, `text_muted`, `text_faint` (placeholder, hint), `text_on_accent`, `text_inverse` |
+| Line | `border`, `border_strong` (input, axis), `grid` |
+| Accent | `accent`, `accent_text`, `accent_tint` (a hovered or a chosen item), `focus_ring` |
+| State layers | `hover`, `pressed`, `selection`, `selection_dormant`, `search_match`, `caret`, `caret_dormant` |
+| Status | `error`, `warning`, `success`, `info`, each with a text and a tint |
+| Tokens | `keyword`, `definition`, `reference`, `type`, `function`, `field`, `string`, `number`, `constant`, `symbol`, `operator`, `punctuation`, `punctuation_lit` (under the pointer), `comment`, `markup`, `link`, `heading` |
+| Data | `series_1` … `series_8` |
+| Overlay | `shadow`, `scrim` |
+
+About 60 roles replace the 57 values and the 266 fields name them.
+
+### 12.7 Options
+
+**A. The palette.**
+
+- **A1: Solarized, extended.** Keep the 8 accents and the 16 tones, and add
+  ramps for the states. The look stays. The accents fail 4.5:1 on a light
+  background (section 12.2), so the light scheme needs darker steps that
+  Solarized does not have.
+- **A2: Radix Colors.** Take the 12-step scales, light and dark, of one
+  neutral and about 9 hues. The steps have a purpose and meet the contrast
+  targets by design. The look changes. The data is under the MIT licence
+  (to check before use).
+- **A3: Tailwind.** The slate, zinc and indigo ramps are in `Color.jl`
+  already. The ramps are made for a light scheme; a dark scheme reuses other
+  steps, and the steps have no fixed purpose.
+- **A4: A ramp of our own in OKLCH.** A generator makes each ramp at fixed
+  lightness steps and a chroma for each hue, for light and for dark, as
+  Material 3 does. Full control, and equal lightness by construction. It is
+  the most work.
+
+**B. How many hues for the tokens.**
+
+- **B1: Rich.** About 8 hues, as now.
+- **B2: Restrained.** 4 to 5 hues: keyword, string and literal,
+  definition, type and constant, and the accent for a reference. All else is
+  neutral, with weight for emphasis.
+- **B3: Minimal.** Neutrals and weight, with one or two hues.
+
+**C. The schemes.**
+
+- **C1:** light and dark.
+- **C2:** light, dark and high contrast.
+- **C3:** as C1 or C2, and the scheme follows the setting of the operating
+  system. Section 9 of
+  [default-look-fits-a-desktop.md](default-look-fits-a-desktop.md) keeps this
+  out of that plan.
+
+**D. The accent.** Indigo (the widgets now), blue (the Solarized blue, the
+selection ring now), or another hue. This is a choice of taste.
+
+**E. How a theme field names a role.**
+
+- **E1: No new mechanism.** A scheme is a set of presets: for each theme, a
+  light and a dark preset. A switch of the scheme sets every theme. An edit of
+  a field by a person is lost at the next switch, and each theme needs two
+  presets.
+- **E2: A color role.** A field holds a role name, for example
+  `ColorRole(:keyword)`, and the scaled theme resolves it through the color
+  scheme of the appearance. A literal color still works where a person wants
+  one. Two parts of the code work so already: a `FontRole` takes its font from
+  a base field, and the widgets read the `GraphicsTheme` of their appearance
+  (`_get_graphics_theme`). It is a new kind of value, so it needs the owner's
+  approval.
+
+**F. The status hues and the token hues.**
+
+- **F1:** they can share a hue at another step (a green string, a green
+  success mark).
+- **F2:** red is for errors only, and no token takes it.
+
+### 12.8 The recommendation of the agent
+
+This is the view of the agent, for the owner to accept or change:
+
+- **A2 or A4, in the Radix model:** 12 steps with a purpose for each step, a
+  light and a dark ramp made separately. A2 gives tested values at once; A4
+  gives equal lightness by construction. Keep the Solarized idea of equal
+  lightness for the token hues, at a step that reaches 4.5:1.
+- **B2:** fewer hues, and neutrals for the structure. A projectional editor
+  shows many domains in one window, and each hue that means one thing
+  everywhere is worth more than many hues.
+- **C1 now**, with roles that let C2 come later as a third map.
+- **E2:** it is the model that the other tools use, and it keeps an edit of
+  a person over a switch of the scheme. E1 copies every theme twice.
+- **F2:** red only for errors.
+- **The delimiter under the pointer:** `punctuation_lit` is the `text` role
+  (the darkest neutral), and the levels around it fade to `punctuation` (the
+  muted neutral). No hue.
+- No recommendation for D.
+
+### 12.9 Questions for the owner
+
+1. Which palette: A1, A2, A3 or A4?
+2. How many token hues: B1, B2 or B3?
+3. Which schemes: C1, C2 or C3?
+4. Which accent hue?
+5. May the agent add a color role value (E2), or must the schemes be presets
+   (E1)?
+6. Is red only for errors (F2)?
+7. The delimiter under the pointer: one darker gray for the part under the
+   pointer only, or the fade over 4 levels in grays as now?
+8. Must the look stay near the present one (Solarized tokens on a cream
+   window), or can it change?
+
+### 12.10 The order of the work (sketch)
+
+After the answers: the palette data, then the scheme with its roles in light
+and dark, then the role mechanism, then the themes one package at a time,
+then the window background, then the guard rules and the tests. The plan
+[a-projection-holds-its-styles.md](a-projection-holds-its-styles.md) changes
+how a projection holds its styles and waits for the owner; the two plans
+touch the same theme fields, so the owner sets which one goes first.
 
 ## Appendix A. The tables
 
