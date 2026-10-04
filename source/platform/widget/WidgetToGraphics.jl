@@ -265,13 +265,18 @@ end
 # `pressed` cell of `w`, as the focus ring reads the selection. A move onto `w` or
 # off it then changes the layer and not the element list or the extent of the
 # widget, so only the layer is painted again. While the pointer is off `w` and `w` is not
-# pressed, the layer has no size and draws nothing.
+# pressed, the layer has no size and draws nothing. A `stroke` draws the outline
+# of the layer, so a widget that is flat at rest shows the shape of a button
+# while the layer shows.
 function _push_hover_layer!(elements::Vector, w::WidgetDocument, x::Int, y::Int,
                             width::Int, height::Int; hovered_color::StyleColor,
-                            pressed_color = nothing, radius::Int = 0)
+                            pressed_color = nothing, stroke = nothing, radius::Int = 0)
     is_pressed() = pressed_color !== nothing && w.pressed === true
     is_shown() = is_pressed() || _is_under_pointer(w)
-    layer = GraphicsRect(x, y, 0, 0; color = hovered_color, radius = radius)
+    layer = stroke === nothing ?
+        GraphicsRect(x, y, 0, 0; color = hovered_color, radius = radius) :
+        GraphicsRect(x, y, 0, 0; color = hovered_color, radius = radius,
+                     border_width = stroke.width, border_color = stroke.color)
     set_cell_computation!(getfield(layer, :w), () -> is_shown() ? Int32(width) : Int32(0))
     set_cell_computation!(getfield(layer, :h), () -> is_shown() ? Int32(height) : Int32(0))
     pressed_color === nothing ||
@@ -615,6 +620,8 @@ WidgetMenuItemToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
     label_text::StyleText            # font (the size of the icon) + foreground
     label_disabled_text::StyleText   # icon and label when disabled
     layer_hovered_color::StyleColor                 # the layer while the pointer is on the item
+    layer_stroke::StyleStroke        # the outline of the layer: the item shows as a button
+    corner_radius::Int
     icon_scale::Float64              # times the box of the icon, one line of the label
 end
 
@@ -627,10 +634,13 @@ WidgetToolbarItemToGraphicsCanvas(theme::ScaledWidgetTheme; measure,
                                   label_disabled_text =
                                       _themed(StyleText, theme, t -> StyleText(t.font, t.muted_foreground)),
                                   layer_hovered_color = _themed(StyleColor, theme, _get_hover_layer),
+                                  layer_stroke =
+                                      _themed(StyleStroke, theme, t -> StyleStroke(t.border, t.border_width)),
+                                  corner_radius = _themed(Int, theme, t -> t.radius),
                                   icon_scale = _themed(Float64, theme, _get_icon_scale)) =
     WidgetToolbarItemToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                       padding_color, content_color, label_text, label_disabled_text,
-                                      layer_hovered_color, icon_scale)
+                                      layer_hovered_color, layer_stroke, corner_radius, icon_scale)
 
 @projection UntrackedCell struct WidgetCompositeToGraphicsCanvas
     margin::Inset
@@ -2778,8 +2788,11 @@ function print_document(p::WidgetToolbarItemToGraphicsCanvas, recursion, w::Widg
         # item, and not only on the strokes of its picture.
         drawn = Any[GraphicsRect(0, 0, width, height; color = color_transparent, radius = 0)]
         _push_box_parts!(drawn, _get_box_insets(p, w), _get_box_colors(p, w; state),
-                         content_width, content_height)
-        enabled && _push_hover_layer!(drawn, w, 0, 0, width, height; hovered_color = p.layer_hovered_color)
+                         content_width, content_height; radius = p.corner_radius)
+        # Flat at rest; under the pointer the layer draws the surface and the
+        # outline of a button.
+        enabled && _push_hover_layer!(drawn, w, 0, 0, width, height; hovered_color = p.layer_hovered_color,
+                                      stroke = p.layer_stroke, radius = p.corner_radius)
         append!(drawn, elements)
         (width = width, height = height, elements = drawn)
     end))

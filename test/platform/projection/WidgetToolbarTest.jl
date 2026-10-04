@@ -65,6 +65,24 @@ end
     end
 end
 
+# A toolbar item is flat at rest. Under the pointer its layer is a button: the
+# light of the theme, with the outline and the corners of a control, as a
+# `WidgetButton` draws them.
+@testset "a lit toolbar item shows the outline of a button" begin
+    theme = make_scaled_theme(make_slate_light_theme())
+    item = WidgetToolbarItem("Run"; icon = :play)
+    c = print_document(proj, item).output
+    rects = [e for e in map(_unwrap, collect(c.elements)) if e isa GraphicsRect]
+    @test all(Int(r.border_width) == 0 for r in rects if Int(r.w) > 0)
+    layer = only(r for r in rects if Int(r.w) == 0 && Int(r.h) == 0)
+    replace_mouse_target!(item, EmptyReference())
+    @test (Int(layer.w), Int(layer.h)) == (Int(c.w[]), Int(c.h[]))
+    @test layer.color == WidgetModule._get_hover_layer(theme)
+    @test Int(layer.border_width) == Int(theme.border_width)
+    @test layer.border_color == theme.border
+    @test Int(layer.radius_tl) == Int(theme.radius) > 0
+end
+
 # A toolbar item states its size, and the bar takes it. A button can draw outside
 # its size, as its shadow does, so the bar measures it.
 @testset "a toolbar is as large as what its items draw" begin

@@ -1,8 +1,10 @@
 # A toolbar item looks like a button
 
-> **Status:** pending, not started. Written on 2026-10-04 at the owner's
-> request. The owner chose the look on 2026-10-04 (section 3). Two questions are
-> open (section 6). No source changed.
+> **Status:** in progress since 2026-10-04, in the worktree
+> `projectured-julia-toolbar-item` on the branch
+> `toolbar-item-looks-like-a-button`. Written on 2026-10-04 at the owner's
+> request. The owner chose the look on 2026-10-04 (section 3) and answered the
+> two questions the same day (section 6). No question is open.
 
 ## 1. The request
 
@@ -95,9 +97,24 @@ pressed look. The owner wrote: "I agree with your recommendation".
     constructor is read back from all its fields, and a field that the file
     does not give is an error (`make_pred_document`). `WidgetToolbarItem` has a
     positional `content`, so a file saved before this change, if it holds a
-    toolbar item, does not load after it. It is not known yet whether a file can
-    hold a toolbar item: the actions of the window toolbar hold functions.
+    toolbar item, does not load after it. **Found on 2026-10-04: a saved window
+    holds no toolbar.** `pred_arguments(shell::WidgetShell)` leaves out the
+    bands, because their actions hold callbacks and the binary builds them at
+    each start
+    ([WidgetDocument.jl:3121](../../source/platform/widget/WidgetDocument.jl#L3121)).
+    The test "a saved user interface holds the window, and the binary its
+    bands" of `WindowShellTest.jl` holds that. No example held a toolbar item
+    before this change. So no file needs a value for `pressed`.
 12. No file that this change touches is sealed (`SEALING.md`).
+13. The branch `projection-styles` (45 commits ahead of `main` on 2026-10-04)
+    changes the same constructor in two places: `theme::ScaledWidgetTheme`
+    becomes `theme`, and `icon_scale` becomes `icon_size`. The branch that lands
+    second adapts the constructor of `WidgetToolbarItemToGraphicsCanvas`.
+14. `read_container_gesture` returns a down and an up as they are, because it
+    reads only a dwell and a right click
+    ([ChildMove.jl:73](../../source/platform/graphics/ChildMove.jl#L73)). So
+    the toolbar can send a down and an up through `_route_toolbar_gesture`,
+    which re-roots the answer into `elements[i]`.
 
 ## 3. The decisions
 
@@ -132,9 +149,14 @@ pressed look. The owner wrote: "I agree with your recommendation".
   `pressed::Bool` field. Its reader writes it with `_write_view_state` on a
   left down and a left up, and clears it on the leave move. No new operation
   and no new channel.
-- **D6. The toolbar gives a down and an up to the item under the pointer**, by
-  `_route_composite_event`, as it gives a press. The focus stays in the content
-  by fact 8.
+- **D6. The toolbar gives a down and an up to the item under the pointer**,
+  through `_route_toolbar_gesture`, as it gives a press (fact 14). The focus
+  stays in the content by fact 8.
+- **D7. A new example, `widget_toolbar_item`.** It is a toolbar of
+  `WidgetToolbarItem`s: one with an icon, one disabled, and one with a label and
+  no icon, which is the content of the color probe. The probe of
+  `WidgetColorTest.jl` then takes the example. The `widget_toolbar` example
+  keeps its menu items. The owner agreed on 2026-10-04 (Q1).
 
 ## 4. What does not change
 
@@ -147,10 +169,14 @@ pressed look. The owner wrote: "I agree with your recommendation".
 
 ## 5. Steps
 
-- [ ] **0. Worktree and baseline.** Make a worktree of `main` on the branch
+- [x] **0. Worktree and baseline.** Make a worktree of `main` on the branch
   `toolbar-item-looks-like-a-button`. On the clean `main`, write the widget
   images: `julia --project=environment/all tool/widget-images.jl write before`.
-- [ ] **1. The lit look.**
+  **Done 2026-10-04:** the worktree is `projectured-julia-toolbar-item`, from
+  `fa9182383`. The baseline drew 42 of 42 images into
+  `/var/tmp/toolbar-item/before`, before any edit.
+- [x] **1. The lit look.** **Done 2026-10-04:** `test_widget_toolbar()`
+  passes, 66 of 66 (60 before, and 6 new).
   - Add `corner_radius` (default `theme.radius`) and `layer_stroke` (default
     `StyleStroke(theme.border, theme.border_width)`) to
     `WidgetToolbarItemToGraphicsCanvas` and to its theme constructor.
@@ -175,9 +201,7 @@ pressed look. The owner wrote: "I agree with your recommendation".
     move writes `false` when `pressed` is true. The bound gestures of the item
     come first, as now. A disabled item writes nothing.
   - The reader of the toolbar gives a `MouseDown` and a `MouseUp` to the item
-    under the pointer, re-rooted into `elements[i]` as a press is. Find out if
-    `read_container_gesture` must read a down; it is for a dwell and a right
-    click. Record what you find here.
+    under the pointer through `_route_toolbar_gesture`, as a press (fact 14).
   - Tests:
     - a down on an item through the toolbar answers the write of `pressed`;
       after it, the layer shows the pressed color; an up gives back the hover
@@ -188,39 +212,45 @@ pressed look. The owner wrote: "I agree with your recommendation".
       box: a down, an up and a press on a toolbar item run the action and leave
       the selection of the window where it was;
     - the Alt+press tests of the toolbar pass without a change.
-  - The `.pred` check of fact 11: find out if a saved window holds a toolbar
-    item. If it can, stop and ask the owner. A default for a field that a file
-    does not give is a new mechanism.
   - Commit.
-- [ ] **3. The documents.**
+- [ ] **3. The example (D7).**
+  - `make_widget_toolbar_item_document_example` in `WidgetDocumentExample.jl`,
+    and `widget_toolbar_item_example` in `PlatformExamples.jl`, with the
+    exports of `ProjecturedPlatformExample` and `ProjecturedExample` and the
+    list of `ProjecturedExamples.jl`.
+  - `WidgetColorTest.jl` takes the example in place of
+    `_make_toolbar_item_probe`.
+  - `tool/widget-images.jl` lists `widget_toolbar_item`.
+  - Test: `test_example(widget_toolbar_item_example)`.
+  - Commit.
+- [ ] **4. The documents.**
   - The docstring of `WidgetToolbarItem`: flat at rest, the outline of a button
     under the pointer, and the darker surface while it is held.
   - [widget.md](../../documentation/package/platform/widget/widget.md): line
     70, the toolbar item holds the pressed layer and a stroke on its layer;
     line 126, the toolbar gives the down to its items, and an item answers it
     with its pressed look, so the focus stays in the content.
-  - [one-coherent-color-set.md](one-coherent-color-set.md): add the use of
-    `border` by the layer of a toolbar item to the catalog.
+  - The color catalog: `one-coherent-color-set.md` is not in git yet, because
+    another session writes it. This branch does not change it. The new use for
+    its catalog: `border` is the outline of the layer of a toolbar item.
   - Commit.
-- [ ] **4. The checks.**
+- [ ] **5. The checks.**
   - Narrow tests: `test_widget_toolbar()`, `test_widget_button_behavior()`,
     `test_widget_colors()`, `test_pointer_light()`, `test_window_shell()`.
   - Images: `tool/widget-images.jl write after`, then `compare before after`.
-    Expect every image equal, because the look at rest does not change.
+    Expect the 42 images of the baseline to be equal, because the look at rest
+    does not change, and `widget_toolbar_item` to be new.
   - The live window: open the editor with the window chrome. Push SDL events:
     a move onto a toolbar button, a left down, a left up. Keep one frame at
     rest, one lit and one held. The owner looks at the three frames.
-- [ ] **5. Report, then ask.** Report the commits, the test results, the image
+- [ ] **6. Report, then ask.** Report the commits, the test results, the image
   compare and the frames. Land on `main` only when the owner says so. Then move
   this plan to `plan/done/`.
 
-## 6. Open questions
+## 6. Answered questions
 
 - **Q1. The `widget_toolbar` example.** It shows `WidgetMenuItem`s, so no
-  example shows the new look. A change to toolbar items with icons changes its
-  image and its test counts, and its `|` separator has no toolbar item form.
-  Claude's recommendation: keep it out of this plan, and decide after the
-  owner accepts the live look.
-- **Q2. A file that holds a toolbar item** (fact 11). Step 2 finds out if this
-  can occur. If it can, the owner decides what an old file gives for
-  `pressed`.
+  example showed the new look. The owner answered on 2026-10-04: "we can add a
+  toolbar example, that is fine". So D7 adds a new example, and step 3 makes it.
+- **Q2. A file that holds a toolbar item** (fact 11). A saved window leaves out
+  its bands, so no saved file holds the toolbar of a window. Nothing to decide.
