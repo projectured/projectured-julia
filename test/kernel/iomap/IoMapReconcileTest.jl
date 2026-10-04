@@ -11,7 +11,7 @@ using ProjecturedKernel.IoMapModule
 # The child list of the elements in `items`, and the count of the IoMaps it made.
 function make_reconciled_children(items)
     made = Ref(0)
-    children = reconcile_child_iomaps(() -> items[],
+    children = make_reconciled_child_iomaps_cell(() -> items[],
                                       (i, x) -> (made[] += 1; SimpleIoMap(nothing, x, i)))
     (children, made)
 end
@@ -77,7 +77,7 @@ function test_iomap_reconcile()
 
     @testset "a slot whose make_iomap answers nothing holds nothing" begin
         items = Cell(Any[a, b])
-        children = reconcile_child_iomaps(() -> items[],
+        children = make_reconciled_child_iomaps_cell(() -> items[],
             (i, x) -> x === b ? nothing : SimpleIoMap(nothing, x, i))
         before = children[]
         @test before[1] isa SimpleIoMap
@@ -92,7 +92,7 @@ function test_iomap_reconcile()
     @testset "the single child keeps its IoMap while the value is the same object" begin
         slot = Cell(a)
         made = Ref(0)
-        child = reconcile_child_iomap(
+        child = make_reconciled_child_iomap_cell(
             () -> slot[], v -> (made[] += 1; SimpleIoMap(nothing, v, nothing)))
         first_iomap = child[]
         @test get_iomap_input(first_iomap) === a

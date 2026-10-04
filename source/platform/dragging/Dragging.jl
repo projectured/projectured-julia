@@ -42,7 +42,7 @@ end
 # ── Printer (transparent) ─────────────────────────────────────────────────
 
 function print_document(p::DraggingProjection, recursion, input::DraggingState, ctx)
-    inner = reconcile_child_iomap(() -> input.content, c -> print_child(recursion, c, ctx))
+    inner = make_reconciled_child_iomap_cell(() -> input.content, c -> print_child(recursion, c, ctx))
     output = Cell(@computation inner[].output)
     DraggingIoMap(p, input, output, inner)
 end

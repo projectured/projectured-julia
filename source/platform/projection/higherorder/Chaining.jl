@@ -92,14 +92,15 @@ function print_document_pure(seq::ChainingProjection, recursion, input, ctx)
 end
 
 # One stage: its IoMap reconciles over the previous stage's output cell — the
-# shared `reconcile_child_iomap` rebuilds the stage only when its input's identity
-# swaps structurally, and reuses the stage's (reactive) IoMap while the input is the
+# shared `make_reconciled_child_iomap_cell` rebuilds the stage only when its input's
+# identity swaps structurally, and reuses the stage's (reactive) IoMap while the input is
+# the
 # same object, so a content edit propagates through that held IoMap with no re-print.
 # Its output cell unwraps a Cell-valued `iomap.output` (projections may expose a
 # reactive output) to the plain value the next stage prints. A helper so each closure
 # captures its own `p`/`prev`.
 function _seq_stage(p, recursion, prev::Cell, ctx)
-    iomap_cell = reconcile_child_iomap(() -> prev[], v -> print_document(p, recursion, v, ctx))
+    iomap_cell = make_reconciled_child_iomap_cell(() -> prev[], v -> print_document(p, recursion, v, ctx))
     out_cell   = Cell(@computation unwrap_cell(iomap_cell[].output))
     (iomap_cell, out_cell)
 end

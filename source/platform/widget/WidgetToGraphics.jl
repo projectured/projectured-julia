@@ -1679,7 +1679,7 @@ end
 function _print_plain_text_view(p, recursion, w, style::StyleText, ctx)
     view = _make_plain_text_view(w, style)
     measure = p.measure
-    reconcile_child_iomap(() -> view,
+    make_reconciled_child_iomap_cell(() -> view,
                           v -> print_document(TextToGraphics(measure = measure), recursion, v, ctx))
 end
 
@@ -1749,7 +1749,7 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
     # content recursion.
     content_ctx = _get_inner_content_context(p, w, ctx)
     content_iomap = w.content isa Document ?
-        reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, content_ctx)) :
+        make_reconciled_child_iomap_cell(() -> w.content, c -> print_child(recursion, c, content_ctx)) :
         _print_plain_text_view(p, recursion, w, _get_state_text(p, w, :label; state), content_ctx)
     build = Cell(@computation begin
         radius = p.corner_radius
@@ -2116,7 +2116,7 @@ function print_document(p::WidgetTooltipToGraphicsCanvas, recursion, w::WidgetTo
     pos = w.position::Point2D
     # The child is reconciled and forced only in the WidgetDocument branch.
     content_ctx = _get_overlay_content_context(p, w, ctx)
-    child_iomap = reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, content_ctx))
+    child_iomap = make_reconciled_child_iomap_cell(() -> w.content, c -> print_child(recursion, c, content_ctx))
     build = Cell(@computation begin
         # The padding of the projection keeps the box off the text, unless the
         # document gives a padding of its own.
@@ -2204,7 +2204,7 @@ function print_document(p::WidgetContextMenuToGraphicsCanvas, recursion, w::Widg
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     w.child isa Document || return SimpleIoMap(p, w, _empty_canvas())
     child_ctx = _get_overlay_content_context(p, w, ctx)
-    child_iomap = reconcile_child_iomap(() -> w.child, c -> print_child(recursion, c, child_ctx))
+    child_iomap = make_reconciled_child_iomap_cell(() -> w.child, c -> print_child(recursion, c, child_ctx))
     build = Cell(@computation begin
         content_x, content_y = _content_offset(p, w)
         inner = child_iomap[].output::GraphicsCanvas
@@ -2551,7 +2551,7 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
     # The child (a recursed widget content) is reconciled and forced only in the
     # WidgetDocument branch. It is offered no width, so what the item needs does
     # not depend on what the item is offered.
-    child_iomap = reconcile_child_iomap(() -> w.action.label,
+    child_iomap = make_reconciled_child_iomap_cell(() -> w.action.label,
                                         c -> print_child(recursion, c,
                                                          with_free_axis(ctx, :x)))
     # What the item draws and the extent it needs. It reads the item and never the
@@ -2845,7 +2845,7 @@ function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu,
     # The row width of a dropdown is read from its items once they exist, so it
     # is a forward cell that the items read and that is installed below.
     row_width = Cell(nothing)
-    child_cells = reconcile_child_iomaps(
+    child_cells = make_reconciled_child_iomaps_cell(
         () -> w.elements,
         (i, item) -> item isa WidgetDocument ?
             print_child(recursion, item,
@@ -2916,7 +2916,7 @@ function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widget
     # GridLayout form from ObjectToWidget) and a child in a `LayoutConstraint`;
     # each re-enters the recursion. Reconcile the filtered children by identity so
     # a structural edit reuses survivors.
-    child_cells = reconcile_child_iomaps(
+    child_cells = make_reconciled_child_iomaps_cell(
         () -> Any[c for c in w.elements
                   if (c isa WidgetDocument || c isa LayoutDocument || c isa LayoutConstraint)],
         (i, c) -> print_child(recursion, c, _make_composite_child_context(p, w, c, ctx)))
@@ -3211,13 +3211,13 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
     # branch that renders it (a nil slot never re-projects). Each slot's reference
     # is extended into its field, so a reference inside a slot names the shell's
     # field and forward-maps back through the shell.
-    mb_cell = reconcile_child_iomap(() -> w.menu_bar,
+    mb_cell = make_reconciled_child_iomap_cell(() -> w.menu_bar,
         c -> print_child(recursion, c, make_child_context(band_ctx, FieldReferenceStep("menu_bar"))))
-    tb_cell = reconcile_child_iomap(() -> w.toolbar,
+    tb_cell = make_reconciled_child_iomap_cell(() -> w.toolbar,
         c -> print_child(recursion, c, make_child_context(band_ctx, FieldReferenceStep("toolbar"))))
-    sb_cell = reconcile_child_iomap(() -> w.status_bar,
+    sb_cell = make_reconciled_child_iomap_cell(() -> w.status_bar,
         c -> print_child(recursion, c, make_child_context(band_ctx, FieldReferenceStep("status_bar"))))
-    tt_cell = reconcile_child_iomap(() -> w.overlay,
+    tt_cell = make_reconciled_child_iomap_cell(() -> w.overlay,
         c -> print_child(recursion, c, make_child_context(ctx, FieldReferenceStep("overlay"))))
     # Where the bands sit, from the height each one draws. A band's height comes
     # from what it holds, never from the shell, so reading it closes no cycle.
@@ -3241,7 +3241,7 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
     # a shell never offers 0.
     content_ctx = with_exact_size(ctx; width = has_width ? avail_w_cell : nothing,
                                        height = has_height ? avail_h_cell : nothing)
-    content_cell = reconcile_child_iomap(() -> w.content,
+    content_cell = make_reconciled_child_iomap_cell(() -> w.content,
         c -> print_child(recursion, c, make_child_context(content_ctx, FieldReferenceStep("content"))))
     # The top of each band. The content hangs under the toolbar, and the status bar
     # runs along the bottom edge when the shell has a height, and under the content
@@ -3512,7 +3512,7 @@ end
 function print_document(p::WidgetTitlePaneToGraphicsCanvas, recursion, w::WidgetTitlePane, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     content_ctx = _get_title_pane_content_context(p, w, ctx)
-    content_cell = reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, content_ctx))
+    content_cell = make_reconciled_child_iomap_cell(() -> w.content, c -> print_child(recursion, c, content_ctx))
     build = Cell(@computation begin
         content_x, content_y0 = _content_offset(p, w)
         title_text = _get_part_text(w, :title_text, p.title_text)
@@ -4348,7 +4348,7 @@ function _print_tab_name_view(p, recursion, w::WidgetTabbedPane, caret::Cell, ct
         found === nothing ? nothing : make_flat_range_reference(found[2], found[2])
     end)
     measure = p.measure
-    reconcile_child_iomap(() -> view,
+    make_reconciled_child_iomap_cell(() -> view,
                           v -> print_document(TextToGraphics(measure = measure), recursion, v, ctx))
 end
 
@@ -4454,7 +4454,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
     content_ctx = with_inner_size(ctx; width = inset_x, height = Cell(@computation geom[][4] + inset_y))
     # Reconcile the per-tab content iomaps so a tab add / remove reflows the content
     # through the held iomap; a non-widget slot reconciles to `nothing` (no content).
-    all_cims = reconcile_child_iomaps(
+    all_cims = make_reconciled_child_iomaps_cell(
         () -> Any[pair.element for pair in w.selector_element_pairs],
         (i, content) -> content !== nothing ? print_child(recursion, content, content_ctx) : nothing)
 
@@ -5834,7 +5834,7 @@ end
 
 function print_document(p::WidgetToolbarToGraphicsCanvas, recursion, w::WidgetToolbar, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
-    child_cells = reconcile_child_iomaps(
+    child_cells = make_reconciled_child_iomaps_cell(
         () -> Any[item for item in w.elements if item isa WidgetDocument],
         # A toolbar lays its items out at their own size, side by side, so it gives
         # no slot on the main axis: an item that took a slot would stretch to the
@@ -8430,7 +8430,7 @@ function print_document(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetT
     # with the text.
     content_ctx = _get_inner_content_context(p, w, ctx)
     content_iomap = if w.content isa Document
-        reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, content_ctx))
+        make_reconciled_child_iomap_cell(() -> w.content, c -> print_child(recursion, c, content_ctx))
     else
         _print_plain_text_view(p, recursion, w, _get_state_text(p, w, :label; state), content_ctx)
     end
@@ -8573,9 +8573,10 @@ function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widget
     # card draws its content. Each title is printed once, and the body only
     # while its item is open.
     item_ctx = _get_accordion_item_context(p, w, ctx)
-    title_iomaps = reconcile_child_iomaps(() -> Any[item.title for item in w.items],
+    title_iomaps = make_reconciled_child_iomaps_cell(
+        () -> Any[item.title for item in w.items],
         (i, title) -> title isa Document ? print_child(recursion, title, item_ctx) : nothing)
-    body_iomap = reconcile_child_iomap(() -> _get_open_accordion_body(w),
+    body_iomap = make_reconciled_child_iomap_cell(() -> _get_open_accordion_body(w),
         body -> body isa Document ? print_child(recursion, body, item_ctx) : nothing)
     build = Cell(@computation begin
         expanded = Int(w.expanded)

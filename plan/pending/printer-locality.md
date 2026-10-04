@@ -109,7 +109,7 @@ Inserting / removing / reordering **one** element of a collection must:
   structural edit re-projected **every** sibling from scratch. **As of
   2026-08-12**, `_node_print`
   ([ProjectionTemplate.jl:440-467](../../source/kernel/projection/ProjectionTemplate.jl#L440))
-  calls `reconcile_child_iomaps`
+  calls `make_reconciled_child_iomaps_cell`
   ([IoMapReconcile.jl](../../source/kernel/iomap/IoMapReconcile.jl)), which
   keys the cache by `(objectid(element), index)` and reuses the prior child iomap
   for every unchanged sibling — confirmed by `test_template_structural_locality()`
@@ -270,7 +270,8 @@ Likely **fixes**:
   inherits it. Guard the engine invariant that child iomaps are stored in a
   single shared `Cell` (selection deep dive §8).
 
-  Landed as the generic `reconcile_child_iomaps`/`reconcile_child_iomap` in
+  Landed as the generic
+  `make_reconciled_child_iomaps_cell`/`make_reconciled_child_iomap_cell` in
   `package/kernel/main/iomap/IoMapReconcile.jl`, used well beyond the template
   engine (also `package/clipboard`, `package/pane`, `package/dragging`,
   `package/projection` Sorting/Copying, `package/syntax`, `package/workbench`,
@@ -351,8 +352,9 @@ Likely **justified exceptions** (must be written down, with the reason):
   but `projection-system.md`'s "Purity" section covers reconciliation, and
   [documentation/architecture-requirements.md](../../documentation/rule/architecture-invariants.md)
   states the rule formally as **PAR-STABLE-IOMAP-IDENTITY** ("its children
-  reconcile by identity... goes through the shared reconciler... `reconcile_child_iomaps`
-  (in the iomap layer)") and **PAR-SHARED-CHILDREN-IOMAP**. The exceptions-must-be-justified
+  reconcile by identity... goes through the shared reconciler...
+  `make_reconciled_child_iomaps_cell` (in the iomap layer)") and
+  **PAR-SHARED-CHILDREN-IOMAP**. The exceptions-must-be-justified
   rule is not written down anywhere yet.
 
 ## Verification (run the narrowest covering test, never `test_all`)
@@ -396,7 +398,8 @@ Likely **justified exceptions** (must be written down, with the reason):
   [JsonToSyntaxTest.jl:101](../../test/json/projection/JsonToSyntaxTest.jl#L101)
   and [XmlToSyntaxTest.jl:83](../../test/xml/projection/XmlToSyntaxTest.jl#L83)).
   Verify operations never replace an unchanged element with a fresh equal object,
-  which would defeat the key. This is exactly the assumption `reconcile_child_iomaps`
-  now relies on in production (`package/kernel/main/iomap/IoMapReconcile.jl`).
+  which would defeat the key. This is exactly the assumption
+  `make_reconciled_child_iomaps_cell` now relies on in production
+  (`package/kernel/main/iomap/IoMapReconcile.jl`).
 </content>
 </invoke>

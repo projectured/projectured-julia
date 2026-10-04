@@ -444,7 +444,8 @@ includes them in:
                @gesture_set, read_gesture / read_bound_gesture
 16 iomap       the IoMap contract (IoMap + accessors), the concrete IO maps
                (SimpleIoMap, ChildrenIoMap, ContentIoMap, @iomap), and the child
-               reconcilers (reconcile_child_iomaps, reconcile_child_iomap)
+               reconcilers (make_reconciled_child_iomaps_cell,
+               make_reconciled_child_iomap_cell)
 17 projection  the four interface functions, @projection, ProjectionTemplate,
                ProjectionReferenceStep
 18 tool        the editor's capability surface: Tool / Resource / ToolSet,

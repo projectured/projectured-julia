@@ -670,7 +670,7 @@ mis-mapped cursor with **no error** at all. Correspondingly, an
 projection derived from (PAR-MUTATE-OR-NULL-IOMAP), reserving
 `invalidate_projection!` for genuine whole-root rebinds. The template engine
 (`ProjectionTemplate`) is the reference implementation; the shared reconciler it
-and every projection use is `reconcile_child_iomaps` (in the iomap layer).
+and every projection use is `make_reconciled_child_iomaps_cell` (in the iomap layer).
 
 ### PAR-CROSS-DOMAIN-LATE
 

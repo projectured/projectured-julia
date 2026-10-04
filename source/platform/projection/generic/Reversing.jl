@@ -18,7 +18,7 @@ function print_document(p::ReversingProjection, recursion, input, ctx)
     recursion = something(recursion, IdentityProjection())
     # Children are projected in input order and reconciled by identity, so a
     # structural edit rebuilds only moved slots (PAR-STABLE-IOMAP-IDENTITY).
-    child_iomaps = reconcile_child_iomaps(
+    child_iomaps = make_reconciled_child_iomaps_cell(
         () -> input,
         (i, x) -> print_child(recursion, x,
             make_child_context(ctx, ElementReferenceStep(i))))

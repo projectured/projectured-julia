@@ -66,8 +66,8 @@ end
 
 IoMap for projections whose output has recursively projected children. As an
 `@iomap` struct, `iomap.child_iomaps` reads the current per-child IoMap vector —
-pass a computed/reconciling cell (`reconcile_child_iomaps`) so it re-derives on a
-structural edit while the IoMap keeps its identity; `getfield(iomap,
+pass a computed/reconciling cell (`make_reconciled_child_iomaps_cell`) so it re-derives
+on a structural edit while the IoMap keeps its identity; `getfield(iomap,
 :child_iomaps)` reaches the raw cell. Storing the child IoMaps lets the reference
 mappers and the reader recurse in lockstep with the printer: peel the one step the
 projection owns, look the child up here, and delegate the tail to that child's own

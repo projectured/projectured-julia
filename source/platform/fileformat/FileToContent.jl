@@ -19,12 +19,12 @@ struct FileToContent <: Projection end
 
 function print_document(p::FileToContent, recursion, file::FileDocument, ctx)
     step = @reference_step(content)
-    # Single-child reconciliation (`reconcile_child_iomap`, not the plural
-    # collection form `reconcile_child_iomaps`): `content` is one field, not a
+    # Single-child reconciliation (`make_reconciled_child_iomap_cell`, not the plural
+    # collection form `make_reconciled_child_iomaps_cell`): `content` is one field, not a
     # collection, so there is exactly one child to reconcile by identity.
     # Reading `get_file_content(file)` inside the thunk is what makes the
     # printed output re-derive when `Ctrl+O` replaces the cell wholesale.
-    child = reconcile_child_iomap(
+    child = make_reconciled_child_iomap_cell(
         () -> get_file_content(file),
         v -> print_child(recursion, v, make_child_context(ctx, file, step)))
     ContentIoMap(p, file, Cell(@computation child[].output),

@@ -78,7 +78,7 @@ _override(as, v) = as === nothing ? nothing : (as isa Function ? as(v) : as)
 # Build the (reconciling) child iomap for a `project(:f)` slot, honouring an `as=`
 # override. Shared by `_fixed_print`/`_mixed_print`.
 _project_child_cell(doc, prj::Project; recursion, context) =
-    reconcile_child_iomap(() -> getproperty(doc, prj.input),
+    make_reconciled_child_iomap_cell(() -> getproperty(doc, prj.input),
         v -> begin
             cctx = make_child_context(context, FieldReferenceStep(String(prj.input)))
             ov = _override(prj.override, v)
@@ -501,7 +501,7 @@ _project_output_cell(child_cell) = Cell(@computation child_cell[].output)
 # The child IoMaps of the collection `doc.<field>`, each element printed by its own
 # projection. An element that stays at its index keeps its IoMap across an edit.
 _reconcile_element_iomaps(doc, field::Symbol; recursion, context) =
-    reconcile_child_iomaps(() -> getproperty(doc, field), (i, x) ->
+    make_reconciled_child_iomaps_cell(() -> getproperty(doc, field), (i, x) ->
         print_child(recursion, x, make_child_context(context,
             FieldReferenceStep(String(field)), ElementReferenceStep(i))))
 
@@ -516,7 +516,7 @@ function _node_print(p, doc, out; recursion, context, children_field, collection
         _reconcile_element_iomaps(doc, input_field; recursion, context)
     else
         # templated: build a fixed-children node per element via the element builder
-        reconcile_child_iomaps(elements_fn, (i, x) ->
+        make_reconciled_child_iomaps_cell(elements_fn, (i, x) ->
             _fixed_print(p, x, collection.element(x); recursion,
                 context = make_child_context(context,
                     FieldReferenceStep(String(input_field)), ElementReferenceStep(i))))

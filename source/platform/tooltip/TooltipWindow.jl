@@ -86,7 +86,7 @@ get_child_iomaps(iomap::TooltipWindowIoMap) = Any[iomap.child_iomap]
 # ── Printer (transparent) ─────────────────────────────────────────────────
 
 function print_document(p::TooltipWindowProjection, recursion, input::TooltipWindowState, ctx)
-    child = reconcile_child_iomap(() -> input.content,
+    child = make_reconciled_child_iomap_cell(() -> input.content,
                                   content -> print_document(p.inner, recursion, content, ctx))
     TooltipWindowIoMap(p, input, Cell(@computation child[].output), child)
 end

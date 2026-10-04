@@ -22,7 +22,7 @@ The screen is data like any other document. To open a window, a program adds a `
 
 `ScreenToScreen` maps the input screen to the output screen. It copies the metadata of each window and sends `content` through the projection of the caller. It sets the `width` and `height` of the window as the size available to the content, so a split pane or a scroll pane fills the window. **A window that fits is offered its `maximum_size` instead, always.** The backend gives such a window the extent of the canvas it printed, so an offer that followed that size would chase it: a text wraps at the maximum width, and the window ends as wide as the text needed. [sdl.md](../../backend/sdl/sdl.md) describes the backend half.
 
-It keeps the IO map of each window by identity (`reconcile_child_iomaps`). So a window that opens or closes does not rebuild the other windows, and a new content in a window with the same id replaces the old content in place.
+It keeps the IO map of each window by identity (`make_reconciled_child_iomaps_cell`). So a window that opens or closes does not rebuild the other windows, and a new content in a window with the same id replaces the old content in place.
 
 **The canvas of a window.** When the content of a window draws a `GraphicsCanvas`, the output window holds a canvas of the window: the content as its first element, and over it the region of the shape of the pointer that the screen keeps ([below](#the-shape-of-the-pointer-during-a-drag)). So the path of the content in the output is `windows[i].content.elements[1]`. A content that draws no canvas is the content itself.
 

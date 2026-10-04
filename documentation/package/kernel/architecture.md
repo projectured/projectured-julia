@@ -48,7 +48,7 @@ Layer 12 — selection/   the selection primitives (get/clear/set/replace_select
 Layer 13 — operation/   Operation + evaluate_operation + the traversal and reroot seams
 Layer 14 — intent/      Intent and ClaimedGesture, the unit that flows back through the readers, and CollectIntents
 Layer 15 — binding/     gesture → operation bindings, @gestures/@gesture_set, read_gesture
-Layer 16 — iomap/       the IoMap contract (IoMap + accessors) + the concrete IO maps (SimpleIoMap/ChildrenIoMap/ContentIoMap, @iomap) + the child reconcilers (reconcile_child_iomaps/reconcile_child_iomap)
+Layer 16 — iomap/       the IoMap contract (IoMap + accessors) + the concrete IO maps (SimpleIoMap/ChildrenIoMap/ContentIoMap, @iomap) + the child reconcilers (make_reconciled_child_iomaps_cell/make_reconciled_child_iomap_cell)
 Layer 17 — projection/  ProjectionInterface/PrinterContext + @projection macro + ProjectionTemplate + the projection-typed gesture-binding seam (the concrete combinators live in the platform's projection slice)
 Layer 18 — tool/        the editor's capability surface — Tool/Resource/ToolSet, execute_julia_code!, doc/API search, register_default_tools! (side-stack)
 Layer 19 — llm/         the LLM provider abstraction — Llm, stream_turn/render_tool_schema, LlmMessage/LlmRequest, LlmEvent (side-stack)
@@ -176,7 +176,7 @@ Each layer lives in its own folder under [source/kernel/](../../../source/kernel
 | `operation/` | the Operation contract, the built-in operations, rerooting |
 | `intent/` | `IntentModule` — `Intent` and `ClaimedGesture`, the unit that flows back through the readers, and `CollectIntents` |
 | `binding/` | `GestureBindingModule` — `GestureBinding`, the per-document-type registry, `@gestures`/`@gesture_set`, `read_gesture`/`read_bound_gesture` |
-| `iomap/` | `IoMapModule` — the `IoMap` contract (`IoMapInterface.jl`), the concrete IO maps (`IoMapDefaults.jl`: `SimpleIoMap`, `ChildrenIoMap`, `ContentIoMap`, `@iomap`), and the child reconcilers (`IoMapReconcile.jl`: `reconcile_child_iomaps`, `reconcile_child_iomap`) |
+| `iomap/` | `IoMapModule` — the `IoMap` contract (`IoMapInterface.jl`), the concrete IO maps (`IoMapDefaults.jl`: `SimpleIoMap`, `ChildrenIoMap`, `ContentIoMap`, `@iomap`), and the child reconcilers (`IoMapReconcile.jl`: `make_reconciled_child_iomaps_cell`, `make_reconciled_child_iomap_cell`) |
 | `projection/` | the projection interface and infrastructure only — `ProjectionInterface`, `PrinterContext`, `GestureBindings`, `Projection` (`@projection` + fallbacks), `ProjectionTemplate`. The concrete `higherorder/` and `generic/` combinators live in the platform's projection slice. |
 | `tool/` | `ToolModule` — Tool, Resource, ToolSet, `execute_julia_code!`, doc/API search, `register_default_tools!` |
 | `llm/` | `LlmModule` — Llm, `stream_turn`/`render_tool_schema`, LlmMessage/LlmRequest, LlmEvent |

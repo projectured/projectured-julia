@@ -63,7 +63,7 @@ get_child_iomaps(iomap::GestureTrackingIoMap) = Any[iomap.child_iomap]
 
 function print_document(p::GestureTrackingProjection, recursion, input::GestureTrackingState,
                         ctx)
-    child = reconcile_child_iomap(() -> input.content,
+    child = make_reconciled_child_iomap_cell(() -> input.content,
                                   content -> print_document(p.inner, recursion, content, ctx))
     GestureTrackingIoMap(p, input, Cell(@computation child[].output), child)
 end

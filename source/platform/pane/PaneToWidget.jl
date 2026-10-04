@@ -167,7 +167,7 @@ end
 # The tree is transparent: it prints as its root, and adds one field step to the
 # paths that pass through it.
 function print_document(p::PaneTreeToWidget, recursion, tree::PaneTree, ctx)
-    root_iomap = reconcile_child_iomap(
+    root_iomap = make_reconciled_child_iomap_cell(
         () -> tree.root,
         root -> _recurse(recursion, root,
                          make_child_context(ctx, tree, (@reference_step root))))
@@ -279,7 +279,7 @@ end
 # ── PaneSplit ──────────────────────────────────────────────────────────────
 
 function print_document(p::PaneSplitToWidgetSplitPane, recursion, split::PaneSplit, ctx)
-    element_iomaps = reconcile_child_iomaps(
+    element_iomaps = make_reconciled_child_iomaps_cell(
         () -> split.elements,
         (i, element) -> _recurse(recursion, element,
             make_child_context(ctx, split, (@reference_step elements), (@reference_step [i]))))
@@ -357,7 +357,7 @@ function print_document(p::PaneGroupToWidgetTabbedPane, recursion, group::PaneGr
     # layout-rules.md). A scroll pane here would clip too, but it would also take
     # the scroll: a content that manages its own panes, such as a transcript above
     # a composer, would scroll as one block.
-    content_iomaps = reconcile_child_iomaps(
+    content_iomaps = make_reconciled_child_iomaps_cell(
         () -> Any[tab.content for tab in group.tabs],
         (i, content) -> begin
             child = _recurse(recursion, content,

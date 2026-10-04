@@ -37,7 +37,7 @@ const _CONTENT_STEPS = (FieldReferenceStep("content"),)
 
 function print_document(p::SettingsManagingProjection, recursion, input::SettingsDocument,
                         ctx)
-    child = reconcile_child_iomap(() -> input.content,
+    child = make_reconciled_child_iomap_cell(() -> input.content,
                                   content -> print_document(p.inner, recursion, content, ctx))
     SettingsManagingIoMap(p, input, Cell(@computation child[].output), child)
 end

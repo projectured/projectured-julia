@@ -17,7 +17,7 @@ The module lives in three fragments that share this namespace:
 [`IoMapInterface.jl`](IoMapInterface.jl) declares the contract,
 [`IoMapDefaults.jl`](IoMapDefaults.jl) provides the implementations, and
 [`IoMapReconcile.jl`](IoMapReconcile.jl) the reactive child-IoMap reconcilers
-(`reconcile_child_iomaps` / `reconcile_child_iomap`).
+(`make_reconciled_child_iomaps_cell` / `make_reconciled_child_iomap_cell`).
 """
 module IoMapModule
 
@@ -26,7 +26,7 @@ using ..CellStructModule
 
 export IoMap, get_iomap_projection, get_iomap_input, get_iomap_output,
        SimpleIoMap, ChildrenIoMap, ContentIoMap, @iomap,
-       reconcile_child_iomaps, reconcile_child_iomap
+       make_reconciled_child_iomaps_cell, make_reconciled_child_iomap_cell
 
 include("IoMapInterface.jl")
 include("IoMapDefaults.jl")

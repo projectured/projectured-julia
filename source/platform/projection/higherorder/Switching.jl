@@ -56,7 +56,7 @@ function print_document(ap::SwitchingProjection, recursion, input, ctx)
     # Reconcile the active branch by the reactive index: writing `ap.index`
     # rebuilds `inner` and re-derives `output` through the same iomap; a
     # same-index input change reuses the cached inner (which reacts on its own).
-    inner = reconcile_child_iomap(() -> ap.index[],
+    inner = make_reconciled_child_iomap_cell(() -> ap.index[],
                 i -> print_document(ap.projections[i], recursion, input, ctx))
     output = Cell(@computation inner[].output)
     return SwitchingIoMap(ap, input, output, ap.index, inner)

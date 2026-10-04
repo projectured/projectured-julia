@@ -456,9 +456,9 @@ a **computed cell** that re-derives from the projection's input and parameter
 cells; an operation writes a cell and the change propagates through the existing
 IoMap with no re-print. This is
 [PAR-STABLE-IOMAP-IDENTITY](../../rule/architecture-invariants.md#par-stable-iomap-identity),
-and `reconcile_child_iomaps` (iomap layer) is the shared way to keep child-IoMap
-identity across a structural edit. Note the split: `@iomap`/`@projection` give the
-transparent cell *fields*, but wiring those fields as **derivations** (a
+and `make_reconciled_child_iomaps_cell` (iomap layer) is the shared way to keep
+child-IoMap identity across a structural edit. Note the split: `@iomap`/`@projection`
+give the transparent cell *fields*, but wiring those fields as **derivations** (a
 `Cell(@computation …)`, not an eagerly computed value) is what makes them reactive —
 `FocusingProjection` is the reference
 (`output = Cell(@computation evaluate_reference(input, p.part))`).
@@ -507,7 +507,7 @@ domain (via `map_reference_backward`).
    varies (`output`, child IoMaps) as computed cells so a parameter/input change
    re-derives it through the same IoMap
    ([PAR-STABLE-IOMAP-IDENTITY](../../rule/architecture-invariants.md#par-stable-iomap-identity));
-   reconcile child collections with `reconcile_child_iomaps`.
+   reconcile child collections with `make_reconciled_child_iomaps_cell`.
 3. Implement `map_reference_forward` and `map_reference_backward`: usually
    the cleanest way is `@reference_case`. `print_document` wires its output
    selection by calling `map_reference_forward`; the default `read_intent`
@@ -583,7 +583,7 @@ recursively-projected input children. The extra requirements are:
    (see [§ Recursion across projections](#recursion-across-projections)).
 2. **Store the child IO maps** in a shared reactive `Cell` (not inline in two
    separate cells — see [§8 of the selection deep dive](selection.md)).
-   `reconcile_child_iomaps` makes that cell, and it keeps the IoMap of each
+   `make_reconciled_child_iomaps_cell` makes that cell, and it keeps the IoMap of each
    child that stays, as PAR-STABLE-IOMAP-IDENTITY asks.
 3. **Project the selection reactively.** Canonically this is
    `Cell(@computation map_reference_forward(p, iomap, node.selection))` with the
@@ -599,11 +599,11 @@ struct MyNodeProjection <: Projection end
 
 function print_document(p::MyNodeProjection, recursion, node::MyNode, ctx)
     # Step 1+2: project the children, and keep their IO maps in one cell.
-    # `reconcile_child_iomaps` reuses the IoMap of each child that stays, so an
+    # `make_reconciled_child_iomaps_cell` reuses the IoMap of each child that stays, so an
     # edit prints again only a child that is new or moved. `print_child`
     # re-enters the whole pipeline for each child, and `make_child_context`
     # extends the reference path to child i, typed against `node`.
-    child_iomaps = reconcile_child_iomaps(
+    child_iomaps = make_reconciled_child_iomaps_cell(
         () -> node.children,
         (i, child) -> print_child(recursion, child,
             make_child_context(ctx, node, FieldReferenceStep("children"),

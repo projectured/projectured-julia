@@ -106,7 +106,7 @@ function print_document(p::ClipboardSliceToAnyProjection, recursion, input::Clip
     # The stored slice is printed through the whole projection, so it is printed
     # only while it is on display. The cell reads the flag and the slice, so a
     # toggle or a new slice prints it again.
-    slice_iomap = reconcile_child_iomap(
+    slice_iomap = make_reconciled_child_iomap_cell(
         () -> (p.display_slice[] && input.slice isa Document) ? input.slice : nothing,
         slice -> slice === nothing ? nothing :
             print_child(recursion, slice, make_child_context(ctx, FieldReferenceStep("slice"))))

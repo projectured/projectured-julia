@@ -51,7 +51,7 @@ function print_document(p::ClipboardCollectionToAnyProjection, recursion, input:
                         make_child_context(ctx, FieldReferenceStep("content")))
     # The elements vector is printed as one document, and only while it is on
     # display. The cell reads the flag, so a toggle prints it.
-    elements_iomap = reconcile_child_iomap(
+    elements_iomap = make_reconciled_child_iomap_cell(
         () -> p.display_collection[] ? input.elements : nothing,
         elements -> elements === nothing ? nothing :
             print_child(recursion, elements, make_child_context(ctx, FieldReferenceStep("elements"))))

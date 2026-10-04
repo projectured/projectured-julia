@@ -46,10 +46,10 @@ function print_document(p::ObjectFieldToSyntax, recursion, field::ObjectField, c
     child_ctx = ctx === nothing ? ctx :
         make_child_context(ctx, FieldReferenceStep("object"),
                            get_reference_steps(strip_reference_types(field.path))...)
-    # `reconcile_child_iomap` reads the value inside the reconcile, so a write to
-    # the object repaints the value and the child io map keeps its identity when
+    # `make_reconciled_child_iomap_cell` reads the value inside the reconcile, so a write
+    # to the object repaints the value and the child io map keeps its identity when
     # the value is merely edited (PAR-STABLE-IOMAP-IDENTITY).
-    inner = reconcile_child_iomap(() -> get_object_field_value(field),
+    inner = make_reconciled_child_iomap_cell(() -> get_object_field_value(field),
                                   v -> print_child(recursion, v, child_ctx))
     ind = p.newlines ? 1 : 0
     output = Cell(@computation begin

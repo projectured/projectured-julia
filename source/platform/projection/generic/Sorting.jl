@@ -37,7 +37,7 @@ function print_document(p::SortingProjection, recursion, input::CellVector, ctx)
     recursion = something(recursion, IdentityProjection())
     # Children projected + reconciled in input order; index_map re-derives the
     # sorted permutation; output arranges child outputs by it — all reactive.
-    child_iomaps = reconcile_child_iomaps(
+    child_iomaps = make_reconciled_child_iomaps_cell(
         () -> input,
         (i, x) -> print_child(recursion, x,
             make_child_context(ctx, ElementReferenceStep(i))))

@@ -154,7 +154,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `binding/GestureBinding.jl`
   - ⬜ `binding/Gestures.jl`
 - **Layer 16 — iomap** (`iomap/`)
-  - 🔒 `iomap/IoMapModule.jl`
+  - ⬜ `iomap/IoMapModule.jl`
   - 🔒 `iomap/IoMapInterface.jl`
   - ⬜ `iomap/IoMapDefaults.jl`
   - ⬜ `iomap/IoMapReconcile.jl`

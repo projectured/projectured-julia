@@ -99,7 +99,7 @@ ProjectionModule.get_child_iomaps(iomap::ContextMenuWindowIoMap) = Any[iomap.chi
 
 function print_document(p::ContextMenuWindowProjection, recursion,
                         input::ContextMenuWindowState, ctx)
-    child = reconcile_child_iomap(() -> input.content,
+    child = make_reconciled_child_iomap_cell(() -> input.content,
                                   content -> print_document(p.inner, recursion, content,
                                                             ctx))
     ContextMenuWindowIoMap(p, input, Cell(@computation child[].output), child)

@@ -44,7 +44,7 @@ function print_document(p::ScreenToScreen, recursion, input::ScreenDocument, ctx
     # Reconcile windows by identity so opening/closing a sibling reuses the
     # surviving windows' iomaps (PAR-STABLE-IOMAP-IDENTITY).
     pointer_shape = getfield(input, :pointer_shape)
-    window_iomaps = reconcile_child_iomaps(
+    window_iomaps = make_reconciled_child_iomaps_cell(
         () -> input.windows,
         (i, x) -> _print_window(p, recursion, x,
             make_child_context(ctx, FieldReferenceStep("windows"), ElementReferenceStep(i)),
@@ -85,7 +85,7 @@ function _print_window(p::ScreenToScreen, recursion, input::WindowDocument, ctx,
     # place reuses the iomap and re-derives
     # through its own cells. This is what lets the window manager mutate only the
     # input screen and rely on this stage to mirror the output (PAR-STABLE-IOMAP-IDENTITY).
-    content_iomap = reconcile_child_iomap(() -> input.content,
+    content_iomap = make_reconciled_child_iomap_cell(() -> input.content,
                                           c -> print_child(recursion, c, content_ctx))
     cover = _make_pointer_cover(pointer_shape)
     iomap_cell = Cell(nothing)

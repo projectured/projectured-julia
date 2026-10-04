@@ -7,7 +7,7 @@
 > — 160/160 selection-locality checks pass against
 > `RecursiveProjection(JsonToSyntax())`; Finding 2 (dimension C non-local) — was
 > true, and is now **fixed for `_node_print`** by keyed reconciliation
-> (`reconcile_child_iomaps`, `test_template_structural_locality()` passes,
+> (`make_reconciled_child_iomaps_cell`, `test_template_structural_locality()` passes,
 > ≈1% loss instead of ≈97%), but **still open for `_mixed_print` /
 > `_sections_print`**, which were never converted. See
 > [printer-locality.md](printer-locality.md) for the full status. The dynamic
@@ -101,7 +101,7 @@ the element document `objectid` (stable across edits to *other* elements; see th
 [JsonToSyntaxTest.jl:101](../../test/json/projection/JsonToSyntaxTest.jl#L101)),
 reuse the existing child iomap + slot cell when the same element reappears, and
 project only genuinely new elements. Implemented as the generic
-`reconcile_child_iomaps`/`reconcile_child_iomap` in
+`make_reconciled_child_iomaps_cell`/`make_reconciled_child_iomap_cell` in
 `package/kernel/main/iomap/IoMapReconcile.jl`, wired into **`_node_print` only**.
 `_mixed_print` and `_sections_print` were not converted — every template
 projection does **not yet** inherit the fix.
@@ -153,6 +153,6 @@ implementation gaps found:
   2026-08-12) — the one failure is untriaged.
 - Build the cursor-field allow-list so dimension A is exact for graphics
   pipelines.
-- Convert `_mixed_print` / `_sections_print` to `reconcile_child_iomaps`, the
+- Convert `_mixed_print` / `_sections_print` to `make_reconciled_child_iomaps_cell`, the
   remaining half of Finding 2's fix.
 </content>

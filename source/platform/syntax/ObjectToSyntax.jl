@@ -136,7 +136,8 @@ function print_document(p::CellToSyntax, recursion, cell::Cell, ctx)
     # document). Reading `cell[]` inside the reconcile is what makes the output track
     # the cell, so a `sync_document!`/`setproperty!` write repaints without rebuilding
     # the whole projection.
-    inner = reconcile_child_iomap(() -> cell[], v -> print_child(recursion, v, ctx))
+    inner = make_reconciled_child_iomap_cell(() -> cell[],
+                                              v -> print_child(recursion, v, ctx))
     SimpleIoMap(p, cell, Cell(@computation inner[].output))
 end
 
@@ -260,7 +261,7 @@ function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
         # Reconcile the element IoMaps by identity: unchanged elements reuse theirs, a
         # new/moved slot rebuilds. The output cell re-derives the braced list when the
         # element set changes (append/pop/reassign).
-        elem_ims = reconcile_child_iomaps(
+        elem_ims = make_reconciled_child_iomaps_cell(
             () -> _visible_elements(p, obj),
             (i, x) -> print_child(recursion, x, make_child_context(ctx, ElementReferenceStep(i))))
         output = Cell(@computation(SyntaxNode(SyntaxDocument[im.output for im in elem_ims[]];

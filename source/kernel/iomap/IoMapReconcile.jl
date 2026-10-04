@@ -1,7 +1,7 @@
 # Fragment of `IoMapModule` — the reconcilers that reuse a child IoMap across a change.
 
 """
-    reconcile_child_iomaps(elements_fn, make_iomap) -> Cell
+    make_reconciled_child_iomaps_cell(elements_fn, make_iomap) -> Cell
 
 Build a reactive cell yielding the child-IoMap vector for the collection
 `elements_fn()` returns, reusing the prior IoMap for every element that is the
@@ -21,7 +21,7 @@ keeps the element alive. The key of a mutable element comes from its address, an
 Julia can give that address to a new object after the element is collected. A new
 element at the same index then gets the IoMap of the old one.
 """
-function reconcile_child_iomaps(elements_fn, make_iomap)
+function make_reconciled_child_iomaps_cell(elements_fn, make_iomap)
     # The IoMaps of the last computation. Each computation fills a new table, which
     # holds only the slots that are there now, and puts it in place of the old one.
     cache = Ref(Dict{Tuple{UInt64,Int},Any}())
@@ -44,10 +44,11 @@ function reconcile_child_iomaps(elements_fn, make_iomap)
 end
 
 """
-    reconcile_child_iomap(value_fn, make_iomap) -> Cell
+    make_reconciled_child_iomap_cell(value_fn, make_iomap) -> Cell
 
-Single-child analogue of [`reconcile_child_iomaps`](@ref): reconcile one delegated
-child by the identity of `value_fn()`. While the value object stays the same (e.g.
+Single-child analogue of [`make_reconciled_child_iomaps_cell`](@ref): reconcile one
+delegated child by the identity of `value_fn()`. While the value object stays the same
+(e.g.
 during an edit inside the value document) the built child IoMap is reused; when
 the field is *swapped* for a new object, for example one of a different type,
 `objectid` changes and the child IoMap is rebuilt against the new value. Reading
@@ -59,7 +60,7 @@ keeps the value alive. The key of a mutable value comes from its address, and Ju
 can give that address to a new object after the value is collected. A new value
 then gets the IoMap of the old one.
 """
-function reconcile_child_iomap(value_fn, make_iomap)
+function make_reconciled_child_iomap_cell(value_fn, make_iomap)
     cached_id = Ref{UInt64}(0)
     cached_im = Ref{Any}(nothing)
     Cell(@computation begin

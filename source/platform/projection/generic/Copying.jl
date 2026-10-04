@@ -35,7 +35,7 @@ _unwrap(c::Cell) = c[]
 # ── print_document ──────────────────────────────────────────────────────
 
 function print_document(p::CopyingProjection, recursion, input::CellVector, ctx)
-    children = reconcile_child_iomaps(
+    children = make_reconciled_child_iomaps_cell(
         () -> input,
         (i, x) -> print_child(recursion, x,
             make_child_context(ctx, ElementReferenceStep(i))))

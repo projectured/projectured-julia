@@ -56,7 +56,7 @@ function print_document(p::WorkspaceToFileSystemDirectory,
                            recursion, w::Workspace, ctx)
     # Reconcile folders by identity, and forward the single-root output reactively
     # so a structural edit propagates through the held iomap (PAR-STABLE-IOMAP-IDENTITY).
-    child_iomaps = reconcile_child_iomaps(
+    child_iomaps = make_reconciled_child_iomaps_cell(
         () -> w.folders,
         (i, elem) -> print_child(recursion, elem,
             make_child_context(ctx, FieldReferenceStep("folders"), ElementReferenceStep(i))))

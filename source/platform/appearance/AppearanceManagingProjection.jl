@@ -41,7 +41,7 @@ const _CONTENT_STEPS = (FieldReferenceStep("content"),)
 # ── Printer (transparent) ─────────────────────────────────────────────────
 
 function print_document(p::AppearanceManagingProjection, recursion, input::AppearanceDocument, ctx)
-    child = reconcile_child_iomap(() -> input.content,
+    child = make_reconciled_child_iomap_cell(() -> input.content,
                                   content -> print_document(p.inner, recursion, content, ctx))
     AppearanceManagingIoMap(p, input, Cell(@computation child[].output), child)
 end
