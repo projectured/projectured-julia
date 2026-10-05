@@ -25,6 +25,27 @@ function test_chart_theme()
     @test sort(unique(large)) == [18, 21]
 end
 
+@testset "the series take the series colours of the theme, and follow the colour settings" begin
+    @test ChartStyle().color_cycle === nothing
+    light = get_scaled_theme!(Appearance(), ChartTheme)
+    # The solid step of a Radix scale is the same in both modes, so the palette
+    # shows the change: the series of a chart follow it.
+    other = get_scaled_theme!(Appearance(color_palette = "tailwind"), ChartTheme)
+    @test light.series_colors[1] == resolve_theme_color(ColorRole(:series_1), Appearance())
+    @test light.series_colors != other.series_colors
+    chart = _line_chart()
+    function line_colors(theme)
+        projection = ChainingProjection(ChartToChartPlot(),
+            ChartPlotToGraphicsCanvas(; measure = FixedMeasure(8, 12, 4, 0), width = 600,
+                                      height = 400, theme))
+        canvas = print_document(projection, nothing, chart, PrinterContext()).output
+        [line.color for line in search_documents(canvas, x -> x isa GraphicsPolyline)]
+    end
+    @test light.series_colors[1] in line_colors(light)
+    @test other.series_colors[1] in line_colors(other)
+    @test !(other.series_colors[1] in line_colors(light))
+end
+
 @testset "a renderer with no theme holds the default values, and a theme scales a length" begin
     p = ChartPlotToGraphicsCanvas(measure = FixedMeasure(8, 12, 4, 0))
     @test unwrap_cell(p.style).padding == 8

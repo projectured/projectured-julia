@@ -348,6 +348,12 @@ _make_field_control(controls, theme, field::Symbol, value::FontRole) =
     _make_role_control(controls, theme, () -> getproperty(theme, field),
                        role -> _write_theme_field(theme, field, role))
 
+# A list of colours, such as the colours of the series of a chart, has a swatch
+# for each, in the colour that it gives; a person changes them in the colour theme.
+_make_field_control(controls, theme, field::Symbol, value::AbstractVector{<:ThemeColor}) =
+    HorizontalLayout(Any[WidgetSwatch(resolve_theme_color(color, controls.appearance)) for color in value];
+                     gap = controls.theme.item_gap, vertical_align = :center)
+
 # A text role has the controls of its colour over those of its font role.
 function _make_field_control(controls, theme, field::Symbol, value::TextRole)
     read = () -> getproperty(theme, field)

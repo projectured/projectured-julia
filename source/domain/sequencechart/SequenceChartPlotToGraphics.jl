@@ -238,7 +238,7 @@ function _layout(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceChartPlot,
        axis = t.axis, text_color = t.text_color,
        gutter = t.gutter, gutter_border = t.gutter_border,
        hairline = t.hairline, zero_time = t.zero_time,
-       arrow = t.arrow, event = t.event,
+       arrow = t.arrow, event = t.event, series_colors = t.series_colors,
        selected = t.selected, hover = t.hover,
        padding = t.padding, gutter_padding = t.gutter_padding,
        label_gap = t.label_gap, band_height = t.band_height,
@@ -531,7 +531,7 @@ end
 # inside when it fits. The strip sits just off the lane so the lane's own events
 # stay legible.
 function _band_elements!(out, g)
-    cycle = g.style.color_cycle
+    cycle = _or(g.style.color_cycle, g.series_colors)
     for band in g.bands
         document = band.document
         for (c0, c1, value, index) in band.intervals
@@ -571,7 +571,7 @@ end
 # at that length the line says nothing its ends do not.
 function _arrow_elements!(out, g)
     style = g.style
-    cycle = style.color_cycle
+    cycle = _or(style.color_cycle, g.series_colors)
     for shape in g.shapes
         kind = shape.kind
         color = _kind_color(kind, shape.index, cycle, g.arrow)
@@ -661,7 +661,7 @@ _line_dash(style::Symbol, g) =
 function _event_elements!(out, g)
     events = g.chart.events
     style = g.style
-    cycle = style.color_cycle
+    cycle = _or(style.color_cycle, g.series_colors)
     radius = style.event_radius
     for i in g.visible_events
         lane = get_event_axis(events, i)

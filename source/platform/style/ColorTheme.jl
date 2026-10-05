@@ -298,6 +298,9 @@ _multiply_alpha(color::PaletteColor, alpha::Real) =
                  minimum_contrast = color.minimum_contrast, against = color.against)
 _multiply_alpha(color::ColorRole, alpha::Real) = ColorRole(color.role; alpha = color.alpha * alpha)
 
-# A step of a ramp and a role take the colour that they give in the appearance.
+# A step of a ramp and a role take the colour that they give in the appearance,
+# and a list of colours takes the colour of each.
 scale_theme_value(color::Union{PaletteColor, ColorRole}, appearance::Appearance) =
     resolve_theme_color(color, appearance)
+scale_theme_value(colors::AbstractVector{<:ThemeColor}, appearance::Appearance) =
+    StyleColor[resolve_theme_color(color, appearance) for color in colors]

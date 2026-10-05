@@ -28,6 +28,10 @@
 
 _or(value, fallback) = value === nothing ? fallback : value
 
+# The colours of the series: the cycle of the style of the chart, or the series
+# colours of the theme when the style names none.
+_get_color_cycle(style, theme_values) = _or(style.color_cycle, theme_values.series_colors)
+
 # The width of `text` in `font` and the height of the line that holds it.
 function _get_text_size(measure::TextMeasure, text::AbstractString, font::StyleFont)
     line = compute_line_box(measure, text, font)
@@ -42,7 +46,7 @@ _veiled(color::StyleColor, on::Bool, veil::Real) =
 # The colour a series draws in: its own or the cycle's, faded when the pointer is
 # on some *other* series.
 function _draw_color(g, index::Int, own)
-    color = get_series_color(own, index, g.style.color_cycle)
+    color = get_series_color(own, index, _get_color_cycle(g.style, g.theme_values))
     _veiled(color, g.lit_index != 0 && g.lit_index != index, g.theme_values.veil_alpha)
 end
 
@@ -312,7 +316,7 @@ inert without the reader knowing about states: zero already reads as "inside the
 legend but on nothing", so such an entry neither toggles nor hovers.
 """
 function _legend_items(chart::Chart, series, t)
-    cycle = chart.style.color_cycle
+    cycle = _get_color_cycle(chart.style, t)
     items = Tuple{Int,String,Any}[]
     states = Tuple{Int,String,Any}[]
     for (index, s) in series
@@ -1045,7 +1049,7 @@ function _strip_elements!(out, g, index::Int, s::ChartStripSeries)
     ox, oy = g.plot_x, g.plot_y
     height = max(bottom - top, 1)
     spans = _strip_spans(g, index)
-    cycle = g.style.color_cycle
+    cycle = _get_color_cycle(g.style, g.theme_values)
     veiled = g.lit_index != 0 && g.lit_index != index
     t = g.theme_values
 
@@ -1122,7 +1126,7 @@ function _overlay_elements!(out, g, plot::ChartPlot)
             if point isa Tuple && length(point) == 2
                 sx = round(Int, to_pixel(g.xs, point[1])) - g.plot_x
                 sy = round(Int, to_pixel(g.ys, point[2])) - g.plot_y
-                color = get_series_color(series.color, sample[1], g.style.color_cycle)
+                color = get_series_color(series.color, sample[1], _get_color_cycle(g.style, g.theme_values))
                 push!(out, GraphicsCircle(sx, sy, 6; color = color_transparent,
                                           border_width=t.selected_width, border_color=t.selected_edge))
                 push!(out, GraphicsCircle(sx, sy, 3; color))
@@ -1150,7 +1154,7 @@ function _overlay_elements!(out, g, plot::ChartPlot)
     end
 
     index, px, py = snapped
-    color = get_series_color(g.chart.series[index].color, index, g.style.color_cycle)
+    color = get_series_color(g.chart.series[index].color, index, _get_color_cycle(g.style, g.theme_values))
     push!(out, GraphicsCircle(px, py, 4; color, border_width=t.border_width, border_color=t.plot_background))
     label = string(_series_label(g.chart.series[index]), "  ",
                    format_tick(to_data(g.xs, px + g.plot_x)), ", ",

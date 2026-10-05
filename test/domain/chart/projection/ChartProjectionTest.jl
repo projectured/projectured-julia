@@ -641,7 +641,7 @@ function test_chart_projection()
             @test [it[2] for it in own] == ["a", "b", "c"]
             @test all(it -> it[3] == get_theme_value(ChartTheme(), :strip_swatch), own)
             # ...and specifically not the colour the series cycle would give it.
-            @test own[1][3] != get_series_color(nothing, 1, ChartStyle().color_cycle)
+            @test own[1][3] != get_series_color(nothing, 1, get_theme_defaults(ChartTheme).series_colors)
 
             # The states are listed instead, in their own colours, and two
             # strips sharing a table share the entries rather than repeating.
@@ -651,7 +651,7 @@ function test_chart_projection()
             # which would read as though a shared table belonged to the first.
             @test [it[1] != 0 for it in items] ==
                   [true, true, true, false, false, false, false, false, false]
-            @test values[1][3] == get_series_color(nothing, 1, ChartStyle().color_cycle)
+            @test values[1][3] == get_series_color(nothing, 1, get_theme_defaults(ChartTheme).series_colors)
             @test values[1][3] != values[2][3]
             # Colour follows the code, so the first state of each table shares
             # one — which is exactly why a table of its own wants state_colors.
@@ -712,7 +712,7 @@ function test_chart_projection()
             line = Chart("m", [ChartLineSeries("v", t, t)])
             line_items = _chart_layout(line).legend.items
             @test length(line_items) == 1
-            @test line_items[1][3] == get_series_color(nothing, 1, ChartStyle().color_cycle)
+            @test line_items[1][3] == get_series_color(nothing, 1, get_theme_defaults(ChartTheme).series_colors)
         end
 
         @testset "strip reactivity" begin

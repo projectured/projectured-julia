@@ -36,6 +36,8 @@ abstract type ChartSeries <: ChartDocument end
 Chart-wide visual style. Every field defaults, so `ChartStyle()` constructs and a
 chart only names what it overrides. A `nothing` color/font means "take the
 projection's theme default", resolved at print time rather than baked in here.
+So a `nothing` `color_cycle`, the default, takes the `series_colors` of the
+theme, which follow the colour settings of the appearance.
 
 `marker_limit`, `scatter_fold_threshold` and `bin_fold_px` are the scalability
 knobs: how many visible points still get individual markers, when a scatter
@@ -50,7 +52,7 @@ ones fold into an envelope.
     title_font::Any = nothing
     axis_font::Any = nothing
     legend_font::Any = nothing
-    color_cycle::Any = default_color_cycle()
+    color_cycle::Any = nothing
     symbol_cycle::Any = default_symbol_cycle()
     marker_limit::Int = 64
     scatter_fold_threshold::Int = 10_000

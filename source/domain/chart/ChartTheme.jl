@@ -39,6 +39,8 @@ default theme. A value that a chart's own
     selected_edge::StyleColor   = ColorRole(:selection_ring)
     "The fill of a hovered legend item."
     hover_fill::StyleColor      = ColorRole(:hover)
+    "The colors of the series of a chart whose style names no cycle of its own, in the order of the series."
+    series_colors::Vector{ThemeColor} = ThemeColor[ColorRole(Symbol("series_", i)) for i in 1:8]
     "The legend swatch of a strip series, neutral because the band draws in many colors."
     strip_swatch::StyleColor    = ColorRole(:border_strong)
     "The border between adjacent strip segments."

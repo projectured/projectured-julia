@@ -25,6 +25,8 @@ A SequenceChart projection holds the values of the theme, and no theme, in its
 plain values of the default theme.
 """
 @theme struct SequenceChartTheme
+    "The colors of the kinds of arrows and events that name no color of their own, in order, when the style names no cycle."
+    series_colors::Vector{ThemeColor} = ThemeColor[ColorRole(Symbol("series_", i)) for i in 1:8]
     "The whole canvas, behind the body."
     background::StyleColor = ColorRole(:background)
     "The body, where the lanes and their events draw."

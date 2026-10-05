@@ -331,7 +331,8 @@ end
 """
 Chart-wide visual style. Every field defaults, so `SequenceChartStyle()`
 constructs and a chart names only what it overrides. A `nothing` color or font
-means "take the projection's theme default", resolved at print time.
+means "take the projection's theme default", resolved at print time; a `nothing`
+`color_cycle`, the default, takes the `series_colors` of the theme.
 
 The metric fields are the ones that change how the chart *reads* rather than how
 it looks: `split_horizon_viewports` decides when an arrow is too long to draw
@@ -346,7 +347,7 @@ called out.
     label_font::Any = nothing
     gutter_background::Any = nothing
     tick_color::Any = nothing
-    color_cycle::Any = default_color_cycle()
+    color_cycle::Any = nothing
     event_radius::Int = 3
     arrow_width::Int = 1
     arrowhead_size::Int = 8
