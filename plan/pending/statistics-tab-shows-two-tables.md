@@ -2,8 +2,8 @@
 
 > **Status:** pending. Written on 2026-10-05 at the owner's request. The owner
 > chose the look on 2026-10-05 (D1), and agreed to the other decisions and to
-> the answers of section 6 the same day. No question is open. No step has
-> started: the owner has not yet said to implement it.
+> the answers of section 6 the same day. No question is open. The owner said
+> "implement" on 2026-10-05. The work is on the branch `statistics-tab-tables`.
 
 ## 1. The request
 
@@ -199,7 +199,8 @@ Claude proposed D2 to D8. The owner agreed to them on 2026-10-05.
 Do all the work in a worktree on the branch `statistics-tab-tables`. Make a
 commit for each step. Do not land on `main` until the owner says so.
 
-- [ ] **Step 1. Move the index list to the collection slice (D4).**
+- [x] **Step 1. Move the index list to the collection slice (D4).** Done in
+  `dc1a166ce`: `test_collection()` and `test_dataframes()` pass, 745 of 745.
   Add `make_index_list` with its docstring to `ListNode.jl`. Change the data
   frame view to call it, and delete the private copy. Test: the data frame view
   tests and the collection tests. Add one test of `make_index_list` in the

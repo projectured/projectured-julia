@@ -350,6 +350,34 @@ end
     end
 end
 
+@testset "an index list builds a node when a walk reaches it, and stops at both ends" begin
+    built = Int[]
+    head = make_index_list(5, 3, i -> (push!(built, i); i * 10))
+    @test head.value == 30
+    @test built == [3]
+    @test count_computed_nodes(head) == 1
+    @test head.next.value == 40
+    @test head.next.prev === head
+    @test head.prev.prev.value == 10
+    @test head.prev.prev.prev === nothing
+    @test head.next.next.value == 50
+    @test head.next.next.next === nothing
+    @test sort(built) == [1, 2, 3, 4, 5]
+
+    @testset "the head is clamped to the range" begin
+        @test make_index_list(5, 9, identity).value == 5
+        @test make_index_list(5, 0, identity).value == 1
+    end
+
+    @testset "a computed value follows its cell" begin
+        factor = Cell(2)
+        node = make_index_list(3, 1, i -> () -> i * factor[]; computed = true)
+        @test node.next.value == 4
+        factor[] = 3
+        @test node.next.value == 6
+    end
+end
+
 end # @testset "ReactiveCollection"
 
 @testset "CellVector protocol" begin

@@ -217,6 +217,51 @@ function find_list_node(head::ListNode, index::Integer)
     node
 end
 
+"""
+    make_index_list(count, at, value_of; computed = false) -> ListNode
+
+The list of the values of the indices `1:count`, with its head at the index
+`at`, clamped to the range. `value_of(i)` makes the value of the index `i` when
+a walk first reaches it. With `computed`, `value_of(i)` is instead a function
+of no arguments, and the value of the node is a cell that computes it.
+
+Each link builds its neighbour when it is first read, and the neighbour links
+back, so a walk down and back up meets the same nodes. The first index has no
+`prev` and the last has no `next`, so a viewport stops at both. `count` must be
+at least 1.
+
+Use it for a table of many rows that builds only the rows a viewport reaches,
+with its head at the row its owner keeps as an anchor.
+
+# Example
+
+    squares = make_index_list(1000, 300, i -> i^2)
+    squares.value         # 90000, the value of the head
+    squares.prev.value    # 89401, built on this read
+"""
+make_index_list(count::Int, at::Int, value_of; computed::Bool = false) =
+    _make_index_node(count, clamp(at, 1, count), value_of, nothing, nothing; computed)
+
+# The node of the index `i`. A neighbour that is given is linked as a value, and
+# the other link builds its neighbour when it is first read.
+function _make_index_node(count::Int, i::Int, value_of, before, after; computed::Bool = false)
+    node = computed ? ListNode(nothing) : ListNode(value_of(i))
+    computed && set_cell_computation!(getfield(node, :value), value_of(i))
+    if after === nothing
+        set_cell_computation!(getfield(node, :next),
+            () -> i < count ? _make_index_node(count, i + 1, value_of, node, nothing; computed) : nothing)
+    else
+        set_cell_value!(getfield(node, :next), after)
+    end
+    if before === nothing
+        set_cell_computation!(getfield(node, :prev),
+            () -> i > 1 ? _make_index_node(count, i - 1, value_of, nothing, node; computed) : nothing)
+    else
+        set_cell_value!(getfield(node, :prev), before)
+    end
+    node
+end
+
 # Append a new node at the end of the right (next) tail.
 function Base.push!(head::ListNode, value)
     node = ListNode(value)

@@ -315,13 +315,13 @@ function _make_row_list(view::DataFrameView, columns::Vector{String}, kept::Vect
     shown(i, name) = (base = make_data_frame_cell(frame[i, name], types[name]);
                       () -> _get_shown_cell_document(view, i, name, base))
     function row_of(i)
-        column_anchor === nothing || return _make_index_list(length(columns), column_anchor,
+        column_anchor === nothing || return make_index_list(length(columns), column_anchor,
                                                              c -> shown(i, columns[c]); computed = true)
         cells = Cell[Cell(nothing) for _ in columns]
         foreach(((cell, name),) -> set_cell_computation!(cell, shown(i, name)), zip(cells, columns))
         CellVector(cells)
     end
-    _make_index_list(length(kept), anchor, k -> row_of(kept[k]))
+    make_index_list(length(kept), anchor, k -> row_of(kept[k]))
 end
 
 # The document that the cell in row `i` of the frame and column `name` shows: the
@@ -330,33 +330,4 @@ end
 function _get_shown_cell_document(view::DataFrameView, i::Int, name::String, base)
     edit = _find_cell_edit(view, i, name)
     edit === nothing ? base : edit.document
-end
-
-# The list of the values of the indices `1:count`, with its head at the index
-# `at`, clamped to the range: `value_of(i)` makes the value of index `i` when a
-# walk first reaches it, or, with `computed`, the function of no arguments that
-# computes it.
-_make_index_list(count::Int, at::Int, value_of; computed::Bool = false) =
-    _make_index_node(count, clamp(at, 1, count), value_of, nothing, nothing; computed)
-
-# The node of index `i`. A neighbour that is given is linked as a value; the
-# other link builds its neighbour when it is first read, and the neighbour links
-# back to this node, so a walk down and back up meets the same nodes. The first
-# index has no `prev` and the last has no `next`, so a pane stops at both.
-function _make_index_node(count::Int, i::Int, value_of, before, after; computed::Bool = false)
-    node = computed ? ListNode(nothing) : ListNode(value_of(i))
-    computed && set_cell_computation!(getfield(node, :value), value_of(i))
-    if after === nothing
-        set_cell_computation!(getfield(node, :next),
-            () -> i < count ? _make_index_node(count, i + 1, value_of, node, nothing; computed) : nothing)
-    else
-        set_cell_value!(getfield(node, :next), after)
-    end
-    if before === nothing
-        set_cell_computation!(getfield(node, :prev),
-            () -> i > 1 ? _make_index_node(count, i - 1, value_of, nothing, node; computed) : nothing)
-    else
-        set_cell_value!(getfield(node, :prev), before)
-    end
-    node
 end

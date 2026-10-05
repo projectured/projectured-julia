@@ -194,7 +194,7 @@ print_document(p::DataFrameViewToWidget, view::DataFrameView) =
 function _make_row_numbers(p, view::DataFrameView)
     headers = Cell(@computation (kept = view.kept_rows;
                                  isempty(kept) ? CellVector() :
-                                     _make_index_list(length(kept), view.anchor,
+                                     make_index_list(length(kept), view.anchor,
                                                       k -> WidgetLabel(string(kept[k])))))
     corner = Cell(@computation nrow(view.frame) == 0 ? nothing : _make_query_corner(p, view))
     (headers, corner)
@@ -207,15 +207,15 @@ function _make_column_list_table(p::DataFrameViewToWidget, view::DataFrameView)
     # The headers are built when a walk reaches them, so the list reads the sort
     # keys itself, and a new sort builds the list again.
     headers = Cell(@computation (view.query.sort_keys; columns = _get_shown_columns(view);
-        _make_index_list(length(columns), view.column_anchor, c -> _make_filter_header(p, view, columns[c]))))
+        make_index_list(length(columns), view.column_anchor, c -> _make_filter_header(p, view, columns[c]))))
     align = Cell(@computation (columns = _get_shown_columns(view);
-        _make_index_list(length(columns), view.column_anchor, c -> _get_column_align(type_of(columns[c])))))
+        make_index_list(length(columns), view.column_anchor, c -> _get_column_align(type_of(columns[c])))))
     rows = Cell(@computation _make_row_list(view, _get_shown_columns(view), view.kept_rows, view.anchor,
                                             view.column_anchor))
     # The width that a person gave a column, else none, which leaves the
     # column at the width of the list and at least as wide as its header.
     policies = Cell(@computation (columns = _get_shown_columns(view);
-        _make_index_list(length(columns), view.column_anchor,
+        make_index_list(length(columns), view.column_anchor,
                          c -> _get_column_width_policy(view, columns[c], nothing))))
     row_headers, corner = _make_row_numbers(p, view)
     # Positional, as in `_make_view_table` above.
