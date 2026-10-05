@@ -3,8 +3,8 @@
 **Status (2026-10-05): PENDING. Not started.** The owner asked for this plan in the decision
 walk of [kernel-audit-fixes.md](kernel-audit-fixes.md), at L10-13. Do not implement it until the
 owner asks. The owner accepted the model of §3 on 2026-10-05: no foreign type, and a field that
-admits other domains declares `Document`. The pilot domains are Julia, JSON and XML. In §7, S-8
-is open, and the other questions are decided.
+admits other domains declares `Document`. The pilot domains are Julia, JSON and XML. Every
+question of §7 is decided, so the pilot can start when the owner asks.
 
 **Goal:** the declared type of a `@document` field becomes a contract that the reactive layout
 keeps. An intermediate state of an edit is the insertion or the nothing of its domain, and a field
@@ -326,7 +326,7 @@ worktree. The three domains test different parts of the model:
   - JSON: `JsonArray.elements` and `JsonObject.entries` become `Vector{Document}`, and
     `JsonObjectEntry.value` stays `Document` (§7.1, S-7).
   - XML: `XmlElement.children` becomes `Vector{Document}`, because the tests put JSON there.
-    `XmlElement.attrs` follows S-8. The convenience constructors of `XmlElement` must still tell
+    `XmlElement.attrs` becomes `CellVector{Document}` (S-8). The convenience constructors of `XmlElement` must still tell
     `attrs` from `children` when `children` admits any document.
 - [ ] **Step 5: the insertion follows its place.** The typed child contexts, the filter of the
   candidates (§3.5), and the widening key (§3.6), in the three domains. The example of §3.6, an
@@ -427,6 +427,7 @@ The laws change only when the pilot lands (§6).
   *Recommended (mine), 2026-10-05:* `Vector{Document}`. The attributes of an element and the
   entries of an object are both lists of name and value pairs, and S-7 allows mixing in the
   entries. One rule for both is easier to read.
+  **Decided by the owner, 2026-10-05: yes, `CellVector{Document}`.**
 
 ### 7.1 The JSON domain in the strict model (a study for S-1, 2026-10-04)
 
