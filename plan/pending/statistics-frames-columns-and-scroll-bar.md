@@ -51,8 +51,9 @@ owner answered: "for 2, yes, plus a scroll bar".
   columns: a table wider than the tab scrolls to the side, as a list table
   does. With no measure, as in a test that prints without one, a column is as
   wide as its header.
-- **D2. The scroll bar sits beside the frames table**, in a `GridLayout` of
-  two columns, as in the data frame view. Its width is the
+- **D2. The scroll bar sits at the right edge of the frames region** (changed
+  in step 3: first beside the table), in a `GridLayout` of two columns, as in
+  the data frame view. Its width is the
   `scroll_bar_thickness` of the widget theme of the appearance.
 - **D3. The bar works as in the data frame view.** Its value is the place of
   the top row, `head + top_row - 1`, among the rows that do not fit; its thumb
@@ -78,9 +79,24 @@ owner answered: "for 2, yes, plus a scroll bar".
   value is wider than its header, and checks that a header and a value end at
   the same right edge. Found: a header aligns as its column does, here right.
   The feed, tool view and tool theme tests pass, 258 of 258.
-- [ ] **Step 3. The scroll bar (D2, D3).** Tests: the bar sits at the right
-  edge of the table; a press in the middle of the bar moves `anchor` to about
-  the middle of the frames; a turn of the wheel moves the thumb.
+- [x] **Step 3. The scroll bar (D2, D3).** Done, with D2 changed:
+  - **The bar sits at the right edge of the tab, not beside the columns.**
+    With the grid column of the table `Content`, a table of nine columns at 920
+    pixels was wider than the tab and pushed the bar out of view; with no
+    width offered to the grid, `Fill` did not help. "As wide as the columns,
+    but at most the offer" would need the width math of the table (paddings
+    and rules) in the statistics slice. So the frames region takes the width of
+    the tab (`width = Fill`), the grid is `[Fill, Fixed(scroll_bar_width)]`, and
+    the table draws nothing to the right of its columns. A table wider than the
+    tab stops at the bar and scrolls to the side.
+  - The reader takes the rows shown from the thumb of the bar, which is that
+    share of the frames, so the projection keeps its `SimpleIoMap`.
+  - Tests: the bar follows `anchor` and `top_row`; a write of its value, with
+    or without view state, is a jump to that row. The wheel test turns over the
+    body of the table, because the table is only as wide as its columns. Found:
+    a `Point2D` holds its coordinates in cells, so two equal points are not
+    `==`. The feed, tool view and tool theme tests pass, 266 of 266. The images
+    with one column and with nine show the bar at the right edge.
 - [ ] **Step 4. Documentation and the image.** Update `statistics.md` (the
   widths, the bar, the limit "no scroll bar" goes), draw the tab with one
   column and with nine, and move this plan to `plan/done/`.

@@ -12,7 +12,8 @@ function _print_frame_statistics(statistics)
 end
 
 _get_frame_statistics_head(root) = root.children[1].children[1].content
-_get_frame_table(root) = root.children[5].child
+_get_frame_table(root) = root.children[5].child.children[1]
+_get_frame_scroll_bar(root) = root.children[5].child.children[2]
 _get_row_texts(row) = [row[index].content for index in 1:length(row)]
 _get_header_texts(table) = [table.column_headers[index].content for index in 1:length(table.column_headers)]
 
@@ -216,6 +217,34 @@ function test_frame_statistics_feed()
         @test !is_slow(frames.rows.value[1])
     end
 
+    @testset "the scroll bar follows the top row, and a write of its value jumps there" begin
+        store = FrameMeasurementStore()
+        for frame in 1:1000
+            record_frame_measurements!(store; times = [:frame_time => frame / 1e6])
+        end
+        statistics = FrameStatistics()
+        flush_frame_statistics!(statistics, store)
+        p, iomap, root = _print_frame_statistics(statistics)
+        bar = _get_frame_scroll_bar(root)
+        # With no measure, the table counts one row as shown.
+        @test bar.value == 0.0
+        @test bar.thumb_size == 1 / 1000
+        statistics.anchor = 301
+        statistics.top_row = 4
+        @test bar.value == (301 + 4 - 2) / 999
+        # A press in the middle of the bar is a jump to the middle of the frames.
+        press = ReplaceViewStateOperation(ReplaceReferencedValueOperation(bar, "value", 0.5))
+        jump = read_intent(p, iomap, press)
+        @test jump isa CompoundOperation
+        anchor, offset, top = [get_wrapped_operation(o) for o in jump.operations]
+        @test all(w.document === statistics for w in (anchor, offset, top))
+        @test (anchor.value, top.value) == (1 + round(Int, 0.5 * 999), 1)
+        @test (offset.value.x[], offset.value.y[]) == (0, 0)
+        # The same write without view state, as a drag of the thumb gives it.
+        drag = read_intent(p, iomap, ReplaceReferencedValueOperation(bar, "value", 1.0))
+        @test get_wrapped_operation(drag.operations[1]).value == 1000
+    end
+
     @testset "a flush changes the numbers and keeps the parts" begin
         statistics = _make_frame_statistics_example()
         _, _, root = _print_frame_statistics(statistics)
@@ -323,8 +352,10 @@ function test_frame_statistics_feed()
         # numbers further right.
         y_of(frame; limit = 50) = only(t[2] for t in _get_drawn_texts(io.output; limit)
                                        if t[3] == string(frame) && t[1] < 80)
+        # The table is as wide as its columns: the wheel turns over its body.
+        body_x = only(t[1] for t in _get_drawn_texts(io.output) if t[3] == "frame_time (ms)") + 8
         wheel(dy) = read_intent(projection, nothing,
-                                Intent(MouseScroll(0, dy, 400, 300; time = 0.0), nothing), io).operation
+                                Intent(MouseScroll(0, dy, body_x, 300; time = 0.0), nothing), io).operation
         @test y_of(999) > y_of(1000)
         step = y_of(999) - y_of(1000)
         # A turn near the head moves the rows by one turn of the wheel.

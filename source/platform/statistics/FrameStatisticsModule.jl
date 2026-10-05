@@ -63,7 +63,8 @@ function __init__()
     register_natural_graphics!(:statistics, (; measure, appearance) -> Pair{Type,Any}[
         FrameStatistics => ChainingProjection(
             make_frame_statistics_projection(;
-                theme = get_scaled_theme!(appearance, FrameStatisticsTheme), measure),
+                theme = get_scaled_theme!(appearance, FrameStatisticsTheme), measure,
+                widget_theme = get_scaled_theme!(appearance, WidgetTheme)),
             VerticalLayoutToGraphicsCanvas())])
 end
 
