@@ -758,6 +758,7 @@ WidgetSplitPaneToGraphicsCanvas(theme;
     corner_radius::Int
     label_gap::Int                        # between a tab's icon and its label, and before its button
     icon_size::Float64                   # times the box of an icon and of a button, one line
+    badge::Any                            # the badge printer of the theme, for the badges of a label
 end
 
 WidgetTabbedPaneToGraphicsCanvas(theme; graphics_theme = nothing, measure,
@@ -776,12 +777,13 @@ WidgetTabbedPaneToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                                  tab_padding = _themed(Int, theme, t -> t.item_gap),
                                  corner_radius = _themed(Int, theme, t -> t.radius),
                                  label_gap = _themed(Int, theme, t -> t.label_gap),
-                                 icon_size = _themed(Float64, theme, t -> t.icon_size)) =
+                                 icon_size = _themed(Float64, theme, t -> t.icon_size),
+                                 badge = WidgetBadgeToGraphicsCanvas(theme; measure)) =
     WidgetTabbedPaneToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                      padding_color, content_color, font, tab_strip_color, tab_color,
                                      tab_selected_color, tab_text, tab_selected_text, page_color,
                                      graphics_style, tab_padding, corner_radius, label_gap,
-                                     icon_size)
+                                     icon_size, badge)
 
 # The one scroll pane projection. It emits a `GraphicsCanvas` carrying the
 # pane's real width and height — a parent that MEASURES its child (a WidgetCard
@@ -4315,11 +4317,12 @@ end
 # only would shift the reader's tab boundaries left of where they are drawn). Returns
 # a NamedTuple of the content offset, the tab padding, the strip height, the natural
 # strip width, one tuple per tab — `(label, icon, icon_w, gap, x, rw, button_w,
-# buttons)`, where `x`/`rw` are the tab's left edge and full width in strip
-# coordinates, `button_w` is the width of its button column (0 when it has none), and
-# `buttons` says what the column holds: `:none`, `:close`, `:duplicate`, or `:both`,
-# the `+` above the `x` — and the new-tab button's box (`new_x`/`new_w`, `new_w` 0
-# when the pane has no `new_tab`).
+# buttons, text_w, badges)`, where `x`/`rw` are the tab's left edge and full width in
+# strip coordinates, `button_w` is the width of its button column (0 when it has
+# none), `buttons` says what the column holds: `:none`, `:close`, `:duplicate`, or
+# `:both`, the `+` above the `x`, `text_w` is the width of the label's text, and
+# `badges` holds a `(badge, width, height)` for each badge after the text — and the
+# new-tab button's box (`new_x`/`new_w`, `new_w` 0 when the pane has no `new_tab`).
 #
 # The first six fields come in the order a positional destructure reads them.
 function _tab_strip_geometry(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbedPane)
@@ -4331,23 +4334,32 @@ function _tab_strip_geometry(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbe
     _, em_h = _text_size(p.measure, p.font, "M")
     closable = w.closable === true
     duplicable = w.duplicable === true
-    tabs = Any[]   # (label, icon, icon_w, gap, x, rw, button_w, buttons)
+    tabs = Any[]   # (label, icon, icon_w, gap, x, rw, button_w, buttons, text_w, badges)
     # An icon and a button are a square of one line times `icon_size`, and the
     # row is as tall as the largest of them and the line.
     new_side = w.new_tab === true ? scale_length(em_h, p.icon_size) : 0
     tab_h = max(em_h, new_side)
     x = cox
     for pair in w.selector_element_pairs
-        label = string(pair.selector)
-        icon  = pair.icon
+        selector = pair.selector
+        label = _get_tab_selector_text(selector)
+        icon  = _get_tab_icon(selector, pair.icon)
         tw, th = _text_size(p.measure, p.font, label)
         iw  = icon_width(icon, scale_length(th, p.icon_size))
         gap = iw > 0 ? p.label_gap : 0
+        badges = Any[]
+        badges_w = 0
+        for badge in _get_tab_badges(selector)
+            bw, bh = _measure_badge(p.badge, badge)
+            push!(badges, (badge, bw, bh))
+            badges_w += p.label_gap + bw
+            tab_h = max(tab_h, bh)
+        end
         buttons = _get_tab_buttons(closable, duplicable && pair.duplicable === true)
         button_w = buttons === :none ? 0 : scale_length(th, p.icon_size)
         button_gap = button_w > 0 ? p.label_gap : 0
-        rw  = tw + iw + gap + button_w + button_gap + 2 * sel_pad
-        push!(tabs, (label, icon, iw, gap, x, rw, button_w, buttons))
+        rw  = tw + badges_w + iw + gap + button_w + button_gap + 2 * sel_pad
+        push!(tabs, (label, icon, iw, gap, x, rw, button_w, buttons, tw, badges))
         x += rw
         tab_h = max(tab_h, th, iw, button_w)
     end
@@ -4357,6 +4369,19 @@ function _tab_strip_geometry(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTabbe
     (cox = cox, coy = coy, pad = sel_pad, height = sel_h, strip_w = strip_w,
      tabs = tabs, new_x = x, new_w = new_w, line = em_h)
 end
+
+# The icon of a tab: the icon of its label, else the icon of its page.
+_get_tab_icon(selector::WidgetTabLabel, page_icon) =
+    selector.icon === nothing ? page_icon : selector.icon
+_get_tab_icon(selector, page_icon) = page_icon
+
+# The badges a tab draws after its text: the visible badges of its label.
+function _get_tab_badges(selector::WidgetTabLabel)
+    badges = selector.badges
+    badges === nothing && return WidgetBadge[]
+    WidgetBadge[badge for badge in badges if badge isa WidgetBadge && badge.visible !== false]
+end
+_get_tab_badges(selector) = WidgetBadge[]
 
 # What the button column of a tab holds.
 _get_tab_buttons(closable::Bool, duplicable::Bool) =
@@ -4414,18 +4439,22 @@ _tab_scroll_offset(w::WidgetTabbedPane, strip_w::Int, view_w::Int) =
 # That name is drawn through a text view of one span, as a `WidgetText` draws a
 # plain value, so the text domain draws its caret as it draws every other caret.
 # The view only draws: the keys that edit a name go to the document that owns
-# the name. The caret is `selector_element_pairs[i].selector{k}`.
+# the name. The caret is `selector_element_pairs[i].selector{k}`, or
+# `selector_element_pairs[i].selector.text{k}` in the text of a `WidgetTabLabel`.
 
 # The tab whose name holds the caret, and the caret position, or `nothing`.
 function _find_tab_name_caret(selection)
     selection isa Reference || return nothing
     steps = get_reference_steps(strip_reference_types(selection))
-    (length(steps) == 4 &&
-     steps[1] isa FieldReferenceStep && steps[1].name == "selector_element_pairs" &&
+    length(steps) in (4, 5) || return nothing
+    (steps[1] isa FieldReferenceStep && steps[1].name == "selector_element_pairs" &&
      steps[2] isa RangeReferenceStep &&
-     steps[3] isa FieldReferenceStep && steps[3].name == "selector" &&
-     steps[4] isa RangeReferenceStep) || return nothing
-    (steps[2].stop, steps[4].start)
+     steps[3] isa FieldReferenceStep && steps[3].name == "selector") || return nothing
+    length(steps) == 5 &&
+        !(steps[4] isa FieldReferenceStep && steps[4].name == "text") && return nothing
+    caret = steps[end]
+    caret isa RangeReferenceStep || return nothing
+    (steps[2].stop, caret.start)
 end
 
 # The view of the name that holds the caret, in the style of the selected tab,
@@ -4435,7 +4464,7 @@ function _print_tab_name_view(p, recursion, w::WidgetTabbedPane, caret::Cell, ct
         found = caret[]
         pairs = w.selector_element_pairs
         (found === nothing || !(1 <= found[1] <= length(pairs))) ? "" :
-            string(pairs[found[1]].selector)
+            _get_tab_selector_text(pairs[found[1]].selector)
     end, _get_state_text(p, w, :tab; state = :selected))
     view = TextBlock(span)
     set_cell_computation!(getfield(view, :selection), () -> begin
@@ -4484,7 +4513,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         # with no size of its own: the header of the tab, the image of its
         # `selector`. No other element of the strip is a canvas.
         for i in eachindex(tabs)
-            label, icon, iw, gap, tx, rw = tabs[i]
+            label, icon, iw, gap, tx, rw, _, _, tw, badges = tabs[i]
             state = i == active ? :selected : nothing
             tab_color = _get_state_color(p, w, :tab; state)
             header = Any[]
@@ -4506,6 +4535,14 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
                 push!(header, _make_canvas(name_x, name_y, Any[name_view[].output]))
             else
                 _push_text!(header, p.measure, tab_text.font, label, name_x, name_y, fg)
+            end
+            # The badges follow the text, each centred on the height of the strip.
+            badge_x = name_x + tw
+            for (badge, bw, bh) in badges
+                badge_x += p.label_gap
+                push!(header, _make_canvas(badge_x, coy + (sel_h - bh) ÷ 2,
+                                           _build_badge_elements(p.badge, badge, bw, bh)))
+                badge_x += bw
             end
             # The button column sits at the tab's right edge, tinted like its label.
             _push_tab_buttons!(header, g, tabs[i], fg)
@@ -6210,11 +6247,21 @@ end
     outline_content_color::StyleColor
     outline_border_color::StyleColor
     outline_label_text::StyleText
+    success_surface_color::StyleColor
+    success_label_text::StyleText
+    warning_surface_color::StyleColor
+    warning_label_text::StyleText
+    error_surface_color::StyleColor
+    error_label_text::StyleText
+    info_surface_color::StyleColor
+    info_label_text::StyleText
+    accent_surface_color::StyleColor
+    accent_label_text::StyleText
 end
 
 # The border inset is the theme's width in every variant, so a badge keeps its
 # size when its variant changes; only the outline variant shows a visible
-# border color.
+# border color. A role has a surface and a text of its own, and no border.
 WidgetBadgeToGraphicsCanvas(theme; measure,
                             margin = inset_default,
                             border = _themed(Inset, theme, t -> _make_uniform_inset(t.border_width)),
@@ -6237,7 +6284,22 @@ WidgetBadgeToGraphicsCanvas(theme; measure,
                             outline_content_color = _themed(StyleColor, theme, t -> t.background),
                             outline_border_color = _themed(StyleColor, theme, t -> t.border),
                             outline_label_text =
-                                _themed(StyleText, theme, t -> StyleText(t.font_small, t.foreground))) =
+                                _themed(StyleText, theme, t -> StyleText(t.font_small, t.foreground)),
+                            success_surface_color = _themed(StyleColor, theme, t -> t.success_surface),
+                            success_label_text =
+                                _themed(StyleText, theme, t -> StyleText(t.font_small, t.success_foreground)),
+                            warning_surface_color = _themed(StyleColor, theme, t -> t.warning_surface),
+                            warning_label_text =
+                                _themed(StyleText, theme, t -> StyleText(t.font_small, t.warning_foreground)),
+                            error_surface_color = _themed(StyleColor, theme, t -> t.error_surface),
+                            error_label_text =
+                                _themed(StyleText, theme, t -> StyleText(t.font_small, t.error_foreground)),
+                            info_surface_color = _themed(StyleColor, theme, t -> t.info_surface),
+                            info_label_text =
+                                _themed(StyleText, theme, t -> StyleText(t.font_small, t.info_foreground)),
+                            accent_surface_color = _themed(StyleColor, theme, t -> t.accent),
+                            accent_label_text =
+                                _themed(StyleText, theme, t -> StyleText(t.font_small, t.accent_foreground))) =
     WidgetBadgeToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
                                 content_color, label_text,
                                 secondary_padding_color, secondary_content_color, secondary_border_color,
@@ -6245,28 +6307,69 @@ WidgetBadgeToGraphicsCanvas(theme; measure,
                                 destructive_padding_color, destructive_content_color, destructive_border_color,
                                 destructive_label_text,
                                 outline_padding_color, outline_content_color, outline_border_color,
-                                outline_label_text)
+                                outline_label_text,
+                                success_surface_color, success_label_text,
+                                warning_surface_color, warning_label_text,
+                                error_surface_color, error_label_text,
+                                info_surface_color, info_label_text,
+                                accent_surface_color, accent_label_text)
+
+# The roles a badge takes, each with a surface and a text in the badge printer.
+const _BADGE_ROLES = (:success, :warning, :error, :info, :accent)
+
+# The colors of the four box parts of a badge and the style of its text: those of
+# its role when it has one, else those of its variant.
+function _get_badge_style(p::WidgetBadgeToGraphicsCanvas, w::WidgetBadge)
+    role = w.role
+    if role !== nothing
+        role in _BADGE_ROLES ||
+            throw(ArgumentError("a badge has no role $(repr(role)); the roles are $(_BADGE_ROLES)"))
+        surface = getproperty(p, Symbol(role, "_surface_color"))
+        return (colors = (margin = color_transparent, border = color_transparent,
+                          padding = surface, content = surface),
+                label = getproperty(p, Symbol(role, "_label_text")))
+    end
+    variant = w.variant === :default ? nothing : w.variant
+    (colors = _get_box_colors(p, w; variant), label = _get_state_text(p, w, :label; variant))
+end
+
+# The size of badge `w` as `p` draws it: its text, its padding and its border. A
+# widget that holds badges, such as the strip of a tabbed pane, measures each with
+# the badge printer of its theme and draws it with `_build_badge_elements`, so a
+# badge looks the same in every host.
+function _measure_badge(p::WidgetBadgeToGraphicsCanvas, w::WidgetBadge)
+    style = _get_badge_style(p, w)
+    content_width, content_height = _text_size(p.measure, style.label.font, string(w.content))
+    inset_width, inset_height = _inset_total(p, w)
+    (content_width + inset_width, content_height + inset_height)
+end
+
+# The graphics of badge `w`, `width` by `height`, with its top left corner at the
+# origin: the pill and its text.
+function _build_badge_elements(p::WidgetBadgeToGraphicsCanvas, w::WidgetBadge, width::Int, height::Int)
+    style = _get_badge_style(p, w)
+    text = string(w.content)
+    _, content_height = _text_size(p.measure, style.label.font, text)
+    box = _get_box_insets(p, w)
+    inset_width, inset_height = _inset_total(p, w)
+    content_x, content_y = _content_offset(p, w)
+    border_box_height = box.border[2] + box.padding[2] + content_height + box.padding[4] + box.border[4]
+    elements = Any[]
+    _push_box_parts!(elements, box, style.colors, width - inset_width, height - inset_height;
+                     radius = border_box_height ÷ 2)
+    _push_text!(elements, p.measure, style.label.font, text, content_x, content_y, style.label.color)
+    elements
+end
 
 function print_document(p::WidgetBadgeToGraphicsCanvas, recursion, w::WidgetBadge, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
-        text = string(w.content)
-        variant = w.variant === :default ? nothing : w.variant
-        label = _get_state_text(p, w, :label; variant)
-        content_width, content_height = _text_size(p.measure, label.font, text)
-        box = _get_box_insets(p, w)
-        colors = _get_box_colors(p, w; variant)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
-        badge_width  = _resolve_width(ctx, 0, content_width + inset_width)
-        badge_height = _resolve_height(ctx, 0, content_height + inset_height)
-        border_box_height = box.border[2] + box.padding[2] + content_height + box.padding[4] + box.border[4]
-        radius = border_box_height ÷ 2
-        elements = Any[]
-        _push_box_parts!(elements, box, colors, badge_width - inset_width, badge_height - inset_height; radius)
-        _push_text!(elements, p.measure, label.font, text, content_x, content_y, label.color)
-        (width=badge_width, height=badge_height, elements=elements)
+        natural_width, natural_height = _measure_badge(p, w)
+        badge_width  = _resolve_width(ctx, 0, natural_width)
+        badge_height = _resolve_height(ctx, 0, natural_height)
+        (width = badge_width, height = badge_height,
+         elements = _build_badge_elements(p, w, badge_width, badge_height))
     end))
 end
 @_printer_only WidgetBadgeToGraphicsCanvas

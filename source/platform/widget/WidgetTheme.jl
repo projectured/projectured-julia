@@ -55,6 +55,22 @@ builder fills them from a theme, scaled or not.
     destructive::StyleColor = ColorRole(:error_fill)
     "The text on the destructive color."
     destructive_foreground::StyleColor = ColorRole(:text_on_accent)
+    "The surface of a mark of a success, such as a badge."
+    success_surface::StyleColor = ColorRole(:success_tint)
+    "The text on the success surface."
+    success_foreground::StyleColor = ColorRole(:success_text)
+    "The surface of a mark of a warning, such as a badge."
+    warning_surface::StyleColor = ColorRole(:warning_tint)
+    "The text on the warning surface."
+    warning_foreground::StyleColor = ColorRole(:warning_text)
+    "The surface of a mark of an error, such as a badge."
+    error_surface::StyleColor = ColorRole(:error_tint)
+    "The text on the error surface."
+    error_foreground::StyleColor = ColorRole(:error_text)
+    "The surface of a mark of an information, such as a badge."
+    info_surface::StyleColor = ColorRole(:info_tint)
+    "The text on the info surface."
+    info_foreground::StyleColor = ColorRole(:info_text)
     "The border of a card, a pane and a separator."
     border::StyleColor = ColorRole(:border)
     "The border of a control that takes text or a value."

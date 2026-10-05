@@ -17,7 +17,7 @@ The widget slice of `ProjecturedPlatform` holds the documents of a user interfac
 | Text and values | `WidgetLabel`, `WidgetText`, `WidgetTextarea`, `WidgetBadge`, `WidgetAvatar`, `WidgetAlert`, `WidgetProgress`, `WidgetSkeleton`, `WidgetSwatch`, `WidgetHighlight`, `WidgetSeparator`, `WidgetTooltip`, `WidgetStatusBar` |
 | Controls | `WidgetButton`, `WidgetCheckbox`, `WidgetSwitch`, `WidgetToggle`, `WidgetToggleGroup`, `WidgetRadioGroup`, `WidgetSlider`, `WidgetSpinBox`, `WidgetSelect`, `WidgetOption`, `WidgetScrollBar` |
 | Menus and bars | `WidgetMenu`, `WidgetMenuItem`, `WidgetContextMenu`, `WidgetToolbar`, `WidgetToolbarItem` |
-| Containers | `WidgetComposite`, `WidgetShell`, `WidgetTitlePane`, `WidgetCard`, `WidgetAccordion`, `WidgetAccordionItem`, `WidgetSplitPane`, `WidgetTabbedPane`, `WidgetTabPage`, `WidgetScrollPane`, `WidgetTransformPane`, `WidgetDialog` |
+| Containers | `WidgetComposite`, `WidgetShell`, `WidgetTitlePane`, `WidgetCard`, `WidgetAccordion`, `WidgetAccordionItem`, `WidgetSplitPane`, `WidgetTabbedPane`, `WidgetTabPage`, `WidgetTabLabel`, `WidgetScrollPane`, `WidgetTransformPane`, `WidgetDialog` |
 | Data | `WidgetTable`, `WidgetList`, `WidgetTree` |
 | Placeholder | `WidgetInsertion`, the type-replace buffer of the domain |
 
@@ -31,7 +31,7 @@ Most widgets have `visible`, a `tooltip`, the box insets `margin`, `border` and 
 
 ### Drawing
 
-`WidgetToGraphics(font; measure, theme)` returns a `TypeDispatchingProjection` with one rule for each widget type and one for `GridLayout`. `WidgetTabPage` and `WidgetAccordionItem` have no rule, because the printer of the parent draws them, so the table has 42 widget rules. A caller wraps the result in `RecursiveProjection`, or puts its `.dispatch` pairs into a larger table:
+`WidgetToGraphics(font; measure, theme)` returns a `TypeDispatchingProjection` with one rule for each widget type and one for `GridLayout`. `WidgetTabPage`, `WidgetTabLabel` and `WidgetAccordionItem` have no rule, because the printer of the parent draws them, so the table has 42 widget rules. A caller wraps the result in `RecursiveProjection`, or puts its `.dispatch` pairs into a larger table:
 
 ```julia
 widgets    = WidgetToGraphics(StyleFont("Ubuntu", 20); measure = FontFileMeasure())
@@ -121,6 +121,8 @@ Tab moves the selection to the next focusable widget. A container gives Tab to i
 
 A tabbed pane draws its first tab when its selection names no tab. `has_dormant_selection` is `true` for `WidgetTabbedPane`, `WidgetTabPage` and `WidgetSplitPane`, so a pane that loses the focus keeps the tab that it shows and the caret in that tab.
 
+The `selector` of a page is a string or a `WidgetTabLabel`. A label holds a text, an icon, a list of `WidgetBadge`s and a tooltip, and each of them can be a value, a cell or a function of no arguments, so a tab follows a state with no write. The strip draws the icon, the text and then the badges; the icon of a label wins over the `icon` of its page. The strip draws each badge with the badge printer of the theme, through the same two functions as `WidgetBadgeToGraphicsCanvas` (`_measure_badge` and `_build_badge_elements`), so a badge in a tab looks as the same badge looks alone. A caret in the text of a label is `selector.text{k}`, and a rest of the pointer on the tab shows the tooltip of the label, because a dwell on a tab is read by its selector and the documents around it.
+
 ### A press moves the focus
 
 A left button down with no modifier gives the focus to the control under the pointer. The rule is in `read_child_event`, which every widget container calls to give a press or a down to a child. When the down lands on a focusable child that answers nothing and holds no selection, `convert_to_focus_selection` of the focus package answers `ReplaceSelectionOperation` of the child as a whole. That is the selection that Tab gives the child. So a key after the click goes to the control that was pressed.
@@ -162,7 +164,7 @@ A plain value, such as a `String`, is edited too. The printer makes a `TextBlock
 
 `WidgetAccordion` holds the index of the open item in `expanded`, and `0` when no item is open. So one item is open at a time, and the press that opens an item closes the item that was open. A title and a body that are documents are drawn through the recursion, as `WidgetCard` draws its content: each title once, and a body while its item is open. A title or a body that is a plain value is drawn as its string. The answer of a body is re-rooted under `items[i].body`.
 
-`WidgetBadge`, `WidgetSeparator`, `WidgetProgress`, `WidgetAvatar`, `WidgetAlert`, `WidgetHighlight` and `WidgetSkeleton` only show a value, and their readers return `nothing`.
+`WidgetBadge`, `WidgetSeparator`, `WidgetProgress`, `WidgetAvatar`, `WidgetAlert`, `WidgetHighlight` and `WidgetSkeleton` only show a value, and their readers return `nothing`. A `WidgetBadge` takes its colors from its `variant`, or from its `role` when it has one: `:success`, `:warning`, `:error`, `:info` or `:accent` draws the surface of the role behind the text of the role, from the fields `<role>_surface` and `<role>_foreground` of the widget theme (the accent role uses `accent` and `accent_foreground`).
 
 ### Operations
 

@@ -78,6 +78,12 @@ _make_shown_cell(content::Cell) = content
 _make_shown_cell(content::Function) = Cell(@computation _make_shown_content(content()))
 _make_shown_cell(content) = Cell(content)
 
+# A part that holds a value of any kind, such as an icon, a list of badges or a
+# tooltip, takes it the same three ways, and the value stays what it is.
+_make_value_cell(value::Cell) = value
+_make_value_cell(value::Function) = Cell(@computation value())
+_make_value_cell(value) = Cell(value)
+
 function WidgetLabel(content; position::Point2D=Point2D(0, 0),
                      text_style=nothing,
                      visible::Bool=true,
@@ -1198,15 +1204,53 @@ set_cell_computation!(w::WidgetSplitPane, f::Function) = (set_cell_computation!(
 
 # ── WidgetTabbedPane ───────────────────────────────────────────────────────
 
-# A single tab page: the tab `selector` (label), its content `element`, an
-# optional `icon`, and whether the tab offers a duplicate button (`duplicable`,
-# drawn only when the pane is `duplicable` too). A first-class Document rather
-# than a raw `(selector, element, icon)` tuple, so the selection chain descends
-# Document→Document through a tabbed pane. With a tuple in the path, the in-place selection sync (`replace_selection!`)
-# could not step past the non-Document tuple and diverged, re-pointing the pane's
-# active-tab path on every within-tab caret move — a printer-locality dimension-A
-# violation (see plan/pending/printer-locality.md). With a Document the in-place
-# mutation reaches the leaf and leaves the routing ancestors untouched.
+"""
+    WidgetTabLabel(text; icon = nothing, badges = Any[], tooltip = nothing)
+
+The label of a tab that says more than a name: an icon before the text, badges
+after it, and what the tab says when the pointer rests on it.
+
+Use it as the `selector` of a [`WidgetTabPage`](@ref) when a tab must show a
+state, such as a count of the tasks that finished. `icon` is the name of an
+icon (a `Symbol`) or `nothing`; `badges` is a vector of [`WidgetBadge`](@ref)s;
+`tooltip` is a string or a document. Each of the four takes a value, a cell
+that holds it, or a function of no arguments that computes it, so a label
+follows what its function reads with no write. The text is what a rename of
+the tab edits: a caret in it is `selector.text{k}`.
+
+# Example
+
+    label = WidgetTabLabel("Fingerprint tests"; icon = :loader,
+                           badges = Any[WidgetBadge("37/40"; role = :accent),
+                                        WidgetBadge("2 failed"; role = :error)],
+                           tooltip = "37 of 40 finished")
+    open_pane!(editor, WidgetTabbedPane(Any[WidgetTabPage(label, WidgetLabel("…"))]);
+               title = "Tasks")
+
+A label with a text only draws as a plain string selector draws.
+"""
+@document struct WidgetTabLabel <: WidgetDocument
+    text::Any
+    icon::Any
+    badges::Any
+    tooltip::Any
+end
+WidgetTabLabel(text; icon = nothing, badges = Any[], tooltip = nothing) =
+    WidgetTabLabel(_make_shown_cell(text), _make_value_cell(icon), _make_value_cell(badges),
+                   _make_value_cell(tooltip), Cell(nothing))
+
+# The text of a tab's selector: the text of a label, else the selector as a string.
+_get_tab_selector_text(selector::WidgetTabLabel) = string(selector.text)
+_get_tab_selector_text(selector) = string(selector)
+
+# A single tab page: the tab `selector`, its content `element`, an optional
+# `icon`, and whether the tab offers a duplicate button (`duplicable`, drawn only
+# when the pane is `duplicable` too). The selector is a string, or a
+# `WidgetTabLabel` whose own icon wins over `icon`. A page is a Document, so the
+# selection chain descends Document→Document through a tabbed pane: the in-place
+# selection sync (`replace_selection!`) reaches the leaf and leaves the routing
+# ancestors untouched, and a caret move inside a tab does not re-point the
+# pane's active tab.
 @document struct WidgetTabPage <: WidgetDocument
     selector::Any
     element::Any
@@ -1456,19 +1500,27 @@ end
 # ── WidgetBadge ─────────────────────────────────────────────────────────────
 
 """
-    WidgetBadge(content; position, variant=:default, <base kwargs>)
+    WidgetBadge(content; position, variant=:default, role=nothing, <base kwargs>)
 
 A small pill with one word: a status.
 
 Use it to mark a state beside a title or in a row: "running", "failed",
-"done". `variant` sets its color, one of `:default`, `:secondary`,
-`:destructive` and `:outline`.
+"done", or a count such as `37/40`. `variant` sets its color, one of
+`:default`, `:secondary`, `:destructive` and `:outline`. `role` gives it the
+colors of a status instead, one of `:success`, `:warning`, `:error`, `:info`
+and `:accent`: the surface of the role behind the text of the role. A role wins
+over the colors of the variant. `content` takes a function of no arguments too,
+and the badge then follows what the function reads.
 
 # Example
 
     open_pane!(editor, HorizontalLayout(Any[WidgetLabel("TandemQueue"),
-                                            WidgetBadge("running")]; gap = 8);
+                                            WidgetBadge("running"),
+                                            WidgetBadge("2 failed"; role = :error)]; gap = 8);
                title = "Status")
+
+The same badge is drawn by every widget that holds badges, such as the label of
+a tab ([`WidgetTabLabel`](@ref)).
 
 See also `WidgetAlert` for a message with a title, and `WidgetLabel`.
 """
@@ -1476,6 +1528,7 @@ See also `WidgetAlert` for a message with a title, and `WidgetLabel`.
     position::Point2D
     content::Any
     variant::Symbol
+    role::Any
     visible::Bool
     margin::Inset
     border::Inset
@@ -1483,9 +1536,10 @@ See also `WidgetAlert` for a message with a title, and `WidgetLabel`.
     style::Any
     tooltip::Any
 end
-WidgetBadge(content; position::Point2D=Point2D(0, 0), variant::Symbol=:default, visible::Bool=true,
-            margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
-    WidgetBadge(Cell(position), Cell(content), Cell(variant), Cell(visible),
+WidgetBadge(content; position::Point2D=Point2D(0, 0), variant::Symbol=:default, role=nothing,
+            visible::Bool=true, margin=nothing, border=nothing, padding=nothing, style=nothing,
+            tooltip=nothing) =
+    WidgetBadge(Cell(position), _make_shown_cell(content), Cell(variant), Cell(role), Cell(visible),
                Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
 
 # ── WidgetSeparator ─────────────────────────────────────────────────────────
