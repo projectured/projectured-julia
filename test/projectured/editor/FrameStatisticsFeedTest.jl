@@ -30,6 +30,45 @@ function _make_frame_statistics_example()
     statistics
 end
 
+# Every text that a canvas draws, as `(x, y, text)`. A list of elements is
+# walked at most `limit` nodes each way from its head.
+function _get_drawn_texts(node, ox = 0, oy = 0, found = Tuple{Int,Int,String}[]; limit = 50)
+    if node isa GraphicsCanvas
+        elements = node.elements
+        if elements isa ListNode
+            for link in (:next, :prev)
+                current = link === :next ? elements : elements.prev
+                seen = 0
+                while current !== nothing && seen < limit
+                    _get_drawn_texts(current.value, ox + Int(node.x), oy + Int(node.y), found; limit)
+                    current = getproperty(current, link)
+                    seen += 1
+                end
+            end
+        else
+            for element in elements
+                _get_drawn_texts(element, ox + Int(node.x), oy + Int(node.y), found; limit)
+            end
+        end
+    elseif node isa GraphicsViewport
+        _get_drawn_texts(node.content, ox + Int(node.x), oy + Int(node.y), found; limit)
+    elseif node isa GraphicsText
+        push!(found, (ox + Int(node.x), oy + Int(node.y), string(node.text)))
+    end
+    found
+end
+
+# A backend that takes the events that a test queues, and draws nothing.
+mutable struct _FrameStatisticsBackend <: ProjecturedAll.BackendModule.Backend
+    events::Vector{Any}
+end
+_FrameStatisticsBackend() = _FrameStatisticsBackend(Any[])
+ProjecturedAll.BackendModule.initialize_backend!(::_FrameStatisticsBackend) = nothing
+ProjecturedAll.BackendModule.quit_backend!(::_FrameStatisticsBackend) = nothing
+ProjecturedAll.BackendModule.take_from_devices!(backend::_FrameStatisticsBackend, devices) =
+    isempty(backend.events) ? nothing : popfirst!(backend.events)
+ProjecturedAll.BackendModule.write_to_devices!(::_FrameStatisticsBackend, devices, output) = nothing
+
 function test_frame_statistics_feed()
 @testset "the frame statistics feed" begin
     @testset "unwatched, the feed neither flushes nor asks for a deadline" begin
@@ -214,6 +253,91 @@ function test_frame_statistics_feed()
         @test answer isa ReplaceViewStateOperation
         @test get_wrapped_operation(answer) === press
         @test getfield(toggle, :pressed) === getfield(statistics, :paused)
+    end
+
+    @testset "in a tab, a turn far down moves the anchor, the rows stay, and Pause pauses" begin
+        store = FrameMeasurementStore()
+        for frame in 1:1000
+            record_frame_measurements!(store; times = [:frame_time => frame / 1e6])
+        end
+        statistics = FrameStatistics()
+        flush_frame_statistics!(statistics, store)
+        projection = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
+        context = with_exact_size(PrinterContext(); width = Cell(Int32(800)),
+                                  height = Cell(Int32(400)))
+        io = print_document(projection, nothing, statistics, context)
+        # A row header is a frame number at the left edge; the summary shows its
+        # numbers further right.
+        y_of(frame; limit = 50) = only(t[2] for t in _get_drawn_texts(io.output; limit)
+                                       if t[3] == string(frame) && t[1] < 80)
+        wheel(dy) = read_intent(projection, nothing,
+                                Intent(MouseScroll(0, dy, 400, 300; time = 0.0), nothing), io).operation
+        @test y_of(999) > y_of(1000)
+        step = y_of(999) - y_of(1000)
+        # A turn near the head moves the rows by one turn of the wheel.
+        near = y_of(999)
+        evaluate_operation(nothing, wheel(-1))
+        turn = near - y_of(999)
+        @test turn > 0
+        @test statistics.anchor == 1
+        # Three hundred rows down, a turn moves the anchor to the row at the top,
+        # and every row moves by one turn as before.
+        getfield(statistics, :scroll_position)[] = Point2D(0, 300 * step)
+        before = y_of(696; limit = 400)       # the row 305 from the head
+        evaluate_operation(nothing, wheel(-1))
+        @test statistics.anchor == 301
+        @test y_of(696) == before - turn
+        # A press on Pause pauses the table.
+        x, y, _ = only(t for t in _get_drawn_texts(io.output) if t[3] == "Pause")
+        press = read_intent(projection, nothing,
+                            Intent(MouseClick(:left, x + 2, y + 2, ModifierKeys(); time = 0.0), nothing), io)
+        evaluate_operation(nothing, press.operation)
+        @test statistics.paused
+    end
+
+    @testset "an editor draws the frames that it records, and a press on Pause holds them" begin
+        statistics = FrameStatistics()
+        clock = Ref(0.0)
+        feed = FrameStatisticsFeed(statistics = statistics, plot = FrameTimeSeries(),
+                                   now = () -> clock[])
+        backend = _FrameStatisticsBackend()
+        editor = build_editor(statistics, NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                              backend, devices = Device[Keyboard(), Mouse(), Display()],
+                              tabs = false, feeds = Feed[feed],
+                              window = (; title = "Statistics", width = 800, height = 400))
+        force(value) = value isa AbstractCell ? force(value[]) : value
+        window() = first(force(force(get_iomap_output(editor.iomap)).windows))
+        drawn() = _get_drawn_texts(force(window().content))
+        # One turn of the loop of `run_editor!`: drain the feeds, run the frame,
+        # and record it, so the next turn flushes it.
+        function frames!(count)
+            for _ in 1:count
+                clock[] += 0.25
+                drain_feeds!(editor)
+                run_frame!(editor)
+                EditorModule.record_frame_performance!(editor, 0.01)
+            end
+        end
+        frames!(1)
+        @test "no frame yet" in [t[3] for t in drawn()]
+        frames!(3)
+        @test statistics.frame_count == 3
+        @test "3 frames" in [t[3] for t in drawn()]
+        # The frame numbers are the row headers of the table of the frames.
+        @test all(string(frame) in [t[3] for t in drawn()] for frame in 1:3)
+        # A press on Pause, as the window sends it.
+        x, y, _ = only(t for t in drawn() if t[3] == "Pause")
+        for event in (MouseDown(:left, x + 2, y + 2, ModifierKeys(); time = 1.0),
+                      MouseUp(:left, x + 2, y + 2, ModifierKeys(); time = 1.05))
+            push!(backend.events, WindowInput(window().id, event))
+            run_frame!(editor)
+        end
+        @test statistics.paused
+        held = statistics.frame_count
+        frames!(3)
+        @test statistics.frame_count == held
+        @test "$(held) frames" in [t[3] for t in drawn()]
+        @test string(held + 2) ∉ [t[3] for t in drawn()]
     end
 
     @testset "the table summarizes the recent frames" begin

@@ -255,7 +255,34 @@ commit for each step. Do not land on `main` until the owner says so.
   - `test_tool_views()` still finds "0 frames".
   - Change `test_tool_themes()` to check the labels of the new projection.
   - `test_platform_layering()` and the slice edge test pass.
-- [ ] **Step 5. Look at the real tab.**
+- [x] **Step 5. Look at the real tab.** Done, with two changes from the text
+  below:
+  - `write_image` drew the tab through `NaturalToGraphics` from 1234
+    synthetic frames. It matches the mockup: the summary aligns its numbers,
+    the frames show newest first, and a slow frame stands out. With
+    `anchor = 4` the head row is the fourth newest frame.
+  - **No live SDL window.** In a live window the wheel reads the real pointer
+    (`SDL_GetMouseState`), so a pushed wheel event can not test the scroll.
+    Two tests in `test_frame_statistics_feed()` take its place, with no window
+    on the desktop. "in a tab, a turn far down moves the anchor, the rows
+    stay, and Pause pauses" prints the tab through `NaturalToGraphics`, turns
+    the wheel 300 rows down, and checks that `anchor` becomes 301 and the
+    rows stay in place, as the data frame test does. "an editor draws the
+    frames that it records, and a press on Pause holds them" runs
+    `build_editor` with a window and a backend that queues events, sends a
+    `MouseDown` and a `MouseUp` on Pause, and checks that the drawn frames
+    stop. A real click by the owner stays the last check.
+  - The `frame_time` reading with the tab open and closed was not done: it
+    needs the live editor.
+  - Found: a `WidgetTable` whose rows are a list needs an offered height. A
+    window gives one, as for the data frame view; a bare `Editor` with no
+    window does not, and the table then throws.
+  - Found: `run_frame!` neither drains the feeds nor records the frame;
+    `run_editor!` does both around it. A test that steps frames by hand does
+    both itself.
+  - `test_frame_statistics_feed()` passes, 113 of 113.
+
+  The text of the step as planned:
   Draw the Statistics tab with `write_image` from a store with synthetic frames,
   and compare it with the mockup. Then open a live window with the frame
   statistics wrapper, and drive it with pushed SDL events: press Pause, check
