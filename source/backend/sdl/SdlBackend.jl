@@ -768,7 +768,7 @@ function _detect_display_density!()
         if density !== nothing && density > 0
             _PROBED_DISPLAY_DENSITY[] = density
             _DISPLAY_DENSITY_DETECTED[] = true
-            println("Display density: $(_PROBED_DISPLAY_DENSITY[]) (PROJECTURED_DISPLAY_DENSITY)")
+            @debug "Display density: $(_PROBED_DISPLAY_DENSITY[]) (PROJECTURED_DISPLAY_DENSITY)"
             return true
         end
     end
@@ -784,7 +784,7 @@ function _detect_display_density!()
                 if xft_dpi > 0
                     _PROBED_DISPLAY_DENSITY[] = xft_dpi / 96.0
                     _DISPLAY_DENSITY_DETECTED[] = true
-                    println("Display density: $(_PROBED_DISPLAY_DENSITY[]) (Xft.dpi = $xft_dpi)")
+                    @debug "Display density: $(_PROBED_DISPLAY_DENSITY[]) (Xft.dpi = $xft_dpi)"
                     return true
                 end
             end
@@ -809,7 +809,7 @@ function _update_display_density!(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Render
     if ww[] > 0 && dw[] > ww[]
         _PROBED_DISPLAY_DENSITY[] = Float64(dw[]) / Float64(ww[])
         _DISPLAY_DENSITY_DETECTED[] = true
-        println("Display density: $(_PROBED_DISPLAY_DENSITY[]) (SDL renderer ratio)")
+        @debug "Display density: $(_PROBED_DISPLAY_DENSITY[]) (SDL renderer ratio)"
         return true
     end
 
@@ -822,7 +822,7 @@ function _update_display_density!(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Render
     if SDL_GetDisplayDPI(display_index, ddpi, hdpi, vdpi) == 0 && ddpi[] > 0
         _PROBED_DISPLAY_DENSITY[] = Float64(ddpi[]) / 96.0
         _DISPLAY_DENSITY_DETECTED[] = true
-        println("Display density: $(_PROBED_DISPLAY_DENSITY[]) (SDL DPI = $(ddpi[]))")
+        @debug "Display density: $(_PROBED_DISPLAY_DENSITY[]) (SDL DPI = $(ddpi[]))"
         return true
     end
     false
