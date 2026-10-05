@@ -230,10 +230,12 @@ end
 # step family. Terminal-kind dispatch is what lets `ReplaceReferencedValueOperation`
 # write either a document or a scalar through one path.
 function _write_slot!(parent, step::AFieldReferenceStep, value)
-    f = getfield(parent, Symbol(step.name))
+    name = Symbol(step.name)
+    f = getfield(parent, name)
     f isa AbstractCell ||
         error("ReplaceReferencedValueOperation: field $(step.name) of " *
               "$(typeof(parent)) is not a Cell")
+    parent isa Document && DocumentModule._check_declared_write(parent, name, value)
     f[] = value
 end
 
