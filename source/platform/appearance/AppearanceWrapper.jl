@@ -12,7 +12,9 @@ Its argument is the `Appearance` that the projection was built with. For `true`
 the wrapper makes a new one before the editor is built, and `build_editor` gives
 the same object to the projection that it makes when the caller names none. A
 start step copies the zoom of the appearance into the `Display` of the editor,
-so an editor starts at the zoom that its appearance holds, and gives each window
+so an editor starts at the zoom that its appearance holds; one copies the colour
+settings of the operating system that the backend finds into the appearance, so
+a setting `:system` follows them from the first print; and one gives each window
 of the screen of the editor the colour of the role `background` as its
 background, which follows a change of the colour settings.
 """
@@ -22,8 +24,24 @@ function wrap_editor!(::Val{:appearance}, layer::Symbol, argument, parts::Editor
     parts.document = make_appearance_document(parts.document, appearance)
     parts.projection = AppearanceManagingProjection(parts.projection)
     push!(parts.start_steps, editor -> copy_zoom_to_display!(editor, appearance))
+    push!(parts.start_steps, editor -> copy_system_colors!(editor, appearance))
     push!(parts.start_steps, editor -> follow_window_backgrounds!(editor.document, appearance))
     parts
+end
+
+"""
+    copy_system_colors!(editor, appearance) -> nothing
+
+Copy the colour settings of the operating system, as the backend of `editor`
+finds them, into the `system_colors` of `appearance`. A missing editor, or a
+backend that finds nothing, changes nothing. A later change comes as a
+`SystemColorsChange`, which `AppearanceManagingProjection` reads.
+"""
+function copy_system_colors!(editor, appearance::Appearance)
+    editor === nothing && return nothing
+    colors = find_system_colors(editor.backend)
+    colors === nothing || (appearance.system_colors = colors)
+    nothing
 end
 
 """

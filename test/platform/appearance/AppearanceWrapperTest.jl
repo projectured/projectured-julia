@@ -6,6 +6,7 @@
 import ProjecturedKernelExample: HeadlessBackend, rendered_output, push_event!
 import ProjecturedKernel.EditorModule: build_editor, run_frame!
 import ProjecturedKernel.DeviceModule: Device, Keyboard, Mouse, Display
+import ProjecturedKernel.EventModule: SystemColors, SystemColorsChange, WindowInput
 
 _aw_measure = FixedMeasure(8, 12, 4, 0)
 
@@ -204,6 +205,28 @@ end
     appearance.color_mode = :light
     run_frame!(editor)
     @test later().bg == background(appearance)
+end
+
+@testset "the colours follow the colour settings of the system from the start, and a change of them" begin
+    backend = HeadlessBackend(; system_colors = SystemColors(; mode = :dark))
+    appearance = Appearance()
+    editor = build_editor(WidgetLabel("Name"); backend, devices = Device[Keyboard(), Mouse(), Display()],
+                          window = (; title = "T", width = 400, height = 300), tabs = false,
+                          undo = true, appearance)
+    run_frame!(editor)
+    background(a) = (c = resolve_theme_color(ColorRole(:background), a);
+                     Tuple(UInt8(round(Int, x * 255)) for x in (c.red, c.green, c.blue, c.alpha)))
+    window() = only(last(rendered_output(backend)).windows)
+    # The first frame is dark already.
+    @test appearance.system_colors == SystemColors(; mode = :dark)
+    @test window().bg == background(Appearance(color_mode = :dark))
+    # A change of the system recolours the view, and the history does not record it.
+    push_event!(backend, WindowInput(:none, SystemColorsChange(SystemColors(); time = 1.0)))
+    run_frame!(editor)
+    @test appearance.system_colors == SystemColors()
+    @test window().bg == background(Appearance(color_mode = :light))
+    history = only(search_documents(editor.document, node -> node isa UndoBuffer))
+    @test isempty(history.undo_entries)
 end
 
 end

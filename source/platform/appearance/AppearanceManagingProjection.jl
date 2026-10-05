@@ -61,6 +61,11 @@ function read_intent(p::AppearanceManagingProjection, recursion, change::Intent,
                       merge_collected_intents(_get_collected_intents(inner_operation),
                                               _get_collected_intents(own)))
     end
+    # A change of the colour settings of the system belongs to the appearance alone.
+    event = _get_device_event(change.gesture)
+    event isa SystemColorsChange &&
+        return Intent(change.gesture,
+                      _mark_appearance_change(iomap.input, _write_system_colors(iomap.input, event.colors)))
     # An operation with a route goes to the content.
     if change.route !== nothing
         routed = follow_intent_route(change, _CONTENT_STEPS...)
@@ -85,6 +90,12 @@ _get_device_event(gesture) = gesture
 
 _get_collected_intents(operation::CollectedIntentsOperation) = operation
 _get_collected_intents(_) = nothing
+
+# The write of the colour settings of the system `colors` into the appearance of
+# `document`. It is view state, which a history does not record: no person made
+# the change, so no undo takes it back.
+_write_system_colors(document::AppearanceDocument, colors::SystemColors) =
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(document.appearance, "system_colors", colors))
 
 # `operation` with each write of a theme made a `ReplaceThemeValueOperation`, and
 # with `InvalidateProjectionOperation` after it when it changes the appearance of
