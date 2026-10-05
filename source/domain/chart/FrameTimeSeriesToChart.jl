@@ -20,8 +20,8 @@ repaints the lines and prints nothing again.
     projection = ChainingProjection(FrameTimeSeriesToChart(), ChartToChartPlot(),
                                     ChartPlotToGraphicsCanvas(measure = measure))
 
-See also [`FrameStatisticsToSyntax`](@ref), which shows the same measurements
-as a table.
+See also [`FrameStatisticsToWidget`](@ref), which shows the same measurements
+as tables.
 """
 struct FrameTimeSeriesToChart <: Projection end
 

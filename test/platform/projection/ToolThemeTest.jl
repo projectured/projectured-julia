@@ -52,7 +52,7 @@ end
     @test draw_font_sizes(log, Appearance(font_scale = 1.5)) == round.(Int, plain .* 1.5)
 end
 
-@testset "FrameStatisticsToSyntax reads FrameStatisticsTheme" begin
+@testset "FrameStatisticsToWidget reads FrameStatisticsTheme" begin
     _check_tool_theme(make_frame_statistics_projection, FrameStatisticsTheme,
                       (:header_text, :row_text, :empty_text), 13)
 

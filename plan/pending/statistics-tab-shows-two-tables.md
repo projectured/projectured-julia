@@ -158,6 +158,10 @@ Claude proposed D2 to D8. The owner agreed to them on 2026-10-05.
   slice, as the public `make_index_list(count, at, value_of; computed = false)`
   in [ListNode.jl](../../source/platform/collection/ListNode.jl). The data
   frame view calls it. Two copies of the same list are not kept.
+  - Found in step 4: the reader also needs the place of a node in its list,
+    which the data frame view had as the private `_find_row_index`. It moved
+    to the collection slice as `find_list_index(head, node; limit)`, the
+    inverse of `find_list_node`, in a commit of its own.
 - **D5. Pause stops the Statistics document only.** `FrameStatistics` gets
   `paused::Bool`. The toggle holds that cell. While `paused` is true, the feed
   does not flush the table and gives no deadline for it. The Frame times chart
@@ -218,7 +222,26 @@ commit for each step. Do not land on `main` until the owner says so.
   `_is_frame_statistics_due` answers false while `paused` is true. Test: a
   paused table does not flush and gives no deadline, the plot still flushes,
   and the table flushes again after `paused` goes back to false.
-- [ ] **Step 4. The projection (D6, D7, D8).**
+- [x] **Step 4. The projection (D6, D7, D8).** Done: the collection, data
+  frames, feed, tool view, tool theme, layering, slice edge, window shell and
+  window wrapper tests pass, 1180 of 1180. The guards `naming`, `style`,
+  `arguments` and `tree` pass; `exports` and `documentation` give the same
+  findings as on `main`. Facts and choices of the step:
+  - The default reader maps each part of a compound and the operation in a
+    wrapper through `read_intent` again, and drops a compound when one part
+    maps to `nothing`. So the reader of the projection answers the write of
+    `row_headers` with `DoNothingOperation`, and gives every write that it
+    does not change to the default reader with `invoke`.
+  - The summary table is built again only when a measurement appears: the
+    computation of the parts reads only the count of the rows, and each number
+    is a label of its own. A test holds that a flush keeps both tables.
+  - A list of frames keeps the frames and the columns of its flush, so a row
+    that a walk builds later shows the same flush.
+  - `FrameStatisticsTheme` got `gap::Spacing = Spacing(6)`, the gap between
+    the parts, as `McpLogTheme` and `ConversationTheme` have one.
+  - The example of `FeedExamples.jl` draws the statistics with
+    `NaturalToGraphics`, the renderer of a tab, because the widgets inside the
+    layout need the rows of the widgets.
   Write `FrameStatisticsToWidget.jl` and `make_frame_statistics_projection`
   for it, and delete `FrameStatisticsToSyntax.jl`. Register the row with
   `register_natural_graphics!`. Add `widget` and `layout` to the slice table of

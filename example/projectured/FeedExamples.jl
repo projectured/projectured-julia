@@ -49,15 +49,12 @@ end
 """
     make_frame_statistics_feed_projection_example(; measure = FontFileMeasure())
 
-The `FrameStatistics` table pipeline: the table as syntax, then text, then
-graphics.
+The `FrameStatistics` pipeline: the renderer of a tab, which draws the
+statistics as widgets, a summary table and a table of the recent frames, through
+the row that the statistics register.
 """
 make_frame_statistics_feed_projection_example(; measure = FontFileMeasure()) =
-    ChainingProjection(
-        FrameStatisticsToSyntax(),
-        RecursiveProjection(SyntaxToText()),
-        TextToGraphics(measure = measure),
-    )
+    NaturalToGraphics(measure = measure)
 
 """
     run_frame_statistics_feed_example(; backend = nothing)

@@ -3,11 +3,31 @@
 # only with frames, so it never wakes: a wake would make frames feed
 # themselves. The table summarizes the recent frames, and the plot draws them.
 
-# The text of each line that the table printer draws.
-function _get_frame_statistics_lines(statistics)
-    p = FrameStatisticsToSyntax()
-    node = print_document(p, p, statistics, PrinterContext()).output
-    [node.children[index].value.content for index in 1:length(node.children)]
+# The parts that the widget projection draws: the head line, the title and the
+# table of the summary, and the title and the table of the frames.
+function _print_frame_statistics(statistics)
+    p = FrameStatisticsToWidget()
+    iomap = print_document(p, p, statistics, PrinterContext())
+    (p, iomap, iomap.output)
+end
+
+_get_frame_statistics_head(root) = root.children[1].children[1].content
+_get_frame_table(root) = root.children[5].child
+_get_row_texts(row) = [row[index].content for index in 1:length(row)]
+_get_header_texts(table) = [table.column_headers[index].content for index in 1:length(table.column_headers)]
+
+# A table with two measurements over three frames; the counter did not measure
+# the first frame.
+function _make_frame_statistics_example()
+    statistics = FrameStatistics()
+    push!(statistics.rows,
+          FrameStatisticsRow("frame_time", :second, 3, 0.01, 0.03, 0.02, 0.01, 0.06))
+    push!(statistics.rows,
+          FrameStatisticsRow("reads", :count, 2, 120.0, 5000.0, 812.3, 900.14, 2436.7))
+    statistics.frame_count = 3
+    statistics.frames = [1, 2, 3]
+    statistics.columns = [[0.01, 0.02, 0.03], [NaN, 120.0, 5000.0]]
+    statistics
 end
 
 function test_frame_statistics_feed()
@@ -15,7 +35,7 @@ function test_frame_statistics_feed()
     @testset "unwatched, the feed neither flushes nor asks for a deadline" begin
         statistics = FrameStatistics()
         feed = FrameStatisticsFeed(statistics = statistics, plot = FrameTimeSeries())
-        editor = Editor(statistics, FrameStatisticsToSyntax(); backend = HeadlessBackend(),
+        editor = Editor(statistics, FrameStatisticsToWidget(); backend = HeadlessBackend(),
                         devices = Device[], feeds = Feed[feed])
         EditorModule.record_frame_performance!(editor, 0.016)
         @test compute_wake_deadline(feed, editor) === nothing
@@ -28,7 +48,7 @@ function test_frame_statistics_feed()
         clock = Ref(0.0)
         feed = FrameStatisticsFeed(statistics = statistics, plot = FrameTimeSeries(),
                                    now = () -> clock[])
-        editor = Editor(statistics, FrameStatisticsToSyntax(); backend = HeadlessBackend(),
+        editor = Editor(statistics, FrameStatisticsToWidget(); backend = HeadlessBackend(),
                         devices = Device[], feeds = Feed[feed])
         # Subscribe the way a view does: read `frame_count` in a computation.
         view = Cell(@computation statistics.frame_count)
@@ -59,7 +79,7 @@ function test_frame_statistics_feed()
         clock = Ref(10.0)
         feed = FrameStatisticsFeed(statistics = statistics, plot = FrameTimeSeries(),
                                    now = () -> clock[])
-        editor = Editor(statistics, FrameStatisticsToSyntax(); backend = HeadlessBackend(),
+        editor = Editor(statistics, FrameStatisticsToWidget(); backend = HeadlessBackend(),
                         devices = Device[], feeds = Feed[feed])
         view = Cell(@computation statistics.frame_count)
         view[]
@@ -82,7 +102,7 @@ function test_frame_statistics_feed()
         plot = FrameTimeSeries()
         clock = Ref(0.0)
         feed = FrameStatisticsFeed(statistics = statistics, plot = plot, now = () -> clock[])
-        editor = Editor(statistics, FrameStatisticsToSyntax(); backend = HeadlessBackend(),
+        editor = Editor(statistics, FrameStatisticsToWidget(); backend = HeadlessBackend(),
                         devices = Device[], feeds = Feed[feed])
         table_view = Cell(@computation statistics.frame_count)
         plot_view = Cell(@computation length(plot.names))
@@ -111,22 +131,89 @@ function test_frame_statistics_feed()
         @test (table_view[], plot_view[]) == (2, 1)
     end
 
-    @testset "the printer shows times in milliseconds, with a unit" begin
-        statistics = FrameStatistics()
-        push!(statistics.rows,
-              FrameStatisticsRow("frame_time", :second, 3, 0.01, 0.03, 0.02, 0.01, 0.06))
-        push!(statistics.rows,
-              FrameStatisticsRow("reads", :count, 3, 120.0, 5000.0, 812.3, 900.14,
-                                 2436.7))
-        statistics.frame_count = 3
-        lines = _get_frame_statistics_lines(statistics)
-        @test lines[1] == "3 frames"
-        @test split(lines[2]) ==
-              ["measurement", "unit", "frames", "minimum", "maximum", "mean",
-               "deviation", "total"]
-        @test split(lines[3]) ==
+    @testset "the printer shows a summary table and a table of the frames, newest first" begin
+        statistics = _make_frame_statistics_example()
+        _, _, root = _print_frame_statistics(statistics)
+        @test _get_frame_statistics_head(root) == "3 frames"
+        @test root.children[1].children[2] isa WidgetToggle
+        @test root.children[2].content == "Summary"
+        summary = root.children[3]
+        @test _get_header_texts(summary) ==
+              ["measurement", "unit", "frames", "minimum", "maximum", "mean", "deviation", "total"]
+        @test _get_row_texts(summary.rows[1]) ==
               ["frame_time", "ms", "3", "10.00", "30.00", "20.00", "10.00", "60"]
-        @test split(lines[4]) == ["reads", "3", "120", "5000", "812.3", "900.1", "2437"]
+        @test _get_row_texts(summary.rows[2]) ==
+              ["reads", "", "2", "120", "5000", "812.3", "900.1", "2437"]
+        @test root.children[4].content == "Frames, newest first"
+        frames = _get_frame_table(root)
+        @test _get_header_texts(frames) == ["frame_time (ms)", "reads"]
+        @test frames.corner.content == "frame"
+        @test _get_row_texts(frames.rows.value) == ["30.00", "5000"]
+        @test frames.row_headers.value.content == "3"
+        # The oldest frame did not measure the counter, and it ends the list.
+        oldest = frames.rows.next.next
+        @test _get_row_texts(oldest.value) == ["10.00", "-"]
+        @test oldest.next === nothing
+        @test frames.row_headers.next.next.value.content == "1"
+    end
+
+    @testset "a flush changes the numbers and keeps the parts" begin
+        statistics = _make_frame_statistics_example()
+        _, _, root = _print_frame_statistics(statistics)
+        summary = root.children[3]
+        frames = _get_frame_table(root)
+        statistics.rows[1].count = 4
+        statistics.frame_count = 4
+        statistics.frames = [2, 3, 4]
+        statistics.columns = [[0.02, 0.03, 0.04], [120.0, 5000.0, 7.0]]
+        @test root.children[3] === summary
+        @test _get_frame_table(root) === frames
+        @test summary.rows[1][3].content == "4"
+        @test _get_frame_statistics_head(root) == "4 frames"
+        @test _get_row_texts(frames.rows.value) == ["40.00", "7"]
+        @test frames.row_headers.value.content == "4"
+    end
+
+    @testset "an empty table shows its head line and no table" begin
+        _, _, root = _print_frame_statistics(FrameStatistics())
+        @test _get_frame_statistics_head(root) == "0 frames"
+        @test length(root.children) == 2
+        @test root.children[2].content == "no frame yet"
+    end
+
+    @testset "a move of the head of the frames moves the anchor, and Pause is view state" begin
+        statistics = _make_frame_statistics_example()
+        p, iomap, root = _print_frame_statistics(statistics)
+        frames = _get_frame_table(root)
+        # The answer of a table that moves the head of its list to its second row.
+        move = CompoundOperation(Any[
+            ReplaceViewStateOperation(ReplaceReferencedValueOperation(frames, "rows", frames.rows.next)),
+            ReplaceViewStateOperation(ReplaceReferencedValueOperation(frames, "scroll_position", Point2D(0, 4))),
+            ReplaceViewStateOperation(ReplaceReferencedValueOperation(frames, "top_row", 1)),
+            ReplaceViewStateOperation(ReplaceReferencedValueOperation(frames, "row_headers",
+                                                                      frames.row_headers.next))])
+        answer = read_intent(p, iomap, move)
+        @test answer isa CompoundOperation
+        @test length(answer.operations) == 4
+        anchor = answer.operations[1]
+        @test anchor isa ReplaceViewStateOperation
+        @test get_wrapped_operation(anchor).document === statistics
+        @test get_wrapped_operation(anchor).value == 2
+        # The scroll writes the cells that the table shares with the document.
+        @test get_wrapped_operation(answer.operations[2]).document === frames
+        @test answer.operations[4] isa DoNothingOperation
+        # The list starts again from the anchor.
+        statistics.anchor = 2
+        @test _get_row_texts(frames.rows.value) == ["20.00", "120"]
+        @test frames.row_headers.value.content == "2"
+        @test getfield(frames, :top_row) === getfield(statistics, :top_row)
+        # A press on Pause writes the document, and the undo does not record it.
+        toggle = root.children[1].children[2]
+        press = ReplaceReferencedValueOperation(toggle, "pressed", true)
+        answer = read_intent(p, iomap, press)
+        @test answer isa ReplaceViewStateOperation
+        @test get_wrapped_operation(answer) === press
+        @test getfield(toggle, :pressed) === getfield(statistics, :paused)
     end
 
     @testset "the table summarizes the recent frames" begin
@@ -139,8 +226,8 @@ function test_frame_statistics_feed()
         @test statistics.frame_count == 3
         @test statistics.rows[1].count == 2
         @test statistics.rows[1].minimum == 0.020
-        @test first(_get_frame_statistics_lines(statistics)) ==
-              "3 frames, the rows cover the last 2"
+        _, _, root = _print_frame_statistics(statistics)
+        @test _get_frame_statistics_head(root) == "3 frames, the tables cover the last 2"
     end
 
     @testset "the table holds the recent frames, one column for each row" begin
@@ -192,7 +279,7 @@ function test_frame_statistics_feed()
         statistics = FrameStatistics()
         plot = FrameTimeSeries()
         feed = FrameStatisticsFeed(statistics = statistics, plot = plot)
-        editor = Editor(statistics, FrameStatisticsToSyntax(); backend = HeadlessBackend(),
+        editor = Editor(statistics, FrameStatisticsToWidget(); backend = HeadlessBackend(),
                         devices = Device[], feeds = Feed[feed])
         # Subscribe the way a plot view does: read `names` in a computation.
         view = Cell(@computation length(plot.names))
@@ -210,7 +297,7 @@ function test_frame_statistics_feed()
         statistics = FrameStatistics()
         plot = FrameTimeSeries()
         feed = FrameStatisticsFeed(statistics = statistics, plot = plot)
-        editor = Editor(statistics, FrameStatisticsToSyntax(); backend = HeadlessBackend(),
+        editor = Editor(statistics, FrameStatisticsToWidget(); backend = HeadlessBackend(),
                         devices = Device[], feeds = Feed[feed])
         table_view = Cell(@computation statistics.frame_count)
         table_view[]
