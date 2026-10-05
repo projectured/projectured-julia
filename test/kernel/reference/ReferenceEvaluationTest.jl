@@ -35,7 +35,10 @@ mutable struct EvaluationToyStep <: ReferenceStep end
 ReferenceModule.get_reference_step_kind(::EvaluationToyStep) = :structural
 ReferenceModule.evaluate_reference_step(::EvaluationToyStep, document) = document
 
-# A step type whose evaluation is stopped.
+# A step type with no method of `evaluate_reference_step`, and one whose
+# evaluation is stopped.
+struct EvaluationMethodlessStep <: ReferenceStep end
+ReferenceModule.get_reference_step_kind(::EvaluationMethodlessStep) = :structural
 struct EvaluationStoppedStep <: ReferenceStep end
 ReferenceModule.get_reference_step_kind(::EvaluationStoppedStep) = :structural
 ReferenceModule.evaluate_reference_step(::EvaluationStoppedStep, document) =
@@ -46,11 +49,16 @@ function test_reference_evaluation()
 
     root = EvaluationBranch(EvaluationLeaf(10, nothing), EvaluationLeaf(20, nothing), nothing)
 
-    @testset "a walker answers its default, and lets a stop exception through" begin
+    @testset "a walker answers its default only for a path that does not resolve" begin
         stale = Reference(FieldReferenceStep("missing"))
         @test try_evaluate_reference(root, stale, :none) === :none
         @test get_valid_reference_prefix(root, stale) isa EmptyReference
         @test annotate_reference_types(root, stale) isa ConcreteReference
+
+        methodless = Reference(EvaluationMethodlessStep())
+        @test_throws MethodError try_evaluate_reference(root, methodless, :none)
+        @test_throws MethodError get_valid_reference_prefix(root, methodless)
+        @test_throws MethodError annotate_reference_types(root, methodless)
 
         stopped = Reference(EvaluationStoppedStep())
         @test_throws InterruptException try_evaluate_reference(root, stopped, :none)

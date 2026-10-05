@@ -51,7 +51,12 @@ projection-introduced position with no input pre-image). A caller that is *askin
 whether* the path resolves — a gesture precondition deciding whether it has a target —
 wants an answer, not an exception.
 
-An exception that means stop (`is_passthrough_exception`) still goes to the caller.
+Two exceptions still go to the caller, because neither says that the path does not
+resolve: an exception that means stop (`is_passthrough_exception`), and a
+`MethodError` of `evaluate_reference_step` itself, which comes from a step with no
+method — a fault of the program. Every method of that function takes a document of
+any type, so such an error names a missing step method. A `TypeReferenceStep` left
+in a path is one: the path was never folded.
 """
 function try_evaluate_reference(document, path::Reference, default = nothing)
     try
@@ -63,8 +68,11 @@ function try_evaluate_reference(document, path::Reference, default = nothing)
 end
 
 # Whether an exception of a step goes on to the caller of a walker that answers a
-# default for a path that does not resolve.
-_is_walk_passthrough(exception) = is_passthrough_exception(exception)
+# default for a path that does not resolve: an exception that means stop, or a step
+# with no method of `evaluate_reference_step`.
+_is_walk_passthrough(exception) =
+    is_passthrough_exception(exception) ||
+    (exception isa MethodError && exception.f === evaluate_reference_step)
 
 # A selection is `nothing` when there is none, and "no selection" resolves to no node —
 # so callers asking about a document's current selection need no separate guard.

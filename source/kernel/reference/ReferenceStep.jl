@@ -158,8 +158,10 @@ and so does the template engine, and [`fold_reference_types`](@ref) at once fold
 into the `type` of the node that the next step stands on. A path that is stored,
 walked or matched records its types on its nodes and holds no such step. The step
 has no `get_reference_step_kind` and no `evaluate_reference_step`: `evaluate_reference`
-throws a `MethodError` at such a step, and `get_valid_reference_prefix` cuts the
-path there.
+throws a `MethodError` at such a step, and so do `try_evaluate_reference`,
+`get_valid_reference_prefix` and `annotate_reference_types`, because a path that
+still holds the token was never folded — a fault of the program, not a path that
+no longer resolves.
 """
 @document [C, M] struct TypeReferenceStep <: ReferenceStep
     type::Any

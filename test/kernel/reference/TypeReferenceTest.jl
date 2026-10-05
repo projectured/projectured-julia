@@ -65,7 +65,11 @@ function test_type_reference()
         unfolded = ConcreteReference(TypeReferenceStep(CheckpointLeaf), EmptyReference())
         @test TypeReferenceStep(CheckpointLeaf) isa ReferenceStep
         @test_throws MethodError evaluate_reference(leaf, unfolded)
-        @test get_valid_reference_prefix(leaf, unfolded) == EmptyReference()
+        # A path that still holds the token was never folded: a fault of the program,
+        # which no walker turns into its default.
+        @test_throws MethodError try_evaluate_reference(leaf, unfolded, :none)
+        @test_throws MethodError get_valid_reference_prefix(leaf, unfolded)
+        @test_throws MethodError annotate_reference_types(leaf, unfolded)
     end
 
     @testset "annotate and strip are inverse" begin
