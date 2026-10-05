@@ -46,7 +46,9 @@ export Document, copy_document, get_wrapped_document, replace_wrapped_document!,
        @forward_protocol, @forward_vector_protocol, @adapt_map_protocol
 export DeclaredTypeMismatchException, DeclaredTypeMismatchRecord,
        set_declared_type_check_mode!, get_declared_type_check_mode,
-       collect_declared_type_mismatches, clear_declared_type_mismatches!
+       collect_declared_type_mismatches, clear_declared_type_mismatches!,
+       find_declared_field_type, find_declared_element_type,
+       convert_to_declared_type, convert_written_value, is_admitted_by_declared_type
 export SelectionDocument, unwrap_selection
 export DocumentWalk, walk_document, make_string_predicate
 # how deep `show` descends before it elides

@@ -308,8 +308,53 @@ worktree. The three domains test different parts of the model:
   suite, the example sweeps with the type-in and position walks, and the omnet-julia and
   inet-julia suites, one package at a time. The result is the list of every write of a value that
   its declared type does not admit, with its caller.
-- [ ] **Step 1: the seam.** Add the seam of §3.4 and call it in `_write_slot!`. Make
+  *In progress (2026-10-05).* What is built, in commits `3dccce895` and `66aaa720b`:
+  - The check is in the new fragment `source/kernel/document/DeclaredType.jl`. The setter and the
+    inner constructor that `@document` emits for the cell layout call it, and so does the field
+    write of `_write_slot!`, because that write goes into the cell and not through the setter.
+  - The mode is `:off` (the default, so the behaviour does not change), `:record` or `:throw`
+    (`set_declared_type_check_mode!`). The `:record` mode keeps one `DeclaredTypeMismatchRecord`
+    for each owner type, field, declared type and value type, with its count, whether Julia
+    converts the value with no loss, and the first 20 callers.
+  - The constructor reads each cell with `Base.peek`, so it makes no dependency inside a
+    computation, and it leaves a computed cell alone (`is_computed_cell`). The setter leaves a
+    `Computation` alone, because a cell computes its value later.
+  - `DeclaredTypeMismatchException` is the exception of S-6. Its message has the form
+    `SmokePerson.age is declared Int64, and the write gives a String: "fifty"`.
+  - An element write into a `CellVector` is not in the inventory yet, because no list field
+    declares its element type before Step 4.
+  - The run: one process for each of the 23 suites of `test_all()`, each with an 8 GB cap, two
+    threads, no network and a time limit, from a separate detached checkout in
+    `../projectured-julia-strict-types-inventory`. The environment refers to sibling
+    repositories by relative paths, so a checkout must sit in the workspace. The driver and the
+    runner are in `/var/tmp/strict-types/`.
+- [x] **Step 1: the seam.** Add the seam of §3.4 and call it in `_write_slot!`. Make
   `_is_slot_accepting` ask it.
+  *Done (2026-10-05).* What is built, and what differs from §3.4 and S-4:
+  - **The signature has the owner first:** `convert_to_declared_type(owner, declared_type,
+    value; name = nothing)`. Rule 3 needs the domain of the place, and for an element of a list
+    the parent of the write is the `CellVector`, which has no domain. So the caller gives the
+    owner: the document of the field, or the nearest document above the list
+    (`_find_owner_document` in `Operations.jl`). `name` only names the place in the message.
+  - **The seam throws, and the caller applies the mode.** The kernel method applies rules 1, 2
+    and 4. `convert_written_value` calls it at the write of `ReplaceReferencedValueOperation`,
+    before the mouse target chain, and applies the mode to a refusal: `:throw` throws,
+    `:record` records, and `:record` and `:off` write the value as it is. Rules 2 and 3 apply in
+    every mode.
+  - **Rule 3 is one method in `DomainModule`**, beside the traits in `Domain.jl`, for
+    `owner::Document` and `value::AbstractString`. It uses `get_domain_insertion` of the type of
+    the owner, and `DocumentInsertion` for a document of no domain. `@domain` does not change.
+  - **The paste asks `is_admitted_by_declared_type`.** `_find_paste_target` keeps the owner as
+    it walks the path. A field with a declared type asks the seam, and a field with none keeps
+    the old test of the value type of its cell.
+  - **The public seam for declared types (part of L10-21):** `find_declared_field_type(T, name)`,
+    and `find_declared_element_type(collection)`, which answers `nothing` until a `CellVector`
+    keeps its element type (Step 3).
+  - Tests: a probe of eight cases passes (text into `JsonObjectEntry.value` becomes a
+    `JsonInsertion`, an `Int` into a `Float64` field converts, text into a `Document` field of
+    no domain becomes a `DocumentInsertion`, a refusal throws in `:throw` and passes in `:off`,
+    and three paste checks). `test_clipboard()` passes. `test_kernel()`: 4175 pass, 2 broken,
+    no fail.
 - [ ] **Step 2: the intermediate states.** An incomplete number becomes the insertion of its
   domain (S-5): a `JuliaInsertion` in a Julia number field, and a `JsonInsertion` in
   `JsonNumber.value`. The generated `JsonInsertion` learns to hold the text of a number and to

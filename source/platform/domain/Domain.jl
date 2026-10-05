@@ -186,6 +186,21 @@ insertion's alias; anything else is a hand-written method.
 """
 get_insertion_aliases(::Type) = String[]
 
+# ── Text at the write of an operation ─────────────────────────────────────────
+
+# Rule 3 of the seam `convert_to_declared_type`: text that an operation writes into
+# a place that the text does not fit becomes the insertion of the domain of the
+# document that owns the place, to be parsed later, when the declared type of the
+# place admits that insertion. A document of no domain owns `DocumentInsertion`.
+function DocumentModule.convert_to_declared_type(owner::Document, declared_type::Type,
+                                                 value::AbstractString; name = nothing)
+    value isa declared_type && return value
+    insertion = something(get_domain_insertion(typeof(owner)), DocumentInsertion)
+    insertion <: declared_type && return insertion(String(value))
+    invoke(DocumentModule.convert_to_declared_type, Tuple{Any, Type, Any},
+           owner, declared_type, value; name)
+end
+
 # ── Construction (dispatch, not factory tables) ───────────────────────────────
 
 """

@@ -23,9 +23,18 @@ struct DeclaredTypeMismatchException <: Exception
 end
 
 function Base.showerror(io::IO, e::DeclaredTypeMismatchException)
-    print(io, "DeclaredTypeMismatchException: ", _describe_mismatch_owner(e.owner), ".",
-          e.name, " is declared ", e.declared_type, ", and the write gives a ",
+    print(io, "DeclaredTypeMismatchException: ", _describe_mismatch_place(e.owner, e.name),
+          " is declared ", e.declared_type, ", and the write gives a ",
           _describe_mismatch_type(e.value), ": ", _describe_mismatch_value(e.value))
+end
+
+# `JsonBool.value` for a field, `JsonArray[3]` for an element, and the owner alone
+# for a place with no name.
+function _describe_mismatch_place(owner, name)
+    owner_name = string(_describe_mismatch_owner(owner))
+    name === nothing && return "a place of " * owner_name
+    text = string(name)
+    startswith(text, "[") ? owner_name * text : owner_name * "." * text
 end
 
 _describe_mismatch_owner(owner::Type) = get_document_schema_name(owner)
@@ -140,15 +149,6 @@ function _record_declared_type_mismatch!(owner, name, declared_type, value)
     nothing
 end
 
-function _is_losslessly_convertible(declared_type, value)
-    try
-        converted = convert(declared_type, value)
-        converted isa declared_type && isequal(converted, value)
-    catch
-        false
-    end
-end
-
 # The frames above the check: the generated setter or constructor first, and then
 # the code that wrote the value.
 function _describe_mismatch_caller(frames)
@@ -177,14 +177,110 @@ function _report_declared_type_mismatch(mode, owner, name, declared_type, value)
     _record_declared_type_mismatch!(owner, name, declared_type, value)
 end
 
-# The declared type of the field `name` of a document of type `T`, or `nothing`
-# when `@document` recorded none.
-function _find_declared_field_type(T::Type, name::Symbol)
+"""
+    find_declared_field_type(T, name) -> Type or nothing
+
+The type that `@document` records for the field `name` of the cell layout `T`, or
+`nothing` when it records none: a hand-written document, or a name that is not a
+field of `T`. A field declared `Vector{X}` answers the collection that the cell
+layout holds in its place.
+"""
+function find_declared_field_type(T::Type, name::Symbol)
     declared = _declared_value_types(T)
     declared === nothing && return nothing
     i = Base.fieldindex(T, name, false)
     (i == 0 || i > length(declared)) && return nothing
     declared[i]
+end
+
+"""
+    find_declared_element_type(collection) -> Type or nothing
+
+The type that each element of `collection` must have, or `nothing` when the
+collection declares none. A collection that keeps the element type of its field
+answers it.
+"""
+find_declared_element_type(collection) = nothing
+
+# ── The seam ──────────────────────────────────────────────────────────────────
+
+"""
+    convert_to_declared_type(owner, declared_type, value; name = nothing) -> value
+
+The value that a place of `declared_type` admits for `value`. An operation calls
+it at its write. `owner` is the document that owns the place: the document of the
+field, or for an element of a list the nearest document above the list. Its
+domain decides what text becomes. `name` names the place in the message of a
+refusal.
+
+1. A value of the declared type passes.
+2. A value that Julia converts to the declared type with no loss is converted,
+   such as an `Int` for a `Float64` field.
+3. Text becomes the insertion of the domain of `owner`, if the declared type
+   admits that insertion. The package that declares the domain adds this rule.
+4. Anything else is refused with a [`DeclaredTypeMismatchException`](@ref).
+
+Use it, and not the check of a setter, where a person or a model makes the value:
+a paste, a drag, a type-in, an operation of the model.
+"""
+function convert_to_declared_type(owner, declared_type::Type, value; name = nothing)
+    value isa declared_type && return value
+    converted = _convert_losslessly(declared_type, value)
+    converted === _NOT_CONVERTED || return converted
+    throw(DeclaredTypeMismatchException(typeof(owner), name, declared_type, value))
+end
+
+struct _NotConverted end
+const _NOT_CONVERTED = _NotConverted()
+
+function _convert_losslessly(declared_type, value)
+    converted = try
+        convert(declared_type, value)
+    catch
+        return _NOT_CONVERTED
+    end
+    (converted isa declared_type && isequal(converted, value)) ? converted : _NOT_CONVERTED
+end
+
+function _is_losslessly_convertible(declared_type, value)
+    _convert_losslessly(declared_type, value) !== _NOT_CONVERTED
+end
+
+"""
+    convert_written_value(owner, declared_type, value; name = nothing) -> value
+
+[`convert_to_declared_type`](@ref) at the write of an operation, under the mode of
+the check: a refusal throws in the mode `:throw`, is recorded in the mode
+`:record`, and in both `:record` and `:off` the write takes `value` as it is.
+"""
+function convert_written_value(owner, declared_type::Type, value; name = nothing)
+    try
+        return convert_to_declared_type(owner, declared_type, value; name)
+    catch exception
+        exception isa DeclaredTypeMismatchException || rethrow()
+        mode = _DECLARED_TYPE_CHECK_MODE[]
+        mode === :throw && rethrow()
+        mode === :record &&
+            _record_declared_type_mismatch!(exception.owner, exception.name,
+                                            exception.declared_type, exception.value)
+        return value
+    end
+end
+
+"""
+    is_admitted_by_declared_type(owner, declared_type, value) -> Bool
+
+Whether [`convert_to_declared_type`](@ref) admits `value` for a place of
+`declared_type` that `owner` owns. A paste asks it to find its target.
+"""
+function is_admitted_by_declared_type(owner, declared_type::Type, value)
+    try
+        convert_to_declared_type(owner, declared_type, value)
+        true
+    catch exception
+        exception isa DeclaredTypeMismatchException || rethrow()
+        false
+    end
 end
 
 # The setter of the cell layout calls it before the write. A computation is not a
@@ -193,7 +289,7 @@ function _check_declared_write(document, name::Symbol, value)
     mode = _DECLARED_TYPE_CHECK_MODE[]
     mode === :off && return nothing
     value isa Computation && return nothing
-    declared_type = _find_declared_field_type(typeof(document), name)
+    declared_type = find_declared_field_type(typeof(document), name)
     (declared_type === nothing || value isa declared_type) && return nothing
     _report_declared_type_mismatch(mode, typeof(document), name, declared_type, value)
 end

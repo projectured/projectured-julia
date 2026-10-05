@@ -230,13 +230,45 @@ end
 # step family. Terminal-kind dispatch is what lets `ReplaceReferencedValueOperation`
 # write either a document or a scalar through one path.
 function _write_slot!(parent, step::AFieldReferenceStep, value)
-    name = Symbol(step.name)
-    f = getfield(parent, name)
+    f = getfield(parent, Symbol(step.name))
     f isa AbstractCell ||
         error("ReplaceReferencedValueOperation: field $(step.name) of " *
               "$(typeof(parent)) is not a Cell")
-    parent isa Document && DocumentModule._check_declared_write(parent, name, value)
     f[] = value
+end
+
+# The value that the slot admits for `value`, made by the seam of the declared
+# types (`convert_written_value`). A field takes the declared type of the field,
+# and an element takes the element type of its collection. The domain of an
+# element is the domain of the nearest document above the collection.
+function _convert_slot_value(root, parent_path, parent, step::AFieldReferenceStep, value)
+    parent isa Document || return value
+    name = Symbol(step.name)
+    declared_type = find_declared_field_type(typeof(parent), name)
+    declared_type === nothing && return value
+    convert_written_value(parent, declared_type, value; name)
+end
+
+function _convert_slot_value(root, parent_path, parent, step::ARangeReferenceStep, value)
+    declared_type = find_declared_element_type(parent)
+    declared_type === nothing && return value
+    owner = _find_owner_document(root, parent_path)
+    name = sprint(show, step)
+    convert_one(item) = convert_written_value(owner, declared_type, item; name)
+    # A vector of items is a splice, as in `_write_slot!`, and each item is one element.
+    value isa AbstractVector ? map(convert_one, value) : convert_one(value)
+end
+
+# The nearest document at or above the end of `parent_path` that is not an element
+# collection: the document whose domain owns an element of the collection there.
+function _find_owner_document(root, parent_path)
+    owner = root
+    steps = parent_path isa EmptyReference ? () : get_reference_steps(parent_path)
+    for i in eachindex(steps)
+        node = evaluate_reference(root, Reference(steps[1:i]...))
+        (node isa Document && !is_element_collection(node)) && (owner = node)
+    end
+    owner
 end
 
 # A field step on a dictionary names a key, and the operation writes no key.
@@ -347,9 +379,10 @@ function evaluate_operation(editor, op::ReplaceReferencedValueOperation)
     parent_path, terminal = _split_terminal_step(reference)
     parent = parent_path isa EmptyReference ? root :
              evaluate_reference(root, parent_path)
+    value = _convert_slot_value(root, parent_path, parent, terminal, op.value)
     # The mouse target that passes through the slot follows the write.
-    written = _find_written_chain(parent, terminal, op.value)
-    _write_slot!(parent, terminal, op.value)
+    written = _find_written_chain(parent, terminal, value)
+    _write_slot!(parent, terminal, value)
     written === nothing || _follow_written_chain!(parent, written; root, parent_path)
 end
 

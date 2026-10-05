@@ -183,22 +183,26 @@ end
 #    document (`accepts_pasted_document`). A record or a tool refuses, and so
 #    does everything inside it. Such a document can still be the pasted value:
 #    a noted tool, or the duplicate that a copy of one stores.
-# 3. The slot takes `value`: a field cell whose value type `value` is not, or an
-#    immutable one, refuses, and so does the document in the slot when it does
-#    not accept `value` as its replacement (`accepts_pasted_replacement`).
+# 3. The slot takes `value`: an immutable field cell refuses, and so does a slot
+#    whose declared type does not admit `value` (`is_admitted_by_declared_type`),
+#    and the document in the slot when it does not accept `value` as its
+#    replacement (`accepts_pasted_replacement`).
 function _find_paste_target(input, value)
     sel = input.selection
     (sel === nothing || sel isa EmptyReference) && return nothing
     try_evaluate_reference(input, sel, missing) isa Document || return nothing
     steps = get_reference_steps(strip_reference_types(sel))
     node = input
+    # The document whose domain owns an element: the nearest one above the list.
+    owner = input
     for i in eachindex(steps)
         parent = node
+        (parent isa Document && !is_element_collection(parent)) && (owner = parent)
         node = try_evaluate_reference(input, _make_steps_path(steps[1:i]), missing)
         node === missing && return nothing
         (node isa Document && !accepts_pasted_document(node)) && return nothing
         i == length(steps) || continue
-        _is_slot_accepting(parent, steps[i], value) || return nothing
+        _is_slot_accepting(parent, steps[i], value, owner) || return nothing
         accepts_pasted_replacement(node, value) || return nothing
     end
     sel
@@ -207,16 +211,22 @@ end
 _make_steps_path(steps) =
     foldr((step, tail) -> ConcreteReference(step, tail), steps; init = EmptyReference())
 
-function _is_slot_accepting(parent, step, value)
+function _is_slot_accepting(parent, step, value, owner)
     # An element of a list is a slot; a step that holds a drawn object is not one.
-    step isa RangeReferenceStep && return true
+    if step isa RangeReferenceStep
+        declared_type = find_declared_element_type(parent)
+        return declared_type === nothing ||
+               is_admitted_by_declared_type(owner, declared_type, value)
+    end
     step isa FieldReferenceStep || return false
     name = Symbol(step.name)
     hasfield(typeof(parent), name) || return false
     cell = getfield(parent, name)
     cell isa AbstractCell || return true
     cell isa ImmutableCell && return false
-    value isa get_cell_value_type(cell)
+    declared_type = parent isa Document ? find_declared_field_type(typeof(parent), name) : nothing
+    declared_type === nothing && return value isa get_cell_value_type(cell)
+    is_admitted_by_declared_type(parent, declared_type, value)
 end
 
 # ── Text targets ──────────────────────────────────────────────────────────────
