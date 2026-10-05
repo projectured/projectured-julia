@@ -430,7 +430,7 @@ other domains. Only the inventory of Step 0 for those domains can show it.
 
 - L10-13 of [kernel-audit-fixes.md](kernel-audit-fixes.md): decided A for now. This plan changes
   it again when the pilot lands.
-- L13-1: the home of a number text that does not parse. The answer to S-5 is option D of L13-1.
-  L13-1 itself is not marked as decided.
+- L13-1: the home of a number text that does not parse. The owner decided it as D on 2026-10-05,
+  through S-5. The work belongs to this plan.
 - L10-21: the public seam for the declared types of a field. The check, the seam, the clipboard and
   the filter of the candidates need it.
