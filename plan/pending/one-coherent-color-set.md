@@ -3,9 +3,9 @@
 > **Status:** pending; landed on `main` at `b2d95c294` on 2026-10-04, not
 > pushed. Part 1, the catalog of every color, is done. The owner decided the
 > design of Part 2 in two rounds of answers (section 12.1). Parts C, M and P
-> are done; Part S, the system mode, is deferred. Section 12.15 holds the checks
-> and what is open. The plan moves to `plan/done/` when the checks after the
-> landing pass and the open items have an owner.
+> are done, and their follow-ups landed on 2026-10-05 (section 12.15). Part S,
+> the system mode, is planned in section 12.16 and starts on the owner's word.
+> The plan moves to `plan/done/` when Part S is done.
 
 ## 1. The request
 
@@ -742,7 +742,7 @@ color presets of `WidgetTheme`.
   (`high_contrast` of `PaletteColor`): text and tokens go to step 12, muted
   text to step 12, lines to step 8 or 12, and the selection becomes solid.
   Text must reach 7:1, a line and a ring 4.5:1.
-- **The system mode** (deferred by the owner). `color_mode = :system` follows
+- **The system mode** (Part S, section 12.16). `color_mode = :system` follows
   the operating system. SDL 2 does not tell it; SDL 3 does
   (`SDL_GetSystemTheme`, and an event when it changes). Without SDL 3 each
   system needs its own query: the portal setting `color-scheme` on Linux,
@@ -948,12 +948,14 @@ its styles and a builder fills them with `get_<name>_style`.
     the OKLCH palette and 3.68 on that of Solarized, so the roles `accent` and
     `accent_hover` reach 4.5 against white, as `error_fill` does. The contrast
     test passes for the four palettes in the four variants: 992 checks.
-- **Part S, the system mode.** Deferred.
+- **Part S, the system mode.** Planned in section 12.16; it starts on the
+  owner's word.
 
 ### 12.15 The checks, and what is open
 
 **Status (2026-10-04):** Parts C, M and P are done; Part S is deferred by the
-owner. The owner said "rebase and land first, test afterwards": the branch
+owner (on 2026-10-05 the owner asked for it, and section 12.16 plans it). The
+owner said "rebase and land first, test afterwards": the branch
 `color-set` was rebased onto `main` with no conflict and landed by a
 fast-forward at `b2d95c294`. It is not pushed. The checks below ran on the
 branch before the rebase; the checks after the landing follow.
@@ -1017,7 +1019,162 @@ fields.
    `field` and `constant` and follows the colour settings; its packet diagram
    tests pass. omnet-julia's own views hold fixed colours of their own (about
    156 in the inventory of 2026-10-02), which this plan does not cover.
-6. The system mode (Part S).
+6. The system mode (Part S). Planned in section 12.16 on 2026-10-05.
+
+### 12.16 Part S: the system mode
+
+**Status:** planned on 2026-10-05; not started. The owner wrote:
+
+> Yes, write this level of OS color scheme support into Part S, we will
+> implement it, it doesn't have to be super complete, the level you described
+> is fine
+
+**The goal.** The editor can follow three settings of the operating system:
+the light or dark mode, the high contrast and the accent. A person chooses
+"System" for the mode, the contrast or the accent. When a person changes the
+setting of the system, the editor recolors when its window gets the focus
+again.
+
+**Not in the goal.** The full palette of the system, such as the colors of a
+GTK theme or the palette of a Windows high contrast theme. The editor gets only
+the three settings, and its own palettes make the colors.
+
+#### S.1 Facts
+
+- The editor loads SDL 2.32.10, which has no theme API. SDL 3 has
+  `SDL_GetSystemTheme` and the event `SDL_EVENT_SYSTEM_THEME_CHANGED`, but it
+  tells only light, dark or unknown. The local copy of the General registry
+  (2026-10-03) has no `SDL3_jll`, and SDL 3 renames most of its API. Thus the
+  editor stays on SDL 2 and asks each system.
+- Julia has no standard library and no common package for this.
+- Each system gives the three settings so:
+
+  | System | Mode | Contrast | Accent |
+  | --- | --- | --- | --- |
+  | Linux | portal `org.freedesktop.portal.Settings`, `ReadOne("org.freedesktop.appearance", "color-scheme")`: 0 no preference, 1 dark, 2 light. Fallback: `gsettings get org.gnome.desktop.interface color-scheme`, `'prefer-dark'` | portal key `contrast`: 0 normal, 1 high. Fallback: `gsettings get org.gnome.desktop.a11y.interface high-contrast` | portal key `accent-color`: three numbers from 0 to 1; a number outside that range means "not set" |
+  | Windows | registry `HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize`, value `AppsUseLightTheme`: 0 is dark | `SystemParametersInfoW(SPI_GETHIGHCONTRAST)`, flag `HCF_HIGHCONTRASTON` | `DwmGetColorizationColor` |
+  | macOS | `defaults read -g AppleInterfaceStyle`: `Dark`, or no value for light | `defaults read com.apple.universalaccess increaseContrast`: 1 is high; the read can fail, and then the contrast is normal | `defaults read -g AppleAccentColor`: -1 graphite, 0 red, 1 orange, 2 yellow, 3 green, 4 blue, 5 purple, 6 pink; no value is blue |
+
+- With no D-Bus package, the Linux query runs `gdbus call` (part of GLib) as a
+  process. An older portal has `Read` and not `ReadOne`; `Read` answers the
+  value inside one more variant. On this machine `gsettings` answered
+  `'default'`, which is light. A portal call from a sandboxed shell did not
+  answer in 5 seconds. Thus a query must never block the editor.
+- The macOS query is a process too. The Windows query is three fast `ccall`s.
+- The editor already has the parts that Part S needs:
+  - `Appearance` is a `@document`, so each field is a cell.
+  - Only `get_color_variant(appearance)` and `resolve_theme_color` read
+    `color_mode`, `color_contrast` and `color_accent`
+    ([ColorTheme.jl](../../source/platform/style/ColorTheme.jl), lines 181 and
+    275), and the appearance tab shows them.
+  - The backend interface has `get_display_size(backend)`, with a default
+    for a backend that can not find the size. The default is in
+    `BackendDefaults.jl`, which is sealed (🔒).
+  - The start steps of the `appearance` wrapper get the editor, and
+    `editor.backend` is its backend
+    ([AppearanceWrapper.jl](../../source/platform/appearance/AppearanceWrapper.jl)).
+  - The reader of `AppearanceManagingProjection` gives a device event that the
+    content does not read to `read_gesture` of the `AppearanceDocument`; the
+    zoom keys go that way.
+  - The SDL backend reports `WindowDefocus`, and drops the event of a window
+    that gets the focus (`SdlBackend.jl`, near line 3848).
+
+#### S.2 The design
+
+The names below are proposals; they follow the naming rules.
+
+1. **The settings.** `color_mode`, `color_contrast` and `color_accent` each
+   take the value `:system`. The appearance file saves `:system`, not the
+   answer of the system.
+2. **The answer of the system** is three new cells of `Appearance`:
+   `system_color_mode` (`:light` or `:dark`), `system_color_contrast`
+   (`:normal` or `:high`) and `system_color_accent` (a `StyleColor`, or
+   `nothing`). They are facts, not settings, so the appearance file does not
+   save them, as for `scroll_position`. Their defaults are light, normal and
+   `nothing`. Thus a backend with no answer, such as PDF, video, the console or
+   a test, draws as now.
+3. **The value in use.** `get_color_mode(appearance)`,
+   `get_color_contrast(appearance)` and `get_color_accent(appearance)` give the
+   setting, or the answer of the system for `:system`. `get_color_variant` and
+   `resolve_theme_color` call them. A computed cell that reads a color thus
+   follows the answer too, and a change recolors everything, as the mode
+   setting does now. No theme changes.
+4. **The accent.** The system gives a color, and `color_accent` is a hue. The
+   accent in use is the hue whose step 9 in the palette has the nearest OKLCH
+   hue angle. A grey accent, such as graphite on macOS, gives the default blue.
+   The index of macOS maps to a hue directly.
+5. **The query** is an external side effect, so it is in the backend. A new
+   function of the backend interface, `find_system_colors(backend)`, gives a
+   `SystemColors` (the mode, the contrast, and the accent as an
+   `NTuple{3,UInt8}` or `nothing`), or `nothing` when the backend can not find
+   them. The kernel can not name a `StyleColor`, so the accent is three bytes,
+   as the background of a window is four.
+6. **At start.** A start step of the `appearance` wrapper calls
+   `find_system_colors(editor.backend)` and writes the three cells before the
+   first print. Thus a dark system never shows one light frame. The start step
+   waits at most 0.5 s; with no answer by then, the editor starts light, and the
+   answer comes later as an event.
+7. **A change.** When a window of the SDL backend gets the focus, the backend
+   starts the query in a task, with a limit of 1 s. When the answer differs
+   from the last one, the backend reports the new event `SystemColorsChange`
+   (`<Source><Action>`) with the answer, as `WindowInput(:none, …)`, as it
+   reports `WindowQuit`. The reader of the appearance gives the event to
+   `read_gesture` of the `AppearanceDocument`, which answers an operation that
+   writes the three cells. A person did not make this change, so the operation
+   does not enter the undo list or the gesture log.
+8. **The appearance tab.** The rows "Mode", "Contrast" and "Accent" show the
+   choice "System", with the answer after it, for example "System (dark)".
+9. **Not in this part.**
+   - The web backend can give the answer of the browser with the same event:
+     `matchMedia("(prefers-color-scheme: dark)")` and its `change` event.
+   - A listener for each system would recolor at once, not at the next focus:
+     the portal signal `SettingChanged` on Linux, `WM_SETTINGCHANGE` on Windows,
+     and the notification `AppleInterfaceThemeChangedNotification` on macOS.
+     The focus is enough, because a person changes the system setting in
+     another window.
+
+#### S.3 Questions for the owner
+
+| # | Question | My recommendation |
+| --- | --- | --- |
+| S-1 | `SystemColorsChange` and `find_system_colors` are new mechanisms. The other way: the `Display` device holds the answer, `configure_devices!` fills it, and the backend reports only that the colors of the system changed. | The event with the answer. The backend reports what happened, and only the appearance gives it a meaning. `Display` holds facts of the hardware, and these are settings of the desktop. |
+| S-2 | The default `find_system_colors(::Backend) = nothing` belongs in `BackendDefaults.jl`, as the default of `get_display_size` does. That file is sealed (🔒). | Permission to add this one line to `BackendDefaults.jl`. |
+| S-3 | The default of a new appearance: `:light` as now, or `:system`? | `:system` for the mode and the contrast, and `:blue` for the accent. A backend with no answer gives light, so the PDF output stays as now. A saved file keeps its value. |
+| S-4 | Which system first? | Linux, because this machine can test it. Windows and macOS in the same part: their parsers are tested here on fixed text, and the queries need a check by a person on those systems. |
+
+#### S.4 Steps
+
+- **S1. The model.** `:system` in `COLOR_MODES`, `COLOR_CONTRASTS` and the
+  choices of the accent; the three cells; `get_color_mode`,
+  `get_color_contrast` and `get_color_accent`; the nearest hue; save and load.
+  Tests: the variant and a role under `:system` with each answer, the nearest
+  hue, and a saved file that keeps `:system` and no answer.
+- **S2. The kernel.** `SystemColors`, the event `SystemColorsChange` in
+  `event/`, and `find_system_colors` in `BackendInterface.jl` with its default
+  (S-2). Check `SEALING.md` for each file before the edit.
+- **S3. The platform.** The start step; `read_gesture` of `AppearanceDocument`
+  for the event; the operation that writes the three cells and stays out of the
+  undo list. Tests: the event recolors a role to its dark value, and an undo
+  does not change it back.
+- **S4. The SDL backend.** The three queries of the systems in one file of the
+  SDL backend; the task with its limit; the focus gain starts the query; the
+  event comes only on a change. Tests: the parsers of the output of
+  `gdbus`, `gsettings` and `defaults` on fixed text, and a query that does not
+  answer gives no event and does not block.
+- **S5. The appearance tab.** The choice "System" with the answer.
+- **S6. The guides.** `style.md`, the guide of the appearance, and the guide of
+  the backend interface.
+- **S7. A check on this machine.** Change the GNOME setting with `gsettings
+  set org.gnome.desktop.interface color-scheme prefer-dark`, give the focus
+  back to the editor window, and set the old value again. Do this only on the
+  owner's word, because it changes the desktop of the owner.
+
+**Risks.**
+- A query that hangs: the task and its limit prevent a frozen editor.
+- A test that opens an SDL window must not follow the desktop of the machine.
+  Such a test sets the mode, or its backend gives no answer.
+- Each focus gain on Linux and macOS starts a process of some milliseconds. It
+  runs in a task, so no frame waits for it.
 
 ## Appendix A. The tables
 
