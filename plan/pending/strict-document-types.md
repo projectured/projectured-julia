@@ -308,7 +308,52 @@ worktree. The three domains test different parts of the model:
   suite, the example sweeps with the type-in and position walks, and the omnet-julia and
   inet-julia suites, one package at a time. The result is the list of every write of a value that
   its declared type does not admit, with its caller.
-  *In progress (2026-10-05).* What is built, in commits `3dccce895` and `66aaa720b`:
+  *The projectured-julia part is done (2026-10-05, 15:27 to 17:04).* The example sweeps and the
+  omnet-julia and inet-julia suites are still to run. The 23 suites found 354 fields of 100
+  document types that get a value outside their declared type, in about 20.1 million writes.
+  The full list is `/var/tmp/strict-types/analysis.txt`. The groups:
+  1. **A missing optional value, 146 fields, about 18.3 million writes.** The field is declared
+     `Inset` or `StyleColor`, and the code writes `nothing`. Most of the writes are
+     `TextString.padding`, `.line_color` and `.fill_color`, and the margins, borders and paddings
+     of the widgets. The declaration must become `Union{…, Nothing}`.
+  2. **The colors of the color set that landed on 2026-10-05, about 155 fields of the themes.**
+     A field declared `StyleColor` gets a `PaletteColor` or a `ColorRole`. The declaration must
+     name the type that the color set gives a color.
+  3. **The markers of a template in an output document, 2 fields, about 940,000 writes.**
+     `SyntaxLeaf.value` (declared `TextString`) gets `Bound` and `TextGraphics`, and
+     `SyntaxNode.children` (declared `CellVector`) gets `Collection`, `Sections` and `Tokens`.
+     This is a question of design: the template holds a marker where the output holds a value.
+  4. **A plain `Vector` written into a field declared `Vector{T}`, 16 fields.** The cell layout
+     holds a `CellVector` there, and the setter writes the plain vector into the cell with no
+     wrap. Examples: `Appearance.open_sections`, `ChartTheme.series_colors`,
+     `DataFrameView.edits`.
+  5. **A lazy list in a field declared `CellVector`, 5 fields** of the layouts and of
+     `WidgetTable`: they get a `ListNode`.
+  6. **An `UndoBuffer` in the `content` field of a file document, 8 file types**, among them
+     `JsonFile`, `XmlFile` and `JuliaFile`, whose `content` is declared with the root type of
+     the domain.
+  7. **An `Int64` in a field declared `Int32`, 7 fields of the graphics documents.** Julia
+     converts it with no loss, so rule 2 admits it.
+  8. **Single cases:** `JsonBool.value` and `YamlBool.value` get `nothing` and a `String` (2
+     writes, an intermediate state of an edit), `TextNewline.font_color` and
+     `TextSpacing.font_color` get a `String`, `SqlSelectItem.expression` gets a
+     `SqlScalarValue`, `WidgetLabel.text_style` gets a `StyleFont`, and a few test documents
+     write on purpose.
+
+  **The documents of the three pilot domains are nearly clean:** only `JsonBool.value` (2
+  writes), the `content` of the three file types (group 6) and two colors of `JuliaTheme`
+  (group 2). Almost every refused write is in the output documents of projections, in the
+  themes and in the widgets.
+
+  **The tests under the record mode:** kernel 4174 pass, 1 fail; platform 94044 pass, 3 fail;
+  integration 1206344 pass, 12 fail, 2 error; anthropic 2 fail, 1 error; ollama 2 error; every
+  other suite passes. The kernel failure is the layering guard, which refuses the private name
+  that commit `66aaa720b` used; Step 1 removed it. The other failures are in tests of local
+  network servers (MCP, web, Anthropic, Ollama), of the font files and of a folder read. The run
+  had no network and ran in a user namespace, which is the probable cause. A run of clean `main`
+  under the same conditions must confirm it.
+
+  What is built, in commits `3dccce895` and `66aaa720b`:
   - The check is in the new fragment `source/kernel/document/DeclaredType.jl`. The setter and the
     inner constructor that `@document` emits for the cell layout call it, and so does the field
     write of `_write_slot!`, because that write goes into the cell and not through the setter.
