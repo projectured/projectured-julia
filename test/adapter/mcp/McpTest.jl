@@ -770,7 +770,8 @@ function test_mcp_log()
             try
                 timedwait(() -> _is_mcp_port_open(port), 10.0)
                 push!(answers, _post_mcp_request(port, "resources/read", "{\"uri\": \"resource://guides\"}"))
-                for code in ("1 + 1", "error(\\\"boom\\\")")
+                # Two equal failures are two faults: their exceptions are `===`.
+                for code in ("1 + 1", "error(\\\"boom\\\")", "error(\\\"boom\\\")")
                     push!(answers, _post_mcp_request(port, "tools/call",
                         "{\"name\": \"execute_julia_code\", \"arguments\": {\"code\": \"$code\"}}"))
                 end
@@ -787,15 +788,16 @@ function test_mcp_log()
         end
         # A call that the last frame did not drain is in the store still.
         drain_changes!(feed, editor)
-        @test length(answers) == 3
+        @test length(answers) == 4
         entries = collect(log.entries)
-        @test [e.method for e in entries] == ["resources/read", "tools/call", "tools/call"]
+        @test [e.method for e in entries] == ["resources/read", "tools/call", "tools/call", "tools/call"]
         @test entries[1].name == "resource://guides" && !isempty(entries[1].answer)
         @test entries[2].name == "execute_julia_code" && entries[2].arguments == "1 + 1"
         @test occursin("2", entries[2].answer) && !entries[2].fault
         @test entries[3].fault && occursin("boom", entries[3].answer)
+        @test entries[4].fault && occursin("boom", entries[4].answer)
         @test all(e -> e.duration >= 0, entries)
-        @test log.count == 3 && log.faults == 1
+        @test log.count == 4 && log.faults == 2
     end
 end
 

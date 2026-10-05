@@ -195,6 +195,16 @@ two apart.
 get_last_evaluation_exception(set::ToolSet) = set.last_exception
 
 """
+    get_evaluation_exception_count(set) -> Int
+
+The number of `execute_julia_code!` and `execute_julia_expression!` calls on
+`set` whose code threw. A caller tells whether one call threw by the count before
+and after it. The last exception can not tell it, because two exceptions can be
+equal: two `ErrorException`s with one message are `===`.
+"""
+get_evaluation_exception_count(set::ToolSet) = set.exception_count
+
+"""
     execute_julia_code!(set, target, code; describe_value = _describe_value_for_model) -> String
 
 Evaluate `code` in the editor process, with `target` bound as `editor` and the
@@ -330,6 +340,7 @@ function _run_expression(set::ToolSet, target, make_expression::Function;
     catch e
         _is_passthrough_for_model_code(e) && rethrow()
         set.last_exception = e
+        set.exception_count += 1
         sprint(showerror, e, catch_backtrace()) * _suggest_nearest_names(e, set)
     finally
         # A reader reads to the end of its pipe, which comes when its write end closes.

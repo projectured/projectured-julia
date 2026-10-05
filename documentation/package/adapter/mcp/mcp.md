@@ -48,8 +48,10 @@ platform, `record_mcp_call!(get_session_mcp_log_store(); …)`: the method, the
 tool or the URI, the arguments (the code alone for `execute_julia_code`), the
 answer, the seconds the call held the editor, and whether it was a fault. A call
 is a fault when its tool threw, or when the code of `execute_julia_code` threw,
-which the tool answers as a message; the tool set keeps that exception
-(`get_last_evaluation_exception`), and a call that leaves a new one is a fault. A
+which the tool answers as a message; the tool set counts such exceptions
+(`get_evaluation_exception_count`), and a call that raises the count is a fault.
+The count tells it and the last exception does not, because two
+`ErrorException`s with one message are `===`. A
 read of a resource is recorded the same way. The `mcp_log` wrapper moves the
 calls into a document that a tab shows; [mcplog.md](../../platform/mcplog/mcplog.md)
 describes it.

@@ -124,6 +124,17 @@ function test_code_execution()
         @test get_last_evaluation_exception(set) === nothing
     end
 
+    @testset "the tool set counts each exception, also two equal ones" begin
+        before = get_evaluation_exception_count(set)
+        run("error(\"twice\")")
+        first_exception = get_last_evaluation_exception(set)
+        run("error(\"twice\")")
+        @test get_last_evaluation_exception(set) === first_exception
+        @test get_evaluation_exception_count(set) == before + 2
+        run("1 + 1")
+        @test get_evaluation_exception_count(set) == before + 2
+    end
+
     @testset "a function is shown as the REPL shows it" begin
         @test run("phase_q() = 1") == "phase_q (generic function with 1 method)\n"
     end

@@ -159,8 +159,9 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool})
                 text = run_on_editor_task!(editor) do
                     started = time()
                     # Code that throws answers its message, so a new exception of
-                    # an evaluation is what marks such a call as a fault.
-                    before = get_last_evaluation_exception(editor.tools)
+                    # an evaluation is what marks such a call as a fault. The count
+                    # tells it, because two exceptions can be `===`.
+                    before = get_evaluation_exception_count(editor.tools)
                     # The barrier is here and not only in the transport library.
                     # A tool that throws must answer the client an error text and
                     # must not stop the server task, except an exception that
@@ -184,8 +185,8 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool})
                         end
                     finally
                         held[] = time() - started
-                        after = get_last_evaluation_exception(editor.tools)
-                        (after === nothing || after === before) || (fault[] = true)
+                        get_evaluation_exception_count(editor.tools) > before &&
+                            (fault[] = true)
                     end
                 end
                 record_mcp_call!(get_session_mcp_log_store(); method = "tools/call",
