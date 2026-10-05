@@ -54,7 +54,26 @@ function _at_find_iomap(iomap, ::Type{T}; depth = 12) where {T}
     nothing
 end
 
-_at_click(x, y, time) = (MouseDown(:left, x, y, ModifierKeys(); time),
+# The width of each card in the IO map tree under `value`, in the order of the
+# tree, by the fields of each IO map and the vectors and tuples that hold its
+# children. A card inside a card is not counted.
+function _at_collect_card_widths(value; found = Int[])
+    value isa Cell && (value = value[])
+    if value isa AbstractVector || value isa Tuple
+        foreach(child -> _at_collect_card_widths(child; found), value)
+    elseif value isa ChildrenIoMap && value.input isa WidgetCard
+        output = value.output isa Cell ? value.output[] : value.output
+        push!(found, Int(output.w))
+    elseif value isa IoMap
+        for name in fieldnames(typeof(value))
+            name in (:projection, :input, :output, :enclosing) && continue
+            _at_collect_card_widths(getfield(value, name); found)
+        end
+    end
+    found
+end
+
+_at_click(x, y, time) =(MouseDown(:left, x, y, ModifierKeys(); time),
                          MouseUp(:left, x, y, ModifierKeys(); time = time + 0.05))
 
 function test_appearance_tab()
@@ -63,15 +82,32 @@ function test_appearance_tab()
 measure = FixedMeasure(8, 12, 4, 0)
 offer = PrinterContext(EmptyReference(), Cell(800), Cell(600), Dict{Symbol,Any}())
 
-@testset "an Appearance draws as a row for the zoom and for each scale" begin
+@testset "an Appearance draws as the card Scale, with a row for the zoom and for each scale" begin
     appearance = Appearance(font_scale = 1.25)
     output = print_document(NaturalToGraphics(; measure, appearance), nothing, appearance, offer).output
     texts = first.(_at_collect_texts(output))
-    for name in ("Zoom", "Text", "Icons", "Spacing", "Controls", "Corners", "Lines", "Reset all")
+    for name in ("Save", "Load", "Scale", "Zoom", "Text", "Icons", "Spacing", "Controls", "Corners",
+                 "Lines", "Reset all")
         @test name in texts
     end
     @test "125%" in texts
     @test count(==("100%"), texts) == 6
+end
+
+@testset "the Reset all of the card Scale resets the scales, and that of the card Colors the colour settings" begin
+    appearance = Appearance(font_scale = 1.25, color_mode = :dark)
+    iomap = print_document(NaturalToGraphics(; measure, appearance), nothing, appearance, offer)
+    tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
+    resets = [op for (action, op) in tab.commands if action.label == "Reset all"]
+    @test length(resets) == 2
+    is_step = op -> op isa AdjustScaleOperation || op isa AdjustZoomOperation
+    scale = only(op for op in resets if all(is_step, op.operations))
+    @test length(scale.operations) == 7 && all(op -> op.delta == 0, scale.operations)
+    colors = only(op for op in resets if !all(is_step, op.operations))
+    fields = (:color_mode, :color_contrast, :color_palette, :color_accent, :color_neutral)
+    @test all(op -> op isa ReplaceReferencedValueOperation && op.document === appearance, colors.operations)
+    @test [op.reference.head for op in colors.operations] == [FieldReferenceStep(String(f)) for f in fields]
+    @test [op.value for op in colors.operations] == [getproperty(Appearance(), f) for f in fields]
 end
 
 @testset "a press of a button of a row answers the step of its factor" begin
@@ -145,14 +181,30 @@ end
                            (theme.font.family, theme.font.size, theme.font.weight)
 end
 
-@testset "the sections are in three groups, the editor themes first, and each folds" begin
+@testset "every card is as wide as the pane, and follows the width of the offer" begin
+    appearance = Appearance()
+    projection = NaturalToGraphics(; measure, appearance)
+    widths = map((800, 500)) do width
+        wide = PrinterContext(EmptyReference(), Cell(width), Cell(600), Dict{Symbol,Any}())
+        tab = _at_find_iomap(print_document(projection, nothing, appearance, wide), AppearanceToWidgetIoMap)
+        _at_collect_card_widths(tab)
+    end
+    # The two cards of settings and a card for each theme of the appearance.
+    @test length(widths[1]) == length(widths[2]) == 2 + 1 + length(appearance.themes)
+    @test all(==(first(widths[1])), widths[1])
+    @test all(==(first(widths[2])), widths[2])
+    @test first(widths[1]) - first(widths[2]) == 300
+end
+
+@testset "the sections are in three groups under the two cards of settings, the editor themes first, and each folds" begin
     appearance = Appearance()
     get_scaled_theme!(appearance, SyntaxTheme)
     get_scaled_theme!(appearance, FaultTheme)
     projection = NaturalToGraphics(; measure, appearance)
     iomap = print_document(projection, nothing, appearance, offer)
     texts = first.(_at_collect_texts(iomap.output))
-    order = [findfirst(==(t), texts) for t in ("Editor", "Widget", "Syntax", "Tools", "Fault")]
+    order = [findfirst(==(t), texts)
+             for t in ("Save", "Scale", "Colors", "Editor", "Color", "Widget", "Syntax", "Tools", "Fault")]
     @test all(!isnothing, order) && issorted(order)
     # Every section is closed: a card draws its title and no field.
     @test !("primary" in texts) && !("item gap" in texts)

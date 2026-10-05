@@ -144,15 +144,24 @@ says so.
   - make each group a `VerticalLayout` of its heading and its cards;
   - set `child_width = Fill` on the outer layout and on each group;
   - change the docstring of `AppearanceToWidget` to the new order.
-- [ ] **Step 2. The tests.** In
+- [x] **Step 2. The tests.** Done on 2026-10-05. In
   [AppearanceTabTest.jl](../../test/platform/appearance/AppearanceTabTest.jl):
-  - change the names of the first testset: "Scale", "Save" and "Load" in place
-    of "Reset all";
-  - add a testset: the "Reset" of the Scale card answers the reset of the seven
-    scales, and the "Reset" of the Colors card the writes of the five defaults;
-  - add the order "Save", "Scale", "Colors", "Editor", "Color", "Widget" to the
-    test of the groups.
-  Run `test_appearance_tab()` alone.
+  - the first testset also looks for "Save", "Load" and "Scale";
+  - a new testset: the "Reset all" of the Scale card answers the reset of the
+    seven scales, and the "Reset all" of the Colors card the writes of the five
+    defaults of a new `Appearance`;
+  - the test of the groups checks the order "Save", "Scale", "Colors",
+    "Editor", "Color", "Widget", "Syntax", "Tools", "Fault";
+  - a new render test, as the rule "cards fill" asks: it prints the tab at the
+    offers 800 and 500, and takes the width of each card from the IO map tree.
+    Every card has one width, and that width grows by 300 between the two
+    offers. The helper `_at_collect_card_widths` walks the fields of each IO
+    map and the tuples of `child_iomaps`, because a `FaultCatchingIoMap` gives
+    no children through `get_child_iomaps`.
+
+  `test_appearance_tab()` alone: 119 of 119 pass. The same test file on the
+  old code fails 7 and errors 1: the new names, the two "Reset all", the order,
+  and the widths, which at the offer 800 go from 606 to 798.
 - [ ] **Step 3. The look.** Render the tab offscreen at 900 × 1500 with
   `write_image` and `NaturalToGraphics`, as on 2026-10-05, and compare it with
   the render before the change. Check the points of section 6.
