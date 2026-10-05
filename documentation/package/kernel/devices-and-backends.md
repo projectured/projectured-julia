@@ -105,6 +105,7 @@ write_to_devices!(::Backend, devices, document)       # show the output of a fra
 wait_for_input(::Backend, devices, timeout_seconds)  # block until input, a wake or the timeout
 wake_backend!(::Backend)                             # end a wait, from any task or thread
 get_display_size(::Backend)                          # the usable size in logical pixels
+find_system_colors(::Backend)                        # the colour settings of the system, or nothing
 get_pointer_position(::Backend)                      # the global position of the pointer
 quit_backend!(::Backend)                             # release everything
 ```
@@ -149,6 +150,7 @@ default of `BackendDefaults.jl`. A generic with no default and no method raises 
 | `open_native_windows!` | no-op | ✓ | default | default | default | default |
 | `configure_devices!` | no-op | ✓ keeps the `Display` | default | default | default | default |
 | `get_display_size` | `(1280, 800)` | ✓ | default | default | ✓ the video size | default |
+| `find_system_colors` | `nothing` | ✓ gsettings, the portal, the registry, defaults | default | default | default | ✓ the script |
 | `get_pointer_position` | `(-1, -1)` | ✓ | default | default | ✓ the last pointer | default |
 | `write_image` | — | ✓ | — | — | — | — |
 | `record_video` | — | — | — | — | ✓ | — |
@@ -450,6 +452,8 @@ EventModule.jl (EventModule) — the module: its docstring, exports, and nine fr
         │                      WindowLeave
         ├─ TimerEvent.jl     — TimerExpire, the event of a timer that a reader set
         ├─ DisplayEvent.jl   — DisplayUpdate, a display shows a new frame of a window
+        ├─ SystemEvent.jl    — SystemColors, the colour settings of the operating
+        │                      system, and SystemColorsChange, their change
         ├─ WindowInput.jl    — an event or a gesture and the id of the window it
         │                      came from
         └─ EventDefaults.jl  — the fallbacks of get_modifier_keys and
@@ -608,7 +612,7 @@ BackendDefaults.jl  (BackendModule)         — the fallback behaviours the cont
 Declares `Backend <: Any` and the backend generics `initialize_backend!`,
 `quit_backend!`, `write_to_devices!`, `open_native_windows!`, `take_from_devices!`,
 `wait_for_input`, `wake_backend!`, `get_pointer_position`, `get_display_size`,
-`configure_devices!`, `write_image`, `record_video`, `render_canvas` and
+`find_system_colors`, `configure_devices!`, `write_image`, `record_video`, `render_canvas` and
 `decode_image`. A concrete backend lives in a package above the kernel, subtypes
 `Backend` and adds methods for its own `::MyBackend` type (see the tables in
 [Backends](#backends)). A backend is constructed by
@@ -623,7 +627,9 @@ no per-backend registration.
 so every generic there is a bodiless `function f end`. The fallback behaviours
 the contract supplies for itself sit beside it in `BackendDefaults.jl`, for the
 capabilities a backend can lack: `get_pointer_position` answers `(-1, -1)`,
-`get_display_size` answers `(1280, 800)`, `configure_devices!` is a no-op that
+`get_display_size` answers `(1280, 800)`, `find_system_colors` answers `nothing`
+(the backend can not find the colour settings of the system),
+`configure_devices!` is a no-op that
 leaves the devices at their default properties, `open_native_windows!` is a
 no-op for a backend that has no native windows to open, `wait_for_input` sleeps
 for at most 10 ms, and `wake_backend!` is a no-op. Each is a legal answer rather

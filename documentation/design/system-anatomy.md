@@ -359,6 +359,7 @@ composes with any higher-order projection.
 | `event/WindowEvent.jl` | `WindowQuit`, `WindowClose`, `WindowResize`, `WindowDefocus`, `WindowLeave` |
 | `event/TimerEvent.jl` | `TimerExpire` |
 | `event/DisplayEvent.jl` | `DisplayUpdate` |
+| `event/SystemEvent.jl` | `SystemColors`, `SystemColorsChange` |
 | `agent/AgentInterface.jl` (kernel) | The MCP *seam* — `make_agent_server(:mcp, …)`. The transport (JSON-RPC over HTTP, exposing documents and operations) is the opt-in `ProjecturedMCP` |
 
 ---

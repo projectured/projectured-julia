@@ -262,17 +262,36 @@ the colours of every view:
 
 | Field | Values |
 | --- | --- |
-| `color_mode` | `:light` or `:dark` ([`COLOR_MODES`](../../../../source/platform/style/Appearance.jl)) |
-| `color_contrast` | `:normal` or `:high` ([`COLOR_CONTRASTS`](../../../../source/platform/style/Appearance.jl)) |
+| `color_mode` | `:system`, `:light` or `:dark` ([`COLOR_MODES`](../../../../source/platform/style/Appearance.jl)); `:system` by default |
+| `color_contrast` | `:system`, `:normal` or `:high` ([`COLOR_CONTRASTS`](../../../../source/platform/style/Appearance.jl)); `:system` by default |
 | `color_palette` | the name of a palette of the registry |
-| `color_accent` | the hue that `:accent` names |
+| `color_accent` | the hue that `:accent` names, or `:system`; `:blue` by default |
 | `color_neutral` | the neutral ramp of the palette, such as slate |
+
+**The settings of the operating system.** A setting `:system` follows the
+operating system. The field `system_colors` of the appearance holds the
+`SystemColors` of the system: its mode, its contrast and its accent colour. It
+is a fact of the system, not a setting, so an appearance file does not save
+it. `get_color_mode`, `get_color_contrast` and `get_color_accent` give the
+value in use: the setting, or the value of the system for `:system`. The accent
+of the system is a colour, and `get_color_accent` takes the hue of the palette
+whose step 9 has the nearest OKLCH hue angle (`find_nearest_accent_hue`); a grey
+accent, or none, gives blue. With no answer of a backend, as in a test or a PDF
+file, the system is light and normal.
+
+The `appearance` wrapper fills `system_colors` in a start step, from
+`find_system_colors(editor.backend)`, before the first print. A backend that
+finds a change later reports it as a `SystemColorsChange`, which
+`AppearanceManagingProjection` writes into `system_colors` as view state: the
+view prints again, and the undo list does not record it. The SDL backend asks
+the system again each time one of its windows gets the focus (see
+[sdl.md](../../backend/sdl/sdl.md)).
 
 `color_themes` holds one `ColorTheme` for each pair of a mode and a contrast,
 four in all, by the name that `get_color_variant(mode, contrast)` gives the
 pair; so a fine-tune of a role stays with the mode and the contrast where a
 person made it. `get_color_theme(appearance)` answers the colour theme of the
-present pair.
+pair in use.
 
 **How a colour is computed, like a scaled length.** `scale_theme_value(value,
 theme, appearance)` computes a `Spacing` field by the `spacing_scale` of the

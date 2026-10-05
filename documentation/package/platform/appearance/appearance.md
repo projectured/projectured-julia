@@ -36,9 +36,11 @@ The editor then prints the whole view again in the same frame, and the inputs af
 
 For `CollectIntents`, the projection joins the keys of the content and its own, so a listing shows both.
 
+A `SystemColorsChange`, which a backend reports when the colour settings of the operating system change, goes to no content: the projection writes its `SystemColors` into the `system_colors` of the appearance at once. The write is a `ReplaceViewStateOperation`, so no history records it, and it is a change of the appearance, so the view prints again.
+
 ## One appearance for each editor
 
-The content, the tab strip of the `tabs` wrapper and the `AppearanceDocument` must draw from one `Appearance`. `build_editor` makes the argument of each wrapper with `make_wrapper_argument` before it builds anything; for the argument `true` this slice makes a new `Appearance`. With no projection named, `make_document_projection(document; arguments...)` gives the renderer the same object. `EditorParts.arguments` holds the arguments, so the `tabs` wrapper takes the appearance from there when its own argument names none. A start step of the wrapper copies the zoom of the appearance into the `Display`, so an editor starts at the zoom that its appearance holds.
+The content, the tab strip of the `tabs` wrapper and the `AppearanceDocument` must draw from one `Appearance`. `build_editor` makes the argument of each wrapper with `make_wrapper_argument` before it builds anything; for the argument `true` this slice makes a new `Appearance`. With no projection named, `make_document_projection(document; arguments...)` gives the renderer the same object. `EditorParts.arguments` holds the arguments, so the `tabs` wrapper takes the appearance from there when its own argument names none. A start step of the wrapper copies the zoom of the appearance into the `Display`, so an editor starts at the zoom that its appearance holds. Another start step, `copy_system_colors!`, copies the colour settings of the operating system that `find_system_colors(editor.backend)` gives into `system_colors`, so a setting `:system` is right from the first print.
 
 A main builder that builds its own projection makes one `Appearance`, builds with it, and passes it as `appearance = …` to `build_editor`.
 
@@ -51,6 +53,9 @@ the window (`find_editor_appearance`).
 
 - A row for the zoom and one for each scale: the name, −, the value in percent, +
   and a reset button. Under the rows: "Reset all", "Save" and "Load".
+- A row for each colour setting: the name, ‹, the value and ›. A setting that
+  follows the system shows the value of the system after it, as
+  "system (dark)".
 - The themes in three groups: "Editor" holds the widget, the text, the syntax,
   the reference, the graphics and the tooltip themes, in this order, because
   every view draws with them; "Tools" holds the other themes of

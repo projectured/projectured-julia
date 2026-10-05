@@ -69,10 +69,21 @@ Each shape of `POINTER_SHAPES` but the open hand and the closed hand has a curso
 | mouse wheel | `MouseScroll` |
 | window close, window resize | `WindowClose`, `WindowResize` |
 | `SDL_QUIT` | `WindowQuit` on the id `:none` |
+| window focus gained | nothing; a new query of the colour settings of the system, whose change comes later as `SystemColorsChange` on the id `:none` |
 
 Escape is an ordinary `KeyDown`. The backend makes no `MouseClick`: a gesture tracking projection builds a click from a down and an up. A run of motion events gives only its newest sample. An event that ends the run waits in `pending_input` for the next call, so a click never comes before the motion that led to it. Motion with no button held gives at most one sample in 30 ms, and a held sample is kept, so the last position of a pointer that stops arrives. `pending_input` and `pending_motion` are fields of the backend, so two backends in one process never share an event.
 
 The held buttons and the modifiers of an event are those at its place in the queue, not at the time of the poll. A motion takes its held buttons from its own `state` mask. The backend keeps the modifiers of the last key event that it read, which `initialize_backend!` seeds from `SDL_GetModState`, and a mouse event and a text event take their modifiers from it. So a Ctrl key that goes up after a click leaves Ctrl on the click, and the last motion of a drag holds its button when the release waits behind it in the queue.
+
+### The colour settings of the system
+
+`find_system_colors` asks the operating system for its mode, its contrast and its accent, and waits at most half a second; the `appearance` wrapper calls it before the first print. Each system answers in its own way:
+
+- **Linux:** on a GNOME desktop, and on a desktop that `XDG_CURRENT_DESKTOP` does not name, `gsettings` gives `color-scheme`, the high contrast of `org.gnome.desktop.a11y.interface` and `accent-color`, at once. Another desktop, or no answer of `gsettings`, asks the settings portal with `gdbus call … Settings.ReadAll`.
+- **Windows:** the registry value `AppsUseLightTheme`, `SystemParametersInfoW(SPI_GETHIGHCONTRAST)` and `DwmGetColorizationColor`.
+- **macOS:** `defaults read` of `AppleInterfaceStyle`, of `increaseContrast` and of `AppleAccentColor`.
+
+An accent that the system names, as GNOME and macOS do, gives the step 9 colour of the hue of the default palette that the name means; a grey accent gives none. Each command runs with a limit, and a command that does not end in time is stopped: a call to the portal can wait for seconds where D-Bus does not answer. When a window gets the focus, the backend asks again in a task, with a limit of one second. A different answer waits in `system_colors_change`, a wake ends the wait of the editor, and `take_from_devices!` gives it as one `SystemColorsChange`.
 
 ### Wait and wake
 
@@ -119,6 +130,7 @@ The code is the slice `SdlModule`, in `source/backend/sdl/`: `SdlModule.jl` hold
 - **The damage history follows the buffer age.** A swap chain of two or three buffers would otherwise show an old edit on the buffer that was not repainted.
 - **The zoom and the scales take two routes.** The zoom needs no new print, since the backend reads the `zoom` of the `Display` while it draws; a scale prints again, because the widgets keep the sizes that they measured.
 - **Xlib finds its locale data in its artifact.** The `__init__` of `ProjecturedSDL` sets `XLOCALEDIR` to the locale folder of `Xorg_libX11_jll`, unless the user set it. The build of that JLL names a folder that exists only on the machine that built it; without the data `XSupportsLocale` is false, and SDL gives a window no title, so X11 shows no `WM_NAME` and no `_NET_WM_NAME`.
+- **The colours of the system are asked at the focus.** A person changes the setting of the system in another window, so the focus that comes back is the time to ask again. A listener for each system would know the change at once, but needs a D-Bus connection, a window procedure or an Objective-C notification. See section 12.16 of [plan/pending/one-coherent-color-set.md](../../../../plan/pending/one-coherent-color-set.md).
 - **Video starts only when it does not run.** `initialize_backend!`, `get_display_size`, `decode_image`, `write_image` and the offscreen renderer start SDL video through one guard. SDL counts the starts of video in one byte: after 256 starts the count is zero again, and the next start quits video first, which destroys every window and sends no event.
 - **The state of an editor is on its backend.** The pending input, the time of the rate limit of idle motion, the switches `partial_render` and `debug_dirty`, and the `Display` are fields of the backend, so two backends in one process keep them apart. The SDL session is still one for each process: one event queue, and one set of open fonts.
 
