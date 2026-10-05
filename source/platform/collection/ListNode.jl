@@ -218,6 +218,31 @@ function find_list_node(head::ListNode, index::Integer)
 end
 
 """
+    find_list_index(head, node; limit = 10_000) -> Int | Nothing
+
+The index of `node` counted from `head`, as `find_list_node` counts: 1 is `head`,
+2 the node after it, 0 the node before it. `nothing` when `head` is not a
+`ListNode`, or when the chain does not hold `node` within `limit` links each way.
+
+Use it to turn a node back into a place, such as the new head of a list that a
+table writes, when the owner of the list keeps the place as an anchor. It walks
+both ways from `head` and reads the links on the way, so a lazy chain builds the
+nodes that it passes.
+"""
+function find_list_index(head, node; limit::Int = 10_000)
+    head isa ListNode || return nothing
+    forward, backward = head, head
+    for k in 0:limit
+        forward === node && return 1 + k
+        backward === node && return 1 - k
+        forward = forward === nothing ? nothing : forward.next
+        backward = backward === nothing ? nothing : backward.prev
+        forward === nothing && backward === nothing && return nothing
+    end
+    nothing
+end
+
+"""
     make_index_list(count, at, value_of; computed = false) -> ListNode
 
 The list of the values of the indices `1:count`, with its head at the index

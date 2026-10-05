@@ -671,7 +671,7 @@ function _convert_table_write(iomap::DataFrameViewToWidgetIoMap, operation, colu
     field, value = written
     view = iomap.input
     if field == "column_headers"
-        c = _find_row_index(iomap.table.column_headers, value)
+        c = find_list_index(iomap.table.column_headers, value)
         c === nothing && return nothing
         return ReplaceViewStateOperation(ReplaceReferencedValueOperation(
             view, "column_anchor", view.column_anchor + c - 1))
@@ -681,7 +681,7 @@ function _convert_table_write(iomap::DataFrameViewToWidgetIoMap, operation, colu
     # again from its anchor.
     field == "row_headers" && return nothing
     field == "rows" || return operation
-    k = _find_row_index(iomap.table.rows, value)
+    k = find_list_index(iomap.table.rows, value)
     k === nothing && return nothing
     ReplaceViewStateOperation(ReplaceReferencedValueOperation(view, "anchor", view.anchor + k - 1))
 end
@@ -764,21 +764,6 @@ function _find_cell_view_path(iomap::DataFrameViewToWidgetIoMap, path)
     (tail isa ConcreteReference && tail.head isa RangeReferenceStep &&
      tail.tail isa ConcreteReference && tail.tail.head isa RangeReferenceStep) || return nothing
     _find_view_path(iomap, table_path)
-end
-
-# The index of `node` in the list of `head`, counted from the head, or
-# `nothing` when it is not within the walk of a relocation.
-function _find_row_index(head, node; limit::Int = 10_000)
-    head isa ListNode || return nothing
-    forward, backward = head, head
-    for k in 0:limit
-        forward === node && return 1 + k
-        backward === node && return 1 - k
-        forward = forward === nothing ? nothing : forward.next
-        backward = backward === nothing ? nothing : backward.prev
-        forward === nothing && backward === nothing && return nothing
-    end
-    nothing
 end
 
 # The parts of the drag of the edge of a column come to the view by its path, and

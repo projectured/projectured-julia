@@ -364,6 +364,14 @@ end
     @test head.next.next.next === nothing
     @test sort(built) == [1, 2, 3, 4, 5]
 
+    @testset "the index of a node counts from the head, both ways" begin
+        @test find_list_index(head, head) == 1
+        @test find_list_index(head, head.next.next) == 3
+        @test find_list_index(head, head.prev.prev) == -1
+        @test find_list_index(head, make_index_list(5, 3, identity)) === nothing
+        @test find_list_index(CellVector(), head) === nothing
+    end
+
     @testset "the head is clamped to the range" begin
         @test make_index_list(5, 9, identity).value == 5
         @test make_index_list(5, 0, identity).value == 1
