@@ -244,6 +244,12 @@ mutable struct SdlBackend <: Backend
     # first one, and the cursor that it made for each shape, once.
     pointer_shape::Symbol
     cursors::Dict{Symbol, Ptr{SDL_Cursor}}
+    # The colour settings of the system that the backend found last, the change of
+    # them that waits for `take_from_devices!`, and the task of a query in progress
+    # (see `find_system_colors`).
+    system_colors::Union{Nothing, SystemColors}
+    system_colors_change::Union{Nothing, WindowInput}
+    system_colors_task::Union{Nothing, Task}
 end
 
 # The keywords are the defaults of the `RenderSettings` of an editor. An editor
@@ -256,7 +262,8 @@ SdlBackend(; partial_render::Bool = true, debug_dirty::Bool = false,
                partial_render, debug_dirty, Float64(debug_dirty_hold), Int(supersample),
                Dict{Symbol, Vector{Tuple{Float64,Vector{NTuple{4,Int}}}}}(),
                nothing, nothing, 0.0, ModifierKeys(), UInt32(0), Display(), WindowInput[], 0.0,
-               Dict{Symbol, GraphicsCanvas}(), :default, Dict{Symbol, Ptr{SDL_Cursor}}())
+               Dict{Symbol, GraphicsCanvas}(), :default, Dict{Symbol, Ptr{SDL_Cursor}}(),
+               nothing, nothing, nothing)
 
 # SDL draws a screen of windows, and `--backend=sdl` names it.
 get_backend_name(::Type{SdlBackend}) = :sdl
@@ -3681,6 +3688,7 @@ between them, so cooperative tasks that live on this thread keep their turn.
 function BackendModule.wait_for_input(backend::SdlBackend, devices, timeout_seconds)
     backend.pending_input === nothing || return nothing
     isempty(backend.display_updates) || return nothing
+    backend.system_colors_change === nothing || return nothing
     timeout = Float64(timeout_seconds)
     if backend.pending_motion !== nothing
         remaining = _HOVER_MOTION_INTERVAL - (time() - backend.last_hover_motion)
@@ -3735,6 +3743,8 @@ backend-agnostic inner event, with the time that SDL stamped on it:
 - `SDL_MOUSEBUTTONUP`                  → `WindowInput(<id>, MouseUp)`
 - `SDL_MOUSEMOTION`                    → `WindowInput(<id>, MouseMove)` (coalesced)
 - `SDL_MOUSEWHEEL`                     → `WindowInput(<id>, MouseScroll)`
+- a change of the colour settings of the system, which a query found after
+  `SDL_WINDOWEVENT_FOCUS_GAINED`, → `WindowInput(:none, SystemColorsChange)`
 
 `<id>` is the `WindowDocument.id` of the originating window (looked up
 in `backend.window_ids`), or `:none` if the SDL event carries no window
@@ -3776,6 +3786,9 @@ function BackendModule.take_from_devices!(backend::SdlBackend, devices)
     # A window that showed a changed frame: the readers find their part of the
     # view again before they read the input that came after it.
     isempty(backend.display_updates) || return popfirst!(backend.display_updates)
+    # A change of the colour settings of the system, which a query found.
+    change = backend.system_colors_change
+    change === nothing || (backend.system_colors_change = nothing; return change)
     # The newest motion sample so far — carried over from a call the rate limit
     # blocked, then overwritten by anything newer this poll finds.
     motion = backend.pending_motion
@@ -3847,6 +3860,12 @@ function _poll_window_input(backend::SdlBackend)
                 return (WindowInput(wid, WindowClose(; time = event_time)), nothing)
             elseif sub == UInt8(SDL_WINDOWEVENT_FOCUS_LOST)
                 return (WindowInput(wid, WindowDefocus(; time = event_time)), nothing)
+            elseif sub == UInt8(SDL_WINDOWEVENT_FOCUS_GAINED)
+                # A person can change the colour settings of the system in another
+                # window, so the backend asks again. A change comes later, as a
+                # `SystemColorsChange`.
+                _start_system_colors_query!(backend)
+                continue
             elseif sub == UInt8(SDL_WINDOWEVENT_LEAVE)
                 return (WindowInput(wid, WindowLeave(; time = event_time)), nothing)
             elseif sub == UInt8(SDL_WINDOWEVENT_RESIZED)  # external/user only

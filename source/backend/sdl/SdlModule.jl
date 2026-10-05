@@ -32,5 +32,6 @@ export SdlBackend, open_offscreen_renderer, close_offscreen_renderer, with_offsc
        write_offscreen_picture_with_overlay!
 
 include("SdlBackend.jl")
+include("SystemColorQuery.jl")
 
 end # module SdlModule
