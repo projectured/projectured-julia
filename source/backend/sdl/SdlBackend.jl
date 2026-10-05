@@ -245,11 +245,13 @@ mutable struct SdlBackend <: Backend
     pointer_shape::Symbol
     cursors::Dict{Symbol, Ptr{SDL_Cursor}}
     # The colour settings of the system that the backend found last, the change of
-    # them that waits for `take_from_devices!`, and the task of a query in progress
-    # (see `find_system_colors`).
+    # them that waits for `take_from_devices!`, the task of a query in progress, and
+    # whether a focus asked for one more query while it ran (see
+    # `find_system_colors`).
     system_colors::Union{Nothing, SystemColors}
     system_colors_change::Union{Nothing, WindowInput}
     system_colors_task::Union{Nothing, Task}
+    is_system_colors_query_pending::Bool
 end
 
 # The keywords are the defaults of the `RenderSettings` of an editor. An editor
@@ -263,7 +265,7 @@ SdlBackend(; partial_render::Bool = true, debug_dirty::Bool = false,
                Dict{Symbol, Vector{Tuple{Float64,Vector{NTuple{4,Int}}}}}(),
                nothing, nothing, 0.0, ModifierKeys(), UInt32(0), Display(), WindowInput[], 0.0,
                Dict{Symbol, GraphicsCanvas}(), :default, Dict{Symbol, Ptr{SDL_Cursor}}(),
-               nothing, nothing, nothing)
+               nothing, nothing, nothing, false)
 
 # SDL draws a screen of windows, and `--backend=sdl` names it.
 get_backend_name(::Type{SdlBackend}) = :sdl

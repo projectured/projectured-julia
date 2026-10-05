@@ -83,7 +83,7 @@ The held buttons and the modifiers of an event are those at its place in the que
 - **Windows:** the registry value `AppsUseLightTheme`, `SystemParametersInfoW(SPI_GETHIGHCONTRAST)` and `DwmGetColorizationColor`.
 - **macOS:** `defaults read` of `AppleInterfaceStyle`, of `increaseContrast` and of `AppleAccentColor`.
 
-An accent that the system names, as GNOME and macOS do, gives the step 9 colour of the hue of the default palette that the name means; a grey accent gives none. Each command runs with a limit, and a command that does not end in time is stopped: a call to the portal can wait for seconds where D-Bus does not answer. When a window gets the focus, the backend asks again in a task, with a limit of one second. A different answer waits in `system_colors_change`, a wake ends the wait of the editor, and `take_from_devices!` gives it as one `SystemColorsChange`.
+An accent that the system names, as GNOME and macOS do, gives the step 9 colour of the hue of the default palette that the name means; a grey accent gives none. Each command runs with a limit, and a command that does not end in time is stopped: a call to the portal can wait for seconds where D-Bus does not answer. When a window gets the focus, the backend asks again in a task, with a limit of one second. A focus that comes while a query runs asks for one more query after it, because the running query can have read the settings before they changed. A different answer waits in `system_colors_change`, a wake ends the wait of the editor, and `take_from_devices!` gives it as one `SystemColorsChange`.
 
 ### Wait and wake
 

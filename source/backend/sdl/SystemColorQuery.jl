@@ -22,15 +22,23 @@ function BackendModule.find_system_colors(backend::SdlBackend)
     colors
 end
 
-# Ask the system again in a task, unless a query runs already. A different answer
-# waits in `system_colors_change` for `take_from_devices!`, and a wake ends the wait
-# of the editor for it.
-function _start_system_colors_query!(backend::SdlBackend)
+# Ask the system again in a task. A focus that comes while a query runs asks for
+# one more query after it, because the running query can have read the settings
+# before they changed. A different answer waits in `system_colors_change` for
+# `take_from_devices!`, and a wake ends the wait of the editor for it.
+# `read_colors` gives the settings of the system, or `nothing`.
+function _start_system_colors_query!(backend::SdlBackend,
+                                     read_colors::Function =
+                                         () -> _read_system_colors(_SYSTEM_COLORS_QUERY_LIMIT))
     task = backend.system_colors_task
-    (task === nothing || istaskdone(task)) || return nothing
-    backend.system_colors_task = @async begin
-        colors = _read_system_colors(_SYSTEM_COLORS_QUERY_LIMIT)
-        _report_system_colors!(backend, colors)
+    if task !== nothing && !istaskdone(task)
+        backend.is_system_colors_query_pending = true
+        return nothing
+    end
+    backend.system_colors_task = @async while true
+        backend.is_system_colors_query_pending = false
+        _report_system_colors!(backend, read_colors())
+        backend.is_system_colors_query_pending || break
     end
     nothing
 end

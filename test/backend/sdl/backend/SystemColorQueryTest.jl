@@ -61,5 +61,21 @@ function test_sdl_system_colors()
         @test backend.system_colors == dark
     end
 
+    @testset "a focus during a query asks again, so the last focus reads the new settings" begin
+        backend = SdlBackend()
+        backend.system_colors = SystemColors()
+        answers = (SystemColors(), SystemColors(; mode = :dark))
+        reads = Ref(0)
+        # The first read gives the settings from before the change, the second the new ones.
+        read_slowly() = (reads[] += 1; sleep(0.2); answers[min(reads[], 2)])
+        _SDL_MODULE._start_system_colors_query!(backend, read_slowly)
+        sleep(0.05)
+        _SDL_MODULE._start_system_colors_query!(backend, read_slowly)
+        @test timedwait(() -> istaskdone(backend.system_colors_task), 5.0) === :ok
+        @test reads[] == 2
+        @test backend.system_colors == SystemColors(; mode = :dark)
+        @test backend.system_colors_change.event.colors == SystemColors(; mode = :dark)
+    end
+
 end
 end
