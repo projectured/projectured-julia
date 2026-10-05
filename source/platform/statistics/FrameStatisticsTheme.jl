@@ -15,9 +15,8 @@ The theme of the statistics. `@theme` declares it, so
 
 The fields are the text styles of the head line and the titles, of the cells,
 of the cells of a slow frame and of the empty line, and the gap between the
-parts. The borders, the header
-rows and the scroll of the tables come from the widget theme. Each field has a
-docstring that says what it draws, which the
+parts. The borders, the header rows and the scroll of the tables come from the
+widget theme. Each field has a docstring that says what it draws, which the
 appearance tab shows under its name.
 
 `make_frame_statistics_projection` gives the projection of the statistics table

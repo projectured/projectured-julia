@@ -53,15 +53,15 @@ function make_frame_statistics_projection(; theme = nothing, measure = nothing)
     row_text = get_style(:row_text)
     row_height = measure === nothing ? 0 :
         UntrackedCell{Int}(@computation ceil(Int, compute_line_box(measure, "M",
-                                                                   _read_style(row_text).font).height))
+                                                                   _get_style_value(row_text).font).height))
     FrameStatisticsToWidget(; header_text = get_style(:header_text), row_text,
                             empty_text = get_style(:empty_text), slow_text = get_style(:slow_text),
                             gap = get_style(:gap), row_height)
 end
 
 # A style that a builder gave: a cell that reads the theme, or a plain value.
-_read_style(style::AbstractCell) = style[]
-_read_style(style) = style
+_get_style_value(style::AbstractCell) = style[]
+_get_style_value(style) = style
 
 # The columns of the summary, and how each aligns.
 const _SUMMARY_HEADERS = ("measurement", "unit", "frames", "minimum", "maximum", "mean",
@@ -77,10 +77,10 @@ function print_document(p::FrameStatisticsToWidget, recursion, statistics::Frame
             _make_pause_toggle(statistics)];
         vertical_align = :center, gap = 4 * p.gap)
     root = VerticalLayout(Any[]; horizontal_align = :left, gap = p.gap)
-    # The parts are built again only when a measurement appears, because only
-    # the count of the rows is read here: a flush changes the labels of the
-    # numbers and the rows of the table of the frames, which read their own
-    # cells.
+    # The parts are built again only when a measurement appears: this reads the
+    # count of the rows, each row, and its name and its unit, and a flush writes
+    # none of these. A flush changes the labels of the numbers and the rows of
+    # the table of the frames, which read their own cells.
     set_cell_computation!(getfield(root.children, :elements), () -> begin
         rows = statistics.rows
         isempty(rows) && return Cell[Cell(head), Cell(WidgetLabel("no frame yet"; text_style = p.empty_text))]
@@ -220,8 +220,14 @@ end
 function _make_frame_list(statistics::FrameStatistics, value_of)
     count = length(statistics.frames)
     count == 0 && return CellVector()
-    make_index_list(count, statistics.anchor, k -> value_of(count - k + 1))
+    make_index_list(count, _get_head_place(statistics), k -> value_of(count - k + 1))
 end
+
+# The place of the head of the list of frames: `anchor`, within the frames that
+# the document holds. An anchor from a longer ring, such as one of an editor
+# before, names the oldest frame.
+_get_head_place(statistics::FrameStatistics) =
+    clamp(statistics.anchor, 1, max(1, length(statistics.frames)))
 
 # No caret goes into a table. The default backward mapping names a part of a
 # table by an introduced reference, so a point names the cell under it, and only
@@ -260,7 +266,7 @@ function _convert_widget_write(statistics::FrameStatistics, operation)
         k = find_list_index(document.rows, write.value)
         k === nothing && return DoNothingOperation()
         return ReplaceViewStateOperation(
-            ReplaceReferencedValueOperation(statistics, "anchor", statistics.anchor + k - 1))
+            ReplaceReferencedValueOperation(statistics, "anchor", _get_head_place(statistics) + k - 1))
     end
     written = _find_written_widget_field(operation)
     written === nothing && return nothing

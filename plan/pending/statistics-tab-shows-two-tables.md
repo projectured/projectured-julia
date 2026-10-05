@@ -310,7 +310,34 @@ commit for each step. Do not land on `main` until the owner says so.
   how it works, the theme, how it fits, usage and limits. Update the "See also"
   in the docstring of `FrameTimeSeriesToChart`, and the documents of the
   collection slice and the data frames adapter for `make_index_list`.
-- [ ] **Step 8. Report.** Run the narrow tests of each step again on the
+- [x] **Step 8. Report.** A review of the branch found no serious bug, and the
+  reader, the reactivity and the edge cases hold. Fixed after the review:
+  - A move of the head counted from the stored `anchor`, but the list starts at
+    `anchor` clamped to the frames. An anchor from a longer ring, which the
+    session document keeps across editors, then moved the rows by the
+    difference. `_get_head_place` clamps it for the list and for the reader,
+    and a test holds it.
+  - The editor test found the frame numbers anywhere in the drawn texts; it now
+    reads the row headers by their place. The slow color test had a wrong
+    median in its comment, and it now checks a frame at exactly two times the
+    median too.
+  - `_read_style` became `_get_style_value`, and two comments say what the code
+    reads.
+
+  Left as they are, with the reason:
+  - `DataFrameViewToWidget` adds a move to its stored anchor in the same way.
+    It is outside this plan.
+  - "The field that a view-state write writes" now has three small copies:
+    `_find_written_widget_field` here, `_find_written_field` in the data
+    frame view and `_find_written_offset` in the widget table. A shared
+    function is a separate change.
+  - A paused table stays paused in the session document after its tab
+    closes, and a new tab opens paused. The toggle shows it.
+
+  The narrow tests of the branch pass: 1213 of 1215 before the review fixes,
+  and 254 of 254 for the feed, tool view and tool theme tests after them. The
+  one failure, `test_catalog_coverage()` with `["McpLog"] == String[]`, and the
+  one broken test fail on `main` (`ee30fafbd`) in the same way. Run the narrow tests of each step again on the
   branch. Report the commits, the test results, the blast radius and the
   command that lands the branch. Then stop and wait for the owner.
 

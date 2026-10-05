@@ -198,7 +198,7 @@ function test_frame_statistics_feed()
 
     @testset "a slow frame draws in the slow color, and the others do not" begin
         statistics = _make_frame_statistics_example()
-        # The median is 10 ms, so the frame of 50 ms is slow, and 20 ms is not.
+        # The median is 20 ms, so the frame of 50 ms is slow, and 20 ms is not.
         statistics.columns = [[0.01, 0.02, 0.05], [NaN, 120.0, 5000.0]]
         p, _, root = _print_frame_statistics(statistics)
         frames = _get_frame_table(root)
@@ -211,6 +211,9 @@ function test_frame_statistics_feed()
         @test !any(is_slow(middle[index]) for index in 1:length(middle))
         @test !is_slow(frames.row_headers.next.value)
         @test !is_color_equal(p.row_text.color, slow_color)
+        # A frame at two times the median is not slow: the limit is strict.
+        statistics.columns = [[0.01, 0.02, 0.04], [NaN, 120.0, 5000.0]]
+        @test !is_slow(frames.rows.value[1])
     end
 
     @testset "a flush changes the numbers and keeps the parts" begin
@@ -270,6 +273,12 @@ function test_frame_statistics_feed()
         @test answer isa ReplaceViewStateOperation
         @test get_wrapped_operation(answer) === press
         @test getfield(toggle, :pressed) === getfield(statistics, :paused)
+        # An anchor beyond the frames names the oldest frame, and a move counts
+        # from that head.
+        statistics.anchor = 9
+        @test frames.row_headers.value.content == "1"
+        move = ReplaceViewStateOperation(ReplaceReferencedValueOperation(frames, "rows", frames.rows.prev))
+        @test get_wrapped_operation(read_intent(p, iomap, move)).value == 2
     end
 
     @testset "in a tab, a turn far down moves the anchor, the rows stay, and Pause pauses" begin
@@ -325,6 +334,9 @@ function test_frame_statistics_feed()
         force(value) = value isa AbstractCell ? force(value[]) : value
         window() = first(force(force(get_iomap_output(editor.iomap)).windows))
         drawn() = _get_drawn_texts(force(window().content))
+        # The row headers: the texts at the left edge. The summary shows its
+        # numbers further right.
+        frame_numbers() = [t[3] for t in drawn() if t[1] < 80]
         # One turn of the loop of `run_editor!`: drain the feeds, run the frame,
         # and record it, so the next turn flushes it.
         function frames!(count)
@@ -341,7 +353,7 @@ function test_frame_statistics_feed()
         @test statistics.frame_count == 3
         @test "3 frames" in [t[3] for t in drawn()]
         # The frame numbers are the row headers of the table of the frames.
-        @test all(string(frame) in [t[3] for t in drawn()] for frame in 1:3)
+        @test all(string(frame) in frame_numbers() for frame in 1:3)
         # A press on Pause, as the window sends it.
         x, y, _ = only(t for t in drawn() if t[3] == "Pause")
         for event in (MouseDown(:left, x + 2, y + 2, ModifierKeys(); time = 1.0),
@@ -354,7 +366,8 @@ function test_frame_statistics_feed()
         frames!(3)
         @test statistics.frame_count == held
         @test "$(held) frames" in [t[3] for t in drawn()]
-        @test string(held + 2) ∉ [t[3] for t in drawn()]
+        @test string(held) in frame_numbers()
+        @test string(held + 1) ∉ frame_numbers()
     end
 
     @testset "the table summarizes the recent frames" begin
