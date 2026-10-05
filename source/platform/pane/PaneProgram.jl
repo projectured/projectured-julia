@@ -985,7 +985,7 @@ document that can hold a pane, and into nothing else:
 - from a wrapper (a history, a clipboard, a shell), only towards the document it
   wraps, and never into its history, its stored copy or its bars;
 - from a pane tab or a widget, only into a pane, a widget, a collection or a
-  wrapper;
+  wrapper, and never into the title of a tab, which holds no pane;
 - from any other document, into a document.
 
 So it does not walk the content of a file, or the actions and the types that a
@@ -993,6 +993,7 @@ widget holds.
 """
 function is_pane_search_step(parent, child)
     child isa Document || return false
+    child isa PaneTabTitle && return false
     wrapped = get_wrapped_document(parent)
     if wrapped !== parent
         get_wrapped_document(child) === wrapped || return false
