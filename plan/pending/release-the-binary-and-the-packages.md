@@ -1410,8 +1410,19 @@ seals go beyond the kernel in time (only kernel files are sealed today).
       The owner, 2026-10-04: they wait until the owner lands the other work of
       the first release. The 32 workflows of the release `19fe700`, the
       umbrella too, pass.
-- [ ] The owner pushes the release copy and the registry, and makes both
-      repositories public.
+- [x] The owner pushes the release copy and the registry, and makes both
+      repositories public. Done by 2026-10-05: Projectured.jl, ProjecturedRegistry,
+      AutoIntegration.jl and AutoPrecompile.jl are public.
+- [x] The ways of the front page, as a new user types them, 2026-10-05: a fresh
+      `HOME` with no git credentials, an empty depot, a new environment for each
+      way, and the window offscreen, on Julia 1.12.7 and 1.13.0. Each way adds,
+      loads and shows the data frame: `using Projectured` with the integrations,
+      each package by name, `ProjecturedIntegrations`, and AutoPrecompile, which
+      starts its build in the background. The setting `"manual"` keeps
+      ProjecturedDataFrames out of the session. `pkg> add AutoPrecompile` failed
+      while its repository was private, and it works since the owner made it
+      public. The front page then shows the way of `Projectured` first, and its
+      references are links.
 - [x] The build guide names `ProjecturedRegistry` where it says `<registry>`.
       Done on 2026-10-02 with the READMEs.
 
