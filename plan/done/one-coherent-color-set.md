@@ -1,11 +1,10 @@
 # One coherent color set
 
-> **Status:** pending; landed on `main` at `b2d95c294` on 2026-10-04, not
-> pushed. Part 1, the catalog of every color, is done. The owner decided the
-> design of Part 2 in two rounds of answers (section 12.1). Parts C, M and P
-> are done, and their follow-ups landed on 2026-10-05 (section 12.15). Part S,
-> the system mode, is planned in section 12.16 and starts on the owner's word.
-> The plan moves to `plan/done/` when Part S is done.
+> **Status:** done. Parts C, M and P landed on `main` at `b2d95c294` on
+> 2026-10-04, their follow-ups at `c8605454b` on 2026-10-05 (section 12.15), and
+> Part S, the system mode, at `c666139ac` on 2026-10-05 (section 12.16). Nothing
+> is pushed. Part 1, the catalog of every color, is done. The owner decided the
+> design of Part 2 in two rounds of answers (section 12.1).
 
 ## 1. The request
 
@@ -1037,7 +1036,11 @@ checks after the landing:
 **Status:** planned on 2026-10-05, and the owner decided S-1 to S-4 the same
 day (section S.3). Steps S1 to S6 are done on the branch `system-colors`
 (worktree `projectured-julia-system-colors`), started at the owner's word
-("yes, start implementing"), and step S7 passes; not landed.
+("yes, start implementing"), and step S7 passes. Landed on `main` at
+`c666139ac` on 2026-10-05 after a rebase with no conflict; not pushed. The
+checks after the landing: `test_integration()` 1206359 pass, 1578 broken, no
+failure and no error; the targeted omnet-julia tests give the same results as
+before, and the known failure of `test_sim_control_panel` did not occur.
 The owner wrote:
 
 > Yes, write this level of OS color scheme support into Part S, we will

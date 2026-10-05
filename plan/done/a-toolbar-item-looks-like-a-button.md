@@ -139,7 +139,7 @@ pressed look. The owner wrote: "I agree with your recommendation".
   hover layer and the held surface is the pressed layer. These are the values
   that a `WidgetButton` draws, so a lit toolbar item has the outline of a
   button. No new color comes into the theme, so
-  [one-coherent-color-set.md](../pending/one-coherent-color-set.md) can recolor the item
+  [one-coherent-color-set.md](one-coherent-color-set.md) can recolor the item
   with every other control.
 - **D3. The border is on the layer.** The border is a part of the hover layer,
   not of the box of the item. The layer already reads the pointer and `pressed`
@@ -332,4 +332,4 @@ pressed look. The owner wrote: "I agree with your recommendation".
 - **Q4. The contrast of the outline.** The outline is `border`
   (`color_slate_300`) on a band of `color_slate_100`, as on a `WidgetButton`,
   and it is faint. The owner answered on 2026-10-04: "will fix that later". It
-  belongs to [one-coherent-color-set.md](../pending/one-coherent-color-set.md).
+  belongs to [one-coherent-color-set.md](one-coherent-color-set.md).
