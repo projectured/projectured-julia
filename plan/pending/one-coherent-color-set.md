@@ -1023,7 +1023,8 @@ fields.
 
 ### 12.16 Part S: the system mode
 
-**Status:** planned on 2026-10-05; not started. The owner wrote:
+**Status:** planned on 2026-10-05, and the owner decided S-1 to S-4 the same
+day (section S.3); not started. The owner wrote:
 
 > Yes, write this level of OS color scheme support into Part S, we will
 > implement it, it doesn't have to be super complete, the level you described
@@ -1142,6 +1143,21 @@ The names below are proposals; they follow the naming rules.
 | S-3 | The default of a new appearance: `:light` as now, or `:system`? | `:system` for the mode and the contrast, and `:blue` for the accent. A backend with no answer gives light, so the PDF output stays as now. A saved file keeps its value. |
 | S-4 | Which system first? | Linux, because this machine can test it. Windows and macOS in the same part: their parsers are tested here on fixed text, and the queries need a check by a person on those systems. |
 
+**The decisions of the owner (2026-10-05):** S-1 yes; S-2 "unsealing allowed";
+S-3 yes; S-4 yes. Thus:
+
+- S-1: the backend reports `SystemColorsChange` with the answer, and the
+  backend interface has `find_system_colors`.
+- S-2: step S2 may edit `BackendDefaults.jl`. The commit that edits it flips
+  its mark in `SEALING.md` from 🔒 to ⬜. The file gets the audit of
+  `SEALING.md` before the owner seals it again. `SEALING.md` gives a
+  permission only for the conversation where the owner gives it, so a later
+  session asks again before the edit.
+- S-3: a new appearance has `color_mode = :system`,
+  `color_contrast = :system` and `color_accent = :blue`.
+- S-4: Linux first; Windows and macOS in the same part, with their parsers
+  tested on fixed text.
+
 #### S.4 Steps
 
 - **S1. The model.** `:system` in `COLOR_MODES`, `COLOR_CONTRASTS` and the
@@ -1151,7 +1167,8 @@ The names below are proposals; they follow the naming rules.
   hue, and a saved file that keeps `:system` and no answer.
 - **S2. The kernel.** `SystemColors`, the event `SystemColorsChange` in
   `event/`, and `find_system_colors` in `BackendInterface.jl` with its default
-  (S-2). Check `SEALING.md` for each file before the edit.
+  in `BackendDefaults.jl` (S-2: unsealed with the owner's permission). Check
+  `SEALING.md` for each file before the edit.
 - **S3. The platform.** The start step; `read_gesture` of `AppearanceDocument`
   for the event; the operation that writes the three cells and stays out of the
   undo list. Tests: the event recolors a role to its dark value, and an undo
