@@ -13,7 +13,7 @@ A fresh layout is one empty group. A person builds the rest with the keyboard an
 | Type | What it holds |
 | --- | --- |
 | `PaneTab(title, content[, icon])` | a `PaneTabTitle` and a content document of any domain; `PaneTab("name", doc)` makes a title with that name, and `icon` gives the title an icon |
-| `PaneTabTitle(name; icon, badges, tooltip)` | the name of a tab as a `PrimitiveString`, and an icon, a list of `WidgetBadge`s and a tooltip; each of the three is a value, a cell or a function of no arguments |
+| `PaneTabTitle(name; icon, icon_role, badges, tooltip)` | the name of a tab as a `PrimitiveString`, and an icon, the color role of the icon, a list of `WidgetBadge`s and a tooltip; each of the four is a value, a cell or a function of no arguments |
 | `PaneGroup(tabs)` | a tab group, which can be empty: `PaneGroup(PaneTab[])` |
 | `PaneSplit(orientation, elements; weights)` | two or more groups or splits, and one weight for each; an empty `weights` means equal weights |
 | `PaneTree(root, drag)` | the whole layout, and `drag`, the state of a tab drag |
@@ -130,9 +130,9 @@ A paste never replaces a pane node, and a pane node is never pasted: `accepts_pa
 
 The name in a tab title is a text document. A caret in the name is the edit state, so F2 and Escape only move the selection. The table gives each typed key, Backspace and Delete to `read_gesture` of the name, and the `@gestures` table of `PrimitiveString` makes the edit. `make_pane_retarget_title_operation` roots the answer at the tree, at `get_pane_tab_name_path`. The package has no code that edits text and no rename operation.
 
-A rename edits the name only. The icon, the badges and the tooltip of the title stay, and a title whose parts are cells or functions follows the state they read with no write. The group draws each tab as a `WidgetTabLabel` whose icon, badges and tooltip read the title, so a change of them redraws the strip and builds no page again. A caret in the name, `tabs[i].title.name.value{k}`, maps to `selector_element_pairs[i].selector.text{k}` of the strip, and back.
+A rename edits the name only. The icon, its role, the badges and the tooltip of the title stay, and a title whose parts are cells or functions follows the state they read with no write. The group draws each tab as a `WidgetTabLabel` whose icon, badges and tooltip read the title, so a change of them redraws the strip and builds no page again. A caret in the name, `tabs[i].title.name.value{k}`, maps to `selector_element_pairs[i].selector.text{k}` of the strip, and back.
 
-A file of a layout writes the name and the values that the three parts hold at the save. It builds a tab from a `PaneTabTitle`, or from a name with an `icon` beside it.
+A file of a layout writes the name and the values that the four parts hold at the save. It builds a tab from a `PaneTabTitle`, or from a name with an `icon` beside it.
 
 ### A duplicate is a pane of its own
 

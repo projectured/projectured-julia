@@ -7,20 +7,22 @@ abstract type PaneDocument <: Document end
 # ── PaneTabTitle ───────────────────────────────────────────────────────────
 
 """
-    PaneTabTitle(name; icon = nothing, badges = nothing, tooltip = nothing)
+    PaneTabTitle(name; icon = nothing, icon_role = nothing, badges = nothing, tooltip = nothing)
 
 The title of a tab: the `name` that a person types and renames, the `icon`
-before it, the `badges` after it, and the `tooltip` that the tab shows when the
-pointer rests on it.
+before it in the color of `icon_role`, the `badges` after it, and the `tooltip`
+that the tab shows when the pointer rests on it.
 
 Use it when a tab must say more than a name, such as the state of the work that
 its content does. `name` is a string or a [`PrimitiveString`](@ref); a rename
 edits it with the gestures of every other string, and nothing else changes it.
-`icon` is the name of an icon (a `Symbol`), `badges` a vector of `WidgetBadge`s
-and `tooltip` a string or a document. Each of the three takes a value, a cell
-that holds it, or a function of no arguments that computes it, so a title
-follows the state that its function reads with no write: no operation and no
-entry in the undo list.
+`icon` is the name of an icon (a `Symbol`), `icon_role` the role whose text
+color the icon takes (`:success`, `:warning`, `:error`, `:info` or `:accent`,
+as a `WidgetBadge` names one), `badges` a vector of `WidgetBadge`s and
+`tooltip` a string or a document. Each of the four takes a value, a cell that
+holds it, or a function of no arguments that computes it, so a title follows the
+state that its function reads with no write: no operation and no entry in the
+undo list.
 
 # Example
 
@@ -31,7 +33,7 @@ entry in the undo list.
                          tooltip = "the fingerprint tests of showcases/tsn")
     PaneTab(title, group_document)
 
-A file of a layout keeps the name and the values of the three parts at the time
+A file of a layout keeps the name and the values of the four parts at the time
 of the save, and not the functions that computed them.
 
 See also `PaneTab`, `WidgetTabLabel`, `WidgetBadge`.
@@ -39,14 +41,16 @@ See also `PaneTab`, `WidgetTabLabel`, `WidgetBadge`.
 @document struct PaneTabTitle <: PaneDocument
     name::Any
     icon::Any = nothing
+    icon_role::Any = nothing
     badges::Any = nothing
     tooltip::Any = nothing
 end
 
 PaneTabTitle(name::AbstractString; kwargs...) = PaneTabTitle(PrimitiveString(String(name)); kwargs...)
-PaneTabTitle(name::PrimitiveString; icon = nothing, badges = nothing, tooltip = nothing) =
-    PaneTabTitle(name, _make_title_part_cell(icon), _make_title_part_cell(badges),
-                 _make_title_part_cell(tooltip))
+PaneTabTitle(name::PrimitiveString; icon = nothing, icon_role = nothing, badges = nothing,
+             tooltip = nothing) =
+    PaneTabTitle(name, _make_title_part_cell(icon), _make_title_part_cell(icon_role),
+                 _make_title_part_cell(badges), _make_title_part_cell(tooltip))
 
 # A part of a title takes a value, a cell or a function, and keeps the value as it is.
 _make_title_part_cell(part::AbstractCell) = part

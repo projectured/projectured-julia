@@ -4375,6 +4375,16 @@ _get_tab_icon(selector::WidgetTabLabel, page_icon) =
     selector.icon === nothing ? page_icon : selector.icon
 _get_tab_icon(selector, page_icon) = page_icon
 
+# The color of a tab's icon: the text color of the role of its label, else `color`.
+function _get_tab_icon_color(p::WidgetTabbedPaneToGraphicsCanvas, selector::WidgetTabLabel, color)
+    role = selector.icon_role
+    role === nothing && return color
+    role in _BADGE_ROLES ||
+        throw(ArgumentError("a tab label has no role $(repr(role)); the roles are $(_BADGE_ROLES)"))
+    getproperty(p.badge, Symbol(role, "_label_text")).color
+end
+_get_tab_icon_color(p::WidgetTabbedPaneToGraphicsCanvas, selector, color) = color
+
 # The badges a tab draws after its text: the visible badges of its label.
 function _get_tab_badges(selector::WidgetTabLabel)
     badges = selector.badges
@@ -4528,7 +4538,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
             tab_text = _get_state_text(p, w, :tab; state)
             fg = tab_text.color
             iw > 0 && _push_icon!(header, icon, tx + sel_pad, coy + sel_pad + (sel_h - 2 * sel_pad - iw) ÷ 2,
-                                  iw, fg)
+                                  iw, _get_tab_icon_color(p, pairs[i].selector, fg))
             name_x, name_y = tx + sel_pad + iw + gap, coy + sel_pad + (sel_h - 2 * sel_pad - g.line) ÷ 2
             found = name_caret[]
             if found !== nothing && found[1] == i

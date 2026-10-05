@@ -64,6 +64,13 @@ end
     @test glyph(texts_of(page(WidgetTabLabel("Tests")))) == glyph(texts_of(page("Tests")))
 end
 
+@testset "an icon with a role takes the text color of the role" begin
+    icon_color(texts) = only(t[4] for t in texts if t[5] == "Lucide")
+    error = _find_label_text(texts_of(WidgetBadge("x"; role = :error)), "x")[4]
+    @test icon_color(texts_of(pane_of(WidgetTabLabel("Tests"; icon = :x, icon_role = :error)))) == error
+    @test icon_color(texts_of(pane_of(WidgetTabLabel("Tests"; icon = :x)))) != error
+end
+
 @testset "a badge in a tab looks as the same badge looks alone" begin
     in_tab = _find_label_text(texts_of(pane_of(WidgetTabLabel("Tests"; badges = badges()))), "2 failed")
     alone = _find_label_text(texts_of(WidgetBadge("2 failed"; role = :error)), "2 failed")

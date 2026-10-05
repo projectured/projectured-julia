@@ -1205,18 +1205,20 @@ set_cell_computation!(w::WidgetSplitPane, f::Function) = (set_cell_computation!(
 # ── WidgetTabbedPane ───────────────────────────────────────────────────────
 
 """
-    WidgetTabLabel(text; icon = nothing, badges = Any[], tooltip = nothing)
+    WidgetTabLabel(text; icon = nothing, icon_role = nothing, badges = Any[], tooltip = nothing)
 
 The label of a tab that says more than a name: an icon before the text, badges
 after it, and what the tab says when the pointer rests on it.
 
 Use it as the `selector` of a [`WidgetTabPage`](@ref) when a tab must show a
 state, such as a count of the tasks that finished. `icon` is the name of an
-icon (a `Symbol`) or `nothing`; `badges` is a vector of [`WidgetBadge`](@ref)s;
-`tooltip` is a string or a document. Each of the four takes a value, a cell
-that holds it, or a function of no arguments that computes it, so a label
-follows what its function reads with no write. The text is what a rename of
-the tab edits: a caret in it is `selector.text{k}`.
+icon (a `Symbol`) or `nothing`; `icon_role` draws the icon in the text color of
+a role, as a [`WidgetBadge`](@ref) names one, or in the color of the tab's text
+when it is `nothing`; `badges` is a vector of `WidgetBadge`s; `tooltip` is a
+string or a document. Each part takes a value, a cell that holds it, or a
+function of no arguments that computes it, so a label follows what its function
+reads with no write. The text is what a rename of the tab edits: a caret in it
+is `selector.text{k}`.
 
 # Example
 
@@ -1232,12 +1234,13 @@ A label with a text only draws as a plain string selector draws.
 @document struct WidgetTabLabel <: WidgetDocument
     text::Any
     icon::Any
+    icon_role::Any
     badges::Any
     tooltip::Any
 end
-WidgetTabLabel(text; icon = nothing, badges = Any[], tooltip = nothing) =
-    WidgetTabLabel(_make_shown_cell(text), _make_value_cell(icon), _make_value_cell(badges),
-                   _make_value_cell(tooltip), Cell(nothing))
+WidgetTabLabel(text; icon = nothing, icon_role = nothing, badges = Any[], tooltip = nothing) =
+    WidgetTabLabel(_make_shown_cell(text), _make_value_cell(icon), _make_value_cell(icon_role),
+                   _make_value_cell(badges), _make_value_cell(tooltip), Cell(nothing))
 
 # The text of a tab's selector: the text of a label, else the selector as a string.
 _get_tab_selector_text(selector::WidgetTabLabel) = string(selector.text)

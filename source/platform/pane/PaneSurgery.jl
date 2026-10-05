@@ -427,13 +427,13 @@ end
 # ── Duplicate a tab ────────────────────────────────────────────────────────
 
 # A new tab like `tab`: the duplicate of its content, its name with a number, and
-# the icon that its title shows now. The badges and the tooltip say what the
-# original content does, so the duplicate has none. Throws the
+# the icon that its title shows now, in its color. The badges and the tooltip say
+# what the original content does, so the duplicate has none. Throws the
 # `DocumentCopyException` of a content that has no duplicate.
 function _make_pane_tab_duplicate(tree::PaneTree, tab::PaneTab)
     content = make_document_duplicate(tab.content)
     title = _unique_pane_title(tree, _get_pane_title_stem(get_pane_tab_title_string(tab)))
-    PaneTab(PaneTabTitle(title; icon = tab.title.icon), content)
+    PaneTab(PaneTabTitle(title; icon = tab.title.icon, icon_role = tab.title.icon_role), content)
 end
 
 # The title a duplicate is numbered from: the title without the number a

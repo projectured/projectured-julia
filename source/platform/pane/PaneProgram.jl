@@ -345,8 +345,8 @@ make_open_pane_operation(editor, document; title = nothing, group = nothing, tar
 # A title like `title` with the name `name`: the same cells for its other parts,
 # so the tab follows what they follow.
 _make_named_title(title::PaneTabTitle, name::AbstractString) =
-    PaneTabTitle(name; icon = getfield(title, :icon), badges = getfield(title, :badges),
-                 tooltip = getfield(title, :tooltip))
+    PaneTabTitle(name; icon = getfield(title, :icon), icon_role = getfield(title, :icon_role),
+                 badges = getfield(title, :badges), tooltip = getfield(title, :tooltip))
 
 function _make_open_pane(editor, document; title, group, target, side)
     (group === nothing || target === nothing) ||

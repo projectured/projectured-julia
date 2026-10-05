@@ -374,14 +374,15 @@ function print_document(p::PaneGroupToWidgetTabbedPane, recursion, group::PaneGr
     iomap
 end
 
-# The label of a tab in the strip: its name, and the icon, the badges and the
-# tooltip of its title. The three are cells of their own that read the title, so
-# a title that follows a state redraws the strip and does not rebuild the pages.
+# The label of a tab in the strip: its name, and the icon, the role of the icon,
+# the badges and the tooltip of its title. The four are cells of their own that
+# read the title, so a title that follows a state redraws the strip and does not
+# rebuild the pages.
 function _make_tab_label(tab::PaneTab)
     title = tab.title
     WidgetTabLabel(get_pane_tab_title_string(tab);
-                   icon = () -> title.icon, badges = () -> title.badges,
-                   tooltip = () -> title.tooltip)
+                   icon = () -> title.icon, icon_role = () -> title.icon_role,
+                   badges = () -> title.badges, tooltip = () -> title.tooltip)
 end
 
 # The part of a group's selection that its tabbed pane needs. A live caret in the
