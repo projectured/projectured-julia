@@ -42,7 +42,7 @@ end
     # The same text with the default padding and with none: the default adds the
     # room of the theme's control padding, left and right at the sides and top
     # and bottom above and below, and a padding the document gives is kept.
-    padding = make_scaled_theme(make_slate_light_theme(font = _font)).control_padding
+    padding = make_scaled_theme(make_widget_theme(font = _font)).control_padding
     extent(document) = (output = print_document(_proj(), nothing, document, PrinterContext()).output;
                         (Int(output.w), Int(output.h)))
     padded, bare = extent(WidgetText("edit me")), extent(WidgetText("edit me"; padding = Inset(0, 0, 0, 0)))

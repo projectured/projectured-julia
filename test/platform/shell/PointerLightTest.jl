@@ -24,7 +24,7 @@ end
 
 # The number of rects with an area that the editor draws in the colour of the light.
 function _pl_count_lights(editor)
-    light = _pl_channels(WidgetModule._get_hover_layer(make_scaled_theme(make_slate_light_theme())))
+    light = _pl_channels(WidgetModule._get_hover_layer(make_scaled_theme(make_widget_theme())))
     count = 0
     seen = IdDict{Any,Bool}()
     function visit(node)

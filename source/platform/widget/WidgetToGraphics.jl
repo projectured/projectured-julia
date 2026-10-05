@@ -10535,7 +10535,7 @@ end
 
 """
     WidgetToGraphics(; measure, theme = WidgetTheme(), graphics_theme = nothing)
-    WidgetToGraphics(font; measure, theme = make_slate_light_theme(font = font),
+    WidgetToGraphics(font; measure, theme = make_widget_theme(font = font),
                      graphics_theme = nothing)
 
 Build a recursive type-dispatching projection that maps any `WidgetDocument`
@@ -10549,7 +10549,7 @@ no scales passes a theme as it is. A projection built on its own can name the
 font of its default theme, the slate light preset.
 """
 WidgetToGraphics(font::StyleFont; measure::TextMeasure,
-                 theme = make_slate_light_theme(font = font), graphics_theme = nothing) =
+                 theme = make_widget_theme(font = font), graphics_theme = nothing) =
     WidgetToGraphics(; measure, theme, graphics_theme)
 
 function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphics_theme = nothing)

@@ -69,7 +69,7 @@ end
 # light of the theme, with the outline and the corners of a control, as a
 # `WidgetButton` draws them.
 @testset "a lit toolbar item shows the outline of a button" begin
-    theme = make_scaled_theme(make_slate_light_theme())
+    theme = make_scaled_theme(make_widget_theme())
     item = WidgetToolbarItem("Run"; icon = :play)
     c = print_document(proj, item).output
     rects = [e for e in map(_unwrap, collect(c.elements)) if e isa GraphicsRect]
@@ -214,7 +214,7 @@ _toolbar_state_write(op) = op isa ReplaceViewStateOperation ? get_wrapped_operat
 # and of no other, and its layer shows the pressed color until the up. The down
 # is the answer of the item, so it moves no focus.
 @testset "a held toolbar item shows its press" begin
-    theme = make_scaled_theme(make_slate_light_theme())
+    theme = make_scaled_theme(make_widget_theme())
     tb = WidgetToolbar(Any[WidgetToolbarItem("Explorer"; icon = :folder),
                            WidgetToolbarItem("Log"; icon = :list)])
     io = print_document(proj, tb)

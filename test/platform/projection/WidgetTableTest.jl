@@ -385,7 +385,7 @@ function test_widget_table_cell_policy()
         @test op.path.tail.tail isa EmptyReference
     end
     @testset "the padding around a cell is the theme's, one token per axis" begin
-        scaled = make_scaled_theme(make_slate_light_theme(font = StyleFont("Ubuntu", 20)))
+        scaled = make_scaled_theme(make_widget_theme(font = StyleFont("Ubuntu", 20)))
         geometry = clipped.geometry
         @test geometry.pad_x == scaled.control_padding.left[]
         @test geometry.pad_y == scaled.control_padding.top[]

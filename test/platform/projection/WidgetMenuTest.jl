@@ -86,7 +86,7 @@ end
     @test Int(output.w) < 640 && Int(output.h) < 800
     # The popover of the theme: its fill and its hairline border, as large as the
     # menu.
-    theme = make_slate_light_theme(font = StyleFont("Ubuntu", 20))
+    theme = make_widget_theme(font = StyleFont("Ubuntu", 20))
     panel = output.elements[1]
     panel = panel isa CellModule.Cell ? panel[] : panel
     @test panel isa GraphicsRect

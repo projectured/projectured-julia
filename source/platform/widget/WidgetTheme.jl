@@ -181,13 +181,13 @@ end
 # ── The theme with a font ───────────────────────────────────────────────────
 
 """
-    make_slate_light_theme(; font = StyleFont("Ubuntu", 13)) -> WidgetTheme
+    make_widget_theme(; font = StyleFont("Ubuntu", 13)) -> WidgetTheme
 
 The default widget theme with the font `font`. Its colours are roles of the
 colour theme, so the colour settings of the appearance choose the palette, the
 mode and the contrast.
 """
-make_slate_light_theme(; font::StyleFont = StyleFont("Ubuntu", 13)) = WidgetTheme(; font)
+make_widget_theme(; font::StyleFont = StyleFont("Ubuntu", 13)) = WidgetTheme(; font)
 
 # ── Values that a widget derives from a theme ───────────────────────────────
 

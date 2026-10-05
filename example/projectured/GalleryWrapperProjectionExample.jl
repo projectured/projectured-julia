@@ -4,7 +4,7 @@ end
 
 function make_scrolling_projection(projection; measure=FontFileMeasure(),
                                     font=StyleFont("Ubuntu Mono", 20))
-    theme = make_slate_light_theme(font = font)
+    theme = make_widget_theme(font = font)
     NestingProjection(
         WidgetScrollPaneToGraphicsCanvas(theme; measure = measure, font = font, content_color = color_transparent);
         recursion=projection,
