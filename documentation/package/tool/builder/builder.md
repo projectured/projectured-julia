@@ -49,7 +49,7 @@ A build is incremental by default: it compiles on top of the image of the runnin
 2. It copies the bundle outside the root: to `TMPDIR`, else `/var/tmp`, because `/tmp` is often a RAM disk.
 3. `check_relocation` starts the copy with `--build-info`, an empty `JULIA_DEPOT_PATH` and an empty `JULIA_LOAD_PATH`, under `bwrap`, which puts an empty folder over the checkout, the package folders and the depot. It stops when the build record says `INCREMENTAL BUILD`.
 4. The `check` of the program runs. For `projectured`, `check_projectured_copy` starts the copy with `--backend=web --mcp --assistant=none` and reads the web client, a font and the list of guides over HTTP.
-5. It copies the licence files, writes a README with the requirements, and packs `<name>-<version>-<system>-<architecture>.tar.gz`.
+5. It copies the licence files, writes the licence texts of what the bundle holds into `share/licenses/` with `bundle_licence_texts!` (the runtime of Julia, the libraries it ships, the packages, and under `data/` the data from others that the code holds, such as the colours of the palettes of `PROJECTURED_DATA_TEXTS`), writes a README with the requirements, and packs `<name>-<version>-<system>-<architecture>.tar.gz`.
 
 ### The release copy
 
