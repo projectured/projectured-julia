@@ -254,6 +254,14 @@ depth-limited `Base.show` (bounded by the `:document_depth` IOContext key, with 
 editor pipeline reads it. A domain that needs a *presentable* rendering writes
 a projection, not a `show` method.
 
+A field value that is not a document prints in full only when the value bounds
+its own text: a bits value, a string, a symbol, a type, a module, a function that
+captures nothing, a value of a type that defines `show`, or a container or a
+struct of such values, to a depth of three. Any other value prints as
+`TypeName(…)`. Base's default `show` of a struct prints every object that the
+value reaches. A closure or a `Ref` in a field reaches the editor, so that `show`
+does not end in a useful time.
+
 ## Testing pressure
 
 The kernel tests of this layer use ONLY documents that they declare themselves:

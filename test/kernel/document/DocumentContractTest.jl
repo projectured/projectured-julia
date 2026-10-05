@@ -44,6 +44,13 @@ end
     second::Any
 end
 
+# A graph whose text under Base's default `show` doubles with each level: every
+# level holds the level under it twice.
+mutable struct ContractShownGraph
+    left::Any
+    right::Any
+end
+
 # Stops at the node that carries `label`, and puts a node labelled "stopped" there.
 struct ContractStopPolicy <: CopyPolicy
     label::String
@@ -240,6 +247,26 @@ function test_document_contract()
         node = ToyNode(callback, nothing, nothing)
         @test copy_document(node).label === callback
         @test copy_document(ImmutableCell, node).label === callback
+    end
+
+    @testset "show prints a field that reaches an object graph as its type name" begin
+        level = ContractShownGraph(nothing, nothing)
+        for _ in 1:12
+            level = ContractShownGraph(level, level)
+        end
+        held = () -> level
+        @test sprint(show, ContractPair("runs", Ref{Any}(held))) ==
+              "ContractPair(\"runs\", RefValue(…))"
+        text = sprint(show, ContractPair(held, level))
+        @test endswith(text, "(…), ContractShownGraph(…))")
+        @test length(text) < 100
+        # A field value whose own `show` the value bounds prints as before.
+        @test sprint(show, ContractPair([1, 2], identity)) == "ContractPair([1, 2], identity)"
+        small = ContractShownGraph(1, ContractShownGraph("a", nothing))
+        @test occursin(r"ContractShownGraph\(1, (\w+\.)*ContractShownGraph\(\"a\", nothing\)\)\)$",
+                       sprint(show, ContractPair(nothing, small)))
+        @test sprint(show, ContractPair(ToyNode("leaf", nothing, nothing), Dict(:a => "b"))) ==
+              "ContractPair(ToyNode(\"leaf\", nothing), Dict(:a => \"b\"))"
     end
 
     @testset "the copy of a vector keeps its element type" begin

@@ -98,6 +98,11 @@ underlying reactive `Cell`s are unwrapped. Recursion is bounded by the
 nested documents do not explode. A view state field (`is_view_state_field`), the
 selection and the mouse target, is skipped as noise. A debug aid only: a domain that wants a *presentable* rendering
 writes a projection, not a `show` method.
+
+A field value prints as `TypeName(…)` when the value does not bound its own text.
+Base's default `show` of a struct prints every object that the value reaches, and
+a closure or a `Ref` in a field reaches the editor. A struct with that `show`
+prints in full only when the values it holds, to a depth of three, print in full.
 """
 function Base.show(io::IO, x::Document)
     depth = get(io, :document_depth, 0)
@@ -110,12 +115,46 @@ function Base.show(io::IO, x::Document)
         for f in fieldnames(typeof(x))
             is_view_state_field(f) && continue
             first || print(io, ", ")
-            show(inner, getproperty(x, f))
+            _show_document_field(inner, getproperty(x, f))
             first = false
         end
     end
     print(io, ")")
 end
+
+function _show_document_field(io::IO, value)
+    if _is_shown_in_full(value)
+        show(io, value)
+    else
+        print(io, nameof(typeof(value)), "(…)")
+    end
+end
+
+# The deepest nesting of containers and structs whose parts a field check reads.
+# A deeper part prints as its type name, so a check never walks a large graph.
+const _SHOWN_VALUE_MAX_NESTING = 3
+
+# Whether the `show` of a field value prints a text that the value itself bounds:
+# a document, a bits value, a name, a function that captures nothing, a value of
+# a type that defines its own `show`, or a container or a struct of such values.
+function _is_shown_in_full(value, nesting::Int = 0)
+    value isa Document && return true
+    isbits(value) && return true
+    value isa Union{AbstractString, Symbol, Type, Module} && return true
+    value isa Function && return Base.issingletontype(typeof(value))
+    is_container = value isa Union{AbstractArray, AbstractDict, AbstractSet, Tuple,
+                                   NamedTuple, Pair}
+    # The `show` of a container prints each element, so its elements decide.
+    !is_container && _has_own_show(value) && return true
+    nesting < _SHOWN_VALUE_MAX_NESTING || return false
+    is_container && return all(element -> _is_shown_in_full(element, nesting + 1), value)
+    # Base's default `show` of a struct prints each of its fields.
+    all(i -> !isdefined(value, i) || _is_shown_in_full(getfield(value, i), nesting + 1),
+        1:nfields(value))
+end
+
+# Whether the type of a value has a `show` method other than Base's default one.
+_has_own_show(value) = which(show, Tuple{IO, typeof(value)}).sig !== Tuple{typeof(show), IO, Any}
 
 # The document a node stands for: itself, unless a wrapper says otherwise.
 get_wrapped_document(node) = node
