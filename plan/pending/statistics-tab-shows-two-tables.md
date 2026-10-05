@@ -299,7 +299,13 @@ commit for each step. Do not land on `main` until the owner says so.
   A row whose `frame_time` is more than two times the median of the ring shows
   its cells in `:warning_text`. Test: a slow frame and a frame below the factor
   in the same table.
-- [ ] **Step 7. Documentation.**
+- [x] **Step 7. Documentation.** Done: `statistics.md` describes the fields of
+  the frames, Pause, the two tables, the slow color, the theme, the edges of
+  the slice, two more decisions and three more limits (an offered height, no
+  scroll bar, no sort). `collection.md` names `find_list_index` and
+  `make_index_list`. The docstring of `FrameTimeSeriesToChart` names
+  `FrameStatisticsToWidget`. The documentation guard gives the same findings
+  as on `main`.
   Update [statistics.md](../../documentation/package/platform/statistics/statistics.md):
   how it works, the theme, how it fits, usage and limits. Update the "See also"
   in the docstring of `FrameTimeSeriesToChart`, and the documents of the
