@@ -195,6 +195,15 @@ end
     run_frame!(editor)
     @test window().bg == background(appearance)
     @test window().bg != background(Appearance())
+    # A window that opens later takes the background of the screen, and follows it.
+    evaluate_operation(editor, OpenWindowOperation(; id = :later, title = "Later", width = 200,
+                                                     height = 100, content = WidgetLabel("Later")))
+    run_frame!(editor)
+    later() = only(w for w in last(rendered_output(backend)).windows if w.id === :later)
+    @test later().bg == background(appearance)
+    appearance.color_mode = :light
+    run_frame!(editor)
+    @test later().bg == background(appearance)
 end
 
 end

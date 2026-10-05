@@ -204,10 +204,21 @@ function _open_screen_window!(screen, op::OpenWindowOperation)
                               x=op.x, y=op.y,
                               width=op.width, height=op.height,
                               minimum_size=op.minimum_size, maximum_size=op.maximum_size,
-                              bg=op.bg, style=op.style,
+                              bg=op.bg === nothing ? _get_screen_background(screen) : op.bg,
+                              style=op.style,
                               auto_dismiss=op.auto_dismiss, modal=op.modal,
                               content=op.content)
     push!(in_wins, Cell(new_in))
+end
+
+# The background of `screen` that a new window shares: the cell of the background
+# of its first window, which the appearance computes, or the fixed default for a
+# screen with no window.
+function _get_screen_background(screen::ScreenDocument)
+    windows = screen.windows
+    isempty(windows) && return DEFAULT_BG
+    first_window = windows[1]
+    first_window isa WindowDocument ? getfield(first_window, :bg) : DEFAULT_BG
 end
 
 function _update_window!(w::WindowDocument, op::OpenWindowOperation)
@@ -218,7 +229,7 @@ function _update_window!(w::WindowDocument, op::OpenWindowOperation)
     w.height = op.height
     w.minimum_size = op.minimum_size
     w.maximum_size = op.maximum_size
-    w.bg     = op.bg
+    op.bg === nothing || (w.bg = op.bg)
     w.style  = op.style
     w.auto_dismiss = op.auto_dismiss
     w.modal  = op.modal

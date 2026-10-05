@@ -97,6 +97,11 @@ projection intercepts it and appends (or updates) the matching `WindowDocument`
 on its `ScreenDocument.windows`. One that reaches the editor, from a wrapper
 outside the screen projection or from a verb, is applied by `evaluate_operation`
 to the screen that the editor's document wraps.
+
+`bg` is `nothing` by default: the new window takes the background of the screen,
+the background of its first window, and follows it, so a window that opens later
+has the colour that the appearance gives the windows. An update of a window with
+`bg = nothing` keeps its background.
 """
 struct OpenWindowOperation <: Operation
     id::Symbol
@@ -107,7 +112,7 @@ struct OpenWindowOperation <: Operation
     height::Int
     minimum_size::NTuple{2,Int}
     maximum_size::NTuple{2,Int}
-    bg::NTuple{4,UInt8}
+    bg::Union{Nothing,NTuple{4,UInt8}}
     style::Symbol
     auto_dismiss::Bool
     modal::Bool
@@ -122,7 +127,7 @@ OpenWindowOperation(; id::Symbol,
                       height::Integer = 0,
                       minimum_size = (0, 0),
                       maximum_size = (0, 0),
-                      bg::NTuple{4,Integer} = (UInt8(249), UInt8(249), UInt8(251), UInt8(255)),
+                      bg::Union{Nothing,NTuple{4,Integer}} = nothing,
                       style::Symbol = :tooltip,
                       auto_dismiss::Bool = false,
                       modal::Bool = false,
@@ -130,7 +135,7 @@ OpenWindowOperation(; id::Symbol,
     OpenWindowOperation(id, String(title), Int(x), Int(y), Int(width), Int(height),
                         (Int(minimum_size[1]), Int(minimum_size[2])),
                         (Int(maximum_size[1]), Int(maximum_size[2])),
-                        (UInt8(bg[1]), UInt8(bg[2]), UInt8(bg[3]), UInt8(bg[4])),
+                        bg === nothing ? nothing : (UInt8(bg[1]), UInt8(bg[2]), UInt8(bg[3]), UInt8(bg[4])),
                         style, auto_dismiss, modal, content)
 
 """
