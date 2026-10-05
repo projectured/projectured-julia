@@ -53,7 +53,10 @@ questions (section 4), and the owner wrote: "yes".
    and "Load" at the bottom.
 8. `WidgetCard` has a `footer` part
    ([WidgetDocument.jl:1586](../../source/platform/widget/WidgetDocument.jl#L1586)).
-   No producer in `source/platform` sets it now.
+   No producer in `source/platform` sets it now. The printer draws it as a
+   caption text, `string(w.footer)`
+   ([WidgetToGraphics.jl:6675](../../source/platform/widget/WidgetToGraphics.jl#L6675)),
+   so it can not hold a button. Found in step 1.
 9. A collapsible card draws a chevron in a column of its own, and its title and
    body start past it. A card that is not collapsible has no such column.
 10. The widget theme has `item_gap` (2), `title_gap` (4, "the space under a
@@ -122,7 +125,17 @@ Work in the worktree `projectured-julia-appearance-tab-cards` on the branch
 `appearance-tab-cards`. Commit each step. Do not land on `main` until the owner
 says so.
 
-- [ ] **Step 1. The cards and the groups.** In
+- [x] **Step 1. The cards and the groups.** Done on 2026-10-05. Decisions in
+  the code:
+  - The button under the rows of each new card is "Reset all", not "Reset". The
+    Scale card has a "Reset" on each row, so a "Reset" under the rows looks like
+    one more row reset. The button is in the card, so its scope is the card.
+  - The button is in `content`, under the grid, because the `footer` is a text
+    (fact 8). This answers question 2.
+  - The gap between groups is `2 × section_gap` (question 1, the suggestion of
+    Claude, not yet the choice of the owner).
+
+  In
   [AppearanceToWidget.jl](../../source/platform/appearance/AppearanceToWidget.jl):
   - make the action row of "Save" and "Load" the first part;
   - add `_make_scale_card(controls)` and `_make_color_settings_card(controls)`,

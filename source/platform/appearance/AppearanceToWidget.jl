@@ -6,18 +6,22 @@
 
 Show an `Appearance` as widgets, in a pane that scrolls:
 
-- a row for the zoom and one for each of the six scales, each with its name, a
-  − button, its value in percent, a + button and a reset button, and under the
-  rows the buttons "Reset all", "Save" and "Load", which save the appearance in
-  the file of `get_appearance_file` and read it back;
-- the group "Colors": a row for each of the five colour settings, the mode, the
+- the buttons "Save" and "Load", which save the appearance in the file of
+  `get_appearance_file` and read it back;
+- the card "Scale": a row for the zoom and one for each of the six scales, each
+  with its name, a − button, its value in percent, a + button and a reset button,
+  and under the rows a button "Reset all" that resets each of them;
+- the card "Colors": a row for each of the five colour settings, the mode, the
   contrast, the palette, the accent and the neutral, each with its name, buttons
-  ‹ and › that step through its values, and its value; and the card of the
-  colour theme of the present mode and contrast, with a row for each role;
-- the themes of the appearance in three groups: "Editor", the widget, the text,
-  the syntax and the reference themes, which every view draws with; "Tools", the
-  other themes of `ProjecturedPlatform`; and "Documents", the themes of the other
-  packages, in the order of their names;
+  ‹ and › that step through its values, and its value, and under the rows a
+  button "Reset all" that writes the default of each of them. These two cards do
+  not fold;
+- the themes in three groups, each a heading over its cards: "Editor", the
+  colour theme of the present mode and contrast, with a row for each role, then
+  the widget, the text, the syntax, the reference, the graphics and the tooltip
+  themes, which every view draws with; "Tools", the other themes of
+  `ProjecturedPlatform`; and "Documents", the themes of the other packages, in
+  the order of their names. Every card is as wide as the pane;
 - a card for each theme, which folds to its title, and which the tab shows open
   when the `open_sections` of the appearance name it. The card starts with the
   summary of its theme type, the first paragraph of its docstring. It holds the
@@ -197,35 +201,21 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
     end
     controls = (; button, spin_box, checkbox, choice, color_text, theme, appearance, folds,
                 defaults = IdDict{Any,Any}())
-    cells = Any[]
-    for (field, name) in _APPEARANCE_ROWS
-        push!(cells, WidgetLabel(name),
-              button("−", _make_step_operation(appearance, field, -1)),
-              WidgetLabel(_get_percent_text(getproperty(appearance, field))),
-              button("+", _make_step_operation(appearance, field, 1)),
-              button("Reset", _make_step_operation(appearance, field, 0)))
-    end
-    reset_all = CompoundOperation(Any[Any[_make_step_operation(appearance, field, 0)
-                                          for (field, _) in _APPEARANCE_ROWS];
-                                      Any[_write_color_setting(appearance, field, value)
-                                          for (field, value) in pairs(_COLOR_SETTING_DEFAULTS)]])
-    parts = Any[GridLayout(cells, 5; horizontal_gap = theme.label_gap, vertical_gap = theme.item_gap,
-                           vertical_align = :center),
-                HorizontalLayout(Any[button("Reset all", reset_all),
-                                     button("Save", SaveAppearanceOperation(appearance)),
-                                     button("Load", LoadAppearanceOperation(appearance))];
-                                 gap = theme.label_gap)]
-    push!(parts, WidgetLabel("Colors"; text_style = StyleText(theme.font_bold, theme.muted_foreground)),
-          _make_color_settings(controls),
-          _make_theme_section(controls, get_color_theme(appearance)))
+    groups = Any[HorizontalLayout(Any[button("Save", SaveAppearanceOperation(appearance)),
+                                      button("Load", LoadAppearanceOperation(appearance))];
+                                  gap = theme.label_gap),
+                 _make_scale_card(controls), _make_color_settings_card(controls)]
+    heading = StyleText(theme.font_bold, theme.muted_foreground)
     for (title, themes) in _get_theme_groups(appearance)
         isempty(themes) && continue
-        push!(parts, WidgetLabel(title; text_style = StyleText(theme.font_bold, theme.muted_foreground)))
-        for section_theme in themes
-            push!(parts, _make_theme_section(controls, section_theme))
-        end
+        cards = VerticalLayout(Any[_make_theme_section(controls, section_theme) for section_theme in themes];
+                               gap = theme.section_gap, child_width = Fill)
+        push!(groups, VerticalLayout(Any[WidgetLabel(title; text_style = heading), cards];
+                                     gap = theme.title_gap, child_width = Fill))
     end
-    content = VerticalLayout(parts; gap = theme.section_gap)
+    # Two groups are further apart than two cards of one group, so a heading
+    # stands with the cards under it.
+    content = VerticalLayout(groups; gap = 2 * theme.section_gap, child_width = Fill)
     # The pane scrolls the cell of the appearance: the next print, which a write of
     # the appearance starts, makes a new pane at the same place.
     pane = WidgetScrollPane(content; scroll_position = getfield(appearance, :scroll_position))
@@ -234,17 +224,60 @@ function print_document(p::AppearanceToWidget, recursion, appearance::Appearance
     AppearanceToWidgetIoMap(p, appearance, child.output, child, commands, writes, edits, folds)
 end
 
+# The summaries of the two cards of the settings of the appearance, which no theme
+# type gives.
+const _SCALE_SUMMARY = "The zoom of every view, and the size of the text, the icons, the gaps, " *
+                       "the controls, the corners and the lines."
+const _COLOR_SETTINGS_SUMMARY = "The mode, the contrast and the palette of the colours, " *
+                                "and the hues of the accent and the neutral."
+
+# A card of settings of the appearance: its title, its summary, and under its rows
+# a button "Reset all" that answers `reset`. It does not fold.
+function _make_settings_card(controls, title::String, summary::String, rows, reset)
+    WidgetCard(; title = WidgetLabel(title), description = summary,
+               content = VerticalLayout(Any[rows, controls.button("Reset all", reset)];
+                                        gap = controls.theme.section_gap))
+end
+
+# The card "Scale": a row for the zoom and one for each scale, each with its name,
+# a − button, its value in percent, a + button and a reset button.
+function _make_scale_card(controls)
+    appearance = controls.appearance
+    cells = Any[]
+    for (field, name) in _APPEARANCE_ROWS
+        push!(cells, WidgetLabel(name),
+              controls.button("−", _make_step_operation(appearance, field, -1)),
+              WidgetLabel(_get_percent_text(getproperty(appearance, field))),
+              controls.button("+", _make_step_operation(appearance, field, 1)),
+              controls.button("Reset", _make_step_operation(appearance, field, 0)))
+    end
+    rows = GridLayout(cells, 5; horizontal_gap = controls.theme.label_gap,
+                      vertical_gap = controls.theme.item_gap, vertical_align = :center)
+    reset = CompoundOperation(Any[_make_step_operation(appearance, field, 0)
+                                  for (field, _) in _APPEARANCE_ROWS])
+    _make_settings_card(controls, "Scale", _SCALE_SUMMARY, rows, reset)
+end
+
+# The card "Colors": a row for each colour setting.
+function _make_color_settings_card(controls)
+    reset = CompoundOperation(Any[_write_color_setting(controls.appearance, field, value)
+                                  for (field, value) in pairs(_COLOR_SETTING_DEFAULTS)])
+    _make_settings_card(controls, "Colors", _COLOR_SETTINGS_SUMMARY, _make_color_settings(controls), reset)
+end
+
 # The themes that every view of the editor draws with, in the order of the group
-# "Editor" of the tab.
+# "Editor" of the tab, after the colour theme.
 const _EDITOR_THEME_TYPES = (WidgetTheme, TextTheme, SyntaxTheme, ReferenceTheme, GraphicsTheme, TooltipTheme)
 
 # The groups of the tab: each a title and the themes of `appearance` that it shows.
-# A theme of `ProjecturedPlatform` that is no editor theme is the theme of a tool,
+# The colour theme of the present mode and contrast stands first in "Editor". A
+# theme of `ProjecturedPlatform` that is no editor theme is the theme of a tool,
 # and a theme of another package is the theme of a document.
 function _get_theme_groups(appearance::Appearance)
     themes = sort!([entry.theme for entry in values(appearance.themes)];
                    by = theme -> string(nameof(get_theme_type(theme))))
-    editor = Any[theme for T in _EDITOR_THEME_TYPES for theme in themes if get_theme_type(theme) === T]
+    editor = Any[get_color_theme(appearance);
+                 Any[theme for T in _EDITOR_THEME_TYPES for theme in themes if get_theme_type(theme) === T]]
     others = filter(theme -> !(get_theme_type(theme) in _EDITOR_THEME_TYPES), themes)
     is_tool = theme -> Base.moduleroot(parentmodule(get_theme_type(theme))) ===
                        Base.moduleroot(@__MODULE__)
