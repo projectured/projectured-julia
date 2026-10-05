@@ -8,7 +8,7 @@ that made it. An event has no meaning, and this layer names no gesture: the
 gesture layer above finds the gestures in the events and holds the pattern
 language that matches both.
 
-The module lives in nine fragments that share this namespace:
+The module lives in ten fragments that share this namespace:
 
 - [`EventInterface.jl`](EventInterface.jl) — `Event`, and `get_modifier_keys` and
   `get_event_time`, the generics that every input answers.
@@ -25,6 +25,8 @@ The module lives in nine fragments that share this namespace:
   reader set.
 - [`DisplayEvent.jl`](DisplayEvent.jl) — `DisplayUpdate`, the event of a display that
   shows a new frame of a window.
+- [`SystemEvent.jl`](SystemEvent.jl) — `SystemColors`, the colour settings of the
+  operating system, and `SystemColorsChange`, the event of their change.
 - [`WindowInput.jl`](WindowInput.jl) — an input and the id of the window that it
   came from.
 - [`EventDefaults.jl`](EventDefaults.jl) — the fallback of `get_modifier_keys`,
@@ -40,6 +42,7 @@ export MouseButtons, MouseDown, MouseUp, MouseMove, is_move_without_button, Mous
 export WindowQuit, WindowClose, WindowResize, WindowDefocus, WindowLeave
 export TimerExpire
 export DisplayUpdate
+export SystemColors, SystemColorsChange
 export WindowInput
 export has_ctrl_modifier_key, has_shift_modifier_key, has_alt_modifier_key,
        has_meta_modifier_key
@@ -51,6 +54,7 @@ include("MouseEvent.jl")
 include("WindowEvent.jl")
 include("TimerEvent.jl")
 include("DisplayEvent.jl")
+include("SystemEvent.jl")
 include("WindowInput.jl")
 include("EventDefaults.jl")
 

@@ -1,14 +1,15 @@
 """
 `HeadlessBackend` — the dependency-free in-memory backend test double. Exercises
 construction, the lifecycle no-ops, the write and read paths, and the defaults of
-`get_display_size`, `get_pointer_position`, `configure_devices!` and
-`open_native_windows!`.
+`get_display_size`, `get_pointer_position`, `find_system_colors`,
+`configure_devices!` and `open_native_windows!`.
 """
 
 using Test
 using ProjecturedKernel.BackendModule
 using ProjecturedKernelExample
 using ProjecturedKernel.DeviceModule
+using ProjecturedKernel.EventModule: SystemColors
 
 function test_headless_backend()
 @testset "HeadlessBackend" begin
@@ -49,6 +50,13 @@ function test_headless_backend()
 
     @testset "get_pointer_position falls back to (-1, -1)" begin
         @test get_pointer_position(HeadlessBackend()) == (-1, -1)
+    end
+
+    @testset "find_system_colors falls back to nothing, and the double answers its script" begin
+        @test invoke(find_system_colors, Tuple{Backend}, HeadlessBackend()) === nothing
+        @test find_system_colors(HeadlessBackend()) === nothing
+        dark = SystemColors(; mode = :dark)
+        @test find_system_colors(HeadlessBackend(; system_colors = dark)) === dark
     end
 
     @testset "open_native_windows! is a no-op for a backend with no windows" begin

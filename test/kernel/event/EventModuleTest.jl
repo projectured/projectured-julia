@@ -63,5 +63,16 @@ function test_event_module()
         @test isbitstype(MouseButtons)
     end
 
+    @testset "SystemColors holds a known mode and contrast, and its change the time" begin
+        @test SystemColors() == SystemColors(:light, :normal, nothing)
+        dark = SystemColors(; mode = :dark, contrast = :high, accent = (0x25, 0x63, 0xeb))
+        @test (dark.mode, dark.contrast, dark.accent) === (:dark, :high, (0x25, 0x63, 0xeb))
+        @test_throws ArgumentError SystemColors(; mode = :sepia)
+        @test_throws ArgumentError SystemColors(; contrast = :low)
+        change = SystemColorsChange(dark; time = 2)
+        @test change.colors == dark
+        @test get_event_time(change) === 2.0
+    end
+
 end
 end # test_event_module

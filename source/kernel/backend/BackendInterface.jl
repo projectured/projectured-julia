@@ -116,6 +116,17 @@ default `(1280, 800)` for a backend that cannot find the size of a display.
 function get_display_size end
 
 """
+    find_system_colors(backend) -> SystemColors or nothing
+
+The colour settings of the operating system, as `backend` finds them: the mode,
+the contrast and the accent, as a `SystemColors`. `nothing` when `backend` can not
+find them, which is the default. A backend that finds them reports a later change
+as a `SystemColorsChange`. The call waits for the system for a short time at most,
+and answers `nothing` when the system does not answer in that time.
+"""
+function find_system_colors end
+
+"""
     configure_devices!(backend, devices)
 
 Fill in the physical properties of each device in `devices` from what `backend`
