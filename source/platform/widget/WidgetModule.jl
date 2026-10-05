@@ -88,6 +88,7 @@ export ObjectToWidget, ObjectToWidgetIoMap
 export ObjectFieldToWidget, ObjectFieldToWidgetIoMap
 export CellTableToWidgetTable
 export WidgetTableListIoMap, make_widget_table_row
+export compute_scroll_bar_value, compute_scroll_bar_top_row
 export make_embed_card, make_embed_card_path, find_embed_card_path_inside
 export ProjectionConfiguringProjection, ProjectionConfiguringIoMap
 export OpenContextMenuOperation, EditMenuPartOperation, make_context_menu_operation, make_context_menu_binding

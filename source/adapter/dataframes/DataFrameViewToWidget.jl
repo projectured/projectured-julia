@@ -105,7 +105,8 @@ function print_document(p::DataFrameViewToWidget, recursion, view::DataFrameView
     # Positional: orientation, value, thumb_size, position, size, visible,
     # margin, border, padding, style, tooltip, selection.
     bar = WidgetScrollBar(Cell(:vertical),
-                          Cell(@computation _get_scroll_bar_value(view, count[], visible[])),
+                          Cell(@computation compute_scroll_bar_value(view.anchor + view.top_row - 1,
+                                                                     count[], visible[])),
                           Cell(@computation count[] == 0 ? 1.0 : min(1.0, visible[] / count[])),
                           Cell(nothing), Cell(nothing), Cell(true), Cell(nothing), Cell(nothing),
                           Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
@@ -124,18 +125,6 @@ function print_document(p::DataFrameViewToWidget, recursion, view::DataFrameView
     end)
     DataFrameViewToWidgetIoMap(p, view, grid, table, bar, visible)
 end
-
-# Where the row at the top of the table is among the rows of the frame, from 0
-# at the first row to 1 where the last row shows at the bottom.
-function _get_scroll_bar_value(view::DataFrameView, count::Int, visible::Int)
-    room = count - visible
-    room <= 0 && return 0.0
-    clamp((view.anchor + view.top_row - 2) / room, 0.0, 1.0)
-end
-
-# The row that a value of the scroll bar puts at the top of the table.
-_get_scroll_bar_row(value::Real, count::Int, visible::Int) =
-    1 + round(Int, clamp(Float64(value), 0.0, 1.0) * max(0, count - visible))
 
 # The table of a frame whose columns share its width: every column a weight,
 # and at least as wide as its header.
@@ -652,7 +641,7 @@ function _convert_table_write(iomap::DataFrameViewToWidgetIoMap, operation, colu
     bar = _find_written_field(iomap.bar, operation)
     if bar !== nothing && bar[1] == "value"
         count = length(iomap.input.kept_rows)
-        return jump_to_row(iomap.input, _get_scroll_bar_row(bar[2], count, Int(iomap.visible)))
+        return jump_to_row(iomap.input, compute_scroll_bar_top_row(bar[2], count, Int(iomap.visible)))
     end
     cell = _convert_cell_operation(iomap, operation)
     cell === nothing || return cell

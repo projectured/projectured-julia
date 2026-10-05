@@ -1492,6 +1492,34 @@ function WidgetScrollBar(orientation::Symbol;
                     Cell(style), Cell(tooltip), Cell(nothing))
 end
 
+"""
+    compute_scroll_bar_value(top_row, count, visible) -> Float64
+
+The value of a vertical [`WidgetScrollBar`](@ref) beside a list of `count`
+rows that shows `visible` of them, with the row `top_row` at the top: the place
+of the top row among the rows that do not fit, from 0 at the first row to 1
+where the last row shows at the bottom, and 0 when every row fits.
+
+Use it in a projection that owns the anchor of a list table, so the bar shows
+where the table is. See also [`compute_scroll_bar_top_row`](@ref).
+"""
+function compute_scroll_bar_value(top_row::Integer, count::Integer, visible::Integer)
+    room = count - visible
+    room <= 0 && return 0.0
+    clamp((top_row - 1) / room, 0.0, 1.0)
+end
+
+"""
+    compute_scroll_bar_top_row(value, count, visible) -> Int
+
+The row that the value `value` of a vertical [`WidgetScrollBar`](@ref) puts at
+the top of a list of `count` rows that shows `visible` of them: the inverse of
+[`compute_scroll_bar_value`](@ref). A projection makes a write of the value a
+jump to that row.
+"""
+compute_scroll_bar_top_row(value::Real, count::Integer, visible::Integer) =
+    1 + round(Int, clamp(Float64(value), 0.0, 1.0) * max(0, count - visible))
+
 # ════════════════════════════════════════════════════════════════════════════
 # Extension widgets (printer-only for now; readers are no-ops)
 #
