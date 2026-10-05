@@ -3,8 +3,8 @@
 **Status (2026-10-05): PENDING. Not started.** The owner asked for this plan in the decision
 walk of [kernel-audit-fixes.md](kernel-audit-fixes.md), at L10-13. Do not implement it until the
 owner asks. The owner accepted the model of §3 on 2026-10-05: no foreign type, and a field that
-admits other domains declares `Document`. In §7, S-6 is open, and the other questions are
-decided.
+admits other domains declares `Document`. Every question of §7 is decided, so the pilot can
+start when the owner asks.
 
 **Goal:** the declared type of a `@document` field becomes a contract that the reactive layout
 keeps. An intermediate state of an edit is the insertion or the nothing of its domain, and a field
@@ -371,6 +371,8 @@ The laws change only when the pilot lands (§6).
     exception ([CodeExecution.jl:320](../../source/kernel/tool/CodeExecution.jl#L320)).
   - **The alternative, a silent refusal** with no fault, hides the reader that made the wrong
     operation. It is not recommended.
+
+  **Decided by the owner, 2026-10-05: as recommended.**
 - **S-7: the element type of `JsonObject.entries`.** `Vector{JsonObjectEntry}` with the insertion
   and the nothing (law 1), or `Vector{JsonDocument}`? The sort rule
   ([JsonDocument.jl:130-133](../../source/domain/json/JsonDocument.jl#L130-L133)) expects an
