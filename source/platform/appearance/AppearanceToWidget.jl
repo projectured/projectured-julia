@@ -517,7 +517,7 @@ _step_palette_step(color::PaletteColor, delta::Integer) =
 const _COLOR_SETTING_ROWS = ((:color_mode, "Mode"), (:color_contrast, "Contrast"),
                              (:color_palette, "Palette"), (:color_accent, "Accent"),
                              (:color_neutral, "Neutral"))
-const _COLOR_SETTING_DEFAULTS = (color_mode = :light, color_contrast = :normal,
+const _COLOR_SETTING_DEFAULTS = (color_mode = :system, color_contrast = :system,
                                  color_palette = DEFAULT_PALETTE_NAME, color_accent = :blue,
                                  color_neutral = :slate)
 
@@ -531,7 +531,7 @@ function _get_color_setting_values(appearance::Appearance, field::Symbol)
     field === :color_mode && return collect(COLOR_MODES)
     field === :color_contrast && return collect(COLOR_CONTRASTS)
     field === :color_palette && return get_palette_names()
-    field === :color_accent && return [hue for hue in PALETTE_HUES if hue !== :neutral]
+    field === :color_accent && return [:system; [hue for hue in PALETTE_HUES if hue !== :neutral]]
     palette = something(find_palette(appearance.color_palette), find_palette(DEFAULT_PALETTE_NAME))
     copy(get_palette_neutrals(palette))
 end
@@ -541,6 +541,16 @@ function _step_color_setting(appearance::Appearance, field::Symbol, delta::Integ
     values = _get_color_setting_values(appearance, field)
     i = something(findfirst(==(getproperty(appearance, field)), values), 1)
     values[mod1(i + delta, length(values))]
+end
+
+# The text of the colour setting `field` of `appearance`: its value, and for
+# `:system` the value of the system in use after it, as "system (dark)".
+function _format_color_setting(appearance::Appearance, field::Symbol)
+    value = getproperty(appearance, field)
+    value === :system || return string(value)
+    used = field === :color_mode ? get_color_mode(appearance) :
+           field === :color_contrast ? get_color_contrast(appearance) : get_color_accent(appearance)
+    "system ($(used))"
 end
 
 # The rows of the colour settings: for each, its name, the buttons that step it,
@@ -554,7 +564,7 @@ function _make_color_settings(controls)
         push!(cells, WidgetLabel(name),
               controls.button("‹", _write_color_setting(appearance, field,
                                                         _step_color_setting(appearance, field, -1))),
-              WidgetLabel(string(getproperty(appearance, field))),
+              WidgetLabel(_format_color_setting(appearance, field)),
               controls.button("›", _write_color_setting(appearance, field,
                                                         _step_color_setting(appearance, field, 1))),
               swatch === nothing ? WidgetLabel("") :

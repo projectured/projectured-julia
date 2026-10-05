@@ -2,6 +2,8 @@
 # zoom and for each scale, a press of a button of a row answers the step of its
 # factor, and in an editor the step prints the view again with the new value.
 
+import ProjecturedKernel.EventModule: SystemColors
+
 # Each text that a canvas tree draws, with its place in the frame of the root.
 function _at_collect_texts(canvas)
     found = Tuple{String,Int,Int}[]
@@ -408,21 +410,26 @@ end
     iomap = print_document(projection, nothing, appearance, offer)
     texts = first.(_at_collect_texts(iomap.output))
     for name in ("Colors", "Mode", "Contrast", "Palette", "Accent", "Neutral",
-                 "light", "normal", "radix", "blue", "slate")
+                 "system (light)", "system (normal)", "radix", "blue", "slate")
         @test name in texts
     end
+    # A setting that follows the system shows the value of the system.
+    appearance.system_colors = SystemColors(; mode = :dark)
+    @test "system (dark)" in first.(_at_collect_texts(print_document(projection, nothing, appearance, offer).output))
+    appearance.system_colors = SystemColors()
     tab = _at_find_iomap(iomap, AppearanceToWidgetIoMap)
     writes_setting(op, field) = op isa ReplaceReferencedValueOperation && op.document === appearance &&
                                 op.reference.head == FieldReferenceStep(String(field))
     next_mode = only(op for (action, op) in tab.commands if action.label == "›" && writes_setting(op, :color_mode))
-    @test next_mode.value === :dark
+    @test next_mode.value === :light
     @test is_appearance_change(appearance, next_mode)
     previous_accent = only(op for (action, op) in tab.commands
                            if action.label == "‹" && writes_setting(op, :color_accent))
     @test previous_accent.value === :teal
     evaluate_operation(nothing, next_mode)
-    @test appearance.color_mode === :dark
+    @test appearance.color_mode === :light
     # The card of the colour theme holds the theme of the present mode and contrast.
+    appearance.color_mode = :dark
     theme = get_color_theme(appearance)
     @test theme === appearance.color_themes[:dark]
     appearance.open_sections = ["ColorTheme"]
