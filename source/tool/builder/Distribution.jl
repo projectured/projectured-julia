@@ -45,7 +45,8 @@ archive. Answers the path of the archive.
   in `licence_cache`. `credits` are sentences that a licence asks to appear in
   the documentation; the README of the archive and the index hold them.
   `extra_texts`, `"<name>" => "<file of context.root>"`, adds the text of a
-  library whose JLL names no artifact to take it from.
+  library whose JLL names no artifact to take it from, and `data_texts` the text
+  of data from others that the code of the program holds.
 - `source_archive` — the file name of the archive of the sources that the
   licences of some libraries ask for ([`build_source_archive`](@ref)), which the
   README names; `nothing` names none.
@@ -71,6 +72,7 @@ function build_distribution(context::BuildContext; name::AbstractString,
                                   "build", "licence-cache"),
                               credits = String[],
                               extra_texts = Pair{String,String}[],
+                              data_texts = Pair{String,String}[],
                               source_archive::Union{AbstractString,Nothing} = nothing)
     bundle = abspath(bundle)
     isdir(bundle) ||
@@ -125,7 +127,9 @@ function build_distribution(context::BuildContext; name::AbstractString,
     licence_texts &&
         bundle_licence_texts!(staged; project, cache = licence_cache, credits,
                               extra_texts = [name => joinpath(context.root, file)
-                                             for (name, file) in extra_texts])
+                                             for (name, file) in extra_texts],
+                              data_texts = [name => joinpath(context.root, file)
+                                            for (name, file) in data_texts])
     write_readme(staged; name, version, requirements, licences, source,
                  third_party = licence_texts, credits, source_archive)
 

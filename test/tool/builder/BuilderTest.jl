@@ -267,6 +267,10 @@ function test_build_executable()
         end
 
         @testset "an archive carries the licence texts of what it holds" begin
+            # The texts of the colour data that the program holds are in the repository.
+            repository = normpath(joinpath(@__DIR__, "..", "..", ".."))
+            @test all(isfile(joinpath(repository, file))
+                      for (_, file) in ProjecturedBuilder.BuilderModule.PROJECTURED_DATA_TEXTS)
             root = mktempdir()
             # A standard-library JLL whose artifact, for this platform, is a local
             # tarball with one licence text.
@@ -328,6 +332,7 @@ function test_build_executable()
                           cache = joinpath(root, "cache"),
                           credits = ["A credit."], julia_thirdparty = thirdparty,
                           extra_texts = ["Certs" => thirdparty],
+                          data_texts = ["Palette" => thirdparty],
                           stdlib, depots = [depot]), String)
             licenses = joinpath(bundle, "share", "licenses")
             @test isfile(joinpath(licenses, "julia", "LICENSE.md"))
@@ -336,11 +341,13 @@ function test_build_executable()
             @test read(joinpath(licenses, "stdlib", "Fake", "LICENSE"), String) ==
                   "fake licence\n"
             @test isfile(joinpath(licenses, "stdlib", "Certs", "THIRDPARTY.md"))
+            @test isfile(joinpath(licenses, "data", "Palette", "THIRDPARTY.md"))
+            @test !isdir(joinpath(licenses, "stdlib", "Palette"))
             @test read(joinpath(licenses, "packages", "Foo", "LICENSE.md"), String) ==
                   "foo licence\n"
             @test !isfile(joinpath(licenses, "packages", "Foo", "README.md"))
             @test !isdir(joinpath(licenses, "packages", "Dates"))
-            for line in ("  Certs", "  Fake", "  Foo 1.2.3",
+            for line in ("  Certs", "  Fake", "  Foo 1.2.3", "  Palette",
                          "  Bar: share/julia/artifacts/abc/share/licenses/Bar",
                          "  A credit.")
                 @test occursin(line, readme)

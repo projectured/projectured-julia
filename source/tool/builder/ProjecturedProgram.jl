@@ -181,6 +181,17 @@ the text from. It is the text of `LICENSE`.
 const PROJECTURED_EXTRA_TEXTS = ["MozillaCACerts" => "LICENSE"]
 
 """
+    PROJECTURED_DATA_TEXTS
+
+The licence texts of the data from others that the code of a `projectured` binary
+holds, as `"<name>" => "<file>"`: the colours of the Radix, Tailwind and Solarized
+palettes, each under the MIT License, which asks for its notice in every copy.
+"""
+const PROJECTURED_DATA_TEXTS = ["RadixColors" => "asset/licence/RadixColors-MIT.txt",
+                                "TailwindCSS" => "asset/licence/TailwindCSS-MIT.txt",
+                                "Solarized" => "asset/licence/Solarized-MIT.txt"]
+
+"""
     PROJECTURED_SOURCE
 
 Where the source code of this repository is. The README of an archive names it,
@@ -314,6 +325,7 @@ function build_projectured_distribution(; name::AbstractString = "projectured",
                        licences = PROJECTURED_LICENCES, source = PROJECTURED_SOURCE,
                        credits = PROJECTURED_CREDITS,
                        extra_texts = PROJECTURED_EXTRA_TEXTS,
+                       data_texts = PROJECTURED_DATA_TEXTS,
                        expect = vcat(["share/projectured/font"], last.(PROJECTURED_ASSETS)),
                        check = check_projectured_copy)
 end

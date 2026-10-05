@@ -10,7 +10,7 @@
 # holds, and writes an index of all of it.
 
 """
-    bundle_licence_texts!(directory; project, cache, credits, extra_texts,
+    bundle_licence_texts!(directory; project, cache, credits, extra_texts, data_texts,
                           julia_thirdparty, stdlib, depots) -> String
 
 Write into `share/licenses/` of `directory`, a copy of a bundle that is about to
@@ -27,6 +27,8 @@ be archived, and answer the path of the index it writes there, `README`:
   from.
 - `packages/<Name>/` — the licence files of each package of the manifest of
   `project` that came from a registry, found in `depots`.
+- `data/<Name>/` — for each `"<Name>" => "<file>"` of `data_texts`: data from
+  others that the code of the program holds, such as the colours of a palette.
 - `README` — what each folder holds, the texts that each artifact of the bundle
   carries in its own `share/licenses/`, and `credits`: sentences that a licence
   asks to appear in the documentation.
@@ -35,6 +37,7 @@ function bundle_licence_texts!(directory::AbstractString; project::AbstractStrin
                                cache::AbstractString,
                                credits = String[],
                                extra_texts = Pair{String,String}[],
+                               data_texts = Pair{String,String}[],
                                julia_thirdparty::AbstractString =
                                    "https://raw.githubusercontent.com/JuliaLang/julia/v" *
                                    "$(VERSION)/THIRDPARTY.md",
@@ -59,6 +62,14 @@ function bundle_licence_texts!(directory::AbstractString; project::AbstractStrin
         push!(stdlib_names, name)
     end
     sort!(unique!(stdlib_names))
+    data_names = String[]
+    for (name, file) in data_texts
+        isfile(file) || error("bundle_licence_texts!: no licence text at $file for $name")
+        mkpath(joinpath(licenses, "data", name))
+        cp(file, joinpath(licenses, "data", name, basename(file)); force = true)
+        push!(data_names, name)
+    end
+    sort!(unique!(data_names))
     packages = _bundle_package_licences!(joinpath(licenses, "packages"), project, depots)
     artifacts = _collect_artifact_licences(directory)
 
@@ -89,6 +100,14 @@ function bundle_licence_texts!(directory::AbstractString; project::AbstractStrin
                     "artifact itself:",
                     ""])
     append!(lines, ["  $name: $path" for (name, path) in artifacts])
+    if !isempty(data_names)
+        append!(lines, ["",
+                        "The data from others that the code of the program holds, " *
+                        "such as the colours",
+                        "of its palettes, each with its texts in data/<name>/:",
+                        ""])
+        append!(lines, ["  " * name for name in data_names])
+    end
     if !isempty(credits)
         append!(lines, ["", "Credits that these licences ask for:", ""])
         append!(lines, ["  " * String(credit) for credit in credits])
