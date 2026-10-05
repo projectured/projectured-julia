@@ -323,11 +323,11 @@ worktree. The three domains test different parts of the model:
   - Julia: each of the 52 `Document` fields and the 5 `Union{Document,Nothing}` fields chooses
     `Document` or `JuliaDocument` (§3.1). A field that holds code of another domain stays
     `Document`. The 20 list fields declare their element types.
-  - JSON: `JsonArray.elements` and `JsonObject.entries` become `Vector{Document}`, and
+  - JSON: `JsonArray.elements` and `JsonObject.entries` become `CellVector{Document}`, and
     `JsonObjectEntry.value` stays `Document` (§7.1, S-7).
-  - XML: `XmlElement.children` becomes `Vector{Document}`, because the tests put JSON there.
-    `XmlElement.attrs` becomes `CellVector{Document}` (S-8). The convenience constructors of `XmlElement` must still tell
-    `attrs` from `children` when `children` admits any document.
+  - XML: `XmlElement.children` becomes `CellVector{Document}`, because the tests put JSON there.
+    `XmlElement.attrs` becomes `CellVector{Document}` (S-8). The convenience constructors of
+    `XmlElement` must still tell `attrs` from `children` when both admit any document.
 - [ ] **Step 5: the insertion follows its place.** The typed child contexts, the filter of the
   candidates (§3.5), and the widening key (§3.6), in the three domains. The example of §3.6, an
   XML element typed into a `JsonArray`, is the test of acceptance.
@@ -427,7 +427,11 @@ The laws change only when the pilot lands (§6).
   *Recommended (mine), 2026-10-05:* `Vector{Document}`. The attributes of an element and the
   entries of an object are both lists of name and value pairs, and S-7 allows mixing in the
   entries. One rule for both is easier to read.
-  **Decided by the owner, 2026-10-05: yes, `CellVector{Document}`.**
+  **Decided by the owner, 2026-10-05: yes, `CellVector{Document}`.** The four list fields of JSON
+  and XML use the same form, `CellVector{Document}` (owner, 2026-10-05). A field declared
+  `CellVector{T}` holds a `CellVector` in every layout, and a field declared `Vector{T}` holds a
+  plain `Vector` in the native layouts. So `CellVector` gets a type parameter, which S-2 needs
+  anyway.
 
 ### 7.1 The JSON domain in the strict model (a study for S-1, 2026-10-04)
 
@@ -440,8 +444,8 @@ omnet-julia and inet-julia found every construction and every write of a JSON fi
 | `JsonBool.value`, the three `collapsed` | `Bool` | no change |
 | `JsonString.value`, `JsonObjectEntry.key` | `String` | no change |
 | `JsonNumber.value` | `Union{Real, Nothing}` | no change; a text that does not parse becomes a `JsonInsertion` (S-5) |
-| `JsonArray.elements` | `CellVector` | `Vector{Document}`, because the tests put documents of other domains there |
-| `JsonObject.entries` | `CellVector` | `Vector{Document}`, because mixing is allowed (S-7) |
+| `JsonArray.elements` | `CellVector` | `CellVector{Document}`, because the tests put documents of other domains there |
+| `JsonObject.entries` | `CellVector` | `CellVector{Document}`, because mixing is allowed (S-7) |
 | `JsonObjectEntry.value` | `Document` | no change, for the same reason |
 
 **The writes today are correct where a field is narrow.** The parser writes only values of the
