@@ -708,6 +708,32 @@ function _format_projectured_release_overview(context::BuildContext, names)
 
     To install and to load are two different steps. You can load in two ways.
 
+    ### Let `Projectured` load the integrations
+
+    ```
+    pkg> add Projectured ProjecturedSDL ProjecturedDataFrames DataFrames SimpleDirectMediaLayer
+
+    julia> using Projectured, DataFrames, SimpleDirectMediaLayer
+    julia> display_in_editor(DataFrame(n = 1:100_000, square = (1:100_000) .^ 2))
+    ```
+
+    > The first `display_in_editor` of a session can take a long time before the
+    > window opens. Julia compiles the code of the editor the first time that it
+    > runs. The next calls in the same session do not compile it again, so the
+    > window opens fast.
+
+    `using Projectured` loads the kernel, the platform and
+    [AutoIntegration]($AUTOINTEGRATION_URL). AutoIntegration loads a package that
+    you installed when all its triggers are loaded. The order of the `using` lines does not matter. Each domain, the
+    console, PDF and the model adapters load when `Projectured` is loaded. An
+    integration loads when the package that it joins is loaded too:
+
+    | Integration | It joins | It loads when these are loaded |
+    | --- | --- | --- |
+    $(join(integrations))
+    A package that loads in this way puts no name into `Main`. To write
+    `SdlBackend()`, add `using ProjecturedSDL`.
+
     ### Name each package
 
     ```
@@ -722,32 +748,6 @@ function _format_projectured_release_overview(context::BuildContext, names)
     dependency, but a `using` line reaches only a package that you added by name,
     so the `add` line names DataFrames too: without it, `using DataFrames` fails
     with "Package DataFrames not found in current path".
-
-    > The first `display_in_editor` of a session can take a long time before the
-    > window opens. Julia compiles the code of the editor the first time that it
-    > runs. The next calls in the same session do not compile it again, so the
-    > window opens fast.
-
-    ### Let `Projectured` load the integrations
-
-    ```
-    pkg> add Projectured ProjecturedSDL ProjecturedDataFrames DataFrames SimpleDirectMediaLayer
-
-    julia> using Projectured, DataFrames, SimpleDirectMediaLayer
-    julia> display_in_editor(DataFrame(n = 1:100_000, square = (1:100_000) .^ 2))
-    ```
-
-    `using Projectured` loads the kernel, the platform and
-    [AutoIntegration]($AUTOINTEGRATION_URL). AutoIntegration loads a package that
-    you installed when all its triggers are loaded. The order of the `using` lines does not matter. Each domain, the
-    console, PDF and the model adapters load when `Projectured` is loaded. An
-    integration loads when the package that it joins is loaded too:
-
-    | Integration | It joins | It loads when these are loaded |
-    | --- | --- | --- |
-    $(join(integrations))
-    A package that loads in this way puts no name into `Main`. To write
-    `SdlBackend()`, add `using ProjecturedSDL`.
 
     ### Choose for each package
 
