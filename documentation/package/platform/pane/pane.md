@@ -12,7 +12,8 @@ A fresh layout is one empty group. A person builds the rest with the keyboard an
 
 | Type | What it holds |
 | --- | --- |
-| `PaneTab(title, content[, icon])` | a title document and a content document of any domain; `PaneTab("name", doc)` wraps the title in a `PrimitiveString` |
+| `PaneTab(title, content[, icon])` | a `PaneTabTitle` and a content document of any domain; `PaneTab("name", doc)` makes a title with that name, and `icon` gives the title an icon |
+| `PaneTabTitle(name; icon, badges, tooltip)` | the name of a tab as a `PrimitiveString`, and an icon, a list of `WidgetBadge`s and a tooltip; each of the three is a value, a cell or a function of no arguments |
 | `PaneGroup(tabs)` | a tab group, which can be empty: `PaneGroup(PaneTab[])` |
 | `PaneSplit(orientation, elements; weights)` | two or more groups or splits, and one weight for each; an empty `weights` means equal weights |
 | `PaneTree(root, drag)` | the whole layout, and `drag`, the state of a tab drag |
@@ -41,7 +42,7 @@ A new tab takes the focus. The focus goes on the content as a whole when the con
 | `make_pane_drop_split_operation` | the split write, the move, and the focus move |
 | `make_pane_resize_operation` | one write of the weights |
 | `make_pane_focus_operation` | `ReplaceSelectionOperation` |
-| `make_pane_retarget_title_operation` | an edit of the title, re-rooted |
+| `make_pane_retarget_title_operation` | an edit of the name in the title, re-rooted |
 
 Two rules hold for all of them:
 
@@ -127,7 +128,11 @@ A paste never replaces a pane node, and a pane node is never pasted: `accepts_pa
 
 ### Renaming is not a mode
 
-A tab title is a text document. A caret in the title is the edit state, so F2 and Escape only move the selection. The table gives each typed key, Backspace and Delete to `read_gesture` of the title, and the `@gestures` table of `PrimitiveString` makes the edit. `make_pane_retarget_title_operation` roots the answer at the tree. The package has no code that edits text and no rename operation.
+The name in a tab title is a text document. A caret in the name is the edit state, so F2 and Escape only move the selection. The table gives each typed key, Backspace and Delete to `read_gesture` of the name, and the `@gestures` table of `PrimitiveString` makes the edit. `make_pane_retarget_title_operation` roots the answer at the tree, at `get_pane_tab_name_path`. The package has no code that edits text and no rename operation.
+
+A rename edits the name only. The icon, the badges and the tooltip of the title stay, and a title whose parts are cells or functions follows the state they read with no write. The group draws each tab as a `WidgetTabLabel` whose icon, badges and tooltip read the title, so a change of them redraws the strip and builds no page again. A caret in the name, `tabs[i].title.name.value{k}`, maps to `selector_element_pairs[i].selector.text{k}` of the strip, and back.
+
+A file of a layout writes the name and the values that the three parts hold at the save. It builds a tab from a `PaneTabTitle`, or from a name with an `icon` beside it.
 
 ### A duplicate is a pane of its own
 
@@ -137,7 +142,7 @@ A duplicate of a tab is a second pane that the person controls alone. `make_docu
 2. The duplicate shares what the pane reads: the project, the result files, the model backend.
 3. The duplicate does not copy a process. A run or a stream stays with the original, and the duplicate starts idle.
 
-A tab whose content has no duplicate shows no `+`, and Ctrl+Shift+D on it logs the reason with `@warn`. The duplicate is the next tab of the group and takes the focus. Its title gets a number: "Plot" becomes "Plot (2)", and "Plot (2)" becomes "Plot (3)". [document.md](../../kernel/document.md#the-duplicate) describes the copy.
+A tab whose content has no duplicate shows no `+`, and Ctrl+Shift+D on it logs the reason with `@warn`. The duplicate is the next tab of the group and takes the focus. Its name gets a number: "Plot" becomes "Plot (2)", and "Plot (2)" becomes "Plot (3)". It keeps the icon that the title shows, and it has no badges and no tooltip, because those say what the original content does. [document.md](../../kernel/document.md#the-duplicate) describes the copy.
 
 A duplicate is not a mirror. Each node stores its own `selection`, so two panes that hold one document share one caret.
 

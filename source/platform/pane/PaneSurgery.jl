@@ -253,11 +253,12 @@ function get_pane_shown_tab_index(group::PaneGroup)
 end
 
 """
-    get_pane_title_path(tree, group, index) -> Reference | Nothing
+    get_pane_tab_name_path(tree, group, index) -> Reference | Nothing
 
-The typed path to a tab's title document.
+The typed path to the name in a tab's title: the text document that a rename
+edits.
 """
-function get_pane_title_path(tree::PaneTree, group::PaneGroup, index::Integer)
+function get_pane_tab_name_path(tree::PaneTree, group::PaneGroup, index::Integer)
     (1 <= index <= length(group.tabs)) || return nothing
     tab = group.tabs[index]
     pairs = _pairs_to(tree, group)
@@ -265,7 +266,8 @@ function get_pane_title_path(tree::PaneTree, group::PaneGroup, index::Integer)
     push!(pairs, (group, FieldReferenceStep("tabs")))
     push!(pairs, (group.tabs, ElementReferenceStep(Int(index))))
     push!(pairs, (tab, FieldReferenceStep("title")))
-    _reference_from(pairs, tab.title)
+    push!(pairs, (tab.title, FieldReferenceStep("name")))
+    _reference_from(pairs, tab.title.name)
 end
 
 """
@@ -294,16 +296,13 @@ the name.
 """
 function make_pane_title_caret_operation(tree::PaneTree, group::PaneGroup, index::Integer;
                                          position = nothing)
-    path = get_pane_title_path(tree, group, index)
+    path = get_pane_tab_name_path(tree, group, index)
     path === nothing && return nothing
-    title = group.tabs[index].title
-    at = position === nothing ? length(something(_title_text(title), "")) : Int(position)
+    name = group.tabs[index].title.name
+    at = position === nothing ? length(something(name.value, "")) : Int(position)
     ReplaceSelectionOperation(concat_references(path,
         @reference ::PrimitiveString.value::String{at}::Position))
 end
-
-_title_text(title::PrimitiveString) = title.value
-_title_text(::Any) = nothing
 
 """
     make_pane_retarget_title_operation(tree, group, index; operation) -> Operation | Nothing
@@ -315,7 +314,7 @@ gestures that edit any other string, with no editing code of its own.
 function make_pane_retarget_title_operation(tree::PaneTree, group::PaneGroup, index::Integer;
                                             operation)
     operation isa ReplaceStringRangeOperation || return nothing
-    path = get_pane_title_path(tree, group, index)
+    path = get_pane_tab_name_path(tree, group, index)
     path === nothing && return nothing
     ReplaceStringRangeOperation(concat_references(path, operation.reference),
                                 operation.replacement)
@@ -427,13 +426,14 @@ end
 
 # ── Duplicate a tab ────────────────────────────────────────────────────────
 
-# A new tab like `tab`: the duplicate of its content, its title with a number, and
-# the same icon. Throws the `DocumentCopyException` of a content that has no
-# duplicate.
+# A new tab like `tab`: the duplicate of its content, its name with a number, and
+# the icon that its title shows now. The badges and the tooltip say what the
+# original content does, so the duplicate has none. Throws the
+# `DocumentCopyException` of a content that has no duplicate.
 function _make_pane_tab_duplicate(tree::PaneTree, tab::PaneTab)
     content = make_document_duplicate(tab.content)
     title = _unique_pane_title(tree, _get_pane_title_stem(get_pane_tab_title_string(tab)))
-    PaneTab(PrimitiveString(title), content, tab.icon)
+    PaneTab(PaneTabTitle(title; icon = tab.title.icon), content)
 end
 
 # The title a duplicate is numbered from: the title without the number a

@@ -109,12 +109,12 @@ _steps(reference) = reference === nothing ? nothing :
     _press!(editor, KeyDown(:f2, ModifierKeys(); time = 0.0))
     caret() = _steps(get_stored_selection(_tab_bar(print_document(_chain(), editor.document))))
     steps = caret()
-    @test steps[1:3] == [FieldReferenceStep("selector_element_pairs"), ElementReferenceStep(1),
-                         FieldReferenceStep("selector")]
-    @test (steps[4].start, steps[4].stop) == (5, 5)
+    @test steps[1:4] == [FieldReferenceStep("selector_element_pairs"), ElementReferenceStep(1),
+                         FieldReferenceStep("selector"), FieldReferenceStep("text")]
+    @test (steps[5].start, steps[5].stop) == (5, 5)
     # The caret follows the typing.
     _type!(editor, "!")
-    @test (caret()[4].start, caret()[4].stop) == (6, 6)
+    @test (caret()[5].start, caret()[5].stop) == (6, 6)
     # Out of the name, the tab bar names the tab and holds no caret.
     _press!(editor, KeyDown(:escape, ModifierKeys(); time = 0.0))
     @test caret() == [FieldReferenceStep("selector_element_pairs"), ElementReferenceStep(1)]
@@ -156,6 +156,47 @@ end
     editor = _PaneRenameMockEditor(tree)
     evaluate_operation(editor, make_pane_focus_operation(tree, group, 0))
     @test _press!(editor, KeyDown(:f2, ModifierKeys(); time = 0.0)) === nothing
+end
+
+@testset "a rename edits the name and keeps the icon and the badges" begin
+    finished = Cell(1)
+    title = PaneTabTitle("tasks"; icon = :loader,
+                         badges = () -> Any[WidgetBadge(string(finished[], "/3"); role = :accent)],
+                         tooltip = "the tasks")
+    group = PaneGroup(PaneTab[PaneTab(title, PrimitiveString("body"))])
+    tree = PaneTree(group)
+    editor = _PaneRenameMockEditor(tree)
+    evaluate_operation(editor, make_pane_focus_operation(tree, group, 1))
+    _press!(editor, KeyDown(:f2, ModifierKeys(); time = 0.0))
+    _type!(editor, "!")
+    tab = group.tabs[1]
+    @test get_pane_tab_title_string(tab) == "tasks!"
+    @test tab.title === title
+    @test tab.title.icon === :loader
+    @test tab.title.tooltip == "the tasks"
+    # The badges still follow their cell after the rename.
+    finished[] = 2
+    @test only(tab.title.badges).content == "2/3"
+    # The strip draws the label of the title: the name, the icon and the badge.
+    label = _tab_bar(print_document(_chain(), editor.document)).selector_element_pairs[1].selector
+    @test label isa WidgetTabLabel
+    @test label.text == "tasks!" && label.icon === :loader
+    @test only(label.badges).content == "2/3"
+end
+
+@testset "a file builds a title from a name with an icon beside it" begin
+    serialization = ProjecturedPlatform.SerializationModule
+    body = PrimitiveString("body")
+    old = serialization.make_pred_document(PaneTab, (),
+        Pair{Symbol,Any}[:title => PrimitiveString("plot"), :content => body, :icon => :chart])
+    @test old.title isa PaneTabTitle
+    @test get_pane_tab_title_string(old) == "plot" && old.title.icon === :chart
+    new = serialization.make_pred_document(PaneTab, (),
+        Pair{Symbol,Any}[:title => PaneTabTitle("plot"; icon = :chart), :content => body])
+    @test get_pane_tab_title_string(new) == "plot" && new.title.icon === :chart
+    # What a file writes of a title is the name and the values of its parts.
+    _, keywords = serialization.pred_arguments(PaneTabTitle("plot"; icon = () -> :chart))
+    @test Dict(keywords)[:icon] === :chart
 end
 
 end # testset

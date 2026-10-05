@@ -364,14 +364,24 @@ function print_document(p::PaneGroupToWidgetTabbedPane, recursion, group::PaneGr
     set_cell_computation!(pane, () -> begin
         entries = content_iomaps[]
         tabs = group.tabs
-        Any[(get_pane_tab_title_string(tabs[i]), entries[i].pane, nothing,
-             has_document_duplicate(entries[i].iomap.input))
+        Any[WidgetTabPage(_make_tab_label(tabs[i]), entries[i].pane, nothing,
+                          has_document_duplicate(entries[i].iomap.input))
             for i in eachindex(entries)]
     end)
 
     iomap = PaneGroupToWidgetTabbedPaneIoMap(p, group, pane, content_iomaps)
     _forward_selection!(pane, group, p, iomap, selection -> _get_group_routing(group, selection))
     iomap
+end
+
+# The label of a tab in the strip: its name, and the icon, the badges and the
+# tooltip of its title. The three are cells of their own that read the title, so
+# a title that follows a state redraws the strip and does not rebuild the pages.
+function _make_tab_label(tab::PaneTab)
+    title = tab.title
+    WidgetTabLabel(get_pane_tab_title_string(tab);
+                   icon = () -> title.icon, badges = () -> title.badges,
+                   tooltip = () -> title.tooltip)
 end
 
 # The part of a group's selection that its tabbed pane needs. A live caret in the
@@ -387,12 +397,12 @@ end) === true
 # The caret position in the name of a tab, or `nothing` when the path below the
 # tab is not a caret in its name.
 _find_title_caret_position(rest) = @reference_case rest begin
-    ::PaneTab.title.value{k} => k
+    ::PaneTab.title.name.value{k} => k
 end
 
 # The caret position in the name that a tab page of the widget holds.
 _find_selector_caret_position(rest) = @reference_case rest begin
-    ::WidgetTabPage.selector{k} => k
+    ::WidgetTabPage.selector.text{k} => k
 end
 
 function map_reference_forward(::PaneGroupToWidgetTabbedPane,
@@ -404,7 +414,7 @@ function map_reference_forward(::PaneGroupToWidgetTabbedPane,
             # A caret in the name is a caret in the name the tab page holds.
             k = _find_title_caret_position(rest)
             k === nothing ||
-                return @reference ::WidgetTabbedPane.selector_element_pairs::CellVector[i]::WidgetTabPage.selector::String{k}::Position
+                return @reference ::WidgetTabbedPane.selector_element_pairs::CellVector[i]::WidgetTabPage.selector::WidgetTabLabel.text::String{k}::Position
             # The node at `[i]` is the tab page, and the content is its `element`. A
             # selection that names the tab whole, or its title whole, names the page.
             inside = _get_tab_content_path(rest)
@@ -444,7 +454,7 @@ function map_reference_backward(::PaneGroupToWidgetTabbedPane,
             rest isa EmptyReference && return tab
             k = _find_selector_caret_position(rest)
             k === nothing ||
-                return @reference ::PaneGroup.tabs::CellVector[i]::PaneTab.title::PrimitiveString.value::String{k}::Position
+                return @reference ::PaneGroup.tabs::CellVector[i]::PaneTab.title::PaneTabTitle.name::PrimitiveString.value::String{k}::Position
             # `concat_references`, not the `^` splice of `@reference`: the splice
             # hoists the spliced path's leading type onto the node before it, so a
             # content path that starts at its own checkpoint would overwrite

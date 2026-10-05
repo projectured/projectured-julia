@@ -66,7 +66,7 @@ import ..ScreenModule: show_document!
 import ..OperationModule: find_drop_zone
 
 export make_tabs_projection
-export PaneDocument, PaneTree, PaneSplit, PaneGroup, PaneTab,
+export PaneDocument, PaneTree, PaneSplit, PaneGroup, PaneTab, PaneTabTitle,
        get_pane_tab_title_string, default_new_pane_tab,
        get_opposite_pane_orientation, get_pane_split_axis,
        get_pane_weight, get_pane_weights, get_pane_normalized_weights,
@@ -76,7 +76,7 @@ export get_pane_path, get_pane_collection_path,
        get_pane_focused_tab_index,
        get_pane_shown_tab_index,
        get_pane_tab_reference, make_pane_focus_operation,
-       get_pane_title_path, get_pane_content_path, make_pane_title_caret_operation, make_pane_retarget_title_operation,
+       get_pane_tab_name_path, get_pane_content_path, make_pane_title_caret_operation, make_pane_retarget_title_operation,
        make_pane_open_tab_operation, make_pane_close_tab_operation, make_pane_split_operation,
        make_pane_duplicate_tab_operation,
        make_pane_move_tab_operation, make_pane_drop_split_operation, make_pane_resize_operation,

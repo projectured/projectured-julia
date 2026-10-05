@@ -4,15 +4,65 @@
 
 abstract type PaneDocument <: Document end
 
+# ── PaneTabTitle ───────────────────────────────────────────────────────────
+
+"""
+    PaneTabTitle(name; icon = nothing, badges = nothing, tooltip = nothing)
+
+The title of a tab: the `name` that a person types and renames, the `icon`
+before it, the `badges` after it, and the `tooltip` that the tab shows when the
+pointer rests on it.
+
+Use it when a tab must say more than a name, such as the state of the work that
+its content does. `name` is a string or a [`PrimitiveString`](@ref); a rename
+edits it with the gestures of every other string, and nothing else changes it.
+`icon` is the name of an icon (a `Symbol`), `badges` a vector of `WidgetBadge`s
+and `tooltip` a string or a document. Each of the three takes a value, a cell
+that holds it, or a function of no arguments that computes it, so a title
+follows the state that its function reads with no write: no operation and no
+entry in the undo list.
+
+# Example
+
+    finished = Cell(0)
+    title = PaneTabTitle("Fingerprint tests";
+                         icon = () -> finished[] == 40 ? :circle_check : :loader,
+                         badges = () -> Any[WidgetBadge(string(finished[], "/40"); role = :accent)],
+                         tooltip = "the fingerprint tests of showcases/tsn")
+    PaneTab(title, group_document)
+
+A file of a layout keeps the name and the values of the three parts at the time
+of the save, and not the functions that computed them.
+
+See also `PaneTab`, `WidgetTabLabel`, `WidgetBadge`.
+"""
+@document struct PaneTabTitle <: PaneDocument
+    name::Any
+    icon::Any = nothing
+    badges::Any = nothing
+    tooltip::Any = nothing
+end
+
+PaneTabTitle(name::AbstractString; kwargs...) = PaneTabTitle(PrimitiveString(String(name)); kwargs...)
+PaneTabTitle(name::PrimitiveString; icon = nothing, badges = nothing, tooltip = nothing) =
+    PaneTabTitle(name, _make_title_part_cell(icon), _make_title_part_cell(badges),
+                 _make_title_part_cell(tooltip))
+
+# A part of a title takes a value, a cell or a function, and keeps the value as it is.
+_make_title_part_cell(part::AbstractCell) = part
+_make_title_part_cell(part::Function) = Cell(@computation part())
+_make_title_part_cell(part) = Cell(part)
+
 # ── PaneTab ────────────────────────────────────────────────────────────────
 
 """
     PaneTab(title, content[, icon])
 
-One tab: a `title` document and a `content` document. `PaneTab("name", doc)`
-wraps the title in a [`PrimitiveString`](@ref), which is what makes the in-place
-rename an ordinary text edit — the tab strip prints the title through an editable
-widget and the existing `PrimitiveString` gestures do the editing.
+One tab: a [`PaneTabTitle`](@ref) and a `content` document. `PaneTab("name",
+doc)` makes a title with that name, and `PaneTab("name", doc, icon)` gives it an
+icon too. The name is a [`PrimitiveString`](@ref), which is what makes the
+in-place rename an ordinary text edit: the tab strip prints the name through an
+editable widget and the `PrimitiveString` gestures do the editing.
 
 Use it to give a document a title in a group; `open_pane!` makes one for you,
 and a `PaneSplit` you write by hand needs them.
@@ -21,22 +71,33 @@ and a `PaneSplit` you write by hand needs them.
 
     PaneTab("Delay", make_result_plot(frame))
 
-See also `PaneGroup`, `open_pane!`.
+See also `PaneTabTitle`, `PaneGroup`, `open_pane!`.
 """
 @document struct PaneTab <: PaneDocument
     title::Any
     content::Any
-    icon::Any = nothing
 end
 
-# String sugar. More specific than the macro's positional form, so the two
-# coexist (a caller passing a document keeps reaching the raw constructor).
-PaneTab(title::AbstractString, content) = PaneTab(PrimitiveString(String(title)), content)
+# A name makes a title. More specific than the macro's positional form, so a
+# caller that passes a `PaneTabTitle` keeps reaching the raw constructor.
+PaneTab(title::AbstractString, content) = PaneTab(PaneTabTitle(title), content)
+PaneTab(title::PrimitiveString, content) = PaneTab(PaneTabTitle(title), content)
+PaneTab(title::Union{AbstractString,PrimitiveString}, content, icon) =
+    PaneTab(PaneTabTitle(title; icon), content)
+
+# A file names the title of a tab as a `PaneTabTitle`, or as a name with an
+# `icon` beside it; both build the same tab.
+function make_pred_document(::Type{PaneTab}, positional, keywords)
+    isempty(positional) || return PaneTab(positional...)
+    values = Dict{Symbol,Any}(keywords)
+    title = values[:title]
+    icon = get(values, :icon, nothing)
+    (icon === nothing || title isa PaneTabTitle) && return PaneTab(title, values[:content])
+    PaneTab(title, values[:content], icon)
+end
 
 # A person edits what a tab shows.
 get_edited_field(::PaneTab) = :content
-PaneTab(title::AbstractString, content, icon) =
-    PaneTab(PrimitiveString(String(title)), content, icon)
 
 """
     default_new_pane_tab() -> PaneTab
@@ -73,6 +134,7 @@ function get_pane_tab_title_string(tab::PaneTab)
     named = get_document_title(tab.content)
     (named isa AbstractString && !isempty(strip(named))) ? String(named) : "untitled"
 end
+_title_string(title::PaneTabTitle) = _title_string(title.name)
 _title_string(title::PrimitiveString) = something(title.value, "")
 _title_string(title::AbstractString) = String(title)
 _title_string(title) = string(title)

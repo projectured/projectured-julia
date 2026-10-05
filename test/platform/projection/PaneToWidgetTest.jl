@@ -32,7 +32,7 @@ end
     pane = _layout(iomap)
     @test pane isa WidgetTabbedPane
     @test length(pane.selector_element_pairs) == 2
-    @test [string(p.selector) for p in pane.selector_element_pairs] == ["a", "b"]
+    @test [string(p.selector.text) for p in pane.selector_element_pairs] == ["a", "b"]
     @test pane.closable === true
     @test pane.new_tab === true
     @test pane.draggable === true

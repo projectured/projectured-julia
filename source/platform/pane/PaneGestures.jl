@@ -96,14 +96,14 @@ function _leave_title(tree::PaneTree)
     make_pane_focus_operation(tree, found[1], found[2])
 end
 
-# Hand one keystroke to the title document and re-root what it answers. The event
+# Hand one keystroke to the name in the title and re-root what it answers. The event
 # is rebuilt from the pattern's own bound fields, because a rule body sees those
 # and not the event object.
 function _title_edit(tree::PaneTree, event)
     found = get_pane_focus_title(tree)
     found === nothing && return nothing
     group, index = found
-    answer = read_gesture(group.tabs[index].title, event)
+    answer = read_gesture(group.tabs[index].title.name, event)
     answer === nothing && return nothing
     make_pane_retarget_title_operation(tree, group, index; operation = answer)
 end

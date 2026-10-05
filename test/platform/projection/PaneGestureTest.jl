@@ -67,9 +67,9 @@ end
     @test get_pane_tab_title_string(tab) == "untitled"
     tab.content = _PaneTitledContent("results")
     @test get_pane_tab_title_string(tab) == "results"
-    tab.title.value = "mine"
+    tab.title.name.value = "mine"
     @test get_pane_tab_title_string(tab) == "mine"
-    tab.title.value = ""
+    tab.title.name.value = ""
     @test get_pane_tab_title_string(tab) == "results"
     tab.content = _PaneTitledContent("   ")
     @test get_pane_tab_title_string(tab) == "untitled"
