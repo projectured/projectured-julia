@@ -1,9 +1,9 @@
 # The statistics tab shows two tables
 
 > **Status:** pending. Written on 2026-10-05 at the owner's request. The owner
-> chose the look on 2026-10-05 (D1). The other decisions in section 3 are
-> Claude's proposal, and the owner has not confirmed them. The questions in
-> section 6 are open. No step has started.
+> chose the look on 2026-10-05 (D1), and agreed to the other decisions and to
+> the answers of section 6 the same day. No question is open. No step has
+> started: the owner has not yet said to implement it.
 
 ## 1. The request
 
@@ -132,7 +132,7 @@ The mockup shows the Statistics tab, from top to bottom:
 
 ## 3. The decisions
 
-All but D1 are Claude's proposal. The owner has not confirmed them.
+Claude proposed D2 to D8. The owner agreed to them on 2026-10-05.
 
 - **D1. The look of the mockup.** One Statistics tab shows the head line with
   Pause, the summary table and the frames table, as in section 1. This is the
@@ -238,7 +238,10 @@ commit for each step. Do not land on `main` until the owner says so.
   window opens. Read the `frame_time` row with the tab open and with the tab
   closed. Do not report this as a measurement: a real measurement needs an
   idle machine and the owner's word.
-- [ ] **Step 6. A slow frame gets a color (only if the owner says yes to Q2).**
+- [ ] **Step 6. A slow frame gets a color (Q2).**
+  A row whose `frame_time` is more than two times the median of the ring shows
+  its cells in `:warning_text`. Test: a slow frame and a frame below the factor
+  in the same table.
 - [ ] **Step 7. Documentation.**
   Update [statistics.md](../../documentation/package/platform/statistics/statistics.md):
   how it works, the theme, how it fits, usage and limits. Update the "See also"
@@ -248,25 +251,26 @@ commit for each step. Do not land on `main` until the owner says so.
   branch. Report the commits, the test results, the blast radius and the
   command that lands the branch. Then stop and wait for the owner.
 
-## 6. Open questions
+## 6. Answered questions
 
-Each answer below is Claude's recommendation. The owner has not decided.
+Claude recommended each answer below. The owner agreed to all five on
+2026-10-05 ("agreed").
 
-- **Q1. Does Pause stop only the Statistics tab?** Claude recommends yes (D5).
+- **Q1. Does Pause stop only the Statistics tab?** Yes (D5).
   A pause that also stops the chart needs a button in the chart tab too.
-- **Q2. Does a slow frame get a color?** Claude recommends yes: a row whose
+- **Q2. Does a slow frame get a color?** Yes: a row whose
   `frame_time` is more than two times the median of the ring shows its cells
-  in `:warning_text`. Step 6 waits for the answer and for the factor.
-- **Q3. Does a click on a column header sort the frames?** Claude recommends
-  not in this plan. `WidgetTable` can not sort, and the maximum in the
+  in `:warning_text` (step 6).
+- **Q3. Does a click on a column header sort the frames?** Not in this
+  plan. `WidgetTable` can not sort, and the maximum in the
   summary already shows the slowest frame time.
 - **Q4. Do the rows stay in place while you read them?** Without Pause, the
   rows move four times each second, because a row is a place counted from the
   newest frame. Another model keys each row by its frame number and follows
   the newest frame only while the table is at its top, as a log follows its
-  end. That needs a follow rule in the reader that no table has now. Claude
-  recommends Pause first (the mockup), and a separate plan for the follow rule
-  if Pause is not enough.
-- **Q5. Which font do the cells use?** Claude recommends the monospace font of
+  end. That needs a follow rule in the reader that no table has now. Pause comes
+  first (the mockup). The follow rule gets a separate plan if Pause is not
+  enough.
+- **Q5. Which font do the cells use?** The monospace font of
   `FrameStatisticsTheme` (DejaVu Sans Mono 13), so that the digits align. The
   mockup used the font of the widget examples.
