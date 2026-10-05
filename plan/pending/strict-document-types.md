@@ -3,8 +3,8 @@
 **Status (2026-10-05): PENDING. Not started.** The owner asked for this plan in the decision
 walk of [kernel-audit-fixes.md](kernel-audit-fixes.md), at L10-13. Do not implement it until the
 owner asks. The owner accepted the model of §3 on 2026-10-05: no foreign type, and a field that
-admits other domains declares `Document`. In §7, S-2, S-3 and S-5 are decided, and S-1, S-4, S-6
-and S-7 are open.
+admits other domains declares `Document`. In §7, S-6 is open, and the other questions are
+decided.
 
 **Goal:** the declared type of a `@document` field becomes a contract that the reactive layout
 keeps. An intermediate state of an edit is the insertion or the nothing of its domain, and a field
@@ -12,7 +12,8 @@ that a person edits admits them by its declared type. A wrong value fails at the
 it, not later in a printer. The pilot is the Julia domain.
 
 **Repositories:** projectured-julia for the model and the pilot. omnet-julia and inet-julia
-declare their own documents, so they follow only when the model goes past the pilot.
+declare their own documents. The check applies to every type at once (S-1), so it reaches their
+narrow fields at Step 3. Their loose fields change only when the model goes past the pilot.
 
 ## 1. The request
 
@@ -274,15 +275,17 @@ The pilot measures the migration before the other domains follow. Each step is o
 worktree.
 
 - [ ] **Step 0: an inventory.** The check of §3.3 runs in a mode that records each violation and
-  does not throw. Run the Julia, FSM, process, formula and conversation suites, and the Julia
-  examples with the type-in and position sweeps. The result is the list of every write of a value
-  that its declared type does not admit, with its caller.
+  does not throw. Because the check applies to every type at once (S-1), run every per-package
+  suite, the example sweeps with the type-in and position walks, and the omnet-julia and
+  inet-julia suites, one package at a time. The result is the list of every write of a value that
+  its declared type does not admit, with its caller.
 - [ ] **Step 1: the seam.** Add the seam of §3.4 and call it in `_write_slot!`. Make
   `_is_slot_accepting` ask it.
 - [ ] **Step 2: the intermediate states of Julia.** An incomplete number in a Julia number field
   becomes a `JuliaInsertion` (S-5).
-- [ ] **Step 3: the check.** Add the check of §3.3 to the reactive layout and to the `CellVector`
-  (S-1 decides if it applies to the Julia types only).
+- [ ] **Step 3: the check.** Add the check of §3.3 to the reactive layout and to the `CellVector`,
+  for every type at once (S-1). A refused write throws the exception type of S-6. The writes that Step 0 found in other
+  domains are fixed in this step, or the check does not land.
 - [ ] **Step 4: the Julia fields.** Each of the 52 `Document` fields and the 5
   `Union{Document,Nothing}` fields chooses `Document` or `JuliaDocument` (§3.1). A field that holds
   code of another domain stays `Document`. The 20 list fields declare their element types. Each
@@ -320,6 +323,7 @@ The laws change only when the pilot lands (§6).
   0 shows how many writes break in the other domains before the check throws.
   *Open (owner, 2026-10-04):* first see how the JSON domain works in the strict model. The study
   is §7.1: in JSON, both give the same result.
+  **Decided by the owner, 2026-10-05: all types at once.**
 - **S-2: the element type of a list.** `CellVector.elements` is an untyped `Vector`. Does a list
   field declare its element type, for example `arguments::Vector{JuliaDocument}`, and does the
   `CellVector` check each element write? This changes the collection package.
@@ -338,6 +342,7 @@ The laws change only when the pilot lands (§6).
   §3.3. The operation layer (13) and the clipboard are above it, so both can call it. The kernel
   method applies rules 1, 2 and 4 of §3.4. The platform domain package adds rule 3 with the trait
   `get_domain_insertion`, which exists.
+  **Decided by the owner, 2026-10-05: as recommended.**
 - **S-5: the incomplete number.** A type in the primitive domain (L13-1, option B), and do the
   number fields of the Julia domain (`JuliaInteger.value::Int`, `JuliaFloat.value::Float64`) use it
   or go through `JuliaInsertion`?
@@ -345,11 +350,34 @@ The laws change only when the pilot lands (§6).
   one.**
 - **S-6: the refusal.** A new exception type for a write that the check refuses, and what a person
   sees when an edit meets it.
+  *Recommended (mine), 2026-10-05:*
+  - **One exception for the check and the seam:** `DeclaredTypeMismatchException(owner, name,
+    declared_type, value)` in the kernel layer `document`, next to the seam. `owner` is the type
+    of the document or of the `CellVector`, and `name` is the field or the element index. The name
+    follows `ReferenceTypeMismatchException` of the reference layer
+    ([ReferenceStep.jl:176](../../source/kernel/reference/ReferenceStep.jl#L176)). Its `showerror`
+    says the place, the declared type and the type of the value in one sentence, for example
+    `JsonBool.value is declared Bool, and the write gives a String: "yes"`.
+  - **A person meets it rarely.** Three things stop a refused value before the write: the paste
+    target asks the seam, the candidates of an insertion follow the declared type (§3.5), and the
+    widening key shows only where it is admitted (§3.6).
+  - **When an operation meets it, it is a fault of the reader** that made an operation that its
+    place does not admit. No new path shows it. The `:evaluate` barrier records it, takes the
+    change back where an inverse exists
+    ([FaultBarriers.jl:162-176](../../source/kernel/editor/FaultBarriers.jl#L162-L176)), and the
+    fault targets and the console show the sentence. A strict editor, as `Editor(…)` makes and the
+    tests use, throws it at the write.
+  - **A model reads the same sentence.** The code tool answers the `showerror` text of an
+    exception ([CodeExecution.jl:320](../../source/kernel/tool/CodeExecution.jl#L320)).
+  - **The alternative, a silent refusal** with no fault, hides the reader that made the wrong
+    operation. It is not recommended.
 - **S-7: the element type of `JsonObject.entries`.** `Vector{JsonObjectEntry}` with the insertion
   and the nothing (law 1), or `Vector{JsonDocument}`? The sort rule
   ([JsonDocument.jl:130-133](../../source/domain/json/JsonDocument.jl#L130-L133)) expects an
   element that is not a `JsonObjectEntry`, "an entry still under construction". No test and no
   gesture puts one there.
+  **Decided by the owner, 2026-10-05: mixing is allowed, so the element type is `Document`.** The
+  sort rule then keeps every element that is not a `JsonObjectEntry` at the end, in its order.
 
 ### 7.1 The JSON domain in the strict model (a study for S-1, 2026-10-04)
 
@@ -363,7 +391,7 @@ omnet-julia and inet-julia found every construction and every write of a JSON fi
 | `JsonString.value`, `JsonObjectEntry.key` | `String` | no change |
 | `JsonNumber.value` | `Union{Real, Nothing}` | no change; a text that does not parse becomes a `JsonInsertion` (S-5) |
 | `JsonArray.elements` | `CellVector` | `Vector{Document}`, because the tests put documents of other domains there |
-| `JsonObject.entries` | `CellVector` | open (S-7) |
+| `JsonObject.entries` | `CellVector` | `Vector{Document}`, because mixing is allowed (S-7) |
 | `JsonObjectEntry.value` | `Document` | no change, for the same reason |
 
 **The writes today are correct where a field is narrow.** The parser writes only values of the
