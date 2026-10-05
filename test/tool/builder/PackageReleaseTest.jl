@@ -562,7 +562,14 @@ function test_package_release()
         @test occursin("| Package | &nbsp;", front)
         # The front page says which repository is which.
         @test occursin("| [projectured-julia]($PROJECTURED_SOURCE) |", front) &&
-              occursin("| [AutoIntegration.jl]($AUTOINTEGRATION_URL) |", front)
+              occursin("| [AutoIntegration.jl]($AUTOINTEGRATION_URL) |", front) &&
+              occursin("| [AutoPrecompile.jl]($AUTOPRECOMPILE_URL) |", front)
+        # The registries that it names are links.
+        @test occursin("registry [`ProjecturedRegistry`]($PROJECTURED_REGISTRY_URL)", front) &&
+              occursin("[General]($GENERAL_REGISTRY_URL)", front)
+        # The way that loads `Projectured` comes before the way that names each package.
+        @test findfirst("### Let `Projectured` load the integrations", front)[1] <
+              findfirst("### Name each package", front)[1]
         @test occursin("| [ProjecturedJSON](ProjecturedJSON) | [![tests](" *
                        "$PROJECTURED_RELEASE_URL/actions/workflows/ProjecturedJSON.yml/badge.svg)]", front)
         @test all(name -> occursin("| [$name]($name) | ", front), names)
@@ -576,16 +583,19 @@ function test_package_release()
                        "pkg> add ProjecturedJSON\n", readme)
         # A README says when AutoIntegration loads the package, from the triggers
         # that its `Project.toml` declares.
-        @test occursin("AutoIntegration also loads it by itself when `Projectured` is loaded",
-                       readme)
+        @test occursin("[AutoIntegration]($AUTOINTEGRATION_URL) also loads it by itself when " *
+                       "`Projectured` is loaded", readme)
+        @test occursin("registry\n[`ProjecturedRegistry`]($PROJECTURED_REGISTRY_URL)", readme)
         sdl = read(joinpath(output, "ProjecturedSDL", "README.md"), String)
         @test occursin("when `Projectured` and `SimpleDirectMediaLayer` are loaded", sdl)
         @test occursin("`using ProjecturedWeb` loads it.\n",
                        read(joinpath(output, "ProjecturedWeb", "README.md"), String))
-        # The front page has a row for each integration, with its triggers.
-        @test occursin("| `ProjecturedSDL` | SimpleDirectMediaLayer | Projectured and SimpleDirectMediaLayer |",
-                       front)
-        @test count("| `Projectured", split(front, "### Choose")[1]) == 6
+        # The front page has a row for each integration, with its folder, the
+        # repository of the package that it joins, and its triggers.
+        @test occursin("| [`ProjecturedSDL`](ProjecturedSDL) | " *
+                       "[SimpleDirectMediaLayer]($(PROJECTURED_JOINED_PACKAGE_URLS["SimpleDirectMediaLayer"])) | " *
+                       "Projectured and SimpleDirectMediaLayer |", front)
+        @test count("| [`Projectured", split(front, "### Choose")[1]) == 6
         # The front page says that the first window of a session compiles.
         @test occursin("> The first `display_in_editor` of a session can take a long time", front)
         rm(dirname(output); recursive = true)

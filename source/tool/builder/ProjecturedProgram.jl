@@ -403,6 +403,44 @@ of ProjecturEd when its triggers are loaded. `Projectured` depends on it.
 const AUTOINTEGRATION_URL = "https://github.com/projectured/AutoIntegration.jl"
 
 """
+    AUTOPRECOMPILE_URL
+
+The repository of AutoPrecompile, the package that builds one package image for
+the packages that a session loads, from recorded precompile statements.
+"""
+const AUTOPRECOMPILE_URL = "https://github.com/projectured/AutoPrecompile.jl"
+
+"""
+    GENERAL_REGISTRY_URL
+
+The General registry of Julia, which serves the packages of other authors that
+the released packages depend on.
+"""
+const GENERAL_REGISTRY_URL = "https://github.com/JuliaRegistries/General"
+
+"""
+    MOZILLA_PUBLIC_LICENSE_URL
+
+The text of the Mozilla Public License 2.0, the licence of the released packages.
+"""
+const MOZILLA_PUBLIC_LICENSE_URL = "https://www.mozilla.org/en-US/MPL/2.0/"
+
+"""
+    PROJECTURED_JOINED_PACKAGE_URLS
+
+The repository of each package of another author that an integration joins, as
+`"<package>" => "<url>"`, for the links of the front page. An integration that
+joins a package without an entry stops the release.
+"""
+const PROJECTURED_JOINED_PACKAGE_URLS = Dict(
+    "DataFrames" => "https://github.com/JuliaData/DataFrames.jl",
+    "FFMPEG" => "https://github.com/JuliaIO/FFMPEG.jl",
+    "ModelContextProtocol" => "https://github.com/JuliaSMLM/ModelContextProtocol.jl",
+    "ODBC" => "https://github.com/JuliaDatabases/ODBC.jl",
+    "SimpleDirectMediaLayer" => "https://github.com/JuliaMultimedia/SimpleDirectMediaLayer.jl",
+    "Tulip" => "https://github.com/ds4dm/Tulip.jl")
+
+"""
     PROJECTURED_PACKAGE_READMES
 
 The README of each released package, as
@@ -580,9 +618,9 @@ function _format_projectured_load_text(context::BuildContext, name)
     when = _join_names(["`$trigger`" for trigger in triggers]) *
            (length(triggers) == 1 ? " is loaded" : " are loaded")
     get(declaration, "default", "manual") == "auto" ?
-        "`using $name` loads it. AutoIntegration also loads it by itself when $when, " *
+        "`using $name` loads it. [AutoIntegration]($AUTOINTEGRATION_URL) also loads it by itself when $when, " *
         "unless your environment sets it to `\"manual\"`." :
-        "`using $name` loads it. AutoIntegration loads it by itself when $when, " *
+        "`using $name` loads it. [AutoIntegration]($AUTOINTEGRATION_URL) loads it by itself when $when, " *
         "if your environment sets it to `\"auto\"`."
 end
 
@@ -605,9 +643,10 @@ function _format_projectured_package_readme(context::BuildContext, name)
 
     ## Install
 
-    The packages of ProjecturEd are in the registry `ProjecturedRegistry`. Add General
-    too, for the packages that they depend on. If General is there already, the line
-    does nothing.
+    The packages of ProjecturEd are in the registry
+    [`ProjecturedRegistry`]($PROJECTURED_REGISTRY_URL). Add
+    [General]($GENERAL_REGISTRY_URL) too, for the packages that they depend on. If
+    General is there already, the line does nothing.
 
     ```
     pkg> registry add General
@@ -624,7 +663,7 @@ function _format_projectured_package_readme(context::BuildContext, name)
 
     The release of ProjecturEd writes this folder from
     [projectured-julia]($PROJECTURED_SOURCE); a change belongs there. The licence is
-    the Mozilla Public License 2.0, in `LICENSE`.
+    the [Mozilla Public License 2.0]($MOZILLA_PUBLIC_LICENSE_URL), in [`LICENSE`](LICENSE).
     """
 end
 
@@ -679,7 +718,12 @@ function _format_projectured_release_overview(context::BuildContext, names)
                         by = trigger -> (trigger != "Projectured", trigger))
         joined = filter(!=("Projectured"), triggers)
         isempty(joined) && continue
-        push!(integrations, "| `$name` | $(_join_names(joined)) | $(_join_names(triggers)) |\n")
+        links = [haskey(PROJECTURED_JOINED_PACKAGE_URLS, package) ?
+                 "[$package]($(PROJECTURED_JOINED_PACKAGE_URLS[package]))" :
+                 error("build_projectured_package_release!: $name joins $package, which has no " *
+                       "repository; add it to PROJECTURED_JOINED_PACKAGE_URLS")
+                 for package in joined]
+        push!(integrations, "| [`$name`]($name) | $(_join_names(links)) | $(_join_names(triggers)) |\n")
     end
     """
     # Projectured.jl
@@ -691,9 +735,9 @@ function _format_projectured_release_overview(context::BuildContext, names)
 
     ## Install
 
-    The packages are in the registry `ProjecturedRegistry`. Add General too, for the
-    packages that they depend on. If General is there already, the line does
-    nothing.
+    The packages are in the registry [`ProjecturedRegistry`]($PROJECTURED_REGISTRY_URL).
+    Add [General]($GENERAL_REGISTRY_URL) too, for the packages that they depend on.
+    If General is there already, the line does nothing.
 
     ```
     pkg> registry add General
@@ -722,9 +766,10 @@ function _format_projectured_release_overview(context::BuildContext, names)
     > runs. The next calls in the same session do not compile it again, so the
     > window opens fast.
 
-    `using Projectured` loads the kernel, the platform and
-    [AutoIntegration]($AUTOINTEGRATION_URL). AutoIntegration loads a package that
-    you installed when all its triggers are loaded. The order of the `using` lines does not matter. Each domain, the
+    `using Projectured` loads [the kernel](ProjecturedKernel),
+    [the platform](ProjecturedPlatform) and [AutoIntegration]($AUTOINTEGRATION_URL).
+    AutoIntegration loads a package that you installed when all its triggers are
+    loaded. The order of the `using` lines does not matter. Each domain, the
     console, PDF and the model adapters load when `Projectured` is loaded. An
     integration loads when the package that it joins is loaded too:
 
@@ -779,7 +824,7 @@ function _format_projectured_release_overview(context::BuildContext, names)
     julia> using ProjecturedIntegrations, DataFrames, SimpleDirectMediaLayer
     ```
 
-    `ProjecturedIntegrations` installs every integration and every package that
+    [`ProjecturedIntegrations`](ProjecturedIntegrations) installs every integration and every package that
     they join. It loads an integration when the package that it joins is loaded,
     whatever `LocalPreferences.toml` says. Use it when you want all of them and do
     not want to choose.
@@ -796,7 +841,7 @@ function _format_projectured_release_overview(context::BuildContext, names)
 
     A Julia session compiles the code that it runs, and it keeps that code only
     until it ends. So each new session that shows a data frame compiles the editor
-    again. AutoPrecompile keeps that code for the next session:
+    again. [AutoPrecompile]($AUTOPRECOMPILE_URL) keeps that code for the next session:
 
     ```
     pkg> add AutoPrecompile
@@ -822,6 +867,7 @@ function _format_projectured_release_overview(context::BuildContext, names)
     | [Projectured.jl]($PROJECTURED_RELEASE_URL) | This repository: the released packages, which the release writes from projectured-julia. |
     | [ProjecturedRegistry]($PROJECTURED_REGISTRY_URL) | The Julia registry that names each version of these packages. |
     | [AutoIntegration.jl]($AUTOINTEGRATION_URL) | The package that loads an installed package when its triggers are loaded. `Projectured` depends on it. |
+    | [AutoPrecompile.jl]($AUTOPRECOMPILE_URL) | The package that builds one package image for the packages that a session loads, from recorded precompile statements. |
 
     ## The packages
 
@@ -831,12 +877,13 @@ function _format_projectured_release_overview(context::BuildContext, names)
     ## Tests
 
     Each package holds its tests in `test/`. Each package with tests has a workflow
-    of its own, `.github/workflows/<Package>.yml`, which runs them on every push, on
-    Julia $PROJECTURED_JULIA_COMPAT; its badge is in the table above.
+    of its own in [`.github/workflows`](.github/workflows), `<Package>.yml`, which
+    runs them on every push, on Julia $PROJECTURED_JULIA_COMPAT; its badge is in the
+    table above.
 
     ## Licence
 
-    The Mozilla Public License 2.0, in `LICENSE`.
+    The [Mozilla Public License 2.0]($MOZILLA_PUBLIC_LICENSE_URL), in [`LICENSE`](LICENSE).
     """
 end
 
