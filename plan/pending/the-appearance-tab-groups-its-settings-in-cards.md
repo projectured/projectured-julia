@@ -2,8 +2,8 @@
 
 > **Status:** pending. Written on 2026-10-05 at the owner's request. The owner
 > agreed with the fix (section 3) and with the answers of section 4 on
-> 2026-10-05. Section 6 holds the questions that are still open. No step is
-> done.
+> 2026-10-05. Steps 1 to 4 are done on the branch `appearance-tab-cards`, not
+> on `main`. Questions 1 and 3 of section 6 are open.
 
 ## 1. The request
 
@@ -162,12 +162,18 @@ says so.
   `test_appearance_tab()` alone: 119 of 119 pass. The same test file on the
   old code fails 7 and errors 1: the new names, the two "Reset all", the order,
   and the widths, which at the offer 800 go from 606 to 798.
-- [ ] **Step 3. The look.** Render the tab offscreen at 900 × 1500 with
-  `write_image` and `NaturalToGraphics`, as on 2026-10-05, and compare it with
-  the render before the change. Check the points of section 6.
-- [ ] **Step 4. The document.** Change the list of the tab in
+- [x] **Step 3. The look.** Done on 2026-10-05. Renders offscreen with
+  `write_image` and `NaturalToGraphics`, before and after:
+  - At 900 px every card is 900 px wide. The heading of a group is 4 px above
+    its first card and 16 px below the group above it.
+  - The titles "Scale" and "Colors" start at x = 13, and the titles of the
+    theme cards at x = 25, past the chevron: a step of 12 px (question 3).
+  - With the Color and Widget cards open, at 520 px both versions fit. At
+    380 px both versions cut the rows of the open Color card at the same
+    place, so `Fill` adds no cut: the pane clipped that card before.
+- [x] **Step 4. The document.** Done on 2026-10-05. The list of the tab in
   [appearance.md](../../documentation/package/platform/appearance/appearance.md)
-  to the new order.
+  has the new order.
 - [ ] **Step 5. Report.** Give the commits, the test counts, the two renders and
   the command that lands the branch. Then stop and ask.
 
@@ -176,15 +182,14 @@ says so.
 1. **The gap between two groups.** The widget theme has no field for it. Claude
    suggests `2 × section_gap` first, because it follows the spacing scale and
    adds no field. A new field `group_gap` is the other choice. It shows on the
-   tab as a row of the widget theme, as every field does.
-2. **The place of "Reset" in a card.** Claude suggests the `footer` of the card,
-   because the card has that part for actions. No producer uses `footer` now,
-   so step 3 must check how it draws. If it draws badly, put the button under
-   the grid in `content`.
+   tab as a row of the widget theme, as every field does. The branch uses
+   `2 × section_gap`; the owner has not chosen yet.
+2. **The place of "Reset" in a card.** Answered in step 1: the `footer` is a
+   text (fact 8), so the button "Reset all" is under the grid in `content`.
 3. **The indent of the titles.** A card that does not fold has no chevron
    column, so the titles "Scale" and "Colors" start further left than the titles
-   of the theme cards. Step 3 shows how large the step is. If it looks wrong,
-   tell the owner before a change.
+   of the theme cards. Step 3 measured a step of 12 px. Open for the owner: keep
+   it, or give the two cards the same indent.
 
 ## 7. Not in this plan
 

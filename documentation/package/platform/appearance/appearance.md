@@ -51,16 +51,21 @@ The natural renderer draws an `Appearance` as the appearance tab, with
 the item "Appearance" of the View menu and Ctrl+, open it on the `Appearance` of
 the window (`find_editor_appearance`).
 
-- A row for the zoom and one for each scale: the name, −, the value in percent, +
-  and a reset button. Under the rows: "Reset all", "Save" and "Load".
-- A row for each colour setting: the name, ‹, the value and ›. A setting that
-  follows the system shows the value of the system after it, as
-  "system (dark)".
-- The themes in three groups: "Editor" holds the widget, the text, the syntax,
-  the reference, the graphics and the tooltip themes, in this order, because
-  every view draws with them; "Tools" holds the other themes of
+- At the top: "Save" and "Load", which act on the whole appearance.
+- The card "Scale": a row for the zoom and one for each scale, with the name, −,
+  the value in percent, + and a reset button. Under the rows, "Reset all" resets
+  the seven of them.
+- The card "Colors": a row for each colour setting, with the name, ‹, the value
+  and ›. A setting that follows the system shows the value of the system after
+  it, as "system (dark)". Under the rows, "Reset all" writes the default of the
+  five of them. These two cards do not fold, and each has a fixed summary.
+- The themes in three groups, each a heading over its cards: "Editor" holds the
+  colour theme of the present mode and contrast, then the widget, the text, the
+  syntax, the reference, the graphics and the tooltip themes, in this order,
+  because every view draws with them; "Tools" holds the other themes of
   `ProjecturedPlatform`; "Documents" holds the themes of the other packages. A
-  group shows its themes in the order of their names.
+  group shows its themes in the order of their names. Two groups are further
+  apart than two cards of one group, and every card is as wide as the pane.
 - A card for each theme, which folds to its title and is closed at the start. In
   the card: the presets as a radio group, which writes every field of the preset
   into the theme in place, so the views that read the theme follow; a spin box
