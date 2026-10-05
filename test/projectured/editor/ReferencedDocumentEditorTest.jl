@@ -115,6 +115,24 @@ function test_referenced_document_editor()
                                               target = find_pane(editor, "Last"))
     end
 
+    @testset "open_pane! takes a title with an icon, badges and a tooltip" begin
+        finished = Cell(1)
+        title = PaneTabTitle("Tasks"; icon = :loader, tooltip = "the tasks",
+                             badges = () -> Any[WidgetBadge(string(finished[], "/3"))])
+        first_tab = get_document(open_pane!(editor, PrimitiveString("tasks"); title))
+        @test get_pane_tab_title_string(first_tab) == "Tasks"
+        @test first_tab.title.icon === :loader && first_tab.title.tooltip == "the tasks"
+        # A name already taken gets a number, and the parts still follow their cells.
+        second_tab = get_document(open_pane!(editor, PrimitiveString("more"); title))
+        @test get_pane_tab_title_string(second_tab) == "Tasks (2)"
+        finished[] = 2
+        @test only(second_tab.title.badges).content == "2/3"
+        @test only(first_tab.title.badges).content == "2/3"
+        # A title with no name takes the name of the document.
+        unnamed = get_document(open_pane!(editor, PrimitiveString("x"); title = PaneTabTitle(""; icon = :file)))
+        @test !isempty(get_pane_tab_title_string(unnamed)) && unnamed.title.icon === :file
+    end
+
     @testset "the answer of open_pane! with a table says how many rows it shows" begin
         table_tab = open_pane!(editor, WidgetTable(["name", "age"], [["Ada", 36], ["Bob", 41]]);
                                title = "Table")

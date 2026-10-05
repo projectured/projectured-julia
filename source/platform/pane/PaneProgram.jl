@@ -288,11 +288,12 @@ focus_pane!(editor, chart_tab_1)
 replace_referenced_value!(editor, chart_tab_1, PaneTab(other, "something else"))
 ```
 
-`title` is what the tab is called. Left out, the document's own
-[`get_document_title`](@ref) answers, and a document that carries no name falls
-back to [`describe_document`](@ref). A title already taken gets a number, so two
-panes are never one name, and the name is for a person to read rather than for a
-caller to address the pane by.
+`title` is what the tab is called: a string, or a [`PaneTabTitle`](@ref) whose
+icon, badges and tooltip the tab shows beside the name. Left out, or a title with
+an empty name, the document's own [`get_document_title`](@ref) answers, and a
+document that carries no name falls back to [`describe_document`](@ref). A name
+already taken gets a number, so two panes are never one name, and the name is for
+a person to read rather than for a caller to address the pane by.
 
 `target` is where the tab goes, as [`move_pane!`](@ref) places a pane: a group,
 and the tab goes to its end; or a tab, and the new tab goes before it, in the same
@@ -341,6 +342,12 @@ make_open_pane_operation(editor, document; title = nothing, group = nothing, tar
                          side = nothing) =
     first(_make_open_pane(editor, document; title, group, target, side))
 
+# A title like `title` with the name `name`: the same cells for its other parts,
+# so the tab follows what they follow.
+_make_named_title(title::PaneTabTitle, name::AbstractString) =
+    PaneTabTitle(name; icon = getfield(title, :icon), badges = getfield(title, :badges),
+                 tooltip = getfield(title, :tooltip))
+
 function _make_open_pane(editor, document; title, group, target, side)
     (group === nothing || target === nothing) ||
         throw(ArgumentError("open_pane!: give `group` or `target`, not both."))
@@ -364,13 +371,15 @@ function _make_open_pane(editor, document; title, group, target, side)
     # What the pane is called: what the caller said, else the name the document
     # carries, else what it is. A description is the last resort, because it
     # names the document's state and a tab must not rename itself.
-    wanted = title !== nothing ? String(title) :
+    given = title isa PaneTabTitle ? something(title.name.value, "") : title
+    (title isa PaneTabTitle && isempty(given)) && (given = nothing)
+    wanted = given !== nothing ? String(given) :
              let own = get_document_title(document)
                  own !== nothing && !isempty(strip(String(own))) ? String(own) :
                      describe_document(document)
              end
     name = _unique_pane_title(tree, wanted)
-    tab = PaneTab(name, document)
+    tab = PaneTab(title isa PaneTabTitle ? _make_named_title(title, name) : PaneTabTitle(name), document)
     placement = side === nothing ? make_pane_open_tab_operation(tree, group, tab; index) :
                 make_pane_split_operation(tree, group; tab, side,
                                           orientation = side in (:left, :right) ? :vertical : :horizontal)
