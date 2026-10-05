@@ -30,7 +30,7 @@ One table and one series of frame times exist for each session, `get_session_fra
 
 1. A head line with the frame count, and a Pause `WidgetToggle`. When the ring holds fewer frames than the session had, the head line says how many the tables cover. The toggle holds the cell of `paused`, so a press writes the document, and the reader makes that write view state, so the undo does not record it.
 2. "Summary": a `WidgetTable` with one row for each measurement: its name, its unit, the frames it covers, its minimum, maximum, mean, deviation and total. Each number is a live label that reads its own field, so a flush changes only the labels whose numbers changed. The parts are built again only when a measurement appears.
-3. "Frames, newest first": a `WidgetTable` with one row for each frame of the ring, the frame number as the row header, and one column for each measurement. It takes the height that is left. Its rows and its row headers are lists that `make_index_list` builds from `anchor`, counted from the newest frame, so the table builds only the rows that it shows; each flush builds the lists again. The table shares the cells of `top_row` and `scroll_position` of the document. When a scroll goes far from the head, the table writes a new head into its `rows`; the reader turns that into a write of `anchor`, with `find_list_index`, as the data frame view does.
+3. "Frames, newest first": a `WidgetTable` with one row for each frame of the ring, the frame number as the row header, and one column for each measurement. Each column is as wide as its header and its widest value, as the measure gives them, and takes no share of the width, so a number sits next to its frame number. The table and a scroll bar at its right take the width of the tab and the height that is left; a table wider than the tab stops at the bar and scrolls to the side. Its rows and its row headers are lists that `make_index_list` builds from `anchor`, counted from the newest frame, so the table builds only the rows that it shows; each flush builds the lists again. The table shares the cells of `top_row` and `scroll_position` of the document. When a scroll goes far from the head, the table writes a new head into its `rows`; the reader turns that into a write of `anchor`, with `find_list_index`, as the data frame view does. The scroll bar shows where the top row is among the frames, with `compute_scroll_bar_value`, and its thumb is the share of the frames that the table shows: the offered height in rows, less the rows above the table. A press or a drag on the bar writes its value, and the reader turns that into a jump: `anchor` to that row, `top_row` to 1 and the offset to the top, as view state.
 
 The unit column says `ms` for a time, and the header of a time column of the frames says `(ms)`. A time shows in milliseconds with two decimals, and its total with none. A count shows as a whole number, and its mean and deviation with one decimal. A value that a frame did not measure shows a dash. A frame whose `frame_time` is more than two times the median of the frames of the table is slow, and its frame number and its cells draw in `slow_text`.
 
@@ -43,9 +43,9 @@ The rows of the frames move with each flush, because a row is a place counted fr
 ### The theme
 
 `FrameStatisticsTheme` holds the text of the head line and the titles, of a cell, of a cell of a slow frame (`:warning_text` by default) and of the empty line, and the gap between the parts. Each value has the default that the slice draws with no
-appearance. The borders, the header rows and the scroll of the tables come from the widget theme. `FrameStatisticsToWidget` holds its styles and no theme. `make_frame_statistics_projection(; theme, measure)`
+appearance. The borders, the header rows and the scroll of the tables come from the widget theme. `FrameStatisticsToWidget` holds its styles and no theme. `make_frame_statistics_projection(; theme, measure, widget_theme)`
 fills them with `get_frame_statistics_style`, from a `FrameStatisticsTheme` scaled or not, or the default values for
-`nothing`. With a `measure`, a row of the table of the frames is a line of the font of a cell tall. The registration of the statistics gives the scaled theme of the `Appearance` and the measure of the renderer.
+`nothing`. With a `measure`, a row of the table of the frames is a line of the font of a cell tall, and a column as wide as its content. The widget theme gives the padding of a cell, which the step of a row adds, and the width of the scroll bar. The registration of the statistics gives the scaled themes of the `Appearance` and the measure of the renderer.
 
 ## How it fits
 
@@ -82,5 +82,4 @@ Then open a tab and type `statistics` or `frame times`, or press the toolbar but
 - The ring holds 1000 frames. `Editor` makes its store with the default capacity, and no setting changes it.
 - The plot shows only time measurements. The counters are in the tables and in the CSV file.
 - The table of the frames needs an offered height. A window gives one, as for the data frame view; in a container that gives none, the table throws.
-- The table of the frames has no scroll bar. The wheel scrolls it.
 - A click on a header does not sort the frames.
