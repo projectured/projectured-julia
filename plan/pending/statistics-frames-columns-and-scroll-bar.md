@@ -72,8 +72,12 @@ owner answered: "for 2, yes, plus a scroll bar".
 
 - [x] **Step 1. Move the computations of the bar (D4).** Done:
   `test_dataframes()` passes, 556 of 556.
-- [ ] **Step 2. Columns as wide as their content (D1).** Test: a render at two
-  offered widths gives the same column edges, and the widest value fits.
+- [x] **Step 2. Columns as wide as their content (D1).** Done: the test prints
+  the tab at 800 and 1600 pixels and finds the same places, checks the widths
+  `Fixed(15 * 8)` and `Fixed(7 * 8)` of a header column and of a column whose
+  value is wider than its header, and checks that a header and a value end at
+  the same right edge. Found: a header aligns as its column does, here right.
+  The feed, tool view and tool theme tests pass, 258 of 258.
 - [ ] **Step 3. The scroll bar (D2, D3).** Tests: the bar sits at the right
   edge of the table; a press in the middle of the bar moves `anchor` to about
   the middle of the frames; a turn of the wheel moves the thumb.

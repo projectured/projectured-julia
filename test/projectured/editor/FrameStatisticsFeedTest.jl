@@ -281,6 +281,33 @@ function test_frame_statistics_feed()
         @test get_wrapped_operation(read_intent(p, iomap, move)).value == 2
     end
 
+    @testset "a column of the frames is as wide as its widest text, at any offered width" begin
+        statistics = _make_frame_statistics_example()
+        # The newest count, seven digits, is wider than its header, five letters.
+        statistics.columns = [[0.01, 0.02, 0.03], [NaN, 120.0, 5_000_000.0]]
+        projection = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
+        # The x of each text of the table of the frames, which is under its title.
+        function frame_texts(width)
+            context = with_exact_size(PrinterContext(); width = Cell(Int32(width)),
+                                      height = Cell(Int32(400)))
+            texts = _get_drawn_texts(print_document(projection, nothing, statistics, context).output)
+            top = only(t[2] for t in texts if t[3] == "Frames, newest first")
+            Dict(t[3] => t[1] for t in texts if t[2] > top)
+        end
+        narrow, wide = frame_texts(800), frame_texts(1600)
+        @test narrow == wide
+        # A character is 8 wide. The column of the times is as wide as its
+        # header, 15 characters; the column of the counts as its widest value,
+        # 7 digits, which is wider than its header.
+        p = FrameStatisticsToWidget(; measure = FixedMeasure(8, 12, 4, 0))
+        frames = _get_frame_table(print_document(p, p, statistics, PrinterContext()).output)
+        @test frames.column_policies == Any[Fixed(15 * 8), Fixed(7 * 8)]
+        # A header and a value align right in their column, so both end at its
+        # right edge.
+        @test narrow["30.00"] + 5 * 8 == narrow["frame_time (ms)"] + 15 * 8
+        @test narrow["5000000"] + 7 * 8 == narrow["reads"] + 5 * 8
+    end
+
     @testset "in a tab, a turn far down moves the anchor, the rows stay, and Pause pauses" begin
         store = FrameMeasurementStore()
         for frame in 1:1000

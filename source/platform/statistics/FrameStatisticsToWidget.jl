@@ -4,7 +4,8 @@
 # measurement, and a table of the recent frames, newest first.
 
 """
-    FrameStatisticsToWidget(; header_text, row_text, empty_text, slow_text, gap, row_height = 0)
+    FrameStatisticsToWidget(; header_text, row_text, empty_text, slow_text, gap, row_height = 0,
+                              measure = nothing)
 
 Draw a [`FrameStatistics`](@ref) as widgets, from top to bottom:
 
@@ -21,7 +22,10 @@ decimal. A value that a frame did not measure shows a dash. A frame whose
 `frame_time` is more than two times the median of the frames of the table is
 slow: its frame number and its cells draw in `slow_text`.
 
-The table of the frames builds only the rows that it shows: its rows are a list
+Every column of the table of the frames is as wide as its header and its
+widest value, as `measure` gives them, and takes no share of the width; with no
+measure it is as wide as its header. The table builds only the rows that it
+shows: its rows are a list
 whose head is the row `anchor`, counted from the newest frame, and it shares the
 cells of `top_row` and `scroll_position` of the document. When the table moves
 the head of its list, the reader writes `anchor` instead, and the list starts
@@ -38,6 +42,7 @@ Read only: no caret goes into a table.
     slow_text::StyleText = get_frame_statistics_style(nothing, :slow_text)
     gap::Int = get_frame_statistics_style(nothing, :gap)
     row_height::Int = 0
+    measure::Any = nothing
 end
 
 """
@@ -46,7 +51,8 @@ end
 The projection of the statistics, with the styles of `theme`: a
 `FrameStatisticsTheme`, scaled or not, or the default styles for `nothing`.
 With a `measure`, the rows of the table of the frames are a line of the font of
-the rows tall, and they follow the scale of the theme.
+the rows tall, its columns are as wide as their content, and both follow the
+scale of the theme.
 """
 function make_frame_statistics_projection(; theme = nothing, measure = nothing)
     get_style(name) = get_frame_statistics_style(theme, name)
@@ -56,7 +62,7 @@ function make_frame_statistics_projection(; theme = nothing, measure = nothing)
                                                                    _get_style_value(row_text).font).height))
     FrameStatisticsToWidget(; header_text = get_style(:header_text), row_text,
                             empty_text = get_style(:empty_text), slow_text = get_style(:slow_text),
-                            gap = get_style(:gap), row_height)
+                            gap = get_style(:gap), row_height, measure)
 end
 
 # A style that a builder gave: a cell that reads the theme, or a plain value.
@@ -68,8 +74,9 @@ const _SUMMARY_HEADERS = ("measurement", "unit", "frames", "minimum", "maximum",
                           "deviation", "total")
 const _SUMMARY_ALIGN = [:left, :left, :right, :right, :right, :right, :right, :right]
 
-# Every column of the table of the frames takes an equal share of the width.
-const _FRAME_COLUMN_POLICY = SizePolicy(nothing, nothing, nothing, 1.0)
+# A column of the table of the frames takes no share of the width: with no
+# width of its own, it is as wide as its header.
+const _FRAME_COLUMN_POLICY = SizePolicy(nothing, nothing, nothing, 0.0)
 
 function print_document(p::FrameStatisticsToWidget, recursion, statistics::FrameStatistics, ctx)
     head = HorizontalLayout(Any[
@@ -182,6 +189,7 @@ function _make_frame_table(p::FrameStatisticsToWidget, statistics::FrameStatisti
     slow_column = findfirst(row -> row.name == "frame_time", summary)
     headers = CellVector(Cell[Cell(WidgetLabel(_format_frame_header(row); text_style = p.header_text))
                               for row in summary])
+    policies = Cell(@computation _make_frame_column_policies(p, summary, units, statistics.columns))
     rows = Cell(@computation begin
         columns = statistics.columns
         limit = _compute_slow_frame_limit(columns, slow_column)
@@ -207,11 +215,33 @@ function _make_frame_table(p::FrameStatisticsToWidget, statistics::FrameStatisti
     WidgetTable(Cell(Point2D(0, 0)), headers, row_headers,
                 Cell(WidgetLabel("frame"; text_style = p.header_text)), rows,
                 Cell(WidgetTableColumns()), Cell(length(units)), Cell(1),
-                Cell(_FRAME_COLUMN_POLICY), Cell(Fixed(p.row_height)), Cell(Any[]), Cell(Any[]),
+                Cell(_FRAME_COLUMN_POLICY), Cell(Fixed(p.row_height)), policies, Cell(Any[]),
                 Cell(:clip), Cell(Symbol[]), Cell(fill(:right, length(units))),
                 Cell(true), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
                 getfield(statistics, :scroll_position), getfield(statistics, :top_row),
                 Cell(nothing), Cell(nothing), Cell(nothing))
+end
+
+# The width of each column of the frames: the width of its header and of its
+# widest value, as the measure of the projection gives them. A column holds no
+# negative number, so its widest value is its largest. With no measure, each
+# column keeps the policy of the table.
+function _make_frame_column_policies(p::FrameStatisticsToWidget, summary::Vector,
+                                     units::Vector{Symbol}, columns::Vector)
+    measure = p.measure
+    measure === nothing && return Any[]
+    header_font, row_font = p.header_text.font, p.row_text.font
+    Any[Fixed(max(compute_line_box(measure, _format_frame_header(row), header_font).width,
+                  compute_line_box(measure, _format_widest_frame_value(units[c],
+                      c <= length(columns) ? columns[c] : Float64[]), row_font).width))
+        for (c, row) in enumerate(summary)]
+end
+
+# The widest text of a column of the frames: its largest value, or the dash of a
+# column that no frame measured.
+function _format_widest_frame_value(unit::Symbol, column::Vector{Float64})
+    values = filter(!isnan, column)
+    isempty(values) ? "-" : _format_frame_value(unit, maximum(values))
 end
 
 # The list of the recent frames, newest first, with its head at `anchor`:
