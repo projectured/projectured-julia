@@ -1,9 +1,11 @@
 # The appearance tab groups its settings in cards
 
-> **Status:** pending. Written on 2026-10-05 at the owner's request. The owner
-> agreed with the fix (section 3) and with the answers of section 4 on
-> 2026-10-05. Steps 1 to 4 are done on the branch `appearance-tab-cards`, not
-> on `main`. Questions 1 and 3 of section 6 are open.
+> **Status:** done on 2026-10-05. Written on 2026-10-05 at the owner's request.
+> The owner agreed with the fix (section 3) and with the answers of section 4
+> the same day. The branch `appearance-tab-cards` landed on `main` by a
+> fast-forward, at `46302b4f4`; the owner said "land it". Questions 1 and 3 of
+> section 6 had no answer at the landing, so the tab keeps `2 × section_gap`
+> between groups and the step of 12 px in the titles.
 
 ## 1. The request
 
@@ -174,7 +176,7 @@ says so.
 - [x] **Step 4. The document.** Done on 2026-10-05. The list of the tab in
   [appearance.md](../../documentation/package/platform/appearance/appearance.md)
   has the new order.
-- [ ] **Step 5. Report.** Give the commits, the test counts, the two renders and
+- [x] **Step 5. Report.** Done on 2026-10-05. Give the commits, the test counts, the two renders and
   the command that lands the branch. Then stop and ask.
 
 ## 6. Open questions
