@@ -3,13 +3,13 @@
 **Status (2026-10-05): PENDING. Not started.** The owner asked for this plan in the decision
 walk of [kernel-audit-fixes.md](kernel-audit-fixes.md), at L10-13. Do not implement it until the
 owner asks. The owner accepted the model of §3 on 2026-10-05: no foreign type, and a field that
-admits other domains declares `Document`. Every question of §7 is decided, so the pilot can
-start when the owner asks.
+admits other domains declares `Document`. The pilot domains are Julia, JSON and XML. In §7, S-8
+is open, and the other questions are decided.
 
 **Goal:** the declared type of a `@document` field becomes a contract that the reactive layout
 keeps. An intermediate state of an edit is the insertion or the nothing of its domain, and a field
 that a person edits admits them by its declared type. A wrong value fails at the write that makes
-it, not later in a printer. The pilot is the Julia domain.
+it, not later in a printer. The pilot domains are Julia, JSON and XML.
 
 **Repositories:** projectured-julia for the model and the pilot. omnet-julia and inet-julia
 declare their own documents. The check applies to every type at once (S-1), so it reaches their
@@ -33,6 +33,9 @@ strict model is this plan, with a pilot on the Julia domain.
 
 The ruling, 2026-10-05: no domain gets a foreign type. A field that admits a document of another
 domain declares `Document`. §4.1 gives the reason.
+
+The ruling, 2026-10-05: the pilot adds JSON and XML to Julia, because JSON has a full type-in, and
+JSON and XML documents are mixed with each other.
 
 ## 2. The facts today
 
@@ -103,6 +106,22 @@ without `current_doc` records no type. A count by pattern found about 39 typed c
 Other domains hold Julia code in their own loose fields: `FsmTransition.guard` and `.action`,
 `FsmState.entry` and `ProcessStep.action` are `Any`; `ProcessModel.parameters` is a
 `CellVector`. The pilot does not change them.
+
+The JSON domain has 7 types with 11 fields (§7.1). The XML domain has 3 types with 7 fields in
+[XmlDocument.jl](../../source/domain/xml/XmlDocument.jl):
+
+| Field | Declared type |
+| --- | --- |
+| `XmlAttribute.name`, `XmlAttribute.value`, `XmlText.content`, `XmlElement.tag` | `String` |
+| `XmlElement.attrs` | `CellVector` (elements untyped) |
+| `XmlElement.children` | `CellVector` (elements untyped) |
+| `XmlElement.collapsed` | `Bool` |
+
+The convenience constructors of `XmlElement` tell `attrs` from `children` by the element type of
+the vector they get ([XmlDocument.jl:42-55](../../source/domain/xml/XmlDocument.jl#L42-L55)).
+The tests put JSON documents into `XmlElement.children`
+(`test/projectured/serializer/FileProjectTest.jl`, near lines 201 and 233), so the comment
+"holds XmlDocument children" at line 39 does not describe what the tests do.
 
 **The write and the paste.** An operation writes with `_write_slot!`
 ([Operations.jl:232-238](../../source/kernel/operation/Operations.jl#L232-L238)), which does
@@ -269,10 +288,20 @@ on 2026-10-05:
   the foreign type, and a node at the boundary. If a boundary needs its own state, an explicit
   embedding node gives it in the places that need one, as `WidgetCard` does with `content`.
 
-## 5. The pilot on the Julia domain
+## 5. The pilot on the Julia, JSON and XML domains
 
 The pilot measures the migration before the other domains follow. Each step is one commit in a
-worktree.
+worktree. The three domains test different parts of the model:
+
+- **Julia** has an insertion of its own that parses text, and the most loose fields (§2).
+- **JSON** has a full type-in through the generated insertion chain: the `@insertion` factories
+  and the gestures of [JsonDocument.jl](../../source/domain/json/JsonDocument.jl). Its insertion
+  must learn the text of a number (§3.2).
+- **JSON and XML are mixed in both directions.** XML sits inside JSON in `mixed_example`
+  ([MixedDocumentExample.jl:11](../../example/domain/xml/MixedDocumentExample.jl#L11)) and in
+  `test/projectured/serializer/FileProjectTest.jl`. JSON sits inside XML in the same test file. So
+  the pilot tests the `Document` fields, the widening key (§3.6), and a paste from one domain into
+  the other.
 
 - [ ] **Step 0: an inventory.** The check of §3.3 runs in a mode that records each violation and
   does not throw. Because the check applies to every type at once (S-1), run every per-package
@@ -281,22 +310,35 @@ worktree.
   its declared type does not admit, with its caller.
 - [ ] **Step 1: the seam.** Add the seam of §3.4 and call it in `_write_slot!`. Make
   `_is_slot_accepting` ask it.
-- [ ] **Step 2: the intermediate states of Julia.** An incomplete number in a Julia number field
-  becomes a `JuliaInsertion` (S-5).
+- [ ] **Step 2: the intermediate states.** An incomplete number becomes the insertion of its
+  domain (S-5): a `JuliaInsertion` in a Julia number field, and a `JsonInsertion` in
+  `JsonNumber.value`. The generated `JsonInsertion` learns to hold the text of a number and to
+  turn into a `JsonNumber` when the text parses, as `PrimitiveInsertion` does. XML has no number
+  field.
 - [ ] **Step 3: the check.** Add the check of §3.3 to the reactive layout and to the `CellVector`,
-  for every type at once (S-1). A refused write throws the exception type of S-6. The writes that Step 0 found in other
-  domains are fixed in this step, or the check does not land.
-- [ ] **Step 4: the Julia fields.** Each of the 52 `Document` fields and the 5
-  `Union{Document,Nothing}` fields chooses `Document` or `JuliaDocument` (§3.1). A field that holds
-  code of another domain stays `Document`. The 20 list fields declare their element types. Each
-  narrow field that a person edits admits the insertion and the nothing (law 1).
+  for every type at once (S-1). A refused write throws the exception type of S-6. The writes that
+  Step 0 found in other domains are fixed in this step, or the check does not land.
+- [ ] **Step 4: the fields of the three domains.** Each narrow field that a person edits admits
+  the insertion and the nothing (law 1).
+  - Julia: each of the 52 `Document` fields and the 5 `Union{Document,Nothing}` fields chooses
+    `Document` or `JuliaDocument` (§3.1). A field that holds code of another domain stays
+    `Document`. The 20 list fields declare their element types.
+  - JSON: `JsonArray.elements` and `JsonObject.entries` become `Vector{Document}`, and
+    `JsonObjectEntry.value` stays `Document` (§7.1, S-7).
+  - XML: `XmlElement.children` becomes `Vector{Document}`, because the tests put JSON there.
+    `XmlElement.attrs` follows S-8. The convenience constructors of `XmlElement` must still tell
+    `attrs` from `children` when `children` admits any document.
 - [ ] **Step 5: the insertion follows its place.** The typed child contexts, the filter of the
-  candidates (§3.5), and the widening key (§3.6).
+  candidates (§3.5), and the widening key (§3.6), in the three domains. The example of §3.6, an
+  XML element typed into a `JsonArray`, is the test of acceptance.
 - [ ] **Step 6: fix the callers** that the inventory of Step 0 found, one by one.
-- [ ] **Step 7: test and measure.** Run `test_julia()`, `test_fsm()`, `test_process()`,
-  `test_formula()`, `test_conversation()`, and the omnet-julia suite, because the omnet IDE edits
-  Julia code. Report the count of changed callers, the new refusals that a person meets, and the
-  cost of the check per write.
+- [ ] **Step 7: test and measure.** Run `test_julia()`, `test_json()`, `test_xml()`,
+  `test_fsm()`, `test_process()`, `test_formula()`, `test_conversation()`, `test_platform()` for
+  `FaultPartTest.jl`, the umbrella test file `test/projectured/serializer/FileProjectTest.jl`,
+  `test_example(mixed_example)`, and the omnet-julia suite. omnet-julia is in the list because its
+  IDE edits Julia code, and `MiniProjectRoundTripTest.jl` puts documents of other domains into a
+  `JsonObject`. Report the count of changed callers, the new refusals that a person meets, and
+  the cost of the check per write.
 - [ ] **Step 8: the owner decides** whether the other domains follow, and in which order.
 
 The laws change only when the pilot lands (§6).
@@ -380,6 +422,11 @@ The laws change only when the pilot lands (§6).
   gesture puts one there.
   **Decided by the owner, 2026-10-05: mixing is allowed, so the element type is `Document`.** The
   sort rule then keeps every element that is not a `JsonObjectEntry` at the end, in its order.
+- **S-8: the element type of `XmlElement.attrs`.** `Vector{XmlAttribute}` with the insertion and
+  the nothing (law 1), or `Vector{Document}` as `JsonObject.entries` (S-7)?
+  *Recommended (mine), 2026-10-05:* `Vector{Document}`. The attributes of an element and the
+  entries of an object are both lists of name and value pairs, and S-7 allows mixing in the
+  entries. One rule for both is easier to read.
 
 ### 7.1 The JSON domain in the strict model (a study for S-1, 2026-10-04)
 
