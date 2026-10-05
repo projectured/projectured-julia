@@ -213,7 +213,8 @@ commit for each step. Do not land on `main` until the owner says so.
   `flush_frame_statistics!`. Test in `test_frame_statistics_feed()`: a flush
   writes the frames of the ring oldest first, and the column `i` belongs to
   the row `i`, also when a counter appears after the first frames.
-- [ ] **Step 3. Pause (D5).**
+- [x] **Step 3. Pause (D5).** Done: `test_frame_statistics_feed()` passes,
+  67 of 67.
   `_is_frame_statistics_due` answers false while `paused` is true. Test: a
   paused table does not flush and gives no deadline, the plot still flushes,
   and the table flushes again after `paused` goes back to false.

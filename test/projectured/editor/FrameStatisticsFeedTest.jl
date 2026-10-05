@@ -77,6 +77,40 @@ function test_frame_statistics_feed()
         @test view[] == 2
     end
 
+    @testset "a paused table neither flushes nor asks for a deadline, and the plot goes on" begin
+        statistics = FrameStatistics()
+        plot = FrameTimeSeries()
+        clock = Ref(0.0)
+        feed = FrameStatisticsFeed(statistics = statistics, plot = plot, now = () -> clock[])
+        editor = Editor(statistics, FrameStatisticsToSyntax(); backend = HeadlessBackend(),
+                        devices = Device[], feeds = Feed[feed])
+        table_view = Cell(@computation statistics.frame_count)
+        plot_view = Cell(@computation length(plot.names))
+        (table_view[], plot_view[])
+        EditorModule.record_frame_performance!(editor, 0.016)
+        drain_feeds!(editor)
+        @test statistics.frame_count == 1
+        statistics.paused = true
+        EditorModule.record_frame_performance!(editor, 0.020)
+        clock[] += 0.25
+        # Only the plot is due, and it flushes.
+        @test compute_wake_deadline(feed, editor) == 0.25
+        @test drain_feeds!(editor) == 1
+        @test plot.frames == [1.0, 2.0]
+        @test statistics.frame_count == 1
+        @test statistics.frames == [1]
+        # Nothing is due now: the paused table asks for no deadline.
+        @test compute_wake_deadline(feed, editor) === nothing
+        # Unpaused, the table is due again at once, with no new frame.
+        statistics.paused = false
+        @test compute_wake_deadline(feed, editor) == 0.25
+        clock[] += 0.25
+        @test drain_feeds!(editor) == 1
+        @test statistics.frame_count == 2
+        @test statistics.frames == [1, 2]
+        @test (table_view[], plot_view[]) == (2, 1)
+    end
+
     @testset "the printer shows times in milliseconds, with a unit" begin
         statistics = FrameStatistics()
         push!(statistics.rows,

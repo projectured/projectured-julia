@@ -22,7 +22,8 @@ for a view is `has_dependent_cells` on a cell that every view of the document re
 `frame_count` of the table, and `names` of the plot. So a watched document
 refreshes at the flush interval, an unwatched editor records for free and
 flushes nothing, and a view that closes goes quiet once the collector sweeps its
-subscription.
+subscription. A table whose `paused` is true is never due, so its numbers stay
+while a person reads them, and the plot goes on.
 
 Each document flushes at most once per `flush_interval`, by the clock `now`. A
 flush changes what the display shows, and the display event of that frame makes
@@ -45,6 +46,7 @@ FrameStatisticsFeed(; statistics::FrameStatistics = get_session_frame_statistics
     FrameStatisticsFeed(statistics, plot, Float64(flush_interval), now, -Inf, -Inf)
 
 _is_frame_statistics_due(feed::FrameStatisticsFeed, store::FrameMeasurementStore) =
+    !feed.statistics.paused &&
     feed.statistics.frame_count != get_frame_count(store) &&
     has_dependent_cells(getfield(feed.statistics, :frame_count))
 
