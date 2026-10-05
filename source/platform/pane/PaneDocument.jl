@@ -57,6 +57,20 @@ _make_title_part_cell(part::AbstractCell) = part
 _make_title_part_cell(part::Function) = Cell(@computation part())
 _make_title_part_cell(part) = Cell(part)
 
+"""
+    make_pane_tab_title(document, name) -> PaneTabTitle
+
+The title of a new tab that shows `document` under the name `name`. The default
+is the name alone.
+
+A slice adds a method for a document whose tab must say more than a name, such
+as the state of the work that the document does. Then each tab that
+[`open_pane!`](@ref) opens on such a document has its icon and its badges, also
+when the caller gives the title as a plain string. A caller that gives a
+`PaneTabTitle` keeps its own parts.
+"""
+make_pane_tab_title(document, name::AbstractString) = PaneTabTitle(name)
+
 # ── PaneTab ────────────────────────────────────────────────────────────────
 
 """

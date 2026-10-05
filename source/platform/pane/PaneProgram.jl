@@ -293,7 +293,9 @@ icon, badges and tooltip the tab shows beside the name. Left out, or a title wit
 an empty name, the document's own [`get_document_title`](@ref) answers, and a
 document that carries no name falls back to [`describe_document`](@ref). A name
 already taken gets a number, so two panes are never one name, and the name is for
-a person to read rather than for a caller to address the pane by.
+a person to read rather than for a caller to address the pane by. A string, or no
+title, gives the title that [`make_pane_tab_title`](@ref) makes for the document,
+so a document whose slice gives its tab an icon and badges has them here too.
 
 `target` is where the tab goes, as [`move_pane!`](@ref) places a pane: a group,
 and the tab goes to its end; or a tab, and the new tab goes before it, in the same
@@ -379,7 +381,8 @@ function _make_open_pane(editor, document; title, group, target, side)
                      describe_document(document)
              end
     name = _unique_pane_title(tree, wanted)
-    tab = PaneTab(title isa PaneTabTitle ? _make_named_title(title, name) : PaneTabTitle(name), document)
+    tab = PaneTab(title isa PaneTabTitle ? _make_named_title(title, name) :
+                                           make_pane_tab_title(document, name), document)
     placement = side === nothing ? make_pane_open_tab_operation(tree, group, tab; index) :
                 make_pane_split_operation(tree, group; tab, side,
                                           orientation = side in (:left, :right) ? :vertical : :horizontal)

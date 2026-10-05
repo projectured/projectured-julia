@@ -14,6 +14,7 @@ A fresh layout is one empty group. A person builds the rest with the keyboard an
 | --- | --- |
 | `PaneTab(title, content[, icon])` | a `PaneTabTitle` and a content document of any domain; `PaneTab("name", doc)` makes a title with that name, and `icon` gives the title an icon |
 | `PaneTabTitle(name; icon, icon_role, badges, tooltip)` | the name of a tab as a `PrimitiveString`, and an icon, the color role of the icon, a list of `WidgetBadge`s and a tooltip; each of the four is a value, a cell or a function of no arguments |
+| `make_pane_tab_title(document, name)` | the title that `open_pane!` gives a new tab of `document` when the caller gives a string; the default is the name alone, and a slice adds a method for its document |
 | `PaneGroup(tabs)` | a tab group, which can be empty: `PaneGroup(PaneTab[])` |
 | `PaneSplit(orientation, elements; weights)` | two or more groups or splits, and one weight for each; an empty `weights` means equal weights |
 | `PaneTree(root, drag)` | the whole layout, and `drag`, the state of a tab drag |
@@ -133,6 +134,8 @@ The name in a tab title is a text document. A caret in the name is the edit stat
 A rename edits the name only. The icon, its role, the badges and the tooltip of the title stay, and a title whose parts are cells or functions follows the state they read with no write. The group draws each tab as a `WidgetTabLabel` whose icon, badges and tooltip read the title, so a change of them redraws the strip and builds no page again. A caret in the name, `tabs[i].title.name.value{k}`, maps to `selector_element_pairs[i].selector.text{k}` of the strip, and back.
 
 A file of a layout writes the name and the values that the four parts hold at the save. It builds a tab from a `PaneTabTitle`, or from a name with an `icon` beside it.
+
+`open_pane!` with a string as its title, or with no title, asks the document for the rest of the title: `make_pane_tab_title(document, name)` answers a `PaneTabTitle`, and its default is the name alone. A slice adds a method for a document whose tab must say more, such as the state of the work that the document does, and then every tab that `open_pane!` opens on such a document has that icon and those badges, whatever name the caller gives. A caller that gives a `PaneTabTitle` keeps its own parts.
 
 ### A duplicate is a pane of its own
 

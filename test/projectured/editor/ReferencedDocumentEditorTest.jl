@@ -4,6 +4,14 @@
 
 using Test
 
+# A document whose slice gives its tab an icon and a tooltip.
+@document struct ReferencedTitledNote
+    text::Any
+end
+
+PaneModule.make_pane_tab_title(::ReferencedTitledNote, name::AbstractString) =
+    PaneTabTitle(name; icon = :loader, tooltip = "a note")
+
 function _make_referenced_application(directory; paths = nothing)
     if paths === nothing
         write(joinpath(directory, "people.json"),
@@ -131,6 +139,18 @@ function test_referenced_document_editor()
         # A title with no name takes the name of the document.
         unnamed = get_document(open_pane!(editor, PrimitiveString("x"); title = PaneTabTitle(""; icon = :file)))
         @test !isempty(get_pane_tab_title_string(unnamed)) && unnamed.title.icon === :file
+    end
+
+    @testset "a plain title takes the title that the slice of the document makes" begin
+        note = get_document(open_pane!(editor, ReferencedTitledNote("n"); title = "Note"))
+        @test get_pane_tab_title_string(note) == "Note"
+        @test note.title.icon === :loader && note.title.tooltip == "a note"
+        # A `PaneTabTitle` that the caller gives keeps its own parts.
+        own = get_document(open_pane!(editor, ReferencedTitledNote("m");
+                                      title = PaneTabTitle("Own"; icon = :file)))
+        @test own.title.icon === :file && own.title.tooltip === nothing
+        close_pane!(editor, find_pane(editor, "Note"))
+        close_pane!(editor, find_pane(editor, "Own"))
     end
 
     @testset "the answer of open_pane! with a table says how many rows it shows" begin

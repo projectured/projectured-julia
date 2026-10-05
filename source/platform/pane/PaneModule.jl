@@ -67,7 +67,7 @@ import ..OperationModule: find_drop_zone
 
 export make_tabs_projection
 export PaneDocument, PaneTree, PaneSplit, PaneGroup, PaneTab, PaneTabTitle,
-       get_pane_tab_title_string, default_new_pane_tab,
+       make_pane_tab_title, get_pane_tab_title_string, default_new_pane_tab,
        get_opposite_pane_orientation, get_pane_split_axis,
        get_pane_weight, get_pane_weights, get_pane_normalized_weights,
        get_pane_groups, get_pane_parent
