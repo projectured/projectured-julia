@@ -1,9 +1,12 @@
 # The statistics tab shows two tables
 
-> **Status:** pending. Written on 2026-10-05 at the owner's request. The owner
-> chose the look on 2026-10-05 (D1), and agreed to the other decisions and to
-> the answers of section 6 the same day. No question is open. The owner said
-> "implement" on 2026-10-05. The work is on the branch `statistics-tab-tables`.
+> **Status:** done on 2026-10-05 on the branch `statistics-tab-tables`, rebased
+> on `main` at `ee30fafbd`; it waits for the owner to land it. Written on
+> 2026-10-05 at the owner's request. The owner chose the look on 2026-10-05
+> (D1), and agreed to the other decisions and to the answers of section 6 the
+> same day. The owner said "implement" on 2026-10-05. After the rebase, the
+> narrow tests of the branch pass, 1334 of 1334, with the appearance tab test
+> added.
 
 ## 1. The request
 
