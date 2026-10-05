@@ -987,28 +987,36 @@ https://claude.ai/artifact/Nne5fmuXrpJQDfSNd3Tqsx (private to the owner). A
 chart document shows there as data, because the natural renderer draws its
 fields.
 
-**Open:**
+**The open items, closed on the branch `color-follow-ups` (2026-10-05):**
 
-1. The binary carries no copy of the MIT notices of Radix and Tailwind (C0).
-2. A cycle of series colours that follows the mode needs the chart printers to
-   resolve the series roles (M5).
-3. A window that opens later, such as a popup, takes the fixed default
-   background (M6).
-4. `make_slate_light_theme` names the default widget theme with a font; a
-   rename waits, because omnet-julia calls it (M1).
-5. ~~omnet-julia is not checked.~~ **Checked after the landing (2026-10-05).**
-   omnet-julia `87d730d2` loads with `main`. Sixteen targeted tests that draw
-   themed views (the result chart, the topology card, the panels of the watch
-   example, the module, log, configuration, timeline, execution, telemetry and
-   inspector views, and the qtenv suite) give the same results against `main`
-   and against the commit before the landing (`273bc9d60`, in a scratch
-   environment). The failures that both show are known on omnet `main`: the
-   card padding of `ResultChartTest.jl:150`, the counts of `test_topology_card`
-   and `test_sim_dashboard_panel`, the allocation cost of
-   `test_workbench_composite`, one check of `test_inspector_disclosure`, and
-   `test_sim_control_panel`, which fails on a warm run because the engine reaches
-   the end of its simulation time. The whole presentation suite does not end with
-   `-t 2`, so it was stopped. inet-julia is not checked.
+1. ~~The binary carries no copy of the MIT notices.~~ **Done.**
+   `bundle_licence_texts!` and `build_distribution` take `data_texts`, which
+   go to `share/licenses/data/<Name>/` with a section of their own in the README.
+   `PROJECTURED_DATA_TEXTS` names `asset/licence/RadixColors-MIT.txt`,
+   `TailwindCSS-MIT.txt` and `Solarized-MIT.txt`; a test checks that the three
+   files exist.
+2. ~~A cycle of series colours that follows the mode.~~ **Done.** The
+   `color_cycle` of a `ChartStyle` and of a `SequenceChartStyle` is `nothing`
+   by default, which, as for every other `nothing` style field, takes the theme:
+   the new field `series_colors` of `ChartTheme` and `SequenceChartTheme` names
+   the roles `series_1` to `series_8`, and a list of theme colours resolves in
+   the appearance like one colour. The appearance tab shows such a list as a row
+   of swatches. **A fact found:** the solid step of a Radix scale is the same in
+   both modes, so the series change with the palette and the contrast, not with
+   the mode.
+3. ~~A window that opens later takes the fixed default background.~~ **Done.**
+   The `bg` of `OpenWindowOperation` is `nothing` by default: a new window shares
+   the background cell of the first window of the screen, which the appearance
+   computes, and an update with `nothing` keeps the background.
+4. ~~`make_slate_light_theme`.~~ **Done.** It is `make_widget_theme`, renamed
+   with the parser; omnet-julia follows on its branch `widget-theme-rename`,
+   which lands after projectured.
+5. omnet-julia is checked (see above). **inet-julia:** it builds with `main`;
+   its `PacketDiagramTheme` named Solarized colours, so on its branch
+   `packet-diagram-roles` the figure names the roles `punctuation`, `heading`,
+   `field` and `constant` and follows the colour settings; its packet diagram
+   tests pass. omnet-julia's own views hold fixed colours of their own (about
+   156 in the inventory of 2026-10-02), which this plan does not cover.
 6. The system mode (Part S).
 
 ## Appendix A. The tables
