@@ -41,6 +41,19 @@ Inside the call on the editor task, the handler calls `tool.handler(editor, args
 
 When `start_mcp!` can not connect the transport, it writes a fault record and a warning, and the editor runs with no server.
 
+### The MCP log
+
+Each handler writes the call it answered into the store of the MCP log of the
+platform, `record_mcp_call!(get_session_mcp_log_store(); …)`: the method, the
+tool or the URI, the arguments (the code alone for `execute_julia_code`), the
+answer, the seconds the call held the editor, and whether it was a fault. A call
+is a fault when its tool threw, or when the code of `execute_julia_code` threw,
+which the tool answers as a message; the tool set keeps that exception
+(`get_last_evaluation_exception`), and a call that leaves a new one is a fault. A
+read of a resource is recorded the same way. The `mcp_log` wrapper moves the
+calls into a document that a tab shows; [mcplog.md](../../platform/mcplog/mcplog.md)
+describes it.
+
 ### What a client can change
 
 The tool `execute_julia_code` runs Julia in the process of the editor, with `editor` bound. A client reads the data, makes an `Operation` and applies it with `evaluate_operation(editor, operation)`, the same call that a key press makes. No tool patches text.
@@ -49,7 +62,7 @@ The tool `execute_julia_code` runs Julia in the process of the editor, with `edi
 
 The code is the slice `McpModule`, in `source/adapter/mcp/`: `McpModule.jl` holds its imports and its exports, and `ProjecturedMCP` includes that file and exports the same names.
 
-`ProjecturedMCP` depends on `ModelContextProtocol`, on the kernel and on the platform. It declares the triggers `Projectured` and `ModelContextProtocol` with the default `auto`, so AutoIntegration loads it when both are loaded; see [autointegration.md](../../autointegration/autointegration.md). It re-exports the essential names of `ProjecturedPlatform.EssentialsModule`, which is why `using ProjecturedMCP` loads the platform; see [essentials.md](../../platform/essentials/essentials.md). From the kernel it takes the `agent` seam with `run_on_editor_task!`, `record_fault!` and the `tool` layer, from which it uses `Tool`, `Resource`, `ToolSet`, `list_tools`, `list_resources` and `register_default_tools!`. [agent.md](../../kernel/agent.md) describes those layers. The package has no `__init__`: its three methods are its registration.
+`ProjecturedMCP` depends on `ModelContextProtocol`, on the kernel and on the platform, of which it uses the `mcplog` slice and the essential names. It declares the triggers `Projectured` and `ModelContextProtocol` with the default `auto`, so AutoIntegration loads it when both are loaded; see [autointegration.md](../../autointegration/autointegration.md). It re-exports the essential names of `ProjecturedPlatform.EssentialsModule`, which is why `using ProjecturedMCP` loads the platform; see [essentials.md](../../platform/essentials/essentials.md). From the kernel it takes the `agent` seam with `run_on_editor_task!`, `record_fault!` and the `tool` layer, from which it uses `Tool`, `Resource`, `ToolSet`, `list_tools`, `list_resources` and `register_default_tools!`. [agent.md](../../kernel/agent.md) describes those layers. The package has no `__init__`: its three methods are its registration.
 
 `run_editor!` uses it with `mcp = true`, and the application starts it with `--mcp`, or with `--mcp=PORT` or `--mcp=HOST:PORT` at another address. The package binds no meaning model to the tool set. An MCP client runs no turn of the assistant, so the application binds the meaning model of its backend in `on_start`, and a search by description ranks by meaning for the client too.
 

@@ -132,7 +132,9 @@ does for the Messages API: a `Tool` is provider-neutral, and each transport
 renders it into its own wire format.
 
 A handler runs its tool through `run_on_editor_task!`, so the tool runs on the
-task of the editor's loop and the server task waits for its answer.
+task of the editor's loop and the server task waits for its answer. Each call
+goes to the store of the MCP log of the session, with its arguments, its answer,
+the time it held the editor and whether it was a fault.
 """
 function render_mcp_tools(editor, tools::AbstractVector{Tool})
     out = MCPTool[]
@@ -152,7 +154,13 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool})
                 # The handler runs on the server task, and a tool may write what
                 # the editor shows, so the call runs on the editor's task, in the
                 # drain of its next frame, which then paints the change.
+                held = Ref(0.0)
+                fault = Ref(false)
                 text = run_on_editor_task!(editor) do
+                    started = time()
+                    # Code that throws answers its message, so a new exception of
+                    # an evaluation is what marks such a call as a fault.
+                    before = get_last_evaluation_exception(editor.tools)
                     # The barrier is here and not only in the transport library.
                     # A tool that throws must answer the client an error text and
                     # must not stop the server task, except an exception that
@@ -164,6 +172,7 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool})
                         tool.handler(editor, args)
                     catch exception
                         is_passthrough_exception(exception) && rethrow()
+                        fault[] = true
                         traceback = catch_backtrace()
                         record_fault!(editor.faults, :tool; origin = Symbol(tool.name),
                                       exception, traceback)
@@ -173,8 +182,15 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool})
                         catch
                             string(nameof(typeof(exception)))
                         end
+                    finally
+                        held[] = time() - started
+                        after = get_last_evaluation_exception(editor.tools)
+                        (after === nothing || after === before) || (fault[] = true)
                     end
                 end
+                record_mcp_call!(get_session_mcp_log_store(); method = "tools/call",
+                                 name = tool.name, arguments = _format_mcp_arguments(args),
+                                 answer = string(text), duration = held[], fault = fault[])
                 TextContent(text = text)
             end
             push!(out, MCPTool(
@@ -188,11 +204,19 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool})
     out
 end
 
+# The arguments of a call as the MCP log shows them: the code alone when the call
+# runs code, else one `name = value` to a line.
+function _format_mcp_arguments(args::AbstractDict)
+    (length(args) == 1 && haskey(args, "code")) && return string(args["code"])
+    join([string(name, " = ", repr(value)) for (name, value) in sort!(collect(args); by = first)], "\n")
+end
+
 """
     render_mcp_resources(resources) -> Vector{MCPResource}
 
 Render the given resources as `MCPResource` objects whose data providers return
-`TextResourceContents` carrying the body.
+`TextResourceContents` carrying the body. Each read goes to the store of the MCP
+log of the session.
 """
 function render_mcp_resources(resources::AbstractVector{Resource})
     out = MCPResource[]
@@ -203,11 +227,21 @@ function render_mcp_resources(resources::AbstractVector{Resource})
                 name          = res.name,
                 description   = res.description,
                 mime_type     = res.mime_type,
-                data_provider = () -> TextResourceContents(
-                    uri       = res.uri,
-                    mime_type = res.mime_type,
-                    text      = res.provider(),
-                ),
+                data_provider = () -> begin
+                    started = time()
+                    text = try
+                        res.provider()
+                    catch exception
+                        record_mcp_call!(get_session_mcp_log_store(); method = "resources/read",
+                                         name = res.uri, answer = sprint(showerror, exception),
+                                         duration = time() - started, fault = true)
+                        rethrow()
+                    end
+                    record_mcp_call!(get_session_mcp_log_store(); method = "resources/read",
+                                     name = res.uri, answer = string(text),
+                                     duration = time() - started)
+                    TextResourceContents(uri = res.uri, mime_type = res.mime_type, text = text)
+                end,
             ))
         end
     end

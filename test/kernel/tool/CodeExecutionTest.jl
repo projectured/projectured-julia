@@ -115,6 +115,15 @@ function test_code_execution()
         @test startswith(run("println(1)\ny = ("), "1\nParseError")
     end
 
+    @testset "the tool set keeps the exception that the code threw" begin
+        run("error(\"stop here\")")
+        @test get_last_evaluation_exception(set) isa ErrorException
+        @test get_last_evaluation_exception(set).msg == "stop here"
+        # An answer with no exception clears it.
+        run("1 + 1")
+        @test get_last_evaluation_exception(set) === nothing
+    end
+
     @testset "a function is shown as the REPL shows it" begin
         @test run("phase_q() = 1") == "phase_q (generic function with 1 method)\n"
     end

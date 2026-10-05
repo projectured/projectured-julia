@@ -23,6 +23,11 @@ for _src in (ProjecturedKernel,)
     end
 end
 
+# The one slice of the platform that the adapter uses: the store of the MCP log,
+# which it writes with each call that it answers.
+import ProjecturedPlatform
+const McpLogModule = ProjecturedPlatform.McpLogModule
+
 include("../../../source/adapter/mcp/McpModule.jl")
 
 # A person loads this package by name, so its names are exported here.

@@ -753,6 +753,52 @@ function test_mcp_tool_runs_on_editor_task()
     end
 end
 
+# The MCP log holds each call that a client makes, in order: a read of a
+# resource, a call of code that answers, and a call of code that throws, which is
+# a fault. The client posts real requests to the server of a running loop.
+function test_mcp_log()
+    @testset "the MCP log holds the calls that a client made" begin
+        port = _find_free_mcp_port()
+        log = McpLog()
+        store = get_session_mcp_log_store()
+        take_mcp_calls!(store)
+        feed = McpLogFeed(; store, log)
+        editor = Editor(JsonString("x"), IdentityProjection(); backend = HeadlessBackend(),
+                        devices = Device[], feeds = Feed[feed])
+        answers = String[]
+        @async begin
+            try
+                timedwait(() -> _is_mcp_port_open(port), 10.0)
+                push!(answers, _post_mcp_request(port, "resources/read", "{\"uri\": \"resource://guides\"}"))
+                for code in ("1 + 1", "error(\\\"boom\\\")")
+                    push!(answers, _post_mcp_request(port, "tools/call",
+                        "{\"name\": \"execute_julia_code\", \"arguments\": {\"code\": \"$code\"}}"))
+                end
+            catch exception
+                push!(answers, sprint(showerror, exception))
+            end
+            post_operation!(editor, QuitEditorOperation())
+        end
+        logger = Base.CoreLogging.global_logger()
+        try
+            run_editor!(editor; mcp = (; host = "127.0.0.1", port = port))
+        finally
+            Base.CoreLogging.global_logger(logger)
+        end
+        # A call that the last frame did not drain is in the store still.
+        drain_changes!(feed, editor)
+        @test length(answers) == 3
+        entries = collect(log.entries)
+        @test [e.method for e in entries] == ["resources/read", "tools/call", "tools/call"]
+        @test entries[1].name == "resource://guides" && !isempty(entries[1].answer)
+        @test entries[2].name == "execute_julia_code" && entries[2].arguments == "1 + 1"
+        @test occursin("2", entries[2].answer) && !entries[2].fault
+        @test entries[3].fault && occursin("boom", entries[3].answer)
+        @test all(e -> e.duration >= 0, entries)
+        @test log.count == 3 && log.faults == 1
+    end
+end
+
 function test_mcp_resources()
     @testset "MCP Resources" begin
         test_list_guides()
@@ -780,10 +826,11 @@ function test_mcp_tools()
         test_search_object()
         test_mcp_server()
         test_mcp_tool_runs_on_editor_task()
+        test_mcp_log()
     end
 end
 
-export test_mcp_tools, test_mcp_resources
+export test_mcp_tools, test_mcp_resources, test_mcp_log
 export test_list_guides, test_read_guide
 export test_list_modules, test_list_classes, test_list_functions
 export test_read_module_documentation, test_read_class_documentation, test_read_function_documentation

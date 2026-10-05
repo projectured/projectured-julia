@@ -185,6 +185,16 @@ its text repr.
 get_last_evaluated_value(set::ToolSet) = set.last_value
 
 """
+    get_last_evaluation_exception(set) -> exception or nothing
+
+The exception that the code of the most recent `execute_julia_code!` call on
+`set` threw, or `nothing` when it threw none. The answer of that call is the
+message of the exception, as at the Julia REPL; this is how a caller tells the
+two apart.
+"""
+get_last_evaluation_exception(set::ToolSet) = set.last_exception
+
+"""
     execute_julia_code!(set, target, code; describe_value = _describe_value_for_model) -> String
 
 Evaluate `code` in the editor process, with `target` bound as `editor` and the
@@ -228,6 +238,7 @@ function execute_julia_code!(set::ToolSet, target, code;
                              describe_value::Function = _describe_value_for_model)
     @info "[tool] execute_julia_code! call" code
     set.last_value = nothing
+    set.last_exception = nothing
     if code === nothing || isempty(strip(String(code)))
         answer = "No code was given. Put the Julia source in the `code` argument."
         @info "[tool] execute_julia_code! result" answer
@@ -251,6 +262,7 @@ function execute_julia_expression!(set::ToolSet, target, expression;
                                    describe_value::Function = _describe_value_for_model)
     @info "[tool] execute_julia_expression! call" expression
     set.last_value = nothing
+    set.last_exception = nothing
     output = _run_expression(set, target, () -> expression; describe_value)
     @info "[tool] execute_julia_expression! result" output
     output
@@ -317,6 +329,7 @@ function _run_expression(set::ToolSet, target, make_expression::Function;
         describe_value(result)
     catch e
         _is_passthrough_for_model_code(e) && rethrow()
+        set.last_exception = e
         sprint(showerror, e, catch_backtrace()) * _suggest_nearest_names(e, set)
     finally
         # A reader reads to the end of its pipe, which comes when its write end closes.

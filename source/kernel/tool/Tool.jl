@@ -195,6 +195,9 @@ Per editor, never process-global: `scratch` is the module
 `execute_julia_code!` evaluates into — so a top-level assignment in one call is
 still bound in the next — and `last_value` is that call's actual return value,
 which lets a caller embed a returned `Document` live instead of stringifying it.
+`last_exception` is the exception that the code of that call threw, or `nothing`:
+the answer of the call is its message, and a caller that must tell a failed
+evaluation from an answered one, such as the MCP log, reads it here.
 Two editors in one process each get their own, so neither can see the other's
 tools or evaluate into the other's namespace.
 
@@ -233,6 +236,7 @@ mutable struct ToolSet
     resources::Vector{Resource}
     scratch::Union{Module,Nothing}
     last_value::Any
+    last_exception::Any
     observers::Vector{Any}
     # What a model may write, name by name. Each entry is a module and the names
     # of it a model may use, or `nothing` for every name it exports. An empty
@@ -244,7 +248,7 @@ end
 
 ToolSet(; api = ApiEntry[], meaning_model::Union{Nothing,MeaningModel} = nothing,
         relevance_model::Union{Nothing,RelevanceModel} = nothing) =
-    ToolSet(Tool[], Resource[], nothing, nothing, Any[], _api_entries(api), meaning_model,
+    ToolSet(Tool[], Resource[], nothing, nothing, nothing, Any[], _api_entries(api), meaning_model,
             relevance_model)
 
 """

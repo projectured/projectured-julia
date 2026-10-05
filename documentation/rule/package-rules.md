@@ -210,6 +210,7 @@ guard of the platform checks every edge below against the code.
 | `inspector` | Domain, Natural, Projection, Screen, Serialization, Style, Text | — |
 | `gesturehelp` | Collection, Graphics, Projection, Screen, Style, Syntax, Text | — |
 | `gesturelog` | Collection, Domain, Graphics, Natural, Projection, Serialization, Style, Syntax, Text | — |
+| `mcplog` | Collection, Domain, Layout, Natural, Primitive, Projection, Serialization, Shell, Style, Widget | — |
 | `fileformat` | Collection, Domain, Layout, Natural, Primitive, Projection, Serialization, Style, Syntax, Text, Widget | — |
 | `fault` | Collection, Domain, Graphics, Natural, Projection, Serialization, Style, Syntax, Text, Widget | — |
 | `display` | Natural, Screen, Style, Widget | — |
@@ -236,7 +237,7 @@ embeds. [domain-inventory.md](../design/domain-inventory.md) has the table.
 | `ProjecturedAnthropic` | Kernel | HTTP, JSON3 |
 | `ProjecturedOllama` | Kernel | HTTP, JSON3 |
 | `ProjecturedOpenRouter` | Kernel | HTTP, JSON3 |
-| `ProjecturedMCP` | Kernel | ModelContextProtocol |
+| `ProjecturedMCP` | Kernel, McpLog | ModelContextProtocol |
 | `ProjecturedTulip` | Layout | MathOptInterface, Tulip |
 | `ProjecturedVideo` | Graphics, Kernel, Screen, Sdl | FFMPEG |
 | `ProjecturedAdaptagrams` | Graph | Libdl |

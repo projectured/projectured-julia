@@ -147,7 +147,7 @@ The eight adapters (opt-in, loaded only when you `using` them):
   Tulip      (tulip/) → Platform's layout slice      MathOptInterface/Tulip       the linear-programming constraint solver
   Odbc       (odbc/)  → Sql, DbCatalog, Database      ODBC/DBInterface/Tables      OdbcDatabaseAdapter, live-query projections
   Adaptagrams          → Graph                        native C++ shim              the graph layout engine
-  Mcp        (mcp/)   → Kernel                        ModelContextProtocol         McpServer, make_agent_server(:mcp)
+  Mcp        (mcp/)   → Kernel, McpLog                ModelContextProtocol         McpServer, make_agent_server(:mcp)
   Anthropic            → Kernel                       HTTP/JSON3                   AnthropicLlm; make_llm(:anthropic)
   Ollama               → Kernel                       HTTP/JSON3                   OllamaLlm; make_llm(:ollama)
   OpenRouter           → Kernel                       HTTP/JSON3                   the relevance model on the Decisions API

@@ -57,6 +57,7 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | `essentials` | [essentials.md](platform/essentials/essentials.md) | the few names of the kernel and the platform that most users call, which the umbrella, each integration and each backend re-export |
 | `undo` | [undo.md](platform/undo/undo.md) | the undo buffer and its history |
 | `log` | [log.md](platform/log/log.md) | the message log of the session |
+| `mcplog` | [mcplog.md](platform/mcplog/mcplog.md) | the calls of the session that a client made over MCP |
 | `statistics` | [statistics.md](platform/statistics/statistics.md) | the frame statistics of the editor loop |
 | `shell` | [shell.md](platform/shell/shell.md) | the wrappers and the chrome of a window |
 | `help` | [help.md](platform/help/help.md) | the document types, the projections and the page about the program that the Help menu opens |

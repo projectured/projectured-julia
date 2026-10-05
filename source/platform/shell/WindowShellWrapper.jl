@@ -33,6 +33,8 @@ the host:
 - `measure` measures the text of the bands, `FontFileMeasure()` by default.
 - `appearance` gives the widget theme of the bands; the default is the
   `Appearance` of the `appearance` wrapper of the same editor.
+- `tools` adds buttons at the end of the toolbar, such as the button of a tool
+  that this package does not name; `make_mcp_log_tool()` is one.
 
 A root that is a shell already keeps its bands.
 """
@@ -52,7 +54,8 @@ function wrap_editor!(::Val{:shell}, layer::Symbol, argument, parts::EditorParts
             make_window_menu_bar(; recorded, gesture_help, command_palette) :
             make_window_menu_bar(; recorded, about, gesture_help, command_palette),
         toolbar = make_window_toolbar(; assistant = get(options, :assistant, nothing),
-                                        explorer = get(options, :explorer, nothing), recorded),
+                                        explorer = get(options, :explorer, nothing), recorded,
+                                        extra = collect(Any, get(options, :tools, ()))),
         status_bar = get(options, :status_bar, true) ? make_window_status_bar(document) : nothing)
     parts.projection = make_window_shell_projection(parts.projection; measure, appearance)
     append!(parts.opened_window_projections,
