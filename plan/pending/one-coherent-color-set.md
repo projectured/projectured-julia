@@ -1037,7 +1037,7 @@ checks after the landing:
 **Status:** planned on 2026-10-05, and the owner decided S-1 to S-4 the same
 day (section S.3). Steps S1 to S6 are done on the branch `system-colors`
 (worktree `projectured-julia-system-colors`), started at the owner's word
-("yes, start implementing"); not landed. Step S7 waits for the owner's word.
+("yes, start implementing"), and step S7 passes; not landed.
 The owner wrote:
 
 > Yes, write this level of OS color scheme support into Part S, we will
@@ -1195,7 +1195,11 @@ S-3 yes; S-4 yes. Thus:
 - ~~**S5. The appearance tab.**~~ **Done** (`2802bac70`). The choice "System" with the answer.
 - ~~**S6. The guides.**~~ **Done** (`2de32b65c`). `style.md`, the guide of the appearance, and the guide of
   the backend interface.
-- **S7. A check on this machine.** Change the GNOME setting with `gsettings
+- ~~**S7. A check on this machine.**~~ **Done** (2026-10-05, at the owner's word):
+  6 of 6 checks pass in a live window; the window follows dark in 0.4 s, its
+  pixels are the dark background (17, 17, 19), it follows back to light, and
+  the scheme is `'default'` again. The first runs found the fault of a focus
+  during a query (see the facts below). Change the GNOME setting with `gsettings
   set org.gnome.desktop.interface color-scheme prefer-dark`, give the focus
   back to the editor window, and set the old value again. Do this only on the
   owner's word, because it changes the desktop of the owner.
@@ -1230,6 +1234,16 @@ S-3 yes; S-4 yes. Thus:
   Windows give the colour of the system.
 - The private functions read external state, so they are `_read_…`, as
   `read_os_clipboard` is.
+- S7 found a fault (2026-10-05): the window manager gives a new window the
+  focus, and the query for it takes about 0.3 s. A focus that came during
+  that query was dropped, and the running query had read the settings from
+  before the change, so the window stayed light. Now such a focus asks for
+  one more query after the running one (`is_system_colors_query_pending`), and
+  a test with a slow stub read checks it. A probe in a live window, with the
+  stored answer set to dark and no change of the desktop, followed within
+  0.4 s. The first diagnostic run printed the query task with `Core.println`,
+  which printed 2.4 GB of object graph and made the window "Not responding";
+  print only short state in a live run.
 
 **The checks on the branch (2026-10-05):** the targeted tests of the event, the
 headless backend, the colour theme, the wrapper, the tab, the SDL queries, the
