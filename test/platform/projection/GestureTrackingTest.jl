@@ -144,15 +144,21 @@ function test_gesture_tracking()
         @test driver.log[3][1].event isa MouseClick && driver.log[3][2] == true
     end
 
-    @testset "a release too far, too late or of another button is no click" begin
+    @testset "a release too far or of another button is no click" begin
         driver = GtDriver()
         _gt_play!(driver, _gt_down(:left, 10, 20, 0.0))
         _gt_play!(driver, _gt_up(:left, 100, 20, 0.1))
-        _gt_play!(driver, _gt_down(:left, 10, 20, 1.0))
-        _gt_play!(driver, _gt_up(:left, 10, 20, 1.5))    # after click_max_duration
         _gt_play!(driver, _gt_down(:left, 10, 20, 2.0))
         _gt_play!(driver, _gt_up(:right, 10, 20, 2.1))
         @test isempty(_gt_clicks(driver))
+    end
+
+    # No check reads `click_max_duration`; the comment on `_is_click` says why.
+    @testset "a release in place after a long press is a click" begin
+        driver = GtDriver()
+        _gt_play!(driver, _gt_down(:left, 10, 20, 0.0))
+        _gt_play!(driver, _gt_up(:left, 10, 20, 1.5))
+        @test [(click.button, click.count) for click in _gt_clicks(driver)] == [(:left, 1)]
     end
 
     @testset "a press and a release in two windows are no click" begin

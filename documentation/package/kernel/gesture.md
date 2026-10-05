@@ -53,9 +53,13 @@ default, in this order:
   so a key it keeps reaches no later recognition.
 - `ClickRecognition(; click_max_displacement = 5, click_max_duration = 0.3,
   multi_click_max_displacement = 5, multi_click_max_interval = 0.3)` gives a
-  `MouseClick` after a `MouseUp` close enough in place and in time to the
-  `MouseDown` of the same button. `count` goes to 2 and to 3 when the next click
-  comes close enough in place and in time to the one before.
+  `MouseClick` after a `MouseUp` close enough in place to the `MouseDown` of the
+  same button. No check reads `click_max_duration`: SDL2 stamps an event when it
+  takes it from the queue of the window system, so a slow frame between the down
+  and the up makes the up late; the first press of a new process is such a frame.
+  The comment on `_is_click` says when the check can come back. `count` goes
+  to 2 and to 3 when the next click comes close enough in place and in time to
+  the one before.
 - `DwellRecognition(; delay = 0.5)` gives a `MouseDwell` when the pointer does
   not move for `delay` seconds after a motion with no button held. A motion
   with a button, a down, a click, a scroll and the leave of a window stop the

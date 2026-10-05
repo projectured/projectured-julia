@@ -4,12 +4,12 @@
     ClickRecognition(; click_max_displacement = 5, click_max_duration = 0.3,
                        multi_click_max_displacement = 5, multi_click_max_interval = 0.3)
 
-A `MouseClick` after a `MouseUp` less than `click_max_displacement` pixels and
-`click_max_duration` seconds away from the `MouseDown` of its button, in the
-same window, at the place and the time of the up. A click is the next click of a
-double or a triple click when it is less than `multi_click_max_displacement`
-pixels and `multi_click_max_interval` seconds away from the click before it,
-with the same button in the same window. The defaults are the usual values of a
+A `MouseClick` after a `MouseUp` less than `click_max_displacement` pixels away
+from the `MouseDown` of its button, in the same window, at the place and the
+time of the up. No check reads `click_max_duration`; the comment on `_is_click`
+says why. A click is the next click of a double or a triple click when it is
+less than `multi_click_max_displacement` pixels and `multi_click_max_interval`
+seconds away from the click before it, with the same button in the same window. The defaults are the usual values of a
 desktop. The recognition holds no input.
 
 Each limit is a number, or a cell that the recognition reads at each input, so
@@ -95,11 +95,24 @@ function recognize(recognition::ClickRecognition, state::_ClickState, event::Mou
 end
 
 # Whether an up in `window` is inside the click window of `press`.
+#
+# THE TIME OF THE PRESS IS NOT CHECKED. SDL2 stamps a button event with the time
+# at which `SDL_PumpEvents` takes it from the queue of the window system, not the
+# time at which the hand moved. A frame that runs between the down and the up
+# makes the up late by the length of that frame. The first press of a new process
+# compiles the path of a press, which makes the up about 400 ms late, and the
+# check then drops the first click in the navigator or the toolbar. SDL3 on X11
+# stamps an event the same way.
+#
+# Put the check back when the backend stamps a button event with the time of the
+# device, for example `xbutton.time` of the X11 event, so that a frame between
+# the down and the up does not move that time. Even then, with the check a held
+# press is no click, and toolkits such as GTK and Qt have no such limit.
 _is_click(recognition::ClickRecognition, press::_ButtonPress, event::MouseUp, window) =
     press.window === window &&
     abs(event.x - press.x) < _get_limit(recognition.click_max_displacement) &&
-    abs(event.y - press.y) < _get_limit(recognition.click_max_displacement) &&
-    (get_event_time(event) - press.time) < _get_limit(recognition.click_max_duration)
+    abs(event.y - press.y) < _get_limit(recognition.click_max_displacement)
+    # && (get_event_time(event) - press.time) < _get_limit(recognition.click_max_duration)
 
 # The count of the click that `event` completes: one higher than the last click
 # when it has the same button and window and is inside the window of a double
