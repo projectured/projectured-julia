@@ -291,7 +291,11 @@ commit for each step. Do not land on `main` until the owner says so.
   window opens. Read the `frame_time` row with the tab open and with the tab
   closed. Do not report this as a measurement: a real measurement needs an
   idle machine and the owner's word.
-- [ ] **Step 6. A slow frame gets a color (Q2).**
+- [x] **Step 6. A slow frame gets a color (Q2).** Done: the theme role
+  `slow_text`, `:warning_text` by default, draws the frame number and the
+  cells of a slow frame. The limit is computed once for each list, from the
+  frames of the same flush. The feed, tool view and tool theme tests pass, 250
+  of 250, and the image shows frame 1231 of the synthetic store in the color.
   A row whose `frame_time` is more than two times the median of the ring shows
   its cells in `:warning_text`. Test: a slow frame and a frame below the factor
   in the same table.

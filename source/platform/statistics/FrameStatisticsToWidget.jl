@@ -4,7 +4,7 @@
 # measurement, and a table of the recent frames, newest first.
 
 """
-    FrameStatisticsToWidget(; header_text, row_text, empty_text, gap, row_height = 0)
+    FrameStatisticsToWidget(; header_text, row_text, empty_text, slow_text, gap, row_height = 0)
 
 Draw a [`FrameStatistics`](@ref) as widgets, from top to bottom:
 
@@ -17,7 +17,9 @@ Draw a [`FrameStatistics`](@ref) as widgets, from top to bottom:
 
 A time shows in milliseconds with two decimals, and the total of a time with
 none. A count shows as a whole number, and its mean and deviation with one
-decimal. A value that a frame did not measure shows a dash.
+decimal. A value that a frame did not measure shows a dash. A frame whose
+`frame_time` is more than two times the median of the frames of the table is
+slow: its frame number and its cells draw in `slow_text`.
 
 The table of the frames builds only the rows that it shows: its rows are a list
 whose head is the row `anchor`, counted from the newest frame, and it shares the
@@ -33,6 +35,7 @@ Read only: no caret goes into a table.
     header_text::StyleText = get_frame_statistics_style(nothing, :header_text)
     row_text::StyleText = get_frame_statistics_style(nothing, :row_text)
     empty_text::StyleText = get_frame_statistics_style(nothing, :empty_text)
+    slow_text::StyleText = get_frame_statistics_style(nothing, :slow_text)
     gap::Int = get_frame_statistics_style(nothing, :gap)
     row_height::Int = 0
 end
@@ -52,7 +55,8 @@ function make_frame_statistics_projection(; theme = nothing, measure = nothing)
         UntrackedCell{Int}(@computation ceil(Int, compute_line_box(measure, "M",
                                                                    _read_style(row_text).font).height))
     FrameStatisticsToWidget(; header_text = get_style(:header_text), row_text,
-                            empty_text = get_style(:empty_text), gap = get_style(:gap), row_height)
+                            empty_text = get_style(:empty_text), slow_text = get_style(:slow_text),
+                            gap = get_style(:gap), row_height)
 end
 
 # A style that a builder gave: a cell that reads the theme, or a plain value.
@@ -107,7 +111,27 @@ _make_pause_toggle(statistics::FrameStatistics) =
                  Cell(true), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
                  Cell(nothing), Cell(nothing))
 
-_make_cell_label(p::FrameStatisticsToWidget, content) = WidgetLabel(content; text_style = p.row_text)
+_make_cell_label(p::FrameStatisticsToWidget, content; slow::Bool = false) =
+    WidgetLabel(content; text_style = slow ? p.slow_text : p.row_text)
+
+# A frame is slow when its frame time is more than this many times the median.
+const _SLOW_FRAME_FACTOR = 2
+
+# The frame time above which a frame is slow: two times the median of the
+# column `column` of `columns`, without the frames that did not measure it.
+# `Inf` when the table has no such column, so no frame is slow.
+function _compute_slow_frame_limit(columns::Vector, column::Union{Int,Nothing})
+    (column === nothing || column > length(columns)) && return Inf
+    values = sort!(filter(!isnan, columns[column]))
+    isempty(values) && return Inf
+    count = length(values)
+    median = isodd(count) ? values[(count + 1) ÷ 2] : (values[count ÷ 2] + values[count ÷ 2 + 1]) / 2
+    _SLOW_FRAME_FACTOR * median
+end
+
+# Whether the frame at the place `i` of `columns` is slow.
+_is_slow_frame(columns::Vector, column::Union{Int,Nothing}, limit::Float64, i::Int) =
+    column !== nothing && column <= length(columns) && columns[column][i] > limit
 
 # The unit of a row as its column shows it.
 _format_unit(row::FrameStatisticsRow) = row.unit === :second ? "ms" : ""
@@ -155,17 +179,25 @@ _format_frame_header(row::FrameStatisticsRow) =
 # headers and the cells agree while a new measurement reaches the parts.
 function _make_frame_table(p::FrameStatisticsToWidget, statistics::FrameStatistics, summary::Vector)
     units = [row.unit for row in summary]
+    slow_column = findfirst(row -> row.name == "frame_time", summary)
     headers = CellVector(Cell[Cell(WidgetLabel(_format_frame_header(row); text_style = p.header_text))
                               for row in summary])
     rows = Cell(@computation begin
         columns = statistics.columns
-        _make_frame_list(statistics, i -> make_widget_table_row(Any[
-            _make_cell_label(p, _format_frame_value(units[c], c <= length(columns) ? columns[c][i] : NaN))
-            for c in eachindex(units)]))
+        limit = _compute_slow_frame_limit(columns, slow_column)
+        _make_frame_list(statistics, i -> begin
+            slow = _is_slow_frame(columns, slow_column, limit, i)
+            make_widget_table_row(Any[
+                _make_cell_label(p, _format_frame_value(units[c], c <= length(columns) ? columns[c][i] : NaN);
+                                 slow)
+                for c in eachindex(units)])
+        end)
     end)
     row_headers = Cell(@computation begin
-        frames = statistics.frames
-        _make_frame_list(statistics, i -> _make_cell_label(p, string(frames[i])))
+        frames, columns = statistics.frames, statistics.columns
+        limit = _compute_slow_frame_limit(columns, slow_column)
+        _make_frame_list(statistics, i -> _make_cell_label(p, string(frames[i]);
+                                                           slow = _is_slow_frame(columns, slow_column, limit, i)))
     end)
     # Positional, so every declared field is named here in order: position,
     # column_headers, row_headers, corner, rows, columns, column_count,

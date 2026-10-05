@@ -54,7 +54,7 @@ end
 
 @testset "FrameStatisticsToWidget reads FrameStatisticsTheme" begin
     _check_tool_theme(make_frame_statistics_projection, FrameStatisticsTheme,
-                      (:header_text, :row_text, :empty_text), 13)
+                      (:header_text, :row_text, :empty_text, :slow_text), 13)
 
     statistics = FrameStatistics()
     push!(statistics.rows, FrameStatisticsRow("frame_time", :second, 10, 1.0, 2.0, 1.5, 0.3, 15.0))

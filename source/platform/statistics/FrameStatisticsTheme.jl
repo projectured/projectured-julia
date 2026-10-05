@@ -13,8 +13,9 @@ The theme of the statistics. `@theme` declares it, so
 `ScaledFrameStatisticsTheme` holds each value times its scale, and
 `FrameStatisticsTheme()` is the default theme.
 
-The fields are the text styles of the head line and the titles, of the cells
-and of the empty line, and the gap between the parts. The borders, the header
+The fields are the text styles of the head line and the titles, of the cells,
+of the cells of a slow frame and of the empty line, and the gap between the
+parts. The borders, the header
 rows and the scroll of the tables come from the widget theme. Each field has a
 docstring that says what it draws, which the
 appearance tab shows under its name.
@@ -32,6 +33,8 @@ projection built with no styles holds the plain values of the default theme.
     row_text::TextRole = TextRole(:text)
     "The line the panel shows while it holds no frame."
     empty_text::TextRole = TextRole(:text_faint)
+    "A cell of a slow frame: its frame time is more than two times the median of the frames of the table."
+    slow_text::TextRole = TextRole(:warning_text)
     "The gap between the parts of the panel: the head line, the titles and the tables."
     gap::Spacing = Spacing(6)
 end

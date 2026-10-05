@@ -196,6 +196,23 @@ function test_frame_statistics_feed()
         @test frames.row_headers.next.next.value.content == "1"
     end
 
+    @testset "a slow frame draws in the slow color, and the others do not" begin
+        statistics = _make_frame_statistics_example()
+        # The median is 10 ms, so the frame of 50 ms is slow, and 20 ms is not.
+        statistics.columns = [[0.01, 0.02, 0.05], [NaN, 120.0, 5000.0]]
+        p, _, root = _print_frame_statistics(statistics)
+        frames = _get_frame_table(root)
+        slow_color = p.slow_text.color
+        is_slow(label) = is_color_equal(label.text_style.color, slow_color)
+        newest = frames.rows.value
+        @test all(is_slow(newest[index]) for index in 1:length(newest))
+        @test is_slow(frames.row_headers.value)
+        middle = frames.rows.next.value
+        @test !any(is_slow(middle[index]) for index in 1:length(middle))
+        @test !is_slow(frames.row_headers.next.value)
+        @test !is_color_equal(p.row_text.color, slow_color)
+    end
+
     @testset "a flush changes the numbers and keeps the parts" begin
         statistics = _make_frame_statistics_example()
         _, _, root = _print_frame_statistics(statistics)
