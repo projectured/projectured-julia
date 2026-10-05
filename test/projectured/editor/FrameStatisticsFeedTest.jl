@@ -109,6 +109,27 @@ function test_frame_statistics_feed()
               "3 frames, the rows cover the last 2"
     end
 
+    @testset "the table holds the recent frames, one column for each row" begin
+        store = FrameMeasurementStore(capacity = 3)
+        record_frame_measurements!(store; times = [:frame_time => 0.010])
+        record_frame_measurements!(store; times = [:frame_time => 0.020], counts = [:reads => 7])
+        record_frame_measurements!(store; times = [:frame_time => 0.030], counts = [:reads => 9])
+        statistics = FrameStatistics()
+        flush_frame_statistics!(statistics, store)
+        @test statistics.frames == [1, 2, 3]
+        @test [statistics.rows[index].name for index in 1:length(statistics.rows)] ==
+              ["frame_time", "reads"]
+        @test statistics.columns[1] ≈ [0.010, 0.020, 0.030]
+        # The counter starts at the second frame: the first holds no value of it.
+        @test isnan(statistics.columns[2][1])
+        @test statistics.columns[2][2:3] == [7.0, 9.0]
+        # The ring keeps the last three frames, oldest first.
+        record_frame_measurements!(store; times = [:frame_time => 0.040], counts = [:reads => 11])
+        flush_frame_statistics!(statistics, store)
+        @test statistics.frames == [2, 3, 4]
+        @test statistics.columns[2] == [7.0, 9.0, 11.0]
+    end
+
     @testset "the plot follows the recent frames" begin
         plot = FrameTimeSeries()
         p = FrameTimeSeriesToChart()

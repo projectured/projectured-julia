@@ -199,14 +199,15 @@ Claude proposed D2 to D8. The owner agreed to them on 2026-10-05.
 Do all the work in a worktree on the branch `statistics-tab-tables`. Make a
 commit for each step. Do not land on `main` until the owner says so.
 
-- [x] **Step 1. Move the index list to the collection slice (D4).** Done in
-  `dc1a166ce`: `test_collection()` and `test_dataframes()` pass, 745 of 745.
+- [x] **Step 1. Move the index list to the collection slice (D4).** Done:
+  `test_collection()` and `test_dataframes()` pass, 745 of 745.
   Add `make_index_list` with its docstring to `ListNode.jl`. Change the data
   frame view to call it, and delete the private copy. Test: the data frame view
   tests and the collection tests. Add one test of `make_index_list` in the
   collection tests: a walk down and back up meets the same nodes, and the walk
   stops at both ends.
-- [ ] **Step 2. The document holds the frames (D2, D3, D5).**
+- [x] **Step 2. The document holds the frames (D2, D3, D5).** Done:
+  `test_frame_statistics_feed()` passes, 55 of 55.
   Add `frames`, `columns`, `paused`, `anchor`, `top_row` and
   `scroll_position` to `FrameStatistics`. Write `frames` and `columns` in
   `flush_frame_statistics!`. Test in `test_frame_statistics_feed()`: a flush

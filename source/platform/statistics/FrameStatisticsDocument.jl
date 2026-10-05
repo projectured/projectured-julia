@@ -23,10 +23,28 @@ frames that the store keeps, and its `count` says how many. Its `unit` is
 `:second` for a time, which the row holds in seconds, or `:count`.
 `frame_count` is the number of frames since the editor started, as the table
 last showed them.
+
+`frames` holds the numbers of the recent frames, oldest first, and `columns`
+the value of each of these frames: one column for each row, in the order of the
+rows and in the unit of the row. A value is `NaN` where a frame did not measure
+the name.
+
+`paused` stops the flush, so the numbers stay while a person reads them. The
+other three fields are the view state of the table of the frames: `anchor` is
+the place of the row at the head of its list, counted from the newest frame,
+`top_row` is the row at the top of the table, counted from that head, and
+`scroll_position` is the offset of the table. The table shares the cells of
+`top_row` and `scroll_position`.
 """
 @document struct FrameStatistics
     rows::CellVector = CellVector()
     frame_count::Int = 0
+    frames::Vector{Int} = Int[]
+    columns::Vector{Vector{Float64}} = Vector{Float64}[]
+    paused::Bool = false
+    anchor::Int = 1
+    top_row::Int = 1
+    scroll_position::Point2D = Point2D(0, 0)
 end
 
 # The name the tab calls itself, and the name a person types into an empty
@@ -46,6 +64,9 @@ table already shows gets only the fields whose numbers changed, so the other
 cells keep their readers valid. A measurement the table has not seen appends a
 row. Row order is the store's first-seen order, and the store only appends
 names, so the index alignment holds.
+
+The flush also writes the recent frames into `frames` and `columns`. These
+change with each new frame, so they are written whole.
 
 Runs on the editor task only, because it writes cells.
 """
@@ -70,6 +91,9 @@ function flush_frame_statistics!(statistics::FrameStatistics,
                                            summary.total))
         end
     end
+    recent = collect_recent_frame_measurements(store)
+    statistics.frames = recent.frames
+    statistics.columns = [column.values for column in recent.columns]
     _write_changed_field!(statistics, :frame_count, get_frame_count(store))
     length(names)
 end
