@@ -638,7 +638,7 @@ function test_mcp_server()
                 end
             end
 
-            @testset "a message logged after the start reaches the message log" begin
+            @testset "the start record and a later message reach the message log" begin
                 store = MessageLogStore()
                 # The capture wraps a logger that takes Info and prints nowhere.
                 capture = MessageLogLogger(store, Base.CoreLogging.SimpleLogger(devnull))
@@ -649,7 +649,10 @@ function test_mcp_server()
                     start_agent_server!(server)
                     @test _is_mcp_port_open(port)
                     @test Base.CoreLogging.global_logger() === capture
-                    take_message_lines!(store)
+                    # The record that the library writes as its loop starts goes
+                    # to the logger of the process, not to the logger of the library.
+                    lines, _ = take_message_lines!(store)
+                    @test ("Info", "Starting MCP server: projectured") in lines
                     @info "a line after the start"
                     lines, _ = take_message_lines!(store)
                     @test ("Info", "a line after the start") in lines
