@@ -1021,10 +1021,24 @@ fields.
    156 in the inventory of 2026-10-02), which this plan does not cover.
 6. The system mode (Part S). Planned in section 12.16 on 2026-10-05.
 
+**The follow-ups landed** on `main` on 2026-10-05 at `c8605454b`, with
+omnet-julia at `71bcdc10` and inet-julia at `e5aa4bb`; nothing is pushed. The
+checks after the landing:
+
+- The targeted omnet-julia tests give the same 16 test sets and the same known
+  failures as before the rename.
+- `test_integration()`: 1206177 pass, 1578 broken, and 3 failures and 32
+  errors, which all came from a `TMPDIR` folder that the run did not have. The
+  seven test functions that this stopped pass when they run again: 195 tests.
+  The 2 errors of `ClickRoundtripTest.jl:323` did not occur.
+
 ### 12.16 Part S: the system mode
 
 **Status:** planned on 2026-10-05, and the owner decided S-1 to S-4 the same
-day (section S.3); not started. The owner wrote:
+day (section S.3). Steps S1 to S6 are done on the branch `system-colors`
+(worktree `projectured-julia-system-colors`), started at the owner's word
+("yes, start implementing"); not landed. Step S7 waits for the owner's word.
+The owner wrote:
 
 > Yes, write this level of OS color scheme support into Part S, we will
 > implement it, it doesn't have to be super complete, the level you described
@@ -1160,31 +1174,70 @@ S-3 yes; S-4 yes. Thus:
 
 #### S.4 Steps
 
-- **S1. The model.** `:system` in `COLOR_MODES`, `COLOR_CONTRASTS` and the
+- ~~**S1. The model.**~~ **Done** (`53e76b048`). `:system` in `COLOR_MODES`, `COLOR_CONTRASTS` and the
   choices of the accent; the three cells; `get_color_mode`,
   `get_color_contrast` and `get_color_accent`; the nearest hue; save and load.
   Tests: the variant and a role under `:system` with each answer, the nearest
   hue, and a saved file that keeps `:system` and no answer.
-- **S2. The kernel.** `SystemColors`, the event `SystemColorsChange` in
+- ~~**S2. The kernel.**~~ **Done** (`84d4e1874`), before S1. `SystemColors`, the event `SystemColorsChange` in
   `event/`, and `find_system_colors` in `BackendInterface.jl` with its default
   in `BackendDefaults.jl` (S-2: unsealed with the owner's permission). Check
   `SEALING.md` for each file before the edit.
-- **S3. The platform.** The start step; `read_gesture` of `AppearanceDocument`
+- ~~**S3. The platform.**~~ **Done** (`d3ede1daf`). The start step; `read_gesture` of `AppearanceDocument`
   for the event; the operation that writes the three cells and stays out of the
   undo list. Tests: the event recolors a role to its dark value, and an undo
   does not change it back.
-- **S4. The SDL backend.** The three queries of the systems in one file of the
+- ~~**S4. The SDL backend.**~~ **Done** (`c167f6880`). The three queries of the systems in one file of the
   SDL backend; the task with its limit; the focus gain starts the query; the
   event comes only on a change. Tests: the parsers of the output of
   `gdbus`, `gsettings` and `defaults` on fixed text, and a query that does not
   answer gives no event and does not block.
-- **S5. The appearance tab.** The choice "System" with the answer.
-- **S6. The guides.** `style.md`, the guide of the appearance, and the guide of
+- ~~**S5. The appearance tab.**~~ **Done** (`2802bac70`). The choice "System" with the answer.
+- ~~**S6. The guides.**~~ **Done** (`2de32b65c`). `style.md`, the guide of the appearance, and the guide of
   the backend interface.
 - **S7. A check on this machine.** Change the GNOME setting with `gsettings
   set org.gnome.desktop.interface color-scheme prefer-dark`, give the focus
   back to the editor window, and set the old value again. Do this only on the
   owner's word, because it changes the desktop of the owner.
+
+**Facts and decisions found in the implementation (2026-10-05, branch
+`system-colors`):**
+
+- The kernel step came first, because the model names its `SystemColors`.
+- The answer of the system is one cell, `system_colors::SystemColors`, not three:
+  one write, and the three values change together.
+- No new operation type: the reader answers
+  `ReplaceViewStateOperation(ReplaceReferencedValueOperation(appearance,
+  "system_colors", colors))`, and `_mark_appearance_change` adds
+  `InvalidateProjectionOperation`. The `appearance` wrapper is in the layer
+  `:screen` and the `undo` wrapper in the layer `:container`, inside it, so the
+  undo list never sees the change; the view state mark says the same.
+- The event goes to no `read_gesture`: the reader of
+  `AppearanceManagingProjection` answers it before it asks the content,
+  because a gesture table binds keys, not an event that carries data.
+- `HeadlessBackend(; system_colors)` gives a scripted answer, so a test of the
+  wrapper needs no backend of its own.
+- Linux: the shell of the assistant has no `XDG_CURRENT_DESKTOP`, and a call to
+  the portal there took 4.1 s before it failed, although `gdbus` had
+  `--timeout 1`. So `gsettings` comes first on GNOME and on a desktop that is
+  not named, and the portal only on a named desktop that is not GNOME, or when
+  `gsettings` does not answer. Each command runs under a limit in Julia, which
+  stops it.
+- GNOME 47 names its accent (`accent-color`, `'orange'` on this machine), and
+  macOS gives a number. The purple of GNOME is almost halfway between violet
+  and pink, and the pink of macOS (#ff2d55) is nearer to red. So a named accent
+  gives the step 9 colour of the Radix hue that the name means; the portal and
+  Windows give the colour of the system.
+- The private functions read external state, so they are `_read_…`, as
+  `read_os_clipboard` is.
+
+**The checks on the branch (2026-10-05):** the targeted tests of the event, the
+headless backend, the colour theme, the wrapper, the tab, the SDL queries, the
+wait and the coalescing, the three layering guards, the style guard and the
+naming guard pass. `test_kernel()` 4170 pass, 2 broken; `test_platform()` 94035
+pass, 8 broken; `test_sdl()` 883 pass. The live answer of this machine through
+the SDL backend is light, normal and the orange accent of GNOME, in 0.043 s.
+`test_integration()` has not run on the branch.
 
 **Risks.**
 - A query that hangs: the task and its limit prevent a frozen editor.
