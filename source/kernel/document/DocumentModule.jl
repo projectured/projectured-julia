@@ -18,6 +18,7 @@ its own definition:
 | [`DocumentDefaults.jl`](DocumentDefaults.jl) | the default behaviours every document inherits — the `is_element_collection` / `is_walk_opaque` trait answers, the defaults of the sync and copy policy hooks, and the depth-limited debug `show` |
 | [`DocumentCopy.jl`](DocumentCopy.jl) | `copy_document` — deep copy, kind-preserving under a `CopyPolicy`, or kind-converting |
 | [`DocumentSync.jl`](DocumentSync.jl) | `sync_document!` — the double-buffer shadow sync |
+| [`DeclaredType.jl`](DeclaredType.jl) | the check of the declared type of a field at each write and at construction, `DeclaredTypeMismatchException`, and the records of an inventory |
 | [`DocumentMacro.jl`](DocumentMacro.jl) | `@document` — the document codegen |
 | [`SelectionDocument.jl`](SelectionDocument.jl) | `SelectionDocument` — the value a `selection` cell holds, and `unwrap_selection` |
 | [`DocumentWalk.jl`](DocumentWalk.jl) | `walk_document` — the one reflection walk, parameterized by how it names a node (`DocumentWalk`) |
@@ -43,6 +44,9 @@ export Document, copy_document, get_wrapped_document, replace_wrapped_document!,
        get_cell_layout_field_type, search_documents,
        @document, @document_preset,
        @forward_protocol, @forward_vector_protocol, @adapt_map_protocol
+export DeclaredTypeMismatchException, DeclaredTypeMismatchRecord,
+       set_declared_type_check_mode!, get_declared_type_check_mode,
+       collect_declared_type_mismatches, clear_declared_type_mismatches!
 export SelectionDocument, unwrap_selection
 export DocumentWalk, walk_document, make_string_predicate
 # how deep `show` descends before it elides
@@ -52,6 +56,7 @@ include("DocumentInterface.jl")
 include("DocumentDefaults.jl")
 include("DocumentCopy.jl")
 include("DocumentSync.jl")
+include("DeclaredType.jl")
 include("DocumentMacro.jl")
 include("SelectionDocument.jl")
 include("DocumentWalk.jl")

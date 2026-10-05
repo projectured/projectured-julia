@@ -179,16 +179,19 @@ function _emit_autowrap_ctor(plan, arg_names; default = ReactiveCell)
     head = isempty(names) ? :($(plan.name)($(params...))) :
            Expr(:where, :($(Expr(:curly, plan.name, names...))($(params...))),
                 plan.parameters...)
+    # Each path hands the new document to the check of the declared types.
+    check = _check_constructed_document
     body = quote
         $fill_target
         if $all_rc
-            return $(Expr(:call, Expr(:curly, :new, up_rc..., rc_any...), arg_names...))
+            return $check($(Expr(:call, Expr(:curly, :new, up_rc..., rc_any...), arg_names...)))
         elseif !($any_cell)
-            return $(Expr(:call, Expr(:curly, :new, up_raw..., def_types...),
-                          [raw_wrap(i) for i in 1:n]...))
+            return $check($(Expr(:call, Expr(:curly, :new, up_raw..., def_types...),
+                                 [raw_wrap(i) for i in 1:n]...)))
         end
         $(wrap_stmts...)
-        $(Expr(:call, Expr(:curly, :new, up_mixed..., [:(typeof($w)) for w in wrapped]...), wrapped...))
+        $check($(Expr(:call, Expr(:curly, :new, up_mixed..., [:(typeof($w)) for w in wrapped]...),
+                      wrapped...)))
     end
     # `Expr(:function, …)` and not `:(function $head … end)`: the parser will not
     # take an interpolated signature.
@@ -222,7 +225,7 @@ _emit_accessors(plan) = (
         name === :selection ? $(unwrap_selection)(getfield(obj, name)[]) :
                               getfield(obj, name)[]),
     :(Base.setproperty!(obj::$(plan.name), name::Symbol, val) =
-        (getfield(obj, name)[] = val)),
+        ($(_check_declared_write)(obj, name, val); getfield(obj, name)[] = val)),
 )
 
 """

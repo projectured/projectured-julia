@@ -1,0 +1,219 @@
+# Fragment of `DocumentModule` — the declared type of a field as a contract. The
+# setter and the constructor that `@document` emits for the cell layout ask the
+# check here, so a value that the declared type of its field does not admit is
+# found at the write that makes it. The mode says what the check does with such a
+# value: nothing, keep a record of it for an inventory, or throw.
+
+"""
+    DeclaredTypeMismatchException(owner, name, declared_type, value)
+
+Thrown when a write gives a field a value that the declared type of the field
+does not admit. `owner` is the type of the document, `name` is the field,
+`declared_type` is the type that `@document` records for the field, and `value`
+is the value of the write.
+
+Its message names the place, the declared type and the type of the value in one
+sentence, so that a person and a model can read what went wrong.
+"""
+struct DeclaredTypeMismatchException <: Exception
+    owner::Any
+    name::Any
+    declared_type::Any
+    value::Any
+end
+
+function Base.showerror(io::IO, e::DeclaredTypeMismatchException)
+    print(io, "DeclaredTypeMismatchException: ", _describe_mismatch_owner(e.owner), ".",
+          e.name, " is declared ", e.declared_type, ", and the write gives a ",
+          _describe_mismatch_type(e.value), ": ", _describe_mismatch_value(e.value))
+end
+
+_describe_mismatch_owner(owner::Type) = get_document_schema_name(owner)
+_describe_mismatch_owner(owner) = owner
+
+_describe_mismatch_type(value::Document) = get_document_schema_name(typeof(value))
+_describe_mismatch_type(value) = typeof(value)
+
+function _describe_mismatch_value(value)
+    text = repr(value; context = :limit => true)
+    length(text) <= 80 ? text : first(text, 77) * "..."
+end
+
+# ── The mode ──────────────────────────────────────────────────────────────────
+
+const _DECLARED_TYPE_CHECK_MODES = (:off, :record, :throw)
+const _DECLARED_TYPE_CHECK_MODE = Ref(:off)
+
+"""
+    set_declared_type_check_mode!(mode)
+
+Say what the check of a declared type does with a value that the type does not
+admit. `:off` checks nothing. `:record` keeps the mismatch, which
+[`collect_declared_type_mismatches`](@ref) answers, and lets the write go on.
+`:throw` throws a [`DeclaredTypeMismatchException`](@ref). The mode is one for
+the whole process.
+
+Use `:record` to make an inventory of the writes that a stricter declaration
+would refuse: set it, run the code, and read the records.
+"""
+function set_declared_type_check_mode!(mode::Symbol)
+    mode in _DECLARED_TYPE_CHECK_MODES ||
+        throw(ArgumentError("the mode of the declared type check is one of " *
+                            "$(join(_DECLARED_TYPE_CHECK_MODES, ", ")), not $mode"))
+    _DECLARED_TYPE_CHECK_MODE[] = mode
+end
+
+"""
+    get_declared_type_check_mode() -> Symbol
+
+The mode that [`set_declared_type_check_mode!`](@ref) set: `:off`, `:record` or
+`:throw`.
+"""
+get_declared_type_check_mode() = _DECLARED_TYPE_CHECK_MODE[]
+
+# ── The records of an inventory ───────────────────────────────────────────────
+
+"""
+    DeclaredTypeMismatchRecord
+
+One kind of mismatch that the `:record` mode saw: the `owner` type and the field
+`name`, the `declared_type`, the `value_type` of the values that the type did not
+admit, how many writes gave such a value (`count`), whether Julia converts such a
+value to the declared type with no loss (`is_convertible`), and the stack frames
+of the first callers (`callers`, one string for each distinct call site, with its
+count).
+"""
+mutable struct DeclaredTypeMismatchRecord
+    owner::Any
+    name::Any
+    declared_type::Any
+    value_type::Any
+    count::Int
+    is_convertible::Bool
+    callers::Dict{String, Int}
+end
+
+const _DECLARED_TYPE_MISMATCHES = Dict{Tuple{Any, Any, Any, Any}, DeclaredTypeMismatchRecord}()
+const _DECLARED_TYPE_MISMATCH_LOCK = ReentrantLock()
+
+# A record takes the call site of its first writes only, because a stack trace is
+# slow and a mismatch in a loop repeats one call site.
+const _DECLARED_TYPE_MISMATCH_CALLER_SAMPLES = 20
+const _DECLARED_TYPE_MISMATCH_CALLER_FRAMES = 8
+
+"""
+    collect_declared_type_mismatches() -> Vector{DeclaredTypeMismatchRecord}
+
+The mismatches that the `:record` mode kept, the most frequent first.
+"""
+collect_declared_type_mismatches() =
+    lock(_DECLARED_TYPE_MISMATCH_LOCK) do
+        sort!(collect(values(_DECLARED_TYPE_MISMATCHES)); by = record -> -record.count)
+    end
+
+"""
+    clear_declared_type_mismatches!()
+
+Forget the mismatches that the `:record` mode kept.
+"""
+clear_declared_type_mismatches!() =
+    lock(_DECLARED_TYPE_MISMATCH_LOCK) do
+        empty!(_DECLARED_TYPE_MISMATCHES)
+        nothing
+    end
+
+function _record_declared_type_mismatch!(owner, name, declared_type, value)
+    value_type = _describe_mismatch_type(value)
+    key = (owner, name, declared_type, value_type)
+    lock(_DECLARED_TYPE_MISMATCH_LOCK) do
+        record = get!(_DECLARED_TYPE_MISMATCHES, key) do
+            DeclaredTypeMismatchRecord(owner, name, declared_type, value_type, 0,
+                                       _is_losslessly_convertible(declared_type, value),
+                                       Dict{String, Int}())
+        end
+        record.count += 1
+        if record.count <= _DECLARED_TYPE_MISMATCH_CALLER_SAMPLES
+            caller = _describe_mismatch_caller(stacktrace(backtrace()))
+            record.callers[caller] = get(record.callers, caller, 0) + 1
+        end
+    end
+    nothing
+end
+
+function _is_losslessly_convertible(declared_type, value)
+    try
+        converted = convert(declared_type, value)
+        converted isa declared_type && isequal(converted, value)
+    catch
+        false
+    end
+end
+
+# The frames above the check: the generated setter or constructor first, and then
+# the code that wrote the value.
+function _describe_mismatch_caller(frames)
+    kept = String[]
+    for frame in frames
+        file = String(frame.file)
+        (endswith(file, "DeclaredType.jl") || endswith(file, "lock.jl")) && continue
+        push!(kept, string(frame.func, " at ", _shorten_mismatch_path(file), ":", frame.line))
+        length(kept) == _DECLARED_TYPE_MISMATCH_CALLER_FRAMES && break
+    end
+    join(kept, " <- ")
+end
+
+function _shorten_mismatch_path(file)
+    for marker in ("/source/", "/test/", "/example/", "/package/", "/tool/")
+        i = findlast(marker, file)
+        i === nothing || return file[first(i) + 1:end]
+    end
+    file
+end
+
+# ── The check ─────────────────────────────────────────────────────────────────
+
+function _report_declared_type_mismatch(mode, owner, name, declared_type, value)
+    mode === :throw && throw(DeclaredTypeMismatchException(owner, name, declared_type, value))
+    _record_declared_type_mismatch!(owner, name, declared_type, value)
+end
+
+# The declared type of the field `name` of a document of type `T`, or `nothing`
+# when `@document` recorded none.
+function _find_declared_field_type(T::Type, name::Symbol)
+    declared = _declared_value_types(T)
+    declared === nothing && return nothing
+    i = Base.fieldindex(T, name, false)
+    (i == 0 || i > length(declared)) && return nothing
+    declared[i]
+end
+
+# The setter of the cell layout calls it before the write. A computation is not a
+# value: the cell computes its value later, and a read narrows it.
+function _check_declared_write(document, name::Symbol, value)
+    mode = _DECLARED_TYPE_CHECK_MODE[]
+    mode === :off && return nothing
+    value isa Computation && return nothing
+    declared_type = _find_declared_field_type(typeof(document), name)
+    (declared_type === nothing || value isa declared_type) && return nothing
+    _report_declared_type_mismatch(mode, typeof(document), name, declared_type, value)
+end
+
+# The constructor of the cell layout calls it with the new document. It checks the
+# value that each cell holds now, with no dependency on the cell, and leaves a
+# computed cell alone. A later write to a cell that the caller gave goes past it.
+function _check_constructed_document(document)
+    mode = _DECLARED_TYPE_CHECK_MODE[]
+    mode === :off && return document
+    T = typeof(document)
+    declared = _declared_value_types(T)
+    declared === nothing && return document
+    for i in 1:min(fieldcount(T), length(declared))
+        cell = getfield(document, i)
+        cell isa AbstractCell || continue
+        is_computed_cell(cell) && continue
+        value = peek(cell)
+        value isa declared[i] ||
+            _report_declared_type_mismatch(mode, T, fieldname(T, i), declared[i], value)
+    end
+    document
+end
