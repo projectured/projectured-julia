@@ -1,8 +1,10 @@
 # The frames table takes the width of its content and has a scroll bar
 
-> **Status:** pending. Written on 2026-10-05 at the owner's request. The owner
-> said "for 2, yes, plus a scroll bar" on 2026-10-05. The decisions below are
-> Claude's; the owner has not seen them yet.
+> **Status:** done on 2026-10-05 on the branch `statistics-columns-and-scroll-bar`,
+> rebased on `main` at `41a303c3b`; it waits for the owner to land it. Written
+> on 2026-10-05 at the owner's request: "for 2, yes, plus a scroll bar". The
+> decisions below are Claude's, and D2 changed in step 3. The narrow tests of
+> the branch pass, 1346 of 1346.
 
 ## 1. The request
 
@@ -97,6 +99,9 @@ owner answered: "for 2, yes, plus a scroll bar".
     a `Point2D` holds its coordinates in cells, so two equal points are not
     `==`. The feed, tool view and tool theme tests pass, 266 of 266. The images
     with one column and with nine show the bar at the right edge.
-- [ ] **Step 4. Documentation and the image.** Update `statistics.md` (the
-  widths, the bar, the limit "no scroll bar" goes), draw the tab with one
-  column and with nine, and move this plan to `plan/done/`.
+- [x] **Step 4. Documentation and the image.** Done: `statistics.md`
+  describes the widths and the bar, and the limit "no scroll bar" is gone;
+  `widget.md` names `compute_scroll_bar_value` and
+  `compute_scroll_bar_top_row`. The guards give the same findings as on
+  `main`. The images of the tab at 920 pixels, with one column and with nine,
+  show the widths and the bar.
