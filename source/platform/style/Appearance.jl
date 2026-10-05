@@ -5,21 +5,23 @@
 """
     COLOR_MODES
 
-The modes of the colours of an appearance: `:light` and `:dark`.
+The modes of the colours of an appearance: `:system`, which follows the mode of
+the operating system, `:light` and `:dark`.
 """
-const COLOR_MODES = (:light, :dark)
+const COLOR_MODES = (:system, :light, :dark)
 
 """
     COLOR_CONTRASTS
 
-The contrasts of the colours of an appearance: `:normal` and `:high`.
+The contrasts of the colours of an appearance: `:system`, which follows the
+contrast of the operating system, `:normal` and `:high`.
 """
-const COLOR_CONTRASTS = (:normal, :high)
+const COLOR_CONTRASTS = (:system, :normal, :high)
 
 """
     Appearance(; zoom = 1.0, font_scale = 1.0, icon_scale = 1.0, spacing_scale = 1.0,
                  control_scale = 1.0, radius_scale = 1.0, line_scale = 1.0,
-                 color_mode = :light, color_contrast = :normal, color_palette = "radix",
+                 color_mode = :system, color_contrast = :system, color_palette = "radix",
                  color_accent = :blue, color_neutral = :slate)
 
 What a person sets about the look of one editor: the zoom of the interface, the
@@ -29,10 +31,16 @@ theme, found by the type of the theme.
 The colour settings say how a [`PaletteColor`](@ref) and a [`ColorRole`](@ref)
 become a colour: `color_mode` is one of [`COLOR_MODES`](@ref), `color_contrast`
 one of [`COLOR_CONTRASTS`](@ref), `color_palette` the name of a palette of the
-registry, `color_accent` the hue of the accent and `color_neutral` the neutral
-ramp. `color_themes` holds a [`ColorTheme`](@ref) for each pair of a mode and a
-contrast, by the name that [`get_color_variant`](@ref) gives the pair, so a
-fine-tune of a role stays with its mode and its contrast. `saved_themes` holds the values of each theme that a loaded file
+registry, `color_accent` the hue of the accent, or `:system` for the hue nearest
+to the accent of the operating system, and `color_neutral` the neutral ramp.
+`system_colors` holds the colour settings of the operating system, a
+`SystemColors` that the `appearance` wrapper takes from the backend; a setting
+`:system` reads it (see [`get_color_mode`](@ref)). It is a fact of the system and
+not a setting, so a file does not keep it, and with no answer of a backend it is
+light, normal and with no accent. `color_themes` holds a [`ColorTheme`](@ref)
+for each pair of a mode and a contrast, by the name that
+[`get_color_variant`](@ref) gives the pair, so a fine-tune of a role stays with
+its mode and its contrast. `saved_themes` holds the values of each theme that a loaded file
 names and that the appearance does not hold yet, by the name of its type; the
 theme takes them when it is made (see [`load_appearance!`](@ref)).
 
@@ -59,11 +67,12 @@ of each; the wrapper then makes the view print again.
     control_scale::Float64 = 1.0
     radius_scale::Float64 = 1.0
     line_scale::Float64 = 1.0
-    color_mode::Symbol = :light
-    color_contrast::Symbol = :normal
+    color_mode::Symbol = :system
+    color_contrast::Symbol = :system
     color_palette::String = DEFAULT_PALETTE_NAME
     color_accent::Symbol = :blue
     color_neutral::Symbol = :slate
+    system_colors::SystemColors = SystemColors()
     color_themes::Dict{Symbol,Any} = make_color_themes()
     themes::Dict{Type,Any} = Dict{Type,Any}()
     saved_themes::Dict{String,Any} = Dict{String,Any}()
@@ -310,7 +319,7 @@ const _COLOR_THEME_KEY = "ColorTheme"
 # not name, or names as no text or as a mode or a contrast that is not known,
 # takes its default.
 function _load_color_settings!(appearance::Appearance, data::AbstractDict)
-    default = (color_mode = :light, color_contrast = :normal, color_palette = DEFAULT_PALETTE_NAME,
+    default = (color_mode = :system, color_contrast = :system, color_palette = DEFAULT_PALETTE_NAME,
                color_accent = :blue, color_neutral = :slate)
     for field in _APPEARANCE_COLOR_SETTINGS
         saved = get(data, String(field), nothing)

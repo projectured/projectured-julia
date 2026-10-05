@@ -11,6 +11,7 @@ using ..CellModule
 using ..DocumentModule
 using ..ReferenceModule
 using ..SettingsModule
+using ..EventModule
 
 import TOML
 
@@ -83,7 +84,8 @@ export Theme, ScaledTheme, ThemeLength, Spacing, Radius, LineWidth, ControlSize,
 export COLOR_MODES, COLOR_CONTRASTS, Appearance, scale_theme_value, get_scaled_theme!,
        set_theme!, get_theme, get_theme_value, get_theme_values
 export ColorTheme, COLOR_VARIANTS, get_color_variant, make_color_theme, make_color_themes,
-       get_color_theme, resolve_theme_color
+       get_color_theme, resolve_theme_color, get_color_mode, get_color_contrast,
+       get_color_accent, find_nearest_accent_hue
 export TextMeasure, FontMetrics, StringBox, measure_string, get_font_metrics,
        compute_caret_offsets, FontFileMeasure, FixedMeasure, compute_text_extent,
        PlacedGlyph, compute_placed_glyphs

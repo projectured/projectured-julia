@@ -178,7 +178,7 @@ A mode that is not known is light.
 get_color_variant(mode::Symbol, contrast::Symbol) =
     Symbol(mode === :dark ? "dark" : "light", contrast === :high ? "_high_contrast" : "")
 get_color_variant(appearance::Appearance) =
-    get_color_variant(appearance.color_mode, appearance.color_contrast)
+    get_color_variant(get_color_mode(appearance), get_color_contrast(appearance))
 
 """
     make_color_theme(variant) -> ColorTheme
@@ -260,6 +260,73 @@ get_color_theme(appearance::Appearance) =
     appearance.color_themes[get_color_variant(appearance)]
 
 """
+    get_color_mode(appearance) -> Symbol
+    get_color_contrast(appearance) -> Symbol
+
+The mode, `:light` or `:dark`, and the contrast, `:normal` or `:high`, that the
+colours of `appearance` use: the setting, or for `:system` the setting of the
+operating system that `appearance.system_colors` holds. A mode that is not known
+is light, and a contrast that is not known is normal.
+"""
+function get_color_mode(appearance::Appearance)
+    mode = appearance.color_mode
+    mode === :system && (mode = appearance.system_colors.mode)
+    mode === :dark ? :dark : :light
+end
+function get_color_contrast(appearance::Appearance)
+    contrast = appearance.color_contrast
+    contrast === :system && (contrast = appearance.system_colors.contrast)
+    contrast === :high ? :high : :normal
+end
+
+"""
+    get_color_accent(appearance) -> Symbol
+
+The hue of the accent that the colours of `appearance` use: the setting, or for
+`:system` the hue that [`find_nearest_accent_hue`](@ref) finds for the accent of
+the operating system, and `:blue` when the system names no accent or a grey one.
+"""
+function get_color_accent(appearance::Appearance)
+    accent = appearance.color_accent
+    accent === :system || return accent
+    bytes = appearance.system_colors.accent
+    bytes === nothing && return :blue
+    color = StyleColor((Float64(byte) / 255 for byte in bytes)..., 1.0)
+    something(find_nearest_accent_hue(color, _get_appearance_palette(appearance),
+                                      get_color_mode(appearance)), :blue)
+end
+
+# The least chroma of a colour that has a hue; a colour with less is grey.
+const _LEAST_ACCENT_CHROMA = 0.04
+
+"""
+    find_nearest_accent_hue(color, palette, mode) -> Symbol or nothing
+
+The hue of `palette`, other than the neutral, whose solid step (step 9) in `mode`
+has the OKLCH hue angle nearest to that of `color`; `nothing` for a grey `color`,
+which has no hue.
+"""
+function find_nearest_accent_hue(color::StyleColor, palette::Palette, mode::Symbol)
+    _, chroma, angle = convert_color_to_oklch(color)
+    chroma < _LEAST_ACCENT_CHROMA && return nothing
+    nearest, nearest_distance = nothing, Inf
+    for hue in PALETTE_HUES
+        hue === :neutral && continue
+        ramp = find_palette_ramp(palette, hue, mode)
+        ramp === nothing && continue
+        _, _, hue_angle = convert_color_to_oklch(ramp[9])
+        distance = abs(mod(angle - hue_angle + 180, 360) - 180)
+        distance < nearest_distance && ((nearest, nearest_distance) = (hue, distance))
+    end
+    nearest
+end
+
+# The palette of `appearance`, or the default palette when the registry holds no
+# palette of its name.
+_get_appearance_palette(appearance::Appearance) =
+    something(find_palette(appearance.color_palette), find_palette(DEFAULT_PALETTE_NAME))
+
+"""
     resolve_theme_color(color, appearance) -> StyleColor
 
 The colour that the [`ThemeColor`](@ref) `color` gives in `appearance`: a
@@ -271,9 +338,8 @@ it follows a change of each of these.
 """
 resolve_theme_color(color::StyleColor, ::Appearance) = color
 function resolve_theme_color(color::PaletteColor, appearance::Appearance)
-    palette = something(find_palette(appearance.color_palette), find_palette(DEFAULT_PALETTE_NAME))
-    compute_palette_color(palette, color, appearance.color_mode === :dark ? :dark : :light;
-                          neutral = appearance.color_neutral, accent = appearance.color_accent)
+    compute_palette_color(_get_appearance_palette(appearance), color, get_color_mode(appearance);
+                          neutral = appearance.color_neutral, accent = get_color_accent(appearance))
 end
 function resolve_theme_color(color::ColorRole, appearance::Appearance)
     value = color

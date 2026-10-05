@@ -8,6 +8,7 @@ fine-tunes.
 
 using Test
 using ProjecturedPlatform.StyleModule
+using ProjecturedKernel.EventModule: SystemColors
 
 @theme struct ThColored
     font::StyleFont = StyleFont("Ubuntu", 14)
@@ -37,7 +38,7 @@ function test_color_theme()
     @test "radix" in get_palette_names()
     palette = find_palette("radix")
     @test palette === RADIX_PALETTE
-    for mode in COLOR_MODES, hue in PALETTE_HUES
+    for mode in (:light, :dark), hue in PALETTE_HUES
         ramp = find_palette_ramp(palette, hue, mode)
         @test ramp isa NTuple{12,StyleColor}
     end
@@ -77,7 +78,7 @@ end
 end
 
 @testset "each palette meets the contrast rules in each mode and contrast" begin
-    for name in get_palette_names(), mode in COLOR_MODES, contrast in COLOR_CONTRASTS
+    for name in get_palette_names(), mode in (:light, :dark), contrast in (:normal, :high)
         appearance = Appearance(color_palette = name, color_mode = mode, color_contrast = contrast)
         color(role) = resolve_theme_color(ColorRole(role), appearance)
         for (roles, surfaces, normal, high) in _CONTRAST_RULES, role in roles, surface in surfaces
@@ -94,7 +95,7 @@ end
 end
 
 @testset "the selection ring and the focus ring differ in each variant" begin
-    for mode in COLOR_MODES, contrast in COLOR_CONTRASTS
+    for mode in (:light, :dark), contrast in (:normal, :high)
         appearance = Appearance(color_mode = mode, color_contrast = contrast)
         @test resolve_theme_color(ColorRole(:selection_ring), appearance) !=
               resolve_theme_color(ColorRole(:focus_ring), appearance)
@@ -155,6 +156,40 @@ end
     @test get_theme_value(ThColored(), :key) == resolve_theme_color(ColorRole(:field), Appearance())
 end
 
+@testset "a :system setting follows the colour settings of the system" begin
+    appearance = Appearance()
+    @test (appearance.color_mode, appearance.color_contrast) === (:system, :system)
+    # With no answer of a backend, the system is light and normal.
+    @test get_color_variant(appearance) === :light
+    scaled = make_scaled_theme(ThColored(), appearance)
+    light_key = scaled.key
+    appearance.system_colors = SystemColors(; mode = :dark, contrast = :high)
+    @test (get_color_mode(appearance), get_color_contrast(appearance)) === (:dark, :high)
+    @test get_color_variant(appearance) === :dark_high_contrast
+    @test resolve_theme_color(ColorRole(:background), appearance) ==
+          resolve_theme_color(ColorRole(:background), Appearance(color_mode = :dark, color_contrast = :high))
+    @test scaled.key != light_key
+    # A setting that names a mode or a contrast does not follow the system.
+    appearance.color_mode = :light
+    appearance.color_contrast = :normal
+    @test get_color_variant(appearance) === :light
+    @test scaled.key == light_key
+    # The accent of the system takes the hue whose step 9 is nearest.
+    appearance.color_accent = :system
+    @test get_color_accent(appearance) === :blue              # the system names no accent
+    for (bytes, hue) in (((0xe5, 0x48, 0x4d), :red),         # step 9 of the Radix red
+                         ((0xaf, 0x52, 0xde), :violet),      # the purple of macOS
+                         ((0x21, 0x90, 0xa4), :teal),        # the teal of GNOME
+                         ((0x8e, 0x8e, 0x93), :blue))        # graphite, a grey
+        appearance.system_colors = SystemColors(; accent = bytes)
+        @test get_color_accent(appearance) === hue
+    end
+    appearance.system_colors = SystemColors(; accent = (0xaf, 0x52, 0xde))
+    @test resolve_theme_color(PaletteColor(:accent, 9), appearance) ==
+          find_palette_ramp(RADIX_PALETTE, :violet, :light)[9]
+    @test find_nearest_accent_hue(color_gray127, RADIX_PALETTE, :light) === nothing
+end
+
 @testset "save and load keep the colour settings, the fine-tunes and a role of a field" begin
     mktempdir(; prefix = "color-theme-") do directory
         path = joinpath(directory, "appearance.toml")
@@ -169,6 +204,7 @@ end
         text = read(path, String)
         @test occursin("color_mode = \"dark\"", text)
         @test !occursin("background", text)       # a role at its default is not saved
+        @test !occursin("system_colors", text)    # a fact of the system is not saved
 
         loaded = Appearance()
         set_theme!(loaded, ThColored())
@@ -185,10 +221,10 @@ end
         @test get_theme(loaded, ThColored).step == PaletteColor(:teal, 10)
         @test get_theme(loaded, ThColored).word == TextRole(:keyword; weight = 700)
 
-        # A mode that is not known takes the default.
+        # A mode that is not known takes the default, which follows the system.
         write(path, "color_mode = \"sepia\"\ncolor_contrast = \"high\"\n")
         load_appearance!(loaded, path)
-        @test loaded.color_mode === :light
+        @test loaded.color_mode === :system
         @test loaded.color_contrast === :high
         @test get_color_theme(loaded).keyword == make_color_theme(:light_high_contrast).keyword
     end
