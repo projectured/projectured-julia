@@ -2737,6 +2737,15 @@ _count_table_columns(columns::WidgetTableColumns) = columns.count
 _count_table_columns(columns::AbstractVector) = length(columns)
 _count_table_columns(columns) = nothing
 
+"""
+    get_widget_table_row_count(table) -> Int or nothing
+
+The count of the rows of `table`: the length of its data of the rows, or the
+count that its `WidgetTableRows` holds; `nothing` for rows that are a list.
+"""
+get_widget_table_row_count(table::WidgetTable) =
+    (rows = table.rows; rows isa WidgetTableRows ? rows.count : length(rows))
+
 # What the REPL and the answer of a tool show of a table: how many rows and
 # columns it has, and its column headers, which say what it holds. The rows are
 # in the tab, and a model that reads this answer can say how many there are

@@ -114,6 +114,7 @@ sized(; kw...) = WidgetTable(; column_policy = Fixed(60), row_policy = Fixed(16)
     @test by_columns.cell_order === :column_major
     @test by_rows.cell_order === :row_major
     @test by_columns.rows.count == rows
+    @test get_widget_table_row_count(by_columns) == get_widget_table_row_count(by_rows) == rows
     @test get_widget_table_column_count(by_columns) == columns
     row_io = print_document(rec, nothing, by_rows, context())
     column_io = print_document(rec, nothing, by_columns, context())
