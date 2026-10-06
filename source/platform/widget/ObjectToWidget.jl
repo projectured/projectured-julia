@@ -116,6 +116,7 @@ _value_kind(::Bool) = :bool                       # before Real: a Bool is a che
 _value_kind(::AbstractString) = :string
 _value_kind(::Real) = :real
 _value_kind(::AbstractVector) = :vector
+_value_kind(::CellVector) = :vector
 _value_kind(::Tuple) = :vector
 function _value_kind(v)
     # Recurse only into "document-like" structs — those carrying reactive `Cell`

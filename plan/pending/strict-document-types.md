@@ -521,6 +521,24 @@ worktree. The three domains test different parts of the model:
       a list. The other ways were: the read of a list field gives a vector view over the cells
       (way 1, the list is then no document with a selection of its own), or option B, a field
       keeps the form that it gets.
+    - *Way 2, built (2026-10-06):* `CellVector{T}` has `eltype` `T` (so `collect` gives a
+      `Vector{T}`), `==` against an `AbstractVector` in both orders, and `vcat` (with the list
+      first) and `filter`, which answer a plain vector, as they do for a vector. The style slice
+      resolves a list document of theme colors (`scale_theme_value(::Document, …)`, through
+      `is_element_collection` and `eltype`), and `ObjectToWidget` draws a `CellVector` as a
+      vector. An operation that writes a plain vector into a list field wraps it into the list
+      too (`convert_written_value`), in every mode. The rule for code: read a list field through
+      the protocol of a list.
+    - *The variants (the owner's question):* the immutable and mutable variants of a schema with
+      a list field were wrong before `CellVector{T}` too: `ICFoo(items = [1, 2])` and
+      `MCFoo(…)` threw a `MethodError`, because nothing converts a plain vector into a list, and
+      they accepted a reactive list whose slots stay writable. Now a kind constructor wraps a
+      plain vector into the list of the field and copies it into cells of its own kind
+      (`copy_document(K, …)`): `ICProbeBag(items = [1, 2])` holds a list with `ImmutableCell`
+      storage.
+    - Tests after way 2: `test_chart()` 367, `test_dataframes()` 556, `test_appearance_tab()`
+      107, `test_object_to_widget()`, `test_object_field_to_widget()` and
+      `test_frame_statistics_feed()` 48 pass.
   - [x] **Group 5, a lazy list in a field declared `CellVector`.** `children` of
     `HorizontalLayout`, `VerticalLayout` and `GridLayout`, and the two header strips of
     `WidgetTable`, get a `ListNode`, a lazy list that a viewport reads from the middle. The

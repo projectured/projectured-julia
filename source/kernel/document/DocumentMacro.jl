@@ -107,9 +107,18 @@ _wrap_list_value(list_type, value) = value isa AbstractVector ? list_type(value)
 function _wrap_list_write(document, name::Symbol, value)
     value isa AbstractVector || return value
     declared_type = find_declared_field_type(typeof(document), name)
-    (declared_type === nothing || !_is_list_type(declared_type)) && return value
-    declared_type(value)
+    declared_type === nothing && return value
+    _wrap_list_value_of(declared_type, value)
 end
+
+# The form of an operation, which knows the declared type of its slot.
+_wrap_list_value_of(declared_type, value) =
+    value isa AbstractVector && _is_list_type(declared_type) ? declared_type(value) : value
+
+# A kind constructor of a variant (`ICFoo`, `MCFoo`) holds the list in its own kind:
+# a plain vector becomes the list of the field, copied into cells of the kind `K`.
+_wrap_list_value_of_kind(K, list_type, value) =
+    value isa AbstractVector ? copy_document(K, list_type(value)) : value
 
 # Per-field cell type parameters: `C1, C2, …`.
 _cell_params(plan) = [Symbol("C", i) for i in 1:length(plan.field_names)]
@@ -314,13 +323,15 @@ function _emit_kind_aliases(plan, arg_names; schema::Symbol = plan.name,
     # parameter is not inferable from an untyped argument, so the head carries it
     # and the body names it, exactly as the bare constructor above does:
     # `ICFoo{A}(raw…)`. A schema with no parameter gets the plain `ICFoo(raw…)`.
+    kind_value(K, i, a) = _is_list_field_type(Tvals[i]) ?
+        :($(_wrap_list_value_of_kind)($K, $(Tvals[i]), $a)) : a
     kind_ctor(kname, K) = Expr(:(=),
         isempty(names) ? :($(kname)($(arg_names...))) :
             Expr(:where, :($(Expr(:curly, kname, names...))($(arg_names...))),
                  plan.parameters...),
         Expr(:call, isempty(names) ? plan.name :
                     Expr(:curly, plan.name, names...),
-            [:($a isa $(AbstractCell) ? $a : $(Expr(:curly, K, Tvals[i]))($a))
+            [:($a isa $(AbstractCell) ? $a : $(Expr(:curly, K, Tvals[i]))($(kind_value(K, i, a))))
              for (i, a) in enumerate(arg_names)]...))
     # A kind constructor also takes every field but the mouse target, which it
     # fills with `nothing`, as the bare name does: a caller that passes every

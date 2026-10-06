@@ -89,6 +89,17 @@ end
 
 find_declared_element_type(::CellVector{T}) where {T} = T
 
+# A list reads as a vector of its element type where code uses it as one: `collect`
+# gives a `Vector{T}`, and a list equals a vector that has the same elements.
+Base.eltype(::Type{<:CellVector{T}}) where {T} = T
+Base.:(==)(list::CellVector, vector::AbstractVector) =
+    length(list) == length(vector) && all(i -> list[i] == vector[i], eachindex(vector))
+Base.:(==)(vector::AbstractVector, list::CellVector) = list == vector
+# `vcat` and `filter` of a list answer a plain vector of its elements, as they do
+# for a vector; `vcat` would otherwise take the whole list as one element.
+Base.vcat(list::CellVector, rest...) = vcat(collect(list), rest...)
+Base.filter(f, list::CellVector) = filter(f, collect(list))
+
 # A plain vector given to a field declared `ListDocument` becomes a `CellVector`.
 ListDocument(items::AbstractVector) = CellVector(items)
 is_collection_field_type(::Val{:ListDocument}) = true

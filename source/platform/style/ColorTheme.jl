@@ -402,3 +402,8 @@ scale_theme_value(color::Union{PaletteColor, ColorRole}, appearance::Appearance)
     resolve_theme_color(color, appearance)
 scale_theme_value(colors::AbstractVector{<:ThemeColor}, appearance::Appearance) =
     StyleColor[resolve_theme_color(color, appearance) for color in colors]
+# A list document of colours, which the reactive layout holds for a field declared
+# `Vector{ThemeColor}`, takes the colour of each as a vector does.
+scale_theme_value(colors::Document, appearance::Appearance) =
+    is_element_collection(colors) && eltype(colors) <: ThemeColor ?
+        StyleColor[resolve_theme_color(color, appearance) for color in colors] : colors

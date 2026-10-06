@@ -264,6 +264,8 @@ the check: a refusal throws in the mode `:throw`, is recorded in the mode
 `:record`, and in both `:record` and `:off` the write takes `value` as it is.
 """
 function convert_written_value(owner, declared_type::Type, value; name = nothing)
+    # A plain vector for a list field becomes the list of the field, in every mode.
+    value = _wrap_list_value_of(declared_type, value)
     try
         return convert_to_declared_type(owner, declared_type, value; name)
     catch exception
