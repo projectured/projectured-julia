@@ -136,6 +136,7 @@ end
     KeyDown(:up; alt) => "Move the field to the row above" => _make_pivot_item_zone_move(doc, -1)
     KeyDown(:down; alt) => "Move the field to the row below" => _make_pivot_item_zone_move(doc, 1)
     KeyDown(:delete) => "Take the field out of its row" => _make_pivot_item_removal(doc)
+    splice(_PIVOT_MENU)
 end
 
 # ── The drop ─────────────────────────────────────────────────────────────────

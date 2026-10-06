@@ -934,7 +934,7 @@ function _print_vector_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w
     header_grid = column_header_pane === nothing ? nothing : column_header_pane.content_iomap
     measured = levels.column_levels > 0 ? _measure_level_header_runs(recursion, w, levels, beside) : nothing
     get_header(c) = header_grid === nothing ? nothing :
-                    levels.column_levels > 0 ? _get_level_header_width(levels, header_grid, measured, c, hgap) :
+                    levels.column_levels > 0 ? _LevelHeaderWidth(levels, header_grid, measured, c, hgap) :
                                                header_grid.child_iomaps[c][3]
     policies = Cell(@computation Any[_get_cells_column_policy(w, c, get_header(c)) for c in 1:n])
     grid = GridLayout(_get_row_list(w), Cell(n), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap),

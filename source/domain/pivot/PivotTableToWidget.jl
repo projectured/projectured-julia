@@ -16,7 +16,9 @@ zones, and a `WidgetTable` of the cross table.
 The bar has a row for each zone, in the order Fields, Columns, Rows, Cells and
 Values: the name of the zone, and a badge for each dimension or measure in it.
 An empty Values row shows the count, which is what a cell computes then. The
-badge of the selected item is filled and the others are muted. A press on a
+Cells row starts with an outlined badge that names the view of the cells, which
+the menu of the pivot chooses. The badge of the selected item is filled and the
+others are muted. A press on a
 badge selects its item, and a drag of a badge moves the item: an outlined badge
 shows where the drop puts it. The keys of the gesture table of the pivot move
 the selected item.
@@ -26,7 +28,13 @@ of a column holds one label for each column dimension, and a header of a row one
 label for each row dimension, so the table draws the levels of the headers and
 merges their runs. The corner names the row dimensions. With no column
 dimension, the one column is headed by the names of the measures; with no row
-dimension, the one row is headed `all`. Each row is `row_height` tall.
+dimension, the one row is headed `all`. Each row is as tall as the lines that
+the view of the cells takes (`get_pivot_cell_view_lines`), each `row_height`
+tall.
+
+An edit in a cell, such as a value of a row of a data frame, changes the source,
+so the reader adds a write of `source_version` to it, and the pivot computes its
+parts again.
 
 A path of the pivot maps to the table and back: `cells[r][c]…` is the cell in
 row `r` and column `c`, and `cells[r]` the row. `<zone>[i]` is the badge of
@@ -97,7 +105,8 @@ end
 
 # What the row of the zone `field` shows, badge by badge: the place of an item,
 # `(:drop, place)` for the outlined badge where a drop of the dragged item puts
-# it, and `:count` for the outlined badge of an empty Values row.
+# it, `:count` for the outlined badge of an empty Values row, and `:view` for the
+# outlined badge that names the view of the cells, first in the Cells row.
 function _get_pivot_zone_entries(pivot::PivotTable, field::String)
     entries = Any[index for index in 1:length(_get_pivot_zone(pivot, field))]
     drag = pivot.drag
@@ -106,7 +115,15 @@ function _get_pivot_zone_entries(pivot::PivotTable, field::String)
         insert!(entries, place, (:drop, drag.target[2]))
     end
     (isempty(entries) && field == "measures") && push!(entries, :count)
+    field == "cell_dimensions" && pushfirst!(entries, :view)
     entries
+end
+
+# The name of the view of the cells of `pivot`, which says when the view is the
+# automatic one.
+function _describe_pivot_cells(pivot::PivotTable)
+    name = "as " * describe_pivot_cell_view(typeof(get_pivot_cell_view(pivot)).name.wrapper)
+    pivot.cell_view === nothing ? name * " (automatic)" : name
 end
 
 # The badges of the zone in the field `field` of `pivot`.
@@ -122,6 +139,8 @@ function _make_pivot_zone_row(p::PivotTableToWidget, pivot::PivotTable, field::S
             push!(chips, badge)
         elseif entry === :count
             push!(chips, WidgetBadge("count"; variant = :outline))
+        elseif entry === :view
+            push!(chips, WidgetBadge(() -> _describe_pivot_cells(pivot); variant = :outline))
         else
             from, index = pivot.drag.source
             push!(chips, WidgetBadge(_describe_pivot_zone_item(_get_pivot_zone(pivot, from)[index]);
@@ -151,7 +170,11 @@ function _make_pivot_table_widget(p::PivotTableToWidget, pivot::PivotTable)
     # tooltip.
     WidgetTable(Cell(Point2D(0, 0)), headers, row_headers, corner, rows,
                 Cell(:row_major), Cell(WidgetTableRows(nothing)), columns, Cell(1),
-                Cell(_PIVOT_COLUMN_POLICY), Cell(Fixed(p.row_height)), Cell(:clip),
+                Cell(_PIVOT_COLUMN_POLICY),
+                Cell(@computation Fixed(p.row_height * get_pivot_cell_view_lines(get_pivot_cell_view(pivot)))),
+                # A number is cut at the edge of its column; any other view, such as a
+                # table, is offered the width of its column and fills it.
+                Cell(@computation get_pivot_cell_view(pivot) isa PivotNumberView ? :clip : :wrap),
                 Cell(true), Cell(nothing), Cell(nothing), Cell(nothing),
                 Cell(nothing), Cell(Point2D(0, 0)), Cell(1), Cell(nothing),
                 Cell(nothing), Cell(nothing),
@@ -166,7 +189,7 @@ _make_pivot_key_labels(key::Tuple) = CellVector(Any[format_pivot_value(value) fo
 function _make_pivot_column_headers(pivot::PivotTable)
     cross = pivot.cross_table
     isempty(pivot.column_dimensions) &&
-        return Any[join((describe_pivot_measure(measure) for measure in get_pivot_measures(pivot)), "  ")]
+        return Any[WidgetLabel(join((describe_pivot_measure(measure) for measure in get_pivot_measures(pivot)), "  "))]
     Any[_make_pivot_key_labels(key) for key in cross.column_keys]
 end
 
@@ -174,6 +197,9 @@ end
 # of its key, or `all` for the one row of a pivot with no row dimension. A pivot
 # with no row has an empty vector.
 function _make_pivot_row_header_list(pivot::PivotTable)
+    # A new view of the cells changes the height of the rows, which a row reads
+    # when it is built, so the list is built again.
+    get_pivot_cell_view(pivot)
     cross = pivot.cross_table
     count = get_pivot_row_count(cross)
     count == 0 && return CellVector()
@@ -190,6 +216,7 @@ _make_pivot_corner(pivot::PivotTable) =
 # The rows of the table as a list: row `k` holds the document of each of its
 # cells. A pivot with no row has an empty vector.
 function _make_pivot_row_list(pivot::PivotTable)
+    get_pivot_cell_view(pivot)
     cross = pivot.cross_table
     count = get_pivot_row_count(cross)
     count == 0 && return CellVector()
@@ -370,6 +397,11 @@ function read_intent(p::PivotTableToWidget, recursion, change::Intent, iomap::Pi
     (drag !== nothing && !drag.started && gesture isa MouseUp) &&
         return Intent(gesture, _write_pivot_drag(pivot, nothing))
     answer = invoke(read_intent, Tuple{Projection,Any,Intent,Any}, p, recursion, change, iomap)
+    operation = answer isa Intent ? answer.operation : answer
+    if operation !== nothing && _is_pivot_source_edit(operation)
+        version = ReplaceReferencedValueOperation(pivot, "source_version", pivot.source_version + 1)
+        answer = Intent(gesture, _join_pivot_operations(operation, version))
+    end
     if drag !== nothing && !drag.started && gesture isa MouseMove && !is_move_without_button(gesture) &&
        hypot(gesture.x - drag.x, gesture.y - drag.y) >= _PIVOT_DRAG_THRESHOLD
         start = _join_pivot_operations(_write_pivot_drag(pivot, merge(drag, (started = true,))),
@@ -393,6 +425,14 @@ function _find_pivot_drop_target(pivot::PivotTable, target, before)
     zone === nothing && return before
     (zone, length(_get_pivot_zone(pivot, zone)) + 1)
 end
+
+# Whether `operation`, the answer of the table, edits the data: anything but a
+# selection, the part under the pointer, view state, the start of a drag and a
+# timer. An edit in a cell writes the source, which no cell of the pivot reads.
+_is_pivot_source_edit(operation::CompoundOperation) = any(_is_pivot_source_edit, operation.operations)
+_is_pivot_source_edit(::Union{ReplaceSelectionOperation,ReplaceMouseTargetOperation,ReplaceViewStateOperation,
+                              StartDragOperation,SetTimerOperation,DoNothingOperation}) = false
+_is_pivot_source_edit(::Any) = true
 
 # A write of the state of the drag, which a history does not record.
 _write_pivot_drag(pivot::PivotTable, drag) =

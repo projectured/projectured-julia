@@ -38,3 +38,12 @@ size. The table of a pivot scrolls its own rows, so it needs an offered height,
 and the pane gives it one wherever the pivot is drawn.
 """
 make_pivot_pane_document_example() = WidgetScrollPane(make_pivot_document_example(); size = Point2D(820, 420))
+
+"""
+    make_pivot_part_table_document_example() -> PivotPartTable
+
+Three rows of the sales, in three of their columns: what a cell of the rows view
+of a pivot shows.
+"""
+make_pivot_part_table_document_example() =
+    PivotPartTable(make_table_part(make_pivot_sales_rows(), [1, 9, 17]), ["country", "quarter", "amount"])

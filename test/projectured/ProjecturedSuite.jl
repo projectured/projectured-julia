@@ -113,6 +113,7 @@ using ProjecturedOllamaTest
 using ProjecturedDataFramesTest
 # A pivot of a data frame names two packages that do not depend on each other.
 import DataFrames
+import ProjecturedDataFrames
 # The suites of the console, PDF and web backends and of the MCP server.
 using ProjecturedConsoleTest
 using ProjecturedPDFTest

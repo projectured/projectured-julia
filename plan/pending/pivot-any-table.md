@@ -566,10 +566,38 @@ and chips that move. Stages 6 and 7 complete the design of the request.
   - Tests: `test_pivot_zone_edits()` (31): the operations and their inverses,
     and a press, the keys and three drags in a real editor (`HeadlessBackend`).
     `test_pivot()`: 175.
-- [ ] **6. The cell views.** The view menu and the automatic rule. A sub-table
+- [x] **6. The cell views.** The view menu and the automatic rule. A sub-table
   cell: the generic table of the part, and the `DataFrameView` of the
   `SubDataFrame` in the adapter. A closed card shows "123 rows". The test: an
-  edit in a sub-table cell writes the frame, and undo takes it back.
+  edit in a sub-table cell writes the frame, and undo takes it back. **Done 2026-10-06.**
+  - `PivotRowsView` shows the rows of a part in the columns of the cell
+    dimensions. The automatic rule now gives numbers with no cell dimension and
+    rows with cell dimensions; stage 7 adds the charts to it.
+  - A seam in the collection slice, `make_table_document(table, columns)`,
+    gives the document of a part (P9): `nothing` by default, and a
+    `DataFrameView` with the other columns hidden in the DataFrames adapter.
+    Any other source gives a `PivotPartTable`, a document of the pivot domain,
+    which `PivotPartTableToWidget` draws with the row height of the theme; a
+    widget made on the document side could not know that height.
+  - No card with "123 rows": the corner of the table of a part shows the count
+    of its rows, and a card in a row of a fixed height would only hide it.
+  - The key of a cell document also holds what the view depends on
+    (`get_pivot_cell_key`): the rows and the columns for a table, so a row that
+    an edit moves to another cell gives both cells new documents.
+  - A view that is not numbers gets the `:wrap` cell policy, so its column
+    offers it a width. That made the width of a leveled header depend on its
+    column, and reading it as a floor made a cycle; the floor now reads it only
+    when the policy needs it (`_LevelHeaderWidth`), as a header with no levels is
+    read.
+  - The menus: a right click on a measure chooses its aggregate (the menu that
+    stage 5 left), and on the pivot the view of the cells.
+    `collect_pivot_cell_views()` reads the method table of
+    `describe_pivot_cell_view`, because the direct subtypes of `PivotCellView`
+    are the abstract families of `@document` and give no constructor.
+  - An edit in a cell moves `source_version`, in the same step of undo.
+  - Tests: `test_pivot_cell_views()`; `test_pivot()`: 204;
+    `test_pivot_data_frame()` with a cell of a data frame, its edit and the
+    inverse; the atom `pivot/part_table`.
 - [ ] **7. Charts in cells.** A compact chart style for a cell, with no title,
   no legend and few ticks. A floor below 120 × 80. Shared scales across the
   cells. The bar view and the line view, and a new pie series in the chart

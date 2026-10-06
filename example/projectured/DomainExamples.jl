@@ -412,6 +412,7 @@ const domain_atomic_documents = AtomicDocument[
     AtomicDocument(:process, "terminal",   make_process_terminal_document_example),
     AtomicDocument(:process, "edge_label", make_process_edge_label_document_example),
     AtomicDocument(:pivot, "table",        make_pivot_document_example),
+    AtomicDocument(:pivot, "part_table",   make_pivot_part_table_document_example),
     AtomicDocument(:conversation, "conversation", make_conversation_conversation_document_example),
     AtomicDocument(:conversation, "draft",        make_conversation_draft_document_example),
     AtomicDocument(:conversation, "part",         make_conversation_part_document_example),

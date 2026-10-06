@@ -176,8 +176,19 @@ function _get_level_header_width(levels::_TableHeaderLevels, header_grid, measur
     width
 end
 
-# A width that a part already knows, as the IO map of a header gives one.
-_get_part_child_width(width::Int) = width
+# The headers of column `c` as the floor of its width reads them: the width is
+# read only when the floor is, because a column whose cells wrap offers its width
+# to its headers, and then their width depends on the column and is no floor.
+struct _LevelHeaderWidth
+    levels::_TableHeaderLevels
+    header_grid::Any
+    measured::Dict{Int,Any}
+    column::Int
+    horizontal_gap::Int
+end
+
+_get_part_child_width(width::_LevelHeaderWidth) =
+    _get_level_header_width(width.levels, width.header_grid, width.measured, width.column, width.horizontal_gap)
 
 # The level of the header row at `y`, in the coordinates of its rules: the rule
 # above level `l` is at the top of row `l` of its grid.

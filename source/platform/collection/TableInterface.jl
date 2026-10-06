@@ -130,3 +130,15 @@ get_table_column_type(columns::NamedTuple, column::AbstractString) = eltype(getp
 get_table_value(columns::NamedTuple, row::Integer, column::AbstractString) =
     getproperty(columns, Symbol(column))[row]
 find_table_column(columns::NamedTuple, column::AbstractString) = getproperty(columns, Symbol(column))
+
+# ── The document of a table ──────────────────────────────────────────────────
+
+"""
+    make_table_document(table, columns::Vector{String}) -> Union{Document, Nothing}
+
+The document that shows the columns `columns` of `table` as a table, made by the
+package that owns the kind of table; `nothing` when no package gives one, and
+the caller then shows the table in its own way. `ProjecturedDataFrames` gives a
+`DataFrameView` of a data frame, so an edit in it writes the frame.
+"""
+make_table_document(::Any, ::Vector{String}) = nothing

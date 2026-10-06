@@ -36,5 +36,24 @@ drawn = Set(t[3] for t in ProjecturedPivotTest._pivot_texts(print_document(proje
 @test "EU" in drawn && "NY" in drawn && "2024" in drawn && "Q4" in drawn
 @test "99" in drawn
 
+# A cell of the rows view is a view of the part of the frame, with the columns of
+# the cell dimensions, and an edit in it writes the frame and has an inverse.
+rows_pivot = make_pivot_table(frame; rows = ["region"], columns = ["year"], cells = ["country", "amount"])
+cell = rows_pivot.cells[1][1]
+@test cell isa ProjecturedDataFrames.DataFrameView
+@test sort(cell.query.hidden_columns) == ["product", "quarter", "region", "year"]
+@test parent(cell.frame) === frame
+row = first(find_pivot_part_rows(rows_pivot.cross_table, 1, 1))
+before = frame[row, "amount"]
+edit = ProjecturedDataFrames.DataFramesModule.SetDataFrameValueOperation(cell, 1, "amount", 1000.0)
+inverse = make_inverse_operation(cell, edit)
+evaluate_operation(nothing, edit)
+@test frame[row, "amount"] == 1000.0
+evaluate_operation(nothing, inverse)
+@test frame[row, "amount"] == before
+rows_drawn = Set(t[3] for t in ProjecturedPivotTest._pivot_texts(print_document(projection, nothing, rows_pivot,
+                                                                                context).output))
+@test "country :: String" in rows_drawn && "DE" in rows_drawn
+
 end
 end

@@ -62,6 +62,30 @@ of its rows when the pivot has no measure.
 end
 
 """
+    PivotRowsView()
+
+A cell shows the rows of its part as a table: the columns that the cell
+dimensions name, or every column when there is no cell dimension. A data frame
+shows its part as a `DataFrameView`, so an edit in the cell writes the frame.
+"""
+@document struct PivotRowsView <: PivotCellView
+end
+
+"""
+    PivotPartTable(part, columns)
+
+The columns `columns` of `part`, a table of the table interface, shown as a
+read-only table: what a cell of the rows view shows when the package of the
+source has no document of its own for it.
+"""
+@document struct PivotPartTable <: PivotDocument
+    part::Any
+    columns::Vector{String}
+end
+
+PivotPartTable(part, columns::Vector{String}) = PivotPartTable(part, columns, nothing)
+
+"""
     PivotTable
 
 A table cut into parts by the values of its dimensions, and the view of each

@@ -13,6 +13,7 @@ ProjecturedChartTest = "c5b98bcf-e28d-4a35-99f8-6857f35710ad"
 ProjecturedConsoleTest = "0f41fec8-bd22-4fa0-a125-3c10d745f6e8"
 ProjecturedConversationExample = "347e843b-c443-43c2-b8df-78595927ced1"
 ProjecturedDBCatalogTest = "3273370f-c929-4bc9-ba87-1db3095df6c3"
+ProjecturedDataFrames = "56a0c30a-96eb-4614-b42e-73838bfa8222"
 ProjecturedDataFramesTest = "b1aceadc-a635-48bd-837b-c4a6ec3ad7cd"
 ProjecturedDatabaseTest = "8fa9f7e0-53e6-4165-9444-bc8617d011dc"
 ProjecturedExample = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
@@ -64,6 +65,7 @@ ProjecturedChartTest = {path = "../ProjecturedChartTest"}
 ProjecturedConsoleTest = {path = "../ProjecturedConsoleTest"}
 ProjecturedConversationExample = {path = "../ProjecturedConversationExample"}
 ProjecturedDBCatalogTest = {path = "../ProjecturedDBCatalogTest"}
+ProjecturedDataFrames = {path = "../ProjecturedDataFrames"}
 ProjecturedDataFramesTest = {path = "../ProjecturedDataFramesTest"}
 ProjecturedDatabaseTest = {path = "../ProjecturedDatabaseTest"}
 ProjecturedFSMTest = {path = "../ProjecturedFSMTest"}

@@ -57,7 +57,16 @@ The cost, measured on 2026-10-06 with a data frame and three dimensions of 4, 40
 
 A path names a cell of a pivot by its row and its column in the cross table: `cells[r][c]`, and `cells[r]` names the row. `PivotCells` and `PivotCellRow` are what the path steps through, as the rows of a data frame view are. The document of a cell is made by the view of the pivot when a path or the table first reaches it, and `PivotCells` keeps it by the key of its row, the key of its column and the kind of the view. So a change of the pivot that keeps both keys keeps the document, and a selection inside it. A new cross table drops the documents of the keys that it does not have.
 
-`get_pivot_cell_view(pivot)` is the kind of view of the cells: the `cell_view` of the pivot, or the one that follows from its cell dimensions. `PivotNumberView` shows the value of each measure of the part, with `format_pivot_value`: a whole number with no fraction, any other number with at most two decimal places. A cell that no row reaches is empty. A pivot with no measure shows the count of the rows.
+`get_pivot_cell_view(pivot)` is the kind of view of the cells: the `cell_view` of the pivot, or the one that follows from its cell dimensions. With no cell dimension the cells show numbers, and with cell dimensions they show rows. The kinds:
+
+- `PivotNumberView` shows the value of each measure of the part, with `format_pivot_value`: a whole number with no fraction, any other number with at most two decimal places. A pivot with no measure shows the count of the rows.
+- `PivotRowsView` shows the rows of the part as a table, in the columns of the cell dimensions, or in every column when there is none. The package of the source gives the table through the seam `make_table_document` of the collection slice: a data frame gives a `DataFrameView` of its `SubDataFrame`, so an edit in the cell writes the frame. Any other source gives a `PivotPartTable`, which `PivotPartTableToWidget` draws as a read-only table whose rows are a list. The corner of the table shows the count of the rows of the part.
+
+A cell that no row reaches is empty. A row of the table is as tall as the lines that the view takes, `get_pivot_cell_view_lines`: one for numbers, ten for rows. Any view but numbers is offered the width of its column (the `:wrap` cell policy). `get_pivot_cell_key` says what the document of a cell depends on beside its keys: nothing for numbers, which read their part when they draw, and the rows and the columns for a table, which are fixed when it is made.
+
+**The menus.** A right click on a measure chooses its aggregate. A right click on the pivot chooses the view of the cells: the automatic one, or a kind. `collect_pivot_cell_views()` lists the kinds from the method table of `describe_pivot_cell_view`, so a kind that a package adds is in the menu with no registry. The Cells row of the bar starts with an outlined badge that names the view, such as `as rows (automatic)`.
+
+**An edit in a cell.** An edit in a cell changes the source, which no computation of the pivot reads, so the reader of the view adds a write of `source_version` to any answer of the table that is not a selection, view state or a part of a drag. The pivot then computes its parts again.
 
 ### The view
 

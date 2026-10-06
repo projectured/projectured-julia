@@ -11,13 +11,33 @@
 
 The view of each cell of `pivot`: its `cell_view`, or, when that is `nothing`,
 the view that follows from its cell dimensions. With no cell dimension, a cell
-shows its measures as numbers.
+shows its measures as numbers; with cell dimensions, it shows the rows of its
+part in those columns.
 """
 function get_pivot_cell_view(pivot::PivotTable)
     view = pivot.cell_view
     view isa PivotCellView && return view
-    PivotNumberView()
+    isempty(pivot.cell_dimensions) ? PivotNumberView() : PivotRowsView()
 end
+
+"""
+    describe_pivot_cell_view(view::Type{<:PivotCellView}) -> String
+
+The name of a kind of view of a cell for a person, as the menu of the cell view
+and the Cells row of the bar show it.
+"""
+describe_pivot_cell_view(::Type{PivotNumberView}) = "numbers"
+describe_pivot_cell_view(::Type{PivotRowsView}) = "rows"
+describe_pivot_cell_view(type::Type{<:PivotCellView}) = string(nameof(type))
+
+"""
+    get_pivot_cell_view_lines(view::PivotCellView) -> Int
+
+How many lines of text a row of the table gives to a cell that shows `view`.
+"""
+get_pivot_cell_view_lines(::PivotNumberView) = 1
+get_pivot_cell_view_lines(::PivotRowsView) = 10
+get_pivot_cell_view_lines(::PivotCellView) = 10
 
 """
     get_pivot_measures(pivot::PivotTable) -> Vector
@@ -69,8 +89,24 @@ function get_pivot_cell_document(pivot::PivotTable, row::Int, column::Int)
         pruned[] = cross
     end
     view = get_pivot_cell_view(pivot)
-    key = (cross.row_keys[row], cross.column_keys[column], typeof(view))
-    get!(() -> make_pivot_cell_document(pivot, view, key[1], key[2]), cells.documents, key)
+    row_key, column_key = cross.row_keys[row], cross.column_keys[column]
+    key = (row_key, column_key, typeof(view), get_pivot_cell_key(pivot, view, row_key, column_key))
+    get!(() -> make_pivot_cell_document(pivot, view, row_key, column_key), cells.documents, key)
+end
+
+"""
+    get_pivot_cell_key(pivot, view::PivotCellView, row_key, column_key)
+
+What the document of a cell depends on beside its keys and the kind of its view,
+as a part of the key that keeps it. A number reads its part when it draws, so
+it depends on nothing more; the rows of a part are fixed when its table is made,
+so a table depends on the rows and on its columns.
+"""
+get_pivot_cell_key(::PivotTable, ::PivotCellView, ::Tuple, ::Tuple) = nothing
+
+function get_pivot_cell_key(pivot::PivotTable, ::PivotRowsView, row_key::Tuple, column_key::Tuple)
+    rows = find_pivot_part_rows(pivot.cross_table, row_key, column_key)
+    (rows === nothing ? nothing : hash(rows), _get_pivot_cell_columns(pivot))
 end
 
 # Drop the documents of the keys that `cross` does not have.
@@ -90,6 +126,25 @@ The document that `view` makes for the cell with the keys `row_key` and
 and the measures of `pivot`.
 """
 function make_pivot_cell_document end
+
+# The columns that a table of a part shows: the columns of the cell dimensions,
+# or every column of the source.
+function _get_pivot_cell_columns(pivot::PivotTable)
+    columns = String[dimension.column for dimension in pivot.cell_dimensions]
+    isempty(columns) ? get_table_column_names(pivot.source) : columns
+end
+
+# The rows view: the part as a table, which the package of the source makes when
+# it has a document of its own, and a read-only `PivotPartTable` otherwise. A
+# cell that no row reaches is empty.
+function make_pivot_cell_document(pivot::PivotTable, ::PivotRowsView, row_key::Tuple, column_key::Tuple)
+    rows = find_pivot_part_rows(pivot.cross_table, row_key, column_key)
+    rows === nothing && return WidgetLabel("")
+    part = make_table_part(pivot.source, collect(rows))
+    columns = _get_pivot_cell_columns(pivot)
+    document = make_table_document(part, columns)
+    document === nothing ? PivotPartTable(part, columns) : document
+end
 
 # The number view: the value of each measure over the part, beside each other.
 # A cell that no row reaches is empty.

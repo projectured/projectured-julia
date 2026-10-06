@@ -38,7 +38,7 @@ export CollectionDocument, CellVector, CellMatrix, CellTable, ListNode,
        get_left_tail, get_right_tail, find_list_node, find_list_index, make_index_list, get_cell_at, take_first,
        count_computed_nodes, insert_row!, insert_column!, delete_row!, delete_column!
 export is_table, get_table_row_count, get_table_column_names, get_table_column_type,
-       get_table_value, find_table_column, make_table_part, TablePart
+       get_table_value, find_table_column, make_table_part, TablePart, make_table_document
 
 
 include("CellVector.jl")

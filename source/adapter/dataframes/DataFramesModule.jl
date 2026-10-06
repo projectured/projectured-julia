@@ -29,7 +29,7 @@ import ..DomainModule: compute_context_menu
 import ..NavigatorModule: is_navigator_stop, find_navigator_choices
 import ..WidgetModule: make_value_document, make_graphics_projection, refresh_document!
 import ..CollectionModule: is_table, get_table_row_count, get_table_column_names, get_table_column_type,
-                           get_table_value, find_table_column, make_table_part
+                           get_table_value, find_table_column, make_table_part, make_table_document
 
 export DataFrameColumnFilter, DataFrameSortKey, DataFrameQuery
 export DataFrameView, jump_to_row, make_data_frame_cell
