@@ -12,13 +12,12 @@ function test_workspace_to_filesystem()
         projection = ChainingProjection(RecursiveProjection(WorkspaceToFileSystem()),
                                         RecursiveProjection(FileSystemToWidget()))
         iomap = print_document(projection, workspace)
-        pane = iomap.output
-        tree = pane.content
+        tree = iomap.output
         shown(path) = repr(strip_reference_types(path))
         read_back(path) = read_intent(projection, iomap, ReplaceSelectionOperation(path))
 
         # `sub/c.jl` is the first entry of the third entry of the root.
-        operation = read_back(@reference(pane, content.roots[1].children[3].children[1]))
+        operation = read_back(@reference(tree, roots[1].children[3].children[1]))
         @test operation isa ReplaceSelectionOperation
         steps = get_reference_steps(operation.path)
         @test shown(foldr(ConcreteReference, steps[1:2]; init = EmptyReference())) == ".folders[1]"
@@ -28,7 +27,7 @@ function test_workspace_to_filesystem()
         @test shown(tree.selection) == ".roots[1].children[3].children[1]"
 
         # The root row is the folder as a whole, both ways.
-        root = read_back(@reference(pane, content.roots[1]))
+        root = read_back(@reference(tree, roots[1]))
         @test shown(root.path) == ".folders[1]"
         replace_selection!(workspace, root.path)
         @test shown(tree.selection) == ".roots[1]"
@@ -40,7 +39,7 @@ function test_workspace_to_filesystem()
 
         # The part under the pointer takes the same way: the pointer on the row of
         # `sub/c.jl` maps back to the folder, and the tree holds that row.
-        row = @reference(pane, content.roots[1].children[3].children[1])
+        row = @reference(tree, roots[1].children[3].children[1])
         target = read_intent(projection, iomap, ReplaceMouseTargetOperation(row))
         @test target isa ReplaceMouseTargetOperation
         @test shown(target.path) == shown(operation.path)

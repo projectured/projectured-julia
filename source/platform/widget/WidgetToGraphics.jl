@@ -8949,6 +8949,150 @@ function read_intent(p::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetSpinBoxToGra
     end
 end
 
+# ── A list and a tree that scroll themselves ────────────────────────────────
+#
+# A list and a tree that get a slot on the vertical axis fill it and scroll their
+# rows there, as a table does. The widget draws its box at the slot, and prints
+# itself again, as its rows alone, in a scroll pane of its own over the box: a
+# property of the context says that this print is the rows of the widget, so the
+# rows have no box and take no slot. The pane shares the offset and the fields of
+# the bars of the widget, and takes its padding, so a bar sits at the inner edge
+# of the border. The content of the pane is the widget itself, so a path of the
+# pane is a path of the widget without the step `content`.
+
+@iomap struct WidgetRowsPaneIoMap
+    projection::Any
+    input::Any
+    output::Any
+    pane::Any        # the IoMap of the pane of the rows
+    place::Any       # `(x, y)`: the place of the pane in the canvas of the widget
+end
+
+# The insets of rows that the box of their widget holds.
+const _NO_BOX_INSETS = (margin = (0, 0, 0, 0), border = (0, 0, 0, 0), padding = (0, 0, 0, 0))
+
+# Whether `w` prints as the rows of its own pane in `ctx`.
+_is_printed_as_rows(w, ctx) = ctx !== nothing && get_property(ctx, :rows_of) === w
+
+# Whether `w` scrolls its rows itself in `ctx`: it gets a slot on the vertical
+# axis, and it does not print as its rows.
+_scrolls_rows_itself(w, ctx) =
+    ctx !== nothing && get_exact_height(ctx) !== nothing && !_is_printed_as_rows(w, ctx)
+
+# Where the rows of a list or a tree start in its canvas: past its box, or at the
+# origin for rows that the box of their widget holds.
+_get_rows_content_offset(p, iomap) = iomap.bare ? (0, 0) : _content_offset(p, iomap.input)
+
+# The mouse target of the pane of the rows of `w`: the bar that the mouse target
+# of `w` names, else the content, which is `w`, with the path of `w`.
+function _find_rows_pane_target(w)
+    target = get_mouse_target(w)
+    target === nothing && return nothing
+    (target isa ConcreteReference && target.head isa FieldReferenceStep &&
+     target.head.name in _PANE_BAR_FIELDS) && return ConcreteReference(target.head, EmptyReference())
+    ConcreteReference(FieldReferenceStep("content"), target)
+end
+
+function _print_rows_pane(p, recursion, w, ctx)
+    box = _get_box_insets(p, w)
+    colors = _get_box_colors(p, w)
+    left = box.margin[1] + box.border[1]
+    top = box.margin[2] + box.border[2]
+    right = box.margin[3] + box.border[3]
+    bottom = box.margin[4] + box.border[4]
+    # Positional: content, position, size, scroll_position, follow_end,
+    # vertical_scroll_bar, horizontal_scroll_bar, visible, margin, border,
+    # padding, style, tooltip, selection, mouse_target.
+    pane = WidgetScrollPane(Cell(w), Cell(nothing), Cell(nothing), getfield(w, :scroll_position), Cell(false),
+                            getfield(w, :vertical_scroll_bar), getfield(w, :horizontal_scroll_bar), Cell(true),
+                            Cell(nothing), Cell(nothing), Cell(_get_inset(w, p, :padding)),
+                            Cell(WidgetStyle(; content_color = color_transparent)), Cell(nothing),
+                            Cell(nothing), Cell(@computation _find_rows_pane_target(w)))
+    pane_ctx = with_property(with_inner_size(ctx; width = left + right, height = top + bottom), :rows_of, w)
+    pane_iomap = print_child(recursion, pane, pane_ctx)
+    drawn = pane_iomap.output
+    tx, ty = _inset_total(p, w)
+    width = Cell(@computation Int32(Int(drawn.w) + left + right))
+    height = Cell(@computation Int32(Int(drawn.h) + top + bottom))
+    content_width = Cell(@computation Int32(max(0, Int(width[]) - tx)))
+    content_height = Cell(@computation Int32(max(0, Int(height[]) - ty)))
+    elements = Any[]
+    _push_following_box_bands!(elements, box, colors, content_width, content_height)
+    cox, coy = _content_offset(p, w)
+    is_color_transparent(colors.content) ||
+        push!(elements, GraphicsRect(Cell(Int32(cox)), Cell(Int32(coy)), content_width, content_height,
+                                     Cell(colors.content),
+                                     Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)),
+                                     Cell(Int32(0)), Cell(color_transparent), Cell(nothing)))
+    # The pane is the last element, over the box.
+    push!(elements, GraphicsCanvas(Cell(Int32(left)), Cell(Int32(top)), getfield(drawn, :w), getfield(drawn, :h),
+                                   CellVector(Cell[Cell(drawn)]), layout_none, true, Cell(nothing)))
+    px, py = _origin(w.position::Point2D)
+    canvas = GraphicsCanvas(Cell(Int32(px)), Cell(Int32(py)), width, height,
+                            CellVector(Cell[Cell(e) for e in elements]), layout_none, true, Cell(nothing))
+    WidgetRowsPaneIoMap(p, w, canvas, pane_iomap, (left, top))
+end
+
+# The answer of the pane of the rows to `evt`, a gesture in the frame of the
+# widget, with its paths as paths of the widget. The drag of the thumb of a bar
+# comes to the widget, wherever the pointer is, and goes on to the pane.
+function _read_rows_pane(p, iomap::WidgetRowsPaneIoMap, evt)
+    pane = iomap.pane
+    if evt isa Union{DragMove,DragEnd,DragCancel}
+        scroll = get_content_iomap(pane)
+        (scroll isa WidgetScrollPaneToGraphicsCanvasIoMap && _find_dragged_pane_bar(scroll) !== nothing) ||
+            return nothing
+    end
+    dx, dy = iomap.place
+    answer = read_intent(get_iomap_projection(pane), pane, shift_event_position(evt, -dx, -dy))
+    answer isa Operation || return nothing
+    _retarget_op(p, iomap, shift_operation_position(answer, dx, dy))
+end
+
+# A path of the pane of the rows of `w` as a path of `w`: the content of the pane
+# is `w`, a bar is a field of both, and the pane itself is `w`.
+function _strip_rows_pane_path(w, reference)
+    path = strip_reference_types(reference)
+    path isa ConcreteReference || return annotate_reference_types(w, EmptyReference())
+    head = path.head
+    head isa FieldReferenceStep || return nothing
+    head.name == "content" && return annotate_reference_types(w, path.tail)
+    head.name in _PANE_BAR_FIELDS && return annotate_reference_types(w, path)
+    nothing
+end
+
+# A point of the widget maps through its pane; a path from the answer of the pane
+# loses the step `content`.
+function _map_rows_pane_backward(iomap::WidgetRowsPaneIoMap, reference)
+    reference === nothing && return nothing
+    point = find_reference_point(reference)
+    if point !== nothing
+        _is_point_on_canvas(iomap.output, point) || return nothing
+        pane = iomap.pane
+        dx, dy = iomap.place
+        reference = map_reference_backward(get_iomap_projection(pane), pane,
+                                           PointReferenceStep(point.x - dx, point.y - dy))
+        reference === nothing && return nothing
+    end
+    _strip_rows_pane_path(iomap.input, reference)
+end
+
+# A part of the widget maps through its pane, the last element of its canvas: a
+# bar by its field, and any other part as a part of the content of the pane.
+function _map_rows_pane_forward(iomap::WidgetRowsPaneIoMap, reference)
+    reference isa Reference || return nothing
+    path = strip_reference_types(reference)
+    path isa ConcreteReference || return _map_self_forward(path)
+    inner = path.head isa FieldReferenceStep && path.head.name in _PANE_BAR_FIELDS ? path :
+            ConcreteReference(FieldReferenceStep("content"), path)
+    pane = iomap.pane
+    image = map_reference_forward(get_iomap_projection(pane), pane, inner)
+    image === nothing && return nothing
+    k = length(unwrap_cell(getfield(unwrap_cell(get_iomap_output(iomap)), :elements)))
+    ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(RangeReferenceStep(k - 1, k),
+        ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(RangeReferenceStep(0, 1), image))))
+end
+
 # ── WidgetList (Stage 6) ──────────────────────────────────────────────────────
 
 @projection UntrackedCell struct WidgetListToGraphicsCanvas
@@ -8993,19 +9137,22 @@ WidgetListToGraphicsCanvas(theme; graphics_theme = nothing, measure,
     row_height::Any
     control_width::Any
     rows::Any
+    bare::Bool       # the rows of a list that scrolls itself, with no box
 end
 
 function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    _scrolls_rows_itself(w, ctx) && return _print_rows_pane(p, recursion, w, ctx)
+    bare = _is_printed_as_rows(w, ctx)
     position = w.position::Point2D
     build = Cell(@computation begin
         row_pad_x = Int(p.row_padding.left[]); row_pad_y = Int(p.row_padding.top[])
         items = collect(w.items)
         n = length(items)
-        box = _get_box_insets(p, w)
+        box = bare ? _NO_BOX_INSETS : _get_box_insets(p, w)
         colors = _get_box_colors(p, w)
-        inset_width, inset_height = _inset_total(p, w)
-        content_x, content_y = _content_offset(p, w)
+        inset_width, inset_height = bare ? (0, 0) : _inset_total(p, w)
+        content_x, content_y = bare ? (0, 0) : _content_offset(p, w)
         label = _get_state_text(p, w, :label)
         _, th = _text_size(p.measure, label.font, "M")
         row_height = th + 2row_pad_y
@@ -9023,7 +9170,7 @@ function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList,
         lit_row = enabled ? _widget_element_selected(get_mouse_target(w), "items") : 0
         row_selected_color = _get_state_color(p, w, :row; state = :selected)
         elements = Any[]
-        _push_box_parts!(elements, box, colors, content_width, content_height; radius)
+        bare || _push_box_parts!(elements, box, colors, content_width, content_height; radius)
         # Each row is a canvas of its own, which holds the row's tint, its band
         # and its text, so a row is a node that a reference reaches.
         rows = Any[]
@@ -9048,7 +9195,7 @@ function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList,
     canvas = _reactive_canvas_cell(_origin(position)..., build)
     WidgetListToGraphicsCanvasIoMap(p, w, canvas,
         Cell(@computation build[].row_height), Cell(@computation build[].width),
-        Cell(@computation build[].rows))
+        Cell(@computation build[].rows), bare)
 end
 
 # `items[k]` is the canvas of row `k`, found by identity among the list's
@@ -9083,12 +9230,17 @@ function _find_list_row_at(p::WidgetListToGraphicsCanvas, iomap::WidgetListToGra
                            y::Int)
     w = iomap.input
     n = length(collect(w.items))
-    _, content_y = _content_offset(p, w)
+    _, content_y = _get_rows_content_offset(p, iomap)
     r = (y - content_y) ÷ iomap.row_height + 1
     (1 <= r <= n) ? r : 0
 end
 
 read_intent(::WidgetListToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+read_intent(p::WidgetListToGraphicsCanvas, iomap::WidgetRowsPaneIoMap, evt) = _read_rows_pane(p, iomap, evt)
+map_reference_backward(::WidgetListToGraphicsCanvas, iomap::WidgetRowsPaneIoMap, reference) =
+    _map_rows_pane_backward(iomap, reference)
+map_reference_forward(::WidgetListToGraphicsCanvas, iomap::WidgetRowsPaneIoMap, reference) =
+    _map_rows_pane_forward(iomap, reference)
 function read_intent(p::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
@@ -10882,6 +11034,7 @@ end
     output::Any
     geometry::Cell
     width::Cell
+    bare::Bool       # the rows of a tree that scrolls itself, with no box
 end
 
 # ── Node-path ⇄ WidgetTree reference ─────────────────────────────────────────
@@ -10918,16 +11071,18 @@ end
 
 function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    _scrolls_rows_itself(w, ctx) && return _print_rows_pane(p, recursion, w, ctx)
+    bare = _is_printed_as_rows(w, ctx)
     position = w.position::Point2D
     indent = p.indent
     chevron_column = p.chevron_column
     icon_column = p.icon_column
     chevron_size = p.chevron_size
     pad = p.row_padding
-    box = _get_box_insets(p, w)
+    box = bare ? _NO_BOX_INSETS : _get_box_insets(p, w)
     colors = _get_box_colors(p, w)
-    inset_width, inset_height = _inset_total(p, w)
-    content_x, content_y = _content_offset(p, w)
+    inset_width, inset_height = bare ? (0, 0) : _inset_total(p, w)
+    content_x, content_y = bare ? (0, 0) : _content_offset(p, w)
     label_style = _get_state_text(p, w, :label)
     icon_style = _get_state_text(p, w, :icon)
     chevron_color = _get_state_color(p, w, :chevron)
@@ -11081,7 +11236,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
         # and content, from the outside in (transparent and zero-width by default),
         # then the rows.
         result = Any[hit_target]
-        _push_box_parts!(result, box, colors, width[], geometry[].total_h)
+        bare || _push_box_parts!(result, box, colors, width[], geometry[].total_h)
         push!(result, rows_canvas)
         result
     end)
@@ -11090,7 +11245,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
                             Cell(@computation Int32(width[] + inset_width)),
                             Cell(@computation Int32(geometry[].total_h + inset_height)),
                             elements, layout_none, true, Cell(nothing))
-    WidgetTreeToGraphicsCanvasIoMap(p, w, canvas, geometry, width)
+    WidgetTreeToGraphicsCanvasIoMap(p, w, canvas, geometry, width, bare)
 end
 
 # A row of the tree is a canvas of its own in the canvas of the rows, the last of
@@ -11122,7 +11277,13 @@ end
 
 # The row of the tree at `y` of its canvas, or `nothing`.
 _find_wtree_row_at(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap, y::Int) =
-    _wtree_row_at(iomap.geometry, y - _content_offset(p, iomap.input)[2])
+    _wtree_row_at(iomap.geometry, y - _get_rows_content_offset(p, iomap)[2])
+
+read_intent(p::WidgetTreeToGraphicsCanvas, iomap::WidgetRowsPaneIoMap, evt) = _read_rows_pane(p, iomap, evt)
+map_reference_backward(::WidgetTreeToGraphicsCanvas, iomap::WidgetRowsPaneIoMap, reference) =
+    _map_rows_pane_backward(iomap, reference)
+map_reference_forward(::WidgetTreeToGraphicsCanvas, iomap::WidgetRowsPaneIoMap, reference) =
+    _map_rows_pane_forward(iomap, reference)
 
 # Gesture reader: a left click on a parent's chevron opens or closes it, otherwise
 # selects the node under the cursor; ↑/↓ walk the flattened rows. Handled in the
@@ -11190,7 +11351,7 @@ function _wtree_node_gesture(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToG
     geom = iomap.geometry
     path = nothing
     if g isa MouseClick
-        _, content_y = _content_offset(p, w)
+        _, content_y = _get_rows_content_offset(p, iomap)
         row = _wtree_row_at(geom, g.y - content_y)
         row === nothing || (path = row.path)
     elseif g isa KeyDown
@@ -11207,7 +11368,7 @@ end
 # clamped into the rows.
 function _wtree_mouse_press(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap, g::MouseClick)
     w = iomap.input
-    content_x, _ = _content_offset(p, w)
+    content_x, _ = _get_rows_content_offset(p, iomap)
     row = _find_wtree_row_at(p, iomap, g.y)
     row === nothing && return nothing
     x = clamp(g.x - content_x, 0, max(0, iomap.width - 1))

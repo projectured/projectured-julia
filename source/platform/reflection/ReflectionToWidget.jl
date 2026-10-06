@@ -64,11 +64,12 @@ function print_document(p::ReflectionToWidget, recursion, node, ctx)
     end)
     # Positional, so every declared field is named here in order: position,
     # roots, visible, margin, border, padding, style, expanded, gestures,
-    # tooltip.
+    # scroll_position, vertical_scroll_bar, horizontal_scroll_bar, tooltip.
     output = WidgetTree(Cell(Point2D(0, 0)), CellVector(@computation Any[tree[].root]),
                         Cell(true), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
                         Cell(@computation tree[].expanded),
-                        Cell(GestureBinding[]), Cell(nothing))
+                        Cell(GestureBinding[]), Cell(Point2D(0, 0)), Cell(:auto), Cell(:auto),
+                        Cell(nothing))
     iomap = ReflectionToWidgetIoMap(p, node, output, tree)
     # A row lights while the pointer is on it. A row is no part of the reflected
     # node, so the node holds it as a part of this view, and the tree holds its

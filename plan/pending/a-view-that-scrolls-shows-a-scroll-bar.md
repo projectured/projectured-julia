@@ -213,6 +213,34 @@ Step 2 built it so:
 - `FileSystemToWidgetTree` drops its pane. Its mappers lose the step
   `content` ([FileSystemToWidget.jl:117](../../source/platform/filesystem/FileSystemToWidget.jl#L117)).
 
+Steps 5 and 6 built it so:
+
+- **The inner pane holds the widget itself.** A pane gives its content an exact
+  height, and a list with an exact height would wrap itself again without end.
+  So the second print of the widget carries the property `:rows_of` of the
+  context, which holds the widget, and a print with that property draws the rows
+  alone: no box, and no slot of its own. A path of the pane is then a path of
+  the widget without the step `content`, and the IO map of the widget,
+  `WidgetRowsPaneIoMap`, maps both ways by that rule.
+- **The widget has the fields of a pane.** `WidgetList` and `WidgetTree` get
+  `scroll_position`, `vertical_scroll_bar` and `horizontal_scroll_bar`, as
+  `WidgetTable` has, and the inner pane shares their cells. The path of a bar is
+  its field on the widget.
+- **The mouse target of the inner pane** is the mouse target of the widget, with
+  `content` in front, or the bar that the widget names. So a row lights and a bar
+  lights from the mouse target of the widget, and the pane sends the leave of
+  the pointer to its content.
+- **The rows know they have no box.** The IO maps of the rows of a list and of a
+  tree hold `bare`, and their readers take the offset of the rows from it.
+- **The box of a widget that scrolls itself has square corners.** The bands that
+  follow the slot draw no radius.
+- `ReflectionToWidget` builds its tree by position, so it names the new fields
+  too, and its tree scrolls itself in a slot.
+- [ScrollPaneHoverTest.jl](../../test/platform/projection/ScrollPaneHoverTest.jl)
+  tests the routing of a pane over rows. A list directly in the pane now scrolls
+  itself, so the test puts the list in a `VerticalLayout`, which gives it no
+  slot.
+
 ### 4.5 The table
 
 - `WidgetTable` gets the same two fields and gives them to the pane of its
@@ -304,15 +332,21 @@ part.
   `test_data_frame_view()` 56 pass, with a press and a drag of the thumb
   through the chain; `test_frame_statistics_feed()` 138 pass, with the drag
   that the statistics keep; `test_dataframes()` 587 pass.
-- [ ] **5. `WidgetList` scrolls by itself** (§4.4). Tests: the list cases of
-  [WidgetFormsTest.jl](../../test/platform/projection/WidgetFormsTest.jl),
-  [MouseTargetMoveTest.jl](../../test/platform/projection/MouseTargetMoveTest.jl)
-  and [WidgetForwardTest.jl](../../test/platform/projection/WidgetForwardTest.jl),
-  and a new case: a list in a slot scrolls, and its border stays.
-- [ ] **6. `WidgetTree` scrolls by itself**, and `FileSystemToWidgetTree` drops
-  its pane. Tests: [WidgetTreeTest.jl](../../test/platform/projection/WidgetTreeTest.jl)
-  and the tests of the file system.
-- [ ] **7. The rule.** [layout-rules.md](../../documentation/rule/layout-rules.md),
+- [x] **5. `WidgetList` scrolls by itself** (§4.4).
+- [x] **6. `WidgetTree` scrolls by itself**, and `FileSystemToWidgetTree` drops
+  its pane. Steps 5 and 6 are one commit, because the two widgets share the
+  code of the inner pane. Tests: a new
+  [WidgetRowsScrollTest.jl](../../test/platform/projection/WidgetRowsScrollTest.jl),
+  29 pass; the list cases of `test_widget_forms()` 87, `test_mouse_target_move()`
+  76, `test_widget_forward()` 22, `test_widget_point()` 19 and
+  `test_widget_tree()` 42 pass unchanged; `test_scroll_pane_hover()` 27,
+  `test_filesystem_to_widget()` and `test_workspace_to_filesystem()` pass with
+  the changes above. `test_platform()`: 100929 pass, 8 broken, the two failures
+  of `InterfaceApiTest.jl` that `main` has, and one of `McpLogTest.jl` that comes
+  from the test process: a process that also loads `ProjecturedTest` highlights
+  the Julia code of the log, so "x = 1" is drawn as tokens. In a process that
+  loads only the tests of the platform, `test_mcp_log_pane()` passes, 14 of 14.
+- [x] **7. The rule.** [layout-rules.md](../../documentation/rule/layout-rules.md),
   "Clipping is not scrolling": a widget of rows scrolls by itself in a slot,
   and a bar is an overlay.
 - [ ] **8. A live check** in the app, with pushed SDL events. Check the file

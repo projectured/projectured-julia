@@ -9,14 +9,14 @@
 #     FileSystemDirectory → WidgetTreeNode(folder-icon, dirname, [child nodes…])
 #     FileSystemFile      → WidgetTreeNode(type-icon,   filename)
 #
-# The pane scrolls the tree when it is taller or wider than the space the pane is
-# given. A tab puts nothing around what it holds, so the view scrolls itself.
+# The tree scrolls itself when it is taller than the slot that it is given. A tab
+# puts nothing around what it holds, so the view scrolls itself.
 #
 # Selection maps in lockstep with the node layout: the root node is path `roots[1]`
 # (file-system reference `∅`), and a node at file-system reference
 # `elements[a].elements[b]…` is the tree node `roots[1].children[a].children[b]…`.
-# The two reference mappers add and remove the pane's `content` step in front of
-# that path. The printer wires the tree's own selection with the node path alone.
+# The two reference mappers are that path. The printer wires the tree's own
+# selection with the node path alone.
 # ── Projection ────────────────────────────────────────────────────────────────
 
 """
@@ -100,33 +100,30 @@ function print_document(p::FileSystemToWidgetTree, recursion, doc::FileSystemDoc
     roots = CellVector(@computation Any[_fs_node(doc, p.open_file)])
     # Positional, so every declared field is named here in order and the paths
     # come last: position, roots, visible, margin, border, padding, style,
-    # expanded, gestures, tooltip, selection, mouse target. The root row is open,
-    # and each folder under it is closed until a person opens it.
+    # expanded, gestures, scroll_position, vertical_scroll_bar,
+    # horizontal_scroll_bar, tooltip, selection, mouse target. The root row is
+    # open, and each folder under it is closed until a person opens it. The tree
+    # scrolls itself in the slot that its parent offers.
     tree = WidgetTree(Cell(p.position), roots, Cell(true),
                       Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
                       Cell(Set([[1]])),
-                      Cell(GestureBinding[]), Cell(nothing), paths.selection, paths.mouse_target)
-    # No size of its own: the pane takes the extent its parent offers, and on an
-    # axis with no offer it is as large as the tree and clips nothing.
-    SimpleIoMap(p, doc, WidgetScrollPane(tree))
+                      Cell(GestureBinding[]), Cell(Point2D(0, 0)), Cell(:auto), Cell(:auto),
+                      Cell(nothing), paths.selection, paths.mouse_target)
+    SimpleIoMap(p, doc, tree)
 end
 
 # ── Reference mapping (file-system ⇄ WidgetTree node-path) ─────────────────────
 
 # Forward: a file-system selection (`elements[a].elements[b]…` or `∅`) → the tree
-# node `content.roots[1].children[a].children[b]…` in the pane.
-function map_reference_forward(p::FileSystemToWidgetTree, iomap::SimpleIoMap, reference)
-    node = _map_tree_reference_forward(reference)
-    node === nothing && return nothing
-    ConcreteReference(FieldReferenceStep("content"), node)
-end
+# node `roots[1].children[a].children[b]…`.
+map_reference_forward(p::FileSystemToWidgetTree, iomap::SimpleIoMap, reference) =
+    _map_tree_reference_forward(reference)
 
-# Backward: a node path in the pane (`content.roots[1].children[a].children[b]…`)
-# → the file-system reference `elements[a].elements[b]…` (or `∅` for the root node).
+# Backward: a node path of the tree (`roots[1].children[a].children[b]…`) → the
+# file-system reference `elements[a].elements[b]…` (or `∅` for the root node).
 function map_reference_backward(p::FileSystemToWidgetTree, iomap::SimpleIoMap, reference)
-    (reference isa ConcreteReference && reference.head isa FieldReferenceStep &&
-     reference.head.name == "content") || return nothing
-    idxs = _tree_ref_indices(reference.tail)
+    reference isa ConcreteReference || return nothing
+    idxs = _tree_ref_indices(reference)
     idxs === nothing && return nothing
     _fs_ref_from_indices(idxs)
 end

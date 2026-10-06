@@ -34,8 +34,7 @@ end
         mkpath(joinpath(dir, "full", "inner"))
         write(joinpath(dir, "full", "a.jl"), "")
         write(joinpath(dir, "top.jl"), "")
-        pane = print_document(RecursiveProjection(FileSystemToWidget()), make_filesystem_pathname(dir)).output
-        tree = pane.content
+        tree = print_document(RecursiveProjection(FileSystemToWidget()), make_filesystem_pathname(dir)).output
         @test tree.expanded == Set([[1]])
         widgets = WidgetToGraphics(StyleFont("Ubuntu", 20); measure = FixedMeasure(8, 12, 4, 0))
         tree_projection = only(pr for (T, pr) in widgets.dispatch if T === WidgetTree)
@@ -67,10 +66,9 @@ end
         mkpath(joinpath(dir, "none"))
         write(joinpath(dir, "top.jl"), "")
         folder = make_filesystem_pathname(dir)
-        pane = print_document(RecursiveProjection(FileSystemToWidget()), folder).output
+        tree = print_document(RecursiveProjection(FileSystemToWidget()), folder).output
         widgets = WidgetToGraphics(StyleFont("Ubuntu", 20); measure = FixedMeasure(8, 12, 4, 0))
         tree_projection = only(pr for (T, pr) in widgets.dispatch if T === WidgetTree)
-        tree = pane.content
         iomap = print_document(tree_projection, tree)
         is_listing_read(d) = is_cell_up_to_date(getfield(d.elements, :elements))
 

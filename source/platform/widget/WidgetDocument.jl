@@ -267,6 +267,11 @@ enclosing projection can map the reference across domains. The `selected`
 keyword is 1-based sugar (`0` = none) that builds that reference; read the
 selection back with [`get_widget_list_selected`](@ref).
 
+A list that gets a slot on the vertical axis fills it and scrolls its rows
+there, inside its border, as a table does; with no slot it is as tall as its
+rows. `scroll_position` is the offset of the rows, and `vertical_scroll_bar` and
+`horizontal_scroll_bar` are its bars, as a `WidgetScrollPane` takes them.
+
 See also `WidgetTable` for rows with columns, `WidgetSelect` for a list that
 opens on a click, and `WidgetRadioGroup` for a few choices that stay visible.
 """
@@ -280,6 +285,9 @@ opens on a click, and `WidgetRadioGroup` for a few choices that stay visible.
     border::Inset
     padding::Inset
     style::Any
+    scroll_position::Point2D     # view state: the offset of the rows of a list that scrolls itself
+    vertical_scroll_bar::Any     # :auto, nothing, or the WidgetScrollBar of an owner
+    horizontal_scroll_bar::Any   # :auto, nothing, or the WidgetScrollBar of an owner
     tooltip::Any
 end
 
@@ -317,10 +325,13 @@ get_widget_list_selected(w::WidgetList) = _widget_element_selected(w.selection, 
 function WidgetList(items::Vector; position::Point2D=Point2D(0, 0),
                     selected::Integer=0, width::Integer=0,
                     visible::Bool=true, enabled::Bool=true,
-                    margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing)
+                    margin=nothing, border=nothing, padding=nothing, style=nothing,
+                    scroll_position::Point2D=Point2D(0, 0),
+                    vertical_scroll_bar=:auto, horizontal_scroll_bar=:auto, tooltip=nothing)
     WidgetList(Cell(position), CellVector(Cell[Cell(x) for x in items]),
                Cell(Int(width)), Cell(visible), Cell(enabled),
-               Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip),
+               Cell(margin), Cell(border), Cell(padding), Cell(style),
+               Cell(scroll_position), Cell(vertical_scroll_bar), Cell(horizontal_scroll_bar), Cell(tooltip),
                Cell(make_widget_list_selection(selected)))
 end
 
@@ -2927,6 +2938,11 @@ path from the mouse target of the tree.
 `margin`, `border` and `padding` are `nothing` or an `Inset`, each `nothing`
 taking the projection's default (transparent, zero width); `style` is `nothing`,
 a `WidgetStyle`, or a `WidgetTreeStyle`, overriding one color of the projection.
+
+A tree that gets a slot on the vertical axis fills it and scrolls its rows
+there, inside its border, as a table does; with no slot it is as tall as its
+open rows. `scroll_position` is the offset of the rows, and `vertical_scroll_bar`
+and `horizontal_scroll_bar` are its bars, as a `WidgetScrollPane` takes them.
 """
 @document struct WidgetTree <: WidgetDocument
     position::Point2D
@@ -2938,14 +2954,20 @@ a `WidgetStyle`, or a `WidgetTreeStyle`, overriding one color of the projection.
     style::Any
     expanded::Set{Vector{Int}}   # transient: node paths whose children show
     gestures::Any                # per-instance tree-level gesture bindings
+    scroll_position::Point2D     # view state: the offset of the rows of a tree that scrolls itself
+    vertical_scroll_bar::Any     # :auto, nothing, or the WidgetScrollBar of an owner
+    horizontal_scroll_bar::Any   # :auto, nothing, or the WidgetScrollBar of an owner
     tooltip::Any
 end
 WidgetTree(roots::Vector; position::Point2D=Point2D(0, 0), visible::Bool=true,
            margin=nothing, border=nothing, padding=nothing, style=nothing,
-           expanded=Set{Vector{Int}}(), gestures=GestureBinding[], tooltip=nothing) =
+           expanded=Set{Vector{Int}}(), gestures=GestureBinding[],
+           scroll_position::Point2D=Point2D(0, 0), vertical_scroll_bar=:auto,
+           horizontal_scroll_bar=:auto, tooltip=nothing) =
     WidgetTree(Cell(position), CellVector(Cell[Cell(_convert_to_tree_node(n)) for n in roots]),
                Cell(visible), Cell(margin), Cell(border), Cell(padding), Cell(style),
-               Cell(Set{Vector{Int}}(expanded)), Cell(gestures), Cell(tooltip))
+               Cell(Set{Vector{Int}}(expanded)), Cell(gestures),
+               Cell(scroll_position), Cell(vertical_scroll_bar), Cell(horizontal_scroll_bar), Cell(tooltip))
 
 # A `(label, children)` tuple becomes a node with no icon, and so do the tuples
 # among its children. Any other node is kept as it is.
