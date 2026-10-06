@@ -94,6 +94,11 @@ function test_navigator_to_widget()
         @test forward(@reference(navigator, content.books[2].title)) === nothing
         @test forward(@reference(navigator, content)) === nothing
         @test forward(EmptyReference()) isa EmptyReference
+        # A container that splices the image into its own path, as a tab does,
+        # needs a type on every node.
+        @test is_fully_typed_reference(forward(@reference(navigator, content.books[1].chapters[2].title)))
+        @test is_fully_typed_reference(forward(strip_reference_types(@reference(navigator, content.books[1].title))))
+        @test is_fully_typed_reference(forward(EmptyReference()))
         @test _nav_is(backward(@reference(iomap.output, children[2].chapters[2].title)),
                       @reference(navigator, content.books[1].chapters[2].title))
         @test _nav_is(backward(@reference(iomap.output, children[2])), @reference(navigator, content.books[1]))
@@ -173,10 +178,11 @@ end
 """
     test_navigator()
 
-The navigator: its visits, its view, and the open of a page.
+The navigator: its visits, its view, the open of a page, and its gestures.
 """
 function test_navigator()
     test_navigator_visits()
     test_navigator_to_widget()
     test_open_page_operation()
+    test_navigator_gestures()
 end

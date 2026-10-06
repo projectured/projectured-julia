@@ -43,10 +43,17 @@ The address of the innermost document on the selection inside the page of
 page, or when no document stands between the page and the selection.
 """
 function find_navigator_selected_address(navigator::Navigator)
-    selection = _find_content_selection(navigator)
-    selection === nothing && return nothing
+    _find_part_address(navigator, navigator.selection)
+end
+
+# The address of the innermost document on `path`, a path from `navigator`, inside
+# its page and below the page itself; `nothing` when `path` is not inside the page,
+# or when no document stands between the page and the end of `path`.
+function _find_part_address(navigator::Navigator, path)
+    path isa ConcreteReference || return nothing
+    get_reference_head(path) == _CONTENT_STEP || return nothing
     page = get_reference_steps(get_navigator_page_address(navigator))
-    steps = get_reference_steps(selection)
+    steps = get_reference_steps(get_reference_tail(path))
     _starts_with(steps, page) || return nothing
     content = navigator.content
     for last_step in length(steps):-1:(length(page) + 1)

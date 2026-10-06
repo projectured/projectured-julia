@@ -155,11 +155,27 @@ end
 #   of the button or the open of the page of the item;
 # - an `OpenPageOperation` from the page becomes a visit, or, for a new tab, an
 #   open with the content of the navigator as its root, which goes on up.
+#
+# After an answer of the page that collects, such as the menu of a part, the
+# navigator adds the answer of its own table, as a document around a part does;
+# the keys of its table join the keys of the page for the gesture help.
 function read_intent(p::NavigatorToWidget, recursion, change::Intent, iomap::NavigatorToWidgetIoMap)
     answer = invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
     operation = answer.operation
     operation === nothing && return answer
+    if change.operation !== nothing && change.gesture !== nothing
+        operation = _add_own_answer(iomap.input, change.gesture, operation)
+    end
     Intent(answer.gesture, _translate_answer(iomap, operation), answer.description, answer.domain)
+end
+
+_add_own_answer(navigator::Navigator, gesture, operation) =
+    read_gesture_outward(operation, gesture, navigator; steps = ReferenceStep[], with_part = true)
+
+function _add_own_answer(navigator::Navigator, gesture::CollectIntents, operation)
+    operation isa CollectedIntentsOperation || return operation
+    own = read_gesture(navigator, gesture)
+    own isa CollectedIntentsOperation ? merge_collected_intents(operation, own) : operation
 end
 
 function _translate_answer(iomap::NavigatorToWidgetIoMap, operation::InvokeActionOperation)
@@ -209,13 +225,23 @@ _translate_answer(::NavigatorToWidgetIoMap, operation) = operation
 # navigator.
 
 function map_reference_forward(::NavigatorToWidget, iomap::NavigatorToWidgetIoMap, reference)
-    steps = get_reference_steps(strip_reference_types(reference))
-    isempty(steps) && return EmptyReference()
+    output = iomap.output
+    reference isa EmptyReference && return EmptyReference(get_reference_node_type(output))
+    steps = get_reference_steps(reference)
     steps[1] == _CONTENT_STEP || return nothing
     page = get_reference_steps(get_navigator_page_address(iomap.input))
-    rest = steps[2:end]
-    _starts_with(rest, page) || return nothing
-    extend_reference(EmptyReference(), _PAGE_STEPS..., rest[(length(page) + 1):end]...)
+    _starts_with(steps[2:end], page) || return nothing
+    # The rest is a path in the page, which the grid holds itself, so it keeps the
+    # checkpoints that it came with; the two steps of the grid take the types of the
+    # grid. A container that splices the image into its own path needs every one.
+    rest = reference
+    for _ in 0:length(page)
+        rest = get_reference_tail(rest)
+    end
+    is_fully_typed_reference(rest) ||
+        (rest = annotate_reference_types(get_navigator_page(iomap.input), strip_reference_types(rest)))
+    ConcreteReference(get_reference_node_type(output), _PAGE_STEPS[1],
+                      ConcreteReference(get_reference_node_type(output.children), _PAGE_STEPS[2], rest))
 end
 
 function map_reference_backward(::NavigatorToWidget, iomap::NavigatorToWidgetIoMap, reference)
