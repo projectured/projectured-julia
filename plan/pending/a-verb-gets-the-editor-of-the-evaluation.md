@@ -293,6 +293,22 @@ lands on the branch.
    call, `get_evaluation_editor()` throws. Two `ToolSet`s with two targets each
    answer their own target. In `test_evaluator_toplevel()`, a form answers the
    editor of the evaluator.
+
+   **Done 2026-10-06** (6151ec8ae). What the implementation found:
+   - `with(_EVALUATION_EDITOR => target)` wraps only the `redirect_stdio` block
+     that evaluates the statements. The parse and the description of the value
+     run outside it, because they call no verb.
+   - The test is the verb `get_toy_editor(; editor = get_evaluation_editor())` in
+     a declared toy module `EditorToy`. It also checks that a task that the code
+     starts and that ends after the call still answers the editor of its own
+     call, and that code with the target `nothing` answers the exception as its
+     message. `test_code_execution()` 66 / 66, `test_evaluator_toplevel()`
+     239 / 239.
+   - The static guards (naming, arguments, exports, documentation) report the
+     same faults as `main` ffb99115a, and none in a changed file.
+   - The first precompile of `environment/all` in the worktree went over a cap of
+     10 GB with two precompile tasks, and the OOM killer stopped it. A second run
+     that only loads needs 2.1 GB.
 2. **The rule and the guard** (§5.4). Test: `test_arguments()`, and one case
    that the guard must refuse.
 3. **The verbs of projectured-julia**, with the editor as a keyword, and their docstrings,
