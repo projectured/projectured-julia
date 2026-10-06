@@ -694,9 +694,17 @@ The edits that the discussion named, each still to decide:
 5. **Types** are shown in the third view and mark the place where an edit cut
    the address.
 
-The open decisions, in order: whether the document is the address itself or an
-editable form beside a committed `Reference`; the kinds of its steps; the list of
-choices at a step; the rule of edit 3; the switch of the views.
+**Decided (owner, 2026-10-06): the document is an editable copy beside the
+committed address.** The `address` field of `Navigator` stays a `Reference`, and
+the back and forward lists and a save keep `Reference`s. Each visit writes the
+copy from the address. An edit changes only the copy; Enter, or a choice from the
+list of a name, opens it as a visit; Escape writes the copy back from the
+address. The copy is view state, and a save does not keep it. The option not
+chosen made the document the address itself, so the page followed every key of a
+path that a person types.
+
+The open decisions, in order: the kinds of its steps; the list of choices at a
+step; the rule of edit 3; the switch of the views.
 
 ## 11. Risks
 
