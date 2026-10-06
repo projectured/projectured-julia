@@ -812,7 +812,11 @@ The design of the address is complete. The steps to build it:
   as the items of the address do now, which the view replaces. The path view:
   a syntax view of the steps, edited in place; `.` and `[` start a
   `ReferenceInsertion`, a key inside a committed step turns it into one, and an
-  insertion commits to a step when its text names one. The types view: the path with the type of each
+  insertion commits to a step when its text names one. **Decided (owner,
+  2026-10-06):** `make_replace_document_operation` takes a value with no
+  `selection` field, such as a kernel step, and selects the value itself, so the
+  generic `InsertionToSyntaxLeaf` commits a step; the option not chosen was a leaf
+  of the navigator with its own commit, as the SQL domain builds. The types view: the path with the type of each
   node, which takes no edit, and a mark at the place where the address was cut.
   The control of A1 writes the view. Each behavior dispatches on the two step
   types.
@@ -843,16 +847,26 @@ The design of the address is complete. The steps to build it:
     and `rows[r]` past the frame throws, which ends the walk.
   - [ ] JSON: a method can not dispatch on the entries, because the node above
     `[i]` of an object is its `CellVector`, not a JSON type. A JSON entry has no
-    title, so the general rule shows `[2]`, as the address does. Open question
-    to the owner: a title for `JsonObjectEntry` (its key) would name the entry in
-    the address, in the list, and in the header of its context menu.
+    title, so the general rule shows `[2]`, as the address does. **Decided
+    (owner, 2026-10-06):** a title for `JsonObjectEntry`, its key, is a change of
+    its own after the navigator; it names the entry in the address, in the list,
+    and in the header of its context menu.
   - [ ] The popup. Facts found 2026-10-06 that the design did not know: a
     `:popup` window never takes the keyboard focus, so a type-in field in it gets
     no key; and an answer of a popup goes up through the screen, not through the
     navigator, so it can not write the selection, whose path starts at the root.
     The context menu solves the second with its `source` path and a lift through
-    the readers (`EditMenuPartOperation`). Open question to the owner: how the
-    popup takes keys and reaches the navigator.
+    the readers (`EditMenuPartOperation`). **Decided (owner, 2026-10-06): the
+    list is the context menu of the name.** The arrow of a name answers
+    `OpenContextMenuOperation` with the list as its one menu and the navigator as
+    its source; each row is a menu item that holds the choice operation, which the
+    menu window lifts through the reader of the navigator. While a menu window is
+    open, the context menu window gives a key of the window under it first to the
+    content of the menu; a key that the menu does not answer goes on as before.
+    So other menus can take keys later. The options not chosen: a window of the
+    navigator that takes the focus, with a new operation that carries the path of
+    the navigator and a second lift; and the field in the bar, the step itself as
+    an insertion, with a list that takes no key.
 - [x] **A6. A choice.** The step is replaced, and the rest of the address is kept
   as far as it reaches nodes of the recorded types, and cut at the first that it
   does not. The result opens as a visit. Done 2026-10-06:
