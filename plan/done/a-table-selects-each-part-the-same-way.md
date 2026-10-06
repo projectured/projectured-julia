@@ -1,8 +1,9 @@
 # A table selects each part the same way
 
-> **Kind:** plan · **Status:** pending, 2026-10-06. Nothing is built. The owner
-> asked for the plan; Q1, Q2 and Q3 (§5) are open, and each has a
-> recommendation of mine. ·
+> **Kind:** plan · **Status:** done, 2026-10-06, on the branch `table-parts`.
+> The owner asked to implement it without an answer to Q1, Q2 and Q3 (§5), so
+> the implementation follows the recommendation of each, none of which changes
+> what a table does now. ·
 > **Stands on:** [widget.md](../../documentation/package/platform/widget/widget.md),
 > [a-table-has-rows-columns-and-cells.md](../done/a-table-has-rows-columns-and-cells.md),
 > [view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md)
@@ -118,30 +119,75 @@ Everything else of §2 stays.
   mark on that cell inside the band of its row. Recommendation (mine): no, so
   that the light shows exactly what a press selects.
 
+The owner said "implement this plan in worktree" with no answer, 2026-10-06.
+The implementation follows the three recommendations: a plain press on a cell
+selects its row, the strips are selected by a key only, and the light marks no
+cell. Each can change later on its own.
+
 ## 6. Steps
 
 Each step changes the eager form and the list form together, and adds a test
 of each rule in each form.
 
-- [ ] **1. The shapes.** `column_headers` and `row_headers`, with no index,
+- [x] **1. The shapes.** `column_headers` and `row_headers`, with no index,
   draw a band over the header row and the header column: in the eager form
   through `_wt_selection_shape` and the band of the geometry, and in the list
-  form through `_find_named_part` and the bands of the header panes.
-- [ ] **2. The press.** A plain press on a row header goes to its content
+  form through `_find_named_part` and the bands of the header panes. Done
+  2026-10-06: `_wt_field_terminal(sel)` reads a whole field; the shapes are
+  `:header_row` and `:header_column`. The eager band of the header row spans
+  the column headers and not the corner, and the band of the header column the
+  row headers. The list form bands the header row in the header pane and the
+  header column in each row of the header column.
+- [x] **2. The press.** A plain press on a row header goes to its content
   first, as a column header does (`_wt_mouse_select`,
   `_read_table_parts_press`). An Alt+press on a row header selects
-  `row_headers[r]`, and on the corner of the list form `corner`.
-- [ ] **3. The keys.** Rule 4 and rule 5 for a selected header. The two key
+  `row_headers[r]`, and on the corner of the list form `corner`. Done
+  2026-10-06: `_wt_route_header_click` and `_read_table_header_press` take the
+  header and its line, so one function serves both headers in each form.
+  Facts found: the list form sent a key only into a column header that holds
+  a caret, and the eager form into both, so the list form now sends it into a
+  row header too (`_find_header_in_selection` gives the field and the index).
+  A selected corner drew no band, so the corner region of the list form draws
+  one for the corner and for the table.
+- [x] **3. The keys.** Rule 4 and rule 5 for a selected header. The two key
   readers decide from the same named part; a shared function of the rules of
-  §3, which both readers call, is to be decided at this step (mine).
-- [ ] **4. The owners of tables.** The data frame view maps a header to its
+  §3, which both readers call, is to be decided at this step (mine). Done
+  2026-10-06, with no shared function (mine): each form keeps the habit of its
+  own reader at an end, the eager form stays on the last header and the list
+  form answers nothing, as their rows and cells already do. Down from a column
+  header goes to the first row in the eager form and to the row at the top in
+  the list form, as from a column.
+- [x] **4. The owners of tables.** The data frame view maps a header to its
   column or its row of the frame, and the corner to the view
   (`_find_view_path`). The header row and the header column have no place in a
-  frame, so the view declines them (mine). The statistics table and the
+  frame, so the view declines them (mine). Done 2026-10-06 with no change to
+  the view: `_find_view_path` already gives `nothing` for a path with no index,
+  and the view declines a selection that it can not map. A test shows that an
+  Alt+press on a row header and on a column header of the view selects the row
+  and the column of the frame. The statistics table and the
   omnet-julia tables are checked with their tests; their row headers are
   labels, which decline a press, so a press there still selects the row.
-- [ ] **5. The guide.** `widget.md` and the docstrings of the table state the
-  rules of §3.
+- [x] **5. The guide.** `widget.md` and the docstrings of the table state the
+  rules of §3. Done 2026-10-06.
+
+Tests, 2026-10-06: `test_widget_table_part_selection` (69) runs each rule in
+both forms: a row header of a label, of a checkbox and of a text field, the
+corner, the bands of the header row and of the header column, and the keys.
+The data frame paths 19 (two checks of an Alt+press on a header of the view).
+The platform: 98,409 pass, 8 broken and 2 fail, both in `test_interface_api`,
+which fail the same way on main (b7709ef1d): the interface lists
+`WidgetProgressRing`, so it has 32 names and not 31, and that docstring has no
+"Use it to" line. Markdown 236, data frames 558, book 33; the umbrella
+table tests 25, 67, 14, 110 and 134.
+
+Fact found: the row headers of the math table example
+(`TableDocumentExample.jl`) are strings, which take a press, as its column
+headers are. A plain press there now puts the caret in the row header, as a
+press on its column header already did, and an Alt+press selects the header;
+`TableNavigationTest` expects that now. Every other table with row headers
+gives them labels, which decline a press, so a press there still selects the
+row: the data frame view, the statistics table, the widget example, and the
+runs table of omnet-julia.
 
 ## 7. Risks
 
