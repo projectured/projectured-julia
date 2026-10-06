@@ -211,6 +211,7 @@ function _make_visit_operation(navigator::Navigator, visit::NavigatorVisit, back
     if draft.edited
         push!(writes, ReplaceReferencedValueOperation(draft, "edited", false))
         push!(writes, ReplaceReferencedValueOperation(draft, "steps", CellVector()))
+        push!(writes, ReplaceReferencedValueOperation(draft, "unreached_step", 0))
     end
     selection = _find_visit_selection(visit)
     path = ConcreteReference(get_reference_node_type(navigator), _CONTENT_STEP,

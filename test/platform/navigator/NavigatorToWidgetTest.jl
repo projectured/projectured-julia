@@ -240,7 +240,7 @@ end
 """
     test_navigator()
 
-The navigator: its visits, the choices of its address, its view, the open of a page, its gestures, and its
+The navigator: its visits, the choices of its address, the edit of its address, its view, the open of a page, its gestures, and its
 save, its duplicate and its tab.
 """
 function test_navigator()
@@ -250,4 +250,5 @@ function test_navigator()
     test_open_page_operation()
     test_navigator_gestures()
     test_navigator_document()
+    test_navigator_address()
 end

@@ -25,12 +25,16 @@ using ..LayoutModule
 using ..NaturalModule
 using ..OperationModule
 using ..PaneModule
+using ..PrimitiveModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
 using ..ScreenModule
+using ..SelectionModule
 using ..SerializationModule
 using ..StyleModule
+using ..SyntaxModule
+using ..TextModule
 using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
@@ -47,15 +51,20 @@ export get_navigator_page_address, get_navigator_page, get_navigator_address_ste
 export make_navigator_open_operation, make_navigator_back_operation,
        make_navigator_forward_operation, make_navigator_parent_operation
 export find_navigator_choices, make_navigator_choice_operation
+export make_navigator_address_edit_operation, make_navigator_address_commit_operation,
+       make_navigator_address_reset_operation, is_navigator_address_selected
 export NavigatorToWidget, make_navigator_projection
 export NavigatorChoiceListToWidget, make_navigator_choice_list_projection
+export ReferenceStepToSyntaxLeaf, make_navigator_address_projection
 export OpenPageOperation
 
 include("NavigatorDocument.jl")
 include("NavigatorVisits.jl")
 include("NavigatorChoices.jl")
+include("NavigatorAddressEdits.jl")
 include("NavigatorGestures.jl")
 include("OpenPageOperation.jl")
+include("NavigatorAddressToSyntax.jl")
 include("NavigatorToWidget.jl")
 include("NavigatorChoiceListToWidget.jl")
 
@@ -65,7 +74,8 @@ include("NavigatorChoiceListToWidget.jl")
 function __init__()
     register_natural_graphics!(:navigator, (; measure, appearance) -> Pair{Type,Any}[
         Navigator => ChainingProjection(
-            make_navigator_projection(; widget_theme = get_scaled_theme!(appearance, WidgetTheme)),
+            make_navigator_projection(; widget_theme = get_scaled_theme!(appearance, WidgetTheme),
+                                      syntax_theme = get_scaled_theme!(appearance, SyntaxTheme)),
             GridLayoutToGraphicsCanvas()),
         NavigatorChoiceList => ChainingProjection(
             make_navigator_choice_list_projection(; widget_theme = get_scaled_theme!(appearance, WidgetTheme)),

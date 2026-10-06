@@ -28,7 +28,8 @@ was typed, such as `na` of a field or `4` of an element. It becomes a
 end
 
 """
-    NavigatorAddress(steps = CellVector(); view = :titles, edited = false)
+    NavigatorAddress(steps = CellVector(); view = :titles, edited = false,
+                     view_before = :titles, unreached_step = 0)
 
 The address of a navigator as its bar shows it and a person edits it: an editable
 copy beside the committed `address` of the [`Navigator`](@ref).
@@ -38,8 +39,11 @@ copy beside the committed `address` of the [`Navigator`](@ref).
 - `view` is `:titles`, `:path` or `:types`: the names of the documents on the
   address, the path, or the path with the type of each node.
 - `edited` is `false` while the copy is the address: the views then show the
-  steps of the address, and the first edit writes them here. A visit makes it
-  `false` again.
+  steps of the address, and an edit writes them here. A visit makes it `false`
+  again.
+- `view_before` is the view that the end of an edit shows again.
+- `unreached_step` is the first step that reaches no node, after Enter read a
+  path that does not reach to its end, or `0`.
 
 It is view state: an undo records no change of it, and a save does not keep it.
 """
@@ -47,6 +51,8 @@ It is view state: an undo records no change of it, and a save does not keep it.
     steps::CellVector = CellVector()
     view::Symbol = :titles
     edited::Bool = false
+    view_before::Symbol = :titles
+    unreached_step::Int = 0
 end
 
 """

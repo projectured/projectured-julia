@@ -58,17 +58,28 @@ children[1]                       the bar: Back, Forward, Parent and the items o
 children[2].children[1].<rest>    the page; <rest> is a path in the page
 ```
 
-The printer prints no child. The page document itself stands in a `VerticalLayout` of one child, whose list of children is computed from the address, and the layout stage after the view prints it through the recursion. A vertical layout prints its children again when its list changes; a grid prints its children once, when it prints. So the page is drawn with the row of the renderer for its own type, and a domain gives its page a view of its own only where the page must look different from the part in the view of its parent. The renderer row is `ChainingProjection(NavigatorToWidget, GridLayoutToGraphicsCanvas())`.
+The printer prints no child but the address copy in the path view. The page document itself stands in a `VerticalLayout` of one child, whose list of children is computed from the address, and the layout stage after the view prints it through the recursion. A vertical layout prints its children again when its list changes; a grid prints its children once, when it prints. So the page is drawn with the row of the renderer for its own type, and a domain gives its page a view of its own only where the page must look different from the part in the view of its parent. The renderer row is `ChainingProjection(NavigatorToWidget, GridLayoutToGraphicsCanvas())`.
 
-The maps put `content` and the address before a path in the page, and take them off: `content.<address>.<rest>` and `children[2].children[1].<rest>`. A path in the content that is not on the page has no image, and a path into the bar maps back to nothing. The forward map keeps the types of the path inside the page and gives the steps of the grid and of the layout their types, because a tab splices the image into its own path and needs a type on every node.
+The maps put `content` and the address before a path in the page, and take them off: `content.<address>.<rest>` and `children[2].children[1].<rest>`. A layout passes a key to the child that its own selection names, so the printer wires the bar and the holder of the page to carry the part of the selection of the grid below them; the page is a document of the content and holds its own. A path in the content that is not on the page has no image, and a path into the bar maps back to nothing. The forward map keeps the types of the path inside the page and gives the steps of the grid and of the layout their types, because a tab splices the image into its own path and needs a type on every node.
 
 **The bar.** Back, Forward and Parent are `WidgetToolbarItem`s with the icons `:arrow_left`, `:arrow_right` and `:arrow_up`. A button is off when its list is empty, or when the page has no parent. Then a control shows the address in one of three views, and the address follows it.
 
 **The address.** `NavigatorAddress(steps, view, edited)` holds the address as the bar shows it: an editable copy beside the committed `address`. Its steps are `FieldReferenceStep`s and element `RangeReferenceStep`s, and `ReferenceInsertion`s while a person types a step. While `edited` is `false`, the copy is the address, and the views show the steps of the page address (`get_navigator_address_steps`). Each visit makes `edited` `false` again. The control is a `WidgetToggleGroup` of the step look, "Names", "Path" and "Types", which writes `view`; a press shows the next view, and Shift+press the one before. The reader marks a write of the copy as view state.
 
 - **Names** (`:titles`): one item for each document from the content to the page. An item shows the title of its document, or the steps that reach it from the item before, or at the root the name of its type. Its tooltip is its path from the content. A press on an item opens its page. The page itself is the last item, a plain label. Before each item but the root stands an arrow (`:chevron_right`), which opens the list of the choices at the place of the item.
-- **Path** (`:path`): the path of the steps, such as `.books[2]`.
+- **Path** (`:path`): the path of the steps, such as `.books[2]`. A press on it, or Ctrl+L, starts an edit; see [The edit of the path](#the-edit-of-the-path).
 - **Types** (`:types`): the path with the type of each node. When an edit or a choice cut the address, `✗` stands before the steps that reach no node.
+
+### The edit of the path
+
+The path view is edited in place, as the address bar of a browser is. Ctrl+L (`make_navigator_address_edit_operation`) writes the steps of the page into the address copy, with an empty `ReferenceInsertion` after them that holds the caret, shows the path view, and keeps the view before in `view_before`.
+
+While an edit is on, the bar holds the syntax of the address copy: the navigator view prints the copy with a projection of its own, `make_navigator_address_projection(navigator)`, and keeps its IO map. That projection holds the navigator, because a hint needs the content, which the copy does not hold. The view maps a path in the copy, `address_draft.<rest>`, to `children[1].children[5].<rest>` in the bar and back, and its reader passes an answer of the path view, and a key that no part of it answered, such as Tab, through that projection. A committed step, `.name` or `[i]`, is a value and holds no caret: a press in it selects the step, and a key on it turns it into an insertion with its text and the key, Backspace with its text less the last character. An insertion holds the text of any number of steps; its hint completes the name of a field of the node before it, and Tab takes the hint.
+
+- **Enter** (`make_navigator_address_commit_operation`) reads the text of each insertion as steps. A path that reaches opens as a visit, and the view before the edit shows again. A path that does not reach to its end stays in the copy, with its insertions as steps, the selection on the first step that reaches no node, and a mark in the bar that names it (`unreached_step`). A text that is no path stays, and Enter does nothing.
+- **Escape** (`make_navigator_address_reset_operation`) makes the copy the address again, shows the view before, and selects the page.
+
+The reader of the view takes Return and Escape with no modifier while the selection is in the copy (`is_navigator_address_selected`), whatever the path view answered.
 
 ### The choices of a name
 
@@ -101,6 +112,7 @@ Alt and an arrow walk the structure of a document, so the navigator takes Ctrl.
 | `Ctrl+]` | go forward |
 | `Ctrl+Up` | go to the parent page |
 | `Ctrl+Return` | open the selected part as a page |
+| `Ctrl+L` | edit the path of the address |
 
 Each key is an `override` rule: it takes its chord also after the page answered it, as Back in a browser works on every page. The reader gives a key that the page answered to the table of the navigator as a claimed key, which only an `override` rule takes. A table of rows answers Return with any modifier, for one.
 | right click on a part of the page | the menu of the part: "Open as a page" and "Open in a new tab" |
@@ -129,7 +141,7 @@ An open that no navigator takes reaches the editor. Its evaluation posts the ope
 
 ## How it fits
 
-The slice uses the collection, layout, natural, pane, projection, screen, serialization, style and widget slices of the platform, and the kernel. It uses the pane slice for the tab that an open with no navigator posts, and the screen slice for the close of the window of the list of choices. It names no domain, and no domain names it except to answer `OpenPageOperation`.
+The slice uses the collection, layout, natural, pane, primitive, projection, screen, serialization, style, syntax, text and widget slices of the platform, and the kernel. It uses the pane slice for the tab that an open with no navigator posts, the screen slice for the close of the window of the list of choices, and the syntax, text and primitive slices for the path view. The syntax slice draws a syntax document that a view puts among its parts, such as the path view in the bar, from the stage from syntax to text. It names no domain, and no domain names it except to answer `OpenPageOperation`.
 
 A domain gives a part a page of its own where the part must look different as a page. The data frame adapter draws a row of a frame, `rows[r]` of a `DataFrameView`, as a form of the name and the value of each column (`DataFrameViewRowToWidget`). The menu of a row opens it, and a double click on the number of a row opens it: the view of the frame maps that double click, because the view owns the numbers.
 
@@ -161,7 +173,7 @@ evaluate_operation(editor, make_navigator_open_operation(navigator, @reference(d
 
 A part that opens a page answers `OpenPageOperation(nothing, EmptyReference())` to its own press, and `OpenPageOperation(nothing, EmptyReference(), :new_tab)` to Ctrl+press.
 
-- Tests: `test_navigator()` in `ProjecturedPlatformTest`: `test_navigator_visits()`, `test_navigator_choices()`, `test_navigator_to_widget()`, `test_open_page_operation()`, `test_navigator_gestures()` and `test_navigator_document()`. The data frame case is `test_data_frame_row_page()` in `ProjecturedDataFramesTest`.
+- Tests: `test_navigator()` in `ProjecturedPlatformTest`: `test_navigator_visits()`, `test_navigator_choices()`, `test_navigator_to_widget()`, `test_open_page_operation()`, `test_navigator_gestures()`, `test_navigator_document()` and `test_navigator_address()`. The data frame case is `test_data_frame_row_page()` in `ProjecturedDataFramesTest`.
 
 ## Limits
 
@@ -169,6 +181,6 @@ A part that opens a page answers `OpenPageOperation(nothing, EmptyReference())` 
 
 - A JSON part has no title, so the address of a JSON page names its steps, for example `entries[2]` and `value`, and the list of choices of an entry names it `[2]`.
 - The list of choices opens at the point of the press, and no key opens it.
-- The path view shows the path and takes no edit yet.
+- The hint of an insertion completes the name of a field, not an element.
 - The view on demand, which draws a document that has no view of its own, does not pass an operation with a fixed place (`read_rooted_operation`) into itself. A verb of the assistant at a place inside such a page reaches no part.
 - A link in the data of a domain, such as a markdown link, does not answer `OpenPageOperation` yet.
