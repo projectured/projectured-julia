@@ -54,6 +54,43 @@ function test_build_step()
             @test !is_build_step_up_to_date(step)
         end
 
+        @testset "a dependency file can name its paths relative to a folder" begin
+            folder = mktempdir()
+            for path in ("src/a.msg", "src/a_m.cc", "src/a_m.h", "src/b.msg")
+                mkpath(dirname(joinpath(folder, path)))
+                write(joinpath(folder, path), "")
+            end
+            write(joinpath(folder, "a_m.h.d"), "a_m.cc a_m.h: a.msg b.msg\n")
+            step = BuildCommandTask(; action = "Generating", subject = "src/a_m.cc",
+                working_directory = folder, arguments = ["true"], input_files = ["src/a.msg"],
+                output_files = ["src/a_m.cc", "src/a_m.h"], dependency_file = "a_m.h.d",
+                dependency_root = "src")
+            @test find_build_step_input_files(step) == ["src/a.msg", "src/b.msg"]
+        end
+
+        @testset "a step that ends DONE touches its outputs" begin
+            folder = mktempdir()
+            write(joinpath(folder, "in.txt"), "")
+            write(joinpath(folder, "out.txt"), "")
+            _set_build_file_time(joinpath(folder, "out.txt"), -200)
+            _set_build_file_time(joinpath(folder, "in.txt"), -100)
+            # The command leaves its output as it was, as opp_msgc does.
+            step = BuildCommandTask(; action = "Generating", subject = "in.txt",
+                working_directory = folder, arguments = ["true"], input_files = ["in.txt"],
+                output_files = ["out.txt"])
+            @test _run_build_step(step).result == "DONE"
+            @test is_build_step_up_to_date(step)
+        end
+
+        @testset "a removal removes once" begin
+            folder = mktempdir()
+            mkpath(joinpath(folder, "out", "debug"))
+            write(joinpath(folder, "out", "debug", "a.o"), "")
+            step = BuildRemoveTask(; working_directory = folder, path = "out")
+            @test _run_build_step(step).result == "DONE" && !ispath(joinpath(folder, "out"))
+            @test _run_build_step(step).result == "SKIP"
+        end
+
         @testset "a failed step says its error" begin
             folder = mktempdir()
             write(joinpath(folder, "in.cc"), "")

@@ -53,7 +53,8 @@ export TaskGroup, TaskStartFailure, get_default_job_count, start_task, is_concur
        measure_task_group_elapsed_time, measure_task_group_progress,
        TaskGroupResult, compute_task_group_result, format_task_group_summary,
        format_task_group_reason, TaskGroupSummary, compute_task_group_summary, summarize_results
-export BuildStepTask, BuildCommandTask, BuildCopyTask, BuildStepResult, read_dependency_file,
+export BuildStepTask, BuildCommandTask, BuildCopyTask, BuildRemoveTask, BuildStepResult,
+       read_dependency_file,
        find_build_step_input_files, is_build_step_up_to_date
 export TaskFeedStore, TaskFeed, get_session_task_feed_store, register_task_execution!,
        drain_task_feed!, has_task_feed_entries, make_task_feeds
