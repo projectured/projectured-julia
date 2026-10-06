@@ -78,6 +78,27 @@ function test_build_step()
             @test find_build_step_input_files(root) == ["a.msg", "b.msg"]
         end
 
+        @testset "a postprocess runs on the first output after the command" begin
+            folder = mktempdir()
+            write(joinpath(folder, "in.txt"), "one")
+            _set_build_file_time(joinpath(folder, "in.txt"), -100)
+            # The command writes beside the output, and the postprocess moves it there.
+            step = BuildCommandTask(; action = "Generating", subject = "out.txt",
+                working_directory = folder, arguments = ["cp", "in.txt", "staged.txt"],
+                input_files = ["in.txt"], output_files = ["include/out.txt"],
+                postprocess = ["mv", "-f", "staged.txt"])
+            @test _run_build_step(step).result == "DONE"
+            @test read(joinpath(folder, "include", "out.txt"), String) == "one"
+            @test !isfile(joinpath(folder, "staged.txt")) && is_build_step_up_to_date(step)
+            @test format_task_details(step, nothing) ==
+                  ["command: cp in.txt staged.txt", "then: mv -f staged.txt include/out.txt"]
+            failing = BuildCommandTask(; action = "Generating", subject = "out.txt",
+                working_directory = folder, arguments = ["true"], input_files = ["in.txt"],
+                output_files = ["missing/out.txt"], postprocess = ["mv", "nothing.txt"])
+            result = _run_build_step(failing)
+            @test result.result == "ERROR" && result.reason == "The postprocess failed"
+        end
+
         @testset "a step that ends DONE touches its outputs" begin
             folder = mktempdir()
             write(joinpath(folder, "in.txt"), "")

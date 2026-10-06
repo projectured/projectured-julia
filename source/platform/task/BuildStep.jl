@@ -18,7 +18,7 @@ abstract type BuildStepTask <: AbstractTask end
 """
     BuildCommandTask(; action, subject, working_directory, arguments, input_files,
                      output_files, dependency_file = nothing, dependency_root = nothing,
-                     environment = nothing)
+                     environment = nothing, postprocess = nothing)
 
 One command of a build, such as the compile of one file or a link: `arguments`
 run in `working_directory`, with `environment` when it is given. `action` says
@@ -30,9 +30,12 @@ second folder, relative to the working directory, that the paths of the
 dependency file can be relative to: the folder that another engine runs the
 same command in, such as `make` in the first C++ folder of a project.
 
-After the command ends `DONE`, the step touches its outputs, so a command that
-leaves an output as it was, as `opp_msgc` does when nothing changed, is up to
-date the next time.
+After the command ends `DONE`, `postprocess`, a command, runs on the first
+output, as `postprocess` of [`BuildCopyTask`](@ref) runs on the copy: `ranlib`
+on an archive, or `mv -f` of a file that the command wrote to the place of the
+first output. Then the step touches its outputs, so a command that leaves an
+output as it was, as `opp_msgc` does when nothing changed, is up to date the
+next time.
 """
 struct BuildCommandTask <: BuildStepTask
     action::String
@@ -44,17 +47,20 @@ struct BuildCommandTask <: BuildStepTask
     dependency_file::Union{String,Nothing}
     dependency_root::Union{String,Nothing}
     environment::Union{Dict{String,String},Nothing}
+    postprocess::Union{Vector{String},Nothing}
 end
 
 BuildCommandTask(; action::AbstractString, subject::AbstractString,
                  working_directory::AbstractString, arguments::AbstractVector,
                  input_files::AbstractVector, output_files::AbstractVector,
-                 dependency_file = nothing, dependency_root = nothing, environment = nothing) =
+                 dependency_file = nothing, dependency_root = nothing, environment = nothing,
+                 postprocess = nothing) =
     BuildCommandTask(String(action), String(subject), String(working_directory),
                      String.(arguments), String.(input_files), String.(output_files),
                      dependency_file === nothing ? nothing : String(dependency_file),
                      dependency_root === nothing ? nothing : String(dependency_root),
-                     environment === nothing ? nothing : Dict{String,String}(environment))
+                     environment === nothing ? nothing : Dict{String,String}(environment),
+                     postprocess === nothing ? nothing : String.(postprocess))
 
 """
     BuildCopyTask(; working_directory, source_file, target_file, postprocess = nothing)
@@ -231,8 +237,9 @@ end
 
 Run the command of the step as a process task, or answer `SKIP` with
 "Up-to-date" when the step is up to date. The folders of its outputs are made
-first. It ends `DONE` on exit code 0, `CANCEL` after a stop, and else `ERROR`,
-with what the command printed on stderr as its error message.
+first. It ends `DONE` on exit code 0 and a `postprocess` that succeeds,
+`CANCEL` after a stop, and else `ERROR`, with what the command printed on
+stderr, or how the `postprocess` failed, as its error message.
 """
 function start_task(step::BuildCommandTask; on_finish = nothing)
     execution = TaskExecution(step)
@@ -250,6 +257,16 @@ function start_task(step::BuildCommandTask; on_finish = nothing)
             _finish_build_step!(step, execution, "CANCEL", "DONE", "Cancel by user", elapsed, code,
                                 nothing, on_finish)
         elseif code == 0
+            if step.postprocess !== nothing
+                target = _resolve_build_path(step, first(step.output_files))
+                try
+                    run(Cmd(Cmd([step.postprocess; target]); dir = step.working_directory))
+                catch exception
+                    return _finish_build_step!(step, execution, "ERROR", "DONE",
+                                               "The postprocess failed", elapsed, code,
+                                               sprint(showerror, exception), on_finish)
+                end
+            end
             for output in step.output_files
                 path = _resolve_build_path(step, output)
                 isfile(path) && touch(path)
@@ -330,7 +347,10 @@ function _find_build_error_line(message::AbstractString)
 end
 
 function format_task_details(step::BuildStepTask, result)
-    lines = step isa BuildCommandTask ? String["command: " * join(step.arguments, " ")] :
+    lines = step isa BuildCommandTask ?
+                String["command: " * join(step.arguments, " ");
+                       step.postprocess === nothing ? String[] :
+                           ["then: " * join(step.postprocess, " ") * " " * first(step.output_files)]] :
             step isa BuildCopyTask ? String["copy: " * step.source_file * " → " * step.target_file] :
             String["remove: " * format_task_parameters(step)]
     result isa BuildStepResult || return lines

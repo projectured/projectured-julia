@@ -140,8 +140,9 @@ dependency file (`.d`) that names the inputs of an output once the command wrote
 it (`read_dependency_file`). When another engine runs the same command in
 another folder and writes the same dependency file, `dependency_root` names that
 folder, and the step reads the paths relative to either folder. After a command
-ends `DONE`, the step touches its outputs, so a command that leaves an output as
-it was is up to date the next time. `BuildCopyTask` copies one file, and accepts
+ends `DONE`, its `postprocess`, such as `ranlib`, runs on its first output, and
+then the step touches its outputs, so a command that leaves an output as it was
+is up to date the next time. `BuildCopyTask` copies one file, and accepts
 a hard link or a target that is not older than its source. `BuildRemoveTask`
 removes a file or a folder, as a clean does. `is_build_step_up_to_date` says
 whether every output is newer than every input; a step that is up to date
