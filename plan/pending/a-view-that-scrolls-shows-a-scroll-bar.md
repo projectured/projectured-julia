@@ -1,8 +1,8 @@
 # A view that scrolls shows a scroll bar
 
 > **Kind:** plan · **Status:** pending, 2026-10-06. The decisions of §2 are
-> made, and no question is open. Steps are in progress on the branch
-> `scroll-bars`. ·
+> made. Steps 1 to 8 are done on the branch `scroll-bars`, not landed. One
+> question of §8 is open: the drag of a thumb in the file tree. ·
 > **Stands on:** [widget.md](../../documentation/package/platform/widget/widget.md),
 > [layout-rules.md](../../documentation/rule/layout-rules.md),
 > [view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md),
@@ -349,12 +349,23 @@ part.
 - [x] **7. The rule.** [layout-rules.md](../../documentation/rule/layout-rules.md),
   "Clipping is not scrolling": a widget of rows scrolls by itself in a slot,
   and a bar is an overlay.
-- [ ] **8. A live check** in the app, with pushed SDL events. Check the file
-  tree, a data frame, the frame statistics, the settings page and a log:
-  - the bar shows only on overflow;
-  - a press moves one page, and Shift+click jumps;
-  - a drag keeps the point where the pointer took the thumb;
-  - Escape during a drag puts the view back.
+- [x] **8. A live check** in the app, 2026-10-06, with SDL events pushed into
+  the queue of a `display_in_editor` window, and screenshots of that window
+  alone. The results:
+  - **Data frame of 100 000 rows:** the bar starts under the header row; the
+    pointer on it lights the track and the thumb; a click on the track moves one
+    page (row 50130 to 50143); Shift and a click jump to the middle; a drag of
+    the thumb past the bottom of the window goes to the end (row 99988); Escape
+    during a drag puts the view back (70994 back to 29807).
+  - **Statistics:** the bar starts under the header row of the frames.
+  - **Settings page,** a pane that a view makes: the bar shows, a click on the
+    track moves one page, and a drag of the thumb scrolls the page.
+  - **File tree:** the tree scrolls itself in its tab, the bar shows when a
+    folder opens, and a click on the track moves one page. The owner turned the
+    wheel over it by hand, and it scrolled; the wheel events that the driver
+    pushed carry no point, so they did not. **A drag of the thumb does nothing:**
+    see §8.
+  - The pages of omnet-julia were not checked.
 
 ## 6. Not in this plan
 
@@ -394,7 +405,28 @@ Each item needs a decision of its own.
 
 ## 8. Open questions
 
-None. The owner decided the last one, the default value, as D8.
+1. **A drag of a thumb inside the output of a view that drops the path of
+   the drag.** The thumb answers `StartDragOperation` with the empty path, and
+   each widget around it keeps that path. A view maps it back to its own
+   input. The file tree view, `FileSystemToWidgetTree`, maps no path but a node
+   of the tree, so it drops the start of the drag, and the chain drops the whole
+   answer to the press: in the file tree a drag of the thumb does nothing (a
+   click on the track and the wheel work). The settings page works, because its
+   view maps the path. Two ways out, and the recommendation is the first:
+   - **The chain follows an introduced reference.** `_read_routed_chain` in
+     [Chaining.jl](../../source/platform/projection/higherorder/Chaining.jl)
+     drops a routed gesture whose route does not evaluate on its input, and an
+     introduced reference never does. A gesture needs no place in the input,
+     only a route forward, so the chain can map it forward by
+     `find_introduced_path`, as its comment already says it does. Each view
+     whose backward map answers `nothing` for a part it made then answers the
+     default introduced reference. This fixes every drag inside the output of a
+     view, also a slider or a splitter, and the data frame view and the
+     statistics would not need to keep the drag themselves. It is a change of
+     the routing design, so it waits for the owner.
+   - **Each such view keeps the drag itself,** as the data frame view does. A
+     bar that a pane makes is not in a field of the view, so the view would
+     need a way to reach it.
 
 ## 9. Risks
 
