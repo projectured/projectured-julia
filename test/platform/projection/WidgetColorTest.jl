@@ -8,7 +8,8 @@
 _color_test_measure = FixedMeasure(8, 12, 4, 0)
 
 # Every color that a canvas tree draws: the fills, the outlines, the lines and
-# the texts. A rect of no size draws nothing, so its colors do not count.
+# the texts. A rect of no size and an arc of no sweep draw nothing, so their
+# colors do not count.
 function _drawn_colors(canvas)
     out = StyleColor[]
     walk(c) = for el in c.elements
@@ -24,7 +25,9 @@ function _drawn_colors(canvas)
         elseif el isa GraphicsCircle || el isa GraphicsPolygon
             push!(out, el.color)
             Int(el.border_width) > 0 && push!(out, el.border_color)
-        elseif el isa GraphicsText || el isa GraphicsLine || el isa GraphicsPolyline || el isa GraphicsArc
+        elseif el isa GraphicsArc
+            Float64(el.sweep_angle) > 0 && push!(out, el.color)
+        elseif el isa GraphicsText || el isa GraphicsLine || el isa GraphicsPolyline
             push!(out, el.color)
         end
     end
