@@ -703,8 +703,19 @@ address. The copy is view state, and a save does not keep it. The option not
 chosen made the document the address itself, so the page followed every key of a
 path that a person types.
 
-The open decisions, in order: the kinds of its steps; the list of choices at a
-step; the rule of edit 3; the switch of the views.
+**Decided (owner, 2026-10-06): the document holds the steps of the kernel, and
+the code dispatches on their types.** The steps are `FieldReferenceStep` and
+`RangeReferenceStep` values, in a list; each behavior (the name in the titles
+view, the text in the path view, the list of choices, the edit) has one method
+for each of the two types. Another kind of step has no method, so it can not
+enter the address, and a `RangeReferenceStep` enters only in its element form,
+`[i]`: a position, a range, a made part and a point name a place in a page, not a
+page. The option not chosen gave each kind a step document of its own, a mirror
+of the step types of the kernel that a new kind of step would have to repeat
+(the owner: "shadowing the reference types which is unbounded").
+
+The open decisions, in order: the list of choices at a step; the rule of edit 3;
+the switch of the views.
 
 ## 11. Risks
 
