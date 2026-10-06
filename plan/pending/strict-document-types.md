@@ -405,7 +405,11 @@ worktree. The three domains test different parts of the model:
   `JsonNumber.value`. The generated `JsonInsertion` learns to hold the text of a number and to
   turn into a `JsonNumber` when the text parses, as `PrimitiveInsertion` does. XML has no number
   field.
-  *The JSON part is done (2026-10-06); the Julia part is open.* What is built:
+  *Julia needs no change.* The leaves of `JuliaInteger` and `JuliaFloat` print a fixed text and
+  have no bound field (`JuliaToSyntax.jl:26-40`), so a person can not edit a Julia number. A
+  Julia number comes only from a `JuliaInsertion`, which keeps source text and commits it with
+  `parse_julia`. So an incomplete number already stays in the insertion of the domain.
+  *The JSON part is done (2026-10-06).* What is built:
   - **The number becomes the insertion in the reader.** `make_number_range_operation(input,
     reference, replacement)` in the primitive slice makes the edit of a number: a
     `ReplaceNumberRangeOperation` when the number shows the new text exactly or the text is
