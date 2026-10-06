@@ -438,11 +438,20 @@ new tab".
     types the two steps of the grid, because the pane splices the image of a tab
     into its own path and needs a type on every node.
   - `test_navigator_gestures()`, 20 tests; `test_navigator()` runs 166.
-- [ ] **5. A table and its detail page.** The page view of a data frame row, a
+- [x] **5. A table and its detail page.** The page view of a data frame row, a
   form of its columns. The "Open" item of a row and a press on a row header.
   The case of the owner: the table, a row, Back to the table with the row
-  selected. An example, a test, and a check in a live window. Done except the
-  example and the live window, 2026-10-06. What the work found and decided:
+  selected. An example, a test, and a check in a live window. Done 2026-10-06.
+  The example is `make_data_frame_navigator_example(; rows)` of
+  `ProjecturedDataFramesExample`, a navigator on the view of
+  `make_data_frame_example`; the example registry has no data frame, so it is a
+  factory and no `run_example` entry. The live check drove that example in a
+  real SDL window with pushed events from the main task, 11 of 11: a double click
+  on the number of row 3 opens the row, the arrow before "row 3" opens the list
+  of rows in a window of its own, typing 5 and Return open row 5, Ctrl+[ goes
+  back, Ctrl+Up goes to the table, and Ctrl+L, `.rows[7]` and Return open row 7.
+  A pushed double click needs two press pairs, as SDL makes one from two
+  presses. What the work found and decided:
   - `DataFrameViewRowToWidget` draws a row as a form of the name and the value of
     each column, in a scroll pane, read-only. A value shows as a cell of the
     table shows it. The form reads `frame_version`, so it follows a write of the

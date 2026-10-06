@@ -25,3 +25,15 @@ function make_data_frame_example(; rows::Integer = 1000)
         discount = Union{Missing, Float64}[i % 5 == 0 ? missing : (i % 4) * 5 / 100
                                            for i in 1:rows])
 end
+
+"""
+    make_data_frame_navigator_example(; rows::Integer = 1000) -> Navigator
+
+A navigator on the view of `make_data_frame_example(; rows)`, with the table as
+its first page. A double click on the number of a row, or Ctrl+Return on a
+selected row, opens the row as a page, a form of its columns. Back returns to the
+table with the row selected, Parent goes from a row to the table, and the arrow
+before "row r" in the address lists the other rows.
+"""
+make_data_frame_navigator_example(; rows::Integer = 1000) =
+    Navigator(DataFrameView(make_data_frame_example(; rows)))
