@@ -46,13 +46,15 @@ export TaskOutput, append_output_line!, get_left_out_line_count, collect_output_
        get_task_execution_snapshot, is_task_running, wait_task_execution,
        stop_task_execution!, get_task_status, finish_task_execution!, start_process_task!,
        sample_task_usage!
-export TaskGroup, get_default_job_count, start_task, is_concurrent,
+export TaskGroup, TaskStartFailure, get_default_job_count, start_task, is_concurrent,
        format_task_group_description, format_task_group_close_description,
        start_task_group!, stop_task_group!, wait_task_group, rerun_task_group!, run_task_group,
        collect_task_group_results, compute_task_group_indices, build_task_group_summary,
        measure_task_group_elapsed_time, measure_task_group_progress,
        TaskGroupResult, compute_task_group_result, format_task_group_summary,
        format_task_group_reason, TaskGroupSummary, compute_task_group_summary, summarize_results
+export BuildStepTask, BuildCommandTask, BuildCopyTask, BuildStepResult, read_dependency_file,
+       find_build_step_input_files, is_build_step_up_to_date
 export TaskFeedStore, TaskFeed, get_session_task_feed_store, register_task_execution!,
        drain_task_feed!, has_task_feed_entries, make_task_feeds
 export TaskDocument, start_task!, stop_task!, wait_task_document, reset_task_document!,
@@ -73,6 +75,7 @@ export list_task_groups, find_task_group, describe_task_group, describe_task, ge
 include("TaskResult.jl")
 include("TaskExecution.jl")
 include("TaskGroup.jl")
+include("BuildStep.jl")
 include("TaskFeed.jl")
 include("TaskDocument.jl")
 include("TaskGroupList.jl")

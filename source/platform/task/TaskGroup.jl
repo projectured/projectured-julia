@@ -24,6 +24,20 @@ it with [`start_process_task!`](@ref).
 function start_task end
 
 """
+    TaskStartFailure
+
+What a task ended with when its start threw: `ERROR`, with the exception in its
+`reason`. The group records it and goes on with its other tasks.
+"""
+struct TaskStartFailure <: TaskResult
+    task::AbstractTask
+    result::String
+    expected_result::String
+    reason::Union{String,Nothing}
+    elapsed_wall_time::Union{Float64,Nothing}
+end
+
+"""
     TaskGroup(tasks; name = "task", action = "", jobs = get_default_job_count(),
               codes = nothing)
 
@@ -186,11 +200,21 @@ function _drive!(group::TaskGroup, indices::Vector{Int}, on_start, on_finish, on
             index = indices[next]
             next += 1
             active += 1
-            group.runs[index] = start_task(group.tasks[index];
-                on_finish = result -> begin
-                    on_finish === nothing || on_finish(index, result)
-                    put!(finished, index)
-                end)
+            finish_one = result -> begin
+                on_finish === nothing || on_finish(index, result)
+                put!(finished, index)
+            end
+            group.runs[index] = try
+                start_task(group.tasks[index]; on_finish = finish_one)
+            catch exception
+                # A start that throws ends its task as an error, and the group
+                # goes on with the others rather than stop.
+                @error "the start of a task of the group $(repr(group.name)) failed" exception = (exception, catch_backtrace())
+                finish_task_execution!(TaskExecution(group.tasks[index]),
+                    TaskStartFailure(group.tasks[index], "ERROR", group.codes.expected,
+                                     "The start failed: " * sprint(showerror, exception), nothing);
+                    finish = finish_one)
+            end
             on_start === nothing || on_start(index, group.runs[index])
             group.on_start === nothing || group.on_start(index, group.runs[index])
             on_change === nothing || on_change(group)

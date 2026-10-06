@@ -127,6 +127,24 @@ expected and unexpected, and the worst case. `format_task_group_summary` and
 like at one moment for a reader of the screen: the counts, the progress, the
 time that went and an estimate of the time left, the rate and the slowest task.
 
+A start that throws ends its task as `ERROR`, a `TaskStartFailure` with the
+exception in its reason, and the group goes on with its other tasks, so one bad
+task does not leave a group that never ends.
+
+## The steps of a build
+
+`BuildStepTask` is a step of a build, as `common/compile.py` of `opp_repl` has
+them. `BuildCommandTask` runs one command in a folder, such as the compile of
+one file or a link, with its input and its output files and an optional
+dependency file (`.d`) that names the inputs of an output once the command wrote
+it (`read_dependency_file`). `BuildCopyTask` copies one file, and accepts a hard
+link or a target that is not older than its source. `is_build_step_up_to_date`
+says whether every output is newer than every input; a step that is up to date
+answers `SKIP` with "Up-to-date", and `SKIP` is its expected result. A failed
+command ends `ERROR` with what it printed on stderr as its error message. A
+domain computes the command lines and puts the steps in groups: a build of a
+project is a sequential group of phases, each a concurrent group of steps.
+
 ## The documents and the feed
 
 `TaskDocument` is one task on the screen: the task, the state of its execution

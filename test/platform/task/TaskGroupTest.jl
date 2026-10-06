@@ -28,6 +28,11 @@ function TaskModule.start_task(task::_TaskGroupProbeTask; on_finish = nothing)
     start_process_task!(execution, `sh -c $(task.script)`; finish)
 end
 
+# A kind of task whose start throws.
+struct _TaskGroupStartFailureProbe <: AbstractTask end
+TaskModule.get_result_codes(::_TaskGroupStartFailureProbe) = RUN_RESULT_CODES
+TaskModule.start_task(::_TaskGroupStartFailureProbe; on_finish = nothing) = error("no start")
+
 # Five tasks that sleep, and one of them fails. The shell waits for its sleep in
 # the background, so an interrupt stops the sleep and ends the shell at once.
 _make_task_group_probe_tasks(seconds = 0.3) =
@@ -134,6 +139,16 @@ function test_task_group()
             @test build_task_group_summary(outer).running == 0
             @test outer.runs[1].result.result == "CANCEL"
             @test outer.runs[2] === nothing
+        end
+
+        @testset "a start that throws ends its task as an error, and the group goes on" begin
+            tasks = AbstractTask[_TaskGroupProbeTask("a", "exit 0"), _TaskGroupStartFailureProbe(),
+                                 _TaskGroupProbeTask("c", "exit 0")]
+            group = run_task_group(TaskGroup(tasks; jobs = 1))
+            results = collect_task_group_results(group)
+            @test [r.result for r in results] == ["DONE", "ERROR", "DONE"]
+            @test results[2] isa TaskStartFailure && startswith(results[2].reason, "The start failed: ")
+            @test build_task_group_summary(group).finished == 3
         end
 
         @testset "a stop ends every task" begin
