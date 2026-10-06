@@ -84,7 +84,7 @@ const _NO_ATOM = Set{String}([
     "DataFrameView", "DragTrackingState", "EvaluatorForm",
     "EvaluatorToplevel", "FaultLog", "FaultReport", "FileSystemChooser",
     "FrameStatistics", "FrameTimeSeries", "GestureLog", "GestureTrackingState", "JuliaToplevel",
-    "MessageLog", "ObjectField", "PaneGroup", "PaneSplit", "PaneTree",
+    "McpLog", "MessageLog", "ObjectField", "PaneGroup", "PaneSplit", "PaneTree",
     "SelectionInspector", "Settings", "SettingsDocument", "TextGraphics", "TextSpacing",
     "TooltipContent", "TooltipWindowState", "WidgetHighlight",
     "WidgetToolbarItem",
@@ -229,7 +229,7 @@ function test_catalog_coverage()
         @test stale == String[]
 
         # And the whole point: nothing is owed.
-        # @broken: 30 document types in `_NO_ATOM` have a printer and no atom
+        # @broken: 32 document types in `_NO_ATOM` have a printer and no atom
         # yet; this stays broken until each one gets a hand-authored atomic
         # document and is removed from that set.
         @test_broken isempty(gap)
