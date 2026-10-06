@@ -3,7 +3,8 @@
 Status, 2026-10-06: the first release is published and announced. It is the
 packages, 0.1.0 in `ProjecturedRegistry` (Part B through Part R, R27). Open:
 the binary (Part A), deferred to a later release; the move to General (B6, R34);
-and the steps of Part P that are left.
+the steps of Part P that are left; and the minor step of `ProjecturedPlatform`
+in the next release (B7, R36).
 
 Two routes give ProjecturEd to other users. Each route serves a different
 user:
@@ -280,6 +281,7 @@ The owner decided these on 2026-09-29.
 | R26 | Without the port, which engine does `ProjecturedGraph` use when none is registered? | A new force-directed engine, written from the textbook algorithm and not from the port (the owner, 2026-09-29: option 3). Part G. |
 | R19 | The ten files in `source/graph/cpp/` port the layout engine of OMNeT++, whose headers name OpenSim Ltd. and Andras Varga and the Academic Public License. | Move them out of this repository, into the private downstream repository that uses them (the owner, 2026-09-29). R26 holds what `ProjecturedGraph` uses in their place. The MIT function in `source/domain/Domain.jl` keeps its notice in one comment. |
 | R35 | Which Julia do the packages promise? | Julia 1.12 (the owner, 2026-10-02, options B and B1). The CI of the first release on Julia 1.11 failed in four jobs: `@ccall gc_safe=true` of the SDL backend needs Julia 1.12, and the `world` keyword of `unsorted_names` in the completion by reflection of the platform needs Julia 1.13 (a sweep of every job on 1.12 showed it; the first reading said 1.12). `gc_safe` stays: a collection on another thread goes on while SDL waits. The completion reads the names without `world` on 1.12 (`_collect_module_names`), and checks each one in its world with `isdefinedglobal`, which 1.12 has. The other way, B2, was to promise 1.13. After the fix, every job of the release workflow on Julia 1.12 (`/var/tmp/r31/job.sh`) passes except the faults of `main`: `RoutedChangeTest.jl:199` (kernel), `PointerShapeTest.jl:58` (SDL, no cursor with the offscreen driver) and the known faults of `test_integration()`. Step B4 had checked only `ProjecturedJSON` on 1.11. The other way was a 1.11 path in both places, which makes SDL worse on 1.11 and needs its tests for as long as 1.11 is promised. The first release, `0.1.0` with `julia = "1.11"`, was private and is replaced by a new first commit and a new registry. |
+| R36 | A release after 0.1.0 removes an exported name. Which step does the package take? | A minor step: `ProjecturedPlatform` 0.2.0, because it renames `WidgetProgress` to `WidgetProgressBar` and the theme field `progress_height` to `progress_bar_height` (the owner, 2026-10-06; [a-progress-ring-fits-in-a-table-cell.md](../done/a-progress-ring-fits-in-a-table-cell.md)). Not chosen: an alias with `Base.@deprecate_binding` for the 0.1 series, or the break in a patch step. Step B7 does it. |
 | R16 | What to do with the four packages of §2.4 that can not go in as they are? | Skip them: `ProjecturedBench`, `ProjecturedRepl`, `ProjecturedBuilder` and `ProjecturedAdaptagrams`. `ProjecturedExample` and the other example packages stay out by R12, so the registry gives no application; the binary gives it. The registry set is 65 packages. |
 
 **The rules of R11.** The owner chose one version per package. These rules
@@ -910,6 +912,19 @@ step registers in General later, from the same release repository.
       `using Projectured, ProjecturedSDL`. Done for `ProjecturedRegistry` on
       2026-10-06 (the new-user check of the front page); it runs again after
       the move to General.
+
+### Step B7: the next release gives `ProjecturedPlatform` 0.2.0 (R36)
+
+`ProjecturedPlatform` removes exported names after 0.1.0: `WidgetProgress` is
+`WidgetProgressBar`, and the field `progress_height` of `WidgetTheme` is
+`progress_bar_height`. A user with `[compat] ProjecturedPlatform = "0.1"`
+gets any 0.1.x at `pkg> up`, so a patch step would break that user.
+
+- [ ] Give the generator a way to give a package a minor step. Rule 3 of R11
+      gives a changed package only a patch step (`0.1.0` → `0.1.1`).
+- [ ] Generate the next release with `ProjecturedPlatform` at `0.2.0`. Each
+      package above it gets a caret bound on `0.2`, and so a new version by
+      rule 3.
 
 ## Part G: a layout engine of our own, and the move of the port (R19, R26)
 

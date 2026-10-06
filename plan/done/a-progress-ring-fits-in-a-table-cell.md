@@ -1,8 +1,10 @@
 # A progress ring fits in a table cell
 
-> **Status:** pending. Written on 2026-10-06. Nothing is implemented. The owner
-> decided the four questions on 2026-10-06 (section 5). The work starts when the
-> owner asks for it.
+> **Status:** done. Implemented on 2026-10-06 on the branch `progress-ring` of
+> projectured-julia, omnet-julia and inet-julia. The owner looked at the two
+> examples in a real window (step C5) and approved the landing on main the same
+> day. The measurement of the CPU time of a turning spinner is not done.
+> Section 7 holds what the implementation found and decided.
 
 ## 1. The request
 
@@ -90,7 +92,7 @@ frame.
     [WidgetColorTest.jl:129](../../test/platform/projection/WidgetColorTest.jl#L129)
   - documents: [widget.md:17, 55, 167](../../documentation/package/platform/widget/widget.md),
     [system-anatomy.md:250](../../documentation/design/system-anatomy.md),
-    [feature-video-screenplays.md:328, 745](feature-video-screenplays.md)
+    [feature-video-screenplays.md:328, 745](../pending/feature-video-screenplays.md)
 - **projectured-julia**, 37 generated lines in `package/*/precompile/examples.txt`.
   AutoPrecompile reads these lines, and the recording `"examples"` writes them
   ([ReplStatementFiles.jl](../../source/tool/repl/ReplStatementFiles.jl)).
@@ -113,7 +115,7 @@ frame.
 
 - 0.1.0 is released through ProjecturedRegistry and is announced.
 - Rule 3 of R11 in
-  [release-the-binary-and-the-packages.md](release-the-binary-and-the-packages.md)
+  [release-the-binary-and-the-packages.md](../pending/release-the-binary-and-the-packages.md)
   gives a changed package a patch step (`0.1.0` → `0.1.1`).
 - A user with `[compat] ProjecturedPlatform = "0.1"` gets 0.1.1 at `pkg> up`.
   A removed exported name is a breaking change, so the code of that user can
@@ -234,8 +236,9 @@ GraphicsArc(cx, cy, radius; width = 1, start_angle = 0, sweep_angle = 360,
 - `start_angle` and `sweep_angle` are `Float64` degrees. 0 is at the top, and
   a positive angle goes clockwise on the screen. Each is a number, a cell or a
   function, through a new helper `_make_angle_cell`. The helper does not round.
-  The constructor limits `sweep_angle` to the range 0 to 360. An arc of 360
-  degrees is a full ring.
+  The constructor keeps `sweep_angle` as it is given. Each backend and the
+  hit test take a sweep of 360 or more as the full ring, and a sweep of 0 or
+  less, or NaN, as nothing (section 7).
 - The ends are flat.
 - **Bounds:** the box of the full circle, not the box of the arc. Then the
   bounds of a spinner do not change from frame to frame, and the dirty
@@ -270,22 +273,24 @@ WidgetProgressRing(value = nothing; position, visible = true, margin = nothing,
   font, multiplied by the new theme field `progress_ring_size::IconSize =
   IconSize(1.0)`. The stroke is the theme field `stroke`, and the docstring of
   `stroke` gets the progress ring in its list.
-- The box takes the range that its parent offers (`_resolve_width`,
-  `_resolve_height`), as every widget does. The ring sits at the start of the
-  box and in its vertical center, as the box of a checkbox does. Step C1
-  checks the checkbox and follows it.
-- **A known value:** the track is a `GraphicsCircle` ring with a transparent
-  fill. The indicator is a `GraphicsArc` from 0 degrees with the sweep
-  `360 · clamp(value, 0, 1)`. At 0 there is no indicator.
-- **No value (the spinner):** the indicator is a `GraphicsArc` with the sweep
-  `360 · indeterminate_share`, 90 degrees. Its `start_angle` is a function:
-  `360 · frac(get_reactive_clock_time(ctx.clock) / indeterminate_period)`,
-  so one turn takes 1 second. Only this one cell reads the clock. A tick
-  invalidates the arc and nothing else, and the canvas does not run again.
-- The canvas reads `w.value`. When the value changes from `nothing` to a
-  number, the canvas runs again. The new arc does not read the clock, so the
-  ring stops its subscription. A ring with `visible == false` prints an empty
-  canvas and does not read the clock either.
+- The ring authors no size. Its content is its diameter plus its insets, so
+  an exact range from its parent stretches its box (`_resolve_width`,
+  `_resolve_height`), and the ring stays at the start of the box and in its
+  vertical middle. The checkbox was not the model: it sizes from its box and
+  its label, and it does not stretch.
+- The track is a `GraphicsCircle` ring with a transparent fill.
+- The indicator is one `GraphicsArc` for the life of the ring. The canvas does
+  not read the value; only the two angles of the arc read it. The sweep is
+  `360 · clamp(value, 0, 1)`, or `360 · indeterminate_share` (90 degrees)
+  while the value is `nothing`. The start is 0, or
+  `360 · frac(get_reactive_clock_time(ctx.clock) / indeterminate_period)`
+  while the value is `nothing`, so one turn takes 1 second.
+- Only the start reads the clock, and only while the value is `nothing`. A
+  tick invalidates the arc and nothing else, and the canvas does not run
+  again. When the value becomes known, the backend draws the arc again, its
+  start computes again without the clock, and the subscription ends. Section 7
+  says why the arc must live as long as the ring. A ring with
+  `visible == false` prints an empty canvas and does not read the clock.
 - The style is the one of Q2. The printer reads `track_color` and
   `indicator_color` by name.
 - The printer is `WidgetProgressRingToGraphicsCanvas`. It takes `measure`,
@@ -310,13 +315,15 @@ WidgetProgressRing(value = nothing; position, visible = true, margin = nothing,
   arc of the ring is always a quarter of the ring. The owner confirmed this
   (Q4). A segment that leaves at the end and enters again at the start, and so
   is shorter at the two ends, is not the design.
-- Each visible part is a `GraphicsRect` with the radius of the track. The
-  positions of the rectangles are functions that read the clock, so only
-  these cells tick. The bounds of a rectangle change from frame to frame, so
-  the dirty rectangle of SDL covers the old and the new place. Both are in the
-  box of the bar.
-- A known value draws the bar as it is drawn now, and the bar does not read
-  the clock.
+- Two `GraphicsRect`s with the radius of the track show the value for the
+  life of the bar, as the arc does for the ring. Only their places and widths
+  read the value. A known value fills the first from the start, and the second
+  has the width 0 and draws nothing. While the value is not known, the first
+  is the part of the segment before the end of the track and the second the
+  part that passed the end, and only then do they read the clock. The bounds
+  of a rectangle change from frame to frame, so the dirty rectangle of SDL
+  covers the old and the new place. Both are in the box of the bar.
+- A known value draws the same picture as before this plan.
 
 ## 5. Decisions of the owner
 
@@ -353,131 +360,136 @@ arc". Section 4.4 holds the design.
 
 ## 6. Steps
 
-Do the work in a worktree of projectured-julia, and in a branch of
-omnet-julia. Make one commit for each step, and mark the step here.
+The work was done in the worktree `projectured-julia-progress-ring` and in a
+branch `progress-ring` of omnet-julia and inet-julia, one commit for each step.
+The SHAs are the ones after the rebase onto main (section 7).
 
 ### Part A — the rename
 
-- [ ] **A1. Rename in projectured-julia.**
-  - Run `workspace/bin/julia-rename.jl` with `--report` for each name of 4.1.
-    Read `--show-other` before you trust a rename whose `other` count is not
-    zero.
-  - A theme field and a keyword can not go through the tool. Rename
-    `progress_height` with a text pass on the exact word.
-  - Do a second pass for strings, docstrings, the symbol `:WidgetProgress` and
-    the documents.
-  - After each text pass, find the new name as a `.jl` file name in a string,
-    and revert those hits.
-  - Replace the names in `package/*/precompile/examples.txt` with a text pass
-    on the exact word. These files are generated lists of signatures. The next
-    recording makes them exact.
-  - Update [feature-video-screenplays.md](feature-video-screenplays.md).
-  - Tests: `test_widget_live_values()`, `test_widget_colors()`,
-    `test_example(widget_progress_bar_example)` and the naming guard. Then run
-    `Pkg.precompile()` over `environment/all`, and search its log for
-    `Imported binding .* was undeclared`.
-- [ ] **A2. omnet-julia follows.** Do this on a branch of omnet-julia.
-  - Change the imports, the constructors, the tests, `legacy-simulation.md`,
-    the two pending plans and `asset/precompile/PrecompileStatements.jl`.
-  - Do not change `plan/done/`.
-  - Run `Pkg.precompile()` and search for undeclared bindings again. Then run
-    the suites that hold the 9 assertions.
-  - This branch can land only after A1 is on main of projectured-julia.
-- [ ] **A3. inet-julia follows.** Change the 25 generated lines of
-  `asset/precompile/PrecompileStatements.jl`.
+- [x] **A1. Rename in projectured-julia.** Done in `fb1141f20`: 20 files.
+  `julia-rename.jl` renamed the identifiers, and a second pass by text renamed
+  the docstrings, the symbol `:WidgetProgress`, the theme field and its read,
+  the strings and the markdown. The generated statement files took an
+  exact-token text pass. No code uses the generated variants
+  (`ACWidgetProgress` and the others); only the statement files name them.
+  - Checks: the naming guard, `Pkg.precompile()` with no undeclared binding,
+    `test_widget_live_values()`, `test_widget_colors()`, and
+    `test_example(widget_progress_bar_example)` with one failure that the base
+    commit has too (section 7).
+  - The task slice that main gained later makes its bar with the old name.
+    `07d60b5a0` follows the rename there, after the rebase.
+- [x] **A2. omnet-julia follows.** Done in omnet-julia `3ed4e90b`: 15 files,
+  the 8 constructors, the 8 imports, the 9 test assertions, the comments,
+  `legacy-simulation.md`, two pending plans and the 38 generated statements.
+  - A throwaway environment in `/var/tmp` pointed omnet-julia at its branch and
+    projectured-julia at its branch. `Pkg.precompile()` gave no undeclared
+    binding. Seven test functions gave the counts of unmodified main
+    (section 7).
+- [x] **A3. inet-julia follows.** Done in inet-julia `28c50d9`: 32 generated
+  lines of `asset/precompile/PrecompileStatements.jl`, among them
+  `WidgetProgressMut`, a generated suffix that the planned regex did not
+  reach. No other file of inet-julia names the widget. The replay skips a
+  statement that names nothing, so an old file does not fail a build.
 
 ### Part B — `GraphicsArc`
 
-- [ ] **B1. The primitive.**
-  - Add the document, the constructor, `_make_angle_cell`, the hit test and
-    the bounds.
-  - Add a row to the table of
-    [graphics.md](../../documentation/package/platform/graphics/graphics.md),
-    and a clause to its sentence about the hit test. Write that an angle is
-    `Float64` and is not a coordinate.
-  - Test in `GraphicsDocumentTest.jl`, with the testset of `GraphicsPolygon`
-    as the model:
-    - the fields
-    - an angle from a cell that changes
-    - a hit in the sweep and a miss outside it
-    - `get_graphics_size` gives the box of the full circle
-- [ ] **B2. SDL.** Add `_render_arc!` and its branch.
-  - Test in `GraphicsToFileTest.jl` with `write_image(…; supersample = 1)`,
-    because the default supersample hides edges that are not smooth.
-  - A pixel in the band and in the sweep has the color. A pixel in the band
-    and outside the sweep has the background color.
-  - A full sweep colors the same pixels as the ring of a `GraphicsCircle`.
-- [ ] **B3. PDF.** Add `paint_arc!` and its branch. Add an arc to the canvas
-  of the test `"write_pdf renders every primitive + embedded font"`.
-- [ ] **B4. Web.** Add the branch in `_serialize_node`, and `drawArc` in
-  `client.js`. In `WebTest.jl`, test that an arc gives the dictionary of 4.2.
+- [x] **B1. The primitive.** Done in `a247ae4d7`: the document, the
+  constructor, `_make_angle_cell`, `_is_point_on_arc`, the bounds, and
+  [graphics.md](../../documentation/package/platform/graphics/graphics.md).
+  `test_graphics()`: 13 checks in the testset `GraphicsArc`.
+- [x] **B2. SDL.** Done in `e6a6f0c21`: `_fill_arc_band!` and `_render_arc!`.
+  The pixel test in `GraphicsToFileTest.jl` reads an image with no supersample:
+  10 checks, among them a full sweep that colors exactly the pixels of the ring
+  of a circle.
+- [x] **B3. PDF.** Done in `431eda471`: `paint_arc!`. Besides the smoke test,
+  a testset checks the exact operators of a quarter arc, the segment count of
+  200 degrees, a full sweep and an empty one.
+- [x] **B4. Web.** Done in `42878e1e8`: the node `"arc"` and `drawArc`. The
+  test checks the dictionary. No browser ran the client, and this machine has
+  no `node` to check the syntax of `client.js`.
 
 ### Part C — the ring, and the bar for unknown progress
 
-- [ ] **C1. The ring.**
-  - Add the document, the theme field `progress_ring_size`, the printer, its
-    row in the dispatch table, the exports, and `:WidgetProgressRing` in
-    `make_interface_api`.
-  - Test in a new `WidgetProgressRingTest.jl`, `test_widget_progress_ring()`.
-    Check that its fixture names are not in another test file.
-  - Check these results:
-    - The diameter is one line of the theme font.
-    - At 0.25 the arc goes from 0 to 90 degrees.
-    - At 0 there is no indicator.
-    - At 1 the indicator is a full ring.
-    - A row of a `WidgetTable` that holds a ring has the same height as a
-      row of text. Assert the coordinates.
-  - Check the spinner with a `Clock` in a `PrinterContext` (`with_clock`):
-    - At the clock times 0 and 0.25, `start_angle` gives 0 and 90.
-    - While the ring spins, `has_dependent_cells` of the clock time is true.
-    - After the value becomes 0.5 and the ring prints again, it is false.
-    - A ring with a known value never makes it true.
-- [ ] **C2. The bar for unknown progress.**
-  - Give `WidgetProgressBar` the value `nothing` (4.4): the field type, the
-    default of the constructor, `_make_share_cell` for `nothing`, and the
-    moving segment in the printer.
-  - Test in `WidgetLiveValueTest.jl`, next to the testset of the bar that
-    follows a function. Use a bar of 200 pixels, a `Clock` in a
-    `PrinterContext`, and these checks:
-    - At the clock time 0, one rectangle covers the pixels 0 to 50.
-    - At 0.5, one rectangle covers the pixels 100 to 150.
-    - At 0.875, two rectangles cover the pixels 175 to 200 and 0 to 25.
-    - The subscription to the clock starts and stops as for the ring.
-    - A bar with a known value draws the same elements as before this step.
-      Compare them with the bar at the commit of step A1.
-- [ ] **C3. The examples.** Add `widget_progress_ring_example` and
-  `make_widget_progress_ring_document_example`: rings at some values, one
-  spinner, and a `WidgetTable` of jobs with a ring column.
-  - Add a bar with no value to the example of the bar.
-  - Add the document of the ring to `_PROBED_WIDGET_DOCUMENTS` in
-    `WidgetColorTest.jl`.
-  - Run `test_example` of the two examples with a timeout. A spinner keeps the
-    editor awake, and a test must not wait for it to settle.
-- [ ] **C4. The documents.** Update these files:
-  - [widget.md](../../documentation/package/platform/widget/widget.md): the
-    table of documents, the list of widgets that only show a value, the count
-    of the theme sizes, and a paragraph on a value that is not known.
-  - [system-anatomy.md](../../documentation/design/system-anatomy.md): the
-    row of `WidgetDocument.jl`.
-  - [layout-rules.md](../../documentation/rule/layout-rules.md): the
-    widgets that size from an authored value. The ring sizes from the line
-    height.
-- [ ] **C5. The live check.** The owner looks at the two examples in a real
-  window: the ring in the table, the spinner, and the moving segment of the
-  bar.
-  - Measure the CPU time while a spinner turns only after the owner says so,
-    on an idle machine.
+- [x] **C1. The ring.** Done in `8353fc722`. The test file has the name
+  `WidgetProgressTest.jl` and the function `test_widget_progress()` since step
+  C2, because it covers both widgets.
+  - The first version made a new arc when the value changed, and the clock
+    kept a reader after the value became known. The final design keeps one arc
+    for the life of the ring (section 7).
+- [x] **C2. The bar for unknown progress.** Done in `b7cf302b3`: two
+  rectangles for the life of the bar. The test (9 checks) uses a bar of 200
+  pixels and checks the places at the clock times 0, 0.5 and 0.875, that the
+  same rectangle shows the known value 0.3, and that the subscription ends.
+  - The plan asked to compare a bar with a known value with the bar of step A1.
+    The elements are not the same: a second rectangle of width 0 is new, and it
+    draws nothing and adds no bounds. The test checks the places instead.
+- [x] **C3. The examples.** Done in `8389450e8`. The color probe reads the
+  color of a `GraphicsArc` too, and `dd9d29301` skips an arc of no sweep there,
+  as it skips a rect of no size.
+  - `test_example(widget_progress_ring_example)` fails 154 checks: the known
+    Home-key check, and 153 type-ins into the labels of its table. The
+    unchanged `widget_table` example fails 333 type-ins of the same kind. No
+    failure is in a ring.
+  - `test_example(widget_progress_bar_example)` fails only the known Home-key
+    check.
+- [x] **C4. The documents.** Done in `369c34b48`: widget.md,
+  system-anatomy.md and layout-rules.md. A review found that
+  `tool/widget-images.jl` still named the old example; `435065fda` names the
+  bar and the ring there.
+- [x] **C5. The live check.** The owner looked at the two examples in a real
+  window and accepted them on 2026-10-06.
+  - The CPU measurement of a turning spinner is not done: it needs the word of
+    the owner and an idle machine.
 
 ### Close
 
-- [ ] Add an item to
-  [release-the-binary-and-the-packages.md](release-the-binary-and-the-packages.md):
-  the next release gives `ProjecturedPlatform` the version 0.2.0 (Q1). The
-  generator needs a way to give a minor step. Each package above it gets a
-  new `[compat]` bound on 0.2, and so a new version by rule 3.
-- [ ] Move this plan to `plan/done/`.
+- [x] Add an item to
+  [release-the-binary-and-the-packages.md](../pending/release-the-binary-and-the-packages.md):
+  the next release gives `ProjecturedPlatform` the version 0.2.0 (Q1).
+- [x] Move this plan to `plan/done/`.
 
-## 7. Risks
+## 7. What the implementation found and decided
+
+**A reader lets go of the clock only when it computes again.** The cell engine
+keeps the readers of a cell as `WeakRef`s, and a reader removes its edges only
+when it computes again or is written
+([ReactiveCell.jl](../../source/kernel/cell/ReactiveCell.jl), "the downstream
+edge"). The first ring made a new arc in its canvas when the value changed. The
+old arc was still a reader of the clock, so `has_dependent_cells` of the clock
+time stayed true, and the editor would have woken every 10 milliseconds until
+the garbage collector freed the old arc. So each widget keeps the same elements
+for its whole life, and only their angles, places and widths read the value.
+When the value becomes known, the backend draws them again, they compute again
+without the clock, and the editor sleeps after the next frame. The tests check
+the identity of the elements and the end of the subscription.
+
+**The sweep of an arc is not limited when the arc is made.** A cell or a
+function can give the angles, and a limit in the constructor would need a
+second cell around each. Each backend and the hit test take a sweep of 360 or
+more as the full ring and a sweep of 0 or less, or NaN, as nothing. The
+docstring says so.
+
+**The branch was rebased onto main.** omnet-julia main needs `TaskModule`,
+which projectured-julia main gained after this branch started, so the legacy
+packages of omnet-julia could not load against the branch. `git rebase
+--autostash main` moved the branch onto `e9faed132` with no conflict.
+
+**Measured on the machine.**
+- `Pkg.instantiate()` of a fresh worktree of `environment/all` needs more than
+  8 GB: the first run was killed at that cap, and a cap of 16 GB passed.
+- The Home-key check at `NavigationTest.jl:180` fails for the example of the
+  bar on the base commit `c223ac251` too. A throwaway worktree showed it.
+- omnet-julia, the seven functions that hold the renamed assertions, branch
+  against unmodified main: `test_sim_control_panel` 12/1 and 12/1,
+  `test_sim_dashboard_panel` 34/2 and 34/2,
+  `test_parallel_sim_dashboard_panel` 10/5 and 10/5,
+  `test_sim_workbench_control_bar` 32/0 and 32/0, `test_simulation` 64/2 and
+  64/2, `test_legacy_run` 39/0 and 39/0, `test_batch_widget` 25/0 and 25/0.
+  The one failure of `test_sim_control_panel` is the timing check at
+  `WatchExampleTest.jl:426`. It failed three times out of three on both, and an
+  earlier run on main passed it.
+
+## 8. Risks
 
 - **A spinner keeps the editor awake.** While a document shows a ring or a bar
   with no value, the loop wakes every 10 milliseconds. A document that forgets to set
@@ -486,11 +498,15 @@ omnet-julia. Make one commit for each step, and mark the step here.
 - **A ring that scrolled out of view still reads the clock.** A ring in a
   viewport stays printed when it is outside the visible part, so it keeps its
   subscription. A tab page that is not shown does not print its content.
+- **A ring that is not drawn keeps an old edge.** When the value of a spinner
+  becomes known while the ring is outside the clip, the backend does not draw
+  the arc, so its start does not compute again and stays a reader of the clock
+  until the ring is drawn again.
 - **The track and the arc use different drawing paths in SDL.** The track
   uses rows of spans, and the arc uses triangles. Their edges can differ by
   less than one device pixel. Step B2 compares the pixels.
 
-## 8. Out of scope
+## 9. Out of scope
 
 - Text in the ring. At 16 pixels there is no space for it. Use the next cell
   or the `tooltip`.
