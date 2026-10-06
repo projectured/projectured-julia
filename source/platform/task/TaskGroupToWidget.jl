@@ -88,7 +88,7 @@ follows the task without a new print. With no width offered, a row has nothing
 to share, and the bar is not drawn.
 """
 function make_task_progress_bar(value)
-    bar = WidgetProgress(0.0; width = 0)
+    bar = WidgetProgressBar(0.0; width = 0)
     set_cell_computation!(getfield(bar, :value), () -> Float64(value()))
     LayoutConstraint(bar; width = Fill)
 end
