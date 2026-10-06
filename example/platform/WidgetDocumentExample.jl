@@ -478,9 +478,25 @@ make_widget_switch_document_example() =
         WidgetSwitch(; checked = false),
     ]; gap=12)
 
-# WidgetProgressBar — a 60% bar.
+# WidgetProgressBar — a 60% bar and a bar whose value is not known, stacked by a
+# VerticalLayout.
 make_widget_progress_bar_document_example() =
-    WidgetProgressBar(0.6; position = Point2D(40, 40), width=260)
+    VerticalLayout(Any[
+        WidgetProgressBar(0.6; width=260),
+        WidgetProgressBar(; width=260),
+    ]; gap=12)
+
+# WidgetProgressRing — rings at 0, 25, 60 and 100 percent and a ring whose value
+# is not known, then a table of jobs with a column of rings.
+make_widget_progress_ring_document_example() =
+    VerticalLayout(Any[
+        HorizontalLayout(Any[WidgetProgressRing(0.0), WidgetProgressRing(0.25), WidgetProgressRing(0.6),
+                             WidgetProgressRing(1.0), WidgetProgressRing()]; gap=12),
+        WidgetTable(["Job", "Done", "State"],
+                    [["Parse",    WidgetProgressRing(1.0), "Finished"],
+                     ["Simulate", WidgetProgressRing(0.4), "Running"],
+                     ["Plot",     WidgetProgressRing(),    "Waiting"]]),
+    ]; gap=16, horizontal_align=:left)
 
 # WidgetSlider — a knob at 40%.
 make_widget_slider_document_example() =

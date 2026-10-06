@@ -82,6 +82,7 @@ const widget_card_example        = Example("widget_card",        make_widget_car
 const widget_collapsible_card_example = Example("widget_collapsible_card", make_widget_collapsible_card_document_example, make_widget_projection_example)
 const widget_switch_example      = Example("widget_switch",      make_widget_switch_document_example,      make_widget_projection_example)
 const widget_progress_bar_example = Example("widget_progress_bar", make_widget_progress_bar_document_example, make_widget_projection_example)
+const widget_progress_ring_example = Example("widget_progress_ring", make_widget_progress_ring_document_example, make_widget_projection_example)
 const widget_slider_example      = Example("widget_slider",      make_widget_slider_document_example,      make_widget_projection_example)
 const widget_radio_group_example = Example("widget_radio_group", make_widget_radio_group_document_example, make_widget_projection_example)
 const widget_avatar_example      = Example("widget_avatar",      make_widget_avatar_document_example,      make_widget_projection_example)
@@ -157,6 +158,7 @@ const platform_examples = Example[
     widget_collapsible_card_example,
     widget_switch_example,
     widget_progress_bar_example,
+    widget_progress_ring_example,
     widget_slider_example,
     widget_radio_group_example,
     widget_avatar_example,
@@ -237,6 +239,7 @@ const platform_atomic_documents = AtomicDocument[
     AtomicDocument(:widget, "menu_item",             make_widget_menu_item_document_example),
     AtomicDocument(:widget, "option",                make_widget_option_document_example),
     AtomicDocument(:widget, "progress_bar",          make_widget_progress_bar_document_example),
+    AtomicDocument(:widget, "progress_ring",         make_widget_progress_ring_document_example),
     AtomicDocument(:widget, "radio_group",           make_widget_radio_group_document_example),
     AtomicDocument(:widget, "scroll_bar",            make_widget_scroll_bar_document_example),
     AtomicDocument(:widget, "scroll_pane",           make_widget_scroll_pane_document_example),
