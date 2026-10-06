@@ -24,7 +24,7 @@ function make_file_dialog(directory::AbstractString, title::AbstractString,
 end
 
 """
-    open_file_dialog!(editor, directory = pwd()) -> Nothing
+    open_file_dialog!(; directory = pwd(), editor = get_evaluation_editor()) -> Nothing
 
 Open a file that is not in the window's workspace.
 
@@ -32,7 +32,7 @@ It opens the dialog; the path is taken when the person confirms, and
 `OpenFileOperation` is what opens it, so a file opened here lands in a tab
 exactly as a file opened from the explorer does.
 """
-function open_file_dialog!(editor, directory::AbstractString = pwd())
+function open_file_dialog!(; directory::AbstractString = pwd(), editor = get_evaluation_editor())
     dialog, chooser = make_file_dialog(directory, "Open", "Open")
     _show_file_dialog!(editor, dialog, chooser) do path
         isfile(path) ? OpenFileOperation(path) : nothing
@@ -40,7 +40,7 @@ function open_file_dialog!(editor, directory::AbstractString = pwd())
 end
 
 """
-    save_file_dialog!(editor, file, directory = pwd()) -> Nothing
+    save_file_dialog!(file; directory = pwd(), editor = get_evaluation_editor()) -> Nothing
 
 Give `file` a name and write it there.
 
@@ -48,7 +48,8 @@ Give `file` a name and write it there.
 things and this does both in order: the file takes the name, and then it is
 written, by the one operation that writes a file.
 """
-function save_file_dialog!(editor, file, directory::AbstractString = pwd())
+function save_file_dialog!(file; directory::AbstractString = pwd(),
+                           editor = get_evaluation_editor())
     dialog, chooser = make_file_dialog(directory, "Save as", "Save")
     _show_file_dialog!(editor, dialog, chooser) do path
         isempty(basename(path)) && return nothing

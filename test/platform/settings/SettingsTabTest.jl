@@ -281,7 +281,7 @@ end
         run_frame!(editor)
         run_frame!(editor)
     end
-    show_document!(editor, settings; title = "Settings")
+    show_document!(settings; title = "Settings", editor)
     send!()
     drawn() = _stab_drawn(only(last(rendered_output(backend)).windows).content)
     place(label) = only(text for text in drawn() if text[1] == label)[3]
@@ -323,7 +323,7 @@ end
 @testset "the settings of an editor are found under its root" begin
     settings = make_settings()
     editor, _ = _stab_editor(WidgetLabel("Name"), settings)
-    @test find_editor_settings(editor) === settings
+    @test find_editor_settings(; editor) === settings
 end
 
 end

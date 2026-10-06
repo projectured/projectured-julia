@@ -75,11 +75,11 @@ Show `document` in a tab of the pane tree: the tab that shows it already, with
 the focus, or a new tab named `title`.
 """
 function show_document!(editor::Editor, ::PaneTree, document; title::AbstractString)
-    tab = find_pane(editor, title)
+    tab = find_pane(title; editor)
     if tab !== nothing && get_document(tab).content === document
-        focus_pane!(editor, tab)
+        focus_pane!(tab; editor)
     else
-        open_pane!(editor, document; title = String(title))
+        open_pane!(document; title = String(title), editor)
     end
     nothing
 end

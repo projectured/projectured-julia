@@ -30,7 +30,7 @@ BackendModule.quit_backend!(::_DisplayProbeBackend) = nothing
 _display_session() = ProjecturedPlatform.DisplayModule._SESSION[]
 
 _count_tabs(editor) = run_on_editor_task!(() -> sum(length(group.tabs) for group in
-    get_pane_groups(get_window_tree(editor))), editor)
+    get_pane_groups(get_window_tree(; editor))), editor)
 _count_windows(editor) = run_on_editor_task!(() -> length(get_wrapped_document(editor.document).windows), editor)
 
 """

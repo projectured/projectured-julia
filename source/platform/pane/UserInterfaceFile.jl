@@ -7,7 +7,7 @@
 # same way as one with a `ScreenDocument` of windows.
 
 """
-    save_user_interface(editor, path) -> Bool
+    save_user_interface(path; editor = get_evaluation_editor()) -> Bool
 
 Save `editor`'s whole document — every window, pane, split and tab — to `path`
 as a `.pred` file, so a person gets their windows, panes and tabs back.
@@ -18,7 +18,7 @@ beside it, each to the name it already carries.
 
 # Example
 
-    save_user_interface(editor, "session.pred")
+    save_user_interface("session.pred")
 
 See also [`load_user_interface`](@ref), `save_project!`.
 
@@ -31,7 +31,7 @@ file tab reachable in the document is found with [`search_documents`](@ref)
 and added to the project here, beside the `.pred` file that holds the
 document itself.
 """
-function save_user_interface(editor, path::AbstractString)
+function save_user_interface(path::AbstractString; editor = get_evaluation_editor())
     document = getfield(editor, :document)
     directory = dirname(abspath(path))
     files = Any[PredFile(basename(path), document)]

@@ -27,7 +27,7 @@ mktempdir() do dir
     path = joinpath(dir, "ui.pred")
 
     @testset "it saves" begin
-        @test save_user_interface(editor, path) === true
+        @test save_user_interface(path; editor) === true
         @test isfile(path)
         @test isfile(joinpath(dir, "a.json"))
     end

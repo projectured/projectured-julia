@@ -7,14 +7,14 @@
 # such as the chrome or the clipboard of a window, is looked through.
 
 """
-    show_document!(editor, document; title) -> nothing
+    show_document!(document; title, editor = get_evaluation_editor()) -> nothing
 
 Show `document` in the running `editor`: where the content of its first window
 holds documents, or in a window of its own. `title` names the tab or the
 window, and a document that is shown already gets the focus again. Call it on
 the task of the editor.
 """
-function show_document!(editor::Editor, document; title::AbstractString)
+function show_document!(document; title::AbstractString, editor::Editor = get_evaluation_editor())
     screen = get_wrapped_document(editor.document)
     content = screen isa ScreenDocument && length(screen.windows) > 0 ?
         screen.windows[1].content : screen

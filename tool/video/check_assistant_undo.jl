@@ -27,10 +27,10 @@ const PEOPLE = """
  {"name": "Dan", "age": 33, "city": "Madrid"}]"""
 
 const CODE = """
-people_tab_1 = find_pane(editor, "people.json")
+people_tab_1 = find_pane("people.json")
 people_1 = get_edited_document(people_tab_1)
 frank_1 = JsonObject("name" => JsonString("Frank"), "age" => JsonNumber(30), "city" => JsonString("Paris"))
-insert_elements!(editor, people_1, length(people_1) + 1, [frank_1])
+insert_elements!(people_1, length(people_1) + 1, [frank_1])
 """
 
 _key(key; hold = 0.35, kwargs...) =
@@ -79,7 +79,7 @@ end
 # An entry that prints what the window holds now and lets the take go on.
 function say(label)
     editor -> begin
-        tab = get_document(find_pane(editor, "people.json"))
+        tab = get_document(find_pane("people.json"; editor))
         people = get_edited_document(tab)
         window = only(search_documents(editor.document, node -> node isa UndoBuffer && node.content isa PaneTree))
         println(rpad(label, 24), "people ", [person["name"].value for person in people],

@@ -561,7 +561,7 @@ end
     tree = PaneTree(PaneGroup(PaneTab[_tab("a")]))
     @test get_window_tree(ClipboardSlice(tree)) === tree
     @test get_window_tree(tree) === tree
-    @test get_window_tree(_PaneReaderMockEditor(tree)) === tree
+    @test get_window_tree(; editor = _PaneReaderMockEditor(tree)) === tree
 end
 
 end # testset

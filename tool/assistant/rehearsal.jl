@@ -115,7 +115,7 @@ end
 
 # ── What the checks read ─────────────────────────────────────────────────────
 
-get_people_tab(editor) = get_document(find_pane(editor, "people.json"))
+get_people_tab(editor) = get_document(find_pane("people.json"; editor))
 
 # The text of people.json as it would be saved; it throws when a record can not
 # be printed, which is what a broken paint of the file is.

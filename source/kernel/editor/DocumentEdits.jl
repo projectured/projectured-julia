@@ -61,7 +61,7 @@ function _replace_elements!(editor::Editor, collection, start::Integer, stop::In
 end
 
 """
-    insert_elements!(editor, collection, index, values) -> ReferencedDocument
+    insert_elements!(collection, index, values; editor = get_evaluation_editor()) -> ReferencedDocument
 
 Insert `values` into the collection that `collection` names, so that the first of them is
 at `index`, and answer the collection as it is after the edit. `collection` is a
@@ -77,14 +77,14 @@ collection of a document that the editor shows.
 
 # Example
 
-    insert_elements!(editor, items_1, length(items_1) + 1, [item_1])   # appends item_1
+    insert_elements!(items_1, length(items_1) + 1, [item_1])   # appends item_1
 """
-insert_elements!(editor::Editor, collection, index::Integer, values) =
+insert_elements!(collection, index::Integer, values; editor::Editor = get_evaluation_editor()) =
     _replace_elements!(editor, collection, index - 1, index - 1, values,
                        "Insert " * string(length(values)) * " into")
 
 """
-    delete_elements!(editor, collection, index, count = 1) -> ReferencedDocument
+    delete_elements!(collection, index; count = 1, editor = get_evaluation_editor()) -> ReferencedDocument
 
 Remove `count` elements from the collection that `collection` names, starting at
 the 1-based `index`, and answer the collection as it is after the edit.
@@ -98,8 +98,9 @@ any collection of a document that the editor shows.
 
 # Example
 
-    delete_elements!(editor, items_1, 2)      # the second item
+    delete_elements!(items_1, 2)      # the second item
 """
-delete_elements!(editor::Editor, collection, index::Integer, count::Integer = 1) =
+delete_elements!(collection, index::Integer; count::Integer = 1,
+                 editor::Editor = get_evaluation_editor()) =
     _replace_elements!(editor, collection, index - 1, index - 1 + count, Any[],
                        "Delete " * string(count) * " from")

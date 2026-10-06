@@ -9,7 +9,7 @@
 # pane cannot name a type its own package does not depend on.
 
 """
-    get_pane_file_group(editor) -> PaneGroup or nothing
+    get_pane_file_group(; editor = get_evaluation_editor()) -> PaneGroup or nothing
 
 The group a newly opened file belongs in, in the pane tree that holds the focus
 ([`find_pane_tree_reference`](@ref)): a group that already holds a file — any
@@ -19,7 +19,7 @@ every one of whose tabs [`accepts_opened_file`](@ref), focused first. `nothing`
 leaves the choice to [`open_pane!`](@ref). A file must not cover the explorer it
 was opened from, nor a running conversation.
 """
-function get_pane_file_group(editor)
+function get_pane_file_group(; editor = get_evaluation_editor())
     found = _find_focused_tree_route(editor)
     found === nothing && return nothing
     tree = last(found)

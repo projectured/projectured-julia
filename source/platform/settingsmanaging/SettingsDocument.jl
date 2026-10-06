@@ -32,13 +32,13 @@ function make_settings_document(document, settings::Settings)
 end
 
 """
-    find_editor_settings(editor) -> Settings or nothing
+    find_editor_settings(; editor = get_evaluation_editor()) -> Settings or nothing
 
 The `Settings` of `editor`: those of the `SettingsDocument` at its root, or
 under the `content` of the documents around it, such as the `AppearanceDocument`. `nothing` for an editor with no
 `settings` wrapper.
 """
-function find_editor_settings(editor)
+function find_editor_settings(; editor = get_evaluation_editor())
     document = editor.document
     for _ in 1:8
         document isa SettingsDocument && return document.settings
@@ -67,7 +67,7 @@ end
 @gestures SettingsDocument begin
     nothing => "Show the settings" =>
         InvokeActionOperation(Action("Show the settings";
-            callback = editor -> show_document!(editor, doc.settings; title = "Settings")))
+            callback = editor -> show_document!(doc.settings; title = "Settings", editor)))
     nothing => "Toggle partial render" =>
         make_toggle_setting_operation(doc.settings, RenderSettings, :partial_render)
     nothing => "Toggle repaint outline" =>

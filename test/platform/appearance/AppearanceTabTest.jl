@@ -291,7 +291,7 @@ end
     editor = build_editor(WidgetLabel("Name"); backend, devices = Device[Keyboard(), Mouse(), Display()],
                           window = (; title = "T", width = 900, height = 700), tabs = (; title = "Doc"))
     run_frame!(editor)
-    appearance = find_editor_appearance(editor)
+    appearance = find_editor_appearance(; editor)
     push_event!(backend, WindowInput(:T, KeyDown(:comma, ModifierKeys(ctrl = true); time = 1.0)))
     run_frame!(editor)
     window = only(last(rendered_output(backend)).windows)
@@ -317,7 +317,7 @@ end
     editor = build_editor(WidgetLabel("Name"); backend, devices = Device[Keyboard(), Mouse(), Display()],
                           window = (; title = "T", width = 900, height = 700), tabs = (; title = "Doc"))
     run_frame!(editor)
-    appearance = find_editor_appearance(editor)
+    appearance = find_editor_appearance(; editor)
     function send!(events...)
         for event in events
             push_event!(backend, WindowInput(:T, event))
@@ -350,7 +350,7 @@ end
     editor = build_editor(WidgetLabel("Name"); backend, devices = Device[Keyboard(), Mouse(), Display()],
                           window = (; title = "T", width = 900, height = 900), tabs = (; title = "Doc"))
     run_frame!(editor)
-    appearance = find_editor_appearance(editor)
+    appearance = find_editor_appearance(; editor)
     theme = get_theme(appearance, WidgetTheme)
     # The primary colour is a role; a fixed colour, as the button "Fix" writes it,
     # shows as a text.
@@ -419,7 +419,7 @@ end
                           window = (; title = "T", width = 900, height = 900), tabs = (; title = "Doc"),
                           undo = true)
     run_frame!(editor)
-    appearance = find_editor_appearance(editor)
+    appearance = find_editor_appearance(; editor)
     theme = get_theme(appearance, WidgetTheme)
     # The primary colour is a role; a fixed colour, as the button "Fix" writes it,
     # shows as a text.

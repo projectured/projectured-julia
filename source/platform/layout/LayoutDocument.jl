@@ -51,7 +51,7 @@ of 120 pixels, a row of buttons 32 pixels high. A layout takes it as
 
 # Example
 
-    open_pane!(editor, VerticalLayout(Any[WidgetLabel("Runs"), WidgetLabel("Results")];
+    open_pane!(VerticalLayout(Any[WidgetLabel("Runs"), WidgetLabel("Results")];
                                       gap = 4, child_width = Fixed(200));
                title = "Fixed width")
 
@@ -70,7 +70,7 @@ button beside a field that fills the rest. It is the default of every layout.
 
 # Example
 
-    open_pane!(editor, GridLayout(Any[WidgetLabel("Filter"), WidgetText(""; width = 120)], 2;
+    open_pane!(GridLayout(Any[WidgetLabel("Filter"), WidgetText(""; width = 120)], 2;
                                   column_policies = [Content, Fill]);
                title = "Form")
 
@@ -92,7 +92,7 @@ takes two thirds beside a plot that takes one. `Fill` is `Relative(1.0)`.
     root = get_project_result_directory(editor)
     table = make_result_table(get_simulation_scalar_results(root))
     plot = make_result_plot(get_simulation_vector_results(root))
-    open_pane!(editor, GridLayout(Any[table, plot], 2; column_policies = [Relative(2.0), Relative(1.0)]); title = "Two thirds")
+    open_pane!(GridLayout(Any[table, plot], 2; column_policies = [Relative(2.0), Relative(1.0)]); title = "Two thirds")
 
 See also `Fill`, `Fixed` and `Content`.
 """
@@ -111,7 +111,7 @@ that takes the whole pane, two plots that share a row equally.
 
     root = get_project_result_directory(editor)
     table = make_result_table(get_simulation_scalar_results(root))
-    open_pane!(editor, VerticalLayout(Any[table]; child_width = Fill); title = "Wide")
+    open_pane!(VerticalLayout(Any[table]; child_width = Fill); title = "Wide")
 
 See also `Relative`, `Fixed` and `Content`.
 """
@@ -136,7 +136,7 @@ Use it to put widgets or documents side by side in one row, from left to right.
 
 # Example
 
-    open_pane!(editor, HorizontalLayout([table, plot]; gap = 8); title = "Side by side")
+    open_pane!(HorizontalLayout([table, plot]; gap = 8); title = "Side by side")
 
 See also `VerticalLayout`, `GridLayout`.
 """
@@ -183,7 +183,7 @@ bottom.
 
 # Example
 
-    open_pane!(editor, VerticalLayout([plot, table]; gap = 8); title = "Stacked")
+    open_pane!(VerticalLayout([plot, table]; gap = 8); title = "Stacked")
 
 See also `HorizontalLayout`, `GridLayout`.
 """
@@ -232,7 +232,7 @@ and `columns` says how many in a row.
 
 # Example
 
-    open_pane!(editor, GridLayout([plot_a, plot_b, table_a, table_b], 2); title = "Overview")
+    open_pane!(GridLayout([plot_a, plot_b, table_a, table_b], 2); title = "Overview")
 
 See also `HorizontalLayout`, `VerticalLayout`, `FlowLayout`.
 
@@ -389,7 +389,7 @@ Use it to put many widgets in a row that wraps to the next line when it is full
 
 # Example
 
-    open_pane!(editor, FlowLayout(cards; max_width = 800); title = "Cards")
+    open_pane!(FlowLayout(cards; max_width = 800); title = "Cards")
 
 See also `GridLayout` for fixed columns.
 """

@@ -52,6 +52,7 @@ using ..SelectionModule
 using ..ScreenModule
 using ..SerializationModule
 using ..StyleModule
+using ..ToolModule
 using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.

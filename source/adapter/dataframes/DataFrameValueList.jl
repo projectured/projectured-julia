@@ -87,7 +87,7 @@ end
 # Open the dialog of the values of `column` in `view` in `editor`. "Apply" posts
 # the write of the filter.
 function _open_value_list!(editor, view, column::String)
-    appearance = something(find_editor_appearance(editor), Appearance())
+    appearance = something(find_editor_appearance(; editor), Appearance())
     frame = get_scaled_theme!(appearance, DataFrameTheme)
     dialog, take = _make_value_list_dialog(view, column; frame,
                                            widget = get_scaled_theme!(appearance, WidgetTheme))

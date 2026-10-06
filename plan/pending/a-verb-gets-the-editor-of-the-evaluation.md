@@ -330,6 +330,45 @@ lands on the branch.
    their call sites and their tests. First the 13 declared verbs, then the
    verbs that D4 adds. Test: the test function of each slice that holds a verb,
    and `test_referenced_document_editor()`.
+
+   **Done 2026-10-06.** What the implementation found and chose:
+   - 26 verbs changed: the 13 declared and the 13 others of D4. A method for a
+     `ReferencedDocument` or for `nothing` forwards `keywords...`, so only one
+     method of each verb reads the scope.
+   - `insert_elements!` and `delete_elements!` keep their type:
+     `editor::Editor = get_evaluation_editor()`.
+   - **`show_document!(editor, content, document; title)` keeps the editor
+     first.** It is an extension point: another package adds a method for its
+     container, and the verb `show_document!(document; title, editor)` calls it
+     with the editor that it has, as the editor calls `evaluate_operation`.
+   - **`get_window_tree(document::Document)` takes any document**, in place of
+     the method for a `PaneTree` alone. `_find_window_tree` in `WindowChrome.jl`
+     passes a window's content and catches every error. With only a method for a
+     tree, a wrapped tree there gave a `MethodError`, which the catch turned into
+     no tree, with no message.
+   - A platform module imports with `using ..ToolModule`. The layering guard
+     refuses a symbol list on a `using`.
+   - A tool on the parser of Julia rewrote 158 calls in `source/`, `example/`,
+     `test/`, `package/` and `tool/`: it moves the first argument of a call with
+     the old count of positional arguments to `editor = …`, or to `editor` when
+     the argument is the name `editor`. After a keyword with no `;`, it writes
+     `editor = editor`, because a bare name there is positional. The parser does
+     not see a string: 40 examples in docstrings and the code strings of the
+     scripted model in `tool/video/` lost the editor by hand, because a person
+     or a model writes them.
+   - Tests: `test_code_execution()` 66, `test_kernel_layering()` 10,
+     `test_platform_layering()` 7, `test_pane_reader()` 88,
+     `test_tabs_wrapper()` 12, `test_appearance_tab()` 119,
+     `test_editor_display()` 28, `test_settings_tab()` 55,
+     `test_file_dialog()` 14, `test_window_shell()` 138,
+     `test_window_wrappers()` 43, `test_dataframes_layering()` 7,
+     `test_data_frame_filter()` 102, `test_referenced_document_editor()` 110,
+     `test_user_interface_file()` 21, `test_evaluator_toplevel()` 239,
+     `test_arguments()` 2, `test_application()` 344 and 2 broken, all pass.
+     `test_application_video()` did not run.
+   - `test_mcp_tools()` needs the loopback interface. Under `unshare -rn` alone it
+     fails 10 and errs 5 with `ENETUNREACH`; with `ip link set lo up` in the
+     namespace it passes 154 / 154.
 4. **The text that the model reads.** The descriptions keep the sentence that
    `editor` is bound (D3), and they show the verbs without `editor`:
    - `_EDITING_VERBS`, `_WHOLE_SURFACE_DESCRIPTION` and the declared description

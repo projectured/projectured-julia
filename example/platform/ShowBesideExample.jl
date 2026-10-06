@@ -13,27 +13,27 @@ group of the one before it, so it has the same place.
 """
 function show_beside!(editor, document, title::AbstractString; side::Symbol = :right,
                       share::Real = 0.6)
-    shown = filter(t -> find_pane(editor, t) !== nothing,
+    shown = filter(t -> find_pane(t; editor) !== nothing,
                    get!(() -> String[], _BESIDE_TITLES, editor.tools))
     pane = if isempty(shown)
-        opened = open_pane!(editor, document; title = title,
-                            target = find_pane(editor, "Evaluator"), side = side)
+        opened = open_pane!(document; title = title,
+                            target = find_pane("Evaluator"; editor), side = side, editor)
         _give_share!(editor, title, share)
         opened
     else
-        open_pane!(editor, document; title = title, target = find_pane(editor, shown[end]))
+        open_pane!(document; title = title, target = find_pane(shown[end]; editor), editor)
     end
     _BESIDE_TITLES[editor.tools] = push!(shown, title)
     # The new split moved the evaluator, so it is found again by its title.
-    evaluator = find_pane(editor, "Evaluator")
-    evaluator === nothing || focus_pane!(editor, evaluator)
+    evaluator = find_pane("Evaluator"; editor)
+    evaluator === nothing || focus_pane!(evaluator; editor)
     pane
 end
 
 # Gives the group of the tab `title` the share `share` of the split that holds it,
 # and the other group the rest.
 function _give_share!(editor, title::AbstractString, share::Real)
-    tree = get_window_tree(editor)
+    tree = get_window_tree(; editor)
     group = only(g for g in get_pane_groups(tree)
                  if any(tab -> get_pane_tab_title_string(tab) == title, g.tabs))
     split, index = get_pane_parent(tree, group)

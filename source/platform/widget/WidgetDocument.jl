@@ -36,7 +36,7 @@ shows as its text.
 
 # Example
 
-    open_pane!(editor, WidgetLabel("The delay of every run"); title = "Note")
+    open_pane!(WidgetLabel("The delay of every run"); title = "Note")
 
 See also `WidgetText`, which a person edits, `WidgetBadge` for one status word,
 and `WidgetAlert` for a message with a title.
@@ -108,7 +108,7 @@ or beside a button that uses it.
 
 # Example
 
-    open_pane!(editor, WidgetText("name =~ *delay*"; width = 240); title = "Filter")
+    open_pane!(WidgetText("name =~ *delay*"; width = 240); title = "Filter")
 
 `width` is a floor and not a size: the box is at least that many pixels wide and
 grows with what is typed into it. It is `0` by default, which is the box that
@@ -208,7 +208,7 @@ bound of `nothing` is no bound. `width` is a floor, as it is on `WidgetText`.
 
 # Example
 
-    open_pane!(editor, WidgetSpinBox(10; min = 1, max = 100, width = 80); title = "Runs")
+    open_pane!(WidgetSpinBox(10; min = 1, max = 100, width = 80); title = "Runs")
 
 The `validator` is a hook for typed entry; a step is always numeric.
 
@@ -255,7 +255,7 @@ hits, and Up and Down move the selection.
 
 # Example
 
-    open_pane!(editor, WidgetList(["Fifo", "TandemQueue"]; selected = 1, width = 200); title = "Configurations")
+    open_pane!(WidgetList(["Fifo", "TandemQueue"]; selected = 1, width = 200); title = "Configurations")
 
 The row under the pointer lights. The list reads that row from its mouse target,
 `items[i]`, which a move writes; the list holds no state of its own for it.
@@ -339,7 +339,7 @@ the box too. A form that puts its labels in a column of their own gives none.
 
 # Example
 
-    open_pane!(editor, WidgetCheckbox(true; label = "Record vectors"); title = "Option")
+    open_pane!(WidgetCheckbox(true; label = "Record vectors"); title = "Option")
 
 `enabled` (default `true`) is a shared interactivity flag alongside `visible`:
 when `false` the checkbox renders muted and its reader refuses to emit the toggle
@@ -391,7 +391,7 @@ pixels.
 
 # Example
 
-    open_pane!(editor, WidgetButton("Run again";
+    open_pane!(WidgetButton("Run again";
                                     action = editor -> run_simulations!(select_simulations!(editor; config = "TandemQueue")));
                title = "Runner")
 
@@ -796,7 +796,7 @@ child reach the edge; a `LayoutConstraint` gives one child its own.
 
 # Example
 
-    open_pane!(editor, WidgetComposite(Any[WidgetLabel("Delay"),
+    open_pane!(WidgetComposite(Any[WidgetLabel("Delay"),
                                                           WidgetLabel("Throughput"; position = Point2D(0, 24))]);
                title = "Placed")
 
@@ -1110,7 +1110,7 @@ documents.
 # Example
 
     table = make_result_table(get_simulation_scalar_results(get_project_result_directory(editor)))
-    open_pane!(editor, WidgetTitlePane("Delay", table); title = "Delay")
+    open_pane!(WidgetTitlePane("Delay", table); title = "Delay")
 
 See also `WidgetCard`, which adds a description and a footer, and `open_pane!`,
 whose `title` names a tab.
@@ -1156,7 +1156,7 @@ two documents in tabs of their own, use `show_layout` and the panes.
     root = get_project_result_directory(editor)
     table = make_result_table(get_simulation_scalar_results(root))
     plot = make_result_plot(get_simulation_vector_results(root))
-    open_pane!(editor, WidgetSplitPane(:horizontal, Any[table, plot]; sizes = [400, 400]); title = "Split")
+    open_pane!(WidgetSplitPane(:horizontal, Any[table, plot]; sizes = [400, 400]); title = "Split")
 
 `active_splitter` and `drag_anchor` are **transient UI state** holding an
 in-progress splitter drag (see `StartSplitterDragOperation`): `active_splitter`
@@ -1226,7 +1226,7 @@ is `selector.text{k}`.
                            badges = Any[WidgetBadge("37/40"; role = :accent),
                                         WidgetBadge("2 failed"; role = :error)],
                            tooltip = "37 of 40 finished")
-    open_pane!(editor, WidgetTabbedPane(Any[WidgetTabPage(label, WidgetLabel("…"))]);
+    open_pane!(WidgetTabbedPane(Any[WidgetTabPage(label, WidgetLabel("…"))]);
                title = "Tasks")
 
 A label with a text only draws as a plain string selector draws.
@@ -1290,7 +1290,7 @@ this is for tabs inside a widget.
     root = get_project_result_directory(editor)
     table = make_result_table(get_simulation_scalar_results(root))
     plot = make_result_plot(get_simulation_vector_results(root))
-    open_pane!(editor, WidgetTabbedPane(Any[("Scalars", table), ("Vectors", plot)]); title = "Results")
+    open_pane!(WidgetTabbedPane(Any[("Scalars", table), ("Vectors", plot)]); title = "Results")
 
 Each pair is wrapped in a [`WidgetTabPage`](@ref). `closable` draws a close
 button on every tab, `new_tab` draws a new-tab button after the last one, and
@@ -1361,7 +1361,7 @@ added, which is what a log or a transcript wants.
 # Example
 
     table = make_result_table(get_simulation_scalar_results(get_project_result_directory(editor)))
-    open_pane!(editor, WidgetScrollPane(table; size = Point2D(600, 300)); title = "Scalars")
+    open_pane!(WidgetScrollPane(table; size = Point2D(600, 300)); title = "Scalars")
 
 With `follow_end=true` the pane sticks to the *bottom* of its content — newly
 appended content (e.g. streaming chat turns) stays in view instead of scrolling
@@ -1545,7 +1545,7 @@ and the badge then follows what the function reads.
 
 # Example
 
-    open_pane!(editor, HorizontalLayout(Any[WidgetLabel("TandemQueue"),
+    open_pane!(HorizontalLayout(Any[WidgetLabel("TandemQueue"),
                                             WidgetBadge("running"),
                                             WidgetBadge("2 failed"; role = :error)]; gap = 8);
                title = "Status")
@@ -1585,7 +1585,7 @@ Use it to put a line between two groups in a column or a row. `orientation` is
 
 # Example
 
-    open_pane!(editor, VerticalLayout(Any[WidgetLabel("Runs"),
+    open_pane!(VerticalLayout(Any[WidgetLabel("Runs"),
                                           WidgetSeparator(; length = 300),
                                           WidgetLabel("Results")]; gap = 8);
                title = "Divided")
@@ -1626,7 +1626,7 @@ surface is.
 # Example
 
     table = make_result_table(get_simulation_scalar_results(get_project_result_directory(editor)))
-    open_pane!(editor, WidgetCard(; title = "Delay", content = table, width = 600); title = "Delay")
+    open_pane!(WidgetCard(; title = "Delay", content = table, width = 600); title = "Delay")
 
 `collapsed` is transient view state (like `WidgetScrollPane.scroll_position`): a
 click on the chevron of a collapsible card emits `ToggleCollapseOperation(card)`,
@@ -1731,7 +1731,7 @@ switch too. A form that puts its labels in a column of their own gives none.
 
 # Example
 
-    open_pane!(editor, WidgetSwitch(; checked = true, label = "Live update"); title = "Setting")
+    open_pane!(WidgetSwitch(; checked = true, label = "Live update"); title = "Setting")
 
 The knob snaps to its new position. `duration`, `anim_from` and `anim_t0` hold
 the state of a slide of the knob, but `WidgetSwitchToGraphicsCanvas` draws no
@@ -1780,7 +1780,7 @@ start to its end once a second. `width` is the bar's length in pixels.
 
 # Example
 
-    open_pane!(editor, WidgetProgressBar(0.4; width = 300); title = "Progress")
+    open_pane!(WidgetProgressBar(0.4; width = 300); title = "Progress")
 
 See also `WidgetProgressRing`, which shows the same value in one line of text,
 `WidgetSlider`, which a person drags, and `WidgetBadge` for a state in one word.
@@ -1860,7 +1860,7 @@ the runs. `value` is the share, and `width` is the track's length in pixels.
 
 # Example
 
-    open_pane!(editor, WidgetSlider(0.5; width = 300); title = "Threshold")
+    open_pane!(WidgetSlider(0.5; width = 300); title = "Threshold")
 
 See also `WidgetSpinBox` for a number chosen by steps, and `WidgetProgressBar` for
 a share that is only shown.
@@ -1937,7 +1937,7 @@ select the next or the previous option.
 
 # Example
 
-    open_pane!(editor, WidgetRadioGroup(["Scalars", "Vectors", "Histograms"]; selected = 2); title = "Kind")
+    open_pane!(WidgetRadioGroup(["Scalars", "Vectors", "Histograms"]; selected = 2); title = "Kind")
 
 See also `WidgetToggleGroup` for the same choice in one row, and `WidgetSelect`
 for many choices that open on a click.
@@ -1999,7 +1999,7 @@ fault; `:default` is calm.
 
 # Example
 
-    open_pane!(editor, WidgetAlert("Run failed"; description = "TandemQueue run 3 stopped with an error.", variant = :destructive, width = 400);
+    open_pane!(WidgetAlert("Run failed"; description = "TandemQueue run 3 stopped with an error.", variant = :destructive, width = 400);
                title = "Alert")
 
 See also `WidgetBadge` for one word of status, and `WidgetLabel` for a plain
@@ -2061,7 +2061,7 @@ color near the background shows too. A swatch takes no input.
 
 # Example
 
-    open_pane!(editor, WidgetSwatch(color_solarized_blue); title = "Color")
+    open_pane!(WidgetSwatch(color_solarized_blue); title = "Color")
 """
 @document struct WidgetSwatch <: WidgetDocument
     position::Point2D
@@ -2146,7 +2146,7 @@ vectors, histograms. `options` is what each segment says, and `selected` is the
 
 # Example
 
-    open_pane!(editor, WidgetToggleGroup(["Scalars", "Vectors", "Histograms"]; selected = 1); title = "Kind")
+    open_pane!(WidgetToggleGroup(["Scalars", "Vectors", "Histograms"]; selected = 1); title = "Kind")
 
 `values` is what each one **means** — the value written when it is picked — and
 with none the value is the segment's index.
@@ -2211,7 +2211,7 @@ lists what can be picked.
 
 # Example
 
-    open_pane!(editor, WidgetSelect("TandemQueue"; options = ["Fifo", "TandemQueue"], width = 200); title = "Configuration")
+    open_pane!(WidgetSelect("TandemQueue"; options = ["Fifo", "TandemQueue"], width = 200); title = "Configuration")
 
 A click on the box opens a dropdown of those options as a floating popup window
 (see `WidgetSelectToGraphicsCanvas`'s reader and [`WidgetOption`]). Picking an
@@ -2291,7 +2291,7 @@ types a line break.
 
 # Example
 
-    open_pane!(editor, WidgetTextarea("The delay grows with the load.\\nThe queue is the bottleneck."; width = 400, rows = 4); title = "Note")
+    open_pane!(WidgetTextarea("The delay grows with the load.\\nThe queue is the bottleneck."; width = 400, rows = 4); title = "Note")
 
 See also `WidgetText` for one line, and `WidgetLabel` for text that is only
 read.
@@ -2348,7 +2348,7 @@ the open one.
     root = get_project_result_directory(editor)
     table = make_result_table(get_simulation_scalar_results(root))
     plot = make_result_plot(get_simulation_vector_results(root))
-    open_pane!(editor, WidgetAccordion(Any[("Scalars", table), ("Vectors", plot)]; expanded = 2, width = 600); title = "Results")
+    open_pane!(WidgetAccordion(Any[("Scalars", table), ("Vectors", plot)]; expanded = 2, width = 600); title = "Results")
 
 Each item is wrapped in a [`WidgetAccordionItem`](@ref).
 
@@ -2464,7 +2464,7 @@ widget.
 
 # Example
 
-    open_pane!(editor, WidgetTable(["name", "age"], [["Ada", 36], ["Bob", 41]]); title = "People")
+    open_pane!(WidgetTable(["name", "age"], [["Ada", 36], ["Bob", 41]]); title = "People")
 
 The single table abstraction. A grid of **document cells** (each cell is a
 `Document`, recursed through the shared recursion — so a cell can be a
@@ -3078,7 +3078,7 @@ with none otherwise.
 # Example
 
     again = Action("Run again"; callback = editor -> run_simulations!(select_simulations!(editor; config = "TandemQueue")))
-    open_pane!(editor, WidgetButton(again); title = "Runner")
+    open_pane!(WidgetButton(again); title = "Runner")
 
 `shortcut` is a `KeyDownPattern` (build one with [`Shortcut`]); `icon` is the
 name of an icon drawn before the label. A click invokes it through

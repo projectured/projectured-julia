@@ -97,7 +97,7 @@ OperationModule.is_self_contained_operation(::OpenFileOperation) = true
 # frame.
 function evaluate_operation(editor, op::OpenFileOperation)
     tab = make_file_tab_content(op.path, op.wrap)
-    post_pane_operation!(editor, make_open_pane_operation(editor, tab; group = get_pane_file_group(editor)))
+    post_pane_operation!(editor, make_open_pane_operation(tab; group = get_pane_file_group(; editor), editor))
     nothing
 end
 

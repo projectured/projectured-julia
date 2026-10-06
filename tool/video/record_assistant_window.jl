@@ -145,14 +145,14 @@ LlmModule.compute_meaning_vectors(llm::PacedLlm, texts; kwargs...) =
 # warm-up.
 function make_warm_up_llm()
     insert = """
-    people_tab_1 = find_pane(editor, "people.json")
+    people_tab_1 = find_pane("people.json")
     people_1 = get_edited_document(people_tab_1)
     frank_1 = JsonObject("name" => JsonString("Frank"), "age" => JsonNumber(30), "city" => JsonString("Paris"))
-    insert_elements!(editor, people_1, length(people_1) + 1, [frank_1])
+    insert_elements!(people_1, length(people_1) + 1, [frank_1])
     """
     table = """
     rows_1 = sort([[person["name"].value, person["age"].value, person["city"].value] for person in people_1]; by = first)
-    open_pane!(editor, WidgetTable(["name", "age", "city"], rows_1); title = "People by name",
+    open_pane!(WidgetTable(["name", "age", "city"], rows_1); title = "People by name",
                target = get_parent(editor, people_tab_1))
     """
     ScriptedLlm([

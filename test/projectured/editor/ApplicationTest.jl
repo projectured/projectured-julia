@@ -422,17 +422,17 @@ function test_application()
                 editor = Editor(scene, composed; backend = ConsoleBackend(),
                                 devices = Device[Display(), Keyboard(), Mouse()])
                 editor.iomap = iomap
-                files = find_pane_reference(editor, "Files")
+                files = find_pane_reference("Files"; editor)
                 @test evaluate_reference(scene, files) isa PaneTab
                 @test get_pane_tab_title_string(evaluate_reference(scene, files)) == "Files"
-                @test find_pane_reference(editor, "no such pane") === nothing
-                @test_throws ArgumentError focus_pane!(editor, nothing)
+                @test find_pane_reference("no such pane"; editor) === nothing
+                @test_throws ArgumentError focus_pane!(nothing; editor)
                 # The verb's operation is the one a press on the title of the tab makes.
                 (_, x, y) = only(item for item in _app_drawn_at(get_iomap_output(iomap).windows[1].content)
                                  if item[1] == "Files")
                 pressed = _app_fire(composed, iomap, MouseClick(:left, x + 4, y + 4, 1, ModifierKeys(); time = 0.0))
-                @test repr(_app_plain(make_focus_pane_operation(editor, files))) == repr(_app_plain(pressed))
-                focus_pane!(editor, files)
+                @test repr(_app_plain(make_focus_pane_operation(files; editor))) == repr(_app_plain(pressed))
+                focus_pane!(files; editor)
                 # Each level from the root down holds its suffix of one path.
                 tab = "root.elements[1].tabs[1]"
                 level(node) = repr(strip_reference_types(get_selection(node)))
@@ -456,7 +456,7 @@ function test_application()
                                                 opened_window_projections =
                                                     make_opened_window_projections()))
                 @test editor.iomap !== nothing
-                focus_pane!(editor, find_pane_reference(editor, "Files"))
+                focus_pane!(find_pane_reference("Files"; editor); editor)
                 # The screen is inside the state of the tooltip window, inside the
                 # state of the context menu window, inside the state of the drag
                 # tracker, inside the state of the gesture tracker, inside the
@@ -479,7 +479,7 @@ function test_application()
                                                 height = 1000,
                                                 opened_window_projections =
                                                     make_opened_window_projections()))
-                settings = find_editor_settings(editor)
+                settings = find_editor_settings(; editor)
                 @test settings isa Settings
                 toolbar = only(search_documents(editor.document, node -> node isa WidgetToolbar))
                 button = only(item for item in toolbar.elements
@@ -539,11 +539,11 @@ function test_application()
                 title(pane) = get_pane_tab_title_string(evaluate_reference(scene, get_reference(pane)))
                 @test _app_is_one_path(scene) && isempty(_app_find_stray_live_selections(scene))
 
-                focus_pane!(editor, find_pane_reference(editor, "Files"))
+                focus_pane!(find_pane_reference("Files"; editor); editor)
                 @test _app_is_one_path(scene) && isempty(_app_find_stray_live_selections(scene))
 
                 steps = length(history)
-                opened = open_pane!(editor, PrimitiveString("hello"); title = "Hello")
+                opened = open_pane!(PrimitiveString("hello"); title = "Hello", editor)
                 @test startswith(repr(strip_reference_types(get_reference(opened))), ".windows[1].")
                 @test title(opened) == "Hello"
                 @test let (group, index) = get_pane_focus(tree)
@@ -552,25 +552,25 @@ function test_application()
                 @test _app_is_one_path(scene) && isempty(_app_find_stray_live_selections(scene))
                 @test length(history) == steps + 1          # an open is one undo step
 
-                second = duplicate_pane!(editor, opened)
+                second = duplicate_pane!(opened; editor)
                 @test startswith(repr(strip_reference_types(get_reference(second))), ".windows[1].")
                 name = title(second)
                 @test name != "Hello" && startswith(name, "Hello")
-                close_pane!(editor, second)
+                close_pane!(second; editor)
                 @test _app_is_one_path(scene) && isempty(_app_find_stray_live_selections(scene))
-                @test_throws ArgumentError close_pane!(editor, nothing)
+                @test_throws ArgumentError close_pane!(nothing; editor)
                 # The history holds the closed tab, and the finder does not find it.
-                @test find_pane_reference(editor, name) === nothing
+                @test find_pane_reference(name; editor) === nothing
 
                 # Ctrl+C copies what the focus names, and a copy of a tab that the
                 # clipboard holds is not a pane the finder finds.
-                focus_pane!(editor, find_pane_reference(editor, "Hello"))
+                focus_pane!(find_pane_reference("Hello"; editor); editor)
                 copy = _app_fire(composed, editor.iomap, KeyDown(:c, ModifierKeys(ctrl = true); time = 0.0))
                 _app_apply!(editor, copy)
                 @test document.slice isa PrimitiveString && document.slice.value == "hello"
                 stored = document.slice
-                document.slice = copy_document(evaluate_reference(scene, find_pane_reference(editor, "Hello")))
-                @test find_pane_reference(editor, "Hello") isa Reference
+                document.slice = copy_document(evaluate_reference(scene, find_pane_reference("Hello"; editor)))
+                @test find_pane_reference("Hello"; editor) isa Reference
                 document.slice = stored
 
                 # Ctrl+T opens a tab through the menu, which posts its edit, and a
@@ -589,7 +589,7 @@ function test_application()
                 document, scene, composed, iomap = _app_make_scene(paths[1:2], dir)
                 editor = _app_make_editor(scene, composed, iomap)
                 tree = _app_window(document)
-                layout = String(show_layout(editor).content)
+                layout = String(show_layout(; editor).content)
                 lines = split(chomp(layout), "\n")
                 @test startswith(lines[1], "(root)") && occursin("::ScreenDocument", lines[1])
                 @test any(line -> occursin("::PaneTree", line) &&
@@ -613,23 +613,23 @@ function test_application()
                 end
                 title_b = basename(paths[2])
                 @test joined_path(title_b) ==
-                      repr(strip_reference_types(find_pane_reference(editor, title_b)))
+                      repr(strip_reference_types(find_pane_reference(title_b; editor)))
 
                 # Into a group: the pane goes to its end.
                 files_group = get_pane_groups(tree)[1]
-                group_reference = concat_references(find_pane_tree_reference(editor),
+                group_reference = concat_references(find_pane_tree_reference(; editor),
                                                     @reference(tree, root.elements[1]))
-                move_pane!(editor, find_pane_reference(editor, title_b), group_reference)
+                move_pane!(find_pane_reference(title_b; editor), group_reference; editor)
                 @test get_pane_tab_title_string(last(files_group.tabs)) == title_b
                 @test _app_is_one_path(scene) && isempty(_app_find_stray_live_selections(scene))
                 # Beside a group: the pane gets a group of its own.
                 groups = length(get_pane_groups(tree))
-                move_pane!(editor, find_pane_reference(editor, title_b),
-                           find_pane_reference(editor, "Files"); side = :below)
+                move_pane!(find_pane_reference(title_b; editor),
+                           find_pane_reference("Files"; editor); side = :below, editor)
                 @test length(get_pane_groups(tree)) == groups + 1
                 @test _app_is_one_path(scene) && isempty(_app_find_stray_live_selections(scene))
-                @test_throws ArgumentError move_pane!(editor, find_pane_reference(editor, title_b),
-                                                      find_pane_reference(editor, "Files"); side = :middle)
+                @test_throws ArgumentError move_pane!(find_pane_reference(title_b; editor),
+                                                      find_pane_reference("Files"; editor); side = :middle, editor)
             end
 
             @testset "every format draws" begin
@@ -836,7 +836,7 @@ function test_application()
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
                 editor = _app_make_editor(scene, composed, iomap)
                 tree = _app_window(document)
-                focus_pane!(editor, find_pane_reference(editor, "Files"))
+                focus_pane!(find_pane_reference("Files"; editor); editor)
                 explorer = first(get_pane_focus(tree))
                 toolbar = only(search_documents(document, node -> node isa WidgetToolbar))
                 button = only(item for item in toolbar.elements
@@ -1274,9 +1274,9 @@ function test_application()
                                  for (index, tab) in enumerate(group.tabs)
                                  if get_wrapped_document(tab.content) isa type]
                 # A pane is closed as the assistant closes one, by its complete reference.
-                close!(type) = close_pane!(editor, only(search_references(scene,
+                close!(type) = close_pane!(only(search_references(scene,
                     node -> node isa PaneTab && get_wrapped_document(node.content) isa type;
-                    descend = is_pane_search_step)))
+                    descend = is_pane_search_step)); editor)
                 @test [string(item.action.label) for item in toolbar.elements][2] == "Assistant"
 
                 # While the assistant is open, the button reaches it and makes none.
@@ -1660,7 +1660,7 @@ function test_application()
                 w = window()
                 focus_draft!(w)
                 type!(w, "hello")
-                focus_pane!(w.editor, find_pane_reference(w.editor, "a.json"))
+                focus_pane!(find_pane_reference("a.json"; editor = w.editor); editor = w.editor)
                 @test holds_one_path(w)
                 @test carets(w) == 0
                 # A script or a client submits the draft. The draft keeps its new
@@ -1673,14 +1673,14 @@ function test_application()
                 @test get_selection(draft) === nothing
                 @test get_stored_selection(draft) !== nothing
                 # The focus comes back to the assistant, and the caret with it.
-                focus_pane!(w.editor, find_pane_reference(w.editor, "Assistant"))
+                focus_pane!(find_pane_reference("Assistant"; editor = w.editor); editor = w.editor)
                 @test holds_one_path(w)
                 @test get_selection(draft) !== nothing
                 @test carets(w) == 1
 
                 w = window()
                 focus_draft!(w)
-                focus_pane!(w.editor, find_pane_reference(w.editor, "a.json"))
+                focus_pane!(find_pane_reference("a.json"; editor = w.editor); editor = w.editor)
                 _app_apply!(w.editor, ComposerInsertPartOperation(w.assistant.draft))
                 @test holds_one_path(w)
                 @test carets(w) == 0

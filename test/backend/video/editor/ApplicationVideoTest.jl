@@ -169,7 +169,7 @@ end
 @testset "the views of the window and its Appearance tab draw with the appearance of the take" begin
     appearance = ProjecturedPlatform.Appearance()
     seen = Ref{Any}(nothing)
-    timeline = Any[(await = editor -> (seen[] = ProjecturedPlatform.find_editor_appearance(editor); true),
+    timeline = Any[(await = editor -> (seen[] = ProjecturedPlatform.find_editor_appearance(; editor); true),
                     hold = 1.0)]
     filename = tempname() * ".mp4"
     try
@@ -194,7 +194,7 @@ end
     takes = map((1.0, 1.5)) do zoom
         opened = Ref(false)
         timeline = Any[(event = MouseClick(:left, 63, 65, 1, ModifierKeys(); time = 0.0), hold = 0.6),
-                       (await = editor -> (opened[] = ProjecturedPlatform.find_pane(editor, "Evaluator") !== nothing;
+                       (await = editor -> (opened[] = ProjecturedPlatform.find_pane("Evaluator"; editor) !== nothing;
                                            true), hold = 1.0)]
         filename = tempname() * ".mp4"
         record_application_video(String[], timeline, filename; width, height, fps = 10, assistant = :none,
@@ -266,11 +266,11 @@ end
     # file fail from the frame after the insert on, whichever projection draws
     # it, and after eight failed paints the editor stops painting.
     break_paint = (await = editor -> begin
-                       items = get_edited_document(find_pane(editor, "items.json"))
+                       items = get_edited_document(find_pane("items.json"; editor))
                        broken = JsonString("tea")
                        set_cell_computation!(getfield(broken, :value),
                                              () -> error("the text of this string can not be computed"))
-                       insert_elements!(editor, items, 1, [broken])
+                       insert_elements!(items, 1, [broken]; editor)
                        true
                    end, hold = 1.0)
     timeline = Any[

@@ -227,9 +227,9 @@ reference with `replace_referenced_value!` to split the window.
 
 # Example
 
-    tree_reference = find_pane_tree_reference(editor)
+    tree_reference = find_pane_tree_reference()
     tree = evaluate_reference(editor.document, tree_reference)
-    replace_referenced_value!(editor, concat_references(tree_reference, @reference(tree, root)),
+    replace_referenced_value!(concat_references(tree_reference, @reference(tree, root)),
         PaneSplit(:vertical, [PaneGroup([PaneTab("Plot", plot)]), tree.root]; weights = [0.4, 0.6]))
 
 See also `PaneGroup`, `PaneTab`, `replace_referenced_value!`.
@@ -261,7 +261,7 @@ followed by `root`:
 
 # Example
 
-    tree_reference = find_pane_tree_reference(editor)
+    tree_reference = find_pane_tree_reference()
     tree = evaluate_reference(editor.document, tree_reference)
     println(typeof(tree.root))
 

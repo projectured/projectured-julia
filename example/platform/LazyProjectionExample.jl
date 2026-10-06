@@ -52,17 +52,17 @@ later one under the list before it.
 """
 function show_lazy_list!(editor, list::ListNode, title::AbstractString; below = nothing)
     view = make_lazy_list_view(list, title; clock = editor.clock)
-    shown = filter(t -> find_pane(editor, t) !== nothing,
+    shown = filter(t -> find_pane(t; editor) !== nothing,
                    get!(() -> String[], _LAZY_LIST_TITLES, editor.tools))
     anchor, side = below !== nothing ? (below, :below) :
                    length(shown) == 0 ? ("Evaluator", :right) :
                    length(shown) == 1 ? (shown[1], :below) :
                    length(shown) == 2 ? ("Evaluator", :below) : (shown[end], :below)
-    pane = open_pane!(editor, view; title = title, target = find_pane(editor, anchor), side = side)
+    pane = open_pane!(view; title = title, target = find_pane(anchor; editor), side = side, editor)
     _LAZY_LIST_TITLES[editor.tools] = push!(shown, title)
     # The new split moved the evaluator, so it is found again by its title.
-    evaluator = find_pane(editor, "Evaluator")
-    evaluator === nothing || focus_pane!(editor, evaluator)
+    evaluator = find_pane("Evaluator"; editor)
+    evaluator === nothing || focus_pane!(evaluator; editor)
     pane
 end
 

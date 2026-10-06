@@ -446,7 +446,7 @@ end
     # It records nothing, so the toolbar has the tools that need nothing more.
     @test labels(shell.toolbar) == ["Explorer", "Evaluator", "Selection", "Appearance", "Settings"]
     # A command of a band finds the tree in the content of the shell.
-    @test find_pane_tree_reference(editor) !== nothing
+    @test find_pane_tree_reference(; editor) !== nothing
     # The window draws the bands and the tab.
     texts = _shell_texts(get_iomap_output(editor.iomap).windows[1].content)
     @test "File" in texts && "hi" in texts
@@ -492,7 +492,7 @@ end
                                        size = Point2D(400, 300))
     shell.margin = Inset(1, 2, 3, 4)
     directory = mktempdir()
-    save_user_interface(_ShellFakeEditor(shell), joinpath(directory, "session.pred"))
+    save_user_interface(joinpath(directory, "session.pred"); editor = _ShellFakeEditor(shell))
     @test isfile(joinpath(directory, "session.pred"))
     again = load_user_interface(joinpath(directory, "session.pred"))
     @test again isa WidgetShell

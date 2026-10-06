@@ -278,11 +278,11 @@ _make_default_tool(type::Type) = _ -> make_insertion_document(type)
 
 # The appearance tab shows the `Appearance` of the editor. An editor with no
 # `appearance` wrapper has none, and the tab shows a new one.
-_make_appearance_tool(editor) = something(find_editor_appearance(editor), Appearance())
+_make_appearance_tool(editor) = something(find_editor_appearance(; editor), Appearance())
 
 # The settings that the settings tab shows: those of the editor. An editor with no
 # `settings` wrapper gets a `Settings` that nothing applies.
-_find_tool_settings(editor) = something(find_editor_settings(editor), make_settings())
+_find_tool_settings(editor) = something(find_editor_settings(; editor), make_settings())
 
 # A list of the Help menu is longer than a pane, and a tab page gets no scroll of
 # its own, so the list opens inside a scroll pane.
@@ -297,7 +297,7 @@ _get_tool_document(document) = document isa WidgetScrollPane ? document.content 
 # evaluates the command, so it posts its edit, made through the readers, and the
 # loop evaluates it at the top of the next frame.
 function _find_focused_tree(editor)
-    reference = find_pane_tree_reference(editor)
+    reference = find_pane_tree_reference(; editor)
     reference === nothing ? nothing : (reference, evaluate_reference(editor.document, reference))
 end
 
@@ -380,7 +380,7 @@ function _reach_tool!(editor, type::Type, make)
         shown = _get_tool_document(document)
         # A tool in a scroll pane is titled by what it shows, not by the pane.
         title = shown === document ? nothing : get_document_title(shown)
-        post_pane_operation!(editor, make_open_pane_operation(editor, document; title = title))
+        post_pane_operation!(editor, make_open_pane_operation(document; title = title, editor))
     else
         group, index = tool
         _post_tree_operation!(editor, tree_reference, make_pane_focus_operation(tree, group, index),

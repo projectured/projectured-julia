@@ -83,9 +83,9 @@ function test_tabs_wrapper()
         editor = build_editor(WidgetLabel("hi"), TabsCountingProjection();
                               backend = TabsProbeBackend(), devices = Device[])
         second = WidgetLabel("second")
-        show_document!(editor, second; title = "second")
+        show_document!(second; title = "second", editor)
         @test _count_tabs(editor) == 2
-        show_document!(editor, second; title = "second")
+        show_document!(second; title = "second", editor)
         @test _count_tabs(editor) == 2
     end
 
@@ -93,10 +93,10 @@ function test_tabs_wrapper()
         editor = build_editor(WidgetLabel("hi"), TabsCountingProjection();
                               backend = TabsProbeBackend(), devices = Device[], tabs = false)
         second = WidgetLabel("second")
-        show_document!(editor, second; title = "second")
+        show_document!(second; title = "second", editor)
         @test length(get_wrapped_document(editor.document).windows) == 2
         @test get_wrapped_document(editor.document).windows[2].content === second
-        show_document!(editor, second; title = "second")
+        show_document!(second; title = "second", editor)
         @test length(get_wrapped_document(editor.document).windows) == 2
     end
 end

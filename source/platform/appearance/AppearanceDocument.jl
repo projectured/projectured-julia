@@ -55,14 +55,14 @@ end
         AdjustScaleOperation(doc.appearance, :spacing_scale, -1)
     KeyDown(:comma; ctrl) => "Show the appearance" =>
         InvokeActionOperation(Action("Show the appearance";
-            callback = editor -> show_document!(editor, doc.appearance; title = "Appearance")))
+            callback = editor -> show_document!(doc.appearance; title = "Appearance", editor)))
 end
 
 """
-    find_editor_appearance(editor) -> Appearance or nothing
+    find_editor_appearance(; editor = get_evaluation_editor()) -> Appearance or nothing
 
 The `Appearance` of `editor`: the one that its `appearance` wrapper holds, or
 `nothing` for an editor with no such wrapper.
 """
-find_editor_appearance(editor) =
+find_editor_appearance(; editor = get_evaluation_editor()) =
     editor.document isa AppearanceDocument ? editor.document.appearance : nothing

@@ -16,7 +16,7 @@ Each side is a `Cell` that holds a number.
 
 # Example
 
-    open_pane!(editor, WidgetCard(; title = "Note", content = WidgetLabel("Indented"), padding = Inset(8, 8, 24, 8));
+    open_pane!(WidgetCard(; title = "Note", content = WidgetLabel("Indented"), padding = Inset(8, 8, 24, 8));
                title = "Padded")
 
 See also `Point2D` for a position or a size.
@@ -52,7 +52,7 @@ a `Cell` that holds a number, so a widget moves when the cell changes.
 
 # Example
 
-    open_pane!(editor, WidgetButton("Run"; size = Point2D(120, 32)); title = "Button")
+    open_pane!(WidgetButton("Run"; size = Point2D(120, 32)); title = "Button")
 
 See also `Inset` for a spacing per side.
 """

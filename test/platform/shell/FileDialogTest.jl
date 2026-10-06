@@ -47,7 +47,7 @@ end
     editor = Editor(document, projection; backend = HeadlessBackend(),
                     devices = Device[Keyboard(), Mouse()])
     run_frame!(editor)
-    open_file_dialog!(editor, directory)
+    open_file_dialog!(; directory, editor)
     @test length(scene.windows) == 2
     window = last(scene.windows)
     @test window.id === :file_dialog && window.style === :floating

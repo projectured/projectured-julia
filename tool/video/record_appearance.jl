@@ -83,11 +83,11 @@ end
 # ── The checks ──────────────────────────────────────────────────────────────
 
 # The theme of the type named `name` that the appearance of the window holds.
-find_theme(editor, name) = only(entry.theme for entry in values(find_editor_appearance(editor).themes)
+find_theme(editor, name) = only(entry.theme for entry in values(find_editor_appearance(; editor).themes)
                                 if nameof(get_theme_type(entry.theme)) == name)
 
 function describe_look(editor)
-    appearance = find_editor_appearance(editor)
+    appearance = find_editor_appearance(; editor)
     (scales = [getproperty(appearance, row.field) for row in SCALE_CLICKS],
      key = format_style_color(find_theme(editor, :JsonTheme).key_text.color),
      background = format_style_color(find_theme(editor, :WidgetTheme).background),

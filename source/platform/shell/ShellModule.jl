@@ -43,6 +43,7 @@ using ..GestureHelpModule
 using ..GestureLogModule
 using ..HelpModule
 using ..StyleModule
+using ..ToolModule
 using ..TooltipModule
 using ..WidgetModule
 using ..AssistantModule

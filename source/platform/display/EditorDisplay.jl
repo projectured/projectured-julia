@@ -213,12 +213,12 @@ function _show_in_session!(session::_EditorSession, value, title::String)
     editor = session.editor
     shown = get(session.shown, value, nothing)
     if shown !== nothing
-        _run_in_editor(() -> show_document!(editor, last(shown); title = first(shown)), session)
+        _run_in_editor(() -> show_document!(last(shown); title = first(shown), editor), session)
         return last(shown)
     end
     unique = _make_unique_title(session, title)
     document = make_value_document(value)
-    _run_in_editor(() -> show_document!(editor, document; title = unique), session)
+    _run_in_editor(() -> show_document!(document; title = unique, editor), session)
     _remember!(session, value, unique, document)
     document
 end
