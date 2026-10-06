@@ -755,6 +755,22 @@ does with its address bar. The view is kept in the address document, per
 navigator, as view state; a save does not keep it. The options not chosen: three
 toggles in a row, a key with no control, and a setting for all navigators.
 
+**Decided (owner, 2026-10-06): the in-between state of a step is a
+`ReferenceInsertion`, as `JsonInsertion` is for a JSON value** ("ReferenceInsertion
+it is, just like JsonInsertion, no?"). Typing passes through states that are no
+step: after `rows[` there is no number, and a `RangeReferenceStep` holds none. A
+`ReferenceInsertion` is a document with the typed text, in the list of steps; the
+list holds `FieldReferenceStep`, `RangeReferenceStep` and `ReferenceInsertion`,
+and the code dispatches on the three. The path view is a syntax view of the
+address, and an insertion is drawn by `InsertionToSyntaxLeaf` with a commit and a
+completion of the navigator, as the SQL domain builds its own leaf: the
+completions are the list of choices of A5, and the insertion commits to a field
+step or an element step when its text names one. Escape drops it. An edit inside
+a committed step turns the step back into an insertion with its text, because a
+kernel step is a value, not a document. The options not chosen: a text of the
+whole path beside the steps, and placeholders such as `[1]` with its number
+selected.
+
 The design of the address is complete. The steps to build it:
 
 - [x] **A1. The step form of `WidgetToggleGroup`.** A field that chooses the look
@@ -773,9 +789,9 @@ The design of the address is complete. The steps to build it:
 - [ ] **A3. The three views and the control.** The titles view: one name for
   each stop, with the arrow of its list, and a press on a name opens its page,
   as the items of the address do now, which the view replaces. The path view:
-  the text of the steps, edited in place; a key inside a name or a number edits
-  that step, `.` and `[` start a step, and Backspace at the start of a step
-  joins it with the one before. The types view: the path with the type of each
+  a syntax view of the steps, edited in place; `.` and `[` start a
+  `ReferenceInsertion`, a key inside a committed step turns it into one, and an
+  insertion commits to a step when its text names one. The types view: the path with the type of each
   node, which takes no edit, and a mark at the place where the address was cut.
   The control of A1 writes the view. Each behavior dispatches on the two step
   types.
