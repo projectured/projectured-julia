@@ -97,9 +97,15 @@ The operation registers with `operation_reference`, `retarget_operation` and `is
 
 An open that no navigator takes reaches the editor. Its evaluation posts the opening of a new tab with a navigator on the page (`post_pane_operation!`), as the open of a file does. For the path form, the content of that navigator is the document of the tab that holds the part, past the layers that `get_edited_field` names, such as an undo and a file, so Parent reaches the rest of it.
 
+### Tabs and files
+
+- **A tab** keeps the name that it got when it opened, as every tab does. Its tooltip reads the address of the page (`make_pane_tab_title(::Navigator, name)`).
+- **A duplicate** of a navigator tab has its own address and its own visits, and shares the content (`has_document_duplicate(::Navigator)`).
+- **A save** keeps the content and the address, as the text of a path, such as `books[2]`, and no visit (`pred_arguments`, `make_pred_document`). `print_path_text` and `parse_path_text` of the serialization slice write and read that text.
+
 ## How it fits
 
-The slice uses the collection, layout, natural, pane, projection, style and widget slices of the platform, and the kernel. It uses the pane slice for the tab that an open with no navigator posts. It names no domain, and no domain names it except to answer `OpenPageOperation`.
+The slice uses the collection, layout, natural, pane, projection, serialization, style and widget slices of the platform, and the kernel. It uses the pane slice for the tab that an open with no navigator posts. It names no domain, and no domain names it except to answer `OpenPageOperation`.
 
 A domain gives a part a page of its own where the part must look different as a page. The data frame adapter draws a row of a frame, `rows[r]` of a `DataFrameView`, as a form of the name and the value of each column (`DataFrameViewRowToWidget`). The menu of a row opens it, and a double click on the number of a row opens it: the view of the frame maps that double click, because the view owns the numbers.
 
@@ -134,7 +140,6 @@ A part that opens a page answers `OpenPageOperation(nothing, EmptyReference())` 
 - The navigator puts no scroll pane around its page: a part scrolls where it is made. A page whose view has no scroll pane, such as a JSON document, is cut at the bottom of the navigator.
 - Parent of a row of a data frame opens the `DataFrameViewRows` that holds the rows, and not the table, because `get_parent` does not look past it.
 
-- A save keeps the address only, as the owner chose; the save of a navigator is not written yet.
 - A JSON part has no title, so the address of a JSON page names its steps, for example `entries[2]` and `value`.
 - The view on demand, which draws a document that has no view of its own, does not pass an operation with a fixed place (`read_rooted_operation`) into itself. A verb of the assistant at a place inside such a page reaches no part.
 - The side buttons of the mouse do not go back or forward: the event layer has no side button.

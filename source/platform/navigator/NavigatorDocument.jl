@@ -55,3 +55,24 @@ function get_document_title(navigator::Navigator)
     title = get_document_title(get_navigator_page(navigator))
     title === nothing ? get_document_title(navigator.content) : title
 end
+
+# A duplicate of a navigator tab has its own address and its own visits, and
+# reads the same content, as a duplicate of a tab of a browser does: the copy
+# descends into a navigator and shares a content that declares no duplicate.
+has_document_duplicate(::Navigator) = true
+
+# A file keeps the content and the address, as the text of a path, and not the
+# visits: a window that opens again shows the same page, with empty lists.
+pred_arguments(navigator::Navigator) =
+    (), Pair{Symbol,Any}[:content => navigator.content, :address => print_path_text(navigator.address)]
+
+function make_pred_document(::Type{Navigator}, positional, keywords)
+    values = Dict{Symbol,Any}(keywords)
+    content = values[:content]
+    Navigator(content, annotate_reference_types(content, parse_path_text(values[:address])))
+end
+
+# A tab of a navigator keeps its name, as every tab does, and its tooltip says the
+# address of the page that it shows now.
+make_pane_tab_title(navigator::Navigator, name::AbstractString) =
+    PaneTabTitle(name; tooltip = () -> join(first.(_get_address_parts(navigator)), " › "))

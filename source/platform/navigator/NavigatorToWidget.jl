@@ -106,6 +106,22 @@ struct _AddressCrumb
 end
 
 function _make_address_crumbs(navigator::Navigator)
+    parts = _get_address_parts(navigator)
+    crumbs = _AddressCrumb[]
+    for (index, (label, tooltip, address)) in enumerate(parts)
+        if index == length(parts)
+            push!(crumbs, _AddressCrumb(WidgetLabel(label; tooltip), nothing, address))
+        else
+            action = Action(label)
+            push!(crumbs, _AddressCrumb(WidgetToolbarItem(action; tooltip), action, address))
+        end
+    end
+    crumbs
+end
+
+# The name, the tooltip and the address of each document from the content to the
+# page, past the collections, and of the page last.
+function _get_address_parts(navigator::Navigator)
     content = navigator.content
     steps = get_reference_steps(get_navigator_page_address(navigator))
     prefix(stop) = extend_reference(EmptyReference(), steps[1:stop]...)
@@ -114,20 +130,15 @@ function _make_address_crumbs(navigator::Navigator)
         (stop == length(steps) || _is_page_node(evaluate_reference(content, prefix(stop)))) &&
             push!(stops, stop)
     end
-    crumbs = _AddressCrumb[]
+    parts = Tuple{String,String,Reference}[]
     for (index, stop) in enumerate(stops)
         address = prefix(stop)
         label = _get_address_label(evaluate_reference(content, address),
                                    steps[(index == 1 ? 1 : stops[index - 1] + 1):stop])
-        tooltip = stop == 0 ? "The whole content." : lstrip(sprint(show, address), '.')
-        if index == length(stops)
-            push!(crumbs, _AddressCrumb(WidgetLabel(label; tooltip), nothing, address))
-        else
-            action = Action(label)
-            push!(crumbs, _AddressCrumb(WidgetToolbarItem(action; tooltip), action, address))
-        end
+        tooltip = stop == 0 ? "The whole content." : print_path_text(address)
+        push!(parts, (label, tooltip, address))
     end
-    crumbs
+    parts
 end
 
 # The widgets of the address, with a mark between two items.

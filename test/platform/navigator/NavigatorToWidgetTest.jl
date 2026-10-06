@@ -189,11 +189,13 @@ end
 """
     test_navigator()
 
-The navigator: its visits, its view, the open of a page, and its gestures.
+The navigator: its visits, its view, the open of a page, its gestures, and its
+save, its duplicate and its tab.
 """
 function test_navigator()
     test_navigator_visits()
     test_navigator_to_widget()
     test_open_page_operation()
     test_navigator_gestures()
+    test_navigator_document()
 end

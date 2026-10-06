@@ -28,11 +28,14 @@ using ..PaneModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
+using ..SerializationModule
 using ..StyleModule
 using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..DocumentModule: get_document_title, get_edited_field
+import ..DocumentModule: get_document_title, get_edited_field, has_document_duplicate
+import ..PaneModule: make_pane_tab_title
+import ..SerializationModule: pred_arguments, make_pred_document
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..OperationModule: evaluate_operation
 
