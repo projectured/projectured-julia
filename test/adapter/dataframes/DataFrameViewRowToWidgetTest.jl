@@ -130,7 +130,7 @@ function test_data_frame_row_page()
         choose!(editor, backend, 2, "Open as a page")
         drain_operations!(editor)
         run_frame!(editor)
-        tabs = get_window_tree(editor).root.tabs
+        tabs = get_window_tree(; editor).root.tabs
         @test length(tabs) == 2
         @test tabs[2].content isa Navigator
         @test tabs[2].content.content === view

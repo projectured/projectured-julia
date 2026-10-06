@@ -52,8 +52,8 @@ OperationModule.describe_operation(operation::OpenPageOperation) =
 function evaluate_operation(editor, operation::OpenPageOperation)
     content, address = _find_opened_content(editor.document, operation)
     content === nothing && return nothing
-    post_pane_operation!(editor, make_open_pane_operation(editor, Navigator(content, address);
-                                                          group = get_pane_file_group(editor)))
+    post_pane_operation!(editor, make_open_pane_operation(Navigator(content, address);
+                                                          group = get_pane_file_group(; editor), editor))
     nothing
 end
 

@@ -131,7 +131,7 @@ The plan with the alternatives is [plan/pending/a-navigator-with-back-forward-pa
 ```julia
 using ProjecturedPlatform
 navigator = Navigator(document)                       # the whole document is the page
-open_pane!(editor, navigator)                         # a tab with a navigator
+open_pane!(navigator)                                 # a tab with a navigator
 evaluate_operation(editor, make_navigator_open_operation(navigator, @reference(document, entries[2])))
 ```
 
