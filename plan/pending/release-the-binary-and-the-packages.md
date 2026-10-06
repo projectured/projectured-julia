@@ -1,7 +1,9 @@
 # Release the binary and the packages
 
-Status: pending, 2026-09-29. Nothing is built, generated, tagged or published
-yet.
+Status, 2026-10-06: the first release is published and announced. It is the
+packages, 0.1.0 in `ProjecturedRegistry` (Part B through Part R, R27). Open:
+the binary (Part A), deferred to a later release; the move to General (B6, R34);
+and the steps of Part P that are left.
 
 Two routes give ProjecturEd to other users. Each route serves a different
 user:
@@ -895,15 +897,19 @@ step registers in General later, from the same release repository.
 - [x] Part L is done, and R23 has an answer from the maintainers of General.
 - [x] Make the release repository of R9, `projectured/Projectured.jl`.
       Done by the owner on 2026-10-01, private and empty.
-- [ ] Make the release repository public, and install the Registrator app of
-      JuliaRegistries for it.
-- [ ] Generate the release for `v0.1.0` into a clone of the release repository
-      (`build_projectured_package_release!`), commit, and push.
+- [x] Make the release repository public. Done by the owner by 2026-10-05.
+- [ ] Install the Registrator app of JuliaRegistries for it. It waits for the
+      move to General (R34).
+- [x] Generate the release for `v0.1.0` into a clone of the release repository
+      (`build_projectured_package_release!`), commit, and push. Done on
+      2026-10-06 for `ProjecturedRegistry`: `Projectured.jl` `5b8284f8`.
 - [ ] Register in General, one dependency level at a time (§3.3): a comment
       `@JuliaRegistrator register` on the release commit of each package of the
       level. The next level starts when General has merged the level below it.
 - [ ] In an empty depot, run the install line of Step B5, and
-      `using Projectured, ProjecturedSDL`.
+      `using Projectured, ProjecturedSDL`. Done for `ProjecturedRegistry` on
+      2026-10-06 (the new-user check of the front page); it runs again after
+      the move to General.
 
 ## Part G: a layout engine of our own, and the move of the port (R19, R26)
 
