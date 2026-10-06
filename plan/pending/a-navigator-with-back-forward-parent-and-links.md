@@ -440,7 +440,52 @@ new tab".
 - [ ] **5. A table and its detail page.** The page view of a data frame row, a
   form of its columns. The "Open" item of a row and a press on a row header.
   The case of the owner: the table, a row, Back to the table with the row
-  selected. An example, a test, and a check in a live window.
+  selected. An example, a test, and a check in a live window. Done except the
+  example and the live window, 2026-10-06. What the work found and decided:
+  - `DataFrameViewRowToWidget` draws a row as a form of the name and the value of
+    each column, in a scroll pane, read-only. A value shows as a cell of the
+    table shows it. The form reads `frame_version`, so it follows a write of the
+    frame. `make_graphics_projection(::Type{DataFrameViewRow})` registers it.
+    An edit on the detail page is not in this step: a cell of a frame takes an
+    edit only through the open cell of the table.
+  - The menu of a row starts with "Open as a page" and "Open in a new tab": an
+    `OpenPageOperation` of the row itself. With no navigator, it opens a tab with
+    a navigator on the row, whose content is the view of the frame.
+  - A double click on a row header opens the row. The view of the frame maps it,
+    because the view owns the headers: after its own selection of the whole row
+    it adds the open. A binding of the row itself never fires: the press on a
+    header answers a selection first.
+  - Enter on a selected row does not open it: the table takes Return with any
+    modifier, and moves into the first cell. So the four keys of the navigator
+    became `override` rules, which take their chord also after the page
+    answered it, and the reader of the navigator gives a key that the page
+    answered to its table as a claimed key, as the evaluator does. Ctrl+Return
+    opens a selected row.
+  - **A bug of step 1, found here:** the grid of the view printed the page once,
+    so a new address changed the bar and not the page. A grid prints its
+    children once; a `VerticalLayout` prints its children again when its list
+    changes. The page now stands in a vertical layout of one child, whose list is
+    computed from the address: `children[2].children[1]`. The tests of the
+    platform now count the drawn texts of the page.
+  - **A bug of the pane, found here, outside the navigator:** an item of the menu
+    of a frame row in a tab failed with `under-typed @reference` at
+    `PaneToWidget.jl:430`, for "Insert row above" too. The pane typed only the
+    head of the image of a tab content, and the view of a frame gives an image
+    of several steps without types. The pane now types the whole image against
+    the document that the tab draws when the image is not fully typed. A test
+    chooses "Insert row above" from a frame in a tab.
+  - **Open: Parent of a row.** The parent of `rows[2]` is the `DataFrameViewRows`
+    that holds the rows, a document that `get_parent` does not look past, so
+    Parent opens it and not the table, and the address shows "rows". Marked
+    `@test_broken`. `is_element_collection(::DataFrameViewRows) = true` would fix
+    it, but the search, the view on demand, the file cut and the sync iterate an
+    element collection, which over a frame of ten million rows makes ten million
+    row documents. A trait of the navigator that a domain answers is a new
+    generic function. The owner decides.
+  - **Open: a tall page.** The navigator puts no scroll pane around its page, by
+    the owner's rule that a part scrolls where it is made. A page whose view has
+    no scroll pane, such as JSON, is cut at the bottom of the navigator.
+  - `test_data_frame_row_page()`, 23 tests, 1 broken.
 - [ ] **6. Links in the data.** Markdown and rst links that a press follows,
   drawn as links. A file reference. A named target after D7.
 - [ ] **7. Panes and files.** The tab title follows the page. A duplicate copies
