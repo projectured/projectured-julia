@@ -671,8 +671,20 @@ and chips that move. Stages 6 and 7 complete the design of the request.
     layout, whose rows are rows of the source; a selection in that table maps
     back as a part that the view introduced.
   - Tests: `test_pivot_group_view()`; `test_pivot()`: 276.
-- [ ] **10. Derived dimensions.** Bins of a number, and the year, the month or
-  the day of a date. The warning for a dimension with many values.
+- [x] **10. Derived dimensions.** Bins of a number, and the year, the month or
+  the day of a date. The warning for a dimension with many values. **Done 2026-10-06.**
+  - `PivotDimension` has a new field, `bin`: a width of the bins of a number,
+    whose values are `PivotBin`s, or `:year`, `:month` or `:day` of a date,
+    whose month is a `PivotMonth`. The pivot depends on the standard library
+    `Dates` for this; it is no third-party package.
+  - The warning: a column dimension with no limit of its own keeps its first
+    200 values, because the columns of the table are a vector and thousands of
+    them would not draw. A row or a column dimension of more than 200 values
+    says how many it has on its badge, in the colour of a warning. The rows are
+    a list, so a row dimension of many values draws.
+  - The menu of a dimension offers two widths of bins for numbers, a round
+    tenth of the range and ten times that, and the parts of a date.
+  - Tests: `test_pivot_derived_dimensions()`; `test_pivot()`: 291.
 - [ ] **11. Proposed.** A rename of a header value, which changes all rows with
   that value. A drag of a table header into the bar. "Copy as code" with
   `groupby`, `combine` and `unstack`. A heat map cell view. A pivot of a

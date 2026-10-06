@@ -44,6 +44,7 @@ end
 
 include("../../../test/domain/pivot/document/PivotCrossTableTest.jl")
 include("../../../test/domain/pivot/document/PivotTotalsTest.jl")
+include("../../../test/domain/pivot/document/PivotDerivedTest.jl")
 include("../../../test/domain/pivot/projection/PivotTableToWidgetTest.jl")
 include("../../../test/domain/pivot/projection/PivotZoneEditTest.jl")
 include("../../../test/domain/pivot/projection/PivotCellViewTest.jl")

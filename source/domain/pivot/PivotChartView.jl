@@ -39,7 +39,7 @@ end
 # The value of `kind` in the memo of the cells of `pivot` while `key`, what it is
 # computed from, stays the same; `compute` makes it again for a new key. The memo
 # keeps one value for each kind, so an old value does not stay.
-function _get_pivot_memo!(compute, pivot::PivotTable, kind::Symbol, key)
+function _get_pivot_memo!(compute, pivot::PivotTable, kind, key)
     memo = pivot.cells.memo
     found = get(memo, kind, nothing)
     (found !== nothing && isequal(found[1], key)) && return found[2]
@@ -98,11 +98,14 @@ function _compute_pivot_chart_data(pivot::PivotTable, cross::PivotCrossTable, di
     _PivotChartData(categories, series, values, present, low, high)
 end
 
-# The count of the values of the first cell dimension, kept in the memo of the
-# cells by the source and the dimension, for the automatic choice of a view.
+# The count of the values of a dimension, kept in the memo of the cells for each
+# column by the source and the dimension: for the automatic choice of a view,
+# and for the warning of the bar about a dimension of many values.
 function _count_pivot_categories(pivot::PivotTable, dimension)
-    _get_pivot_memo!(pivot, :categories, (pivot.source_version, dimension.column)) do
-        get_pivot_row_count(compute_pivot_cross_table(pivot.source, [dimension], PivotDimension[]))
+    key = (pivot.source_version, dimension.bin, Tuple(dimension.hidden_values))
+    _get_pivot_memo!(pivot, (:categories, dimension.column), key) do
+        get_pivot_row_count(compute_pivot_cross_table(pivot.source, [PivotDimension(dimension.column;
+            hidden_values = dimension.hidden_values, bin = dimension.bin)], PivotDimension[]))
     end
 end
 

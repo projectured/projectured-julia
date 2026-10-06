@@ -19,6 +19,49 @@ struct PivotTotal end
 const _PIVOT_TOTAL = PivotTotal()
 
 """
+    PivotBin(low, high)
+
+The value of a number in a dimension with bins: the bin from `low`, which it
+holds, to `high`, which it does not. Bins follow each other by `low`.
+"""
+struct PivotBin
+    low::Float64
+    high::Float64
+end
+
+Base.isless(a::PivotBin, b::PivotBin) = isless(a.low, b.low)
+
+"""
+    PivotMonth(year, month)
+
+The value of a date in a dimension by month. Months follow each other by year,
+then by month.
+"""
+struct PivotMonth
+    year::Int
+    month::Int
+end
+
+Base.isless(a::PivotMonth, b::PivotMonth) = isless((a.year, a.month), (b.year, b.month))
+
+# The value of `value` in a dimension whose bin is `bin`: the value itself, the
+# bin of a number, or a part of a date. A value that the bin does not fit, such
+# as `missing`, stays as it is.
+_bin_pivot_value(value, ::Nothing) = value
+_bin_pivot_value(value::Real, width::Real) =
+    (low = floor(value / width) * width; PivotBin(low, low + width))
+_bin_pivot_value(value::Dates.TimeType, part::Symbol) =
+    part === :year ? Dates.year(value) :
+    part === :month ? PivotMonth(Dates.year(value), Dates.month(value)) :
+    part === :day ? Dates.Date(value) : value
+_bin_pivot_value(value, ::Any) = value
+
+# How many values a column dimension shows with no limit of its own. A dimension
+# with more values is cut there, and its badge says how many it has, because a
+# column of each value of a column of numbers would make a table too wide to draw.
+const _PIVOT_MANY_VALUES = 200
+
+"""
     PivotCrossTable
 
 The parts of a pivot. `row_keys[r]` is the tuple of the values of the row
@@ -104,7 +147,9 @@ row dimension has one row, whose key is the empty tuple, and the same holds for
 the columns. A row of the source whose value in a dimension is one of its
 `hidden_values`, or past its `limit`, is in no part. The keys follow the order
 of each dimension, the first dimension first; `measure` is what an order by the
-measure reads.
+measure reads. `column_limit`, when it is not 0, is the limit of a column
+dimension that has none of its own; a pivot sets it, so a column of thousands of
+values does not make a table of thousands of columns.
 
 With `totals`, a subtotal row follows each run of an outer row dimension, a
 total row follows every row, and a total column every column. A run whose key
@@ -114,14 +159,14 @@ function compute_pivot_cross_table(pivot::PivotTable)
     pivot.source_version
     compute_pivot_cross_table(pivot.source, collect(pivot.row_dimensions), collect(pivot.column_dimensions);
                               measure = first(get_pivot_measures(pivot)), totals = pivot.totals,
-                              collapsed = collect(pivot.collapsed))
+                              collapsed = collect(pivot.collapsed), column_limit = _PIVOT_MANY_VALUES)
 end
 
 function compute_pivot_cross_table(table, row_dimensions::AbstractVector, column_dimensions::AbstractVector;
-                                   measure = nothing, totals::Bool = false, collapsed = ())
+                                   measure = nothing, totals::Bool = false, collapsed = (), column_limit::Int = 0)
     count = get_table_row_count(table)
     row_codes, detail_rows = _compute_key_codes(table, row_dimensions, count, measure)
-    column_codes, detail_columns = _compute_key_codes(table, column_dimensions, count, measure)
+    column_codes, detail_columns = _compute_key_codes(table, column_dimensions, count, measure, column_limit)
     width = max(1, length(detail_columns))
     cells = Vector{Int}(undef, count)
     for r in 1:count
@@ -194,7 +239,8 @@ end
 # order of the keys, or 0 for a row that a hidden value, or a value past the
 # limit of its dimension, leaves out; and the keys. With no dimension, every row
 # has the one empty key.
-function _compute_key_codes(table, dimensions::AbstractVector, count::Int, measure = nothing)
+function _compute_key_codes(table, dimensions::AbstractVector, count::Int, measure = nothing,
+                            default_limit::Int = 0)
     isempty(dimensions) && return (fill(1, count), Tuple[()])
     levels = [_compute_value_codes(table, dimension, count) for dimension in dimensions]
     # Each value has its rank in the order of its dimension, and a limit leaves
@@ -202,7 +248,8 @@ function _compute_key_codes(table, dimensions::AbstractVector, count::Int, measu
     ranks = [_compute_value_ranks(values, dimension, table, codes, measure)
              for ((codes, values), dimension) in zip(levels, dimensions)]
     for (d, dimension) in enumerate(dimensions)
-        dimension.limit > 0 && _limit_value_codes!(levels[d][1], ranks[d], dimension.limit)
+        limit = dimension.limit > 0 ? dimension.limit : default_limit
+        limit > 0 && _limit_value_codes!(levels[d][1], ranks[d], limit)
     end
     sizes = [length(values) for (_, values) in levels]
     value_codes = Vector{Int}[codes for (codes, _) in levels]
@@ -240,6 +287,8 @@ end
 function _compute_value_codes(table, dimension, count::Int)
     column = find_table_column(table, dimension.column)
     values = column === nothing ? [get_table_value(table, r, dimension.column) for r in 1:count] : column
+    bin = dimension.bin
+    bin === nothing || (values = [_bin_pivot_value(value, bin) for value in values])
     _compute_value_codes(values, Any[dimension.hidden_values...])
 end
 

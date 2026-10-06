@@ -84,6 +84,8 @@ format_pivot_value(value::AbstractFloat) =
         string(round(value; digits = 2))
 format_pivot_value(::Missing) = "missing"
 format_pivot_value(::PivotTotal) = "total"
+format_pivot_value(bin::PivotBin) = string(format_pivot_value(bin.low), "–", format_pivot_value(bin.high))
+format_pivot_value(month::PivotMonth) = string(month.year, "-", lpad(month.month, 2, '0'))
 format_pivot_value(value) = string(value)
 
 """

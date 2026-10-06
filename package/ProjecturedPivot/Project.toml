@@ -6,6 +6,7 @@ authors = []
 # The pivot domain. Its cells hold charts, so it depends on the chart domain.
 
 [deps]
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 ProjecturedChart = "015a7010-be44-4818-8ca4-bb4593b6d5fe"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"

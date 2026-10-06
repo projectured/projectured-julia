@@ -18,6 +18,8 @@ another.
 """
 module PivotModule
 
+using Dates
+
 using ..KernelModule
 using ..PlatformModule
 using ..ChartModule
@@ -31,7 +33,7 @@ import ..GestureBindingModule: get_document_gesture_bindings_own
 export PivotDimension, PivotMeasure, PivotCellView, PivotNumberView, PivotRowsView, PivotBarChartView,
        PivotLineChartView, PivotPieChartView, PivotGroupView, PivotChartCell, PivotPartTable, PivotTable, PivotCells,
        PivotCellRow, make_pivot_table
-export PivotTotal, PivotCrossTable, get_pivot_row_count, get_pivot_column_count, find_pivot_part_rows,
+export PivotTotal, PivotBin, PivotMonth, PivotCrossTable, get_pivot_row_count, get_pivot_column_count, find_pivot_part_rows,
        compute_pivot_cross_table, compute_pivot_measure
 export get_pivot_cell_view, describe_pivot_cell_view, get_pivot_cell_view_lines, get_pivot_measures,
        describe_pivot_measure, format_pivot_value, get_pivot_cell_document, get_pivot_cell_key,

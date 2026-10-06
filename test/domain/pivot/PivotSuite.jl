@@ -30,7 +30,8 @@ function test_pivot()
         test_pivot_chart_views()
         test_pivot_totals()
         test_pivot_group_view()
+        test_pivot_derived_dimensions()
     end
 end
 
-export test_pivot, test_pivot_layering, test_pivot_cross_table, test_pivot_table_projection, test_pivot_zone_edits, test_pivot_cell_views, test_pivot_chart_views, test_pivot_totals, test_pivot_group_view
+export test_pivot, test_pivot_layering, test_pivot_cross_table, test_pivot_table_projection, test_pivot_zone_edits, test_pivot_cell_views, test_pivot_chart_views, test_pivot_totals, test_pivot_group_view, test_pivot_derived_dimensions

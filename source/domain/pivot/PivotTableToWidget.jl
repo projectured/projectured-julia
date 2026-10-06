@@ -132,10 +132,17 @@ function _make_pivot_zone_row(p::PivotTableToWidget, pivot::PivotTable, field::S
     chips = Any[]
     for entry in _get_pivot_zone_entries(pivot, field)
         if entry isa Int
-            badge = WidgetBadge(_describe_pivot_zone_item(zone[entry]); variant = :secondary)
+            item = zone[entry]
+            # A row or a column dimension of many values says so, and the menu of
+            # the dimension offers its bins and its limit.
+            many = field in ("row_dimensions", "column_dimensions") ? _count_pivot_categories(pivot, item) : 0
+            many > _PIVOT_MANY_VALUES || (many = 0)
+            text = many == 0 ? _describe_pivot_zone_item(item) :
+                               string(_describe_pivot_zone_item(item), " (", many, " values)")
+            rest = many == 0 ? :secondary : :destructive
+            badge = WidgetBadge(text; variant = rest)
             set_cell_computation!(getfield(badge, :variant),
-                                  () -> _find_pivot_zone_item(pivot.selection) == (field, entry) ? :default :
-                                                                                                  :secondary)
+                                  () -> _find_pivot_zone_item(pivot.selection) == (field, entry) ? :default : rest)
             push!(chips, badge)
         elseif entry === :count
             push!(chips, WidgetBadge("count"; variant = :outline))

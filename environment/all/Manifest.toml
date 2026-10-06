@@ -1317,7 +1317,7 @@ uuid = "e6416f43-abf0-46b1-b638-fa5f9d9ece1d"
 version = "0.1.0"
 
 [[deps.ProjecturedPivot]]
-deps = ["ProjecturedChart", "ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["Dates", "ProjecturedChart", "ProjecturedKernel", "ProjecturedPlatform"]
 path = "../../package/ProjecturedPivot"
 uuid = "eca914b8-c72d-4ebf-9e58-97ec1716e38c"
 version = "0.1.0"

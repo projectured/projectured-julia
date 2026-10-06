@@ -19,6 +19,11 @@ measure of the pivot over the rows of each value. `descending` turns the order
 round. `hidden_values` holds the values that the pivot leaves out, with their
 rows, and `limit`, when it is not 0, keeps only that many values, the first in
 the order, so a descending order by the measure keeps the top `limit`.
+
+`bin` derives the value of a row from the value of its column: `nothing` takes
+the value itself; a positive number is the width of the bins of a number, so a
+value is the [`PivotBin`](@ref) that holds it; `:year`, `:month` and `:day` take
+the year, the [`PivotMonth`](@ref) or the day of a date.
 """
 @document struct PivotDimension <: PivotDocument
     column::String
@@ -26,11 +31,12 @@ the order, so a descending order by the measure keeps the top `limit`.
     descending::Bool = false
     hidden_values::Vector{Any} = Any[]
     limit::Int = 0
+    bin::Any = nothing
 end
 
 PivotDimension(column::AbstractString; order::Symbol = :natural, descending::Bool = false,
-               hidden_values::AbstractVector = Any[], limit::Integer = 0) =
-    PivotDimension(String(column), order, descending, Any[hidden_values...], Int(limit), nothing)
+               hidden_values::AbstractVector = Any[], limit::Integer = 0, bin = nothing) =
+    PivotDimension(String(column), order, descending, Any[hidden_values...], Int(limit), bin, nothing)
 
 """
     PivotMeasure(column, aggregate)
