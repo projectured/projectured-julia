@@ -507,12 +507,17 @@ worktree. The three domains test different parts of the model:
     - The four list fields of JSON and XML are `CellVector{Document}`, and the constructors of
       `XmlElement` build `CellVector{Document}`.
     - Tests: `test_kernel()` 4175 pass, 2 broken; `test_json()` 235 pass; `test_xml()` 80 pass.
-  - [ ] Group 5, a lazy list in a field declared `CellVector`: it belongs with group 4 and S-2.
-    `HorizontalLayout` and `VerticalLayout` have constructors that take a `ListNode`, so their
-    declaration is too narrow. But the collection sugar of `@document` (Rule C,
-    `_collection_slot` in `DocumentMacro.jl`) finds the collection field only when its declared
-    type is a bare symbol such as `CellVector`, so `Union{CellVector, ListNode}` would take the
-    sugar `HorizontalLayout(a, b)` away. `CellVector{Document}` (S-2) meets the same limit.
+  - [ ] **Group 5, a lazy list in a field declared `CellVector`.** `children` of
+    `HorizontalLayout`, `VerticalLayout` and `GridLayout`, and the two header strips of
+    `WidgetTable`, get a `ListNode`, a lazy list that a viewport reads from the middle. The
+    layouts have constructors for both forms. `ListNode` and `CellVector` share no supertype but
+    `Document`, and the collection sugar does not find a field declared with a `Union`.
+    **Decided by the owner, 2026-10-06: option B.** A common abstract type for a list document,
+    `ListDocument` (the name is my choice), which `CellVector` and `ListNode` subtype. A field
+    that holds a list or a lazy list declares it, and the abstract type names `CellVector` as
+    what a plain vector becomes. The other options were: declare `Union{CellVector, ListNode}`
+    and teach the sugar a union (A), or keep a lazy list in a field of its own in each layout
+    (C).
   - [x] **Group 6, an overlay in the content of a file:** the `content` of `JsonFile`, `XmlFile`,
     `JuliaFile`, `MarkdownFile`, `MathFile`, `RstFile`, `SqlFile` and `YamlFile` is declared
     `Document`, and `TextFile.content` is `Union{String, Document}`. `make_file_tab(path, wrap)`
