@@ -27,8 +27,8 @@ get_build_invocation() = get(ENV, "PROJECTURED_BUILD_COMMAND",
 The binaries that the command line builds, as `name => description`.
 """
 const BUILD_BINARIES = ["projectured" =>
-    "the application: files in a window, a file\n" *
-    "navigator and an AI assistant"]
+    "the application: files in a window, a Files\n" *
+    "pane and an AI assistant"]
 
 """
     BUILD_OPTIONS

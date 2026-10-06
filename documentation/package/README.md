@@ -64,7 +64,7 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | `help` | [help.md](platform/help/help.md) | the document types, the projections and the page about the program that the Help menu opens |
 | `conversation` | [conversation.md](platform/conversation/conversation.md), with [transcript.md](platform/conversation/transcript.md) | the evaluator and the conversation documents |
 | `assistant` | [assistant.md](platform/assistant/assistant.md) | the chat with a model beside the panes of a window |
-| `application` | [application.md](platform/application/application.md) | the window of files, the navigator and the assistant, and the command line of a binary |
+| `application` | [application.md](platform/application/application.md) | the window of files, the Files pane and the assistant, and the command line of a binary |
 
 ## The domains
 

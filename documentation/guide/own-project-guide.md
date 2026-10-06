@@ -55,7 +55,7 @@ A contributor reaches the packages by path instead, the way this repository reac
 | `ProjecturedExample` | from a clone of the source only: the examples, the gallery and `run_value_viewer` |
 | one domain, for example `ProjecturedJSON` | the names of that domain, with the kernel and the platform below it |
 
-The application, with its file navigator, its tabs and its assistant, is no package to load: it runs from a clone of the source (`bin/projectured`), or as a binary that `bin/build_projectured` builds ([build-guide.md](build-guide.md)).
+The application, with its Files pane, its tabs and its assistant, is no package to load: it runs from a clone of the source (`bin/projectured`), or as a binary that `bin/build_projectured` builds ([build-guide.md](build-guide.md)).
 
 `add Projectured` installs the kernel, the platform and `AutoIntegration`, and nothing more. Add each domain that your program shows, and the console or the PDF backend if you use one. AutoIntegration loads each one that you installed when `Projectured` is loaded, because a domain declares `Projectured` as its trigger with the default `auto` ([autointegration.md](../package/autointegration/autointegration.md)). The names of a domain stay in its package: to write `JsonString`, add `using ProjecturedJSON`.
 

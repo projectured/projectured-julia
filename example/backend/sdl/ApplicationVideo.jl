@@ -2,7 +2,7 @@
 # example/backend/sdl/ApplicationVideo.jl
 #
 # `record_application_video` opens the real application window — the menu bar,
-# the toolbar, the tabs, the navigator and the assistant pane — the same way
+# the toolbar, the tabs, the Files pane and the assistant pane — the same way
 # `run_application` does, and drives it from a scripted timeline through a
 # `VideoBackend` instead of a native window: the editor loop is `run_editor!`,
 # not `record_video`'s own loop and not `play_live!`'s side channel, so the

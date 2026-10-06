@@ -359,7 +359,7 @@ The two BFS drivers share one engine (`explore_selections` / `test_navigation`);
 - **Seed:** fire `Ctrl+Home`; the first selection is the resulting `ReplaceSelectionOperation.path`.
 - **Drive:** BFS over selection states. At each state: set the selection, reprint, `_walk!`; then try each `POSITION_NAVIGATION_KEYS` gesture (arrows, Home/End, Ctrl+arrows, Ctrl+Home/End) via `read_intent`, enqueuing every new target path (deduped modulo type checkpoints via `strip_reference_types`) not yet visited.
 - **Asserts:** one `@test` per reachable state (its reprint + walk don't throw), plus `@test state_count > 0`. With `check_reaches_all=true`: additionally one `@test` per selection enumerated by `collect_position_selections(document)` asserting it was reached (subset check: *enumerated ⊆ reachable*), plus `@test !isempty(enumerated)`.
-- **A failure means:** a navigation gesture throws, a reached state can't be reprinted, or, in completeness mode, navigation can't reach a caret the document actually has. The last case is a stuck or leaky navigator.
+- **A failure means:** a navigation gesture throws, a reached state can't be reprinted, or, in completeness mode, navigation can't reach a caret the document actually has. The last case is the caret motion stuck or leaking.
 
 **`test_tree_navigation`** — the same, for whole-element (∅) structural selections.
 - **Seed:** `Ctrl+Alt+Home`, which selects the root ∅.
@@ -651,7 +651,7 @@ julia --project=package/ProjecturedJSONTest \
   affected example.
 - **Selection navigation bug.** `explore_position_selections(doc, proj)` returns
   every reachable state; small `state_count` numbers are often the symptom
-  of a stuck navigator. To check *coverage*, compare against
+  of caret motion stuck in place. To check *coverage*, compare against
   `collect_position_selections(doc)` (or use `test_position_navigation(ex; check_reaches_all=true)`).
 
 See [the debugging guide](debugging-guide.md) for the matching REPL helpers

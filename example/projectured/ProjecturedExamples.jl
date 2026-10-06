@@ -25,7 +25,7 @@ const examples = [
     widget_textarea_example, widget_accordion_example, widget_table_example,
     widget_table_offered_example, widget_table_frozen_example, widget_tree_example,
     widget_disabled_example, widget_focus_example,
-    layout_example, constraint_layout_example, book_example, markdown_example, markdown_rendered_example, filesystem_example, filesystem_widget_example, navigator_example,
+    layout_example, constraint_layout_example, book_example, markdown_example, markdown_rendered_example, filesystem_example, filesystem_widget_example, files_example,
     collection_example, reversing_example, filtering_example, searching_example, sorting_example, focusing_example, table_example, math_table_example, graph_example,
     chart_example, chart_line_example, chart_bar_example, chart_histogram_example, chart_scatter_example, chart_strip_example, chart_inspector_example,
     sequencechart_example, sequencechart_vertical_example, sequencechart_linear_example,

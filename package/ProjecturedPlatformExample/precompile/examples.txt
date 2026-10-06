@@ -89,8 +89,8 @@ Tuple{typeof(ProjecturedKernel.SelectionModule._set_selection_walk!), Projecture
 Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedPlatformExample.FileSystemExamples.make_filesystem_document_example)}
 Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedPlatformExample.FileSystemExamples.make_filesystem_projection_example)}
 Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedPlatformExample.FileSystemExamples.make_filesystem_widget_projection_example)}
-Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedPlatformExample.FileSystemExamples.make_navigator_document_example)}
-Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedPlatformExample.FileSystemExamples.make_navigator_projection_example)}
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedPlatformExample.FileSystemExamples.make_files_document_example)}
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedPlatformExample.FileSystemExamples.make_files_projection_example)}
 Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedPlatformExample.make_collection_document_example)}
 Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedPlatformExample.make_collection_projection_example)}
 Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedPlatformExample.make_constraint_layout_document_example)}

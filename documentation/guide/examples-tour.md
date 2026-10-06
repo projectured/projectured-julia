@@ -38,7 +38,7 @@ write_example_pdf("json", "/tmp/snapshot.pdf")
 
 **The general steps.** `collection`, `reversing`, `filtering`, `searching`, `sorting`, `focusing`, `dragging`. One step in front of any data: a filter, a sort, a search. They work for every domain, which is what makes them worth reading.
 
-**Files.** `filesystem`, `filesystem_widget`, `navigator`, `table`, `math_table`. The parts the application is built from.
+**Files.** `filesystem`, `filesystem_widget`, `files`, `table`, `math_table`. The parts the application is built from.
 
 **The assistant.** `assistant`, `conversation_widget`, `conversation_editor`. The conversation as a document. The example answers from a canned transcript, so a test needs no model; [assistant-guide.md](assistant-guide.md) says how to talk to a real one.
 

@@ -101,7 +101,7 @@ end
 # time at which the hand moved. A frame that runs between the down and the up
 # makes the up late by the length of that frame. The first press of a new process
 # compiles the path of a press, which makes the up about 400 ms late, and the
-# check then drops the first click in the navigator or the toolbar. SDL3 on X11
+# check then drops the first click in the Files pane or the toolbar. SDL3 on X11
 # stamps an event the same way.
 #
 # Put the check back when the backend stamps a button event with the time of the

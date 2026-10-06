@@ -76,7 +76,7 @@ function repl_broken(name)
     # @broken: clicking maps to a selection that fails to re-apply on these
     # domains (SelectionMismatchException) — a whole class the introduced-token / phantom-
     # caret work resolves. plan/pending/simplest-syntax-document.md
-    name in ("conversation_widget", "filesystem", "navigator",
+    name in ("conversation_widget", "filesystem", "files",
              "widget", "widget_tree") && return (ev, msg) -> occursin("SelectionMismatchException", msg)
     # @broken: caret on a projection-introduced token → under-typed
     # ProjectionReferenceStep path the graph map cannot wrap.
@@ -353,7 +353,7 @@ function test_click_roundtrips()
             # Skip examples whose top-level pipeline does not feed a
             # TextToGraphics step (handled by other readers entirely).
             # Skip:
-            #   - widget/layout/table/tooltip/navigator/assistant: no
+            #   - widget/layout/table/tooltip/files/assistant: no
             #     TextToGraphics at the top, MouseClick is consumed elsewhere
             #   - xml/filesystem/graphics_image: no selection model on output yet
             #   - book/conversation/object/math/julia/line_numbering/word_wrapping:
@@ -363,7 +363,7 @@ function test_click_roundtrips()
             startswith(example.name, "widget") && continue
             example.name in ("filesystem", "xml", "table", "math_table",
                               "graphics_image", "layout", "tooltip",
-                              "navigator", "assistant",
+                              "files", "assistant",
                               "book", "object",
                               "math", "julia",
                               "line_numbering", "word_wrapping",
@@ -441,7 +441,7 @@ function test_text_navigation_invariants_all()
     @testset "TextNavInvariants" begin
         for example in examples
             # Skip:
-            #   - widget/layout/table/tooltip/navigator/assistant: no
+            #   - widget/layout/table/tooltip/files/assistant: no
             #     TextToGraphics at the top, MouseClick is consumed elsewhere
             #   - xml/filesystem/graphics_image: no selection model on output yet
             #   - book/conversation/object/math/julia/line_numbering/word_wrapping:
@@ -451,7 +451,7 @@ function test_text_navigation_invariants_all()
             startswith(example.name, "widget") && continue
             example.name in ("filesystem", "xml", "table", "math_table",
                               "graphics_image", "layout", "tooltip",
-                              "navigator", "assistant",
+                              "files", "assistant",
                               "book", "object",
                               "math", "julia",
                               "line_numbering", "word_wrapping",

@@ -11,7 +11,7 @@ stream that either
 
 It also hosts `record_application_video`, which records the whole application
 window of `run_application` — the menu bar, the toolbar, the tabs, the
-navigator, the assistant pane — driven by a scripted timeline through a
+Files pane, the assistant pane — driven by a scripted timeline through a
 `VideoBackend`, rather than one projection printed by hand.
 
 Needs native SDL2 (and FFMPEG for recording), so it precompiles only where those

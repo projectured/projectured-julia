@@ -24,7 +24,7 @@ const rst_example            = Example("rst",            make_rst_document_examp
 const rst_rendered_example   = Example("rst_rendered",   make_rst_document_example,            make_rst_rendered_projection_example)
 const filesystem_example     = Example("filesystem",     make_filesystem_document_example,     make_filesystem_projection_example)
 const filesystem_widget_example = Example("filesystem_widget", make_filesystem_document_example, make_filesystem_widget_projection_example)
-const navigator_example      = Example("navigator",      make_navigator_document_example,      make_navigator_projection_example)
+const files_example          = Example("files",          make_files_document_example,          make_files_projection_example)
 const focusing_example       = Example("focusing",       make_focusing_document_example,       make_focusing_projection_example)
 const table_example          = Example("table",          make_table_document_example,          make_table_projection_example)
 const math_table_example     = Example("math_table",     make_math_table_document_example,     make_math_table_projection_example)
@@ -149,7 +149,7 @@ const domain_examples = Example[
     rst_rendered_example,
     filesystem_example,
     filesystem_widget_example,
-    navigator_example,
+    files_example,
     focusing_example,
     table_example,
     math_table_example,

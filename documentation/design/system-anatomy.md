@@ -515,7 +515,7 @@ not slices of the platform.)
    help            the document-type list, the projection list, and the about page
    conversation    the evaluator documents and the chat transcript
    assistant       the chat with a model, and the turn that streams a reply
-   application     the window of files, the navigator and the assistant, and
+   application     the window of files, the Files pane and the assistant, and
                    the command line of a binary
 ```
 

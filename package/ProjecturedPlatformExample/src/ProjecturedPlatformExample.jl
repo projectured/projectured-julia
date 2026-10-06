@@ -244,13 +244,13 @@ end
 
 include("../../../example/platform/filesystem/FileSystemDocumentExample.jl")
 include("../../../example/platform/filesystem/FileSystemProjectionExample.jl")
-include("../../../example/platform/filesystem/NavigatorDocumentExample.jl")
-include("../../../example/platform/filesystem/NavigatorProjectionExample.jl")
+include("../../../example/platform/filesystem/FilesDocumentExample.jl")
+include("../../../example/platform/filesystem/FilesProjectionExample.jl")
 
 export filesystem_example_root
 export make_filesystem_document_example, make_filesystem_file_document_example, make_filesystem_directory_document_example
 export make_filesystem_projection_example, make_filesystem_widget_projection_example
-export make_navigator_document_example, make_navigator_projection_example
+export make_files_document_example, make_files_projection_example
 export make_workspace_folder_document_example, make_workspace_document_example
 end # module FileSystemExamples
 

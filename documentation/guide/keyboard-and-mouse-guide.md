@@ -21,7 +21,7 @@ A key press goes to the view under the selection, and each view says which keys 
 | Shift + F2, while a menu is open | show one menu fewer |
 | rest the pointer | a tooltip says what the thing under it is |
 | click | put the selection where you click |
-| double click on a file in the navigator | open that file |
+| double click on a file in the Files pane | open that file |
 
 A selection is a path into the data, so it survives a filter, a sort and a change somewhere else in the document.
 
@@ -73,8 +73,8 @@ The clipboard holds a part of the data, not text, so a paste puts a structure ba
 | --- | --- |
 | Ctrl + S | save the file of the focused tab |
 | Ctrl + O | read that file again from disk |
-| Enter on a file in the navigator | open it |
-| **Open** and **Save As** in the menu bar | a file outside the directory the navigator lists |
+| Enter on a file in the Files pane | open it |
+| **Open** and **Save As** in the menu bar | a file outside the directory the Files pane lists |
 
 ## A tool in a tab
 
@@ -84,7 +84,7 @@ A new tab is empty. Type the name of a tool into it, and the tab becomes that to
 | --- | --- |
 | `assistant` | a conversation with the AI assistant |
 | `repl` | a read-eval-print loop: Julia code you type runs in the program |
-| `explorer` | the file navigator |
+| `explorer` | the explorer: the tree of the files of a folder |
 | `log` | what the program says while it runs |
 | `gestures` | the gestures of this session, and what each one did |
 | `selection` | the selection of another document, as it changes |

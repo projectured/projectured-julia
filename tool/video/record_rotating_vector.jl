@@ -27,7 +27,7 @@ const OUTPUT = isempty(ARGS) ? joinpath(pwd(), "rotating_vector.mp4") : ARGS[1]
 const EVALUATOR_BUTTON = (50, 38)
 const CANVAS_CENTRE = (432, 362)      # the canvas row after the first two forms
 
-# The navigator lists the example project of the repository, and its README is
+# The Files pane lists the example project of the repository, and its README is
 # open, so the window has a wide pane of files and the Evaluator button opens its
 # tab there. The take reads the project and writes nothing into it.
 const PROJECT = normpath(joinpath(@__DIR__, "..", "..", "example", "platform", "filesystem", "fixture",

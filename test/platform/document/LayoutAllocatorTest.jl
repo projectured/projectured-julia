@@ -29,7 +29,7 @@ end # @testset
 
 @testset "allocate_axis — fixed + flex" begin
 
-# A pinned navigator column: fixed at 200, the right column flexes.
+# A pinned Files-pane column: fixed at 200, the right column flexes.
 # available = 1280, gap = 0, two slots.
 actual = allocate_axis(1280; mins = Int[200, 0], maxs = Int[200, typemax(Int)],
                        prefs = Int[200, 0], weights = Float64[0.0, 1.0], gap = 0, n = 2)

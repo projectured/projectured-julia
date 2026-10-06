@@ -23,7 +23,7 @@ bin/projectured
 
 The folder `auto-integration` goes beside `projectured-julia`, because the umbrella and `environment/all` name it by that folder.
 
-The window has the file navigator on the left, the open files in the middle, and the assistant on the right. A double click in the navigator opens a file. Files named on the command line open at once:
+The window has the Files pane on the left, the open files in the middle, and the assistant on the right. A double click in the Files pane opens a file. Files named on the command line open at once:
 
 ```sh
 bin/projectured notes.md data.json

@@ -2862,7 +2862,7 @@ constructor makes it a `WidgetTreeNode` with no icon, so that a reference of the
 tree reaches each child as `children[j]`. Parent nodes get
 an expand chevron; an icon (when present) is drawn in its own column before the
 label; children are indented. (A widget-styled counterpart to the file-system /
-navigator trees.)
+explorer trees.)
 
 `expanded` is **transient UI state** (like [`WidgetButton`](@ref)'s `pressed`):
 the set of node paths (1-based index chains) whose children show, toggled by

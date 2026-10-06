@@ -1,4 +1,4 @@
-# A row of the navigator is a place the projection introduces on a folder, so a
+# A row of the Files pane is a place the projection introduces on a folder, so a
 # selection of one goes into the root path as a step on the folder, and the tree
 # reads the row back from there. No second selection is written anywhere.
 function test_workspace_to_filesystem()

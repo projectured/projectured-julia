@@ -14,7 +14,7 @@ only the left click moves the selection.
 
 ## A double click opens
 
-In the file navigator, a double click on a file opens it. Where a part of the
+In the Files pane, a double click on a file opens it. Where a part of the
 program answers a double click with more than a single click does, F1 names
 it, because every key and every click that works where you are is on that
 list.

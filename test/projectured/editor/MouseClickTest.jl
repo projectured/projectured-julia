@@ -341,7 +341,7 @@ function test_mouse_clicks()
             startswith(example.name, "widget") && continue
             example.name in ("filesystem", "xml", "table", "math_table",
                               "graphics_image", "layout", "tooltip",
-                              "navigator", "assistant",
+                              "files", "assistant",
                               "book", "object",
                               "math", "julia",
                               "line_numbering", "word_wrapping",

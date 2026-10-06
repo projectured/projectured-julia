@@ -49,7 +49,7 @@ function test_history_sweep()
                 steps() = (length(window.undo_entries), length(file.undo_entries))
 
                 # Where a text is drawn now, within a band of the window: the
-                # navigator is left, the file in the middle, the assistant right.
+                # Files pane is left, the file in the middle, the assistant right.
                 drawn() = _app_drawn_at(get_iomap_output(editor.iomap).windows[1].content)
                 place(text, band) = first((x, y) for (t, x, y) in drawn() if t == text && x in band)
                 none = ModifierKeys()
@@ -71,18 +71,18 @@ function test_history_sweep()
                 gestures = Pair{String,Function}[
                     "the pointer moves over the window" =>
                         () -> [MouseMove(x, y; time = 0.0) for x in 20:120:1580 for y in 20:120:980],
-                    "a click on a row of the navigator" => () -> click(place("alpha", left)),
-                    "Down and Up in the navigator" => () -> key_downs(:down, :up),
+                    "a click on a row of the Files pane" => () -> click(place("alpha", left)),
+                    "Down and Up in the Files pane" => () -> key_downs(:down, :up),
                     "Alt+click on a row" => () -> click(place("beta", left); modifiers = alt),
                     "a folder closes and opens" => fold_twice,
-                    "the wheel over the navigator" => () -> [MouseScroll(0, -1, 100, 300; time = 0.0), MouseScroll(0, 1, 100, 300; time = 0.0)],
+                    "the wheel over the Files pane" => () -> [MouseScroll(0, -1, 100, 300; time = 0.0), MouseScroll(0, 1, 100, 300; time = 0.0)],
                     "a click in the file" => () -> click(place("Alice", middle)),
                     "arrow keys in the file" => () -> key_downs(:right, :left, :end, :home),
                     "Shift+Right in the file" => () -> key_downs(:right; modifiers = ModifierKeys(shift = true)),
                     "Alt+Up and Alt+Down in the file" => () -> key_downs(:up, :down; modifiers = alt),
                     "Alt+click in the file" => () -> click(place("Alice", middle); modifiers = alt),
                     "the wheel over the file" => () -> [MouseScroll(0, -1, 700, 300; time = 0.0), MouseScroll(0, 1, 700, 300; time = 0.0)],
-                    "a click on the tab title of the navigator" => () -> click(place("Files", left)),
+                    "a click on the tab title of the Files pane" => () -> click(place("Files", left)),
                     "a click on the tab title of the file" => () -> click(place("a.json", 290:1100)),
                     "a click on the tab title of the assistant" => () -> click(place("Assistant", right)),
                     "Ctrl+Alt+Right" => () -> key_downs(:right; modifiers = ModifierKeys(ctrl = true, alt = true)),
@@ -144,7 +144,7 @@ function test_history_sweep()
                 # than the pause would end the run.
                 click!((t, x) -> occursin("Alice", t) && 300 <= x < 1090)
                 press!(KeyPress('x'; time = 0.0))
-                # A step of the window alone: a new tab in the navigator's group.
+                # A step of the window alone: a new tab in the Files pane's group.
                 click!((t, x) -> t == "Files" && x < 300)
                 press!(KeyDown(:t, ModifierKeys(ctrl = true); time = 0.0))
                 opened = steps()

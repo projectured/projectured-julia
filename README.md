@@ -70,7 +70,7 @@ cd projectured-julia
 bin/projectured
 ```
 
-`bin/projectured` opens a window with a file navigator on the left, the open files in tabs in the middle, and the assistant on the right. The navigator lists the directory you start it in, and a double click opens a file. Name the files on the command line to open them at once: `bin/projectured notes.md data.json`. The first start compiles the code, which takes some minutes; later starts are fast.
+`bin/projectured` opens a window with a Files pane on the left, the open files in tabs in the middle, and the assistant on the right. The Files pane lists the directory you start it in, and a double click opens a file. Name the files on the command line to open them at once: `bin/projectured notes.md data.json`. The first start compiles the code, which takes some minutes; later starts are fast.
 
 The window is drawn in its own chrome: a menu bar, a toolbar and a status line that says which tab has the focus. The toolbar has one picture for each tool of the window: the file explorer, the assistant, the evaluator, the message log, the gesture log, the fault log, the frame statistics and the selection. A press opens the tool in a tab, or gives the focus to the tab that already holds it, and the pointer at rest on a picture names the tool. A right press opens the menu the thing under the pointer offers, **F1** lists the keys that work where you are, and **Ctrl+Shift+P** finds a command by its name. **View → Gesture log** opens a tab that lists every gesture of the session and what each one did, including the gestures made before the tab opened.
 
@@ -81,7 +81,7 @@ bin/projectured --backend=web a.json         # in a browser, at http://127.0.0.1
 bin/projectured --mcp a.json                 # with an MCP server for an external client
 ```
 
-The menu bar has **Open** and **Save As** for a file outside the directory the navigator lists. `save_user_interface(editor, path)` writes the whole window — its panes, its tabs and what each one holds — to one file, and `load_user_interface(path)` brings it back; an open file tab is saved as a reference to its file, not as a copy.
+The menu bar has **Open** and **Save As** for a file outside the directory the Files pane lists. `save_user_interface(editor, path)` writes the whole window — its panes, its tabs and what each one holds — to one file, and `load_user_interface(path)` brings it back; an open file tab is saved as a reference to its file, not as a copy.
 
 **The assistant.** By default it asks a local model through [Ollama](https://ollama.com): the Ollama server must run on your machine, and the model must be pulled. For Claude, set `ANTHROPIC_API_KEY` in your environment and start with `--assistant=anthropic`. Without a server and without a key, the assistant pane opens and says what it needs.
 

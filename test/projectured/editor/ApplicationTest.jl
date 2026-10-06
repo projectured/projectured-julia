@@ -1,5 +1,5 @@
 # Tests for the application window: it draws a file of every format that has a
-# registered file document, a navigator gesture opens a file beside the other
+# registered file document, a Files pane gesture opens a file beside the other
 # files, and Ctrl+S saves the file tab that has the focus. The events go
 # through the same window scene that `run_application` runs, with no window on
 # the screen.
@@ -231,10 +231,10 @@ function _app_drawn_outlines(node, ox = 0, oy = 0, found = NTuple{4,Int}[])
     found
 end
 
-# The first height at which a double click on the navigator opens a file, and
-# the operation it makes. The navigator is the leftmost part of the window.
-# The trees that the views under `iomap` draw in a scroll pane, as the navigator
-# draws the files: a view makes them, so they are in no document.
+# The first height at which a double click on the Files pane opens a file, and
+# the operation it makes. The Files pane is the leftmost part of the window.
+# The trees that the views under `iomap` draw in a scroll pane, as the Files
+# pane draws the files: a view makes them, so they are in no document.
 function _app_find_view_trees(iomap, found = Any[], seen = IdDict())
     haskey(seen, iomap) && return found
     seen[iomap] = true
@@ -287,7 +287,7 @@ function test_application()
             @test :open_pane! in names          # the pane arranges the window
             @test :WidgetTable in names         # a widget shows a value
             @test :make_file_tab in names       # a path becomes a tab
-            @test :Workspace in names           # the navigator lists a tree
+            @test :Workspace in names           # the Files pane lists a tree
 
             # A declared surface is what `search_api` answers. Without it the
             # search indexes the kernel's own modules and a person asking to open
@@ -1261,7 +1261,7 @@ function test_application()
                 @test only(carets)[2] > y_of("x = 1  # why") > y_of("GraphicsCircle")
             end
 
-            @testset "a closed assistant and a closed navigator come back as they were" begin
+            @testset "a closed assistant and a closed Files pane come back as they were" begin
                 started = make_application_assistant(:ollama; model = "small", context = 4096)
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir;
                                                                    assistant = started)
@@ -1301,7 +1301,7 @@ function test_application()
                 @test greeting(again) == greeting(started)
                 @test occursin("Ollama", greeting(again))
 
-                # The navigator comes back over the folder the window lists.
+                # The Files pane comes back over the folder the window lists.
                 close!(Workspace)
                 _app_apply!(editor, InvokeActionOperation(button("Explorer").action))
                 (group, index) = only(holding(Workspace))
@@ -1422,7 +1422,7 @@ function test_application()
                     change isa Intent ? change.operation : change
                 end
 
-                # A row of the navigator lights up through the mouse target that
+                # A row of the Files pane lights up through the mouse target that
                 # a move writes at the screen, and the history does not grow.
                 pointer = ProjecturedPlatformTest.MttDriver(composed, scene)
                 hover!(x, y, time) = ProjecturedPlatformTest._mtt_play!(pointer,
@@ -1431,16 +1431,16 @@ function test_application()
                 before = steps()
                 hover!(100, y, 1.0)
                 # The file is the target, and the chain carries the hover on to
-                # the row of the tree that the navigator's view makes for it.
-                navigator = only(_app_find_view_trees(pointer.iomap))
-                @test get_mouse_target(navigator) !== nothing
+                # the row of the tree that the Files pane's view makes for it.
+                files_tree = only(_app_find_view_trees(pointer.iomap))
+                @test get_mouse_target(files_tree) !== nothing
                 hover!(100, y + 40, 1.1)
                 @test steps() == before
-                # Off the navigator, the leave of the file turns the row off.
+                # Off the Files pane, the leave of the file turns the row off.
                 hover!(900, 500, 1.2)
-                @test get_mouse_target(navigator) === nothing
+                @test get_mouse_target(files_tree) === nothing
 
-                # The divider between the navigator and the files follows the
+                # The divider between the Files pane and the files follows the
                 # pointer, and the history does not grow: a drag is view state.
                 weights() = [Float64(w) for w in tree.root.weights]
                 grab = findfirst(x -> holds(fire(MouseDown(:left, x, 500; time = 0.0)),
@@ -1460,7 +1460,7 @@ function test_application()
                 @test steps() == recorded
 
                 # The file's tab — the one the window opened on — drags into the
-                # navigator's group.
+                # Files pane's group.
                 groups = get_pane_groups(tree)
                 files = groups[end]
                 (tx, ty) = last(sort([(x, y) for (text, x, y) in
@@ -1484,7 +1484,7 @@ function test_application()
                 @test any(tab -> title(tab) == "a.json", groups[1].tabs)
             end
 
-            @testset "the navigator opens a file beside the files" begin
+            @testset "the Files pane opens a file beside the files" begin
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
                 editor = _app_make_editor(scene, composed, iomap)
                 y, operation = _app_find_file_row(composed, iomap)
@@ -1494,7 +1494,7 @@ function test_application()
                 _app_apply!(editor, operation)
                 @test _app_count_tabs(_app_window(document)) == before + 1
                 groups = get_pane_groups(_app_window(document))
-                @test length(groups[1].tabs) == 1       # the navigator stays alone
+                @test length(groups[1].tabs) == 1       # the Files pane stays alone
                 @test length(groups[2].tabs) == 2       # the file joins the files
 
                 # A single click selects the row, and Enter opens it.
@@ -1506,7 +1506,7 @@ function test_application()
                 @test _app_plain(opened).path == _app_plain(operation).path
             end
 
-            @testset "the navigator scrolls a tree taller than its pane" begin
+            @testset "the Files pane scrolls a tree taller than its pane" begin
                 mktempdir() do tall
                     for folder in ("alpha", "beta", "gamma"), k in 1:12
                         mkpath(joinpath(tall, folder))
@@ -1516,7 +1516,7 @@ function test_application()
                     editor = _app_make_editor(scene, composed, iomap)
                     drawn() = _app_drawn_at(get_iomap_output(editor.iomap).windows[1].content)
                     lowest() = maximum(y for (text, x, y) in drawn() if text == "file9.jl" && x < 400)
-                    # @broken: the navigator's tree opens collapsed by default, so
+                    # @broken: the Files pane's tree opens collapsed by default, so
                     # file9.jl — three folders deep — is never drawn and lowest() has
                     # nothing to reduce over.
                     @test_broken lowest() > 1000        # the last row is below the window
@@ -1555,14 +1555,14 @@ function test_application()
                     catch e
                         # @broken: same cause as above — file9.jl is never drawn, so
                         # lowest() throws again and the rest of this scenario cannot run.
-                        @test_broken (@warn "the navigator scroll scenario threw: $e"; false)
+                        @test_broken (@warn "the Files pane scroll scenario threw: $e"; false)
                     end
                 end
             end
 
-            # The ring shows a selection that ends at the navigator. A row the
+            # The ring shows a selection that ends at the Files pane. A row the
             # person selects is inside it, so the ring is off.
-            @testset "a click selects a row inside the navigator, and Alt+click the navigator" begin
+            @testset "a click selects a row inside the Files pane, and Alt+click the Files pane" begin
                 document, scene, composed, iomap = _app_make_scene(String[], dir)
                 editor = _app_make_editor(scene, composed, iomap)
                 press!(event) = begin
@@ -1731,7 +1731,7 @@ function test_application()
                 @test holds_one_path(w)
             end
 
-            @testset "the navigator" begin
+            @testset "the Files pane" begin
                 w = window()
                 at = [(x, y) for (text, x, y) in
                       _app_drawn_at(get_iomap_output(w.editor.iomap).windows[1].content)

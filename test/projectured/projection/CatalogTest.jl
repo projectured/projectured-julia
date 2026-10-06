@@ -69,8 +69,8 @@ _catalog_edit_broken(name) =
 #   Arguably not a bug — `JuliaEmpty` is the absent return type of a function that
 #   declares none, and absent is what it should draw. It is marked rather than
 #   skipped because the atom still has to be printed and read like any other, and
-#   because "a document that renders empty" is a case the navigator may one day
-#   want an answer for.
+#   because "a document that renders empty" is a case the caret motion may one
+#   day want an answer for.
 # @catalog-broken the layouts, the widget composite, the bare text spans and the
 #   embed stub: same three causes as the edit set above (no recursion standalone,
 #   no block for the wrapper to wrap, no selection field), which leave the walk

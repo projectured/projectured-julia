@@ -74,10 +74,10 @@ A `.pred` file builds `Workspace` and `WorkspaceFolder` by their names, so a sav
 ```julia
 tree = make_filesystem_pathname("example/platform/filesystem/fixture/project")
 explorer = Workspace([WorkspaceFolder("project", abspath("example/platform/filesystem/fixture/project"))])
-run_example("navigator")                 # the Explorer view of the fixture project
+run_example("files")                     # the Explorer view of the fixture project
 ```
 
-- Examples: `filesystem_example` (syntax), `filesystem_widget_example` (the tree) and `navigator_example` (the workspace). They read the fixture under `example/platform/filesystem/fixture/project/`, so they do not change when the repository changes.
+- Examples: `filesystem_example` (syntax), `filesystem_widget_example` (the tree) and `files_example` (the workspace). They read the fixture under `example/platform/filesystem/fixture/project/`, so they do not change when the repository changes.
 - Test: `test_filesystem()` runs the layering guard, the two projection tests, `test_filesystem_document()`, which checks the reads of a folder, and `test_workspace_to_filesystem()`, which maps a row through the workspace and back. The SDL suite has `test_tree_render()`, which renders a folder of 1,000 entries in a small pane and checks that only the drawn rows read their entries.
 
 ## Limits

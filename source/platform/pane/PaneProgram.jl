@@ -313,7 +313,7 @@ placement `open_pane!` makes.
 
 `group` is a group of the window to open the tab in, as a value and not as a
 reference. An application uses it when it knows better than the focus, for
-example to put a file that a navigator opens beside the other files. `group` and
+example to put a file that the Files pane opens beside the other files. `group` and
 `target` together are refused.
 
 The answer holds the new tab and its complete reference, from the root of the

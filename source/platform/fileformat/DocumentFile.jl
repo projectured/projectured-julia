@@ -235,7 +235,7 @@ The file verbs a model may call, as [`declare_api!`](@ref) takes them.
 A host concatenates this with the other vocabularies it offers. It names only
 this slice's own verbs: opening a path as a tab, reading and writing a document,
 and the two operations a key answers. Where a file comes FROM — a workspace, a
-navigator, a dialog — belongs to the host, because a host knows what it holds.
+file list, a dialog — belongs to the host, because a host knows what it holds.
 """
 make_file_api() = Any[
     FileFormatModule => (

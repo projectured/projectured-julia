@@ -359,7 +359,7 @@ cd projectured-julia
 bin/projectured
 ```
 
-Opens a window with a file navigator, open files in tabs, and the assistant.
+Opens a window with a Files pane, open files in tabs, and the assistant.
 
 ---
 
@@ -367,7 +367,7 @@ Opens a window with a file navigator, open files in tabs, and the assistant.
 
 ```sh
 bin/projectured --help                       # every option
-bin/projectured --root=~/project a.json      # the navigator lists another directory
+bin/projectured --root=~/project a.json      # the Files pane lists another directory
 bin/projectured --assistant=none notes.txt   # no assistant
 bin/projectured --backend=web a.json         # in a browser
 bin/projectured --mcp a.json                 # with an MCP server

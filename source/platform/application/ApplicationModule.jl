@@ -1,7 +1,7 @@
 """
     ApplicationModule
 
-The ProjecturEd application: a window that shows files, with a file navigator
+The ProjecturEd application: a window that shows files, with a Files pane
 and the assistant beside them, and the command line of the `projectured`
 binary.
 

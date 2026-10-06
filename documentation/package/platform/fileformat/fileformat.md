@@ -55,7 +55,7 @@ The save calls `save_file!`, which uses the `emit_text` of the file type, and no
 
 ### The tool set
 
-`make_file_api()` lists the file verbs that a language model can call: `make_file_tab`, `read_document_file`, `write_document_file`, `SaveFileOperation`, `ReloadFileOperation`, `import_document` and `export_document`. It does not say where a file comes from. A workspace, a file navigator or a dialog belongs to the host application.
+`make_file_api()` lists the file verbs that a language model can call: `make_file_tab`, `read_document_file`, `write_document_file`, `SaveFileOperation`, `ReloadFileOperation`, `import_document` and `export_document`. It does not say where a file comes from. A workspace, a file list or a dialog belongs to the host application.
 
 ## How it fits
 
@@ -68,7 +68,7 @@ It registers one natural row: `register_natural_graphics!(:fileformat, …)` wit
 - **This slice selects a format and adds none.** Each domain owns its text form, and the serialization slice owns the binary form and the file types. A new domain gets file input and output from its registrations alone.
 - **The export raises an error on a wrong registered extension.** A `JsonObject` written to `a.xml` would be read back with the XML parser. An extension that no domain registered is allowed.
 - **A save goes through the file type.** `save_file!` dispatches on the file object, so a `TextFile` and a `JsonFile` save the same way.
-- **The file verbs of the tool set end at the path.** The host application owns the source of a path, so this package does not depend on a file navigator.
+- **The file verbs of the tool set end at the path.** The host application owns the source of a path, so this package does not depend on a file list.
 
 ## Usage
 

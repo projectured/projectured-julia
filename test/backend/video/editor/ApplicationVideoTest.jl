@@ -2,7 +2,7 @@
 # test/backend/video/editor/ApplicationVideoTest.jl
 #
 # Smoke test for `record_application_video`: a short clip of the application
-# window with no file — the navigator, an empty tab, no assistant — typing
+# window with no file — the Files pane, an empty tab, no assistant — typing
 # `repl` into a freshly opened tab and pressing Enter. Asserts the file exists
 # and, when `ffprobe` is available, bounds its reported duration rather than
 # pinning it to the timeline's own scripted total: a cold, unprecompiled
@@ -141,7 +141,7 @@ end
 @testset "the pointer is drawn where the last mouse event left it" begin
     width, height = 480, 360
     timeline = Any[(event = MouseMove(300, 200, MouseButtons(), ModifierKeys(); time = 0.0), hold = 0.5)]
-    # One folder for both takes: the navigator shows its name.
+    # One folder for both takes: the Files pane shows its name.
     root = mktempdir()
     frames = map((true, false)) do pointer
         filename = tempname() * ".mp4"

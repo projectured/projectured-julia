@@ -129,7 +129,7 @@ const PROJECTURED_OPTIONS = [
     "--assistant=ollama|anthropic|none" =>
         "the model backend of the assistant (default: the\nsettings, ollama at first), or no assistant",
     "--model=NAME" => "the model of that backend (default: the settings,\nelse the default model of the backend)",
-    "--root=DIRECTORY" => "the directory that the navigator lists (default:\nthe current directory)",
+    "--root=DIRECTORY" => "the directory that the Files pane lists (default:\nthe current directory)",
     "--mcp" => "start an MCP server at http://127.0.0.1:9876/mcp",
     "--mcp=[HOST:]PORT" => "start an MCP server at http://HOST:PORT/mcp\n(HOST is 127.0.0.1 when it is not given)",
     "--context=TOKENS" => "how many tokens of the conversation the model may\nsee (default: the settings, else the default of the\nbackend)",
@@ -220,7 +220,7 @@ function make_projectured_usage(backends)
         insert!(options, 2, "--backend=" * join(String.(backends), "|") =>
             "where the window is drawn (default: $(first(backends)))")
     end
-    Usage("Open files in a window, with a file navigator and an AI assistant.\n" *
+    Usage("Open files in a window, with a Files pane and an AI assistant.\n" *
           "A file opens in the format that its extension names.";
           synopsis = "[options] [files...]", options = options)
 end

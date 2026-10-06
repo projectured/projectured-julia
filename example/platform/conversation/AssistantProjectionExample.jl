@@ -2,7 +2,7 @@
     make_assistant_projection_example(; measure=FontFileMeasure())
 
 Build a projection chain that takes a `Assistant` to a
-`GraphicsCanvas` — the assistant alone, no tabs, no navigator, no editor.
+`GraphicsCanvas` — the assistant alone, no tabs, no Files pane, no editor.
 
 Stage-6 wiring: the conversation pane is the widget chat presentation
 (`ConversationToWidget`) and the input pane is the composer
