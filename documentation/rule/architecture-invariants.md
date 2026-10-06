@@ -82,6 +82,7 @@ requirement; the rule is its own lead sentence.
 | [PAR-WIDE-FIELD-TYPES](#par-wide-field-types) | A field's declared type must admit every value the field can hold |
 | [PAR-NO-NESTED-CELL](#par-no-nested-cell) | A macro-wrapped field may never hold a `Cell` or a `Function` as its logical value |
 | [PAR-DOCUMENT-IDENTITY](#par-document-identity) | Do not assume two documents with equal fields are `==` |
+| [PAR-NO-EDITOR-IN-DOCUMENT](#par-no-editor-in-document) | No document stores the editor, not even in a closure or a `Ref` that a field holds |
 | [PAR-DOMAINS-INDEPENDENT](#par-domains-independent) | Domains are independent; a document owns no cross-domain edge |
 | [PAR-DOMAIN-OWNS-EDITS](#par-domain-owns-edits) | Every domain defines its own structural operations and its own insertion type |
 | [PAR-WIDGETS-ARE-PRESENTATION](#par-widgets-are-presentation) | Keep the edited document in its semantic domain; widgets are presentation only |
@@ -393,6 +394,21 @@ identity, so two documents built apart with equal contents are not `==`. Only
 `ICFoo`, whose cells are immutable too, compares structurally. Code needing
 value comparison (e.g. a string query of `search_documents`) compares unwrapped
 *leaf values*, not whole documents.
+
+### PAR-NO-EDITOR-IN-DOCUMENT
+
+**No document stores the editor, not even in a closure or a `Ref` that a field
+holds.** A field of a `@document` must not hold the `Editor`. Neither must a
+closure, a `Ref` or any other value that a field holds, such as a session object
+that knows the editor. An act that needs the editor gets it when the editor
+evaluates the act: an `Operation` receives it in `evaluate_operation(editor,
+operation)`, a callback takes it as an argument, and a verb takes `editor` as its
+first argument.
+
+A document is data that a view shows, a copy copies, a save writes and `show`
+prints. A path from it to the editor makes each of these walk into the whole
+editor, and it ties the data to one window. A plain struct of a session that is
+not a document, such as the store that a feed drains, is outside this rule.
 
 ### PAR-DOMAINS-INDEPENDENT
 
