@@ -17,7 +17,7 @@ _print_live_widget(widget) = print_document(
 
 A widget that shows a value takes a function of no arguments where it shows it,
 and draws what the function answers now: the content of a `WidgetLabel`, the
-value of a `WidgetProgress`, and a cell of a `WidgetTable`.
+value of a `WidgetProgressBar`, and a cell of a `WidgetTable`.
 """
 function test_widget_live_values()
 @testset "a label follows the function it is given" begin
@@ -48,11 +48,11 @@ end
 
 @testset "a progress bar follows the function it is given" begin
     share = Cell(0.25)
-    bar = WidgetProgress(() -> share[])
+    bar = WidgetProgressBar(() -> share[])
     @test bar.value == 0.25
     share[] = 0.5
     @test bar.value == 0.5
-    @test WidgetProgress(0.4).value == 0.4
+    @test WidgetProgressBar(0.4).value == 0.4
 end
 
 @testset "a function in a table row is a live cell" begin

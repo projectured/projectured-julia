@@ -1765,10 +1765,10 @@ WidgetSwitch(; label = nothing, position::Point2D=Point2D(0, 0), checked::Bool=f
                  Cell(Int(duration)), Cell(0.0), Cell(NaN), Cell(gestures), Cell(tooltip))
 get_instance_gesture_bindings(w::WidgetSwitch) = w.gestures
 
-# ── WidgetProgress ──────────────────────────────────────────────────────────
+# ── WidgetProgressBar ───────────────────────────────────────────────────────
 
 """
-    WidgetProgress(value; position, width=240)
+    WidgetProgressBar(value; position, width=240)
 
 A bar filled to a share between zero and one.
 
@@ -1778,12 +1778,12 @@ is written as the job advances. `width` is the bar's length in pixels.
 
 # Example
 
-    open_pane!(editor, WidgetProgress(0.4; width = 300); title = "Progress")
+    open_pane!(editor, WidgetProgressBar(0.4; width = 300); title = "Progress")
 
 See also `WidgetSlider`, which a person drags, and `WidgetBadge` for a state
 in one word.
 """
-@document struct WidgetProgress <: WidgetDocument
+@document struct WidgetProgressBar <: WidgetDocument
     position::Point2D
     value::Float64
     width::Int
@@ -1798,9 +1798,9 @@ _make_share_cell(value::Real) = Cell(Float64(value))
 _make_share_cell(value::Cell) = value
 _make_share_cell(value::Function) = Cell(@computation Float64(value()))
 
-WidgetProgress(value::Union{Real, Cell, Function}; position::Point2D=Point2D(0, 0), width::Integer=240, visible::Bool=true,
+WidgetProgressBar(value::Union{Real, Cell, Function}; position::Point2D=Point2D(0, 0), width::Integer=240, visible::Bool=true,
                margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
-    WidgetProgress(Cell(position), _make_share_cell(value), Cell(Int(width)), Cell(visible),
+    WidgetProgressBar(Cell(position), _make_share_cell(value), Cell(Int(width)), Cell(visible),
                    Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
 
 # ── WidgetSlider ────────────────────────────────────────────────────────────
@@ -1817,7 +1817,7 @@ the runs. `value` is the share, and `width` is the track's length in pixels.
 
     open_pane!(editor, WidgetSlider(0.5; width = 300); title = "Threshold")
 
-See also `WidgetSpinBox` for a number chosen by steps, and `WidgetProgress` for
+See also `WidgetSpinBox` for a number chosen by steps, and `WidgetProgressBar` for
 a share that is only shown.
 """
 @document struct WidgetSlider <: WidgetDocument

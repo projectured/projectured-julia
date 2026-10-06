@@ -58,7 +58,7 @@ function make_widget_document_example(; width=1024, height=768)
                    content="Name and framework go here.", footer="You can change this later."),
         WidgetAlert("Heads up!"; description = "You can add components using the CLI."),
         HorizontalLayout(Any[WidgetAvatar("JD"; size=56),
-                             WidgetProgress(0.6; width=260)]; gap=16),
+                             WidgetProgressBar(0.6; width=260)]; gap=16),
         WidgetSeparator(; length=320),
         WidgetSkeleton(; width=320, height=18),
     ]; gap=16, horizontal_align=:left)
@@ -478,9 +478,9 @@ make_widget_switch_document_example() =
         WidgetSwitch(; checked = false),
     ]; gap=12)
 
-# WidgetProgress — a 60% bar.
-make_widget_progress_document_example() =
-    WidgetProgress(0.6; position = Point2D(40, 40), width=260)
+# WidgetProgressBar — a 60% bar.
+make_widget_progress_bar_document_example() =
+    WidgetProgressBar(0.6; position = Point2D(40, 40), width=260)
 
 # WidgetSlider — a knob at 40%.
 make_widget_slider_document_example() =

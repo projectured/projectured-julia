@@ -325,7 +325,7 @@ Every screenplay has the same parts: the feature, the claim of the post that it 
 
 - **The take of 2026-09-22.** 1280×720, 166 s, 1.3 MB. The script is `tool/video/record_widget_tool.jl`.
 
-  What the work settled: a `WidgetComposite` puts every element at one place, so the table covers the rest; the column is `VerticalLayout(Any[…]; gap)`, and its field is `children`. A thunk passed to `WidgetLabel` is drawn as the function, so a live label is made with `set_cell_function!`. `WidgetProgress` takes a number and no function, so the video uses a second live label in its place. `open_pane!` moves the focus to the new tab, so it comes last, after the typing is done.
+  What the work settled: a `WidgetComposite` puts every element at one place, so the table covers the rest; the column is `VerticalLayout(Any[…]; gap)`, and its field is `children`. A thunk passed to `WidgetLabel` is drawn as the function, so a live label is made with `set_cell_function!`. `WidgetProgressBar` takes a number and no function, so the video uses a second live label in its place. `open_pane!` moves the focus to the new tab, so it comes last, after the typing is done.
 
 - **The pointer beats wait for F4.** Beats 6, 8 and 10 of the first draft (three presses of the button, a drag of the slider, a character in the field) are not in this take. The button lights up under the pointer, and its action never runs, because the closure belongs to the world of the evaluator (F4 of §2.4). The take shows the same reactivity with a write from the evaluator, which is beats 10 to 12.
 
@@ -742,7 +742,7 @@ Everything the three recorded videos still lack, and everything the work on them
 | A2 | A thunk given to `WidgetLabel` draws as the function, so the video types a `live(...)` helper | S4 | B | M |
 | A3 | `open_pane!` takes the focus and has no keyword to keep it, so the tool gets its tab only at the end | S4 | B | M |
 | A4 | The agent ends a turn at 8 rounds, and every S2 rehearsal ended there | S2 | B | S |
-| A5 | `WidgetProgress` takes a number and no function | S4 | C | S |
+| A5 | `WidgetProgressBar` takes a number and no function | S4 | C | S |
 | A6 | `WidgetComposite` puts every child at one place | S4 | C | S |
 | A7 | A new tab in a window with no file lands in the narrow column of the navigator, so S1 and S4 open `notes.json` for no reason the viewer sees | S1, S4 | C | M |
 | A8 | `ProjecturedSdlExample` does not export the constant of one live example | the scripts | C | S |

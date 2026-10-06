@@ -7024,9 +7024,9 @@ end
 map_reference_forward(::WidgetSwitchToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 map_reference_backward(::WidgetSwitchToGraphicsCanvas, iomap, reference) = nothing
 
-# ── WidgetProgress ──────────────────────────────────────────────────────────
+# ── WidgetProgressBar ───────────────────────────────────────────────────────
 
-@projection UntrackedCell struct WidgetProgressToGraphicsCanvas
+@projection UntrackedCell struct WidgetProgressBarToGraphicsCanvas
     margin::Inset
     border::Inset
     padding::Inset
@@ -7039,17 +7039,17 @@ map_reference_backward(::WidgetSwitchToGraphicsCanvas, iomap, reference) = nothi
     indicator_color::StyleColor  # filled portion
 end
 
-WidgetProgressToGraphicsCanvas(theme;
+WidgetProgressBarToGraphicsCanvas(theme;
                                margin = inset_default, border = inset_default, padding = inset_default,
                                margin_color = color_transparent, border_color = color_transparent,
                                padding_color = color_transparent, content_color = color_transparent,
-                               bar_height = _themed(Int, theme, t -> t.progress_height),
+                               bar_height = _themed(Int, theme, t -> t.progress_bar_height),
                                track_color = _themed(StyleColor, theme, t -> t.muted),
                                indicator_color = _themed(StyleColor, theme, t -> t.primary)) =
-    WidgetProgressToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
+    WidgetProgressBarToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
                                    content_color, bar_height, track_color, indicator_color)
 
-function print_document(p::WidgetProgressToGraphicsCanvas, recursion, w::WidgetProgress, ctx)
+function print_document(p::WidgetProgressBarToGraphicsCanvas, recursion, w::WidgetProgressBar, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
@@ -7079,7 +7079,7 @@ function print_document(p::WidgetProgressToGraphicsCanvas, recursion, w::WidgetP
         (width=outer_width, height=outer_height, elements=elements)
     end))
 end
-@_printer_only WidgetProgressToGraphicsCanvas
+@_printer_only WidgetProgressBarToGraphicsCanvas
 
 # ── WidgetSlider ────────────────────────────────────────────────────────────
 
@@ -10743,7 +10743,7 @@ function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphic
         WidgetSeparator  => WidgetSeparatorToGraphicsCanvas(theme),
         WidgetCard       => WidgetCardToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetSwitch     => WidgetSwitchToGraphicsCanvas(theme; measure = measure),
-        WidgetProgress   => WidgetProgressToGraphicsCanvas(theme),
+        WidgetProgressBar => WidgetProgressBarToGraphicsCanvas(theme),
         WidgetSlider     => WidgetSliderToGraphicsCanvas(theme),
         WidgetRadioGroup => WidgetRadioGroupToGraphicsCanvas(theme; measure = measure),
         WidgetAvatar     => WidgetAvatarToGraphicsCanvas(theme; measure = measure),

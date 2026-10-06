@@ -176,7 +176,7 @@ builder fills them from a theme, scaled or not.
     "The radius of the knob of a slider."
     slider_knob::ControlSize = ControlSize(7)
     "The height of a progress bar."
-    progress_height::ControlSize = ControlSize(4)
+    progress_bar_height::ControlSize = ControlSize(4)
     "The thickness of a scroll bar."
     scroll_bar_thickness::ControlSize = ControlSize(10)
     "The smallest length of the thumb of a scroll bar."

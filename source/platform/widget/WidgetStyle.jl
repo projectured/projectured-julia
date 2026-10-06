@@ -259,7 +259,7 @@ end
 """
     WidgetProgressStyle(; <the fields of WidgetStyle>, track_color, indicator_color)
 
-The style of a `WidgetProgress`: the fields of `WidgetStyle`, the track and the
+The style of a `WidgetProgressBar`: the fields of `WidgetStyle`, the track and the
 filled portion.
 """
 @document struct WidgetProgressStyle <: WidgetDocument

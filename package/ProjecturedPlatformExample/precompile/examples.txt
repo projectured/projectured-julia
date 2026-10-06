@@ -140,7 +140,7 @@ Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothi
 Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedPlatformExample.make_widget_menu_document_example)}
 Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedPlatformExample.make_widget_menu_item_document_example)}
 Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedPlatformExample.make_widget_offered_document_example)}
-Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedPlatformExample.make_widget_progress_document_example)}
+Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedPlatformExample.make_widget_progress_bar_document_example)}
 Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedPlatformExample.make_widget_projection_example)}
 Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedPlatformExample.make_widget_radio_group_document_example)}
 Tuple{typeof(ProjecturedKernelExample._get_or_build!), Base.RefValue{Union{Nothing, Base.Some{Any}}}, typeof(ProjecturedPlatformExample.make_widget_scroll_bar_document_example)}
@@ -228,7 +228,7 @@ Tuple{typeof(ProjecturedPlatformExample.make_widget_list_document_example)}
 Tuple{typeof(ProjecturedPlatformExample.make_widget_menu_document_example)}
 Tuple{typeof(ProjecturedPlatformExample.make_widget_menu_item_document_example)}
 Tuple{typeof(ProjecturedPlatformExample.make_widget_option_document_example)}
-Tuple{typeof(ProjecturedPlatformExample.make_widget_progress_document_example)}
+Tuple{typeof(ProjecturedPlatformExample.make_widget_progress_bar_document_example)}
 Tuple{typeof(ProjecturedPlatformExample.make_widget_radio_group_document_example)}
 Tuple{typeof(ProjecturedPlatformExample.make_widget_scroll_bar_document_example)}
 Tuple{typeof(ProjecturedPlatformExample.make_widget_scroll_pane_document_example)}

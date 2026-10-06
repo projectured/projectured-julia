@@ -14,7 +14,7 @@ The widget slice of `ProjecturedPlatform` holds the documents of a user interfac
 
 | Kind | Types |
 | --- | --- |
-| Text and values | `WidgetLabel`, `WidgetText`, `WidgetTextarea`, `WidgetBadge`, `WidgetAvatar`, `WidgetAlert`, `WidgetProgress`, `WidgetSkeleton`, `WidgetSwatch`, `WidgetHighlight`, `WidgetSeparator`, `WidgetTooltip`, `WidgetStatusBar` |
+| Text and values | `WidgetLabel`, `WidgetText`, `WidgetTextarea`, `WidgetBadge`, `WidgetAvatar`, `WidgetAlert`, `WidgetProgressBar`, `WidgetSkeleton`, `WidgetSwatch`, `WidgetHighlight`, `WidgetSeparator`, `WidgetTooltip`, `WidgetStatusBar` |
 | Controls | `WidgetButton`, `WidgetCheckbox`, `WidgetSwitch`, `WidgetToggle`, `WidgetToggleGroup`, `WidgetRadioGroup`, `WidgetSlider`, `WidgetSpinBox`, `WidgetSelect`, `WidgetOption`, `WidgetScrollBar` |
 | Menus and bars | `WidgetMenu`, `WidgetMenuItem`, `WidgetContextMenu`, `WidgetToolbar`, `WidgetToolbarItem` |
 | Containers | `WidgetComposite`, `WidgetShell`, `WidgetTitlePane`, `WidgetCard`, `WidgetAccordion`, `WidgetAccordionItem`, `WidgetSplitPane`, `WidgetTabbedPane`, `WidgetTabPage`, `WidgetTabLabel`, `WidgetScrollPane`, `WidgetTransformPane`, `WidgetDialog` |
@@ -164,7 +164,7 @@ A plain value, such as a `String`, is edited too. The printer makes a `TextBlock
 
 `WidgetAccordion` holds the index of the open item in `expanded`, and `0` when no item is open. So one item is open at a time, and the press that opens an item closes the item that was open. A title and a body that are documents are drawn through the recursion, as `WidgetCard` draws its content: each title once, and a body while its item is open. A title or a body that is a plain value is drawn as its string. The answer of a body is re-rooted under `items[i].body`.
 
-`WidgetBadge`, `WidgetSeparator`, `WidgetProgress`, `WidgetAvatar`, `WidgetAlert`, `WidgetHighlight` and `WidgetSkeleton` only show a value, and their readers return `nothing`. A `WidgetBadge` takes its colors from its `variant`, or from its `role` when it has one: `:success`, `:warning`, `:error`, `:info` or `:accent` draws the surface of the role behind the text of the role, from the fields `<role>_surface` and `<role>_foreground` of the widget theme (the accent role uses `accent` and `accent_foreground`).
+`WidgetBadge`, `WidgetSeparator`, `WidgetProgressBar`, `WidgetAvatar`, `WidgetAlert`, `WidgetHighlight` and `WidgetSkeleton` only show a value, and their readers return `nothing`. A `WidgetBadge` takes its colors from its `variant`, or from its `role` when it has one: `:success`, `:warning`, `:error`, `:info` or `:accent` draws the surface of the role behind the text of the role, from the fields `<role>_surface` and `<role>_foreground` of the widget theme (the accent role uses `accent` and `accent_foreground`).
 
 ### Operations
 
