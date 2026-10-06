@@ -180,8 +180,8 @@ function _make_pivot_table_widget(p::PivotTableToWidget, pivot::PivotTable)
     # Positional, so every declared field is named here in order: position,
     # column_headers, row_headers, corner, cells, cell_order, rows, columns,
     # border_width, column_policy, row_policy, cell_policy, visible, margin,
-    # border, padding, style, scroll_position, top_row, column_drag, open_cells,
-    # tooltip.
+    # border, padding, style, scroll_position, top_row, column_drag,
+    # vertical_scroll_bar, horizontal_scroll_bar, open_cells, tooltip.
     WidgetTable(Cell(Point2D(0, 0)), headers, row_headers, corner, rows,
                 Cell(:row_major), Cell(WidgetTableRows(nothing)), columns, Cell(1),
                 Cell(_PIVOT_COLUMN_POLICY),
@@ -190,7 +190,7 @@ function _make_pivot_table_widget(p::PivotTableToWidget, pivot::PivotTable)
                 # table, is offered the width of its column and fills it.
                 Cell(@computation get_pivot_cell_view(pivot) isa Union{PivotNumberView,PivotGroupView} ? :clip : :wrap),
                 Cell(true), Cell(nothing), Cell(nothing), Cell(nothing),
-                Cell(nothing), Cell(Point2D(0, 0)), Cell(1), Cell(nothing),
+                Cell(nothing), Cell(Point2D(0, 0)), Cell(1), Cell(nothing), Cell(:auto), Cell(:auto),
                 Cell(nothing), Cell(nothing),
                 Cell(@computation _get_pivot_table_selection(pivot)))
 end

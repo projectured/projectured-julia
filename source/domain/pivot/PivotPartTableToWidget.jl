@@ -30,7 +30,7 @@ function print_document(p::PivotPartTableToWidget, recursion, table::PivotPartTa
                          Cell(Any[WidgetTableColumn(; policy) for _ in columns]), Cell(1), Cell(policy),
                          Cell(Fixed(p.row_height)), Cell(:clip), Cell(true), Cell(nothing), Cell(nothing),
                          Cell(nothing), Cell(nothing), Cell(Point2D(0, 0)), Cell(1), Cell(nothing),
-                         Cell(nothing), Cell(nothing), Cell(nothing))
+                         Cell(:auto), Cell(:auto), Cell(nothing), Cell(nothing), Cell(nothing))
     SimpleIoMap(p, table, widget)
 end
 
