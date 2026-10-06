@@ -28,6 +28,8 @@ import ..OperationModule: evaluate_operation, make_inverse_operation,
 import ..DomainModule: compute_context_menu
 import ..NavigatorModule: is_navigator_stop, find_navigator_choices
 import ..WidgetModule: make_value_document, make_graphics_projection, refresh_document!
+import ..CollectionModule: is_table, get_table_row_count, get_table_column_names, get_table_column_type,
+                           get_table_value, find_table_column, make_table_part
 
 export DataFrameColumnFilter, DataFrameSortKey, DataFrameQuery
 export DataFrameView, jump_to_row, make_data_frame_cell
@@ -40,6 +42,7 @@ export DataFrameTheme, ScaledDataFrameTheme
 export DataFrameViewToWidget, make_data_frame_view_projection
 export DataFrameViewRowToWidget, make_data_frame_row_projection
 
+include("DataFrameTable.jl")
 include("DataFrameQuery.jl")
 include("DataFrameFilter.jl")
 include("DataFrameExpression.jl")

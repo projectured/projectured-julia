@@ -5,7 +5,7 @@ Generic reactive collection document types. Four structural shapes: an indexed
 growable vector (each slot is a reactive Cell), a dense rectangular matrix of
 reactive Cells, a table (CellVector of CellVector rows) optimised for row
 insert/delete, and a doubly-linked list with a fixed head and two unlimited
-tails. Per-slot reactivity means a change to one element invalidates only that
+tails. The table interface reads any kind of table, a part of its rows too. Per-slot reactivity means a change to one element invalidates only that
 slot's dependents, not the entire collection.
 
 # Invariants
@@ -37,12 +37,15 @@ import ..ProjectionModule: make_children_container, get_children_container_type
 export CollectionDocument, CellVector, CellMatrix, CellTable, ListNode,
        get_left_tail, get_right_tail, find_list_node, find_list_index, make_index_list, get_cell_at, take_first,
        count_computed_nodes, insert_row!, insert_column!, delete_row!, delete_column!
+export is_table, get_table_row_count, get_table_column_names, get_table_column_type,
+       get_table_value, find_table_column, make_table_part, TablePart
 
 
 include("CellVector.jl")
 include("CellMatrix.jl")
 include("CellTable.jl")
 include("ListNode.jl")
+include("TableInterface.jl")
 include("CollectionDocument.jl")
 
 end # module

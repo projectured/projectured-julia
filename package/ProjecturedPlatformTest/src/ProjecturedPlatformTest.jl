@@ -2,7 +2,7 @@
     ProjecturedPlatformTest
 
 The test package of the platform: the thirty-eight slices between the
-kernel and the seventeen domains. It is the second tier of the test-package
+kernel and the eighteen domains. It is the second tier of the test-package
 DAG (kernel ← platform ← domain ← umbrella). It hosts:
 
 - the unit tests of every slice of the platform, from the reactive containers
@@ -95,6 +95,7 @@ end
 
 # ── the tests of the packages that came out of base ─────────────────────────
 include("../../../test/platform/document/CollectionDocumentTest.jl")
+include("../../../test/platform/document/TableInterfaceTest.jl")
 include("../../../test/platform/document/MouseTargetFieldTest.jl")
 include("../../../test/platform/document/DocumentWalkTest.jl")
 include("../../../test/platform/document/BoundedSyncTest.jl")

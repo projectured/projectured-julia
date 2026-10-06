@@ -138,6 +138,7 @@ function test_platform()
         test_platform_slice_edges()
         test_platform_examples()
         test_collection()
+        test_table_interface()
         test_mouse_target_field()
         test_mouse_target_chain()
         test_document_walk()
@@ -344,7 +345,7 @@ export test_platform, test_platform_layering, test_platform_examples
 export PLATFORM_SLICE_EDGES, test_platform_slice_edges
 export test_bounded_sync, test_document_reflection
 export test_identity
-export test_collection, test_mouse_target_field, test_mouse_target_chain, test_copying_projection, test_focusing, test_reversing, test_filtering, test_searching, test_sorting
+export test_collection, test_table_interface, test_mouse_target_field, test_mouse_target_chain, test_copying_projection, test_focusing, test_reversing, test_filtering, test_searching, test_sorting
 export test_switching, test_window_input_unwrapping
 export test_versioning_to_any
 export test_text_file, test_marker_language
