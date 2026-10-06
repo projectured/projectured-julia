@@ -20,7 +20,7 @@ million links costs what the screen shows.
 See also `get_left_tail` and `get_right_tail`, which walk it, `take_first`, and
 `CellVector`, which holds every element at once.
 """
-@document struct ListNode
+@document struct ListNode <: ListDocument
     value::Any
     prev::Union{ListNode, Nothing}
     next::Union{ListNode, Nothing}

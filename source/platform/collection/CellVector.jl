@@ -10,6 +10,16 @@
 # declared type is therefore the loose `Vector`; accessors branch on the storage
 # with a fully-typed fast path for the reactive convention.
 """
+    ListDocument
+
+A document that is a sequence of documents: a `CellVector`, which holds every
+element, or a `ListNode`, a chain that a reader reads from the middle. A field that
+holds either declares `ListDocument`, and a plain vector given to such a field
+becomes a `CellVector` (`ListDocument(items)`).
+"""
+abstract type ListDocument <: Document end
+
+"""
     CellVector(items)
     CellVector{T}(items)
 
@@ -34,7 +44,7 @@ See also `CellTable` and `CellMatrix` for two dimensions, `ListNode` for a
 sequence read from the middle, and `get_cell_at`, which answers the cell rather
 than the value.
 """
-@document struct CellVector{T}
+@document struct CellVector{T} <: ListDocument
     elements::Vector = Cell[]
 end
 
@@ -78,6 +88,10 @@ function _check_element_cell(::Type{T}, cell::AbstractCell, i) where {T}
 end
 
 find_declared_element_type(::CellVector{T}) where {T} = T
+
+# A plain vector given to a field declared `ListDocument` becomes a `CellVector`.
+ListDocument(items::AbstractVector) = CellVector(items)
+is_collection_field_type(::Val{:ListDocument}) = true
 
 # `CellVector` is the canonical 1-D positional collection: its children are
 # addressed by `ElementReferenceStep` (`[i]`). Opt into the document-layer trait so

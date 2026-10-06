@@ -141,7 +141,7 @@ Use it to put widgets or documents side by side in one row, from left to right.
 See also `VerticalLayout`, `GridLayout`.
 """
 @document struct HorizontalLayout <: LayoutDocument
-    children::CellVector = CellVector()
+    children::ListDocument = CellVector()
     vertical_align::Symbol = :top
     gap::Int = 0
     child_width::Any = nothing
@@ -188,7 +188,7 @@ bottom.
 See also `HorizontalLayout`, `GridLayout`.
 """
 @document struct VerticalLayout <: LayoutDocument
-    children::CellVector = CellVector()
+    children::ListDocument = CellVector()
     horizontal_align::Symbol = :left
     gap::Int = 0
     child_width::Any = nothing
@@ -267,7 +267,7 @@ used. A form uses it to keep the description of a field close to the row of the
 field, and the next field further away.
 """
 @document struct GridLayout <: LayoutDocument
-    children::CellVector
+    children::ListDocument
     columns::Int
     horizontal_align::Symbol
     vertical_align::Symbol

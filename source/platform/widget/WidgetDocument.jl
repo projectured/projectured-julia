@@ -2634,8 +2634,8 @@ See also `make_result_table` and `WidgetList` for one column.
 """
 @document struct WidgetTable <: WidgetDocument
     position::Point2D
-    column_headers::CellVector   # of Document (or nothing) — optional top strip
-    row_headers::CellVector      # of Document (or nothing) — optional left strip; a ListNode beside a list of rows
+    column_headers::ListDocument # of Document (or nothing) — optional top strip
+    row_headers::ListDocument    # of Document (or nothing) — optional left strip; a ListNode beside a list of rows
     corner::Any                  # Document or nothing — where the header row and the header column meet
     cells::Any                   # CellVector of rows of cells, or a ListNode of them; a row is a CellVector of Document cells
     cell_order::Symbol           # :row_major (cells[r][c]) or :column_major (cells[c][r])
