@@ -324,7 +324,7 @@ _get_head_place(statistics::FrameStatistics) =
 map_reference_forward(p::FrameStatisticsToWidget, iomap, reference) = find_introduced_path(p, reference)
 
 # A write of the widgets passes on through the default reader, but four. A
-# table that moves the head of its list of frames writes its `rows`, which
+# table that moves the head of its list of frames writes its `cells`, which
 # becomes a write of `anchor`, so the list starts again from there, and its
 # `row_headers`, which the same anchor builds again, so that write does nothing.
 # A press on Pause becomes view state, so the undo does not record it. A write

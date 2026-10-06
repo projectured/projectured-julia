@@ -611,10 +611,10 @@ end
 # A scroll of the table writes the cell that the view shares with it, and
 # every other operation of the widgets carries its own subject: both pass on.
 # A table that moves the head of its rows far from the anchor writes its
-# `rows`; the view moves its anchor instead, and builds a new list from it. A
-# table that moves its head column writes its `column_headers`, its
-# `column_align` and its `rows`; the view moves its column anchor instead, and
-# builds the three lists again from it. A write of the value of the scroll bar
+# `cells`; the view moves its anchor instead, and builds a new list from it. A
+# table that moves its head column writes its `column_headers`, its `columns`
+# and its `cells`; the view moves its column anchor instead, and builds the
+# three lists again from it. A write of the value of the scroll bar
 # is a jump to the row at that value, also in the compound of a move with the
 # button held, which sets the mouse target too.
 read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap, operation::Operation) =
@@ -640,9 +640,10 @@ function _convert_table_writes(iomap::DataFrameViewToWidgetIoMap, operation)
                           if o !== nothing])
 end
 
-# One write of a compound: the value of the scroll bar to a jump, `rows` to an
-# anchor, `column_headers` to a column anchor, and, when the compound moves the columns, no write of `rows` or of
-# `column_align`, which the view builds again from its anchors. The width of a
+# One write of a compound: the value of the scroll bar to a jump, `cells` to an
+# anchor, `column_headers` to a column anchor, and, when the compound moves the
+# columns, no write of `cells` or of `columns`, which the view builds again from
+# its anchors. The width of a
 # column goes to the view. The table starts the drag of the edge of a column
 # from the view, which the table is a part of: the parts of the drag come back
 # to the view by its path, and the view gives them to the table.

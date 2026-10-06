@@ -2436,7 +2436,7 @@ that the grids report ("layout is just layout").
 - `column_headers::CellVector` — optional top strip; each entry a `Document` (or
   `nothing`). Empty vector ⇒ no column-header strip.
 - `row_headers::CellVector` — optional left strip; each entry a `Document` (or
-  `nothing`). Empty vector ⇒ no row-header strip. When `rows` is a list, a
+  `nothing`). Empty vector ⇒ no row-header strip. When `cells` is a list, a
   `ListNode` of headers that moves in step with it: its head is the header of
   the head row.
 - `corner` — `nothing`, or the `Document` drawn where the header row and the

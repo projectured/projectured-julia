@@ -883,7 +883,7 @@ function _print_vector_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w
                                           x = parts_x, y = Cell(Int32(content_y)), pad_x, pad_y, bw)
     end
     # The graphics of the rows mirror the rows that the grid placed. A new head
-    # in `rows` builds them again, and no head is no rows.
+    # in `cells` builds them again, and no head is no rows.
     mirror = Cell(@computation begin
         head = get_grid_list_head(cells_grid)
         head isa ListNode ? _make_row_graphics_node(p, w, st, 1, head) : CellVector()

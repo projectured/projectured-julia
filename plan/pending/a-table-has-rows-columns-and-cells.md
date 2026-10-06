@@ -279,7 +279,15 @@ Decisions of the implementation (mine):
   a table that is a long list both ways draws 400 × 400 cells and does not
   end in 25 minutes, so a test of a head move keeps the other direction short.
 - [ ] **4.** The padding of a row and of a column (P1).
-- [ ] **5.** The guides: `widget.md` and the docstrings of the table.
+- [x] **5.** The guides: `widget.md` and the docstrings of the table. Done
+  2026-10-06: `widget.md` names `cell_order` and `cells[c][r]`, says how a
+  column-major table draws with the parts and moves its heads, and names the
+  body `cells` where the head moves write it; the docstrings of the table and
+  the comments of the data frame view, the statistics and the parts name
+  `cells` and `columns` where they named `rows` and `column_align`.
+  `get_widget_table_row_count(table)` reads the count of the rows, as
+  `get_widget_table_column_count` reads the count of the columns, because
+  omnet-julia counted the body through `rows`.
 - [ ] **6.** omnet-julia follows: its calls of the constructor and its tests.
 
 ## 8. Risks

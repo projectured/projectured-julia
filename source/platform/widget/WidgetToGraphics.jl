@@ -9150,9 +9150,10 @@ _translate_pointer_event(evt::MouseDwell, dx, dy) = shift_event_position(evt, -d
 # default every part of the box of the table is transparent and every inset is
 # zero, so the box costs nothing.
 #
-# **Selection.** Field names `rows` / `columns` / `column_headers` / `row_headers`
-# are the public reference vocabulary: `rows[r]` a row, `columns[c]` a column,
-# `cells[r][c]` a cell, and a header a part of its own. A whole-element selection
+# **Selection.** Field names `rows` / `columns` / `cells` / `column_headers` /
+# `row_headers` are the public reference vocabulary: `rows[r]` a row,
+# `columns[c]` a column, `cells[r][c]` a cell (`cells[c][r]` in a column-major
+# table), and a header a part of its own. A whole-element selection
 # is a path terminating at the element (`∅`); the table, the one place with the
 # geometry, turns a 1-D handle into a 2-D band, and a header into its cell. An in-cell cursor (`cells[r][c].…`) descends into the
 # cell's own sub-pipeline and is drawn there.
@@ -9596,8 +9597,9 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     # A cell is one line of a row, so the text of every cell, header and corner
     # draws at single spacing, as the label of a row number does.
     ctx === nothing || (ctx = with_property(ctx, :line_spacing, SingleSpacing()))
-    # The printer reads the type of `rows` and nothing else says which table
-    # this is: a list draws the rows a viewport shows, a vector draws them all.
+    # The printer reads the type of `cells` and nothing else says which table
+    # this is: a list in either direction draws the rows a viewport shows, a
+    # vector draws them all.
     # A corner makes a table of a list, whose rows can be an empty vector at
     # first.
     (_is_listed_body(w) || w.corner !== nothing) && return _print_table_parts(p, recursion, w, ctx)
