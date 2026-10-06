@@ -647,11 +647,14 @@
   // ── Event capture ──────────────────────────────────────────────────────────
 
   function mods(ev) { return { ctrl: ev.ctrlKey, shift: ev.shiftKey, alt: ev.altKey, meta: ev.metaKey }; }
-  // The name of a button, or null for a side button, which the event layer does not
-  // name: the page sends no event for it.
+  // The name of a button, or null for one that the event layer does not name. The
+  // side buttons are back and forward.
   function buttonSym(b) {
-    return b === 0 ? "left" : b === 1 ? "middle" : b === 2 ? "right" : null;
+    return b === 0 ? "left" : b === 1 ? "middle" : b === 2 ? "right" :
+           b === 3 ? "back" : b === 4 ? "forward" : null;
   }
+  // A side button is the page's own: the browser does not go back or forward.
+  function isSideButton(b) { return b === 3 || b === 4; }
   // The place of the pointer in logical pixels.
   function pos(ev, canvas) {
     const r = canvas.getBoundingClientRect();
@@ -672,6 +675,7 @@
     canvas.addEventListener("mousedown", (ev) => {
       const button = buttonSym(ev.button);
       if (button === null) return;
+      if (isSideButton(ev.button)) ev.preventDefault();
       const { x, y } = pos(ev, canvas);
       send({ type: "mousedown", window: idFn(), button, x, y, mods: mods(ev),
              t: stamp(ev) });
@@ -685,6 +689,7 @@
     canvas.addEventListener("mouseup", (ev) => {
       const button = buttonSym(ev.button);
       if (button === null) return;
+      if (isSideButton(ev.button)) ev.preventDefault();
       const { x, y } = pos(ev, canvas);
       send({ type: "mouseup", window: idFn(), button, x, y, mods: mods(ev),
              t: stamp(ev) });

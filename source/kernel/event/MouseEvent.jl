@@ -6,11 +6,12 @@
 # in them.
 
 """
-    MouseButtons(; left = false, middle = false, right = false)
+    MouseButtons(; left = false, middle = false, right = false, back = false, forward = false)
     MouseButtons(names::Symbol...)
 
-The mouse buttons that are held: one flag for each of `left`, `middle` and `right`.
-A person can hold more than one button at the same time.
+The mouse buttons that are held: one flag for each of `left`, `middle` and `right`,
+and for `back` and `forward`, the two side buttons of a mouse that has them. A
+person can hold more than one button at the same time.
 
 Use it to state or test which buttons a pointer event holds.
 
@@ -28,29 +29,30 @@ struct MouseButtons
     left::Bool
     middle::Bool
     right::Bool
+    back::Bool
+    forward::Bool
 end
 
-MouseButtons(; left::Bool = false, middle::Bool = false, right::Bool = false) =
-    MouseButtons(left, middle, right)
+MouseButtons(; left::Bool = false, middle::Bool = false, right::Bool = false,
+             back::Bool = false, forward::Bool = false) =
+    MouseButtons(left, middle, right, back, forward)
 
 function MouseButtons(names::Symbol...)
     for name in names
-        name in (:left, :middle, :right) || throw(ArgumentError(
-            "a mouse button is :left, :middle or :right, got :$name"))
+        name in (:left, :middle, :right, :back, :forward) || throw(ArgumentError(
+            "a mouse button is :left, :middle, :right, :back or :forward, got :$name"))
     end
-    MouseButtons(:left in names, :middle in names, :right in names)
+    MouseButtons(:left in names, :middle in names, :right in names, :back in names, :forward in names)
 end
 
 """
     MouseDown(button, x, y[, modifiers]; time)
     MouseDown(button, x, y, modifiers, time)
 
-A mouse button went down. `button` is `:left`, `:middle` or `:right`, `x` and `y`
-are the coordinates in the window in logical pixels, and `time` is the time of the
-input (see `Event`).
-
-A backend reports no `MouseDown` and no `MouseUp` for a button that has no name here,
-such as a side button of the mouse.
+A mouse button went down. `button` is `:left`, `:middle`, `:right`, or `:back` or
+`:forward`, the side buttons of a mouse that has them. `x` and `y` are the
+coordinates in the window in logical pixels, and `time` is the time of the input
+(see `Event`).
 """
 struct MouseDown <: Event
     button::Symbol

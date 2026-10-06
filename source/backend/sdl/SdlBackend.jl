@@ -546,16 +546,20 @@ end
 # Mouse helpers
 # ════════════════════════════════════════════════════════════════════════
 
-# The name of an SDL button: 1 is the left, 2 the middle and 3 the right button. A
-# side button, 4 or more, has no name in the event layer, and the answer is `nothing`.
+# The name of an SDL button: 1 is the left, 2 the middle and 3 the right button,
+# and 4 and 5 (`X1` and `X2`) the side buttons, back and forward. Another number
+# has no name in the event layer, and the answer is `nothing`.
 _sdl_button_sym(b::UInt8) =
-    b == 0x01 ? :left : b == 0x02 ? :middle : b == 0x03 ? :right : nothing
+    b == 0x01 ? :left : b == 0x02 ? :middle : b == 0x03 ? :right :
+    b == 0x04 ? :back : b == 0x05 ? :forward : nothing
 
 # The buttons that an SDL button mask holds: the `state` of a motion event.
 _get_held_mouse_buttons(bstate::UInt32) =
     MouseButtons(left = (bstate & UInt32(0x01)) != UInt32(0),
                  middle = (bstate & UInt32(0x02)) != UInt32(0),
-                 right = (bstate & UInt32(0x04)) != UInt32(0))
+                 right = (bstate & UInt32(0x04)) != UInt32(0),
+                 back = (bstate & UInt32(0x08)) != UInt32(0),
+                 forward = (bstate & UInt32(0x10)) != UInt32(0))
 
 # ════════════════════════════════════════════════════════════════════════
 # Native window lifecycle (internal helpers; driven by the reconciler in

@@ -84,9 +84,9 @@ function test_web_backend()
     @testset "a button with no name in the event layer makes no event" begin
         backend = WebBackend(port = 0)
         _WEB._decode_and_enqueue!(backend,
-            """{"type":"mousedown","window":"main","button":"back","x":5,"y":6}""")
+            """{"type":"mousedown","window":"main","button":"fifth","x":5,"y":6}""")
         _WEB._decode_and_enqueue!(backend,
-            """{"type":"mouseup","window":"main","button":"back","x":5,"y":6}""")
+            """{"type":"mouseup","window":"main","button":"fifth","x":5,"y":6}""")
         @test take_from_devices!(backend, Device[]) === nothing
         _WEB._decode_and_enqueue!(backend,
             """{"type":"mousedown","window":"main","button":"right","x":5,"y":6}""")
@@ -102,10 +102,10 @@ function test_web_backend()
                 """{"type":"keydown","window":"main","key":"$key","code":"$code"}""")
             @test take_from_devices!(backend, Device[]).event.key === Symbol(letter)
         end
-        # The page names the left, the middle and the right button. The server
-        # drops another name, as the page sends none for a side button.
+        # The page names the left, the middle and the right button, and the side
+        # buttons back and forward. The server drops another name.
         for (button, name) in (("left", :left), ("middle", :middle), ("right", :right),
-                               ("forward", nothing))
+                               ("back", :back), ("forward", :forward), ("fifth", nothing))
             _WEB._decode_and_enqueue!(backend,
                 """{"type":"mousedown","window":"main","button":"$button","x":5,"y":6}""")
             down = take_from_devices!(backend, Device[])

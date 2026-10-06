@@ -551,18 +551,18 @@ function _mods(obj)::ModifierKeys
                  alt = Bool(get(m, :alt, false)), meta = Bool(get(m, :meta, false)))
 end
 
-# The button of a message, or `nothing` for a name other than left, middle and right:
-# the event layer names no other button.
+# The button of a message, or `nothing` for a name that the event layer does not
+# have: left, middle, right, and back and forward, the side buttons.
 function _button(obj)::Union{Symbol,Nothing}
     name = get(obj, :button, "left")
-    name in ("left", "middle", "right") ? Symbol(name) : nothing
+    name in ("left", "middle", "right", "back", "forward") ? Symbol(name) : nothing
 end
 
 # The buttons that the `buttons` mask of a browser pointer event holds: 1 is the left,
-# 2 the right and 4 the middle button.
+# 2 the right, 4 the middle, 8 the back and 16 the forward button.
 _get_held_mouse_buttons(mask::Integer) =
     MouseButtons(left = (mask & 1) != 0, middle = (mask & 4) != 0,
-                 right = (mask & 2) != 0)
+                 right = (mask & 2) != 0, back = (mask & 8) != 0, forward = (mask & 16) != 0)
 _winid(obj)::Symbol = haskey(obj, :window) ? Symbol(String(obj[:window])) : :none
 
 # The time of a message on the clock of `time()`. The page sends `t`, the time of

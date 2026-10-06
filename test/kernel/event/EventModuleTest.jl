@@ -60,6 +60,10 @@ function test_event_module()
         move = MouseMove(3, 4, both, ModifierKeys(); time = 0.0)
         @test move.buttons.left && move.buttons.right
         @test_throws ArgumentError MouseButtons(:none)
+        # The side buttons of a mouse are back and forward.
+        sides = MouseButtons(:back, :forward)
+        @test sides.back && sides.forward && !sides.left
+        @test sides == MouseButtons(back = true, forward = true)
         @test isbitstype(MouseButtons)
     end
 

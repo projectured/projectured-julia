@@ -307,8 +307,9 @@ Client → server (raw browser key fields; the server maps them):
 The server maps the keys (`convert_web_key_to_symbol`) to the names of the event
 layer. A letter key has the name of its lower-case letter, as in the SDL and the
 console backends. The page names the left, the middle and the right button, and
-it sends no `mousedown` and no `mouseup` for a side button; the server also drops
-a message with another button name. A wheel turn away from the user sends a
+the side buttons `back` and `forward`, whose default the page stops, so the
+browser does not leave the page; the server drops a message with another button
+name. A wheel turn away from the user sends a
 positive `dy`, as SDL does.
 
 #### Incremental rendering (dirty-rect patches)
