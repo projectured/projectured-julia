@@ -154,11 +154,19 @@ end
         @test n.value === 42
         @test render(print_document(RecursiveProjection(JsonToSyntax()), n).output) == "42"
     end
-    # A key that can be part of a number stays an edit, also when the text does
-    # not parse yet.
+    # A key that can be part of a number, and makes a text that no number shows,
+    # replaces the number with an insertion of that text, so the text stays.
     n = JsonNumber(42)
-    @test type_key!(n, @reference(n, value{2}), 'e') isa ReplaceNumberRangeOperation
-    @test n.value === nothing
+    @test type_key!(n, @reference(n, value{2}), 'e') isa CompoundOperation
+    typed = JsonArray([JsonNumber(42)])
+    type_key!(typed, @reference(typed, elements[1].value{2}), '.')
+    @test typed[1] isa JsonInsertion
+    @test typed[1].value == "42."
+    # The key that makes a text that a number shows exactly turns it into the number.
+    type_key!(typed, @reference(typed, elements[1].value{3}), '5')
+    @test typed[1] isa JsonNumber
+    @test typed[1].value === 42.5
+    @test length(typed.elements) == 1
     # The number is in an array: the edit keeps the value, and the array its length.
     arr = JsonArray([JsonNumber(42)])
     type_key!(arr, @reference(arr, elements[1].value{2}), 'a')

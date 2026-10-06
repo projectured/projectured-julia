@@ -15,9 +15,43 @@ end
 # commitability colouring. The `"`/`[`/`{`/digit type-to-replace gestures on a
 # whole-selected insertion keep working: the leaf's char editing declines
 # without a value cursor, so those keys fall through to `@gestures JsonDocument`.
+#
+# The buffer also holds the text of a number that does not parse yet, such as `-`
+# or `1e`, which a key in a `JsonNumber` makes (`make_incomplete_number_document`).
+# A key that makes a text that a number shows exactly turns the buffer into that
+# number, with the caret where the key left it, and Enter commits any text that
+# parses as a number.
+
+# The number that a text typed into a JSON insertion parses as, or `nothing`.
+function _parse_json_number(text::AbstractString)
+    has_only_number_characters(text) || return nothing
+    splice_number(text, 0, 0, "")
+end
+
+# Enter: the JSON type that the text names, or the number that it parses as.
+function _commit_json_insertion(ins, text)
+    T = resolve_insertion(JsonDocument, text)
+    T === nothing || return make_insertion_document(T)
+    number = _parse_json_number(text)
+    number === nothing ? nothing : with_value_caret(JsonNumber(number), length(string(number)))
+end
+
+# A key: the number that shows the text exactly, with the caret where the key left it.
+function _commit_json_number_at_key(ins, text, caret)
+    number = _parse_json_number(text)
+    (number === nothing || string(number) != text) && return nothing
+    with_value_caret(JsonNumber(number), caret)
+end
+
+# A text that parses as a number commits, so it shows as one that does.
+_complete_json_insertion(ins) =
+    _parse_json_number(something(ins.value, "")) === nothing ? name_completion(ins) :
+        (state = :unambiguous, hint = "", extension = "")
 
 JsonInsertionToSyntaxLeaf(; theme = nothing) =
-    DomainInsertionToSyntaxLeaf(JsonDocument; placeholder = "enter json value", theme)
+    InsertionToSyntaxLeaf(_commit_json_insertion; prefix = "insert a new ", suffix = " here",
+                          placeholder = "enter json value", completion = _complete_json_insertion,
+                          commit_at_key = _commit_json_number_at_key, theme)
 
 @projection UntrackedCell struct JsonBoolToSyntaxLeaf
     style::StyleText = get_json_style(nothing, :bool_text)

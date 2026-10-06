@@ -27,6 +27,7 @@ using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..FileFormatModule: make_document_seed
+import ..PrimitiveModule: make_incomplete_number_document
 import ..SerializationModule: emit_text, get_file_domain, make_reference_leaf,
                               find_reference_marker, parse_file_content
 

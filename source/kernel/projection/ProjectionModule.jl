@@ -104,7 +104,7 @@ export make_children_container, get_children_container_type,
 export read_projection_gesture
 export TemplateIoMap, var"@projection_template"
 export print_template_document, read_template_intent, make_template_builder,
-       find_template_value_retype
+       find_template_value_retype, find_template_output_child
 
 include("PrinterContext.jl")
 include("ProjectionReferenceStep.jl")

@@ -1385,32 +1385,109 @@ function _focused_child(w::SectionsWiring, iomap, sel)
 end
 
 """
+    find_template_output_child(iomap::TemplateIoMap, reference) -> (child, rest, steps) | Nothing
+
+The element that holds the position `reference` of the output of `iomap`: its IO map
+`child`, the part `rest` of `reference` inside the output of the element, and the
+input `steps` from the input of `iomap` to the input of the element. `nothing` when
+`reference` names a part that the node prints itself: a delimiter, a key, a token
+of an inline node, or the whole node.
+
+A reader gives an edit inside an element to the element, so that the element
+transforms its own edit, and puts `steps` in front of the answer.
+"""
+find_template_output_child(iomap::TemplateIoMap, reference) =
+    _find_output_child(iomap.wiring, iomap, reference)
+
+_find_output_child(::Any, iomap, reference) = nothing
+
+# The child index and the rest of an output reference `.children_field[k].rest`.
+function _split_output_child(reference, children_field::Symbol)
+    (reference isa ConcreteReference && reference.head isa FieldReferenceStep &&
+     reference.head.name == String(children_field)) || return nothing
+    after = reference.tail
+    (after isa ConcreteReference && after.head isa RangeReferenceStep) || return nothing
+    (after.head.start + 1, after.tail)
+end
+
+function _find_output_child(w::NodeWiring, iomap, reference)
+    split = _split_output_child(reference, w.children_field)
+    split === nothing && return nothing
+    i, rest = split
+    ims = iomap.child_iomaps
+    1 <= i <= length(ims) || return nothing
+    (ims[i], rest, (FieldReferenceStep(String(w.coll_input_field)), ElementReferenceStep(i)))
+end
+
+function _find_slots_output_child(slots, reference; project_child, children_field)
+    split = _split_output_child(reference, children_field)
+    split === nothing && return nothing
+    k, rest = split
+    1 <= k <= length(slots) || return nothing
+    slot = slots[k]
+    slot isa ProjectSlot &&
+        return (project_child(slot.in_field), rest, (FieldReferenceStep(String(slot.in_field)),))
+    # A sub-node shares the input of this node, so its edit needs no step.
+    slot isa SubNodeSlot && !(rest isa EmptyReference) && return (slot.iomap, rest, ())
+    nothing
+end
+
+_find_output_child(w::FixedNodeWiring, iomap, reference) =
+    _find_slots_output_child(w.slots, reference;
+                             project_child = fn -> iomap.child_iomaps[fn][], w.children_field)
+
+function _find_output_child(w::ConditionalNodeWiring, iomap, reference)
+    slots, store = iomap.child_iomaps
+    _find_slots_output_child(slots, reference; project_child = fn -> store[fn][],
+                             w.children_field)
+end
+
+function _find_output_child(w::MixedNodeWiring, iomap, reference)
+    split = _split_output_child(reference, w.children_field)
+    split === nothing && return nothing
+    k, rest = split
+    n_prefix = length(w.prefix_slots)
+    if k <= n_prefix
+        slot = w.prefix_slots[k]
+        slot isa ProjectSlot || return nothing
+        return (iomap.child_iomaps.prefix[slot.in_field][], rest,
+                (FieldReferenceStep(String(slot.in_field)),))
+    end
+    i = k - n_prefix
+    ims = iomap.child_iomaps.coll[]
+    1 <= i <= length(ims) || return nothing
+    (ims[i], rest, (FieldReferenceStep(String(w.coll_field)), ElementReferenceStep(i)))
+end
+
+function _find_output_child(w::SectionsWiring, iomap, reference)
+    split = _split_output_child(reference, w.children_field)
+    split === nothing && return nothing
+    sec_i, rest = split
+    secs = iomap.child_iomaps
+    1 <= sec_i <= length(secs) || return nothing
+    sec = secs[sec_i]
+    inner = _split_output_child(rest, w.children_field)
+    inner === nothing && return nothing
+    entry_i, entry_rest = inner
+    1 <= entry_i <= length(sec.entries) || return nothing
+    (sec.entries[entry_i], entry_rest,
+     (FieldReferenceStep(String(sec.field)), ElementReferenceStep(entry_i)))
+end
+
+"""
     find_template_value_retype(iomap::TemplateIoMap, reference) -> Type | Nothing
 
-The operation type that the leaf rule under `reference` makes of a text edit of
-its bound value: the `retype` of its `bound`, or `nothing` when it has none.
-`reference` is in the input domain of `iomap`, with no type checkpoints. A leaf
-answers for an edit of its own bound field. A node descends into the child that
-`reference` enters, so a leaf in a container retypes an edit as it does when it
-is the document.
+The operation type that a leaf makes of a text edit of its bound value: the
+`retype` of its `bound`, or `nothing` when it has none. `reference` is in the input
+domain of `iomap`, with no type checkpoints. A node answers `nothing`: it gives an
+edit inside an element to the element ([`find_template_output_child`](@ref)), so
+the leaf retypes the edit itself, wherever the leaf is.
 """
 function find_template_value_retype(iomap::TemplateIoMap, reference)
     w = iomap.wiring
-    if w isa AtomicWiring
-        return reference isa ConcreteReference && reference.head isa FieldReferenceStep &&
-               Symbol(reference.head.name) === w.bound_field ? w.retype : nothing
-    end
-    focused = _focused_child(w, iomap, reference)
-    focused === nothing && return nothing
-    child, steps = focused
-    child = get_content_iomap(child)
-    child isa TemplateIoMap || return nothing
-    rest = reference
-    for _ in steps
-        rest isa ConcreteReference || return nothing
-        rest = rest.tail
-    end
-    find_template_value_retype(child, rest)
+    w isa AtomicWiring || return nothing
+    reference isa ConcreteReference && reference.head isa FieldReferenceStep &&
+        Symbol(reference.head.name) === w.bound_field ? w.retype : nothing
 end
 
 # Innermost-first, bubbling to the nearest enclosing structural node: delegate to the

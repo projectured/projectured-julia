@@ -406,11 +406,55 @@ function make_number_edit_operation(number::PrimitiveNumber, operation::ReplaceR
 end
 
 """
+    make_incomplete_number_document(number, text) -> Document or nothing
+
+The document that takes the place of `number` while its text is `text`, a text
+that the number can not show exactly, such as `-` or `1e`. A domain answers the
+insertion of its domain with the text, so that the text stays while the person
+types. The default, `nothing`, keeps the edit of the number, which drops a text
+that does not parse.
+"""
+make_incomplete_number_document(number, text) = nothing
+
+"""
+    make_number_range_operation(input, reference, replacement) -> Operation
+
+The edit that a key makes of a number below `input`: `reference` is the range
+`value{s:e}` of the number, and `replacement` is the text of the key. It is a
+`ReplaceNumberRangeOperation` when the number shows the new text exactly, or when
+the new text is empty. Else it is a replace of the number with the document that
+[`make_incomplete_number_document`](@ref) gives for the new text, with the caret
+after the replacement, when the domain of the number gives one.
+"""
+function make_number_range_operation(input, reference::Reference, replacement::AbstractString)
+    operation = ReplaceNumberRangeOperation(reference, replacement)
+    split = _split_replace_reference(reference)
+    split === nothing && return operation
+    target_path, field_name, range_step = split
+    number = try_evaluate_reference(input, target_path, missing)
+    number isa Document || return operation
+    old = getproperty(number, Symbol(field_name))
+    text = splice_string(old === nothing ? "" : string(old), range_step.start, range_step.stop,
+                         replacement)
+    (isempty(text) || _is_exact_number_text(text)) && return operation
+    document = make_incomplete_number_document(number, text)
+    document === nothing && return operation
+    make_replace_document_operation(target_path,
+        with_value_caret(document, range_step.start + length(replacement)))
+end
+
+# A text that a number shows as it is: it parses, and the number prints it back.
+function _is_exact_number_text(text::AbstractString)
+    parsed = splice_number(text, 0, 0, "")
+    parsed !== nothing && string(parsed) == text
+end
+
+"""
     with_value_caret(document, k) -> document
 
-`document`, a primitive document, with its caret at `k` in its value.
+`document`, a document with a `value` field, with its caret at `k` in its value.
 """
-with_value_caret(document::PrimitiveDocument, k::Integer) =
+with_value_caret(document::Document, k::Integer) =
     set_selection!(document, annotate_reference_types(document,
         ConcreteReference(FieldReferenceStep("value"),
                           ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))))

@@ -106,6 +106,10 @@ _json_replaceable(doc, sel) =
 @insertion JsonObjectEntry = @selected JsonObjectEntry("", JsonInsertion()) key{0}
 @insertion JsonObject      = @selected JsonObject([JsonObjectEntry("", JsonInsertion())]) entries[1].key{0}
 
+# A number whose text does not parse yet, such as `-` or `1e`, is the insertion
+# of the domain with that text, until a key makes a number of it again.
+make_incomplete_number_document(::JsonNumber, text) = JsonInsertion(text)
+
 @gestures JsonDocument begin
     when(_json_replaceable(doc, sel))
     KeyPress('n') => "Replace with null"   => replace_selected_document(doc, @selected JsonNull())

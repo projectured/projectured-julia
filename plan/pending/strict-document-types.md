@@ -405,6 +405,36 @@ worktree. The three domains test different parts of the model:
   `JsonNumber.value`. The generated `JsonInsertion` learns to hold the text of a number and to
   turn into a `JsonNumber` when the text parses, as `PrimitiveInsertion` does. XML has no number
   field.
+  *The JSON part is done (2026-10-06); the Julia part is open.* What is built:
+  - **The number becomes the insertion in the reader.** `make_number_range_operation(input,
+    reference, replacement)` in the primitive slice makes the edit of a number: a
+    `ReplaceNumberRangeOperation` when the number shows the new text exactly or the text is
+    empty, else a replace of the number with the document that
+    `make_incomplete_number_document(number, text)` gives, with the caret after the key. The
+    generic template reader calls it for a number edit. It is in the reader and not in the
+    evaluation, because the editor makes the inverse before it evaluates: an evaluation that
+    replaced the number would make undo write a number into the text of the insertion.
+  - **The domain gives the insertion.** `make_incomplete_number_document` is a hook of the
+    primitive slice with the default `nothing`, and JSON answers `JsonInsertion(text)` for a
+    `JsonNumber`. The `domain` and `primitive` slices do not depend on each other, and the
+    projection slice depends only on `primitive`, so the domain itself gives the method. The
+    owner has not yet said yes to these two functions.
+  - **The insertion becomes a number again.** `JsonInsertionToSyntaxLeaf` builds an
+    `InsertionToSyntaxLeaf` with three options that exist: `commit_at_key` turns the insertion
+    into a `JsonNumber` at the key that makes a text that a number shows exactly, Enter commits
+    any text that parses as a number, and the completion shows such a text as valid. A text
+    such as `1e5` never shows exactly (`100000.0`), so only Enter commits it.
+  - **A template gives a text edit to the element that holds it** (the owner's decision,
+    2026-10-06: for every element). Before, the template wrote a text edit inside an element
+    itself, and asked a child for a retype only when the child was also a template, so an
+    insertion leaf inside an array never saw its edit. Now `find_template_output_child(iomap,
+    reference)` in `ProjectionTemplate.jl` finds the element that holds the position of the
+    output, for each kind of wiring, and the template reader in `ReaderDefaults.jl` gives the
+    edit to the reader of the element and puts the input steps in front of the answer, as a
+    key event already does. `find_template_value_retype` answers only for a leaf.
+  - Tests: `test_json()` 231 pass, no fail. The test "a letter typed into a number is ignored"
+    now asserts that `.` after `42` in an array gives `JsonInsertion("42.")`, and that `5` then
+    gives `JsonNumber(42.5)`.
 - [ ] **Step 3: the check.** Add the check of §3.3 to the reactive layout and to the `CellVector`,
   for every type at once (S-1). A refused write throws the exception type of S-6. The writes that
   Step 0 found in other domains are fixed in this step, or the check does not land.
