@@ -9277,13 +9277,28 @@ function _wt_get_header(headers, k::Int)
     header === nothing ? _wt_empty_cell() : header
 end
 
-# The cell in row `r` and column `c` of `cells`, or an empty cell where the row
-# has none.
-function _wt_get_cell(cells, r::Int, c::Int)
-    row = cells[r]
-    cell = (row !== nothing && c <= length(row)) ? row[c] : nothing
+# Whether the body of `w` holds columns of cells, `cells[c][r]`, and not rows.
+_is_column_major(w::WidgetTable) = w.cell_order === :column_major
+
+# Whether the body of `w` is a list in either direction, which the parts of a
+# table draw one row at a time.
+_is_listed_body(w::WidgetTable) =
+    w.cells isa ListNode || (_is_column_major(w) && any(column -> column isa ListNode, w.cells))
+
+# The cell in row `r` and column `c` of the body of `w`, in the order of the
+# table, or an empty cell where the body has none.
+function _wt_get_cell(w::WidgetTable, r::Int, c::Int)
+    outer, inner = _is_column_major(w) ? (c, r) : (r, c)
+    cells = w.cells
+    line = outer <= length(cells) ? cells[outer] : nothing
+    cell = (line !== nothing && inner <= length(line)) ? line[inner] : nothing
     cell === nothing ? _wt_empty_cell() : cell
 end
+
+# The count of the rows of a body that is a vector: its length, or in a
+# column-major table the length of its longest column.
+_count_body_rows(w::WidgetTable) =
+    _is_column_major(w) ? maximum((length(column) for column in w.cells); init = 0) : length(w.cells)
 
 # The height of what a part printed for one cell, or 0 for no cell.
 _get_part_child_height(cim) =
@@ -9313,8 +9328,7 @@ _wt_is_content_column(policy::SizePolicy) =
 function _print_eager_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx,
                                   graphics, pad_x::Int, pad_y::Int, bw::Int)
     n = something(get_widget_table_column_count(w), 0)
-    rows = w.cells
-    m = length(rows)
+    m = _count_body_rows(w)
     hgap = 2 * pad_x + bw
     vgap = 2 * pad_y + bw
     content_x, content_y = _content_offset(p, w)
@@ -9375,7 +9389,7 @@ function _print_eager_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::
     column_policies = Cell(@computation Any[
         _get_cells_column_policy(w, c, get_column_header(c), widest[c]) for c in 1:n])
     row_policies = Cell(@computation Any[_wt_get_cells_row_policy(w, r, get_row_header(r)) for r in 1:m])
-    grid = GridLayout(CellVector(Cell[Cell(_wt_get_cell(rows, r, c)) for r in 1:m for c in 1:n]),
+    grid = GridLayout(CellVector(Cell[Cell(_wt_get_cell(w, r, c)) for r in 1:m for c in 1:n]),
                       Cell(max(1, n)), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap), Cell(aligns),
                       Cell(w.column_policy), Cell(w.row_policy), column_policies, row_policies,
                       Cell(wraps), Cell(Bool[]), Cell(Any[]), Cell(nothing))
@@ -9481,7 +9495,7 @@ end
 # (:table,_,_) | (:row,r,_) | (:col,c,_) | (:cell,r,c) | (:column_header,c,_) |
 # (:row_header,r,_) | nothing. A header is a part of its own, apart from its
 # column or its row.
-function _wt_selection_shape(sel, geom::WTGeometry)
+function _wt_selection_shape(w::WidgetTable, sel, geom::WTGeometry)
     sel isa EmptyReference && return (:table, 0, 0)
     fe = _wt_field_element_terminal(sel)
     if fe !== nothing
@@ -9502,17 +9516,26 @@ function _wt_selection_shape(sel, geom::WTGeometry)
         return nothing
     end
     # `cells[r][c]∅` → whole cell (r,c).
-    rc = _wt_cell_terminal(sel)
+    rc = _wt_cell_terminal(w, sel)
     rc === nothing && return nothing
     r, c = rc
     (1 <= r <= geom.nrows && 1 <= c <= geom.ncols) || return nothing
     return (:cell, r, c)
 end
 
-# `cells[r][c]…` — element c of row r. Returns `(r, c, tail_after_cell)` for a path
-# that begins with the two element steps under `cells`, else nothing. The tail lets a
-# caller distinguish a whole cell (`tail` is `∅`) from an in-cell content cursor.
-function _wt_cell_split(sel)
+# `cells[r][c]…` of `w`, or `cells[c][r]…` of a column-major `w` — the cell in row
+# r and column c. Returns `(r, c, tail_after_cell)` for a path that begins with the
+# two element steps under `cells`, else nothing. The tail lets a caller
+# distinguish a whole cell (`tail` is `∅`) from an in-cell content cursor.
+function _wt_cell_split(w::WidgetTable, sel)
+    split = _wt_split_cell_path(sel)
+    (split === nothing || !_is_column_major(w)) && return split
+    (split[2], split[1], split[3])
+end
+
+# The two element steps under `cells` and the rest, `(outer, inner, rest)`, in
+# the order of the path, or nothing.
+function _wt_split_cell_path(sel)
     sel isa ConcreteReference || return nothing
     (sel.head isa FieldReferenceStep && sel.head.name == "cells") || return nothing
     t = sel.tail
@@ -9526,22 +9549,22 @@ function _wt_cell_split(sel)
     (r, c, t2.tail)
 end
 
-# `cells[r][c]∅` (whole cell, terminating) → (r, c), else nothing.
-_wt_cell_terminal(sel) =
-    (s = _wt_cell_split(sel); s === nothing || !(s[3] isa EmptyReference) ? nothing : (s[1], s[2]))
+# A whole cell, terminating, → (r, c), else nothing.
+_wt_cell_terminal(w::WidgetTable, sel) =
+    (s = _wt_cell_split(w, sel); s === nothing || !(s[3] isa EmptyReference) ? nothing : (s[1], s[2]))
 
-# `cells[r][c]…` (whole cell OR an in-cell content cursor beneath it) → (r, c), else
-# nothing — unlike `_wt_cell_terminal` it does not require the path to terminate at the
+# A whole cell OR an in-cell content cursor beneath it → (r, c), else nothing —
+# unlike `_wt_cell_terminal` it does not require the path to terminate at the
 # cell, so an in-cell cursor can be promoted to its enclosing cell.
-_wt_cell_prefix(sel) =
-    (s = _wt_cell_split(sel); s === nothing ? nothing : (s[1], s[2]))
+_wt_cell_prefix(w::WidgetTable, sel) =
+    (s = _wt_cell_split(w, sel); s === nothing ? nothing : (s[1], s[2]))
 
 # (x, y, w, h) of the selection highlight band in outer-canvas coordinates, or
 # (0, 0, 0, 0) when there is no valid selection — a 0-size rect the renderer skips.
 # Drawn as a persistent overlay whose geometry reads the selection, so a caret
 # move never rebuilds the table's content vector (printer-locality dimension A).
-function _wt_highlight_bounds(sel, geom::WTGeometry)
-    shape = _wt_selection_shape(sel, geom)
+function _wt_highlight_bounds(w::WidgetTable, sel, geom::WTGeometry)
+    shape = _wt_selection_shape(w, sel, geom)
     shape === nothing && return (0, 0, 0, 0)
     kind = shape[1]
     if kind === :table
@@ -9577,7 +9600,7 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     # this is: a list draws the rows a viewport shows, a vector draws them all.
     # A corner makes a table of a list, whose rows can be an empty vector at
     # first.
-    (w.cells isa ListNode || w.corner !== nothing) && return _print_table_parts(p, recursion, w, ctx)
+    (_is_listed_body(w) || w.corner !== nothing) && return _print_table_parts(p, recursion, w, ctx)
     position = w.position::Point2D
     # The cell padding is the projection's, from the theme: how a table is
     # drawn is not what a table is.
@@ -9648,9 +9671,9 @@ function _wt_make_graphics(p::WidgetTableToGraphicsCanvas, w::WidgetTable, geom:
     if geom.has_row_headers
         push!(result, GraphicsRect(0, 0, geom.col_x[2], geom.total_h; color = header_row_color))
     end
-    push!(result, _wt_make_band(() -> _find_wt_lit_reference(get_mouse_target(w)), geom,
+    push!(result, _wt_make_band(w, () -> _find_wt_lit_reference(w, get_mouse_target(w)), geom,
                                 p.layer_hovered_color, p.row_radius))
-    push!(result, _wt_make_band(() -> w.selection, geom, row_selected_color, p.row_radius))
+    push!(result, _wt_make_band(w, () -> w.selection, geom, row_selected_color, p.row_radius))
     # The frame of each open cell whose last commit failed.
     marks = CellVector(@computation begin
         rects = Any[]
@@ -9680,8 +9703,8 @@ end
 
 # A band over the row, the column, the cell or the table that `reference()`
 # names, or a 0×0 rect when it names none.
-function _wt_make_band(reference, geom::WTGeometry, color, radius::Int)
-    bounds = Cell(@computation _wt_highlight_bounds(reference(), geom))
+function _wt_make_band(w::WidgetTable, reference, geom::WTGeometry, color, radius::Int)
+    bounds = Cell(@computation _wt_highlight_bounds(w, reference(), geom))
     rect = GraphicsRect(0, 0, 0, 0; color, radius)
     set_cell_computation!(getfield(rect, :x), () -> Int32(bounds[][1]))
     set_cell_computation!(getfield(rect, :y), () -> Int32(bounds[][2]))
@@ -9739,11 +9762,11 @@ function _wt_find_part_entry(iomap::WidgetTableToGraphicsCanvasIoMap, reference)
         (pane === nothing || !(1 <= k <= parts.rows)) && return nothing
         return (pane, k, (FieldReferenceStep("row_headers"), RangeReferenceStep(k - 1, k)), tail.tail)
     elseif head.name == "cells"
-        split = _wt_cell_split(reference)
+        split = _wt_cell_split(iomap.input, reference)
         split === nothing && return nothing
         r, c, rest = split
         (1 <= r <= parts.rows && 1 <= c <= parts.columns) || return nothing
-        return (parts.cells_pane, (r - 1) * parts.columns + c, _wt_get_cell_steps(r, c), rest)
+        return (parts.cells_pane, (r - 1) * parts.columns + c, _wt_get_cell_steps(iomap.input, r, c), rest)
     end
     nothing
 end
@@ -9810,14 +9833,17 @@ function _map_wt_point(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraph
     kind === :col && return ConcreteReference(FieldReferenceStep("column_headers"),
                                 ConcreteReference(RangeReferenceStep(hit[2] - 1, hit[2])))
     kind === :cell || return nothing
-    _wt_cell_ref(hit[2], hit[3])
+    _wt_cell_ref(iomap.input, hit[2], hit[3])
 end
 
 map_reference_backward(::WidgetTableToGraphicsCanvas, iomap, reference) = nothing
 
-# The steps from the table to the body cell in row `r` and column `c`.
-_wt_get_cell_steps(r::Int, c::Int) =
-    (FieldReferenceStep("cells"), RangeReferenceStep(r - 1, r), RangeReferenceStep(c - 1, c))
+# The steps from the table to the body cell in row `r` and column `c`:
+# `cells[r][c]`, or `cells[c][r]` in a column-major table.
+_wt_get_cell_steps(w::WidgetTable, r::Int, c::Int) =
+    _is_column_major(w) ?
+        (FieldReferenceStep("cells"), RangeReferenceStep(c - 1, c), RangeReferenceStep(r - 1, r)) :
+        (FieldReferenceStep("cells"), RangeReferenceStep(r - 1, r), RangeReferenceStep(c - 1, c))
 
 # ── Reading (gestures) ───────────────────────────────────────────────────────
 # Gesture-aware reader. Left clicks resolve here (header/corner → row/column/
@@ -9868,7 +9894,7 @@ function _wt_mouse_select(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGr
         return _wt_route_header_click(iomap, hit[2], g, x, y)
     elseif kind === :cell
         r, c = hit[2], hit[3]
-        g.modifiers.alt && return ReplaceSelectionOperation(_wt_cell_ref(r, c))
+        g.modifiers.alt && return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, r, c))
         return _wt_route_cell_click(iomap, r, c, g, x, y)
     end
     return nothing
@@ -9916,8 +9942,11 @@ end
 # that row); a column header → its column, which a press there selects; the
 # corner → none. The reference of the row or the column of the place that
 # `target` names, or nothing.
-function _find_wt_lit_reference(target)
-    row = _widget_element_selected(target, "cells")
+function _find_wt_lit_reference(w::WidgetTable, target)
+    cell = _wt_cell_prefix(w, target)
+    cell === nothing || cell[1] < 1 || return _wt_row_ref(cell[1])
+    # A whole row of a row-major body, `cells[r]`.
+    row = _is_column_major(w) ? 0 : _widget_element_selected(target, "cells")
     row > 0 && return _wt_row_ref(row)
     row = _widget_element_selected(target, "rows")
     row > 0 && return _wt_row_ref(row)
@@ -9945,7 +9974,7 @@ function _wt_route_cell_click(iomap::WidgetTableToGraphicsCanvasIoMap, r::Int, c
     op = read_intent(cim.projection, cim, MouseClick(g.button, x - left, y - top, g.count, g.modifiers;
                                                      time = g.time))
     op === nothing && return ReplaceSelectionOperation(_wt_row_ref(r))
-    reroot_operation(op, _wt_get_cell_steps(r, c))
+    reroot_operation(op, _wt_get_cell_steps(iomap.input, r, c))
 end
 
 # Keyboard grid navigation, addressed via cells[r][c].
@@ -9958,14 +9987,14 @@ function _wt_key_navigate(iomap::WidgetTableToGraphicsCanvasIoMap, evt::KeyDown,
         return ReplaceSelectionOperation(EmptyReference())
     end
 
-    shape = _wt_selection_shape(sel, geom)
-    cell_rc = _wt_cell_terminal(sel)
+    shape = _wt_selection_shape(iomap.input, sel, geom)
+    cell_rc = _wt_cell_terminal(iomap.input, sel)
 
     if evt.key === :return
         if shape !== nothing && shape[1] === :row
-            return ReplaceSelectionOperation(_wt_cell_ref(shape[2], 1))
+            return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, shape[2], 1))
         elseif shape !== nothing && shape[1] === :col
-            return ReplaceSelectionOperation(_wt_cell_ref(1, shape[2]))
+            return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, 1, shape[2]))
         elseif cell_rc !== nothing
             return _wt_enter_cell_content(iomap, cell_rc[1], cell_rc[2])
         end
@@ -9990,7 +10019,7 @@ function _wt_key_navigate(iomap::WidgetTableToGraphicsCanvasIoMap, evt::KeyDown,
             elseif evt.key === :down
                 return ReplaceSelectionOperation(_wt_row_ref(min(nrows, r + 1)))
             elseif evt.key === :right
-                return ReplaceSelectionOperation(_wt_cell_ref(r, 1))
+                return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, r, 1))
             else
                 return nothing
             end
@@ -10001,7 +10030,7 @@ function _wt_key_navigate(iomap::WidgetTableToGraphicsCanvasIoMap, evt::KeyDown,
             elseif evt.key === :right
                 return ReplaceSelectionOperation(_wt_col_ref(min(ncols, c + 1)))
             elseif evt.key === :down
-                return ReplaceSelectionOperation(_wt_cell_ref(1, c))
+                return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, 1, c))
             else
                 return nothing
             end
@@ -10012,7 +10041,7 @@ function _wt_key_navigate(iomap::WidgetTableToGraphicsCanvasIoMap, evt::KeyDown,
             # cursor — `shape` is nothing and `alt` is unset, so the block above is
             # skipped and the arrow stays with the cell's own text editing; only
             # Alt+arrow promotes.
-            rc = cell_rc === nothing ? _wt_cell_prefix(sel) : cell_rc
+            rc = cell_rc === nothing ? _wt_cell_prefix(iomap.input, sel) : cell_rc
             rc === nothing && return nothing
             r, c = rc
             if evt.key === :up
@@ -10024,7 +10053,7 @@ function _wt_key_navigate(iomap::WidgetTableToGraphicsCanvasIoMap, evt::KeyDown,
             elseif evt.key === :right
                 c = min(ncols, c + 1)
             end
-            return ReplaceSelectionOperation(_wt_cell_ref(r, c))
+            return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, r, c))
         end
     end
     return nothing
@@ -10047,7 +10076,7 @@ end
 function _read_open_cell_key(w::WidgetTable, g::KeyDown)
     g.key in (:return, :tab, :escape) || return nothing
     isempty(something(w.open_cells, ())) && return nothing
-    prefix = _wt_cell_prefix(w.selection)
+    prefix = _wt_cell_prefix(w, w.selection)
     prefix === nothing && return nothing
     k, c = prefix
     _find_open_cell(w, k, c) === nothing && return nothing
@@ -10070,7 +10099,7 @@ function _read_whole_cell_key(w::WidgetTable, g)
     else
         return nothing
     end
-    cell = _wt_cell_terminal(w.selection)
+    cell = _wt_cell_terminal(w, w.selection)
     cell === nothing && return nothing
     k, c = cell
     _find_open_cell(w, k, c) === nothing || return nothing
@@ -10090,7 +10119,7 @@ end
 function _read_cell_mark_dwell(w::WidgetTable, k::Int, c::Int, g::MouseDwell)
     cell = _find_open_cell(w, k, c)
     (cell === nothing || cell.reason === nothing) && return nothing
-    reroot_operation(make_tooltip_operation(w, PrimitiveString(cell.reason), g), _wt_get_cell_steps(k, c))
+    reroot_operation(make_tooltip_operation(w, PrimitiveString(cell.reason), g), _wt_get_cell_steps(w, k, c))
 end
 
 _wt_row_ref(r::Int) = ConcreteReference(FieldReferenceStep("rows"),
@@ -10100,9 +10129,7 @@ _wt_col_ref(c::Int) = ConcreteReference(FieldReferenceStep("columns"),
 # The header of column `c` itself, a part apart from its column.
 _wt_column_header_ref(c::Int) = ConcreteReference(FieldReferenceStep("column_headers"),
     ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))
-_wt_cell_ref(r::Int, c::Int) = ConcreteReference(FieldReferenceStep("cells"),
-    ConcreteReference(RangeReferenceStep(r - 1, r),
-    ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference())))
+_wt_cell_ref(w::WidgetTable, r::Int, c::Int) = extend_reference(EmptyReference(), _wt_get_cell_steps(w, r, c)...)
 
 # Place a character cursor at the start of a cell's content.
 function _wt_enter_cell_content(iomap::WidgetTableToGraphicsCanvasIoMap, r::Int, c::Int)
@@ -10113,7 +10140,7 @@ function _wt_enter_cell_content(iomap::WidgetTableToGraphicsCanvasIoMap, r::Int,
     op = read_intent(cim.projection, cim, KeyDown(:home, ModifierKeys(ctrl=true);
                                                   time = time()))
     op isa ReplacePathOperation || return nothing
-    reroot_operation(op, _wt_get_cell_steps(r, c))
+    reroot_operation(op, _wt_get_cell_steps(iomap.input, r, c))
 end
 
 # 3-arg form: a *parent* container (composite, grid, split pane) routes a raw
@@ -10163,7 +10190,7 @@ function _wt_read_cell_under(p::WidgetTableToGraphicsCanvas,
     geom = iomap.geometry
     x, y = _wt_get_unscrolled_point(p, iomap, Int(event.x), Int(event.y))
     hit = _wt_hit_test(geom, x, y)
-    reference = hit[1] === :cell ? _wt_cell_ref(hit[2], hit[3]) :
+    reference = hit[1] === :cell ? _wt_cell_ref(iomap.input, hit[2], hit[3]) :
                 hit[1] === :col  ? _wt_column_header_ref(hit[2]) :
                 (hit[1] === :row && geom.has_row_headers) ?
                     ConcreteReference(FieldReferenceStep("row_headers"),
@@ -10208,7 +10235,7 @@ end
 function _wt_route_to_selected_cell(iomap::WidgetTableToGraphicsCanvasIoMap, event)
     geom = iomap.geometry
     selection = iomap.input.selection
-    shape = _wt_selection_shape(selection, geom)
+    shape = _wt_selection_shape(iomap.input, selection, geom)
     (shape === nothing || shape[1] === :cell) || return nothing
     found = _wt_find_part_entry(iomap, selection)
     found === nothing && return nothing

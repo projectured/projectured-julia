@@ -131,7 +131,7 @@ function _make_page_table(table::MarkdownTable)
     # Each column sits where the delimiter row says.
     columns = Cell(@computation Any[WidgetTableColumn(; align) for align in _make_column_align(table.alignments)])
     widget = WidgetTable(Cell(Point2D(0, 0)), column_headers, CellVector(), Cell(nothing), rows,
-                         Cell(@computation WidgetTableRows(length(rows))), columns,
+                         Cell(:row_major), Cell(@computation WidgetTableRows(length(rows))), columns,
                          Cell(1),                          # border_width
                          Cell(Fill), Cell(Content),        # the columns share the width
                          Cell(:wrap),                      # an entry breaks its lines at its column

@@ -2445,9 +2445,18 @@ that the grids report ("layout is just layout").
   wide as the corner, and the header row at least as tall.
 - `cells` — the body: a `CellVector` of rows of cells, or a `ListNode` whose
   values are rows of cells; a row of cells is a `CellVector` of `Document`
-  cells either way. A list is drawn one row at a time as a viewport reaches it,
-  and `cells[i]` counts from the list's head — the head is row 1, and a row
-  reached through `prev` has an index of zero or less.
+  cells, or a `ListNode` of them in a table whose columns are a list. A list is
+  drawn one row at a time as a viewport reaches it, and `cells[i]` counts from
+  the list's head — the head is row 1, and a row reached through `prev` has an
+  index of zero or less.
+- `cell_order` — `:row_major`, the default, where the body holds rows of cells
+  and a cell is `cells[r][c]`, or `:column_major`, where the body holds columns
+  of cells, the same way, and a cell is `cells[c][r]`. Each direction can be a
+  list on its own, whatever the order; the order only says which index is the
+  outer one. A column-major body has a row where a column of a vector has one,
+  so a shorter column is empty at its end; a list of columns has the rows of
+  its head column. Its rows move their head as a list of rows does only when
+  each column is a list.
 - `rows` — the data of the rows: a vector of [`WidgetTableRow`](@ref), or a
   [`WidgetTableRows`](@ref) that holds their count when a caller gave none. The
   path `rows[r]` of a whole row steps through it.
@@ -2458,8 +2467,9 @@ that the grids report ("layout is just layout").
   and the count of the columns is its length or its count.
 
 The paths of a table are its field names: `rows[r]` is a row, `columns[c]` a
-column, `cells[r][c]` a cell, `column_headers[c]` the header of a column and
-`row_headers[r]` the header of a row, each a part of its own. A press on a
+column, `cells[r][c]` a cell (`cells[c][r]` in a column-major table),
+`column_headers[c]` the header of a column and `row_headers[r]` the header of a
+row, each a part of its own. A press on a
 column header selects its column and a press on a row header its row; a press
 in the content of a header goes to the header.
 - `border_width::Int` — the width of the outer frame and the grid lines. The
@@ -2509,6 +2519,7 @@ See also `make_result_table` and `WidgetList` for one column.
     row_headers::CellVector      # of Document (or nothing) — optional left strip; a ListNode beside a list of rows
     corner::Any                  # Document or nothing — where the header row and the header column meet
     cells::Any                   # CellVector of rows of cells, or a ListNode of them; a row is a CellVector of Document cells
+    cell_order::Symbol           # :row_major (cells[r][c]) or :column_major (cells[c][r])
     rows::Any                    # the data of the rows: a vector of WidgetTableRow, or a WidgetTableRows
     columns::Any                 # the data of the columns: a vector or a ListNode of WidgetTableColumn, or a WidgetTableColumns
     border_width::Int
@@ -2548,6 +2559,8 @@ _table_cell_doc(v)           = WidgetLabel(string(v))
 
 # Wrap one body row (a Vector of values or Documents) into a CellVector of cells.
 _table_row(r) = CellVector(Cell[Cell(_table_cell_doc(c)) for c in r])
+# A column of a column-major body that is a list stays the list.
+_table_row(r::ListNode) = r
 
 # The body of a table: a vector of rows of cells becomes a collection of them,
 # and a list stays the list, which the table draws one row at a time.
@@ -2555,7 +2568,7 @@ _table_cells(cells::Vector) = CellVector(Cell[Cell(_table_row(r)) for r in cells
 _table_cells(cells::ListNode) = Cell(cells)
 
 """
-    WidgetTable(; position, column_headers, cells, rows=nothing, columns=nothing,
+    WidgetTable(; position, column_headers, cells, cell_order=:row_major, rows=nothing, columns=nothing,
                 row_headers=Any[], corner=nothing, border_width=1, visible=true,
                 column_policy=Content, row_policy=Content, cell_policy=:clip,
                 scroll_position=Point2D(0, 0))
@@ -2563,8 +2576,10 @@ _table_cells(cells::ListNode) = Cell(cells)
 Document-cell constructor. `column_headers` and `row_headers` are `Vector`s of
 `Document`/`nothing`, and a table has no row headers unless it is given some.
 `cells` is a `Vector` of rows, each a `Vector` of `Document`/value cells, or a
-`ListNode` of rows. `rows` is a `Vector` of [`WidgetTableRow`](@ref) and
-`columns` a `Vector` of [`WidgetTableColumn`](@ref), the data of the rows and of
+`ListNode` of rows; with `cell_order = :column_major` it holds columns the same
+way, and a cell is `cells[c][r]`. `rows` is a `Vector` of
+[`WidgetTableRow`](@ref) and `columns` a `Vector` of
+[`WidgetTableColumn`](@ref), the data of the rows and of
 the columns, or `nothing`: then the table counts the rows of `cells`, and the
 columns of `column_headers` or else of the widest row.
 
@@ -2603,7 +2618,7 @@ one line, cut at the column's edge.
 `:center` or `:right`, as a `GridLayout`'s `column_align` says.
 """
 function WidgetTable(; position::Point2D=Point2D(0, 0), column_headers::Union{Vector,ListNode},
-                     cells::Union{Vector,ListNode}, rows=nothing, columns=nothing,
+                     cells::Union{Vector,ListNode}, cell_order::Symbol=:row_major, rows=nothing, columns=nothing,
                      row_headers::Union{Vector,ListNode}=Any[], corner=nothing,
                      border_width::Integer=1, visible::Bool=true,
                      column_policy::SizePolicy=Content, row_policy::SizePolicy=Content,
@@ -2612,6 +2627,8 @@ function WidgetTable(; position::Point2D=Point2D(0, 0), column_headers::Union{Ve
                      margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing)
     cell_policy in (:clip, :wrap) ||
         error("WidgetTable: cell_policy is :clip or :wrap, not ", repr(cell_policy))
+    cell_order in (:row_major, :column_major) ||
+        error("WidgetTable: cell_order is :row_major or :column_major, not ", repr(cell_order))
     (rows === nothing || (rows isa Vector && all(row -> row isa WidgetTableRow, rows))) ||
         error("WidgetTable: `rows` takes the data of the rows, a vector of WidgetTableRow; ",
               "the cells of a table go in `cells`")
@@ -2626,43 +2643,56 @@ function WidgetTable(; position::Point2D=Point2D(0, 0), column_headers::Union{Ve
                 error("WidgetTable: a column's cell_policy is :clip or :wrap, not ", repr(column.cell_policy))
         end
     end
-    cells isa ListNode && row_headers isa Vector && !isempty(row_headers) &&
-        error("WidgetTable: a table whose rows are a list takes its row headers as a list")
-    cells isa Vector && row_headers isa ListNode &&
-        error("WidgetTable: a table whose rows are a vector takes its row headers as a vector")
-    cells isa Vector && !isempty(cells) && corner !== nothing &&
-        error("WidgetTable: a table with a corner draws its rows as a list, and takes a list ",
-              "of rows or an empty vector")
+    if cell_order === :row_major
+        cells isa ListNode && row_headers isa Vector && !isempty(row_headers) &&
+            error("WidgetTable: a table whose rows are a list takes its row headers as a list")
+        cells isa Vector && row_headers isa ListNode &&
+            error("WidgetTable: a table whose rows are a vector takes its row headers as a vector")
+        cells isa Vector && !isempty(cells) && corner !== nothing &&
+            error("WidgetTable: a table with a corner draws its rows as a list, and takes a list ",
+                  "of rows or an empty vector")
+    end
     headers = column_headers isa ListNode ? Cell(column_headers) :
               CellVector(Cell[Cell(_table_cell_doc(h)) for h in column_headers])
     body = _table_cells(cells)
+    column_major = cell_order === :column_major
     WidgetTable(Cell(position), headers,
                 row_headers isa ListNode ? Cell(row_headers) :
                     CellVector(Cell[Cell(_table_cell_doc(h)) for h in row_headers]),
-                Cell(_table_cell_doc(corner)), body,
-                _make_table_rows(rows, body), _make_table_columns(columns, headers, body),
+                Cell(_table_cell_doc(corner)), body, Cell(cell_order),
+                _make_table_rows(rows, body, column_major), _make_table_columns(columns, headers, body, column_major),
                 Cell(Int(border_width)), Cell(column_policy), Cell(row_policy), Cell(cell_policy),
                 Cell(visible), Cell(margin), Cell(border), Cell(padding), Cell(style),
                 Cell(scroll_position), Cell(1), Cell(nothing), Cell(open_cells === nothing ? nothing : collect(Any, open_cells)), Cell(tooltip))
 end
 
 # The field `rows` of a table: the data that a caller gave, or the count of the
-# rows of `body`, which follows it; a list has no count.
-_make_table_rows(rows::Vector, body) = Cell(collect(Any, rows))
-_make_table_rows(::Nothing, body::CellVector) = Cell(@computation WidgetTableRows(length(body)))
-_make_table_rows(::Nothing, body) = Cell(WidgetTableRows(nothing))
+# rows of `body`, which follows it: its length, or in a column-major table the
+# length of its longest column; a list has no count.
+_make_table_rows(rows::Vector, body, column_major::Bool) = Cell(collect(Any, rows))
+function _make_table_rows(::Nothing, body, column_major::Bool)
+    body isa CellVector || return Cell(WidgetTableRows(nothing))
+    column_major || return Cell(@computation WidgetTableRows(length(body)))
+    Cell(@computation any(column -> column isa ListNode, body) ? WidgetTableRows(nothing) :
+                      WidgetTableRows(maximum((length(column) for column in body); init = 0)))
+end
 
 # The field `columns` of a table: the data that a caller gave, or the count of
-# the columns, of `headers` or else of the widest row of `body`, which follows
-# them; a list of headers has no count.
-_make_table_columns(columns::Vector, headers, body) = Cell(collect(Any, columns))
-_make_table_columns(columns::ListNode, headers, body) = Cell(columns)
-function _make_table_columns(::Nothing, headers, body)
+# the columns, of `headers` or else of the widest row of `body`, or of the
+# columns of a column-major body, which follows them; a list has no count.
+_make_table_columns(columns::Vector, headers, body, column_major::Bool) = Cell(collect(Any, columns))
+_make_table_columns(columns::ListNode, headers, body, column_major::Bool) = Cell(columns)
+function _make_table_columns(::Nothing, headers, body, column_major::Bool)
     headers isa CellVector || return Cell(WidgetTableColumns(nothing))
     Cell(@computation begin
         n = length(headers)
-        n == 0 && body isa CellVector && (n = maximum((length(row) for row in body); init = 0))
-        WidgetTableColumns(n)
+        if n > 0
+            WidgetTableColumns(n)
+        elseif !(body isa CellVector)
+            WidgetTableColumns(column_major ? nothing : 0)
+        else
+            WidgetTableColumns(column_major ? length(body) : maximum((length(row) for row in body); init = 0))
+        end
     end)
 end
 
@@ -2715,12 +2745,15 @@ _count_table_columns(columns) = nothing
 function Base.show(io::IO, ::MIME"text/plain", table::WidgetTable)
     headers = [_describe_table_header(header) for header in table.column_headers]
     columns = isempty(headers) ? something(get_widget_table_column_count(table), 0) : length(headers)
-    print(io, "WidgetTable(", _count_table_rows(table.cells), " rows × ", columns, " columns")
+    rows = table.cell_order === :column_major ?
+        something(_count_table_rows(table.rows), 0) : _count_table_rows(table.cells)
+    print(io, "WidgetTable(", rows, " rows × ", columns, " columns")
     isempty(headers) || print(io, ": ", join(headers, ", "))
     print(io, ")")
 end
 
 _count_table_rows(rows) = try count(_ -> true, rows) catch; 0 end
+_count_table_rows(rows::WidgetTableRows) = rows.count
 
 _describe_table_header(header::Cell) = _describe_table_header(header[])
 _describe_table_header(header::AbstractString) = String(header)

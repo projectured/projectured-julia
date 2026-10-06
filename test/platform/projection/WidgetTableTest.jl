@@ -46,14 +46,14 @@ end
     driver = MttDriver(_rec, w)
     # A move onto a body cell → its whole row lights.
     _mtt_move!(driver, _bx(g), _rowy(g, 1), 1.0)
-    row1 = WidgetModule._find_wt_lit_reference(get_mouse_target(w))
+    row1 = WidgetModule._find_wt_lit_reference(w, get_mouse_target(w))
     @test row1 == WidgetModule._wt_row_ref(1)
     # Another cell of the same row → the same light.
     _mtt_move!(driver, _bx(g), _rowy(g, 1), 1.1)
-    @test WidgetModule._find_wt_lit_reference(get_mouse_target(w)) == row1
+    @test WidgetModule._find_wt_lit_reference(w, get_mouse_target(w)) == row1
     # Another row → a different light.
     _mtt_move!(driver, _bx(g), _rowy(g, 2), 1.2)
-    row2 = WidgetModule._find_wt_lit_reference(get_mouse_target(w))
+    row2 = WidgetModule._find_wt_lit_reference(w, get_mouse_target(w))
     @test row2 !== nothing && row2 != row1
     # The table's own reader never answers a motion: the light comes only from
     # the mouse target that a move writes.
@@ -68,7 +68,7 @@ end
     chy = (g.row_y[1] + g.row_y[2]) ÷ 2    # grid row 1 = the column-header strip
     driver = MttDriver(_rec, w)
     _mtt_move!(driver, _bx(g), chy, 1.0)
-    lit = WidgetModule._find_wt_lit_reference(get_mouse_target(w))
+    lit = WidgetModule._find_wt_lit_reference(w, get_mouse_target(w))
     @test lit == WidgetModule._wt_col_ref(1)
     # Clicking the column header still selects the column (the light does not
     # shadow the click path). A body cell here holds a WidgetLabel, whose click
@@ -76,7 +76,7 @@ end
     @test _rd(io, MouseClick(:left, _bx(g), chy, _mods; time = 0.0)) isa ReplaceSelectionOperation
     # A lit column differs from a lit body row.
     _mtt_move!(driver, _bx(g), _rowy(g, 1), 1.1)
-    @test WidgetModule._find_wt_lit_reference(get_mouse_target(w)) != lit
+    @test WidgetModule._find_wt_lit_reference(w, get_mouse_target(w)) != lit
 end
 
 @testset "the light band renders (faint overlay follows the mouse target)" begin

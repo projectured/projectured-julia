@@ -89,7 +89,8 @@ function _check_table_parts(w::WidgetTable, height)
     headers = w.row_headers
     headers isa ListNode || isempty(headers) ||
         error("WidgetTable: a table whose rows are a list takes its row headers as a list")
-    w.cells isa ListNode || isempty(w.cells) ||
+    body = _get_body_rows(w)
+    body isa ListNode || isempty(body) ||
         error("WidgetTable: a table with a corner draws its rows as a list, and takes a list ",
               "of rows or an empty vector")
     if headers isa ListNode || w.corner !== nothing
@@ -195,7 +196,124 @@ end
 # The rows that the grid of the cells walks: the list of rows, or `nothing`, a
 # list with no rows, while the rows are a vector. So the grid is a list from its
 # first print on, and draws a list that the rows hold later.
-_get_row_list(w::WidgetTable) = Cell(@computation (cells = w.cells; cells isa ListNode ? cells : nothing))
+_get_row_list(w::WidgetTable) = Cell(@computation (body = _get_body_rows(w); body isa ListNode ? body : nothing))
+
+# ── The order of the cells ───────────────────────────────────────────────────
+
+# The body of `w` as rows of cells, as the parts walk it: the body of a
+# row-major table, and in a column-major one a view that turns it, whose cells
+# are the same documents (`_turn_columns`).
+_get_body_rows(w::WidgetTable) = _is_column_major(w) ? _turn_columns(w.cells) : w.cells
+
+# The rows of `columns`, the body of a column-major table, as a list of rows
+# that starts at the first row of each column; an empty vector when no column
+# has a row. The columns are a vector or a list, and each column is a vector or
+# a list.
+function _turn_columns(columns)
+    if columns isa ListNode
+        places = _make_mapped_node(columns, _get_first_place)
+        return _has_turned_row(places) ? _make_turned_row_node(places) : CellVector()
+    end
+    places = Any[_get_first_place(column) for column in columns]
+    _has_turned_row(places) ? _make_turned_row_node(places) : CellVector()
+end
+
+# The place of a column at one row: its node when the column is a list, a
+# `_ColumnPlace` when it is a vector, and `nothing` past its end.
+struct _ColumnPlace
+    column::Any
+    k::Int
+end
+
+_get_first_place(column::ListNode) = column
+_get_first_place(::Nothing) = nothing
+_get_first_place(column) = isempty(column) ? nothing : _ColumnPlace(column, 1)
+
+# The place `d` rows after `place`, or before it when `d` is negative.
+_step_place(place::ListNode, d::Int) = d > 0 ? place.next : place.prev
+_step_place(place::_ColumnPlace, d::Int) =
+    (k = place.k + d; 1 <= k <= length(place.column) ? _ColumnPlace(place.column, k) : nothing)
+_step_place(::Nothing, d::Int) = nothing
+
+# The cell at `place`.
+_get_place_cell(place::ListNode) = place.value
+_get_place_cell(place::_ColumnPlace) = place.column[place.k]
+_get_place_cell(::Nothing) = nothing
+
+# The node of the rows of a column-major body at `places`, the place of each
+# column at one row: a vector of places, or a list of places that mirrors a list
+# of columns. The row holds the cell at each place. The row after it steps each
+# place by one; the list ends where no column has a row, or, for a list of
+# columns, where the head column ends.
+function _make_turned_row_node(places)
+    node = ListNode(nothing)
+    set_cell_computation!(getfield(node, :value), () -> _make_turned_row(places))
+    set_cell_computation!(getfield(node, :next), () -> _make_turned_neighbour(node, places, 1))
+    set_cell_computation!(getfield(node, :prev), () -> _make_turned_neighbour(node, places, -1))
+    node
+end
+
+# The node of the row `d` rows from `node`, the row at `places`, or nothing past
+# an end.
+function _make_turned_neighbour(node::ListNode, places, d::Int)
+    stepped = _step_places(places, d)
+    _has_turned_row(stepped) || return nothing
+    neighbour = _make_turned_row_node(stepped)
+    set_cell_value!(getfield(neighbour, d > 0 ? :prev : :next), node)
+    neighbour
+end
+
+_step_places(places::ListNode, d::Int) = _make_mapped_node(places, place -> _step_place(place, d))
+_step_places(places, d::Int) = Any[_step_place(place, d) for place in places]
+
+_has_turned_row(places::ListNode) = places.value !== nothing
+_has_turned_row(places) = any(!isnothing, places)
+
+# The row at `places`: a list that mirrors a list of places, or a `CellVector`
+# whose cells follow the cells at the places.
+_make_turned_row(places::ListNode) = _make_mapped_node(places, _get_place_cell)
+_make_turned_row(places) = CellVector(Cell[Cell(@computation _get_place_cell(place)) for place in places])
+
+# A list that mirrors `source`, whose node holds `f` of the value of its node of
+# `source`, built when a walk first reaches it.
+function _make_mapped_node(source::ListNode, f)
+    node = ListNode(nothing)
+    set_cell_computation!(getfield(node, :value), () -> f(source.value))
+    set_cell_computation!(getfield(node, :next), () -> begin
+        following = source.next
+        following === nothing && return nothing
+        next_node = _make_mapped_node(following, f)
+        set_cell_value!(getfield(next_node, :prev), node)
+        next_node
+    end)
+    set_cell_computation!(getfield(node, :prev), () -> begin
+        preceding = source.prev
+        preceding === nothing && return nothing
+        prev_node = _make_mapped_node(preceding, f)
+        set_cell_value!(getfield(prev_node, :next), node)
+        prev_node
+    end)
+    node
+end
+
+# The writes that move the head of the body of `w` to its row `k`: `cells` to
+# node `k` of a list of rows. In a column-major table, `cells` to a list that
+# mirrors a list of columns, each column from its row `k` on, or each column of
+# a vector to its node `k`. `nothing` when a column of a vector is not a list or
+# has no row `k`.
+function _write_body_head(w::WidgetTable, k::Int)
+    cells = w.cells
+    if !_is_column_major(w)
+        head = _find_list_node(cells, k)
+        return head === nothing ? nothing : Any[_write_view_state(w, "cells", head)]
+    end
+    cells isa ListNode && return Any[_write_view_state(w, "cells", _make_advanced_row_node(cells, k))]
+    heads = Any[_find_list_node(column, k) for column in cells]
+    any(isnothing, heads) && return nothing
+    Any[ReplaceViewStateOperation(ReplaceReferencedValueOperation(w,
+            extend_reference(EmptyReference(), FieldReferenceStep("cells"), RangeReferenceStep(c - 1, c)), head))
+        for (c, head) in enumerate(heads)]
+end
 
 # ── The header column and the corner ─────────────────────────────────────────
 
@@ -374,7 +492,7 @@ end
 # a column, a part of its own, `(:row_header, k, 0)` for `row_headers[k]∅` and
 # `(:column_header, 0, c)` for `column_headers[c]∅`; `nothing` for anything else.
 # A row can have an index of 0 or less, before the head.
-function _find_named_part(reference)
+function _find_named_part(w::WidgetTable, reference)
     reference isa EmptyReference && return (:table, 0, 0)
     terminal = _wt_field_element_terminal(reference)
     if terminal !== nothing
@@ -385,7 +503,7 @@ function _find_named_part(reference)
         field == "column_headers" && return (:column_header, 0, index)
         return nothing
     end
-    cell = _wt_cell_terminal(reference)
+    cell = _wt_cell_terminal(w, reference)
     cell === nothing ? nothing : (:cell, cell[1], cell[2])
 end
 
@@ -570,8 +688,8 @@ end
 # in its part.
 function _make_row_band(p::WidgetTableToGraphicsCanvas, w::WidgetTable, st::WidgetTablePartsState,
                         k, band_height::Cell, kind::Symbol; span_of = _get_band_span)
-    reference() = kind === :light ? _find_wt_lit_reference(get_mouse_target(w)) : w.selection
-    span = Cell(@computation span_of(_find_named_part(reference()), k, st))
+    reference() = kind === :light ? _find_wt_lit_reference(w, get_mouse_target(w)) : w.selection
+    span = Cell(@computation span_of(_find_named_part(w, reference()), k, st))
     color = kind === :light ? p.layer_hovered_color : _get_state_color(p, w, :row; state = :selected)
     rect = GraphicsRect(0, 0, 0, 0; color, radius = p.row_radius)
     set_cell_computation!(getfield(rect, :x), () -> Int32(span[][1]))
@@ -1188,8 +1306,13 @@ function map_reference_forward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTabl
         inner = st.column_list ? ConcreteReference(RangeReferenceStep(0, 1), tail) : tail
         return _map_part_forward(iomap, st.column_header_pane, inner)
     elseif head.name == "cells"
-        _wt_cell_split(reference) === nothing && return nothing
-        return _map_part_forward(iomap, st.cells_pane, reference.tail)
+        split = _wt_cell_split(iomap.input, reference)
+        split === nothing && return nothing
+        # The pane of the cells lays out rows, so the rest goes in as `[r][c]…`
+        # whatever the order of the table.
+        k, c, rest = split
+        return _map_part_forward(iomap, st.cells_pane,
+            ConcreteReference(RangeReferenceStep(k - 1, k), ConcreteReference(RangeReferenceStep(c - 1, c), rest)))
     elseif head.name == "row_headers"
         st.row_header_pane === nothing && return nothing
         tail = reference.tail
@@ -1232,7 +1355,7 @@ function map_reference_backward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTab
     c === nothing && return nothing
     part === :header && return _wt_column_header_ref(c)
     k = _find_table_row_at(st, y)
-    k === nothing ? nothing : _wt_cell_ref(k, c)
+    k === nothing ? nothing : _wt_cell_ref(iomap.input, k, c)
 end
 
 # ── Reading ──────────────────────────────────────────────────────────────────
@@ -1241,7 +1364,7 @@ end
 # point `(x, y)` in the coordinates of the rules. The answer is rooted under
 # `cells[k][c]`; an operation that names its own document, such as the toggle
 # of a checkbox, stays as it is. `nothing` when the cell has nothing to say.
-function _read_table_cell_press(st::WidgetTablePartsState, k::Int, c::Int, g::MouseClick,
+function _read_table_cell_press(w::WidgetTable, st::WidgetTablePartsState, k::Int, c::Int, g::MouseClick,
                                 x::Int, y::Int)
     found = _find_table_cell(st, k, c)
     found === nothing && return nothing
@@ -1249,7 +1372,7 @@ function _read_table_cell_press(st::WidgetTablePartsState, k::Int, c::Int, g::Mo
     op = read_intent(cim.projection, cim, MouseClick(g.button, x - left, y - top, g.count,
                                                      g.modifiers; time = g.time))
     op === nothing && return nothing
-    reroot_operation(op, _wt_get_cell_steps(k, c))
+    reroot_operation(op, _wt_get_cell_steps(w, k, c))
 end
 
 # A left press on the header of column `c`, from the point `(x, y)` in the
@@ -1295,8 +1418,8 @@ function _read_table_parts_press(p::WidgetTableToGraphicsCanvas, iomap::WidgetTa
     end
     k = _find_table_row_at(st, y)
     k === nothing && return nothing
-    g.modifiers.alt && return ReplaceSelectionOperation(_wt_cell_ref(k, c))
-    op = _read_table_cell_press(st, k, c, g, x, y)
+    g.modifiers.alt && return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, k, c))
+    op = _read_table_cell_press(iomap.input, st, k, c, g, x, y)
     op === nothing ? ReplaceSelectionOperation(_wt_row_ref(k)) : op
 end
 
@@ -1330,10 +1453,10 @@ end
 # A scroll of the cells, and the write of the row at the top of the offset it
 # writes when that row changes. When the row is more than
 # `_TABLE_RELOCATION_DISTANCE` rows from the head, the answer moves the head of
-# `rows`, and of `row_headers` when they are a list, to it instead, and moves
-# the offset by the place of that row, so the same row stays at the same place
-# on the screen; a selection of a row moves with it. A projection that owns
-# the rows turns the write of `rows` into an edit of its own.
+# the body (`_write_body_head`), and of `row_headers` when they are a list, to
+# it instead, and moves the offset by the place of that row, so the same row
+# stays at the same place on the screen; a selection of a row moves with it. A projection that owns
+# the rows turns the write of `cells` into an edit of its own.
 function _add_top_row(iomap::WidgetTableListIoMap, op)
     w = iomap.input
     offset = _find_written_offset(op)
@@ -1348,16 +1471,16 @@ function _add_top_row(iomap::WidgetTableListIoMap, op)
         k == w.top_row && return op
         return CompoundOperation(Any[op, _write_view_state(w, "top_row", k)])
     end
-    head = _find_list_node(w.cells, k)
+    writes = _write_body_head(w, k)
     found = find_grid_list_row(st.cells_pane.content_iomap, k)
-    (head === nothing || found === nothing) && return op
-    moved = Any[_write_view_state(w, "cells", head),
+    (writes === nothing || found === nothing) && return op
+    moved = Any[writes...,
                 _write_view_state(w, "scroll_position", Point2D(x, y - Int(found[1].y))),
                 _write_view_state(w, "top_row", 1)]
     # The row headers move in step with the rows.
     header = _find_list_node(w.row_headers, k)
     header === nothing || push!(moved, _write_view_state(w, "row_headers", header))
-    selection = _shift_row_reference(w.selection, k - 1)
+    selection = _shift_row_reference(w, w.selection, k - 1)
     selection === w.selection || push!(moved, ReplaceSelectionOperation(selection))
     CompoundOperation(moved)
 end
@@ -1377,13 +1500,15 @@ function _move_head_column(iomap::WidgetTableListIoMap, x::Int, y::Int)
     (c === nothing || abs(c - 1) <= _TABLE_RELOCATION_DISTANCE) && return nothing
     header = _find_list_node(w.column_headers, c)
     span = _get_table_column_span(st, c)
-    (header === nothing || span === nothing) && return nothing
+    # A column-major table moves the head of its list of columns.
+    body = _is_column_major(w) ? _find_list_node(w.cells, c) : _make_advanced_row_node(w.cells, c)
+    (header === nothing || span === nothing || body === nothing) && return nothing
     moved = Any[_write_view_state(w, "column_headers", header),
-                _write_view_state(w, "cells", _make_advanced_row_node(w.cells, c)),
+                _write_view_state(w, "cells", body),
                 _write_view_state(w, "scroll_position", Point2D(x - span[1], y))]
     columns = w.columns
     columns isa ListNode && push!(moved, _write_view_state(w, "columns", _find_list_node(columns, c)))
-    selection = _shift_column_reference(w.selection, c - 1)
+    selection = _shift_column_reference(w, w.selection, c - 1)
     selection === w.selection || push!(moved, ReplaceSelectionOperation(selection))
     CompoundOperation(moved)
 end
@@ -1412,23 +1537,28 @@ function _make_advanced_row_node(row_node, c::Int)
     node
 end
 
-# `columns[c]…`, `column_headers[c]…` and `cells[r][c]…` with `c` counted from a
-# head column `distance` columns further on; any other reference, the same
-# object.
-function _shift_column_reference(reference, distance::Int)
+# `columns[c]…`, `column_headers[c]…` and the cell paths of `w` with `c` counted
+# from a head column `distance` columns further on; any other reference, the
+# same object.
+function _shift_column_reference(w::WidgetTable, reference, distance::Int)
     reference isa ConcreteReference && reference.head isa FieldReferenceStep || return reference
-    shift(step) = RangeReferenceStep(step.start - distance, step.stop - distance)
     tail = reference.tail
     (tail isa ConcreteReference && tail.head isa RangeReferenceStep) || return reference
-    if reference.head.name in ("columns", "column_headers")
-        return ConcreteReference(reference.head, ConcreteReference(shift(tail.head), tail.tail))
-    elseif reference.head.name == "cells"
-        rest = tail.tail
-        (rest isa ConcreteReference && rest.head isa RangeReferenceStep) || return reference
-        return ConcreteReference(reference.head,
-            ConcreteReference(tail.head, ConcreteReference(shift(rest.head), rest.tail)))
-    end
-    reference
+    name = reference.head.name
+    (name in ("columns", "column_headers") || (name == "cells" && _is_column_major(w))) &&
+        return _shift_reference_step(reference, 1, distance)
+    name == "cells" ? _shift_reference_step(reference, 2, distance) : reference
+end
+
+# `reference` with its element step `which`, 1 or 2 after the field, counted from
+# a head `distance` further on; the same object when it has no such step.
+function _shift_reference_step(reference::ConcreteReference, which::Int, distance::Int)
+    shift(step) = RangeReferenceStep(step.start - distance, step.stop - distance)
+    tail = reference.tail
+    which == 1 && return ConcreteReference(reference.head, ConcreteReference(shift(tail.head), tail.tail))
+    rest = tail.tail
+    (rest isa ConcreteReference && rest.head isa RangeReferenceStep) || return reference
+    ConcreteReference(reference.head, ConcreteReference(tail.head, ConcreteReference(shift(rest.head), rest.tail)))
 end
 
 # Node `k` of a list, counted from `head`, or `nothing` past an end.
@@ -1442,16 +1572,15 @@ function _find_list_node(head, k::Int)
     node
 end
 
-# `rows[r]…`, `cells[r]…` and `row_headers[r]…` with `r` counted from a head `distance` rows
-# further on; any other reference, the same object.
-function _shift_row_reference(reference, distance::Int)
+# `rows[r]…`, `row_headers[r]…` and the cell paths of `w` with `r` counted from a
+# head `distance` rows further on; any other reference, the same object.
+function _shift_row_reference(w::WidgetTable, reference, distance::Int)
     (reference isa ConcreteReference && reference.head isa FieldReferenceStep &&
      reference.head.name in ("rows", "cells", "row_headers")) || return reference
     tail = reference.tail
     (tail isa ConcreteReference && tail.head isa RangeReferenceStep) || return reference
-    step = tail.head
-    ConcreteReference(reference.head,
-        ConcreteReference(RangeReferenceStep(step.start - distance, step.stop - distance), tail.tail))
+    which = (reference.head.name == "cells" && _is_column_major(w)) ? 2 : 1
+    _shift_reference_step(reference, which, distance)
 end
 
 # The keys of the table: Ctrl+Alt+Home selects the table; the arrows move a
@@ -1466,14 +1595,14 @@ function _read_table_parts_key(iomap::WidgetTableListIoMap, evt::KeyDown)
         return ReplaceSelectionOperation(EmptyReference())
     # The column before or after `c`, or `c` at an end.
     step_column(c, d) = _get_table_column_span(st, c + d) === nothing ? c : c + d
-    named = _find_named_part(iomap.input.selection)
+    named = _find_named_part(iomap.input, iomap.input.selection)
     named === nothing && return nothing
     shape, k, c = named
     shape in (:table, :column_header, :row_header) && return nothing
     if shape === :column
         top = iomap.input.top_row
-        evt.key === :return && return ReplaceSelectionOperation(_wt_cell_ref(top, c))
-        evt.key === :down && return ReplaceSelectionOperation(_wt_cell_ref(top, c))
+        evt.key === :return && return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, top, c))
+        evt.key === :down && return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, top, c))
         evt.key === :left && return ReplaceSelectionOperation(_wt_col_ref(step_column(c, -1)))
         evt.key === :right && return ReplaceSelectionOperation(_wt_col_ref(step_column(c, 1)))
         return nothing
@@ -1481,8 +1610,8 @@ function _read_table_parts_key(iomap::WidgetTableListIoMap, evt::KeyDown)
     c == 0 && (c = nothing)
     exists(row) = find_grid_list_row(st.cells_pane.content_iomap, row) !== nothing
     if evt.key === :return
-        c === nothing && return ReplaceSelectionOperation(_wt_cell_ref(k, 1))
-        return _enter_table_cell(st, k, c)
+        c === nothing && return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, k, 1))
+        return _enter_table_cell(iomap.input, st, k, c)
     end
     if evt.key === :space && (evt.modifiers.shift ⊻ evt.modifiers.ctrl)
         c === nothing && return nothing
@@ -1492,7 +1621,7 @@ function _read_table_parts_key(iomap::WidgetTableListIoMap, evt::KeyDown)
     if c === nothing
         evt.key === :up && return exists(k - 1) ? ReplaceSelectionOperation(_wt_row_ref(k - 1)) : nothing
         evt.key === :down && return exists(k + 1) ? ReplaceSelectionOperation(_wt_row_ref(k + 1)) : nothing
-        evt.key === :right && return ReplaceSelectionOperation(_wt_cell_ref(k, 1))
+        evt.key === :right && return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, k, 1))
         return nothing
     end
     if evt.key === :up
@@ -1506,17 +1635,17 @@ function _read_table_parts_key(iomap::WidgetTableListIoMap, evt::KeyDown)
     else
         c = step_column(c, 1)
     end
-    ReplaceSelectionOperation(_wt_cell_ref(k, c))
+    ReplaceSelectionOperation(_wt_cell_ref(iomap.input, k, c))
 end
 
 # Return puts the caret at the start of the content of the cell.
-function _enter_table_cell(st::WidgetTablePartsState, k::Int, c::Int)
+function _enter_table_cell(w::WidgetTable, st::WidgetTablePartsState, k::Int, c::Int)
     found = _find_table_cell(st, k, c)
     found === nothing && return nothing
     cim = found[1]
     op = read_intent(cim.projection, cim, KeyDown(:home, ModifierKeys(ctrl = true); time = time()))
     op isa ReplacePathOperation || return nothing
-    reroot_operation(op, _wt_get_cell_steps(k, c))
+    reroot_operation(op, _wt_get_cell_steps(w, k, c))
 end
 
 # A press of another button than the left, a button down, a button up or a dwell
@@ -1563,7 +1692,7 @@ function _read_table_point_cell(p::WidgetTableToGraphicsCanvas,
     else
         k = _find_table_row_at(st, y)
         k === nothing && return nothing
-        (_find_table_cell(st, k, c), _wt_get_cell_steps(k, c))
+        (_find_table_cell(st, k, c), _wt_get_cell_steps(iomap.input, k, c))
     end
     cell === nothing && return nothing
     cim, left, top = cell
@@ -1586,13 +1715,13 @@ function _read_selected_table_cell(st::WidgetTablePartsState, w::WidgetTable, ev
         return reroot_operation(read_intent(found[1].projection, found[1], event),
                                 (FieldReferenceStep("column_headers"), RangeReferenceStep(c - 1, c)))
     end
-    prefix = _wt_cell_prefix(selection)
+    prefix = _wt_cell_prefix(w, selection)
     prefix === nothing && return nothing
     k, c = prefix
     found = _find_table_cell(st, k, c)
     found === nothing && return nothing
     cim = found[1]
-    reroot_operation(read_intent(cim.projection, cim, event), _wt_get_cell_steps(k, c))
+    reroot_operation(read_intent(cim.projection, cim, event), _wt_get_cell_steps(w, k, c))
 end
 
 # The column of the header that `selection` goes into, `column_headers[c]`

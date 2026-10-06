@@ -183,7 +183,7 @@ Decisions of the implementation (mine):
     some platform tests count differently. The base commit with Julia 1.13.1
     gives 95,264 pass and 8 broken, and the MCP log test passes alone on this
     branch; so the umbrella tests run in a process of their own from step 2 on.
-- [ ] **2.** Design, found when step 2 started (2026-10-06, mine): the cell
+- [x] **2.** Design, found when step 2 started (2026-10-06, mine): the cell
   engine has no equality check (cell.md, "propagation follows the writes"), so
   a width kept as a plain value in `columns` would make every write of a width
   rebuild the parts of a list table, whose shape reads the alignment and the
@@ -236,8 +236,48 @@ Decisions of the implementation (mine):
     examples with a table, because the printer test makes one `@test` for
     each cell that it forces, and a table has one cell more (`rows`, step 1)
     and five fewer (the parallel vectors and `column_count`, step 2).
-- [ ] **3.** `cell_order = :column_major`, `cells[c][r]`, and a test table of
+- [x] **3.** `cell_order = :column_major`, `cells[c][r]`, and a test table of
   each order that draws the same, also lazy in each direction and in both.
+  Design, found when step 3 started (2026-10-06, mine): the printers and the
+  readers keep their row-major walk, and only the paths and a view of the body
+  know the order.
+  - The eager form reads a cell through `_wt_get_cell(w, r, c)`, which swaps
+    the two indices of a column-major body. Every path helper takes the table:
+    `_wt_cell_split(w, reference)` gives `(r, c, rest)` in either order, and
+    `_wt_get_cell_steps(w, r, c)` and `_wt_cell_ref(w, r, c)` build
+    `cells[r][c]` or `cells[c][r]`. So a selection, a press, a band, an open
+    cell and the forward map follow the order with no other change.
+  - The list form walks the rows of a view, `_get_body_rows(w)`: the body of a
+    row-major table, and for a column-major one a list of turned rows
+    (`_turn_columns`) whose cells are the same documents. Each column keeps a
+    place at the current row: its list node, a `_ColumnPlace` in a vector, or
+    `nothing` past its end. The next row steps every place by one, so a walk
+    down the rows costs one step for each cell and not a walk from the head. A
+    list of columns gives a list of places that mirrors it
+    (`_make_mapped_node`), and its rows mirror the columns in the same way. A
+    vector of columns has a row where any column has one; a list of columns has
+    the rows of its head column.
+  - The head moves follow the order. Far down, `_write_body_head` writes
+    `cells` to a list that mirrors the columns from row `k` on, or, for a vector
+    of columns, each `cells[c]` to its node `k`; only when each column is a
+    list. Far to the side, a column-major table moves the head of its list of
+    columns. The shifts of a selection shift the index that the order names.
+  - The constructor keeps a column of a list as the list (`_table_row`), and
+    the row-major checks of a list body apply only to a row-major body.
+
+  Done 2026-10-06. Tests: `test_widget_table_cell_order` (47): the eager table
+  in each order draws the same, with a selected cell too; an Alt press gives
+  `cells[2][3]` against `cells[3][2]`, and the forward map of each lands on the
+  same box; rows that are lists, columns that are a list, and both, draw as
+  the row-major table of the same cells and build only what the viewport
+  shows (a table of 10,000,000 rows and 1,000,000 columns); the head moves
+  down and to the side, with the selection. The platform: 95,299 pass and 8
+  broken, 51 more than step 2: the 47 of the new test, and one more forced
+  cell (`cell_order`) in each of the four table examples. Markdown 236, data
+  frames 556, book 33; the umbrella table tests 25, 66, 14, 110 and 134.
+  Fact found: a test that walks the drawn output 400 nodes into each list of
+  a table that is a long list both ways draws 400 × 400 cells and does not
+  end in 25 minutes, so a test of a head move keeps the other direction short.
 - [ ] **4.** The padding of a row and of a column (P1).
 - [ ] **5.** The guides: `widget.md` and the docstrings of the table.
 - [ ] **6.** omnet-julia follows: its calls of the constructor and its tests.
