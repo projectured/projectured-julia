@@ -7035,25 +7035,29 @@ map_reference_backward(::WidgetSwitchToGraphicsCanvas, iomap, reference) = nothi
     padding_color::StyleColor
     content_color::StyleColor
     bar_height::Int
-    track_color::StyleColor      # unfilled track
-    indicator_color::StyleColor  # filled portion
+    track_color::StyleColor          # unfilled track
+    indicator_color::StyleColor      # filled portion
+    indeterminate_share::Float64     # the part of the track that moves while the value is not known
+    indeterminate_period::Float64    # the seconds of one pass from the start to the end
 end
 
 WidgetProgressBarToGraphicsCanvas(theme;
-                               margin = inset_default, border = inset_default, padding = inset_default,
-                               margin_color = color_transparent, border_color = color_transparent,
-                               padding_color = color_transparent, content_color = color_transparent,
-                               bar_height = _themed(Int, theme, t -> t.progress_bar_height),
-                               track_color = _themed(StyleColor, theme, t -> t.muted),
-                               indicator_color = _themed(StyleColor, theme, t -> t.primary)) =
+                                  margin = inset_default, border = inset_default, padding = inset_default,
+                                  margin_color = color_transparent, border_color = color_transparent,
+                                  padding_color = color_transparent, content_color = color_transparent,
+                                  bar_height = _themed(Int, theme, t -> t.progress_bar_height),
+                                  track_color = _themed(StyleColor, theme, t -> t.muted),
+                                  indicator_color = _themed(StyleColor, theme, t -> t.primary),
+                                  indeterminate_share = 0.25, indeterminate_period = 1.0) =
     WidgetProgressBarToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
-                                   content_color, bar_height, track_color, indicator_color)
+                                      content_color, bar_height, track_color, indicator_color,
+                                      indeterminate_share, indeterminate_period)
 
 function print_document(p::WidgetProgressBarToGraphicsCanvas, recursion, w::WidgetProgressBar, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
+    clock = ctx === nothing ? nothing : ctx.clock
     SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
-        value = clamp(Float64(w.value), 0.0, 1.0)
         box = _get_box_insets(p, w)
         colors = _get_box_colors(p, w)
         inset_width, inset_height = _inset_total(p, w)
@@ -7072,10 +7076,23 @@ function print_document(p::WidgetProgressBarToGraphicsCanvas, recursion, w::Widg
         track_color = _get_state_color(p, w, :track)
         indicator_color = _get_state_color(p, w, :indicator)
         push!(elements, GraphicsRect(content_x, content_y, bar_width, bar_height; color = track_color, radius = bar_height ÷ 2))
-        filled_width = round(Int, value * bar_width)
-        if filled_width > 0
-            push!(elements, GraphicsRect(content_x, content_y, filled_width, bar_height; color = indicator_color, radius = bar_height ÷ 2))
-        end
+        # Two rectangles show the value for the life of the bar, and only their
+        # places and widths read the value, as the arc of a ring does. A known
+        # value fills the first from the start. While the value is not known, a
+        # part of the track moves from the start to the end once a period: the
+        # first rectangle is what is before the end, and the second what passed
+        # the end and shows at the start. Only then do they read the clock.
+        period = p.indeterminate_period
+        segment_width = round(Int, p.indeterminate_share * bar_width)
+        compute_offset() = round(Int, _get_clock_phase(clock, period) * bar_width)
+        compute_head_x() = w.value === nothing ? compute_offset() : 0
+        compute_head_width() = w.value === nothing ? min(segment_width, bar_width - compute_offset()) :
+                                                     round(Int, clamp(Float64(w.value), 0.0, 1.0) * bar_width)
+        compute_tail_width() = w.value === nothing ? max(0, compute_offset() + segment_width - bar_width) : 0
+        push!(elements, GraphicsRect(() -> content_x + compute_head_x(), content_y, compute_head_width, bar_height;
+                                     color = indicator_color, radius = bar_height ÷ 2))
+        push!(elements, GraphicsRect(content_x, content_y, compute_tail_width, bar_height;
+                                     color = indicator_color, radius = bar_height ÷ 2))
         (width=outer_width, height=outer_height, elements=elements)
     end))
 end

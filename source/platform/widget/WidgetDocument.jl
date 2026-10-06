@@ -1768,24 +1768,26 @@ get_instance_gesture_bindings(w::WidgetSwitch) = w.gestures
 # ── WidgetProgressBar ───────────────────────────────────────────────────────
 
 """
-    WidgetProgressBar(value; position, width=240)
+    WidgetProgressBar(value = nothing; position, width=240)
 
 A bar filled to a share between zero and one.
 
 Use it to show how far a set of runs or a long job is. `value` is a number, a
-cell that holds one, or a function of no arguments that the bar follows; a number
-is written as the job advances. `width` is the bar's length in pixels.
+cell that holds one, a function of no arguments that the bar follows, or
+`nothing`; a number is written as the job advances. While the value is
+`nothing` the share is not known, and a quarter of the track moves from its
+start to its end once a second. `width` is the bar's length in pixels.
 
 # Example
 
     open_pane!(editor, WidgetProgressBar(0.4; width = 300); title = "Progress")
 
-See also `WidgetSlider`, which a person drags, and `WidgetBadge` for a state
-in one word.
+See also `WidgetProgressRing`, which shows the same value in one line of text,
+`WidgetSlider`, which a person drags, and `WidgetBadge` for a state in one word.
 """
 @document struct WidgetProgressBar <: WidgetDocument
     position::Point2D
-    value::Float64
+    value::Union{Nothing, Float64}
     width::Int
     visible::Bool
     margin::Inset
@@ -1803,10 +1805,11 @@ _make_share_cell(value::Function) = Cell(@computation _convert_share(value()))
 _convert_share(value::Nothing) = nothing
 _convert_share(value::Real) = Float64(value)
 
-WidgetProgressBar(value::Union{Real, Cell, Function}; position::Point2D=Point2D(0, 0), width::Integer=240, visible::Bool=true,
-               margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
+WidgetProgressBar(value::Union{Nothing, Real, Cell, Function} = nothing; position::Point2D=Point2D(0, 0),
+                  width::Integer=240, visible::Bool=true,
+                  margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
     WidgetProgressBar(Cell(position), _make_share_cell(value), Cell(Int(width)), Cell(visible),
-                   Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
+                      Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
 
 # ── WidgetProgressRing ──────────────────────────────────────────────────────
 
