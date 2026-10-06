@@ -268,11 +268,15 @@ function _splice_arguments(project, index, e::Expr)
     positional, keywords
 end
 
-# A file's root is `file(…)`, so a path here always has a step. The text is the
-# reference DSL's own form, `entries[2].value`, and the DSL's parser reads it
-# back. The save writes a field step and an element index and nothing else, so
-# any other step kind in a marker is an error, not a path.
-function _evaluate_path_text(root, text::AbstractString)
+"""
+    parse_path_text(text::AbstractString) -> Reference
+
+The path that `text` names, in the form that [`print_path_text`](@ref) writes:
+field steps and element indices, such as `entries[2].value`. The empty text is
+the empty path. Any other kind of step raises an `ArgumentError`.
+"""
+function parse_path_text(text::AbstractString)
+    isempty(strip(text)) && return EmptyReference()
     steps = ReferenceStep[]
     for step in parse_reference_path(Meta.parse(text))
         if step isa ReferenceSyntaxField
@@ -280,11 +284,24 @@ function _evaluate_path_text(root, text::AbstractString)
         elseif step isa ReferenceSyntaxIndex && step.expr isa Integer
             push!(steps, ElementReferenceStep(Int(step.expr)))
         else
-            error("node(…): a path may hold field and index steps only, got ", repr(text))
+            throw(ArgumentError("a path may hold field and index steps only, got " * repr(text)))
         end
     end
-    isempty(steps) && error("node(…): an empty path names the file; write file(…) instead")
-    evaluate_reference(root, extend_reference(EmptyReference(), steps...))
+    extend_reference(EmptyReference(), steps...)
+end
+
+# A file's root is `file(…)`, so a path here always has a step. The save writes a
+# field step and an element index and nothing else, so any other step kind in a
+# marker is an error, not a path.
+function _evaluate_path_text(root, text::AbstractString)
+    path = try
+        parse_path_text(text)
+    catch exception
+        exception isa ArgumentError || rethrow()
+        error("node(…): ", exception.msg)
+    end
+    path isa EmptyReference && error("node(…): an empty path names the file; write file(…) instead")
+    evaluate_reference(root, path)
 end
 
 """

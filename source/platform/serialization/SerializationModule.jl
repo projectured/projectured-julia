@@ -45,6 +45,7 @@ export FileProject, FileCutException, save_file!, load_file, parse_file_content,
        get_file_domain, is_file_domain_node, make_reference_leaf, find_reference_marker,
        make_marker_text, is_own_content, make_file, is_written_in_file
 export TextFile
+export parse_path_text, print_path_text
 export PredFile, parse_pred_text, print_pred_text, pred_arguments, make_pred_document,
        is_pred_document
 

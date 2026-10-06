@@ -179,7 +179,7 @@ function _cut_copy(owner, file, node, path::Reference, visited::IdDict, strict::
     haskey(visited, node) &&
         return _cut_leaf(file, path, strict, _reference_marker(file, owner_path),
                          "holds the same " * string(nameof(typeof(node))) * " twice, at " *
-                         _path_text(owner_path) * " and at " * _path_text(path))
+                         print_path_text(owner_path) * " and at " * print_path_text(path))
     visited[node] = true
     _rebuild(owner, file, node, path, visited, strict)
 end
@@ -188,7 +188,7 @@ end
 # that says why the file cannot be saved alone.
 function _cut_leaf(file, path, strict::Bool, marker::AbstractString, why::AbstractString)
     strict && throw(FileCutException(
-        "save_file!: " * repr(get_filename(file)) * " " * why * " at " * _path_text(path) *
+        "save_file!: " * repr(get_filename(file)) * " " * why * " at " * print_path_text(path) *
         "; it needs a reference, and a file saved alone cannot write one — " *
         "save it in a FileProject"))
     make_reference_leaf(file, marker)
@@ -197,10 +197,10 @@ end
 function _orphan_message(file, path, node, strict::Bool)
     what = string(nameof(typeof(node)))
     strict && return "save_file!: " * repr(get_filename(file)) * " holds a " * what *
-                     " at " * _path_text(path) * " that is not of its domain; it needs a " *
+                     " at " * print_path_text(path) * " that is not of its domain; it needs a " *
                      "reference, and a file saved alone cannot write one — save it in a FileProject"
     "save_project!: " * repr(get_filename(file)) * " reaches a " * what * " at " *
-    _path_text(path) * " that no file of its domain writes — put it in a file of its " *
+    print_path_text(path) * " that no file of its domain writes — put it in a file of its " *
     "domain, or under a node one of them reaches"
 end
 
@@ -243,12 +243,21 @@ end
 
 # The reference DSL's text form: `entries[1].value`. `show` writes a field step
 # with its leading dot; the DSL does not, so the first one goes.
-_path_text(path::Reference) = lstrip(string(strip_reference_types(path)), '.')
+"""
+    print_path_text(path::Reference) -> String
+
+`path` as the text of the reference DSL, without its types and without the dot
+in front: `entries[2].value`. The empty path is the empty text.
+[`parse_path_text`](@ref) reads it back when it holds field steps and element
+indices only.
+"""
+print_path_text(path::Reference) =
+    path isa EmptyReference ? "" : String(lstrip(string(strip_reference_types(path)), '.'))
 
 # `file("b.xml")` for a root, `node(file("b.xml"), "children[1]")` for a node in it.
 function _reference_marker(file, path::Reference)
     name = "file(" * repr(get_filename(file)) * ")"
-    path isa EmptyReference ? name : "node(" * name * ", " * repr(_path_text(path)) * ")"
+    path isa EmptyReference ? name : "node(" * name * ", " * repr(print_path_text(path)) * ")"
 end
 
 # ── The two saves ────────────────────────────────────────────────────────────
