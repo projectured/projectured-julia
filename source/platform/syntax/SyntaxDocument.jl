@@ -432,7 +432,7 @@ The `selection` cell holds a path into the leaf's rendered span, or `nothing`:
 @document struct SyntaxLeaf <: SyntaxDocument
     open::Union{TextString,Nothing} = nothing
     close::Union{TextString,Nothing} = nothing
-    value::TextString
+    value::Union{TextString, TextGraphics}
     indentation::Int = 0
     collapsed::Bool = false
 end

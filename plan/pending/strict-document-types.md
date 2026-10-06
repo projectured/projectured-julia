@@ -462,7 +462,7 @@ worktree. The three domains test different parts of the model:
     for each listed field and nothing else. A probe in the `:throw` mode constructs
     `ColorTheme()`, `WidgetTheme()` and a `TextString` with no padding. `ChartTheme()` still
     fails on `series_colors`, which is group 4.
-  - [ ] **Group 3, the markers of a template.** A template rule builds its output with markers in
+  - [x] **Group 3, the markers of a template.** A template rule builds its output with markers in
     typed fields (`SyntaxLeaf(bound(:value, …))`), and `print_template_document` then replaces
     each marker with the value, so `SyntaxLeaf.value` (declared `TextString`) holds a `Bound` for
     a moment, in about 940,000 writes. **Decided by the owner, 2026-10-06: option A.** A marker
@@ -470,7 +470,12 @@ worktree. The three domains test different parts of the model:
     stand-in, the markers `Bound`, `Collection`, `Tokens` and `Sections` subtype it, and the
     check leaves such a value alone. The other options were: widen each output field to admit
     the markers (B), suspend the check while a rule runs (C), or rewrite the template language
-    so that no rule puts a marker into a typed field (D). The name of the type is open.
+    so that no rule puts a marker into a typed field (D).
+    *Done:* `abstract type PendingValue end` in `DeclaredType.jl` (the name is my suggestion; the
+    owner chose no name), and the five markers `Bound`, `Project`, `Collection`, `Tokens` and
+    `Sections` of `ProjectionTemplate.jl` subtype it. `Project` was not in the inventory, but it
+    has the same role. A probe prints JSON and XML through their templates in the `:record` mode
+    and records no marker.
   - [ ] Group 4, a plain `Vector` in a field declared `Vector{T}`: waits for the owner.
   - [ ] Group 5, a lazy list in a field declared `CellVector`: it belongs with group 4 and S-2.
     `HorizontalLayout` and `VerticalLayout` have constructors that take a `ListNode`, so their
@@ -483,9 +488,26 @@ worktree. The three domains test different parts of the model:
     `Document`, and `TextFile.content` is `Union{String, Document}`. `make_file_tab(path, wrap)`
     gives every opened file an overlay, such as an `UndoBuffer`, by design. No code reads the
     declared type of `content`.
-  - [ ] Group 7, an `Int64` in a field declared `Int32`: rule 2 of the check converts it (the
-    check of the setter and of the constructor must apply rules 1 and 2, §3.3).
-  - [ ] Group 8, the single cases:
+  - [x] **Group 7, an `Int64` in a field declared `Int32`:** rule 2 of the check converts it.
+    In the mode `:throw`, the setter writes the value that Julia converts with no loss, and the
+    constructor writes it into a reactive or a mutable cell that no other cell depends on. An
+    `ImmutableCell` takes no write, so there the mismatch is refused. A probe: `Int64` into an
+    `Int32` field converts in the constructor and in the setter, and a text throws.
+  - [x] **Group 8, the single cases** (all fixed as below):
+    - The bool refuses a text edit in the template reader (`ReaderDefaults.jl`): a leaf whose
+      bound type is `Bool` declines it, and the key falls through to the gestures. This showed
+      an older fault: `replace_selected_document` took a caret in the text of a value
+      (`value{2}`) as the path of a document, and wrote into the `Bool` itself. A number had
+      the same fault for the keys `n`, `t`, `f` and `[`, which it declines. Now it replaces the
+      document that the caret names: the longest part of the path that reaches a document. A
+      JSON test types `x` (no edit) and `f` (the gesture makes `false`) inside `true`.
+    - `TextNewline.font_color` and `TextSpacing.font_color` are `Union{StyleColor, Nothing} =
+      nothing`. A newline and a space draw no text, so nothing reads that color.
+    - `SqlScalarValue` is a `SqlSelectExpression`, so the parser no longer works around it.
+    - `SyntaxLeaf.value` is `Union{TextString, TextGraphics}`.
+    - The two kernel tests that put a function into a field use `ContractPair`, whose fields
+      are `Any`, and `ToyNode.label` stays `String`.
+    The facts found in the inventory:
     - `JsonBool.value` and `YamlBool.value`: the REPL walk types text into a bool leaf. A key in
       `true` makes the bool `nothing` (`splice_value!` on a `Number`), and the next key writes a
       `String` (`splice_value!` on `nothing`). **Decided by the owner, 2026-10-06: a bool refuses

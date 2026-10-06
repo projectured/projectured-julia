@@ -225,7 +225,7 @@ _emit_accessors(plan) = (
         name === :selection ? $(unwrap_selection)(getfield(obj, name)[]) :
                               getfield(obj, name)[]),
     :(Base.setproperty!(obj::$(plan.name), name::Symbol, val) =
-        ($(_check_declared_write)(obj, name, val); getfield(obj, name)[] = val)),
+        (getfield(obj, name)[] = $(_check_declared_write)(obj, name, val))),
 )
 
 """

@@ -49,13 +49,16 @@ function make_template_builder(expr)
 end
 
 # ── Markers (build-time only; stripped before the output reaches the API) ─────
+#
+# A marker stands in a typed field of the output until the print replaces it, so
+# each one is a `PendingValue`, which the check of a declared type leaves alone.
 
-struct Bound;      input::Symbol; type::Any; render::Any; retype::Any; end
+struct Bound <: PendingValue;      input::Symbol; type::Any; render::Any; retype::Any; end
 # override: the `as=` projection, a thunk that picks one, or nothing
-struct Project;    input::Symbol; override::Any; end
-struct Collection; input::Symbol; element::Any; end
-struct Tokens;     thunk::Any; end                  # computed inline token leaves
-struct Sections;   specs::Vector{Any}; end          # grouped per-field sub-collections
+struct Project <: PendingValue;    input::Symbol; override::Any; end
+struct Collection <: PendingValue; input::Symbol; element::Any; end
+struct Tokens <: PendingValue;     thunk::Any; end                  # computed inline token leaves
+struct Sections <: PendingValue;   specs::Vector{Any}; end          # grouped per-field sub-collections
 
 bound(input::Symbol, T, render; retype=nothing) = Bound(input, T, render, retype)
 # `project(:f)` delegates the child to its type-dispatched projection; `project(:f;

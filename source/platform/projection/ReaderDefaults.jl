@@ -32,6 +32,9 @@ function read_intent(p::Projection, iomap::TemplateIoMap, op::ReplaceStringRange
     # valid text edit. Reject it (rather than mapping to a bogus
     # introduced-position op) so a non-gesture key is a clean NO-OP.
     w isa AtomicWiring && w.bound_field === nothing && return nothing
+    # A bool takes no text edit: it changes only through the gestures of its domain,
+    # so the key falls through to them, as a letter in a number does.
+    w isa AtomicWiring && w.bound_type === Bool && return nothing
     # An edit inside an element goes to the element, as a key does: its own reader
     # transforms the edit, and may answer with an operation that replaces the
     # element. The answer takes the input steps to the element in front.

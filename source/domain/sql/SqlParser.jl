@@ -581,9 +581,6 @@ function parse_select_item!(p::Parser)
         end
     end
 
-    # SqlSelectItem constructors require SqlSelectExpression, but a literal
-    # produces SqlScalarValue (which is SqlDocument, not SqlSelectExpression).
-    # Build via Cell-level constructor directly.
     return SqlSelectItem(expr, alias, Cell(nothing))
 end
 

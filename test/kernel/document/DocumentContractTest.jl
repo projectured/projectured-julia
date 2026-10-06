@@ -244,9 +244,9 @@ function test_document_contract()
         # A copy re-boxes each field through the constructor of its cell. A function
         # in a field is a value, and the copy keeps it a value that no read calls.
         callback() = "called"
-        node = ToyNode(callback, nothing, nothing)
-        @test copy_document(node).label === callback
-        @test copy_document(ImmutableCell, node).label === callback
+        node = ContractPair(callback, nothing, nothing)
+        @test copy_document(node).first === callback
+        @test copy_document(ImmutableCell, node).first === callback
     end
 
     @testset "show prints a field that reaches an object graph as its type name" begin
@@ -533,7 +533,7 @@ function test_document_contract()
             computed = ToyNode("", nothing, nothing)
             set_cell_computation!(getfield(computed, :label), () -> "computed")
             @test occursin("computes", refusal(computed))
-            @test occursin("action", refusal(ToyNode(() -> "called", nothing, nothing)))
+            @test occursin("action", refusal(ContractPair(() -> "called", nothing, nothing)))
             @test occursin("action", refusal(ContractPair(Ref{Any}(1), nothing, nothing)))
             looped = ContractPair(nothing, nothing, nothing)
             looped.second = looped

@@ -100,7 +100,7 @@ end
 
 # ── Boolean expression documents ───────────────────────────────────────────────
 
-@document struct SqlScalarValue <: SqlDocument
+@document struct SqlScalarValue <: SqlSelectExpression
     value::Any                    # Number | String | Bool
 end
 

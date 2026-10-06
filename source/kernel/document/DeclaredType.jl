@@ -48,6 +48,16 @@ function _describe_mismatch_value(value)
     length(text) <= 80 ? text : first(text, 77) * "..."
 end
 
+"""
+    PendingValue
+
+A value that stands in a field for a value that a later step makes, as a
+`Computation` stands for the value that its cell computes. A template rule builds
+its output with such stand-ins, and the print replaces each one with the value.
+The check of a declared type leaves a `PendingValue` alone.
+"""
+abstract type PendingValue end
+
 # ── The mode ──────────────────────────────────────────────────────────────────
 
 const _DECLARED_TYPE_CHECK_MODES = (:off, :record, :throw)
@@ -284,19 +294,28 @@ function is_admitted_by_declared_type(owner, declared_type::Type, value)
 end
 
 # The setter of the cell layout calls it before the write. A computation is not a
-# value: the cell computes its value later, and a read narrows it.
+# value: the cell computes its value later, and a read narrows it. A `PendingValue`
+# stands for a value that a later step makes.
+# It answers the value to write: `value`, or in the mode `:throw` the value that Julia
+# converts it to with no loss (rule 2 of the seam), so that the three layouts agree.
 function _check_declared_write(document, name::Symbol, value)
     mode = _DECLARED_TYPE_CHECK_MODE[]
-    mode === :off && return nothing
-    value isa Computation && return nothing
+    mode === :off && return value
+    (value isa Computation || value isa PendingValue) && return value
     declared_type = find_declared_field_type(typeof(document), name)
-    (declared_type === nothing || value isa declared_type) && return nothing
+    (declared_type === nothing || value isa declared_type) && return value
+    if mode === :throw
+        converted = _convert_losslessly(declared_type, value)
+        converted === _NOT_CONVERTED || return converted
+    end
     _report_declared_type_mismatch(mode, typeof(document), name, declared_type, value)
+    value
 end
 
 # The constructor of the cell layout calls it with the new document. It checks the
 # value that each cell holds now, with no dependency on the cell, and leaves a
-# computed cell alone. A later write to a cell that the caller gave goes past it.
+# computed cell and a `PendingValue` alone. A later write to a cell that the caller
+# gave goes past it.
 function _check_constructed_document(document)
     mode = _DECLARED_TYPE_CHECK_MODE[]
     mode === :off && return document
@@ -308,8 +327,23 @@ function _check_constructed_document(document)
         cell isa AbstractCell || continue
         is_computed_cell(cell) && continue
         value = peek(cell)
-        value isa declared[i] ||
-            _report_declared_type_mismatch(mode, T, fieldname(T, i), declared[i], value)
+        (value isa declared[i] || value isa PendingValue) ||
+            _admit_constructed_value!(mode, T, i, cell, declared[i], value)
     end
     document
+end
+
+# In the mode `:throw`, a value that Julia converts with no loss goes into its cell
+# converted, when the cell can take a write that no other cell sees: a reactive or
+# a mutable cell with no dependent. Any other mismatch is reported.
+function _admit_constructed_value!(mode, T, i, cell, declared_type, value)
+    if mode === :throw && (cell isa ReactiveCell || cell isa MutableCell) &&
+       !has_dependent_cells(cell)
+        converted = _convert_losslessly(declared_type, value)
+        if converted !== _NOT_CONVERTED
+            cell[] = converted
+            return nothing
+        end
+    end
+    _report_declared_type_mismatch(mode, T, fieldname(T, i), declared_type, value)
 end

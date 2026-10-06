@@ -174,6 +174,15 @@ end
     @test length(arr.elements) == 1
     type_key!(arr, @reference(arr, elements[1].value{2}), '5')
     @test arr[1].value === 425
+    # A bool takes no text edit: a key inside it makes no edit, and the key of a
+    # gesture of the domain still reaches the gesture.
+    flag = JsonArray([JsonBool(true)])
+    type_key!(flag, @reference(flag, elements[1].value{2}), 'x')
+    @test flag[1] isa JsonBool
+    @test flag[1].value === true
+    type_key!(flag, @reference(flag, elements[1].value{2}), 'f')
+    @test flag[1] isa JsonBool
+    @test flag[1].value === false
 end
 
 @testset "a digit typed into a cleared number in a container makes a number" begin

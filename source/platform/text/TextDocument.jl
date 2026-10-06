@@ -52,13 +52,13 @@ incremental updates.
 
 # Constructor
 
-- `TextNewline(; font, font_color="", fill_color=nothing, line_color=nothing, padding=nothing)`
+- `TextNewline(; font, font_color=nothing, fill_color=nothing, line_color=nothing, padding=nothing)`
   — the macro's keyword constructor; `font` is the one field without a default,
   and so the one required keyword.
 """
 @document struct TextNewline <: TextDocument
     font::StyleFont
-    font_color::StyleColor = ""
+    font_color::Union{StyleColor, Nothing} = nothing
     fill_color::Union{StyleColor, Nothing} = nothing
     line_color::Union{StyleColor, Nothing} = nothing
     padding::Union{Inset, Nothing} = nothing
@@ -84,19 +84,19 @@ in pixels or character spaces.
 
 # Constructor
 
-- `TextSpacing(size::Number; unit=:pixel, font, font_color="", fill_color=nothing, line_color=nothing, padding=nothing)`
+- `TextSpacing(size::Number; unit=:pixel, font, font_color=nothing, fill_color=nothing, line_color=nothing, padding=nothing)`
 """
 @document struct TextSpacing <: TextDocument
     size::Number
     unit::Symbol
     font::StyleFont
-    font_color::StyleColor
+    font_color::Union{StyleColor, Nothing}
     fill_color::Union{StyleColor, Nothing}
     line_color::Union{StyleColor, Nothing}
     padding::Union{Inset, Nothing}
 end
 
-TextSpacing(size::Number; unit=:pixel, font, font_color="", fill_color=nothing, line_color=nothing, padding=nothing) =
+TextSpacing(size::Number; unit=:pixel, font, font_color=nothing, fill_color=nothing, line_color=nothing, padding=nothing) =
     TextSpacing(Cell(size), Cell(unit), Cell(font), Cell(font_color), Cell(fill_color), Cell(line_color), Cell(padding), Cell(nothing))
 
 # ── TextString ─────────────────────────────────────────────────────

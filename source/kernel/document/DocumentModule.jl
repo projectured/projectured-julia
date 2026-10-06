@@ -44,7 +44,7 @@ export Document, copy_document, get_wrapped_document, replace_wrapped_document!,
        get_cell_layout_field_type, search_documents,
        @document, @document_preset,
        @forward_protocol, @forward_vector_protocol, @adapt_map_protocol
-export DeclaredTypeMismatchException, DeclaredTypeMismatchRecord,
+export DeclaredTypeMismatchException, DeclaredTypeMismatchRecord, PendingValue,
        set_declared_type_check_mode!, get_declared_type_check_mode,
        collect_declared_type_mismatches, clear_declared_type_mismatches!,
        find_declared_field_type, find_declared_element_type,

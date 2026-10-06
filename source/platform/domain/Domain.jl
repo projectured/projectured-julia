@@ -506,8 +506,21 @@ so it normalizes to ∅ (see [`normalize_named_node_reference`](@ref)). `replace
 own cursor, so nothing else needs placing.
 """
 replace_selected_document(document, replacement) =
-    make_replace_document_operation(
-        normalize_named_node_reference(get_selection(document)), replacement)
+    make_replace_document_operation(_find_named_document_path(document), replacement)
+
+# The path of the document that the caret of `document` names. A caret in the text of
+# a value, such as `value{2}` in a bool or a number, names the document that holds
+# the value: the longest part of the path that reaches a document.
+function _find_named_document_path(document)
+    reference = normalize_named_node_reference(get_selection(document))
+    reference isa ConcreteReference || return reference
+    steps = get_reference_steps(strip_reference_types(reference))
+    for n in length(steps):-1:1
+        path = Reference(steps[1:n]...)
+        try_evaluate_reference(document, path, missing) isa Document && return path
+    end
+    EmptyReference()
+end
 
 """
     append_insertion_operation(document, field::Symbol, T::Type) -> Operation
