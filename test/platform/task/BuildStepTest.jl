@@ -66,6 +66,16 @@ function test_build_step()
                 output_files = ["src/a_m.cc", "src/a_m.h"], dependency_file = "a_m.h.d",
                 dependency_root = "src")
             @test find_build_step_input_files(step) == ["src/a.msg", "src/b.msg"]
+            # The same command run in the working directory names the paths from there.
+            write(joinpath(folder, "a_m.h.d"), "src/a_m.cc src/a_m.h: src/a.msg /c.msg\n")
+            @test find_build_step_input_files(step) == ["src/a.msg", "/c.msg"]
+            # In a project whose root is the folder, the two forms are one.
+            root = BuildCommandTask(; action = "Generating", subject = "a_m.cc",
+                working_directory = joinpath(folder, "src"), arguments = ["true"],
+                input_files = ["a.msg"], output_files = ["a_m.cc", "a_m.h"],
+                dependency_file = "../a_m.h.d", dependency_root = ".")
+            write(joinpath(folder, "a_m.h.d"), "a_m.cc a_m.h: a.msg b.msg\n")
+            @test find_build_step_input_files(root) == ["a.msg", "b.msg"]
         end
 
         @testset "a step that ends DONE touches its outputs" begin

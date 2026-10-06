@@ -25,9 +25,10 @@ run in `working_directory`, with `environment` when it is given. `action` says
 what the step does, in the `-ing` form (`"Compiling"`), and `subject` what it
 does it to (`"src/inet/common/Foo.cc"`). `dependency_file`, which the command
 writes, such as the `.d` file of a compiler, names the inputs of an output once
-it exists; until then the inputs are `input_files`. `dependency_root` is the
-folder, relative to the working directory, that the paths of the dependency
-file are relative to, when they are not relative to the working directory.
+it exists; until then the inputs are `input_files`. `dependency_root` is a
+second folder, relative to the working directory, that the paths of the
+dependency file can be relative to: the folder that another engine runs the
+same command in, such as `make` in the first C++ folder of a project.
 
 After the command ends `DONE`, the step touches its outputs, so a command that
 leaves an output as it was, as `opp_msgc` does when nothing changed, is up to
@@ -147,8 +148,8 @@ _resolve_build_path(step::BuildStepTask, path::AbstractString) =
 The files that a step reads: for a command with a dependency file that exists,
 the files that the file names for the first output, or else for its first
 target; else the inputs that the step declares. With a `dependency_root`, the
-first output is looked up relative to that folder, the paths are taken relative
-to it, and no other target stands in.
+first output is looked up as it is and then relative to that folder, whose
+paths are then taken relative to it, and no other target stands in.
 """
 function find_build_step_input_files(step::BuildCommandTask)
     if step.dependency_file !== nothing
@@ -156,9 +157,9 @@ function find_build_step_input_files(step::BuildCommandTask)
         if isfile(path)
             rules = read_dependency_file(path)
             target = first(step.output_files)
+            haskey(rules, target) && return rules[target]
             root = step.dependency_root
             if root === nothing
-                haskey(rules, target) && return rules[target]
                 isempty(rules) || return first(values(rules))
             else
                 key = chopprefix(target, rstrip(root, '/') * "/")

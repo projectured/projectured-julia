@@ -137,9 +137,14 @@ task does not leave a group that never ends.
 them. `BuildCommandTask` runs one command in a folder, such as the compile of
 one file or a link, with its input and its output files and an optional
 dependency file (`.d`) that names the inputs of an output once the command wrote
-it (`read_dependency_file`). `BuildCopyTask` copies one file, and accepts a hard
-link or a target that is not older than its source. `is_build_step_up_to_date`
-says whether every output is newer than every input; a step that is up to date
+it (`read_dependency_file`). When another engine runs the same command in
+another folder and writes the same dependency file, `dependency_root` names that
+folder, and the step reads the paths relative to either folder. After a command
+ends `DONE`, the step touches its outputs, so a command that leaves an output as
+it was is up to date the next time. `BuildCopyTask` copies one file, and accepts
+a hard link or a target that is not older than its source. `BuildRemoveTask`
+removes a file or a folder, as a clean does. `is_build_step_up_to_date` says
+whether every output is newer than every input; a step that is up to date
 answers `SKIP` with "Up-to-date", and `SKIP` is its expected result. A failed
 command ends `ERROR` with what it printed on stderr as its error message. A
 domain computes the command lines and puts the steps in groups: a build of a
