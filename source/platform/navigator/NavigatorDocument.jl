@@ -50,6 +50,34 @@ It is view state: an undo records no change of it, and a save does not keep it.
 end
 
 """
+    NavigatorChoiceList(; query = "", row = 1, current, find, choose)
+
+The list of the choices at one step of the address of a navigator, which the
+context menu window shows: a field of the typed text over the choices that the
+text narrows to.
+
+- `query` is the typed text, and `row` the row that Return chooses.
+- `current` is the step of the address.
+- `find(query)` gives the choices, `label => step` pairs
+  ([`find_navigator_choices`](@ref)).
+- `choose(step)` gives the operation that opens a choice
+  ([`make_navigator_choice_operation`](@ref)), or `nothing` for the page that the
+  navigator shows.
+
+It is view state of a popup: an undo records no change of it, no file keeps it,
+and a walk of the documents does not go into it.
+"""
+@document struct NavigatorChoiceList
+    query::String = ""
+    row::Int = 1
+    current::Any = nothing
+    find::Any = query -> Pair{String,ReferenceStep}[]
+    choose::Any = step -> nothing
+end
+
+is_walk_opaque(::NavigatorChoiceList) = true
+
+"""
     Navigator(content[, address])
 
 A document that shows one part of `content`, its page, as a tab of a browser

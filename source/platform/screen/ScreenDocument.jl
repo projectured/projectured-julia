@@ -188,6 +188,10 @@ struct CloseWindowOperation <: Operation
     id::Symbol
 end
 
+# It names its window by the id, so it passes up through every reader to the
+# window manager, also through a projection that knows no window.
+OperationModule.is_self_contained_operation(::CloseWindowOperation) = true
+
 """
     ChangeScreenPointerShapeOperation(shape)
 

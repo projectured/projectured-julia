@@ -851,7 +851,7 @@ The design of the address is complete. The steps to build it:
     (owner, 2026-10-06):** a title for `JsonObjectEntry`, its key, is a change of
     its own after the navigator; it names the entry in the address, in the list,
     and in the header of its context menu.
-  - [ ] The popup. Facts found 2026-10-06 that the design did not know: a
+  - [x] The popup. Facts found 2026-10-06 that the design did not know: a
     `:popup` window never takes the keyboard focus, so a type-in field in it gets
     no key; and an answer of a popup goes up through the screen, not through the
     navigator, so it can not write the selection, whose path starts at the root.
@@ -867,6 +867,23 @@ The design of the address is complete. The steps to build it:
     navigator that takes the focus, with a new operation that carries the path of
     the navigator and a second lift; and the field in the bar, the step itself as
     an insertion, with a list that takes no key.
+    Done 2026-10-06. An arrow (`:chevron_right`) stands before each name but the
+    root, in place of the "›" mark; a press on it opens a `NavigatorChoiceList`
+    at the point of the press. `NavigatorChoiceListToWidget` draws a line "Find:
+    …" over a `WidgetMenu` of the choices; the row of Return shows a chevron, the
+    current step a check. The list reads a key before its widgets, so the widget
+    stage takes no arrow key from it; it takes the typed text, Backspace, Up,
+    Down and Return, swallows any other key with no modifier but Shift, and
+    leaves a key with Ctrl, Alt or Meta to the window under it. Facts found on
+    the way: a generic projection dropped `CloseWindowOperation`, and with it the
+    whole compound of a press on a menu item, because the operation was not
+    self-contained; it is now (`is_self_contained_operation`), as
+    `ChangeScreenPointerShapeOperation` is, so a menu inside the view of a
+    document closes too. A key that closes the menu window, such as Escape,
+    must make the context menu window forget its layers at once, because the
+    key no longer reaches the step that forgets them. The list holds closures
+    that capture the navigator, so it is `is_walk_opaque`. The navigator slice
+    has the edge `screen` now.
 - [x] **A6. A choice.** The step is replaced, and the rest of the address is kept
   as far as it reaches nodes of the recorded types, and cut at the first that it
   does not. The result opens as a visit. Done 2026-10-06:

@@ -137,7 +137,7 @@ function test_navigator_to_widget()
         # the address only, and "B" stands in the address and in the page.
         @test _nav_count(backend, "Shelf") == 1
         @test _nav_count(backend, "B") == 2
-        @test _nav_has_texts(backend, "Shelf", "›", "B")
+        @test _nav_has_texts(backend, "Shelf", _NAV_CHOICES, "B")
 
         # Ctrl+Up opens the parent, with the book selected.
         _nav_press!(editor, backend, _nav_key(:up))
@@ -155,7 +155,7 @@ function test_navigator_to_widget()
         @test click !== nothing
         _nav_press!(editor, backend, click)
         @test _nav_is(navigator.address, @reference(shelf, books[2]))
-        @test _nav_has_texts(backend, "Shelf", "›", "B")
+        @test _nav_has_texts(backend, "Shelf", _NAV_CHOICES, "B")
 
         # A press on an item of the address opens its page, with the page that
         # the person leaves selected.
@@ -164,7 +164,7 @@ function test_navigator_to_widget()
         _nav_press!(editor, backend, click)
         @test navigator.address isa EmptyReference
         @test _nav_is(navigator.selection, @reference(navigator, content.books[2]))
-        @test !_nav_has_texts(backend, "Shelf", "›", "B")
+        @test !_nav_has_texts(backend, "Shelf", _NAV_CHOICES, "B")
 
         # The side buttons of the mouse go back and forward, wherever the pointer is.
         side(button) = MouseClick(button, 200, 200, 1, ModifierKeys(); time = 0.0)
@@ -182,7 +182,7 @@ function test_navigator_to_widget()
         navigator = Navigator(shelf, @reference(shelf, books[2]))
         editor, backend = _nav_editor(navigator; undo = true)
         buffer = editor.document
-        @test _nav_has_texts(backend, "Shelf", "›", "B")
+        @test _nav_has_texts(backend, "Shelf", _NAV_CHOICES, "B")
         # The control shows the current view, and a press shows the next.
         _nav_press!(editor, backend, _nav_click(backend, "Names"))
         @test navigator.address_draft.view === :path

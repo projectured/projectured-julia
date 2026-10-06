@@ -74,6 +74,11 @@ fewer. While more than one menu shows, each starts with a mark that names its
 part, and a separator stands between two of them. The state document declares
 both keys in its gesture table, so the gesture help lists them.
 
+**Keys.** The window is a popup, so the window under it keeps the focus. While
+the window is open, a key of that window goes first to the content of the
+menu, after F2 and Shift+F2: a menu that answers a key, such as a list that a
+person types into, takes it, and a key that the menu does not answer goes on.
+
 Sit it around the screen, inside the gesture tracker, as the tooltip window
 sits. The screen gives the right click to the part at its point.
 """
@@ -128,6 +133,10 @@ function read_intent(p::ContextMenuWindowProjection, recursion, change::Intent,
     if event !== nothing && _is_menu_window_open(state)
         own = read_bound_gesture(state, event, nothing)
         own === nothing || return Intent(input, own)
+        key = _read_menu_key(p, recursion, iomap, input)
+        key === nothing ||
+            return Intent(input, _join_menu_operations(key, _is_menu_window_open(state) ? nothing :
+                                                            _forget_context_menu(state)))
     end
     menu, rest = _take_context_menu(_read_menu_content(p, recursion, change, iomap))
     rest = _lift_menu_part_edits(p, recursion, iomap, rest)
@@ -141,6 +150,21 @@ end
 
 read_intent(p::ContextMenuWindowProjection, iomap::ContextMenuWindowIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
+
+# A key of the window under the open menu, read by the content of the menu window
+# first: the window under it keeps the focus, so the menu gets no key of its own.
+# The answer of the menu, with each edit of the part that it made lifted, or
+# `nothing` when the menu does not answer the key, which then goes on. A key that
+# closes the window, such as Escape or Return on a row, makes the state forget it.
+function _read_menu_key(p::ContextMenuWindowProjection, recursion, iomap::ContextMenuWindowIoMap,
+                        input::WindowInput)
+    event = input.event
+    menu = iomap.input.window.id
+    (event isa Union{KeyDown, KeyPress} && input.window_id !== menu) || return nothing
+    answer = _read_menu_content(p, recursion, Intent(WindowInput(menu, event)), iomap)
+    answer isa Operation || return nothing
+    _lift_menu_part_edits(p, recursion, iomap, answer)
+end
 
 # A change with a route, such as a command that runs a binding on a part with no
 # pointer: a menu in the answer opens the window, as the answer to a click does.

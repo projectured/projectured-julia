@@ -8,7 +8,7 @@ The navigator slice of `ProjecturedPlatform` shows one part of a document at a t
 
 ### The document
 
-`Navigator(content[, address])` is a document with four fields:
+`Navigator(content[, address])` is a document with five fields:
 
 | Field | What it holds |
 | --- | --- |
@@ -16,6 +16,7 @@ The navigator slice of `ProjecturedPlatform` shows one part of a document at a t
 | `address` | the path of the page from `content`, a `Reference`; the empty path shows the whole content |
 | `back` | the visits before the current one, the newest last |
 | `forward` | the visits after the current one, the nearest last |
+| `address_draft` | the address as the bar shows it and a person edits it, a `NavigatorAddress`: view state, which a save does not keep |
 
 A `NavigatorVisit(content, address, selection)` is one page that a person saw: the content, the address of the page, and the selection in the page when the person left it, as a path from the content. A visit is a value and not a document. So a visit can hold another content, and the back list goes from one document to another, as a tab of a browser goes from one site to another.
 
@@ -61,7 +62,26 @@ The printer prints no child. The page document itself stands in a `VerticalLayou
 
 The maps put `content` and the address before a path in the page, and take them off: `content.<address>.<rest>` and `children[2].children[1].<rest>`. A path in the content that is not on the page has no image, and a path into the bar maps back to nothing. The forward map keeps the types of the path inside the page and gives the steps of the grid and of the layout their types, because a tab splices the image into its own path and needs a type on every node.
 
-**The bar.** Back, Forward and Parent are `WidgetToolbarItem`s with the icons `:arrow_left`, `:arrow_right` and `:arrow_up`. A button is off when its list is empty, or when the page has no parent. The address is one item for each document from the content to the page, with "›" between two items. An item shows the title of its document, or the steps that reach it from the item before, or at the root the name of its type. Its tooltip is its path from the content. A press on an item opens its page. The page itself is the last item, a plain label.
+**The bar.** Back, Forward and Parent are `WidgetToolbarItem`s with the icons `:arrow_left`, `:arrow_right` and `:arrow_up`. A button is off when its list is empty, or when the page has no parent. Then a control shows the address in one of three views, and the address follows it.
+
+**The address.** `NavigatorAddress(steps, view, edited)` holds the address as the bar shows it: an editable copy beside the committed `address`. Its steps are `FieldReferenceStep`s and element `RangeReferenceStep`s, and `ReferenceInsertion`s while a person types a step. While `edited` is `false`, the copy is the address, and the views show the steps of the page address (`get_navigator_address_steps`). Each visit makes `edited` `false` again. The control is a `WidgetToggleGroup` of the step look, "Names", "Path" and "Types", which writes `view`; a press shows the next view, and Shift+press the one before. The reader marks a write of the copy as view state.
+
+- **Names** (`:titles`): one item for each document from the content to the page. An item shows the title of its document, or the steps that reach it from the item before, or at the root the name of its type. Its tooltip is its path from the content. A press on an item opens its page. The page itself is the last item, a plain label. Before each item but the root stands an arrow (`:chevron_right`), which opens the list of the choices at the place of the item.
+- **Path** (`:path`): the path of the steps, such as `.books[2]`.
+- **Types** (`:types`): the path with the type of each node. When an edit or a choice cut the address, `✗` stands before the steps that reach no node.
+
+### The choices of a name
+
+`find_navigator_choices(document, step; query, limit)` gives the choices at a step of an address, as `label => step` pairs, where `document` is the node that the step applies to:
+
+- for a field step, the fields of `document` that hold a document, by title or by field name, never a field of view state;
+- for an element step, the elements from `limit ÷ 2` before the current one, up to the first index that reaches no element, so no collection is counted to its end. Words in `query` search the elements from the first, up to 1000 of them; a number gives that element alone.
+
+A domain adds a method for its own type of `document`. The data frame adapter names the cells of a row by their columns (`find_navigator_choices(::DataFrameViewRow, ::RangeReferenceStep)`); its rows need no method.
+
+`make_navigator_choice_operation(navigator, index, step)` opens the page with `step` in place of step `index` of the page address, as a new visit. The steps after it keep the types that the address records, also at the node of the choice, and the page is the longest prefix that still reaches nodes of those types. So on the page `persons[3].address.city`, the choice of `persons[4]` opens the city of person 4, or the address of person 4 when it has no city, and a choice of a node of another type cuts the rest right after it. The address keeps the steps that reach no node, and the types view marks them.
+
+A press on the arrow before an item answers `OpenContextMenuOperation` with one menu, a `NavigatorChoiceList`, and the navigator as its source, at the point of the press. The context menu window shows the list in a window of its own: a line of the typed text over a menu of the choices that it narrows to. The row that Return chooses shows a chevron, and the current step a check. Each row is a `WidgetMenuItem` that holds the choice operation, so a press on a row answers `EditMenuPartOperation`, and the context menu window lifts it to the navigator through the readers of the content. The window is a popup, which never takes the focus; while it is open, the context menu window gives a key of the window under it to the list first. The list takes the typed text, Backspace, Up, Down and Return, and does nothing for any other key with no modifier but Shift, so a letter does not edit the page; a key with Ctrl, Alt or Meta goes on to the window under it. The list is view state of the popup, and a walk of the documents does not go into it (`is_walk_opaque`).
 
 **The reader.** The generic bridge reads first: it maps a path of the page back, and it reads the `@gestures` table of the navigator for a key that the page does not answer. Then the reader of the view takes three kinds of answer:
 
@@ -84,6 +104,7 @@ Alt and an arrow walk the structure of a document, so the navigator takes Ctrl.
 
 Each key is an `override` rule: it takes its chord also after the page answered it, as Back in a browser works on every page. The reader gives a key that the page answered to the table of the navigator as a claimed key, which only an `override` rule takes. A table of rows answers Return with any modifier, for one.
 | right click on a part of the page | the menu of the part: "Open as a page" and "Open in a new tab" |
+| a press on the arrow before a name of the address | the list of the choices at the place of the name |
 | the back and the forward side button of the mouse | go back, go forward |
 
 The menu belongs to the innermost document under the pointer, below the page, which the navigator reads from its own `mouse_target`. A command with no pointer reads the selection. The source of the menu is the path of that part, with its types, so the context menu window lifts an item from the part through the reader of the navigator. Each item holds an `OpenPageOperation` rooted at the content, so it opens the same page also from the outer layer of a part that has a menu of its own (F2).
@@ -108,7 +129,7 @@ An open that no navigator takes reaches the editor. Its evaluation posts the ope
 
 ## How it fits
 
-The slice uses the collection, layout, natural, pane, projection, serialization, style and widget slices of the platform, and the kernel. It uses the pane slice for the tab that an open with no navigator posts. It names no domain, and no domain names it except to answer `OpenPageOperation`.
+The slice uses the collection, layout, natural, pane, projection, screen, serialization, style and widget slices of the platform, and the kernel. It uses the pane slice for the tab that an open with no navigator posts, and the screen slice for the close of the window of the list of choices. It names no domain, and no domain names it except to answer `OpenPageOperation`.
 
 A domain gives a part a page of its own where the part must look different as a page. The data frame adapter draws a row of a frame, `rows[r]` of a `DataFrameView`, as a form of the name and the value of each column (`DataFrameViewRowToWidget`). The menu of a row opens it, and a double click on the number of a row opens it: the view of the frame maps that double click, because the view owns the numbers.
 
@@ -122,6 +143,9 @@ A navigator is a document like any other, so it nests: a tab holds it, a page ca
 - **Parent is a new visit.** Back then returns to the child, as in a file manager.
 - **The view of a page is the view of its type.** The recursion picks it, so a domain adds a page view once and every navigator uses it.
 - **A trait says where a navigator stops.** The owner chose a trait of the navigator on 2026-10-06, over `is_element_collection`, which the search, the view on demand, the file cut and the sync iterate; over a frame of ten million rows each would make ten million row documents.
+- **The address is a document beside the committed address.** The owner chose it on 2026-10-06. An edit changes only the copy, and Enter or a choice opens it as a visit, so the page does not follow each key of a path that a person types. The copy holds the steps of the kernel, and the code dispatches on their types; a document for each kind of step would repeat the step types of the kernel.
+- **A choice keeps the rest of the address where it still reaches.** The owner chose it on 2026-10-06, over a cut of the rest, as file managers do. So a person compares one part across siblings, one choice at a time.
+- **The list of choices is the context menu of a name.** The owner chose it on 2026-10-06. A popup takes no focus and its answer passes no navigator, and the context menu already carries the path of its part up and lifts the edit of an item to it. The options not chosen: a window of the navigator that takes the focus, with a new operation and a second lift; and the field in the bar, with a list that takes no key.
 - **No search for an object.** An open of an object that is not on the address makes the object a new content. A search over a frame of ten million rows reads every value.
 
 The plan with the alternatives is [plan/pending/a-navigator-with-back-forward-parent-and-links.md](../../../../plan/pending/a-navigator-with-back-forward-parent-and-links.md).
@@ -137,12 +161,14 @@ evaluate_operation(editor, make_navigator_open_operation(navigator, @reference(d
 
 A part that opens a page answers `OpenPageOperation(nothing, EmptyReference())` to its own press, and `OpenPageOperation(nothing, EmptyReference(), :new_tab)` to Ctrl+press.
 
-- Tests: `test_navigator()` in `ProjecturedPlatformTest`: `test_navigator_visits()`, `test_navigator_to_widget()`, `test_open_page_operation()` and `test_navigator_gestures()`.
+- Tests: `test_navigator()` in `ProjecturedPlatformTest`: `test_navigator_visits()`, `test_navigator_choices()`, `test_navigator_to_widget()`, `test_open_page_operation()`, `test_navigator_gestures()` and `test_navigator_document()`. The data frame case is `test_data_frame_row_page()` in `ProjecturedDataFramesTest`.
 
 ## Limits
 
 - The navigator puts no scroll pane around its page: a part scrolls where it is made. A page whose view has no scroll pane, such as a JSON document, is cut at the bottom of the navigator.
 
-- A JSON part has no title, so the address of a JSON page names its steps, for example `entries[2]` and `value`.
+- A JSON part has no title, so the address of a JSON page names its steps, for example `entries[2]` and `value`, and the list of choices of an entry names it `[2]`.
+- The list of choices opens at the point of the press, and no key opens it.
+- The path view shows the path and takes no edit yet.
 - The view on demand, which draws a document that has no view of its own, does not pass an operation with a fixed place (`read_rooted_operation`) into itself. A verb of the assistant at a place inside such a page reaches no part.
 - A link in the data of a domain, such as a markdown link, does not answer `OpenPageOperation` yet.

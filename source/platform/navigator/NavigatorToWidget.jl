@@ -149,11 +149,15 @@ end
 # tooltip is its path from the content. A press on an item opens its page, and the
 # page itself is a plain name.
 
-# One item of the address: what it draws, the action of its press, and the
-# address that the press opens. The page has no action.
+# One item of the address: its name, what it draws, the action of its press, the
+# arrow before it and the action of the arrow, and the address that the press
+# opens. The page has no action, and the root has no arrow.
 struct _AddressCrumb
+    label::String
     widget::Any
     action::Any
+    arrow::Any
+    choices::Any
     address::Reference
 end
 
@@ -161,12 +165,19 @@ function _make_address_crumbs(navigator::Navigator)
     parts = _get_address_parts(navigator)
     crumbs = _AddressCrumb[]
     for (index, (label, tooltip, address)) in enumerate(parts)
-        if index == length(parts)
-            push!(crumbs, _AddressCrumb(WidgetLabel(label; tooltip), nothing, address))
+        widget, action = if index == length(parts)
+            WidgetLabel(label; tooltip), nothing
         else
             action = Action(label)
-            push!(crumbs, _AddressCrumb(WidgetToolbarItem(action; tooltip), action, address))
+            WidgetToolbarItem(action; tooltip), action
         end
+        arrow, choices = if index == 1
+            nothing, nothing
+        else
+            choices = Action("Choose another part"; icon = :chevron_right)
+            WidgetToolbarItem(choices; tooltip = "The other parts in the place of $(label)."), choices
+        end
+        push!(crumbs, _AddressCrumb(label, widget, action, arrow, choices, address))
     end
     crumbs
 end
@@ -193,14 +204,32 @@ function _get_address_parts(navigator::Navigator)
     parts
 end
 
-# The widgets of the address, with a mark between two items.
+# The widgets of the address: each item, with the arrow of its choices before it.
 function _get_crumb_widgets(crumbs::Vector{_AddressCrumb})
     widgets = Any[]
-    for (index, crumb) in enumerate(crumbs)
-        index == 1 || push!(widgets, WidgetLabel("›"))
+    for crumb in crumbs
+        crumb.arrow === nothing || push!(widgets, crumb.arrow)
         push!(widgets, crumb.widget)
     end
     widgets
+end
+
+# The list of the choices at the last step of `crumb`, as the menu of the
+# navigator, at the point of the press. Each choice opens with the rest of the
+# address kept where it still reaches.
+function _make_choice_menu_operation(navigator::Navigator, crumb::_AddressCrumb, gesture)
+    steps = get_reference_steps(crumb.address)
+    index = length(steps)
+    node = evaluate_reference(navigator.content, extend_reference(EmptyReference(), steps[1:(index - 1)]...))
+    current = steps[index]
+    find = query -> find_navigator_choices(node, current; query)
+    row = something(findfirst(choice -> last(choice) == current, find("")), 1)
+    list = NavigatorChoiceList(; row, current, find,
+                               choose = step -> make_navigator_choice_operation(navigator, index, step))
+    point = gesture isa MouseClick ? (gesture.x, gesture.y) : nothing
+    ReplaceViewStateOperation(OpenContextMenuOperation(Tuple{String,Document}[(crumb.label, list)],
+                                                       annotate_reference_types(navigator, EmptyReference()),
+                                                       point))
 end
 
 # The title of a document on the address; the steps that reach it from the item
@@ -236,7 +265,8 @@ function read_intent(p::NavigatorToWidget, recursion, change::Intent, iomap::Nav
     if change.operation !== nothing && change.gesture !== nothing
         operation = _add_own_answer(iomap.input, change.gesture, operation)
     end
-    Intent(answer.gesture, _translate_answer(iomap, operation), answer.description, answer.domain)
+    Intent(answer.gesture, _translate_answer(iomap, operation, change.gesture), answer.description,
+           answer.domain)
 end
 
 _add_own_answer(navigator::Navigator, gesture, operation) =
@@ -255,7 +285,7 @@ function _add_own_answer(navigator::Navigator, gesture::CollectIntents, operatio
     own isa CollectedIntentsOperation ? merge_collected_intents(operation, own) : operation
 end
 
-function _translate_answer(iomap::NavigatorToWidgetIoMap, operation::InvokeActionOperation)
+function _translate_answer(iomap::NavigatorToWidgetIoMap, operation::InvokeActionOperation, gesture)
     navigator, actions = iomap.input, iomap.actions
     make = operation.action === actions.back ? make_navigator_back_operation :
            operation.action === actions.forward ? make_navigator_forward_operation :
@@ -263,6 +293,9 @@ function _translate_answer(iomap::NavigatorToWidgetIoMap, operation::InvokeActio
     make === nothing || return something(make(navigator), DoNothingOperation())
     # A press on an item of the address opens its page, with the page that the
     # person leaves selected, as Parent does.
+    # A press on the arrow before an item opens the list of its choices.
+    index = findfirst(crumb -> crumb.choices === operation.action, iomap.crumbs)
+    index === nothing || return _make_choice_menu_operation(navigator, iomap.crumbs[index], gesture)
     index = findfirst(crumb -> crumb.action === operation.action, iomap.crumbs)
     index === nothing && return operation
     something(make_navigator_open_operation(navigator, iomap.crumbs[index].address;
@@ -270,7 +303,7 @@ function _translate_answer(iomap::NavigatorToWidgetIoMap, operation::InvokeActio
               DoNothingOperation())
 end
 
-function _translate_answer(iomap::NavigatorToWidgetIoMap, operation::OpenPageOperation)
+function _translate_answer(iomap::NavigatorToWidgetIoMap, operation::OpenPageOperation, gesture)
     navigator = iomap.input
     if operation.document === nothing
         # The path of an open from the page starts at the field `content`; any
@@ -290,16 +323,16 @@ end
 
 # A write of the address copy, such as the view that the control picks, is view
 # state.
-function _translate_answer(iomap::NavigatorToWidgetIoMap, operation::ReplaceReferencedValueOperation)
+function _translate_answer(iomap::NavigatorToWidgetIoMap, operation::ReplaceReferencedValueOperation, gesture)
     operation.document === iomap.input.address_draft || return operation
     ReplaceViewStateOperation(operation)
 end
 
-_translate_answer(iomap::NavigatorToWidgetIoMap, operation::CompoundOperation) =
-    CompoundOperation(Any[_translate_answer(iomap, member) for member in operation.operations])
-_translate_answer(iomap::NavigatorToWidgetIoMap, operation::WrappingOperation) =
-    rewrap_operation(operation, _translate_answer(iomap, get_wrapped_operation(operation)))
-_translate_answer(::NavigatorToWidgetIoMap, operation) = operation
+_translate_answer(iomap::NavigatorToWidgetIoMap, operation::CompoundOperation, gesture) =
+    CompoundOperation(Any[_translate_answer(iomap, member, gesture) for member in operation.operations])
+_translate_answer(iomap::NavigatorToWidgetIoMap, operation::WrappingOperation, gesture) =
+    rewrap_operation(operation, _translate_answer(iomap, get_wrapped_operation(operation), gesture))
+_translate_answer(::NavigatorToWidgetIoMap, operation, gesture) = operation
 
 # ── Maps ──────────────────────────────────────────────────────────────────────
 #

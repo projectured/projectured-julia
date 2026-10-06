@@ -28,18 +28,19 @@ using ..PaneModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
+using ..ScreenModule
 using ..SerializationModule
 using ..StyleModule
 using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..DocumentModule: get_document_title, get_edited_field, has_document_duplicate
+import ..DocumentModule: get_document_title, get_edited_field, has_document_duplicate, is_walk_opaque
 import ..PaneModule: make_pane_tab_title
 import ..SerializationModule: pred_arguments, make_pred_document
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..OperationModule: evaluate_operation
 
-export Navigator, NavigatorVisit, NavigatorAddress, ReferenceInsertion
+export Navigator, NavigatorVisit, NavigatorAddress, NavigatorChoiceList, ReferenceInsertion
 export get_navigator_page_address, get_navigator_page, get_navigator_address_steps,
        find_navigator_parent_address,
        find_navigator_selected_address, is_navigator_stop
@@ -47,6 +48,7 @@ export make_navigator_open_operation, make_navigator_back_operation,
        make_navigator_forward_operation, make_navigator_parent_operation
 export find_navigator_choices, make_navigator_choice_operation
 export NavigatorToWidget, make_navigator_projection
+export NavigatorChoiceListToWidget, make_navigator_choice_list_projection
 export OpenPageOperation
 
 include("NavigatorDocument.jl")
@@ -55,6 +57,7 @@ include("NavigatorChoices.jl")
 include("NavigatorGestures.jl")
 include("OpenPageOperation.jl")
 include("NavigatorToWidget.jl")
+include("NavigatorChoiceListToWidget.jl")
 
 # The row that lets a tab draw a navigator. The factory form, so every renderer
 # builds its own projection instance. The bar and the page come back through the
@@ -63,6 +66,9 @@ function __init__()
     register_natural_graphics!(:navigator, (; measure, appearance) -> Pair{Type,Any}[
         Navigator => ChainingProjection(
             make_navigator_projection(; widget_theme = get_scaled_theme!(appearance, WidgetTheme)),
+            GridLayoutToGraphicsCanvas()),
+        NavigatorChoiceList => ChainingProjection(
+            make_navigator_choice_list_projection(; widget_theme = get_scaled_theme!(appearance, WidgetTheme)),
             GridLayoutToGraphicsCanvas())])
 end
 
