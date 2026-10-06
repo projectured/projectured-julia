@@ -235,6 +235,34 @@ Step 2 built it so:
 - Each owner keeps its count of the shown rows, from its height and its row
   step.
 
+Step 4 found that the drag of the thumb of an owner's bar can not come back to
+the table by a path. The default backward map of a view names a part of its
+output by an introduced reference, and the chain drops a routed gesture whose
+route does not evaluate on its input, which an introduced reference never does.
+A change of the chain is a change of the routing design, so step 4 did not make
+it. The owner keeps the drag instead, as the data frame view keeps the drag of
+the edge of a column:
+
+- `thumb_drag` holds `(along, value, travel)`: the place of the press along
+  the bar, the value, and the length of track that the thumb can move along.
+  So a part of the drag needs no geometry, only the document of the bar.
+- `read_scroll_bar_drag(bar, gesture)` answers a `DragMove`, a `DragEnd` and a
+  `DragCancel` from `thumb_drag` alone. The bar reads its own drag with it.
+- `make_owned_scroll_bar_drag(answer, bar, press)` keeps the place of the press
+  in the frame of the owner, the frame of the gesture that the owner reads, and
+  marks the drag `owned = true`. The bar, the pane and the table leave an owned
+  drag to its owner, so a gesture that a grid gives its selected child does not
+  move the thumb twice.
+- The data frame view starts the drag at itself, as it does for the edge of a
+  column, and reads each part with `read_scroll_bar_drag`. The statistics do the
+  same through a new IO map, `FrameStatisticsToWidgetIoMap`, which holds their
+  bar.
+- `DataFrameViewToWidget` and `FrameStatisticsToWidget` lose `scroll_bar_width`:
+  the table draws the bar at the thickness of its widget theme.
+- The bar of the data frame view lights from the mouse target of the view, as
+  the table does, because no path reaches it. The statistics give their table
+  no mouse target, so their bar lights only while its thumb is dragged.
+
 ## 5. Steps
 
 Each step is one commit with its test. Each step updates
@@ -272,8 +300,10 @@ part.
   [WidgetTableBarTest.jl](../../test/platform/projection/WidgetTableBarTest.jl), 20
   pass; the fourteen table tests of the platform pass unchanged, and
   `test_data_frame_view()` 52 pass.
-- [ ] **4. The two owners move their bars into the table** (§4.6). Tests:
-  `test_data_frame_view()` and `test_frame_statistics_feed()`.
+- [x] **4. The two owners move their bars into the table** (§4.6). Tests:
+  `test_data_frame_view()` 56 pass, with a press and a drag of the thumb
+  through the chain; `test_frame_statistics_feed()` 138 pass, with the drag
+  that the statistics keep; `test_dataframes()` 587 pass.
 - [ ] **5. `WidgetList` scrolls by itself** (§4.4). Tests: the list cases of
   [WidgetFormsTest.jl](../../test/platform/projection/WidgetFormsTest.jl),
   [MouseTargetMoveTest.jl](../../test/platform/projection/MouseTargetMoveTest.jl)

@@ -5,7 +5,7 @@
 
 """
     FrameStatisticsToWidget(; header_text, row_text, empty_text, slow_text, gap, row_height = 0,
-                              measure = nothing, row_step = 0, scroll_bar_width)
+                              measure = nothing, row_step = 0)
 
 Draw a [`FrameStatistics`](@ref) as widgets, from top to bottom:
 
@@ -15,7 +15,7 @@ Draw a [`FrameStatistics`](@ref) as widgets, from top to bottom:
   that it covers, its minimum, maximum, mean, standard deviation and total;
 - "Frames, newest first": one row for each recent frame, with the frame number
   as the row header and one column for each measurement, and a scroll bar
-  beside it.
+  over the right edge of its rows.
 
 A time shows in milliseconds with two decimals, and the total of a time with
 none. A count shows as a whole number, and its mean and deviation with one
@@ -36,9 +36,11 @@ does not record it.
 The scroll bar shows where the top row is among the frames, and its thumb is
 the share of the frames that the table shows: the offered height divided by
 `row_step`, the height of a row with its padding and its rule, less the rows
-above the table. A press or a drag on the bar is a jump to the row at that
-place. The bar is `scroll_bar_width` wide, the thickness of the widget theme. Every row of that table is `row_height` tall, a line of the
-font of `row_text`, which `make_frame_statistics_projection` measures.
+above the table. A write of the value of the bar, by a click on its track or a
+drag of its thumb, is a jump to the row at that place. The table draws the bar,
+at the thickness of its widget theme. Every row of that table is `row_height`
+tall, a line of the font of `row_text`, which `make_frame_statistics_projection`
+measures.
 
 Read only: no caret goes into a table.
 """
@@ -51,7 +53,15 @@ Read only: no caret goes into a table.
     row_height::Int = 0
     measure::Any = nothing
     row_step::Int = 0
-    scroll_bar_width::Int = get_widget_style(nothing, :scroll_bar_thickness)
+end
+
+# The IO map of the statistics, with the scroll bar that its table of the frames
+# draws, so the reader can keep the drag of the thumb of the bar.
+@iomap struct FrameStatisticsToWidgetIoMap
+    projection::Any
+    input::Any
+    output::Any
+    bar::Any
 end
 
 """
@@ -79,8 +89,7 @@ function make_frame_statistics_projection(; theme = nothing, measure = nothing,
                                         Int(widget_theme.control_padding.bottom[]) + 1)
     FrameStatisticsToWidget(; header_text = get_style(:header_text), row_text,
                             empty_text = get_style(:empty_text), slow_text = get_style(:slow_text),
-                            gap = get_style(:gap), row_height, measure, row_step,
-                            scroll_bar_width = get_widget_style(widget_theme, :scroll_bar_thickness))
+                            gap = get_style(:gap), row_height, measure, row_step)
 end
 
 # A style that a builder gave: a cell that reads the theme, or a plain value.
@@ -115,12 +124,10 @@ function print_document(p::FrameStatisticsToWidget, recursion, statistics::Frame
              Cell(WidgetLabel("Summary"; text_style = p.header_text)),
              Cell(_make_summary_table(p, summary)),
              Cell(WidgetLabel("Frames, newest first"; text_style = p.header_text)),
-             Cell(LayoutConstraint(GridLayout(Any[_make_frame_table(p, statistics, summary), bar], 2;
-                                              column_policies = Any[Fill, Fixed(p.scroll_bar_width)],
-                                              row_policies = Any[Fill]);
+             Cell(LayoutConstraint(_make_frame_table(p, statistics, summary, bar);
                                    width = Fill, height = Fill))]
     end)
-    SimpleIoMap(p, statistics, root)
+    FrameStatisticsToWidgetIoMap(p, statistics, root, bar)
 end
 
 # "1234 frames, the tables cover the last 1000": the frames since the start, and
@@ -205,7 +212,8 @@ _format_frame_header(row::FrameStatisticsRow) =
 # keeps the frames and the columns that it was built from, so a row that a walk
 # builds later shows the same flush. The columns are those of `summary`, so the
 # headers and the cells agree while a new measurement reaches the parts.
-function _make_frame_table(p::FrameStatisticsToWidget, statistics::FrameStatistics, summary::Vector)
+function _make_frame_table(p::FrameStatisticsToWidget, statistics::FrameStatistics, summary::Vector,
+                           bar::WidgetScrollBar)
     units = [row.unit for row in summary]
     slow_column = findfirst(row -> row.name == "frame_time", summary)
     headers = CellVector(Cell[Cell(WidgetLabel(_format_frame_header(row); text_style = p.header_text))
@@ -240,7 +248,7 @@ function _make_frame_table(p::FrameStatisticsToWidget, statistics::FrameStatisti
                 Cell(_FRAME_COLUMN_POLICY), Cell(Fixed(p.row_height)), Cell(:clip),
                 Cell(true), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
                 getfield(statistics, :scroll_position), getfield(statistics, :top_row),
-                Cell(nothing), Cell(:auto), Cell(:auto), Cell(nothing), Cell(nothing))
+                Cell(nothing), Cell(bar), Cell(:auto), Cell(nothing), Cell(nothing))
 end
 
 # The data of column `c` of the frames, aligned right, whose width reads entry
@@ -273,7 +281,7 @@ function _format_widest_frame_value(unit::Symbol, column::Vector{Float64})
     isempty(values) ? "-" : _format_frame_value(unit, maximum(values))
 end
 
-# The scroll bar beside the table of the frames. Its value is the place of the
+# The scroll bar that the table of the frames draws. Its value is the place of the
 # row at the top among the frames, and its thumb the share of the frames that
 # the table shows: the offered height `height` in rows, less the rows above the
 # table, which are the head line, two titles, the header and the rows of the
@@ -330,10 +338,46 @@ map_reference_forward(p::FrameStatisticsToWidget, iomap, reference) = find_intro
 # `row_headers`, which the same anchor builds again, so that write does nothing.
 # A press on Pause becomes view state, so the undo does not record it. A write
 # of the value of the scroll bar becomes a jump to the row at that value.
-function read_intent(p::FrameStatisticsToWidget, iomap::SimpleIoMap, operation::Operation)
+function read_intent(p::FrameStatisticsToWidget, iomap::FrameStatisticsToWidgetIoMap, operation::Operation)
+    started = _convert_bar_drag_start(iomap, operation)
+    started === nothing || return started
     converted = _convert_widget_write(iomap.input, operation)
     converted === nothing || return converted
     invoke(read_intent, Tuple{Projection, Any, Any}, p, iomap, operation)
+end
+
+# The table of the frames is the part that no path reaches, so the statistics
+# keep the drag of the thumb of its bar: the start of the drag names the
+# statistics, and the press is kept in their frame, the frame of the parts of
+# the drag that come to them.
+function read_intent(p::FrameStatisticsToWidget, recursion, change::Intent,
+                     iomap::FrameStatisticsToWidgetIoMap)
+    answer = invoke(read_intent, Tuple{Projection,Any,Intent,Any}, p, recursion, change, iomap)
+    change.gesture isa MouseDown || return answer
+    Intent(answer.gesture, make_owned_scroll_bar_drag(answer.operation, iomap.bar, change.gesture),
+           answer.description, answer.domain)
+end
+
+# A part of the drag of the thumb: a move is a jump to the row at the value of
+# the bar, and the end lets the thumb go.
+function read_intent(::FrameStatisticsToWidget, iomap::FrameStatisticsToWidgetIoMap,
+                     event::Union{DragMove,DragEnd,DragCancel})
+    answer = read_scroll_bar_drag(iomap.bar, event)
+    answer isa CompoundOperation || return something(_convert_widget_write(iomap.input, answer), Some(answer))
+    CompoundOperation(Any[something(_convert_widget_write(iomap.input, o), Some(o)) for o in answer.operations])
+end
+
+# The answer to a press on the thumb of the bar, whose start of the drag names
+# the statistics; `nothing` for any other answer.
+function _convert_bar_drag_start(iomap::FrameStatisticsToWidgetIoMap, operation)
+    operation isa CompoundOperation || return nothing
+    any(o -> (o = o isa ReplaceViewStateOperation ? get_wrapped_operation(o) : o;
+              o isa ReplaceReferencedValueOperation && o.document === iomap.bar &&
+              _find_written_widget_field(o)[2] == "thumb_drag"), operation.operations) || return nothing
+    CompoundOperation(Any[o isa StartDragOperation ?
+                              StartDragOperation(annotate_reference_types(iomap.input, EmptyReference()), o.dragged) :
+                              something(_convert_widget_write(iomap.input, o), Some(o))
+                          for o in operation.operations])
 end
 
 # The widget and the name of the field that `write` writes, or `nothing`.

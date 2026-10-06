@@ -98,7 +98,7 @@ function test_widget_scroll_bar()
         @test written_value(press) ≈ 0.25
         @test any(o -> o isa StartDragOperation, writes(press))
         apply!(press)
-        @test bar.thumb_drag == (along = 90, value = 0.25)
+        @test bar.thumb_drag == (along = 90, value = 0.25, travel = 240)
         apply!(read(DragEnd(5, 90, plain; time = 0.0)))
         @test bar.thumb_drag === nothing
         getfield(bar, :value)[] = 0.5
@@ -110,7 +110,7 @@ function test_widget_scroll_bar()
         @test written_value(press) === nothing
         @test any(o -> o isa StartDragOperation, writes(press))
         apply!(press)
-        @test bar.thumb_drag == (along = 170, value = 0.5)
+        @test bar.thumb_drag == (along = 170, value = 0.5, travel = 240)
         # The thumb moves with the pointer: 60 pixels of 240 is a quarter.
         moved = read(DragMove(5, 230, plain; time = 0.0))
         @test written_value(moved) ≈ 0.75

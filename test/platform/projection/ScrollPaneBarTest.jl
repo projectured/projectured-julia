@@ -138,7 +138,7 @@ function test_scroll_pane_bar()
         # The drag comes back to the pane, which gives it on to its bar.
         @test start.path isa EmptyReference
         _bar_test_apply!(press)
-        @test bar.thumb_drag == (along = 5, value = 0.0)
+        @test bar.thumb_drag == (along = 5, value = 0.0, travel = 200 - thumb)
         moved = read_intent(projection, iomap, DragMove(x, 5 + 40, plain; time = 0.0))
         expected = round(Int, 40 / (200 - thumb) * room)
         @test _bar_test_xy(_bar_test_written(moved, pane, "scroll_position")) == (0, expected)

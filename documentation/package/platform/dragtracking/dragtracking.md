@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [gesture.md](../../kernel/gesture.md), [operation.md](../../kernel/operation.md), [mouse-target.md](../../kernel/mouse-target.md)
 
-The dragtracking slice of `ProjecturedPlatform` keeps the path of the part whose drag is on, and gives that part the parts of its drag, `DragMove`, `DragEnd` and `DragCancel`, wherever the pointer is. A part starts its own drag with a `StartDragOperation` in its answer, and keeps its own state of what the drag does. This document says how the wrapper keeps the path, how the five drags of the editor use it, and how a global drag finds where it lands.
+The dragtracking slice of `ProjecturedPlatform` keeps the path of the part whose drag is on, and gives that part the parts of its drag, `DragMove`, `DragEnd` and `DragCancel`, wherever the pointer is. A part starts its own drag with a `StartDragOperation` in its answer, and keeps its own state of what the drag does. This document says how the wrapper keeps the path, how the drags of the editor use it, and how a global drag finds where it lands.
 
 ## How it works
 
@@ -34,7 +34,7 @@ While a drag is on, a part starts no other drag: the content still answers the r
 
 `DragEnd` ends the drag with the change that the part makes of it. `DragCancel` ends it with no change, and is the one gesture for the three cases that call for it: the part reads it and puts back what it kept at the start of the drag.
 
-### The five drags
+### The drags
 
 Each part that drags keeps its own state as a field of its own document, written with `ReplaceViewStateOperation` so a history records none of it:
 
@@ -45,6 +45,7 @@ Each part that drags keeps its own state as a field of its own document, written
 | a `ChartPlot` | `drag_anchor`, the press point, the mode (`:pan` or `:zoom`), the window and the axis scales at the press, and the `view` field as the plot held it | the `view` field as the plot held it, for a pan |
 | a `PaneTree` | `drag`, `(group, index, target, zone, origin, started)` | nothing dropped; `drag` is cleared |
 | a `DraggingState` of the dragging slice | `press`, `(x, y, source, started)` | nothing moved; `press` is cleared |
+| the thumb of a `WidgetScrollBar` | `thumb_drag`, `(along, value, travel)`, the place of the press along the bar, the value and the track that the thumb can move along; `owned` when an owner keeps the drag ([widget.md](../widget/widget.md#the-scroll-bars)) | the value at the press |
 
 The split pane divider and the slider start their drag at the press; the chart starts it at the press too, inside the plot; the pane tree and the dragging state start it after the small move of 5 pixels, because a press on a tab or on a list element is first of all a click. See [dragging.md](../dragging/dragging.md) for the dragging slice, and [pane.md](../pane/pane.md) for the pane tree.
 
@@ -71,7 +72,7 @@ A `MouseMove` still goes down by position to the content, and names the part und
 
 ## How it fits
 
-The dragtracking slice depends on the kernel: the gesture layer for `DragMove`, `DragEnd` and `DragCancel`, and the operation layer for `StartDragOperation` and `find_drop_zone`. It registers nothing. The widget slice answers `StartDragOperation` for the slider and the split pane divider; the chart domain answers it for the pan and the zoom of a plot; the pane slice answers it for the drag of a tab; the dragging slice answers it for the reorder of a list. [graphics.md](../graphics/graphics.md#a-route-moves-the-point) holds the functions that move the point of `DragMove` and `DragEnd` into the frame of the part they are for, as a route descends to it.
+The dragtracking slice depends on the kernel: the gesture layer for `DragMove`, `DragEnd` and `DragCancel`, and the operation layer for `StartDragOperation` and `find_drop_zone`. It registers nothing. The widget slice answers `StartDragOperation` for the slider, the split pane divider and the thumb of a scroll bar; the chart domain answers it for the pan and the zoom of a plot; the pane slice answers it for the drag of a tab; the dragging slice answers it for the reorder of a list. [graphics.md](../graphics/graphics.md#a-route-moves-the-point) holds the functions that move the point of `DragMove` and `DragEnd` into the frame of the part they are for, as a route descends to it.
 
 ## Design decisions
 

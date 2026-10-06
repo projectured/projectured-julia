@@ -21,7 +21,10 @@ using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
 using ..DomainModule
+using ..EventModule
 using ..FeedModule
+using ..GestureModule
+using ..IntentModule
 using ..IoMapModule
 using ..LayoutModule
 using ..NaturalModule

@@ -5886,10 +5886,11 @@ function _find_pane_bar_at(iomap::WidgetScrollPaneToGraphicsCanvasIoMap, x::Inte
     nothing
 end
 
-# The bar of a pane whose thumb is dragged, or `nothing`.
+# The bar of a pane whose thumb is dragged, or `nothing`. An owner keeps the drag
+# that it owns, and the pane leaves it.
 function _find_dragged_pane_bar(iomap::WidgetScrollPaneToGraphicsCanvasIoMap)
     for bar in iomap.bars
-        bar.document.thumb_drag === nothing || return bar
+        (bar.document.thumb_drag === nothing || _is_owned_scroll_bar_drag(bar.document)) || return bar
     end
     nothing
 end
@@ -6454,11 +6455,12 @@ end
 _write_scroll_bar_value(w::WidgetScrollBar, value::Float64) =
     value == Float64(w.value) ? nothing : ReplaceReferencedValueOperation(w, "value", value)
 
-# The start of a drag of the thumb at `along`, from the value `value`: the place
-# and the value of the press are kept, so each move adds its distance to the
-# value of the press and the thumb keeps the point where the pointer took it.
-function _start_scroll_bar_drag(w::WidgetScrollBar, along::Int, value::Float64)
-    operations = Any[_write_view_state(w, "thumb_drag", (along = along, value = value)),
+# The start of a drag of the thumb at `along`, from the value `value`, with
+# `travel` pixels of track that the thumb can move along: the place and the value
+# of the press are kept, so each move adds its distance to the value of the press
+# and the thumb keeps the point where the pointer took it.
+function _start_scroll_bar_drag(w::WidgetScrollBar, along::Int, value::Float64, travel::Int)
+    operations = Any[_write_view_state(w, "thumb_drag", (along = along, value = value, travel = travel)),
                      StartDragOperation(EmptyReference(), nothing),
                      make_screen_pointer_shape_operation(:arrow)]
     jump = _write_scroll_bar_value(w, value)
@@ -6474,11 +6476,69 @@ function _end_scroll_bar_drag(w::WidgetScrollBar)
                           make_screen_pointer_shape_operation(nothing)])
 end
 
+# The place of a pointer gesture along a bar, in the frame of the gesture.
+_get_scroll_bar_along(w::WidgetScrollBar, gesture) = w.orientation === :horizontal ? gesture.x : gesture.y
+
+"""
+    read_scroll_bar_drag(bar, gesture) -> Operation or nothing
+
+The answer of `bar` to a part of the drag of its thumb, a `DragMove`, a `DragEnd`
+or a `DragCancel`, from its `thumb_drag` alone: a move adds its distance along
+the bar to the value of the press, the end lets the thumb go, and the cancel
+puts back the value of the press. `nothing` when no drag of the thumb is on.
+
+The point of the gesture is in the frame that the press was kept in. The bar
+keeps it in its own frame; an owner that keeps the drag of a bar it gave a
+widget keeps it in its own with [`make_owned_scroll_bar_drag`](@ref), and gives
+each part of the drag to this function.
+"""
+function read_scroll_bar_drag(w::WidgetScrollBar, gesture)
+    drag = w.thumb_drag
+    drag === nothing && return nothing
+    if gesture isa DragMove
+        value = drag.value + (_get_scroll_bar_along(w, gesture) - drag.along) / max(1, drag.travel)
+        return _write_scroll_bar_value(w, clamp(value, 0.0, 1.0))
+    end
+    gesture isa Union{DragEnd,DragCancel} || return nothing
+    ending = _end_scroll_bar_drag(w)
+    gesture isa DragEnd && return ending
+    back = _write_scroll_bar_value(w, Float64(drag.value))
+    back === nothing ? ending : CompoundOperation(Any[ending.operations..., back])
+end
+
+"""
+    make_owned_scroll_bar_drag(answer, bar, press) -> answer
+
+`answer` with the start of the drag of the thumb of `bar` kept in the frame of
+`press`, the gesture that started it, and marked as owned. An owner that gives a
+widget a bar and keeps the drag of its thumb itself, because no path reaches the
+bar, passes its answer to the press through this, and reads each part of the
+drag with [`read_scroll_bar_drag`](@ref) in that same frame. The bar, and the
+pane or the table that draws it, leave an owned drag to its owner.
+"""
+function make_owned_scroll_bar_drag(answer, w::WidgetScrollBar, press)
+    answer isa CompoundOperation || return answer
+    operations = map(answer.operations) do operation
+        write = operation isa ReplaceViewStateOperation ? get_wrapped_operation(operation) : operation
+        (write isa ReplaceReferencedValueOperation && write.document === w &&
+         write.reference isa ConcreteReference && write.reference.head == FieldReferenceStep("thumb_drag") &&
+         write.value isa NamedTuple) || return operation
+        _write_view_state(w, "thumb_drag",
+                          merge(write.value, (along = _get_scroll_bar_along(w, press), owned = true)))
+    end
+    CompoundOperation(operations)
+end
+
+# Whether the drag of the thumb of `w` is on and its owner keeps it.
+_is_owned_scroll_bar_drag(w::WidgetScrollBar) =
+    (drag = w.thumb_drag; drag isa NamedTuple && get(drag, :owned, false) === true)
+
 # A press on the thumb takes it, and Shift and a press on the track put the
 # middle of the thumb under the pointer and take it there. A click on the track
 # moves one page toward the pointer: a real click and the click that a script
 # sends are one `MouseClick` each, so each moves one page. The drag comes by the
-# path of the bar, wherever the pointer is.
+# path of the bar, wherever the pointer is, and the press is kept in the frame of
+# the bar.
 function read_intent(p::WidgetScrollBarToGraphicsCanvas, iomap::SimpleIoMap, evt)
     w = iomap.input
     w isa WidgetScrollBar || return nothing
@@ -6486,10 +6546,12 @@ function read_intent(p::WidgetScrollBarToGraphicsCanvas, iomap::SimpleIoMap, evt
         MouseDown(button, x, y) => begin
             (button === :left && !_outside_widget(iomap, evt)) || return nothing
             along, track, thumb = _find_scroll_bar_place(p, iomap, x, y)
+            travel = track[2] - thumb[2]
+            press = _get_scroll_bar_along(w, evt)
             on_thumb = thumb[1] <= along < thumb[1] + thumb[2]
-            on_thumb && return _start_scroll_bar_drag(w, along, clamp(Float64(w.value), 0.0, 1.0))
+            on_thumb && return _start_scroll_bar_drag(w, press, clamp(Float64(w.value), 0.0, 1.0), travel)
             evt.modifiers.shift || return nothing
-            _start_scroll_bar_drag(w, along, _compute_scroll_bar_jump(along, track, thumb))
+            _start_scroll_bar_drag(w, press, _compute_scroll_bar_jump(along, track, thumb), travel)
         end
         MouseClick(button, x, y) => begin
             (button === :left && !_outside_widget(iomap, evt)) || return nothing
@@ -6499,21 +6561,9 @@ function read_intent(p::WidgetScrollBarToGraphicsCanvas, iomap::SimpleIoMap, evt
             thumb[1] <= along < thumb[1] + thumb[2] && return nothing
             _write_scroll_bar_value(w, _compute_scroll_bar_page(w, along, thumb))
         end
-        DragMove(x, y) => begin
-            drag = w.thumb_drag
-            drag === nothing && return nothing
-            along, track, thumb = _find_scroll_bar_place(p, iomap, x, y)
-            value = drag.value + (along - drag.along) / max(1, track[2] - thumb[2])
-            _write_scroll_bar_value(w, clamp(value, 0.0, 1.0))
-        end
-        DragEnd => _end_scroll_bar_drag(w)
-        DragCancel => begin
-            drag = w.thumb_drag
-            ending = _end_scroll_bar_drag(w)
-            ending === nothing && return nothing
-            back = _write_scroll_bar_value(w, Float64(drag.value))
-            back === nothing ? ending : CompoundOperation(Any[ending.operations..., back])
-        end
+        DragMove(x, y) => _is_owned_scroll_bar_drag(w) ? nothing : read_scroll_bar_drag(w, evt)
+        DragEnd => _is_owned_scroll_bar_drag(w) ? nothing : read_scroll_bar_drag(w, evt)
+        DragCancel => _is_owned_scroll_bar_drag(w) ? nothing : read_scroll_bar_drag(w, evt)
         _ => nothing
     end
 end

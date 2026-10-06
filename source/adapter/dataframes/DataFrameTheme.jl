@@ -19,8 +19,8 @@ is the default theme.
 A data frame projection holds its styles and no theme;
 `make_data_frame_view_projection` gives them with `get_data_frame_style`, and a
 projection built with no styles holds the plain values of the default theme. The table
-and the scroll bar beside it draw with the widget theme of the appearance, not
-with this one.
+and its scroll bar draw with the widget theme of the appearance, not with this
+one.
 """
 @theme struct DataFrameTheme
     "The width of a field of the filter row, so an empty field has room for a press."

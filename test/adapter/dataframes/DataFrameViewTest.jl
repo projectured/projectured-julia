@@ -44,10 +44,20 @@ end
 # and the scroll bar, and the grid that places them.
 _data_frame_view_iomap(io) = io.step_iomaps[1][]
 _data_frame_grid_iomap(io) = io.step_iomaps[end][]
-# The IO maps of the table and of the scroll bar: the grid holds the expression
-# bar and an empty cell in its first row, and the table and the bar in its second.
-_data_frame_table_iomap(io) = _data_frame_grid_iomap(io).child_iomaps[3][3]
-_data_frame_bar_entry(io) = _data_frame_grid_iomap(io).child_iomaps[4]
+# The IO map of the table: the grid holds the expression bar in its first row,
+# and the table in its second.
+_data_frame_table_iomap(io) = _data_frame_grid_iomap(io).child_iomaps[2][3]
+
+# A point on the scroll bar of a view, which the pane of the cells of the table
+# draws, at the share `along` of the length of the bar, in the frame of the view.
+function _data_frame_bar_point(io, along)
+    (x, y, entry) = _data_frame_grid_iomap(io).child_iomaps[2]
+    table = get_content_iomap(entry)
+    place = WidgetModule._get_table_cells_place(table.projection, table)
+    bar = only(b for b in table.state.cells_pane.bars if b.field == "vertical_scroll_bar").place
+    (Int(x[]) + place[1] + Int(bar.x) + Int(bar.w) ÷ 2,
+     Int(y[]) + place[2] + Int(bar.y) + round(Int, along * Int(bar.h)))
+end
 
 # The viewport of the cells: the rows as they are drawn under the header row.
 # The table is the first cell of the grid; the region of the cells is its last
@@ -247,26 +257,43 @@ function test_data_frame_view()
             evaluate_operation(nothing, _read_data_frame_key(projection, io, :end))
             @test bar.value == 1.0
             # Shift and a click in the middle of the bar jump to the middle of the frame.
-            (x_cell, y_cell, cim) = _data_frame_bar_entry(io)
-            x = Int(x_cell[]) + Int(cim.output.w) ÷ 2
-            y = Int(y_cell[]) + Int(cim.output.h) ÷ 2
-            click(y, modifiers) = read_intent(projection, nothing,
-                Intent(MouseClick(:left, x, y, 1, modifiers; time = 0.0), nothing), io).operation
-            evaluate_operation(nothing, click(y, ModifierKeys(shift = true)))
+            x, y = _data_frame_bar_point(io, 0.5)
+            read(gesture) = read_intent(projection, nothing, Intent(gesture, nothing), io).operation
+            evaluate_operation(nothing, read(MouseClick(:left, x, y, 1, ModifierKeys(shift = true); time = 0.0)))
             @test abs(view.anchor - count ÷ 2) < count ÷ 50
             @test abs(bar.value - 0.5) < 0.02
             # A click below the thumb moves one page: the rows that the table shows.
             top = view.anchor + view.top_row - 1
-            evaluate_operation(nothing, click(y + Int(cim.output.h) ÷ 4, ModifierKeys()))
+            value = bar.value
+            _, below = _data_frame_bar_point(io, 0.75)
+            evaluate_operation(nothing, read(MouseClick(:left, x, below, 1, ModifierKeys(); time = 0.0)))
             moved = view.anchor + view.top_row - 1 - top
             @test 0 < moved < count ÷ 100
-            @test bar.value > 0.5
-            # A turn of the wheel moves the thumb with the row at the top.
+            @test bar.value > value
+            # A press on the thumb starts a drag that the view keeps, in its own
+            # frame, wherever the pointer goes, and the rows follow.
+            _, thumb = _data_frame_bar_point(io, bar.value)
+            press = read(MouseDown(:left, x, thumb, ModifierKeys(); time = 0.0))
+            start = only(o for o in press.operations if o isa StartDragOperation)
+            @test start.path isa EmptyReference
+            foreach(o -> o isa StartDragOperation || evaluate_operation(nothing, o),
+                    (o for o in press.operations
+                     if !(o isa ReplaceViewStateOperation && !(get_wrapped_operation(o) isa ReplaceReferencedValueOperation))))
+            @test bar.thumb_drag.owned
+            drag(gesture) = read_intent(projection, nothing,
+                                        Intent(gesture, nothing, "", "", start.path), io).operation
+            evaluate_operation(nothing, drag(DragMove(x + 400, 5000, ModifierKeys(); time = 0.0)))
+            @test bar.value == 1.0
+            @test view.anchor + view.top_row - 1 > count - count ÷ 50
+            ending = drag(DragEnd(x + 400, 5000, ModifierKeys(); time = 0.0))
+            foreach(o -> o isa ReplaceViewStateOperation && get_wrapped_operation(o) isa ReplaceReferencedValueOperation &&
+                         evaluate_operation(nothing, o), ending.operations)
+            @test bar.thumb_drag === nothing
+            # A turn of the wheel up moves the thumb with the row at the top.
             before = bar.value
             evaluate_operation(nothing, read_intent(projection, nothing,
-                Intent(MouseScroll(0, -5, 100, 150; time = 0.0), nothing), io).operation)
-            @test view.top_row > 1
-            @test bar.value > before
+                Intent(MouseScroll(0, 5, 100, 150; time = 0.0), nothing), io).operation)
+            @test bar.value < before
         end
 
         @testset "a frame with no rows draws its header" begin

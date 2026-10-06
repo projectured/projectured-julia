@@ -1497,7 +1497,7 @@ view is, as the owner of a list that the widget walks from its head: set its
     orientation::Symbol
     value::Float64
     thumb_size::Float64
-    thumb_drag::Any      # view state: the drag of the thumb that is on, `(along, value)` at the press, or nothing
+    thumb_drag::Any      # view state: the drag of the thumb that is on, `(along, value, travel)` at the press, or nothing
     position::Point2D
     size::Point2D
     visible::Bool

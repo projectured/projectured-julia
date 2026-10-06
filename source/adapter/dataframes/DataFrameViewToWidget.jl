@@ -1,19 +1,18 @@
 # Fragment of `DataFramesModule`.
 #
-# A `DataFrameView` drawn as a table that scrolls its own parts, and a scroll bar
-# beside it. The table reads the rows of the view, a list anchored at `anchor`,
-# so it builds only the rows it shows. The table shares the `scroll_position`
-# and the `top_row` cells of the view, so a scroll of the table and a jump of
-# the view write the same state, and the scroll bar shows where the top row is
-# in the frame.
+# A `DataFrameView` drawn as a table that scrolls its own parts, with the scroll
+# bar of the view beside its rows. The table reads the rows of the view, a list
+# anchored at `anchor`, so it builds only the rows it shows. The table shares
+# the `scroll_position` and the `top_row` cells of the view, so a scroll of the
+# table and a jump of the view write the same state, and the scroll bar shows
+# where the top row is in the frame.
 
 """
-    DataFrameViewToWidget(; row_height = 0, row_step = 0, scroll_bar_width,
-                            query_field_width, …)
+    DataFrameViewToWidget(; row_height = 0, row_step = 0, query_field_width, …)
 
-Projects a `DataFrameView` to a `WidgetTable`, which scrolls its own parts, and
-a vertical `WidgetScrollBar` beside it, under the expression bar, in a
-`GridLayout` of two rows. The expression bar is a field of the expression of
+Projects a `DataFrameView` to a `WidgetTable`, which scrolls its own parts and
+draws the vertical `WidgetScrollBar` of the view over the right edge of its rows,
+under the expression bar, in a `GridLayout` of two rows. The expression bar is a field of the expression of
 the query, and the header row holds a field of the filter of each column, so a
 person filters the rows by typing there.
 The header of a column shows its name and its element type, as a data frame
@@ -35,8 +34,11 @@ scrolls to the side. When the table moves its head column, the view moves
 The scroll bar shows the row at the top of the table, `anchor + top_row - 1`,
 among the rows of the frame. Its thumb is as long as the share of the rows that
 the table shows, which the projection counts from the height it is offered and
-`row_step`, the height of a row with its padding and its rule. A press on the
-bar, or a move with the left button held, is a jump to the row at that place.
+`row_step`, the height of a row with its padding and its rule. A write of the
+value of the bar, by a click on its track or a drag of its thumb, is a jump to
+the row at that place. The drag of the thumb comes back to the table by an
+introduced reference, so the table gives it to the bar wherever the pointer
+goes.
 
 The table shows the columns that the query of the view does not hide. A path
 of the view names a row and a column of the frame by their numbers, and the
@@ -55,15 +57,12 @@ The projection holds its styles and no theme; `make_data_frame_view_projection`
 fills them from the `DataFrameTheme` of its appearance, and with none it holds
 the default styles: the width of a field of the filter row and of the expression bar, the
 gaps of their parts, the color of a query that does not parse and of the
-glyph of a column that does not sort, and `list_column_width`.
-`scroll_bar_width` is the width of the scroll bar beside the table: by default
-the scroll bar thickness of the default widget theme, and the builder gives the
-one of its appearance.
+glyph of a column that does not sort, and `list_column_width`. The table
+draws the bar at the thickness of its widget theme.
 """
 @projection UntrackedCell struct DataFrameViewToWidget
     row_height::Int = 0
     row_step::Int = 0
-    scroll_bar_width::Int = get_widget_style(nothing, :scroll_bar_thickness)
     query_field_width::Int = get_data_frame_style(nothing, :query_field_width)
     expression_field_width::Int = get_data_frame_style(nothing, :expression_field_width)
     find_field_width::Int = get_data_frame_style(nothing, :find_field_width)
@@ -79,7 +78,7 @@ end
     input::Any
     output::Any
     table::Any               # the WidgetTable of the rows
-    bar::Any                 # the WidgetScrollBar beside it
+    bar::Any                 # the WidgetScrollBar of the view, which the table draws
     visible::Cell            # Int: how many rows the table shows
 end
 
@@ -92,10 +91,6 @@ const _COLUMN_POLICY = SizePolicy(nothing, nothing, nothing, 1.0)
 const _LIST_COLUMN_COUNT = 64
 
 function print_document(p::DataFrameViewToWidget, recursion, view::DataFrameView, ctx)
-    # The cells of the table follow the view, so a hidden column leaves the
-    # table that is drawn, and the table builds its parts again.
-    table = ncol(view.frame) > _LIST_COLUMN_COUNT ? _make_column_list_table(p, view) :
-                                                    _make_view_table(p, view)
     height = ctx === nothing ? nothing : get_exact_height(ctx)
     # The rows that the table shows: the height less the expression bar and the
     # header row, which holds the filter row too, about four rows.
@@ -110,25 +105,30 @@ function print_document(p::DataFrameViewToWidget, recursion, view::DataFrameView
                           Cell(@computation count[] == 0 ? 1.0 : min(1.0, visible[] / count[])),
                           Cell(nothing), Cell(nothing), Cell(nothing), Cell(true), Cell(nothing),
                           Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
-    # The expression bar over the table, and the table and the scroll bar under
-    # it; the cell beside the expression bar is empty.
+    # The view is the one that the pointer reaches, so the bar lights from the
+    # mouse target of the view, as the table does.
+    set_cell_computation!(getfield(bar, :mouse_target), () -> _get_bar_mouse_target(view))
+    # The cells of the table follow the view, so a hidden column leaves the
+    # table that is drawn, and the table builds its parts again.
+    table = ncol(view.frame) > _LIST_COLUMN_COUNT ? _make_column_list_table(p, view, bar) :
+                                                    _make_view_table(p, view, bar)
+    # The expression bar over the table.
     expression = _make_expression_bar(p, view)
-    grid = GridLayout(Any[expression, WidgetLabel(""), table, bar], 2;
-                      column_policies = Any[Fill, Fixed(p.scroll_bar_width)], row_policies = Any[Content, Fill])
+    grid = GridLayout(Any[expression, table], 1; column_policies = Any[Fill], row_policies = Any[Content, Fill])
     # The grid gives a key to the expression bar or to the table, by their
     # selection.
     set_cell_computation!(getfield(grid, :selection), () -> begin
         inner = expression.selection
         inner === nothing || return _make_grid_child_reference(1, inner)
         selection = table.selection
-        selection === nothing ? nothing : _make_grid_child_reference(3, selection)
+        selection === nothing ? nothing : _make_grid_child_reference(2, selection)
     end)
     DataFrameViewToWidgetIoMap(p, view, grid, table, bar, visible)
 end
 
 # The table of a frame whose columns share its width: every column a weight,
 # and at least as wide as its header.
-function _make_view_table(p::DataFrameViewToWidget, view::DataFrameView)
+function _make_view_table(p::DataFrameViewToWidget, view::DataFrameView, bar::WidgetScrollBar)
     headers = CellVector(@computation Any[_make_filter_header(p, view, name)
                                           for name in _get_shown_columns(view)])
     rows = Cell(@computation _make_row_list(view, _get_shown_columns(view), view.kept_rows, view.anchor))
@@ -148,7 +148,7 @@ function _make_view_table(p::DataFrameViewToWidget, view::DataFrameView)
                         Cell(_COLUMN_POLICY), Cell(Fixed(p.row_height)), Cell(:clip),
                         Cell(true), Cell(nothing), Cell(nothing), Cell(nothing),
                         Cell(nothing), getfield(view, :scroll_position),
-                        getfield(view, :top_row), Cell(nothing), Cell(:auto), Cell(:auto),
+                        getfield(view, :top_row), Cell(nothing), Cell(bar), Cell(:auto),
                         Cell(@computation _get_table_open_cells(view, false)), Cell(nothing),
                         Cell(@computation _get_table_selection(view, false)))
     set_cell_computation!(getfield(table, :mouse_target), () -> _get_table_mouse_target(view))
@@ -162,6 +162,14 @@ end
 function _get_table_mouse_target(view::DataFrameView)
     target = view.mouse_target
     target isa Reference ? _find_table_path(target) : nothing
+end
+
+# The mouse target of the bar: the empty path while the part of the table under
+# the pointer is the bar.
+function _get_bar_mouse_target(view::DataFrameView)
+    target = _get_table_mouse_target(view)
+    target isa ConcreteReference && target.head == FieldReferenceStep("vertical_scroll_bar") ?
+        EmptyReference() : nothing
 end
 
 # The data of the column `name` of the table, one document for each name, made
@@ -204,7 +212,7 @@ end
 # The table of a frame whose columns are a list: the headers, the data of the
 # columns and the cells of every row are lists with their heads at
 # `column_anchor`.
-function _make_column_list_table(p::DataFrameViewToWidget, view::DataFrameView)
+function _make_column_list_table(p::DataFrameViewToWidget, view::DataFrameView, bar::WidgetScrollBar)
     # The headers are built when a walk reaches them, so the list reads the sort
     # keys itself, and a new sort builds the list again.
     headers = Cell(@computation (view.query.sort_keys; columns = _get_shown_columns(view);
@@ -223,7 +231,7 @@ function _make_column_list_table(p::DataFrameViewToWidget, view::DataFrameView)
                         Cell(Fixed(p.list_column_width)), Cell(Fixed(p.row_height)), Cell(:clip),
                         Cell(true), Cell(nothing), Cell(nothing), Cell(nothing),
                         Cell(nothing), getfield(view, :scroll_position),
-                        getfield(view, :top_row), Cell(nothing), Cell(:auto), Cell(:auto),
+                        getfield(view, :top_row), Cell(nothing), Cell(bar), Cell(:auto),
                         Cell(@computation _get_table_open_cells(view, true)), Cell(nothing),
                         Cell(@computation _get_table_selection(view, true)))
     set_cell_computation!(getfield(table, :mouse_target), () -> _get_table_mouse_target(view))
@@ -340,12 +348,12 @@ end
     make_data_frame_view_projection(; measure, appearance = Appearance()) -> Projection
 
 The row of the natural renderer for a `DataFrameView`: `DataFrameViewToWidget`,
-then the printer of a grid, which prints the table and the scroll bar through
-the recursion. A row of the natural renderer ends in graphics, because a type
+then the printer of a grid, which prints the table, and the table its scroll
+bar, through the recursion. A row of the natural renderer ends in graphics, because a type
 dispatch does not print an output again. The table draws with the widget theme
 of `appearance`. The height of a row is a line of the font of that theme, and
 its step adds the padding of a cell of the theme and a rule, and the scroll bar
-beside the table takes the thickness of that theme; all three read the scaled
+of the table takes the thickness of that theme; all three read the scaled
 theme at each print, with no edge, as a style field of a widget does. The filter
 row and the expression bar draw with the scaled `DataFrameTheme` of `appearance`.
 """
@@ -358,9 +366,8 @@ function make_data_frame_view_projection(; measure::TextMeasure,
     grid = last(only(p for p in LayoutToGraphics().dispatch if first(p) === GridLayout))
     row_height = UntrackedCell{Int}(@computation ceil(Int, compute_line_box(measure, "M", theme.font).height))
     row_step = UntrackedCell{Int}(@computation row_height[] + 2 * Int(table.cell_padding.top[]) + 1)
-    scroll_bar_width = get_widget_style(theme, :scroll_bar_thickness)
     get_style(name) = get_data_frame_style(frame_theme, name)
-    view = DataFrameViewToWidget(; row_height, row_step, scroll_bar_width,
+    view = DataFrameViewToWidget(; row_height, row_step,
                                  query_field_width = get_style(:query_field_width),
                                  expression_field_width = get_style(:expression_field_width),
                                  find_field_width = get_style(:find_field_width),
@@ -398,6 +405,11 @@ function read_intent(p::DataFrameViewToWidget, recursion, change::Intent, iomap:
             operation.view !== iomap.input) ? nothing : _make_shape_step(operation)
     step === nothing || return Intent(change.gesture, step, change.description, change.domain)
     answer = invoke(read_intent, Tuple{Projection,Any,Intent,Any}, p, recursion, change, iomap)
+    # The view keeps the drag of the thumb of its bar, so it keeps the press in
+    # its own frame, the frame of the parts of the drag that come to it.
+    change.gesture isa MouseDown &&
+        (answer = Intent(answer.gesture, make_owned_scroll_bar_drag(answer.operation, iomap.bar, change.gesture),
+                         answer.description, answer.domain))
     _is_double_click(change.gesture) && _is_whole_row_selection(answer.operation) || return answer
     Intent(answer.gesture, CompoundOperation(Any[answer.operation,
                                                  OpenPageOperation(nothing, answer.operation.path)]),
@@ -529,15 +541,15 @@ end
 _make_grid_child_reference(k::Int, tail) =
     ConcreteReference(FieldReferenceStep("children"), ConcreteReference(RangeReferenceStep(k - 1, k), tail))
 
-# The path inside the table from a path in the grid of the view, whose third
+# The path inside the table from a path in the grid of the view, whose second
 # child is the table; `nothing` for a path that does not go into the table.
 function _find_table_path(path)
     path = strip_reference_types(path)
     (path isa ConcreteReference && path.head isa FieldReferenceStep && path.head.name == "children") ||
         return nothing
     tail = path.tail
-    (tail isa ConcreteReference && tail.head isa RangeReferenceStep && tail.head.start == 2 &&
-     tail.head.stop == 3) || return nothing
+    (tail isa ConcreteReference && tail.head isa RangeReferenceStep && tail.head.start == 1 &&
+     tail.head.stop == 2) || return nothing
     tail.tail
 end
 
@@ -665,7 +677,8 @@ end
 # its anchors. The width of a
 # column goes to the view. The table starts the drag of the edge of a column
 # from the view, which the table is a part of: the parts of the drag come back
-# to the view by its path, and the view gives them to the table.
+# to the view by its path, and the view gives them to the table. The drag of the
+# thumb of the bar of the view comes back to the view the same way.
 function _convert_table_write(iomap::DataFrameViewToWidgetIoMap, operation, columns::Bool)
     bar = _find_written_field(iomap.bar, operation)
     if bar !== nothing && bar[1] == "value"
@@ -787,9 +800,13 @@ end
 # The parts of the drag of the edge of a column come to the view by its path, and
 # the view gives them to its table, which keeps the drag. The table is the first
 # column of the grid of the view, at its left edge, so a point has the same x in
-# the view and in the table, which is all that the width reads.
-read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
-            event::Union{DragMove,DragEnd,DragCancel}) =
-    _convert_table_writes(iomap, read_table_column_drag(iomap.table, event))
+# the view and in the table, which is all that the width reads. The parts of the
+# drag of the thumb of the bar come the same way, and the bar reads them in the
+# frame of the view, where the view kept the press.
+function read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
+                     event::Union{DragMove,DragEnd,DragCancel})
+    thumb = read_scroll_bar_drag(iomap.bar, event)
+    _convert_table_writes(iomap, thumb === nothing ? read_table_column_drag(iomap.table, event) : thumb)
+end
 
 read_intent(::DataFrameViewToWidget, ::DataFrameViewToWidgetIoMap, event) = nothing

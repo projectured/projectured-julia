@@ -12,8 +12,8 @@ function _print_frame_statistics(statistics)
 end
 
 _get_frame_statistics_head(root) = root.children[1].children[1].content
-_get_frame_table(root) = root.children[5].child.children[1]
-_get_frame_scroll_bar(root) = root.children[5].child.children[2]
+_get_frame_table(root) = root.children[5].child
+_get_frame_scroll_bar(root) = _get_frame_table(root).vertical_scroll_bar
 _get_row_texts(row) = [row[index].content for index in 1:length(row)]
 _get_header_texts(table) = [table.column_headers[index].content for index in 1:length(table.column_headers)]
 
@@ -243,6 +243,26 @@ function test_frame_statistics_feed()
         # The same write without view state, as a drag of the thumb gives it.
         drag = read_intent(p, iomap, ReplaceReferencedValueOperation(bar, "value", 1.0))
         @test get_wrapped_operation(drag.operations[1]).value == 1000
+        # The statistics keep the drag of the thumb: the start of the drag names
+        # them, the press is kept in their frame, and a move there is a jump.
+        statistics.anchor = 1
+        statistics.top_row = 1
+        start = CompoundOperation(Any[
+            ReplaceViewStateOperation(ReplaceReferencedValueOperation(bar, "thumb_drag",
+                                                                     (along = 0, value = 0.0, travel = 100))),
+            StartDragOperation(EmptyReference(), nothing)])
+        kept = read_intent(p, iomap, start)
+        @test only(o for o in kept.operations if o isa StartDragOperation).path isa EmptyReference
+        press = MouseDown(:left, 5, 40, ModifierKeys(); time = 0.0)
+        owned = make_owned_scroll_bar_drag(kept, bar, press)
+        foreach(o -> o isa ReplaceViewStateOperation && evaluate_operation(nothing, o), owned.operations)
+        @test bar.thumb_drag == (along = 40, value = 0.0, travel = 100, owned = true)
+        moved = read_intent(p, iomap, DragMove(5, 90, ModifierKeys(); time = 0.0))
+        @test get_wrapped_operation(moved.operations[1]).value == 1 + round(Int, 0.5 * 999)
+        ended = read_intent(p, iomap, DragEnd(5, 90, ModifierKeys(); time = 0.0))
+        foreach(o -> o isa ReplaceViewStateOperation && get_wrapped_operation(o) isa ReplaceReferencedValueOperation &&
+                     evaluate_operation(nothing, o), ended.operations)
+        @test bar.thumb_drag === nothing
     end
 
     @testset "a flush changes the numbers and keeps the parts" begin
