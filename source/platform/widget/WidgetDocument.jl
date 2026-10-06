@@ -1827,7 +1827,7 @@ ring takes no width: its diameter is one line of the text of the theme.
 
 # Example
 
-    open_pane!(editor, WidgetProgressRing(0.4); title = "Progress")
+    open_pane!(WidgetProgressRing(0.4); title = "Progress")
 
 See also `WidgetProgressBar`, which shows the same value as a bar.
 """
