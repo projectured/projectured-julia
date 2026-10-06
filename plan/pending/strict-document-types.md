@@ -422,7 +422,7 @@ worktree. The three domains test different parts of the model:
     primitive slice with the default `nothing`, and JSON answers `JsonInsertion(text)` for a
     `JsonNumber`. The `domain` and `primitive` slices do not depend on each other, and the
     projection slice depends only on `primitive`, so the domain itself gives the method. The
-    owner has not yet said yes to these two functions.
+    **Decided by the owner, 2026-10-06: yes, for numbers.**
   - **The insertion becomes a number again.** `JsonInsertionToSyntaxLeaf` builds an
     `InsertionToSyntaxLeaf` with three options that exist: `commit_at_key` turns the insertion
     into a `JsonNumber` at the key that makes a text that a number shows exactly, Enter commits
@@ -486,9 +486,12 @@ worktree. The three domains test different parts of the model:
   - [ ] Group 7, an `Int64` in a field declared `Int32`: rule 2 of the check converts it (the
     check of the setter and of the constructor must apply rules 1 and 2, §3.3).
   - [ ] Group 8, the single cases:
-    - `JsonBool.value` and `YamlBool.value`: the REPL walk types text into a bool leaf, and
-      `splice_value!` writes a `String` or `nothing` into the bool. An intermediate state of an
-      edit, as the incomplete number; it belongs with `make_incomplete_number_document`.
+    - `JsonBool.value` and `YamlBool.value`: the REPL walk types text into a bool leaf. A key in
+      `true` makes the bool `nothing` (`splice_value!` on a `Number`), and the next key writes a
+      `String` (`splice_value!` on `nothing`). **Decided by the owner, 2026-10-06: a bool refuses
+      a text edit, as a number refuses a letter, and changes only through the gestures of its
+      domain.** The other option was the intermediate state of a number, with the two functions
+      of Step 2 made general.
     - `TextNewline.font_color` and `TextSpacing.font_color` are declared `StyleColor = ""`
       (`TextDocument.jl:61`): the default itself is a `String`.
     - `SqlSelectItem.expression` is declared `SqlSelectExpression`, and the SQL parser puts a
