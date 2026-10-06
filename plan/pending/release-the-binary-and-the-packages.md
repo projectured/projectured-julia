@@ -319,6 +319,10 @@ check) also decides the licence texts that Part B copies.
 
 ## Part A: the binary
 
+**Deferred.** The owner, 2026-10-06: the binary is not part of the first release.
+The first release is the packages, 0.1.0 in `ProjecturedRegistry`. The steps of
+Part A wait for a later release.
+
 ### Step A1: check that the builder still works, with no compile
 
 - [x] `test_builder()`. It compiles nothing. Done on 2026-09-29: 167 of 167
