@@ -205,6 +205,23 @@ function test_build_editor()
         @test istaskdone(task) && editor.loop_task === nothing
     end
 
+    @testset "with wait = false, the function that builds the editor runs on the task of the loop" begin
+        built_on = Ref{Any}(nothing)
+        make = function ()
+            built_on[] = current_task()
+            build_editor(BuildProbe(), BuildProbeProjection(); backend = BuildProbeBackend(),
+                         devices = Device[], _BUILD_PROBE_PLATFORM_OFF...)
+        end
+        editor = run_editor!(make; wait = false)
+        task = editor.loop_task
+        @test task isa Task && task !== current_task()
+        @test built_on[] === task
+        post_operation!(editor, QuitEditorOperation())
+        wait(task)
+        @test istaskdone(task)
+        @test_throws ErrorException run_editor!(() -> error("no editor"); wait = false)
+    end
+
     @testset "the stop steps of a wrapper run when the loop ends, and not before" begin
         empty!(_BUILD_PROBE_STOPPED)
         editor = run_editor!(BuildProbe(), BuildProbeProjection(); wait = false,

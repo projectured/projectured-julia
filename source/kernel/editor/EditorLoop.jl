@@ -341,7 +341,8 @@ The one call for a caller with no work before the loop: [`build_editor`](@ref)
 with `keywords`, then the loop above with `mcp`. A caller with work to do before
 the loop — a driver that posts its work, a watcher, a tool it declares — calls
 `build_editor` or `make_editor`, does that work with the editor, and then calls
-`run_editor!(editor)`.
+`run_editor!(editor)`; with `wait = false`, it puts that work into the function
+that `run_editor!(make; wait = false)` calls on the task of the loop.
 
 With `wait = false` the call returns the editor at once, and the editor runs on
 a task of its own: a task pinned to a thread of the default pool that is not the
@@ -363,6 +364,21 @@ function run_editor!(document::Document; wait::Bool = true,
     make = () -> build_editor(document; keywords...)
     wait ? run_editor!(make(); mcp) : _start_editor_task(make, mcp)
 end
+
+"""
+    run_editor!(make::Function; wait = true, mcp = false)
+
+The loop of the editor that `make()` answers, for a caller whose work before the
+loop must run on the task of the loop. `make` builds the editor, does that work
+with it, such as a tool it declares or a pane it opens, and answers the editor.
+
+With `wait = false` the task of the loop calls `make`, as the form above calls
+`build_editor`, and the call returns the editor once `make` returns. With
+`wait = true` the calling task calls `make` and then runs the loop. An exception
+of `make` goes to the caller in both cases.
+"""
+run_editor!(make::Function; wait::Bool = true, mcp::Union{Bool,NamedTuple} = false) =
+    wait ? run_editor!(make(); mcp) : _start_editor_task(make, mcp)
 
 # Build the editor with `make` on a task of its own and run its loop there, and
 # answer the editor once it is built. An error of the build goes to the caller.
