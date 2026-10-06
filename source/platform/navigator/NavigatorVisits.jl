@@ -220,12 +220,13 @@ function _make_visit_operation(navigator::Navigator, visit::NavigatorVisit, back
 end
 
 # The selection of a visit when it reaches a node inside the page of the visit,
-# and the page itself otherwise.
+# and the page itself otherwise. The page is the part of the address that reaches.
 function _find_visit_selection(visit::NavigatorVisit)
+    page = get_valid_reference_prefix(visit.content, visit.address)
     selection = visit.selection
-    selection === nothing && return visit.address
-    _starts_with(get_reference_steps(selection), get_reference_steps(visit.address)) &&
-        is_valid_reference(visit.content, selection) ? selection : visit.address
+    selection === nothing && return page
+    _starts_with(get_reference_steps(selection), get_reference_steps(page)) &&
+        is_valid_reference(visit.content, selection) ? selection : page
 end
 
 const _CONTENT_STEP = FieldReferenceStep("content")
@@ -242,3 +243,7 @@ end
 _starts_with(steps, prefix) =
     length(steps) >= length(prefix) && all(k -> steps[k] == prefix[k], eachindex(prefix))
 
+# `prefix` with `rest` in place of its terminal.
+_attach_rest(prefix::ConcreteReference, rest) =
+    ConcreteReference(prefix.type, prefix.head, _attach_rest(prefix.tail, rest))
+_attach_rest(::EmptyReference, rest) = rest

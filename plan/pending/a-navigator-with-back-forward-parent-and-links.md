@@ -829,9 +829,40 @@ The design of the address is complete. The steps to build it:
   rows from the current row. The popup under a name, a window of its own, with a
   type-in field over the list: typing narrows the list by title, and a number
   goes to that element of a collection.
-- [ ] **A6. A choice.** The step is replaced, and the rest of the address is kept
+  - [x] The function, done 2026-10-06, in `NavigatorChoices.jl`:
+    `find_navigator_choices(document, step; query = "", limit = 50)` gives
+    `label => step` pairs. `document` is the node that `step` applies to. A field
+    step lists the fields that hold a document, by title or field name, never a
+    field of view state. An element step lists the elements from `limit ÷ 2`
+    before the current one, up to the first index that reaches no element; words
+    search from the first element, up to 1000 elements; a number gives that
+    element alone. A range is no page and has no choices.
+  - [x] The data frame adapter lists the cells of a row by the names of their
+    columns (`find_navigator_choices(::DataFrameViewRow, ::RangeReferenceStep)`).
+    Its rows need no method: the general rule gives "row r" from the current row,
+    and `rows[r]` past the frame throws, which ends the walk.
+  - [ ] JSON: a method can not dispatch on the entries, because the node above
+    `[i]` of an object is its `CellVector`, not a JSON type. A JSON entry has no
+    title, so the general rule shows `[2]`, as the address does. Open question
+    to the owner: a title for `JsonObjectEntry` (its key) would name the entry in
+    the address, in the list, and in the header of its context menu.
+  - [ ] The popup. Facts found 2026-10-06 that the design did not know: a
+    `:popup` window never takes the keyboard focus, so a type-in field in it gets
+    no key; and an answer of a popup goes up through the screen, not through the
+    navigator, so it can not write the selection, whose path starts at the root.
+    The context menu solves the second with its `source` path and a lift through
+    the readers (`EditMenuPartOperation`). Open question to the owner: how the
+    popup takes keys and reaches the navigator.
+- [x] **A6. A choice.** The step is replaced, and the rest of the address is kept
   as far as it reaches nodes of the recorded types, and cut at the first that it
-  does not. The result opens as a visit.
+  does not. The result opens as a visit. Done 2026-10-06:
+  `make_navigator_choice_operation(navigator, index, step)`. The steps up to the
+  choice take the types that they have now, and the rest keeps the types that
+  the address records, also at the node of the choice: so a choice of a node of
+  another type cuts the rest right after it. The address keeps the steps that
+  reach no node, and the types view marks them with `✗`. A visit now selects the
+  part of its address that reaches (`_find_visit_selection`), because a stored
+  address can hold steps that reach no node.
 - [ ] **A7. Tests and documents.** The platform tests with the shelf, the data
   frame case (the list of rows from the current row, the choice of a row that
   keeps a column), and the design document and the keyboard guide.

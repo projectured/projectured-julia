@@ -45,11 +45,13 @@ export get_navigator_page_address, get_navigator_page, get_navigator_address_ste
        find_navigator_selected_address, is_navigator_stop
 export make_navigator_open_operation, make_navigator_back_operation,
        make_navigator_forward_operation, make_navigator_parent_operation
+export find_navigator_choices, make_navigator_choice_operation
 export NavigatorToWidget, make_navigator_projection
 export OpenPageOperation
 
 include("NavigatorDocument.jl")
 include("NavigatorVisits.jl")
+include("NavigatorChoices.jl")
 include("NavigatorGestures.jl")
 include("OpenPageOperation.jl")
 include("NavigatorToWidget.jl")

@@ -180,6 +180,21 @@ Base.show(io::IO, ::DataFrameViewRows) = print(io, "DataFrameViewRows(…)")
 # The rows of a view hold the rows of the frame: a navigator goes from a row up to
 # the view, and names no item of the address for them.
 is_navigator_stop(::DataFrameViewRows) = false
+
+# The choices at a cell of a row in the address of a navigator: the cells of the
+# row, by the names of their columns, which hold each word of `query`.
+function find_navigator_choices(row::DataFrameViewRow, step::RangeReferenceStep;
+                                query::AbstractString = "", limit::Integer = 50)
+    choices = Pair{String,ReferenceStep}[]
+    step.stop == step.start + 1 || return choices
+    words = split(lowercase(query))
+    for (c, name) in enumerate(names(row.view.frame))
+        length(choices) == limit && break
+        all(word -> occursin(word, lowercase(name)), words) &&
+            push!(choices, name => RangeReferenceStep(c - 1, c))
+    end
+    choices
+end
 Base.show(io::IO, row::DataFrameViewRow) = print(io, "DataFrameViewRow(…, ", row.row, ")")
 Base.show(io::IO, ::DataFrameViewColumns) = print(io, "DataFrameViewColumns(…)")
 

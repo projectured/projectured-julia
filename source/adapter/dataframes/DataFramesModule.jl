@@ -26,7 +26,7 @@ import ..SelectionModule: get_selection
 import ..OperationModule: evaluate_operation, make_inverse_operation,
                           is_self_contained_operation
 import ..DomainModule: compute_context_menu
-import ..NavigatorModule: is_navigator_stop
+import ..NavigatorModule: is_navigator_stop, find_navigator_choices
 import ..WidgetModule: make_value_document, make_graphics_projection, refresh_document!
 
 export DataFrameColumnFilter, DataFrameSortKey, DataFrameQuery

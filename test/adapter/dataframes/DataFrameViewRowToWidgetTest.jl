@@ -93,6 +93,23 @@ function test_data_frame_row_page()
         @test get_navigator_page(navigator) === view
     end
 
+    @testset "the choices of a row and of a cell, and a row chosen that keeps the column" begin
+        view = DataFrameView(make_frame())
+        element(i) = RangeReferenceStep(i - 1, i)
+        @test find_navigator_choices(view.rows, element(2)) ==
+              ["row 1" => element(1), "row 2" => element(2), "row 3" => element(3)]
+        @test find_navigator_choices(view.rows, element(2); query = "3") == ["row 3" => element(3)]
+        @test find_navigator_choices(view.rows[2], element(1)) == ["id" => element(1), "name" => element(2)]
+        @test find_navigator_choices(view.rows[2], element(1); query = "NA") == ["name" => element(2)]
+        # The page is the name of row 2; the choice of row 3 shows the name of row 3.
+        navigator = Navigator(view, annotate_reference_types(view, Reference(FieldReferenceStep("rows"),
+                                                                             element(2), element(2))))
+        @test get_navigator_page(navigator) == "b"
+        evaluate_operation((; document = navigator), make_navigator_choice_operation(navigator, 2, element(3)))
+        @test get_navigator_page(navigator) == "c"
+        @test steps(navigator.address) == [FieldReferenceStep("rows"), element(3), element(2)]
+    end
+
     @testset "a double click on a row header opens the row" begin
         view = DataFrameView(make_frame())
         navigator = Navigator(view)

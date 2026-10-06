@@ -327,11 +327,6 @@ function map_reference_forward(::NavigatorToWidget, iomap::NavigatorToWidgetIoMa
     _attach_rest(annotate_reference_types(output, extend_reference(EmptyReference(), _PAGE_STEPS...)), rest)
 end
 
-# `prefix` with `rest` in place of its terminal.
-_attach_rest(prefix::ConcreteReference, rest) =
-    ConcreteReference(prefix.type, prefix.head, _attach_rest(prefix.tail, rest))
-_attach_rest(::EmptyReference, rest) = rest
-
 function map_reference_backward(::NavigatorToWidget, iomap::NavigatorToWidgetIoMap, reference)
     steps = get_reference_steps(strip_reference_types(reference))
     _starts_with(steps, _BAR_STEPS) && return nothing
