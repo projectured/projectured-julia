@@ -395,10 +395,26 @@ new tab".
     below the navigator can not name the operation; a `WidgetLink` would need
     the operation in a lower slice.
   - `test_open_page_operation()`, 37 tests; `test_navigator()` now runs 138.
-- [ ] **3. The address.** The breadcrumb with titles, the tooltip with the path,
-  and the left and right arrows in `LUCIDE_ICON_GLYPHS`. A JSON part has no
-  title, so the address of a JSON page shows steps now (`JsonObject › [2] ›
-  .value`); an entry needs a name, such as its key.
+- [x] **3. The address.** The breadcrumb with titles, the tooltip with the path,
+  and the left and right arrows in `LUCIDE_ICON_GLYPHS`. Done, 2026-10-06:
+  - Back, Forward and Parent are `WidgetToolbarItem`s, which show the icon of
+    their action alone and are flat at rest, as a toolbar is. The label of the
+    action is the tooltip; the tooltip of an item adds its key.
+  - The address is one item for each document from the content to the page,
+    with "›" between two items. An item is a `WidgetToolbarItem` with the name
+    of its document; a press opens its page, with the page that the person
+    leaves selected, as Parent does. The page is the last item, a plain label.
+    The tooltip of an item is its path from the content.
+  - A name is the title of the document, or the steps that reach it from the
+    item before (`entries[2]`, `value`), or at the root the name of its type.
+  - `:arrow_left` (`0xe048`) and `:arrow_right` (`0xe049`) are in the icon
+    table; the code points are read from the cmap of `asset/font/lucide.ttf`.
+  - The items follow the address through a computed cell in the IO map, which
+    the reader reads to find the item that a press names.
+  - Open: a JSON part has no title, so the address of a JSON page names the
+    steps (`JsonObject › entries[2] › value`). A title for a JSON entry, such as
+    its key, is a change of the JSON domain, and `get_document_title` has other
+    readers, such as the name of a tab; it waits for the owner.
 - [ ] **4. Open any part.** "Open as a page" and "Open in a new tab" in the
   context menu of each part on a page. The key for the selected part came with
   step 1.
