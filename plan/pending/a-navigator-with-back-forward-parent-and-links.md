@@ -498,6 +498,19 @@ new tab".
   - `test_data_frame_row_page()`, 31 tests after A5 and A6.
 - [ ] **6. Links in the data.** Markdown and rst links that a press follows,
   drawn as links. A file reference. A named target after D7.
+  **Decided (owner, 2026-10-06):**
+  - The gesture: in a source view, Ctrl+click follows a link in the navigator,
+    as in an IDE, and Ctrl+Shift+click opens it in a new tab; in the rendered
+    markdown view, a plain click follows it and Ctrl+click opens a new tab, as
+    in a browser. A plain click in a source view edits the text of the link.
+    The option not chosen: Ctrl+click in every view, with "Open in a new tab"
+    in the menu of the link.
+  - What a link names: `#anchor` and an rst reference go to the target in the
+    same content, through the function of D7 that the domain answers (a
+    markdown heading by its slug, an rst `.. _name:`); a relative file path
+    opens that file in a new tab with a navigator, as the open of a file does;
+    a web URL does nothing in this step, and its tooltip shows it. The option
+    not chosen for a URL: the system browser, a side effect outside the editor.
 - [x] **7. Panes and files.** The tab title follows the page. A duplicate copies
   the lists. A save keeps the address only (D6). Done, 2026-10-06, with one
   change of the plan:
@@ -548,7 +561,14 @@ new tab".
     [navigator.md](../../documentation/package/platform/navigator/navigator.md),
     its row in the package index, and the keys in the keyboard guide, for steps
     1 to 4 (2026-10-06). Each later step updates the document.
-  - [ ] The example in the examples tour, after step 5.
+  - [ ] The example in the examples tour, after step 5. A fact found on the way
+    (2026-10-06): a host gives an opened window only the rows that it names, so
+    the list of choices opened an empty window in the application and in the
+    gallery; the tests gave popups the natural renderer. **Decided (owner,
+    2026-10-06):** `make_opened_window_projections` ends with the natural
+    renderer, so a popup with a document that no row names draws through the
+    rows that the slices register. The options not chosen: a row for the list in
+    each host, or a list of widgets only.
 
 ## 8. Decisions for the owner
 
