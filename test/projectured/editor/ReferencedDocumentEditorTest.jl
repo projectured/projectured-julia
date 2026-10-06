@@ -189,9 +189,9 @@ function test_referenced_document_editor()
         set = ToolSet(; api = make_application_api())
         register_default_tools!(set)
         description = only([t for t in set.tools if t.name == "execute_julia_code"]).description
-        @test occursin("replace_referenced_value!(editor, part, new_value)", description)
-        @test occursin("insert_elements!(editor, collection, index, values)", description)
-        @test occursin("delete_elements!(editor, collection, index)", description)
+        @test occursin("replace_referenced_value!(part, new_value)", description)
+        @test occursin("insert_elements!(collection, index, values)", description)
+        @test occursin("delete_elements!(collection, index)", description)
         first_names(query; mode) = [m.captures[1] for m in eachmatch(r"^- `([^(`{]+)"m,
             string(search_api(set, query; mode = mode, detail = "names", limit = 3)))]
         @test first(first_names("edited document"; mode = "keywords")) == "get_edited_document"

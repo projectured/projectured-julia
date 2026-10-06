@@ -28,9 +28,9 @@ _make_editing_description(ways::AbstractString) =
     "permissions or transform it, as it does for an operation.\n\n"
 
 # The verbs that edit, as the description names them.
-const _EDITING_VERBS = (:replace_referenced_value! => "`replace_referenced_value!(editor, part, new_value)`",
-                        :insert_elements! => "`insert_elements!(editor, collection, index, values)`",
-                        :delete_elements! => "`delete_elements!(editor, collection, index)`")
+const _EDITING_VERBS = (:replace_referenced_value! => "`replace_referenced_value!(part, new_value)`",
+                        :insert_elements! => "`insert_elements!(collection, index, values)`",
+                        :delete_elements! => "`delete_elements!(collection, index)`")
 
 _join_verbs(texts) = length(texts) == 1 ? only(texts) :
                      join(texts[1:(end - 1)], ", ") * " or " * texts[end]
@@ -48,7 +48,8 @@ end
 const _WHOLE_SURFACE_DESCRIPTION =
     "Execute arbitrary Julia code in the editor process. " *
     "The variable `editor` is bound to the running Editor instance " *
-    "which holds `editor.document` and `editor.projection`.\n\n" *
+    "which holds `editor.document` and `editor.projection`. A verb acts on this " *
+    "editor, so the code does not pass it to the verb.\n\n" *
     "Every loaded Projectured package is already imported before executing the code, " *
     "making all its exports available, and `Projectured.X` names any of them. " *
     "Do NOT add `using Projectured` to your code - it is already included automatically.\n\n" *
@@ -89,7 +90,8 @@ end
 function _execute_julia_code_description(set::ToolSet)
     isempty(set.api) && return _WHOLE_SURFACE_DESCRIPTION
     "Execute Julia code in the editor process. " *
-    "The variable `editor` is bound to the running editor.\n\n" *
+    "The variable `editor` is bound to the running editor. A verb acts on this " *
+    "editor, so the code does not pass it to the verb.\n\n" *
     _declared_sentence(set) * "in scope, and they are the whole of what " *
     "you may call. Anything else is an UndefVarError.\n\n" *
     "FIND THEM BEFORE YOU WRITE ANY CODE, with the two tools that answer that:\n" *

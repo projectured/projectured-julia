@@ -291,7 +291,7 @@ save    = Action("Save"; icon = :save, shortcut = Shortcut(:s; ctrl = true),
 toolbar = WidgetToolbar(Any[WidgetToolbarItem(save)])
 form    = FormLayout([(WidgetLabel("Name"),     ObjectField(server, "name")),
                       (WidgetLabel("Capacity"), ObjectField(server, "capacity"))])
-open_pane!(editor, WidgetSpinBox(10; min = 1, max = 100, width = 80); title = "Runs")
+open_pane!(WidgetSpinBox(10; min = 1, max = 100, width = 80); title = "Runs")
 run_example(widget_transform_pane_example)
 write_example_image(widget_tree_example, "tree.png")
 ```

@@ -51,7 +51,7 @@ The tools are the tool set of the kernel, so a client and the assistant in the w
 | `read_function_documentation` | reads the documentation of one name |
 | `search_guides` | searches the guides of this repository |
 | `list_resources`, `read_resource` | lists and reads the resources below |
-| `execute_julia_code` | runs Julia in the running program, with `editor` bound to the editor |
+| `execute_julia_code` | runs Julia in the running program, with `editor` bound to the editor; a verb acts on that editor, so the code does not pass it |
 
 The application adds `undo` and `redo`, which take the last change back and put it back, as a person does.
 

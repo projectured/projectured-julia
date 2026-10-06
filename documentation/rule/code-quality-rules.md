@@ -98,8 +98,8 @@ the shape of a histogram. The frame decides the chart: …
 
 # Example
 
-    vectors = get_simulation_vector_results(get_project_result_directory(editor))
-    open_pane!(editor, make_result_plot(vectors; title = "Delay"))
+    vectors = get_simulation_vector_results(get_project_result_directory())
+    open_pane!(make_result_plot(vectors; title = "Delay"))
 
 See also `make_result_table`, which shows the same frame as rows.
 """
@@ -211,17 +211,22 @@ changed by accident. List the sealed files before a sweep and exclude them.
 ## 4. Arguments: positional for what the name says, names for the rest
 
 **Prefer at most three positional arguments.** This is advice, not a limit. A
-fourth positional argument is fine when the name of the function implies it:
-`insert_elements!(editor, collection, index, values)` says what and where. A name
-at a call site says what a value is. An order says nothing, and a reader can not
+fourth positional argument is fine when the name of the function implies it. A
+name at a call site says what a value is. An order says nothing, and a reader can not
 check it without opening the definition, so an argument that the name of the
 function does not imply takes a name.
 
 **A positional argument is one that the name of the function already names.**
-The subject comes first — the document, the store, the editor — and then the
-arguments that the verb implies. `open_pane!(editor, document)` needs no names. If
-a reader can not say what an argument is from the name of the function, that
-argument takes a name of its own.
+The subject comes first — the document, the store, the editor of
+`evaluate_operation(editor, operation)` — and then the arguments that the verb
+implies. `open_pane!(document)` needs no names. If a reader can not say what an
+argument is from the name of the function, that argument takes a name of its
+own.
+
+**A verb takes its editor as a keyword.** A verb that a person or a model calls
+takes `editor = get_evaluation_editor()`, so its call in the evaluator names no
+editor, and code that has an editor passes it as `editor`. PAR-PER-EDITOR-STATE
+says where the default comes from.
 
 **A `Bool` is never positional.** `clip_child_to_slot(…, true, false)` says
 nothing; `clip_x = true, clip_y = false` says everything. A `Symbol` that picks a

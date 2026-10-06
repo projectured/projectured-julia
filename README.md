@@ -81,7 +81,7 @@ bin/projectured --backend=web a.json         # in a browser, at http://127.0.0.1
 bin/projectured --mcp a.json                 # with an MCP server for an external client
 ```
 
-The menu bar has **Open** and **Save As** for a file outside the directory the Files pane lists. `save_user_interface(editor, path)` writes the whole window — its panes, its tabs and what each one holds — to one file, and `load_user_interface(path)` brings it back; an open file tab is saved as a reference to its file, not as a copy.
+The menu bar has **Open** and **Save As** for a file outside the directory the Files pane lists. `save_user_interface(path)` writes the whole window — its panes, its tabs and what each one holds — to one file, and `load_user_interface(path)` brings it back; an open file tab is saved as a reference to its file, not as a copy.
 
 **The assistant.** By default it asks a local model through [Ollama](https://ollama.com): the Ollama server must run on your machine, and the model must be pulled. For Claude, set `ANTHROPIC_API_KEY` in your environment and start with `--assistant=anthropic`. Without a server and without a key, the assistant pane opens and says what it needs.
 

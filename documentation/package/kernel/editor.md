@@ -514,7 +514,7 @@ loop:
 editor = make_editor(document, projection; backend)
 attach_fault_target!(editor.faults, log)   # hand the editor on
 @async drive(editor)                       # a driver that posts its work
-focus_pane!(editor, reference)             # an edit through the readers
+focus_pane!(reference; editor)             # an edit through the readers
 run_editor!(editor)
 ```
 

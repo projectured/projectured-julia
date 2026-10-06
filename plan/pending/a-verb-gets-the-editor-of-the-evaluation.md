@@ -382,6 +382,31 @@ lands on the branch.
    still start with the name of the verb. Tests: `test/projectured/SearchRankingTest.jl`,
    `test/projectured/editor/McpSurfaceTest.jl`, `test/kernel/tool/DeclaredApiTest.jl`,
    `test/projectured/CallSiteTest.jl`.
+
+   **Done 2026-10-06.** What the implementation found:
+   - The two descriptions of the code tool say: "A verb acts on this editor, so
+     the code does not pass it to the verb." `_EDITING_VERBS` and the system text
+     of the application name the verbs without the editor.
+   - 44 calls in 10 Markdown files lost the literal `editor` argument. Code that
+     has an editor outside an evaluation keeps it as a keyword:
+     `focus_pane!(reference; editor)` in `editor.md`, and
+     `get_window_tree(; editor)` in `operation.md` and
+     `finding-and-selecting.md`.
+   - The argument rule of `code-quality-rules.md` §4 used
+     `insert_elements!(editor, collection, index, values)` as its example of a
+     fourth positional argument. No public function shows it as well, so the
+     example is gone and the rule stays. A new paragraph says that a verb takes
+     its editor as a keyword. `orientation.md` has a new bullet **Editor**.
+   - `CallSiteTest.jl` and `SearchRankingTest.jl` keep `open_pane!(e, d)` and
+     `focus_pane!(editor)`: they are text fixtures of the search, not calls.
+   - Tests: `test_declared_api()` 149, `test_search_tools_registered()` 8,
+     `test_whole_surface_documentation()` 6, `test_search_ranking()` 27,
+     `test_call_site()` 20, `test_search_api()` 10, `test_pane_tab_b1()` 8,
+     `test_execute_julia_code()` 22, `test_assistant_editor_reference()` 5,
+     `test_function_availability()` 8, `test_mcp_tools()` 154,
+     `test_mcp_tool_runs_on_editor_task()` 13, `test_list_guides()` 276,
+     `test_read_guide()` 3, `test_search_guides()` 6, `test_documentation()` 1,
+     all pass. The documentation guard reports the same faults as `main`.
 5. **The verbs of omnet-julia**, in its own worktree and commits: the 29
    declared verbs, and the docstring of `CampaignVerbs` that says "Every verb
    takes the editor first". Run `Pkg.precompile` and a scan of the calls,

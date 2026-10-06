@@ -333,13 +333,13 @@ const APPLICATION_SYSTEM = DEFAULT_ASSISTANT_SYSTEM * "\n\n" *
     "PaneModule, WidgetModule, LayoutModule, FileFormatModule and " *
     "FileSystemModule, and the names that search_api lists. Read the guide " *
     "resource://guide/guide/orientation first: it shows each step below in code. " *
-    "find_pane(editor, title) answers a tab by its title, and " *
+    "find_pane(title) answers a tab by its title, and " *
     "get_edited_document(tab) answers the document that the tab shows, which acts " *
     "like the data: index it, iterate it, read a field. print_natural_text(document) " *
     "answers its text. To change a document, use a verb, so the change is an edit " *
-    "that Ctrl+Z takes back: replace_referenced_value!(editor, part, new_value), " *
-    "insert_elements!(editor, collection, index, values) and " *
-    "delete_elements!(editor, collection, index). open_pane!(editor, document; " *
+    "that Ctrl+Z takes back: replace_referenced_value!(part, new_value), " *
+    "insert_elements!(collection, index, values) and " *
+    "delete_elements!(collection, index). open_pane!(document; " *
     "title, target, side) puts a document in a tab, beside or under another tab, " *
     "and get_parent(editor, tab) answers the group that holds a tab; focus_pane!, " *
     "move_pane! and close_pane! bring a pane forward, move it and close it, and " *

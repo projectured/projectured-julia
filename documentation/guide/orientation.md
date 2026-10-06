@@ -47,6 +47,9 @@ browsing tools below. Do not guess names — search for them.
   **iomap** (`print_document(proj, doc)`) searches the whole projection
   pipeline — a debugging move for "where did the value go?" (see `guide/debugging-guide`).
 - **Resolve** — `evaluate_reference(editor.document, path)` → the node at a path.
+- **Editor** — a verb acts on the editor that runs the code, so the code does not
+  pass `editor` to a verb. `editor` is still bound, and `editor.document` is the
+  root that a path starts at.
 - **Intent** — build an `Operation`, then `evaluate_operation(editor, op)`
   (e.g. `ReplaceSelectionOperation(path)` to select), or call a verb that makes
   one, such as `replace_referenced_value!`, `insert_elements!` or
@@ -59,7 +62,7 @@ browsing tools below. Do not guess names — search for them.
 
 ## Reach what a tab holds
 
-`find_pane(editor, title)` answers the tab of that title as a
+`find_pane(title)` answers the tab of that title as a
 `ReferencedDocument`: the tab, and the reference to it from the root of
 `editor.document`. A referenced document acts like its document: read a field,
 index it, iterate it. Every document or collection that a read answers is a
@@ -73,7 +76,7 @@ Look at the data first, in one call. Here a tab shows `items.json`, a JSON array
 of records with a `name` and a `price`:
 
 ```julia
-items_tab_1 = find_pane(editor, "items.json")
+items_tab_1 = find_pane("items.json")
 items_1 = get_edited_document(items_tab_1)
 println(print_natural_text(items_1))
 ```
@@ -85,14 +88,14 @@ brackets, `[… for item in items_1]`: `sort` takes a vector, not a generator.
 
 ```julia
 rows_1 = sort([[item["name"].value, item["price"].value] for item in items_1]; by = first)
-table_tab_1 = open_pane!(editor, WidgetTable(["name", "price"], rows_1); title = "Items by name")
+table_tab_1 = open_pane!(WidgetTable(["name", "price"], rows_1); title = "Items by name")
 ```
 
 To change what a tab shows, give the part and its new value to
 `replace_referenced_value!`, so the change is an edit that Ctrl+Z can undo:
 
 ```julia
-replace_referenced_value!(editor, items_1[2]["price"], JsonNumber(12))
+replace_referenced_value!(items_1[2]["price"], JsonNumber(12))
 ```
 
 and not `items_1[2]["price"].value = 12`, which changes the document outside the
@@ -102,7 +105,7 @@ editor's handling of an edit. To add a record, or to remove one, use
 
 ```julia
 item_1 = JsonObject("name" => JsonString("lamp"), "price" => JsonNumber(25))
-insert_elements!(editor, items_1, length(items_1) + 1, [item_1])
+insert_elements!(items_1, length(items_1) + 1, [item_1])
 ```
 
 Each of the three records the edit in the history of the file, so Ctrl+Z in the
@@ -116,7 +119,7 @@ or `:below`. The new pane is always next to one group.
 puts the table in a new pane under the group of `items.json`:
 
 ```julia
-table_tab_2 = open_pane!(editor, WidgetTable(["name", "price"], rows_1); title = "Items",
+table_tab_2 = open_pane!(WidgetTable(["name", "price"], rows_1); title = "Items",
                          target = get_parent(editor, items_tab_1), side = :below)
 ```
 

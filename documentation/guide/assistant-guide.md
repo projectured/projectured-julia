@@ -59,7 +59,7 @@ The assistant has a set of tools, and the same set is what an external client ge
 | --- | --- |
 | `search_api` | finds a module, a type or a function of the loaded packages, by name, by pattern or by description |
 | `search_guides`, `read_resource` | reads the guides of this repository |
-| `execute_julia_code` | runs Julia in the running program, with `editor` bound to the editor |
+| `execute_julia_code` | runs Julia in the running program, with `editor` bound to the editor; a verb acts on that editor, so the code does not pass it |
 | the operations | changes the data with the same edits as your key presses |
 
 So a question can be about the data in front of you, about the API, or about a change to make. Examples:

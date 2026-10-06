@@ -175,7 +175,7 @@ ref = first(search_references(editor.document, v -> v isa JsonString && v.value 
 evaluate_operation(editor, ReplaceSelectionOperation(ref))
 
 # Any other action: find the target, build the op carrying it, evaluate.
-tree = get_window_tree(editor)
+tree = get_window_tree(; editor)
 group = first(search_documents(editor.document, x -> x isa PaneGroup && !isempty(x.tabs)))
 evaluate_operation(editor, make_pane_close_tab_operation(tree, group, 1))
 ```

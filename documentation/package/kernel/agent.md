@@ -106,7 +106,7 @@ required and the optional terms.
 module after it, and the first sentence of the description under it.
 
 ```
-- `replace_referenced_value!(editor, reference, value) -> Text` — function in PaneModule
+- `replace_referenced_value!(reference, value; editor = get_evaluation_editor()) -> Text` — function in PaneModule
   Put `value` where `reference` points, and answer the window's new program.
 ```
 

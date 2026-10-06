@@ -151,22 +151,22 @@ A duplicate is not a mirror. Each node stores its own `selection`, so two panes 
 
 ### The verbs of a program
 
-`PaneProgram.jl` gives a program the layout as references into the tree, and a verb for each common change to it. Every reference a verb takes or answers is complete: it starts at the root of the editor's document, not at a tree object. A verb finds its own tree from the reference it is given — the longest prefix that ends at a `PaneTree` — so no verb assumes one window or one tree. `get_window_tree(editor)` stays for code that already holds one window and needs the tree object itself; a verb does not use it.
+`PaneProgram.jl` gives a program the layout as references into the tree, and a verb for each common change to it. Every reference a verb takes or answers is complete: it starts at the root of the editor's document, not at a tree object. A verb finds its own tree from the reference it is given — the longest prefix that ends at a `PaneTree` — so no verb assumes one window or one tree. Each verb takes the editor as the keyword `editor = get_evaluation_editor()`: the code of the evaluator or of a model names no editor, and code that has an editor passes it as `editor`. `get_window_tree()` stays for code that already holds one window and needs the tree object itself, and `get_window_tree(document)` answers the tree that a document holds; a verb does not use it.
 
 | Verb | What it does | Returns |
 | --- | --- | --- |
-| `show_layout(editor)` | prints the layout as a tree of reference steps | a `Text` |
-| `get_referenced_value(editor, reference)` | reads the node at a reference | the node, or an `ArgumentError` that names the path |
-| `replace_referenced_value!(editor, reference, value)` | writes a value at a reference, as one undo step | the new layout |
-| `focus_pane!(editor, reference)` | shows a tab and gives it the focus | the new layout |
-| `open_pane!(editor, document; title, group, target, side)` | puts a document in a new tab | the new tab, as a `ReferencedDocument` |
-| `duplicate_pane!(editor, reference)` | duplicates a tab | the duplicate, as a `ReferencedDocument` |
-| `close_pane!(editor, reference)` | closes a tab | the new layout |
-| `move_pane!(editor, reference, target; side)` | moves a tab to a group, before a tab, or beside a group in a new split | the new layout |
+| `show_layout()` | prints the layout as a tree of reference steps | a `Text` |
+| `get_referenced_value(reference)` | reads the node at a reference | the node, or an `ArgumentError` that names the path |
+| `replace_referenced_value!(reference, value)` | writes a value at a reference, as one undo step | the new layout |
+| `focus_pane!(reference)` | shows a tab and gives it the focus | the new layout |
+| `open_pane!(document; title, group, target, side)` | puts a document in a new tab | the new tab, as a `ReferencedDocument` |
+| `duplicate_pane!(reference)` | duplicates a tab | the duplicate, as a `ReferencedDocument` |
+| `close_pane!(reference)` | closes a tab | the new layout |
+| `move_pane!(reference, target; side)` | moves a tab to a group, before a tab, or beside a group in a new split | the new layout |
 
 Each verb makes its edit at the pane tree and carries it to the root through the readers of the editor (`read_rooted_operation`; see [editor.md](../../kernel/editor.md#an-operation-from-a-place-not-a-gesture)), then evaluates it at once, so every document on the path of the selection holds its part of the new state. Each verb but `replace_referenced_value!` has a `make_…_operation` companion — `make_open_pane_operation`, `make_focus_pane_operation`, `make_close_pane_operation`, `make_duplicate_pane_operation`, `make_move_pane_operation` — that reads the same edit and evaluates nothing, for a caller that already runs inside another evaluation and posts the result with `post_pane_operation!(editor, operation)`. The menu and toolbar actions, and `OpenFileOperation`, post this way. `post_pane_operation!` applies the operation at once instead when `editor` is not a running `Editor`, such as a test that holds the tree.
 
-`find_pane_reference(editor, title)` answers the complete reference of the pane whose title is `title`, in any window, and `nothing` when no pane has it; when two panes have it, an `ArgumentError` names both. It descends only into the documents that can hold a pane (`is_pane_search_step`, the default of its `descend` keyword). `find_pane_tree_reference(editor)` answers the complete reference of the pane tree that holds the focus — the nearest tree on the path of the root's selection, else the one tree of the window, else `nothing`.
+`find_pane_reference(title)` answers the complete reference of the pane whose title is `title`, in any window, and `nothing` when no pane has it; when two panes have it, an `ArgumentError` names both. It descends only into the documents that can hold a pane (`is_pane_search_step`, the default of its `descend` keyword). `find_pane_tree_reference()` answers the complete reference of the pane tree that holds the focus — the nearest tree on the path of the root's selection, else the one tree of the window, else `nothing`.
 
 **The level is the reference, not the verb.** A change with no verb of its own is one write: a value at `root` rearranges the window, a value at `root.elements[1]` moves one side of a split, a value at `root.weights` resizes a split, and a value at `tabs[i].content` changes what a pane holds. A range splices, so `[]` at `tabs[2, 3]` closes two tabs at once. A move and a close have their own verbs too, `move_pane!` and `close_pane!`. Focus is the selection and not a value, and a correct duplicate can share a live action with its original, so a caller can not make either as a value: each has its own verb, `focus_pane!` and `duplicate_pane!`.
 
@@ -186,10 +186,10 @@ Each verb makes its edit at the pane tree and carries it to the root through the
 
 A line's steps are those after the nearest printed line whose path is a prefix of its own, so the path of a part is the steps of the lines on its branch, joined in order: `@reference(editor.document, content.windows[1].content.content.content.content.root.elements[2].tabs[1])`. To name a pane there is a shorter way: `find_pane_reference` answers the reference of a pane by its title. The type on each line is `nameof(typeof(node))`; the note gives the node's title after `title`, quoted as `find_pane` takes it (`get_document_title`), what it shows after `shows` (`describe_document`) when that says more than the type, the wrappers a line's steps pass through, and the deepest focused tab. `include(node)` says which nodes get a line and `descend(parent, child)` where the walk goes; the defaults show the windows, the pane trees, the splits, the groups and the tabs, and a pane tree inside a tab below that tab. It answers a `Text` and not a `String`, so the tree arrives as the lines it is and not as one line of `\n` escapes.
 
-A path written by hand is typed against the tree it names a part of, then set after the path to that tree: resolve `find_pane_tree_reference(editor)` to the tree object with `evaluate_reference`, type the rest with `@reference(tree, …)`, and join the two with `concat_references`:
+A path written by hand is typed against the tree it names a part of, then set after the path to that tree: resolve `find_pane_tree_reference()` to the tree object with `evaluate_reference`, type the rest with `@reference(tree, …)`, and join the two with `concat_references`:
 
 ```julia
-tree_reference = find_pane_tree_reference(editor)
+tree_reference = find_pane_tree_reference()
 tree = evaluate_reference(editor.document, tree_reference)
 reference = concat_references(tree_reference, @reference(tree, root.elements[1].tabs[1]))
 ```
@@ -200,9 +200,9 @@ A path to a node that the tree does not hold is not fully typed, and every verb 
 
 `open_pane!` takes the same `target` and `side` as `move_pane!`, in place of the focused group: a group as `target` sends the tab to its end, a tab as `target` puts the new tab before it, and `side` puts the tab in a new group beside the target's group, as `make_pane_split_operation` splits a group: in a new split that takes the place of the target's group, or in the parent split when it already has that orientation; the new tab gets the focus. `open_pane!` throws an `ArgumentError` for a call that gives both `group` and `target`, and for a `side` that is not one of the four.
 
-`find_pane(editor, title)` answers the tab of that title as a `ReferencedDocument` that acts like the tab, or `nothing` when no tab has that title; two tabs of that title raise the same `ArgumentError` as `find_pane_reference`. Every verb that takes a reference, or a document to place, also takes a `ReferencedDocument` in its stead: `focus_pane!`, `close_pane!`, `duplicate_pane!`, `move_pane!` for either its reference or its target, `get_referenced_value`, `replace_referenced_value!` for the reference or the value it writes, `describe_document`, and `open_pane!` for the document it opens and for its `target` — such as the tab `find_pane` answers. `open_pane!` and `duplicate_pane!` answer the tab they made as a `ReferencedDocument` too; `get_reference` gives its reference. `get_parent(editor, x)` answers the group that holds a tab, or the document around any other part, one step up `x`'s reference and past every collection on the way: `get_parent(editor, find_pane(editor, "items.json"))` answers the group of the tab named `"items.json"`.
+`find_pane(title)` answers the tab of that title as a `ReferencedDocument` that acts like the tab, or `nothing` when no tab has that title; two tabs of that title raise the same `ArgumentError` as `find_pane_reference`. Every verb that takes a reference, or a document to place, also takes a `ReferencedDocument` in its stead: `focus_pane!`, `close_pane!`, `duplicate_pane!`, `move_pane!` for either its reference or its target, `get_referenced_value`, `replace_referenced_value!` for the reference or the value it writes, `describe_document`, and `open_pane!` for the document it opens and for its `target` — such as the tab `find_pane` answers. `open_pane!` and `duplicate_pane!` answer the tab they made as a `ReferencedDocument` too; `get_reference` gives its reference. `get_parent(editor, x)` answers the group that holds a tab, or the document around any other part, one step up `x`'s reference and past every collection on the way: `get_parent(editor, find_pane("items.json"))` answers the group of the tab named `"items.json"`.
 
-To find a tab again after the layout changes, keep a `DocumentLocator` instead of a `ReferencedDocument`: `DocumentLocator(editor, find_pane_reference(editor, "items.json"))` is not resolved yet, and `find_referenced_document` resolves it again at each call, so it still finds the tab after a pane moves, after an unrelated sibling closes, or after `replace_referenced_value!` replaces the tab itself.
+To find a tab again after the layout changes, keep a `DocumentLocator` instead of a `ReferencedDocument`: `DocumentLocator(editor, find_pane_reference("items.json"))` is not resolved yet, and `find_referenced_document` resolves it again at each call, so it still finds the tab after a pane moves, after an unrelated sibling closes, or after `replace_referenced_value!` replaces the tab itself.
 
 `make_pane_api()` and `make_interface_api()` return the names that a model may write, by module: the verbs, the pane types, the layouts, `@reference`, and the widgets that a person names in a request. A declaration of a whole module adds about thirty generated schema variants for each document type. Declared whole, `PaneModule` and `ReferenceModule` take the surface from 10 names to 122, and a search for "what panes are open" then finds those variants before `show_layout`.
 
@@ -216,15 +216,15 @@ The wrapper `tabs` of `build_editor` puts the root document in the one tab of a 
 
 `make_tabs_projection(projection)` draws the tree. `PaneToWidget` makes the widgets and leaves the content of each tab as it is. The stage after it draws every widget and layout with the widget renderer, and every other document with `projection`. So the tabs work with a projection that draws no widget, and a content that is itself a widget draws as a widget. A content can not be told by its place, because the widget printers hand their own context to a child.
 
-`show_document!(editor, document; title)` of the screen package shows a later document. For a window whose content is a `PaneTree`, this package's method opens a tab named `title`, or focuses the tab that shows `document` already.
+`show_document!(document; title)` of the screen package shows a later document. For a window whose content is a `PaneTree`, this package's method opens a tab named `title`, or focuses the tab that shows `document` already.
 
 ### Save and load of the whole editor
 
-`save_user_interface(editor, path)` saves the document of the editor, with every window, split, group and tab, as one `.pred` file. The cut writes a `FileDocument` child as a reference, `file("a.json")`, only when that file is a file of the project, and it aborts on any other. So the function finds each reachable file tab with `search_documents(document, is_file_document)` and adds it to the `FileProject` beside the `.pred` file. `load_user_interface(path)` returns the document, with each file tab read back from its file.
+`save_user_interface(path)` saves the document of the editor, with every window, split, group and tab, as one `.pred` file. The cut writes a `FileDocument` child as a reference, `file("a.json")`, only when that file is a file of the project, and it aborts on any other. So the function finds each reachable file tab with `search_documents(document, is_file_document)` and adds it to the `FileProject` beside the `.pred` file. `load_user_interface(path)` returns the document, with each file tab read back from its file.
 
 `pred_arguments` of `PaneTree` writes only `root`, because a drag is not layout. A `.pred` file builds `PaneTree`, `PaneSplit`, `PaneGroup` and `PaneTab` by their names, as it builds any loaded document type. The functions name no screen type, so an editor that holds a bare `PaneTree` saves and loads the same way.
 
-`get_pane_file_group(editor)` returns the group for a newly opened file: a group that holds a file already, as the content of a tab or through a layer that `get_edited_field` names, such as the scroll pane of a file tab, else a group whose tabs all answer `accepts_opened_file`, the focused one first. The file-system package pairs its `OpenFileOperation` with this answer, because this package can not name a type of a package that it does not depend on.
+`get_pane_file_group()` returns the group for a newly opened file: a group that holds a file already, as the content of a tab or through a layer that `get_edited_field` names, such as the scroll pane of a file tab, else a group whose tabs all answer `accepts_opened_file`, the focused one first. The file-system package pairs its `OpenFileOperation` with this answer, because this package can not name a type of a package that it does not depend on.
 
 ## How it fits
 
@@ -248,15 +248,15 @@ The shell slice puts a pane tree in the content of a window; see [shell.md](../s
 run_example(pane_example)         # three groups, four tabs
 run_example(empty_pane_example)   # one empty group
 
-reference = open_pane!(editor, WidgetLabel("The delay of every run"); title = "Note")
-focus_pane!(editor, reference)
-show_layout(editor)
-tree_reference = find_pane_tree_reference(editor)
+reference = open_pane!(WidgetLabel("The delay of every run"); title = "Note")
+focus_pane!(reference)
+show_layout()
+tree_reference = find_pane_tree_reference()
 tree = evaluate_reference(editor.document, tree_reference)
-replace_referenced_value!(editor, concat_references(tree_reference, @reference(tree, root.elements[1].tabs[2, 2])), [])
-duplicate_pane!(editor, reference)
-close_pane!(editor, find_pane_reference(editor, "Note"))
-save_user_interface(editor, "session.pred")
+replace_referenced_value!(concat_references(tree_reference, @reference(tree, root.elements[1].tabs[2, 2])), [])
+duplicate_pane!(reference)
+close_pane!(find_pane_reference("Note"))
+save_user_interface("session.pred")
 ```
 
 `editor` is a running editor whose document holds a pane tree.
