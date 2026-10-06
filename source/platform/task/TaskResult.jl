@@ -101,6 +101,24 @@ kind of task with no parameters answers `""`.
 """
 format_task_parameters(::AbstractTask) = ""
 
+"""
+    get_task_columns(task) -> Vector{String}
+
+The columns that a kind of task adds to a table of tasks, each named by the
+word of its header, beside the columns that every task has. A kind with nothing
+to add answers none.
+"""
+get_task_columns(::AbstractTask) = String[]
+
+"""
+    format_task_column(task, column) -> String
+
+The text of `task` in `column`, one of the names that
+[`get_task_columns`](@ref) answers for it. `""` for a column that the kind does
+not know.
+"""
+format_task_column(::AbstractTask, ::AbstractString) = ""
+
 # ── Words ────────────────────────────────────────────────────────────────────
 
 """

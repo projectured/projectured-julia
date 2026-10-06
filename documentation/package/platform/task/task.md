@@ -14,6 +14,13 @@ adds its kinds of task, such as the runs and the tests of a simulation.
 `get_result_codes(task)`, the family of codes that its results take, and
 `format_task_parameters(task)`, the task in one line.
 
+A kind also says what it adds to a table of tasks, with plain answers and no
+document of its own. `get_task_columns(task)` names its columns, each by the
+word of its header, and `format_task_column(task, column)` gives the text of one.
+The defaults answer none and `""`, so a task of a kind that adds nothing shows
+the columns that every task has. A legacy simulation adds `directory`,
+`configuration` and `run`.
+
 `TaskResult` is the supertype of what a task ended with. Each kind of result
 holds the fields `task`, `result`, `expected_result`, `reason` and
 `elapsed_wall_time`, named as `opp_repl` names them. A result is expected when
@@ -89,3 +96,32 @@ expected and unexpected, and the worst case. `format_task_group_summary` and
 like at one moment for a reader of the screen: the counts, the progress, the
 time that went and an estimate of the time left, the rate and the slowest task.
 
+## The documents and the feed
+
+`TaskDocument` is one task on the screen: the task, the state of its execution
+and what it ended with. It holds nothing that a kind of task knows: a view asks
+the task for its columns. `start_task!(document; options...)` starts the task
+through `start_task` of its kind and answers at once; `stop_task!` and
+`wait_task_document` act on the execution.
+
+No reader of a process writes a cell. A `TaskFeedStore` holds each execution
+that runs with the function that copies it into its document, and
+`drain_task_feed!` copies what changed, on the task that reads the documents.
+A window gives its editor a `TaskFeed`, which drains at most once in its
+interval and asks for a frame only while an execution runs. A caller with no
+window drains the store itself: `wait_task_document` and
+`wait_task_group_document` do.
+
+`TaskGroupDocument` is a group on the screen: the `TaskGroup`, one
+`TaskDocument` for each task, a tally of the states that each write keeps, the
+summary, and an identifier `T1`, `T2`, … that never changes.
+`start_task_group_document!`, `rerun_task_group_document!` and
+`stop_task_group_document!` act on the group, and its status is `:pending`,
+`:running`, `:stopping` or `:finished`. The status reads the tally, not the
+documents, so a group of 18,500 tasks costs the same at each change as a group
+of five.
+
+`TaskGroupList` is the groups of the session, newest first, that the Tasks pane
+shows. A group adds itself when it starts, and stays until a person closes its
+row. `set_task_group_opener!` says what Show does; a window sets it, and it
+captures no editor (PAR-NO-EDITOR-IN-DOCUMENT).
