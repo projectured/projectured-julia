@@ -1,14 +1,14 @@
 # Pivot any table into a widget table
 
-> **Kind:** plan · **Status:** pending, 2026-10-06. A design review and a list
+> **Kind:** plan · **Status:** done, 2026-10-06. A design review and a list
 > of stages. The owner decided every question of §7 on 2026-10-06 and asked
-> for the work the same day. Stages 0 to 10 are done on the branch `pivot`,
-> which stands on main `255f78403`; stage 11 holds proposals that wait for the
-> owner, and §10 holds a question that the work found. ·
-> **Stands on:** [view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md)
+> for the work the same day. Stages 0 to 10 are done and on main. The owner
+> moved stage 11 and the question of §10 to
+> [pivot-table-next-steps.md](../pending/pivot-table-next-steps.md). ·
+> **Stands on:** [view-and-edit-a-data-frame.md](../pending/view-and-edit-a-data-frame.md)
 > (D8, §4.6, §4.7),
-> [filter-sort-and-find-any-table.md](filter-sort-and-find-any-table.md),
-> [packages-compose-by-seams.md](packages-compose-by-seams.md),
+> [filter-sort-and-find-any-table.md](../pending/filter-sort-and-find-any-table.md),
+> [packages-compose-by-seams.md](../pending/packages-compose-by-seams.md),
 > [widget.md](../../documentation/package/platform/widget/widget.md),
 > [chart.md](../../documentation/package/domain/chart/chart.md),
 > [dragging.md](../../documentation/package/platform/dragging/dragging.md)
@@ -69,7 +69,7 @@ The writer recommends six changes. They are recommendations, not decisions:
 4. **Give each dimension an order, a filter and a rule for `missing`.** A
    number or a date column needs bins before it is a good dimension.
 5. **Make the pivot a stage over the table interface** of
-   [filter-sort-and-find-any-table.md](filter-sort-and-find-any-table.md).
+   [filter-sort-and-find-any-table.md](../pending/filter-sort-and-find-any-table.md).
    "The value can be anything" then means "any table": a data frame, a vector
    of named tuples, a `CellTable`, the result of a query. A cell holds a part of
    the same kind: a `SubDataFrame` for a data frame, a view by indices for the
@@ -313,7 +313,7 @@ source table ─▶ filter, sort ─▶ pivot ─▶ cross table ─▶ cell vie
   answer is a widget table by indices. The DataFrames adapter answers a
   `SubDataFrame` with a `DataFrameView`, so an edit in the cell writes the
   frame. This follows C1 of
-  [packages-compose-by-seams.md](packages-compose-by-seams.md).
+  [packages-compose-by-seams.md](../pending/packages-compose-by-seams.md).
 
 **The cross table.** The pivot stage computes it and does not store it in a
 document:
@@ -707,10 +707,12 @@ and chips that move. Stages 6 and 7 complete the design of the request.
   - The menu of a dimension offers two widths of bins for numbers, a round
     tenth of the range and ten times that, and the parts of a date.
   - Tests: `test_pivot_derived_dimensions()`; `test_pivot()`: 291.
-- [ ] **11. Proposed.** A rename of a header value, which changes all rows with
+- [x] **11. Proposed.** A rename of a header value, which changes all rows with
   that value. A drag of a table header into the bar. "Copy as code" with
   `groupby`, `combine` and `unstack`. A heat map cell view. A pivot of a
   database query, with `GROUP BY` on the server. Tools for the assistant.
+  **Moved 2026-10-06** to [pivot-table-next-steps.md](../pending/pivot-table-next-steps.md)
+  by the owner, with the known limits of stages 3 and 8.
 
 ## 9. Risks
 
@@ -730,7 +732,8 @@ and chips that move. Stages 6 and 7 complete the design of the request.
 
 ## 10. Questions that the work found
 
-Each question has the recommendation of the writer. None is decided.
+Each question has the recommendation of the writer. The owner moved Q1 to
+[pivot-table-next-steps.md](../pending/pivot-table-next-steps.md) on 2026-10-06.
 
 - **Q1. A `GroupedDataFrame` in the group layout.** The data frame adapter
   must not depend on the pivot (P9), and the pivot must not depend on
