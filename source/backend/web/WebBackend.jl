@@ -220,6 +220,11 @@ function _serialize_node(elem)
         return Dict("t" => "circle", "cx" => Int(elem.cx), "cy" => Int(elem.cy),
                     "r" => Int(elem.radius), "c" => _rgba(elem.color),
                     "bw" => Int(elem.border_width), "bc" => _rgba(elem.border_color))
+    elseif elem isa GraphicsArc
+        return Dict("t" => "arc", "cx" => Int(elem.cx), "cy" => Int(elem.cy),
+                    "r" => Int(elem.radius), "w" => Int(elem.width),
+                    "start" => Float64(elem.start_angle), "sweep" => Float64(elem.sweep_angle),
+                    "c" => _rgba(elem.color))
     elseif elem isa GraphicsPolyline
         pts = [[Int(p[1]), Int(p[2])] for p in elem.points]
         d = Dict("t" => "polyline", "pts" => pts, "c" => _rgba(elem.color),

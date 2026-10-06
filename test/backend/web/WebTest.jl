@@ -37,6 +37,15 @@ function test_web_backend()
                                    for file in get_fallback_font_files(font)]
     end
 
+    @testset "an arc goes to the browser with its angles in degrees" begin
+        node = _WEB._serialize_node(GraphicsArc(50, 40, 20; width = 4, start_angle = 12.5, sweep_angle = 90,
+                                                color = color_black))
+        @test node["t"] == "arc"
+        @test (node["cx"], node["cy"], node["r"], node["w"]) == (50, 40, 20, 4)
+        @test (node["start"], node["sweep"]) == (12.5, 90.0)
+        @test node["c"] == _WEB._rgba(color_black)
+    end
+
     @testset "a decoded message is read from the queue" begin
         backend = WebBackend(port = 0)
         @test backend.server === nothing

@@ -388,6 +388,7 @@
       case "polyline": return drawPolyline(ctx, e);
       case "polygon": return drawPolygon(ctx, e);
       case "circle": return drawCircle(ctx, e);
+      case "arc":    return drawArc(ctx, e);
       case "group":  return drawGroup(ctx, e);
       case "clip":   return drawClip(ctx, e);
       case "image":  return drawImage(ctx, e);
@@ -583,6 +584,23 @@
     } else {
       disc(e.r, col(e.c));
     }
+  }
+
+  // A stroke along a part of a circle, inside its outer radius e.r: the angles are
+  // degrees from the top, clockwise. The canvas measures from 3 o'clock, so each
+  // angle moves back by a quarter turn.
+  function drawArc(ctx, e) {
+    const w = Math.max(1, Math.min(e.w | 0, e.r));
+    const rm = e.r - w / 2;
+    if (rm <= 0 || !(e.sweep > 0) || e.c[3] <= 0) return;
+    const sweep = Math.min(e.sweep, 360);
+    const a0 = (e.start - 90) * Math.PI / 180;
+    ctx.beginPath();
+    ctx.arc(e.cx, e.cy, rm, a0, a0 + sweep * Math.PI / 180);
+    ctx.strokeStyle = col(e.c);
+    ctx.lineWidth = w;
+    ctx.lineCap = "butt";
+    ctx.stroke();
   }
 
   function drawGroup(ctx, e) {
