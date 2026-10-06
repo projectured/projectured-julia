@@ -29,7 +29,7 @@ import ..DomainModule: compute_context_menu
 import ..GestureBindingModule: get_document_gesture_bindings_own
 
 export PivotDimension, PivotMeasure, PivotCellView, PivotNumberView, PivotRowsView, PivotBarChartView,
-       PivotLineChartView, PivotPieChartView, PivotChartCell, PivotPartTable, PivotTable, PivotCells,
+       PivotLineChartView, PivotPieChartView, PivotGroupView, PivotChartCell, PivotPartTable, PivotTable, PivotCells,
        PivotCellRow, make_pivot_table
 export PivotTotal, PivotCrossTable, get_pivot_row_count, get_pivot_column_count, find_pivot_part_rows,
        compute_pivot_cross_table, compute_pivot_measure
@@ -45,6 +45,7 @@ include("PivotDocument.jl")
 include("PivotCrossTable.jl")
 include("PivotCellView.jl")
 include("PivotChartView.jl")
+include("PivotGroupView.jl")
 include("PivotMenu.jl")
 include("PivotZoneEdit.jl")
 include("PivotTableToWidget.jl")

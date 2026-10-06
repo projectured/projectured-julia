@@ -654,9 +654,23 @@ and chips that move. Stages 6 and 7 complete the design of the request.
     list, and the table moves its head after a scroll of 200 rows, which the
     pivot does not follow yet; a pivot of fewer rows is not concerned.
   - Tests: `test_pivot_totals()` (29); `test_pivot()`: 255.
-- [ ] **9. Group.** Row dimensions only, with the rows of each group in line
+- [x] **9. Group.** Row dimensions only, with the rows of each group in line
   under a header row. A `GroupedDataFrame` shows in this view. This is phase 7
-  of the data frame plan.
+  of the data frame plan. **Done 2026-10-06, without the
+  `GroupedDataFrame`**, which waits for a decision of the owner (§10, Q1).
+  - `PivotGroupView` is the layout: the rows of the table are the rows of the
+    source in the order of their groups, and the header of a row holds the
+    labels of its group and the number of the row in the source. The last level
+    of a header never merges, so that number is the last level, and the labels
+    of the groups merge across their rows.
+  - A closed group of the last row dimension is one row that counts its rows,
+    as a closed run and a total are. Enter closes it; the toggle now finds the
+    key of a row of the table in either layout, and the first row of the run,
+    which the change does not move, gets the selection.
+  - A path `cells[r][c]` of the pivot does not map into the table of the group
+    layout, whose rows are rows of the source; a selection in that table maps
+    back as a part that the view introduced.
+  - Tests: `test_pivot_group_view()`; `test_pivot()`: 276.
 - [ ] **10. Derived dimensions.** Bins of a number, and the year, the month or
   the day of a date. The warning for a dimension with many values.
 - [ ] **11. Proposed.** A rename of a header value, which changes all rows with
@@ -679,3 +693,19 @@ and chips that move. Stages 6 and 7 complete the design of the request.
 - A merged run on a lazy list must show its label when the run starts above the
   visible rows.
 - A selection after a change of the pivot can go to the wrong cell, or be lost.
+
+## 10. Questions that the work found
+
+Each question has the recommendation of the writer. None is decided.
+
+- **Q1. A `GroupedDataFrame` in the group layout.** The data frame adapter
+  must not depend on the pivot (P9), and the pivot must not depend on
+  DataFrames, so the display of a `GroupedDataFrame` needs a place where both
+  meet. (a) A small package, `ProjecturedPivotDataFrames`, that `AutoIntegration`
+  loads when `ProjecturedPivot` and `ProjecturedDataFrames` are loaded; it adds
+  `make_value_document(group::GroupedDataFrame)`, a pivot of `parent(group)` by
+  its group columns in `PivotGroupView`. (b) The adapter depends on the pivot,
+  which P9 rejected. (c) No display: a program calls
+  `make_pivot_table(parent(group); rows = groupcols, cell_view = PivotGroupView())`
+  itself. Recommendation: (a), because it composes as the owner asked on
+  2026-09-30, but it is a new package, so the owner decides.

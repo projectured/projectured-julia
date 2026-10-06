@@ -156,13 +156,20 @@ _describe_pivot_zone_item(item) = string(item)
 
 # ── The table ────────────────────────────────────────────────────────────────
 
+# The table of a pivot, in the layout of its cells: the cross table, or the rows
+# of the source in their groups (`PivotGroupView`).
 function _make_pivot_table_widget(p::PivotTableToWidget, pivot::PivotTable)
-    headers = CellVector(@computation _make_pivot_column_headers(pivot))
-    rows = Cell(@computation _make_pivot_row_list(pivot))
-    row_headers = Cell(@computation _make_pivot_row_header_list(pivot))
-    corner = Cell(@computation _make_pivot_corner(pivot))
-    columns = Cell(@computation Any[WidgetTableColumn(; policy = _PIVOT_COLUMN_POLICY, align = :right)
-                                    for _ in 1:get_pivot_column_count(pivot.cross_table)])
+    grouped() = _is_pivot_group_layout(pivot)
+    headers = CellVector(@computation grouped() ? _make_pivot_group_column_headers(pivot) :
+                                                  _make_pivot_column_headers(pivot))
+    rows = Cell(@computation grouped() ? _make_pivot_group_row_list(pivot) : _make_pivot_row_list(pivot))
+    row_headers = Cell(@computation grouped() ? _make_pivot_group_header_list(pivot) :
+                                                _make_pivot_row_header_list(pivot))
+    corner = Cell(@computation grouped() ? _make_pivot_group_corner(pivot) : _make_pivot_corner(pivot))
+    columns = Cell(@computation grouped() ?
+        Any[WidgetTableColumn(; policy = _PIVOT_COLUMN_POLICY) for _ in _get_pivot_group_columns(pivot)] :
+        Any[WidgetTableColumn(; policy = _PIVOT_COLUMN_POLICY, align = :right)
+            for _ in 1:get_pivot_column_count(pivot.cross_table)])
     # Positional, so every declared field is named here in order: position,
     # column_headers, row_headers, corner, cells, cell_order, rows, columns,
     # border_width, column_policy, row_policy, cell_policy, visible, margin,
@@ -174,7 +181,7 @@ function _make_pivot_table_widget(p::PivotTableToWidget, pivot::PivotTable)
                 Cell(@computation Fixed(p.row_height * get_pivot_cell_view_lines(get_pivot_cell_view(pivot)))),
                 # A number is cut at the edge of its column; any other view, such as a
                 # table, is offered the width of its column and fills it.
-                Cell(@computation get_pivot_cell_view(pivot) isa PivotNumberView ? :clip : :wrap),
+                Cell(@computation get_pivot_cell_view(pivot) isa Union{PivotNumberView,PivotGroupView} ? :clip : :wrap),
                 Cell(true), Cell(nothing), Cell(nothing), Cell(nothing),
                 Cell(nothing), Cell(Point2D(0, 0)), Cell(1), Cell(nothing),
                 Cell(nothing), Cell(nothing),
@@ -207,12 +214,15 @@ function _make_pivot_row_header_list(pivot::PivotTable)
     make_index_list(count, 1, k -> leveled ? _make_pivot_row_labels(pivot, cross.row_keys[k]) : WidgetLabel("all"))
 end
 
-# The labels of the key of a row. The label of a closed run starts with ▸.
+# The labels of the key of a row. The label of a closed run or group starts with ▸.
 function _make_pivot_row_labels(pivot::PivotTable, key::Tuple)
     labels = Any[format_pivot_value(value) for value in key]
     total = findfirst(value -> value isa PivotTotal, key)
-    (total !== nothing && total > 1 && any(isequal(key[1:(total - 1)]), pivot.collapsed)) &&
-        (labels[total - 1] = "▸ " * labels[total - 1])
+    if total === nothing
+        (!isempty(labels) && any(isequal(key), pivot.collapsed)) && (labels[end] = "▸ " * labels[end])
+    elseif total > 1 && any(isequal(key[1:(total - 1)]), pivot.collapsed)
+        labels[total - 1] = "▸ " * labels[total - 1]
+    end
     CellVector(labels)
 end
 
@@ -259,8 +269,9 @@ end
 
 # The path in the table of `path`, a path of the pivot: `cells[r][c]…` is the
 # cell, `cells[r]` the row, and a part that this projection introduced is its
-# path in the table. `nothing` for any other path.
-function _find_pivot_table_path(p, path)
+# path in the table. `nothing` for any other path, and for a cell of the pivot in
+# the group layout, whose rows are the rows of the source.
+function _find_pivot_table_path(p, path, grouped::Bool = false)
     path = strip_reference_types(path)
     path isa EmptyReference && return EmptyReference()
     path isa ConcreteReference || return nothing
@@ -269,7 +280,7 @@ function _find_pivot_table_path(p, path)
         (p === nothing || head.projection === p) || return nothing
         return _find_pivot_grid_child_path(head.output_path, 2)
     end
-    (head isa FieldReferenceStep && head.name == "cells") || return nothing
+    (head isa FieldReferenceStep && head.name == "cells" && !grouped) || return nothing
     row = path.tail
     (row isa ConcreteReference && row.head isa RangeReferenceStep) || return nothing
     row.tail isa EmptyReference &&
@@ -281,7 +292,7 @@ end
 function _get_pivot_table_selection(pivot::PivotTable)
     selection = pivot.selection
     selection === nothing && return nothing
-    _find_pivot_table_path(nothing, selection)
+    _find_pivot_table_path(nothing, selection, _is_pivot_group_layout(pivot))
 end
 
 # The path of the pivot of `path`, a path in the table: `cells[r][c]…` is the
@@ -357,7 +368,7 @@ function map_reference_forward(p::PivotTableToWidget, iomap::PivotTableToWidgetI
     reference isa Reference || return nothing
     bar_path = _find_pivot_bar_path(iomap.input, reference)
     bar_path === nothing || return _make_pivot_grid_reference(1, bar_path)
-    path = _find_pivot_table_path(p, reference)
+    path = _find_pivot_table_path(p, reference, _is_pivot_group_layout(iomap.input))
     path === nothing && return nothing
     path isa EmptyReference && return EmptyReference()
     _make_pivot_grid_reference(2, path)
@@ -368,7 +379,7 @@ function map_reference_backward(p::PivotTableToWidget, iomap::PivotTableToWidget
     bar_path = bar === nothing ? nothing : _find_pivot_path_in_bar(iomap.input, bar)
     bar_path === nothing || return annotate_reference_types(iomap.input, bar_path)
     inner = reference isa Reference ? _find_pivot_grid_child_path(reference, 2) : nothing
-    target = inner === nothing ? nothing : _find_pivot_path(inner)
+    target = (inner === nothing || _is_pivot_group_layout(iomap.input)) ? nothing : _find_pivot_path(inner)
     target === nothing || return annotate_reference_types(iomap.input, target)
     invoke(map_reference_backward, Tuple{Projection,Any,Any}, p, iomap, reference)
 end

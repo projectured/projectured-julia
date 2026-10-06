@@ -151,31 +151,35 @@ function _find_pivot_row_run(selection)
 end
 
 # Enter on a selected run of an outer row dimension: close it, so it shows only
-# its subtotal row, or open it again. The selection goes to the run in the new
-# rows.
+# its subtotal row, or open it again. In the group layout a group of the last
+# row dimension closes too, and shows one row. The selection goes to the first
+# row of the run, which the change does not move.
 function _make_pivot_run_toggle(pivot::PivotTable)
     found = _find_pivot_row_run(pivot.selection)
     found === nothing && return nothing
     row, level = found
-    cross = pivot.cross_table
+    key = _get_pivot_table_row_key(pivot, row)
     levels = length(pivot.row_dimensions)
-    (1 <= row <= get_pivot_row_count(cross) && level < levels) || return nothing
-    prefix = cross.row_keys[row][1:level]
+    (key !== nothing && (level < levels || (_is_pivot_group_layout(pivot) && level == levels))) ||
+        return nothing
+    prefix = key[1:level]
     any(value -> value isa PivotTotal, prefix) && return nothing
     collapsed = Any[pivot.collapsed...]
     closed = findfirst(isequal(prefix), collapsed)
     closed === nothing ? push!(collapsed, prefix) : deleteat!(collapsed, closed)
-    keys, _ = _make_axis_keys(cross.detail_row_keys, levels, pivot.totals, collapsed)
-    place = findfirst(key -> isequal(key[1:level], prefix), keys)
-    operations = Any[ReplaceReferencedValueOperation(pivot, "collapsed", collapsed)]
-    if place !== nothing
-        projection = strip_reference_types(pivot.selection).head.projection
-        header = ConcreteReference(FieldReferenceStep("row_headers"), ConcreteReference(RangeReferenceStep(place - 1, place),
-            ConcreteReference(RangeReferenceStep(level - 1, level), EmptyReference())))
-        push!(operations, ReplaceSelectionOperation(ConcreteReference(
-            ProjectionReferenceStep(projection, _make_pivot_grid_reference(2, header)), EmptyReference())))
+    place = row
+    while place > 1
+        above = _get_pivot_table_row_key(pivot, place - 1)
+        (above !== nothing && isequal(above[1:level], prefix)) || break
+        place -= 1
     end
-    CompoundOperation(operations)
+    projection = strip_reference_types(pivot.selection).head.projection
+    header = ConcreteReference(FieldReferenceStep("row_headers"), ConcreteReference(RangeReferenceStep(place - 1, place),
+        ConcreteReference(RangeReferenceStep(level - 1, level), EmptyReference())))
+    CompoundOperation(Any[ReplaceReferencedValueOperation(pivot, "collapsed", collapsed),
+                          ReplaceSelectionOperation(ConcreteReference(
+                              ProjectionReferenceStep(projection, _make_pivot_grid_reference(2, header)),
+                              EmptyReference()))])
 end
 
 @gestures PivotTable begin

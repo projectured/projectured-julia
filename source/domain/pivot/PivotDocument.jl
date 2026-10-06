@@ -105,6 +105,18 @@ dimension in its part. A value has the same colour in every cell.
 end
 
 """
+    PivotGroupView()
+
+The table shows the rows of the source in the order of their groups, under the
+columns of the cell dimensions or under every column that is no row dimension,
+and the headers of the rows name the group of each row once, across its rows.
+A closed group is one row that counts its rows. Columns do not divide the rows:
+a group holds its rows of every column.
+"""
+@document struct PivotGroupView <: PivotCellView
+end
+
+"""
     PivotChartCell(chart)
 
 The document of a cell that shows a chart: `chart`, a `Chart` of the chart
