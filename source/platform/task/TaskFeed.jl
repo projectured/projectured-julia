@@ -70,6 +70,8 @@ let go.
 Call it on the task that reads the documents: the task of the editor, which a
 [`TaskFeed`](@ref) does, or the one task of a caller with no window.
 """
+# @optional: the store is what the call drains, and a caller with no window
+# drains the store of the session.
 function drain_task_feed!(store::TaskFeedStore = get_session_task_feed_store();
                           now::Real = time())
     entries = lock(() -> copy(store.entries), store.lock)
