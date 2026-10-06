@@ -59,7 +59,7 @@ depend on, and why the leaf the alias loads is the only place a
 `@compile_workload` may live, are in [package-rules.md](../rule/package-rules.md).
 
 ProjecturEd is organized as **one kernel, one platform package of
-thirty-nine slices, seventeen domain packages, five backends and eight
+thirty-nine slices, eighteen domain packages, five backends and eight
 adapters**, plus the umbrella `Projectured`, `AutoIntegration`,
 `ProjecturedIntegrations`, the released package `ProjecturedAll` and the
 tools. The kernel
@@ -107,10 +107,11 @@ ProjecturedPlatform (platform/) one package, 39 slices, below every domain
         │                      help, conversation, assistant, application.
         │                      Each slice declares the exact set it imports; the table
         │                      is in [package-rules.md](../rule/package-rules.md).
-The seventeen domain packages  one package per concrete source domain
+The eighteen domain packages   one package per concrete source domain
         ▲                      json/ yaml/ xml/ markdown/ rst/ book/ math/ julia/
         │                      sql/ database/ graph/ chart/
-        │                      sequencechart/ dbcatalog/ formula/ fsm/ process/.
+        │                      sequencechart/ dbcatalog/ formula/ fsm/ process/
+        │                      pivot/.
         │                      Each holds its
         │                      documents, its parser and its projections.
         │                      Deps: the kernel, the platform,
@@ -133,7 +134,7 @@ ProjecturedIntegrations        depends on Projectured and the six packages that
                                with a package extension when the package it
                                joins is loaded.
 ProjecturedAll (all/)          re-exports the kernel, the platform, Console,
-                               Pdf and the 17 domains as one flat namespace for
+                               Pdf and the 18 domains as one flat namespace for
                                the tests, the examples and the REPL.
 
 The five backends (depend on the kernel and the platform):
@@ -374,7 +375,7 @@ enforces.
 **Between packages:**
 
 ```
-ProjecturedKernel ◄── ProjecturedPlatform ◄── the 17 domains ◄── ProjecturedAll
+ProjecturedKernel ◄── ProjecturedPlatform ◄── the 18 domains ◄── ProjecturedAll
        ▲                  ▲       ▲                 ▲
        │                  │       │                 │
        │                  │   Projectured      Odbc, Adaptagrams
@@ -401,7 +402,7 @@ dependency, and loads each one with a package extension when the package it
 joins is loaded. `ProjecturedAll` also depends on Console and Pdf.
 
 The platform's thirty-nine slices form their own DAG, and so do the
-seventeen domains. [package-rules.md](../rule/package-rules.md) has the
+eighteen domains. [package-rules.md](../rule/package-rules.md) has the
 platform's table; [domain-inventory.md](domain-inventory.md)
 has the domain table.
 
@@ -519,9 +520,9 @@ not slices of the platform.)
                    the command line of a binary
 ```
 
-**The seventeen domain packages** — one package per concrete source domain,
+**The eighteen domain packages** — one package per concrete source domain,
 each holding one slice: its documents, its parser and its projections.
-Thirteen need only the engine and the platform; four build on one layer of
+Fourteen need only the engine and the platform; four build on one layer of
 domains. The assistant and the conversation slice it builds on are slices of
 the platform, not domains. [domain-inventory.md](domain-inventory.md) has the table and the rules
 for adding one.

@@ -69,7 +69,7 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 
 ## The domains
 
-[domain-inventory.md](../design/domain-inventory.md) lists the seventeen domains, their dependencies and their documents.
+[domain-inventory.md](../design/domain-inventory.md) lists the eighteen domains, their dependencies and their documents.
 
 ## The backends
 

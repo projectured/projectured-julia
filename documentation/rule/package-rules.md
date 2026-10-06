@@ -52,7 +52,7 @@ says why. `test_package_graph()` asserts it, along with two more:
 ### A package with a third-party dependency is a stem, not a sub-stem
 
 `ProjecturedAll` aggregates the kernel, the platform, the console and PDF
-backends and the seventeen domain packages, none of which has a third-party
+backends and the eighteen domain packages, none of which has a third-party
 dependency. It deliberately does not aggregate `ProjecturedSDL`, `ProjecturedODBC`, `ProjecturedTulip`,
 `ProjecturedVideo`, `ProjecturedAnthropic`, `ProjecturedOllama`, `ProjecturedMCP`,
 `ProjecturedWeb`, `ProjecturedDataFrames` or
@@ -226,7 +226,7 @@ forty-two. `ProjecturedConsole` and `ProjecturedPDF` are backend packages,
 not slices of the platform, even though neither carries a third-party
 dependency.
 
-### The seventeen domains
+### The eighteen domains
 
 Each domain depends on the kernel, on the platform, and on the domains it
 embeds. [domain-inventory.md](../design/domain-inventory.md) has the table.
@@ -254,7 +254,7 @@ embeds. [domain-inventory.md](../design/domain-inventory.md) has the table.
 | `Projectured` (umbrella) | the platform, AutoIntegration |
 | `AutoIntegration` | — (its own repository, `projectured/AutoIntegration.jl`; the TOML standard library alone) |
 | `ProjecturedIntegrations` | the umbrella, the six packages that own a third-party dependency |
-| `ProjecturedAll` (released) | Kernel, the platform, Console, PDF, the 17 domains |
+| `ProjecturedAll` (released) | Kernel, the platform, Console, PDF, the 18 domains |
 | `ProjecturedPlatformExample` | the platform, KernelExample |
 | `ProjecturedPlatformTest` | the platform, KernelTest, PlatformExample |
 | `<Stem>Example` | `<Stem>`, the Examples below it |

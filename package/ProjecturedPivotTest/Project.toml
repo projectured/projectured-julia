@@ -1,0 +1,32 @@
+name = "ProjecturedPivotTest"
+uuid = "bf2a516e-32f2-44e2-9f63-c3afa81fdb4b"
+version = "0.1.0"
+authors = []
+
+# The Pivot tier of the test-package DAG. Cross-domain suites live in
+# ProjecturedTest, which is where a fixture that names several domains belongs.
+
+[deps]
+ProjecturedConsole = "d7d6c9a1-04d6-4ada-9cc1-b2de81f79968"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
+ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
+ProjecturedPDF = "18e37c66-e2b2-4424-ab73-223891693292"
+ProjecturedPivot = "eca914b8-c72d-4ebf-9e58-97ec1716e38c"
+ProjecturedPivotExample = "c240cc06-6e4d-439e-be67-95ca4b8cf959"
+ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
+ProjecturedPlatformExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
+ProjecturedPlatformTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+ProjecturedConsole = {path = "../ProjecturedConsole"}
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedKernelExample = {path = "../ProjecturedKernelExample"}
+ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}
+ProjecturedPDF = {path = "../ProjecturedPDF"}
+ProjecturedPivot = {path = "../ProjecturedPivot"}
+ProjecturedPivotExample = {path = "../ProjecturedPivotExample"}
+ProjecturedPlatform = {path = "../ProjecturedPlatform"}
+ProjecturedPlatformExample = {path = "../ProjecturedPlatformExample"}
+ProjecturedPlatformTest = {path = "../ProjecturedPlatformTest"}

@@ -35,6 +35,7 @@ ProjecturedOllamaTest = "5226cae2-817a-4f8b-bb8c-b345e62d49a4"
 ProjecturedPDFTest = "e6416f43-abf0-46b1-b638-fa5f9d9ece1d"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 ProjecturedPlatformTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
+ProjecturedPivotTest = "bf2a516e-32f2-44e2-9f63-c3afa81fdb4b"
 ProjecturedProcessTest = "4e12067a-a745-4784-a5a3-977285a45110"
 ProjecturedRSTTest = "40366416-8a51-4b61-9ebb-c3640b2257e4"
 ProjecturedSDL = "f0002b97-94ba-416c-b93c-86cdc095626f"
@@ -83,6 +84,7 @@ ProjecturedOllamaTest = {path = "../ProjecturedOllamaTest"}
 ProjecturedPDFTest = {path = "../ProjecturedPDFTest"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
 ProjecturedPlatformTest = {path = "../ProjecturedPlatformTest"}
+ProjecturedPivotTest = {path = "../ProjecturedPivotTest"}
 ProjecturedProcessTest = {path = "../ProjecturedProcessTest"}
 ProjecturedRSTTest = {path = "../ProjecturedRSTTest"}
 ProjecturedSDLTest = {path = "../ProjecturedSDLTest"}

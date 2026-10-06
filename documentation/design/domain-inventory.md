@@ -2,7 +2,7 @@
 
 > **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](system-anatomy.md), [package-rules.md](../rule/package-rules.md), [domain-anatomy.md](domain-anatomy.md)
 
-This document lists the seventeen packages that hold the source domains of ProjecturEd, says how they depend on each other, and where the document of each one is. [domain-anatomy.md](domain-anatomy.md) describes the parts that every domain has, and [new-domain-guide.md](../guide/new-domain-guide.md) is the procedure to add one.
+This document lists the eighteen packages that hold the source domains of ProjecturEd, says how they depend on each other, and where the document of each one is. [domain-anatomy.md](domain-anatomy.md) describes the parts that every domain has, and [new-domain-guide.md](../guide/new-domain-guide.md) is the procedure to add one.
 
 ## The domain documents
 
@@ -27,6 +27,7 @@ Each domain has one design document in the folder of its slice. Read [domain-ana
 | Sequence chart | [sequencechart.md](../package/domain/sequencechart/sequencechart.md) |
 | State machine | [fsm.md](../package/domain/fsm/fsm.md) |
 | Process | [process.md](../package/domain/process/process.md) |
+| Pivot | [pivot.md](../package/domain/pivot/pivot.md) |
 | Conversation | [conversation.md](../package/platform/conversation/conversation.md), with [transcript.md](../package/platform/conversation/transcript.md) for the widget view |
 | Assistant | [assistant.md](../package/platform/assistant/assistant.md) |
 
@@ -43,7 +44,7 @@ Each domain is a triad of sibling packages: `package/Projectured<Name>/`, `packa
 
 ## The dependency table
 
-Thirteen domains depend on no other domain. Four build on one layer of domains.
+Fourteen domains depend on no other domain. Four build on one layer of domains.
 
 | Package | Code | Depends on |
 | --- | --- | --- |
@@ -64,6 +65,7 @@ Thirteen domains depend on no other domain. Four build on one layer of domains.
 | `ProjecturedFormula` | `source/domain/formula/` | Julia, Math |
 | `ProjecturedFSM` | `source/domain/fsm/` | Julia, Graph |
 | `ProjecturedProcess` | `source/domain/process/` | Julia, Graph |
+| `ProjecturedPivot` | `source/domain/pivot/` | — |
 
 Each edge exists because one domain holds or makes the documents of another. A state machine guard is a Julia expression, and its diagram is a graph. A catalog prints as SQL statements. The code of a formula is a Julia tree or a math tree. The file system, the conversation and the assistant look like domains but are slices of `ProjecturedPlatform`; a conversation part parses to JSON, Julia or XML through the natural registry, so the conversation slice needs no dependency on those domains.
 

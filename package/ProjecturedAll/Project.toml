@@ -23,6 +23,7 @@ ProjecturedMarkdown = "0d968d4c-e8d6-48b2-bf35-e636991e1b44"
 ProjecturedMath = "80f7b254-0441-42e3-ab4d-62a480615fad"
 ProjecturedPDF = "18e37c66-e2b2-4424-ab73-223891693292"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
+ProjecturedPivot = "eca914b8-c72d-4ebf-9e58-97ec1716e38c"
 ProjecturedProcess = "0e3957ae-e92a-496b-bebd-10c4026663e9"
 ProjecturedRST = "831b768c-bfea-4983-ba67-a56f379c3222"
 ProjecturedSQL = "d8115f9e-353f-406e-8661-6168b14bd6fd"
@@ -46,6 +47,7 @@ ProjecturedMarkdown = {path = "../ProjecturedMarkdown"}
 ProjecturedMath = {path = "../ProjecturedMath"}
 ProjecturedPDF = {path = "../ProjecturedPDF"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
+ProjecturedPivot = {path = "../ProjecturedPivot"}
 ProjecturedProcess = {path = "../ProjecturedProcess"}
 ProjecturedRST = {path = "../ProjecturedRST"}
 ProjecturedSQL = {path = "../ProjecturedSQL"}

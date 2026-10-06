@@ -238,7 +238,7 @@ const PROJECTURED_APPLICATION_IMPORTS = ["ProjecturedConsole", "ProjecturedPDF",
     "ProjecturedRST", "ProjecturedBook", "ProjecturedMath", "ProjecturedJulia",
     "ProjecturedSQL", "ProjecturedDatabase", "ProjecturedGraph", "ProjecturedChart",
     "ProjecturedSequenceChart", "ProjecturedDBCatalog", "ProjecturedFormula",
-    "ProjecturedFSM", "ProjecturedProcess"]
+    "ProjecturedFSM", "ProjecturedProcess", "ProjecturedPivot"]
 
 """
     build_projectured_executable(; name = "projectured", backends = (:sdl, :web),
@@ -492,6 +492,9 @@ const PROJECTURED_PACKAGE_READMES = Dict(
     "ProjecturedFSM" =>
         (summary = "Extended state machines: states, transitions on events, timers or conditions, and variables. A machine draws as a live diagram and generates a Julia module.",
          document = "documentation/package/domain/fsm/fsm.md"),
+    "ProjecturedPivot" =>
+        (summary = "A table cut into parts by the values of its dimensions, as nested row and column headers, with a view of each part in its cell.",
+         document = "documentation/package/domain/pivot/pivot.md"),
     "ProjecturedGraph" =>
         (summary = "Node-and-edge diagrams in which each vertex holds a document of any kind.",
          document = "documentation/package/domain/graph/graph.md"),

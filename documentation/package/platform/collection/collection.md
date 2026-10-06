@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [cell.md](../../kernel/cell.md), [document.md](../../kernel/document.md), [reference.md](../../kernel/reference.md)
 
-The collection slice of `ProjecturedPlatform` holds four generic containers for the children of a document: a vector, a matrix, a table and a linked list. Each element is in a reactive cell of its own. This document says which kind of change reaches which reader, and how the kernel uses these types without naming them.
+The collection slice of `ProjecturedPlatform` holds four generic containers for the children of a document: a vector, a matrix, a table and a linked list. Each element is in a reactive cell of its own. It also holds the table interface, which reads the rows and the columns of any kind of table. This document says which kind of change reaches which reader, how the kernel uses these types without naming them, and what the table interface reads.
 
 <img width="396" alt="Collection example" src="../../../asset/image/example/collection.png">
 
@@ -56,6 +56,22 @@ The kinded copy `copy_document(K, node)` makes every cell of kind `K`. The react
 
 `sync_document!(shadow, source)` syncs a list shadow from the node that it holds outward, one direction at a time, so it never follows `next` back through `prev`. The generic walk of the kernel syncs each node without its links. The walk pairs the node of each place with the node of that place in the source, and it ends at a link of the shadow that nothing has read, at the end of either list, or where the source is longer: a reactive shadow then gets a link that copies the new node when it is read, and a shadow of a kind that holds a value copies every node to the end of the source. So a sync of a shadow of a list without an end ends, and it reads only the nodes that the shadow holds.
 
+### The table interface
+
+A stage that reads a table reads it through seven functions, whatever kind of value holds its rows. A table has rows, numbered from 1, and columns, each with a name:
+
+| Function | What it gives |
+| --- | --- |
+| `is_table(value)` | whether the functions below read `value` |
+| `get_table_row_count(table)` | the count of the rows |
+| `get_table_column_names(table)` | the names of the columns, in their order |
+| `get_table_column_type(table, column)` | the type of the values of a column, or `Any` |
+| `get_table_value(table, row, column)` | one value |
+| `find_table_column(table, column)` | the column as a vector with no copy, or `nothing` when the kind holds none |
+| `make_table_part(table, rows)` | the part that holds the rows `rows`, in that order, with no copy |
+
+The slice reads two kinds itself: a vector of named tuples, whose rows are its elements, and a named tuple of vectors of one length, whose columns are its fields. `make_table_part` gives a `TablePart` for a kind that has no view of its own rows: the rows of a table by their numbers. A `TablePart` is a table too, and a part of a part is a part of the table. A package that owns a kind of table adds the methods for it: `ProjecturedDataFrames` adds them for an `AbstractDataFrame`, whose part is a `SubDataFrame`. The pivot domain reads its source through these functions; see [pivot.md](../../domain/pivot/pivot.md).
+
 ### Seams for the kernel
 
 The kernel names no collection type. This package adds methods to kernel generics instead:
@@ -107,7 +123,7 @@ take_first(head, 2)                       # ["alpha", "beta"]
 ```
 
 - Examples: `collection_example` and the sorting, filtering, reversing and searching examples use `make_collection_document_example()`. The atomic catalog has a vector, a table and a list node, in `example/platform/CollectionDocumentExample.jl`.
-- Test: `test_collection()` in `test/platform/document/CollectionDocumentTest.jl`.
+- Test: `test_collection()` in `test/platform/document/CollectionDocumentTest.jl`, and `test_table_interface()` in `test/platform/document/TableInterfaceTest.jl`.
 
 ## Limits
 

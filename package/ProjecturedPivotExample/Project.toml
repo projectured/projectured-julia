@@ -1,0 +1,26 @@
+name = "ProjecturedPivotExample"
+uuid = "c240cc06-6e4d-439e-be67-95ca4b8cf959"
+version = "0.1.0"
+authors = []
+
+# The Pivot tier of the example-package DAG: the document and projection
+# factories for this domain. The registry that names them, and the gallery
+# that runs them, live in the ProjecturedExample umbrella.
+
+[deps]
+ProjecturedConsole = "d7d6c9a1-04d6-4ada-9cc1-b2de81f79968"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
+ProjecturedPDF = "18e37c66-e2b2-4424-ab73-223891693292"
+ProjecturedPivot = "eca914b8-c72d-4ebf-9e58-97ec1716e38c"
+ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
+ProjecturedPlatformExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
+
+[sources]
+ProjecturedConsole = {path = "../ProjecturedConsole"}
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedKernelExample = {path = "../ProjecturedKernelExample"}
+ProjecturedPDF = {path = "../ProjecturedPDF"}
+ProjecturedPivot = {path = "../ProjecturedPivot"}
+ProjecturedPlatform = {path = "../ProjecturedPlatform"}
+ProjecturedPlatformExample = {path = "../ProjecturedPlatformExample"}

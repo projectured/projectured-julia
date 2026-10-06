@@ -396,7 +396,7 @@ Each stage ends with its own test and a commit. The work is done in a worktree.
 The first delivery is stages 0 to 5: a pivot with number cells, nested headers,
 and chips that move. Stages 6 and 7 complete the design of the request.
 
-- [ ] **0. Facts.** No product code.
+- [x] **0. Facts.** No product code. **Done 2026-10-06.**
   - Measure the pass that finds the parts: one million and ten million rows,
     one to three dimensions. Compare `groupby` of DataFrames with a generic
     pass over the table interface.
@@ -405,16 +405,78 @@ and chips that move. Stages 6 and 7 complete the design of the request.
   - Check that row headers on a list draw, as the docstring says.
   - Draw a chart at 120 × 80 and list what a cell-size chart needs.
   - Read reference.md and selection.md, and check P8.
-- [ ] **1. The table interface, smallest form.** The count of rows, the names
+
+  The answers:
+  - The measurement ran after stage 2, because the generic pass is the code of
+    stage 2. A data frame with the dimensions region (4 values), country (40)
+    and year (10), on the cores 28, 30 and 31, with a load of 8:
+
+    | rows | dimensions | the pivot | `groupby` + `groupindices` |
+    | --- | --- | --- | --- |
+    | 1 000 000 | region | 0.019 s | 0.008 s |
+    | 1 000 000 | region, country × year | 0.071 s | 0.052 s |
+    | 10 000 000 | region | 0.283 s | 0.135 s |
+    | 10 000 000 | region, country × year | 1.011 s | 0.660 s |
+
+    So the generic pass is at most 2.1 times slower than `groupby`, and the
+    pivot needs no path of its own for a data frame now. The pass runs once
+    for each change of the dimensions, not for each frame. A change on a frame
+    of ten million rows waits about one second.
+  - A `WidgetTable` in a cell of a `WidgetTable` draws all its texts. A press
+    inside it reaches the inner table: a press on a cell of the inner table
+    answers `.cells[1][2].rows[1]`, and an Alt+press answers the outer cell,
+    `.cells[1][2]`. The inner table did not scroll in this check, because it
+    was small.
+  - Row headers on a list draw, as the docstring says. The table needs a
+    `Fixed` row policy for them, and it says so in an error otherwise.
+  - A chart draws at 120 × 80 pixels or more: `_canvas_size` in
+    `ChartPlotToGraphics.jl` takes the larger of the size that it is offered
+    and that floor. A cell-size chart needs a lower floor, no title, no legend
+    and fewer ticks (stage 7).
+  - P8 holds. A path of the outer table goes on into the document of a cell,
+    so a path of the pivot `cells[r][c]…` maps to the same path of the table.
+- [x] **1. The table interface, smallest form.** The count of rows, the names
   and the types of the columns, a column as a vector, and a part by indices.
   The kinds: `AbstractDataFrame` in the adapter, with `SubDataFrame` as its
   part; a vector of named tuples and a named tuple of vectors, with the
   generic view by indices. The interface is in the `collection` slice (P9).
-  The test: each kind gives the same parts.
-- [ ] **2. The pivot core, with no screen.** The documents of §6, the cross
+  The test: each kind gives the same parts. **Done 2026-10-06.**
+  - `source/platform/collection/TableInterface.jl`: `is_table`,
+    `get_table_row_count`, `get_table_column_names`, `get_table_column_type`,
+    `get_table_value`, `find_table_column`, `make_table_part`, and the generic
+    part `TablePart`. A part of a part is a part of the table.
+  - The vector of named tuples takes its column names from the type of its
+    elements, or from its first row when the elements have no one type; then
+    the column types are `Any`.
+  - `source/adapter/dataframes/DataFrameTable.jl`: the methods for an
+    `AbstractDataFrame`. The adapter imports them from `CollectionModule` and
+    does not depend on the pivot.
+  - Tests: `test_table_interface()` (41) and `test_data_frame_table()` (14).
+- [x] **2. The pivot core, with no screen.** The documents of §6, the cross
   table, the order of the values, `missing`, and the aggregates. The test: a
   fixed sales frame (region × year × product), compared with `combine` and
-  `unstack` of DataFrames.
+  `unstack` of DataFrames. **Done 2026-10-06.**
+  - The new domain package `ProjecturedPivot`, with `ProjecturedPivotTest` and
+    `ProjecturedPivotExample`, in `source/domain/pivot/`. It depends on the
+    kernel and the platform only; the chart comes in stage 7. It is in
+    `environment/all`, `ProjecturedAll`, `ProjecturedExample`,
+    `ProjecturedTest`, the package graph test and the binary builder.
+  - `PivotTable` has the field `source_version` from the start, because a field
+    can not be added to a running session.
+  - The cross table gives each value of a dimension a code, makes the code of a
+    combination in mixed radix (a vector of codes when that does not fit in an
+    `Int`), and sorts the rows by their cells once. A part is a range of one
+    vector of row numbers, in the order of the source.
+  - `missing` is last in either direction. Two values that `isless` does not
+    compare sort by their texts.
+  - The test compares each part with a direct filter of the rows, not with
+    DataFrames, because the test package of a domain does not depend on
+    DataFrames. The filter is an independent result of the same strength.
+    `test_data_frame_table()` checks that a part of a data frame is a
+    `SubDataFrame` that writes the frame.
+  - Tests: `test_pivot()` (109).
+  - The design document: `documentation/package/domain/pivot/pivot.md`. The
+    count of the domains in the documents is now eighteen.
 - [ ] **3. Headers with levels in the widget table.** A header that holds a
   tuple of labels, merged runs at each level, in the eager form and in the
   list form. A run that starts above the visible rows shows its label at the

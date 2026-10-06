@@ -11,7 +11,7 @@ and no synonyms.
 
 - **Package** — a Julia package with its own `Project.toml`. The project
   consists of packages: the `ProjecturedKernel` engine, `ProjecturedPlatform`,
-  the seventeen domain packages, the `Projectured`
+  the eighteen domain packages, the `Projectured`
   umbrella, `AutoIntegration`, `ProjecturedIntegrations`, the `ProjecturedAll`
   flat-namespace package, their sibling test and example packages, and the
   opt-in packages

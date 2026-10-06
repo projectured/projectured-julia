@@ -111,7 +111,7 @@ The three kinds form **parallel DAGs with identical shape** (the module names ke
 the `-Test` / `-Example` suffixes even though the directories share one folder):
 
 ```
-main:      kernel ← the platform ← the 17 domains ← ProjecturedAll
+main:      kernel ← the platform ← the 18 domains ← ProjecturedAll
 tests:     kernel/test ← platform/test ← <domain>/test ← projectured/test
 examples:  kernel/example ← platform/example ← <domain>/example ← projectured/example ← {odbc/example, adaptagrams/example, tulip/example}
 ```

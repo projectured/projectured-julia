@@ -2,7 +2,7 @@
     ProjecturedAll
 
 The flat namespace of the kernel, the platform, the console and PDF backends and
-the 17 domains, with their submodules as `ProjecturedAll.XxxModule`. The tests, the examples and the REPL of
+the 18 domains, with their submodules as `ProjecturedAll.XxxModule`. The tests, the examples and the REPL of
 this repository load it, and so do the downstream repositories. The registry does
 not hold it: a user loads `Projectured` and the packages she installed.
 
@@ -36,6 +36,7 @@ import ProjecturedDBCatalog
 import ProjecturedFormula
 import ProjecturedFSM
 import ProjecturedProcess
+import ProjecturedPivot
 
 include("../../../source/all/ProjecturedAll.jl")
 

@@ -6,8 +6,8 @@ The test suite is a DAG of **test packages** that parallels the main
 package DAG (see [plan/done/test-package-split.md](../../plan/done/test-package-split.md)):
 
 ```
-main:     ProjecturedKernel ← ProjecturedPlatform ← the 17 domains ← Projectured ← {Example, Sdl, …}
-tests:    ProjecturedKernelTest ← ProjecturedPlatformTest ← the 17 domain test packages ← ProjecturedTest
+main:     ProjecturedKernel ← ProjecturedPlatform ← the 18 domains ← Projectured ← {Example, Sdl, …}
+tests:    ProjecturedKernelTest ← ProjecturedPlatformTest ← the 18 domain test packages ← ProjecturedTest
 ```
 
 - [package/kernel/test](../../package/ProjecturedKernelTest/src/ProjecturedKernelTest.jl) —
@@ -120,7 +120,7 @@ gives what each of them costs.
 | `test_kernel()` | The whole kernel suite: `test_cell()`, `test_document_contract()`, `test_reference_builder()`, `test_gesture_binding()`, …, plus the kernel layering guard. |
 | `test_platform()` | `test_collection()`, `test_syntax()`, `test_text()`, `test_graphics()`, `test_syntax_to_text()`, `test_text_to_graphics()`, the widget projection suites, the layering guard of every slice of the platform, and the package's example printer sweep (`test_platform_examples()`). |
 | `test_json()` … `test_yaml()` | One per domain package: that domain's documents, parser and projections, plus its layering guard. The bare name is the package aggregator; a single file's suite carries a more specific name (`test_json_document()`, `test_graph_projection()`). `test_database()` is the domain aggregator like the rest; the ODBC live-connection suite is the separate `test_odbc_database*` family (`test_odbc_database()`, `test_odbc_database_connection()`, `test_odbc_database_no_db()`). |
-| `test_domain_examples()` | A printer sweep over every concrete-domain example. Umbrella, because the registry it walks names all seventeen. |
+| `test_domain_examples()` | A printer sweep over every concrete-domain example. Umbrella, because the registry it walks names all eighteen. |
 | `test_help()` | the help slice's suite: the layering guard, the docstring description, and the two lists and the page that the Help menu opens. |
 | `test_cell()` | The reactive cell primitive (in `ProjecturedKernelTest`; run inside `test_kernel()` or standalone). |
 | `test_cell_struct()` | The `@cell_struct` transparent-Cell struct codegen that `@document`/`@iomap`/`@projection` build on (in `ProjecturedKernelTest`; run inside `test_kernel()` or standalone). |
