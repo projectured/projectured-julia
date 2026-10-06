@@ -173,8 +173,9 @@ The view is a bar above the page.
   item shows the `get_document_title` of its document, or the step when the
   document has no title. A press on an item opens that page. The tooltip of the
   address shows the path as `ReferenceToText` draws it.
-- **The page** is `print_child(recursion, page, make_child_context(ctx, path))`,
-  with the path `.content` followed by the address. The recursion picks the view
+- **The page** is the document at the address, which the grid of the view holds
+  itself; the layout stage after the view prints it through the recursion (step
+  1 found this pattern in `EvaluatorToWidget`). The recursion picks the view
   of the page by its type. So a kind adds a page view only where its page must
   look different from its part in the view of its parent: a row of a data frame
   is a row in the table and a form of its columns as a page.
@@ -313,14 +314,49 @@ new tab".
 
 ## 7. Steps (tentative)
 
-- [ ] **1. The navigator.** `Navigator`, `NavigatorVisit` and `NavigatorToWidget`
+- [x] **1. The navigator.** `Navigator`, `NavigatorVisit` and `NavigatorToWidget`
   in a new slice of `ProjecturedPlatform`, with the bar, the page and the maps.
-  Back, Forward and Parent as view state, and the `@gestures` table. Tests on a
-  JSON document: open `entries[2].value`, Back, Forward, Parent; the selection
-  comes back; undo records nothing; the IO map of the navigator keeps its
-  identity (PAR-STABLE-IOMAP-IDENTITY). The text of the application calls the
-  Files pane "the Files pane", and `_make_application_navigator` becomes
-  `_make_application_workspace` (D1).
+  Back, Forward and Parent as view state, and the `@gestures` table. The
+  selection comes back; undo records nothing; the IO map of the navigator keeps
+  its identity (PAR-STABLE-IOMAP-IDENTITY). Done, 2026-10-06. What the work
+  found and decided:
+  - The slice is `source/platform/navigator/`: `NavigatorDocument.jl`,
+    `NavigatorVisits.jl` (the page and the operation builders),
+    `NavigatorGestures.jl` and `NavigatorToWidget.jl`. Its row of the renderer
+    is `ChainingProjection(NavigatorToWidget, GridLayoutToGraphicsCanvas())`.
+  - **The view prints no child.** The grid holds the page document itself in
+    `children[2]`, as a computed cell, and the layout stage prints it through the
+    recursion, so the row of the type of the page draws it (D9). This is the
+    pattern of `EvaluatorToWidget`. The maps are `content.<address>.<rest>` ↔
+    `children[2].<rest>`; a path into the bar maps back to nothing.
+  - **A button reports, the view acts.** A press answers `InvokeActionOperation`,
+    which goes up the chain unchanged, and the reader turns the action of a
+    button into the operation of the navigator, as the appearance tab does. The
+    operation needs the path of the selection from the navigator, which only the
+    view knows, so the button can not build it itself.
+  - **An operation** is a `CompoundOperation` of a `ReplaceViewStateOperation`
+    around the writes of `address`, `back`, `forward` (and `content` when it
+    changes), and a `ReplaceSelectionOperation` with a path from the navigator.
+    The lists are written as new vectors.
+  - The constructor is positional, `Navigator(content[, address])`: the
+    `@document` macro gives a keyword constructor only with every field as a
+    keyword.
+  - Ctrl+Return, "Open as a page", came into this step from step 4, because it
+    needs no `OpenPageOperation`: it opens the innermost document on the
+    selection below the page.
+  - The address is one line of titles from the content to the page; step 3 makes
+    it a breadcrumb. The buttons have text labels until step 3 adds the icons.
+  - The tests are in the platform test package, which can not load the JSON
+    domain, so they use a shelf of books and chapters declared in the test:
+    `test_navigator()`, 97 tests, `NavigatorVisitsTest.jl` and
+    `NavigatorToWidgetTest.jl`. The editor test presses Ctrl+Return, Ctrl+Up,
+    Ctrl+[, Ctrl+] and the Back button, and checks that undo records nothing.
+- [ ] **1b. The Files pane is not called a navigator (D1).** Waits for the
+  owner: the word names the Files pane in about 25 lines of source, 40 lines of
+  tests, ten documents, the help text of the binary and its build command, and
+  the example that a person runs as `run_example("navigator")`
+  (`navigator_example`, `make_navigator_document_example`). This is more than
+  the text of the application and one function, which D1 named.
 - [ ] **2. Open.** `OpenPageOperation` (D2), with the path form and the form
   with its own root. The navigator takes it, and the editor opens a navigator
   tab for one that no navigator takes. Ctrl+click opens a new tab. A small test
@@ -328,7 +364,8 @@ new tab".
 - [ ] **3. The address.** The breadcrumb with titles, the tooltip with the path,
   and the left and right arrows in `LUCIDE_ICON_GLYPHS`.
 - [ ] **4. Open any part.** "Open as a page" and "Open in a new tab" in the
-  context menu of each part on a page, and the key for the selected part.
+  context menu of each part on a page. The key for the selected part came with
+  step 1.
 - [ ] **5. A table and its detail page.** The page view of a data frame row, a
   form of its columns. The "Open" item of a row and a press on a row header.
   The case of the owner: the table, a row, Back to the table with the row
