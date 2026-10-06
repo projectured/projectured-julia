@@ -415,9 +415,28 @@ new tab".
     steps (`JsonObject › entries[2] › value`). A title for a JSON entry, such as
     its key, is a change of the JSON domain, and `get_document_title` has other
     readers, such as the name of a tab; it waits for the owner.
-- [ ] **4. Open any part.** "Open as a page" and "Open in a new tab" in the
+- [x] **4. Open any part.** "Open as a page" and "Open in a new tab" in the
   context menu of each part on a page. The key for the selected part came with
-  step 1.
+  step 1. Done, 2026-10-06:
+  - The `@gestures` table of `Navigator` splices a right-click binding. Its menu
+    belongs to the innermost document under the pointer, below the page (or the
+    selected one, for a command with no pointer), read from the `mouse_target`
+    of the navigator. The source of the menu is the path of that part, with its
+    types, so the context menu window lifts an item from the part up through the
+    reader of the navigator. A source at the navigator itself would skip that
+    reader, because a routed operation is not read at its own place.
+  - Each item holds an `OpenPageOperation` rooted at the content, so it opens the
+    same page from the outer layer (F2) of a part that has a menu of its own.
+  - The reader joins the menu of the navigator after the answer of the page with
+    `read_gesture_outward`, as a container does for a document around a part.
+  - The gesture help collection (`CollectIntents`) is no collecting operation,
+    so the reader merges the table of the navigator into the answer of the page
+    with `merge_collected_intents`, as `FileToContent` does. Without it, the
+    gesture help lists no key of the navigator while the selection is in a page.
+  - The forward map of the view keeps the types of the path inside the page and
+    types the two steps of the grid, because the pane splices the image of a tab
+    into its own path and needs a type on every node.
+  - `test_navigator_gestures()`, 20 tests; `test_navigator()` runs 166.
 - [ ] **5. A table and its detail page.** The page view of a data frame row, a
   form of its columns. The "Open" item of a row and a press on a row header.
   The case of the owner: the table, a row, Back to the table with the row
