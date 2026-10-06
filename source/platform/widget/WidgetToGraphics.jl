@@ -7081,6 +7081,88 @@ function print_document(p::WidgetProgressBarToGraphicsCanvas, recursion, w::Widg
 end
 @_printer_only WidgetProgressBarToGraphicsCanvas
 
+# ── WidgetProgressRing ──────────────────────────────────────────────────────
+
+@projection UntrackedCell struct WidgetProgressRingToGraphicsCanvas
+    measure::TextMeasure
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
+    font::StyleFont                  # one line of it, times `ring_size`, is the diameter
+    ring_size::Float64
+    stroke_width::Int
+    track_color::StyleColor          # the whole ring
+    indicator_color::StyleColor      # the arc of the value
+    indeterminate_share::Float64     # the part of the ring that turns while the value is not known
+    indeterminate_period::Float64    # the seconds of one turn
+end
+
+WidgetProgressRingToGraphicsCanvas(theme; measure,
+                                   margin = inset_default, border = inset_default, padding = inset_default,
+                                   margin_color = color_transparent, border_color = color_transparent,
+                                   padding_color = color_transparent, content_color = color_transparent,
+                                   font = _themed(StyleFont, theme, t -> t.font),
+                                   ring_size = _themed(Float64, theme, t -> t.progress_ring_size),
+                                   stroke_width = _themed(Int, theme, t -> t.stroke),
+                                   track_color = _themed(StyleColor, theme, t -> t.muted),
+                                   indicator_color = _themed(StyleColor, theme, t -> t.primary),
+                                   indeterminate_share = 0.25, indeterminate_period = 1.0) =
+    WidgetProgressRingToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
+                                       padding_color, content_color, font, ring_size, stroke_width,
+                                       track_color, indicator_color, indeterminate_share,
+                                       indeterminate_period)
+
+# The part of `period` seconds that `clock` has run since its last whole period,
+# from 0 up to 1. A read subscribes the caller to the clock, so the caller runs
+# again on each tick. With no clock the phase stays 0.
+_get_clock_phase(clock, period::Real) =
+    clock === nothing ? 0.0 : mod(get_reactive_clock_time(clock) / period, 1.0)
+
+# The sweep of the arc of a ring, in degrees: the share of a known value, or the
+# turning part `share` while the value is not known.
+_compute_ring_sweep(value::Nothing, share::Real) = 360 * share
+_compute_ring_sweep(value::Real, share::Real) = 360 * clamp(Float64(value), 0.0, 1.0)
+
+function print_document(p::WidgetProgressRingToGraphicsCanvas, recursion, w::WidgetProgressRing, ctx)
+    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    position = w.position::Point2D
+    clock = ctx === nothing ? nothing : ctx.clock
+    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+        inset_width, inset_height = _inset_total(p, w)
+        content_x, content_y = _content_offset(p, w)
+        line = compute_line_box(p.measure, "", p.font).height
+        radius = max(1, round(Int, scale_length(line, p.ring_size) / 2))
+        # The ring authors no size. An exact range stretches its box, and the ring
+        # stays at the start of the box and in its vertical middle.
+        outer_width  = _resolve_width(ctx, 0, 2radius + inset_width)
+        outer_height = _resolve_height(ctx, 0, 2radius + inset_height)
+        content_width, content_height = outer_width - inset_width, outer_height - inset_height
+        elements = Any[]
+        _push_box_parts!(elements, _get_box_insets(p, w), _get_box_colors(p, w), content_width, content_height)
+        cx, cy = content_x + radius, content_y + content_height ÷ 2
+        stroke = clamp(p.stroke_width, 1, radius)
+        push!(elements, GraphicsCircle(cx, cy, radius; color = color_transparent, border_width = stroke,
+                                       border_color = _get_state_color(p, w, :track)))
+        # One arc shows the value for the life of the ring, and only its two angles
+        # read the value. While the value is not known, the start reads the clock,
+        # so a tick moves the arc and runs nothing else of the ring. A known value
+        # computes the start again without the clock, and that drops the
+        # subscription: a cell lets go of what it read only when it computes again.
+        period, share = p.indeterminate_period, p.indeterminate_share
+        push!(elements, GraphicsArc(cx, cy, radius; width = stroke,
+                                    color = _get_state_color(p, w, :indicator),
+                                    start_angle = () -> w.value === nothing ?
+                                                        360 * _get_clock_phase(clock, period) : 0.0,
+                                    sweep_angle = () -> _compute_ring_sweep(w.value, share)))
+        (width=outer_width, height=outer_height, elements=elements)
+    end))
+end
+@_printer_only WidgetProgressRingToGraphicsCanvas
+
 # ── WidgetSlider ────────────────────────────────────────────────────────────
 
 @projection UntrackedCell struct WidgetSliderToGraphicsCanvas
@@ -10744,6 +10826,7 @@ function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphic
         WidgetCard       => WidgetCardToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetSwitch     => WidgetSwitchToGraphicsCanvas(theme; measure = measure),
         WidgetProgressBar => WidgetProgressBarToGraphicsCanvas(theme),
+        WidgetProgressRing => WidgetProgressRingToGraphicsCanvas(theme; measure = measure),
         WidgetSlider     => WidgetSliderToGraphicsCanvas(theme),
         WidgetRadioGroup => WidgetRadioGroupToGraphicsCanvas(theme; measure = measure),
         WidgetAvatar     => WidgetAvatarToGraphicsCanvas(theme; measure = measure),

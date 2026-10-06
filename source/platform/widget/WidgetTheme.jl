@@ -154,7 +154,7 @@ builder fills them from a theme, scaled or not.
     # ── Lines ──
     "The width of a border."
     border_width::LineWidth = LineWidth(1)
-    "The width of a checkmark, of the ring of a radio button and of the ring of a knob."
+    "The width of a checkmark, of the ring of a radio button, of the ring of a knob and of a progress ring."
     stroke::LineWidth = LineWidth(2)
     "The width of a focus ring."
     ring_width::LineWidth = LineWidth(2)
@@ -177,6 +177,8 @@ builder fills them from a theme, scaled or not.
     slider_knob::ControlSize = ControlSize(7)
     "The height of a progress bar."
     progress_bar_height::ControlSize = ControlSize(4)
+    "The diameter of a progress ring, as a part of the height of a line of text."
+    progress_ring_size::IconSize = IconSize(1.0)
     "The thickness of a scroll bar."
     scroll_bar_thickness::ControlSize = ControlSize(10)
     "The smallest length of the thumb of a scroll bar."

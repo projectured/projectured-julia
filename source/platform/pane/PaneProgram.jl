@@ -121,7 +121,7 @@ make_interface_api() = Any[
         :WidgetScrollPane, :WidgetAccordion, :WidgetComposite,
         # What shows a value.
         :WidgetLabel, :WidgetText, :WidgetTextarea, :WidgetTable, :WidgetBadge,
-        :WidgetAlert, :WidgetProgressBar, :WidgetSeparator,
+        :WidgetAlert, :WidgetProgressBar, :WidgetProgressRing, :WidgetSeparator,
         # What a person acts on.
         :WidgetButton, :Action, :WidgetCheckbox, :WidgetSwitch, :WidgetToggleGroup,
         :WidgetRadioGroup, :WidgetSelect, :WidgetSlider, :WidgetSpinBox, :WidgetList,

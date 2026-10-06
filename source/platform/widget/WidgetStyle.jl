@@ -259,8 +259,8 @@ end
 """
     WidgetProgressStyle(; <the fields of WidgetStyle>, track_color, indicator_color)
 
-The style of a `WidgetProgressBar`: the fields of `WidgetStyle`, the track and the
-filled portion.
+The style of a `WidgetProgressBar` and of a `WidgetProgressRing`: the fields of
+`WidgetStyle`, the track and the filled portion.
 """
 @document struct WidgetProgressStyle <: WidgetDocument
     margin_color::Any = nothing

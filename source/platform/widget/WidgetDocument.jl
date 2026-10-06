@@ -1794,14 +1794,56 @@ in one word.
     style::Any
     tooltip::Any
 end
+# The cell of the value of a progress widget: a share, or `nothing` when the share
+# is not known. A function that answers `nothing` gives `nothing`.
+_make_share_cell(value::Nothing) = Cell(nothing)
 _make_share_cell(value::Real) = Cell(Float64(value))
 _make_share_cell(value::Cell) = value
-_make_share_cell(value::Function) = Cell(@computation Float64(value()))
+_make_share_cell(value::Function) = Cell(@computation _convert_share(value()))
+_convert_share(value::Nothing) = nothing
+_convert_share(value::Real) = Float64(value)
 
 WidgetProgressBar(value::Union{Real, Cell, Function}; position::Point2D=Point2D(0, 0), width::Integer=240, visible::Bool=true,
                margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
     WidgetProgressBar(Cell(position), _make_share_cell(value), Cell(Int(width)), Cell(visible),
                    Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
+
+# ── WidgetProgressRing ──────────────────────────────────────────────────────
+
+"""
+    WidgetProgressRing(value = nothing; position)
+
+A ring filled clockwise from the top to a share between zero and one, as tall as
+a line of text.
+
+Use it where a bar does not fit: in a cell of a table, beside a label, in a row
+of a list. `value` is a number, a cell that holds one, a function of no
+arguments that the ring follows, or `nothing`. While the value is `nothing` the
+share is not known, and a quarter of the ring turns around it once a second. The
+ring takes no width: its diameter is one line of the text of the theme.
+
+# Example
+
+    open_pane!(editor, WidgetProgressRing(0.4); title = "Progress")
+
+See also `WidgetProgressBar`, which shows the same value as a bar.
+"""
+@document struct WidgetProgressRing <: WidgetDocument
+    position::Point2D
+    value::Union{Nothing, Float64}
+    visible::Bool
+    margin::Inset
+    border::Inset
+    padding::Inset
+    style::Any
+    tooltip::Any
+end
+
+WidgetProgressRing(value::Union{Nothing, Real, Cell, Function} = nothing; position::Point2D=Point2D(0, 0),
+                   visible::Bool=true, margin=nothing, border=nothing, padding=nothing, style=nothing,
+                   tooltip=nothing) =
+    WidgetProgressRing(Cell(position), _make_share_cell(value), Cell(visible),
+                       Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
 
 # ── WidgetSlider ────────────────────────────────────────────────────────────
 
