@@ -462,7 +462,15 @@ worktree. The three domains test different parts of the model:
     for each listed field and nothing else. A probe in the `:throw` mode constructs
     `ColorTheme()`, `WidgetTheme()` and a `TextString` with no padding. `ChartTheme()` still
     fails on `series_colors`, which is group 4.
-  - [ ] Group 3, the markers of a template: waits for the owner.
+  - [ ] **Group 3, the markers of a template.** A template rule builds its output with markers in
+    typed fields (`SyntaxLeaf(bound(:value, …))`), and `print_template_document` then replaces
+    each marker with the value, so `SyntaxLeaf.value` (declared `TextString`) holds a `Bound` for
+    a moment, in about 940,000 writes. **Decided by the owner, 2026-10-06: option A.** A marker
+    is a stand-in, as a `Computation` is: the document layer declares an abstract type for a
+    stand-in, the markers `Bound`, `Collection`, `Tokens` and `Sections` subtype it, and the
+    check leaves such a value alone. The other options were: widen each output field to admit
+    the markers (B), suspend the check while a rule runs (C), or rewrite the template language
+    so that no rule puts a marker into a typed field (D). The name of the type is open.
   - [ ] Group 4, a plain `Vector` in a field declared `Vector{T}`: waits for the owner.
   - [ ] Group 5, a lazy list in a field declared `CellVector`: it belongs with group 4 and S-2.
     `HorizontalLayout` and `VerticalLayout` have constructors that take a `ListNode`, so their
