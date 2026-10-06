@@ -477,11 +477,36 @@ and chips that move. Stages 6 and 7 complete the design of the request.
   - Tests: `test_pivot()` (109).
   - The design document: `documentation/package/domain/pivot/pivot.md`. The
     count of the domains in the documents is now eighteen.
-- [ ] **3. Headers with levels in the widget table.** A header that holds a
+- [x] **3. Headers with levels in the widget table.** A header that holds a
   tuple of labels, merged runs at each level, in the eager form and in the
   list form. A run that starts above the visible rows shows its label at the
   top. A press on a run selects the rows or the columns of the run. The test:
-  a widget test with no pivot.
+  a widget test with no pivot. **Done 2026-10-06.**
+  - A header with levels is a `CellVector` of labels, the outer level first.
+    The code is in a new fragment, `WidgetTableHeaderLevels.jl`, and
+    `WidgetTableParts.jl` calls it at a few points, because another session
+    works on the presses of the same file (`a-table-selects-each-part-the-same-way.md`).
+  - The header row is a grid of one row for each level. A run of columns is
+    one child with `column_span`. The grid offers a spanning child the width of
+    its columns, so a second print of the label at its own size gives the floor
+    of a weighted column; reading the child in the grid made a cycle and a stack
+    overflow. A `Fixed` column cuts a long run label, as it cuts a long header.
+  - The header column is a grid of one column for each level. A run of rows
+    shows its label in its first row and in the row at the top of the cells.
+    A level is as wide as its corner label and the widest label of the first
+    64 rows from the head; a wider label further down is cut (a known limit).
+  - The last level never merges. `column_headers[c][l]` and `row_headers[r][l]`
+    name a label and its run. A press on a run of an outer level selects the
+    label of its first column or row, and the band covers the run.
+  - Levels need columns that are a vector; the printer of list columns raises
+    an error for them. The classic printer of an eager table has no levels.
+  - The PDF writer does not walk a canvas whose elements are a list, so a table
+    of a list shows no rows in a PDF. This limit is older than the pivot.
+  - Tests: `test_widget_table_header_levels()` (31). `test_platform()`: 98 412
+    passed, 8 broken, 2 failed. Both failures are in `InterfaceApiTest.jl`
+    and come from `WidgetProgressRing`, which landed on main the same day: the
+    test counts 31 widgets and finds 32, and the docstring of the ring lacks
+    "Use it to". This branch adds no widget.
 - [ ] **4. The first view, read-only.** `PivotTable` to `WidgetTable`, with
   nested headers and number cells. The bar prints the chips, but they do not
   move yet. An example on a data frame and one on a vector of named tuples.

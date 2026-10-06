@@ -64,6 +64,7 @@ struct WidgetTablePartsState
     row_header_pane::Any     # the IO map of the pane of the header column, or nothing
     corner::Any              # the IO map of the corner, or nothing
     header_width::Cell       # Int: the width of the header column, or 0 with no header column
+    levels::Any              # the `_TableHeaderLevels` of the headers; 0 levels for none
 end
 
 """
@@ -479,13 +480,18 @@ function _make_header_column_row_graphics(p::WidgetTableToGraphicsCanvas, w::Wid
     band_height = Cell(@computation Int(row.h) + 2 * st.pad_y)
     color = _get_state_color(p, w, :header_row)
     divider = _get_state_stroke(p, w, :divider).color
-    bands = Any[_make_row_band(p, w, st, k, band_height, :light; span_of = _get_header_column_band_span),
-                _make_row_band(p, w, st, k, band_height, :selection; span_of = _get_header_column_band_span)]
+    leveled = st.levels.row_levels > 0
+    bands = leveled ?
+        Any[_make_level_header_column_band(p, w, st, k, band_height, :light),
+            _make_level_header_column_band(p, w, st, k, band_height, :selection)] :
+        Any[_make_row_band(p, w, st, k, band_height, :light; span_of = _get_header_column_band_span),
+            _make_row_band(p, w, st, k, band_height, :selection; span_of = _get_header_column_band_span)]
     elements = CellVector(@computation begin
         h = Int(height[])
         width = Int(st.header_width[])
-        out = Any[GraphicsRect(0, 0, width, h; color), bands...,
-                  GraphicsRect(0, 0, width, bw; color = divider)]
+        out = Any[GraphicsRect(0, 0, width, h; color), bands...]
+        leveled ? _push_level_header_column_rules!(out, w, st, k, h, divider) :
+                  push!(out, GraphicsRect(0, 0, width, bw; color = divider))
         row_node.next === nothing && push!(out, GraphicsRect(0, h - bw, width, bw; color = divider))
         out
     end)
@@ -897,20 +903,26 @@ function _print_vector_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w
     offset = getfield(w, :scroll_position)
     # The width of every column, which the cells decide once they print.
     widths = Cell[Cell(0) for _ in 1:n]
+    # Headers that are a `CellVector` have levels (`WidgetTableHeaderLevels.jl`).
+    levels = _compute_table_header_levels(w, n)
+    level_sizes = levels.row_levels > 0 ? _make_level_column_sizes(levels.row_levels) : nothing
     # The corner first: it is a floor for the header row and the header column.
     # The header row and the cells are offered the width beside the header
     # column, which it decides once it prints.
-    corner = _print_table_corner(recursion, w, inner)
+    corner = level_sizes === nothing ? _print_table_corner(recursion, w, inner) :
+                                       _print_level_corner(recursion, w, inner, level_sizes, hgap)
     header_width = Cell(0)
     beside = with_inner_size(inner; width = header_width)
 
     # The header row first: the cells read the width of each header.
     column_header_pane = nothing
     if length(w.column_headers) > 0
-        headers = CellVector(Cell[Cell(c <= length(w.column_headers) && w.column_headers[c] !== nothing ?
-                                       w.column_headers[c] : _wt_empty_cell()) for c in 1:n])
+        headers = levels.column_levels > 0 ? _make_level_header_children(w, levels) :
+            CellVector(Cell[Cell(c <= length(w.column_headers) && w.column_headers[c] !== nothing ?
+                                 w.column_headers[c] : _wt_empty_cell()) for c in 1:n])
         grid = GridLayout(headers, Cell(n), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap),
-                          Cell(aligns), Cell(Fixed(0)), _get_header_row_policy(corner),
+                          Cell(aligns), Cell(Fixed(0)),
+                          levels.column_levels > 0 ? Cell(Content) : _get_header_row_policy(corner),
                           Cell(@computation Any[Fixed(Int(widths[c][])) for c in 1:n]),
                           Cell(Any[]), Cell(offers), Cell(Bool[]), Cell(nothing))
         header_offset = Cell(@computation Point2D(Int((offset[]::Point2D).x[]), 0))
@@ -920,13 +932,18 @@ function _print_vector_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w
     header_height = column_header_pane === nothing ? Cell(0) : Cell(@computation Int(column_header_pane.output.h))
 
     header_grid = column_header_pane === nothing ? nothing : column_header_pane.content_iomap
-    get_header(c) = header_grid === nothing ? nothing : header_grid.child_iomaps[c][3]
+    measured = levels.column_levels > 0 ? _measure_level_header_runs(recursion, w, levels, beside) : nothing
+    get_header(c) = header_grid === nothing ? nothing :
+                    levels.column_levels > 0 ? _get_level_header_width(levels, header_grid, measured, c, hgap) :
+                                               header_grid.child_iomaps[c][3]
     policies = Cell(@computation Any[_get_cells_column_policy(w, c, get_header(c)) for c in 1:n])
     grid = GridLayout(_get_row_list(w), Cell(n), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap),
                       Cell(aligns), getfield(w, :column_policy), getfield(w, :row_policy),
                       policies, Cell(Any[]), Cell(offers), Cell(Bool[]), Cell(nothing))
     cells_height = Cell(@computation Int32(max(0, Int(height[]) - Int(header_height[]))))
-    row_header_pane = _print_header_column(recursion, w, inner, corner, cells_height, pad_x, pad_y, bw)
+    row_header_pane = level_sizes === nothing ?
+        _print_header_column(recursion, w, inner, corner, cells_height, pad_x, pad_y, bw) :
+        _print_level_header_column(recursion, w, inner, level_sizes, cells_height, pad_x, pad_y, bw)
     row_header_pane === nothing || set_cell_computation!(header_width, () -> Int(row_header_pane.output.w))
     cells_pane = print_child(recursion,
                              _make_cells_pane(w, grid, offset, Inset(bw + pad_y, bw + pad_y, bw + pad_x, bw + pad_x)),
@@ -937,7 +954,7 @@ function _print_vector_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w
     end
     edges = Cell(@computation compute_axis_offsets(Int[Int(cells_grid.col_w[c][]) for c in 1:n], hgap))
     st = WidgetTablePartsState(n, bw, pad_x, pad_y, column_header_pane, cells_pane, header_height, edges,
-                               false, row_header_pane, corner, header_width)
+                               false, row_header_pane, corner, header_width, levels)
     parts_x = Cell(@computation Int32(content_x + Int(header_width[])))
 
     # The graphics of the header row: its band, the bands of a lit or a
@@ -949,14 +966,22 @@ function _print_vector_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w
         band_height = Cell(@computation Int(header_height[]) - bw)
         bands = Any[_make_row_band(p, w, st, nothing, band_height, :light),
                     _make_row_band(p, w, st, nothing, band_height, :selection)]
+        if levels.column_levels > 0
+            push!(bands, _make_level_header_band(p, w, st, header_height, :light),
+                  _make_level_header_band(p, w, st, header_height, :selection))
+        end
         edge_light = _make_column_edge_light(p, w, st, Cell(@computation Int(header_height[])))
         header_graphics = CellVector(@computation begin
             width = last(edges[]) + bw
             h = Int(header_height[])
             out = Any[GraphicsRect(0, 0, width, h; color = header_row_color), bands...,
                       GraphicsRect(0, 0, width, bw; color = divider)]
-            for edge in edges[]
-                push!(out, GraphicsRect(edge, 0, bw, h; color = divider))
+            if levels.column_levels > 0
+                _push_level_header_rules!(out, st, edges[], h, divider)
+            else
+                for edge in edges[]
+                    push!(out, GraphicsRect(edge, 0, bw, h; color = divider))
+                end
             end
             # Where a press starts the drag of the width of a column.
             for edge in edges[][2:end]
@@ -1211,8 +1236,10 @@ function _print_table_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w:
                              _make_cells_pane(w, grid, offset, Inset(bw + pad_y, bw + pad_y, bw + pad_x, bw + pad_x)),
                              with_exact_size(beside; height = cells_height))
     cells_grid = cells_pane.content_iomap
+    (_get_row_header_level_count(w.row_headers) == 0 && !(w.column_headers.value isa CellVector)) ||
+        error("WidgetTable: headers with levels need columns that are a vector")
     st = WidgetTablePartsState(0, bw, pad_x, pad_y, column_header_pane, cells_pane, header_height,
-                               Cell(Int[]), true, row_header_pane, corner, header_width)
+                               Cell(Int[]), true, row_header_pane, corner, header_width, _NO_TABLE_HEADER_LEVELS)
     parts_x = Cell(@computation Int32(content_x + Int(header_width[])))
 
     # The graphics of the header row: its band, the bands of a lit or a
@@ -1315,7 +1342,8 @@ end
 _find_table_cell(st::WidgetTablePartsState, k::Int, c::Int) = _find_part_cell(st, st.cells_pane, k, c)
 
 _find_table_row_header(st::WidgetTablePartsState, k::Int) =
-    st.row_header_pane === nothing ? nothing : _find_part_cell(st, st.row_header_pane, k, 1)
+    st.row_header_pane === nothing ? nothing :
+        _find_part_cell(st, st.row_header_pane, k, max(1, st.levels.row_levels))
 
 function _find_part_cell(st::WidgetTablePartsState, pane, k::Int, c::Int)
     grid = pane.content_iomap
@@ -1351,6 +1379,7 @@ function _find_header_entry(st::WidgetTablePartsState, c::Int)
     grid = st.column_header_pane.content_iomap
     st.column_list && return find_grid_list_cell(grid, 1, c)
     entries = grid.child_iomaps
+    st.levels.column_levels > 0 && (c = _get_column_header_leaf_child(st.levels, c))
     1 <= c <= length(entries) ? entries[c] : nothing
 end
 
@@ -1389,7 +1418,9 @@ function map_reference_forward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTabl
         st.column_header_pane === nothing && return nothing
         tail = reference.tail
         (tail isa ConcreteReference && tail.head isa RangeReferenceStep) || return nothing
-        inner = st.column_list ? ConcreteReference(RangeReferenceStep(0, 1), tail) : tail
+        inner = st.column_list ? ConcreteReference(RangeReferenceStep(0, 1), tail) :
+                st.levels.column_levels > 0 ? _make_level_header_grid_path(st.levels, tail) : tail
+        inner === nothing && return nothing
         return _map_part_forward(iomap, st.column_header_pane, inner)
     elseif head.name == "cells"
         split = _wt_cell_split(iomap.input, reference)
@@ -1403,11 +1434,15 @@ function map_reference_forward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTabl
         st.row_header_pane === nothing && return nothing
         tail = reference.tail
         (tail isa ConcreteReference && tail.head isa RangeReferenceStep) || return nothing
-        inner = ConcreteReference(tail.head, ConcreteReference(RangeReferenceStep(0, 1), tail.tail))
+        inner = st.levels.row_levels > 0 ? _make_level_header_column_path(st.levels, tail) :
+                ConcreteReference(tail.head, ConcreteReference(RangeReferenceStep(0, 1), tail.tail))
         return _map_part_forward(iomap, st.row_header_pane, inner)
     elseif head.name == "corner"
         st.corner === nothing && return nothing
-        image = map_reference_forward(st.corner.projection, st.corner, reference.tail)
+        tail = reference.tail
+        (st.levels.row_levels > 0 && (iomap.input.corner isa CellVector) && tail isa ConcreteReference) &&
+            (tail = ConcreteReference(FieldReferenceStep("children"), tail))
+        image = map_reference_forward(st.corner.projection, st.corner, tail)
         image === nothing && return nothing
         outer = find_node_reference(iomap.output, unwrap_cell(st.corner.output))
         return outer === nothing ? nothing : concat_references(outer, image)
@@ -1433,7 +1468,10 @@ function map_reference_backward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTab
     part === :corner && return ConcreteReference(FieldReferenceStep("corner"), EmptyReference())
     if part === :row_header
         k = _find_table_row_at(st, y)
-        return k === nothing ? nothing : ConcreteReference(FieldReferenceStep("row_headers"),
+        k === nothing && return nothing
+        level = _find_level_row_header_reference(iomap.input, st, k, x)
+        level === nothing || return level
+        return ConcreteReference(FieldReferenceStep("row_headers"),
             ConcreteReference(RangeReferenceStep(k - 1, k), EmptyReference()))
     end
     if part === :header
@@ -1442,7 +1480,10 @@ function map_reference_backward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTab
     end
     c = _find_table_column_at(st, x)
     c === nothing && return nothing
-    part === :header && return _wt_column_header_ref(c)
+    if part === :header
+        level = _find_level_column_header_reference(st, c, y)
+        return level === nothing ? _wt_column_header_ref(c) : level
+    end
     k = _find_table_row_at(st, y)
     k === nothing ? nothing : _wt_cell_ref(iomap.input, k, c)
 end
@@ -1497,17 +1538,19 @@ function _read_table_parts_press(p::WidgetTableToGraphicsCanvas, iomap::WidgetTa
     if part === :row_header
         k = _find_table_row_at(st, y)
         k === nothing && return nothing
+        level = _find_level_row_header_reference(iomap.input, st, k, x)
+        level === nothing || return ReplaceSelectionOperation(level)
         g.modifiers.alt && return ReplaceSelectionOperation(_wt_row_header_ref(k))
-        op = _read_table_header_press(_find_table_row_header(st, k),
-                                      (FieldReferenceStep("row_headers"), RangeReferenceStep(k - 1, k)), g, x, y)
+        op = _read_table_header_press(_find_table_row_header(st, k), _get_row_header_steps(st, k), g, x, y)
         return op === nothing ? ReplaceSelectionOperation(_wt_row_ref(k)) : op
     end
     c = _find_table_column_at(st, x)
     c === nothing && return nothing
     if part === :header
+        level = _find_level_column_header_reference(st, c, y)
+        level === nothing || return ReplaceSelectionOperation(level)
         g.modifiers.alt && return ReplaceSelectionOperation(_wt_column_header_ref(c))
-        op = _read_table_header_press(_find_table_header_cell(st, c),
-                                      (FieldReferenceStep("column_headers"), RangeReferenceStep(c - 1, c)), g, x, y)
+        op = _read_table_header_press(_find_table_header_cell(st, c), _get_column_header_steps(st, c), g, x, y)
         return op === nothing ? ReplaceSelectionOperation(_wt_col_ref(c)) : op
     end
     k = _find_table_row_at(st, y)
@@ -1797,13 +1840,13 @@ function _read_table_point_cell(p::WidgetTableToGraphicsCanvas,
         cim, left, top = cell
         local_event = _wt_translate_event(event, x - left, y - top)
         local_event === nothing && return nothing
-        steps = (FieldReferenceStep("row_headers"), RangeReferenceStep(k - 1, k))
+        steps = _get_row_header_steps(st, k)
         return (reroot_operation(_wt_read_cell_event(cim, event, local_event), steps), steps)
     end
     c = _find_table_column_at(st, x)
     c === nothing && return nothing
     cell, steps = if part === :header
-        (_find_table_header_cell(st, c), (FieldReferenceStep("column_headers"), RangeReferenceStep(c - 1, c)))
+        (_find_table_header_cell(st, c), _get_column_header_steps(st, c))
     else
         k = _find_table_row_at(st, y)
         k === nothing && return nothing
@@ -1829,7 +1872,8 @@ function _read_selected_table_cell(st::WidgetTablePartsState, w::WidgetTable, ev
         found = field == "column_headers" ? _find_table_header_cell(st, k) : _find_table_row_header(st, k)
         found === nothing && return nothing
         return reroot_operation(read_intent(found[1].projection, found[1], event),
-                                (FieldReferenceStep(field), RangeReferenceStep(k - 1, k)))
+                                field == "column_headers" ? _get_column_header_steps(st, k) :
+                                                              _get_row_header_steps(st, k))
     end
     prefix = _wt_cell_prefix(w, selection)
     prefix === nothing && return nothing

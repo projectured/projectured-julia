@@ -2536,6 +2536,16 @@ that the grids report ("layout is just layout").
   `nothing`). Empty vector ⇒ no row-header strip. When `cells` is a list, a
   `ListNode` of headers that moves in step with it: its head is the header of
   the head row.
+- A header that is a `CellVector` has levels: one label for each level, the
+  outer level first, and every header of the row or of the column has the same
+  count of levels. Two neighbours whose labels agree on the first levels share
+  them, and the table draws such a run as one header: a run of columns spans
+  them, and a run of rows shows its label in its first row and in the row at the
+  top of the cells. The last level never merges. `column_headers[c][l]` and
+  `row_headers[r][l]` name a label and its run; a press on a run of an outer
+  level selects the label of its first column or row, and the table lights the
+  run. A `corner` that is a `CellVector` names the levels of the row headers.
+  Levels need a table that scrolls its own parts and whose columns are a vector.
 - `corner` — `nothing`, or the `Document` drawn where the header row and the
   header column meet. A corner makes the table a table of a list, whose rows
   are a list or, at first, an empty vector. The header column is at least as
