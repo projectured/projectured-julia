@@ -41,6 +41,17 @@ end
 _nav_texts(backend) = _nav_drawn(last(rendered_output(backend)))
 _nav_has_text(backend, text) = any(entry -> occursin(text, entry[1]), _nav_texts(backend))
 
+# Whether the frame draws `texts` one after the other, as the items of an address.
+function _nav_has_texts(backend, texts...)
+    drawn = first.(_nav_texts(backend))
+    any(start -> drawn[start:(start + length(texts) - 1)] == collect(texts),
+        1:(length(drawn) - length(texts) + 1))
+end
+
+# The glyphs of the icons of the buttons of the bar.
+const _NAV_BACK = string(Char(0xe048))
+const _NAV_PARENT = string(Char(0xe04a))
+
 _nav_press!(editor, backend, events...) =
     (foreach(event -> push_event!(backend, event), events); run_frame!(editor))
 
@@ -102,14 +113,15 @@ function test_navigator_to_widget()
         navigator = Navigator(shelf)
         editor, backend = _nav_editor(navigator)
         root_iomap = editor.iomap
-        @test _nav_has_text(backend, "Back")
-        @test _nav_has_text(backend, "Shelf")
+        @test _nav_has_text(backend, _NAV_BACK)
+        @test _nav_has_text(backend, _NAV_PARENT)
+        @test _nav_has_texts(backend, "Shelf")
 
         # Ctrl+Return opens the selected part.
         evaluate_operation(editor, ReplaceSelectionOperation(@reference(navigator, content.books[2].title)))
         _nav_press!(editor, backend, _nav_key(:return))
         @test _nav_is(navigator.address, @reference(shelf, books[2]))
-        @test _nav_has_text(backend, "Shelf › B")
+        @test _nav_has_texts(backend, "Shelf", "›", "B")
 
         # Ctrl+Up opens the parent, with the book selected.
         _nav_press!(editor, backend, _nav_key(:up))
@@ -123,11 +135,20 @@ function test_navigator_to_widget()
         @test navigator.address isa EmptyReference
 
         # A press on the Back button goes back.
-        click = _nav_click(backend, "Back")
+        click = _nav_click(backend, _NAV_BACK)
         @test click !== nothing
         _nav_press!(editor, backend, click)
         @test _nav_is(navigator.address, @reference(shelf, books[2]))
-        @test _nav_has_text(backend, "Shelf › B")
+        @test _nav_has_texts(backend, "Shelf", "›", "B")
+
+        # A press on an item of the address opens its page, with the page that
+        # the person leaves selected.
+        click = _nav_click(backend, "Shelf")
+        @test click !== nothing
+        _nav_press!(editor, backend, click)
+        @test navigator.address isa EmptyReference
+        @test _nav_is(navigator.selection, @reference(navigator, content.books[2]))
+        @test !_nav_has_texts(backend, "Shelf", "›", "B")
 
         # No visit printed the navigator again.
         @test editor.iomap === root_iomap

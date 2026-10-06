@@ -7887,6 +7887,8 @@ is beside each code point.
 const LUCIDE_ICON_GLYPHS = (
     # Controls
     :chevron_down   => 0xe06d,  # chevron-down
+    :arrow_left     => 0xe048,  # arrow-left
+    :arrow_right    => 0xe049,  # arrow-right
     :arrow_up       => 0xe04a,  # arrow-up
     :arrow_down     => 0xe042,  # arrow-down
     :arrow_up_down  => 0xe37d,  # arrow-up-down

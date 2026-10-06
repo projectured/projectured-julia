@@ -78,7 +78,7 @@ function test_open_page_operation()
         run_frame!(editor)
         @test get_navigator_page(navigator) === shelf
         @test _nav_is(navigator.selection, @reference(navigator, content.children[2]))
-        @test _nav_has_text(backend, "VerticalLayout › Shelf")
+        @test _nav_has_texts(backend, "VerticalLayout", "›", "Shelf")
     end
 
     @testset "a press on a link opens its page, and Ctrl+press a new tab" begin
@@ -128,7 +128,7 @@ function test_open_page_operation()
         @test opened.content === page
         @test get_navigator_page(opened) === shelf
         @test _nav_is(find_navigator_parent_address(opened), EmptyReference())
-        @test _nav_has_text(backend, "VerticalLayout › Shelf")
+        @test _nav_has_texts(backend, "VerticalLayout", "›", "Shelf")
     end
 end
 end

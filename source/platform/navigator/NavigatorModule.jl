@@ -14,6 +14,7 @@ and an open that no navigator takes opens a tab with a navigator of its own.
 module NavigatorModule
 
 using ..CellModule
+using ..CollectionModule
 using ..DocumentModule
 using ..EventModule
 using ..GestureBindingModule

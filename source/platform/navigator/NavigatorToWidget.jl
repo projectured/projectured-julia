@@ -1,7 +1,7 @@
 # Fragment of `NavigatorModule` — a navigator as a grid of one column: the bar,
 # then the page.
 #
-#     children[1]           the bar: Back, Forward, Parent and the address
+#     children[1]           the bar: Back, Forward, Parent and the items of the address
 #     children[2].<rest>    the page; <rest> is a path in the page
 #
 # The printer prints no child. The grid holds the page itself, so the layout stage
@@ -12,9 +12,11 @@
 """
     NavigatorToWidget(; gap, section_gap)
 
-The projection of a [`Navigator`](@ref): a bar of the Back, Forward and Parent
-buttons and the address, above the page. `gap` is the space between the parts of
-the bar, and `section_gap` the space between the bar and the page.
+The projection of a [`Navigator`](@ref): a bar above the page. The bar holds the
+Back, Forward and Parent buttons, which show an arrow, and the address as a
+breadcrumb: the name of each document from the content to the page. A press on a
+name opens that page. `gap` is the space between the parts of the bar, and
+`section_gap` the space between the bar and the page.
 
 A press on a button answers the operation of the button, a key that the page
 does not answer reaches the `@gestures` table of the navigator, and a path in the
@@ -35,32 +37,35 @@ make_navigator_projection(; widget_theme = nothing) =
     NavigatorToWidget(; gap = get_widget_style(widget_theme, :label_gap),
                       section_gap = get_widget_style(widget_theme, :section_gap))
 
-# `actions` holds the action of each button of the bar, so the reader knows the
-# press of which button an `InvokeActionOperation` reports.
+# `actions` holds the action of each button of the bar, and `crumbs` each item of
+# the address, so the reader knows the press of which part an
+# `InvokeActionOperation` reports. `crumbs` follows the address.
 @iomap struct NavigatorToWidgetIoMap
     projection::Any
     input::Any
     output::Any
     actions::Any
+    crumbs::Any
 end
 
 const _BAR_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(0, 1))
 const _PAGE_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1, 2))
 
 function print_document(p::NavigatorToWidget, recursion, navigator::Navigator, ctx)
-    actions = (back = _make_action("Back", () -> !isempty(navigator.back)),
-               forward = _make_action("Forward", () -> !isempty(navigator.forward)),
-               parent = _make_action("Parent", () -> find_navigator_parent_address(navigator) !== nothing))
-    address = WidgetLabel(() -> _make_address_text(navigator))
-    bar = HorizontalLayout(Any[WidgetButton(actions.back; tooltip = "Go back to the page before."),
-                               WidgetButton(actions.forward; tooltip = "Go forward to the next page."),
-                               WidgetButton(actions.parent; tooltip = "Go to the page that holds this page."),
-                               address];
-                           vertical_align = :center, gap = p.gap)
+    actions = (back = _make_action("Back", :arrow_left, () -> !isempty(navigator.back)),
+               forward = _make_action("Forward", :arrow_right, () -> !isempty(navigator.forward)),
+               parent = _make_action("Parent", :arrow_up,
+                                     () -> find_navigator_parent_address(navigator) !== nothing))
+    buttons = Any[WidgetToolbarItem(actions.back; tooltip = "Go back to the page before (Ctrl+[)."),
+                  WidgetToolbarItem(actions.forward; tooltip = "Go forward to the next page (Ctrl+])."),
+                  WidgetToolbarItem(actions.parent; tooltip = "Go to the page that holds this page (Ctrl+Up).")]
+    crumbs = Cell(@computation _make_address_crumbs(navigator))
+    bar = HorizontalLayout(CellVector(Computation(() -> Any[buttons..., _get_crumb_widgets(crumbs[])...])),
+                           Cell(:center), Cell(p.gap), Cell(Content), Cell(nothing), Cell(nothing))
     page = Cell(@computation get_navigator_page(navigator))
     output = GridLayout(Any[bar, page], 1; vertical_gap = p.section_gap,
                         column_policy = Fill, row_policies = Any[Content, Fill])
-    iomap = NavigatorToWidgetIoMap(p, navigator, output, actions)
+    iomap = NavigatorToWidgetIoMap(p, navigator, output, actions, crumbs)
     # The grid passes a key to the part that its selection names, so it maps only a
     # live selection.
     set_output_path_computations!(output, navigator, path -> map_reference_forward(p, iomap, path);
@@ -68,36 +73,75 @@ function print_document(p::NavigatorToWidget, recursion, navigator::Navigator, c
     iomap
 end
 
-# A button of the bar. Its press is the operation that the reader makes for it,
-# and `is_enabled` turns it off where that operation does nothing. The action has
-# no callback: the press always comes back through the reader of this view, and a
-# callback at the editor could not root the selection, whose path starts at the
-# navigator.
-function _make_action(label::AbstractString, is_enabled::Function)
-    action = Action(label)
+# A button of the bar, which shows `icon` and says `label`. Its press is the
+# operation that the reader makes for it, and `is_enabled` turns it off where that
+# operation does nothing. The action has no callback: the press always comes back
+# through the reader of this view, and a callback at the editor could not root the
+# selection, whose path starts at the navigator.
+function _make_action(label::AbstractString, icon::Symbol, is_enabled::Function)
+    action = Action(label; icon)
     set_cell_computation!(getfield(action, :enabled), is_enabled)
     action
 end
 
-# The address as a line: the title of each document from the content to the page,
-# past the collections, as `get_parent` reads them.
-function _make_address_text(navigator::Navigator)
-    content = navigator.content
-    steps = get_reference_steps(get_navigator_page_address(navigator))
-    parts = String[_get_address_part(content, nothing)]
-    for last_step in eachindex(steps)
-        node = evaluate_reference(content, extend_reference(EmptyReference(), steps[1:last_step]...))
-        _is_page_node(node) && push!(parts, _get_address_part(node, steps[last_step]))
-    end
-    join(parts, " › ")
+# ── The address ───────────────────────────────────────────────────────────────
+#
+# One item for each document from the content to the page, past the collections,
+# as `get_parent` reads them, and the page last. An item names its document by its
+# title, or by the steps that reach it, or at the root by the name of its type; its
+# tooltip is its path from the content. A press on an item opens its page, and the
+# page itself is a plain name.
+
+# One item of the address: what it draws, the action of its press, and the
+# address that the press opens. The page has no action.
+struct _AddressCrumb
+    widget::Any
+    action::Any
+    address::Reference
 end
 
-# The title of a document on the address, or the step that reaches it, or the
-# name of its type at the root.
-function _get_address_part(node, step)
+function _make_address_crumbs(navigator::Navigator)
+    content = navigator.content
+    steps = get_reference_steps(get_navigator_page_address(navigator))
+    prefix(stop) = extend_reference(EmptyReference(), steps[1:stop]...)
+    stops = Int[0]
+    for stop in eachindex(steps)
+        (stop == length(steps) || _is_page_node(evaluate_reference(content, prefix(stop)))) &&
+            push!(stops, stop)
+    end
+    crumbs = _AddressCrumb[]
+    for (index, stop) in enumerate(stops)
+        address = prefix(stop)
+        label = _get_address_label(evaluate_reference(content, address),
+                                   steps[(index == 1 ? 1 : stops[index - 1] + 1):stop])
+        tooltip = stop == 0 ? "The whole content." : lstrip(sprint(show, address), '.')
+        if index == length(stops)
+            push!(crumbs, _AddressCrumb(WidgetLabel(label; tooltip), nothing, address))
+        else
+            action = Action(label)
+            push!(crumbs, _AddressCrumb(WidgetToolbarItem(action; tooltip), action, address))
+        end
+    end
+    crumbs
+end
+
+# The widgets of the address, with a mark between two items.
+function _get_crumb_widgets(crumbs::Vector{_AddressCrumb})
+    widgets = Any[]
+    for (index, crumb) in enumerate(crumbs)
+        index == 1 || push!(widgets, WidgetLabel("›"))
+        push!(widgets, crumb.widget)
+    end
+    widgets
+end
+
+# The title of a document on the address; the steps that reach it from the item
+# before, when it has no title; the name of its type at the root.
+function _get_address_label(node, steps)
     title = get_document_title(node)
     title === nothing || return String(title)
-    step === nothing ? string(nameof(typeof(node))) : sprint(show, step)
+    isempty(steps) && return string(nameof(typeof(node)))
+    lstrip(join(sprint(show, step) for step in steps), '.')
 end
 
 # ── Reader ────────────────────────────────────────────────────────────────────
@@ -106,8 +150,9 @@ end
 # the `@gestures` table of the navigator for a key that the page does not answer.
 # Then the reader takes two kinds of answer for itself:
 #
-# - a press on a button of the bar answers `InvokeActionOperation`, which travels
-#   up as it is, and becomes the operation of the button;
+# - a press on a button or on an item of the address answers
+#   `InvokeActionOperation`, which travels up as it is, and becomes the operation
+#   of the button or the open of the page of the item;
 # - an `OpenPageOperation` from the page becomes a visit, or, for a new tab, an
 #   open with the content of the navigator as its root, which goes on up.
 function read_intent(p::NavigatorToWidget, recursion, change::Intent, iomap::NavigatorToWidgetIoMap)
@@ -122,8 +167,14 @@ function _translate_answer(iomap::NavigatorToWidgetIoMap, operation::InvokeActio
     make = operation.action === actions.back ? make_navigator_back_operation :
            operation.action === actions.forward ? make_navigator_forward_operation :
            operation.action === actions.parent ? make_navigator_parent_operation : nothing
-    make === nothing && return operation
-    something(make(navigator), DoNothingOperation())
+    make === nothing || return something(make(navigator), DoNothingOperation())
+    # A press on an item of the address opens its page, with the page that the
+    # person leaves selected, as Parent does.
+    index = findfirst(crumb -> crumb.action === operation.action, iomap.crumbs)
+    index === nothing && return operation
+    something(make_navigator_open_operation(navigator, iomap.crumbs[index].address;
+                                            selection = get_navigator_page_address(navigator)),
+              DoNothingOperation())
 end
 
 function _translate_answer(iomap::NavigatorToWidgetIoMap, operation::OpenPageOperation)
