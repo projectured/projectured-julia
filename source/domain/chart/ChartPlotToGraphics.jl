@@ -51,13 +51,16 @@ function _draw_color(g, index::Int, own)
 end
 
 """
-    ChartPlotToGraphicsCanvas(; measure, width=760, height=460, theme=nothing)
+    ChartPlotToGraphicsCanvas(; measure, width=760, height=460, minimum_width=120,
+                              minimum_height=80, theme=nothing)
 
 The chart renderer. `measure::TextMeasure` is how tick and title text is sized:
 `FontFileMeasure()`, as every backend draws, or a `FixedMeasure` in a test.
 
 `width`/`height` are the fallback canvas size, used when the printer context
-carries no allocation from a parent layout.
+carries no allocation from a parent layout. `minimum_width`/`minimum_height` are
+the least size that the chart draws at, whatever the parent offers: a chart in
+a cell of a table takes a small one.
 
 `theme` is a [`ChartTheme`](@ref), scaled or not, or `nothing` for the default
 values; `style` holds every value of the theme as one `NamedTuple`, read once at
@@ -71,11 +74,14 @@ struct ChartPlotToGraphicsCanvas <: Projection
     measure::TextMeasure
     width::Int
     height::Int
+    minimum_width::Int
+    minimum_height::Int
     style::Any
 end
 
-ChartPlotToGraphicsCanvas(; measure::TextMeasure, width::Integer=760, height::Integer=460, theme=nothing) =
-    ChartPlotToGraphicsCanvas(measure, Int(width), Int(height),
+ChartPlotToGraphicsCanvas(; measure::TextMeasure, width::Integer=760, height::Integer=460,
+                          minimum_width::Integer=120, minimum_height::Integer=80, theme=nothing) =
+    ChartPlotToGraphicsCanvas(measure, Int(width), Int(height), Int(minimum_width), Int(minimum_height),
                               make_theme_values_field(ChartTheme, theme))
 
 @iomap struct ChartPlotToGraphicsCanvasIoMap
@@ -300,7 +306,8 @@ _series_label(s) = hasproperty(s, :label) ? String(s.label) : ""
 
 What the legend lists, as `(series_index, label, swatch_color)`.
 
-A line, scatter, bar or histogram series is one entry in its own colour. A strip
+A line, scatter, bar or histogram series is one entry in its own colour. A pie
+series is an entry for each slice, in the colour of the slice. A strip
 is a *band* of colours, so a colour of its own would stand for nothing on the
 chart: it takes a neutral swatch, and its colours are listed separately as the
 states they actually mean. Strips sharing a state table share those entries.
@@ -327,6 +334,12 @@ function _legend_items(chart::Chart, series, t)
                 color = strip_state_color(s, code, cycle)
                 any(it -> it[2] == label && it[3] == color, states) && continue
                 push!(states, (0, label, color))
+            end
+        elseif s isa ChartPieSeries
+            # A pie is one colour for each slice: an entry for each, under its series.
+            for (k, category) in enumerate(s.categories)
+                own = (s.colors === nothing || k > length(s.colors)) ? nothing : s.colors[k]
+                push!(items, (index, string(category), get_series_color(own, k, cycle)))
             end
         else
             push!(items, (index, _series_label(s), get_series_color(s.color, index, cycle)))
@@ -522,6 +535,12 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
             [format_tick(tick, _tick_step(yticks)) for tick in yticks] : String[]
     end
     xticks, xlabels = _x_ticks_labels(p, x_axis, view, prov_w, axis_font, t)
+    # A chart of pie series has no axes: no ticks and no labels.
+    pie = !isempty(series) && all(s -> s isa ChartPieSeries, (s for (_, s) in series))
+    if pie
+        yticks, ylabels = Float64[], String[]
+        xticks, xlabels = empty(xticks), String[]
+    end
 
     # Measure each label once, here, and carry the boxes forward — the frame
     # needs them again when it places the text.
@@ -579,10 +598,41 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
        selected_index, selected_part, whole_selected,
        measure_label, measure_legend_label,
        plot_x, plot_y, plot_w, plot_h, xs, ys,
-       point_cache, strip_spans, strip_rows, strip_count, strip_only,
+       point_cache, strip_spans, strip_rows, strip_count, strip_only, pie,
        xticks, yticks, xlabels, ylabels, xsizes, ysizes, label_h,
        title, title_font, axis_font, legend_font, title_h, title_text_y,
        x_title, y_title, x_title_h, y_title_h, x_title_text_y, y_title_text_y)
+end
+
+# ── Pie ──────────────────────────────────────────────────────────────────
+
+# The slices of the first visible pie series, in the coordinates of the plot: a
+# polygon of each arc and the centre, from the top, clockwise, in the colour of
+# the slice. A slice of no positive, finite value is not drawn.
+function _pie_elements!(out, g)
+    isempty(g.series) && return out
+    _, s = first(g.series)
+    values = Float64[(v isa Real && isfinite(v) && v > 0) ? Float64(v) : 0.0 for v in s.values]
+    total = sum(values; init = 0.0)
+    total > 0 || return out
+    cx, cy = g.plot_w / 2, g.plot_h / 2
+    radius = max(1.0, min(g.plot_w, g.plot_h) / 2 - 2)
+    cycle = _get_color_cycle(g.style, g.theme_values)
+    angle = -π / 2
+    for (k, value) in enumerate(values)
+        value > 0 || continue
+        span = 2π * value / total
+        steps = max(2, ceil(Int, span / (π / 30)))
+        points = Tuple{Int,Int}[(round(Int, cx), round(Int, cy))]
+        for j in 0:steps
+            a = angle + span * j / steps
+            push!(points, (round(Int, cx + radius * cos(a)), round(Int, cy + radius * sin(a))))
+        end
+        own = (s.colors === nothing || k > length(s.colors)) ? nothing : s.colors[k]
+        push!(out, GraphicsPolygon(points; color = get_series_color(own, k, cycle)))
+        angle += span
+    end
+    out
 end
 
 # ── Frame elements ───────────────────────────────────────────────────────
@@ -618,9 +668,11 @@ function _frame_elements!(out, g)
         end
     end
 
-    # The two axis lines, drawn over the grid.
-    push!(out, GraphicsLine(px, py + ph, px + pw, py + ph; color = t.axis))
-    push!(out, GraphicsLine(px, py, px, py + ph; color = t.axis))
+    # The two axis lines, drawn over the grid. A pie has none.
+    if !g.pie
+        push!(out, GraphicsLine(px, py + ph, px + pw, py + ph; color = t.axis))
+        push!(out, GraphicsLine(px, py, px, py + ph; color = t.axis))
+    end
 
     # Tick marks and their labels.
     for i in eachindex(g.ylabels)
@@ -1234,10 +1286,10 @@ end
 # in. Reading the cells here registers the dependency, so a resize reflows
 # without re-projecting.
 function _canvas_size(p::ChartPlotToGraphicsCanvas, ctx)
-    ctx === nothing && return (max(p.width, 120), max(p.height, 80))
+    ctx === nothing && return (max(p.width, p.minimum_width), max(p.height, p.minimum_height))
     w = _get_chart_extent(ctx.minimum_width, ctx.maximum_width, p.width)
     h = _get_chart_extent(ctx.minimum_height, ctx.maximum_height, p.height)
-    (max(Int(w), 120), max(Int(h), 80))
+    (max(Int(w), p.minimum_width), max(Int(h), p.minimum_height))
 end
 
 function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot, ctx)
@@ -1262,7 +1314,9 @@ function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot
         family = get_chart_axis_family(g.chart.x_axis)
         drawable = [(i, s) for (i, s) in g.series if get_chart_series_family(s) === family]
         series_out = Any[]
-        if family === :category
+        if g.pie
+            _pie_elements!(series_out, g)
+        elseif family === :category
             _bar_elements!(series_out, g, drawable)
         else
             for (index, s) in drawable

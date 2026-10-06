@@ -40,7 +40,7 @@ export ChartView, get_chart_view, is_point_in_chart_view
 export ChartToChartPlot, ChartToChartPlotIoMap
 export ChartPlotToGraphicsCanvas, ChartPlotToGraphicsCanvasIoMap, resolve_view,
        get_legend_item_rects, get_chart_part_reference, get_chart_series_reference
-export ChartDocument, Chart, ChartNothing, ChartPlot, ChartAxis, ChartCategoryAxis, ChartLegend, ChartStyle, ChartLineSeries, ChartScatterSeries, ChartBarSeries, ChartHistogramSeries, ChartStripSeries, strip_state_name
+export ChartDocument, Chart, ChartNothing, ChartPlot, ChartAxis, ChartCategoryAxis, ChartLegend, ChartStyle, ChartLineSeries, ChartScatterSeries, ChartBarSeries, ChartPieSeries, ChartHistogramSeries, ChartStripSeries, strip_state_name
 export FrameTimeSeriesToChart
 
 

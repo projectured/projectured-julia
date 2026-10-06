@@ -176,6 +176,27 @@ several bar series share a category slot is the chart's `bar_placement`.
 end
 
 """
+    ChartPieSeries(label, categories, values; colors = nothing, visible = true)
+
+A pie series: one slice for each entry of `categories`, as large as its entry of
+`values` of the total. A chart of pie series draws no axes; the first visible
+pie series fills the plot, from the top, clockwise. `colors` gives a colour to
+each slice, or `nothing` for the colour cycle of the chart. A value that is not
+finite or below zero draws no slice.
+"""
+@document struct ChartPieSeries <: ChartSeries
+    label::String
+    categories::Any
+    values::Any
+    colors::Any = nothing
+    visible::Bool = true
+end
+
+ChartPieSeries(label::AbstractString, categories::AbstractVector, values::AbstractVector;
+               colors = nothing, visible::Bool = true) =
+    ChartPieSeries(String(label), categories, values, colors, visible, nothing)
+
+"""
 A histogram series: `binedges` holds `n+1` ascending edges, `binvalues` the `n`
 per-bin values, and `underflows`/`overflows` the weight outside the outermost
 edges (drawn as extra cells when `show_overflow`).
@@ -375,6 +396,7 @@ get_chart_series_family(::ChartScatterSeries) = :xy
 get_chart_series_family(::ChartHistogramSeries) = :xy
 get_chart_series_family(::ChartStripSeries) = :xy
 get_chart_series_family(::ChartBarSeries) = :category
+get_chart_series_family(::ChartPieSeries) = :pie
 
 """
     get_chart_axis_family(axis) -> :xy | :category | :unknown

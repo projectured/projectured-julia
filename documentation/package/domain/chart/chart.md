@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../../design/domain-anatomy.md), [plot.md](../../platform/plot/plot.md), [reference.md](../../kernel/reference.md)
 
-`ProjecturedChart` draws line, scatter, bar, histogram and colored-strip charts as documents, with a projection straight to graphics and no plotting library. This document says how a chart holds its data, how its cost stays bounded by the pixels, how a reference names one sample, and which features of the simulation analysis tool that it follows it leaves out.
+`ProjecturedChart` draws line, scatter, bar, pie, histogram and colored-strip charts as documents, with a projection straight to graphics and no plotting library. This document says how a chart holds its data, how its cost stays bounded by the pixels, how a reference names one sample, and which features of the simulation analysis tool that it follows it leaves out.
 
 <img width="396" alt="Chart example" src="../../../asset/image/example/chart.png">
 
@@ -19,10 +19,11 @@
 | `ChartStyle` | the theme colours and fonts, the colour and marker cycles, and three limits: `marker_limit`, `scatter_fold_threshold`, `bin_fold_px` |
 | `ChartLineSeries`, `ChartScatterSeries` | `x` and `y` columns, and the line and marker style |
 | `ChartBarSeries` | one value for each category |
+| `ChartPieSeries` | `categories` and `values`, one slice for each, and `colors`, one for each slice or `nothing` for the colour cycle |
 | `ChartHistogramSeries` | `binedges`, `binvalues`, the underflow and overflow, and the `cumulative` and `density` flags |
 | `ChartStripSeries` | `x` times, `values` as state codes, the `states` name table, `x_end`, and `state_colors` |
 
-The order of `series` is the draw order and the legend order. A chart has two axis families: a `ChartAxis` on x carries line, scatter, histogram and strip series, and a `ChartCategoryAxis` on x carries bar series. The renderer leaves out a series of the wrong family and still draws the frame.
+The order of `series` is the draw order and the legend order. A chart has two axis families: a `ChartAxis` on x carries line, scatter, histogram and strip series, and a `ChartCategoryAxis` on x carries bar series. The renderer leaves out a series of the wrong family and still draws the frame. A chart of pie series draws no axis: the first visible pie series fills the plot, from the top, clockwise, a polygon for each slice of positive value, and the legend lists the slices.
 
 **A series holds whole columns, one cell for each column.** A column is numeric leaf data and no caret goes into it, so a cell for each sample costs about 88 bytes and gives nothing. An assignment of a new column, `chart.series[1].y = v`, repaints the chart without a new print of the projection. Any `AbstractVector{<:Real}` works, so a column of a data frame goes into a series directly. This is an exception to `PAR-FINEST-GRANULARITY`, on the same grounds as `GraphicsPolyline.points`.
 
@@ -34,7 +35,7 @@ Chart ──ChartToChartPlot──▶ ChartPlot ──ChartPlotToGraphicsCanvas�
 
 `ChartToChartPlot` wraps the chart in a `ChartPlot`, the presentation document. It holds the `view`, a zoom window in data coordinates, the `cursor` and the state of a drag. The series that the mouse target of the plot names lights, and the others are veiled. None of this is chart content: a saved chart has no scroll position, and two panes can zoom one chart in two ways. The stage builds the `ChartPlot` once and keeps its identity, so a zoom survives a change of the data. It maps a reference by one step, `chart`, and takes the node type from `get_reference_node_type`, so a `ChartNothing` root also gets a typed step.
 
-`ChartPlotToGraphicsCanvas(; measure, width, height)` is the renderer. `width` and `height` are the chart's own size: an exact range from the parent replaces it, and a bounded range caps it at the edge. One computed cell derives the frame from the chart, the view and that size: the data ranges, the plot rectangle, the ticks and their measured labels. The margins of the axes follow from the measured labels. A zoom writes a new data window, and the ticks, the grid and the decimation follow from it, so a zoom shows more detail and does not magnify pixels.
+`ChartPlotToGraphicsCanvas(; measure, width, height, minimum_width, minimum_height)` is the renderer. `width` and `height` are the chart's own size: an exact range from the parent replaces it, and a bounded range caps it at the edge. `minimum_width` and `minimum_height`, 120 and 80 by default, are the least size that it draws at; a chart in a cell of a pivot takes 24 and 16. One computed cell derives the frame from the chart, the view and that size: the data ranges, the plot rectangle, the ticks and their measured labels. The margins of the axes follow from the measured labels. A zoom writes a new data window, and the ticks, the grid and the decimation follow from it, so a zoom shows more detail and does not magnify pixels.
 
 ### Colored strips
 
