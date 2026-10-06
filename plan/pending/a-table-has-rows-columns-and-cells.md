@@ -1,7 +1,7 @@
 # A table has rows, columns, headers and cells
 
 > **Kind:** plan · **Status:** pending, 2026-10-06; the owner agreed to the
-> shape and to the path of a cell, and no step has started. ·
+> shape, the path of a cell and P1, P3 and P4, and no step has started. ·
 > **Stands on:** [widget.md](../../documentation/package/platform/widget/widget.md),
 > [view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md) (R3, the paths
 > of a table), and it comes before
@@ -36,6 +36,14 @@ expressed by columns not rows."
   header `row_headers[r]` and `column_headers[c]`. No new reference step.
 - **A row and a column can hold a padding that applies to all their cells**
   ("how about row/column padding for example which applies to all cells?").
+  The left and the right side of a cell come from its column, the top and the
+  bottom from its row ("P1: agree with your suggestion").
+- **More data on a row and a column waits** ("P2: later").
+- **The collection that only counts holds the count** ("P3: if the columns are
+  not present it still contains a WidgetTableColumns(n), no?"), so
+  `column_count` goes.
+- **Each direction can be lazy on its own** ("P4: should be able to be lazy in
+  both directions independently of columnr or row major, no?").
 
 ## 3. What exists
 
@@ -70,16 +78,19 @@ expressed by columns not rows."
 ## 4. The model
 
 - **`cells`** holds the body, and **`cell_order`** says which index is outer:
-  `:row_major` (the default) or `:column_major`. The outer vector can be a
-  `ListNode`, so the outer direction is the one that can be lazy: a long table
-  is row-major with a list of rows, as now. In a wide table each inner vector
-  can be a list too, as the data frame view has for more than 64 columns.
+  `:row_major` (the default) or `:column_major`. Each direction can be lazy on
+  its own, whatever the order: the outer vector can be a `ListNode`, and each
+  inner vector can be a list too, which moves in step with the list of the
+  headers of its direction. The order only decides which list is the outer
+  one. A long and wide table of a data frame is row-major with a list of rows
+  and a list of columns, as now.
 - **`rows`** and **`columns`** mirror each other, and both are optional.
   - With no data, each holds a collection that only counts:
-    `WidgetTableColumns()` as now, and a new `WidgetTableRows()`. Its `[k]`
-    gives a `WidgetTableColumn(k)` or a `WidgetTableRow(k)` with the defaults
-    of the table, so `columns[c]` and `rows[r]` select a whole column and a
-    whole row also when no data was given.
+    `WidgetTableColumns(n)` and `WidgetTableRows(n)`, which hold the count, or
+    `nothing` for a direction that is an endless list. Its `[k]` gives a
+    `WidgetTableColumn(k)` or a `WidgetTableRow(k)` with the defaults of the
+    table, so `columns[c]` and `rows[r]` select a whole column and a whole row
+    also when no data was given. The count replaces `column_count`.
   - With data, each holds a vector of `WidgetTableRow` or `WidgetTableColumn`
     documents, or a list of them that moves in step with the outer list of
     the cells.
@@ -88,10 +99,10 @@ expressed by columns not rows."
   size policy and its padding. A field that is `nothing` takes the default of
   the table. The drag of the edge of a header writes the size policy of its
   column.
-- **The padding of a cell** (open point P1): mine, the left and the right from
-  its column and the top and the bottom from its row, because a column sets
-  widths and a row heights; each side that neither gives takes the other one's,
-  then `cell_padding` of the printer.
+- **The padding of a cell** (P1, decided): the left and the right from its
+  column and the top and the bottom from its row, because a column sets widths
+  and a row heights; a side that neither gives takes `cell_padding` of the
+  printer.
 - **The headers** stay cells of their own, as now.
 - **The printer** makes the `GridLayout`s of the parts from the rows and the
   columns, and lays out a column-major table as a row-major one by its index
@@ -116,14 +127,10 @@ with its table.
 
 ## 6. Open points
 
-- **P1.** The rule of the padding of a cell, when its row and its column both
-  give one (§4).
-- **P2.** What more a row and a column hold: a style, a mark "read-only", or
-  the open cells of the owner.
-- **P3.** Whether `column_count` stays: with the data of the columns it is
-  their count; with no data it is still needed.
-- **P4.** Whether a column-major table can be lazy in its columns, a list of
-  columns, and in its rows at the same time.
+- **P2, later.** What more a row and a column hold: a style, a mark
+  "read-only", or the open cells of the owner.
+
+P1, P3 and P4 are decided (§2).
 
 ## 7. Steps
 
@@ -131,14 +138,15 @@ Each step keeps the behaviour of every table that does not use the new parts,
 checked against main before the step (`test_platform`, the markdown and the
 data frame suites, and omnet-julia).
 
-- [ ] **1.** `WidgetTableRow`, `WidgetTableRows`, and `WidgetTableColumn` with
-  data; `rows` and `columns` hold the data, and the parallel vectors and their
-  writers move into them, also `SetTableColumnWidthOperation`.
+- [ ] **1.** `WidgetTableRow`, `WidgetTableRows(n)`, `WidgetTableColumns(n)`,
+  and `WidgetTableColumn` with data; `rows` and `columns` hold the data, and the
+  parallel vectors and their writers move into them, also
+  `SetTableColumnWidthOperation`; `column_count` goes.
 - [ ] **2.** `cells` holds the body, and the path of a cell is `cells[r][c]`:
   the readers, the printer, the selection, the open cells, and every user of
   §3, with the tests.
 - [ ] **3.** `cell_order = :column_major`, `cells[c][r]`, and a test table of
-  each order that draws the same.
+  each order that draws the same, also lazy in each direction and in both.
 - [ ] **4.** The padding of a row and of a column (P1).
 - [ ] **5.** The guides: `widget.md` and the docstrings of the table.
 
