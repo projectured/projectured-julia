@@ -3,13 +3,15 @@ uuid = "eca914b8-c72d-4ebf-9e58-97ec1716e38c"
 version = "0.1.0"
 authors = []
 
-# The pivot domain.
+# The pivot domain. Its cells hold charts, so it depends on the chart domain.
 
 [deps]
+ProjecturedChart = "015a7010-be44-4818-8ca4-bb4593b6d5fe"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 
 [sources]
+ProjecturedChart = {path = "../ProjecturedChart"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
 

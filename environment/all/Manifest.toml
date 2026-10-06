@@ -1317,19 +1317,19 @@ uuid = "e6416f43-abf0-46b1-b638-fa5f9d9ece1d"
 version = "0.1.0"
 
 [[deps.ProjecturedPivot]]
-deps = ["ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["ProjecturedChart", "ProjecturedKernel", "ProjecturedPlatform"]
 path = "../../package/ProjecturedPivot"
 uuid = "eca914b8-c72d-4ebf-9e58-97ec1716e38c"
 version = "0.1.0"
 
 [[deps.ProjecturedPivotExample]]
-deps = ["ProjecturedConsole", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedPDF", "ProjecturedPivot", "ProjecturedPlatform", "ProjecturedPlatformExample"]
+deps = ["ProjecturedChart", "ProjecturedConsole", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedPDF", "ProjecturedPivot", "ProjecturedPlatform", "ProjecturedPlatformExample"]
 path = "../../package/ProjecturedPivotExample"
 uuid = "c240cc06-6e4d-439e-be67-95ca4b8cf959"
 version = "0.1.0"
 
 [[deps.ProjecturedPivotTest]]
-deps = ["ProjecturedConsole", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedKernelTest", "ProjecturedPDF", "ProjecturedPivot", "ProjecturedPivotExample", "ProjecturedPlatform", "ProjecturedPlatformExample", "ProjecturedPlatformTest", "Test"]
+deps = ["ProjecturedChart", "ProjecturedConsole", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedKernelTest", "ProjecturedPDF", "ProjecturedPivot", "ProjecturedPivotExample", "ProjecturedPlatform", "ProjecturedPlatformExample", "ProjecturedPlatformTest", "Test"]
 path = "../../package/ProjecturedPivotTest"
 uuid = "bf2a516e-32f2-44e2-9f63-c3afa81fdb4b"
 version = "0.1.0"

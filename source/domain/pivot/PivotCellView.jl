@@ -10,14 +10,26 @@
     get_pivot_cell_view(pivot::PivotTable) -> PivotCellView
 
 The view of each cell of `pivot`: its `cell_view`, or, when that is `nothing`,
-the view that follows from its cell dimensions. With no cell dimension, a cell
-shows its measures as numbers; with cell dimensions, it shows the rows of its
-part in those columns.
+the view that follows from its cell dimensions:
+
+- no cell dimension: the measures as numbers;
+- one cell dimension of numbers: a line chart over its values;
+- one cell dimension of eight values or fewer: a bar chart over its values;
+- two cell dimensions: a bar chart with a series for each value of the second;
+- any other: the rows of the part in the columns of the cell dimensions.
+
+A pie chart is a view that a person chooses.
 """
 function get_pivot_cell_view(pivot::PivotTable)
     view = pivot.cell_view
     view isa PivotCellView && return view
-    isempty(pivot.cell_dimensions) ? PivotNumberView() : PivotRowsView()
+    dimensions = collect(pivot.cell_dimensions)
+    isempty(dimensions) && return PivotNumberView()
+    length(dimensions) == 2 && return PivotBarChartView()
+    length(dimensions) > 2 && return PivotRowsView()
+    type = nonmissingtype(get_table_column_type(pivot.source, dimensions[1].column))
+    (type <: Real && !(type <: Bool)) && return PivotLineChartView()
+    _count_pivot_categories(pivot, dimensions[1]) <= 8 ? PivotBarChartView() : PivotRowsView()
 end
 
 """

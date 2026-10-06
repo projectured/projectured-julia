@@ -47,3 +47,13 @@ of a pivot shows.
 """
 make_pivot_part_table_document_example() =
     PivotPartTable(make_table_part(make_pivot_sales_rows(), [1, 9, 17]), ["country", "quarter", "amount"])
+
+"""
+    make_pivot_chart_cell_document_example() -> PivotChartCell
+
+A bar chart of three categories, as a cell of a pivot shows it.
+"""
+make_pivot_chart_cell_document_example() =
+    PivotChartCell(Chart("", [ChartBarSeries("sum(amount)", [3.0, 5.0, 2.0])];
+                         x_axis = ChartCategoryAxis(; categories = ["Q1", "Q2", "Q3"], show_labels = false),
+                         legend = ChartLegend(; visible = false)))

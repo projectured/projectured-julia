@@ -522,7 +522,7 @@ not slices of the platform.)
 
 **The eighteen domain packages** — one package per concrete source domain,
 each holding one slice: its documents, its parser and its projections.
-Fourteen need only the engine and the platform; four build on one layer of
+Thirteen need only the engine and the platform; five build on one layer of
 domains. The assistant and the conversation slice it builds on are slices of
 the platform, not domains. [domain-inventory.md](domain-inventory.md) has the table and the rules
 for adding one.

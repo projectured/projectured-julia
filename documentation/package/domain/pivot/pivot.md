@@ -14,7 +14,7 @@ A pivot reads its source through the table interface of the collection slice: `i
 - a `TablePart`, the rows of a table by their numbers, which is a table itself;
 - a data frame, which `ProjecturedDataFrames` reads. Its part is a `SubDataFrame`, so an edit in a part writes the frame.
 
-The pivot does not depend on DataFrames, and `ProjecturedDataFrames` does not depend on the pivot.
+The pivot does not depend on DataFrames, and `ProjecturedDataFrames` does not depend on the pivot. The pivot depends on the chart domain, because its cells hold charts.
 
 ### The documents
 
@@ -62,7 +62,11 @@ A path names a cell of a pivot by its row and its column in the cross table: `ce
 - `PivotNumberView` shows the value of each measure of the part, with `format_pivot_value`: a whole number with no fraction, any other number with at most two decimal places. A pivot with no measure shows the count of the rows.
 - `PivotRowsView` shows the rows of the part as a table, in the columns of the cell dimensions, or in every column when there is none. The package of the source gives the table through the seam `make_table_document` of the collection slice: a data frame gives a `DataFrameView` of its `SubDataFrame`, so an edit in the cell writes the frame. Any other source gives a `PivotPartTable`, which `PivotPartTableToWidget` draws as a read-only table whose rows are a list. The corner of the table shows the count of the rows of the part.
 
-A cell that no row reaches is empty. A row of the table is as tall as the lines that the view takes, `get_pivot_cell_view_lines`: one for numbers, ten for rows. Any view but numbers is offered the width of its column (the `:wrap` cell policy). `get_pivot_cell_key` says what the document of a cell depends on beside its keys: nothing for numbers, which read their part when they draw, and the rows and the columns for a table, which are fixed when it is made.
+- `PivotBarChartView`, `PivotLineChartView` and `PivotPieChartView` show a chart of the first measure over the values of the first cell dimension in the part, with a series for each value of the second. The data of every chart is computed in one pass over the parts, so every cell has the same categories and the same range of values, and the charts can be compared; a line has its x from values that are numbers, and a pie gives a value the same colour in every cell. The cell holds a `PivotChartCell`, which the chain of the chart domain draws at the size of the cell, with no title, no legend and no labels of the axes.
+
+The automatic choice: no cell dimension gives numbers; one cell dimension of numbers a line chart; one cell dimension of eight values or fewer a bar chart; two cell dimensions a bar chart with a series for each value of the second; anything else rows. A pie chart is a view that a person chooses in the menu.
+
+A cell that no row reaches is empty. A row of the table is as tall as the lines that the view takes, `get_pivot_cell_view_lines`: one for numbers, five for a chart, ten for rows. Any view but numbers is offered the width of its column (the `:wrap` cell policy). `get_pivot_cell_key` says what the document of a cell depends on beside its keys: nothing for numbers, which read their part when they draw, and the rows and the columns for a table, which are fixed when it is made.
 
 **The menus.** A right click on a measure chooses its aggregate. A right click on the pivot chooses the view of the cells: the automatic one, or a kind. `collect_pivot_cell_views()` lists the kinds from the method table of `describe_pivot_cell_view`, so a kind that a package adds is in the menu with no registry. The Cells row of the bar starts with an outlined badge that names the view, such as `as rows (automatic)`.
 
@@ -113,4 +117,4 @@ compute_pivot_measure(sales, rows, PivotMeasure("amount", :sum))   # 15.0
 
 The example `pivot` draws the sales of `make_pivot_sales_rows()` by region and country down and by year across: `run_example("pivot")`.
 
-The narrowest tests are `test_pivot_cross_table()`, `test_pivot_table_projection()` and `test_pivot_zone_edits()`; the test of the package is `test_pivot()`. `test_pivot_data_frame()` of the umbrella test package pivots a data frame and compares each sum with `groupby` and `combine` of DataFrames.
+The narrowest tests are `test_pivot_cross_table()`, `test_pivot_table_projection()` and `test_pivot_zone_edits()`, `test_pivot_cell_views()` and `test_pivot_chart_views()`; the test of the package is `test_pivot()`. `test_pivot_data_frame()` of the umbrella test package pivots a data frame and compares each sum with `groupby` and `combine` of DataFrames.

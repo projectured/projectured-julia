@@ -5,6 +5,7 @@ The pivot domain.
 
 The pivot table, its dimensions and its measures, the cross table that cuts the
 rows of any table of the table interface into parts, and the view of the parts.
+A cell can show a chart of its part, so this depends on `ProjecturedChart`.
 
 The loop below binds every submodule of the packages below this one as a
 `const`, so a source file here names a module exactly as the module names
@@ -13,10 +14,11 @@ lower package, so each module is bound once, under its own name.
 """
 module ProjecturedPivot
 
+using ProjecturedChart
 using ProjecturedKernel
 using ProjecturedPlatform
 
-for _src in (ProjecturedKernel, ProjecturedPlatform)
+for _src in (ProjecturedChart, ProjecturedKernel, ProjecturedPlatform)
     for _n in names(_src; all = true)
         isdefined(_src, _n) || continue
         _m = getfield(_src, _n)

@@ -8,6 +8,7 @@ authors = []
 # that runs them, live in the ProjecturedExample umbrella.
 
 [deps]
+ProjecturedChart = "015a7010-be44-4818-8ca4-bb4593b6d5fe"
 ProjecturedConsole = "d7d6c9a1-04d6-4ada-9cc1-b2de81f79968"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
@@ -17,6 +18,7 @@ ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 ProjecturedPlatformExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
 
 [sources]
+ProjecturedChart = {path = "../ProjecturedChart"}
 ProjecturedConsole = {path = "../ProjecturedConsole"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedKernelExample = {path = "../ProjecturedKernelExample"}

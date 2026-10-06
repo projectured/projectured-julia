@@ -7,6 +7,7 @@ authors = []
 # ProjecturedTest, which is where a fixture that names several domains belongs.
 
 [deps]
+ProjecturedChart = "015a7010-be44-4818-8ca4-bb4593b6d5fe"
 ProjecturedConsole = "d7d6c9a1-04d6-4ada-9cc1-b2de81f79968"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
@@ -20,6 +21,7 @@ ProjecturedPlatformTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
+ProjecturedChart = {path = "../ProjecturedChart"}
 ProjecturedConsole = {path = "../ProjecturedConsole"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedKernelExample = {path = "../ProjecturedKernelExample"}

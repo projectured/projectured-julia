@@ -72,6 +72,46 @@ shows its part as a `DataFrameView`, so an edit in the cell writes the frame.
 end
 
 """
+    PivotBarChartView()
+
+A cell shows a bar chart of the first measure over the values of the first cell
+dimension in its part, with a series for each value of the second cell
+dimension. Every cell has the same categories and the same range of values.
+"""
+@document struct PivotBarChartView <: PivotCellView
+end
+
+"""
+    PivotLineChartView()
+
+A cell shows a line chart of the first measure over the values of the first cell
+dimension, which are its x when they are numbers, with a line for each value of
+the second cell dimension. Every cell has the same range on both axes.
+"""
+@document struct PivotLineChartView <: PivotCellView
+end
+
+"""
+    PivotPieChartView()
+
+A cell shows a pie chart of the first measure over the values of the first cell
+dimension in its part. A value has the same colour in every cell.
+"""
+@document struct PivotPieChartView <: PivotCellView
+end
+
+"""
+    PivotChartCell(chart)
+
+The document of a cell that shows a chart: `chart`, a `Chart` of the chart
+domain, which the cell draws at its own size, with no title, no legend and no
+labels of the axes.
+"""
+@document struct PivotChartCell <: PivotDocument
+    chart::Any
+end
+
+"""
     PivotPartTable(part, columns)
 
 The columns `columns` of `part`, a table of the table interface, shown as a
@@ -140,16 +180,19 @@ each cell by the keys of its row and its column and by the kind of its view, so 
 change of the pivot that keeps both keys and the view keeps the document, and a
 selection inside it. `cross` is a `Ref` of the cross table that `documents` was
 last pruned for: a new cross table drops the documents of the keys that it does
-not have. The three are caches, which no computation depends on.
+not have. `memo` keeps what the views of the cells compute over the whole
+source, such as the range that every chart shares: one value for each kind, with
+what it is computed from. The four are caches, which no computation depends on.
 """
 @document struct PivotCells <: PivotDocument
     pivot::Any
     rows::Any
     documents::Any
     cross::Any
+    memo::Any
 end
 
-PivotCells(pivot) = PivotCells(pivot, Dict{Int,Any}(), Dict{Any,Any}(), Ref{Any}(nothing), nothing)
+PivotCells(pivot) = PivotCells(pivot, Dict{Int,Any}(), Dict{Any,Any}(), Ref{Any}(nothing), Dict{Any,Any}(), nothing)
 
 """
     PivotCellRow(pivot, row)

@@ -44,7 +44,7 @@ Each domain is a triad of sibling packages: `package/Projectured<Name>/`, `packa
 
 ## The dependency table
 
-Fourteen domains depend on no other domain. Four build on one layer of domains.
+Thirteen domains depend on no other domain. Five build on one layer of domains.
 
 | Package | Code | Depends on |
 | --- | --- | --- |
@@ -65,9 +65,9 @@ Fourteen domains depend on no other domain. Four build on one layer of domains.
 | `ProjecturedFormula` | `source/domain/formula/` | Julia, Math |
 | `ProjecturedFSM` | `source/domain/fsm/` | Julia, Graph |
 | `ProjecturedProcess` | `source/domain/process/` | Julia, Graph |
-| `ProjecturedPivot` | `source/domain/pivot/` | — |
+| `ProjecturedPivot` | `source/domain/pivot/` | Chart |
 
-Each edge exists because one domain holds or makes the documents of another. A state machine guard is a Julia expression, and its diagram is a graph. A catalog prints as SQL statements. The code of a formula is a Julia tree or a math tree. The file system, the conversation and the assistant look like domains but are slices of `ProjecturedPlatform`; a conversation part parses to JSON, Julia or XML through the natural registry, so the conversation slice needs no dependency on those domains.
+Each edge exists because one domain holds or makes the documents of another. A state machine guard is a Julia expression, and its diagram is a graph. A catalog prints as SQL statements. The code of a formula is a Julia tree or a math tree. A cell of a pivot holds a chart. The file system, the conversation and the assistant look like domains but are slices of `ProjecturedPlatform`; a conversation part parses to JSON, Julia or XML through the natural registry, so the conversation slice needs no dependency on those domains.
 
 ## What is NOT a domain package
 

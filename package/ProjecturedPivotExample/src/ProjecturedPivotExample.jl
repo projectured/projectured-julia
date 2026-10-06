@@ -14,6 +14,7 @@ loop below rebuilds that namespace over this package's sources.
 module ProjecturedPivotExample
 
 import ProjecturedPivot
+import ProjecturedChart
 import ProjecturedKernel
 import ProjecturedPDF
 import ProjecturedConsole
@@ -21,7 +22,7 @@ import ProjecturedPlatform
 using ProjecturedKernelExample
 using ProjecturedPlatformExample
 
-const _SOURCES = (ProjecturedPivot, ProjecturedPlatform, ProjecturedConsole, ProjecturedKernel, ProjecturedPDF)
+const _SOURCES = (ProjecturedPivot, ProjecturedChart, ProjecturedPlatform, ProjecturedConsole, ProjecturedKernel, ProjecturedPDF)
 
 for _src in _SOURCES
     _srcname = nameof(_src)
@@ -45,6 +46,7 @@ include("../../../example/domain/pivot/PivotDocumentExample.jl")
 include("../../../example/domain/pivot/PivotProjectionExample.jl")
 
 export make_pivot_sales_rows, make_pivot_document_example, make_pivot_pane_document_example,
-       make_pivot_part_table_document_example, make_pivot_projection_example
+       make_pivot_part_table_document_example, make_pivot_chart_cell_document_example,
+       make_pivot_projection_example
 
 end # module ProjecturedPivotExample

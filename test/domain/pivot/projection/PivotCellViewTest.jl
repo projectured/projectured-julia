@@ -8,19 +8,21 @@ function test_pivot_cell_views()
 @testset "the views of a cell" begin
 
 sales = make_pivot_sales_rows()
-pivot = make_pivot_table(sales; rows = ["region"], columns = ["year"], cells = ["quarter", "amount"])
+pivot = make_pivot_table(sales; rows = ["region"], columns = ["year"], cells = ["country", "quarter", "amount"])
 
 # ── The automatic choice ────────────────────────────────────────────────────
 
+# Three cell dimensions are rows; no cell dimension is numbers.
 @test get_pivot_cell_view(pivot) isa PivotRowsView
 @test get_pivot_cell_view(make_pivot_document_example()) isa PivotNumberView
 part = pivot.cells[1][1]
 @test part isa PivotPartTable
-@test part.columns == ["quarter", "amount"]
+@test part.columns == ["country", "quarter", "amount"]
 @test get_table_row_count(part.part) == 8
 @test get_table_value(part.part, 1, "country") == "DE"
 # The document of a cell is kept while its rows and its columns stay.
 @test pivot.cells[1][1] === part
+getfield(pivot, :cell_view)[] = PivotRowsView()
 getfield(pivot, :cell_dimensions)[] = CellVector(Any[PivotDimension("amount")])
 @test pivot.cells[1][1] !== part
 @test pivot.cells[1][1].columns == ["amount"]
@@ -52,7 +54,7 @@ evaluate_operation(nothing, measure_menu.elements[3].operation)
 
 projection = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
 context = with_exact_size(PrinterContext(); width = Cell(Int32(1000)), height = Cell(Int32(600)))
-rows_pivot = make_pivot_table(sales; rows = ["region"], columns = ["year"], cells = ["quarter", "amount"])
+rows_pivot = make_pivot_table(sales; rows = ["region"], columns = ["year"], cells = ["country", "quarter", "amount"])
 io = print_document(projection, nothing, rows_pivot, context)
 drawn = [t[3] for t in _pivot_texts(io.output)]
 @test "as rows (automatic)" in drawn

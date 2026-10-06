@@ -11,6 +11,7 @@ module ProjecturedPivotTest
 
 using Test
 import ProjecturedPivot
+import ProjecturedChart
 import ProjecturedKernel
 import ProjecturedPDF
 import ProjecturedConsole
@@ -21,7 +22,7 @@ using ProjecturedKernelTest
 using ProjecturedPlatformExample
 using ProjecturedPlatformTest
 
-const _SOURCES = (ProjecturedPivot, ProjecturedPlatform, ProjecturedConsole, ProjecturedKernel, ProjecturedPDF)
+const _SOURCES = (ProjecturedPivot, ProjecturedChart, ProjecturedPlatform, ProjecturedConsole, ProjecturedKernel, ProjecturedPDF)
 
 for _src in _SOURCES
     _srcname = nameof(_src)
@@ -45,6 +46,7 @@ include("../../../test/domain/pivot/document/PivotCrossTableTest.jl")
 include("../../../test/domain/pivot/projection/PivotTableToWidgetTest.jl")
 include("../../../test/domain/pivot/projection/PivotZoneEditTest.jl")
 include("../../../test/domain/pivot/projection/PivotCellViewTest.jl")
+include("../../../test/domain/pivot/projection/PivotChartViewTest.jl")
 
 include("../../../test/domain/pivot/PivotSuite.jl")
 

@@ -598,11 +598,38 @@ and chips that move. Stages 6 and 7 complete the design of the request.
   - Tests: `test_pivot_cell_views()`; `test_pivot()`: 204;
     `test_pivot_data_frame()` with a cell of a data frame, its edit and the
     inverse; the atom `pivot/part_table`.
-- [ ] **7. Charts in cells.** A compact chart style for a cell, with no title,
+- [x] **7. Charts in cells.** A compact chart style for a cell, with no title,
   no legend and few ticks. A floor below 120 × 80. Shared scales across the
   cells. The bar view and the line view, and a new pie series in the chart
   domain. The test: a pivot of 3 × 4 bar charts, where all cells have the same
-  y range.
+  y range. **Done 2026-10-06.**
+  - The pivot domain now depends on the chart domain (P4): the package, its
+    test and example packages, the package graph test, and the domain
+    documents, which count thirteen domains with no domain below them and five
+    on one layer.
+  - The chart domain: `ChartPieSeries`, drawn as a polygon for each slice with
+    no axes, and listed slice by slice in the legend; and the least size as two
+    fields of `ChartPlotToGraphicsCanvas`, `minimum_width` and
+    `minimum_height`, 120 and 80 by default. `test_chart_pie()`; `test_chart()`:
+    375.
+  - The pivot: `PivotBarChartView`, `PivotLineChartView` and
+    `PivotPieChartView`. A cell holds a `PivotChartCell`, a document of the
+    pivot domain that holds the chart, because the chart domain registers no
+    row in the natural renderer and the pivot must not add one for a type that
+    it does not own. Its projection is the chain of the chart domain at 24 × 16
+    or more, with no title, no legend and no labels of the axes.
+  - Shared scales: one pass over the parts computes the value of each
+    category and series in each cell, the categories of the whole source, and
+    the range of every value and of zero. `PivotCells` keeps it in a memo, one
+    value for each kind with what it is computed from, so a new cross table or
+    a new measure computes it again and an old value does not stay.
+  - The automatic choice now gives a line chart for one cell dimension of
+    numbers, a bar chart for one of eight values or fewer and for two, and rows
+    for any other. The test of stage 6 names three cell dimensions for its rows.
+  - Tests: `test_pivot_chart_views()`: 3 × 4 bar charts with the same
+    categories and the range 0 to 36, two series, a line over numbers, a pie on
+    request, and 35 slices drawn; `test_pivot()`: 225. The atom
+    `pivot/chart_cell`.
 - [ ] **8. Totals and order.** An "all" value at each level, which gives the
   subtotals and the totals. A run of headers opens and closes. The order of a
   dimension by a measure, the top N, and the value filter on a chip.
