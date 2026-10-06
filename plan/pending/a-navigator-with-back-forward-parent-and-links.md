@@ -666,7 +666,7 @@ answer to a proposal. Each answer is under its question.
     the path. **Decided: the address becomes a document**, with three views
     that a switch in the bar changes: the titles (the default), the path, and
     the path with its types. The titles and the path take edits; the types are
-    shown and not edited. The design continues in §11, one decision at a time;
+    shown and not edited. The design continues in §10, one decision at a time;
     Q5 and Q6 close into it.
 - **Q7. Step 9, master and detail.** It needs `ComponentToWidget`, which
   [component-document.md](component-document.md) also plans. Recommendation: do
@@ -674,7 +674,7 @@ answer to a proposal. Each answer is under its question.
   - **Owner, 2026-10-06:** yes, master and detail separately. Step 9 leaves this
     plan.
 
-## 11. The address as a document (design in progress)
+## 10. The address as a document (design in progress)
 
 **Decided (owner, 2026-10-06):** the address is a document, shown in three views
 that a switch in the bar changes: the titles, the path, and the path with its
@@ -698,7 +698,7 @@ The open decisions, in order: whether the document is the address itself or an
 editable form beside a committed `Reference`; the kinds of its steps; the list of
 choices at a step; the rule of edit 3; the switch of the views.
 
-## 10. Risks
+## 11. Risks
 
 - **One document in two places.** A navigator that opens a node of a file that
   is also open in a file tab holds the same document. Both views then write one
