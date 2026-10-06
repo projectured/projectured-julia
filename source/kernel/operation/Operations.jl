@@ -358,7 +358,8 @@ Replace the document at `path` (rooted at `editor.document`) with `document`, th
 move the editor selection to `path ⧺ document.selection` so the cursor lands inside
 the freshly-created value. The structural analogue of the primitive replace-range
 edits: a type-to-replace or paste gesture that swaps a whole sub-document produces
-one.
+one. A value with no `selection` field, such as a step of a path, is selected
+whole: the selection moves to `path`.
 
 Builds a `ReplaceReferencedValueOperation(nothing, path, document)` write paired
 with a trailing `ReplaceSelectionOperation`, bundled in a `CompoundOperation` so
@@ -369,7 +370,8 @@ re-rooting prepends the same steps to both as the operation bubbles up. An empty
 function make_replace_document_operation(path::Reference, document)
     # Only a live selection moves with the document. A dormant one belongs to a
     # place the document was shown before, and the write starts it afresh.
-    inner_sel = unwrap_selection(getfield(document, :selection)[])
+    inner_sel = hasfield(typeof(document), :selection) ?
+                unwrap_selection(getfield(document, :selection)[]) : nothing
     inner_sel === nothing && (inner_sel = EmptyReference())
     CompoundOperation(Any[
         ReplaceReferencedValueOperation(nothing, path, document),

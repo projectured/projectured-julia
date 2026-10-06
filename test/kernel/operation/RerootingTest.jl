@@ -190,5 +190,14 @@ function test_rerooting()
                                     ConcreteReference(FieldReferenceStep("leaf"), EmptyReference())))
     end
 
+    @testset "a replace with a value that has no selection selects the value whole" begin
+        path = Reference(FieldReferenceStep("steps"), RangeReferenceStep(1, 2))
+        write, select = make_replace_document_operation(path, FieldReferenceStep("title")).operations
+        @test write isa ReplaceReferencedValueOperation
+        @test write.value == FieldReferenceStep("title")
+        @test select isa ReplaceSelectionOperation
+        @test get_reference_steps(select.path) == get_reference_steps(path)
+    end
+
 end
 end # test_rerooting
