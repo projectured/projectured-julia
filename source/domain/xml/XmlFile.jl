@@ -16,7 +16,7 @@ const PRED_REF_ELEMENT_TAG = "pred:ref"
 # The content is the root element.
 @document struct XmlFile <: FileDocument
     filename::String
-    content::XmlDocument = XmlNothing()
+    content::Document = XmlNothing()
 end
 
 # A cell may still be a cell mid-walk: a CellVector holds cells.

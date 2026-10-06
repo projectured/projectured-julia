@@ -13,7 +13,7 @@ form.
 """
 @document struct MathFile <: FileDocument
     filename::String
-    content::MathDocument = MathInsertion()
+    content::Document = MathInsertion()
 end
 
 get_file_domain(::Type{<:MathFile}) = MathDocument

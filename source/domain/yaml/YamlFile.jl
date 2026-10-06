@@ -13,7 +13,7 @@ A file document whose `content` is a `YamlDocument`.
 """
 @document struct YamlFile <: FileDocument
     filename::String
-    content::YamlDocument = YamlNothing()
+    content::Document = YamlNothing()
 end
 
 # What the file writes itself, and how it spells a reference to what it does

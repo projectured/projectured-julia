@@ -16,7 +16,7 @@ loads as.
 """
 @document struct TextFile <: FileDocument
     filename::String
-    content::String = ""
+    content::Union{String, Document} = ""
 end
 
 emit_text(f::TextFile) = get_file_content(f)

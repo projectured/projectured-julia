@@ -19,7 +19,7 @@ docstring for the `pred_ref(...)` marker convention.
 """
 @document struct JuliaFile <: FileDocument
     filename::String
-    content::JuliaDocument = JuliaNothing()
+    content::Document = JuliaNothing()
 end
 
 emit_text(f::JuliaFile) = print_natural_text(get_file_content(f))

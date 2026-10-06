@@ -13,7 +13,7 @@ A file document whose `content` is a `SqlDocument`.
 """
 @document struct SqlFile <: FileDocument
     filename::String
-    content::SqlDocument = SqlNothing()
+    content::Document = SqlNothing()
 end
 
 # What the file writes itself, and how it spells a reference to what it does

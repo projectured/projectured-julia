@@ -12,7 +12,7 @@ A file document whose `content` is an `RstDocument`.
 """
 @document struct RstFile <: FileDocument
     filename::String
-    content::RstDocument = RstRoot()
+    content::Document = RstRoot()
 end
 
 emit_text(f::RstFile) = print_natural_text(get_file_content(f))

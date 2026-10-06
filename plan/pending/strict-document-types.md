@@ -458,7 +458,18 @@ worktree. The three domains test different parts of the model:
     fails on `series_colors`, which is group 4.
   - [ ] Group 3, the markers of a template: waits for the owner.
   - [ ] Group 4, a plain `Vector` in a field declared `Vector{T}`: waits for the owner.
-  - [ ] Groups 5 to 8.
+  - [ ] Group 5, a lazy list in a field declared `CellVector`: it belongs with group 4 and S-2.
+    `HorizontalLayout` and `VerticalLayout` have constructors that take a `ListNode`, so their
+    declaration is too narrow. But the collection sugar of `@document` (Rule C,
+    `_collection_slot` in `DocumentMacro.jl`) finds the collection field only when its declared
+    type is a bare symbol such as `CellVector`, so `Union{CellVector, ListNode}` would take the
+    sugar `HorizontalLayout(a, b)` away. `CellVector{Document}` (S-2) meets the same limit.
+  - [x] **Group 6, an overlay in the content of a file:** the `content` of `JsonFile`, `XmlFile`,
+    `JuliaFile`, `MarkdownFile`, `MathFile`, `RstFile`, `SqlFile` and `YamlFile` is declared
+    `Document`, and `TextFile.content` is `Union{String, Document}`. `make_file_tab(path, wrap)`
+    gives every opened file an overlay, such as an `UndoBuffer`, by design. No code reads the
+    declared type of `content`.
+  - [ ] Groups 7 and 8.
 - [ ] **Step 4: the fields of the three domains.** Each narrow field that a person edits admits
   the insertion and the nothing (law 1).
   - Julia: each of the 52 `Document` fields and the 5 `Union{Document,Nothing}` fields chooses
