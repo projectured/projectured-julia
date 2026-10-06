@@ -507,6 +507,20 @@ worktree. The three domains test different parts of the model:
     - The four list fields of JSON and XML are `CellVector{Document}`, and the constructors of
       `XmlElement` build `CellVector{Document}`.
     - Tests: `test_kernel()` 4175 pass, 2 broken; `test_json()` 235 pass; `test_xml()` 80 pass.
+    - *What the run of the 23 suites showed (commit `199ec96c7`, 2026-10-06):* in the reactive
+      layout a field declared `Vector{T}` now reads as a `CellVector{T}`, which is a document and
+      not an `AbstractVector`, so code that uses it as a Julia vector changes: the theme does not
+      resolve a list of colors (`scale_theme_value` takes an `AbstractVector`; about 1,000
+      failures in the sweeps of the chart and sequence chart examples), `vcat` takes the list as
+      one value (`Appearance.open_sections` becomes `[CellVector(), "WidgetTheme"]` with no
+      error), `collect` gives a `Vector{Any}`, `ObjectToWidget` draws the list as a document,
+      and `==` against a vector is false. A primitive field reads as its declared type, because
+      the getter takes the value out of its cell, but a list field reads as the list.
+      **Decided by the owner, 2026-10-06: way 2.** `CellVector{T}` gets the parts of the vector
+      protocol that code uses, and the places that dispatch on `AbstractVector` get a method for
+      a list. The other ways were: the read of a list field gives a vector view over the cells
+      (way 1, the list is then no document with a selection of its own), or option B, a field
+      keeps the form that it gets.
   - [x] **Group 5, a lazy list in a field declared `CellVector`.** `children` of
     `HorizontalLayout`, `VerticalLayout` and `GridLayout`, and the two header strips of
     `WidgetTable`, get a `ListNode`, a lazy list that a viewport reads from the middle. The
