@@ -725,8 +725,14 @@ and on the two step types: JSON can list its entries by key, and the data frame
 its columns by name and its rows from the current row. The options not chosen:
 the general rule alone, or a domain alone.
 
-The open decisions, in order: how the list looks; the rule of edit 3; the switch
-of the views.
+**Decided (owner, 2026-10-06): the list is a popup under the name, with a
+type-in field over the list, as the command palette is.** Typing narrows the list
+by title; for an element step, a number goes to that element even when it is far,
+so a long list needs no count; the function of the domain answers the narrowed
+list lazily. The options not chosen: a dropdown with no search, as `WidgetSelect`
+shows its options, or no popup, with the choices as completions of a name.
+
+The open decisions, in order: the rule of edit 3; the switch of the views.
 
 ## 11. Risks
 
