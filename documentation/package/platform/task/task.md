@@ -4,9 +4,13 @@
 
 The task slice of `ProjecturedPlatform` holds what every kind of work shares
 when it runs as a task, in the words of `opp_repl` (`common/task.py`): a piece of
-work that runs and ends with a result, the codes a result takes, and the words in
-which a result is reported. Nothing in the slice knows what the work is. A domain
-adds its kinds of task, such as the runs and the tests of a simulation.
+work that runs and ends with a result, the codes a result takes, the words in
+which a result is reported, the execution of a process, and a group of tasks
+that runs a number at a time. It also holds what shows them: the documents of a
+task and of a group, the feed that carries what an execution says into them,
+the pane of a group, the Tasks pane, and the verbs that read and act on a group.
+Nothing in the slice knows what the work is. A domain adds its kinds of task,
+such as the runs and the tests of a simulation, or the builds of a project.
 
 ## A task and its result
 
@@ -26,8 +30,10 @@ document of its own:
   press calls with the editor that evaluates the press and the task.
 
 The defaults answer nothing, so a task of a kind that adds nothing shows what
-every task has. A legacy simulation adds `directory`, `configuration` and
-`run`, the command, the exit code and the error line of its run, and Qtenv.
+every task has. A run of a simulation, for example, can add its directory, its
+configuration and the number of its run, the command, the exit code and the
+error line of its process, and a button that opens the run in a window of its
+own.
 
 `TaskResult` is the supertype of what a task ended with. Each kind of result
 holds the fields `task`, `result`, `expected_result`, `reason` and
@@ -108,9 +114,10 @@ time that went and an estimate of the time left, the rate and the slowest task.
 
 `TaskDocument` is one task on the screen: the task, the state of its execution
 and what it ended with. It holds nothing that a kind of task knows: a view asks
-the task for its columns, its facts and its buttons. `start_task!(document; options...)` starts the task
-through `start_task` of its kind and answers at once; `stop_task!` and
-`wait_task_document` act on the execution.
+the task for its columns, its facts and its buttons.
+`start_task!(document; options...)` starts the task through `start_task` of its
+kind and answers at once; `stop_task!` and `wait_task_document` act on the
+execution.
 
 No reader of a process writes a cell. A `TaskFeedStore` holds each execution
 that runs with the function that copies it into its document, and
@@ -176,3 +183,58 @@ ends.
 `make_task_api()` is what a window declares that a model may call of the slice,
 as a `TaskModule => names` pair, beside the verbs of its domain that start the
 groups.
+
+## Add a kind of task
+
+A domain adds a kind of task in five steps. The example is a build that runs
+`make` in a directory.
+
+1. Declare the kind, a subtype of `AbstractTask`, and its result, a subtype of
+   `TaskResult` with the five fields of a result.
+2. Answer `get_result_codes` and `format_task_parameters` for the kind.
+3. Add a method of `start_task`. It makes a `TaskExecution`, starts the process
+   with `start_process_task!`, and in `finish` makes the result and calls
+   `finish_task_execution!` with `on_finish`.
+4. If the views must show more than every task has, answer the functions of the
+   views: `get_task_columns`, `format_task_column`, `format_task_details` and
+   `get_task_actions`.
+5. Give a model the verbs: the verbs of the domain that start a group, and
+   `make_task_api()` for the rest.
+
+```julia
+struct BuildTask <: AbstractTask
+    directory::String
+end
+
+struct BuildResult <: TaskResult
+    task::BuildTask
+    result::String
+    expected_result::String
+    reason::Union{String,Nothing}
+    elapsed_wall_time::Union{Float64,Nothing}
+end
+
+TaskModule.get_result_codes(::BuildTask) = RUN_RESULT_CODES
+TaskModule.format_task_parameters(task::BuildTask) = task.directory
+TaskModule.get_task_columns(::BuildTask) = ["directory" => 4]
+TaskModule.format_task_column(task::BuildTask, column::AbstractString) =
+    column == "directory" ? task.directory : ""
+
+function TaskModule.start_task(task::BuildTask; on_finish = nothing)
+    execution = TaskExecution(task)
+    finish = function (process, cancelled, elapsed)
+        code = cancelled ? "CANCEL" : process.exitcode == 0 ? "DONE" : "ERROR"
+        finish_task_execution!(execution, BuildResult(task, code, "DONE", nothing, elapsed);
+                               finish = on_finish)
+    end
+    start_process_task!(execution, Cmd(`make`; dir = task.directory); finish)
+end
+
+group = wrap_task_group_document(TaskGroup(tasks; name = "builds", action = "Building", jobs = 4))
+start_task_group_document!(group)
+open_pane!(editor, group; title = "Builds")
+```
+
+The group then reports into its pane, its tab says how far it is, the Tasks pane
+lists it, and when it ends, the card of its pane starts with `Built builds` and
+the summary line of `opp_repl`.
