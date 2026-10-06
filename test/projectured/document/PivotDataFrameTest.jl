@@ -38,7 +38,8 @@ drawn = Set(t[3] for t in ProjecturedPivotTest._pivot_texts(print_document(proje
 
 # A cell of the rows view is a view of the part of the frame, with the columns of
 # the cell dimensions, and an edit in it writes the frame and has an inverse.
-rows_pivot = make_pivot_table(frame; rows = ["region"], columns = ["year"], cells = ["country", "amount"])
+rows_pivot = make_pivot_table(frame; rows = ["region"], columns = ["year"], cells = ["country", "amount"],
+                              cell_view = PivotRowsView())
 cell = rows_pivot.cells[1][1]
 @test cell isa ProjecturedDataFrames.DataFrameView
 @test sort(cell.query.hidden_columns) == ["product", "quarter", "region", "year"]
