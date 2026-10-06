@@ -286,6 +286,47 @@ function paint_circle!(ctx, circ, ox, oy)
     end
 end
 
+# Stroke an arc at the middle radius of its band, with flat ends, as cubic Bézier
+# segments of at most 90 degrees each. A segment of θ degrees has its control
+# points at `4/3 · tan(θ/4) · r` along the tangents at its ends, which is
+# `KAPPA · r` for a quarter. A whole sweep is the ring of `paint_circle!`.
+function paint_arc!(ctx, arc, ox, oy)
+    r, g, b, a = _rgba8(arc.color)
+    sweep = Float64(arc.sweep_angle)
+    (a == 0 || !(sweep > 0)) && return
+    rad = Int(arc.radius)
+    rad > 0 || return
+    bw = clamp(Int(arc.width), 1, rad)
+    cyG = oy + Int(arc.cy)
+    _on_page(ctx, cyG - rad, cyG + rad) || return
+    cx = ox + Int(arc.cx); cy = _flip(ctx, cyG)
+    if sweep >= 360
+        _stroke_ring!(ctx, cx, cy, rad, bw, r, g, b, a)
+        return
+    end
+    rm = rad - bw / 2
+    # 0 degrees is at the top and an angle grows clockwise; the y of a page grows
+    # upward, so the top is `cy + rm`.
+    compute_point(angle) = (cx + rm * sind(angle), cy + rm * cosd(angle))
+    compute_tangent(angle) = (cosd(angle), -sind(angle))
+    p(x, y) = print(ctx.buf, n2(x), " ", n2(y), " ")
+    print(ctx.buf, "/", gs_for!(ctx, a), " gs ", c01(r), " ", c01(g), " ", c01(b), " RG ",
+          n2(bw), " w 0 J [] 0 d ")
+    start = Float64(arc.start_angle)
+    p(compute_point(start)...); print(ctx.buf, "m ")
+    segment_count = ceil(Int, sweep / 90)
+    step = sweep / segment_count
+    reach = 4 / 3 * tand(step / 4) * rm
+    for k in 0:(segment_count - 1)
+        from, to = start + k * step, start + (k + 1) * step
+        (x0, y0), (x1, y1) = compute_point(from), compute_point(to)
+        (u0, v0), (u1, v1) = compute_tangent(from), compute_tangent(to)
+        p(x0 + reach * u0, y0 + reach * v0); p(x1 - reach * u1, y1 - reach * v1); p(x1, y1)
+        print(ctx.buf, "c ")
+    end
+    print(ctx.buf, "S\n")
+end
+
 function paint_line!(ctx, line, ox, oy)
     line.color.alpha == 0 && return
     lr, lg, lb, la = _rgba8(line.color)
@@ -480,6 +521,8 @@ function paint_elem!(ctx, elem, ox, oy)
         paint_spline!(ctx, elem, ox, oy)
     elseif elem isa GraphicsCircle
         paint_circle!(ctx, elem, ox, oy)
+    elseif elem isa GraphicsArc
+        paint_arc!(ctx, elem, ox, oy)
     elseif elem isa GraphicsViewport
         paint_viewport!(ctx, elem, ox, oy)
     elseif elem isa GraphicsImage

@@ -61,6 +61,7 @@ end
                      border_width=2, border_color=color_black),
         GraphicsCircle(180, 30, 20; color = StyleColor(60 / 255, 120 / 255, 220 / 255, 200 / 255)),
         GraphicsLine(10, 70, 200, 70; color = color_black, width=2),
+        GraphicsArc(220, 30, 15; width = 4, start_angle = 30, sweep_angle = 200, color = color_black),
         GraphicsText("Hello PDF — café", 12, 80; font = fnt, color = StyleColor(20 / 255, 20 / 255, 20 / 255, 1.0)),
     ])
     filename = tempname() * ".pdf"
@@ -70,6 +71,25 @@ end
     # large; an empty/garbage write would be tiny.
     @test filesize(filename) > 50_000
     rm(filename)
+end
+
+@testset "an arc is a Bézier path at the middle of its band, with flat ends" begin
+    # The operators that one arc writes on a page 100 high.
+    function write_arc(arc)
+        ctx = PdfModule.PageContext(100)
+        PdfModule.paint_arc!(ctx, arc, 0, 0)
+        String(take!(ctx.buf))
+    end
+    # A quarter from the top to the right of (50, 50), stroked at radius 35: the
+    # page y grows upward, so the top is (50, 85) and the end is (85, 50). The
+    # control points are KAPPA · 35 = 19.33 along the tangents.
+    quarter = write_arc(GraphicsArc(50, 50, 40; width = 10, start_angle = 0, sweep_angle = 90, color = color_black))
+    @test occursin("10 w 0 J [] 0 d 50 85 m 69.33 85 85 69.33 85 50 c S", quarter)
+    # A sweep of 200 degrees is three segments of at most 90 each.
+    @test count("c ", write_arc(GraphicsArc(50, 50, 40; width = 10, sweep_angle = 200, color = color_black))) == 3
+    # A whole sweep is the ring of a circle; an empty sweep writes nothing.
+    @test occursin("h S", write_arc(GraphicsArc(50, 50, 40; width = 10, color = color_black)))
+    @test write_arc(GraphicsArc(50, 50, 40; width = 10, sweep_angle = 0, color = color_black)) == ""
 end
 
 @testset "GraphicsCanvasToPdfFile projection" begin
