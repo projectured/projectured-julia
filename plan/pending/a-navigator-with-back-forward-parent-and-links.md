@@ -771,6 +771,14 @@ kernel step is a value, not a document. The options not chosen: a text of the
 whole path beside the steps, and placeholders such as `[1]` with its number
 selected.
 
+**Decided (owner, 2026-10-06): the navigator view builds the address part of the
+bar itself.** The views need the content (the titles and the types of the nodes,
+the fields and the elements above an insertion), which the navigator holds and the
+address document does not. The address document stays in the bar as a part, so a
+click and the keys reach its steps along the selection. The options not chosen:
+the address document holds a reference to the content root, which puts the
+content in two places of the tree; or it holds functions that the navigator sets.
+
 The design of the address is complete. The steps to build it:
 
 - [x] **A1. The step form of `WidgetToggleGroup`.** A field that chooses the look
