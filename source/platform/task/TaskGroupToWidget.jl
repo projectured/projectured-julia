@@ -153,7 +153,9 @@ end
 
 # ── The summary card ─────────────────────────────────────────────────────────
 
-function _build_summary_card(p, doc::TaskGroupDocument)
+# The card of a group. An inner group shows no actions of its own: its row in
+# the outer group stops it and runs it again.
+function _build_summary_card(p, doc::TaskGroupDocument; actions::Bool = true)
     group = get_task_group(doc)
     get_summary() = getfield(doc, :summary)[]
     title = WidgetLabel(() -> getfield(doc, :title)[])
@@ -206,10 +208,11 @@ function _build_summary_card(p, doc::TaskGroupDocument)
     rows = WidgetToggleGroup(Any["all", "running", "unexpected"];
                              values = Any["all", "running", "unexpected"],
                              target = getfield(doc, :row_filter)[], field = "value")
-    actions = HorizontalLayout(Any[run_all, stop, again, rows]; vertical_align = :center, gap = p.inline_gap)
+    row = HorizontalLayout(actions ? Any[run_all, stop, again, rows] : Any[rows];
+                           vertical_align = :center, gap = p.inline_gap)
     progress = make_task_progress_bar(() -> get_summary().progress)
     WidgetCard(; title = heading,
-               content = VerticalLayout(Any[chips, progress, timing, words, reason, actions];
+               content = VerticalLayout(Any[chips, progress, timing, words, reason, row];
                                         gap = p.stack_gap, child_width = Fill))
 end
 
@@ -312,7 +315,7 @@ end
 
 # ── The detail of one task ───────────────────────────────────────────────────
 
-function _build_detail(p, doc::TaskGroupDocument)
+function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
     group = get_task_group(doc)
     detail = VerticalLayout(Any[]; gap = p.stack_gap, child_width = Fill)
     set_cell_computation!(getfield(detail.children, :elements), () -> begin
@@ -320,6 +323,11 @@ function _build_detail(p, doc::TaskGroupDocument)
         documents = getfield(doc, :tasks)[]
         (1 <= index <= length(documents)) ||
             return Cell[Cell(_make_label("Press › on a row to see its task here.", p.muted_color))]
+        # A task that is a group shows its own pane: its card, its table and
+        # the detail of the task picked in it.
+        inner = find_task_group_document(doc, index)
+        inner === nothing ||
+            return Cell[Cell(x) for x in _build_group_parts(p, inner, bounded; actions = false)]
         document = documents[index]
         task = getfield(document, :task)[]
         parts = Any[]
@@ -391,6 +399,12 @@ function _build_output_pane(lines; weight)
 end
 
 _stop_task(group, index) = (run = group.runs[index]; run === nothing || stop_task_execution!(run); nothing)
+
+# ── A group as a task ────────────────────────────────────────────────────────
+
+# A task that is a group shows its name in a column of its own.
+get_task_columns(::TaskGroup) = ["group" => 3]
+format_task_column(group::TaskGroup, column::AbstractString) = column == "group" ? group.name : ""
 
 # ── The tab ──────────────────────────────────────────────────────────────────
 
@@ -504,14 +518,21 @@ end
 
 # ── The pane ─────────────────────────────────────────────────────────────────
 
-function print_document(p::TaskGroupDocumentToWidgetPane, recursion, doc::TaskGroupDocument, ctx)
-    card = _build_summary_card(p, doc)
-    bounded = ctx !== nothing && get_exact_height(ctx) !== nothing
+# The card of a group, and below it its table above the detail of the task that
+# a person picked, in a split a person can drag.
+function _build_group_parts(p, doc::TaskGroupDocument, bounded::Bool; actions::Bool = true)
+    card = _build_summary_card(p, doc; actions)
     tasks = bounded ? _build_table(p, doc) : _build_whole_table(p, doc)
     table = LayoutConstraint(WidgetScrollPane(tasks); width = Fill, height = Fill)
-    detail = LayoutConstraint(_build_detail(p, doc); width = Fill, height = Fill)
+    detail = LayoutConstraint(_build_detail(p, doc, bounded); width = Fill, height = Fill)
     split = LayoutConstraint(WidgetSplitPane(:vertical, Any[table, detail]); width = Fill, height = Fill)
-    root = VerticalLayout(Any[card, split]; horizontal_align = :left, gap = p.stack_gap)
+    Any[card, split]
+end
+
+function print_document(p::TaskGroupDocumentToWidgetPane, recursion, doc::TaskGroupDocument, ctx)
+    bounded = ctx !== nothing && get_exact_height(ctx) !== nothing
+    root = VerticalLayout(_build_group_parts(p, doc, bounded); horizontal_align = :left,
+                          gap = p.stack_gap)
     iomap = ChildrenIoMap(p, doc, root, Cell(Any[]))
     # The part under the pointer, so a button lights and takes a press.
     follow_output_mouse_target!(root, () ->

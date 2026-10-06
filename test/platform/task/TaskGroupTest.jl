@@ -87,6 +87,55 @@ function test_task_group()
             @test build_task_group_summary(group).finished == 5
         end
 
+        @testset "a group of groups counts the tasks of its inner groups" begin
+            phases = [TaskGroup(_make_task_group_probe_tasks(0.2); name = "phase $i", jobs = 2)
+                      for i in 1:2]
+            outer = TaskGroup(phases; name = "build", action = "Building", jobs = 1)
+            @test !is_concurrent(outer) && get_result_codes(outer) === RUN_RESULT_CODES
+            agree = Bool[]
+            start_task_group!(outer)
+            sampler = @async while outer.scheduler === nothing || !istaskdone(outer.scheduler)
+                summary = build_task_group_summary(outer)
+                inner = [build_task_group_summary(phase) for phase in phases]
+                push!(agree, summary.total == sum(s.total for s in inner) &&
+                             summary.finished == sum(s.finished for s in inner) &&
+                             summary.running == sum(s.running for s in inner))
+                sleep(0.02)
+            end
+            wait_task_group(outer)
+            wait(sampler)
+            @test !isempty(agree) && all(agree)
+            summary = build_task_group_summary(outer)
+            @test summary.total == 10 && summary.finished == 10
+            @test summary.counts["DONE"] == 8 && summary.counts["ERROR"] == 2
+            # A sequential group runs its phases one after the other.
+            @test phases[2].start_time >= phases[1].end_time
+            @test startswith(format_task_group_summary(compute_task_group_result(outer)),
+                             "10 TOTAL, 8 DONE, 2 ERROR (unexpected)")
+            first_phase = outer.runs[1].result
+            @test first_phase isa TaskGroupResult && first_phase.task === phases[1]
+            @test first_phase.result == "ERROR" && !is_expected(first_phase)
+            @test outer.runs[1].position == "5/5" && outer.runs[1].progress == 1.0
+        end
+
+        @testset "a stop of a group stops its inner groups" begin
+            phases = [TaskGroup(_make_task_group_probe_tasks(30); name = "phase $i", jobs = 5)
+                      for i in 1:2]
+            outer = TaskGroup(phases; jobs = 1)
+            start_task_group!(outer)
+            deadline = time() + 10
+            while build_task_group_summary(outer).running < 5 && time() < deadline
+                sleep(0.02)
+            end
+            stopped_at = time()
+            stop_task_group!(outer)
+            wait_task_group(outer)
+            @test time() - stopped_at < 10
+            @test build_task_group_summary(outer).running == 0
+            @test outer.runs[1].result.result == "CANCEL"
+            @test outer.runs[2] === nothing
+        end
+
         @testset "a stop ends every task" begin
             group = TaskGroup(_make_task_group_probe_tasks(30); jobs = 5)
             start_task_group!(group)

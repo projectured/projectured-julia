@@ -39,8 +39,17 @@ group, by default those of its first task.
 
 `finish`, when it is set, is called with the group when the last task of a start
 or of a run again has ended: an update writes its store there, once.
+
+`on_start`, when it is set, is called as `on_start(index, execution)` each time
+a task of the group starts, whoever started the group: the document of the
+group sets it, so the tasks of an inner group reach their documents too.
+
+**A group is a kind of task.** A task of a group can be a group, as a
+`MultipleTasks` of `opp_repl` can hold others: a sequential group of phases,
+each a concurrent group of steps. The counts, the progress and the result of a
+group count the tasks that are no groups, at every depth.
 """
-mutable struct TaskGroup
+mutable struct TaskGroup <: AbstractTask
     tasks::Vector{AbstractTask}
     runs::Vector{Union{TaskExecution,Nothing}}
     name::String
@@ -52,6 +61,7 @@ mutable struct TaskGroup
     start_time::Union{Float64,Nothing}
     end_time::Union{Float64,Nothing}
     finish::Union{Function,Nothing}
+    on_start::Union{Function,Nothing}
 end
 
 function TaskGroup(tasks::AbstractVector{<:AbstractTask}; name::AbstractString = "task",
@@ -61,7 +71,21 @@ function TaskGroup(tasks::AbstractVector{<:AbstractTask}; name::AbstractString =
                isempty(tasks) ? RUN_RESULT_CODES : get_result_codes(first(tasks))
     TaskGroup(AbstractTask[t for t in tasks], Union{TaskExecution,Nothing}[nothing for _ in tasks],
               String(name), String(action), max(1, Int(jobs)), resolved,
-              nothing, false, nothing, nothing, nothing)
+              nothing, false, nothing, nothing, nothing, nothing)
+end
+
+get_result_codes(group::TaskGroup) = group.codes
+format_task_parameters(group::TaskGroup) = group.name
+
+# The tasks of the group that are no groups, at every depth, each with its
+# execution or `nothing`. An inner group that did not start has its tasks
+# pending.
+function _collect_task_group_leaves(group::TaskGroup,
+                                    leaves = Tuple{AbstractTask,Union{TaskExecution,Nothing}}[])
+    for (task, run) in zip(group.tasks, group.runs)
+        task isa TaskGroup ? _collect_task_group_leaves(task, leaves) : push!(leaves, (task, run))
+    end
+    leaves
 end
 
 Base.length(group::TaskGroup) = length(group.tasks)
@@ -168,6 +192,7 @@ function _drive!(group::TaskGroup, indices::Vector{Int}, on_start, on_finish, on
                     put!(finished, index)
                 end)
             on_start === nothing || on_start(index, group.runs[index])
+            group.on_start === nothing || group.on_start(index, group.runs[index])
             on_change === nothing || on_change(group)
         end
         active == 0 && break
@@ -196,8 +221,8 @@ still finish its work, and the task ends as `CANCEL`.
 """
 function stop_task_group!(group::TaskGroup)
     group.stopping = true
-    for run in group.runs
-        run === nothing || stop_task_execution!(run)
+    for (task, run) in zip(group.tasks, group.runs)
+        task isa TaskGroup ? stop_task_group!(task) : run === nothing || stop_task_execution!(run)
     end
     group
 end
@@ -234,6 +259,40 @@ function run_task_group(group::TaskGroup; kwargs...)
     wait_task_group(group)
 end
 
+# ── A group as a task of another group ───────────────────────────────────────
+
+"""
+    start_task(group::TaskGroup; on_finish = nothing) -> TaskExecution
+
+Start an inner group as a task of its outer group, and answer at once with an
+execution that has no process: its `progress` and its `position`, the finished
+tasks over all of them, follow the group, and its result is the
+[`TaskGroupResult`](@ref) of the group when the group ends. A stop of the outer
+group stops the inner group (`stop_task_group!`).
+"""
+function start_task(group::TaskGroup; on_finish = nothing)
+    execution = TaskExecution(group)
+    follow(g) = update_task_execution!(execution) do e
+        e.progress = measure_task_group_progress(g)
+        e.position = _format_task_group_position(g)
+    end
+    update_task_execution!(execution) do e
+        e.status = :running
+        e.start_time = time()
+    end
+    follow(group)
+    start_task_group!(group; on_change = follow)
+    execution.reader = @async begin
+        wait_task_group(group)
+        follow(group)
+        finish_task_execution!(execution, compute_task_group_result(group); finish = on_finish)
+    end
+    execution
+end
+
+_format_task_group_position(group::TaskGroup) =
+    (summary = build_task_group_summary(group); string(summary.finished, "/", summary.total))
+
 """The results of the group, in the order of its tasks. A task that has not
 finished answers `nothing`."""
 collect_task_group_results(group::TaskGroup) =
@@ -262,13 +321,14 @@ function build_task_group_summary(group::TaskGroup)
         counts[task_result.result] = get(counts, task_result.result, 0) + 1
     end
     finished = length(result.results)
-    running = count(run -> run !== nothing && run.result === nothing, group.runs)
+    leaves = _collect_task_group_leaves(group)
+    running = count(((_, run),) -> run !== nothing && run.result === nothing, leaves)
     (counts = counts,
      overall = result.result,
-     total = length(group.tasks),
+     total = length(leaves),
      finished = finished,
      running = running,
-     pending = length(group.tasks) - finished - running)
+     pending = length(leaves) - finished - running)
 end
 
 """
@@ -279,9 +339,10 @@ and a task that is going counts the fraction it reports, or nothing when it
 reports none.
 """
 function measure_task_group_progress(group::TaskGroup)
-    isempty(group.tasks) && return 1.0
+    leaves = _collect_task_group_leaves(group)
+    isempty(leaves) && return 1.0
     done = 0.0
-    for run in group.runs
+    for (_, run) in leaves
         run === nothing && continue
         if run.result !== nothing
             done += 1.0
@@ -289,7 +350,7 @@ function measure_task_group_progress(group::TaskGroup)
             done += run.progress
         end
     end
-    clamp(done / length(group.tasks), 0.0, 1.0)
+    clamp(done / length(leaves), 0.0, 1.0)
 end
 
 # ── The result of a group ────────────────────────────────────────────────────
@@ -306,12 +367,17 @@ worst case in `result`.
 `codes`, that has an expected result; then the last code that has an unexpected
 result. An unexpected result of any code wins. A group with no result takes
 `expected_result`.
+
+It is a `TaskResult`: `task` is the group, and `reason` is
+[`format_task_group_reason`](@ref), so a group that is a task of another group
+ends with it.
 """
-struct TaskGroupResult
-    group::Union{TaskGroup,Nothing}
+struct TaskGroupResult <: TaskResult
+    task::Union{TaskGroup,Nothing}
     results::Vector{TaskResult}
     codes::ResultCodes
     expected_result::String
+    reason::Union{String,Nothing}
     elapsed_wall_time::Union{Float64,Nothing}
     num_expected::Dict{String,Int}
     num_unexpected::Dict{String,Int}
@@ -343,18 +409,26 @@ function TaskGroupResult(results::AbstractVector; codes::ResultCodes,
     for code in codes.codes
         num_unexpected[code] != 0 && (result = code)
     end
-    TaskGroupResult(group, TaskResult[r for r in results], codes, String(expected_result),
+    results = TaskResult[r for r in results]
+    TaskGroupResult(group, results, codes, String(expected_result),
+                    _format_unexpected_reason(results),
                     elapsed_wall_time === nothing ? nothing : Float64(elapsed_wall_time),
                     num_expected, num_unexpected, different, result)
 end
 
+get_result_codes(result::TaskGroupResult) = result.codes
+
+# A group that is a task of another group shows its summary as its result.
+format_task_result(result::TaskGroupResult) = format_task_group_summary(result)
+
 """
     compute_task_group_result(group) -> TaskGroupResult
 
-The result of the group now, over the tasks that have finished.
+The result of the group now, over the tasks that have finished and are no
+groups, at every depth.
 """
 compute_task_group_result(group::TaskGroup) =
-    TaskGroupResult(TaskResult[run.result for run in group.runs
+    TaskGroupResult(TaskResult[run.result for (_, run) in _collect_task_group_leaves(group)
                                if run !== nothing && run.result !== nothing];
                     codes = group.codes,
                     elapsed_wall_time = measure_task_group_elapsed_time(group),
@@ -396,9 +470,11 @@ they give none, the most frequent first, three at most —
 `3/40 unexpected: 2x Fingerprint mismatch, 1x Calculated fingerprint not found`.
 `nothing` when every result was expected.
 """
-function format_task_group_reason(result::TaskGroupResult)
+format_task_group_reason(result::TaskGroupResult) = result.reason
+
+function _format_unexpected_reason(results::Vector{TaskResult})
     counts = Pair{String,Int}[]                 # in the order the details appear
-    for task_result in result.results
+    for task_result in results
         is_expected(task_result) && continue
         detail = _has_text(task_result.reason) ? task_result.reason : task_result.result
         index = findfirst(entry -> entry.first == detail, counts)
@@ -411,13 +487,13 @@ function format_task_group_reason(result::TaskGroupResult)
     ranked = sort(counts; by = last, rev = true, alg = MergeSort)
     parts = [string(n, "x ", detail) for (detail, n) in ranked[1:min(3, end)]]
     length(ranked) > 3 && push!(parts, "+" * string(length(ranked) - 3) * " more")
-    string(sum(last, counts), "/", length(result.results), " unexpected: ") * join(parts, ", ")
+    string(sum(last, counts), "/", length(results), " unexpected: ") * join(parts, ", ")
 end
 
 # What `opp_repl` prints for a group result: the heading and the summary, then a
 # line for each unexpected result of the role `:warning` or `:error`.
 function Base.show(io::IO, result::TaskGroupResult)
-    group = result.group
+    group = result.task
     name = group === nothing ? "task" : group.name
     past = group === nothing ? "" : format_past_tense(group.action)
     prefix = isempty(past) ? "" : past * " "
@@ -507,7 +583,8 @@ function compute_task_group_summary(group::TaskGroup; now::Real = time())
     progress = 0.0
     durations = Float64[]
     slowest = nothing
-    for (task, run) in zip(group.tasks, group.runs)
+    leaves = _collect_task_group_leaves(group)
+    for (task, run) in leaves
         run === nothing && continue
         (result, fraction, started, ended) = lock(run.lock) do
             (run.result, run.progress, run.start_time, run.end_time)
@@ -528,7 +605,7 @@ function compute_task_group_summary(group::TaskGroup; now::Real = time())
     end
     elapsed = group.start_time === nothing ? nothing : something(group.end_time, now) - group.start_time
     result = TaskGroupResult(results; codes = group.codes, elapsed_wall_time = elapsed, group = group)
-    total = length(group.tasks)
+    total = length(leaves)
     pending = total - length(results) - running
     counts = Tuple{String,Int,Int}[(code, result.num_expected[code], result.num_unexpected[code])
                                    for code in group.codes.codes

@@ -104,7 +104,21 @@ starts no more tasks and stops the ones that run. `finish`, when it is set, is
 called once when the last task of a start ends: an update writes its store
 there.
 
-`TaskGroupResult` is `MultipleTaskResults` of `opp_repl`: the count of each code,
+**A group is a kind of task.** A task of a group can be a group, as a
+`MultipleTasks` of `opp_repl` holds others: a sequential group of phases, each a
+concurrent group of steps. `start_task(group)` starts an inner group and answers
+an execution with no process, whose `progress` and `position` (`12/40`) follow
+the inner group and whose result is the `TaskGroupResult` of the inner group.
+`stop_task_group!` stops the inner groups too. The counts, the progress, the
+summary and the result of a group count the tasks that are no groups, at every
+depth, so a build of five phases says how many of its 1700 compiles ended, and
+the row of each phase says the same of its own.
+
+`on_start`, a field of the group, is called at each start of one of its tasks,
+whoever started the group. The document of a group sets it, so the tasks of an
+inner group report to their documents as the tasks of the outer group do.
+
+`TaskGroupResult` is `MultipleTaskResults` of `opp_repl`, and a `TaskResult`: the count of each code,
 expected and unexpected, and the worst case. `format_task_group_summary` and
 `format_task_group_reason` write it as `opp_repl` does:
 `40 TOTAL, 37 PASS, 2 FAIL (unexpected), 1 ERROR (unexpected) in 3:12` and
@@ -132,7 +146,9 @@ window drains the store itself: `wait_task_document` and
 
 `TaskGroupDocument` is a group on the screen: the `TaskGroup`, one
 `TaskDocument` for each task, a tally of the states that each write keeps, the
-summary, and an identifier `T1`, `T2`, … that never changes.
+summary, and an identifier `T1`, `T2`, … that never changes. Each task that is
+a group has a `TaskGroupDocument` of its own, `T1.1`, `T1.2`, …
+(`find_task_group_document`); only the outer group has a row in the Tasks pane.
 `start_task_group_document!`, `rerun_task_group_document!` and
 `stop_task_group_document!` act on the group, and its status is `:pending`,
 `:running`, `:stopping` or `:finished`. The status reads the tally, not the
@@ -150,7 +166,8 @@ captures no editor (PAR-NO-EDITOR-IN-DOCUMENT).
 counts of each code, a bar of the progress, the time, the reason of what was not
 expected and the actions on the whole group; a table with one row for each task;
 and the detail of the task that a person picked, with its facts, its buttons
-and its two streams. The columns of the table are the pick and the state, the
+and its two streams. The detail of a task that is a group is the pane of that
+group: its card, with no actions of its own, its table and its detail. The columns of the table are the pick and the state, the
 columns of the kind of the first task, and then the progress or the position,
 the elapsed time, the process, the processor, the memory and the result. A row
 reads the cells of its own document, so a task that reports draws only its own

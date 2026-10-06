@@ -100,6 +100,35 @@ function test_task_document()
             @test get_task_group_document_status(document) === :finished
         end
 
+        @testset "a document of a group of groups holds a document for each inner group" begin
+            phases = [TaskGroup(_make_task_group_probe_tasks(0.0); name = "phase $i", jobs = 2)
+                      for i in 1:2]
+            document = wrap_task_group_document(TaskGroup(phases; name = "build", jobs = 1))
+            identifier = getfield(document, :identifier)[]
+            inner = find_task_group_document(document, 1)
+            @test inner isa TaskGroupDocument && get_task_group(inner) === phases[1]
+            @test getfield(inner, :identifier)[] == identifier * ".1"
+            start_task_group_document!(document)
+            wait_task_group_document(document)
+            @test get_task_group_document_status(document) === :finished
+            @test getfield(document, :summary)[].total == 10
+            @test getfield(document, :counts)[].finished == 10
+            for index in 1:2
+                counts = build_task_group_document_counts(find_task_group_document(document, index))
+                @test counts[:done] == 4 && counts[:error] == 1
+                @test get_task_group_document_status(find_task_group_document(document, index)) === :finished
+            end
+            # Only the outer group has a row in the Tasks pane.
+            groups = collect(get_session_task_group_list().groups)
+            @test any(g -> g === document, groups) && !any(g -> g === inner, groups)
+            # A run again of a phase puts its tasks back to waiting, and they
+            # report again.
+            rerun_task_group_document!(document, [1])
+            wait_task_group_document(document)
+            counts = build_task_group_document_counts(inner)
+            @test counts[:done] == 4 && counts[:error] == 1 && counts[:pending] == 0
+        end
+
         @testset "a stop finishes the group" begin
             document = wrap_task_group_document(
                 TaskGroup(_make_task_group_probe_tasks(30); jobs = 5))

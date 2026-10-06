@@ -102,6 +102,24 @@ function test_task_views()
             @test _TASK_VIEW_PRESSES == ["fail"]
         end
 
+        @testset "the row of an inner group shows its pane in the detail" begin
+            phases = [TaskGroup(_make_task_group_probe_tasks(0.0); name = "phase $i", jobs = 2)
+                      for i in 1:2]
+            document = wrap_task_group_document(TaskGroup(phases; name = "build", jobs = 1))
+            wait_task_group_document(start_task_group_document!(document))
+            texts = _collect_task_view_texts(last(_print_task_view(document)).output)
+            header = only(t for t in texts if t[3] == "group")
+            @test sort([t[3] for t in texts if t[1] == header[1] && t[2] > header[2]]) ==
+                  ["phase 1", "phase 2"]
+            @test "8 DONE" in [t[3] for t in texts]
+            select_task_document!(document, 1)
+            words = _collect_task_view_words(document)
+            # The card of the phase, under the card of the build, with no actions
+            # of its own.
+            @test "phase 1" in words && "4 DONE" in words && "1 ERROR unexpected" in words
+            @test count(==("Run all"), words) == 1
+        end
+
         @testset "the tab and the Tasks pane follow the group" begin
             document = wrap_task_group_document(
                 TaskGroup(_make_task_group_probe_tasks(0.0); name = "tabbed", jobs = 4))

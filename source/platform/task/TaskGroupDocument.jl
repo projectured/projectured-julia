@@ -44,6 +44,8 @@ See also `start_task_group_document!`, `stop_task_group_document!` and
   code, the worst code and whether all is expected. It is written only when one
   of them changes, so a view of them is not drawn again at each drain.
 - `selected::Int` — the task the detail of the pane shows, or 0.
+- `groups` — the `TaskGroupDocument` of each task that is a group, by its place:
+  the pane shows it in the detail of that task.
 - `row_filter` — which rows the pane shows: `"all"`, `"running"` or
   `"unexpected"`, as a `PrimitiveString` that the choice of the pane writes.
 """
@@ -59,6 +61,7 @@ See also `start_task_group_document!`, `stop_task_group_document!` and
     counts::Any
     selected::Int
     row_filter::Any
+    groups::Any
 end
 
 const _TASK_GROUP_COUNT = Threads.Atomic{Int}(0)
@@ -83,6 +86,10 @@ its tasks. Nothing runs yet.
 function wrap_task_group_document(group::TaskGroup; title::AbstractString = group.name,
                                   identifier::AbstractString = make_task_group_identifier())
     documents = TaskDocument[TaskDocument(task) for task in group.tasks]
+    # An inner group is a document of its own, named by its place in the group.
+    groups = Dict{Int,Any}(index => wrap_task_group_document(task; title = task.name,
+                                                             identifier = string(identifier, ".", index))
+                           for (index, task) in enumerate(group.tasks) if task isa TaskGroup)
     # The tally starts as the tasks do. Every write of a status keeps it from here
     # on, so the group never has to count its tasks to know whether it is finished.
     tally = Dict{Symbol,Int}(:pending => 0, :running => 0, :done => 0,
@@ -92,12 +99,23 @@ function wrap_task_group_document(group::TaskGroup; title::AbstractString = grou
         tally[state] = get(tally, state, 0) + 1
     end
     summary = compute_task_group_summary(group)
-    TaskGroupDocument(Cell(String(title)), Cell(group.jobs), Cell(:pending),
-                      CellVector(Cell[Cell(d) for d in documents]),
-                      Cell(group), Cell(tally), Cell(String(identifier)),
-                      Cell(summary), Cell(_get_summary_counts(summary)), Cell(0),
-                      Cell(PrimitiveString("all")))
+    doc = TaskGroupDocument(Cell(String(title)), Cell(group.jobs), Cell(:pending),
+                            CellVector(Cell[Cell(d) for d in documents]),
+                            Cell(group), Cell(tally), Cell(String(identifier)),
+                            Cell(summary), Cell(_get_summary_counts(summary)), Cell(0),
+                            Cell(PrimitiveString("all")), Cell(groups))
+    group.on_start = _make_task_group_wiring(doc)
+    doc
 end
+
+"""
+    find_task_group_document(doc, index) -> TaskGroupDocument or nothing
+
+The document of task `index` of the group when that task is a group itself, or
+`nothing` when it is not.
+"""
+find_task_group_document(doc::TaskGroupDocument, index::Integer) =
+    get(getfield(doc, :groups)[], Int(index), nothing)
 
 # The task documents, in the order the group was made. The field holds a
 # `CellVector`, so the cell is read first and its elements after.
@@ -108,12 +126,28 @@ _task_documents(doc::TaskGroupDocument) =
 # `TaskFeedStore` copies what its execution says into the task's own document,
 # and keeps the tally and the state of the group with it, on the task that reads
 # the documents. The pool names the task by its place, and the place is the same
-# in both lists for the whole life of the group.
-function _wiring(doc::TaskGroupDocument)
+# in both lists for the whole life of the group. The group calls this at each
+# start of a task, whoever started the group, so the tasks of an inner group
+# reach their documents too.
+#
+# A task that is a group starts its own tasks again: the first copy of its
+# execution puts the tasks of its document back to waiting, on the task that
+# reads the documents, before their own copies come.
+function _make_task_group_wiring(doc::TaskGroupDocument)
     documents = _task_documents(doc)
     store = get_session_task_feed_store()
-    (on_start = (index, execution) -> register_task_execution!(store, execution,
-        snapshot -> _write_task!(doc, documents[index], snapshot)),)
+    function (index, execution)
+        inner = find_task_group_document(doc, index)
+        first_copy = Ref(true)
+        register_task_execution!(store, execution, snapshot -> begin
+            if inner !== nothing && first_copy[]
+                first_copy[] = false
+                _reset_tasks!(inner, eachindex(get_task_group(inner).tasks))
+                _refresh_status!(inner)
+            end
+            _write_task!(doc, documents[index], snapshot)
+        end)
+    end
 end
 
 # Every write of a status on a task of a group goes through here or
@@ -201,7 +235,7 @@ function start_task_group_document!(doc::TaskGroupDocument)
     group.jobs = max(1, getfield(doc, :jobs)[])
     set_cell_value!(getfield(doc, :status), :running)
     _reset_tasks!(doc, eachindex(group.tasks))
-    start_task_group!(group; _wiring(doc)...)
+    start_task_group!(group)
     _write_summary!(doc)
     add_task_group!(get_session_task_group_list(), doc)
     doc
@@ -222,7 +256,7 @@ function rerun_task_group_document!(doc::TaskGroupDocument, which = :failed)
     isempty(indices) && return doc
     set_cell_value!(getfield(doc, :status), :running)
     _reset_tasks!(doc, indices)
-    rerun_task_group!(group, indices; _wiring(doc)...)
+    rerun_task_group!(group, indices)
     _write_summary!(doc)
     add_task_group!(get_session_task_group_list(), doc)
     doc
