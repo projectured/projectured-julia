@@ -1,8 +1,8 @@
 # A verb gets the editor of the evaluation
 
-> **Kind:** plan · **Status:** in progress, 2026-10-06, on the branch
-> `evaluation-editor`. Steps 1 to 5 are done; step 6 waits, because the owner
-> said not to run Ollama now (§7). ·
+> **Kind:** plan · **Status:** done, 2026-10-06. Landed on projectured-julia
+> `main` adb9e826b and omnet-julia `main` 4d6161ef. Step 6 did not run; the owner
+> closed the plan without it (§7). ·
 > **Stands on:** [PAR-PER-EDITOR-STATE](../../documentation/rule/architecture-invariants.md#par-per-editor-state),
 > [code-quality-rules.md §4](../../documentation/rule/code-quality-rules.md),
 > [agent.md](../../documentation/package/kernel/agent.md),
@@ -484,7 +484,8 @@ lands on the branch.
    of turns that pass does not go down.
 
    **Not run.** The rehearsal runs a model through Ollama, and a model run needs
-   47 GB of available memory; the machine had about 37 GB.
+   47 GB of available memory; the machine had 31 to 37 GB. The owner closed the
+   plan without it (2026-10-06): "you can move the plan to done, ollama is fine".
 
 ## 8. Out of scope
 
