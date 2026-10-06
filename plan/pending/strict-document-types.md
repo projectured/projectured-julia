@@ -476,7 +476,17 @@ worktree. The three domains test different parts of the model:
     `Sections` of `ProjectionTemplate.jl` subtype it. `Project` was not in the inventory, but it
     has the same role. A probe prints JSON and XML through their templates in the `:record` mode
     and records no marker.
-  - [ ] Group 4, a plain `Vector` in a field declared `Vector{T}`: waits for the owner.
+  - [ ] **Group 4, a plain `Vector` in a field declared `Vector{T}`** (16 fields, for example
+    `Appearance.open_sections`, `ChartTheme.series_colors`, `DataFrameView.edits`,
+    `PaneSplit.weights`). The reactive layout holds a `CellVector` there only when Rule C made
+    the value: the keyword constructor wraps a default such as `String[]` as a plain value, and
+    the setter writes a plain vector as it is. **Decided by the owner, 2026-10-06: option A.** A
+    field declared `Vector{T}` always holds a `CellVector{T}` in the reactive layout: every way
+    into the field (the keyword constructor, the positional constructor, the setter) wraps a
+    plain vector, and the `CellVector{T}` keeps the element type and checks each element write
+    (S-2). A field declared `CellVector{T}`, as the four list fields of JSON and XML, holds a
+    `CellVector{T}` in every layout. The other options were: admit a plain `Vector{T}` too, as a
+    second form (B), or refuse it and change the 16 callers (C).
   - [ ] Group 5, a lazy list in a field declared `CellVector`: it belongs with group 4 and S-2.
     `HorizontalLayout` and `VerticalLayout` have constructors that take a `ListNode`, so their
     declaration is too narrow. But the collection sugar of `@document` (Rule C,
