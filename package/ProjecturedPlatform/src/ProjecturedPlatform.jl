@@ -69,6 +69,7 @@ include("../../../source/platform/shell/ShellModule.jl")
 include("../../../source/platform/mcplog/McpLogModule.jl")
 include("../../../source/platform/task/TaskModule.jl")
 include("../../../source/platform/undo/UndoModule.jl")
+include("../../../source/platform/navigator/NavigatorModule.jl")
 include("../../../source/platform/application/ApplicationModule.jl")
 include("../../../source/platform/PlatformModule.jl")
 
