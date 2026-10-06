@@ -131,25 +131,20 @@ end
 function _make_view_table(p::DataFrameViewToWidget, view::DataFrameView)
     headers = CellVector(@computation Any[_make_filter_header(p, view, name)
                                           for name in _get_shown_columns(view)])
-    align = Cell(@computation Symbol[_get_column_align(eltype(view.frame[!, name]))
-                                     for name in _get_shown_columns(view)])
     rows = Cell(@computation _make_row_list(view, _get_shown_columns(view), view.kept_rows, view.anchor))
     row_headers, corner = _make_row_numbers(p, view)
+    # The data of the shown columns. A column that a person gave a width has it,
+    # and the others share the rest.
+    column_of = _make_column_documents(view, _COLUMN_POLICY)
+    columns = Cell(@computation Any[column_of(name) for name in _get_shown_columns(view)])
     # Positional, so every declared field is named here in order: position,
-    # column_headers, row_headers, corner, cells, rows, columns, column_count,
-    # border_width, column_policy, row_policy, column_policies, row_policies,
-    # cell_policy, column_cell_policies, column_align, visible, margin, border,
-    # padding, style, scroll_position, top_row, column_drag, open_cells,
-    # tooltip. The table
-    # scrolls its own parts, and its offset is the cell of the view. A column
-    # that a person gave a width has it, and the others share the rest.
-    policies = Cell(@computation Any[_get_column_width_policy(view, name, _COLUMN_POLICY)
-                                     for name in _get_shown_columns(view)])
+    # column_headers, row_headers, corner, cells, rows, columns, border_width,
+    # column_policy, row_policy, cell_policy, visible, margin, border, padding,
+    # style, scroll_position, top_row, column_drag, open_cells, tooltip. The
+    # table scrolls its own parts, and its offset is the cell of the view.
     table = WidgetTable(Cell(Point2D(0, 0)), headers, row_headers, corner, rows,
-                        Cell(WidgetTableRows()), Cell(WidgetTableColumns()),
-                        Cell(@computation length(_get_shown_columns(view))), Cell(1),
-                        Cell(_COLUMN_POLICY), Cell(Fixed(p.row_height)), policies, Cell(Any[]),
-                        Cell(:clip), Cell(Symbol[]), align,
+                        Cell(WidgetTableRows(nothing)), columns, Cell(1),
+                        Cell(_COLUMN_POLICY), Cell(Fixed(p.row_height)), Cell(:clip),
                         Cell(true), Cell(nothing), Cell(nothing), Cell(nothing),
                         Cell(nothing), getfield(view, :scroll_position),
                         getfield(view, :top_row), Cell(nothing),
@@ -166,6 +161,21 @@ end
 function _get_table_mouse_target(view::DataFrameView)
     target = view.mouse_target
     target isa Reference ? _find_table_path(target) : nothing
+end
+
+# The data of the column `name` of the table, one document for each name, made
+# when the table first shows the column: its width, `Fixed` at the width that a
+# person gave it, else `default`, and its alignment, both computations over the
+# view. So a new width writes no column, and only what reads the width computes
+# again.
+function _make_column_documents(view::DataFrameView, default)
+    made = Dict{String,WidgetTableColumn}()
+    name -> get!(made, name) do
+        column = WidgetTableColumn()
+        set_cell_computation!(getfield(column, :policy), () -> _get_column_width_policy(view, name, default))
+        set_cell_computation!(getfield(column, :align), () -> _get_column_align(eltype(view.frame[!, name])))
+        column
+    end
 end
 
 # The policy of the width of column `name`: `Fixed` at the width that a person
@@ -190,29 +200,26 @@ function _make_row_numbers(p, view::DataFrameView)
     (headers, corner)
 end
 
-# The table of a frame whose columns are a list: the headers, the alignments
-# and the cells of every row are lists with their heads at `column_anchor`.
+# The table of a frame whose columns are a list: the headers, the data of the
+# columns and the cells of every row are lists with their heads at
+# `column_anchor`.
 function _make_column_list_table(p::DataFrameViewToWidget, view::DataFrameView)
-    type_of(name) = eltype(view.frame[!, name])
     # The headers are built when a walk reaches them, so the list reads the sort
     # keys itself, and a new sort builds the list again.
     headers = Cell(@computation (view.query.sort_keys; columns = _get_shown_columns(view);
         make_index_list(length(columns), view.column_anchor, c -> _make_filter_header(p, view, columns[c]))))
-    align = Cell(@computation (columns = _get_shown_columns(view);
-        make_index_list(length(columns), view.column_anchor, c -> _get_column_align(type_of(columns[c])))))
     rows = Cell(@computation _make_row_list(view, _get_shown_columns(view), view.kept_rows, view.anchor,
                                             view.column_anchor))
     # The width that a person gave a column, else none, which leaves the
     # column at the width of the list and at least as wide as its header.
-    policies = Cell(@computation (columns = _get_shown_columns(view);
-        make_index_list(length(columns), view.column_anchor,
-                         c -> _get_column_width_policy(view, columns[c], nothing))))
+    column_of = _make_column_documents(view, nothing)
+    columns = Cell(@computation (names = _get_shown_columns(view);
+        make_index_list(length(names), view.column_anchor, c -> column_of(names[c]))))
     row_headers, corner = _make_row_numbers(p, view)
     # Positional, as in `_make_view_table` above.
     table = WidgetTable(Cell(Point2D(0, 0)), headers, row_headers, corner, rows,
-                        Cell(WidgetTableRows()), Cell(WidgetTableColumns()), Cell(0), Cell(1),
-                        Cell(Fixed(p.list_column_width)), Cell(Fixed(p.row_height)),
-                        policies, Cell(Any[]), Cell(:clip), Cell(Symbol[]), align,
+                        Cell(WidgetTableRows(nothing)), columns, Cell(1),
+                        Cell(Fixed(p.list_column_width)), Cell(Fixed(p.row_height)), Cell(:clip),
                         Cell(true), Cell(nothing), Cell(nothing), Cell(nothing),
                         Cell(nothing), getfield(view, :scroll_position),
                         getfield(view, :top_row), Cell(nothing),
@@ -667,7 +674,7 @@ function _convert_table_write(iomap::DataFrameViewToWidgetIoMap, operation, colu
         return ReplaceViewStateOperation(ReplaceReferencedValueOperation(
             view, "column_anchor", view.column_anchor + c - 1))
     end
-    columns && field in ("cells", "column_align") && return nothing
+    columns && field in ("cells", "columns") && return nothing
     # The row headers move in step with the rows, and the view builds both
     # again from its anchor.
     field == "row_headers" && return nothing

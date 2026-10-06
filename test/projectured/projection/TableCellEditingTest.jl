@@ -27,7 +27,7 @@ function test_table_cell_editing()
     mods = ModifierKeys()
     projection = make_table_projection_example(measure = _table_measure())
     xml_table() = WidgetTable(; column_headers = Any[PrimitiveString("tag")], row_headers = Any[],
-                              cells = Any[Any[XmlElement("b", [XmlText("hi")])]], column_count = 1)
+                              cells = Any[Any[XmlElement("b", [XmlText("hi")])]])
     cases = [
         ("a JSON string", make_table_document_example, t -> t.cells[1][1].value, "Jennifer", "YJennifer"),
         ("an XML tag name", xml_table, t -> t.cells[1][1].tag, "b", "Yb"),

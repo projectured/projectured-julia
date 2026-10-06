@@ -50,13 +50,11 @@ function print_document(p::CellTableToWidgetTable, recursion, ct::CellTable, ctx
                         column_headers,
                         CellVector(),        # no row headers
                         Cell(nothing),       # no corner
-                        rows, Cell(WidgetTableRows()), Cell(WidgetTableColumns()),
-                        Cell(nc),
+                        rows, Cell(@computation WidgetTableRows(length(rows))),
+                        Cell(WidgetTableColumns(nc)),   # no data of the columns
                         Cell(1),             # border_width
                         Cell(Content), Cell(Content),      # every column and row is its content
-                        Cell(Any[]), Cell(Any[]),          # and none of them differs
-                        Cell(:clip), Cell(Symbol[]),       # a cell is one line, cut at the edge
-                        Cell(Symbol[]),                    # every cell sits at the left
+                        Cell(:clip),                       # a cell is one line, cut at the edge
                         Cell(true),          # visible
                         Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing), # margin, border, padding, style
                         Cell(Point2D(0, 0)), # scroll_position

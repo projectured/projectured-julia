@@ -102,7 +102,7 @@ function _check_table_parts(w::WidgetTable, height)
     w.corner === nothing || _has_table_column_headers(w) ||
         error("WidgetTable: a corner sits where the header row and the header column meet, ",
               "so it needs column headers")
-    isempty(w.row_policies) ||
+    w.rows isa WidgetTableRows ||
         error("WidgetTable: the rows of a list are all alike; name one row policy")
     nothing
 end
@@ -112,9 +112,9 @@ end
 # The policy of body column `c`: the column's own when it names one, else the
 # table's.
 function _get_table_column_policy(w::WidgetTable, c::Int)
-    policies = w.column_policies
-    (policies isa AbstractVector && 1 <= c <= length(policies) && policies[c] isa SizePolicy) ?
-        policies[c] : w.column_policy
+    column = _get_table_column_data(w, c)
+    policy = column === nothing ? nothing : column.policy
+    policy isa SizePolicy ? policy : w.column_policy
 end
 
 # The width of what a part printed for one cell, or 0 for no cell.
@@ -495,7 +495,16 @@ end
 # a drag of the edge sets. A point on the edge maps to it, so the edge is the
 # part under the pointer, and it lights.
 _wt_edge_ref(c::Int) =
-    ConcreteReference(FieldReferenceStep("column_policies"), ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))
+    ConcreteReference(FieldReferenceStep("columns"), ConcreteReference(RangeReferenceStep(c - 1, c),
+        ConcreteReference(FieldReferenceStep("policy"), EmptyReference())))
+
+# The column whose right edge `target` names, `columns[c].policy`, or 0.
+function _find_column_edge(target)
+    c = _widget_element_selected(target, "columns")
+    c > 0 || return 0
+    rest = target.tail.tail
+    (rest isa ConcreteReference && rest.head == FieldReferenceStep("policy")) ? c : 0
+end
 
 # The x of the rule at the right edge of column `c`, in the coordinates of the
 # rules, or `nothing` when the table places no such column.
@@ -525,7 +534,7 @@ function _make_column_edge_light(p::WidgetTableToGraphicsCanvas, w::WidgetTable,
                                  st::WidgetTablePartsState, height::Cell)
     stroke = p.edge_hovered_stroke
     place = Cell(@computation begin
-        c = _widget_element_selected(get_mouse_target(w), "column_policies")
+        c = _find_column_edge(get_mouse_target(w))
         x = c == 0 ? nothing : _get_table_column_edge_x(st, c)
         x === nothing ? (0, 0) : (x + st.bw ÷ 2 - Int(stroke.width) ÷ 2, Int(stroke.width))
     end)
@@ -653,8 +662,13 @@ function _print_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::Widget
     # What a part reads as it prints, such as the rows that the grid of the cells
     # walks, is no change of shape, so the parts are built in a cell of their own
     # that the parts only peek at.
-    shape = Cell(@computation (Int(w.column_count), Any[header for header in w.column_headers],
-                               w.column_align, w.column_cell_policies, w.cell_policy, w.corner))
+    # The width of a column is no change of shape: a drag writes the `policy` of
+    # its column, which the shape does not read.
+    shape = Cell(@computation begin
+        n = something(get_widget_table_column_count(w), 0)
+        (n, Any[header for header in w.column_headers],
+         Any[(_wt_column_align(w, c), _wt_column_cell_policy(w, c)) for c in 1:n], w.cell_policy, w.corner)
+    end)
     parts = Cell(@computation begin
         shape[]
         peek(Cell(@computation _print_vector_column_parts(p, recursion, w, inner, height)))
@@ -667,7 +681,7 @@ end
 # The parts of a table whose columns are a vector, as `(; state, regions)`.
 function _print_vector_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, inner,
                                     height)
-    n = Int(w.column_count)
+    n = something(get_widget_table_column_count(w), 0)
     pad_x = Int(p.cell_padding.left[])
     pad_y = Int(p.cell_padding.top[])
     bw = max(1, _sc(Int(w.border_width)))
@@ -817,7 +831,8 @@ end
 function _make_column_policy_node(header_node::ListNode, k::Int, width::Int, header_grid::Cell, given)
     node = ListNode(Fixed(width))
     set_cell_computation!(getfield(node, :value), () -> begin
-        policy = given isa ListNode ? given.value : nothing
+        column = given isa ListNode ? given.value : nothing
+        policy = column isa WidgetTableColumn ? column.policy : nothing
         policy isa SizePolicy && return policy
         grid = header_grid[]
         cell = grid === nothing ? nothing : find_grid_list_cell(grid, 1, k)
@@ -836,6 +851,32 @@ function _make_column_policy_node(header_node::ListNode, k::Int, width::Int, hea
         preceding === nothing && return nothing
         prev_node = _make_column_policy_node(preceding, k - 1, width, header_grid,
                                              given isa ListNode ? given.prev : nothing)
+        set_cell_value!(getfield(prev_node, :next), node)
+        prev_node
+    end)
+    node
+end
+
+# A list that mirrors `column_node`, a list of the data of the columns, with the
+# alignment of each column, which a grid of a list reads beside its columns.
+function _make_column_align_node(column_node::ListNode)
+    node = ListNode(:left)
+    set_cell_computation!(getfield(node, :value), () -> begin
+        column = column_node.value
+        align = column isa WidgetTableColumn ? column.align : nothing
+        align === nothing ? :left : align
+    end)
+    set_cell_computation!(getfield(node, :next), () -> begin
+        following = column_node.next
+        following === nothing && return nothing
+        next_node = _make_column_align_node(following)
+        set_cell_value!(getfield(next_node, :prev), node)
+        next_node
+    end)
+    set_cell_computation!(getfield(node, :prev), () -> begin
+        preceding = column_node.prev
+        preceding === nothing && return nothing
+        prev_node = _make_column_align_node(preceding)
         set_cell_value!(getfield(prev_node, :next), node)
         prev_node
     end)
@@ -928,7 +969,7 @@ function _print_table_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w:
     header_grid = Cell(nothing)
     policies = Cell(@computation begin
         headers = w.column_headers
-        given = w.column_policies
+        given = w.columns
         headers isa ListNode ?
             _make_column_policy_node(headers, 1, width, header_grid, given isa ListNode ? given : nothing) :
             nothing
@@ -940,8 +981,12 @@ function _print_table_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w:
     end)
     header_row = Cell(@computation (headers = w.column_headers;
                                     headers isa ListNode ? ListNode(headers) : CellVector()))
+    # The alignment of each column, a list beside the headers when the data of
+    # the columns is a list, which the header row and the cells read alike.
+    aligns = Cell(@computation (columns = w.columns;
+                                columns isa ListNode ? _make_column_align_node(columns) : Symbol[]))
     grid = GridLayout(header_row, Cell(1), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap),
-                      getfield(w, :column_align), Cell(Fixed(width)), header_row_policy, policies,
+                      aligns, Cell(Fixed(width)), header_row_policy, policies,
                       Cell(Any[]), Cell(Bool[false]), Cell(Bool[false]), Cell(nothing))
     pane = _make_part_pane(grid, Cell(@computation Point2D(Int((offset[]::Point2D).x[]), 0)),
                            Inset(bw + pad_y, pad_y, bw + pad_x, bw + pad_x))
@@ -953,7 +998,7 @@ function _print_table_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w:
     header_height = Cell(@computation Int(column_header_pane.output.h))
 
     grid = GridLayout(_get_row_list(w), Cell(1), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap),
-                      getfield(w, :column_align), Cell(Fixed(width)), getfield(w, :row_policy),
+                      aligns, Cell(Fixed(width)), getfield(w, :row_policy),
                       policies, Cell(Any[]), Cell(Bool[false]), Cell(Bool[]), Cell(nothing))
     cells_height = Cell(@computation Int32(max(0, Int(height[]) - Int(header_height[]))))
     row_header_pane = _print_header_column(recursion, w, inner, corner, cells_height, pad_x, pad_y, bw)
@@ -1336,8 +1381,8 @@ function _move_head_column(iomap::WidgetTableListIoMap, x::Int, y::Int)
     moved = Any[_write_view_state(w, "column_headers", header),
                 _write_view_state(w, "cells", _make_advanced_row_node(w.cells, c)),
                 _write_view_state(w, "scroll_position", Point2D(x - span[1], y))]
-    align = w.column_align
-    align isa ListNode && push!(moved, _write_view_state(w, "column_align", _find_list_node(align, c)))
+    columns = w.columns
+    columns isa ListNode && push!(moved, _write_view_state(w, "columns", _find_list_node(columns, c)))
     selection = _shift_column_reference(w.selection, c - 1)
     selection === w.selection || push!(moved, ReplaceSelectionOperation(selection))
     CompoundOperation(moved)
@@ -1599,7 +1644,8 @@ function _read_table_column_edge_dwell(p::WidgetTableToGraphicsCanvas, iomap::Wi
     edge = _find_table_column_edge_at(iomap.state, found[2])
     edge === nothing && return nothing
     tooltip = make_tooltip_operation(iomap.input, PrimitiveString("Drag to set the width"), g)
-    reroot_operation(tooltip, (FieldReferenceStep("column_policies"), RangeReferenceStep(first(edge) - 1, first(edge))))
+    reroot_operation(tooltip, (FieldReferenceStep("columns"), RangeReferenceStep(first(edge) - 1, first(edge)),
+                              FieldReferenceStep("policy")))
 end
 
 # A rest of the pointer on an open cell whose last commit failed shows the reason

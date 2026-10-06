@@ -128,14 +128,13 @@ function _make_page_table(table::MarkdownTable)
     column_headers = CellVector(@computation Any[entry for entry in table.header.elements])
     rows = CellVector(@computation Any[CellVector(Cell[Cell(entry) for entry in row.elements])
                                        for row in table.rows])
+    # Each column sits where the delimiter row says.
+    columns = Cell(@computation Any[WidgetTableColumn(; align) for align in _make_column_align(table.alignments)])
     widget = WidgetTable(Cell(Point2D(0, 0)), column_headers, CellVector(), Cell(nothing), rows,
-                         Cell(WidgetTableRows()), Cell(WidgetTableColumns()),
-                         Cell(@computation length(table.alignments)),
+                         Cell(@computation WidgetTableRows(length(rows))), columns,
                          Cell(1),                          # border_width
                          Cell(Fill), Cell(Content),        # the columns share the width
-                         Cell(Any[]), Cell(Any[]),         # and none of them differs
-                         Cell(:wrap), Cell(Symbol[]),      # an entry breaks its lines at its column
-                         Cell(@computation _make_column_align(table.alignments)),
+                         Cell(:wrap),                      # an entry breaks its lines at its column
                          Cell(true),                       # visible
                          Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing), # margin, border, padding, style
                          Cell(Point2D(0, 0)),              # scroll_position

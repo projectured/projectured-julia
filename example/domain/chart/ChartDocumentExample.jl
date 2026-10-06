@@ -141,8 +141,7 @@ function make_chart_document_example()
         cells = Any[
             Any[make_chart_line_document_example(), make_chart_bar_document_example()],
             Any[make_chart_histogram_document_example(), make_chart_scatter_document_example()],
-        ],
-        column_count = 2)
+        ])
 end
 
 """

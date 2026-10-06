@@ -69,10 +69,12 @@ function test_data_frame_column_width()
         @testset "the edge lights under the pointer" begin
             send!(MouseMove(edge, name_y + 2; time = 0.5))
             target = table_iomap.input.mouse_target
-            @test target isa ConcreteReference && target.head == FieldReferenceStep("column_policies")
+            @test target isa ConcreteReference && target.head == FieldReferenceStep("columns") &&
+                  target.tail.tail.head == FieldReferenceStep("policy")
             send!(MouseMove(name_x + 20, name_y + 2; time = 0.6))
             target = table_iomap.input.mouse_target
-            @test !(target isa ConcreteReference && target.head == FieldReferenceStep("column_policies"))
+            @test !(target isa ConcreteReference && target.head == FieldReferenceStep("columns") &&
+                    target.tail.tail isa ConcreteReference && target.tail.tail.head == FieldReferenceStep("policy"))
         end
 
         @testset "a drag of the edge sets the width, and the view keeps it by name" begin

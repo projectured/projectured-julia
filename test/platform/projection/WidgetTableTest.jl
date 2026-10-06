@@ -140,7 +140,7 @@ function test_widget_table_fills_offer()
         LayoutToGraphics().dispatch,
         WidgetToGraphics(StyleFont("Ubuntu", 20); measure = det).dispatch)))
     table = WidgetTable(Any["name", "value"], Any[Any["a", "1"], Any["b", "2"]];
-                        column_policies = Any[Fill, Fixed(80)])
+                        columns = Any[WidgetTableColumn(; policy = Fill), WidgetTableColumn(; policy = Fixed(80))])
     for width in (400, 600)
         ctx = with_exact_size(PrinterContext(); width = Cell(Int32(width)),
                               height = Cell(Int32(400)))
@@ -165,7 +165,7 @@ function test_widget_table_content_floor()
     grow = SizePolicy(nothing, nothing, nothing, 1.0)
     long = "a cell that is wider than the header"
     table = WidgetTable(Any["id", "text"], Any[Any["1", long], Any["2", "b"]];
-                        column_policies = Any[grow, grow])
+                        columns = Any[WidgetTableColumn(; policy = grow), WidgetTableColumn(; policy = grow)])
     function geometry_at(width)
         ctx = with_exact_size(PrinterContext(); width = Cell(Int32(width)),
                               height = Cell(Int32(400)))
@@ -272,9 +272,9 @@ function test_scroll_pane_axis_size()
 end
 end
 
-# A cell sits at the left, in the middle or at the right of its column, by
-# `column_align`, in a table whose rows are a vector and in one whose rows are a
-# list. A header cell sits as the cells of its column do.
+# A cell sits at the left, in the middle or at the right of its column, by the
+# `align` of the column, in a table whose rows are a vector and in one whose rows
+# are a list. A header cell sits as the cells of its column do.
 function test_widget_table_column_align()
 @testset "a table cell sits where its column aligns" begin
     det = FixedMeasure(8, 12, 4, 0)
@@ -295,17 +295,16 @@ function test_widget_table_column_align()
         end
         found
     end
-    columns = Any[Fixed(120), Fixed(120), Fixed(120)]
-    vector(; kw...) = WidgetTable(Any["AA", "BB", "CC"], Any[Any["p", "q", "r"]];
-                                  column_policies = columns, kw...)
-    list(; kw...) = WidgetTable(; column_headers = Any["AA", "BB", "CC"],
-                                cells = ListNode(make_widget_table_row(Any["p", "q", "r"])),
-                                column_count = 3, column_policies = columns, kw...)
+    columns_of(aligns) = Any[WidgetTableColumn(; policy = Fixed(120), align) for align in aligns]
+    vector(aligns = fill(nothing, 3)) = WidgetTable(Any["AA", "BB", "CC"], Any[Any["p", "q", "r"]];
+                                                    columns = columns_of(aligns))
+    list(aligns = fill(nothing, 3)) = WidgetTable(; column_headers = Any["AA", "BB", "CC"],
+                                                  cells = ListNode(make_widget_table_row(Any["p", "q", "r"])),
+                                                  columns = columns_of(aligns))
     for (form, make) in (("rows in a vector", vector), ("rows in a list", list))
         @testset "$form" begin
             plain_io = print_document(rec, nothing, make(), ctx)
-            placed_io = print_document(rec, nothing,
-                                       make(; column_align = Symbol[:left, :center, :right]), ctx)
+            placed_io = print_document(rec, nothing, make(Any[:left, :center, :right]), ctx)
             plain, placed = lefts(plain_io.output), lefts(placed_io.output)
             # A list draws its rows as the viewport reaches them, so the x of a
             # body cell is read from the head row that the grid of the cells
@@ -325,7 +324,7 @@ function test_widget_table_column_align()
         end
     end
     @testset "a side that is none of the three is refused" begin
-        @test_throws ErrorException vector(; column_align = Symbol[:middle])
+        @test_throws ErrorException vector(Any[:middle, nothing, nothing])
     end
 end
 end
@@ -338,9 +337,10 @@ function test_widget_table_cell_policy()
         WidgetToGraphics(StyleFont("Ubuntu", 20); measure = det).dispatch)))
     long = "a value that is far too wide for eighty pixels"
     # The header names are chosen so that neither is a piece of the long cell.
-    make(; kw...) = WidgetTable(Any["AA", "BB"],
-                                Any[Any[long, "x"], Any["second", "y"]];
-                                column_policies = Any[Fixed(80), Fixed(80)], kw...)
+    make(cell_policies = Any[nothing, nothing]; kw...) =
+        WidgetTable(Any["AA", "BB"], Any[Any[long, "x"], Any["second", "y"]];
+                    columns = Any[WidgetTableColumn(; policy = Fixed(80), cell_policy) for cell_policy in cell_policies],
+                    kw...)
     ctx = with_exact_size(PrinterContext(); width = Cell(Int32(600)), height = Cell(Int32(400)))
     # Every text a table drew, through the viewports the grid now emits.
     function texts(node, found = String[])
@@ -367,7 +367,7 @@ function test_widget_table_cell_policy()
     end
     @testset "a column's own policy wins over the table's" begin
         mixed = print_document(rec, nothing,
-                               make(; cell_policy = :wrap, column_cell_policies = Symbol[:clip]), ctx)
+                               make(Any[:clip, nothing]; cell_policy = :wrap), ctx)
         @test mixed.geometry.total_h == clipped.geometry.total_h
     end
     @testset "a policy that is neither is refused" begin
@@ -407,8 +407,7 @@ _rec = RecursiveProjection(TypeDispatchingProjection(vcat(LayoutToGraphics().dis
 _table() = WidgetTable(;
                        column_headers = Any["ID", "Name", "Role"],
                        row_headers = Any["1", "2", "3", "4", "5", "6"],
-                       cells = Any[Any["r$(i)a", "r$(i)b", "r$(i)c"] for i in 1:6],
-                       column_count = 3)
+                       cells = Any[Any["r$(i)a", "r$(i)b", "r$(i)c"] for i in 1:6])
 
 # Every text of a printed table, as (x, y, text), through its canvases and
 # viewports.
@@ -472,7 +471,7 @@ end
                        column_headers = Any["ID", "Name", "Role"],
                        row_headers = Any["1", "2", "3", "4", "5", "6"],
                        cells = Any[Any["r$(i)a", "r$(i)b", "r$(i)c"] for i in 1:6],
-                       column_count = 3, scroll_position = Point2D(10, 40)), _sized()))
+                       scroll_position = Point2D(10, 40)), _sized()))
     # The header row travels to the side only, the header column down only,
     # and the cells both ways.
     @test moved["Name"] == (still["Name"][1] - 10, still["Name"][2])
@@ -521,7 +520,7 @@ function test_widget_table_cell_editing()
         "rows are a vector" => () -> WidgetTable(Any["A", "B"], Any[make_cells()]),
         "rows are a list" => () -> WidgetTable(; column_headers = Any["A", "B"],
                                                cells = ListNode(make_widget_table_row(make_cells())),
-                                               column_count = 2, column_policies = Any[Fixed(120), Fixed(120)]),
+                                               columns = Any[WidgetTableColumn(; policy = Fixed(120)) for _ in 1:2]),
     ]
     # A point four pixels inside the left edge of body cell (1, c).
     function get_cell_point(iomap, c)

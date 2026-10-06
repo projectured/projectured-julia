@@ -2331,49 +2331,80 @@ WidgetAccordion(items::Vector; position::Point2D=Point2D(0, 0), expanded::Intege
 # ── WidgetTable ─────────────────────────────────────────────────────────────
 
 """
-    WidgetTableRows()
+    WidgetTableRow(; policy = nothing)
 
-The value of the field `rows` of a [`WidgetTable`](@ref): what the path
-`rows[r]` of a whole row steps through. It holds nothing, and `[r]` gives the
-row `r`.
+The data of a whole row of a table, what the path `rows[r]` names, apart from
+its header `row_headers[r]` and from its cells `cells[r][c]`. `policy` is the
+`SizePolicy` of the row, or `nothing` for the `row_policy` of the table. Each
+field is a cell, so a write of one field reaches only what reads it.
 """
-struct WidgetTableRows end
-
-Base.getindex(::WidgetTableRows, r::Integer) = WidgetTableRow(r)
-
-"""
-    WidgetTableRow(index)
-
-A whole row of a table, what the path `rows[r]` names, apart from its header
-`row_headers[r]` and from its cells `cells[r][c]`. It holds its number.
-"""
-struct WidgetTableRow
-    index::Int
+@document struct WidgetTableRow
+    policy::Any
 end
 
-"""
-    WidgetTableColumns()
-
-The value of the field `columns` of a [`WidgetTable`](@ref): what the path
-`columns[c]` of a whole column steps through. It holds nothing, and `[c]` gives
-the column `c`.
-"""
-struct WidgetTableColumns end
-
-Base.getindex(::WidgetTableColumns, c::Integer) = WidgetTableColumn(c)
+WidgetTableRow(; policy = nothing) = WidgetTableRow(Cell(policy), Cell(nothing))
 
 """
-    WidgetTableColumn(index)
+    WidgetTableColumn(; policy = nothing, align = nothing, cell_policy = nothing)
 
-A whole column of a table, what the path `columns[c]` names, apart from its
-header `column_headers[c]` and from its cells. It holds its number.
+The data of a whole column of a table, what the path `columns[c]` names, apart
+from its header `column_headers[c]` and from its cells: `policy`, the
+`SizePolicy` of the column, or `nothing` for the `column_policy` of the table;
+`align`, where a cell sits in it, `:left`, `:center` or `:right`, or `nothing`
+for `:left`; and `cell_policy`, `:clip` or `:wrap`, or `nothing` for the
+`cell_policy` of the table. Each field is a cell: the drag of the edge of a
+header writes `columns[c].policy`, and nothing that reads only the alignment
+computes again.
 """
-struct WidgetTableColumn
-    index::Int
+@document struct WidgetTableColumn
+    policy::Any
+    align::Any
+    cell_policy::Any
 end
 
+WidgetTableColumn(; policy = nothing, align = nothing, cell_policy = nothing) =
+    WidgetTableColumn(Cell(policy), Cell(align), Cell(cell_policy), Cell(nothing))
+
 """
-    WidgetTable(; position, column_headers, cells, column_count, row_headers, ...)
+    WidgetTableRows(count = nothing)
+    WidgetTableColumns(count = nothing)
+
+The value of the field `rows` or `columns` of a [`WidgetTable`](@ref) that a
+caller gave no data for: it holds the count of the rows or of the columns, or
+`nothing` for a list with no end, and `[k]` gives a `WidgetTableRow` or a
+`WidgetTableColumn` with the defaults of the table. It keeps the one of each
+number that a path reached, so a path meets the same document each time.
+"""
+struct WidgetTableRows
+    count::Union{Nothing,Int}
+    reached::Dict{Int,WidgetTableRow}
+end
+
+struct WidgetTableColumns
+    count::Union{Nothing,Int}
+    reached::Dict{Int,WidgetTableColumn}
+end
+
+WidgetTableRows(count::Union{Nothing,Integer} = nothing) =
+    WidgetTableRows(count === nothing ? nothing : Int(count), Dict{Int,WidgetTableRow}())
+WidgetTableColumns(count::Union{Nothing,Integer} = nothing) =
+    WidgetTableColumns(count === nothing ? nothing : Int(count), Dict{Int,WidgetTableColumn}())
+
+function Base.getindex(rows::WidgetTableRows, r::Integer)
+    (rows.count === nothing || 1 <= r <= rows.count) || throw(BoundsError(rows, r))
+    get!(WidgetTableRow, rows.reached, Int(r))
+end
+
+function Base.getindex(columns::WidgetTableColumns, c::Integer)
+    (columns.count === nothing || 1 <= c <= columns.count) || throw(BoundsError(columns, c))
+    get!(WidgetTableColumn, columns.reached, Int(c))
+end
+
+Base.show(io::IO, rows::WidgetTableRows) = print(io, "WidgetTableRows(", rows.count, ")")
+Base.show(io::IO, columns::WidgetTableColumns) = print(io, "WidgetTableColumns(", columns.count, ")")
+
+"""
+    WidgetTable(; position, column_headers, cells, rows, columns, row_headers, ...)
     WidgetTable(headers::Vector, rows::Vector; position)
 
 A grid of cells with optional column headers and row headers.
@@ -2417,28 +2448,30 @@ that the grids report ("layout is just layout").
   cells either way. A list is drawn one row at a time as a viewport reaches it,
   and `cells[i]` counts from the list's head — the head is row 1, and a row
   reached through `prev` has an index of zero or less.
-- `rows` — a [`WidgetTableRows`](@ref), which holds nothing: what the path
-  `rows[r]` of a whole row steps through.
-- `columns` — a [`WidgetTableColumns`](@ref), which holds nothing: what the path
-  `columns[c]` of a whole column steps through.
+- `rows` — the data of the rows: a vector of [`WidgetTableRow`](@ref), or a
+  [`WidgetTableRows`](@ref) that holds their count when a caller gave none. The
+  path `rows[r]` of a whole row steps through it.
+- `columns` — the data of the columns: a vector of
+  [`WidgetTableColumn`](@ref), a `ListNode` of them beside a list of column
+  headers, or a [`WidgetTableColumns`](@ref) that holds their count when a
+  caller gave none. The path `columns[c]` of a whole column steps through it,
+  and the count of the columns is its length or its count.
 
 The paths of a table are its field names: `rows[r]` is a row, `columns[c]` a
 column, `cells[r][c]` a cell, `column_headers[c]` the header of a column and
 `row_headers[r]` the header of a row, each a part of its own. A press on a
 column header selects its column and a press on a row header its row; a press
 in the content of a header goes to the header.
-- `column_count::Int` — number of columns.
 - `border_width::Int` — the width of the outer frame and the grid lines. The
   padding inside a cell is the projection's `cell_padding`, from the theme.
+- `column_policy`, `row_policy` — the `SizePolicy` of a column and of a row
+  whose data names none.
 - `cell_policy::Symbol` — what a cell does with text wider than its column,
   when the column was given a width: `:clip` draws one line and cuts it at the
-  column's edge, `:wrap` breaks the lines there and the row grows. A column
-  that is its content has no edge to cut at, and the policy does nothing there.
-- `column_cell_policies` — `Vector{Symbol}`, the body columns whose cell policy
-  differs from the table's; a column past its end takes the table's.
-- `column_align` — `Vector{Symbol}`, where a cell sits in its body column:
-  `:left`, `:center` or `:right`; a column past its end is `:left`. A header
-  cell sits as the cells of its column do.
+  column's edge, `:wrap` breaks the lines there and the row grows, for a column
+  whose data names none. A column that is its content has no edge to cut at,
+  and the policy does nothing there. A header cell sits as the cells of its
+  column do.
 - `visible::Bool` — standard Document field; `selection` is macro-injected.
 - `margin`, `border`, `padding` — the box around the frame and the grid, each
   `nothing` or an `Inset`; `nothing` takes the projection's default (transparent,
@@ -2476,17 +2509,12 @@ See also `make_result_table` and `WidgetList` for one column.
     row_headers::CellVector      # of Document (or nothing) — optional left strip; a ListNode beside a list of rows
     corner::Any                  # Document or nothing — where the header row and the header column meet
     cells::Any                   # CellVector of rows of cells, or a ListNode of them; a row is a CellVector of Document cells
-    rows::Any                    # WidgetTableRows: what the path `rows[r]` of a whole row steps through
-    columns::Any                 # WidgetTableColumns: what the path `columns[c]` of a whole column steps through
-    column_count::Int
+    rows::Any                    # the data of the rows: a vector of WidgetTableRow, or a WidgetTableRows
+    columns::Any                 # the data of the columns: a vector or a ListNode of WidgetTableColumn, or a WidgetTableColumns
     border_width::Int
-    column_policy::Any           # SizePolicy — what every body column is
-    row_policy::Any              # SizePolicy — what every body row is
-    column_policies::Any         # Vector{SizePolicy} — the body columns that differ
-    row_policies::Any            # Vector{SizePolicy} — the body rows that differ
-    cell_policy::Symbol          # :clip | :wrap — what every body column's cells do
-    column_cell_policies::Any    # Vector{Symbol} — the body columns that differ
-    column_align::Any            # Vector{Symbol} — :left, :center or :right for each body column
+    column_policy::Any           # SizePolicy — a body column whose data names none
+    row_policy::Any              # SizePolicy — a body row whose data names none
+    cell_policy::Symbol          # :clip | :wrap — the cells of a body column whose data names none
     visible::Bool
     margin::Inset
     border::Inset
@@ -2527,75 +2555,77 @@ _table_cells(cells::Vector) = CellVector(Cell[Cell(_table_row(r)) for r in cells
 _table_cells(cells::ListNode) = Cell(cells)
 
 """
-    WidgetTable(; position, column_headers, cells, column_count, row_headers=Any[],
-                corner=nothing, border_width=1, visible=true,
-                column_policy=Content, row_policy=Content,
-                column_policies=Any[], row_policies=Any[],
-                cell_policy=:clip, column_cell_policies=Symbol[], column_align=Symbol[],
+    WidgetTable(; position, column_headers, cells, rows=nothing, columns=nothing,
+                row_headers=Any[], corner=nothing, border_width=1, visible=true,
+                column_policy=Content, row_policy=Content, cell_policy=:clip,
                 scroll_position=Point2D(0, 0))
 
 Document-cell constructor. `column_headers` and `row_headers` are `Vector`s of
 `Document`/`nothing`, and a table has no row headers unless it is given some.
 `cells` is a `Vector` of rows, each a `Vector` of `Document`/value cells, or a
-`ListNode` of rows. `rows` takes the data of the rows, and holds none yet.
+`ListNode` of rows. `rows` is a `Vector` of [`WidgetTableRow`](@ref) and
+`columns` a `Vector` of [`WidgetTableColumn`](@ref), the data of the rows and of
+the columns, or `nothing`: then the table counts the rows of `cells`, and the
+columns of `column_headers` or else of the widest row.
 
 **A table whose rows are a list** is drawn one row at a time as a viewport
 reaches it, with no count and no end it has to have. Each node's value is a row,
 which [`make_widget_table_row`](@ref) builds from a vector of values or
 documents. Every column must be given a width — `Fixed`, or a weight — and the
-rows are `Fixed` or `Content`. Its `row_headers` are a `ListNode` too, which
-moves in step with `cells`, and then every row is `Fixed`: the header column is
-as wide as `corner` and as the header of the head row. When
-`column_headers` is a `ListNode` too, the columns are a list as well: the
-cells of every row are a `ListNode` anchored at the same column, and so is
-`column_align` when it names each column; every column is `column_policy`,
-which must be `Fixed`, and at least as wide as its header, and every row is
-`Fixed`. Such a table fills
-the height that it is offered and scrolls its own parts there: the header row
-holds still above the rows, and `scroll_position` is the offset of both.
-`top_row` is the row at the top of the cells, counted from the head of the
-list, which the table writes as it scrolls. When that row is far from the head,
-the table moves the head of `cells` to it, so the rows that it builds stay near
-the head.
+rows are `Fixed` or `Content`, all alike, so such a table takes no `rows`. Its
+`row_headers` are a `ListNode` too, which moves in step with `cells`, and then
+every row is `Fixed`: the header column is as wide as `corner` and as the header
+of the head row. When `column_headers` is a `ListNode` too, the columns are a
+list as well: the cells of every row are a `ListNode` anchored at the same
+column, and so is `columns` when it holds data; every column is at least as wide
+as its header, and every row is `Fixed`. Such a table fills the height that it
+is offered and scrolls its own parts there: the header row holds still above
+the rows, and `scroll_position` is the offset of both. `top_row` is the row at
+the top of the cells, counted from the head of the list, which the table writes
+as it scrolls. When that row is far from the head, the table moves the head of
+`cells` to it, so the rows that it builds stay near the head.
 
 **A body column and a body row take a `SizePolicy`**, the way a `GridLayout`'s
-do: `column_policy` / `row_policy` say what every one is and the two vectors name
-the ones that differ. A table whose columns are a list takes `column_policies`
-as a list beside its headers, as it takes `column_align`: a value that is a
-`Fixed` gives that column its width, and `nothing` leaves the column at
-`column_policy` and at least as wide as its header. Both default to `Content`, which is what a table has always
-been. A header strip is always `Content` — it is as wide, or as tall, as the
-labels in it — so the policies below are the BODY's and the table shifts them
-over the strip itself.
+do: `column_policy` / `row_policy` say what every one is, and the `policy` of a
+column or a row in `columns` or `rows` names one that differs. In a table whose
+columns are a list, a column whose `policy` is `nothing` is at least as wide as
+its header. Both default to `Content`, which is what a table has always been. A
+header strip is always `Content` — it is as wide, or as tall, as the labels in
+it — so the policies are the BODY's and the table shifts them over the strip
+itself.
 
 **A cell of a column that was given a width clips or wraps**, by `cell_policy`
-for every column and `column_cell_policies` for the ones that differ. A table
-is a data table until someone says otherwise, so the default is `:clip`: one
-line, cut at the column's edge.
+for every column and the `cell_policy` of a column for one that differs. A
+table is a data table until someone says otherwise, so the default is `:clip`:
+one line, cut at the column's edge.
 
-**A cell sits at the left of its column** unless `column_align` names `:center`
-or `:right` for that column, as a `GridLayout`'s `column_align` does.
+**A cell sits at the left of its column** unless the `align` of the column is
+`:center` or `:right`, as a `GridLayout`'s `column_align` says.
 """
 function WidgetTable(; position::Point2D=Point2D(0, 0), column_headers::Union{Vector,ListNode},
-                     cells::Union{Vector,ListNode}, rows=nothing, column_count::Integer,
+                     cells::Union{Vector,ListNode}, rows=nothing, columns=nothing,
                      row_headers::Union{Vector,ListNode}=Any[], corner=nothing,
                      border_width::Integer=1, visible::Bool=true,
                      column_policy::SizePolicy=Content, row_policy::SizePolicy=Content,
-                     column_policies=Any[], row_policies=Any[],
-                     cell_policy::Symbol=:clip, column_cell_policies=Symbol[],
-                     column_align=Symbol[], scroll_position::Point2D=Point2D(0, 0),
+                     cell_policy::Symbol=:clip, scroll_position::Point2D=Point2D(0, 0),
                      open_cells=nothing,
                      margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing)
     cell_policy in (:clip, :wrap) ||
         error("WidgetTable: cell_policy is :clip or :wrap, not ", repr(cell_policy))
-    if !(column_align isa ListNode)
-        for align in column_align
-            align in (:left, :center, :right) ||
-                error("WidgetTable: a column aligns :left, :center or :right, not ", repr(align))
+    (rows === nothing || (rows isa Vector && all(row -> row isa WidgetTableRow, rows))) ||
+        error("WidgetTable: `rows` takes the data of the rows, a vector of WidgetTableRow; ",
+              "the cells of a table go in `cells`")
+    (columns === nothing || ((columns isa Vector || columns isa ListNode) &&
+                             (columns isa ListNode || all(column -> column isa WidgetTableColumn, columns)))) ||
+        error("WidgetTable: `columns` takes the data of the columns, a vector or a list of WidgetTableColumn")
+    if columns isa Vector
+        for column in columns
+            column.align in (nothing, :left, :center, :right) ||
+                error("WidgetTable: a column aligns :left, :center or :right, not ", repr(column.align))
+            column.cell_policy in (nothing, :clip, :wrap) ||
+                error("WidgetTable: a column's cell_policy is :clip or :wrap, not ", repr(column.cell_policy))
         end
     end
-    rows === nothing ||
-        error("WidgetTable: the cells of a table go in `cells`; `rows` takes the data of the rows")
     cells isa ListNode && row_headers isa Vector && !isempty(row_headers) &&
         error("WidgetTable: a table whose rows are a list takes its row headers as a list")
     cells isa Vector && row_headers isa ListNode &&
@@ -2603,21 +2633,37 @@ function WidgetTable(; position::Point2D=Point2D(0, 0), column_headers::Union{Ve
     cells isa Vector && !isempty(cells) && corner !== nothing &&
         error("WidgetTable: a table with a corner draws its rows as a list, and takes a list ",
               "of rows or an empty vector")
-    WidgetTable(Cell(position),
-                column_headers isa ListNode ? Cell(column_headers) :
-                    CellVector(Cell[Cell(_table_cell_doc(h)) for h in column_headers]),
+    headers = column_headers isa ListNode ? Cell(column_headers) :
+              CellVector(Cell[Cell(_table_cell_doc(h)) for h in column_headers])
+    body = _table_cells(cells)
+    WidgetTable(Cell(position), headers,
                 row_headers isa ListNode ? Cell(row_headers) :
                     CellVector(Cell[Cell(_table_cell_doc(h)) for h in row_headers]),
-                Cell(_table_cell_doc(corner)),
-                _table_cells(cells), Cell(WidgetTableRows()), Cell(WidgetTableColumns()),
-                Cell(Int(column_count)), Cell(Int(border_width)),
-                Cell(column_policy), Cell(row_policy),
-                Cell(column_policies isa ListNode ? column_policies : collect(Any, column_policies)),
-                Cell(collect(Any, row_policies)),
-                Cell(cell_policy), Cell(collect(Symbol, column_cell_policies)),
-                Cell(column_align isa ListNode ? column_align : collect(Symbol, column_align)),
+                Cell(_table_cell_doc(corner)), body,
+                _make_table_rows(rows, body), _make_table_columns(columns, headers, body),
+                Cell(Int(border_width)), Cell(column_policy), Cell(row_policy), Cell(cell_policy),
                 Cell(visible), Cell(margin), Cell(border), Cell(padding), Cell(style),
                 Cell(scroll_position), Cell(1), Cell(nothing), Cell(open_cells === nothing ? nothing : collect(Any, open_cells)), Cell(tooltip))
+end
+
+# The field `rows` of a table: the data that a caller gave, or the count of the
+# rows of `body`, which follows it; a list has no count.
+_make_table_rows(rows::Vector, body) = Cell(collect(Any, rows))
+_make_table_rows(::Nothing, body::CellVector) = Cell(@computation WidgetTableRows(length(body)))
+_make_table_rows(::Nothing, body) = Cell(WidgetTableRows(nothing))
+
+# The field `columns` of a table: the data that a caller gave, or the count of
+# the columns, of `headers` or else of the widest row of `body`, which follows
+# them; a list of headers has no count.
+_make_table_columns(columns::Vector, headers, body) = Cell(collect(Any, columns))
+_make_table_columns(columns::ListNode, headers, body) = Cell(columns)
+function _make_table_columns(::Nothing, headers, body)
+    headers isa CellVector || return Cell(WidgetTableColumns(nothing))
+    Cell(@computation begin
+        n = length(headers)
+        n == 0 && body isa CellVector && (n = maximum((length(row) for row in body); init = 0))
+        WidgetTableColumns(n)
+    end)
 end
 
 """
@@ -2631,29 +2677,35 @@ of a list-backed table holds.
 make_widget_table_row(values) = _table_row(values)
 
 # String convenience shim: headers become a column-header strip, rows become the
-# body, columns inferred from the header count (or the widest row). A value that
+# body, and `columns` is the data of the columns, or `nothing`, which counts them
+# from the headers (or the widest row). A value that
 # is not a document becomes a `WidgetLabel` through `_table_cell_doc`, and a
 # function a live one.
 function WidgetTable(headers::Vector, rows::Vector; position::Point2D=Point2D(0, 0),
-                     border_width::Integer=1, visible::Bool=true,
+                     columns=nothing, border_width::Integer=1, visible::Bool=true,
                      column_policy::SizePolicy=Content, row_policy::SizePolicy=Content,
-                     column_policies=Any[], row_policies=Any[],
-                     cell_policy::Symbol=:clip, column_cell_policies=Symbol[],
-                     column_align=Symbol[],
+                     cell_policy::Symbol=:clip,
                      margin=nothing, border=nothing, padding=nothing, style=nothing,
                      tooltip=nothing)
-    column_count = isempty(headers) ?
-        (isempty(rows) ? 0 : maximum(length(r) for r in rows)) : length(headers)
     WidgetTable(; position = position, column_headers = collect(Any, headers), row_headers = Any[],
-                cells = collect(Any, rows), column_count = column_count,
+                cells = collect(Any, rows), columns,
                 border_width=border_width, visible=visible,
-                column_policy=column_policy, row_policy=row_policy,
-                column_policies=column_policies, row_policies=row_policies,
-                cell_policy=cell_policy, column_cell_policies=column_cell_policies,
-                column_align=column_align,
+                column_policy=column_policy, row_policy=row_policy, cell_policy=cell_policy,
                 margin=margin, border=border, padding=padding, style=style,
                 tooltip=tooltip)
 end
+
+"""
+    get_widget_table_column_count(table) -> Int or nothing
+
+The count of the columns of `table`: the length of its data of the columns, or
+the count that its `WidgetTableColumns` holds; `nothing` for columns that are a
+list.
+"""
+get_widget_table_column_count(table::WidgetTable) = _count_table_columns(table.columns)
+_count_table_columns(columns::WidgetTableColumns) = columns.count
+_count_table_columns(columns::AbstractVector) = length(columns)
+_count_table_columns(columns) = nothing
 
 # What the REPL and the answer of a tool show of a table: how many rows and
 # columns it has, and its column headers, which say what it holds. The rows are
@@ -2662,7 +2714,7 @@ end
 # table is as it was.
 function Base.show(io::IO, ::MIME"text/plain", table::WidgetTable)
     headers = [_describe_table_header(header) for header in table.column_headers]
-    columns = isempty(headers) ? table.column_count : length(headers)
+    columns = isempty(headers) ? something(get_widget_table_column_count(table), 0) : length(headers)
     print(io, "WidgetTable(", _count_table_rows(table.cells), " rows × ", columns, " columns")
     isempty(headers) || print(io, ": ", join(headers, ", "))
     print(io, ")")
@@ -2863,10 +2915,13 @@ end
 
 Give column `column` of `table` the width `width`, the width of its cells in
 pixels: the drag of the right edge of a header answers it at each move. A table
-whose columns are a vector keeps it as `Fixed(width)` in `column_policies`, and
-`column` counts from its first column. A table whose columns are a list counts
+whose columns are a vector, or that holds only their count, keeps it as
+`Fixed(width)` in the `policy` of the column, `columns[c].policy`, and `column`
+counts from its first column; a table with no data of its columns gets them,
+with the defaults, at the first width. A table whose columns are a list counts
 `column` from its head column and keeps no width of its own: the owner that
-gives its policies as a list reads the operation and keeps the width.
+gives the data of its columns as a list reads the operation and keeps the
+width.
 """
 struct SetTableColumnWidthOperation <: Operation
     table::WidgetTable
@@ -3167,16 +3222,19 @@ evaluate_operation(editor, ::Union{EditTableCellOperation,CommitTableCellOperati
 
 function evaluate_operation(editor, op::SetTableColumnWidthOperation)
     table = op.table
-    policies = table.column_policies
-    (policies isa AbstractVector && op.column >= 1) || return nothing
-    width = Fixed(op.width)
-    op.column <= length(policies) && policies[op.column] == width && return nothing
-    written = Any[policies...]
-    while length(written) < op.column
-        push!(written, table.column_policy)
+    columns = table.columns
+    (columns isa ListNode || op.column < 1) && return nothing
+    if !(columns isa AbstractVector && op.column <= length(columns))
+        count = max(op.column, something(_count_table_columns(columns), 0))
+        has(c) = columns isa AbstractVector ? c <= length(columns) :
+                 (columns.count === nothing || c <= columns.count)
+        columns = Any[has(c) ? columns[c] : WidgetTableColumn() for c in 1:count]
+        table.columns = columns
     end
-    written[op.column] = width
-    table.column_policies = written
+    column = columns[op.column]
+    width = Fixed(op.width)
+    column.policy == width && return nothing
+    column.policy = width
     nothing
 end
 

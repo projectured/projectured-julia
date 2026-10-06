@@ -10,8 +10,7 @@ function make_graph_document_example()
         row_headers = Any[],
         cells = Any[
             Any[JsonString("Ada"), JsonString("Lead")],
-        ],
-        column_count = 2)
+        ])
 
     # Vertex 2: a small JSON object.
     json = JsonObject("id" => JsonNumber(42), "active" => JsonBool(true))

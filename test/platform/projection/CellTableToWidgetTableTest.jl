@@ -11,7 +11,7 @@ function test_cell_table_to_widget_table()
     wt = iomap.output
 
     @test wt isa WidgetTable
-    @test wt.column_count == 2
+    @test get_widget_table_column_count(wt) == 2
 
     # column headers from row 1, Primitive-wrapped
     @test length(wt.column_headers) == 2

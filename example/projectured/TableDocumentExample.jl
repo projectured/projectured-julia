@@ -11,8 +11,7 @@ function make_table_document_example()
             Any[JsonString("Jennifer"), JsonNumber(30), JsonString("New York")],
             Any[JsonString("Bob"),      JsonNumber(25), JsonString("Springfield")],
             Any[JsonString("Carol"),    JsonNumber(42), JsonString("Metropolis")],
-        ],
-        column_count = 3)
+        ])
 end
 
 function make_math_table_document_example()
@@ -30,6 +29,5 @@ function make_math_table_document_example()
             Any[MathBinaryOperation(:/, MathVariable("A"), PrimitiveNumber(2)),
                 MathBinaryOperation(:/, MathParenthesized(MathBinaryOperation(:+, MathVariable("A"), MathVariable("C"))), PrimitiveNumber(2)),
                 MathBinaryOperation(:*, PrimitiveNumber(3), MathParenthesized(MathBinaryOperation(:+, MathVariable("A"), MathVariable("B"))))],
-        ],
-        column_count = 3)
+        ])
 end

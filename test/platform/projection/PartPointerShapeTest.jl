@@ -89,12 +89,13 @@ function test_part_pointer_shape()
             WidgetToGraphics(StyleFont("Ubuntu", 20); measure = FixedMeasure(8, 12, 4, 0)).dispatch)))
         context = with_exact_size(PrinterContext(); width = Cell(Int32(600)), height = Cell(Int32(300)))
         rows = _make_pointer_part_list([make_widget_table_row(Any["row $(i)", string(i)]) for i in 1:5])
-        vector_columns = WidgetTable(; column_headers = Any["name", "value"], cells = rows, column_count = 2,
-                                       column_policies = Any[Fixed(120), Fixed(80)])
+        vector_columns = WidgetTable(; column_headers = Any["name", "value"], cells = rows,
+                                       columns = Any[WidgetTableColumn(; policy = Fixed(120)),
+                                                     WidgetTableColumn(; policy = Fixed(80))])
         headers = _make_pointer_part_list(Any[WidgetLabel("h$(c)") for c in 1:5])
         cells = _make_pointer_part_list(Any[_make_pointer_part_list(Any[WidgetLabel("r$(i) c$(c)")
                                                                        for c in 1:5]) for i in 1:3])
-        listed_columns = WidgetTable(; column_headers = headers, cells, column_count = 0,
+        listed_columns = WidgetTable(; column_headers = headers, cells,
                                        column_policy = Fixed(60), row_policy = Fixed(16))
         for (table, label, edges) in ((vector_columns, "name", 2), (listed_columns, "h1", 5))
             iomap = print_document(tables, nothing, table, context)

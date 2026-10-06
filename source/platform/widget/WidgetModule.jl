@@ -60,7 +60,7 @@ export Inset, Point2D, WidgetDocument, WidgetToolButton, WidgetMessageBox, Widge
        inset_width, inset_height, inset_top_left, inset_top_right, inset_bottom_left,
        inset_bottom_right, set_cell_computation!, make_pager_widget, make_filter_bar_widget, make_column_chooser_widget,
        make_widget_list_selection, get_widget_list_selected,
-       make_widget_table_row_selection, get_widget_table_selected_row,
+       make_widget_table_row_selection, get_widget_table_selected_row, get_widget_table_column_count,
        resolve_toggle_group_write, resolve_slider_write
 export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextToGraphicsCanvas,
        WidgetCheckboxToGraphicsCanvas, WidgetButtonToGraphicsCanvas,

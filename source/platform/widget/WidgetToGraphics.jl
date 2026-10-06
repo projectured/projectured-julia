@@ -9231,25 +9231,44 @@ _wt_has_col_headers(w::WidgetTable) = length(w.column_headers) > 0
 _wt_has_row_headers(w::WidgetTable) = length(w.row_headers) > 0
 _wt_empty_cell() = WidgetLabel("")
 
+# The data of body column `c` of `w`, counted from the head column when the
+# columns are a list, or `nothing` where the table holds none, so the defaults of
+# the table hold.
+function _get_table_column_data(w::WidgetTable, c::Int)
+    columns = w.columns
+    columns isa AbstractVector && return 1 <= c <= length(columns) ? columns[c] : nothing
+    columns isa ListNode || return nothing
+    node = _find_list_node(columns, c)
+    node === nothing ? nothing : node.value
+end
+
+# The data of body row `r` of `w`, or `nothing` where the table holds none.
+function _get_table_row_data(w::WidgetTable, r::Int)
+    rows = w.rows
+    (rows isa AbstractVector && 1 <= r <= length(rows)) ? rows[r] : nothing
+end
+
 # The cell policy of body column `c`: the column's own when it names one, else
 # the table's.
 function _wt_column_cell_policy(w::WidgetTable, c::Int)
-    policies = w.column_cell_policies
-    (policies isa AbstractVector && 1 <= c <= length(policies)) ? policies[c] : w.cell_policy
+    column = _get_table_column_data(w, c)
+    policy = column === nothing ? nothing : column.cell_policy
+    policy === nothing ? w.cell_policy : policy
 end
 
-# Where a cell sits in body column `c`: the column's entry of `column_align`,
-# else the left.
+# Where a cell sits in body column `c`: the column's own alignment, else the
+# left.
 function _wt_column_align(w::WidgetTable, c::Int)
-    aligns = w.column_align
-    (aligns isa AbstractVector && 1 <= c <= length(aligns)) ? Symbol(aligns[c]) : :left
+    column = _get_table_column_data(w, c)
+    align = column === nothing ? nothing : column.align
+    align === nothing ? :left : Symbol(align)
 end
 
 # The policy of body row `r`: the row's own when it names one, else the table's.
 function _wt_row_policy(w::WidgetTable, r::Int)
-    policies = w.row_policies
-    (policies isa AbstractVector && 1 <= r <= length(policies) && policies[r] isa SizePolicy) ?
-        policies[r] : w.row_policy
+    row = _get_table_row_data(w, r)
+    policy = row === nothing ? nothing : row.policy
+    policy isa SizePolicy ? policy : w.row_policy
 end
 
 # Header `k` of a strip, or an empty cell where the strip has none.
@@ -9293,7 +9312,7 @@ _wt_is_content_column(policy::SizePolicy) =
 # the content of the table.
 function _print_eager_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx,
                                   graphics, pad_x::Int, pad_y::Int, bw::Int)
-    n = Int(w.column_count)
+    n = something(get_widget_table_column_count(w), 0)
     rows = w.cells
     m = length(rows)
     hgap = 2 * pad_x + bw

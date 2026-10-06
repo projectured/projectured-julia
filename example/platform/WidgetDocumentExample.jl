@@ -583,7 +583,7 @@ make_widget_table_frozen_document_example() =
                     column_headers = Any["Invoice", "Status", "Method", "Amount"],
                     row_headers = Any["1", "2", "3", "4", "5", "6"],
                     cells = Any[Any["INV00$(i)", "Paid", "Credit Card", "\$$(i)50.00"] for i in 1:6],
-                    column_count = 4, scroll_position = Point2D(40, 60));
+                    scroll_position = Point2D(40, 60));
         size = Point2D(320, 150),
         style = WidgetStyle(content_color = StyleColor(0.98, 0.96, 0.90, 1.0)))
 

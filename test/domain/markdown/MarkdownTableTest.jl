@@ -49,7 +49,7 @@ layout_of(page) = print_document(MarkdownRootToVerticalLayout(), nothing, page,
     @test length(children) == 3
     widget = children[2]
     @test widget isa WidgetTable
-    @test widget.column_count == 2
+    @test get_widget_table_column_count(widget) == 2
     @test widget.cell_policy === :wrap
     @test collect(widget.column_headers)[1] === table.header.elements[1]
     @test collect(widget.column_headers)[2] === table.header.elements[2]
@@ -167,7 +167,7 @@ end
     @test aligned["y"] - plain["y"] > 100
     @test aligned["b"] - plain["b"] > 100
     page = parse_markdown("| a | b | c | d |\n|---|:--|:-:|--:|\n")
-    @test collect(layout_of(page).children)[1].column_align == [:left, :left, :center, :right]
+    @test [column.align for column in collect(layout_of(page).children)[1].columns] == [:left, :left, :center, :right]
 end
 
 end

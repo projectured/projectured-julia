@@ -330,7 +330,7 @@ function test_frame_statistics_feed()
         # 7 digits, which is wider than its header.
         p = FrameStatisticsToWidget(; measure = FixedMeasure(8, 12, 4, 0))
         frames = _get_frame_table(print_document(p, p, statistics, PrinterContext()).output)
-        @test frames.column_policies == Any[Fixed(15 * 8), Fixed(7 * 8)]
+        @test Any[column.policy for column in frames.columns] == Any[Fixed(15 * 8), Fixed(7 * 8)]
         # A header and a value align right in their column, so both end at its
         # right edge.
         @test narrow["30.00"] + 5 * 8 == narrow["frame_time (ms)"] + 15 * 8

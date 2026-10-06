@@ -115,7 +115,8 @@ end
 @testset "a whole column is a path that a table evaluates" begin
     doc = make_math_table_document_example()
     column = try_evaluate_reference(doc, _wt_col(2))
-    @test column isa WidgetTableColumn && column.index == 2
+    # A table with no data of its columns gives the same column each time.
+    @test column isa WidgetTableColumn && column === try_evaluate_reference(doc, _wt_col(2))
     set_selection!(doc, _wt_col(2))
     @test strip_reference_types(get_selection(doc)) == _wt_col(2)
 end

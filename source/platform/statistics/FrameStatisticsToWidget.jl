@@ -192,7 +192,7 @@ function _make_summary_table(p::FrameStatisticsToWidget, summary::Vector)
                     for field in (:minimum, :maximum, :mean, :standard_deviation, :total))...]
                for row in summary]
     WidgetTable(Any[WidgetLabel(text; text_style = p.header_text) for text in _SUMMARY_HEADERS], rows;
-                column_align = _SUMMARY_ALIGN)
+                columns = Any[WidgetTableColumn(; align) for align in _SUMMARY_ALIGN])
 end
 
 # The header of a column of the frames: its name, and `(ms)` for a time.
@@ -211,6 +211,7 @@ function _make_frame_table(p::FrameStatisticsToWidget, statistics::FrameStatisti
     headers = CellVector(Cell[Cell(WidgetLabel(_format_frame_header(row); text_style = p.header_text))
                               for row in summary])
     policies = Cell(@computation _make_frame_column_policies(p, summary, units, statistics.columns))
+    columns = Any[_make_frame_column(policies, c) for c in eachindex(units)]
     rows = Cell(@computation begin
         columns = statistics.columns
         limit = _compute_slow_frame_limit(columns, slow_column)
@@ -229,18 +230,24 @@ function _make_frame_table(p::FrameStatisticsToWidget, statistics::FrameStatisti
                                                            slow = _is_slow_frame(columns, slow_column, limit, i)))
     end)
     # Positional, so every declared field is named here in order: position,
-    # column_headers, row_headers, corner, cells, rows, columns, column_count,
-    # border_width, column_policy, row_policy, column_policies, row_policies,
-    # cell_policy, column_cell_policies, column_align, visible, margin, border,
-    # padding, style, scroll_position, top_row, column_drag, open_cells, tooltip.
+    # column_headers, row_headers, corner, cells, rows, columns, border_width,
+    # column_policy, row_policy, cell_policy, visible, margin, border, padding,
+    # style, scroll_position, top_row, column_drag, open_cells, tooltip.
     WidgetTable(Cell(Point2D(0, 0)), headers, row_headers,
                 Cell(WidgetLabel("frame"; text_style = p.header_text)), rows,
-                Cell(WidgetTableRows()), Cell(WidgetTableColumns()), Cell(length(units)), Cell(1),
-                Cell(_FRAME_COLUMN_POLICY), Cell(Fixed(p.row_height)), policies, Cell(Any[]),
-                Cell(:clip), Cell(Symbol[]), Cell(fill(:right, length(units))),
+                Cell(WidgetTableRows(nothing)), Cell(columns), Cell(1),
+                Cell(_FRAME_COLUMN_POLICY), Cell(Fixed(p.row_height)), Cell(:clip),
                 Cell(true), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
                 getfield(statistics, :scroll_position), getfield(statistics, :top_row),
                 Cell(nothing), Cell(nothing), Cell(nothing))
+end
+
+# The data of column `c` of the frames, aligned right, whose width reads entry
+# `c` of `policies`, so a new width writes no column.
+function _make_frame_column(policies::Cell, c::Int)
+    column = WidgetTableColumn(; align = :right)
+    set_cell_computation!(getfield(column, :policy), () -> (given = policies[]; c <= length(given) ? given[c] : nothing))
+    column
 end
 
 # The width of each column of the frames: the width of its header and of its

@@ -176,13 +176,66 @@ Decisions of the implementation (mine):
   - Tests: 16 files follow. Markdown 236, data frames 556, book 33, and of the
     umbrella the table selection 25, the navigation 66, the cell editing 14,
     the referenced document 110 and the frame statistics feed 134, each as on
-    main. The platform: one failure, in the pane of the MCP log, which has no
-    table, while juliaup moved Julia from 1.13.0 to 1.13.1 between the baseline
-    and this run; checked on the base commit with 1.13.1 below.
-- [ ] **2.** `WidgetTableRow`, `WidgetTableColumn` with data,
+    main. The platform, in that run, had one failure, in the pane of the MCP
+    log, and 8 tests fewer. Fact found: that run loaded `ProjecturedTest`,
+    which loads every domain, in the same process as the platform suite, and
+    with the Julia domain loaded the pane draws its code as colored pieces and
+    some platform tests count differently. The base commit with Julia 1.13.1
+    gives 95,264 pass and 8 broken, and the MCP log test passes alone on this
+    branch; so the umbrella tests run in a process of their own from step 2 on.
+- [ ] **2.** Design, found when step 2 started (2026-10-06, mine): the cell
+  engine has no equality check (cell.md, "propagation follows the writes"), so
+  a width kept as a plain value in `columns` would make every write of a width
+  rebuild the parts of a list table, whose shape reads the alignment and the
+  cell policy of each column. So a `WidgetTableColumn` and a `WidgetTableRow`
+  are documents whose fields are cells: a column has `policy`, `align` and
+  `cell_policy`, a row has `policy`, and `nothing` takes the default of the
+  table. A drag writes `columns[c].policy`, one cell, and the shape reads only
+  `align` and `cell_policy`. `WidgetTableColumns(n)` and `WidgetTableRows(n)`
+  keep the default document of each number that a path reached, so a path
+  meets the same document each time. The edge of a column, the mouse target of
+  its drag, is `columns[c].policy`. The data frame view keeps one column
+  document for each name, whose width is a computation over its state, so a
+  new width builds no new columns.
+  `WidgetTableRow`, `WidgetTableColumn` with data,
   `WidgetTableRows(n)` and `WidgetTableColumns(n)`; `rows` and `columns` hold
   the data, and the parallel vectors and their writers move into them, also
   `SetTableColumnWidthOperation`; `column_count` goes.
+  Done 2026-10-06:
+  - `WidgetTableRow(; policy)` and `WidgetTableColumn(; policy, align,
+    cell_policy)` are documents; `WidgetTableRows(n)` and
+    `WidgetTableColumns(n)` hold the count and keep the default document of
+    each number that a path reached. `get_widget_table_column_count(table)`
+    reads the count of the columns: the length of the data, the count, or
+    `nothing` for a list.
+  - The table loses `column_count`, `column_policies`, `row_policies`,
+    `column_cell_policies` and `column_align`. The keyword constructor takes
+    `rows` and `columns` data and counts the rest: the rows of `cells`, the
+    columns of the headers or of the widest row, each a computation that
+    follows them. The convenience constructor takes `columns`.
+  - The readers read the data through `_get_table_column_data` and
+    `_get_table_row_data`, with the defaults of the table. The shape of a list
+    table reads the count, the headers and the alignment and the cell policy
+    of each column, not its width. The list of columns builds its width list
+    and a mirrored alignment list (`_make_column_align_node`) from the list of
+    column documents; a head move writes `columns`.
+  - The width operation writes `columns[c].policy`; a table with only a count
+    gets its column documents at the first width. The edge of a column is
+    `columns[c].policy`, also in the light, the tooltip and the drag.
+  - The producers: the data frame view keeps one column document for each name
+    (`_make_column_documents`), whose width and alignment are computations
+    over the view, in both forms; the frames table of the statistics has one
+    document for each measurement, whose width reads the policies; the summary
+    table, the markdown table and the cell table give alignments or counts.
+  - Tests and examples follow (the `column_count` of the examples goes, as the
+    table counts the columns). Markdown 236, data frames 556, book 33; the
+    umbrella table tests 25, 66, 14, 110 and 134 in a process of their own.
+    The platform: 95,248 pass and 8 broken, 16 tests fewer than the base with
+    Julia 1.13.1. Fact found, by a count for each function and then for each
+    example: all 16 are in `test_platform_examples`, 4 in each of the four
+    examples with a table, because the printer test makes one `@test` for
+    each cell that it forces, and a table has one cell more (`rows`, step 1)
+    and five fewer (the parallel vectors and `column_count`, step 2).
 - [ ] **3.** `cell_order = :column_major`, `cells[c][r]`, and a test table of
   each order that draws the same, also lazy in each direction and in both.
 - [ ] **4.** The padding of a row and of a column (P1).
