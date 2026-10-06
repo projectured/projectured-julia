@@ -73,19 +73,22 @@ get_wrapper_layers(::Val{:shell}) = (:container => 10,)
 What draws the content of a window that opens later: the rows of the
 `opened_window_projections` of a window scene.
 
-**A window whose content type is named by no row draws nothing.** The help
-window of F1 holds a `GestureMap`, which this function names when
+The help window of F1 holds a `GestureMap`, which this function names when
 `gesture_help` is on. A tooltip window holds a `TooltipContent`, which the
 natural projection draws, so **a host that shows tooltips passes the natural
 rows** as `content`, with the rows that draw its own documents. They are the
 rows the window already draws a pane's content with.
 
 **A popup holds widgets**: the menu of a menu bar or of a context menu, and the
-options of a `WidgetSelect`, in a layout. So the rows end with the rows of
+options of a `WidgetSelect`, in a layout. So the rows go on with the rows of
 `WidgetToGraphics`, one for each widget and each layout, in the scaled widget
 theme of `appearance` and the measure the shell draws its bands with. The rows
 of `content` come before them, so a host decides first. The `shell` wrapper adds
 the rows of the widgets to its editor with this function.
+
+**A document that no row names draws through the natural renderer**, the last
+row, with the rows that the slices register: the list of choices of a navigator,
+for one, which the context menu window shows.
 """
 make_opened_window_projections(; gesture_help::Bool = true,
                                  content = Pair{Type,Any}[],
@@ -100,4 +103,5 @@ make_opened_window_projections(; gesture_help::Bool = true,
          Pair{Type,Any}[content...],
          Pair{Type,Any}[WidgetToGraphics(; measure = measure,
                                          theme = get_scaled_theme!(appearance, WidgetTheme),
-                                         graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)).dispatch...])
+                                         graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)).dispatch...],
+         Pair{Type,Any}[Document => NaturalToGraphics(; measure, appearance)])

@@ -33,13 +33,15 @@ import ProjecturedKernel.EditorModule: build_editor, run_frame!
 import ProjecturedKernel.DeviceModule: Device, Keyboard, Mouse, Display
 
 # An editor with a window of a fixed size, where the context menu window opens
-# the list of choices in a window of its own.
+# the list of choices in a window of its own, with the rows of an opened window
+# that a host gives.
 function _nav_window_editor(document)
     backend = HeadlessBackend()
     editor = build_editor(document, _nav_natural(); backend, devices = Device[Keyboard(), Mouse(), Display()],
                           appearance = false, settings = false,
                           window = (; title = "W", width = 700, height = 400,
-                                    opened_window_projections = Pair{Type,Any}[Document => _nav_natural()]))
+                                    opened_window_projections = make_opened_window_projections(;
+                                        measure = FixedMeasure(8, 12, 4, 0))))
     run_frame!(editor)
     (editor, backend)
 end
