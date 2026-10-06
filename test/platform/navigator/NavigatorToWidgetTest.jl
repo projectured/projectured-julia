@@ -177,6 +177,50 @@ function test_navigator_to_widget()
         @test editor.iomap === root_iomap
     end
 
+    @testset "the address shows names, a path, or a path with types" begin
+        shelf = _nav_make_shelf()
+        navigator = Navigator(shelf, @reference(shelf, books[2]))
+        editor, backend = _nav_editor(navigator; undo = true)
+        buffer = editor.document
+        @test _nav_has_texts(backend, "Shelf", "›", "B")
+        # The control shows the current view, and a press shows the next.
+        _nav_press!(editor, backend, _nav_click(backend, "Names"))
+        @test navigator.address_draft.view === :path
+        @test _nav_has_texts(backend, ".books[2]")
+        _nav_press!(editor, backend, _nav_click(backend, "Path"))
+        @test navigator.address_draft.view === :types
+        @test any(entry -> occursin("::NavigatorTestShelf.books", entry[1]), _nav_texts(backend))
+        _nav_press!(editor, backend, _nav_click(backend, "Types"))
+        @test navigator.address_draft.view === :titles
+        # A switch of the view is no edit.
+        @test length(buffer.undo_entries) == 0
+    end
+
+    @testset "a visit gives an edited address copy back to the address" begin
+        shelf = _nav_make_shelf()
+        navigator = Navigator(shelf)
+        draft = navigator.address_draft
+        draft.edited = true
+        push!(draft.steps, ReferenceInsertion("bo", nothing))
+        @test get_navigator_address_steps(navigator)[1] isa ReferenceInsertion
+        _nav_apply!(_NavHolder(navigator), make_navigator_open_operation(navigator, @reference(shelf, books[2])))
+        @test !draft.edited && isempty(draft.steps)
+        @test _nav_steps(Reference(get_navigator_address_steps(navigator)...)) ==
+              _nav_steps(@reference(shelf, books[2]))
+    end
+
+    @testset "the types view marks the part of an address that an edit cut" begin
+        shelf = _nav_make_shelf()
+        navigator = Navigator(shelf, @reference(shelf, books[2].chapters[1]))
+        navigator.address_draft.view = :types
+        shelf.books[2].chapters = _nav_vector(NavigatorTestChapter[])
+        iomap = print_document(make_navigator_projection(), nothing, navigator, nothing)
+        address = iomap.output.children[1].children[5]
+        @test address isa WidgetLabel
+        @test endswith(address.content, "✗ [1]")
+        @test occursin("::NavigatorTestBook.chapters", address.content)
+    end
+
     @testset "undo records no visit in an editor" begin
         shelf = _nav_make_shelf()
         navigator = Navigator(shelf)

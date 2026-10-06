@@ -14,6 +14,16 @@ get_navigator_page_address(navigator::Navigator) =
     get_valid_reference_prefix(navigator.content, navigator.address)
 
 """
+    get_navigator_address_steps(navigator) -> Vector
+
+The steps that the bar of `navigator` shows: the steps of its address copy while a
+person edits it, and the steps of its page address otherwise.
+"""
+get_navigator_address_steps(navigator::Navigator) =
+    navigator.address_draft.edited ? collect(navigator.address_draft.steps) :
+    get_reference_steps(get_navigator_page_address(navigator))
+
+"""
     get_navigator_page(navigator) -> Any
 
 The part of the content that `navigator` shows: the node at its page address.
@@ -196,6 +206,12 @@ function _make_visit_operation(navigator::Navigator, visit::NavigatorVisit, back
                  ReplaceReferencedValueOperation(navigator, "forward", forward)]
     visit.content === navigator.content ||
         pushfirst!(writes, ReplaceReferencedValueOperation(navigator, "content", visit.content))
+    # A visit gives the bar the new address: an edited copy goes back to it.
+    draft = navigator.address_draft
+    if draft.edited
+        push!(writes, ReplaceReferencedValueOperation(draft, "edited", false))
+        push!(writes, ReplaceReferencedValueOperation(draft, "steps", CellVector()))
+    end
     selection = _find_visit_selection(visit)
     path = ConcreteReference(get_reference_node_type(navigator), _CONTENT_STEP,
                              annotate_reference_types(visit.content, selection))

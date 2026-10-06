@@ -789,12 +789,25 @@ The design of the address is complete. The steps to build it:
   one raised segment as wide as the widest option; a left press picks the next
   option, Shift+press the one before, around the ends; Return and Space with no
   modifier pick the next. `test_widget_forms()` checks it.
-- [ ] **A2. The address document.** A document of the navigator slice that holds
+- [x] **A2. The address document.** A document of the navigator slice that holds
   the steps of the address, `FieldReferenceStep` and `RangeReferenceStep`
   values in their element form, and the view: titles, path or types. The
   navigator holds it as view state beside `address`; each visit writes it from
-  the address, and a save does not keep it.
-- [ ] **A3. The three views and the control.** The titles view: one name for
+  the address, and a save does not keep it. Done, 2026-10-06:
+  `NavigatorAddress(steps, view, edited)` and `ReferenceInsertion(value)` in
+  `NavigatorDocument.jl`; the field `address_draft` of `Navigator`. The copy is
+  lazy: while `edited` is `false` the views show the steps of the page address
+  (`get_navigator_address_steps`), and the first edit writes the steps; a visit
+  sets `edited` back to `false` and empties the steps. So a navigator needs no
+  copy when it is built. `has_document_duplicate(::NavigatorAddress)` keeps a
+  copy for each duplicate tab.
+- [ ] **A3. The three views and the control.** The views and the control are
+  done (2026-10-06); the edit of the path view waits for A4. The control is a
+  `WidgetToggleGroup` of the step look before the address, "Names", "Path",
+  "Types", whose write of `view` the reader marks as view state. The path view
+  shows `.books[2]`, with the dot of a field step in front; the types view
+  shows the address with the type of each node, and `✗` before the part that
+  an edit cut. The titles view: one name for
   each stop, with the arrow of its list, and a press on a name opens its page,
   as the items of the address do now, which the view replaces. The path view:
   a syntax view of the steps, edited in place; `.` and `[` start a

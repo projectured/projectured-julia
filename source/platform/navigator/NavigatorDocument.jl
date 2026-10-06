@@ -16,6 +16,40 @@ struct NavigatorVisit
 end
 
 """
+    ReferenceInsertion(value = "")
+
+A step of an address that a person types and that names no step yet, as
+`JsonInsertion` is a JSON value that names no value yet: `value` is the text that
+was typed, such as `na` of a field or `4` of an element. It becomes a
+`FieldReferenceStep` or an element `RangeReferenceStep` when its text names one.
+"""
+@document struct ReferenceInsertion
+    value::String = ""
+end
+
+"""
+    NavigatorAddress(steps = CellVector(); view = :titles, edited = false)
+
+The address of a navigator as its bar shows it and a person edits it: an editable
+copy beside the committed `address` of the [`Navigator`](@ref).
+
+- `steps` holds `FieldReferenceStep`s, element `RangeReferenceStep`s and
+  [`ReferenceInsertion`](@ref)s, while the copy is edited.
+- `view` is `:titles`, `:path` or `:types`: the names of the documents on the
+  address, the path, or the path with the type of each node.
+- `edited` is `false` while the copy is the address: the views then show the
+  steps of the address, and the first edit writes them here. A visit makes it
+  `false` again.
+
+It is view state: an undo records no change of it, and a save does not keep it.
+"""
+@document struct NavigatorAddress
+    steps::CellVector = CellVector()
+    view::Symbol = :titles
+    edited::Bool = false
+end
+
+"""
     Navigator(content[, address])
 
 A document that shows one part of `content`, its page, as a tab of a browser
@@ -26,6 +60,8 @@ shows one page of a site.
   whole content.
 - `back` holds the visits before the current one, the newest last, and
   `forward` the visits after it, the nearest last.
+- `address_draft` is the address as the bar shows it and a person edits it
+  ([`NavigatorAddress`](@ref)).
 
 The address is state of the document, not of a projection, so it is saved with
 the document and a program or the assistant reads it as any field. A move to
@@ -43,6 +79,7 @@ another page writes it as view state, so undo records none of it. See
     address::Reference = EmptyReference()
     back::Vector{NavigatorVisit} = NavigatorVisit[]
     forward::Vector{NavigatorVisit} = NavigatorVisit[]
+    address_draft::NavigatorAddress = NavigatorAddress()
 end
 
 # A navigator shows a part of its content, so the document that a person edits in
@@ -60,6 +97,9 @@ end
 # reads the same content, as a duplicate of a tab of a browser does: the copy
 # descends into a navigator and shares a content that declares no duplicate.
 has_document_duplicate(::Navigator) = true
+
+# The copy of the address belongs to its tab, as the address does.
+has_document_duplicate(::NavigatorAddress) = true
 
 # A file keeps the content and the address, as the text of a path, and not the
 # visits: a window that opens again shows the same page, with empty lists.

@@ -64,7 +64,9 @@ function print_document(p::NavigatorToWidget, recursion, navigator::Navigator, c
                   WidgetToolbarItem(actions.forward; tooltip = "Go forward to the next page (Ctrl+])."),
                   WidgetToolbarItem(actions.parent; tooltip = "Go to the page that holds this page (Ctrl+Up).")]
     crumbs = Cell(@computation _make_address_crumbs(navigator))
-    bar = HorizontalLayout(CellVector(Computation(() -> Any[buttons..., _get_crumb_widgets(crumbs[])...])),
+    switch = _make_view_switch(navigator.address_draft)
+    bar = HorizontalLayout(CellVector(Computation(() -> Any[buttons..., switch,
+                                                            _make_address_part(navigator, crumbs[])...])),
                            Cell(:center), Cell(p.gap), Cell(Content), Cell(nothing), Cell(nothing))
     page = VerticalLayout(CellVector(@computation Any[get_navigator_page(navigator)]),
                           Cell(:left), Cell(0), Cell(Fill), Cell(Fill), Cell(nothing))
@@ -87,6 +89,56 @@ function _make_action(label::AbstractString, icon::Symbol, is_enabled::Function)
     action = Action(label; icon)
     set_cell_computation!(getfield(action, :enabled), is_enabled)
     action
+end
+
+# ── The views of the address ──────────────────────────────────────────────────
+#
+# The bar shows the address in one of three views, which the address copy names:
+# the names of the documents on it, the path, or the path with the type of each
+# node. One control steps through them.
+
+const _ADDRESS_VIEWS = [:titles, :path, :types]
+
+# The control that steps through the views: it shows the current one, and a press
+# writes the next into the address copy, which the reader marks as view state.
+function _make_view_switch(draft::NavigatorAddress)
+    switch = WidgetToggleGroup(["Names", "Path", "Types"]; look = :step, values = _ADDRESS_VIEWS,
+                               target = draft, field = "view",
+                               tooltip = "The address as names, as a path, or as a path with types: " *
+                                         "a press shows the next, Shift+press the one before.")
+    set_cell_computation!(getfield(switch, :selected),
+                          () -> something(findfirst(==(draft.view), _ADDRESS_VIEWS), 1))
+    switch
+end
+
+# The widgets of the address in the view that the address copy names.
+function _make_address_part(navigator::Navigator, crumbs)
+    view = navigator.address_draft.view
+    view === :path && return Any[WidgetLabel(_get_path_text(navigator))]
+    view === :types && return Any[WidgetLabel(_get_types_text(navigator))]
+    _get_crumb_widgets(crumbs)
+end
+
+# The path of the steps that the bar shows, or a word for the whole content.
+function _get_path_text(navigator::Navigator)
+    steps = get_navigator_address_steps(navigator)
+    isempty(steps) && return "(the whole content)"
+    join(_get_step_text(step) for step in steps)
+end
+
+_get_step_text(step::FieldReferenceStep) = "." * step.name
+_get_step_text(step::RangeReferenceStep) = "[" * string(step.stop) * "]"
+_get_step_text(step::ReferenceInsertion) = step.value
+
+# The path of the page with the type of each node, and, when an edit cut the
+# address, a mark and the part that no longer reaches a node.
+function _get_types_text(navigator::Navigator)
+    page = get_navigator_page_address(navigator)
+    text = string(annotate_reference_types(navigator.content, page))
+    stored = get_reference_steps(navigator.address)
+    reached = length(get_reference_steps(page))
+    reached < length(stored) || return text
+    text * "  ✗ " * join(_get_step_text(step) for step in stored[(reached + 1):end])
 end
 
 # ── The address ───────────────────────────────────────────────────────────────
@@ -234,6 +286,13 @@ function _translate_answer(iomap::NavigatorToWidgetIoMap, operation::OpenPageOpe
     operation.place === :here || return operation
     something(make_navigator_open_operation(navigator, operation.document, operation.reference),
               DoNothingOperation())
+end
+
+# A write of the address copy, such as the view that the control picks, is view
+# state.
+function _translate_answer(iomap::NavigatorToWidgetIoMap, operation::ReplaceReferencedValueOperation)
+    operation.document === iomap.input.address_draft || return operation
+    ReplaceViewStateOperation(operation)
 end
 
 _translate_answer(iomap::NavigatorToWidgetIoMap, operation::CompoundOperation) =
