@@ -424,6 +424,12 @@ caller:
   and runs on a task pinned to another thread of the default pool, because a
   backend such as SDL answers only the thread that started it. The task is
   `editor.loop_task` until the loop ends.
+- `run_editor!(make::Function; wait = true, mcp = false)` is the loop of the
+  editor that `make()` answers. It is for a caller whose work before the loop
+  must run on the task of the loop, such as a window that declares its tools and
+  opens its panes: `make` builds the editor, does that work and answers the
+  editor. With `wait = false` the task of the loop calls `make`, and the call
+  returns the editor once `make` returns.
 
 The raw constructor has the same shape:
 `Editor(document, projection; backend, devices, clock, tools, faults,
