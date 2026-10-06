@@ -138,7 +138,7 @@ and what the domain's guide screenshot shows.
 function make_chart_document_example()
     WidgetTable(;
         column_headers = Any[], row_headers = Any[],
-        rows = Any[
+        cells = Any[
             Any[make_chart_line_document_example(), make_chart_bar_document_example()],
             Any[make_chart_histogram_document_example(), make_chart_scatter_document_example()],
         ],

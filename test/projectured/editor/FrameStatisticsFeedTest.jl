@@ -180,18 +180,18 @@ function test_frame_statistics_feed()
         summary = root.children[3]
         @test _get_header_texts(summary) ==
               ["measurement", "unit", "frames", "minimum", "maximum", "mean", "deviation", "total"]
-        @test _get_row_texts(summary.rows[1]) ==
+        @test _get_row_texts(summary.cells[1]) ==
               ["frame_time", "ms", "3", "10.00", "30.00", "20.00", "10.00", "60"]
-        @test _get_row_texts(summary.rows[2]) ==
+        @test _get_row_texts(summary.cells[2]) ==
               ["reads", "", "2", "120", "5000", "812.3", "900.1", "2437"]
         @test root.children[4].content == "Frames, newest first"
         frames = _get_frame_table(root)
         @test _get_header_texts(frames) == ["frame_time (ms)", "reads"]
         @test frames.corner.content == "frame"
-        @test _get_row_texts(frames.rows.value) == ["30.00", "5000"]
+        @test _get_row_texts(frames.cells.value) == ["30.00", "5000"]
         @test frames.row_headers.value.content == "3"
         # The oldest frame did not measure the counter, and it ends the list.
-        oldest = frames.rows.next.next
+        oldest = frames.cells.next.next
         @test _get_row_texts(oldest.value) == ["10.00", "-"]
         @test oldest.next === nothing
         @test frames.row_headers.next.next.value.content == "1"
@@ -205,16 +205,16 @@ function test_frame_statistics_feed()
         frames = _get_frame_table(root)
         slow_color = p.slow_text.color
         is_slow(label) = is_color_equal(label.text_style.color, slow_color)
-        newest = frames.rows.value
+        newest = frames.cells.value
         @test all(is_slow(newest[index]) for index in 1:length(newest))
         @test is_slow(frames.row_headers.value)
-        middle = frames.rows.next.value
+        middle = frames.cells.next.value
         @test !any(is_slow(middle[index]) for index in 1:length(middle))
         @test !is_slow(frames.row_headers.next.value)
         @test !is_color_equal(p.row_text.color, slow_color)
         # A frame at two times the median is not slow: the limit is strict.
         statistics.columns = [[0.01, 0.02, 0.04], [NaN, 120.0, 5000.0]]
-        @test !is_slow(frames.rows.value[1])
+        @test !is_slow(frames.cells.value[1])
     end
 
     @testset "the scroll bar follows the top row, and a write of its value jumps there" begin
@@ -256,9 +256,9 @@ function test_frame_statistics_feed()
         statistics.columns = [[0.02, 0.03, 0.04], [120.0, 5000.0, 7.0]]
         @test root.children[3] === summary
         @test _get_frame_table(root) === frames
-        @test summary.rows[1][3].content == "4"
+        @test summary.cells[1][3].content == "4"
         @test _get_frame_statistics_head(root) == "4 frames"
-        @test _get_row_texts(frames.rows.value) == ["40.00", "7"]
+        @test _get_row_texts(frames.cells.value) == ["40.00", "7"]
         @test frames.row_headers.value.content == "4"
     end
 
@@ -275,7 +275,7 @@ function test_frame_statistics_feed()
         frames = _get_frame_table(root)
         # The answer of a table that moves the head of its list to its second row.
         move = CompoundOperation(Any[
-            ReplaceViewStateOperation(ReplaceReferencedValueOperation(frames, "rows", frames.rows.next)),
+            ReplaceViewStateOperation(ReplaceReferencedValueOperation(frames, "cells", frames.cells.next)),
             ReplaceViewStateOperation(ReplaceReferencedValueOperation(frames, "scroll_position", Point2D(0, 4))),
             ReplaceViewStateOperation(ReplaceReferencedValueOperation(frames, "top_row", 1)),
             ReplaceViewStateOperation(ReplaceReferencedValueOperation(frames, "row_headers",
@@ -292,7 +292,7 @@ function test_frame_statistics_feed()
         @test answer.operations[4] isa DoNothingOperation
         # The list starts again from the anchor.
         statistics.anchor = 2
-        @test _get_row_texts(frames.rows.value) == ["20.00", "120"]
+        @test _get_row_texts(frames.cells.value) == ["20.00", "120"]
         @test frames.row_headers.value.content == "2"
         @test getfield(frames, :top_row) === getfield(statistics, :top_row)
         # A press on Pause writes the document, and the undo does not record it.
@@ -306,7 +306,7 @@ function test_frame_statistics_feed()
         # from that head.
         statistics.anchor = 9
         @test frames.row_headers.value.content == "1"
-        move = ReplaceViewStateOperation(ReplaceReferencedValueOperation(frames, "rows", frames.rows.prev))
+        move = ReplaceViewStateOperation(ReplaceReferencedValueOperation(frames, "cells", frames.cells.prev))
         @test get_wrapped_operation(read_intent(p, iomap, move)).value == 2
     end
 

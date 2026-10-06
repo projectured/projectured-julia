@@ -53,8 +53,8 @@ layout_of(page) = print_document(MarkdownRootToVerticalLayout(), nothing, page,
     @test widget.cell_policy === :wrap
     @test collect(widget.column_headers)[1] === table.header.elements[1]
     @test collect(widget.column_headers)[2] === table.header.elements[2]
-    @test length(widget.rows) == 3
-    @test collect(widget.rows[3])[2] === table.rows[3].elements[2]
+    @test length(widget.cells) == 3
+    @test collect(widget.cells[3])[2] === table.rows[3].elements[2]
     @test !(children[1] isa WidgetTable)
 end
 
@@ -79,10 +79,10 @@ end
     field(name, rest) = ConcreteReference(FieldReferenceStep(name), rest)
     index(j, rest) = ConcreteReference(RangeReferenceStep(j - 1, j), rest)
     inside = field("content", EmptyReference())
-    # An entry of a body row: `rows[k].elements[j]` is `rows[k][j]`.
+    # An entry of a body row: `rows[k].elements[j]` is `cells[k][j]`.
     body = element(2, field("rows", index(3, field("elements", index(2, inside)))))
     @test map_reference_forward(p, iomap, body) ==
-          child(2, field("rows", index(3, index(2, inside))))
+          child(2, field("cells", index(3, index(2, inside))))
     @test map_reference_backward(p, iomap, map_reference_forward(p, iomap, body)) == body
     # An entry of the header: `header.elements[j]` is `column_headers[j]`.
     header = element(2, field("header", field("elements", index(1, inside))))

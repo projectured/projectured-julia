@@ -135,20 +135,59 @@ P1, P3 and P4 are decided (§2).
 ## 7. Steps
 
 Each step keeps the behaviour of every table that does not use the new parts,
-checked against main before the step (`test_platform`, the markdown and the
-data frame suites, and omnet-julia).
+checked against main before the step (`test_platform`, the markdown, the data
+frame and the book suites, and omnet-julia).
 
-- [ ] **1.** `WidgetTableRow`, `WidgetTableRows(n)`, `WidgetTableColumns(n)`,
-  and `WidgetTableColumn` with data; `rows` and `columns` hold the data, and the
-  parallel vectors and their writers move into them, also
+The order changed when the implementation started (2026-10-06, mine): the body
+must leave `rows` before `rows` can hold the data of the rows, so `cells` comes
+first.
+
+Decisions of the implementation (mine):
+- The keyword constructor takes the body as `cells`. Its keyword `rows` takes
+  the data of the rows, so a body that a caller still passes in `rows` raises an
+  error that says the cells go in `cells`. The convenience constructor
+  `WidgetTable(headers, rows)` keeps its positional rows of values, which are
+  the cells.
+- The keywords of the parallel vectors (`column_policies`, `column_align`,
+  `column_cell_policies`, `row_policies`) and `column_count` go: a caller gives
+  `columns` and `rows` data. omnet-julia uses them in four files and two tests,
+  so it follows in a branch of its own, tested against this one, and lands with
+  it.
+
+- [x] **1.** `cells` holds the body, and the path of a cell is `cells[r][c]`;
+  `rows` holds a `WidgetTableRows`, which `rows[r]` steps through: the readers,
+  the printer, the selection, the open cells, and every user of §3, with the
+  tests. Done 2026-10-06:
+  - `WidgetTable` has `cells` (the body) where `rows` was, and a new `rows`
+    after it, which holds a `WidgetTableRows()`; `rows[r]` gives a
+    `WidgetTableRow(r)`, as `columns[c]` gives a `WidgetTableColumn(c)`.
+  - The keyword constructor takes `cells`; a `rows` that a caller gives raises
+    an error that names `cells`. The convenience constructor is as it was.
+  - The cell path is `cells[r][c]` in the eager and the list form (the split,
+    the steps, the reference, the forward map, the selection band, the light
+    of the row of a cell, the head moves of a list, which write `cells`, and
+    the shifts of a path). A whole row stays `rows[r]`.
+  - The users: the data frame view (its table paths and the head moves; its
+    own paths stay `rows[r][c]`), the markdown table (`rows[k].elements[j]` is
+    `cells[k][j]`), the statistics table (its head move), the cell table, and
+    the positional constructions; the examples that passed the body as `rows`
+    (the table, the math table, the invoice table, the graph, the chart and the
+    sequence chart examples); the guides `widget.md` and `markdown.md`.
+  - Tests: 16 files follow. Markdown 236, data frames 556, book 33, and of the
+    umbrella the table selection 25, the navigation 66, the cell editing 14,
+    the referenced document 110 and the frame statistics feed 134, each as on
+    main. The platform: one failure, in the pane of the MCP log, which has no
+    table, while juliaup moved Julia from 1.13.0 to 1.13.1 between the baseline
+    and this run; checked on the base commit with 1.13.1 below.
+- [ ] **2.** `WidgetTableRow`, `WidgetTableColumn` with data,
+  `WidgetTableRows(n)` and `WidgetTableColumns(n)`; `rows` and `columns` hold
+  the data, and the parallel vectors and their writers move into them, also
   `SetTableColumnWidthOperation`; `column_count` goes.
-- [ ] **2.** `cells` holds the body, and the path of a cell is `cells[r][c]`:
-  the readers, the printer, the selection, the open cells, and every user of
-  §3, with the tests.
 - [ ] **3.** `cell_order = :column_major`, `cells[c][r]`, and a test table of
   each order that draws the same, also lazy in each direction and in both.
 - [ ] **4.** The padding of a row and of a column (P1).
 - [ ] **5.** The guides: `widget.md` and the docstrings of the table.
+- [ ] **6.** omnet-julia follows: its calls of the constructor and its tests.
 
 ## 8. Risks
 

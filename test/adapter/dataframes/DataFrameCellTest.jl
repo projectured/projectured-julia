@@ -34,7 +34,7 @@ function test_data_frame_cells()
         end
         table_of(io) = _data_frame_table_iomap(io).input
         # The document that the table shows in row `k` of its list and column `c`.
-        shown(io, k, c) = collect(ProjecturedPlatform.CollectionModule.find_list_node(table_of(io).rows, k).value)[c]
+        shown(io, k, c) = collect(ProjecturedPlatform.CollectionModule.find_list_node(table_of(io).cells, k).value)[c]
 
         @testset "a cell is the primitive document of its value, and other values are labels" begin
             view = DataFrameView(make_frame())

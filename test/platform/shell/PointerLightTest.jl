@@ -101,7 +101,7 @@ end
     table = WidgetTable(["A", "B"], [["1", "2"], ["3", "4"]])
     editor, move! = _pl_make_editor(table)
     move!(20, 60)
-    @test get_mouse_target(table) == _pl_path(_pl_element("rows", 1)..., ElementReferenceStep(1))
+    @test get_mouse_target(table) == _pl_path(_pl_element("cells", 1)..., ElementReferenceStep(1))
     @test _pl_count_lights(editor) == 1
     # A column header lights its column.
     move!(5, 5)

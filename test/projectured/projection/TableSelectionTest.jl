@@ -12,8 +12,8 @@
 #   * whole row r   → `rows[r]∅`
 #   * whole column c→ `columns[c]∅`
 #   * header of c   → `column_headers[c]∅`, a part of its own
-#   * whole cell    → `rows[r][c]∅`
-#   * in-cell cursor→ `rows[r][c].<content-tail>` (draws no band; the cell's own
+#   * whole cell    → `cells[r][c]∅`
+#   * in-cell cursor→ `cells[r][c].<content-tail>` (draws no band; the cell's own
 #                     pipeline draws the caret).
 # ═══════════════════════════════════════════════════════════════════════════
 
@@ -29,7 +29,7 @@ _wt_column_header(c) = ConcreteReference(FieldReferenceStep("column_headers"),
                     ConcreteReference(ElementReferenceStep(c), EmptyReference()))
 _wt_row_header(r) = ConcreteReference(FieldReferenceStep("row_headers"),
                     ConcreteReference(ElementReferenceStep(r), EmptyReference()))
-_wt_cell(r, c) = ConcreteReference(FieldReferenceStep("rows"),
+_wt_cell(r, c) = ConcreteReference(FieldReferenceStep("cells"),
                     ConcreteReference(ElementReferenceStep(r),
                         ConcreteReference(ElementReferenceStep(c), EmptyReference())))
 
@@ -133,18 +133,18 @@ end
     doc = make_math_table_document_example()
     proj = make_math_table_projection_example(measure=m)
 
-    # A content cursor (`rows[1][1].value`, inside the PrimitiveNumber cell) is not
+    # A content cursor (`cells[1][1].value`, inside the PrimitiveNumber cell) is not
     # a whole-element shape: the band collapses to 0×0 (draws nothing), so no visible
-    # band. (rows[2][2] is a MathBinaryOperation with no `.value` — an unselectable
+    # band. (cells[2][2] is a MathBinaryOperation with no `.value` — an unselectable
     # path — so use the primitive cell the click test below also lands on.)
-    inner = ConcreteReference(FieldReferenceStep("rows"),
+    inner = ConcreteReference(FieldReferenceStep("cells"),
                 ConcreteReference(ElementReferenceStep(1),
                     ConcreteReference(ElementReferenceStep(1),
                         ConcreteReference(FieldReferenceStep("value"), EmptyReference()))))
     @test isempty(_table_highlights(_print_with(doc, proj, inner)))
 
     # A plain left click routes into the clicked cell's content, landing on a
-    # `rows[r][c].…` cursor.
+    # `cells[r][c].…` cursor.
     io = _print_with(doc, proj, nothing)
     geom = io.geometry
     gc = 1 + geom.col_offset
@@ -153,7 +153,7 @@ end
     cy = geom.row_y[gr] + geom.bw + geom.pad_y + 1
     op = read_intent(proj, io, MouseClick(:left, cx, cy, ModifierKeys(); time = 0.0))
     @test op isa ReplaceSelectionOperation
-    @test startswith(string(op.path), ".rows[1][1]")
+    @test startswith(string(op.path), ".cells[1][1]")
 end
 
 @testset "JSON table (column headers only) bands rows/columns/cells" begin

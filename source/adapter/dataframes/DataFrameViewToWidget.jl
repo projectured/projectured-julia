@@ -136,16 +136,17 @@ function _make_view_table(p::DataFrameViewToWidget, view::DataFrameView)
     rows = Cell(@computation _make_row_list(view, _get_shown_columns(view), view.kept_rows, view.anchor))
     row_headers, corner = _make_row_numbers(p, view)
     # Positional, so every declared field is named here in order: position,
-    # column_headers, row_headers, corner, rows, column_count, border_width,
-    # column_policy, row_policy, column_policies, row_policies, cell_policy,
-    # column_cell_policies, column_align, visible, margin, border, padding,
-    # style, scroll_position, top_row, column_drag, tooltip. The table
+    # column_headers, row_headers, corner, cells, rows, columns, column_count,
+    # border_width, column_policy, row_policy, column_policies, row_policies,
+    # cell_policy, column_cell_policies, column_align, visible, margin, border,
+    # padding, style, scroll_position, top_row, column_drag, open_cells,
+    # tooltip. The table
     # scrolls its own parts, and its offset is the cell of the view. A column
     # that a person gave a width has it, and the others share the rest.
     policies = Cell(@computation Any[_get_column_width_policy(view, name, _COLUMN_POLICY)
                                      for name in _get_shown_columns(view)])
     table = WidgetTable(Cell(Point2D(0, 0)), headers, row_headers, corner, rows,
-                        Cell(WidgetTableColumns()),
+                        Cell(WidgetTableRows()), Cell(WidgetTableColumns()),
                         Cell(@computation length(_get_shown_columns(view))), Cell(1),
                         Cell(_COLUMN_POLICY), Cell(Fixed(p.row_height)), policies, Cell(Any[]),
                         Cell(:clip), Cell(Symbol[]), align,
@@ -209,7 +210,7 @@ function _make_column_list_table(p::DataFrameViewToWidget, view::DataFrameView)
     row_headers, corner = _make_row_numbers(p, view)
     # Positional, as in `_make_view_table` above.
     table = WidgetTable(Cell(Point2D(0, 0)), headers, row_headers, corner, rows,
-                        Cell(WidgetTableColumns()), Cell(0), Cell(1),
+                        Cell(WidgetTableRows()), Cell(WidgetTableColumns()), Cell(0), Cell(1),
                         Cell(Fixed(p.list_column_width)), Cell(Fixed(p.row_height)),
                         policies, Cell(Any[]), Cell(:clip), Cell(Symbol[]), align,
                         Cell(true), Cell(nothing), Cell(nothing), Cell(nothing),
@@ -268,7 +269,8 @@ end
 # The path in the table of `path`, a path of the view to a column, a row or a
 # cell of the frame, with the rest of the path as it is: `columns[c]…` is the
 # column that the table shows, `rows[r]…` the row among the kept rows counted
-# from the head of the list, and `rows[r][c]…` the cell where they meet.
+# from the head of the list, and `cells[r][c]…` of the table the cell where they
+# meet.
 # `nothing` for a column that the view hides, and for a row that a filter drops
 # or that is too far from the head for the table to show it.
 function _find_table_part_path(view::DataFrameView, path::ConcreteReference, column_list::Bool)
@@ -286,7 +288,7 @@ function _find_table_part_path(view::DataFrameView, path::ConcreteReference, col
         return _make_element_reference("rows", k, rest)
     j = _find_table_column(view, rest.head.stop, column_list)
     j === nothing && return nothing
-    _make_element_reference("rows", k, ConcreteReference(RangeReferenceStep(j - 1, j), rest.tail))
+    _make_element_reference("cells", k, ConcreteReference(RangeReferenceStep(j - 1, j), rest.tail))
 end
 
 # The place in the table of column `c` of the frame, counted from the head column
@@ -533,12 +535,12 @@ function _find_view_path(iomap::DataFrameViewToWidgetIoMap, path)
         tail.tail isa EmptyReference || return nothing
         return _find_frame_column_path(iomap, tail.head.stop, EmptyReference())
     end
-    name in ("rows", "row_headers") || return nothing
+    name in ("rows", "cells", "row_headers") || return nothing
     r = _find_frame_row(view, tail.head.stop)
     r === nothing && return nothing
     rest = tail.tail
-    rest isa EmptyReference && return _make_element_reference("rows", r, rest)
-    name == "rows" || return nothing
+    rest isa EmptyReference && name != "cells" && return _make_element_reference("rows", r, rest)
+    name == "cells" || return nothing
     (rest isa ConcreteReference && rest.head isa RangeReferenceStep) || return nothing
     column = _find_frame_column_path(iomap, rest.head.stop, rest.tail)
     column === nothing && return nothing
@@ -665,12 +667,12 @@ function _convert_table_write(iomap::DataFrameViewToWidgetIoMap, operation, colu
         return ReplaceViewStateOperation(ReplaceReferencedValueOperation(
             view, "column_anchor", view.column_anchor + c - 1))
     end
-    columns && field in ("rows", "column_align") && return nothing
+    columns && field in ("cells", "column_align") && return nothing
     # The row headers move in step with the rows, and the view builds both
     # again from its anchor.
     field == "row_headers" && return nothing
-    field == "rows" || return operation
-    k = find_list_index(iomap.table.rows, value)
+    field == "cells" || return operation
+    k = find_list_index(iomap.table.cells, value)
     k === nothing && return nothing
     ReplaceViewStateOperation(ReplaceReferencedValueOperation(view, "anchor", view.anchor + k - 1))
 end
@@ -678,7 +680,7 @@ end
 # An operation of the document in an open cell, in the paths of the view: a key
 # that edits its text, the write of the whole cell that replaces its document,
 # such as a number that becomes a type-in, and the selection that goes with it.
-# The paths go from `rows[k][j]…` of the table to `rows[r][c]…` of the view,
+# The paths go from `cells[k][j]…` of the table to `rows[r][c]…` of the view,
 # which reach the document of the entry. `nothing` for any other operation.
 function _convert_cell_operation(iomap::DataFrameViewToWidgetIoMap, operation)
     if operation isa ReplaceRangeOperation
@@ -723,7 +725,7 @@ end
 # The row of the frame and the name of the column of the cell in row `row` and
 # column `column` of the table, in the numbers of its paths, or `nothing`.
 function _find_frame_cell_of_table(iomap::DataFrameViewToWidgetIoMap, row::Int, column::Int)
-    path = _find_view_path(iomap, ConcreteReference(FieldReferenceStep("rows"),
+    path = _find_view_path(iomap, ConcreteReference(FieldReferenceStep("cells"),
         ConcreteReference(RangeReferenceStep(row - 1, row),
                           ConcreteReference(RangeReferenceStep(column - 1, column), EmptyReference()))))
     path === nothing ? nothing : _find_frame_cell(iomap.input, path)
@@ -743,12 +745,12 @@ function _find_frame_cell(view::DataFrameView, path)
 end
 
 # The path of the view of `path`, a path of the output of the view, when it
-# reaches a cell of the table, `rows[k][j]` with or without a rest; `nothing`
+# reaches a cell of the table, `cells[k][j]` with or without a rest; `nothing`
 # for any other path.
 function _find_cell_view_path(iomap::DataFrameViewToWidgetIoMap, path)
     path isa Reference || return nothing
     table_path = _find_table_path(path)
-    (table_path isa ConcreteReference && table_path.head == FieldReferenceStep("rows")) || return nothing
+    (table_path isa ConcreteReference && table_path.head == FieldReferenceStep("cells")) || return nothing
     tail = table_path.tail
     (tail isa ConcreteReference && tail.head isa RangeReferenceStep &&
      tail.tail isa ConcreteReference && tail.tail.head isa RangeReferenceStep) || return nothing

@@ -10,9 +10,9 @@
 #   Shift/Ctrl+Space / Enter) is tried via read_intent; the resulting path is
 #   re-applied, re-printed and the iomap walked. Returns (state_count, errors).
 #
-# Reference vocabulary on WidgetTable: whole cell = `rows[r][c]`, whole row =
+# Reference vocabulary on WidgetTable: whole cell = `cells[r][c]`, whole row =
 # `rows[r]`, whole column = `columns[c]`, whole table = `∅`, in-cell
-# cursor = `rows[r][c].<tail>`.
+# cursor = `cells[r][c].<tail>`.
 # ═══════════════════════════════════════════════════════════════════════════
 
 # _wt_row / _wt_col / _wt_cell / _table_measure are defined in TableSelectionTest.jl
@@ -83,7 +83,7 @@ function explore_table_selections(document, projection; onstate=nothing)
             new_str = string(op.path)
             # Stay in structural space: an Enter into cell content is valid, but a
             # character cursor is not a tree-selection state. A whole-cell path is
-            # `rows[r][c]` (two element steps then ∅); an in-cell cursor has more.
+            # `cells[r][c]` (two element steps then ∅); an in-cell cursor has more.
             _wt_is_structural(op.path) || continue
             new_str in visited && continue
             push!(queue, op.path)
@@ -102,7 +102,7 @@ function explore_table_selections(document, projection; onstate=nothing)
 end
 
 # A structural selection is `∅`, `rows[r]∅`, `columns[c]∅`, `column_headers[c]∅`, or
-# `rows[r][c]∅` — i.e. it terminates at an element, not inside cell content.
+# `cells[r][c]∅` — i.e. it terminates at an element, not inside cell content.
 function _wt_is_structural(path)
     path isa EmptyReference && return true
     path isa ConcreteReference || return false
@@ -112,8 +112,10 @@ function _wt_is_structural(path)
     t isa ConcreteReference || return false
     (t.head isa RangeReferenceStep && is_element_reference_step(t.head)) || return false
     if h.name == "rows"
-        # rows[r]∅  or  rows[r][c]∅
-        t.tail isa EmptyReference && return true
+        # rows[r]∅
+        return t.tail isa EmptyReference
+    elseif h.name == "cells"
+        # cells[r][c]∅
         t2 = t.tail
         t2 isa ConcreteReference || return false
         (t2.head isa RangeReferenceStep && is_element_reference_step(t2.head)) || return false
@@ -173,19 +175,19 @@ end
 
     # Plain (unmodified) arrows move the active cell once a whole cell is already
     # selected — no Alt needed in structural mode — with edge clamping.
-    @test nav(KeyDown(:down,  ModifierKeys(); time = 0.0), _wt_cell(2, 2)) == ".rows[3][2]"
-    @test nav(KeyDown(:up,    ModifierKeys(); time = 0.0), _wt_cell(2, 2)) == ".rows[1][2]"
-    @test nav(KeyDown(:left,  ModifierKeys(); time = 0.0), _wt_cell(2, 2)) == ".rows[2][1]"
-    @test nav(KeyDown(:right, ModifierKeys(); time = 0.0), _wt_cell(2, 2)) == ".rows[2][3]"
-    @test nav(KeyDown(:up,    ModifierKeys(); time = 0.0), _wt_cell(1, 2)) == ".rows[1][2]"   # clamp top
-    @test nav(KeyDown(:right, ModifierKeys(); time = 0.0), _wt_cell(1, 3)) == ".rows[1][3]"   # clamp right
+    @test nav(KeyDown(:down,  ModifierKeys(); time = 0.0), _wt_cell(2, 2)) == ".cells[3][2]"
+    @test nav(KeyDown(:up,    ModifierKeys(); time = 0.0), _wt_cell(2, 2)) == ".cells[1][2]"
+    @test nav(KeyDown(:left,  ModifierKeys(); time = 0.0), _wt_cell(2, 2)) == ".cells[2][1]"
+    @test nav(KeyDown(:right, ModifierKeys(); time = 0.0), _wt_cell(2, 2)) == ".cells[2][3]"
+    @test nav(KeyDown(:up,    ModifierKeys(); time = 0.0), _wt_cell(1, 2)) == ".cells[1][2]"   # clamp top
+    @test nav(KeyDown(:right, ModifierKeys(); time = 0.0), _wt_cell(1, 3)) == ".cells[1][3]"   # clamp right
 
     # Alt+arrows still navigate from a whole cell too.
-    @test nav(KeyDown(:down,  ModifierKeys(alt=true); time = 0.0), _wt_cell(2, 2)) == ".rows[3][2]"
+    @test nav(KeyDown(:down,  ModifierKeys(alt=true); time = 0.0), _wt_cell(2, 2)) == ".cells[3][2]"
 
     # On an in-cell cursor a *plain* arrow keeps editing the text (declined here →
     # routed into content), while Alt+arrow first promotes to the whole cell. The
-    # cursor is whatever Enter drops into the cell: `rows[2][2]` holds a
+    # cursor is whatever Enter drops into the cell: `cells[2][2]` holds a
     # `MathBinaryOperation`, so it lands on a leaf nested inside the cell content,
     # not on a field of the cell itself.
     incell = let
@@ -195,8 +197,8 @@ end
         op.path
     end
     # Alt+arrow promotes an in-cell cursor to the whole cell, then moves.
-    @test nav(KeyDown(:down, ModifierKeys(alt=true); time = 0.0), incell) == ".rows[3][2]"
-    @test !startswith(nav(KeyDown(:down, ModifierKeys(); time = 0.0), incell), ".rows[3][2]")
+    @test nav(KeyDown(:down, ModifierKeys(alt=true); time = 0.0), incell) == ".cells[3][2]"
+    @test !startswith(nav(KeyDown(:down, ModifierKeys(); time = 0.0), incell), ".cells[3][2]")
 
     # Shift+Space / Ctrl+Space widen the active cell to its row / column.
     @test nav(KeyDown(:space, ModifierKeys(shift=true); time = 0.0), _wt_cell(2, 2)) == ".rows[2]"
@@ -205,17 +207,17 @@ end
     # A whole row steps between rows and narrows to its first cell.
     @test nav(KeyDown(:down,  ModifierKeys(); time = 0.0), _wt_row(2)) == ".rows[3]"
     @test nav(KeyDown(:up,    ModifierKeys(); time = 0.0), _wt_row(2)) == ".rows[1]"
-    @test nav(KeyDown(:right, ModifierKeys(); time = 0.0), _wt_row(2)) == ".rows[2][1]"
-    @test nav(KeyDown(:return, ModifierKeys(); time = 0.0), _wt_row(2)) == ".rows[2][1]"
+    @test nav(KeyDown(:right, ModifierKeys(); time = 0.0), _wt_row(2)) == ".cells[2][1]"
+    @test nav(KeyDown(:return, ModifierKeys(); time = 0.0), _wt_row(2)) == ".cells[2][1]"
 
     # A whole column steps between columns and narrows to its first cell.
     @test nav(KeyDown(:right, ModifierKeys(); time = 0.0), _wt_col(2)) == ".columns[3]"
     @test nav(KeyDown(:left,  ModifierKeys(); time = 0.0), _wt_col(2)) == ".columns[1]"
-    @test nav(KeyDown(:down,  ModifierKeys(); time = 0.0), _wt_col(2)) == ".rows[1][2]"
-    @test nav(KeyDown(:return, ModifierKeys(); time = 0.0), _wt_col(2)) == ".rows[1][2]"
+    @test nav(KeyDown(:down,  ModifierKeys(); time = 0.0), _wt_col(2)) == ".cells[1][2]"
+    @test nav(KeyDown(:return, ModifierKeys(); time = 0.0), _wt_col(2)) == ".cells[1][2]"
 
     # Enter on a whole cell drops a real character cursor into its content.
-    @test startswith(nav(KeyDown(:return, ModifierKeys(); time = 0.0), _wt_cell(2, 2)), ".rows[2][2]")
+    @test startswith(nav(KeyDown(:return, ModifierKeys(); time = 0.0), _wt_cell(2, 2)), ".cells[2][2]")
 end
 
 @testset "Alt+click promotes a data cell to a whole-cell pick" begin
@@ -235,10 +237,10 @@ end
     plain_op = read_intent(proj, io, MouseClick(:left, cx, cy, ModifierKeys(); time = 0.0))
 
     @test alt_op isa ReplaceSelectionOperation
-    @test string(alt_op.path) == ".rows[2][2]"
+    @test string(alt_op.path) == ".cells[2][2]"
     # Plain click on the same cell routes into its content instead.
     @test plain_op isa ReplaceSelectionOperation
-    @test startswith(string(plain_op.path), ".rows[2][2]")
+    @test startswith(string(plain_op.path), ".cells[2][2]")
 end
 
 @testset "header / corner clicks pick the axis" begin

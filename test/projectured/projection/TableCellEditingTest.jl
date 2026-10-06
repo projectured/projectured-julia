@@ -27,10 +27,10 @@ function test_table_cell_editing()
     mods = ModifierKeys()
     projection = make_table_projection_example(measure = _table_measure())
     xml_table() = WidgetTable(; column_headers = Any[PrimitiveString("tag")], row_headers = Any[],
-                              rows = Any[Any[XmlElement("b", [XmlText("hi")])]], column_count = 1)
+                              cells = Any[Any[XmlElement("b", [XmlText("hi")])]], column_count = 1)
     cases = [
-        ("a JSON string", make_table_document_example, t -> t.rows[1][1].value, "Jennifer", "YJennifer"),
-        ("an XML tag name", xml_table, t -> t.rows[1][1].tag, "b", "Yb"),
+        ("a JSON string", make_table_document_example, t -> t.cells[1][1].value, "Jennifer", "YJennifer"),
+        ("an XML tag name", xml_table, t -> t.cells[1][1].tag, "b", "Yb"),
     ]
     for (label, make_table, get_text, original, edited) in cases
         @testset "$label" begin
@@ -48,7 +48,7 @@ function test_table_cell_editing()
             evaluate_operation(editor, read_key(KeyDown(:right, mods; time = 0.0)))
             typed = read_key(KeyPress('Y', "Y", mods; time = 0.0))
             @test typed isa ReplaceStringRangeOperation
-            @test typed.reference.head.name == "rows"
+            @test typed.reference.head.name == "cells"
             evaluate_operation(editor, typed)
             @test get_text(table) == edited
             @test occursin(edited, join(_collect_table_texts(iomap.output)))

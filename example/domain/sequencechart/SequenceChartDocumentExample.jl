@@ -165,7 +165,7 @@ everything that happened in the first two milliseconds into a single column.
 """
 function make_sequencechart_pair_document_example()
     WidgetTable(; column_headers = Any[], row_headers = Any[],
-        rows = Any[Any[make_sequencechart_document_example()],
+        cells = Any[Any[make_sequencechart_document_example()],
                    Any[make_sequencechart_linear_document_example()]],
         column_count = 1)
 end

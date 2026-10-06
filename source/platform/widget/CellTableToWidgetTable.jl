@@ -50,7 +50,7 @@ function print_document(p::CellTableToWidgetTable, recursion, ct::CellTable, ctx
                         column_headers,
                         CellVector(),        # no row headers
                         Cell(nothing),       # no corner
-                        rows, Cell(WidgetTableColumns()),
+                        rows, Cell(WidgetTableRows()), Cell(WidgetTableColumns()),
                         Cell(nc),
                         Cell(1),             # border_width
                         Cell(Content), Cell(Content),      # every column and row is its content

@@ -32,8 +32,8 @@
 # names of its columns. The header row takes those widths as `Fixed`. A header
 # clips, so its width does not depend on the width of its column.
 #
-# **The head is the anchor**, as in the list form of a layout: `rows[k]` counts
-# from the head of the list, the head is row 1, and a row before the head has
+# **The head is the anchor**, as in the list form of a layout: `rows[k]` and
+# `cells[k]` count from the head of the list, the head is row 1, and a row before the head has
 # an index of 0 or less.
 #
 # **What a list needs.** An offered height, because a list has no extent to
@@ -89,7 +89,7 @@ function _check_table_parts(w::WidgetTable, height)
     headers = w.row_headers
     headers isa ListNode || isempty(headers) ||
         error("WidgetTable: a table whose rows are a list takes its row headers as a list")
-    w.rows isa ListNode || isempty(w.rows) ||
+    w.cells isa ListNode || isempty(w.cells) ||
         error("WidgetTable: a table with a corner draws its rows as a list, and takes a list ",
               "of rows or an empty vector")
     if headers isa ListNode || w.corner !== nothing
@@ -195,7 +195,7 @@ end
 # The rows that the grid of the cells walks: the list of rows, or `nothing`, a
 # list with no rows, while the rows are a vector. So the grid is a list from its
 # first print on, and draws a list that the rows hold later.
-_get_row_list(w::WidgetTable) = Cell(@computation (rows = w.rows; rows isa ListNode ? rows : nothing))
+_get_row_list(w::WidgetTable) = Cell(@computation (cells = w.cells; cells isa ListNode ? cells : nothing))
 
 # ── The header column and the corner ─────────────────────────────────────────
 
@@ -370,7 +370,7 @@ end
 
 # What a reference names in a table of a list, as `(shape, row, column)`:
 # `(:table, 0, 0)` for `∅`, `(:row, k, 0)` for `rows[k]∅`, `(:column, 0, c)` for
-# `columns[c]∅`, `(:cell, k, c)` for `rows[k][c]∅`, and the header of a row or of
+# `columns[c]∅`, `(:cell, k, c)` for `cells[k][c]∅`, and the header of a row or of
 # a column, a part of its own, `(:row_header, k, 0)` for `row_headers[k]∅` and
 # `(:column_header, 0, c)` for `column_headers[c]∅`; `nothing` for anything else.
 # A row can have an index of 0 or less, before the head.
@@ -1120,7 +1120,7 @@ function _map_part_forward(iomap, pane, inner::Reference)
     outer === nothing ? nothing : concat_references(outer, image)
 end
 
-# Forward: `rows[k][c].…` is the answer of the pane of the cells for
+# Forward: `cells[k][c].…` is the answer of the pane of the cells for
 # `children[k][c].…`, once row `k` is built, and `column_headers[c].…` is the
 # answer of the pane of the header row for `children[c].…`, or for
 # `children[1][c].…` when the columns are a list. `row_headers[k].…` is the
@@ -1142,7 +1142,7 @@ function map_reference_forward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTabl
         (tail isa ConcreteReference && tail.head isa RangeReferenceStep) || return nothing
         inner = st.column_list ? ConcreteReference(RangeReferenceStep(0, 1), tail) : tail
         return _map_part_forward(iomap, st.column_header_pane, inner)
-    elseif head.name == "rows"
+    elseif head.name == "cells"
         _wt_cell_split(reference) === nothing && return nothing
         return _map_part_forward(iomap, st.cells_pane, reference.tail)
     elseif head.name == "row_headers"
@@ -1194,7 +1194,7 @@ end
 
 # An event with a place, sent to the cell in row `k` and column `c`, from the
 # point `(x, y)` in the coordinates of the rules. The answer is rooted under
-# `rows[k][c]`; an operation that names its own document, such as the toggle
+# `cells[k][c]`; an operation that names its own document, such as the toggle
 # of a checkbox, stays as it is. `nothing` when the cell has nothing to say.
 function _read_table_cell_press(st::WidgetTablePartsState, k::Int, c::Int, g::MouseClick,
                                 x::Int, y::Int)
@@ -1303,10 +1303,10 @@ function _add_top_row(iomap::WidgetTableListIoMap, op)
         k == w.top_row && return op
         return CompoundOperation(Any[op, _write_view_state(w, "top_row", k)])
     end
-    head = _find_list_node(w.rows, k)
+    head = _find_list_node(w.cells, k)
     found = find_grid_list_row(st.cells_pane.content_iomap, k)
     (head === nothing || found === nothing) && return op
-    moved = Any[_write_view_state(w, "rows", head),
+    moved = Any[_write_view_state(w, "cells", head),
                 _write_view_state(w, "scroll_position", Point2D(x, y - Int(found[1].y))),
                 _write_view_state(w, "top_row", 1)]
     # The row headers move in step with the rows.
@@ -1320,7 +1320,7 @@ end
 # When the column at the left edge of the offset `(x, y)` is more than
 # `_TABLE_RELOCATION_DISTANCE` columns from the head column, the answer that
 # moves the head column to it: `column_headers` and a list alignment written to
-# their nodes of that column, `rows` to a list that mirrors the rows with each
+# their nodes of that column, `cells` to a list that mirrors the rows with each
 # row from that column on, the offset less the place of that column, and a
 # selection of a column or a cell moved by the same number of columns.
 # `nothing` when the column is near the head. A projection that owns
@@ -1334,7 +1334,7 @@ function _move_head_column(iomap::WidgetTableListIoMap, x::Int, y::Int)
     span = _get_table_column_span(st, c)
     (header === nothing || span === nothing) && return nothing
     moved = Any[_write_view_state(w, "column_headers", header),
-                _write_view_state(w, "rows", _make_advanced_row_node(w.rows, c)),
+                _write_view_state(w, "cells", _make_advanced_row_node(w.cells, c)),
                 _write_view_state(w, "scroll_position", Point2D(x - span[1], y))]
     align = w.column_align
     align isa ListNode && push!(moved, _write_view_state(w, "column_align", _find_list_node(align, c)))
@@ -1367,7 +1367,7 @@ function _make_advanced_row_node(row_node, c::Int)
     node
 end
 
-# `columns[c]…`, `column_headers[c]…` and `rows[r][c]…` with `c` counted from a
+# `columns[c]…`, `column_headers[c]…` and `cells[r][c]…` with `c` counted from a
 # head column `distance` columns further on; any other reference, the same
 # object.
 function _shift_column_reference(reference, distance::Int)
@@ -1377,7 +1377,7 @@ function _shift_column_reference(reference, distance::Int)
     (tail isa ConcreteReference && tail.head isa RangeReferenceStep) || return reference
     if reference.head.name in ("columns", "column_headers")
         return ConcreteReference(reference.head, ConcreteReference(shift(tail.head), tail.tail))
-    elseif reference.head.name == "rows"
+    elseif reference.head.name == "cells"
         rest = tail.tail
         (rest isa ConcreteReference && rest.head isa RangeReferenceStep) || return reference
         return ConcreteReference(reference.head,
@@ -1397,11 +1397,11 @@ function _find_list_node(head, k::Int)
     node
 end
 
-# `rows[r]…` and `row_headers[r]…` with `r` counted from a head `distance` rows
+# `rows[r]…`, `cells[r]…` and `row_headers[r]…` with `r` counted from a head `distance` rows
 # further on; any other reference, the same object.
 function _shift_row_reference(reference, distance::Int)
     (reference isa ConcreteReference && reference.head isa FieldReferenceStep &&
-     reference.head.name in ("rows", "row_headers")) || return reference
+     reference.head.name in ("rows", "cells", "row_headers")) || return reference
     tail = reference.tail
     (tail isa ConcreteReference && tail.head isa RangeReferenceStep) || return reference
     step = tail.head

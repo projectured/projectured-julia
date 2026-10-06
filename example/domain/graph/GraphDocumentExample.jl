@@ -8,7 +8,7 @@ function make_graph_document_example()
     table = WidgetTable(;
         column_headers = Any[JsonString("Name"), JsonString("Role")],
         row_headers = Any[],
-        rows = Any[
+        cells = Any[
             Any[JsonString("Ada"), JsonString("Lead")],
         ],
         column_count = 2)

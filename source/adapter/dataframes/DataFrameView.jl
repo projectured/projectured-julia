@@ -14,8 +14,8 @@ that pass its filters. `expression_result` holds the rows that the expression of
 the query passes, or the reason why it does not run, and `kept_rows` the rows
 that pass every filter, by their number in the frame and in its order; both
 follow the frame and the query. A path in the view names a row and a
-column of the frame by their numbers, with the steps of a table: `rows[r]` is a
-row, `columns[c]` a column and `rows[r][c]` a cell, through the fields `rows`
+column of the frame by their numbers: `rows[r]` is a row, `columns[c]` a
+column and `rows[r][c]` a cell, through the fields `rows`
 and `columns`, which hold a [`DataFrameViewRows`](@ref) and a
 [`DataFrameViewColumns`](@ref) of the view. So a sort, a filter, a hidden column
 and a scroll do not change what a path names. `edits` holds a

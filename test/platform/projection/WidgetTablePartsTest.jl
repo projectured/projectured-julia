@@ -22,7 +22,7 @@ function test_widget_table_list_header_floor()
     grow = SizePolicy(nothing, nothing, nothing, 1.0)
     head = ListNode(make_widget_table_row(Any["a", "b"]))
     table = WidgetTable(; column_headers = Any["id", "a much longer header"],
-                        rows = head, column_count = 2, column_policies = Any[grow, grow])
+                        cells = head, column_count = 2, column_policies = Any[grow, grow])
     function print_at(width)
         ctx = with_exact_size(PrinterContext(); width = Cell(Int32(width)),
                               height = Cell(Int32(300)))
@@ -71,7 +71,7 @@ texts_of(i, c) = c == 1 ? "row " * string(i) : string(i * 10)
 
 policies = Any[Fixed(120), Fixed(80)]
 make_table(rows; kw...) = WidgetTable(; column_headers = Any["name", "value"],
-                                      rows, column_count = 2, column_policies = policies, kw...)
+                                      cells = rows, column_count = 2, column_policies = policies, kw...)
 
 # Every text a canvas drew, as (x, y, text), through viewports and down a list
 # for at most `limit` nodes in each direction.
@@ -120,7 +120,7 @@ body_top(io) = Int(cells_region(io).y) + Int(cells_viewport(io).y)
 body_bottom(io) = body_top(io) + Int(cells_viewport(io).h)
 label_y(io, label; limit = 50) = only(t[2] for t in texts(io.output; limit) if t[3] == label)
 # Where the cell in row `k` and column `c` begins, in the table.
-cell_reference(k, c) = ConcreteReference(FieldReferenceStep("rows"),
+cell_reference(k, c) = ConcreteReference(FieldReferenceStep("cells"),
     ConcreteReference(RangeReferenceStep(k - 1, k),
         ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference())))
 function place(io, k, c)
@@ -183,7 +183,7 @@ end
     (x, y) = place(io, 2, 1)
     op = read(io, MouseClick(:left, x + 2, y + 2, alt; time = 0.0))
     @test op isa ReplaceSelectionOperation
-    @test op.path.head.name == "rows"
+    @test op.path.head.name == "cells"
     @test row_of(op.path) == 2
     @test column_of(op.path) == 1
     # A plain press on the box goes to the checkbox, and what it answers — a
@@ -247,21 +247,21 @@ end
     @test top(at_head) - top(image) == Int(before.value.h) + gap_of(io)
 end
 
-@testset "an empty vector in the rows cell is the empty list" begin
+@testset "an empty vector in the cells field is the empty list" begin
     table = make_table(make_list(3, texts_of))
     io = print_document(rec, nothing, table, context())
     @test length(texts(io.output)) == 8
-    set_cell_value!(getfield(table, :rows), CellVector())
+    set_cell_value!(getfield(table, :cells), CellVector())
     @test length(texts(io.output)) == 2      # the two names, and no rows
     @test head_of(io) === nothing
-    set_cell_value!(getfield(table, :rows), make_list(2, texts_of))
+    set_cell_value!(getfield(table, :cells), make_list(2, texts_of))
     @test length(texts(io.output)) == 6
     @test head_of(io) isa ListNode
 end
 
 @testset "a list is refused where it cannot be drawn lazily" begin
     rows = make_list(3, texts_of)
-    content = WidgetTable(; column_headers = Any["name", "value"], rows,
+    content = WidgetTable(; column_headers = Any["name", "value"], cells = rows,
                           column_count = 2, column_policies = Any[Fixed(120), Content])
     @test_throws ErrorException print_document(rec, nothing, content, context())
     weighted = make_table(make_list(3, texts_of); row_policy = Fill)
@@ -388,7 +388,7 @@ end
 
 @testset "a turn to the side stops at the right edge, and the header follows" begin
     wide = WidgetTable(; column_headers = Any["name", "value"],
-                       rows = make_indexed_list(10, texts_of), column_count = 2,
+                       cells = make_indexed_list(10, texts_of), column_count = 2,
                        column_policies = Any[Fixed(400), Fixed(400)])
     io = print_document(rec, nothing, wide, context())
     side(dx) = read(io, MouseScroll(dx, 0, 100, 150; time = 0.0))
@@ -448,12 +448,12 @@ end
     op = wheel(io, -1)
     @test op isa CompoundOperation
     moved = [get_wrapped_operation(o) for o in op.operations if o isa ReplaceViewStateOperation]
-    @test any(o -> o.reference.head.name == "rows", moved)
+    @test any(o -> o.reference.head.name == "cells", moved)
     # The selection moves with its row: it names the same row from the new head.
     rebased = only(o for o in op.operations if o isa ReplaceSelectionOperation)
     @test row_of(rebased.path) == 305 - 300
     apply!(table, op)
-    @test table.rows.value[1].content == "row 301"
+    @test table.cells.value[1].content == "row 301"
     @test table.top_row == 1
     @test 0 <= Int(table.scroll_position.y[]) < step
     @test label_y(io, "row 305") == before - turn
@@ -461,7 +461,7 @@ end
     # Up past the head as far, the head moves back.
     getfield(table, :scroll_position)[] = Point2D(0, -250 * step)
     apply!(table, wheel(io, 1))
-    @test table.rows.value[1].content == "row 50"
+    @test table.cells.value[1].content == "row 50"
     @test table.top_row == 1
 end
 
@@ -561,7 +561,7 @@ end
 function make_wide_table(rows::Int, columns::Int; at_column = 1, cells = Ref(0))
     header(c) = WidgetLabel(c == 3 ? "a longer header" : "h$(c)")
     WidgetTable(; column_headers = make_list_of(columns, header; at = at_column),
-                rows = make_list_of(rows, i -> make_list_of(columns, c -> WidgetLabel("r$(i) c$(c)");
+                cells = make_list_of(rows, i -> make_list_of(columns, c -> WidgetLabel("r$(i) c$(c)");
                                                             at = at_column, built = cells)),
                 column_count = 0, column_policy = Fixed(60), row_policy = Fixed(16))
 end
@@ -642,7 +642,7 @@ end
     @test rebased.path.tail.head.start + 1 == 305 - 300
     apply!(table, op)
     @test table.column_headers.value.content == "h301"
-    @test table.rows.value.value.content == "r1 c301"
+    @test table.cells.value.value.content == "r1 c301"
     @test 0 <= Int(table.scroll_position.x[]) < step
     @test text_x(io, "h305") == before - turn
     @test text_x(io, "r1 c305") == text_x(io, "h305")
@@ -755,7 +755,7 @@ end
     moved = [get_wrapped_operation(o) for o in op.operations if o isa ReplaceViewStateOperation]
     @test any(o -> o.reference.head.name == "row_headers", moved)
     apply!(table, op)
-    @test table.rows.value[1].content == "row 301"
+    @test table.cells.value[1].content == "row 301"
     @test table.row_headers.value.content == "#301"
     @test text_at(io, "#305")[2] == text_at(io, "row 305")[2]
 end
@@ -765,11 +765,11 @@ end
     headers() = make_list_of(10, i -> WidgetLabel("#$(i)"))
     @test_throws ErrorException print_document(rec, nothing, make_table(rows(); row_headers = headers()),
                                                context())
-    no_header_row = WidgetTable(; column_headers = Any[], rows = rows(), column_count = 2,
+    no_header_row = WidgetTable(; column_headers = Any[], cells = rows(), column_count = 2,
                                 column_policies = policies, corner = WidgetLabel("c"), row_policy = Fixed(20))
     @test_throws ErrorException print_document(rec, nothing, no_header_row, context())
     @test_throws ErrorException make_table(rows(); row_headers = Any["#1"])
-    @test_throws ErrorException WidgetTable(; column_headers = Any["a"], rows = Any[Any["x"]],
+    @test_throws ErrorException WidgetTable(; column_headers = Any["a"], cells = Any[Any["x"]],
                                             column_count = 1, corner = WidgetLabel("c"))
 end
 
@@ -793,7 +793,7 @@ end
     step = Int(head_of(io).value.h) + gap_of(io)
     getfield(table, :scroll_position)[] = Point2D(0, 300 * step)
     apply!(table, wheel(io, -1))
-    @test table.top_row == 1 && table.rows.value[1].content != "row 1"
+    @test table.top_row == 1 && table.cells.value[1].content != "row 1"
     @test io.state === state
     getfield(table, :column_count)[] = 1
     @test io.state !== state
@@ -805,7 +805,7 @@ end
 
 @testset "a press and a key reach a header, as they reach a cell" begin
     field = WidgetText("abc")
-    table = WidgetTable(; column_headers = Any[WidgetLabel("name"), field], rows = make_list(5, texts_of),
+    table = WidgetTable(; column_headers = Any[WidgetLabel("name"), field], cells = make_list(5, texts_of),
                         column_count = 2, column_policies = policies)
     io = print_document(rec, nothing, table, context())
     (x, y) = text_at(io, "abc")
@@ -833,7 +833,7 @@ end
 
 @testset "a drag of the right edge of a header sets the width of its column" begin
     table = WidgetTable(; column_headers = Any[WidgetLabel("name"), WidgetLabel("age")],
-                        rows = make_list(5, texts_of), column_count = 2, column_policies = policies)
+                        cells = make_list(5, texts_of), column_count = 2, column_policies = policies)
     io = print_document(rec, nothing, table, context())
     (x1, y1) = text_at(io, "name")
     (x2, _) = text_at(io, "age")
@@ -865,7 +865,7 @@ end
 
 @testset "the right edge of a header lights under the pointer, and a rest there says what a drag does" begin
     table = WidgetTable(; column_headers = Any[WidgetLabel("name"), WidgetLabel("age")],
-                        rows = make_list(5, texts_of), column_count = 2, column_policies = policies)
+                        cells = make_list(5, texts_of), column_count = 2, column_policies = policies)
     io = print_document(rec, nothing, table, context())
     (x1, y1) = text_at(io, "name")
     (x2, _) = text_at(io, "age")

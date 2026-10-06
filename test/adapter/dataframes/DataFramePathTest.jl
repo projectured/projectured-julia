@@ -18,6 +18,8 @@ function test_data_frame_paths()
         element(field, i, tail = EmptyReference()) =
             ConcreteReference(FieldReferenceStep(field), ConcreteReference(RangeReferenceStep(i - 1, i), tail))
         cell(r, c) = element("rows", r, ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))
+        # A cell of the table, which names it by `cells`.
+        table_cell(k, j) = element("cells", k, ConcreteReference(RangeReferenceStep(j - 1, j), EmptyReference()))
         table_of(io) = _data_frame_table_iomap(io).input
         table_selection(io) = (s = table_of(io).selection; s === nothing ? nothing : strip_reference_types(s))
         place_of(io, text) = only((t[1], t[2]) for t in _data_frame_texts(io.output) if t[3] == text)
@@ -60,7 +62,7 @@ function test_data_frame_paths()
             op = press(io, x + 2, y + 2; alt = true)
             @test strip_reference_types(op.path) == cell(2, 1)
             getfield(view, :selection)[] = op.path
-            @test table_selection(io) == cell(1, 1)
+            @test table_selection(io) == table_cell(1, 1)
         end
 
         @testset "a hidden column keeps its path, and the table shows it again with the column" begin

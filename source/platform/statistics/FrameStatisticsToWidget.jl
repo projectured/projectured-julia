@@ -229,13 +229,13 @@ function _make_frame_table(p::FrameStatisticsToWidget, statistics::FrameStatisti
                                                            slow = _is_slow_frame(columns, slow_column, limit, i)))
     end)
     # Positional, so every declared field is named here in order: position,
-    # column_headers, row_headers, corner, rows, columns, column_count,
+    # column_headers, row_headers, corner, cells, rows, columns, column_count,
     # border_width, column_policy, row_policy, column_policies, row_policies,
     # cell_policy, column_cell_policies, column_align, visible, margin, border,
     # padding, style, scroll_position, top_row, column_drag, open_cells, tooltip.
     WidgetTable(Cell(Point2D(0, 0)), headers, row_headers,
                 Cell(WidgetLabel("frame"; text_style = p.header_text)), rows,
-                Cell(WidgetTableColumns()), Cell(length(units)), Cell(1),
+                Cell(WidgetTableRows()), Cell(WidgetTableColumns()), Cell(length(units)), Cell(1),
                 Cell(_FRAME_COLUMN_POLICY), Cell(Fixed(p.row_height)), policies, Cell(Any[]),
                 Cell(:clip), Cell(Symbol[]), Cell(fill(:right, length(units))),
                 Cell(true), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
@@ -347,8 +347,8 @@ function _convert_widget_write(statistics::FrameStatistics, operation)
             return _convert_scroll_bar_write(statistics, document, write.value)
         document isa WidgetTable || return nothing
         field == "row_headers" && return DoNothingOperation()
-        (field == "rows" && write.value isa ListNode) || return nothing
-        k = find_list_index(document.rows, write.value)
+        (field == "cells" && write.value isa ListNode) || return nothing
+        k = find_list_index(document.cells, write.value)
         k === nothing && return DoNothingOperation()
         return ReplaceViewStateOperation(
             ReplaceReferencedValueOperation(statistics, "anchor", _get_head_place(statistics) + k - 1))

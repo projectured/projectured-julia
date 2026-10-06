@@ -82,7 +82,7 @@ end
 @testset "a table maps a column header and a cell" begin
     table = WidgetTable(["Invoice", "Status"], [["INV001", "Paid"], ["INV002", "Pending"]])
     @test _returns(table, _path(FieldReferenceStep("column_headers"), _at(2)))
-    @test _returns(table, _path(FieldReferenceStep("rows"), _at(1), _at(1)))
+    @test _returns(table, _path(FieldReferenceStep("cells"), _at(1), _at(1)))
 end
 
 @testset "a tree maps a node to its row" begin

@@ -299,7 +299,7 @@ function test_widget_table_column_align()
     vector(; kw...) = WidgetTable(Any["AA", "BB", "CC"], Any[Any["p", "q", "r"]];
                                   column_policies = columns, kw...)
     list(; kw...) = WidgetTable(; column_headers = Any["AA", "BB", "CC"],
-                                rows = ListNode(make_widget_table_row(Any["p", "q", "r"])),
+                                cells = ListNode(make_widget_table_row(Any["p", "q", "r"])),
                                 column_count = 3, column_policies = columns, kw...)
     for (form, make) in (("rows in a vector", vector), ("rows in a list", list))
         @testset "$form" begin
@@ -407,7 +407,7 @@ _rec = RecursiveProjection(TypeDispatchingProjection(vcat(LayoutToGraphics().dis
 _table() = WidgetTable(;
                        column_headers = Any["ID", "Name", "Role"],
                        row_headers = Any["1", "2", "3", "4", "5", "6"],
-                       rows = Any[Any["r$(i)a", "r$(i)b", "r$(i)c"] for i in 1:6],
+                       cells = Any[Any["r$(i)a", "r$(i)b", "r$(i)c"] for i in 1:6],
                        column_count = 3)
 
 # Every text of a printed table, as (x, y, text), through its canvases and
@@ -471,7 +471,7 @@ end
     moved = texts(print_document(_rec, nothing, WidgetTable(;
                        column_headers = Any["ID", "Name", "Role"],
                        row_headers = Any["1", "2", "3", "4", "5", "6"],
-                       rows = Any[Any["r$(i)a", "r$(i)b", "r$(i)c"] for i in 1:6],
+                       cells = Any[Any["r$(i)a", "r$(i)b", "r$(i)c"] for i in 1:6],
                        column_count = 3, scroll_position = Point2D(10, 40)), _sized()))
     # The header row travels to the side only, the header column down only,
     # and the cells both ways.
@@ -485,7 +485,7 @@ end # function
 
 # A caret in a cell is edited by the readers of the cell. A key the table does not
 # take, such as a character, an arrow or Backspace, goes to the cell the selection
-# is in, and the answer comes back under `rows[r][c]`. The table whose rows are a
+# is in, and the answer comes back under `cells[r][c]`. The table whose rows are a
 # vector and the table whose rows are a list do the same.
 function test_widget_table_cell_editing()
 @testset "a key edits the cell the caret is in" begin
@@ -496,7 +496,7 @@ function test_widget_table_cell_editing()
                        TextBlock(TextString("prose", StyleFont("Ubuntu", 20), color_default))]
     get_text(cell::WidgetText) = cell.content
     get_text(cell::TextBlock) = cell.elements[1].content
-    get_cell(table, c) = table.rows isa ListNode ? table.rows.value[c] : table.rows[1][c]
+    get_cell(table, c) = table.cells isa ListNode ? table.cells.value[c] : table.cells[1][c]
     # Every text the table drew, through the viewports of its cells, and through
     # the rows a list table built, from its head on.
     function collect_drawn_texts(node, found = String[])
@@ -515,12 +515,12 @@ function test_widget_table_cell_editing()
         end
         found
     end
-    # The row and the column of the cell a selection `rows[r][c].…` is in.
+    # The row and the column of the cell a selection `cells[r][c].…` is in.
     get_selected_cell(path) = (path.tail.head.start + 1, path.tail.tail.head.start + 1)
     forms = [
         "rows are a vector" => () -> WidgetTable(Any["A", "B"], Any[make_cells()]),
         "rows are a list" => () -> WidgetTable(; column_headers = Any["A", "B"],
-                                               rows = ListNode(make_widget_table_row(make_cells())),
+                                               cells = ListNode(make_widget_table_row(make_cells())),
                                                column_count = 2, column_policies = Any[Fixed(120), Fixed(120)]),
     ]
     # A point four pixels inside the left edge of body cell (1, c).
@@ -550,7 +550,7 @@ function test_widget_table_cell_editing()
             evaluate_operation(editor, read_key(KeyDown(:right, mods; time = 0.0)))
             typed = read_key(KeyPress('Y', "Y", mods; time = 0.0))
             @test typed isa ReplaceStringRangeOperation
-            @test typed.reference.head.name == "rows"
+            @test typed.reference.head.name == "cells"
             evaluate_operation(editor, typed)
             @test get_text(get_cell(table, c)) == edited
             @test edited in collect_drawn_texts(iomap.output)
