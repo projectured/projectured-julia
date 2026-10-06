@@ -217,6 +217,16 @@ its own panes — a transcript above a composer — then scrolls as one block.
 A scroll pane inside a clipped slot means two viewports over the same rectangle. That
 is a scissor rect, not a surface, and the alternative is a type test in the printer.
 
+**A widget of rows scrolls by itself.** A `WidgetTable`, a `WidgetList` and a
+`WidgetTree` that get a slot on the vertical axis fill it and scroll their rows
+there, inside their border; with no slot they are as tall as their rows. So the
+maker of such a widget brings no pane, and a pane around one has nothing left to
+scroll.
+
+**A bar is an overlay.** A scroll bar lies over the content, at the inner edge of
+the border of the widget that scrolls, and takes no space. So a bar that shows
+changes no extent, and a text does not wrap again at a narrower edge.
+
 ## 4. When a stack distributes instead of summing
 
 A stack sums its children on its main axis. It **distributes** its edge instead
