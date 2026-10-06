@@ -24,16 +24,40 @@ get_navigator_page(navigator::Navigator) =
 """
     find_navigator_parent_address(navigator) -> Reference or nothing
 
-The address of the page that holds the page of `navigator`: one step up, and past
-each collection on the way, as `get_parent` reads it. `nothing` at the root of the
-content.
+The address of the page that holds the page of `navigator`: the nearest document
+above the page at which a navigator stops ([`is_navigator_stop`](@ref)), or the
+root of the content. `nothing` at the root of the content.
 """
 function find_navigator_parent_address(navigator::Navigator)
+    content = navigator.content
     address = get_navigator_page_address(navigator)
-    address isa EmptyReference && return nothing
-    parent = get_parent(navigator.content, address)
-    parent === nothing ? nothing : get_reference(parent)
+    steps = get_reference_steps(address)
+    isempty(steps) && return nothing
+    for stop in (length(steps) - 1):-1:1
+        prefix = extend_reference(EmptyReference(), steps[1:stop]...)
+        node = try_evaluate_reference(content, prefix, _NOT_REACHED)
+        node === _NOT_REACHED && return nothing
+        is_navigator_stop(node) && return annotate_reference_types(content, prefix)
+    end
+    annotate_reference_types(content, EmptyReference())
 end
+
+"""
+    is_navigator_stop(document) -> Bool
+
+Whether a navigator stops at `document` when it goes up to the parent page, names
+the items of the address, and opens the selected part or the part under the
+pointer. A navigator passes over a document that answers `false`, and it can still
+show that document as a page at its own address.
+
+The default is `true` for a document, and `false` for a collection of the document
+around it, the ones that `get_parent` looks past, and for a value that is no
+document. A domain answers `false` for a container that holds the parts of the
+document around it, such as the rows of the view of a data frame.
+"""
+is_navigator_stop(node) =
+    node isa Document && !(is_element_collection(node) || node isa AbstractVector ||
+                           node isa AbstractDict || node isa Tuple)
 
 """
     find_navigator_selected_address(navigator) -> Reference or nothing
@@ -59,7 +83,7 @@ function _find_part_address(navigator::Navigator, path)
     for last_step in length(steps):-1:(length(page) + 1)
         address = extend_reference(EmptyReference(), steps[1:last_step]...)
         node = try_evaluate_reference(content, address, _NOT_REACHED)
-        _is_page_node(node) && return address
+        is_navigator_stop(node) && return address
     end
     nothing
 end
@@ -202,8 +226,3 @@ end
 _starts_with(steps, prefix) =
     length(steps) >= length(prefix) && all(k -> steps[k] == prefix[k], eachindex(prefix))
 
-# A node that can be a page: a document that is not a collection of the document
-# around it. The collections are the ones that `get_parent` looks past.
-_is_page_node(node) =
-    node isa Document && !(is_element_collection(node) || node isa AbstractVector ||
-                           node isa AbstractDict || node isa Tuple)

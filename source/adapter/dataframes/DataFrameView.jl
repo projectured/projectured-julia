@@ -176,6 +176,10 @@ end
 
 # Each holds the view, which holds it, so each prints by its kind alone.
 Base.show(io::IO, ::DataFrameViewRows) = print(io, "DataFrameViewRows(…)")
+
+# The rows of a view hold the rows of the frame: a navigator goes from a row up to
+# the view, and names no item of the address for them.
+is_navigator_stop(::DataFrameViewRows) = false
 Base.show(io::IO, row::DataFrameViewRow) = print(io, "DataFrameViewRow(…, ", row.row, ")")
 Base.show(io::IO, ::DataFrameViewColumns) = print(io, "DataFrameViewColumns(…)")
 

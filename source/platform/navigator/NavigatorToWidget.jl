@@ -91,8 +91,8 @@ end
 
 # ── The address ───────────────────────────────────────────────────────────────
 #
-# One item for each document from the content to the page, past the collections,
-# as `get_parent` reads them, and the page last. An item names its document by its
+# One item for each document from the content to the page at which a navigator
+# stops (`is_navigator_stop`), and the page last. An item names its document by its
 # title, or by the steps that reach it, or at the root by the name of its type; its
 # tooltip is its path from the content. A press on an item opens its page, and the
 # page itself is a plain name.
@@ -127,7 +127,7 @@ function _get_address_parts(navigator::Navigator)
     prefix(stop) = extend_reference(EmptyReference(), steps[1:stop]...)
     stops = Int[0]
     for stop in eachindex(steps)
-        (stop == length(steps) || _is_page_node(evaluate_reference(content, prefix(stop)))) &&
+        (stop == length(steps) || is_navigator_stop(evaluate_reference(content, prefix(stop)))) &&
             push!(stops, stop)
     end
     parts = Tuple{String,String,Reference}[]

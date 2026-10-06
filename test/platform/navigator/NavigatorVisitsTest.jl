@@ -23,6 +23,13 @@ end
     books::CellVector
 end
 
+# A container of chapters, which a navigator passes over.
+@document struct NavigatorTestFolder
+    items::CellVector
+end
+
+ProjecturedPlatform.NavigatorModule.is_navigator_stop(::NavigatorTestFolder) = false
+
 ProjecturedKernel.DocumentModule.get_document_title(x::NavigatorTestChapter) = x.title
 ProjecturedKernel.DocumentModule.get_document_title(x::NavigatorTestBook) = x.title
 ProjecturedKernel.DocumentModule.get_document_title(x::NavigatorTestShelf) = x.title
@@ -177,6 +184,27 @@ function test_navigator_visits()
         shelf.books[1] = NavigatorTestVolume("W", _nav_vector([NavigatorTestChapter("W1", nothing),
                                                                NavigatorTestChapter("W2", nothing)]), nothing)
         @test _nav_is(get_navigator_page_address(navigator), @reference(shelf, books[1]))
+    end
+
+    @testset "a navigator passes over a document that is no stop, and can show it" begin
+        chapter = NavigatorTestChapter("C1", nothing)
+        folder = NavigatorTestFolder(_nav_vector([chapter]), nothing)
+        shelf = NavigatorTestShelf("Shelf", _nav_vector([folder]), nothing)
+        navigator = Navigator(shelf, @reference(shelf, books[1].items[1]))
+        # Parent passes over the folder and the collections, to the shelf.
+        @test _nav_is(find_navigator_parent_address(navigator), EmptyReference())
+        holder = _NavHolder(navigator)
+        _nav_apply!(holder, make_navigator_parent_operation(navigator))
+        @test navigator.address isa EmptyReference
+        # The folder is still a page at its own address.
+        _nav_apply!(holder, make_navigator_open_operation(navigator, @reference(shelf, books[1])))
+        @test get_navigator_page(navigator) === folder
+        # The selected part below the page passes over a folder too.
+        navigator = Navigator(shelf)
+        replace_selection!(navigator, @reference(navigator, content.books[1].items[1].title))
+        @test _nav_is(find_navigator_selected_address(navigator), @reference(shelf, books[1].items[1]))
+        replace_selection!(navigator, @reference(navigator, content.books[1]))
+        @test find_navigator_selected_address(navigator) === nothing
     end
 
     @testset "undo records no visit" begin

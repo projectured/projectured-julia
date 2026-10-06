@@ -42,7 +42,9 @@ So an undo records no visit, and an edit on a page is an edit that undo takes ba
 | `make_navigator_forward_operation(navigator)` | the mirror of Back |
 | `make_navigator_parent_operation(navigator)` | opens the page that holds the page as a new visit, with the page that the person leaves selected |
 
-`find_navigator_parent_address` reads the parent with `get_parent`: one step up the path, and past each collection, so the parent of a chapter in the vector `chapters` of a book is the book. Parent answers `nothing` at the root of the content. `find_navigator_selected_address` gives the innermost document on the selection below the page.
+`find_navigator_parent_address` gives the nearest document above the page at which a navigator stops, or the root of the content, so the parent of a chapter in the vector `chapters` of a book is the book. Parent answers `nothing` at the root of the content. `find_navigator_selected_address` gives the innermost document on the selection, below the page, at which a navigator stops.
+
+`is_navigator_stop(document)` says where a navigator stops when it goes up, names the items of the address, and opens the selected part or the part under the pointer. It is `true` for a document, and `false` for a collection that `get_parent` looks past and for a value that is no document. A domain answers `false` for a container that holds the parts of the document around it: the data frame adapter does for `DataFrameViewRows`, so Parent goes from a row to the table. A navigator can still show such a container as a page at its own address.
 
 A visit puts back the selection that it holds when that selection still reaches a node inside its page, and selects the page itself otherwise. Parent and a press on a name of the address select the page that the person leaves, as a file manager selects the folder that a person comes from.
 
@@ -119,6 +121,7 @@ A navigator is a document like any other, so it nests: a tab holds it, a page ca
 - **A link answers an operation, and the nearest navigator takes it.** The owner accepted `OpenPageOperation` on 2026-10-06. It goes up as an answer to a press, on the path that every press takes, as `StartDragOperation` does to the drag wrapper. No event and no payload of the reader is new.
 - **Parent is a new visit.** Back then returns to the child, as in a file manager.
 - **The view of a page is the view of its type.** The recursion picks it, so a domain adds a page view once and every navigator uses it.
+- **A trait says where a navigator stops.** The owner chose a trait of the navigator on 2026-10-06, over `is_element_collection`, which the search, the view on demand, the file cut and the sync iterate; over a frame of ten million rows each would make ten million row documents.
 - **No search for an object.** An open of an object that is not on the address makes the object a new content. A search over a frame of ten million rows reads every value.
 
 The plan with the alternatives is [plan/pending/a-navigator-with-back-forward-parent-and-links.md](../../../../plan/pending/a-navigator-with-back-forward-parent-and-links.md).
@@ -139,7 +142,6 @@ A part that opens a page answers `OpenPageOperation(nothing, EmptyReference())` 
 ## Limits
 
 - The navigator puts no scroll pane around its page: a part scrolls where it is made. A page whose view has no scroll pane, such as a JSON document, is cut at the bottom of the navigator.
-- Parent of a row of a data frame opens the `DataFrameViewRows` that holds the rows, and not the table, because `get_parent` does not look past it.
 
 - A JSON part has no title, so the address of a JSON page names its steps, for example `entries[2]` and `value`.
 - The view on demand, which draws a document that has no view of its own, does not pass an operation with a fixed place (`read_rooted_operation`) into itself. A verb of the assistant at a place inside such a page reaches no part.

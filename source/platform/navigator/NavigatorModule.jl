@@ -41,7 +41,7 @@ import ..OperationModule: evaluate_operation
 
 export Navigator, NavigatorVisit
 export get_navigator_page_address, get_navigator_page, find_navigator_parent_address,
-       find_navigator_selected_address
+       find_navigator_selected_address, is_navigator_stop
 export make_navigator_open_operation, make_navigator_back_operation,
        make_navigator_forward_operation, make_navigator_parent_operation
 export NavigatorToWidget, make_navigator_projection

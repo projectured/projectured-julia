@@ -78,6 +78,7 @@ function test_data_frame_row_page()
         press!(editor, backend, key(:return; ctrl = true))
         @test get_navigator_page(navigator) === view.rows[2]
         @test shows(editor, "name") && shows(editor, "b") && shows(editor, "row 2")
+        @test !shows(editor, "rows")
         @test !shows(editor, "103")
         # Back returns to the table, with the row selected as before.
         press!(editor, backend, key(:left_bracket; ctrl = true))
@@ -88,10 +89,8 @@ function test_data_frame_row_page()
         press!(editor, backend, key(:right_bracket; ctrl = true))
         @test get_navigator_page(navigator) === view.rows[2]
         press!(editor, backend, key(:up; ctrl = true))
-        # @broken: the parent of a row is the `DataFrameViewRows` that holds the
-        # rows of the view, a document that `get_parent` does not look past, so
-        # Parent opens it and not the table. See step 5 of the navigator plan.
-        @test_broken get_navigator_page(navigator) === view
+        # Parent passes over the rows of the view, to the table.
+        @test get_navigator_page(navigator) === view
     end
 
     @testset "a double click on a row header opens the row" begin
