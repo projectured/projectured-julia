@@ -44,6 +44,7 @@ const sequencechart_pair_example = Example("sequencechart_pair", make_sequencech
 const fsm_example            = Example("fsm",            make_fsm_document_example,            make_fsm_projection_example)
 const fsm_toggle_example     = Example("fsm_toggle",     make_fsm_toggle_document_example,     make_fsm_projection_example)
 const fsm_diagram_example    = Example("fsm_diagram",    make_fsm_diagram_document_example,    make_fsm_diagram_projection_example)
+const pivot_example          = Example("pivot",          make_pivot_pane_document_example,     make_pivot_projection_example)
 const process_example        = Example("process",        make_process_document_example,        make_process_projection_example)
 const process_drain_example  = Example("process_drain",  make_process_drain_document_example,  make_process_projection_example)
 const process_diagram_example = Example("process_diagram", make_process_diagram_document_example, make_process_diagram_projection_example)
@@ -172,6 +173,7 @@ const domain_examples = Example[
     process_diagram_example,
     fsm_toggle_example,
     fsm_diagram_example,
+    pivot_example,
     pane_json_example,
     widget_tabs_example,
     widget_split_example,
@@ -409,6 +411,7 @@ const domain_atomic_documents = AtomicDocument[
     AtomicDocument(:process, "model",      make_process_model_document_example),
     AtomicDocument(:process, "terminal",   make_process_terminal_document_example),
     AtomicDocument(:process, "edge_label", make_process_edge_label_document_example),
+    AtomicDocument(:pivot, "table",        make_pivot_document_example),
     AtomicDocument(:conversation, "conversation", make_conversation_conversation_document_example),
     AtomicDocument(:conversation, "draft",        make_conversation_draft_document_example),
     AtomicDocument(:conversation, "part",         make_conversation_part_document_example),

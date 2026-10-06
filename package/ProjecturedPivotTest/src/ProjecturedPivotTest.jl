@@ -42,6 +42,7 @@ for _src in _SOURCES
 end
 
 include("../../../test/domain/pivot/document/PivotCrossTableTest.jl")
+include("../../../test/domain/pivot/projection/PivotTableToWidgetTest.jl")
 
 include("../../../test/domain/pivot/PivotSuite.jl")
 

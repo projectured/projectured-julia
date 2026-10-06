@@ -12,16 +12,28 @@
 
 The parts of a pivot. `row_keys[r]` is the tuple of the values of the row
 dimensions of row `r`, and `column_keys[c]` the same for column `c`, each in the
-order of their dimensions. Only the keys that occur in the source are there. The
-rows of the source in the cell of row `r` and column `c` are
+order of their dimensions. Only the keys that occur in the source are there, and
+`row_index` and `column_index` give the number of each key. The rows of the
+source in the cell of row `r` and column `c` are
 [`find_pivot_part_rows`](@ref)`(cross, r, c)`, in the order of the source.
 """
 struct PivotCrossTable
     row_keys::Vector{Tuple}
     column_keys::Vector{Tuple}
+    row_index::Dict{Tuple,Int}
+    column_index::Dict{Tuple,Int}
     part_rows::Vector{Int}
     part_ranges::Dict{Int,UnitRange{Int}}
 end
+
+PivotCrossTable(row_keys::Vector{Tuple}, column_keys::Vector{Tuple}, part_rows::Vector{Int},
+                part_ranges::Dict{Int,UnitRange{Int}}) =
+    PivotCrossTable(row_keys, column_keys, _make_key_index(row_keys), _make_key_index(column_keys),
+                    part_rows, part_ranges)
+
+# The number of each key. `isequal` compares the keys, so a key with `missing`
+# finds its number too.
+_make_key_index(keys::Vector{Tuple}) = Dict{Tuple,Int}(key => k for (k, key) in enumerate(keys))
 
 get_pivot_row_count(cross::PivotCrossTable) = length(cross.row_keys)
 get_pivot_column_count(cross::PivotCrossTable) = length(cross.column_keys)
@@ -36,6 +48,19 @@ key and that column key.
 function find_pivot_part_rows(cross::PivotCrossTable, row::Integer, column::Integer)
     range = get(cross.part_ranges, _get_cell_number(cross, row, column), nothing)
     range === nothing ? nothing : view(cross.part_rows, range)
+end
+
+"""
+    find_pivot_part_rows(cross, row_key::Tuple, column_key::Tuple) -> Union{AbstractVector{Int}, Nothing}
+
+The rows of the source in the cell of the row with the key `row_key` and the
+column with the key `column_key`; `nothing` when either key does not occur, or
+no row has both.
+"""
+function find_pivot_part_rows(cross::PivotCrossTable, row_key::Tuple, column_key::Tuple)
+    row = get(cross.row_index, row_key, nothing)
+    column = get(cross.column_index, column_key, nothing)
+    (row === nothing || column === nothing) ? nothing : find_pivot_part_rows(cross, row, column)
 end
 
 _get_cell_number(cross::PivotCrossTable, row::Integer, column::Integer) =

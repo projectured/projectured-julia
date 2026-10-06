@@ -42,7 +42,9 @@ for _src in _SOURCES
 end
 
 include("../../../example/domain/pivot/PivotDocumentExample.jl")
+include("../../../example/domain/pivot/PivotProjectionExample.jl")
 
-export make_pivot_sales_rows, make_pivot_document_example
+export make_pivot_sales_rows, make_pivot_document_example, make_pivot_pane_document_example,
+       make_pivot_projection_example
 
 end # module ProjecturedPivotExample

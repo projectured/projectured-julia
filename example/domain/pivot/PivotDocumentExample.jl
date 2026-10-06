@@ -29,3 +29,12 @@ across, with the sum of the amounts in each cell.
 make_pivot_document_example() =
     make_pivot_table(make_pivot_sales_rows(); rows = ["region", "country"], columns = ["year"],
                      measures = [PivotMeasure("amount", :sum)])
+
+"""
+    make_pivot_pane_document_example() -> WidgetScrollPane
+
+The pivot of [`make_pivot_document_example`](@ref) in a scroll pane of a fixed
+size. The table of a pivot scrolls its own rows, so it needs an offered height,
+and the pane gives it one wherever the pivot is drawn.
+"""
+make_pivot_pane_document_example() = WidgetScrollPane(make_pivot_document_example(); size = Point2D(820, 420))

@@ -164,6 +164,9 @@ function test_position_navigations()
                              # here for the widget-container reason, not a chart
                              # one — the four standalone chart examples navigate.
                              "table", "math_table", "chart", "chart_inspector",
+                             # `pivot` is a bar of widgets above a WidgetTable,
+                             # here for the widget-container reason as well.
+                             "pivot",
                              "assistant",
                              # `fsm` is the twelve-state TCP machine. It
                              # navigates correctly — it is simply far too big
@@ -361,7 +364,7 @@ function test_click_roundtrips()
             #     intermediate cell so the cursor does not always re-render; see
             #     plan/pending/json-navigation-and-clicks.md §3 (out of scope)
             startswith(example.name, "widget") && continue
-            example.name in ("filesystem", "xml", "table", "math_table",
+            example.name in ("filesystem", "xml", "table", "math_table", "pivot",
                               "graphics_image", "layout", "tooltip",
                               "files", "assistant",
                               "book", "object",
@@ -449,7 +452,7 @@ function test_text_navigation_invariants_all()
             #     intermediate cell so the cursor does not always re-render; see
             #     plan/pending/json-navigation-and-clicks.md §3 (out of scope)
             startswith(example.name, "widget") && continue
-            example.name in ("filesystem", "xml", "table", "math_table",
+            example.name in ("filesystem", "xml", "table", "math_table", "pivot",
                               "graphics_image", "layout", "tooltip",
                               "files", "assistant",
                               "book", "object",

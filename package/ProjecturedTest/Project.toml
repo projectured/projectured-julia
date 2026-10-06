@@ -4,6 +4,7 @@ uuid = "c3f1d2e8-4a5b-6c7d-8e9f-0a1b2c3d4e5f"
 version = "0.1.0"
 
 [deps]
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 ProjecturedAll = "3e41c706-0d64-40b0-8e9d-89616f7fa6cc"
 ProjecturedAnthropicTest = "6d6e7243-47fe-4ef5-bfc4-3f9d59ae8572"

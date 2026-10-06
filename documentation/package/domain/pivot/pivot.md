@@ -20,10 +20,11 @@ The pivot does not depend on DataFrames, and `ProjecturedDataFrames` does not de
 
 | Document | What it holds |
 | --- | --- |
-| `PivotTable` | `source`, the five zones, `cell_view`, and `source_version` |
+| `PivotTable` | `source`, the five zones, `cell_view`, `source_version`, and the computed `cross_table` and `cells` |
 | `PivotDimension` | `column`, `order` (`:natural` or `:first`), `descending`, and `hidden_values` |
 | `PivotMeasure` | `column` and `aggregate`: `:count`, `:sum`, `:mean`, `:minimum`, `:maximum` or `:distinct_count` |
 | `PivotNumberView` | a kind of `PivotCellView`: the cell shows the value of each measure |
+| `PivotCells`, `PivotCellRow` | what the path `cells[r][c]` steps through |
 
 The five zones of a `PivotTable` are `CellVector`s, in the order of the rows of the bar above the table:
 
@@ -35,7 +36,7 @@ The five zones of a `PivotTable` are `CellVector`s, in the order of the rows of 
 
 A zone is a `CellVector`, so the move of a dimension from one zone to another is a `MoveRangeOperation` of the dragging slice. It keeps the cell of the dimension and has an inverse.
 
-`make_pivot_table(source; rows, columns, cells, measures)` makes a pivot whose zones hold the named columns, and puts every other column of the source in `unused_dimensions`.
+`make_pivot_table(source; rows, columns, cells, measures)` makes a pivot whose zones hold the named columns, and puts every other column of the source in `unused_dimensions`. It also sets the two computed fields: `cross_table`, the cross table of the source, computed again when a zone, a dimension or `source_version` changes, and `cells`.
 
 ### The parts
 
@@ -51,6 +52,23 @@ The computation makes one pass over each dimension, and reads the column as a ve
 `find_pivot_part_rows(cross, r, c)` gives the rows of a cell, or `nothing` for a cell that no row reaches. `make_table_part(source, rows)` gives the part itself.
 
 The cost, measured on 2026-10-06 with a data frame and three dimensions of 4, 40 and 10 values: 0.07 s for one million rows and 1.0 s for ten million rows. The `groupby` of DataFrames takes 0.05 s and 0.66 s for the same groups.
+
+### The cells
+
+A path names a cell of a pivot by its row and its column in the cross table: `cells[r][c]`, and `cells[r]` names the row. `PivotCells` and `PivotCellRow` are what the path steps through, as the rows of a data frame view are. The document of a cell is made by the view of the pivot when a path or the table first reaches it, and `PivotCells` keeps it by the key of its row, the key of its column and the kind of the view. So a change of the pivot that keeps both keys keeps the document, and a selection inside it. A new cross table drops the documents of the keys that it does not have.
+
+`get_pivot_cell_view(pivot)` is the kind of view of the cells: the `cell_view` of the pivot, or the one that follows from its cell dimensions. `PivotNumberView` shows the value of each measure of the part, with `format_pivot_value`: a whole number with no fraction, any other number with at most two decimal places. A cell that no row reaches is empty. A pivot with no measure shows the count of the rows.
+
+### The view
+
+`PivotTableToWidget` draws a pivot as a grid of two rows:
+
+- **The bar** has a row for each zone: Fields, Columns, Rows, Cells and Values. Each row shows the name of the zone and a badge for each dimension or measure in it. An empty Values row shows a muted `count` badge.
+- **The table** is a `WidgetTable` that scrolls its own parts. Its rows are a list, so it builds only the rows that it shows. The header of a column is a `CellVector` of the labels of its key, and so is the header of a row, so the table draws one level for each dimension and merges a run of equal labels; see the headers with levels in [widget.md](../../platform/widget/widget.md). The corner names the row dimensions. With no column dimension, the one column is headed by the names of the measures; with no row dimension, the one row is headed `all`.
+
+`cells[r][c]` of the pivot maps to `cells[r][c]` of the table, and `cells[r]` to `rows[r]`. A part of the table that the pivot does not name, such as a run of headers, maps back as a `ProjectionReferenceStep` of the projection, and a selection of the pivot that holds one shows in the table.
+
+`make_pivot_table_projection(; measure, appearance)` gives the projection with the row height of the font of the widget theme, and the pivot domain gives it to the natural renderer through the seam `make_graphics_projection`. So a pivot draws in a tab, and inside any document that the natural renderer draws.
 
 ### The measures
 
@@ -72,4 +90,6 @@ rows = find_pivot_part_rows(cross, 1, 2)        # the rows of EU in 2025
 compute_pivot_measure(sales, rows, PivotMeasure("amount", :sum))   # 15.0
 ```
 
-The narrowest test is `test_pivot_cross_table()`; the test of the package is `test_pivot()`.
+The example `pivot` draws the sales of `make_pivot_sales_rows()` by region and country down and by year across: `run_example("pivot")`.
+
+The narrowest tests are `test_pivot_cross_table()` and `test_pivot_table_projection()`; the test of the package is `test_pivot()`. `test_pivot_data_frame()` of the umbrella test package pivots a data frame and compares each sum with `groupby` and `combine` of DataFrames.

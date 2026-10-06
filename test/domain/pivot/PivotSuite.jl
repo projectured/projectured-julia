@@ -24,7 +24,8 @@ function test_pivot()
     @testset "ProjecturedPivot" begin
         test_pivot_layering()
         test_pivot_cross_table()
+        test_pivot_table_projection()
     end
 end
 
-export test_pivot, test_pivot_layering, test_pivot_cross_table
+export test_pivot, test_pivot_layering, test_pivot_cross_table, test_pivot_table_projection

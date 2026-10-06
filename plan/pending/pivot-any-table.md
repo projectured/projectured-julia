@@ -507,10 +507,40 @@ and chips that move. Stages 6 and 7 complete the design of the request.
     and come from `WidgetProgressRing`, which landed on main the same day: the
     test counts 31 widgets and finds 32, and the docstring of the ring lacks
     "Use it to". This branch adds no widget.
-- [ ] **4. The first view, read-only.** `PivotTable` to `WidgetTable`, with
+- [x] **4. The first view, read-only.** `PivotTable` to `WidgetTable`, with
   nested headers and number cells. The bar prints the chips, but they do not
   move yet. An example on a data frame and one on a vector of named tuples.
-  The test: `test_example` of both.
+  The test: `test_example` of both. **Done 2026-10-06.**
+  - `PivotTableToWidget` draws a grid of two rows: the bar, a `GridLayout` of
+    the name of each zone and a `WidgetBadge` for each item, and the table, a
+    `WidgetTable` whose rows and row headers are a list (`make_index_list`)
+    and whose headers are `CellVector`s of the labels of a key. The corner
+    names the row dimensions. `make_pivot_table_projection` gives the row
+    height of the font, and the seam `make_graphics_projection` puts the pivot
+    in the natural renderer.
+  - `PivotTable` has two computed fields: `cross_table`, and `cells`, a
+    `PivotCells` that the path `cells[r][c]` steps through. A cell document is
+    kept by the key of its row, the key of its column and the kind of its view,
+    so it survives a change of the pivot that keeps them. The cross table has a
+    `row_index` and a `column_index` for this.
+  - `cells[r][c]` of the pivot maps to `cells[r][c]` of the table and
+    `cells[r]` to `rows[r]`. A run of headers maps back as a
+    `ProjectionReferenceStep`, and its selection shows in the table.
+  - The registered example `pivot` frames the pivot in a `WidgetScrollPane` of a
+    fixed size, as `widget_table_frozen` frames its table, because the printer
+    test offers no size and a table of a list needs an offered height. The atom
+    `pivot/table` is the bare pivot. The printer, the reader and the REPL tests
+    of the example pass (5829, 225, 225). Position navigation and type-in skip
+    `pivot` as they skip `table`: a widget container gives Ctrl+Home no caret.
+  - The data frame case is `test_pivot_data_frame()` in the umbrella test
+    package, which now depends on DataFrames: each sum is the sum of
+    `groupby` and `combine`, a part is a `SubDataFrame` that writes the frame,
+    and the natural renderer draws it. The pivot test package does not depend
+    on DataFrames.
+  - Tests: `test_pivot()` (144); `test_pivot_data_frame()`;
+    `test_catalog_coverage()` lists no pivot type (it fails on main for four
+    other types); `test_natural_renders_every_atom()` and
+    `test_natural_round_trips_every_atom()` pass.
 - [ ] **5. The bar of chips.** A chip widget that a person can select, with a
   menu. The rows Fields, Columns, Rows, Cells and Values. First the keys of §5
   and undo, then the drag with `MoveRangeOperation` and a drop mark. The test:
