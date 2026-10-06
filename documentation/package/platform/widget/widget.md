@@ -146,7 +146,7 @@ Each control has a reader in `WidgetToGraphics.jl`. The keys in the table work w
 | `WidgetButton` | a left press invokes its action, or opens its dialog | Return, Space |
 | `WidgetCheckbox`, `WidgetSwitch` | a left press on the mark or on its label flips the value | Return, Space |
 | `WidgetToggle` | a left press flips `pressed` | Return, Space |
-| `WidgetToggleGroup` | a left press on a segment selects it | none |
+| `WidgetToggleGroup` | a left press on a segment selects it; with `look = :step`, the group shows the selected option alone, and a left press selects the next option, with Shift the one before, around the ends | none; with `look = :step`, Return and Space select the next option |
 | `WidgetRadioGroup` | a left press on the row of an option, on its circle or its label, selects it | Down and Right select the next option, Up and Left the previous one, around the ends. Return and Space select the first option when no option is on. |
 | `WidgetSelect` | a left press opens the options in a popup | none |
 | `WidgetSlider` | a left press and a drag set the value | none |

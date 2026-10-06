@@ -2136,9 +2136,10 @@ WidgetToggle(content; position::Point2D=Point2D(0, 0), pressed::Bool=false, visi
 # ── WidgetToggleGroup ───────────────────────────────────────────────────────
 
 """
-    WidgetToggleGroup(options; position, selected=1, values=nothing, target=nothing, field="selected")
+    WidgetToggleGroup(options; position, selected=1, values=nothing, target=nothing, field="selected",
+                      look=:row)
 
-A row of segments where one is pressed.
+A row of segments where one is pressed, or one segment that steps through them.
 
 Use it to let a person pick one of a few short choices in one row: scalars,
 vectors, histograms. `options` is what each segment says, and `selected` is the
@@ -2158,6 +2159,14 @@ own state and tells nobody. A target is how a segmented control says what it is
 what it changes instead of leaving an enclosing projection to work out which
 control was pressed.
 
+`look` chooses how the group looks and what a press does. `:row`, the default,
+shows every option, and a press picks the segment under it. `:step` shows the
+selected option alone, as wide as the widest option, so the control does not
+move when the option changes: a press picks the next option, a press with Shift
+the one before, and so do Return and Space, with no modifier, while the group
+has the focus. The last option steps to the first. It takes less room for a
+choice that a person seldom changes.
+
 See also `WidgetRadioGroup` for the same choice in a column, and `WidgetSwitch`
 for on or off.
 """
@@ -2174,16 +2183,18 @@ for on or off.
     values::Any        # what each option means, or nothing = its index
     target::Any        # what a pick writes to, or nothing = this group
     field::String      # which field of the target a pick writes
+    look::Symbol       # :row, every option, or :step, the selected one, which a press steps
     tooltip::Any
 end
 WidgetToggleGroup(options::Vector; position::Point2D=Point2D(0, 0), selected::Integer=1, visible::Bool=true,
                   enabled::Bool=true, margin=nothing, border=nothing, padding=nothing, style=nothing,
                   values=nothing, target=nothing,
-                  field::AbstractString="selected", tooltip=nothing) =
+                  field::AbstractString="selected", look::Symbol=:row, tooltip=nothing) =
     WidgetToggleGroup(Cell(position), CellVector(Cell[Cell(o) for o in options]),
                       Cell(Int(selected)), Cell(visible), Cell(enabled),
                       Cell(margin), Cell(border), Cell(padding), Cell(style),
-                      Cell(values), Cell(target), Cell(String(field)), Cell(tooltip), Cell(nothing))
+                      Cell(values), Cell(target), Cell(String(field)), Cell(look), Cell(tooltip),
+                      Cell(nothing))
 
 """
     resolve_toggle_group_write(w, segment) -> (document, field, value)

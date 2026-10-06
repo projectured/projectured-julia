@@ -127,6 +127,29 @@ end
                       MouseClick(:left, 4, 4, ModifierKeys(); time = 0.0)) === nothing
 end
 
+@testset "a toggle group of the step look shows one option and steps through them" begin
+    step_group(selected) = WidgetToggleGroup(["A", "Longer", "Mid"]; selected, look = :step)
+    io = print_document(proj, step_group(1))
+    drawn = keys(_drawn_text_positions(io.output))
+    @test "A" in drawn && !("Longer" in drawn) && !("Mid" in drawn)
+    # The control is as wide as its widest option, whichever option it shows.
+    @test Int(io.output.w[]) == Int(print_document(proj, step_group(2)).output.w[])
+    # A press anywhere on it picks the next option, and with Shift the one before;
+    # the ends wrap.
+    press(io, modifiers) = read_intent(proj, io, MouseClick(:left, 3, 4, modifiers; time = 0.0))
+    @test press(io, ModifierKeys()).value == 2
+    @test press(io, ModifierKeys(shift = true)).value == 3
+    @test press(print_document(proj, step_group(3)), ModifierKeys()).value == 1
+    # Return and Space with no modifier step too; another key does nothing.
+    key(k, modifiers = ModifierKeys()) = read_intent(proj, io, KeyDown(k, modifiers; time = 0.0))
+    @test key(:return).value == 2
+    @test key(:space).value == 2
+    @test key(:return, ModifierKeys(ctrl = true)) === nothing
+    @test key(:a) === nothing
+    # A group of one option has nothing to step to.
+    @test press(print_document(proj, WidgetToggleGroup(["Only"]; look = :step)), ModifierKeys()) === nothing
+end
+
 @testset "a toggle flips from a press, and from Return and Space with the focus" begin
     t  = WidgetToggle("Bold")
     io = print_document(proj, t)

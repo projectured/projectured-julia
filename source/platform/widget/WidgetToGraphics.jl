@@ -8146,6 +8146,13 @@ function print_document(p::WidgetToggleGroupToGraphicsCanvas, recursion, w::Widg
         # With no offer the sum is the content and `allocate_axis` has nothing to
         # share, which is why every picture is unchanged.
         label_widths = Int[(_text_size(p.measure, p.label_text.font, l)[1] + 2segment_padding_x) for l in labels]
+        # The step look shows the selected option alone, in one segment as wide as
+        # the widest option.
+        stepping = w.look === :step
+        if stepping && !isempty(labels)
+            label_widths = Int[maximum(label_widths)]
+            labels = [labels[clamp(selected, 1, length(labels))]]
+        end
         segment_count = length(label_widths)
         offered_width = _resolve_width(ctx, 0, sum(label_widths; init=0) + inset_width) - inset_width
         segment_widths = segment_count == 0 ? label_widths :
@@ -8165,11 +8172,11 @@ function print_document(p::WidgetToggleGroupToGraphicsCanvas, recursion, w::Widg
         x = content_x
         for i in eachindex(labels)
             segment_width = segment_widths[i]
-            segment_state = i == selected ? (enabled ? :selected : :disabled) : nothing
+            segment_state = (stepping || i == selected) ? (enabled ? :selected : :disabled) : nothing
             segment_color = _get_state_color(p, w, :segment; state = segment_state)
             _push_panel!(elements, x, content_y, segment_width, content_height;
                         fill = segment_color, radius = segment_radius)
-            label_state = !enabled ? :disabled : i == selected ? :selected : nothing
+            label_state = !enabled ? :disabled : (stepping || i == selected) ? :selected : nothing
             label = _get_state_text(p, w, :label; state = label_state)
             text_width, segment_text_height = _text_size(p.measure, label.font, labels[i])
             _push_text!(elements, p.measure, label.font, labels[i], x + (segment_width - text_width) ÷ 2,
@@ -8221,6 +8228,7 @@ function read_intent(p::WidgetToggleGroupToGraphicsCanvas,
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     w.enabled === false && return nothing
+    w.look === :step && return _read_toggle_group_step(w, evt)
     content_x, _ = _content_offset(p, w)
     @gesture_case evt begin
         MouseClick(button, x, y) => begin
@@ -8240,6 +8248,19 @@ function read_intent(p::WidgetToggleGroupToGraphicsCanvas,
         end
         _ => nothing
     end
+end
+
+# The step look: a left press anywhere on the control picks the next option, and
+# with Shift the one before; Return and Space, with no modifier, while the group
+# has the focus, pick the next. The last option steps to the first.
+function _read_toggle_group_step(w::WidgetToggleGroup, evt)
+    count = length(w.options)
+    count < 2 && return nothing
+    step = evt isa MouseClick && evt.button === :left ? (evt.modifiers.shift ? -1 : 1) :
+           _is_plain_key(evt, :return, :space) ? 1 : 0
+    step == 0 && return nothing
+    document, field, value = resolve_toggle_group_write(w, mod1(Int(w.selected) + step, count))
+    ReplaceReferencedValueOperation(document, field, value)
 end
 
 # ── WidgetSelect ────────────────────────────────────────────────────────────
