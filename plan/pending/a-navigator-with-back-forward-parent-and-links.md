@@ -475,18 +475,18 @@ new tab".
     of several steps without types. The pane now types the whole image against
     the document that the tab draws when the image is not fully typed. A test
     chooses "Insert row above" from a frame in a tab.
-  - **Open: Parent of a row.** The parent of `rows[2]` is the `DataFrameViewRows`
+  - **Parent of a row.** The parent of `rows[2]` is the `DataFrameViewRows`
     that holds the rows, a document that `get_parent` does not look past, so
-    Parent opens it and not the table, and the address shows "rows". Marked
-    `@test_broken`. `is_element_collection(::DataFrameViewRows) = true` would fix
-    it, but the search, the view on demand, the file cut and the sync iterate an
-    element collection, which over a frame of ten million rows makes ten million
-    row documents. A trait of the navigator that a domain answers is a new
-    generic function. The owner decides.
+    Parent opened it and not the table. `is_element_collection(::DataFrameViewRows)
+    = true` would fix it, but the search, the view on demand, the file cut and
+    the sync iterate an element collection, which over a frame of ten million
+    rows makes ten million row documents. Decided by the owner (Q1, 2026-10-06):
+    a trait of the navigator, `is_navigator_stop`, which the adapter answers
+    `false` for the rows; Parent of a row is the table.
   - **Open: a tall page.** The navigator puts no scroll pane around its page, by
     the owner's rule that a part scrolls where it is made. A page whose view has
     no scroll pane, such as JSON, is cut at the bottom of the navigator.
-  - `test_data_frame_row_page()`, 23 tests, 1 broken.
+  - `test_data_frame_row_page()`, 31 tests after A5 and A6.
 - [ ] **6. Links in the data.** Markdown and rst links that a press follows,
   drawn as links. A file reference. A named target after D7.
 - [x] **7. Panes and files.** The tab title follows the page. A duplicate copies
@@ -513,8 +513,10 @@ new tab".
     `print_pred_text` and `parse_pred_text`; step 8 reads a typed address with
     the same reader.
   - `test_navigator_document()`, 27 tests; `test_navigator()` runs 196.
-- [ ] **8. A typed address.** Field and index steps, read as
-  `_evaluate_path_text` reads them.
+- [x] **8. A typed address.** Field and index steps, read as
+  `_evaluate_path_text` reads them. Done as the edit of the path view of §10
+  (A3 and A4, 2026-10-06): a person types `.name` and `[i]` steps in place, and
+  Enter reads them.
 - [ ] **9. Master and detail.** `ComponentToWidget` on two navigators. Moved out
   of this plan by the owner (Q7, 2026-10-06), to
   [component-document.md](component-document.md).
@@ -801,8 +803,8 @@ The design of the address is complete. The steps to build it:
   sets `edited` back to `false` and empties the steps. So a navigator needs no
   copy when it is built. `has_document_duplicate(::NavigatorAddress)` keeps a
   copy for each duplicate tab.
-- [ ] **A3. The three views and the control.** The views and the control are
-  done (2026-10-06); the edit of the path view waits for A4. The control is a
+- [x] **A3. The three views and the control.** The views and the control are
+  done (2026-10-06); the edit of the path view is done with A4. The control is a
   `WidgetToggleGroup` of the step look before the address, "Names", "Path",
   "Types", whose write of `view` the reader marks as view state. The path view
   shows `.books[2]`, with the dot of a field step in front; the types view
@@ -820,12 +822,43 @@ The design of the address is complete. The steps to build it:
   node, which takes no edit, and a mark at the place where the address was cut.
   The control of A1 writes the view. Each behavior dispatches on the two step
   types.
-- [ ] **A4. The keys.** Ctrl+L switches to the path view with the caret at its
+- [x] **A4. The keys.** Ctrl+L switches to the path view with the caret at its
   end. Enter opens the path of the steps as a visit; a path that reaches no node
   stays in the document, with a mark at the first step that reaches none.
   Escape writes the document back from the address and returns to the view
-  before.
-- [ ] **A5. The list of choices.** The generic function
+  before. Done 2026-10-06, with the edit of A3, in `NavigatorAddressEdits.jl`
+  and `NavigatorAddressToSyntax.jl`. What was built and decided on the way:
+  - The navigator view prints the address copy with
+    `make_navigator_address_projection(navigator)`, a `RecursiveProjection`
+    over a template node of the steps, a leaf for a committed step, and
+    `InsertionToSyntaxLeaf` for an insertion, and keeps its IO map. The bar holds
+    the syntax output at `children[1].children[5]` while an edit is on; the maps
+    pass `address_draft.<rest>` through it, and the reader passes an answer of
+    the path view, and a key that no part answered (Tab), through it.
+  - An insertion holds the text of any number of steps, and Enter reads the
+    whole path (my decision; the design said an insertion commits when its text
+    names a step). The leaf can replace an insertion with one value only, so a
+    split at `.` or `[` while typing would need a reader of its own. A committed
+    step is a value and holds no caret: a press selects it, a key on it turns it
+    into an insertion with its text and the key, Backspace with its text less
+    the last character. Ctrl+L puts an empty insertion after the steps, which
+    holds the caret.
+  - Enter shows the view before the edit again, as Escape does (my decision):
+    Ctrl+L is a switch to type a path, and a person who chose the path view with
+    the control keeps it, because `view_before` is then the path view.
+  - The copy has two more fields: `view_before`, and `unreached_step`, the step
+    that the mark in the bar names.
+  - The hint completes the name of a field of the node before the last step;
+    Tab takes it. An element has no hint.
+  - Facts found: the natural renderer had no row for a syntax document that a
+    view puts among its parts, and reflected it as a struct; the syntax slice
+    has the row `SyntaxDocument` now. A layout passes a key to the child that
+    its own selection names, and the bar and the holder of the page had no
+    selection: so a key never reached a page of a navigator since step 4 put the
+    page in a vertical layout, a fault on main. The printer wires both now
+    (`set_output_path_computations!`), and a test types into a page.
+  - The navigator slice has the edges `primitive`, `syntax` and `text` now.
+- [x] **A5. The list of choices.** The generic function
   `find_navigator_choices(document, step)`, with the general rule: the fields of
   the document above that hold a document, and the elements of a collection by
   title or number, lazily from the current element. The JSON domain lists its
@@ -894,9 +927,14 @@ The design of the address is complete. The steps to build it:
   reach no node, and the types view marks them with `✗`. A visit now selects the
   part of its address that reaches (`_find_visit_selection`), because a stored
   address can hold steps that reach no node.
-- [ ] **A7. Tests and documents.** The platform tests with the shelf, the data
+- [x] **A7. Tests and documents.** The platform tests with the shelf, the data
   frame case (the list of rows from the current row, the choice of a row that
-  keeps a column), and the design document and the keyboard guide.
+  keeps a column), and the design document and the keyboard guide. Done
+  2026-10-06: `test_navigator_choices()`, `test_navigator_address()`, the data
+  frame case in `test_data_frame_row_page()`, navigator.md, the keyboard guide,
+  context-menu.md, screen.md and syntax.md. The catalog has atoms for
+  `Navigator`, `NavigatorAddress` and `NavigatorChoiceList`; `DataFrameViewRow`
+  is in `_NO_ATOM` beside `DataFrameView`, because an adapter has no atoms.
 
 D7 (named targets, step 6) can use the same function for the names that a domain
 gives to a target.
