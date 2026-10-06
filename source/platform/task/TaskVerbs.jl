@@ -297,7 +297,7 @@ function close_task_group!(editor, group::TaskGroupDocument)
                                   node -> node isa PaneTab && node.content === group;
                                   descend = is_pane_search_step)
         for reference in found
-            close_pane!(editor, reference)
+            close_pane!(reference; editor)
         end
         remove_task_group!(get_session_task_group_list(), group)
         Text("Closed the group " * getfield(group, :identifier)[] * ".")

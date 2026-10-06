@@ -232,7 +232,7 @@ end
 
 group = wrap_task_group_document(TaskGroup(tasks; name = "builds", action = "Building", jobs = 4))
 start_task_group_document!(group)
-open_pane!(editor, group; title = "Builds")
+open_pane!(group; title = "Builds")
 ```
 
 The group then reports into its pane, its tab says how far it is, the Tasks pane

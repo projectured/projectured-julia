@@ -417,7 +417,7 @@ group this title, also when its caller gives the name as a plain string.
 # Example
 
     group = wrap_task_group_document(TaskGroup(tasks; name = "builds"))
-    open_pane!(editor, group; title = "Builds")
+    open_pane!(group; title = "Builds")
     start_task_group_document!(group)
 """
 function make_task_group_tab_title(doc::TaskGroupDocument; name = getfield(doc, :title)[])
