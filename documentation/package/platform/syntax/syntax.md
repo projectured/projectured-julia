@@ -137,7 +137,7 @@ domain that prints its own leaves styles them from a theme of its own.
 
 The syntax slice depends on the kernel and on the text, domain, natural, primitive, collection, projection and style slices. Every domain with a syntax chain depends on it; [domain-anatomy.md](../../../design/domain-anatomy.md) shows the chain.
 
-Its `__init__` calls `register_syntax_fallback!()`. That registers the reflection table as the fallback of the natural renderer and the rung from syntax to text. So a session that loads `ProjecturedPlatform` can draw a document of any shape, and the natural slice does not name this one.
+Its `__init__` calls `register_syntax_fallback!()`. That registers the reflection table as the fallback of the natural renderer and the rung from syntax to text. So a session that loads `ProjecturedPlatform` can draw a document of any shape, and the natural slice does not name this one. The fallback has a row for `SyntaxDocument` too: a syntax tree that a view puts among its parts, such as the path view in the bar of a navigator, starts at the stage from syntax to text and is not reflected as a struct.
 
 ## Design decisions
 

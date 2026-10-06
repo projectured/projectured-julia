@@ -103,9 +103,18 @@ _make_natural_syntax_stages(appearance::Appearance) = (
 # exact types, so the renderer takes them before its own abstract rows, and a
 # person who presses Insert in an empty tab sees the name buffer rather than a
 # reflected struct.
+#
+# A syntax tree that a view puts among its parts, such as the path view of a
+# navigator in its bar, is syntax already: it starts at the stage from syntax to
+# text, and is not reflected as a struct.
 function _fallback_rows(; measure::TextMeasure, font, wrap, appearance::Appearance)
+    stages = _make_natural_syntax_stages(appearance)
     fabric = ChainingProjection(
-        _make_natural_syntax_stages(appearance)...,
+        stages...,
+        _make_spaced_text(measure, appearance, :code_line_spacing),
+    )
+    syntax = ChainingProjection(
+        _make_natural_syntax_stages(appearance)[2],
         _make_spaced_text(measure, appearance, :code_line_spacing),
     )
     Pair{Type,Any}[
@@ -113,6 +122,7 @@ function _fallback_rows(; measure::TextMeasure, font, wrap, appearance::Appearan
         TextInsertion     => fabric,
         DocumentNothing   => fabric,
         DocumentInsertion => fabric,
+        SyntaxDocument    => syntax,
         Any               => fabric,
     ]
 end
