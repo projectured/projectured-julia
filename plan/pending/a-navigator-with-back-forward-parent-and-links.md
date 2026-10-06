@@ -732,7 +732,16 @@ so a long list needs no count; the function of the domain answers the narrowed
 list lazily. The options not chosen: a dropdown with no search, as `WidgetSelect`
 shows its options, or no popup, with the choices as completions of a name.
 
-The open decisions, in order: the rule of edit 3; the switch of the views.
+**Decided (owner, 2026-10-06): a choice keeps the rest of the address as far as
+it still reaches nodes of the recorded types, and cuts it at the first place
+where it does not.** On the page `persons[3].address.city`, the choice of
+`persons[4]` at the name of person 3 opens the city of person 4, or the address
+of person 4 when it has no city. So a person compares one field across
+siblings, one choice at a time; one press on the name of person 4 then shows the
+person. The options not chosen: always cut the rest, as file managers and the
+breadcrumbs of an IDE do; or keep the rest only when all of it reaches.
+
+The open decision: the switch of the views.
 
 ## 11. Risks
 
