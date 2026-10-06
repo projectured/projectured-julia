@@ -1426,6 +1426,8 @@ seals go beyond the kernel in time (only kernel files are sealed today).
       `ProjecturedRegistry` `077f625`, which keeps AutoIntegration and
       AutoPrecompile as they are registered. The 32 workflows pass. The ways of
       the front page pass as a new user types them, on Julia 1.12.7 and 1.13.1.
+- [x] **The announcement**, 2026-10-06: the owner announced 0.1.0 on the Julia
+      Discourse, with displaying a data frame as the first use case.
 - [x] The owner pushes the release copy and the registry, and makes both
       repositories public. Done by 2026-10-05: Projectured.jl, ProjecturedRegistry,
       AutoIntegration.jl and AutoPrecompile.jl are public.
