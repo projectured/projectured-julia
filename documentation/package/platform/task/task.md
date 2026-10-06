@@ -39,3 +39,31 @@ A role is what `opp_repl` says with a terminal colour: `:success` for green,
 writes a time span as `format_timedelta` of `opp_repl` does: `0.12`, `1:05.1`,
 `1:01:01`. `format_past_tense(action)` turns the action of a group into the past
 tense when the group ends: `Running` becomes `Ran`.
+
+## The execution of a process
+
+A task that runs a program starts it with `start_process_task!(execution,
+command; read_line, finish)` and answers at once. `TaskExecution` is what one
+start of a task says while it runs, and what it ended with: its status, its
+process and identifier, its times, a `progress` fraction and a `position` text,
+what the process printed on stdout and on stderr, its processor load and resident
+memory, and its result. The readers of the process write it only through
+`update_task_execution!`, which holds its lock, because the readers and a reader
+of the screen can run on two threads; a reader takes a copy with
+`get_task_execution_snapshot`.
+
+Each stream is a `TaskOutput`: the first 100 lines, the last 1000, and the count
+of the lines between, so a process that prints without end cannot fill the
+memory. `read_line(execution, line)` sees each line of stdout under the lock, and
+is where a kind of task reads its progress and its position: a simulation writes
+`event #4200 t=1.5`. When the process has ended and both streams are read,
+`finish(process, cancelled, elapsed)` makes the result and calls
+`finish_task_execution!`, which writes the result, the status of its code
+(`get_task_status`) and the time of the end. A task that ends with no process,
+such as one that is skipped, calls `finish_task_execution!` directly.
+
+`stop_task_execution!` sends `SIGINT`, so a program that catches it can still
+finish its work, and the status says `:cancelling` until the process ends.
+`sample_task_usage!` reads the processor time and the resident memory from
+`/proc`.
+
