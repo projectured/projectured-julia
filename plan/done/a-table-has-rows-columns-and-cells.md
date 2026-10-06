@@ -1,8 +1,8 @@
 # A table has rows, columns, headers and cells
 
-> **Kind:** plan · **Status:** pending, 2026-10-06; the owner agreed to the
+> **Kind:** plan · **Status:** done, 2026-10-06; the owner agreed to the
 > shape, the path of a cell and P1, P3 and P4. Steps 1, 2, 3, 5 and 6 are done
-> on the branches `table-cells`; step 4 waits for the owner. ·
+> and landed with omnet-julia; the owner deferred step 4, the padding. ·
 > **Stands on:** [widget.md](../../documentation/package/platform/widget/widget.md),
 > [view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md) (R3, the paths
 > of a table), and it comes before
@@ -279,7 +279,7 @@ Decisions of the implementation (mine):
   Fact found: a test that walks the drawn output 400 nodes into each list of
   a table that is a long list both ways draws 400 × 400 cells and does not
   end in 25 minutes, so a test of a head move keeps the other direction short.
-- [ ] **4.** The padding of a row and of a column (P1). Found when step 4
+- [ ] **4.** (Deferred.) The padding of a row and of a column (P1). Found when step 4
   was to start (2026-10-06): the table draws one gap between all columns,
   `2 * pad_x + bw`, and one between all rows, in the eager form and in the
   grids of the list form. The eager `GridLayout` has a gap above each row
@@ -287,7 +287,7 @@ Decisions of the implementation (mine):
   `GridColumnList.jl`) have neither. So a padding for each row and column needs
   a gap for each column in the grid, gaps in both directions in the list grids,
   and the geometry, the rules, the bands and the hit tests of the table on
-  top. Waits for the owner's word on that scope.
+  top. Deferred by the owner, 2026-10-06: "later".
 - [x] **5.** The guides: `widget.md` and the docstrings of the table. Done
   2026-10-06: `widget.md` names `cell_order` and `cells[c][r]`, says how a
   column-major table draws with the parts and moves its heads, and names the
