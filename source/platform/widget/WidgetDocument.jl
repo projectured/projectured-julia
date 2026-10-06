@@ -2583,6 +2583,12 @@ the table. An Alt+press selects the part itself.
   on, as `(column, x, width)`, the column and the point and the width at the
   press, or `nothing`. A left press within 3 pixels of that edge starts it, and
   each move gives the column a width ([`SetTableColumnWidthOperation`](@ref)).
+- `vertical_scroll_bar`, `horizontal_scroll_bar` — the bars of the cells, as a
+  `WidgetScrollPane` takes them: `:auto`, the default, a bar that the table makes
+  from the extents of its cells; `nothing`, no bar; or a `WidgetScrollBar` of an
+  owner that knows where a list of rows is. The vertical bar starts under the
+  header row, and the horizontal bar to the right of the header column. On an
+  axis whose parts are a list, `:auto` shows no bar.
 - `open_cells` — the cells that the owner of the table holds open, a person's
   edit there that is not committed yet, as `(row = k, column = c, reason)` in the
   numbers of the paths of the table; `reason` is why the last commit of the cell
@@ -2622,6 +2628,8 @@ See also `make_result_table` and `WidgetList` for one column.
     scroll_position::Point2D     # view state: the one offset of the parts of a table that scrolls itself
     top_row::Int                 # view state: the row at the top of a list of rows, counted from its head
     column_drag::Any             # view state: the drag of the edge of a column that is on, or nothing
+    vertical_scroll_bar::Any     # :auto, nothing, or the WidgetScrollBar of an owner, beside the cells
+    horizontal_scroll_bar::Any   # :auto, nothing, or the WidgetScrollBar of an owner, under the cells
     open_cells::Any              # the cells that an owner holds open, as `(row, column, reason)`, or `nothing`
     tooltip::Any
 end
@@ -2711,7 +2719,7 @@ function WidgetTable(; position::Point2D=Point2D(0, 0), column_headers::Union{Ve
                      border_width::Integer=1, visible::Bool=true,
                      column_policy::SizePolicy=Content, row_policy::SizePolicy=Content,
                      cell_policy::Symbol=:clip, scroll_position::Point2D=Point2D(0, 0),
-                     open_cells=nothing,
+                     vertical_scroll_bar=:auto, horizontal_scroll_bar=:auto, open_cells=nothing,
                      margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing)
     cell_policy in (:clip, :wrap) ||
         error("WidgetTable: cell_policy is :clip or :wrap, not ", repr(cell_policy))
@@ -2751,7 +2759,9 @@ function WidgetTable(; position::Point2D=Point2D(0, 0), column_headers::Union{Ve
                 _make_table_rows(rows, body, column_major), _make_table_columns(columns, headers, body, column_major),
                 Cell(Int(border_width)), Cell(column_policy), Cell(row_policy), Cell(cell_policy),
                 Cell(visible), Cell(margin), Cell(border), Cell(padding), Cell(style),
-                Cell(scroll_position), Cell(1), Cell(nothing), Cell(open_cells === nothing ? nothing : collect(Any, open_cells)), Cell(tooltip))
+                Cell(scroll_position), Cell(1), Cell(nothing),
+                Cell(vertical_scroll_bar), Cell(horizontal_scroll_bar),
+                Cell(open_cells === nothing ? nothing : collect(Any, open_cells)), Cell(tooltip))
 end
 
 # The field `rows` of a table: the data that a caller gave, or the count of the

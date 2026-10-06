@@ -60,6 +60,7 @@ function print_document(p::CellTableToWidgetTable, recursion, ct::CellTable, ctx
                         Cell(Point2D(0, 0)), # scroll_position
                         Cell(1),             # top_row
                         Cell(nothing),       # no drag of the edge of a column
+                        Cell(:auto), Cell(:auto), # the bars of the cells
                         Cell(nothing),       # no owner opens a cell
                         Cell(nothing))               # no tooltip (selection defaults)
     SimpleIoMap(p, ct, table)

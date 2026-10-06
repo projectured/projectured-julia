@@ -253,17 +253,25 @@ part.
   unchanged, 27 pass. `test_platform()`: 100057 pass, 8 broken, and the 2
   failures of `InterfaceApiTest.jl` that `main` has too (32 names where it
   expects 31, and the docstring of `WidgetProgressRing`).
-- [ ] **3. The table and the owner's bar.** A pane draws a given bar.
-  `_make_part_pane` gives `nothing` to the header panes. The
-  table gets its two fields and gives them to the pane of its cells. The five
-  positional builds of `WidgetTable` get the new fields:
+- [x] **3. The table and the owner's bar.** A pane draws a given bar.
+  `_make_part_pane` gives `nothing` to the header panes, and `_make_cells_pane`
+  gives the pane of the cells the cells of the two fields of the table and a
+  mouse target that names a bar while the mouse target of the table does. The
+  five positional builds of `WidgetTable` get the new fields:
   [DataFrameViewToWidget.jl:145](../../source/adapter/dataframes/DataFrameViewToWidget.jl#L145),
   [DataFrameViewToWidget.jl:220](../../source/adapter/dataframes/DataFrameViewToWidget.jl#L220),
   [CellTableToWidgetTable.jl:49](../../source/platform/widget/CellTableToWidgetTable.jl#L49),
   [MarkdownToLayout.jl:133](../../source/domain/markdown/MarkdownToLayout.jl#L133) and
   [FrameStatisticsToWidget.jl:236](../../source/platform/statistics/FrameStatisticsToWidget.jl#L236).
-  Tests: [WidgetTableTest.jl](../../test/platform/projection/WidgetTableTest.jl)
-  and [WidgetTablePartsTest.jl](../../test/platform/projection/WidgetTablePartsTest.jl).
+  The table reads a press, a button up and a click on a bar of its cells, and
+  the drag of a thumb, before its own readers, and gives them to the pane of
+  the cells; the backward map of a point on a bar answers the field of the bar
+  in the table. A table whose rows are a list passes the answer through
+  `_add_top_row`. The start of a drag names the table with the empty path, so
+  the drag comes back to the table. Tests: a new
+  [WidgetTableBarTest.jl](../../test/platform/projection/WidgetTableBarTest.jl), 20
+  pass; the fourteen table tests of the platform pass unchanged, and
+  `test_data_frame_view()` 52 pass.
 - [ ] **4. The two owners move their bars into the table** (§4.6). Tests:
   `test_data_frame_view()` and `test_frame_statistics_feed()`.
 - [ ] **5. `WidgetList` scrolls by itself** (§4.4). Tests: the list cases of

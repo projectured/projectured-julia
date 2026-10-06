@@ -151,6 +151,75 @@ _make_part_pane(grid, offset::Cell, padding::Inset) =
                      Cell(nothing), Cell(nothing), Cell(padding),
                      Cell(WidgetStyle(; content_color = color_transparent)), Cell(nothing))
 
+# ── The bars of the cells ────────────────────────────────────────────────────
+#
+# The pane of the cells draws the bars of the table, so the vertical bar starts
+# under the header row and the horizontal bar to the right of the header column.
+# The pane shares the fields of the bars of the table, and the table gives it
+# every gesture for a bar: a press, a button up and a click on a bar, and the
+# drag of a thumb, which comes to the table wherever the pointer is. A point on a
+# bar maps to the field of the bar in the table.
+
+# The pane of the cells: a part pane that draws the bars of the table. Its mouse
+# target names a bar while the mouse target of the table does, so a bar that the
+# pane makes lights with the table.
+function _make_cells_pane(w::WidgetTable, grid, offset::Cell, padding::Inset)
+    target = Cell(@computation _get_table_bar_target(w))
+    # Positional: content, position, size, scroll_position, follow_end,
+    # vertical_scroll_bar, horizontal_scroll_bar, visible, margin, border,
+    # padding, style, tooltip, selection, mouse_target.
+    WidgetScrollPane(Cell(grid), Cell(nothing), Cell(nothing), offset, Cell(false),
+                     getfield(w, :vertical_scroll_bar), getfield(w, :horizontal_scroll_bar), Cell(true),
+                     Cell(nothing), Cell(nothing), Cell(padding),
+                     Cell(WidgetStyle(; content_color = color_transparent)), Cell(nothing),
+                     Cell(nothing), target)
+end
+
+# The bar that the mouse target of a table names, as a path in the pane of its
+# cells, or `nothing`.
+function _get_table_bar_target(w::WidgetTable)
+    target = get_mouse_target(w)
+    (target isa ConcreteReference && target.head isa FieldReferenceStep &&
+     target.head.name in _PANE_BAR_FIELDS) || return nothing
+    ConcreteReference(target.head, EmptyReference())
+end
+
+# Whether `event` is for a bar of the pane of the cells, which lies at `place`
+# in the table.
+function _is_table_bar_event(cells_pane, place, event)
+    pane = get_content_iomap(cells_pane)
+    pane isa WidgetScrollPaneToGraphicsCanvasIoMap || return false
+    event isa Union{DragMove,DragEnd,DragCancel} && return _find_dragged_pane_bar(pane) !== nothing
+    event isa Union{MouseDown,MouseUp,MouseClick} || return false
+    _find_pane_bar_at(pane, event.x - place[1], event.y - place[2]) !== nothing
+end
+
+# The answer of the pane of the cells, which lies at `place` in the table, to an
+# event for one of its bars, in the frame of the table. The start of a drag names
+# the pane with the empty path, which is the table here, so the drag comes back
+# to the table and goes on to the pane.
+function _read_table_bar_event(cells_pane, place, event)
+    pane = get_content_iomap(cells_pane)
+    answer = read_intent(pane.projection, pane, shift_event_position(event, -place[1], -place[2]))
+    answer isa Operation ? shift_operation_position(answer, place[1], place[2]) : nothing
+end
+
+# The path in the table of the bar of its cells at the point `(x, y)` of the
+# table, or `nothing`.
+function _map_table_bar_point(w::WidgetTable, cells_pane, place, x::Integer, y::Integer)
+    pane = get_content_iomap(cells_pane)
+    pane isa WidgetScrollPaneToGraphicsCanvasIoMap || return nothing
+    bar = _find_pane_bar_at(pane, x - place[1], y - place[2])
+    bar === nothing && return nothing
+    annotate_reference_types(w, ConcreteReference(FieldReferenceStep(bar.field), EmptyReference()))
+end
+
+# The place of the pane of the cells in a table whose rows are a list.
+function _get_table_cells_place(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap)
+    content_x, content_y = _content_offset(p, iomap.input)
+    (content_x + Int(iomap.state.header_width[]), content_y + Int(iomap.state.header_height[]))
+end
+
 # The canvas that the pane of a part draws its grid in. Its `x` and `y` are the
 # offset that the pane draws with, negated.
 _get_part_content(pane) = only(e for e in pane.output.elements if e isa GraphicsViewport).content
@@ -860,7 +929,7 @@ function _print_vector_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w
     row_header_pane = _print_header_column(recursion, w, inner, corner, cells_height, pad_x, pad_y, bw)
     row_header_pane === nothing || set_cell_computation!(header_width, () -> Int(row_header_pane.output.w))
     cells_pane = print_child(recursion,
-                             _make_part_pane(grid, offset, Inset(bw + pad_y, bw + pad_y, bw + pad_x, bw + pad_x)),
+                             _make_cells_pane(w, grid, offset, Inset(bw + pad_y, bw + pad_y, bw + pad_x, bw + pad_x)),
                              with_exact_size(beside; height = cells_height))
     cells_grid = cells_pane.content_iomap
     for c in 1:n
@@ -1139,7 +1208,7 @@ function _print_table_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w:
     row_header_pane = _print_header_column(recursion, w, inner, corner, cells_height, pad_x, pad_y, bw)
     row_header_pane === nothing || set_cell_computation!(header_width, () -> Int(row_header_pane.output.w))
     cells_pane = print_child(recursion,
-                             _make_part_pane(grid, offset, Inset(bw + pad_y, bw + pad_y, bw + pad_x, bw + pad_x)),
+                             _make_cells_pane(w, grid, offset, Inset(bw + pad_y, bw + pad_y, bw + pad_x, bw + pad_x)),
                              with_exact_size(beside; height = cells_height))
     cells_grid = cells_pane.content_iomap
     st = WidgetTablePartsState(0, bw, pad_x, pad_y, column_header_pane, cells_pane, header_height,
@@ -1354,6 +1423,9 @@ function map_reference_backward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTab
                                 reference)
     point = find_reference_point(reference)
     point === nothing && return nothing
+    bar = _map_table_bar_point(iomap.input, iomap.state.cells_pane, _get_table_cells_place(p, iomap),
+                               point.x, point.y)
+    bar === nothing || return bar
     found = _find_table_part_at(p, iomap, point.x, point.y)
     found === nothing && return nothing
     part, x, y = found
@@ -1861,6 +1933,11 @@ end
 function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent,
                      iomap::WidgetTableListIoMap)
     g = change.gesture
+    if change.operation === nothing
+        place = _get_table_cells_place(p, iomap)
+        _is_table_bar_event(iomap.state.cells_pane, place, g) &&
+            return Intent(g, _add_top_row(iomap, _read_table_bar_event(iomap.state.cells_pane, place, g)))
+    end
     g isa Union{DragMove,DragEnd,DragCancel} && return Intent(g, read_table_column_drag(iomap.input, g))
     if change.operation === nothing
         if g isa MouseDown && g.button === :left
@@ -1894,6 +1971,9 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent,
 end
 
 function read_intent(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, event)
+    place = _get_table_cells_place(p, iomap)
+    _is_table_bar_event(iomap.state.cells_pane, place, event) &&
+        return _add_top_row(iomap, _read_table_bar_event(iomap.state.cells_pane, place, event))
     # The parts of the drag of the width of a column come by the path of the
     # table, wherever the pointer is.
     event isa Union{DragMove,DragEnd,DragCancel} && return read_table_column_drag(iomap.input, event)

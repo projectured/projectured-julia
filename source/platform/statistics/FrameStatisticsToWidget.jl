@@ -232,14 +232,15 @@ function _make_frame_table(p::FrameStatisticsToWidget, statistics::FrameStatisti
     # Positional, so every declared field is named here in order: position,
     # column_headers, row_headers, corner, cells, cell_order, rows, columns, border_width,
     # column_policy, row_policy, cell_policy, visible, margin, border, padding,
-    # style, scroll_position, top_row, column_drag, open_cells, tooltip.
+    # style, scroll_position, top_row, column_drag, vertical_scroll_bar,
+    # horizontal_scroll_bar, open_cells, tooltip.
     WidgetTable(Cell(Point2D(0, 0)), headers, row_headers,
                 Cell(WidgetLabel("frame"; text_style = p.header_text)), rows,
                 Cell(:row_major), Cell(WidgetTableRows(nothing)), Cell(columns), Cell(1),
                 Cell(_FRAME_COLUMN_POLICY), Cell(Fixed(p.row_height)), Cell(:clip),
                 Cell(true), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
                 getfield(statistics, :scroll_position), getfield(statistics, :top_row),
-                Cell(nothing), Cell(nothing), Cell(nothing))
+                Cell(nothing), Cell(:auto), Cell(:auto), Cell(nothing), Cell(nothing))
 end
 
 # The data of column `c` of the frames, aligned right, whose width reads entry

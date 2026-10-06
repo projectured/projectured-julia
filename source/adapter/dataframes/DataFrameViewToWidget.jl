@@ -140,14 +140,15 @@ function _make_view_table(p::DataFrameViewToWidget, view::DataFrameView)
     # Positional, so every declared field is named here in order: position,
     # column_headers, row_headers, corner, cells, cell_order, rows, columns, border_width,
     # column_policy, row_policy, cell_policy, visible, margin, border, padding,
-    # style, scroll_position, top_row, column_drag, open_cells, tooltip. The
+    # style, scroll_position, top_row, column_drag, vertical_scroll_bar,
+    # horizontal_scroll_bar, open_cells, tooltip. The
     # table scrolls its own parts, and its offset is the cell of the view.
     table = WidgetTable(Cell(Point2D(0, 0)), headers, row_headers, corner, rows,
                         Cell(:row_major), Cell(WidgetTableRows(nothing)), columns, Cell(1),
                         Cell(_COLUMN_POLICY), Cell(Fixed(p.row_height)), Cell(:clip),
                         Cell(true), Cell(nothing), Cell(nothing), Cell(nothing),
                         Cell(nothing), getfield(view, :scroll_position),
-                        getfield(view, :top_row), Cell(nothing),
+                        getfield(view, :top_row), Cell(nothing), Cell(:auto), Cell(:auto),
                         Cell(@computation _get_table_open_cells(view, false)), Cell(nothing),
                         Cell(@computation _get_table_selection(view, false)))
     set_cell_computation!(getfield(table, :mouse_target), () -> _get_table_mouse_target(view))
@@ -222,7 +223,7 @@ function _make_column_list_table(p::DataFrameViewToWidget, view::DataFrameView)
                         Cell(Fixed(p.list_column_width)), Cell(Fixed(p.row_height)), Cell(:clip),
                         Cell(true), Cell(nothing), Cell(nothing), Cell(nothing),
                         Cell(nothing), getfield(view, :scroll_position),
-                        getfield(view, :top_row), Cell(nothing),
+                        getfield(view, :top_row), Cell(nothing), Cell(:auto), Cell(:auto),
                         Cell(@computation _get_table_open_cells(view, true)), Cell(nothing),
                         Cell(@computation _get_table_selection(view, true)))
     set_cell_computation!(getfield(table, :mouse_target), () -> _get_table_mouse_target(view))

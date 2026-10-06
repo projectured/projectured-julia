@@ -140,6 +140,7 @@ function _make_page_table(table::MarkdownTable)
                          Cell(Point2D(0, 0)),              # scroll_position
                          Cell(1),                          # top_row
                          Cell(nothing),                    # column_drag
+                         Cell(:auto), Cell(:auto),         # vertical_scroll_bar, horizontal_scroll_bar
                          Cell(nothing),                    # open_cells
                          Cell(nothing))                    # tooltip
     set_output_path_computations!(widget, table, _map_table_path_forward)

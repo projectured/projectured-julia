@@ -9816,7 +9816,7 @@ function _print_eager_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::
                       Cell(w.column_policy), Cell(w.row_policy), column_policies, row_policies,
                       Cell(wraps), Cell(Bool[]), Cell(Any[]), Cell(nothing))
     cells_pane = print_child(recursion,
-                             _make_part_pane(grid, offset, Inset(bw + pad_y, bw + pad_y, bw + pad_x, bw + pad_x)),
+                             _make_cells_pane(w, grid, offset, Inset(bw + pad_y, bw + pad_y, bw + pad_x, bw + pad_x)),
                              with_inner_size(ctx; width = header_width, height = header_height))
     cells = cells_pane.content_iomap
     if m > 0
@@ -10248,7 +10248,17 @@ map_reference_forward(::WidgetTableToGraphicsCanvas, iomap, reference) = _map_ch
 # names no document of the table by itself, so it maps to no path into the table.
 function map_reference_backward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, reference)
     point = find_reference_point(reference)
-    point === nothing ? nothing : _map_wt_point(p, iomap, point)
+    point === nothing && return nothing
+    bar = _map_table_bar_point(iomap.input, iomap.parts.cells_pane, _get_wt_cells_place(p, iomap),
+                               point.x, point.y)
+    bar === nothing ? _map_wt_point(p, iomap, point) : bar
+end
+
+# The place of the pane of the cells in a table whose rows are a vector.
+function _get_wt_cells_place(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap)
+    content_x, content_y = _content_offset(p, iomap.input)
+    (region_x, region_y), _ = _wt_get_part_places(iomap, iomap.parts.cells_pane)
+    (content_x + region_x, content_y + region_y)
 end
 
 # What the table holds at `(x, y)` of its canvas, as `_wt_hit_test` answers it in
@@ -10297,6 +10307,9 @@ _wt_get_cell_steps(w::WidgetTable, r::Int, c::Int) =
 function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, iomap::WidgetTableToGraphicsCanvasIoMap)
     g = change.gesture
     change.operation === nothing || return Intent(g, nothing)
+    place = _get_wt_cells_place(p, iomap)
+    _is_table_bar_event(iomap.parts.cells_pane, place, g) &&
+        return Intent(g, _read_table_bar_event(iomap.parts.cells_pane, place, g))
     g isa MouseClick && g.button === :left && return Intent(g, _wt_mouse_select(p, iomap, g))
     # A pointer motion does not go into the cells: the part under the pointer is the
     # backward map of the point. A dwell goes to the cell under it.
@@ -10629,6 +10642,9 @@ end
 # into an Intent and handled by the 4-arg reader. An operation finds no cell to
 # go to, and every other event goes to a cell.
 function read_intent(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, event)
+    place = _get_wt_cells_place(p, iomap)
+    _is_table_bar_event(iomap.parts.cells_pane, place, event) &&
+        return _read_table_bar_event(iomap.parts.cells_pane, place, event)
     _outside_widget(iomap, event) && return nothing
     if event isa MouseClick || event isa KeyDown || event isa MouseScroll ||
        event isa MouseMove
