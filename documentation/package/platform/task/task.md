@@ -83,8 +83,11 @@ is where a kind of task reads its progress and its position: a simulation writes
 (`get_task_status`) and the time of the end. A task that ends with no process,
 such as one that is skipped, calls `finish_task_execution!` directly.
 
-`stop_task_execution!` sends `SIGINT`, so a program that catches it can still
-finish its work, and the status says `:cancelling` until the process ends.
+A `Cmd` starts in a process group of its own. `stop_task_execution!` sends
+`SIGINT` to the group, so the programs that the process started stop with it —
+the compilers of `make`, for example — and a program that catches the signal
+can still finish its work. The status says `:cancelling` until the process
+ends. A Ctrl+C at the REPL does not reach the group.
 `sample_task_usage!` reads the processor time and the resident memory from
 `/proc`.
 

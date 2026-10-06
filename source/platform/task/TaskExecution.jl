@@ -177,16 +177,35 @@ end
 """
     stop_task_execution!(execution) -> execution
 
-Ask the task to stop: its process is sent `SIGINT`, so a program that catches it
-can still finish its work, and the status says `:cancelling` until the process
-ends. A task that has ended answers nothing.
+Ask the task to stop: its process and the programs that the process started are
+sent `SIGINT`, so a program that catches it can still finish its work, and the
+status says `:cancelling` until the process ends. A task that has ended answers
+nothing.
 """
 function stop_task_execution!(execution::TaskExecution)
     if is_task_running(execution)
         update_task_execution!(e -> (e.status = :cancelling), execution)
-        kill(execution.process, Base.SIGINT)
+        _interrupt_process_group(execution.process)
     end
     execution
+end
+
+# The process leads a group of its own (`start_process_task!`), so the interrupt
+# goes to the group, and the programs that the process started, such as the
+# compilers of `make`, stop with it. A process that leads no group gets the
+# interrupt alone.
+function _interrupt_process_group(process::Base.Process)
+    if Sys.isunix()
+        process_id = try
+            Int(getpid(process))
+        catch
+            nothing
+        end
+        process_id === nothing ||
+            ccall(:kill, Cint, (Cint, Cint), -process_id, Base.SIGINT) == 0 || kill(process, Base.SIGINT)
+    else
+        kill(process, Base.SIGINT)
+    end
 end
 
 """
@@ -228,9 +247,13 @@ of task can write `progress` and `position` from it. When the process has ended
 and both streams are read, `finish(process, cancelled, elapsed)` makes the
 result, with `cancelled` true when [`stop_task_execution!`](@ref) asked for the
 end, and calls [`finish_task_execution!`](@ref).
+
+A `Cmd` starts in a process group of its own, so a stop reaches the programs
+that it starts, and a Ctrl+C at the REPL does not reach the task.
 """
 function start_process_task!(execution::TaskExecution, command::Base.AbstractCmd;
                              read_line = nothing, finish)
+    command isa Cmd && (command = Cmd(command; detach = true))
     output = Pipe()
     error_output = Pipe()
     started = time()

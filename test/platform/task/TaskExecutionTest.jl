@@ -100,6 +100,17 @@ function test_task_execution()
             @test !is_task_running(execution)
         end
 
+        @testset "a stop reaches the programs that the process started" begin
+            execution = _start_probe_process("sleep 30; echo late")
+            @test _wait_task_status(execution, :running) === :running
+            stopped_at = time()
+            stop_task_execution!(execution)
+            wait_task_execution(execution)
+            @test time() - stopped_at < 5
+            @test execution.result.result == "CANCEL"
+            @test isempty(collect_output_lines(execution.output))
+        end
+
         @testset "a task that ends with no process" begin
             execution = TaskExecution(_TaskExecutionProbeTask())
             finished = Ref{Any}(nothing)
