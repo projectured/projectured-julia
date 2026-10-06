@@ -488,8 +488,30 @@ new tab".
   - `test_data_frame_row_page()`, 23 tests, 1 broken.
 - [ ] **6. Links in the data.** Markdown and rst links that a press follows,
   drawn as links. A file reference. A named target after D7.
-- [ ] **7. Panes and files.** The tab title follows the page. A duplicate copies
-  the lists. A save keeps the address only (D6).
+- [x] **7. Panes and files.** The tab title follows the page. A duplicate copies
+  the lists. A save keeps the address only (D6). Done, 2026-10-06, with one
+  change of the plan:
+  - **The name of a tab does not follow the page; its tooltip does.** The pane
+    gives an opened tab a fixed name, and its code says that a tab must not
+    rename itself (`_make_open_pane`); `find_pane` finds a tab by that name. A
+    label follows a state through its icon, badges and tooltip, so
+    `make_pane_tab_title(::Navigator, name)` gives the tab a tooltip that reads
+    the address of the page. A name that follows the page is a question for the
+    owner.
+  - `has_document_duplicate(::Navigator) = true`: the copy descends into the
+    navigator, copies the address and the lists, and shares a content that
+    declares no duplicate, as a browser duplicates a tab.
+  - **A save failed before this step:** the `.pred` notation writes no
+    `Reference` value and no `NavigatorVisit`, so a window with a navigator tab
+    could not save. `pred_arguments(::Navigator)` writes the content and the
+    address as the text of a path (`books[2]`), and `make_pred_document` reads
+    it back with empty lists (D6).
+  - The file layer had the writer and the reader of such a text as private
+    helpers of its `node(file(…), "children[1]")` form. They are public now, as
+    `print_path_text` and `parse_path_text` of the serialization slice, beside
+    `print_pred_text` and `parse_pred_text`; step 8 reads a typed address with
+    the same reader.
+  - `test_navigator_document()`, 27 tests; `test_navigator()` runs 196.
 - [ ] **8. A typed address.** Field and index steps, read as
   `_evaluate_path_text` reads them.
 - [ ] **9. Master and detail.** `ComponentToWidget` on two navigators.
