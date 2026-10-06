@@ -130,12 +130,61 @@ function _make_pivot_item_removal(pivot::PivotTable)
     _make_pivot_item_move(pivot, field, index, "unused_dimensions", length(pivot.unused_dimensions) + 1)
 end
 
+# ── The runs of the rows ─────────────────────────────────────────────────────
+
+# The row and the level of the run of the row headers that `selection` names, a
+# part that the view introduced: `(row, level)` for the label of level `level` of
+# row `row`; `nothing` for any other selection.
+function _find_pivot_row_run(selection)
+    selection isa ConcreteReference || return nothing
+    selection = strip_reference_types(selection)
+    head = selection isa ConcreteReference ? selection.head : nothing
+    head isa ProjectionReferenceStep || return nothing
+    path = _find_pivot_grid_child_path(head.output_path, 2)
+    (path isa ConcreteReference && path.head isa FieldReferenceStep && path.head.name == "row_headers") ||
+        return nothing
+    row = path.tail
+    (row isa ConcreteReference && row.head isa RangeReferenceStep) || return nothing
+    level = row.tail
+    (level isa ConcreteReference && level.head isa RangeReferenceStep) || return nothing
+    (row.head.stop, level.head.stop)
+end
+
+# Enter on a selected run of an outer row dimension: close it, so it shows only
+# its subtotal row, or open it again. The selection goes to the run in the new
+# rows.
+function _make_pivot_run_toggle(pivot::PivotTable)
+    found = _find_pivot_row_run(pivot.selection)
+    found === nothing && return nothing
+    row, level = found
+    cross = pivot.cross_table
+    levels = length(pivot.row_dimensions)
+    (1 <= row <= get_pivot_row_count(cross) && level < levels) || return nothing
+    prefix = cross.row_keys[row][1:level]
+    any(value -> value isa PivotTotal, prefix) && return nothing
+    collapsed = Any[pivot.collapsed...]
+    closed = findfirst(isequal(prefix), collapsed)
+    closed === nothing ? push!(collapsed, prefix) : deleteat!(collapsed, closed)
+    keys, _ = _make_axis_keys(cross.detail_row_keys, levels, pivot.totals, collapsed)
+    place = findfirst(key -> isequal(key[1:level], prefix), keys)
+    operations = Any[ReplaceReferencedValueOperation(pivot, "collapsed", collapsed)]
+    if place !== nothing
+        projection = strip_reference_types(pivot.selection).head.projection
+        header = ConcreteReference(FieldReferenceStep("row_headers"), ConcreteReference(RangeReferenceStep(place - 1, place),
+            ConcreteReference(RangeReferenceStep(level - 1, level), EmptyReference())))
+        push!(operations, ReplaceSelectionOperation(ConcreteReference(
+            ProjectionReferenceStep(projection, _make_pivot_grid_reference(2, header)), EmptyReference())))
+    end
+    CompoundOperation(operations)
+end
+
 @gestures PivotTable begin
     KeyDown(:left; alt) => "Move the field one place to the left" => _make_pivot_item_shift(doc, -1)
     KeyDown(:right; alt) => "Move the field one place to the right" => _make_pivot_item_shift(doc, 1)
     KeyDown(:up; alt) => "Move the field to the row above" => _make_pivot_item_zone_move(doc, -1)
     KeyDown(:down; alt) => "Move the field to the row below" => _make_pivot_item_zone_move(doc, 1)
     KeyDown(:delete) => "Take the field out of its row" => _make_pivot_item_removal(doc)
+    KeyDown(:return) => "Open or close the run of rows" => _make_pivot_run_toggle(doc)
     splice(_PIVOT_MENU)
 end
 

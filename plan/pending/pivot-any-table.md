@@ -630,9 +630,30 @@ and chips that move. Stages 6 and 7 complete the design of the request.
     categories and the range 0 to 36, two series, a line over numbers, a pie on
     request, and 35 slices drawn; `test_pivot()`: 225. The atom
     `pivot/chart_cell`.
-- [ ] **8. Totals and order.** An "all" value at each level, which gives the
+- [x] **8. Totals and order.** An "all" value at each level, which gives the
   subtotals and the totals. A run of headers opens and closes. The order of a
-  dimension by a measure, the top N, and the value filter on a chip.
+  dimension by a measure, the top N, and the value filter on a chip. **Done 2026-10-06**, with the
+  open and closed runs on the rows only.
+  - A total is a key whose value is `PivotTotal()` from some level on. The
+    details sort by their prefixes, so a total covers a contiguous range of
+    details, and the cross table keeps that range for each row and column. The
+    part of a total is gathered from the parts of its details when it is read,
+    so the totals add no pass over the source.
+  - `PivotTable` has two new fields: `totals`, which the menu of the pivot
+    turns on and off, and `collapsed`, the key prefixes of the closed runs of
+    rows. Enter on a selected run of an outer level closes or opens it, and the
+    selection follows the run to its new row. A closed run shows its subtotal
+    row and a ▸ before its label. A run of columns does not close yet.
+  - `PivotDimension` has a new field, `limit`, and a new order, `:measure`, the
+    value of the first measure over the rows of each value.
+  - The menu of a dimension is a part of the menu of the pivot, which reads the
+    mouse target of the pivot, because a dimension does not know its pivot:
+    the order, the direction, the first 5, the first 10 or every value, and a
+    check for each of the first 20 values.
+  - A known limit: the row numbers of the table count from the head of its
+    list, and the table moves its head after a scroll of 200 rows, which the
+    pivot does not follow yet; a pivot of fewer rows is not concerned.
+  - Tests: `test_pivot_totals()` (29); `test_pivot()`: 255.
 - [ ] **9. Group.** Row dimensions only, with the rows of each group in line
   under a header row. A `GroupedDataFrame` shows in this view. This is phase 7
   of the data frame plan.

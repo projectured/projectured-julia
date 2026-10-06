@@ -9,24 +9,28 @@
 @domain Pivot
 
 """
-    PivotDimension(column; order = :natural, descending = false, hidden_values = Any[])
+    PivotDimension(column; order = :natural, descending = false, hidden_values = Any[], limit = 0)
 
 A dimension of a pivot: the values of column `column` of the source cut the
 rows into parts. `order` says how its values follow each other: `:natural`, the
-order of `isless` with `missing` last, or `:first`, the order in which the
-values first occur in the source. `descending` turns the order round.
-`hidden_values` holds the values that the pivot leaves out, with their rows.
+order of `isless` with `missing` last; `:first`, the order in which the values
+first occur in the source; or `:measure`, the order of the value of the first
+measure of the pivot over the rows of each value. `descending` turns the order
+round. `hidden_values` holds the values that the pivot leaves out, with their
+rows, and `limit`, when it is not 0, keeps only that many values, the first in
+the order, so a descending order by the measure keeps the top `limit`.
 """
 @document struct PivotDimension <: PivotDocument
     column::String
     order::Symbol = :natural
     descending::Bool = false
     hidden_values::Vector{Any} = Any[]
+    limit::Int = 0
 end
 
 PivotDimension(column::AbstractString; order::Symbol = :natural, descending::Bool = false,
-               hidden_values::AbstractVector = Any[]) =
-    PivotDimension(String(column), order, descending, Any[hidden_values...], nothing)
+               hidden_values::AbstractVector = Any[], limit::Integer = 0) =
+    PivotDimension(String(column), order, descending, Any[hidden_values...], Int(limit), nothing)
 
 """
     PivotMeasure(column, aggregate)
@@ -140,7 +144,10 @@ the measures, in the order of the rows of the bar above the table:
 - `measures`: the [`PivotMeasure`](@ref)s that a cell computes.
 
 `cell_view` is the [`PivotCellView`](@ref) of each cell, or `nothing` for the
-choice that follows from the cell dimensions. A program that changes the source
+choice that follows from the cell dimensions. `totals` adds a row and a column
+of totals, and a subtotal row under each run of an outer row dimension.
+`collapsed` holds the key prefixes of the runs of the row headers that are
+closed: a closed run shows only its subtotal row. A program that changes the source
 in place writes `source_version`, and every computation over the source reads it.
 
 `cross_table` is the [`PivotCrossTable`](@ref) of the source, computed again when
@@ -162,6 +169,8 @@ puts the item now.
     cell_dimensions::CellVector
     measures::CellVector
     cell_view::Any
+    totals::Bool
+    collapsed::Vector{Any}
     source_version::Int
     cross_table::Any
     cells::Any
@@ -232,14 +241,14 @@ end
 
 """
     make_pivot_table(source; rows = String[], columns = String[], cells = String[],
-                     measures = PivotMeasure[], cell_view = nothing) -> PivotTable
+                     measures = PivotMeasure[], cell_view = nothing, totals = false) -> PivotTable
 
 A pivot of `source` whose row, column and cell dimensions are the columns of the
 source named in `rows`, `columns` and `cells`, in that order. Every other column
 of the source is an unused dimension, in the order of the source.
 """
 function make_pivot_table(source; rows = String[], columns = String[], cells = String[],
-                          measures = PivotMeasure[], cell_view = nothing)
+                          measures = PivotMeasure[], cell_view = nothing, totals::Bool = false)
     is_table(source) || throw(ArgumentError("a pivot needs a table, not a $(typeof(source))"))
     names = get_table_column_names(source)
     used = Set{String}(vcat(rows, columns, cells))
@@ -249,6 +258,6 @@ function make_pivot_table(source; rows = String[], columns = String[], cells = S
     make_dimensions(list) = CellVector(Any[PivotDimension(String(name)) for name in list])
     _set_pivot_fields!(PivotTable(source, make_dimensions(filter(name -> !(name in used), names)),
                                   make_dimensions(columns), make_dimensions(rows), make_dimensions(cells),
-                                  CellVector(Any[measures...]), cell_view, 0, nothing, nothing, nothing,
-                                  nothing))
+                                  CellVector(Any[measures...]), cell_view, totals, Any[], 0, nothing,
+                                  nothing, nothing, nothing))
 end

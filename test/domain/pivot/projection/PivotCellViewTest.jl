@@ -34,10 +34,12 @@ getfield(pivot, :cell_view)[] = PivotNumberView()
 views = collect_pivot_cell_views()
 @test PivotNumberView in views && PivotRowsView in views
 menu = compute_context_menu(pivot)
-labels = [item.action.label for item in menu.elements]
-@test labels[1] == "Show the cells automatically"
+items = [item for item in menu.elements if item isa WidgetMenuItem]
+labels = [item.action.label for item in items]
+@test labels[1] == "Show the totals"
+@test "Show the cells automatically" in labels
 @test "Show the cells as rows" in labels && "Show the cells as numbers" in labels
-automatic = menu.elements[1]
+automatic = items[findfirst(==("Show the cells automatically"), labels)]
 @test automatic.enabled
 evaluate_operation(nothing, automatic.operation)
 @test pivot.cell_view === nothing

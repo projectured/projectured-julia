@@ -204,7 +204,16 @@ function _make_pivot_row_header_list(pivot::PivotTable)
     count = get_pivot_row_count(cross)
     count == 0 && return CellVector()
     leveled = !isempty(pivot.row_dimensions)
-    make_index_list(count, 1, k -> leveled ? _make_pivot_key_labels(cross.row_keys[k]) : WidgetLabel("all"))
+    make_index_list(count, 1, k -> leveled ? _make_pivot_row_labels(pivot, cross.row_keys[k]) : WidgetLabel("all"))
+end
+
+# The labels of the key of a row. The label of a closed run starts with ▸.
+function _make_pivot_row_labels(pivot::PivotTable, key::Tuple)
+    labels = Any[format_pivot_value(value) for value in key]
+    total = findfirst(value -> value isa PivotTotal, key)
+    (total !== nothing && total > 1 && any(isequal(key[1:(total - 1)]), pivot.collapsed)) &&
+        (labels[total - 1] = "▸ " * labels[total - 1])
+    CellVector(labels)
 end
 
 # The corner: the names of the row dimensions, one for each level of the row

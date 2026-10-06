@@ -83,6 +83,7 @@ format_pivot_value(value::AbstractFloat) =
     isfinite(value) && isinteger(value) && abs(value) < 1e15 ? string(Int(value)) :
         string(round(value; digits = 2))
 format_pivot_value(::Missing) = "missing"
+format_pivot_value(::PivotTotal) = "total"
 format_pivot_value(value) = string(value)
 
 """

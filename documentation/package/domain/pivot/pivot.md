@@ -51,6 +51,10 @@ The computation makes one pass over each dimension, and reads the column as a ve
 
 `find_pivot_part_rows(cross, r, c)` gives the rows of a cell, or `nothing` for a cell that no row reaches. `make_table_part(source, rows)` gives the part itself.
 
+**Order and limit.** A dimension orders its values by `isless` (`:natural`), by their first occurrence (`:first`), or by the value of the first measure of the pivot over the rows of each value (`:measure`); `descending` turns the order round. `limit`, when it is not 0, keeps the first values in that order and leaves out the rows of the others, so a descending order by the measure and a limit of 10 is the top 10. `hidden_values` leaves out the rows of the values that it names.
+
+**Totals.** A key whose value is `PivotTotal()` from some level on is a total: `("EU", PivotTotal())` is the subtotal of EU, and a key of only `PivotTotal()` is the total. With `totals` on the pivot, a subtotal row follows each run of an outer row dimension, a total row follows every row, and a total column every column. The details sort by their prefixes, so a total covers a contiguous range of details (`row_details`, `column_details`), and its part is gathered from the parts of those details when it is read: a total costs nothing until a cell shows it. A run of the row headers whose prefix is in `collapsed` shows only its subtotal row, with or without the totals, and its label starts with ▸. Enter on a selected run of an outer level closes or opens it.
+
 The cost, measured on 2026-10-06 with a data frame and three dimensions of 4, 40 and 10 values: 0.07 s for one million rows and 1.0 s for ten million rows. The `groupby` of DataFrames takes 0.05 s and 0.66 s for the same groups.
 
 ### The cells
@@ -68,7 +72,7 @@ The automatic choice: no cell dimension gives numbers; one cell dimension of num
 
 A cell that no row reaches is empty. A row of the table is as tall as the lines that the view takes, `get_pivot_cell_view_lines`: one for numbers, five for a chart, ten for rows. Any view but numbers is offered the width of its column (the `:wrap` cell policy). `get_pivot_cell_key` says what the document of a cell depends on beside its keys: nothing for numbers, which read their part when they draw, and the rows and the columns for a table, which are fixed when it is made.
 
-**The menus.** A right click on a measure chooses its aggregate. A right click on the pivot chooses the view of the cells: the automatic one, or a kind. `collect_pivot_cell_views()` lists the kinds from the method table of `describe_pivot_cell_view`, so a kind that a package adds is in the menu with no registry. The Cells row of the bar starts with an outlined badge that names the view, such as `as rows (automatic)`.
+**The menus.** A right click on a measure chooses its aggregate. A right click on the pivot chooses the view of the cells, the automatic one or a kind, shows or hides the totals, and opens every closed run. A right click on a dimension in the bar adds the items of the dimension: its order, its direction, the first 5, the first 10 or every value, and a check for each of its first 20 values, which hides or shows the value. `collect_pivot_cell_views()` lists the kinds from the method table of `describe_pivot_cell_view`, so a kind that a package adds is in the menu with no registry. The Cells row of the bar starts with an outlined badge that names the view, such as `as rows (automatic)`.
 
 **An edit in a cell.** An edit in a cell changes the source, which no computation of the pivot reads, so the reader of the view adds a write of `source_version` to any answer of the table that is not a selection, view state or a part of a drag. The pivot then computes its parts again.
 

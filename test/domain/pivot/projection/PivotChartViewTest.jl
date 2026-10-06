@@ -51,7 +51,8 @@ line = lines.cells[1][1].chart.series[1]
 getfield(pivot, :cell_view)[] = PivotPieChartView()
 pie = pivot.cells[1][1].chart.series[1]
 @test pie isa ChartPieSeries && pie.categories == ["x", "y", "z"]
-@test "Show the cells as pie charts" in [item.action.label for item in compute_context_menu(pivot).elements]
+@test "Show the cells as pie charts" in [item.action.label for item in compute_context_menu(pivot).elements
+                                         if item isa WidgetMenuItem]
 # Many values of one dimension of text: the rows.
 many = make_pivot_table((k = string.(1:20), v = collect(1.0:20.0)); cells = ["k"])
 @test get_pivot_cell_view(many) isa PivotRowsView
