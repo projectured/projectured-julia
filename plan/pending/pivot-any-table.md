@@ -3,7 +3,7 @@
 > **Kind:** plan · **Status:** pending, 2026-10-06. A design review and a list
 > of stages. The owner decided every question of §7 on 2026-10-06 and asked
 > for the work the same day. Stages 0 to 10 are done on the branch `pivot`,
-> which stands on main `582c86768`; stage 11 holds proposals that wait for the
+> which stands on main `255f78403`; stage 11 holds proposals that wait for the
 > owner, and §10 holds a question that the work found. ·
 > **Stands on:** [view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md)
 > (D8, §4.6, §4.7),
