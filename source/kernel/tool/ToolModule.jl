@@ -11,7 +11,8 @@ be asked to read. Eight fragments share this namespace:
 - [`ToolSet.jl`](ToolSet.jl) — registering, listing, finding, and calling them.
 - [`CodeExecution.jl`](CodeExecution.jl) — `execute_julia_code!` and
   `execute_julia_expression!`, which run the code of the `execute_julia_code` tool,
-  and their persistent scratch namespace.
+  their persistent scratch namespace, and `get_evaluation_editor`, the editor of
+  the evaluation that a verb takes when its caller names none.
 - [`SearchQuery.jl`](SearchQuery.jl) — what a search query says: keywords with
   their classes, a regular expression, or a description.
 - [`Documentation.jl`](Documentation.jl) — the guide / module / type / function
@@ -54,9 +55,14 @@ A few values of the layer are process-global, each for a reason:
   how long a search waits for a build. A test sets them.
 - A call of the code tool redirects the `stdout` and the `stderr` of the process
   while the code runs, so that the answer holds what the code printed.
+
+`_EVALUATION_EDITOR` is a `ScopedValue`, not one of these: its value belongs to
+one evaluation and to the tasks that the evaluation starts, so two editors that
+run code at the same time each see their own.
 """
 module ToolModule
 
+using Base.ScopedValues: ScopedValue, with
 using ..FaultModule
 
 export Tool, Resource, ToolSet, ApiEntry, MeaningModel, set_meaning_model!,
@@ -70,6 +76,7 @@ export Tool, Resource, ToolSet, ApiEntry, MeaningModel, set_meaning_model!,
        observe_evaluations!,
        execute_julia_code!, execute_julia_expression!, get_last_evaluated_value,
        get_last_evaluation_exception, get_evaluation_exception_count,
+       MissingEvaluationEditorException, get_evaluation_editor,
        describe_value_for_person,
        list_guides, read_guide, read_guide_section,
        list_modules, list_types, list_functions,

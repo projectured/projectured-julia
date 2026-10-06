@@ -2,8 +2,9 @@
 What `execute_julia_code!` answers: what the code printed, whole and also before
 an error, the value of the last expression shown or described, "Done." for
 nothing, and the nearest declared names for a name nobody defined. It also
-verifies that each observer hears the value of each evaluation, and that an
-observer that throws stops neither the others nor the answer.
+verifies that each observer hears the value of each evaluation, that an
+observer that throws stops neither the others nor the answer, and that a verb
+with no editor takes the editor of the evaluation.
 """
 
 using Test
@@ -18,6 +19,15 @@ count_rows(table) = 0
 draw_arrow(canvas) = nothing
 """A chart of a frame."""
 make_result_plot(frame) = nothing
+end
+
+# A declared API with one verb that takes the editor of the evaluation when its
+# caller names none.
+module EditorToy
+using ProjecturedKernel.ToolModule: get_evaluation_editor
+export get_toy_editor
+"""The editor that the verb acts on."""
+get_toy_editor(; editor = get_evaluation_editor()) = editor
 end
 
 function test_code_execution()
@@ -81,6 +91,34 @@ function test_code_execution()
         @test get_last_evaluated_value(other) === object
         # A failure is answered, not thrown.
         @test occursin("UndefVarError", execute_julia_expression!(other, nothing, :(no_such_name_q)))
+    end
+
+    @testset "a verb with no editor takes the editor of the evaluation" begin
+        first_set = ToolSet(; api = Module[EditorToy])
+        other_set = ToolSet(; api = Module[EditorToy])
+        @test execute_julia_code!(first_set, :first_editor, "get_toy_editor()") == ":first_editor\n"
+        @test execute_julia_code!(other_set, :other_editor, "get_toy_editor()") == ":other_editor\n"
+        @test execute_julia_expression!(other_set, :other_editor, :(get_toy_editor())) ==
+              ":other_editor\n"
+        # A caller that names an editor gets that editor.
+        @test execute_julia_code!(first_set, :first_editor, "get_toy_editor(; editor = :named)") ==
+              ":named\n"
+        # A task that the code starts gets the editor, also on another thread, and
+        # also when it runs on after the call ends.
+        @test execute_julia_code!(first_set, :first_editor, "fetch(@async get_toy_editor())") ==
+              ":first_editor\n"
+        @test execute_julia_code!(first_set, :first_editor,
+                                  "fetch(Threads.@spawn get_toy_editor())") == ":first_editor\n"
+        execute_julia_code!(first_set, :first_editor,
+                            "late_task_1 = @async (sleep(0.05); get_toy_editor()); nothing")
+        @test execute_julia_code!(first_set, :other_editor, "fetch(late_task_1)") ==
+              ":first_editor\n"
+        # Outside an evaluation no editor is there, and the message names the fix.
+        @test_throws MissingEvaluationEditorException get_evaluation_editor()
+        @test occursin("`editor = …`", sprint(showerror, MissingEvaluationEditorException()))
+        # Code that runs with no editor answers the exception, as any error.
+        @test startswith(execute_julia_code!(first_set, nothing, "get_toy_editor()"),
+                         "MissingEvaluationEditorException")
     end
 
     @testset "nothing is Done., unless the code printed" begin

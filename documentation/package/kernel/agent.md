@@ -30,7 +30,8 @@ on both.
 Tool.jl           Tool (an action), Resource (a read-only datum), ApiEntry, MeaningModel,
                   RelevanceModel, ToolSet, observe_evaluations!
 ToolSet.jl        register / list / find / call — all on a ToolSet
-CodeExecution.jl  execute_julia_code! and execute_julia_expression!, and their persistent scratch namespace
+CodeExecution.jl  execute_julia_code! and execute_julia_expression!, their persistent scratch namespace,
+                  and get_evaluation_editor, the editor of the evaluation
 SearchQuery.jl    what a search query says: keywords with classes, a pattern, a description
 Documentation.jl  guide / module / type / function docs, and search over them
 MeaningSearch.jl  the rank of a description by its meaning, and the stores of vectors
@@ -184,8 +185,23 @@ client, keep the default.
 `execute_julia_expression!(set, target, expression)` runs code that is already an
 `Expr`, as `make_julia_expression` gives it, and shares everything with
 `execute_julia_code!` except the parse: the scratch module, the `editor` binding,
-the answer and the notice to the observers. An object that the expression holds
-in a `QuoteNode` is used as that very object.
+the editor of the evaluation, the answer and the notice to the observers. An
+object that the expression holds in a `QuoteNode` is used as that very object.
+
+**A verb takes the editor of the evaluation.** While the code of a call runs,
+`target` is the editor of the evaluation, a `ScopedValue` that
+`get_evaluation_editor()` reads. A verb takes it as the default of its `editor`
+keyword, `focus_pane!(reference; editor = get_evaluation_editor())`, so the code
+of a person or a model writes `focus_pane!(tab)`. The scope is where
+PAR-PER-EDITOR-STATE puts state of one evaluation, so two editors that run code
+at the same time each see their own.
+
+- A task that the code starts, with `@async` or `Threads.@spawn`, gets the same
+  editor, also after the call ends.
+- Code that runs after the evaluation, such as a callback or a timer, gets none:
+  the verb throws `MissingEvaluationEditorException`, whose message says to pass
+  `editor = …`.
+- A caller that has an editor passes it, and the verb acts on that one.
 
 **A description is ranked by its meaning.** When the `ToolSet` has a
 `MeaningModel`, the vector of the description and the vector of each entry or

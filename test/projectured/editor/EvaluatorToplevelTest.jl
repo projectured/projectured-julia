@@ -169,6 +169,15 @@ circles(node, depth = 0) =
     @test occursin("UndefVarError", execute_julia_code!(tools, ed, "GraphicsCircle(10, 10, 10)"))
 end
 
+@testset "a form runs with the editor of the evaluator as the editor of the evaluation" begin
+    toplevel = make_insertion_document(EvaluatorToplevel)
+    ed = _EvaluatorToplevelMockEditor(toplevel, ToolSet())
+    toplevel.elements[1].form.value = "get_evaluation_editor() === editor"
+    evaluate_operation(ed, read_gesture(toplevel, enter()))
+    @test !toplevel.elements[1].is_error
+    @test _et_flatten(toplevel.elements[1].result) == "true"
+end
+
 @testset "a graphics value draws as itself, not as a tree of its fields" begin
     circle = GraphicsCircle(10, 10, 10)
     @test print_natural(circle) === circle

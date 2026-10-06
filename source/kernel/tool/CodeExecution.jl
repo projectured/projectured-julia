@@ -204,11 +204,50 @@ equal: two `ErrorException`s with one message are `===`.
 """
 get_evaluation_exception_count(set::ToolSet) = set.exception_count
 
+# The editor that runs the code of the current evaluation, or `nothing` outside one.
+const _EVALUATION_EDITOR = ScopedValue{Any}(nothing)
+
+"""
+    MissingEvaluationEditorException()
+
+What [`get_evaluation_editor`](@ref) throws outside an evaluation: a verb was
+called with no editor, and no code of the evaluator, of the assistant or of the
+`execute_julia_code` tool runs. The caller passes the editor as `editor = …`.
+"""
+struct MissingEvaluationEditorException <: Exception end
+
+Base.showerror(io::IO, ::MissingEvaluationEditorException) =
+    print(io, "MissingEvaluationEditorException: no editor runs this code, so the ",
+          "verb has no editor. Pass the editor as the keyword `editor = …`.")
+
+"""
+    get_evaluation_editor() -> editor
+
+The editor that runs the code of the current evaluation: the code of the
+evaluator, of the assistant, or of the `execute_julia_code` tool. A verb takes it
+as the default of its `editor` keyword, so the code that calls the verb names no
+editor:
+
+    focus_pane!(reference::Reference; editor = get_evaluation_editor())
+
+A task that the code starts gets the same editor. Code that runs after the
+evaluation, such as a callback or a timer, gets none, and passes its editor.
+
+Throws [`MissingEvaluationEditorException`](@ref) outside an evaluation.
+"""
+function get_evaluation_editor()
+    editor = _EVALUATION_EDITOR[]
+    editor === nothing && throw(MissingEvaluationEditorException())
+    editor
+end
+
 """
     execute_julia_code!(set, target, code; describe_value = _describe_value_for_model) -> String
 
 Evaluate `code` in the editor process, with `target` bound as `editor` and the
-Projectured names in scope. Statements run at the top level of `set`'s persistent
+Projectured names in scope. `target` is also the editor of the evaluation, which
+[`get_evaluation_editor`](@ref) answers to each verb that the code calls with no
+editor. Statements run at the top level of `set`'s persistent
 scratch module, so top-level assignments stay bound for later calls.
 
 **A variable is how a caller keeps what it found.** The description the model
@@ -320,19 +359,23 @@ function _run_expression(set::ToolSet, target, make_expression::Function;
         expr = make_expression()
 
         result = nothing
-        redirect_stdio(stdout = pipes[1], stderr = pipes[2]) do
-            # A write into a full pipe waits for a reader, so one task reads each
-            # pipe while the code runs. `redirect_stdio` opens the pipes.
-            append!(readers, [@async(read(pipe.out, String)) for pipe in pipes])
-            # Evaluate each top-level statement in order and keep the last value
-            # (REPL semantics); top-level assignments persist as module globals.
-            if expr isa Expr && expr.head == :toplevel
-                for e in expr.args
-                    e isa LineNumberNode && continue
-                    result = Core.eval(m, _make_soft_scope(e))
+        # A verb that the code calls with no editor takes `target`, and so does a
+        # verb in a task that the code starts.
+        with(_EVALUATION_EDITOR => target) do
+            redirect_stdio(stdout = pipes[1], stderr = pipes[2]) do
+                # A write into a full pipe waits for a reader, so one task reads each
+                # pipe while the code runs. `redirect_stdio` opens the pipes.
+                append!(readers, [@async(read(pipe.out, String)) for pipe in pipes])
+                # Evaluate each top-level statement in order and keep the last value
+                # (REPL semantics); top-level assignments persist as module globals.
+                if expr isa Expr && expr.head == :toplevel
+                    for e in expr.args
+                        e isa LineNumberNode && continue
+                        result = Core.eval(m, _make_soft_scope(e))
+                    end
+                else
+                    result = Core.eval(m, _make_soft_scope(expr))
                 end
-            else
-                result = Core.eval(m, _make_soft_scope(expr))
             end
         end
         set.last_value = result
