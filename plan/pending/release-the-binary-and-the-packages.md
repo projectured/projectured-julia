@@ -1391,7 +1391,7 @@ seals go beyond the kernel in time (only kernel files are sealed today).
       example packages in `example/`. Each package with tests has a workflow
       and a badge of its own, which runs when a folder that its test develops
       changes.
-- [ ] **Until the first announcement, each release overwrites both
+- [x] **Until the first announcement, each release overwrites both
       repositories as a fresh 0.1.0** (the owner, 2026-10-03: "until the first
       announcement of the registry we can always nuke the existing versions and
       overwrite it, there's no reason to keep the old versions, nobody uses them
@@ -1405,11 +1405,23 @@ seals go beyond the kernel in time (only kernel files are sealed today).
       After the force-push, each workflow of `Projectured.jl` starts by hand
       (`gh workflow run <Package>.yml --ref main`): a fresh history is one root
       commit, which starts no workflow that has a path filter.
-- [ ] Before the announcement, the full suites: each test package in its own
+      The owner, 2026-10-06: the release that passes the tests is the 0.1.0
+      release, and it is not overwritten again. A later change is a new
+      version, so `/var/tmp/release-overwrite.sh` is not used for it.
+- [x] Before the announcement, the full suites: each test package in its own
       environment, `test_integration()`, and each failure compared with `main`.
       The owner, 2026-10-04: they wait until the owner lands the other work of
-      the first release. The 32 workflows of the release `19fe700`, the
-      umbrella too, pass.
+      the first release. The owner, 2026-10-06: the tests of the release decide
+      it. The 32 workflows of the release run each test package in its own
+      environment from the registry, and the umbrella runs `test_integration()`.
+      Before the last overwrite, the umbrella of `main` failed one test:
+      `McpLog` had a printer and no catalog atom, and `e09801237` lists it in
+      `_NO_ATOM` with the other logs.
+- [x] **The 0.1.0 release**, 2026-10-06: `Projectured.jl` `5b8284f8`, "ProjecturEd
+      0.1.0, from projectured-julia e09801237", 89 packages, and
+      `ProjecturedRegistry` `077f625`, which keeps AutoIntegration and
+      AutoPrecompile as they are registered. The 32 workflows pass. The ways of
+      the front page pass as a new user types them, on Julia 1.12.7 and 1.13.1.
 - [x] The owner pushes the release copy and the registry, and makes both
       repositories public. Done by 2026-10-05: Projectured.jl, ProjecturedRegistry,
       AutoIntegration.jl and AutoPrecompile.jl are public.
