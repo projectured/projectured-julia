@@ -10,18 +10,25 @@
 # window lifts an item from the part through the reader of the navigator. Each
 # item names the content of the navigator as its root, so it opens the same page
 # also from the menu of a part inside the page, which F2 shows.
-const _NAVIGATOR_MENU_BINDINGS = GestureBinding[
+#
+# The side buttons of the mouse go back and forward, wherever the pointer is on
+# the navigator, as in a browser.
+const _NAVIGATOR_POINTER_BINDINGS = GestureBinding[
     GestureBinding(MouseClickPattern(:right),
                    (navigator, gesture) -> _make_part_menu_operation(navigator, gesture);
                    description = "Show the menu of the part as a page", domain = "context menu",
-                   name = "Show the menu of the part as a page")]
+                   name = "Show the menu of the part as a page"),
+    GestureBinding(MouseClickPattern(:back), (navigator, gesture) -> make_navigator_back_operation(navigator);
+                   description = "Go back", domain = "navigator"),
+    GestureBinding(MouseClickPattern(:forward), (navigator, gesture) -> make_navigator_forward_operation(navigator);
+                   description = "Go forward", domain = "navigator")]
 
 @gestures Navigator begin
     override(KeyDown(:left_bracket; ctrl)) => "Go back" => make_navigator_back_operation(doc)
     override(KeyDown(:right_bracket; ctrl)) => "Go forward" => make_navigator_forward_operation(doc)
     override(KeyDown(:up; ctrl)) => "Go to the parent page" => make_navigator_parent_operation(doc)
     override(KeyDown(:return; ctrl)) => "Open as a page" => _open_selected_page(doc)
-    splice(_NAVIGATOR_MENU_BINDINGS)
+    splice(_NAVIGATOR_POINTER_BINDINGS)
 end
 
 function _open_selected_page(navigator::Navigator)

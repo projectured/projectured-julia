@@ -80,6 +80,7 @@ every page, also where the page uses the same key.
 | Ctrl + [ | go back to the page before |
 | Ctrl + ] | go forward to the next page |
 | Ctrl + Up | go to the page that holds this page |
+| the back and the forward side button of the mouse | go back, go forward |
 | click on a name in the address | open that page |
 | right click on a part of a page | **Open as a page** or **Open in a new tab** |
 | double click on the number of a row of a data frame | open the row as a page: a form of its columns |

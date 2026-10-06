@@ -166,6 +166,13 @@ function test_navigator_to_widget()
         @test _nav_is(navigator.selection, @reference(navigator, content.books[2]))
         @test !_nav_has_texts(backend, "Shelf", "›", "B")
 
+        # The side buttons of the mouse go back and forward, wherever the pointer is.
+        side(button) = MouseClick(button, 200, 200, 1, ModifierKeys(); time = 0.0)
+        _nav_press!(editor, backend, side(:back))
+        @test _nav_is(navigator.address, @reference(shelf, books[2]))
+        _nav_press!(editor, backend, side(:forward))
+        @test navigator.address isa EmptyReference
+
         # No visit printed the navigator again.
         @test editor.iomap === root_iomap
     end

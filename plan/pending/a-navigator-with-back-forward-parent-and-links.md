@@ -515,8 +515,17 @@ new tab".
 - [ ] **8. A typed address.** Field and index steps, read as
   `_evaluate_path_text` reads them.
 - [ ] **9. Master and detail.** `ComponentToWidget` on two navigators.
-- [ ] **10. The side buttons of the mouse** (D5): `MouseButtons`, the SDL
-  backend and the web backend.
+- [x] **10. The side buttons of the mouse** (D5): `MouseButtons`, the SDL
+  backend and the web backend. Done, 2026-10-06:
+  - The event layer names the side buttons `:back` and `:forward`, by what a
+    person sees on the mouse; SDL calls them `X1` and `X2`. `MouseButtons` holds
+    two more flags, `back` and `forward`, so a move with a side button held says
+    so too. Every build of `MouseButtons` outside its own file uses keywords.
+  - SDL maps the buttons 4 and 5, and the bits `0x08` and `0x10` of a motion. The
+    web client maps the buttons 3 and 4, and the bits 8 and 16, and stops the
+    default of a side button, so the browser does not leave the page.
+  - The `@gestures` table of `Navigator` binds a click of `:back` and `:forward`
+    with any modifier; a part on the page answers no such click.
 - [ ] **11. Documentation.** A design document for the slice, the keys in
   [keyboard-and-mouse-guide.md](../../documentation/guide/keyboard-and-mouse-guide.md),
   and the example in

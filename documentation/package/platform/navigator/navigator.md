@@ -82,6 +82,7 @@ Alt and an arrow walk the structure of a document, so the navigator takes Ctrl.
 
 Each key is an `override` rule: it takes its chord also after the page answered it, as Back in a browser works on every page. The reader gives a key that the page answered to the table of the navigator as a claimed key, which only an `override` rule takes. A table of rows answers Return with any modifier, for one.
 | right click on a part of the page | the menu of the part: "Open as a page" and "Open in a new tab" |
+| the back and the forward side button of the mouse | go back, go forward |
 
 The menu belongs to the innermost document under the pointer, below the page, which the navigator reads from its own `mouse_target`. A command with no pointer reads the selection. The source of the menu is the path of that part, with its types, so the context menu window lifts an item from the part through the reader of the navigator. Each item holds an `OpenPageOperation` rooted at the content, so it opens the same page also from the outer layer of a part that has a menu of its own (F2).
 
@@ -142,5 +143,4 @@ A part that opens a page answers `OpenPageOperation(nothing, EmptyReference())` 
 
 - A JSON part has no title, so the address of a JSON page names its steps, for example `entries[2]` and `value`.
 - The view on demand, which draws a document that has no view of its own, does not pass an operation with a fixed place (`read_rooted_operation`) into itself. A verb of the assistant at a place inside such a page reaches no part.
-- The side buttons of the mouse do not go back or forward: the event layer has no side button.
 - A link in the data of a domain, such as a markdown link, does not answer `OpenPageOperation` yet.
