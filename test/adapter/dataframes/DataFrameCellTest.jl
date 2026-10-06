@@ -616,7 +616,9 @@ function test_data_frame_cells()
             # A range can not grow or shrink, so the rows take no insert and no delete.
             row = try_evaluate_reference(view, ConcreteReference(FieldReferenceStep("rows"),
                 ConcreteReference(RangeReferenceStep(1, 2), EmptyReference())))
-            @test !any(item -> item.enabled, compute_context_menu(row).elements)
+            @test !any(item.enabled for item in compute_context_menu(row).elements
+                       if item isa WidgetMenuItem && item.action.label in
+                          ("Insert row above", "Insert row below", "Delete row"))
         end
 
         @testset "a duplicate opens no cell of its original" begin

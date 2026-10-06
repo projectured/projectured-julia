@@ -387,12 +387,30 @@ _get_column_align(type::Type) =
 # with a route into the view from the menu of a row or of a column, becomes the
 # step that it makes in the view: the selection, the entries and the place of
 # the view with it.
+#
+# A double click that selects a row whole, on its header, opens the row as a page
+# too, as a double click on a file of the Files pane opens the file: the navigator
+# around the view shows it, or a new tab does when there is none.
 function read_intent(p::DataFrameViewToWidget, recursion, change::Intent, iomap::DataFrameViewToWidgetIoMap)
     operation = change.operation
     step = (change.route === nothing || !(operation isa _DataFrameShapeOperation) ||
             operation.view !== iomap.input) ? nothing : _make_shape_step(operation)
     step === nothing || return Intent(change.gesture, step, change.description, change.domain)
-    invoke(read_intent, Tuple{Projection,Any,Intent,Any}, p, recursion, change, iomap)
+    answer = invoke(read_intent, Tuple{Projection,Any,Intent,Any}, p, recursion, change, iomap)
+    _is_double_click(change.gesture) && _is_whole_row_selection(answer.operation) || return answer
+    Intent(answer.gesture, CompoundOperation(Any[answer.operation,
+                                                 OpenPageOperation(nothing, answer.operation.path)]),
+           answer.description, answer.domain)
+end
+
+_is_double_click(gesture) =
+    gesture isa MouseClick && gesture.button === :left && gesture.count == 2 &&
+    gesture.modifiers == ModifierKeys()
+
+function _is_whole_row_selection(operation)
+    operation isa ReplaceSelectionOperation || return false
+    steps = get_reference_steps(operation.path)
+    length(steps) == 2 && steps[1] == FieldReferenceStep("rows") && steps[2] isa RangeReferenceStep
 end
 
 const _DataFrameShapeOperation =

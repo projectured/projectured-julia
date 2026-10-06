@@ -161,16 +161,21 @@ Base.getindex(vector::_DeletedValueVector, i::Int) =
 
 get_document_title(row::DataFrameViewRow) = "row " * string(row.row)
 
-# The menu of a row: insert a row above it or below it, and delete it. A
-# `SubDataFrame` takes neither, nor does a frame with a column that takes no
-# write, such as a range, which can not grow or shrink; a frame with a column
-# that has no value for a new row takes no insert.
+# The menu of a row: open it as a page or in a new tab, insert a row above it or
+# below it, and delete it. A `SubDataFrame` takes neither an insert nor a delete,
+# nor does a frame with a column that takes no write, such as a range, which can
+# not grow or shrink; a frame with a column that has no value for a new row takes
+# no insert. An open names the row itself, so the navigator around the table
+# opens it, or a new tab does when there is none.
 function compute_context_menu(row::DataFrameViewRow)
     view, r = row.view, row.row
     frame = view.frame
     editable = frame isa DataFrame && all(_is_writable_column, eachcol(frame))
     values = editable ? _make_new_row_values(frame) : nothing
     WidgetMenu(Any[
+        _make_menu_item("Open as a page", () -> OpenPageOperation(nothing, EmptyReference())),
+        _make_menu_item("Open in a new tab", () -> OpenPageOperation(nothing, EmptyReference(), :new_tab)),
+        WidgetSeparator(),
         _make_menu_item("Insert row above", () -> InsertDataFrameRowOperation(view, r, values);
                         enabled = values !== nothing),
         _make_menu_item("Insert row below", () -> InsertDataFrameRowOperation(view, r + 1, values);

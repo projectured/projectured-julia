@@ -48,6 +48,9 @@ function _nav_has_texts(backend, texts...)
         1:(length(drawn) - length(texts) + 1))
 end
 
+# How many times the frame draws `text`.
+_nav_count(backend, text) = count(entry -> entry[1] == text, _nav_texts(backend))
+
 # The glyphs of the icons of the buttons of the bar.
 const _NAV_BACK = string(Char(0xe048))
 const _NAV_PARENT = string(Char(0xe04a))
@@ -74,10 +77,10 @@ function test_navigator_to_widget()
         iomap = print_document(make_navigator_projection(), nothing, navigator, nothing)
         output = iomap.output
         @test output isa GridLayout
-        @test output.children[2] === shelf.books[2]
+        @test output.children[2].children[1] === shelf.books[2]
         # The page follows the address, and the IO map stays.
         navigator.address = @reference(shelf, books[1].chapters[2])
-        @test output.children[2] === shelf.books[1].chapters[2]
+        @test output.children[2].children[1] === shelf.books[1].chapters[2]
     end
 
     @testset "the maps put the address before a path in the page" begin
@@ -88,8 +91,9 @@ function test_navigator_to_widget()
         forward(path) = map_reference_forward(p, iomap, path)
         backward(path) = map_reference_backward(p, iomap, path)
         @test _nav_is(forward(@reference(navigator, content.books[1].chapters[2].title)),
-                      @reference(iomap.output, children[2].chapters[2].title))
-        @test _nav_is(forward(@reference(navigator, content.books[1])), @reference(iomap.output, children[2]))
+                      @reference(iomap.output, children[2].children[1].chapters[2].title))
+        @test _nav_is(forward(@reference(navigator, content.books[1])),
+                      @reference(iomap.output, children[2].children[1]))
         # A path outside the page has no image.
         @test forward(@reference(navigator, content.books[2].title)) === nothing
         @test forward(@reference(navigator, content)) === nothing
@@ -99,9 +103,10 @@ function test_navigator_to_widget()
         @test is_fully_typed_reference(forward(@reference(navigator, content.books[1].chapters[2].title)))
         @test is_fully_typed_reference(forward(strip_reference_types(@reference(navigator, content.books[1].title))))
         @test is_fully_typed_reference(forward(EmptyReference()))
-        @test _nav_is(backward(@reference(iomap.output, children[2].chapters[2].title)),
+        @test _nav_is(backward(@reference(iomap.output, children[2].children[1].chapters[2].title)),
                       @reference(navigator, content.books[1].chapters[2].title))
-        @test _nav_is(backward(@reference(iomap.output, children[2])), @reference(navigator, content.books[1]))
+        @test _nav_is(backward(@reference(iomap.output, children[2].children[1])),
+                      @reference(navigator, content.books[1]))
         # A path into the bar names nothing; the grid itself is the navigator.
         @test backward(@reference(iomap.output, children[1].children[1])) === nothing
         @test backward(EmptyReference()) isa EmptyReference
@@ -110,7 +115,8 @@ function test_navigator_to_widget()
         end
         # The maps follow the address.
         navigator.address = @reference(shelf, books[2])
-        @test _nav_is(backward(@reference(iomap.output, children[2].title)), @reference(navigator, content.books[2].title))
+        @test _nav_is(backward(@reference(iomap.output, children[2].children[1].title)),
+                      @reference(navigator, content.books[2].title))
     end
 
     @testset "an editor: keys, buttons and the address" begin
@@ -121,11 +127,16 @@ function test_navigator_to_widget()
         @test _nav_has_text(backend, _NAV_BACK)
         @test _nav_has_text(backend, _NAV_PARENT)
         @test _nav_has_texts(backend, "Shelf")
+        @test _nav_count(backend, "Shelf") == 2
 
         # Ctrl+Return opens the selected part.
         evaluate_operation(editor, ReplaceSelectionOperation(@reference(navigator, content.books[2].title)))
         _nav_press!(editor, backend, _nav_key(:return))
         @test _nav_is(navigator.address, @reference(shelf, books[2]))
+        # The page area shows the book, and no longer the shelf: "Shelf" stays in
+        # the address only, and "B" stands in the address and in the page.
+        @test _nav_count(backend, "Shelf") == 1
+        @test _nav_count(backend, "B") == 2
         @test _nav_has_texts(backend, "Shelf", "›", "B")
 
         # Ctrl+Up opens the parent, with the book selected.

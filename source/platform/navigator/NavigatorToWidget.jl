@@ -1,11 +1,14 @@
 # Fragment of `NavigatorModule` — a navigator as a grid of one column: the bar,
 # then the page.
 #
-#     children[1]           the bar: Back, Forward, Parent and the items of the address
-#     children[2].<rest>    the page; <rest> is a path in the page
+#     children[1]                       the bar: Back, Forward, Parent and the items of the address
+#     children[2].children[1].<rest>    the page; <rest> is a path in the page
 #
-# The printer prints no child. The grid holds the page itself, so the layout stage
-# that follows prints it once, through the recursion, with the row of its own type.
+# The printer prints no child. The page itself stands in a vertical layout of one
+# child, whose list of children is computed from the address. The layout stage
+# that follows prints it through the recursion, with the row of its own type, and
+# a vertical layout prints its children again when its list changes, where a grid
+# prints them once.
 # The maps put the address before a path in the page and take it off, as
 # `FocusingProjection` does with its part, behind the field `content`.
 
@@ -49,7 +52,8 @@ make_navigator_projection(; widget_theme = nothing) =
 end
 
 const _BAR_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(0, 1))
-const _PAGE_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1, 2))
+const _PAGE_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1, 2),
+                     FieldReferenceStep("children"), RangeReferenceStep(0, 1))
 
 function print_document(p::NavigatorToWidget, recursion, navigator::Navigator, ctx)
     actions = (back = _make_action("Back", :arrow_left, () -> !isempty(navigator.back)),
@@ -62,7 +66,8 @@ function print_document(p::NavigatorToWidget, recursion, navigator::Navigator, c
     crumbs = Cell(@computation _make_address_crumbs(navigator))
     bar = HorizontalLayout(CellVector(Computation(() -> Any[buttons..., _get_crumb_widgets(crumbs[])...])),
                            Cell(:center), Cell(p.gap), Cell(Content), Cell(nothing), Cell(nothing))
-    page = Cell(@computation get_navigator_page(navigator))
+    page = VerticalLayout(CellVector(@computation Any[get_navigator_page(navigator)]),
+                          Cell(:left), Cell(0), Cell(Fill), Cell(Fill), Cell(nothing))
     output = GridLayout(Any[bar, page], 1; vertical_gap = p.section_gap,
                         column_policy = Fill, row_policies = Any[Content, Fill])
     iomap = NavigatorToWidgetIoMap(p, navigator, output, actions, crumbs)
@@ -158,7 +163,9 @@ end
 #
 # After an answer of the page that collects, such as the menu of a part, the
 # navigator adds the answer of its own table, as a document around a part does;
-# the keys of its table join the keys of the page for the gesture help.
+# the keys of its table join the keys of the page for the gesture help. A key that
+# the page answered goes to the table as a claimed key, which an `override` rule
+# of the table takes.
 function read_intent(p::NavigatorToWidget, recursion, change::Intent, iomap::NavigatorToWidgetIoMap)
     answer = invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
     operation = answer.operation
@@ -171,6 +178,13 @@ end
 
 _add_own_answer(navigator::Navigator, gesture, operation) =
     read_gesture_outward(operation, gesture, navigator; steps = ReferenceStep[], with_part = true)
+
+# A key that the page answered reaches the table of the navigator as a claimed
+# key, so only an `override` rule takes it over, as the evaluator does.
+function _add_own_answer(navigator::Navigator, gesture::Union{KeyPress, KeyDown}, operation)
+    own = read_gesture(navigator, gesture; claimed = operation)
+    own === nothing ? operation : own
+end
 
 function _add_own_answer(navigator::Navigator, gesture::CollectIntents, operation)
     operation isa CollectedIntentsOperation || return operation
@@ -219,7 +233,7 @@ _translate_answer(::NavigatorToWidgetIoMap, operation) = operation
 
 # ── Maps ──────────────────────────────────────────────────────────────────────
 #
-# `content.<address>.<rest>` ↔ `children[2].<rest>`. A path in the content that is
+# `content.<address>.<rest>` ↔ `children[2].children[1].<rest>`. A path in the content that is
 # not on the page has no image. A path into the bar names nothing, so a press on a
 # button leaves the selection where it is; any other path names the whole
 # navigator.
@@ -231,18 +245,22 @@ function map_reference_forward(::NavigatorToWidget, iomap::NavigatorToWidgetIoMa
     steps[1] == _CONTENT_STEP || return nothing
     page = get_reference_steps(get_navigator_page_address(iomap.input))
     _starts_with(steps[2:end], page) || return nothing
-    # The rest is a path in the page, which the grid holds itself, so it keeps the
-    # checkpoints that it came with; the two steps of the grid take the types of the
-    # grid. A container that splices the image into its own path needs every one.
+    # The rest is a path in the page, which the layout holds itself, so it keeps the
+    # checkpoints that it came with; the steps of the grid and the layout take their
+    # types. A container that splices the image into its own path needs every one.
     rest = reference
     for _ in 0:length(page)
         rest = get_reference_tail(rest)
     end
     is_fully_typed_reference(rest) ||
         (rest = annotate_reference_types(get_navigator_page(iomap.input), strip_reference_types(rest)))
-    ConcreteReference(get_reference_node_type(output), _PAGE_STEPS[1],
-                      ConcreteReference(get_reference_node_type(output.children), _PAGE_STEPS[2], rest))
+    _attach_rest(annotate_reference_types(output, extend_reference(EmptyReference(), _PAGE_STEPS...)), rest)
 end
+
+# `prefix` with `rest` in place of its terminal.
+_attach_rest(prefix::ConcreteReference, rest) =
+    ConcreteReference(prefix.type, prefix.head, _attach_rest(prefix.tail, rest))
+_attach_rest(::EmptyReference, rest) = rest
 
 function map_reference_backward(::NavigatorToWidget, iomap::NavigatorToWidgetIoMap, reference)
     steps = get_reference_steps(strip_reference_types(reference))

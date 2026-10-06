@@ -10,8 +10,9 @@ function test_data_frame_row_edits()
         projection = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
         make_frame() = DataFrame(name = ["a", "b", "c"], price = [1.5, 2.5, 3.5], count = [10, 20, 30],
                                  ok = [true, false, true])
-        labels_of(menu) = [item.action.label for item in menu.elements]
-        item_of(menu, label) = only(item for item in menu.elements if item.action.label == label)
+        labels_of(menu) = [item.action.label for item in menu.elements if item isa WidgetMenuItem]
+        item_of(menu, label) = only(item for item in menu.elements
+                                    if item isa WidgetMenuItem && item.action.label == label)
         whole_row(r) = ConcreteReference(FieldReferenceStep("rows"),
                                          ConcreteReference(RangeReferenceStep(r - 1, r), EmptyReference()))
         whole(r, c) = ConcreteReference(FieldReferenceStep("rows"), ConcreteReference(RangeReferenceStep(r - 1, r),
@@ -21,15 +22,20 @@ function test_data_frame_row_edits()
         @testset "the menu of a row inserts and deletes, and a SubDataFrame takes neither" begin
             view = DataFrameView(make_frame())
             menu = compute_context_menu(row_of(view, 2))
-            @test labels_of(menu) == ["Insert row above", "Insert row below", "Delete row"]
-            @test all(item -> item.enabled, menu.elements)
+            @test labels_of(menu) == ["Open as a page", "Open in a new tab",
+                                      "Insert row above", "Insert row below", "Delete row"]
+            @test all(item.enabled for item in menu.elements if item isa WidgetMenuItem)
             above = item_of(menu, "Insert row above").operation
             @test above isa InsertDataFrameRowOperation && above.row == 2
             @test isequal(above.values, Any["", 0.0, 0, false])
             @test item_of(menu, "Insert row below").operation.row == 3
             @test item_of(menu, "Delete row").operation == DeleteDataFrameRowOperation(view, 2)
             sub = DataFrameView(@view make_frame()[1:2, :])
-            @test !any(item -> item.enabled, compute_context_menu(row_of(sub, 1)).elements)
+            # The open of the row stays; the insert and the delete are off.
+            sub_menu = compute_context_menu(row_of(sub, 1))
+            @test !any(item_of(sub_menu, label).enabled
+                       for label in ("Insert row above", "Insert row below", "Delete row"))
+            @test item_of(sub_menu, "Open as a page").enabled
             # A column of a type with no value for a new row and no `missing`
             # takes no insert.
             tagged = DataFrameView(DataFrame(tag = [:x, :y]))

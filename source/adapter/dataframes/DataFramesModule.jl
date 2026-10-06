@@ -21,7 +21,7 @@ using ..PlatformModule
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title, copy_document, has_document_duplicate
 import ..GestureBindingModule: get_document_gesture_bindings_own
-import ..ProjectionModule: print_document, read_intent, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SelectionModule: get_selection
 import ..OperationModule: evaluate_operation, make_inverse_operation,
                           is_self_contained_operation
@@ -37,6 +37,7 @@ export RefreshDataFrameViewOperation, SetDataFrameValueOperation, DataFrameCellE
        InsertDataFrameColumnOperation, DeleteDataFrameColumnOperation, MoveDataFrameColumnOperation
 export DataFrameTheme, ScaledDataFrameTheme
 export DataFrameViewToWidget, make_data_frame_view_projection
+export DataFrameViewRowToWidget, make_data_frame_row_projection
 
 include("DataFrameQuery.jl")
 include("DataFrameFilter.jl")
@@ -53,11 +54,17 @@ include("DataFrameTheme.jl")
 include("DataFrameFilterRow.jl")
 include("DataFrameValueList.jl")
 include("DataFrameViewToWidget.jl")
+include("DataFrameViewRowToWidget.jl")
 
 # A data frame shows as a `DataFrameView`: in the display of a value, and inside
 # any document that the natural renderer draws.
 make_value_document(frame::AbstractDataFrame) = DataFrameView(frame)
 make_graphics_projection(::Type{DataFrameView}; measure, appearance) =
     make_data_frame_view_projection(; measure, appearance)
+
+# A row shows as its page, a form of its columns, where a navigator opens it.
+make_graphics_projection(::Type{DataFrameViewRow}; measure, appearance) =
+    ChainingProjection(make_data_frame_row_projection(; widget_theme = get_scaled_theme!(appearance, WidgetTheme)),
+                       GridLayoutToGraphicsCanvas())
 
 end # module DataFramesModule

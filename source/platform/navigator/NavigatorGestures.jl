@@ -1,5 +1,7 @@
-# Fragment of `NavigatorModule` — the keys of a navigator. A key reaches the table
-# when the page does not answer it, so a key of the page always wins. Alt and an
+# Fragment of `NavigatorModule` — the keys of a navigator. Each key of the table is
+# an `override`: it claims its chord also after the page answered it, as Back in a
+# browser works on every page. A table of rows answers Return with any modifier,
+# for one. No other table of the repository binds these four chords. Alt and an
 # arrow walk the structure of a document, so the navigator takes Ctrl.
 
 # The menu of a part on a page, on a right click: open the part as a page, or in
@@ -15,10 +17,10 @@ const _NAVIGATOR_MENU_BINDINGS = GestureBinding[
                    name = "Show the menu of the part as a page")]
 
 @gestures Navigator begin
-    KeyDown(:left_bracket; ctrl) => "Go back" => make_navigator_back_operation(doc)
-    KeyDown(:right_bracket; ctrl) => "Go forward" => make_navigator_forward_operation(doc)
-    KeyDown(:up; ctrl) => "Go to the parent page" => make_navigator_parent_operation(doc)
-    KeyDown(:return; ctrl) => "Open as a page" => _open_selected_page(doc)
+    override(KeyDown(:left_bracket; ctrl)) => "Go back" => make_navigator_back_operation(doc)
+    override(KeyDown(:right_bracket; ctrl)) => "Go forward" => make_navigator_forward_operation(doc)
+    override(KeyDown(:up; ctrl)) => "Go to the parent page" => make_navigator_parent_operation(doc)
+    override(KeyDown(:return; ctrl)) => "Open as a page" => _open_selected_page(doc)
     splice(_NAVIGATOR_MENU_BINDINGS)
 end
 

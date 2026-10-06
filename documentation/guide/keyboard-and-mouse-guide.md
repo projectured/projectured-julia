@@ -71,8 +71,8 @@ The clipboard holds a part of the data, not text, so a paste puts a structure ba
 
 A navigator shows one part of a document at a time, its page, with Back,
 Forward and Parent buttons and the address above it
-([navigator.md](../package/platform/navigator/navigator.md)). A key that the
-page uses itself goes to the page first.
+([navigator.md](../package/platform/navigator/navigator.md)). These keys work on
+every page, also where the page uses the same key.
 
 | Key | What it does |
 | --- | --- |
@@ -82,6 +82,7 @@ page uses itself goes to the page first.
 | Ctrl + Up | go to the page that holds this page |
 | click on a name in the address | open that page |
 | right click on a part of a page | **Open as a page** or **Open in a new tab** |
+| double click on the number of a row of a data frame | open the row as a page: a form of its columns |
 
 ## Files
 

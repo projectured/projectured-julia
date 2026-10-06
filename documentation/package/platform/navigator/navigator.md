@@ -51,13 +51,13 @@ A visit puts back the selection that it holds when that selection still reaches 
 `NavigatorToWidget` draws a navigator as a `GridLayout` of one column:
 
 ```
-children[1]           the bar: Back, Forward, Parent and the items of the address
-children[2].<rest>    the page; <rest> is a path in the page
+children[1]                       the bar: Back, Forward, Parent and the items of the address
+children[2].children[1].<rest>    the page; <rest> is a path in the page
 ```
 
-The printer prints no child. The grid holds the page document itself in `children[2]`, as a computed cell, and the layout stage after the view prints it through the recursion. So the page is drawn with the row of the renderer for its own type, and a domain gives its page a view of its own only where the page must look different from the part in the view of its parent. The renderer row is `ChainingProjection(NavigatorToWidget, GridLayoutToGraphicsCanvas())`.
+The printer prints no child. The page document itself stands in a `VerticalLayout` of one child, whose list of children is computed from the address, and the layout stage after the view prints it through the recursion. A vertical layout prints its children again when its list changes; a grid prints its children once, when it prints. So the page is drawn with the row of the renderer for its own type, and a domain gives its page a view of its own only where the page must look different from the part in the view of its parent. The renderer row is `ChainingProjection(NavigatorToWidget, GridLayoutToGraphicsCanvas())`.
 
-The maps put `content` and the address before a path in the page, and take them off: `content.<address>.<rest>` and `children[2].<rest>`. A path in the content that is not on the page has no image, and a path into the bar maps back to nothing. The forward map keeps the types of the path inside the page and gives the two steps of the grid the types of the grid, because a tab splices the image into its own path and needs a type on every node.
+The maps put `content` and the address before a path in the page, and take them off: `content.<address>.<rest>` and `children[2].children[1].<rest>`. A path in the content that is not on the page has no image, and a path into the bar maps back to nothing. The forward map keeps the types of the path inside the page and gives the steps of the grid and of the layout their types, because a tab splices the image into its own path and needs a type on every node.
 
 **The bar.** Back, Forward and Parent are `WidgetToolbarItem`s with the icons `:arrow_left`, `:arrow_right` and `:arrow_up`. A button is off when its list is empty, or when the page has no parent. The address is one item for each document from the content to the page, with "›" between two items. An item shows the title of its document, or the steps that reach it from the item before, or at the root the name of its type. Its tooltip is its path from the content. A press on an item opens its page. The page itself is the last item, a plain label.
 
@@ -71,7 +71,7 @@ The actions of the buttons have no callback: the press always comes back through
 
 ### Keys and the menu of a part
 
-The `@gestures Navigator` table reaches a key that the page does not answer, so a key of the page always wins. Alt and an arrow walk the structure of a document, so the navigator takes Ctrl.
+Alt and an arrow walk the structure of a document, so the navigator takes Ctrl.
 
 | Gesture | Effect |
 | --- | --- |
@@ -79,6 +79,8 @@ The `@gestures Navigator` table reaches a key that the page does not answer, so 
 | `Ctrl+]` | go forward |
 | `Ctrl+Up` | go to the parent page |
 | `Ctrl+Return` | open the selected part as a page |
+
+Each key is an `override` rule: it takes its chord also after the page answered it, as Back in a browser works on every page. The reader gives a key that the page answered to the table of the navigator as a claimed key, which only an `override` rule takes. A table of rows answers Return with any modifier, for one.
 | right click on a part of the page | the menu of the part: "Open as a page" and "Open in a new tab" |
 
 The menu belongs to the innermost document under the pointer, below the page, which the navigator reads from its own `mouse_target`. A command with no pointer reads the selection. The source of the menu is the path of that part, with its types, so the context menu window lifts an item from the part through the reader of the navigator. Each item holds an `OpenPageOperation` rooted at the content, so it opens the same page also from the outer layer of a part that has a menu of its own (F2).
@@ -98,6 +100,8 @@ An open that no navigator takes reaches the editor. Its evaluation posts the ope
 ## How it fits
 
 The slice uses the collection, layout, natural, pane, projection, style and widget slices of the platform, and the kernel. It uses the pane slice for the tab that an open with no navigator posts. It names no domain, and no domain names it except to answer `OpenPageOperation`.
+
+A domain gives a part a page of its own where the part must look different as a page. The data frame adapter draws a row of a frame, `rows[r]` of a `DataFrameView`, as a form of the name and the value of each column (`DataFrameViewRowToWidget`). The menu of a row opens it, and a double click on the number of a row opens it: the view of the frame maps that double click, because the view owns the numbers.
 
 A navigator is a document like any other, so it nests: a tab holds it, a page can hold another navigator, and the nearest navigator around a link takes the open.
 
@@ -126,6 +130,9 @@ A part that opens a page answers `OpenPageOperation(nothing, EmptyReference())` 
 - Tests: `test_navigator()` in `ProjecturedPlatformTest`: `test_navigator_visits()`, `test_navigator_to_widget()`, `test_open_page_operation()` and `test_navigator_gestures()`.
 
 ## Limits
+
+- The navigator puts no scroll pane around its page: a part scrolls where it is made. A page whose view has no scroll pane, such as a JSON document, is cut at the bottom of the navigator.
+- Parent of a row of a data frame opens the `DataFrameViewRows` that holds the rows, and not the table, because `get_parent` does not look past it.
 
 - A save keeps the address only, as the owner chose; the save of a navigator is not written yet.
 - A JSON part has no title, so the address of a JSON page names its steps, for example `entries[2]` and `value`.
