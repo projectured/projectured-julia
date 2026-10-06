@@ -1,7 +1,8 @@
 # A navigator shows one page of any document, with back, forward, parent, an address and links
 
 > **Kind:** plan · **Status:** pending, 2026-10-06. The owner decided D1 to D9
-> on 2026-10-06 (§8); D7 waits for step 6. No step has started. ·
+> on 2026-10-06 (§8); D7 waits for step 6. Steps 1 to 5, 7 and 10 are done on the
+> branch `navigator`; §9 holds the questions that they raised. ·
 > **Stands on:** [concepts.md](../../documentation/design/concepts.md),
 > [pane.md](../../documentation/package/platform/pane/pane.md),
 > [generic-projections.md](../../documentation/package/platform/projection/generic-projections.md),
@@ -592,7 +593,53 @@ new tab".
   every navigator uses it. A page projection as a parameter of the navigator
   can come later, if a case needs it.
 
-## 9. Risks
+## 9. Questions that the implementation raised (2026-10-06)
+
+Each waits for the owner. The recommendation is the implementer's, not a
+decision.
+
+- **Q1. Parent of a row of a data frame.** `rows[r]` lies in
+  `DataFrameViewRows`, a document that `get_parent` does not look past, so
+  Parent opens it and the address shows "rows". Options:
+  (a) `is_element_collection(::DataFrameViewRows) = true`, with a check of every
+  walker that iterates an element collection: the search, the view on demand,
+  the file cut, the sync; over ten million rows each would make ten million row
+  documents;
+  (b) a trait of the navigator, such as `is_navigator_page(document)`, that a
+  domain answers: a new generic function;
+  (c) leave it.
+  Recommendation: (b), because it changes no walker, and the meaning (a part
+  that is no page of its own) belongs to the navigator.
+- **Q2. The name of a navigator tab.** It keeps the name that it opened with, and
+  its tooltip follows the page, because the pane says that a tab must not rename
+  itself. Options: as now; or the name follows the title of the page, as in a
+  browser, which changes the name that `find_pane` reads. Recommendation: as
+  now.
+- **Q3. A tall page.** The navigator adds no scroll pane, by the owner's rule
+  that a part scrolls where it is made, so a tall JSON page is cut. Options: as
+  now; a scroll pane around a page whose view has none, which needs a way to know
+  that (a trait, a new generic function); or each domain view that can be tall
+  makes its own scroll pane. Recommendation: the last, one view at a time.
+- **Q4. D7, a named target**, for step 6: markdown and rst links name an anchor,
+  a file or a URL. Options as in §8, D7. Recommendation: a function on the
+  content root that a domain answers, after Q1 settles whether the navigator
+  takes domain traits.
+- **Q5. The typed address (step 8).** Where the text lives while a person types
+  it (a field of the navigator, as view state), which key starts it (Ctrl+L, as
+  in a browser, is free), and whether the bar shows a text field or the
+  breadcrumb turns into one. Recommendation: Ctrl+L turns the breadcrumb into a
+  text field over a view-state field of the navigator; Enter opens the path,
+  Escape returns.
+- **Q6. The names of JSON parts.** A JSON entry has no title, so the address of a
+  JSON page names steps (`entries[2]`, `value`). A `get_document_title` of an
+  entry that is its key changes the JSON domain, and other readers of the title,
+  such as the name of a tab. Recommendation: the key, with a check of those
+  readers.
+- **Q7. Step 9, master and detail.** It needs `ComponentToWidget`, which
+  [component-document.md](component-document.md) also plans. Recommendation: do
+  it in that plan, on two navigators, after this branch lands.
+
+## 10. Risks
 
 - **One document in two places.** A navigator that opens a node of a file that
   is also open in a file tab holds the same document. Both views then write one
