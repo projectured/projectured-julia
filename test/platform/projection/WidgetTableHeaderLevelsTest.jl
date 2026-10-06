@@ -53,9 +53,9 @@ regions = ["EU", "EU", "US", "US"]
 countries = ["DE", "FR", "CA", "NY"]
 keys = [("2024", "Q1"), ("2024", "Q2"), ("2025", "Q1"), ("2025", "Q2")]
 function make_table(; corner = CellVector(Any["region", "country"]), column_headers = nothing,
-                    policy = Fixed(48))
+                    policy = Fixed(48), row_regions = regions)
     WidgetTable(; column_headers = something(column_headers, Any[CellVector(Any[a, b]) for (a, b) in keys]),
-                row_headers = make_index_list(4, 1, k -> CellVector(Any[regions[k], countries[k]])),
+                row_headers = make_index_list(4, 1, k -> CellVector(Any[row_regions[k], countries[k]])),
                 corner, cells = make_index_list(4, 1, k -> make_widget_table_row(Any[string(10k + c) for c in 1:4])),
                 columns = Any[WidgetTableColumn(; policy) for _ in 1:4], row_policy = Fixed(20))
 end
@@ -103,17 +103,27 @@ rule_at(x) = [r for r in header_graphics if r isa GraphicsRect && Int(r.x) == x 
 
 # ── A press ──────────────────────────────────────────────────────────────────
 
-op = press(io, year_2025[1] + 2, year_2025[2] + 2)
+# An Alt+press on the label of an outer level selects the label of its run. A
+# plain press goes to the label, which declines it, and selects the column or the
+# row under the pointer.
+alt = ModifierKeys(alt = true)
+op = press(io, year_2025[1] + 2, year_2025[2] + 2; modifiers = alt)
 @test op isa ReplaceSelectionOperation && op.path == level_path("column_headers", 3, 1)
+op = press(io, year_2025[1] + 2, year_2025[2] + 2)
+@test op isa ReplaceSelectionOperation && op.path == element_path("columns", 3)
 op = press(io, quarters[3][1] + 2, quarters[3][2] + 2)
 @test op isa ReplaceSelectionOperation && op.path == element_path("columns", 3)
 us = place_of(io, "US")
-op = press(io, us[1] + 2, us[2] + 2)
+op = press(io, us[1] + 2, us[2] + 2; modifiers = alt)
 @test op isa ReplaceSelectionOperation && op.path == level_path("row_headers", 3, 1)
+op = press(io, us[1] + 2, us[2] + 2)
+@test op isa ReplaceSelectionOperation && op.path == element_path("rows", 3)
 # The empty cell of the outer level of the last row is in the run of US.
 ny = place_of(io, "NY")
-op = press(io, us[1] + 2, ny[2] + 2)
+op = press(io, us[1] + 2, ny[2] + 2; modifiers = alt)
 @test op isa ReplaceSelectionOperation && op.path == level_path("row_headers", 3, 1)
+op = press(io, us[1] + 2, ny[2] + 2)
+@test op isa ReplaceSelectionOperation && op.path == element_path("rows", 4)
 op = press(io, ny[1] + 2, ny[2] + 2)
 @test op isa ReplaceSelectionOperation && op.path == element_path("rows", 4)
 
@@ -145,6 +155,24 @@ wide = make_table(; column_headers = Any[CellVector(Any[long, "Q1"]), CellVector
 wide_io = print_document(rec, nothing, wide, context())
 wide_edges = wide_io.state.edges[]
 @test wide_edges[3] - wide_edges[1] >= 8 * length(long)
+
+# ── A plain press goes to the label of a level ──────────────────────────────
+
+# A label of an outer level that takes a press gets it, in a run of more than one
+# column too, and an Alt+press on it selects the run.
+year_check, region_check = WidgetCheckbox("x"), WidgetCheckbox("x")
+checked = make_table(; column_headers = Any[CellVector(Any["2024", "Q1"]), CellVector(Any["2024", "Q2"]),
+                                             CellVector(Any[year_check, "Q1"]), CellVector(Any[year_check, "Q2"])],
+                     row_regions = Any["EU", "EU", region_check, region_check])
+checked_io = print_document(rec, nothing, checked, context())
+for (path, check) in ((level_path("column_headers", 3, 1), year_check), (level_path("row_headers", 3, 1), region_check))
+    b = find_reference_box(checked_io.output, map_reference_forward(checked_io.projection, checked_io, path))
+    @test b !== nothing
+    toggle = press(checked_io, b.x + 4, b.y + 4)
+    @test toggle isa ReplaceReferencedValueOperation && toggle.document === check
+    selected = press(checked_io, b.x + 4, b.y + 4; modifiers = ModifierKeys(alt = true))
+    @test selected isa ReplaceSelectionOperation && selected.path == path
+end
 
 # ── Every header has the same count of levels ──────────────────────────────
 

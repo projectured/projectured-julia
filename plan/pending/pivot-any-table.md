@@ -2,9 +2,9 @@
 
 > **Kind:** plan · **Status:** pending, 2026-10-06. A design review and a list
 > of stages. The owner decided every question of §7 on 2026-10-06 and asked
-> for the work the same day. Stages 0 to 10 are done on the branch `pivot`;
-> stage 11 holds proposals that wait for the owner, and §10 holds a question
-> that the work found. ·
+> for the work the same day. Stages 0 to 10 are done on the branch `pivot`,
+> which stands on main `582c86768`; stage 11 holds proposals that wait for the
+> owner, and §10 holds a question that the work found. ·
 > **Stands on:** [view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md)
 > (D8, §4.6, §4.7),
 > [filter-sort-and-find-any-table.md](filter-sort-and-find-any-table.md),
@@ -498,8 +498,28 @@ and chips that move. Stages 6 and 7 complete the design of the request.
     A level is as wide as its corner label and the widest label of the first
     64 rows from the head; a wider label further down is cut (a known limit).
   - The last level never merges. `column_headers[c][l]` and `row_headers[r][l]`
-    name a label and its run. A press on a run of an outer level selects the
-    label of its first column or row, and the band covers the run.
+    name a label and its run. An Alt+press on a run of an outer level selects
+    the label of its first column or row, and the band covers the run. A plain
+    press goes to the label under the pointer first, and a press that the label
+    declines selects the column or the row under the pointer.
+  - **The rebase onto main, 2026-10-06.** Main took
+    `a-table-selects-each-part-the-same-way.md` (`7a3b00f17`) while the work
+    ran: on every part of a table an Alt+press selects the part, and a plain
+    press goes to the content of the part and then selects its line. That is
+    the rule of the owner of 2026-09-17: a selection takes a modifier, so a plain
+    press still controls the widget. The first form of this stage selected the
+    label of an outer level with a plain press. The rebase keeps that form in
+    the commit of this stage, so each commit stays whole, and a commit after
+    stage 10 puts the levels under the rule of main: an Alt+press selects a run,
+    and a plain press goes to its label, through the `LayoutConstraint` of a run
+    of more than one column. The rows and the columns of a run have no line of
+    their own, so a declined press selects the row or the column under the
+    pointer. The labels of the headers of the pivot are `WidgetLabel`
+    documents, no longer strings: a layout keeps the answer of an Alt+press of
+    its child only when the answer names a document (`convert_to_whole_selection`),
+    so in the grid of the pivot an Alt+press on a string label selected the
+    whole table. The same holds on main for any table with headers that are
+    plain values, when the table is in a layout.
   - Levels need columns that are a vector; the printer of list columns raises
     an error for them. The classic printer of an eager table has no levels.
   - The PDF writer does not walk a canvas whose elements are a list, so a table

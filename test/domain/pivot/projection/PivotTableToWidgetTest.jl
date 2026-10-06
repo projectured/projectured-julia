@@ -90,10 +90,13 @@ op = press(cell[1], cell[2])
 op = press(cell[1], cell[2]; alt = true)
 @test op isa ReplaceSelectionOperation && strip_reference_types(op.path) == cell_path(1, 1)
 # A run of the row headers is a part of the table that the pivot does not name.
+# An Alt+press selects it, and a plain press selects the row under the pointer.
 us = place_of("US")
+run_op = press(us[1], us[2]; alt = true)
+@test run_op isa ReplaceSelectionOperation
+@test strip_reference_types(run_op.path).head isa ProjectionReferenceStep
 op = press(us[1], us[2])
-@test op isa ReplaceSelectionOperation
-@test strip_reference_types(op.path).head isa ProjectionReferenceStep
+@test op isa ReplaceSelectionOperation && strip_reference_types(op.path) == row_path(3)
 
 # ── A selection of the pivot shows in the table ──────────────────────────────
 
@@ -103,7 +106,7 @@ replace_selection!(pivot, cell_path(2, 1))
 replace_selection!(pivot, row_path(3))
 @test strip_reference_types(table.selection) ==
       ConcreteReference(FieldReferenceStep("rows"), ConcreteReference(RangeReferenceStep(2, 3), EmptyReference()))
-replace_selection!(pivot, op.path)
+replace_selection!(pivot, run_op.path)
 @test strip_reference_types(table.selection) ==
       ConcreteReference(FieldReferenceStep("row_headers"), ConcreteReference(RangeReferenceStep(2, 3),
           ConcreteReference(RangeReferenceStep(0, 1), EmptyReference())))

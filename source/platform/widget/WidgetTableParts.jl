@@ -1364,7 +1364,13 @@ end
 # coordinates of the rules of the header row; `nothing` for no header.
 function _find_table_header_cell(st::WidgetTablePartsState, c::Int)
     st.column_header_pane === nothing && return nothing
-    header = _find_header_entry(st, c)
+    _find_header_entry_cell(st, _find_header_entry(st, c))
+end
+
+# The IO map of a header from its entry `(x, y, iomap)` in the grid of the header
+# row, and the place of its canvas in the coordinates of the rules of the header
+# row; `nothing` for no entry.
+function _find_header_entry_cell(st::WidgetTablePartsState, header)
     header === nothing && return nothing
     (x_cell, y_cell, cim) = header
     cim === nothing && return nothing
@@ -1519,10 +1525,12 @@ function _read_table_header_press(found, steps::Tuple, g::MouseClick, x::Int, y:
 end
 
 # A left press. An Alt+press selects the part itself: the corner, a header or a
-# cell. A plain press goes to the part first: the corner, a header or a cell. A
-# press that the part declines selects its line: the corner the table, a row
-# header its row, a column header its column, `columns[c]`, and a cell its row —
-# a label has nothing to say to one, and a table of text is a table of rows.
+# cell, and in a header with levels the label of the level under the pointer. A
+# plain press goes to the part first: the corner, a header or a cell, and in a
+# header with levels the label of that level. A press that the part declines
+# selects its line: the corner the table, a row header its row, a column header
+# its column, `columns[c]`, and a cell its row — a label has nothing to say to
+# one, and a table of text is a table of rows.
 function _read_table_parts_press(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap,
                                  g::MouseClick)
     st = iomap.state
@@ -1538,19 +1546,21 @@ function _read_table_parts_press(p::WidgetTableToGraphicsCanvas, iomap::WidgetTa
     if part === :row_header
         k = _find_table_row_at(st, y)
         k === nothing && return nothing
-        level = _find_level_row_header_reference(iomap.input, st, k, x)
-        level === nothing || return ReplaceSelectionOperation(level)
-        g.modifiers.alt && return ReplaceSelectionOperation(_wt_row_header_ref(k))
-        op = _read_table_header_press(_find_table_row_header(st, k), _get_row_header_steps(st, k), g, x, y)
+        if g.modifiers.alt
+            level = _find_level_row_header_reference(iomap.input, st, k, x)
+            return ReplaceSelectionOperation(level === nothing ? _wt_row_header_ref(k) : level)
+        end
+        op = _read_table_header_press(_find_row_header_label_at(st, k, x)..., g, x, y)
         return op === nothing ? ReplaceSelectionOperation(_wt_row_ref(k)) : op
     end
     c = _find_table_column_at(st, x)
     c === nothing && return nothing
     if part === :header
-        level = _find_level_column_header_reference(st, c, y)
-        level === nothing || return ReplaceSelectionOperation(level)
-        g.modifiers.alt && return ReplaceSelectionOperation(_wt_column_header_ref(c))
-        op = _read_table_header_press(_find_table_header_cell(st, c), _get_column_header_steps(st, c), g, x, y)
+        if g.modifiers.alt
+            level = _find_level_column_header_reference(st, c, y)
+            return ReplaceSelectionOperation(level === nothing ? _wt_column_header_ref(c) : level)
+        end
+        op = _read_table_header_press(_find_column_header_label_at(st, c, y)..., g, x, y)
         return op === nothing ? ReplaceSelectionOperation(_wt_col_ref(c)) : op
     end
     k = _find_table_row_at(st, y)

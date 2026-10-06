@@ -23,9 +23,10 @@
 # columns are the columns of the header column.
 #
 # **A part.** `column_headers[c][l]` names the label of level `l` of column `c`,
-# and the run that holds it; `row_headers[k][l]` the same for row `k`. A press
-# on a run of an outer level selects the label of the first column or row of the
-# run, and the table lights the whole run.
+# and the run that holds it; `row_headers[k][l]` the same for row `k`. An
+# Alt+press on a run of an outer level selects the label of the first column or
+# row of the run, and the table lights the whole run. A plain press goes to the
+# label under the pointer first, as on any header.
 
 # The levels of the headers of a table: the count of the levels of the column
 # headers, the runs of each level, the index of the first child of each level in
@@ -547,4 +548,38 @@ function _find_level_column_header_reference(st, c::Int, y::Int)
     found = _find_column_header_run(st.levels, l, c)
     found === nothing && return nothing
     _make_level_header_reference("column_headers", first(found[1]), l)
+end
+
+# The label of the header of row `k` under the point at `x` of the header column,
+# for a press: its IO map and the place of its canvas, or `nothing` for no label,
+# and the steps from the table to it. An outer level gives the label of row `k`,
+# which the row shows where its run starts and at the top of the cells; any other
+# row of the run has an empty cell there.
+function _find_row_header_label_at(st, k::Int, x::Int)
+    levels = st.levels.row_levels
+    levels == 0 && return (_find_table_row_header(st, k), _get_row_header_steps(st, k))
+    l = _find_row_header_level_at(st, x)
+    (_find_part_cell(st, st.row_header_pane, k, l),
+     (FieldReferenceStep("row_headers"), RangeReferenceStep(k - 1, k), RangeReferenceStep(l - 1, l)))
+end
+
+# The label of the header of column `c` under the point at `y` of the header row,
+# for a press: its IO map and the place of its canvas, or `nothing` for no label,
+# and the steps from the table to it. An outer level gives the label of its run,
+# which the first column of the run holds; the table wraps the label of a run of
+# more than one column in a `LayoutConstraint`, which draws the canvas of the
+# label as its own.
+function _find_column_header_label_at(st, c::Int, y::Int)
+    levels = st.levels.column_levels
+    l = levels == 0 ? 0 : _find_column_header_level_at(st, y)
+    l == levels && return (_find_table_header_cell(st, c), _get_column_header_steps(st, c))
+    found = _find_column_header_run(st.levels, l, c)
+    found === nothing && return (nothing, ())
+    run, child = found
+    cell = _find_header_entry_cell(st, st.column_header_pane.content_iomap.child_iomaps[child])
+    if cell !== nothing && cell[1].input isa LayoutConstraint
+        cell = (cell[1].inner_iomap, cell[2], cell[3])
+    end
+    (cell, (FieldReferenceStep("column_headers"), RangeReferenceStep(first(run) - 1, first(run)),
+            RangeReferenceStep(l - 1, l)))
 end

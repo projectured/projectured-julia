@@ -113,7 +113,7 @@ function _make_pivot_group_header_list(pivot::PivotTable)
     make_index_list(count, 1, k -> begin
         r, row = _find_pivot_group_row(groups, k)
         labels = collect(_make_pivot_row_labels(pivot, keys[r]))
-        CellVector(Any[labels..., row === nothing ? "" : string(row)])
+        CellVector(Any[labels..., WidgetLabel(row === nothing ? "" : string(row))])
     end)
 end
 

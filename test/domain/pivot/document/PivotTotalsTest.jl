@@ -31,8 +31,8 @@ getfield(pivot, :collapsed)[] = Any[("EU",)]
 getfield(pivot, :totals)[] = false
 @test pivot.cross_table.row_keys == [("EU", total), ("US", "CA"), ("US", "NY")]
 @test pivot.cross_table.column_keys == [(2024,), (2025,)]
-@test collect(PivotModule._make_pivot_row_labels(pivot, ("EU", total))) == ["▸ EU", "total"]
-@test collect(PivotModule._make_pivot_row_labels(pivot, ("US", "CA"))) == ["US", "CA"]
+@test [label.content for label in PivotModule._make_pivot_row_labels(pivot, ("EU", total))] == ["▸ EU", "total"]
+@test [label.content for label in PivotModule._make_pivot_row_labels(pivot, ("US", "CA"))] == ["US", "CA"]
 
 # ── The order by a measure, and the first N values ─────────────────────────
 

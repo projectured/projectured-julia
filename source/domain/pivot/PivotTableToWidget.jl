@@ -195,8 +195,10 @@ function _make_pivot_table_widget(p::PivotTableToWidget, pivot::PivotTable)
                 Cell(@computation _get_pivot_table_selection(pivot)))
 end
 
-# The labels of a key, one for each level.
-_make_pivot_key_labels(key::Tuple) = CellVector(Any[format_pivot_value(value) for value in key])
+# The labels of a key, one for each level. Each label is a `WidgetLabel`, a
+# document: a layout keeps the answer of an Alt+press of its child only when the
+# answer names a document, so an Alt+press selects a label of the table, and its run.
+_make_pivot_key_labels(key::Tuple) = CellVector(Any[WidgetLabel(format_pivot_value(value)) for value in key])
 
 # The header of each column: the labels of its key, or the names of the measures
 # for the one column of a pivot with no column dimension.
@@ -230,7 +232,7 @@ function _make_pivot_row_labels(pivot::PivotTable, key::Tuple)
     elseif total > 1 && any(isequal(key[1:(total - 1)]), pivot.collapsed)
         labels[total - 1] = "▸ " * labels[total - 1]
     end
-    CellVector(labels)
+    CellVector(Any[WidgetLabel(label) for label in labels])
 end
 
 # The corner: the names of the row dimensions, one for each level of the row

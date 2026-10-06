@@ -16,8 +16,9 @@ groups = PivotModule._get_pivot_group_rows(pivot)
 @test PivotModule._find_pivot_group_row(groups, 9) == (2, 9)
 @test PivotModule._get_pivot_table_row_key(pivot, 17) == ("US", "CA")
 headers = PivotModule._make_pivot_group_header_list(pivot)
-@test collect(headers.value) == ["EU", "DE", "1"]
-@test collect(headers.next.value) == ["EU", "DE", "2"]
+texts_of(labels) = [label.content for label in labels]
+@test texts_of(headers.value) == ["EU", "DE", "1"]
+@test texts_of(headers.next.value) == ["EU", "DE", "2"]
 @test collect(PivotModule._make_pivot_group_corner(pivot)) == ["region", "country", "#"]
 
 # ── The headers name each group once ────────────────────────────────────────
@@ -36,7 +37,7 @@ groups = PivotModule._get_pivot_group_rows(pivot)
 @test last(groups.ends) == 25
 @test PivotModule._find_pivot_group_row(groups, 1) == (1, nothing)
 @test groups.held[1] == 8
-@test collect(PivotModule._make_pivot_group_header_list(pivot).value) == ["EU", "▸ DE", ""]
+@test texts_of(PivotModule._make_pivot_group_header_list(pivot).value) == ["EU", "▸ DE", ""]
 rows = PivotModule._make_pivot_group_row_list(pivot)
 @test rows.value[1].content == "8 rows"
 
