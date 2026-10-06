@@ -400,7 +400,7 @@ worktree. The three domains test different parts of the model:
     no domain becomes a `DocumentInsertion`, a refusal throws in `:throw` and passes in `:off`,
     and three paste checks). `test_clipboard()` passes. `test_kernel()`: 4175 pass, 2 broken,
     no fail.
-- [ ] **Step 2: the intermediate states.** An incomplete number becomes the insertion of its
+- [x] **Step 2: the intermediate states.** An incomplete number becomes the insertion of its
   domain (S-5): a `JuliaInsertion` in a Julia number field, and a `JsonInsertion` in
   `JsonNumber.value`. The generated `JsonInsertion` learns to hold the text of a number and to
   turn into a `JsonNumber` when the text parses, as `PrimitiveInsertion` does. XML has no number
@@ -439,6 +439,12 @@ worktree. The three domains test different parts of the model:
   - Tests: `test_json()` 231 pass, no fail. The test "a letter typed into a number is ignored"
     now asserts that `.` after `42` in an array gives `JsonInsertion("42.")`, and that `5` then
     gives `JsonNumber(42.5)`.
+  - The comparison (2026-10-06, 11:13 to 12:43): the 23 suites of the inventory ran again on
+    commit `480af5519`, with the same driver and the same conditions. Every count is equal to
+    the inventory run, except `test_json` (231 pass, the 4 new assertions) and `test_kernel` (no
+    fail: Step 1 removed the private name that the layering guard refused). `test_integration`
+    is equal: 1206344 pass, 12 fail, 2 error, 1578 broken. So Steps 1 and 2, with the delegation
+    of every text edit to its element, change no result of any suite.
 - [ ] **Step 3: the check.** Add the check of §3.3 to the reactive layout and to the `CellVector`,
   for every type at once (S-1). A refused write throws the exception type of S-6. The writes that
   Step 0 found in other domains are fixed in this step, or the check does not land.
