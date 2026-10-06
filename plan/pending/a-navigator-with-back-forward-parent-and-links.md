@@ -351,18 +351,54 @@ new tab".
     `test_navigator()`, 97 tests, `NavigatorVisitsTest.jl` and
     `NavigatorToWidgetTest.jl`. The editor test presses Ctrl+Return, Ctrl+Up,
     Ctrl+[, Ctrl+] and the Back button, and checks that undo records nothing.
-- [ ] **1b. The Files pane is not called a navigator (D1).** Waits for the
-  owner: the word names the Files pane in about 25 lines of source, 40 lines of
-  tests, ten documents, the help text of the binary and its build command, and
-  the example that a person runs as `run_example("navigator")`
-  (`navigator_example`, `make_navigator_document_example`). This is more than
-  the text of the application and one function, which D1 named.
-- [ ] **2. Open.** `OpenPageOperation` (D2), with the path form and the form
+- [x] **1b. The Files pane is not called a navigator (D1).** The word named the
+  Files pane in about 25 lines of source, 40 lines of tests, twenty documents,
+  the help text of the binary and its build command, and the example that a
+  person ran as `run_example("navigator")`. The owner chose the whole rename on
+  2026-10-06. Done, 2026-10-06: the Files pane is "the Files pane",
+  `_make_application_workspace` makes it, the example is `run_example("files")`
+  (`files_example`, `FilesDocumentExample.jl`, `FilesProjectionExample.jl`,
+  `asset/image/example/files.png`), and the noun "navigator" for the caret motion
+  in the testing guide and a catalog comment is "the caret motion".
+  `test_application()`: 344 pass, the 2 known broken, no fail.
+- [x] **2. Open.** `OpenPageOperation` (D2), with the path form and the form
   with its own root. The navigator takes it, and the editor opens a navigator
-  tab for one that no navigator takes. Ctrl+click opens a new tab. A small test
-  domain with a link part.
+  tab for one that no navigator takes. Ctrl+click opens a new tab. Done,
+  2026-10-06. What the work found and decided:
+  - `OpenPageOperation(document, reference[, place])` is in the navigator slice,
+    in `OpenPageOperation.jl`. It registers with `operation_reference`,
+    `retarget_operation` and `is_self_contained_operation`, so every reader
+    maps the path form and passes the other form up unchanged. No reader of
+    another slice changed.
+  - The reader of `NavigatorToWidget` takes an open after the generic bridge
+    mapped it: a path under `content` becomes a visit; with `:new_tab` it
+    becomes an open with the content as its root, which goes on up.
+  - **No search.** An open with its own root is a path from the content when its
+    document is the content or a document on the address. Any other document
+    becomes the content of a new visit, with no parent. `search_references`
+    walks every value of the content down to a depth of 64, so over a frame of
+    ten million rows it would read every value.
+  - An open that no navigator takes posts the opening of a tab, as the open of
+    a file does (`post_pane_operation!`). For the path form, the content of the
+    new navigator is the document of the tab that holds the part, past the
+    layers that `get_edited_field` names (an undo, a file), so Parent reaches
+    the rest of it. So the navigator slice uses the pane slice.
+  - A test drains the inbox with `drain_operations!` after the open, because
+    the posted opening of the tab waits there.
+  - The view on demand, which draws a document that has no view of its own,
+    does not pass an operation with a fixed place (`read_rooted_operation`) to a
+    place inside it. The tests send such an open to a place that a layout holds.
+    A verb of the assistant at a place inside such a page has the same limit.
+  - No generic link widget: a link is the part of a domain or a view that
+    answers `OpenPageOperation`. The test link is a `WidgetButton` whose
+    gesture bindings answer it, with `:new_tab` for Ctrl+press. A widget slice
+    below the navigator can not name the operation; a `WidgetLink` would need
+    the operation in a lower slice.
+  - `test_open_page_operation()`, 37 tests; `test_navigator()` now runs 138.
 - [ ] **3. The address.** The breadcrumb with titles, the tooltip with the path,
-  and the left and right arrows in `LUCIDE_ICON_GLYPHS`.
+  and the left and right arrows in `LUCIDE_ICON_GLYPHS`. A JSON part has no
+  title, so the address of a JSON page shows steps now (`JsonObject › [2] ›
+  .value`); an entry needs a name, such as its key.
 - [ ] **4. Open any part.** "Open as a page" and "Open in a new tab" in the
   context menu of each part on a page. The key for the selected part came with
   step 1.
