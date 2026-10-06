@@ -5,12 +5,14 @@ Tasks as `opp_repl` runs them: a piece of work that runs and ends with a result,
 the codes a result takes, the words a result is reported in, the execution of a
 task that runs a process, and a group of tasks that runs a number at a time. Its
 documents show a task and a group on the screen, a feed carries what an
-execution says into them, and its panes draw a group and the groups of the
-session. Nothing here knows what the work is: a domain adds its kinds of task,
+execution says into them, its panes draw a group and the groups of the
+session, and its verbs read and act on the groups from the REPL and from a
+model. Nothing here knows what the work is: a domain adds its kinds of task,
 and says what a kind adds to the views.
 """
 module TaskModule
 
+using ..AgentModule
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
@@ -63,6 +65,8 @@ export TaskGroupDocument, make_task_group_identifier, get_task_group, wrap_task_
 export TaskTheme, ScaledTaskTheme, get_task_style, TaskGroupDocumentToWidgetPane,
        TaskGroupListToWidgetPane, make_task_group_tab_title, make_task_group_list_tab_title,
        format_memory_size, make_task_progress_bar, build_task_graphics_entry
+export list_task_groups, find_task_group, describe_task_group, describe_task, get_task_output,
+       wait_for_task_group!, stop_tasks!, rerun_tasks!, close_task_group!, make_task_api
 
 include("TaskResult.jl")
 include("TaskExecution.jl")
@@ -73,5 +77,6 @@ include("TaskGroupList.jl")
 include("TaskGroupDocument.jl")
 include("TaskTheme.jl")
 include("TaskGroupToWidget.jl")
+include("TaskVerbs.jl")
 
 end # module TaskModule

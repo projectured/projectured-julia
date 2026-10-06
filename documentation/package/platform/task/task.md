@@ -157,3 +157,22 @@ The panes draw with `TaskTheme`. `build_task_graphics_entry` makes the rows of
 the natural renderer for both panes, each with a widget renderer of its own so
 that a press reaches its button, and the slice registers them, so any
 `NaturalToGraphics` draws a tab that holds a group or the list of groups.
+
+## The verbs
+
+A person at the REPL and a model through `execute_julia_code` read and act on
+the groups of the session with the verbs of the slice: `list_task_groups`,
+`find_task_group`, `describe_task_group`, `describe_task`, `get_task_output`,
+`stop_tasks!`, `stop_task!`, `rerun_tasks!`, `wait_for_task_group!` and
+`close_task_group!`. Each takes `editor` first and does its document work on
+the task of the editor through `run_on_editor_task!`, so a person at the REPL
+calls it while the window runs. `describe_task` writes the facts that the kind
+of the task gives (`format_task_details`).
+
+**A client of `execute_julia_code` never passes `wait = true`.** The call runs
+in a frame of the window, so a verb that waits holds the window until the group
+ends.
+
+`make_task_api()` is what a window declares that a model may call of the slice,
+as a `TaskModule => names` pair, beside the verbs of its domain that start the
+groups.
