@@ -714,8 +714,19 @@ page. The option not chosen gave each kind a step document of its own, a mirror
 of the step types of the kernel that a new kind of step would have to repeat
 (the owner: "shadowing the reference types which is unbounded").
 
-The open decisions, in order: the list of choices at a step; the rule of edit 3;
-the switch of the views.
+**Decided (owner, 2026-10-06): the list of choices has a general rule and a
+function that a domain answers.** The general rule lists, for a field step, the
+other fields of the document above that hold a document (not `selection`,
+`mouse_target` or a field of view state), and for an element step the other
+elements of the collection by title or number, lazily from the current element,
+with no count of the whole collection. A function that a domain answers, such as
+`find_navigator_choices(document, step)`, dispatches on the type of the document
+and on the two step types: JSON can list its entries by key, and the data frame
+its columns by name and its rows from the current row. The options not chosen:
+the general rule alone, or a domain alone.
+
+The open decisions, in order: how the list looks; the rule of edit 3; the switch
+of the views.
 
 ## 11. Risks
 
