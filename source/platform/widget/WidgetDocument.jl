@@ -54,7 +54,7 @@ and `WidgetAlert` for a message with a title.
     #
     # The bare colour keeps the font of the theme, so a line coloured by
     # severity still follows the window's theme. It wins over `style`.
-    text_style::ImmutableCell{Union{StyleText, Nothing}}
+    text_style::ImmutableCell{Union{StyleText, StyleFont, Nothing}}
     visible::Bool
     margin::Union{Inset, Nothing}
     border::Union{Inset, Nothing}

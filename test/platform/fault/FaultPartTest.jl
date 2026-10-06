@@ -43,7 +43,7 @@ _make_breakable_string(broken, runs) =
     end))
 
 _make_json_array(elements...) =
-    JsonArray(elements = CellVector(Cell[Cell(element) for element in elements]))
+    JsonArray(elements = CellVector{Document}(Cell[Cell(element) for element in elements]))
 
 function _make_part_editor(document, pipeline = _make_barrier_pipeline())
     backend = HeadlessBackend()

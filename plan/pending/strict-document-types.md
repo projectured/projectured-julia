@@ -539,6 +539,19 @@ worktree. The three domains test different parts of the model:
     - Tests after way 2: `test_chart()` 367, `test_dataframes()` 556, `test_appearance_tab()`
       107, `test_object_to_widget()`, `test_object_field_to_widget()` and
       `test_frame_statistics_feed()` 48 pass.
+    - *The run of the 23 suites on way 2 (commit `2f9649dc0`):* every fail, error and broken
+      count equals the run after Step 2; only passes grew (platform +19, integration +98, JSON
+      +4). The mismatches fell from 354 fields (about 20.1 million writes) to 19 fields (347
+      writes), and eight of those are conversions that rule 2 makes in the mode `:throw`.
+    - *Fixed after that run:* the `DataFrameView` constructor passes plain vectors for
+      `kept_rows` and `edits` (a given cell is only checked, S-3), `copy_document_fields` wraps
+      a plain vector that replaces a list field into the list of the field, in the kind of its
+      cell (the duplicate of a view gave `kept_rows = Int[]`), `FileCut` keeps the element type
+      when it rebuilds a list (`find_declared_element_type`), the fault test builds a
+      `CellVector{Document}`, and `WidgetLabel.text_style` admits a `StyleFont`, which a label
+      with a font of its own takes by design. In the mode `:throw`, `test_dataframes()` (556),
+      `test_fault_part()`, `test_widget_icon()`, `test_baseline_alignment()` and
+      `test_file_project()` pass.
   - [x] **Group 5, a lazy list in a field declared `CellVector`.** `children` of
     `HorizontalLayout`, `VerticalLayout` and `GridLayout`, and the two header strips of
     `WidgetTable`, get a `ListNode`, a lazy list that a viewport reads from the middle. The

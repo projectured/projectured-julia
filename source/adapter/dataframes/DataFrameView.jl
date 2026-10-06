@@ -86,10 +86,10 @@ function _find_cell_edit(view::DataFrameView, row::Int, name::String)
 end
 
 function DataFrameView(frame::AbstractDataFrame; anchor::Integer = 1, column_anchor::Integer = 1)
-    view = DataFrameView(Cell(frame), Cell(_make_frame_query(frame)), Cell((nothing, nothing)), Cell(Int[]),
+    view = DataFrameView(Cell(frame), Cell(_make_frame_query(frame)), Cell((nothing, nothing)), Int[],
                          Cell(Int(anchor)), Cell(Int(column_anchor)), Cell(Point2D(0, 0)), Cell(1),
                          Cell(Dict{String,Int}()), Cell(0), Cell(nothing), Cell(nothing), Cell(nothing),
-                         Cell(Any[]), Cell(""), Cell(nothing), Cell(nothing))
+                         Any[], Cell(""), Cell(nothing), Cell(nothing))
     _set_path_fields!(_set_kept_row_computations!(view))
 end
 

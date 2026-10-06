@@ -226,7 +226,10 @@ function _cut_field(owner, file, name::Symbol, value, path::Reference, visited::
                               extend_reference(path, FieldReferenceStep(string(name)), ElementReferenceStep(index)),
                               visited, strict)
                     for (index, element) in enumerate(value)]
-        return Base.typename(typeof(value)).wrapper(items)
+        # The list keeps the type of its elements, which its field declares.
+        wrapper = Base.typename(typeof(value)).wrapper
+        element_type = find_declared_element_type(value)
+        return element_type === nothing ? wrapper(items) : wrapper{element_type}(items)
     elseif value isa AbstractVector
         return Any[_cut_copy(owner, file, element,
                              extend_reference(path, FieldReferenceStep(string(name)), ElementReferenceStep(index)),
