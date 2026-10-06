@@ -757,10 +757,14 @@ toggles in a row, a key with no control, and a setting for all navigators.
 
 The design of the address is complete. The steps to build it:
 
-- [ ] **A1. The step form of `WidgetToggleGroup`.** A field that chooses the look
+- [x] **A1. The step form of `WidgetToggleGroup`.** A field that chooses the look
   and the press: the row (the default) or the step. Its view, its reader, and
   its keys (Space and Return step, as a press does). The sort mark of a data
-  frame column can use it later, in a change of its own.
+  frame column can use it later, in a change of its own. Done, 2026-10-06: the
+  field is `look`, `:row` or `:step`. The step look draws the selected option in
+  one raised segment as wide as the widest option; a left press picks the next
+  option, Shift+press the one before, around the ends; Return and Space with no
+  modifier pick the next. `test_widget_forms()` checks it.
 - [ ] **A2. The address document.** A document of the navigator slice that holds
   the steps of the address, `FieldReferenceStep` and `RangeReferenceStep`
   values in their element form, and the view: titles, path or types. The
