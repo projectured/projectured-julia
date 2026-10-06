@@ -515,7 +515,9 @@ new tab".
   - `test_navigator_document()`, 27 tests; `test_navigator()` runs 196.
 - [ ] **8. A typed address.** Field and index steps, read as
   `_evaluate_path_text` reads them.
-- [ ] **9. Master and detail.** `ComponentToWidget` on two navigators.
+- [ ] **9. Master and detail.** `ComponentToWidget` on two navigators. Moved out
+  of this plan by the owner (Q7, 2026-10-06), to
+  [component-document.md](component-document.md).
 - [x] **10. The side buttons of the mouse** (D5): `MouseButtons`, the SDL
   backend and the web backend. Done, 2026-10-06:
   - The event layer names the side buttons `:back` and `:forward`, by what a
@@ -580,7 +582,8 @@ new tab".
   only.** A window that opens again shows the same page, with empty back and
   forward lists. The options that were not chosen: the address and the lists,
   or nothing.
-- **D7. A named target. Decided by the owner, 2026-10-06: open until step 6.**
+- **D7. A named target. Decided by the owner, 2026-10-06 (with Q4): a function
+  on the content root that a domain answers.** It was open until step 6 first.
   Paths and objects with their own root cover the case of a table and its
   detail page. The two options for step 6: a function that the navigator calls
   on its content root and that a domain answers, which is a new generic
@@ -595,8 +598,8 @@ new tab".
 
 ## 9. Questions that the implementation raised (2026-10-06)
 
-Each waits for the owner. The recommendation is the implementer's, not a
-decision.
+The owner answered Q1 to Q4 and Q7 on 2026-10-06; Q5 and Q6 wait for the
+answer to a proposal. Each answer is under its question.
 
 - **Q1. Parent of a row of a data frame.** `rows[r]` lies in
   `DataFrameViewRows`, a document that `get_parent` does not look past, so
@@ -610,34 +613,58 @@ decision.
   (c) leave it.
   Recommendation: (b), because it changes no walker, and the meaning (a part
   that is no page of its own) belongs to the navigator.
+  - **Owner, 2026-10-06:** "a container may also be the part that is shown in a
+    navigator but having a trait seems reasonable". **Done:**
+    `is_navigator_stop(document)` says where a navigator stops when it goes up,
+    names the address, and opens the selected part or the part under the
+    pointer; the navigator can still show a container as a page at its own
+    address. The data frame adapter answers `false` for `DataFrameViewRows`, so
+    Parent goes from a row to the table. The test that was marked broken
+    passes.
 - **Q2. The name of a navigator tab.** It keeps the name that it opened with, and
   its tooltip follows the page, because the pane says that a tab must not rename
   itself. Options: as now; or the name follows the title of the page, as in a
   browser, which changes the name that `find_pane` reads. Recommendation: as
   now.
+  - **Owner, 2026-10-06:** agreed, as now.
 - **Q3. A tall page.** The navigator adds no scroll pane, by the owner's rule
   that a part scrolls where it is made, so a tall JSON page is cut. Options: as
   now; a scroll pane around a page whose view has none, which needs a way to know
   that (a trait, a new generic function); or each domain view that can be tall
   makes its own scroll pane. Recommendation: the last, one view at a time.
+  - **Owner, 2026-10-06:** yes, each view that can be tall makes its own
+    scroll pane.
 - **Q4. D7, a named target**, for step 6: markdown and rst links name an anchor,
   a file or a URL. Options as in §8, D7. Recommendation: a function on the
   content root that a domain answers, after Q1 settles whether the navigator
   takes domain traits.
+  - **Owner, 2026-10-06:** agreed: a function on the content root that a domain
+    answers. D7 is decided with it.
 - **Q5. The typed address (step 8).** Where the text lives while a person types
   it (a field of the navigator, as view state), which key starts it (Ctrl+L, as
   in a browser, is free), and whether the bar shows a text field or the
   breadcrumb turns into one. Recommendation: Ctrl+L turns the breadcrumb into a
   text field over a view-state field of the navigator; Enter opens the path,
   Escape returns.
+  - **Owner, 2026-10-06:** "the address bar can be edited in place without
+    turning it into a text field". With Q6, the proposal to the owner: the bar
+    shows the text of the reference and a caret edits it in place, as the name
+    of a tab is edited; Enter opens the path, Escape puts back the address; the
+    items of names go away. Waits for the owner.
 - **Q6. The names of JSON parts.** A JSON entry has no title, so the address of a
   JSON page names steps (`entries[2]`, `value`). A `get_document_title` of an
   entry that is its key changes the JSON domain, and other readers of the title,
   such as the name of a tab. Recommendation: the key, with a check of those
   readers.
+  - **Owner, 2026-10-06:** "the address could be a reference, no? what is it
+    now? a reference could address anything". The answer: the address is a
+    `Reference` (the field `address`), and the bar shows the titles of the
+    documents on it. The proposal under Q5 shows the reference itself.
 - **Q7. Step 9, master and detail.** It needs `ComponentToWidget`, which
   [component-document.md](component-document.md) also plans. Recommendation: do
   it in that plan, on two navigators, after this branch lands.
+  - **Owner, 2026-10-06:** yes, master and detail separately. Step 9 leaves this
+    plan.
 
 ## 10. Risks
 
