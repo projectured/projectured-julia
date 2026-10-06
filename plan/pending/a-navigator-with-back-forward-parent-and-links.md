@@ -660,11 +660,43 @@ answer to a proposal. Each answer is under its question.
     now? a reference could address anything". The answer: the address is a
     `Reference` (the field `address`), and the bar shows the titles of the
     documents on it. The proposal under Q5 shows the reference itself.
+  - **Owner, 2026-10-06, after a discussion of the forms:** "we should think more
+    about the address, what it should be and how it should be edited", with
+    three parts to it: the titles, the path without types, and the types along
+    the path. **Decided: the address becomes a document**, with three views
+    that a switch in the bar changes: the titles (the default), the path, and
+    the path with its types. The titles and the path take edits; the types are
+    shown and not edited. The design continues in §11, one decision at a time;
+    Q5 and Q6 close into it.
 - **Q7. Step 9, master and detail.** It needs `ComponentToWidget`, which
   [component-document.md](component-document.md) also plans. Recommendation: do
   it in that plan, on two navigators, after this branch lands.
   - **Owner, 2026-10-06:** yes, master and detail separately. Step 9 leaves this
     plan.
+
+## 11. The address as a document (design in progress)
+
+**Decided (owner, 2026-10-06):** the address is a document, shown in three views
+that a switch in the bar changes: the titles, the path, and the path with its
+types. The titles and the path take edits; the types are shown, not edited.
+
+The edits that the discussion named, each still to decide:
+
+1. **Jump up:** a press on a name opens that page (exists).
+2. **Choose a sibling:** each name lists the other choices at its place, the
+   other fields of the document above or the other elements of the collection,
+   by their titles, lazily and searchable for a large collection; a choice
+   replaces that step.
+3. **Keep or cut the rest** after a replaced step: keep it when it still reaches
+   a node of the recorded types, cut it otherwise.
+4. **Type** in the path view, in place, with the choices of edit 2 as completion;
+   Enter opens the path.
+5. **Types** are shown in the third view and mark the place where an edit cut
+   the address.
+
+The open decisions, in order: whether the document is the address itself or an
+editable form beside a committed `Reference`; the kinds of its steps; the list of
+choices at a step; the rule of edit 3; the switch of the views.
 
 ## 10. Risks
 
