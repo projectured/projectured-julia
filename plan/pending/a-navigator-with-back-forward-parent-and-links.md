@@ -741,7 +741,62 @@ siblings, one choice at a time; one press on the name of person 4 then shows the
 person. The options not chosen: always cut the rest, as file managers and the
 breadcrumbs of an IDE do; or keep the rest only when all of it reaches.
 
-The open decision: the switch of the views.
+**Decided (owner, 2026-10-06): one control in the bar steps through the three
+views, and it is a form of `WidgetToggleGroup`.** The control shows the current
+view; a press goes to the next view, and Shift+press to the one before; its
+tooltip lists the three. No widget of the editor steps through its states (the
+sort mark of a data frame column does it with its own gesture bindings), and a
+control that steps is the same choice as a toggle group (the options, the
+selected one, what each means, what a choice writes), so it is one more field of
+`WidgetToggleGroup` that chooses the look and the press: the row, as now, or the
+step. A widget of its own would repeat the five fields of the choice. Ctrl+L, which
+nothing binds, switches to the path view with the caret at its end, as a browser
+does with its address bar. The view is kept in the address document, per
+navigator, as view state; a save does not keep it. The options not chosen: three
+toggles in a row, a key with no control, and a setting for all navigators.
+
+The design of the address is complete. The steps to build it:
+
+- [ ] **A1. The step form of `WidgetToggleGroup`.** A field that chooses the look
+  and the press: the row (the default) or the step. Its view, its reader, and
+  its keys (Space and Return step, as a press does). The sort mark of a data
+  frame column can use it later, in a change of its own.
+- [ ] **A2. The address document.** A document of the navigator slice that holds
+  the steps of the address, `FieldReferenceStep` and `RangeReferenceStep`
+  values in their element form, and the view: titles, path or types. The
+  navigator holds it as view state beside `address`; each visit writes it from
+  the address, and a save does not keep it.
+- [ ] **A3. The three views and the control.** The titles view: one name for
+  each stop, with the arrow of its list, and a press on a name opens its page,
+  as the items of the address do now, which the view replaces. The path view:
+  the text of the steps, edited in place; a key inside a name or a number edits
+  that step, `.` and `[` start a step, and Backspace at the start of a step
+  joins it with the one before. The types view: the path with the type of each
+  node, which takes no edit, and a mark at the place where the address was cut.
+  The control of A1 writes the view. Each behavior dispatches on the two step
+  types.
+- [ ] **A4. The keys.** Ctrl+L switches to the path view with the caret at its
+  end. Enter opens the path of the steps as a visit; a path that reaches no node
+  stays in the document, with a mark at the first step that reaches none.
+  Escape writes the document back from the address and returns to the view
+  before.
+- [ ] **A5. The list of choices.** The generic function
+  `find_navigator_choices(document, step)`, with the general rule: the fields of
+  the document above that hold a document, and the elements of a collection by
+  title or number, lazily from the current element. The JSON domain lists its
+  entries by key, and the data frame adapter lists its columns by name and its
+  rows from the current row. The popup under a name, a window of its own, with a
+  type-in field over the list: typing narrows the list by title, and a number
+  goes to that element of a collection.
+- [ ] **A6. A choice.** The step is replaced, and the rest of the address is kept
+  as far as it reaches nodes of the recorded types, and cut at the first that it
+  does not. The result opens as a visit.
+- [ ] **A7. Tests and documents.** The platform tests with the shelf, the data
+  frame case (the list of rows from the current row, the choice of a row that
+  keeps a column), and the design document and the keyboard guide.
+
+D7 (named targets, step 6) can use the same function for the names that a domain
+gives to a target.
 
 ## 11. Risks
 
