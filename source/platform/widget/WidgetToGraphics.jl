@@ -9594,11 +9594,23 @@ function _wt_field_element_terminal(sel)
     (h.name, r.start + 1)
 end
 
+# The name of the field that `sel` names as a whole, `field∅`, or nothing.
+function _wt_field_terminal(sel)
+    (sel isa ConcreteReference && sel.head isa FieldReferenceStep && sel.tail isa EmptyReference) ||
+        return nothing
+    sel.head.name
+end
+
 # (:table,_,_) | (:row,r,_) | (:col,c,_) | (:cell,r,c) | (:column_header,c,_) |
-# (:row_header,r,_) | nothing. A header is a part of its own, apart from its
-# column or its row.
+# (:row_header,r,_) | (:header_row,_,_) | (:header_column,_,_) | nothing. A header
+# is a part of its own, apart from its column or its row, and the header row,
+# `column_headers∅`, and the header column, `row_headers∅`, are the strips of the
+# headers.
 function _wt_selection_shape(w::WidgetTable, sel, geom::WTGeometry)
     sel isa EmptyReference && return (:table, 0, 0)
+    field = _wt_field_terminal(sel)
+    field == "column_headers" && return geom.has_col_headers ? (:header_row, 0, 0) : nothing
+    field == "row_headers" && return geom.has_row_headers ? (:header_column, 0, 0) : nothing
     fe = _wt_field_element_terminal(sel)
     if fe !== nothing
         field, idx = fe
@@ -9688,6 +9700,12 @@ function _wt_highlight_bounds(w::WidgetTable, sel, geom::WTGeometry)
     elseif kind === :row_header
         gr = shape[2] + geom.row_offset
         return (geom.col_x[1], geom.row_y[gr], geom.col_x[2] - geom.col_x[1], geom.row_y[gr + 1] - geom.row_y[gr])
+    elseif kind === :header_row
+        x = geom.col_x[1 + geom.col_offset]
+        return (x, geom.row_y[1], geom.col_x[geom.grid_cols + 1] - x, geom.row_y[2] - geom.row_y[1])
+    elseif kind === :header_column
+        y = geom.row_y[1 + geom.row_offset]
+        return (geom.col_x[1], y, geom.col_x[2] - geom.col_x[1], geom.row_y[geom.grid_rows + 1] - y)
     end
     (0, 0, 0, 0)
 end
@@ -9949,11 +9967,12 @@ _wt_get_cell_steps(w::WidgetTable, r::Int, c::Int) =
         (FieldReferenceStep("cells"), RangeReferenceStep(r - 1, r), RangeReferenceStep(c - 1, c))
 
 # ── Reading (gestures) ───────────────────────────────────────────────────────
-# Gesture-aware reader. Left clicks resolve here (header/corner → row/column/
-# table; Alt+click promotes a data cell to a whole cell; a plain click routes
-# into the cell content). Keyboard grid navigation
-# (Alt+arrows, Ctrl+Alt+Home, Shift/Ctrl+Space, Enter) is resolved against the
-# live table. A turn of the wheel scrolls the parts. Every other event goes to a
+# Gesture-aware reader. Left clicks resolve here: a plain click goes to the
+# content of a cell or a header first, and one that the content declines selects
+# its row or its column; the corner selects the table; an Alt+click selects the
+# cell or the header itself. Keyboard grid navigation (the arrows,
+# Ctrl+Alt+Home, Shift/Ctrl+Space, Enter, also on a selected header) is resolved
+# against the live table. A turn of the wheel scrolls the parts. Every other event goes to a
 # cell (`_wt_route_event`). An operation from below finds no cell to go to.
 function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, iomap::WidgetTableToGraphicsCanvasIoMap)
     g = change.gesture
@@ -9991,10 +10010,13 @@ function _wt_mouse_select(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGr
     if kind === :corner
         return ReplaceSelectionOperation(EmptyReference())
     elseif kind === :row
-        return ReplaceSelectionOperation(_wt_row_ref(hit[2]))
+        r = hit[2]
+        g.modifiers.alt && return ReplaceSelectionOperation(_wt_row_header_ref(r))
+        return _wt_route_header_click(iomap, _wt_row_header_ref(r), _wt_row_ref(r), g, x, y)
     elseif kind === :col
-        g.modifiers.alt && return ReplaceSelectionOperation(_wt_column_header_ref(hit[2]))
-        return _wt_route_header_click(iomap, hit[2], g, x, y)
+        c = hit[2]
+        g.modifiers.alt && return ReplaceSelectionOperation(_wt_column_header_ref(c))
+        return _wt_route_header_click(iomap, _wt_column_header_ref(c), _wt_col_ref(c), g, x, y)
     elseif kind === :cell
         r, c = hit[2], hit[3]
         g.modifiers.alt && return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, r, c))
@@ -10004,21 +10026,21 @@ function _wt_mouse_select(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGr
 end
 
 # Route a plain click at `(x, y)`, in the coordinates of the geometry, into the
-# content of the header of column `c`, and root what it answers under the
+# content of the header that `header` names, and root what it answers under the
 # header. A header that declines it — a label has nothing to say to one —
-# selects its column, as the table of a list does.
-function _wt_route_header_click(iomap::WidgetTableToGraphicsCanvasIoMap, c::Int, g::MouseClick,
-                                x::Int, y::Int)
-    column = ReplaceSelectionOperation(_wt_col_ref(c))
-    found = _wt_find_part_entry(iomap, _wt_column_header_ref(c))
-    found === nothing && return column
+# selects `line`, its row or its column, as the table of a list does.
+function _wt_route_header_click(iomap::WidgetTableToGraphicsCanvasIoMap, header::Reference, line::Reference,
+                                g::MouseClick, x::Int, y::Int)
+    declined = ReplaceSelectionOperation(line)
+    found = _wt_find_part_entry(iomap, header)
+    found === nothing && return declined
     pane, i, steps, _ = found
     cell = _wt_find_part_cell(iomap, pane, i)
-    cell === nothing && return column
+    cell === nothing && return declined
     cim, left, top = cell
     op = read_intent(cim.projection, cim, MouseClick(g.button, x - left, y - top, g.count, g.modifiers;
                                                      time = g.time))
-    op === nothing ? column : reroot_operation(op, steps)
+    op === nothing ? declined : reroot_operation(op, steps)
 end
 
 # Classify a click point: :corner | (:row,r) | (:col,c) | (:cell,r,c) | :outside.
@@ -10104,6 +10126,9 @@ function _wt_key_navigate(iomap::WidgetTableToGraphicsCanvasIoMap, evt::KeyDown,
         return nothing
     end
 
+    shape !== nothing && shape[1] in (:column_header, :row_header) &&
+        return _wt_read_header_key(iomap.input, shape, evt, nrows, ncols)
+
     if evt.key === :space && (evt.modifiers.shift ⊻ evt.modifiers.ctrl)
         cell_rc === nothing && return nothing
         r, c = cell_rc
@@ -10160,6 +10185,32 @@ function _wt_key_navigate(iomap::WidgetTableToGraphicsCanvasIoMap, evt::KeyDown,
         end
     end
     return nothing
+end
+
+# A key on a selected header of `w`, whose `shape` is `(:column_header, c, _)` or
+# `(:row_header, r, _)`. The arrows move along the headers of its strip and step
+# into the cells as its column or its row does. Shift+Space selects in the row
+# direction and Ctrl+Space in the column direction: from the header of a column,
+# the header row or its column; from the header of a row, its row or the header
+# column. `nothing` for any other key.
+function _wt_read_header_key(w::WidgetTable, shape, evt::KeyDown, nrows::Int, ncols::Int)
+    kind, index = shape[1], shape[2]
+    if evt.key === :space && (evt.modifiers.shift ⊻ evt.modifiers.ctrl)
+        row_direction = evt.modifiers.shift
+        kind === :column_header &&
+            return ReplaceSelectionOperation(row_direction ? _wt_header_row_ref() : _wt_col_ref(index))
+        return ReplaceSelectionOperation(row_direction ? _wt_row_ref(index) : _wt_header_column_ref())
+    end
+    if kind === :column_header
+        evt.key === :left && return ReplaceSelectionOperation(_wt_column_header_ref(max(1, index - 1)))
+        evt.key === :right && return ReplaceSelectionOperation(_wt_column_header_ref(min(ncols, index + 1)))
+        evt.key === :down && return ReplaceSelectionOperation(_wt_cell_ref(w, 1, index))
+    else
+        evt.key === :up && return ReplaceSelectionOperation(_wt_row_header_ref(max(1, index - 1)))
+        evt.key === :down && return ReplaceSelectionOperation(_wt_row_header_ref(min(nrows, index + 1)))
+        evt.key === :right && return ReplaceSelectionOperation(_wt_cell_ref(w, index, 1))
+    end
+    nothing
 end
 
 # ── The open cells ───────────────────────────────────────────────────────────
@@ -10229,9 +10280,15 @@ _wt_row_ref(r::Int) = ConcreteReference(FieldReferenceStep("rows"),
     ConcreteReference(RangeReferenceStep(r - 1, r), EmptyReference()))
 _wt_col_ref(c::Int) = ConcreteReference(FieldReferenceStep("columns"),
     ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))
-# The header of column `c` itself, a part apart from its column.
+# The header of column `c` itself, a part apart from its column, and the header
+# of row `r`, a part apart from its row.
 _wt_column_header_ref(c::Int) = ConcreteReference(FieldReferenceStep("column_headers"),
     ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))
+_wt_row_header_ref(r::Int) = ConcreteReference(FieldReferenceStep("row_headers"),
+    ConcreteReference(RangeReferenceStep(r - 1, r), EmptyReference()))
+# The header row and the header column, each the whole strip of its headers.
+_wt_header_row_ref() = ConcreteReference(FieldReferenceStep("column_headers"), EmptyReference())
+_wt_header_column_ref() = ConcreteReference(FieldReferenceStep("row_headers"), EmptyReference())
 _wt_cell_ref(w::WidgetTable, r::Int, c::Int) = extend_reference(EmptyReference(), _wt_get_cell_steps(w, r, c)...)
 
 # Place a character cursor at the start of a cell's content.

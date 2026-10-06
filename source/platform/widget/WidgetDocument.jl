@@ -2514,9 +2514,11 @@ that the grids report ("layout is just layout").
 The paths of a table are its field names: `rows[r]` is a row, `columns[c]` a
 column, `cells[r][c]` a cell (`cells[c][r]` in a column-major table),
 `column_headers[c]` the header of a column and `row_headers[r]` the header of a
-row, each a part of its own. A press on a
-column header selects its column and a press on a row header its row; a press
-in the content of a header goes to the header.
+row, each a part of its own, `column_headers` the header row, `row_headers` the
+header column, and `corner` the corner. A plain press goes to the content of a
+part first; one that the content declines selects its row or its column: a
+cell its row, a row header its row, a column header its column, and the corner
+the table. An Alt+press selects the part itself.
 - `border_width::Int` — the width of the outer frame and the grid lines. The
   padding inside a cell is the projection's `cell_padding`, from the theme.
 - `column_policy`, `row_policy` — the `SizePolicy` of a column and of a row

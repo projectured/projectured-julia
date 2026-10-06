@@ -387,12 +387,12 @@ function _print_header_column(recursion, w::WidgetTable, inner, corner, height::
 end
 
 # The band of the light or of the selection in row `k` of the header column:
-# the whole column for the table, for row `k` or for its header, and nothing
-# else.
+# the whole column for the table, for the header column, for row `k` or for its
+# header, and nothing else.
 function _get_header_column_band_span(named, k, st::WidgetTablePartsState)
     named === nothing && return (0, 0)
     shape, row, _ = named
-    (shape === :table || (shape in (:row, :row_header) && row == k)) || return (0, 0)
+    (shape in (:table, :header_column) || (shape in (:row, :row_header) && row == k)) || return (0, 0)
     (0, Int(st.header_width[]))
 end
 
@@ -461,8 +461,9 @@ function _make_header_column_region(p::WidgetTableToGraphicsCanvas, w::WidgetTab
 end
 
 # The region of the corner at the top left of the parts, as wide as the header
-# column and as tall as the header row: the band of the header row, the rule
-# above it, and the corner at the place of a header in the header row.
+# column and as tall as the header row: the band of the header row, the band of
+# the selection when it is the corner or the table, the rule above it, and the
+# corner at the place of a header in the header row.
 function _make_corner_region(p::WidgetTableToGraphicsCanvas, w::WidgetTable, st::WidgetTablePartsState,
                              content_x::Int, content_y::Int)
     st.row_header_pane === nothing && return nothing
@@ -474,8 +475,16 @@ function _make_corner_region(p::WidgetTableToGraphicsCanvas, w::WidgetTable, st:
         GraphicsCanvas(Cell(Int32(st.bw + st.pad_x)), Cell(Int32(st.bw + st.pad_y)),
                        getfield(st.corner.output, :w), getfield(st.corner.output, :h),
                        CellVector(Cell[Cell(st.corner.output)]), layout_none, true, Cell(nothing))
+    # The band reads the selection itself, so a move of the selection builds no
+    # region again.
+    selected = Cell(@computation (selection = w.selection;
+                                  selection isa EmptyReference || _wt_field_terminal(selection) == "corner"))
+    band = GraphicsRect(0, 0, 0, 0; color = _get_state_color(p, w, :row; state = :selected), radius = p.row_radius)
+    set_cell_computation!(getfield(band, :y), () -> Int32(st.bw))
+    set_cell_computation!(getfield(band, :w), () -> Int32(selected[] ? Int(width[]) : 0))
+    set_cell_computation!(getfield(band, :h), () -> Int32(selected[] ? Int(height[]) - st.bw : 0))
     elements = CellVector(@computation begin
-        out = Any[GraphicsRect(0, 0, Int(width[]), Int(height[]); color),
+        out = Any[GraphicsRect(0, 0, Int(width[]), Int(height[]); color), band,
                   GraphicsRect(0, 0, Int(width[]), st.bw; color = divider)]
         corner === nothing || push!(out, corner)
         out
@@ -490,10 +499,15 @@ end
 # `(:table, 0, 0)` for `∅`, `(:row, k, 0)` for `rows[k]∅`, `(:column, 0, c)` for
 # `columns[c]∅`, `(:cell, k, c)` for `cells[k][c]∅`, and the header of a row or of
 # a column, a part of its own, `(:row_header, k, 0)` for `row_headers[k]∅` and
-# `(:column_header, 0, c)` for `column_headers[c]∅`; `nothing` for anything else.
-# A row can have an index of 0 or less, before the head.
+# `(:column_header, 0, c)` for `column_headers[c]∅`, and the strips of the
+# headers, `(:header_row, 0, 0)` for `column_headers∅` and `(:header_column, 0, 0)`
+# for `row_headers∅`; `nothing` for anything else. A row can have an index of 0
+# or less, before the head.
 function _find_named_part(w::WidgetTable, reference)
     reference isa EmptyReference && return (:table, 0, 0)
+    field = _wt_field_terminal(reference)
+    field == "column_headers" && return (:header_row, 0, 0)
+    field == "row_headers" && return (:header_column, 0, 0)
     terminal = _wt_field_element_terminal(reference)
     if terminal !== nothing
         field, index = terminal
@@ -666,7 +680,8 @@ end
 # The left edge and the width of the band that `named` draws in row `k`, or in
 # the header row for `k === nothing`; `(0, 0)` for no band there. The table and
 # a column band every row and the header row, a row and a cell only their own
-# row, a column header only the header row, and a row header none here.
+# row, a column header and the header row only the header row, and a row header
+# and the header column none here.
 function _get_band_span(named, k, st::WidgetTablePartsState)
     named === nothing && return (0, 0)
     shape, row, column = named
@@ -674,7 +689,8 @@ function _get_band_span(named, k, st::WidgetTablePartsState)
     shape === :column && return something(_get_table_column_span(st, column), (0, 0))
     shape === :column_header &&
         return k === nothing ? something(_get_table_column_span(st, column), (0, 0)) : (0, 0)
-    shape === :row_header && return (0, 0)
+    shape === :header_row && return k === nothing ? _get_table_row_span(st) : (0, 0)
+    shape in (:row_header, :header_column) && return (0, 0)
     (k === nothing || row != k) && return (0, 0)
     shape === :row && return _get_table_row_span(st)
     something(_get_table_column_span(st, column), (0, 0))
@@ -1375,26 +1391,24 @@ function _read_table_cell_press(w::WidgetTable, st::WidgetTablePartsState, k::In
     reroot_operation(op, _wt_get_cell_steps(w, k, c))
 end
 
-# A left press on the header of column `c`, from the point `(x, y)` in the
-# coordinates of the rules of the header row, read by the header and rooted
-# under `column_headers[c]`; `nothing` when the header has nothing to say.
-function _read_table_header_press(st::WidgetTablePartsState, c::Int, g::MouseClick, x::Int, y::Int)
-    found = _find_table_header_cell(st, c)
+# A left press on a header, `found` its IO map and the place of its canvas in
+# the coordinates of the rules of its part, from the point `(x, y)` there, read
+# by the header and rooted under `steps`; `nothing` for no header or when the
+# header has nothing to say.
+function _read_table_header_press(found, steps::Tuple, g::MouseClick, x::Int, y::Int)
     found === nothing && return nothing
     cim, left, top = found
     op = read_intent(cim.projection, cim, MouseClick(g.button, x - left, y - top, g.count,
                                                      g.modifiers; time = g.time))
     op === nothing && return nothing
-    reroot_operation(op, (FieldReferenceStep("column_headers"), RangeReferenceStep(c - 1, c)))
+    reroot_operation(op, steps)
 end
 
-# A left press: a row header selects its row; the corner takes the press, and a
-# press that it declines selects the table. In the header row and in the cells,
-# an Alt+press selects the header or the cell, each a part of its own, and a
-# plain press goes to the header or the cell. A header that declines it selects
-# its column, `columns[c]`, and a cell
-# that declines it — a label has nothing to say to one — leaves it to the row,
-# and the row is selected: a table of text is a table of rows.
+# A left press. An Alt+press selects the part itself: the corner, a header or a
+# cell. A plain press goes to the part first: the corner, a header or a cell. A
+# press that the part declines selects its line: the corner the table, a row
+# header its row, a column header its column, `columns[c]`, and a cell its row —
+# a label has nothing to say to one, and a table of text is a table of rows.
 function _read_table_parts_press(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap,
                                  g::MouseClick)
     st = iomap.state
@@ -1402,18 +1416,25 @@ function _read_table_parts_press(p::WidgetTableToGraphicsCanvas, iomap::WidgetTa
     found === nothing && return nothing
     part, x, y = found
     if part === :corner
+        g.modifiers.alt && st.corner !== nothing &&
+            return ReplaceSelectionOperation(ConcreteReference(FieldReferenceStep("corner"), EmptyReference()))
         op = _read_table_corner(st, MouseClick(g.button, x, y, g.count, g.modifiers; time = g.time))
         return op === nothing ? ReplaceSelectionOperation(EmptyReference()) : op
     end
     if part === :row_header
         k = _find_table_row_at(st, y)
-        return k === nothing ? nothing : ReplaceSelectionOperation(_wt_row_ref(k))
+        k === nothing && return nothing
+        g.modifiers.alt && return ReplaceSelectionOperation(_wt_row_header_ref(k))
+        op = _read_table_header_press(_find_table_row_header(st, k),
+                                      (FieldReferenceStep("row_headers"), RangeReferenceStep(k - 1, k)), g, x, y)
+        return op === nothing ? ReplaceSelectionOperation(_wt_row_ref(k)) : op
     end
     c = _find_table_column_at(st, x)
     c === nothing && return nothing
     if part === :header
         g.modifiers.alt && return ReplaceSelectionOperation(_wt_column_header_ref(c))
-        op = _read_table_header_press(st, c, g, x, y)
+        op = _read_table_header_press(_find_table_header_cell(st, c),
+                                      (FieldReferenceStep("column_headers"), RangeReferenceStep(c - 1, c)), g, x, y)
         return op === nothing ? ReplaceSelectionOperation(_wt_col_ref(c)) : op
     end
     k = _find_table_row_at(st, y)
@@ -1584,10 +1605,12 @@ function _shift_row_reference(w::WidgetTable, reference, distance::Int)
 end
 
 # The keys of the table: Ctrl+Alt+Home selects the table; the arrows move a
-# selected row, column or cell, and stop at the ends of the list; Return goes
-# from a row to its first cell, from a column to its cell in the row at the
-# top, and from a cell into its content; Shift+Space goes from a cell to its
-# row, and Ctrl+Space to its column.
+# selected row, column, cell or header, and stop at the ends of the list; from a
+# column header, Down goes to its cell in the row at the top, and from a row
+# header, Right goes to its first cell; Return goes from a row to its first
+# cell, from a column to its cell in the row at the top, and from a cell into
+# its content; Shift+Space and Ctrl+Space select in the row and the column
+# direction.
 function _read_table_parts_key(iomap::WidgetTableListIoMap, evt::KeyDown)
     st = iomap.state
     st.columns == 0 && !st.column_list && return nothing
@@ -1598,7 +1621,27 @@ function _read_table_parts_key(iomap::WidgetTableListIoMap, evt::KeyDown)
     named = _find_named_part(iomap.input, iomap.input.selection)
     named === nothing && return nothing
     shape, k, c = named
-    shape in (:table, :column_header, :row_header) && return nothing
+    exists(row) = find_grid_list_row(st.cells_pane.content_iomap, row) !== nothing
+    # Shift+Space selects in the row direction and Ctrl+Space in the column
+    # direction: from a column header the header row or its column, from a row
+    # header its row or the header column, and from a cell its row or its column.
+    line_key = evt.key === :space && (evt.modifiers.shift ⊻ evt.modifiers.ctrl)
+    row_direction = evt.modifiers.shift
+    if shape === :column_header
+        line_key && return ReplaceSelectionOperation(row_direction ? _wt_header_row_ref() : _wt_col_ref(c))
+        evt.key === :left && return ReplaceSelectionOperation(_wt_column_header_ref(step_column(c, -1)))
+        evt.key === :right && return ReplaceSelectionOperation(_wt_column_header_ref(step_column(c, 1)))
+        evt.key === :down && return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, iomap.input.top_row, c))
+        return nothing
+    end
+    if shape === :row_header
+        line_key && return ReplaceSelectionOperation(row_direction ? _wt_row_ref(k) : _wt_header_column_ref())
+        evt.key === :up && return exists(k - 1) ? ReplaceSelectionOperation(_wt_row_header_ref(k - 1)) : nothing
+        evt.key === :down && return exists(k + 1) ? ReplaceSelectionOperation(_wt_row_header_ref(k + 1)) : nothing
+        evt.key === :right && return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, k, 1))
+        return nothing
+    end
+    shape in (:table, :header_row, :header_column) && return nothing
     if shape === :column
         top = iomap.input.top_row
         evt.key === :return && return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, top, c))
@@ -1608,14 +1651,13 @@ function _read_table_parts_key(iomap::WidgetTableListIoMap, evt::KeyDown)
         return nothing
     end
     c == 0 && (c = nothing)
-    exists(row) = find_grid_list_row(st.cells_pane.content_iomap, row) !== nothing
     if evt.key === :return
         c === nothing && return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, k, 1))
         return _enter_table_cell(iomap.input, st, k, c)
     end
-    if evt.key === :space && (evt.modifiers.shift ⊻ evt.modifiers.ctrl)
+    if line_key
         c === nothing && return nothing
-        return ReplaceSelectionOperation(evt.modifiers.shift ? _wt_row_ref(k) : _wt_col_ref(c))
+        return ReplaceSelectionOperation(row_direction ? _wt_row_ref(k) : _wt_col_ref(c))
     end
     evt.key in (:up, :down, :left, :right) || return nothing
     if c === nothing
@@ -1708,12 +1750,13 @@ function _read_selected_table_cell(st::WidgetTablePartsState, w::WidgetTable, ev
     selection = w.selection
     (selection isa ConcreteReference && selection.head isa FieldReferenceStep &&
      selection.head.name == "corner") && return _read_table_corner(st, event)
-    c = _find_header_in_selection(selection)
-    if c !== nothing
-        found = _find_table_header_cell(st, c)
+    header = _find_header_in_selection(selection)
+    if header !== nothing
+        field, k = header
+        found = field == "column_headers" ? _find_table_header_cell(st, k) : _find_table_row_header(st, k)
         found === nothing && return nothing
         return reroot_operation(read_intent(found[1].projection, found[1], event),
-                                (FieldReferenceStep("column_headers"), RangeReferenceStep(c - 1, c)))
+                                (FieldReferenceStep(field), RangeReferenceStep(k - 1, k)))
     end
     prefix = _wt_cell_prefix(w, selection)
     prefix === nothing && return nothing
@@ -1724,16 +1767,16 @@ function _read_selected_table_cell(st::WidgetTablePartsState, w::WidgetTable, ev
     reroot_operation(read_intent(cim.projection, cim, event), _wt_get_cell_steps(w, k, c))
 end
 
-# The column of the header that `selection` goes into, `column_headers[c]`
-# followed by a path inside the header, or `nothing`.
+# The header that `selection` goes into, `column_headers[c]` or `row_headers[k]`
+# followed by a path inside the header, as `(field, index)`, or `nothing`.
 function _find_header_in_selection(selection)
     selection = selection isa Reference ? strip_reference_types(selection) : selection
     (selection isa ConcreteReference && selection.head isa FieldReferenceStep &&
-     selection.head.name == "column_headers") || return nothing
+     selection.head.name in ("column_headers", "row_headers")) || return nothing
     tail = selection.tail
     (tail isa ConcreteReference && tail.head isa RangeReferenceStep && tail.tail isa ConcreteReference) ||
         return nothing
-    tail.head.stop
+    (selection.head.name, tail.head.stop)
 end
 
 # An event for the corner, in its coordinates, read by the corner and rooted

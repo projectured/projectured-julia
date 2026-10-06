@@ -263,12 +263,18 @@ end
     alt_op = read_intent(proj, io, MouseClick(:left, cx, div(geom.row_y[2], 2), ModifierKeys(alt = true); time = 0.0))
     @test string(alt_op.path) == ".column_headers[3]"
 
-    # Row header strip (grid column 1) over data row 2.
+    # Row header strip (grid column 1) over data row 2. The header is a string
+    # too, so a plain click puts the caret in it and an Alt+click selects the
+    # header itself, as in the header of a column; a header of labels selects
+    # its row (`test_widget_table_part_selection`).
     gr = 2 + geom.row_offset
     cy = div(geom.row_y[gr] + geom.row_y[gr+1], 2)
     row_op = read_intent(proj, io, MouseClick(:left, div(geom.col_x[2], 2), cy, ModifierKeys(); time = 0.0))
     @test row_op isa ReplaceSelectionOperation
-    @test string(row_op.path) == ".rows[2]"
+    steps = get_reference_steps(strip_reference_types(row_op.path))
+    @test steps[1:2] == [FieldReferenceStep("row_headers"), RangeReferenceStep(1, 2)] && length(steps) > 2
+    alt_row = read_intent(proj, io, MouseClick(:left, div(geom.col_x[2], 2), cy, ModifierKeys(alt = true); time = 0.0))
+    @test string(alt_row.path) == ".row_headers[2]"
 
     # Top-left corner (header intersection) selects the whole table.
     corner_op = read_intent(proj, io, MouseClick(:left, div(geom.col_x[2], 2), div(geom.row_y[2], 2), ModifierKeys(); time = 0.0))
