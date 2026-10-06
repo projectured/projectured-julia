@@ -71,6 +71,7 @@ include("../../../example/platform/PrimitiveDocumentExample.jl")
 include("../../../example/platform/AppearanceDocumentExample.jl")
 include("../../../example/platform/LazyDocumentExample.jl")
 include("../../../example/platform/PaneDocumentExample.jl")
+include("../../../example/platform/NavigatorDocumentExample.jl")
 include("../../../example/platform/RotatingVectorDocumentExample.jl")
 
 include("../../../example/platform/SyntaxProjectionExample.jl")

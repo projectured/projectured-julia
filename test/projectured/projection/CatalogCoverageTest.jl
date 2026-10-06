@@ -81,7 +81,7 @@ end
 # String[]` below — the way `_CATALOG_EDIT_BROKEN` records a failing one.
 const _NO_ATOM = Set{String}([
     "AboutPage", "AppearanceDocument", "Assistant", "CommandPalette", "ContextMenuWindowState",
-    "DataFrameView", "DragTrackingState", "EvaluatorForm",
+    "DataFrameView", "DataFrameViewRow", "DragTrackingState", "EvaluatorForm",
     "EvaluatorToplevel", "FaultLog", "FaultReport", "FileSystemChooser",
     "FrameStatistics", "FrameTimeSeries", "GestureLog", "GestureTrackingState", "JuliaToplevel",
     "McpLog", "MessageLog", "ObjectField", "PaneGroup", "PaneSplit", "PaneTree",

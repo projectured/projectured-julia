@@ -288,4 +288,8 @@ const platform_atomic_documents = AtomicDocument[
     AtomicDocument(:collection, "vector",    make_collection_document_example),
     AtomicDocument(:collection, "table",     make_cell_table_document_example),
     AtomicDocument(:collection, "list_node", make_list_node_document_example),
+    # A navigator, the copy of its address in the path view, and its list of choices.
+    AtomicDocument(:navigator, "navigator",   make_navigator_document_example),
+    AtomicDocument(:navigator, "address",     make_navigator_address_document_example),
+    AtomicDocument(:navigator, "choice_list", make_navigator_choice_list_document_example),
 ]
