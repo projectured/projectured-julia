@@ -10,11 +10,11 @@ import ProjecturedKernel.DeviceModule: Device, Keyboard, Mouse, Display
 _nav_natural() = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
 
 # An editor whose document is `document`, after its first frame.
-function _nav_editor(document; keywords...)
+function _nav_editor(document; tabs = false, keywords...)
     backend = HeadlessBackend()
     editor = build_editor(document, _nav_natural(); backend,
                           devices = Device[Keyboard(), Mouse(), Display()],
-                          window = false, tabs = false, appearance = false, settings = false,
+                          window = false, tabs, appearance = false, settings = false,
                           keywords...)
     run_frame!(editor)
     (editor, backend)
@@ -152,9 +152,10 @@ end
 """
     test_navigator()
 
-The navigator: its visits and its view.
+The navigator: its visits, its view, and the open of a page.
 """
 function test_navigator()
     test_navigator_visits()
     test_navigator_to_widget()
+    test_open_page_operation()
 end

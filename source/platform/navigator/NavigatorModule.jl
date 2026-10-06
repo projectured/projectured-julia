@@ -7,7 +7,9 @@ can be a document of any domain, the address of the page in it, and the visits
 before and after the current one. Back, Forward and Parent move between pages,
 and an open of a part makes it the page. `NavigatorToWidget` draws a bar of
 buttons and the address above the page, and the renderer draws the page with the
-row of its own type, so the navigator knows nothing of the domain of the page.
+row of its own type, so the navigator knows nothing of the domain of the page. A
+link answers `OpenPageOperation`: the nearest navigator around it opens the page,
+and an open that no navigator takes opens a tab with a navigator of its own.
 """
 module NavigatorModule
 
@@ -20,6 +22,7 @@ using ..IoMapModule
 using ..LayoutModule
 using ..NaturalModule
 using ..OperationModule
+using ..PaneModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
@@ -29,6 +32,7 @@ using ..WidgetModule
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title, get_edited_field
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..OperationModule: evaluate_operation
 
 export Navigator, NavigatorVisit
 export get_navigator_page_address, get_navigator_page, find_navigator_parent_address,
@@ -36,10 +40,12 @@ export get_navigator_page_address, get_navigator_page, find_navigator_parent_add
 export make_navigator_open_operation, make_navigator_back_operation,
        make_navigator_forward_operation, make_navigator_parent_operation
 export NavigatorToWidget, make_navigator_projection
+export OpenPageOperation
 
 include("NavigatorDocument.jl")
 include("NavigatorVisits.jl")
 include("NavigatorGestures.jl")
+include("OpenPageOperation.jl")
 include("NavigatorToWidget.jl")
 
 # The row that lets a tab draw a navigator. The factory form, so every renderer

@@ -79,6 +79,34 @@ function make_navigator_open_operation(navigator::Navigator, address::Reference;
 end
 
 """
+    make_navigator_open_operation(navigator, document, reference) -> Operation or nothing
+
+The operation that opens the node at `reference` from `document` as a new visit.
+When `document` is the content of `navigator`, or a document on the address of its
+page, the page is the path from the content. Otherwise `document` becomes the
+content of the new visit, and Back returns to the content before it. `nothing`
+when `reference` reaches no node, or when the node is the page that `navigator`
+shows.
+
+The navigator does not search its content for `document`: a search walks every
+value of the content, which can be a frame of ten million rows.
+"""
+function make_navigator_open_operation(navigator::Navigator, document, reference::Reference)
+    content = navigator.content
+    reference = strip_reference_types(reference)
+    page = get_reference_steps(get_navigator_page_address(navigator))
+    for last_step in length(page):-1:0
+        prefix = extend_reference(EmptyReference(), page[1:last_step]...)
+        evaluate_reference(content, prefix) === document &&
+            return make_navigator_open_operation(navigator, concat_references(prefix, reference))
+    end
+    try_evaluate_reference(document, reference, _NOT_REACHED) === _NOT_REACHED && return nothing
+    address = annotate_reference_types(document, reference)
+    _make_visit_operation(navigator, NavigatorVisit(document, address, address),
+                          vcat(navigator.back, _make_current_visit(navigator)), NavigatorVisit[])
+end
+
+"""
     make_navigator_back_operation(navigator) -> Operation or nothing
 
 The operation that returns to the newest visit of the back list, with the

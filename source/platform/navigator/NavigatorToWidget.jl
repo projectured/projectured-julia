@@ -102,18 +102,22 @@ end
 
 # ── Reader ────────────────────────────────────────────────────────────────────
 #
-# A press on a button of the bar answers `InvokeActionOperation`, which travels
-# up as it is; the reader makes it the operation of the button. Every other
-# answer, and a key that the page does not answer, goes to the generic bridge,
-# which maps a path back and reads the `@gestures` table of the navigator.
+# The generic bridge reads first: it maps a path of the page back, and it reads
+# the `@gestures` table of the navigator for a key that the page does not answer.
+# Then the reader takes two kinds of answer for itself:
+#
+# - a press on a button of the bar answers `InvokeActionOperation`, which travels
+#   up as it is, and becomes the operation of the button;
+# - an `OpenPageOperation` from the page becomes a visit, or, for a new tab, an
+#   open with the content of the navigator as its root, which goes on up.
 function read_intent(p::NavigatorToWidget, recursion, change::Intent, iomap::NavigatorToWidgetIoMap)
     answer = invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
     operation = answer.operation
     operation === nothing && return answer
-    Intent(answer.gesture, _translate_action(iomap, operation), answer.description, answer.domain)
+    Intent(answer.gesture, _translate_answer(iomap, operation), answer.description, answer.domain)
 end
 
-function _translate_action(iomap::NavigatorToWidgetIoMap, operation::InvokeActionOperation)
+function _translate_answer(iomap::NavigatorToWidgetIoMap, operation::InvokeActionOperation)
     navigator, actions = iomap.input, iomap.actions
     make = operation.action === actions.back ? make_navigator_back_operation :
            operation.action === actions.forward ? make_navigator_forward_operation :
@@ -121,11 +125,30 @@ function _translate_action(iomap::NavigatorToWidgetIoMap, operation::InvokeActio
     make === nothing && return operation
     something(make(navigator), DoNothingOperation())
 end
-_translate_action(iomap::NavigatorToWidgetIoMap, operation::CompoundOperation) =
-    CompoundOperation(Any[_translate_action(iomap, member) for member in operation.operations])
-_translate_action(iomap::NavigatorToWidgetIoMap, operation::WrappingOperation) =
-    rewrap_operation(operation, _translate_action(iomap, get_wrapped_operation(operation)))
-_translate_action(::NavigatorToWidgetIoMap, operation) = operation
+
+function _translate_answer(iomap::NavigatorToWidgetIoMap, operation::OpenPageOperation)
+    navigator = iomap.input
+    if operation.document === nothing
+        # The path of an open from the page starts at the field `content`; any
+        # other path names no part of the content, and the open goes on up.
+        reference = operation.reference
+        (reference isa ConcreteReference && get_reference_head(reference) == _CONTENT_STEP) ||
+            return operation
+        address = get_reference_tail(reference)
+        operation.place === :here ||
+            return OpenPageOperation(navigator.content, address, operation.place)
+        return something(make_navigator_open_operation(navigator, address), DoNothingOperation())
+    end
+    operation.place === :here || return operation
+    something(make_navigator_open_operation(navigator, operation.document, operation.reference),
+              DoNothingOperation())
+end
+
+_translate_answer(iomap::NavigatorToWidgetIoMap, operation::CompoundOperation) =
+    CompoundOperation(Any[_translate_answer(iomap, member) for member in operation.operations])
+_translate_answer(iomap::NavigatorToWidgetIoMap, operation::WrappingOperation) =
+    rewrap_operation(operation, _translate_answer(iomap, get_wrapped_operation(operation)))
+_translate_answer(::NavigatorToWidgetIoMap, operation) = operation
 
 # ── Maps ──────────────────────────────────────────────────────────────────────
 #
