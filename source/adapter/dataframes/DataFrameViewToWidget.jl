@@ -102,14 +102,14 @@ function print_document(p::DataFrameViewToWidget, recursion, view::DataFrameView
     visible = Cell(@computation (height === nothing || p.row_step <= 0) ? 1 :
                                 max(1, Int(height[]) ÷ p.row_step - 4))
     count = Cell(@computation length(view.kept_rows))
-    # Positional: orientation, value, thumb_size, position, size, visible,
-    # margin, border, padding, style, tooltip, selection.
+    # Positional: orientation, value, thumb_size, thumb_drag, position, size,
+    # visible, margin, border, padding, style, tooltip, selection.
     bar = WidgetScrollBar(Cell(:vertical),
                           Cell(@computation compute_scroll_bar_value(view.anchor + view.top_row - 1,
                                                                      count[], visible[])),
                           Cell(@computation count[] == 0 ? 1.0 : min(1.0, visible[] / count[])),
-                          Cell(nothing), Cell(nothing), Cell(true), Cell(nothing), Cell(nothing),
-                          Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+                          Cell(nothing), Cell(nothing), Cell(nothing), Cell(true), Cell(nothing),
+                          Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     # The expression bar over the table, and the table and the scroll bar under
     # it; the cell beside the expression bar is empty.
     expression = _make_expression_bar(p, view)

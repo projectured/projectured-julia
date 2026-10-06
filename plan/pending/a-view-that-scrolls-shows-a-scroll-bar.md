@@ -1,7 +1,8 @@
 # A view that scrolls shows a scroll bar
 
 > **Kind:** plan · **Status:** pending, 2026-10-06. The decisions of §2 are
-> made, and no question is open. No step has started. ·
+> made, and no question is open. Steps are in progress on the branch
+> `scroll-bars`. ·
 > **Stands on:** [widget.md](../../documentation/package/platform/widget/widget.md),
 > [layout-rules.md](../../documentation/rule/layout-rules.md),
 > [view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md),
@@ -113,9 +114,21 @@ computes the page from its own two fields, so no owner changes for it.
 
 **One page for each press.** A real press is a `MouseDown` and then a
 `MouseClick`. A script sends a `MouseClick` alone. Each must move one page,
-not two. The slider solves the same problem with the value at the press, in
-view state. The bar keeps its press in view state too. Step 1 decides the
-fields and records them here.
+not two. Step 1 decided it so: the page step happens on the `MouseClick`, and
+a `MouseDown` on the track answers nothing. So a real click and a scripted
+click each move one page, and the bar keeps no state of the press for it. The
+step comes at the release of the button, not at the press. A repeat while the
+button is held (§6) would move the step to the `MouseDown`.
+
+**The state of the drag.** The bar keeps one field of view state,
+`thumb_drag`: `(along, value)` at the press, or `nothing`, as a table keeps
+`column_drag`. Shift and a press on the track jump and start a drag from there,
+as GTK does.
+
+**The colors.** The projection of the bar has `track_color` (transparent),
+`track_hovered_color`, `thumb_color` and `thumb_hovered_color`, and
+`WidgetScrollBarStyle` has the same four fields. The bar is lit while its mouse
+target is set or its thumb is dragged.
 
 ### 4.2 Where a bar sits and when it shows
 
@@ -206,8 +219,10 @@ Each step is one commit with its test. Each step updates
 [widget.md](../../documentation/package/platform/widget/widget.md) for its
 part.
 
-- [ ] **1. The bar.** The gestures of §4.1. Tests:
-  [WidgetScrollBarTest.jl](../../test/platform/projection/WidgetScrollBarTest.jl).
+- [x] **1. The bar.** The gestures of §4.1. Tests:
+  [WidgetScrollBarTest.jl](../../test/platform/projection/WidgetScrollBarTest.jl)
+  42 pass; `test_data_frame_view()` 52 pass, with its bar case changed to
+  Shift and a click, and a page.
 - [ ] **2. The pane makes its bars.** The fields of §4.3 with `:auto` and
   `nothing`, the
   overlay of §4.2, the order for the pointer, the write to `scroll_position`,

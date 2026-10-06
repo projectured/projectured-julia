@@ -281,14 +281,14 @@ function _make_frame_scroll_bar(p::FrameStatisticsToWidget, statistics::FrameSta
     visible = Cell(@computation (height === nothing || p.row_step <= 0) ? 1 :
                                 max(1, Int(height[]) ÷ p.row_step - (length(statistics.rows) + 5)))
     count = Cell(@computation length(statistics.frames))
-    # Positional: orientation, value, thumb_size, position, size, visible,
-    # margin, border, padding, style, tooltip, selection.
+    # Positional: orientation, value, thumb_size, thumb_drag, position, size,
+    # visible, margin, border, padding, style, tooltip, selection.
     WidgetScrollBar(Cell(:vertical),
                     Cell(@computation compute_scroll_bar_value(
                         _get_head_place(statistics) + statistics.top_row - 1, count[], visible[])),
                     Cell(@computation count[] == 0 ? 1.0 : min(1.0, visible[] / count[])),
-                    Cell(nothing), Cell(nothing), Cell(true), Cell(nothing), Cell(nothing),
-                    Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+                    Cell(nothing), Cell(nothing), Cell(nothing), Cell(true), Cell(nothing),
+                    Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
 end
 
 # A jump of the table of the frames to the row `row`, counted from the newest

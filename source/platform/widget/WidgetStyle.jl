@@ -121,10 +121,12 @@ its tabs, and the page area below the strip.
 end
 
 """
-    WidgetScrollBarStyle(; <the fields of WidgetStyle>, track_color, thumb_color)
+    WidgetScrollBarStyle(; <the fields of WidgetStyle>, track_color, track_hovered_color,
+                         thumb_color, thumb_hovered_color)
 
 The style of a `WidgetScrollBar`: the fields of `WidgetStyle`, the rail
-(`track_color`) and the thumb (`thumb_color`).
+(`track_color`) and the thumb (`thumb_color`), each at rest and while the
+pointer is on the bar or its thumb is dragged.
 """
 @document struct WidgetScrollBarStyle <: WidgetDocument
     margin_color::Any = nothing
@@ -133,7 +135,9 @@ The style of a `WidgetScrollBar`: the fields of `WidgetStyle`, the rail
     content_color::Any = nothing
     label_text_color::Any = nothing
     track_color::Any = nothing
+    track_hovered_color::Any = nothing
     thumb_color::Any = nothing
+    thumb_hovered_color::Any = nothing
 end
 
 """

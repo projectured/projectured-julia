@@ -1460,14 +1460,26 @@ set_cell_computation!(w::WidgetTransformPane, f::Function) = (set_cell_computati
 """
     WidgetScrollBar(orientation; value, thumb_size, position, size, <base kwargs>)
 
-A scroll bar.  `orientation` is `:horizontal` or `:vertical`.
-`value` ∈ [0,1] is the current scroll position; `thumb_size` ∈ [0,1] is
-the visible-fraction represented by the thumb.
+A scroll bar. `orientation` is `:horizontal` or `:vertical`. `value`, from 0
+to 1, is the place of the view in the content, and `thumb_size`, from 0 to 1,
+is the part of the content that the view shows.
+
+A press on the track moves the value one page toward the pointer, and
+Shift and a press put the middle of the thumb under the pointer. A press on the
+thumb starts a drag that keeps the point where the pointer took the thumb;
+Escape during the drag puts back the value of the press. One page is
+`thumb_size / (1 - thumb_size)` in units of the value.
+
+A `WidgetScrollPane`, a `WidgetList`, a `WidgetTree` and a `WidgetTable` draw
+their own bars. Give one of them a bar of your own when only you know where the
+view is, as the owner of a list that the widget walks from its head: set its
+`value` and `thumb_size`, and turn a write of its `value` into a scroll.
 """
 @document struct WidgetScrollBar <: WidgetDocument
     orientation::Symbol
     value::Float64
     thumb_size::Float64
+    thumb_drag::Any      # view state: the drag of the thumb that is on, `(along, value)` at the press, or nothing
     position::Point2D
     size::Point2D
     visible::Bool
@@ -1486,7 +1498,7 @@ function WidgetScrollBar(orientation::Symbol;
                          visible::Bool=true,
                          margin=nothing, border=nothing, padding=nothing,
                          style=nothing, tooltip=nothing)
-    WidgetScrollBar(Cell(orientation), Cell(value), Cell(thumb_size),
+    WidgetScrollBar(Cell(orientation), Cell(value), Cell(thumb_size), Cell(nothing),
                     Cell(position), Cell(size),
                     Cell(visible), Cell(margin), Cell(border), Cell(padding),
                     Cell(style), Cell(tooltip), Cell(nothing))

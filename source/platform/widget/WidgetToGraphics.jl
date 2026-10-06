@@ -869,23 +869,29 @@ WidgetToolbarToGraphicsCanvas(theme; measure,
     border_color::StyleColor
     padding_color::StyleColor
     content_color::StyleColor
-    track_color::StyleColor       # rail fill
-    thumb_color::StyleColor       # thumb fill
+    track_color::StyleColor           # rail fill at rest
+    track_hovered_color::StyleColor   # rail fill while the pointer is on the bar or the thumb is dragged
+    thumb_color::StyleColor           # thumb fill at rest
+    thumb_hovered_color::StyleColor   # thumb fill while the pointer is on the bar or the thumb is dragged
     minimum_thumb_length::Int
-    thickness::Int                # across the bar, where nothing sizes it
+    thickness::Int                    # across the bar, where nothing sizes it
 end
 
+# A bar lies over the content that it scrolls, so its rail is transparent at
+# rest and only the thumb covers the content.
 WidgetScrollBarToGraphicsCanvas(theme;
                                 margin = inset_default, border = inset_default, padding = inset_default,
                                 margin_color = color_transparent, border_color = color_transparent,
                                 padding_color = color_transparent, content_color = color_transparent,
-                                track_color = _themed(StyleColor, theme, t -> t.muted),
+                                track_color = color_transparent,
+                                track_hovered_color = _themed(StyleColor, theme, t -> t.muted),
                                 thumb_color = _themed(StyleColor, theme, t -> t.border),
+                                thumb_hovered_color = _themed(StyleColor, theme, t -> t.input),
                                 minimum_thumb_length = _themed(Int, theme, t -> t.scroll_thumb_minimum),
                                 thickness = _themed(Int, theme, t -> t.scroll_bar_thickness)) =
     WidgetScrollBarToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
-                                    content_color, track_color, thumb_color, minimum_thumb_length,
-                                    thickness)
+                                    content_color, track_color, track_hovered_color, thumb_color,
+                                    thumb_hovered_color, minimum_thumb_length, thickness)
 
 # ── IoMap for WidgetScrollPane ─────────────────────────────────────────────
 
@@ -6152,7 +6158,9 @@ end
 
 # A scroll bar is as long as its parent offers and as thick as its theme says,
 # unless it authors a size. Its track and its thumb read the value in cells, so
-# a scroll moves the thumb and prints nothing again.
+# a scroll moves the thumb and prints nothing again. Both light while the pointer
+# is on the bar or its thumb is dragged, and the pointer is an arrow over the
+# bar, also over a text under it.
 function print_document(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScrollBar, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     pos = w.position
@@ -6167,10 +6175,11 @@ function print_document(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScrollBa
     height = Cell(@computation Int32(_get_scroll_bar_extent(sz isa Point2D ? Int(sz.y[]) : 0,
                                                             offered_h, !horizontal, p.thickness)))
     parts = Cell(@computation _get_scroll_bar_thumb(p, w, Int(width[]), Int(height[])))
-    track_color = _get_part_color(w, :track_color, p.track_color)
-    thumb_color = _get_part_color(w, :thumb_color, p.thumb_color)
-    function make_rect(part::Int, color)
-        rect = GraphicsRect(0, 0, 0, 0; color)
+    lit = Cell(@computation _is_under_pointer(w) || w.thumb_drag !== nothing)
+    colors = ((_get_state_color(p, w, :track), _get_state_color(p, w, :track; state = :hovered)),
+              (_get_state_color(p, w, :thumb), _get_state_color(p, w, :thumb; state = :hovered)))
+    function make_rect(part::Int)
+        rect = GraphicsRect(0, 0, 0, 0; color = color_transparent)
         for (k, field) in enumerate((:x, :y, :w, :h))
             set_cell_computation!(getfield(rect, field), () -> Int32(parts[][part][k]))
         end
@@ -6178,6 +6187,8 @@ function print_document(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScrollBa
             set_cell_computation!(getfield(rect, corner),
                                   () -> Int32(min(parts[][part][3], parts[][part][4]) ÷ 2))
         end
+        rest, hovered = colors[part]
+        set_cell_computation!(getfield(rect, :color), () -> lit[] ? hovered : rest)
         rect
     end
     elems = Any[]
@@ -6185,8 +6196,9 @@ function print_document(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScrollBa
     _push_following_box_bands!(elems, _get_box_insets(p, w), _get_box_colors(p, w),
                                Cell(@computation Int32(max(1, Int(width[]) - tx))),
                                Cell(@computation Int32(max(1, Int(height[]) - ty))))
-    push!(elems, make_rect(1, track_color))
-    push!(elems, make_rect(2, thumb_color))
+    push!(elems, make_rect(1))
+    push!(elems, make_rect(2))
+    push!(elems, GraphicsPointerShape(0, 0, width, height, :arrow))
     SimpleIoMap(p, w, GraphicsCanvas(Cell(Int32(px)), Cell(Int32(py)), width, height,
                                      CellVector(Cell[Cell(e) for e in elems]),
                                      layout_none, true, Cell(nothing)))
@@ -6198,25 +6210,98 @@ function map_reference_backward(::WidgetScrollBarToGraphicsCanvas, iomap, refere
     return nothing
 end
 
-# A press, a button down, or a move with the left button held puts the middle
-# of the thumb under the pointer, and writes the value there.
-function read_intent(p::WidgetScrollBarToGraphicsCanvas, iomap::SimpleIoMap, evt)
-    _outside_widget(iomap, evt) && return nothing
-    (evt isa MouseClick || evt isa MouseDown ||
-     (evt isa MouseMove && evt.buttons.left)) || return nothing
+# The place of the point `(x, y)` along a bar, and the track and the thumb of the
+# bar, each `(start, length)` along it, in the frame of the bar.
+function _find_scroll_bar_place(p::WidgetScrollBarToGraphicsCanvas, iomap::SimpleIoMap, x::Int, y::Int)
     w = iomap.input
-    w isa WidgetScrollBar || return nothing
     canvas = iomap.output
     track, thumb = _get_scroll_bar_thumb(p, w, Int(canvas.w), Int(canvas.h))
-    new_value = if w.orientation === :horizontal
-        clamp(Float64(evt.x - Int(canvas.x) - track[1] - thumb[3] ÷ 2) / max(1, track[3] - thumb[3]),
-              0.0, 1.0)
-    else
-        clamp(Float64(evt.y - Int(canvas.y) - track[2] - thumb[4] ÷ 2) / max(1, track[4] - thumb[4]),
-              0.0, 1.0)
+    w.orientation === :horizontal ?
+        (x - Int(canvas.x), (track[1], track[3]), (thumb[1], thumb[3])) :
+        (y - Int(canvas.y), (track[2], track[4]), (thumb[2], thumb[4]))
+end
+
+# The value that puts the middle of the thumb at `along`.
+_compute_scroll_bar_jump(along::Int, track, thumb) =
+    clamp(Float64(along - track[1] - thumb[2] ÷ 2) / max(1, track[2] - thumb[2]), 0.0, 1.0)
+
+# The value one page from `value` toward `along`: one page is the part of the
+# content that the view shows, `thumb_size / (1 - thumb_size)` in units of the
+# value. A thumb that fills the track moves nothing.
+function _compute_scroll_bar_page(w::WidgetScrollBar, along::Int, thumb)
+    value = clamp(Float64(w.value), 0.0, 1.0)
+    share = clamp(Float64(w.thumb_size), 0.0, 1.0)
+    share >= 1.0 && return value
+    direction = along < thumb[1] ? -1 : 1
+    clamp(value + direction * share / (1.0 - share), 0.0, 1.0)
+end
+
+# A write of the value, or `nothing` when the bar already has it.
+_write_scroll_bar_value(w::WidgetScrollBar, value::Float64) =
+    value == Float64(w.value) ? nothing : ReplaceReferencedValueOperation(w, "value", value)
+
+# The start of a drag of the thumb at `along`, from the value `value`: the place
+# and the value of the press are kept, so each move adds its distance to the
+# value of the press and the thumb keeps the point where the pointer took it.
+function _start_scroll_bar_drag(w::WidgetScrollBar, along::Int, value::Float64)
+    operations = Any[_write_view_state(w, "thumb_drag", (along = along, value = value)),
+                     StartDragOperation(EmptyReference(), nothing),
+                     make_screen_pointer_shape_operation(:arrow)]
+    jump = _write_scroll_bar_value(w, value)
+    jump === nothing || pushfirst!(operations, jump)
+    CompoundOperation(operations)
+end
+
+# The end of a drag of the thumb: the thumb is no longer held, and the pointer
+# takes the shape of the part under it again.
+function _end_scroll_bar_drag(w::WidgetScrollBar)
+    w.thumb_drag === nothing && return nothing
+    CompoundOperation(Any[_write_view_state(w, "thumb_drag", nothing),
+                          make_screen_pointer_shape_operation(nothing)])
+end
+
+# A press on the thumb takes it, and Shift and a press on the track put the
+# middle of the thumb under the pointer and take it there. A click on the track
+# moves one page toward the pointer: a real click and the click that a script
+# sends are one `MouseClick` each, so each moves one page. The drag comes by the
+# path of the bar, wherever the pointer is.
+function read_intent(p::WidgetScrollBarToGraphicsCanvas, iomap::SimpleIoMap, evt)
+    w = iomap.input
+    w isa WidgetScrollBar || return nothing
+    @gesture_case evt begin
+        MouseDown(button, x, y) => begin
+            (button === :left && !_outside_widget(iomap, evt)) || return nothing
+            along, track, thumb = _find_scroll_bar_place(p, iomap, x, y)
+            on_thumb = thumb[1] <= along < thumb[1] + thumb[2]
+            on_thumb && return _start_scroll_bar_drag(w, along, clamp(Float64(w.value), 0.0, 1.0))
+            evt.modifiers.shift || return nothing
+            _start_scroll_bar_drag(w, along, _compute_scroll_bar_jump(along, track, thumb))
+        end
+        MouseClick(button, x, y) => begin
+            (button === :left && !_outside_widget(iomap, evt)) || return nothing
+            along, track, thumb = _find_scroll_bar_place(p, iomap, x, y)
+            evt.modifiers.shift &&
+                return _write_scroll_bar_value(w, _compute_scroll_bar_jump(along, track, thumb))
+            thumb[1] <= along < thumb[1] + thumb[2] && return nothing
+            _write_scroll_bar_value(w, _compute_scroll_bar_page(w, along, thumb))
+        end
+        DragMove(x, y) => begin
+            drag = w.thumb_drag
+            drag === nothing && return nothing
+            along, track, thumb = _find_scroll_bar_place(p, iomap, x, y)
+            value = drag.value + (along - drag.along) / max(1, track[2] - thumb[2])
+            _write_scroll_bar_value(w, clamp(value, 0.0, 1.0))
+        end
+        DragEnd => _end_scroll_bar_drag(w)
+        DragCancel => begin
+            drag = w.thumb_drag
+            ending = _end_scroll_bar_drag(w)
+            ending === nothing && return nothing
+            back = _write_scroll_bar_value(w, Float64(drag.value))
+            back === nothing ? ending : CompoundOperation(Any[ending.operations..., back])
+        end
+        _ => nothing
     end
-    new_value == Float64(w.value) && return nothing
-    ReplaceReferencedValueOperation(w, "value", new_value)
 end
 
 # ════════════════════════════════════════════════════════════════════════════
