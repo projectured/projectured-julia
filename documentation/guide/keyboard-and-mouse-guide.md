@@ -67,6 +67,22 @@ The clipboard holds a part of the data, not text, so a paste puts a structure ba
 | Ctrl + Tab, Ctrl + Shift + Tab | the next or the previous group of tabs |
 | F2 | put the caret in the name of the tab, Escape leaves it; while a tooltip or a menu is open, F2 goes to it |
 
+## Pages of a navigator
+
+A navigator shows one part of a document at a time, its page, with Back,
+Forward and Parent buttons and the address above it
+([navigator.md](../package/platform/navigator/navigator.md)). A key that the
+page uses itself goes to the page first.
+
+| Key | What it does |
+| --- | --- |
+| Ctrl + Return | open the selected part as a page |
+| Ctrl + [ | go back to the page before |
+| Ctrl + ] | go forward to the next page |
+| Ctrl + Up | go to the page that holds this page |
+| click on a name in the address | open that page |
+| right click on a part of a page | **Open as a page** or **Open in a new tab** |
+
 ## Files
 
 | Key | What it does |

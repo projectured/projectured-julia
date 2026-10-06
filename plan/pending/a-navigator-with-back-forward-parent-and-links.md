@@ -454,6 +454,11 @@ new tab".
   [keyboard-and-mouse-guide.md](../../documentation/guide/keyboard-and-mouse-guide.md),
   and the example in
   [examples-tour.md](../../documentation/guide/examples-tour.md).
+  - [x] The design document
+    [navigator.md](../../documentation/package/platform/navigator/navigator.md),
+    its row in the package index, and the keys in the keyboard guide, for steps
+    1 to 4 (2026-10-06). Each later step updates the document.
+  - [ ] The example in the examples tour, after step 5.
 
 ## 8. Decisions for the owner
 

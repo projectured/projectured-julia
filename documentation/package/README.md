@@ -56,6 +56,7 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | `display` | [display.md](platform/display/display.md) | a value shown in an editor beside the REPL |
 | `essentials` | [essentials.md](platform/essentials/essentials.md) | the few names of the kernel and the platform that most users call, which the umbrella, each integration and each backend re-export |
 | `undo` | [undo.md](platform/undo/undo.md) | the undo buffer and its history |
+| `navigator` | [navigator.md](platform/navigator/navigator.md) | one page of a document at a time, with Back, Forward, Parent, an address and links |
 | `log` | [log.md](platform/log/log.md) | the message log of the session |
 | `mcplog` | [mcplog.md](platform/mcplog/mcplog.md) | the calls of the session that a client made over MCP |
 | `task` | [task.md](platform/task/task.md) | a piece of work that runs as a task and ends with a result, in the words of `opp_repl`: its execution, a group of tasks, their documents and panes, the verbs, and how a domain adds a kind |
