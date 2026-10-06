@@ -15,7 +15,11 @@ zones, and a `WidgetTable` of the cross table.
 
 The bar has a row for each zone, in the order Fields, Columns, Rows, Cells and
 Values: the name of the zone, and a badge for each dimension or measure in it.
-An empty Values row shows the count, which is what a cell computes then.
+An empty Values row shows the count, which is what a cell computes then. The
+badge of the selected item is filled and the others are muted. A press on a
+badge selects its item, and a drag of a badge moves the item: an outlined badge
+shows where the drop puts it. The keys of the gesture table of the pivot move
+the selected item.
 
 The table has a column for each column key and a row for each row key. A header
 of a column holds one label for each column dimension, and a header of a row one
@@ -25,7 +29,8 @@ dimension, the one column is headed by the names of the measures; with no row
 dimension, the one row is headed `all`. Each row is `row_height` tall.
 
 A path of the pivot maps to the table and back: `cells[r][c]…` is the cell in
-row `r` and column `c`, and `cells[r]` the row. A part of the table that the
+row `r` and column `c`, and `cells[r]` the row. `<zone>[i]` is the badge of
+item `i` of a zone, and `<zone>` its row of the bar. A part of the table that the
 pivot does not name, such as a run of headers, maps back as a part that the
 projection introduced, and its selection shows in the table.
 """
@@ -46,10 +51,11 @@ end
 # width, and the width of its headers at least.
 const _PIVOT_COLUMN_POLICY = SizePolicy(nothing, nothing, nothing, 1.0)
 
-# The zones of the bar, in its order: the name that the bar shows, and the field
-# of the pivot.
-const _PIVOT_ZONES = (("Fields", "unused_dimensions"), ("Columns", "column_dimensions"),
-                      ("Rows", "row_dimensions"), ("Cells", "cell_dimensions"), ("Values", "measures"))
+# The name that the bar shows for each zone, in the order of `_PIVOT_ZONE_FIELDS`.
+const _PIVOT_ZONE_NAMES = ("Fields", "Columns", "Rows", "Cells", "Values")
+
+# How far a held press moves before it starts the drag of a badge, in pixels.
+const _PIVOT_DRAG_THRESHOLD = 5
 
 function print_document(p::PivotTableToWidget, recursion, pivot::PivotTable, ctx)
     bar = _make_pivot_bar(p, pivot)
@@ -57,6 +63,8 @@ function print_document(p::PivotTableToWidget, recursion, pivot::PivotTable, ctx
     grid = GridLayout(Any[bar, table], 1; vertical_gap = p.zone_gap, column_policies = Any[Fill],
                       row_policies = Any[Content, Fill])
     set_cell_computation!(getfield(grid, :selection), () -> begin
+        bar_path = _find_pivot_bar_path(pivot, pivot.selection)
+        bar_path === nothing || return _make_pivot_grid_reference(1, bar_path)
         selection = table.selection
         selection === nothing ? nothing : _make_pivot_grid_reference(2, selection)
     end)
@@ -67,24 +75,59 @@ print_document(p::PivotTableToWidget, pivot::PivotTable) = print_document(p, not
 
 # ── The bar ──────────────────────────────────────────────────────────────────
 
-# The bar: a grid of the name of each zone and the badges of what it holds.
+# The bar: a composite whose one element is a grid of the name of each zone and
+# the badges of what it holds. A change of a zone or of the drag builds a new
+# grid, and the composite prints it again, because it keeps a child by its
+# identity; a layout prints its children once. The selection does not build the
+# grid again: each badge reads it.
 function _make_pivot_bar(p::PivotTableToWidget, pivot::PivotTable)
-    children = CellVector(@computation begin
-        out = Any[]
-        for (name, field) in _PIVOT_ZONES
-            push!(out, WidgetLabel(name))
-            push!(out, _make_pivot_zone_row(p, pivot, field))
-        end
-        out
-    end)
-    GridLayout(children, Cell(2), Cell(:left), Cell(:top), Cell(p.zone_gap), Cell(p.chip_gap), Cell(Symbol[]),
-               Cell(Content), Cell(Content), Cell(Any[]), Cell(Any[]), Cell(Bool[]), Cell(Bool[]), Cell(nothing))
+    elements = CellVector(@computation Any[_make_pivot_bar_grid(p, pivot)])
+    WidgetComposite(Cell(Point2D(0, 0)), elements, Cell(nothing), Cell(nothing), Cell(true), Cell(nothing),
+                    Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+end
+
+function _make_pivot_bar_grid(p::PivotTableToWidget, pivot::PivotTable)
+    children = Any[]
+    for (name, field) in zip(_PIVOT_ZONE_NAMES, _PIVOT_ZONE_FIELDS)
+        push!(children, WidgetLabel(name))
+        push!(children, _make_pivot_zone_row(p, pivot, field))
+    end
+    GridLayout(children, 2; horizontal_gap = p.zone_gap, vertical_gap = p.chip_gap)
+end
+
+# What the row of the zone `field` shows, badge by badge: the place of an item,
+# `(:drop, place)` for the outlined badge where a drop of the dragged item puts
+# it, and `:count` for the outlined badge of an empty Values row.
+function _get_pivot_zone_entries(pivot::PivotTable, field::String)
+    entries = Any[index for index in 1:length(_get_pivot_zone(pivot, field))]
+    drag = pivot.drag
+    if drag !== nothing && drag.started && drag.target !== nothing && drag.target[1] == field
+        place = clamp(drag.target[2], 1, length(entries) + 1)
+        insert!(entries, place, (:drop, drag.target[2]))
+    end
+    (isempty(entries) && field == "measures") && push!(entries, :count)
+    entries
 end
 
 # The badges of the zone in the field `field` of `pivot`.
 function _make_pivot_zone_row(p::PivotTableToWidget, pivot::PivotTable, field::String)
-    chips = Any[WidgetBadge(_describe_pivot_zone_item(item)) for item in getproperty(pivot, Symbol(field))]
-    (isempty(chips) && field == "measures") && push!(chips, WidgetBadge("count"; variant = :outline))
+    zone = _get_pivot_zone(pivot, field)
+    chips = Any[]
+    for entry in _get_pivot_zone_entries(pivot, field)
+        if entry isa Int
+            badge = WidgetBadge(_describe_pivot_zone_item(zone[entry]); variant = :secondary)
+            set_cell_computation!(getfield(badge, :variant),
+                                  () -> _find_pivot_zone_item(pivot.selection) == (field, entry) ? :default :
+                                                                                                  :secondary)
+            push!(chips, badge)
+        elseif entry === :count
+            push!(chips, WidgetBadge("count"; variant = :outline))
+        else
+            from, index = pivot.drag.source
+            push!(chips, WidgetBadge(_describe_pivot_zone_item(_get_pivot_zone(pivot, from)[index]);
+                                     variant = :outline))
+        end
+    end
     HorizontalLayout(chips; gap = p.chip_gap)
 end
 
@@ -218,8 +261,66 @@ function _find_pivot_path(path)
     nothing
 end
 
+# The path in the bar of `path`, a path of the pivot: `<zone>[i]…` is the badge
+# of the item, and `<zone>` the row of the zone. `nothing` for any other path.
+function _find_pivot_bar_path(pivot::PivotTable, path)
+    path isa Reference || return nothing
+    zone = _find_pivot_zone(path)
+    zone === nothing || return _make_pivot_bar_row_reference(zone, EmptyReference())
+    found = _find_pivot_zone_item(path)
+    found === nothing && return nothing
+    field, index = found
+    k = findfirst(==(index), _get_pivot_zone_entries(pivot, field))
+    k === nothing && return nothing
+    rest = strip_reference_types(path).tail.tail
+    _make_pivot_bar_row_reference(field, ConcreteReference(FieldReferenceStep("children"),
+                                                           ConcreteReference(RangeReferenceStep(k - 1, k), rest)))
+end
+
+# The path in the bar of the row of the zone `field`, followed by `tail`. The grid
+# of the bar is the one element of the composite, and it holds the name and the
+# row of each zone in turn.
+function _make_pivot_bar_row_reference(field::String, tail)
+    k = 2 * _get_pivot_zone_number(field)
+    ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(RangeReferenceStep(0, 1),
+        ConcreteReference(FieldReferenceStep("children"), ConcreteReference(RangeReferenceStep(k - 1, k), tail))))
+end
+
+# The path of the pivot of `path`, a path in the bar: a badge of an item names
+# the item, the outlined badge of a drop the place where the drop puts the item,
+# and any other part of the row of a zone, or its name, the zone.
+function _find_pivot_path_in_bar(pivot::PivotTable, path)
+    path = strip_reference_types(path)
+    (path isa ConcreteReference && path.head isa FieldReferenceStep && path.head.name == "elements") ||
+        return nothing
+    grid = path.tail
+    (grid isa ConcreteReference && grid.head isa RangeReferenceStep && grid.head.stop == 1) || return nothing
+    path = grid.tail
+    (path isa ConcreteReference && path.head isa FieldReferenceStep && path.head.name == "children") ||
+        return nothing
+    child = path.tail
+    (child isa ConcreteReference && child.head isa RangeReferenceStep) || return nothing
+    number = cld(child.head.stop, 2)
+    1 <= number <= length(_PIVOT_ZONE_FIELDS) || return nothing
+    field = _PIVOT_ZONE_FIELDS[number]
+    row = child.tail
+    (iseven(child.head.stop) && row isa ConcreteReference && row.head isa FieldReferenceStep &&
+     row.head.name == "children") || return _make_pivot_zone_path(field)
+    badge = row.tail
+    (badge isa ConcreteReference && badge.head isa RangeReferenceStep) || return _make_pivot_zone_path(field)
+    entries = _get_pivot_zone_entries(pivot, field)
+    k = badge.head.stop
+    1 <= k <= length(entries) || return _make_pivot_zone_path(field)
+    entry = entries[k]
+    entry isa Int && return _make_pivot_zone_item_path(field, entry)
+    entry isa Tuple && return _make_pivot_zone_item_path(field, entry[2])
+    _make_pivot_zone_path(field)
+end
+
 function map_reference_forward(p::PivotTableToWidget, iomap::PivotTableToWidgetIoMap, reference)
     reference isa Reference || return nothing
+    bar_path = _find_pivot_bar_path(iomap.input, reference)
+    bar_path === nothing || return _make_pivot_grid_reference(1, bar_path)
     path = _find_pivot_table_path(p, reference)
     path === nothing && return nothing
     path isa EmptyReference && return EmptyReference()
@@ -227,10 +328,80 @@ function map_reference_forward(p::PivotTableToWidget, iomap::PivotTableToWidgetI
 end
 
 function map_reference_backward(p::PivotTableToWidget, iomap::PivotTableToWidgetIoMap, reference)
+    bar = reference isa Reference ? _find_pivot_grid_child_path(reference, 1) : nothing
+    bar_path = bar === nothing ? nothing : _find_pivot_path_in_bar(iomap.input, bar)
+    bar_path === nothing || return annotate_reference_types(iomap.input, bar_path)
     inner = reference isa Reference ? _find_pivot_grid_child_path(reference, 2) : nothing
     target = inner === nothing ? nothing : _find_pivot_path(inner)
     target === nothing || return annotate_reference_types(iomap.input, target)
     invoke(map_reference_backward, Tuple{Projection,Any,Any}, p, iomap, reference)
+end
+
+# ── The reader ───────────────────────────────────────────────────────────────
+
+# The press, the drag and the drop of a badge of the bar. The pivot knows the
+# part under the pointer by its mouse target, which the moves keep up to date, so
+# the reader reads no point. A press on a badge selects its item and keeps the
+# press. A held move past the threshold starts the drag, and the drag tracker
+# sends the pivot `DragMove`, `DragEnd` and `DragCancel` by its path. A move
+# writes the place where a drop puts the item, which the bar shows; the release
+# makes the edit of the drop, and a cancel drops nothing.
+function read_intent(p::PivotTableToWidget, recursion, change::Intent, iomap::PivotTableToWidgetIoMap)
+    pivot = iomap.input
+    gesture = change.gesture
+    drag = pivot.drag
+    if drag !== nothing && gesture isa Union{DragMove,DragEnd,DragCancel}
+        gesture isa DragCancel && return Intent(gesture, _write_pivot_drag(pivot, nothing))
+        target = _find_pivot_drop_target(pivot, get_mouse_target(pivot), drag.target)
+        gesture isa DragMove &&
+            return Intent(gesture, target == drag.target ? nothing :
+                                       _write_pivot_drag(pivot, merge(drag, (target = target,))))
+        return Intent(gesture, _join_pivot_operations(_make_pivot_drop_operation(pivot, drag.source, target),
+                                                      _write_pivot_drag(pivot, nothing)))
+    end
+    if gesture isa MouseDown && gesture.button === :left && !gesture.modifiers.alt && drag === nothing
+        source = _find_pivot_zone_item(get_mouse_target(pivot))
+        source === nothing ||
+            return Intent(gesture, _join_pivot_operations(
+                _write_pivot_drag(pivot, (source = source, x = gesture.x, y = gesture.y, started = false,
+                                          target = nothing)),
+                ReplaceSelectionOperation(_make_pivot_zone_item_path(source...))))
+    end
+    (drag !== nothing && !drag.started && gesture isa MouseUp) &&
+        return Intent(gesture, _write_pivot_drag(pivot, nothing))
+    answer = invoke(read_intent, Tuple{Projection,Any,Intent,Any}, p, recursion, change, iomap)
+    if drag !== nothing && !drag.started && gesture isa MouseMove && !is_move_without_button(gesture) &&
+       hypot(gesture.x - drag.x, gesture.y - drag.y) >= _PIVOT_DRAG_THRESHOLD
+        start = _join_pivot_operations(_write_pivot_drag(pivot, merge(drag, (started = true,))),
+                                       StartDragOperation(EmptyReference(), _make_pivot_zone_item_path(drag.source...)))
+        return Intent(gesture, _join_pivot_operations(start, answer isa Intent ? answer.operation : answer))
+    end
+    answer
+end
+
+# A key that the table and the bar do not take: the gestures of the pivot answer it.
+read_intent(::PivotTableToWidget, iomap::PivotTableToWidgetIoMap, event::KeyDown) =
+    read_gesture(iomap.input, event)
+
+# Where a drop of the dragged item lands with the pointer on `target`, the mouse
+# target of the pivot: before the item that it names, at the end of the zone that
+# it names, or where the drop landed before, `before`, when it names neither.
+function _find_pivot_drop_target(pivot::PivotTable, target, before)
+    item = _find_pivot_zone_item(target)
+    item === nothing || return item
+    zone = _find_pivot_zone(target)
+    zone === nothing && return before
+    (zone, length(_get_pivot_zone(pivot, zone)) + 1)
+end
+
+# A write of the state of the drag, which a history does not record.
+_write_pivot_drag(pivot::PivotTable, drag) =
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(pivot, "drag", drag))
+
+# The operations in order, without the ones that are `nothing`, as one operation.
+function _join_pivot_operations(operations...)
+    kept = Any[operation for operation in operations if operation !== nothing]
+    isempty(kept) ? nothing : length(kept) == 1 ? kept[1] : CompoundOperation(kept)
 end
 
 """

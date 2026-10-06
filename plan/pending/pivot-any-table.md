@@ -541,10 +541,31 @@ and chips that move. Stages 6 and 7 complete the design of the request.
     `test_catalog_coverage()` lists no pivot type (it fails on main for four
     other types); `test_natural_renders_every_atom()` and
     `test_natural_round_trips_every_atom()` pass.
-- [ ] **5. The bar of chips.** A chip widget that a person can select, with a
+- [x] **5. The bar of chips.** A chip widget that a person can select, with a
   menu. The rows Fields, Columns, Rows, Cells and Values. First the keys of §5
   and undo, then the drag with `MoveRangeOperation` and a drop mark. The test:
-  the keys and a drag in a real editor.
+  the keys and a drag in a real editor. **Done 2026-10-06, without the
+  menu**, which moves to stage 8 with the value filter, because both are menus of
+  a chip.
+  - The chip is a `WidgetBadge`, with no new widget type: muted (`:secondary`)
+    at rest and filled (`:default`) when selected, and outlined (`:outline`)
+    for the place of a drop and for the count of an empty Values row.
+  - The bar is a `WidgetComposite` that holds one grid. A layout prints its
+    children once, so a grid whose children were a computed `CellVector` did
+    not draw a new zone row; a composite keeps a child by its identity and
+    prints a new grid again. The selection builds no grid: each badge reads it.
+  - A press and a drag read the mouse target of the pivot, as
+    `DraggingProjection` does, and the pivot keeps the state of the drag in a
+    new field `drag`, view state. `DraggingProjection` itself is not used,
+    because it draws no drop place and would wrap the pivot in another document.
+  - A drop over a badge puts the item before it, and a drop over the name of a
+    zone at its end. A dimension dropped in Values gives a new measure and
+    stays; a measure dropped outside Values goes out of the pivot.
+  - The keys are the gesture table of `PivotTable`: Alt+Left, Alt+Right,
+    Alt+Up, Alt+Down and Delete.
+  - Tests: `test_pivot_zone_edits()` (31): the operations and their inverses,
+    and a press, the keys and three drags in a real editor (`HeadlessBackend`).
+    `test_pivot()`: 175.
 - [ ] **6. The cell views.** The view menu and the automatic rule. A sub-table
   cell: the generic table of the part, and the `DataFrameView` of the
   `SubDataFrame` in the adapter. A closed card shows "123 rows". The test: an

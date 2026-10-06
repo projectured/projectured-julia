@@ -84,6 +84,11 @@ a zone, a dimension or `source_version` changes. A path names a cell of the
 pivot by its row and its column in that table: `cells[r][c]`, through the field
 `cells`, which holds the [`PivotCells`](@ref) of the pivot. Make a pivot with
 [`make_pivot_table`](@ref), which sets both.
+
+`drag` is the state of the drag of an item of the bar, view state that a history
+does not record: `nothing`, or the zone and the place of the item, the point of
+the press, whether the drag started, and the zone and the place where a drop
+puts the item now.
 """
 @document struct PivotTable <: PivotDocument
     source::Any
@@ -96,6 +101,7 @@ pivot by its row and its column in that table: `cells[r][c]`, through the field
     source_version::Int
     cross_table::Any
     cells::Any
+    drag::Any
 end
 
 """
@@ -176,5 +182,6 @@ function make_pivot_table(source; rows = String[], columns = String[], cells = S
     make_dimensions(list) = CellVector(Any[PivotDimension(String(name)) for name in list])
     _set_pivot_fields!(PivotTable(source, make_dimensions(filter(name -> !(name in used), names)),
                                   make_dimensions(columns), make_dimensions(rows), make_dimensions(cells),
-                                  CellVector(Any[measures...]), cell_view, 0, nothing, nothing, nothing))
+                                  CellVector(Any[measures...]), cell_view, 0, nothing, nothing, nothing,
+                                  nothing))
 end

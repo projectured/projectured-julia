@@ -25,7 +25,8 @@ function test_pivot()
         test_pivot_layering()
         test_pivot_cross_table()
         test_pivot_table_projection()
+        test_pivot_zone_edits()
     end
 end
 
-export test_pivot, test_pivot_layering, test_pivot_cross_table, test_pivot_table_projection
+export test_pivot, test_pivot_layering, test_pivot_cross_table, test_pivot_table_projection, test_pivot_zone_edits

@@ -68,6 +68,18 @@ A path names a cell of a pivot by its row and its column in the cross table: `ce
 
 `cells[r][c]` of the pivot maps to `cells[r][c]` of the table, and `cells[r]` to `rows[r]`. A part of the table that the pivot does not name, such as a run of headers, maps back as a `ProjectionReferenceStep` of the projection, and a selection of the pivot that holds one shows in the table.
 
+### The bar
+
+The badge of the selected item is filled, and the others are muted. The bar is a `WidgetComposite` that holds one grid: a change of a zone or of the drag builds a new grid, and the composite prints it again, because a layout prints its children once and a composite keeps a child by its identity. The selection builds no grid: each badge reads it.
+
+`<zone>[i]` of the pivot, such as `row_dimensions[2]`, maps to the badge of the item, and `<zone>` to the row of the zone. A point on a badge maps back to its item, and a point on the name of a zone or beside the badges to the zone. So the mouse target of the pivot names the item or the zone under the pointer.
+
+- **A press** on a badge selects its item.
+- **A drag** of a badge moves its item. The pivot keeps the state of the drag in its field `drag`, view state: the item, the point of the press, and the place where a drop puts the item now. A held move of 5 pixels starts the drag, and the drag tracker sends `DragMove`, `DragEnd` and `DragCancel` to the pivot by its path. A move over a badge puts the item before it, and a move over the name of a zone puts it at the end; the bar shows the place as an outlined badge. A dimension dropped in Values stays where it was and gives a new measure of its column: the sum of a column of numbers, and the count of any other column. A measure dropped outside Values goes out of the pivot.
+- **The keys** move the selected item: Alt+Left and Alt+Right one place in its zone, Alt+Up and Alt+Down to the zone above or below, at the same place. Alt+Down from Cells gives a new measure. Delete puts a dimension back in Fields and takes a measure out of the pivot. The keys are the gesture table of `PivotTable`, so the gesture help lists them.
+
+Each edit is an operation with an inverse: a move is a `MoveRangeOperation`, which keeps the cell of the item, and a new or a removed measure is a splice of `ReplaceReferencedValueOperation`. The selection follows the item to its new place.
+
 `make_pivot_table_projection(; measure, appearance)` gives the projection with the row height of the font of the widget theme, and the pivot domain gives it to the natural renderer through the seam `make_graphics_projection`. So a pivot draws in a tab, and inside any document that the natural renderer draws.
 
 ### The measures
@@ -92,4 +104,4 @@ compute_pivot_measure(sales, rows, PivotMeasure("amount", :sum))   # 15.0
 
 The example `pivot` draws the sales of `make_pivot_sales_rows()` by region and country down and by year across: `run_example("pivot")`.
 
-The narrowest tests are `test_pivot_cross_table()` and `test_pivot_table_projection()`; the test of the package is `test_pivot()`. `test_pivot_data_frame()` of the umbrella test package pivots a data frame and compares each sum with `groupby` and `combine` of DataFrames.
+The narrowest tests are `test_pivot_cross_table()`, `test_pivot_table_projection()` and `test_pivot_zone_edits()`; the test of the package is `test_pivot()`. `test_pivot_data_frame()` of the umbrella test package pivots a data frame and compares each sum with `groupby` and `combine` of DataFrames.

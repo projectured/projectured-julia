@@ -43,6 +43,7 @@ end
 
 include("../../../test/domain/pivot/document/PivotCrossTableTest.jl")
 include("../../../test/domain/pivot/projection/PivotTableToWidgetTest.jl")
+include("../../../test/domain/pivot/projection/PivotZoneEditTest.jl")
 
 include("../../../test/domain/pivot/PivotSuite.jl")
 

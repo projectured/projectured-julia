@@ -13,6 +13,8 @@ column dimensions cut the rows of the source into the cells of a
 each cell is an index vector into the source. [`PivotTableToWidget`](@ref) draws
 the zones as a bar above a table whose headers have one level for each
 dimension, and each cell shows the document that the view of the pivot makes.
+A drag of a badge of the bar, or a key, moves a dimension from one zone to
+another.
 """
 module PivotModule
 
@@ -20,7 +22,7 @@ using ..KernelModule
 using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..WidgetModule: make_graphics_projection
 
 export PivotDimension, PivotMeasure, PivotCellView, PivotNumberView, PivotTable, PivotCells, PivotCellRow,
@@ -34,6 +36,7 @@ export PivotTableToWidget, PivotTableToWidgetIoMap, make_pivot_table_projection
 include("PivotDocument.jl")
 include("PivotCrossTable.jl")
 include("PivotCellView.jl")
+include("PivotZoneEdit.jl")
 include("PivotTableToWidget.jl")
 
 # A pivot draws as its bar and its table in a tab, and inside any document that
