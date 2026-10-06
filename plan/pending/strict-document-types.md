@@ -469,7 +469,22 @@ worktree. The three domains test different parts of the model:
     `Document`, and `TextFile.content` is `Union{String, Document}`. `make_file_tab(path, wrap)`
     gives every opened file an overlay, such as an `UndoBuffer`, by design. No code reads the
     declared type of `content`.
-  - [ ] Groups 7 and 8.
+  - [ ] Group 7, an `Int64` in a field declared `Int32`: rule 2 of the check converts it (the
+    check of the setter and of the constructor must apply rules 1 and 2, §3.3).
+  - [ ] Group 8, the single cases:
+    - `JsonBool.value` and `YamlBool.value`: the REPL walk types text into a bool leaf, and
+      `splice_value!` writes a `String` or `nothing` into the bool. An intermediate state of an
+      edit, as the incomplete number; it belongs with `make_incomplete_number_document`.
+    - `TextNewline.font_color` and `TextSpacing.font_color` are declared `StyleColor = ""`
+      (`TextDocument.jl:61`): the default itself is a `String`.
+    - `SqlSelectItem.expression` is declared `SqlSelectExpression`, and the SQL parser puts a
+      `SqlScalarValue` there, as for `SELECT 1`.
+    - `SyntaxLeaf.value` gets a `TextGraphics` from Markdown and RST, an image in a syntax leaf:
+      the declaration must be `Union{TextString, TextGraphics}`.
+    - `ToyNode.label::String` gets a function in a kernel test of `copy_document` on purpose
+      (`DocumentContractTest.jl:236-242`): the test document must declare that field `Any`.
+    - `PrimitiveString.value` gets a `SubString`, and `DescriptionList.entries` and
+      `ToyList.items` get a vector of a concrete element type: rule 2 converts them.
 - [ ] **Step 4: the fields of the three domains.** Each narrow field that a person edits admits
   the insertion and the nothing (law 1).
   - Julia: each of the 52 `Document` fields and the 5 `Union{Document,Nothing}` fields chooses
