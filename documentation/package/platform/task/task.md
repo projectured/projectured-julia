@@ -67,3 +67,25 @@ finish its work, and the status says `:cancelling` until the process ends.
 `sample_task_usage!` reads the processor time and the resident memory from
 `/proc`.
 
+## A group of tasks
+
+`TaskGroup` is `MultipleTasks` of `opp_repl`: tasks that run at most `jobs` at a
+time. `start_task_group!` starts them on a task of the group and answers at once;
+each task starts through `start_task(task; on_finish)`, the function that a kind
+of task adds a method to, and its `TaskExecution` stays in `runs` for the whole
+life of the group. `rerun_task_group!(group, which)` runs again the tasks that
+`which` names — `:all`, `:unfinished`, `:unexpected`, `:failed` or their
+positions — in place, and keeps every other execution. `stop_task_group!`
+starts no more tasks and stops the ones that run. `finish`, when it is set, is
+called once when the last task of a start ends: an update writes its store
+there.
+
+`TaskGroupResult` is `MultipleTaskResults` of `opp_repl`: the count of each code,
+expected and unexpected, and the worst case. `format_task_group_summary` and
+`format_task_group_reason` write it as `opp_repl` does:
+`40 TOTAL, 37 PASS, 2 FAIL (unexpected), 1 ERROR (unexpected) in 3:12` and
+`3/40 unexpected: 2x Fingerprint mismatch, 1x Calculated fingerprint not found`.
+`compute_task_group_summary` answers a `TaskGroupSummary`, what a group looks
+like at one moment for a reader of the screen: the counts, the progress, the
+time that went and an estimate of the time left, the rate and the slowest task.
+
