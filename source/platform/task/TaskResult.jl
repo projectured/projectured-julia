@@ -102,13 +102,14 @@ kind of task with no parameters answers `""`.
 format_task_parameters(::AbstractTask) = ""
 
 """
-    get_task_columns(task) -> Vector{String}
+    get_task_columns(task) -> Vector{Pair{String,Int}}
 
-The columns that a kind of task adds to a table of tasks, each named by the
-word of its header, beside the columns that every task has. A kind with nothing
-to add answers none.
+The columns that a kind of task adds to a table of tasks, beside the columns
+that every task has: each is the word of its header and the share of the width
+that it takes, as a weight against the other columns. A kind with nothing to add
+answers none.
 """
-get_task_columns(::AbstractTask) = String[]
+get_task_columns(::AbstractTask) = Pair{String,Int}[]
 
 """
     format_task_column(task, column) -> String
@@ -118,6 +119,26 @@ The text of `task` in `column`, one of the names that
 not know.
 """
 format_task_column(::AbstractTask, ::AbstractString) = ""
+
+"""
+    get_task_actions(task) -> Vector{Pair{String,Function}}
+
+The buttons that a kind of task adds to the detail of a task, beside Stop and
+Run again: each is a label and the function that a press calls with the editor
+that evaluates the press and the task, `action(editor, task)`. A kind with
+nothing to add answers none.
+"""
+get_task_actions(::AbstractTask) = Pair{String,Function}[]
+
+"""
+    format_task_details(task, result) -> Vector{String}
+
+What a kind of task says about `task` beside its state, one fact a line, such as
+`command: …`, the exit code of its process, and the line that says why it
+failed. `result` is what the task ended with, or `nothing` while it has not
+ended. A kind with nothing to say answers none.
+"""
+format_task_details(::AbstractTask, result) = String[]
 
 # ── Words ────────────────────────────────────────────────────────────────────
 

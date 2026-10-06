@@ -14,12 +14,20 @@ adds its kinds of task, such as the runs and the tests of a simulation.
 `get_result_codes(task)`, the family of codes that its results take, and
 `format_task_parameters(task)`, the task in one line.
 
-A kind also says what it adds to a table of tasks, with plain answers and no
-document of its own. `get_task_columns(task)` names its columns, each by the
-word of its header, and `format_task_column(task, column)` gives the text of one.
-The defaults answer none and `""`, so a task of a kind that adds nothing shows
-the columns that every task has. A legacy simulation adds `directory`,
-`configuration` and `run`.
+A kind also says what it adds to the views of tasks, with plain answers and no
+document of its own:
+
+- `get_task_columns(task)` names its columns, each the word of its header and
+  its share of the width, such as `"directory" => 4`;
+- `format_task_column(task, column)` gives the text of one;
+- `format_task_details(task, result)` gives its facts, one a line, such as the
+  command, the exit code and the error line, from what the task ended with;
+- `get_task_actions(task)` gives its buttons, each a label and a function that a
+  press calls with the editor that evaluates the press and the task.
+
+The defaults answer nothing, so a task of a kind that adds nothing shows what
+every task has. A legacy simulation adds `directory`, `configuration` and
+`run`, the command, the exit code and the error line of its run, and Qtenv.
 
 `TaskResult` is the supertype of what a task ended with. Each kind of result
 holds the fields `task`, `result`, `expected_result`, `reason` and
@@ -100,7 +108,7 @@ time that went and an estimate of the time left, the rate and the slowest task.
 
 `TaskDocument` is one task on the screen: the task, the state of its execution
 and what it ended with. It holds nothing that a kind of task knows: a view asks
-the task for its columns. `start_task!(document; options...)` starts the task
+the task for its columns, its facts and its buttons. `start_task!(document; options...)` starts the task
 through `start_task` of its kind and answers at once; `stop_task!` and
 `wait_task_document` act on the execution.
 
@@ -125,3 +133,27 @@ of five.
 shows. A group adds itself when it starts, and stays until a person closes its
 row. `set_task_group_opener!` says what Show does; a window sets it, and it
 captures no editor (PAR-NO-EDITOR-IN-DOCUMENT).
+
+## The views
+
+`TaskGroupDocumentToWidgetPane` draws a group as its pane: a card with the
+counts of each code, a bar of the progress, the time, the reason of what was not
+expected and the actions on the whole group; a table with one row for each task;
+and the detail of the task that a person picked, with its facts, its buttons
+and its two streams. The columns of the table are the pick and the state, the
+columns of the kind of the first task, and then the progress or the position,
+the elapsed time, the process, the processor, the memory and the result. A row
+reads the cells of its own document, so a task that reports draws only its own
+row again, and the rows are a lazy list, so a group of 22,731 tasks costs what a
+group of twenty costs.
+
+`make_task_group_tab_title` is the title of the tab of a group, and the
+`make_pane_tab_title` of a group: an icon and badges that say how far the group
+is and the worst that it found. `TaskGroupListToWidgetPane` draws the Tasks
+pane, one row for each group of the session, with Show, Stop, Run unexpected
+again and Close.
+
+The panes draw with `TaskTheme`. `build_task_graphics_entry` makes the rows of
+the natural renderer for both panes, each with a widget renderer of its own so
+that a press reaches its button, and the slice registers them, so any
+`NaturalToGraphics` draws a tab that holds a group or the list of groups.

@@ -4,9 +4,10 @@
 Tasks as `opp_repl` runs them: a piece of work that runs and ends with a result,
 the codes a result takes, the words a result is reported in, the execution of a
 task that runs a process, and a group of tasks that runs a number at a time. Its
-documents show a task and a group on the screen, and a feed carries what an
-execution says into them. Nothing here knows what the work is: a domain adds its
-kinds of task.
+documents show a task and a group on the screen, a feed carries what an
+execution says into them, and its panes draw a group and the groups of the
+session. Nothing here knows what the work is: a domain adds its kinds of task,
+and says what a kind adds to the views.
 """
 module TaskModule
 
@@ -14,16 +15,29 @@ using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
 using ..FeedModule
+using ..FocusModule
+using ..GraphicsModule
+using ..IoMapModule
+using ..LayoutModule
+using ..NaturalModule
+using ..PaneModule
 using ..PrimitiveModule
+using ..ProjectionAlgebraModule
+using ..ProjectionModule
 using ..ReferenceModule
+using ..StyleModule
+using ..WidgetModule
 import ..DocumentModule: copy_document, has_document_duplicate, get_document_title
 import ..DomainModule: accepts_pasted_document
 import ..FeedModule: drain_changes!, compute_wake_deadline
+import ..PaneModule: make_pane_tab_title
+import ..ProjectionModule: print_document
 
 export AbstractTask, TaskResult, ResultCodes, RUN_RESULT_CODES, TEST_RESULT_CODES,
        UPDATE_RESULT_CODES, get_result_codes, get_result_role, is_expected,
        get_error_message, format_task_parameters, format_elapsed_time, PAST_TENSE,
-       format_past_tense, format_task_result, get_task_columns, format_task_column
+       format_past_tense, format_task_result, get_task_columns, format_task_column,
+       get_task_actions, format_task_details
 export TaskOutput, append_output_line!, get_left_out_line_count, collect_output_lines,
        find_last_output_line, format_output_text, TaskExecution, update_task_execution!,
        get_task_execution_snapshot, is_task_running, wait_task_execution,
@@ -46,6 +60,9 @@ export TaskGroupDocument, make_task_group_identifier, get_task_group, wrap_task_
        start_task_group_document!, rerun_task_group_document!, stop_task_group_document!,
        wait_task_group_document, select_task_document!, build_task_group_document_counts,
        measure_task_group_document_progress, get_task_group_document_status
+export TaskTheme, ScaledTaskTheme, get_task_style, TaskGroupDocumentToWidgetPane,
+       TaskGroupListToWidgetPane, make_task_group_tab_title, make_task_group_list_tab_title,
+       format_memory_size, make_task_progress_bar, build_task_graphics_entry
 
 include("TaskResult.jl")
 include("TaskExecution.jl")
@@ -54,5 +71,7 @@ include("TaskFeed.jl")
 include("TaskDocument.jl")
 include("TaskGroupList.jl")
 include("TaskGroupDocument.jl")
+include("TaskTheme.jl")
+include("TaskGroupToWidget.jl")
 
 end # module TaskModule
