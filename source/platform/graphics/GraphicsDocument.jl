@@ -21,8 +21,9 @@ abstract type GraphicsDocument <: Document end
 # of a line — as a number, as a cell that holds one, or as a function of no
 # arguments. A function becomes a computed cell, so the shape follows what the
 # function reads, as a dot that circles a ring follows a clock. A number is
-# rounded to a whole pixel, and so is each coordinate of a point. The text of a
-# `GraphicsText` is live in the same way.
+# rounded to a whole pixel, and so is each coordinate of a point. An angle is a
+# number of degrees and is not rounded. The text of a `GraphicsText` is live in
+# the same way.
 
 const _LiveNumber = Union{Real, Cell, Function}
 const _LivePoints = Union{AbstractVector, Cell, Function}
@@ -40,6 +41,10 @@ _round_points(points) = Tuple{Int,Int}[(round(Int, point[1]), round(Int, point[2
 _make_points_cell(points::AbstractVector) = Cell(_round_points(points))
 _make_points_cell(points::Cell) = points
 _make_points_cell(points::Function) = Cell(@computation _round_points(points()))
+
+_make_angle_cell(value::Real) = Cell(Float64(value))
+_make_angle_cell(value::Cell) = value
+_make_angle_cell(value::Function) = Cell(@computation Float64(value()))
 
 _make_text_cell(text::AbstractString) = Cell(String(text))
 _make_text_cell(text::Cell) = text
@@ -226,6 +231,58 @@ function GraphicsCircle(cx::_LiveNumber, cy::_LiveNumber, radius::_LiveNumber;
                    Cell(Int32(border_width)),
                    Cell(_norm_border(border_color)),
                    Cell(nothing))
+end
+
+# ── GraphicsArc ────────────────────────────────────────────────────────────
+
+"""
+    GraphicsArc(cx, cy, radius; width=1, start_angle=0, sweep_angle=360,
+                color::StyleColor=color_black)
+
+A reactive stroke along a part of the circle centered at `(cx,cy)`, in `color`
+(a [`StyleColor`](@ref)). `radius` is the outer edge, and the stroke of `width`
+pixels lies inside it, so the arc covers the ring of
+`GraphicsCircle(cx, cy, radius; border_width = width)`. The two ends are flat.
+
+`start_angle` and `sweep_angle` are degrees: 0 is at the top, and a positive
+angle goes clockwise on the screen. A sweep of 360 or more draws the whole ring,
+and a sweep of 0 or less draws nothing. `cx`, `cy`, `radius` and the two angles
+are each a number, a cell, or a function of no arguments, as the geometry of
+every graphics element is. An angle is not rounded. Used for the indicator of a
+progress ring.
+"""
+@document struct GraphicsArc <: GraphicsDocument
+    cx::Int32
+    cy::Int32
+    radius::Int32
+    width::Int32
+    start_angle::Float64
+    sweep_angle::Float64
+    color::StyleColor
+end
+
+function GraphicsArc(cx::_LiveNumber, cy::_LiveNumber, radius::_LiveNumber;
+                     width::Integer=1, start_angle::_LiveNumber=0, sweep_angle::_LiveNumber=360,
+                     color::StyleColor=color_black)  # @style: content of the document
+    GraphicsArc(_make_pixel_cell(cx), _make_pixel_cell(cy), _make_pixel_cell(radius),
+                Cell(Int32(width)),
+                _make_angle_cell(start_angle), _make_angle_cell(sweep_angle),
+                Cell(color),
+                Cell(nothing))
+end
+
+# Whether `(x, y)` is on the stroke of `arc`: within a few pixels of the middle of
+# its band, and at an angle inside its sweep.
+function _is_point_on_arc(arc::GraphicsArc, x::Int, y::Int)
+    sweep = Float64(arc.sweep_angle)
+    sweep > 0 || return false
+    dx, dy = x - Int(arc.cx), y - Int(arc.cy)
+    width = max(1, Int(arc.width))
+    middle = Int(arc.radius) - width / 2
+    abs(hypot(dx, dy) - middle) <= max(3, width / 2 + 2) || return false
+    sweep >= 360 && return true
+    angle = mod(rad2deg(atan(dx, -dy)), 360.0)
+    mod(angle - Float64(arc.start_angle), 360.0) <= sweep
 end
 
 # ── GraphicsPolyline ─────────────────────────────────────────────────────
@@ -786,6 +843,8 @@ function _hit_test_element(elem, x::Int, y::Int)
         dx, dy = x - Int(elem.cx), y - Int(elem.cy)
         rad = Int(elem.radius)
         dx * dx + dy * dy <= rad * rad
+    elseif elem isa GraphicsArc
+        _is_point_on_arc(elem, x, y)
     elseif elem isa GraphicsLine
         lx = min(Int(elem.x1), Int(elem.x2)); ly = min(Int(elem.y1), Int(elem.y2))
         lw = abs(Int(elem.x2) - Int(elem.x1)); lh = abs(Int(elem.y2) - Int(elem.y1))
@@ -989,6 +1048,12 @@ function extend_element_bounds!(bounds::ContentBounds, elem, origin::NTuple{2,In
         extend_content_bounds!(bounds, (x0, y0, x1, y1))
     elseif elem isa GraphicsCircle
         rad = Int(elem.radius) + Int(elem.border_width)
+        cx, cy = ox + Int(elem.cx), oy + Int(elem.cy)
+        extend_content_bounds!(bounds, (cx - rad, cy - rad, cx + rad, cy + rad))
+    elseif elem isa GraphicsArc
+        # The box of the ring of a circle of the same radius and width, whatever
+        # the angles: an arc that turns keeps one box.
+        rad = Int(elem.radius) + Int(elem.width)
         cx, cy = ox + Int(elem.cx), oy + Int(elem.cy)
         extend_content_bounds!(bounds, (cx - rad, cy - rad, cx + rad, cy + rad))
     elseif elem isa GraphicsPolyline || elem isa GraphicsSpline

@@ -14,6 +14,7 @@ The graphics slice of `ProjecturedPlatform` holds the drawing primitives that ev
 | `GraphicsRect` | a box `x`, `y`, `w`, `h` with a `color`, a radius for each corner and an optional border |
 | `GraphicsLine` | a line between two points, solid or dashed |
 | `GraphicsCircle` | a filled circle with an optional border |
+| `GraphicsArc` | a stroke of `width` along a part of a circle, inside its `radius`, from `start_angle` through `sweep_angle` |
 | `GraphicsPolyline` | connected straight segments with optional arrowheads; the connector of a graph |
 | `GraphicsPolygon` | a closed filled shape |
 | `GraphicsSpline` | a smooth curve through or along points |
@@ -23,7 +24,9 @@ The graphics slice of `ProjecturedPlatform` holds the drawing primitives that ev
 | `GraphicsFence` | nothing; a mark in the element list, described below |
 | `GraphicsPointerShape` | nothing; a region where the pointer takes a shape, described below |
 
-Every field is a reactive cell, so a change of one coordinate repaints only what reads it. A colour is a `StyleColor` and a font is a `StyleFont`, both from [style.md](../style/style.md). Each backend converts a `StyleColor` to its own device encoding when it draws. Coordinates are `Int32` pixels, and a box names its size `w` and `h`. Elements draw in order, so a later element is on top.
+Every field is a reactive cell, so a change of one coordinate repaints only what reads it. A colour is a `StyleColor` and a font is a `StyleFont`, both from [style.md](../style/style.md). Each backend converts a `StyleColor` to its own device encoding when it draws. Coordinates are `Int32` pixels, and a box names its size `w` and `h`. An angle is not a coordinate: the two angles of a `GraphicsArc` are `Float64` degrees, 0 at the top and positive clockwise, so a turning arc moves by less than a pixel. Elements draw in order, so a later element is on top.
+
+An arc covers the same ring as a `GraphicsCircle` with the same radius and a border of the same width, and its bounds are the bounds of that ring whatever its angles. So an arc on its track repaints the box of the track, and an arc that turns keeps one box. A sweep of 360 degrees or more is the whole ring, and a sweep of 0 or less draws nothing.
 
 `y` of a `GraphicsText` is the top of its box, and the baseline is `y` plus the ascent that [`compute_text_extent`](../style/style.md) gives for `text` and `font`. The box is the ascent plus the descent high. Every backend draws the baseline there, and a layout that puts texts of different fonts on one baseline sets each `y` to the baseline minus that text's own ascent.
 
@@ -36,6 +39,7 @@ The spline and arrowhead geometry is computed here, by `tessellate_spline` and `
 `hit_element_at(canvas, x, y)` returns the offset of the first element that contains the point, or `nothing`. Every caller in `source/` tests only for `nothing`. The test for each shape:
 
 - A box, a viewport, an image and a line use their bounding box. A circle uses its radius.
+- An arc takes a band of `max(3, width / 2 + 2)` pixels around the middle of its stroke, at an angle inside its sweep.
 - A text uses its box: the width, the ascent and the descent of [`compute_text_extent`](../style/style.md).
 - A polyline and a spline take a band of `max(3, width + 2)` pixels around the path. A polygon takes its whole interior.
 - A canvas tests its own elements, with the point moved into its frame.

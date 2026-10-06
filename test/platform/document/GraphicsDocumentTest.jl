@@ -68,6 +68,36 @@ end
     @test get_graphics_size(plain) == (10, 10)
 end
 
+@testset "GraphicsArc" begin
+    # A quarter from the top to the right: the band of radius 16 to 20 around (50, 50).
+    arc = GraphicsArc(50, 50, 20; width = 4, start_angle = 0, sweep_angle = 90, color = color_red)
+    @test (arc.cx, arc.cy, arc.radius, arc.width) == (50, 50, 20, 4)
+    @test (arc.start_angle, arc.sweep_angle) == (0.0, 90.0)
+    @test arc.color == color_red
+
+    canvas = GraphicsCanvas([arc])
+    @test hit_element_at(canvas, 63, 37) == 0           # 45 degrees, on the band
+    @test hit_element_at(canvas, 37, 37) === nothing    # 315 degrees: outside the sweep
+    @test hit_element_at(canvas, 50, 50) === nothing    # the center
+    @test hit_element_at(canvas, 50, 20) === nothing    # 0 degrees, past the outer edge
+
+    # The extent is the box of the whole ring, padded by the width as the ring
+    # of a circle is, whatever the angles.
+    @test get_graphics_size(arc) == (74, 74)
+    @test get_graphics_size(GraphicsArc(50, 50, 20; width = 4, start_angle = 180, sweep_angle = 10)) == (74, 74)
+
+    # A full sweep claims the whole band; an empty one claims nothing.
+    @test hit_element_at(GraphicsCanvas([GraphicsArc(50, 50, 20; width = 4)]), 37, 37) == 0
+    @test hit_element_at(GraphicsCanvas([GraphicsArc(50, 50, 20; width = 4, sweep_angle = 0)]), 63, 37) === nothing
+
+    # An angle follows a cell or a function, and it is not rounded.
+    start = Cell(10.5)
+    turning = GraphicsArc(0, 0, 8; start_angle = start, sweep_angle = () -> 2 * start[])
+    @test (turning.start_angle, turning.sweep_angle) == (10.5, 21.0)
+    start[] = 30.25
+    @test (turning.start_angle, turning.sweep_angle) == (30.25, 60.5)
+end
+
 @testset "a geometric argument is a number, a cell or a function" begin
     angle = Cell(0.0)
     # A function follows what it reads, and its answer is rounded to a pixel.
