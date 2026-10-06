@@ -122,8 +122,7 @@ ProjecturEd is under development. These limits are true today:
 - A drag inside a table cell does not select text. A click, the arrows and typing edit the cell.
 - A click selects where a projection wires it, and elsewhere it does nothing.
 - The assistant needs a local Ollama server with a pulled model, or an Anthropic API key.
-- The packages are not in the General registry. You clone the repository and use `environment/all`.
-- SDL2 and SDL_ttf must be installed for a native window.
+- The packages are not in the General registry. They install from `ProjecturedRegistry`, as the [quick start](#quick-start) shows.
 
 The [roadmap](documentation/requirement/delivery-roadmap.md) says what comes next.
 
