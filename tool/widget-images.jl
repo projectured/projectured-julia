@@ -29,7 +29,7 @@ const WIDGET_EXAMPLES = [
     # The one example that hands its widgets a real offer on both axes.
     "widget_offered",
     "widget_tabbed_pane", "widget_badge", "widget_separator", "widget_card",
-    "widget_switch", "widget_progress", "widget_slider", "widget_radio_group",
+    "widget_switch", "widget_progress_bar", "widget_progress_ring", "widget_slider", "widget_radio_group",
     "widget_avatar", "widget_alert", "widget_skeleton", "widget_toggle",
     "widget_toggle_group", "widget_select", "widget_textarea", "widget_accordion",
     "widget_table", "widget_table_offered", "widget_table_frozen",
