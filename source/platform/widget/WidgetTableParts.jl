@@ -144,9 +144,10 @@ end
 
 # The pane of a part: a grid that scrolls by `offset`, with the padding of a
 # cell and a rule as its own padding. It has no fill, because the table draws
-# its bands behind it.
+# its bands behind it, and no bar.
 _make_part_pane(grid, offset::Cell, padding::Inset) =
-    WidgetScrollPane(Cell(grid), Cell(nothing), Cell(nothing), offset, Cell(false), Cell(true),
+    WidgetScrollPane(Cell(grid), Cell(nothing), Cell(nothing), offset, Cell(false),
+                     Cell(nothing), Cell(nothing), Cell(true),
                      Cell(nothing), Cell(nothing), Cell(padding),
                      Cell(WidgetStyle(; content_color = color_transparent)), Cell(nothing))
 

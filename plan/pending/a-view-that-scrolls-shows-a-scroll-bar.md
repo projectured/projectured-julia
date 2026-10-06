@@ -173,6 +173,28 @@ It makes no bar there, and only an owner's bar shows.
 The pane makes its own bar at each print. A print of the pane during a drag
 ends the drag. The panes of the parts of a table have the same property.
 
+Step 2 built it so:
+
+- **The thickness** of a bar is `scroll_bar_thickness`, a field of the
+  projection of the pane that reads the theme. The pane offers the bar that
+  thickness across and the edge of its view and its padding along, less the
+  corner when the other bar shows.
+- **A bar shows while its `thumb_size` is less than 1**, for a bar of the pane
+  and for the bar of a maker alike. A hidden bar is an empty canvas in its place,
+  and its place has no extent, so it takes no point.
+- **The path of a bar** is the field that asks for it, also when the field
+  holds `:auto`, as the path `items[2]` of a list ends at no document. A move
+  on a bar answers that path as the part under the pointer, and the backward
+  map of a point on the bar gives it too. The bar that the pane makes reads the
+  mouse target of the pane to light; the bar of a maker gets its own.
+- **The drag of a thumb comes to the pane.** The bar answers
+  `StartDragOperation` with the empty path, and the pane keeps it as its own
+  path, so a path never needs to reach a bar that the pane made. A
+  `DragMove`, a `DragEnd` and a `DragCancel` at the pane go to the bar whose
+  `thumb_drag` is set.
+- **A press, a click and a dwell on a bar are the bar's**, and do not reach
+  the content under it. The wheel over a bar scrolls the content under it.
+
 ### 4.4 A list and a tree
 
 - `WidgetList` and `WidgetTree` get `scroll_position`, as view state, as
@@ -223,12 +245,14 @@ part.
   [WidgetScrollBarTest.jl](../../test/platform/projection/WidgetScrollBarTest.jl)
   42 pass; `test_data_frame_view()` 52 pass, with its bar case changed to
   Shift and a click, and a page.
-- [ ] **2. The pane makes its bars.** The fields of §4.3 with `:auto` and
-  `nothing`, the
-  overlay of §4.2, the order for the pointer, the write to `scroll_position`,
-  and `follow_end`. Tests: a new `ScrollPaneBarTest.jl`, and
-  [ScrollPaneHoverTest.jl](../../test/platform/projection/ScrollPaneHoverTest.jl)
-  unchanged.
+- [x] **2. The pane makes its bars.** The fields of §4.3 with `:auto` and
+  `nothing`, the overlay of §4.2, the order for the pointer, the write to
+  `scroll_position`, and `follow_end`. Tests: a new
+  [ScrollPaneBarTest.jl](../../test/platform/projection/ScrollPaneBarTest.jl), 40
+  pass, and [ScrollPaneHoverTest.jl](../../test/platform/projection/ScrollPaneHoverTest.jl)
+  unchanged, 27 pass. `test_platform()`: 100057 pass, 8 broken, and the 2
+  failures of `InterfaceApiTest.jl` that `main` has too (32 names where it
+  expects 31, and the docstring of `WidgetProgressRing`).
 - [ ] **3. The table and the owner's bar.** A pane draws a given bar.
   `_make_part_pane` gives `nothing` to the header panes. The
   table gets its two fields and gives them to the pane of its cells. The five

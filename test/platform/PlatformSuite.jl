@@ -305,6 +305,7 @@ function test_platform()
         test_widget_forward()
         test_widget_round_trip()
         test_scroll_pane_hover()
+        test_scroll_pane_bar()
         test_widget_popup_example()
         # generic drivers over visual examples
         test_collapse_roundtrip()
@@ -374,7 +375,7 @@ export test_clipboard, test_tooltip, test_window_fit, test_window_wrapper, test_
        test_layout_point, test_widget_point, test_column_chooser, test_widget_swatch, test_baseline_alignment,
        test_widget_forward,
        test_widget_round_trip,
-       test_scroll_pane_hover,
+       test_scroll_pane_hover, test_scroll_pane_bar,
        test_widget_popup_example, test_collapse_roundtrip
 export POSITION_NAVIGATION_KEYS, POSITION_SEED_GESTURE, TREE_NAVIGATION_KEYS, TREE_SEED_GESTURE,
        explore_position_selections, test_position_navigation,

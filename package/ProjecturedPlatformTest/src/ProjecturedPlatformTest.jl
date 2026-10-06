@@ -251,6 +251,7 @@ include("../../../test/platform/projection/BaselineAlignmentTest.jl")
 include("../../../test/platform/projection/WidgetForwardTest.jl")
 include("../../../test/platform/projection/WidgetRoundTripTest.jl")
 include("../../../test/platform/projection/ScrollPaneHoverTest.jl")
+include("../../../test/platform/projection/ScrollPaneBarTest.jl")
 include("../../../test/platform/projection/WidgetPopupExampleTest.jl")
 # ── visual-level generic drivers ─────────────────────────────────────────────
 include("../../../test/platform/editor/NavigationPresets.jl")

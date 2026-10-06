@@ -806,6 +806,7 @@ WidgetTabbedPaneToGraphicsCanvas(theme; graphics_theme = nothing, measure,
     padding_color::StyleColor
     content_color::StyleColor        # viewport fill; color_transparent paints none
     font::StyleFont                  # measures the scroll step
+    scroll_bar_thickness::Int        # across each bar that the pane draws
 end
 
 WidgetScrollPaneToGraphicsCanvas(theme; measure,
@@ -813,9 +814,10 @@ WidgetScrollPaneToGraphicsCanvas(theme; measure,
                                  margin = inset_default, border = inset_default, padding = inset_default,
                                  margin_color = color_transparent, border_color = color_transparent,
                                  padding_color = color_transparent,
-                                 content_color = _themed(StyleColor, theme, t -> t.background)) =
+                                 content_color = _themed(StyleColor, theme, t -> t.background),
+                                 scroll_bar_thickness = _themed(Int, theme, t -> t.scroll_bar_thickness)) =
     WidgetScrollPaneToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
-                                     content_color, font)
+                                     content_color, font, scroll_bar_thickness)
 
 @projection UntrackedCell struct WidgetTransformPaneToGraphicsCanvas
     measure::TextMeasure
@@ -900,6 +902,7 @@ WidgetScrollBarToGraphicsCanvas(theme;
     input::WidgetScrollPane
     output::GraphicsCanvas
     content_iomap::Any
+    bars::Any        # the bars that the pane draws: `(field, document, iomap, place)` each
 end
 
 # What a route reaches through this container: see `_collect_child_iomaps`.
@@ -5326,7 +5329,7 @@ function _clamp_to_list_ends(content::GraphicsCanvas, offset::Int, view::Int, ax
 end
 
 function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::WidgetScrollPane, ctx)
-    w.visible == false && return WidgetScrollPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), nothing)
+    w.visible == false && return WidgetScrollPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), nothing, Any[])
     pos = w.position
     sz  = w.size
     px = pos isa Point2D ? _sc(Int(pos.x[])) : 0
@@ -5428,6 +5431,11 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
                                       Cell(affine_identity),
                                       Cell(nothing)))
     end
+    # The bars lie over the content, so they come after it.
+    bars = _print_pane_bars(p, recursion, w, ctx, inner_canvas, vw_cell, vh_cell)
+    for bar in bars
+        push!(elems, bar.place)
+    end
     # Report the pane's own box as the outer canvas extent (viewport + insets)
     # rather than 0×0. A scroll pane occupies a fixed viewport, so a parent that
     # *measures* its child (e.g. WidgetCard sizing its body to the recursed
@@ -5440,7 +5448,7 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     outer = GraphicsCanvas(Cell(Int32(px)), Cell(Int32(py)), outer_w, outer_h,
                            CellVector(Cell[Cell(e) for e in elems]),
                            layout_none, true, Cell(nothing))
-    WidgetScrollPaneToGraphicsCanvasIoMap(p, w, outer, content_iomap)
+    WidgetScrollPaneToGraphicsCanvasIoMap(p, w, outer, content_iomap, bars)
 end
 
 # The viewport of a scroll pane or a transform pane shows the content in a canvas
@@ -5449,7 +5457,7 @@ end
 # elements are no vector). So `content` is the content of the pane's viewport,
 # and the content's own answer goes on from there.
 map_reference_forward(::WidgetScrollPaneToGraphicsCanvas, iomap, reference) =
-    _map_viewport_content_forward(iomap, reference)
+    something(_map_pane_bar_forward(iomap, reference), Some(_map_viewport_content_forward(iomap, reference)))
 
 function _map_viewport_content_forward(iomap, reference)
     reference isa Reference || return nothing
@@ -5483,6 +5491,8 @@ function map_reference_backward(p::WidgetScrollPaneToGraphicsCanvas, iomap::Widg
     point = find_reference_point(reference)
     point === nothing && return ConcreteReference(FieldReferenceStep("content"), reference)
     _is_point_on_canvas(iomap.output, point) || return nothing
+    bar = _find_pane_bar_at(iomap, point.x, point.y)
+    bar === nothing || return _make_pane_bar_path(iomap.input, bar)
     content_iomap = iomap.content_iomap
     content_iomap === nothing && return nothing
     _map_point_into_content(iomap.input, content_iomap,
@@ -5666,19 +5676,36 @@ end
 # the move is the leave of the pointer.
 function _read_scroll_pane_move(p::WidgetScrollPaneToGraphicsCanvas,
                                 iomap::WidgetScrollPaneToGraphicsCanvasIoMap, evt::MouseMove)
+    bar = _outside_widget(iomap, evt) ? nothing : _find_pane_bar_at(iomap, evt.x, evt.y)
+    target = bar === nothing ? nothing : ReplaceMouseTargetOperation(_make_pane_bar_path(iomap.input, bar))
     content_iomap = iomap.content_iomap
-    content_iomap === nothing && return nothing
+    content_iomap === nothing && return target
     lx, ly = _find_scroll_pane_local_point(p, iomap, evt.x, evt.y)
     canvas = content_iomap.output
-    on_content = !_outside_widget(iomap, evt) && _is_point_in_pane_view(p, iomap, evt.x, evt.y) &&
+    on_content = bar === nothing && !_outside_widget(iomap, evt) &&
+                 _is_point_in_pane_view(p, iomap, evt.x, evt.y) &&
                  canvas isa GraphicsCanvas && hit_element_at(canvas, lx, ly) !== nothing
-    _retarget_op(p, iomap, _read_single_child_move(iomap.input, "content", content_iomap, evt,
-                                                   evt.x - lx, evt.y - ly, on_content))
+    join_move_answers(_retarget_op(p, iomap, _read_single_child_move(iomap.input, "content", content_iomap,
+                                                                     evt, evt.x - lx, evt.y - ly, on_content)),
+                      target)
 end
 
 function read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPaneToGraphicsCanvasIoMap, evt)
+    # The drag of a thumb comes to the pane, wherever the pointer is, and goes on
+    # to the bar whose drag is on.
+    if evt isa Union{DragMove,DragEnd,DragCancel}
+        bar = _find_dragged_pane_bar(iomap)
+        bar === nothing || return _read_pane_bar_event(p, iomap, bar, evt)
+    end
     evt isa MouseMove && return _read_scroll_pane_move(p, iomap, evt)
     _outside_widget(iomap, evt) && return nothing
+    # A bar lies over the content: a press, a click and a dwell on it are the
+    # bar's. The wheel scrolls what is under the bar.
+    if evt isa Union{MouseDown,MouseUp,MouseClick,MouseDwell}
+        bar = _find_pane_bar_at(iomap, evt.x, evt.y)
+        bar === nothing ||
+            return read_container_gesture(_read_pane_bar_event(p, iomap, bar, evt), evt, iomap.input)
+    end
     canvas = iomap.output
     # Forward other events (MouseClick, KeyDown, KeyPress) to the wrapped
     # content. Coords for MouseClick arrive relative to the scroll pane's
@@ -5751,6 +5778,193 @@ function read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPan
         return read_container_gesture(_retarget_op(p, iomap, op), evt, iomap.input;
                                       steps = (FieldReferenceStep("content"),))
     read_container_gesture(_self_scroll(p, iomap, canvas, evt), evt, iomap.input)
+end
+
+# ── The bars of a scroll pane ─────────────────────────────────────────────────
+#
+# A pane draws a bar on each axis whose field asks for one. `:auto` is a bar that
+# the pane makes from the extents of its content and its view, a
+# `WidgetScrollBar` is the bar of its maker, and `nothing` is no bar. A bar lies
+# over the content, at the inner edge of the border and over the padding, and it
+# shows while its thumb is shorter than its track. Each bar is a part of the
+# pane: the field names it in a path, and the drag of its thumb comes to the
+# pane, which gives it on to the bar.
+
+const _PANE_BAR_FIELDS = ("vertical_scroll_bar", "horizontal_scroll_bar")
+
+# Whether `content` has no extent along `axis`: a list that runs along it.
+_has_no_extent_along(content::GraphicsCanvas, axis::Symbol) =
+    is_infinite_canvas(content) && _find_list_canvas(content, axis) !== nothing
+
+# The value and the thumb size of the bar of `field` that a pane makes: the
+# offset that the pane draws with among the room that it can scroll, and the part
+# of the content that the view shows. A content that fits, or that has no extent
+# along the axis, gives a thumb that fills the track.
+function _compute_pane_bar_numbers(w::WidgetScrollPane, field::AbstractString,
+                                   content::GraphicsCanvas, view_w::Integer, view_h::Integer)
+    vertical = field == "vertical_scroll_bar"
+    _has_no_extent_along(content, vertical ? :y : :x) && return (0.0, 1.0)
+    view = vertical ? Int(view_h) : Int(view_w)
+    extent = vertical ? Int(content.h) : Int(content.w)
+    room = extent - view
+    room <= 0 && return (0.0, 1.0)
+    offset = vertical ? _pane_scroll_y(w, content, view) : _pane_scroll_x(w, content, view)
+    (clamp(offset / room, 0.0, 1.0), view / extent)
+end
+
+# The bar of `field` that a pane makes. It is lit while the mouse target of the
+# pane names it, as a row of a list is lit by the mouse target of the list.
+function _make_pane_bar(w::WidgetScrollPane, field::AbstractString, content::GraphicsCanvas,
+                        view_w::Cell, view_h::Cell)
+    numbers = Cell(@computation _compute_pane_bar_numbers(w, field, content, view_w[], view_h[]))
+    target = Cell(@computation _is_mouse_target_in_field(w, field) ? EmptyReference() : nothing)
+    # Positional: orientation, value, thumb_size, thumb_drag, position, size,
+    # visible, margin, border, padding, style, tooltip, selection, mouse_target.
+    WidgetScrollBar(Cell(field == "vertical_scroll_bar" ? :vertical : :horizontal),
+                    Cell(@computation numbers[][1]), Cell(@computation numbers[][2]), Cell(nothing),
+                    Cell(nothing), Cell(nothing), Cell(true), Cell(nothing), Cell(nothing),
+                    Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing), target)
+end
+
+# The bar that the field `field` of a pane asks for, or `nothing`.
+function _get_pane_bar(w::WidgetScrollPane, field::AbstractString, content, view_w, view_h)
+    asked = getfield(w, Symbol(field))[]
+    asked isa WidgetScrollBar && return asked
+    (asked === :auto && content isa GraphicsCanvas) || return nothing
+    _make_pane_bar(w, field, content, view_w, view_h)
+end
+
+# The bars of a pane, each printed along the edge of the view and the padding
+# around it, and placed in a canvas over the content. A bar that the thumb
+# fills shows nothing and takes no point. When both bars show, each stops before
+# the corner square.
+function _print_pane_bars(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::WidgetScrollPane,
+                          ctx, content, view_w, view_h)
+    thickness = p.scroll_bar_thickness
+    asked = [(field, _get_pane_bar(w, field, content, view_w, view_h)) for field in _PANE_BAR_FIELDS]
+    shown = Dict(field => bar === nothing ? Cell(false) :
+                          Cell(@computation Float64(bar.thumb_size) < 1.0)
+                 for (field, bar) in asked)
+    left, top, right, bottom = _get_box_insets(p, w).padding
+    cox, coy = _content_offset(p, w)
+    hidden = _empty_canvas()
+    bars = Any[]
+    for (field, bar) in asked
+        bar === nothing && continue
+        vertical = field == "vertical_scroll_bar"
+        other = shown[vertical ? "horizontal_scroll_bar" : "vertical_scroll_bar"]
+        along = vertical ?
+            Cell(@computation Int32(max(0, Int(view_h[]) + top + bottom - (other[] ? thickness : 0)))) :
+            Cell(@computation Int32(max(0, Int(view_w[]) + left + right - (other[] ? thickness : 0))))
+        across = Cell(Int32(thickness))
+        bar_ctx = vertical ? with_exact_size(ctx; width = across, height = along) :
+                             with_exact_size(ctx; width = along, height = across)
+        bar_iomap = print_child(recursion, bar, bar_ctx)
+        drawn = bar_iomap.output
+        visible = shown[field]
+        x = vertical ? Cell(@computation Int32(cox + Int(view_w[]) + right - thickness)) :
+                       Cell(Int32(cox - left))
+        y = vertical ? Cell(Int32(coy - top)) :
+                       Cell(@computation Int32(coy + Int(view_h[]) + bottom - thickness))
+        place = GraphicsCanvas(x, y,
+                               Cell(@computation visible[] ? Int32(Int(drawn.w)) : Int32(0)),
+                               Cell(@computation visible[] ? Int32(Int(drawn.h)) : Int32(0)),
+                               CellVector(Cell[Cell(@computation visible[] ? drawn : hidden)]),
+                               layout_none, true, Cell(nothing))
+        push!(bars, (field = field, document = bar, iomap = bar_iomap, place = place))
+    end
+    bars
+end
+
+# The bar of a pane at the point `(x, y)` of the pane, or `nothing`.
+function _find_pane_bar_at(iomap::WidgetScrollPaneToGraphicsCanvasIoMap, x::Integer, y::Integer)
+    for bar in iomap.bars
+        place = bar.place
+        px, py, pw, ph = Int(place.x), Int(place.y), Int(place.w), Int(place.h)
+        (pw > 0 && ph > 0 && px <= x < px + pw && py <= y < py + ph) && return bar
+    end
+    nothing
+end
+
+# The bar of a pane whose thumb is dragged, or `nothing`.
+function _find_dragged_pane_bar(iomap::WidgetScrollPaneToGraphicsCanvasIoMap)
+    for bar in iomap.bars
+        bar.document.thumb_drag === nothing || return bar
+    end
+    nothing
+end
+
+# The path of a bar in its pane: the field that asks for it.
+_make_pane_bar_path(pane::WidgetScrollPane, bar) =
+    annotate_reference_types(pane, ConcreteReference(FieldReferenceStep(bar.field), EmptyReference()))
+
+# The image of a bar of a pane: its canvas in the place of the bar.
+function _map_pane_bar_forward(iomap, reference)
+    reference isa Reference || return nothing
+    reference = strip_reference_types(reference)
+    (reference isa ConcreteReference && reference.head isa FieldReferenceStep &&
+     reference.tail isa EmptyReference) || return nothing
+    elements = unwrap_cell(getfield(unwrap_cell(get_iomap_output(iomap)), :elements))
+    for bar in iomap.bars
+        bar.field == reference.head.name || continue
+        k = findfirst(i -> unwrap_cell(elements[i]) === bar.place, 1:length(elements))
+        k === nothing && return nothing
+        return ConcreteReference(FieldReferenceStep("elements"),
+                   ConcreteReference(RangeReferenceStep(k - 1, k),
+                       ConcreteReference(FieldReferenceStep("elements"),
+                           ConcreteReference(RangeReferenceStep(0, 1), EmptyReference()))))
+    end
+    nothing
+end
+
+# The answer of a bar of a pane to `evt`, a gesture in the frame of the pane: the
+# bar reads it in its own frame. A write of the value of a bar that the pane made
+# becomes a scroll of the pane; the bar of a maker keeps its write, which the
+# maker turns into a scroll of its own. The start of a drag names the pane, so the
+# drag comes back to it.
+function _read_pane_bar_event(p::WidgetScrollPaneToGraphicsCanvas,
+                              iomap::WidgetScrollPaneToGraphicsCanvasIoMap, bar, evt)
+    dx, dy = Int(bar.place.x), Int(bar.place.y)
+    inner = evt isa DragCancel ? evt : shift_event_position(evt, -dx, -dy)
+    answer = read_intent(get_iomap_projection(bar.iomap), bar.iomap, inner)
+    answer isa Operation || return nothing
+    answer = shift_operation_position(answer, dx, dy)
+    getfield(iomap.input, Symbol(bar.field))[] isa WidgetScrollBar && return answer
+    _convert_pane_bar_write(p, iomap, bar, answer)
+end
+
+function _convert_pane_bar_write(p, iomap, bar, operation)
+    if operation isa CompoundOperation
+        converted = Any[o for o in (_convert_pane_bar_write(p, iomap, bar, o) for o in operation.operations)
+                        if o !== nothing]
+        return isempty(converted) ? nothing : CompoundOperation(converted)
+    end
+    (operation isa ReplaceReferencedValueOperation && operation.document === bar.document &&
+     operation.reference isa ConcreteReference && operation.reference.head == FieldReferenceStep("value")) ||
+        return operation
+    _scroll_pane_to_bar_value(p, iomap, bar.field, Float64(operation.value))
+end
+
+# The scroll that puts the view of a pane at `value` of its room on the axis of
+# the bar `field`, as view state. A pane that follows its end stops following
+# when the bar leaves the end, and follows again when it comes back to it, as the
+# wheel does.
+function _scroll_pane_to_bar_value(p, iomap, field::AbstractString, value::Float64)
+    w = iomap.input
+    room = _scroll_room(p, iomap)
+    room === nothing && return nothing
+    old = getfield(w, :scroll_position)[]::Point2D
+    if field == "horizontal_scroll_bar"
+        x = round(Int, clamp(value, 0.0, 1.0) * room[1])
+        x == Int(old.x[]) && return nothing
+        return _write_view_state(w, "scroll_position", Point2D(x, Int(old.y[])))
+    end
+    y = round(Int, clamp(value, 0.0, 1.0) * room[2])
+    following = getfield(w, :follow_end)[] === true
+    operations = Any[_write_view_state(w, "scroll_position", Point2D(Int(old.x[]), y))]
+    following && y < room[2] && push!(operations, _write_view_state(w, "follow_end", false))
+    !following && room[2] > 0 && y == room[2] && push!(operations, _write_view_state(w, "follow_end", true))
+    length(operations) == 1 ? operations[1] : CompoundOperation(operations)
 end
 
 # ── WidgetTransformPane ───────────────────────────────────────────────────────

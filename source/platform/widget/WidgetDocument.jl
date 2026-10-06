@@ -1349,10 +1349,24 @@ set_cell_computation!(w::WidgetTabbedPane, f::Function) = (set_cell_computation!
 
 """
     WidgetScrollPane(content; position, size,
-                     scroll_position, follow_end, <base kwargs>)
+                     scroll_position, follow_end,
+                     vertical_scroll_bar = :auto, horizontal_scroll_bar = :auto,
+                     <base kwargs>)
 
 A viewport a person scrolls over content that is taller or wider than its
 space.
+
+The pane draws a scroll bar on each axis over the content, at the inner edge of
+its border, and the bar takes no space. Each of `vertical_scroll_bar` and
+`horizontal_scroll_bar` is `:auto`, `nothing` or a `WidgetScrollBar`:
+
+- `:auto`: the pane makes the bar from the extents of its content and its view,
+  and shows it while the content is larger than the view. A list that runs
+  along the axis has no extent, and gets no bar.
+- `nothing`: no bar on that axis. The wheel still scrolls it.
+- a `WidgetScrollBar`: the pane draws that bar at its edge while its thumb is
+  shorter than its track, and computes nothing. The maker of the bar sets its
+  `value` and `thumb_size`, and turns a write of its `value` into a scroll.
 
 Use it to show a long table or a long text inside a bounded `size`. With
 `follow_end = true` the pane keeps the end of its content in view as content is
@@ -1384,6 +1398,8 @@ See also `WidgetCard`, whose `height` bounds a body that scrolls.
     size::Point2D
     scroll_position::Point2D
     follow_end::Bool
+    vertical_scroll_bar::Any     # :auto, nothing, or the WidgetScrollBar of a maker
+    horizontal_scroll_bar::Any   # :auto, nothing, or the WidgetScrollBar of a maker
     visible::Bool
     margin::Inset
     border::Inset
@@ -1397,6 +1413,7 @@ function WidgetScrollPane(content;
                           size=nothing,
                           scroll_position::Union{Point2D,AbstractCell}=Point2D(0, 0),
                           follow_end::Union{Bool,AbstractCell}=false,
+                          vertical_scroll_bar=:auto, horizontal_scroll_bar=:auto,
                           visible::Bool=true,
                           margin=nothing, border=nothing, padding=nothing,
                           style=nothing, tooltip=nothing)
@@ -1404,6 +1421,7 @@ function WidgetScrollPane(content;
                      Cell(position), Cell(size),
                      scroll_position isa AbstractCell ? scroll_position : Cell(scroll_position),
                      follow_end isa AbstractCell ? follow_end : Cell(follow_end),
+                     Cell(vertical_scroll_bar), Cell(horizontal_scroll_bar),
                      Cell(visible), Cell(margin), Cell(border), Cell(padding),
                      Cell(style), Cell(tooltip), Cell(nothing))
 end
