@@ -35,8 +35,8 @@ An XML element with a tag, attributes (`attrs`) and child nodes (`children`).
 """
 @document struct XmlElement <: XmlDocument
     tag::String
-    attrs::CellVector = CellVector()
-    children::CellVector = CellVector()  # holds XmlDocument children
+    attrs::CellVector{Document} = CellVector{Document}()
+    children::CellVector{Document} = CellVector{Document}()
     collapsed::Bool = false
 end
 
@@ -53,7 +53,7 @@ XmlElement(tag::AbstractString, children::Vector{<:XmlDocument}) =
     XmlElement(tag, XmlAttribute[], children)
 
 XmlElement(tag::AbstractString, attrs::Vector{<:XmlAttribute}, children::Vector{<:XmlDocument}) =
-    XmlElement(tag, CellVector(attrs), CellVector(children))
+    XmlElement(tag, CellVector{Document}(attrs), CellVector{Document}(children))
 
 # attributes as a name-keyed map
 @adapt_map_protocol on XmlElement to attrs with XmlAttribute(name, value)

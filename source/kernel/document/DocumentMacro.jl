@@ -79,8 +79,36 @@ function _cell_value_types(plan)
     map(get_cell_struct_value_types(plan)) do vt
         name = _declared_type_name(vt)
         substitute = name === nothing ? nothing : get_cell_layout_field_type(Val(name))
-        substitute === nothing ? vt : substitute
+        substitute === nothing && return vt
+        # `Vector{X}` keeps its element type: the cell layout holds `CellVector{X}`.
+        vt isa Expr && vt.head === :curly ? Expr(:curly, substitute, vt.args[2:end]...) :
+                                            substitute
     end
+end
+
+# Whether a field whose cell layout holds `vt` is a list field: its type names a
+# collection that registered itself with `is_collection_field_type`.
+function _is_list_field_type(vt)
+    vt isa Type && return _is_list_type(vt)
+    # A substituted `Vector{X}` is `CellVector{X}` with the type object at its head.
+    vt isa Expr && vt.head === :curly && vt.args[1] isa Type && return _is_list_type(vt.args[1])
+    name = _declared_type_name(vt)
+    name !== nothing && is_collection_field_type(Val(name))
+end
+
+# Whether the declared type `T` names a registered collection, at run time.
+_is_list_type(T) = (T isa DataType || T isa UnionAll) && is_collection_field_type(Val(nameof(T)))
+
+# A plain vector that goes into a list field becomes the list of the field, so the
+# cell layout holds one form of a list (`CellVector{X}` for `Vector{X}`).
+_wrap_list_value(list_type, value) = value isa AbstractVector ? list_type(value) : value
+
+# The setter's form: the list type comes from the declared type of the field.
+function _wrap_list_write(document, name::Symbol, value)
+    value isa AbstractVector || return value
+    declared_type = find_declared_field_type(typeof(document), name)
+    (declared_type === nothing || !_is_list_type(declared_type)) && return value
+    declared_type(value)
 end
 
 # Per-field cell type parameters: `C1, C2, …`.
@@ -139,7 +167,11 @@ function _emit_autowrap_ctor(plan, arg_names; default = ReactiveCell)
     kinds     = get_cell_struct_field_kinds(plan; default = default)
     vts       = get_cell_struct_value_types(plan)
     def_types = Any[build_cell_struct_field_type(kinds[i], vts[i]) for i in 1:n]
-    raw_wrap(i) = :($(def_types[i])($(arg_names[i])))
+    # A plain vector for a reactive list field becomes the list of the field.
+    list_types = _cell_value_types(plan)
+    raw_value(i) = kinds[i] === ReactiveCell && _is_list_field_type(list_types[i]) ?
+        :($(_wrap_list_value)($(list_types[i]), $(arg_names[i]))) : arg_names[i]
+    raw_wrap(i) = :($(def_types[i])($(raw_value(i))))
     rc_any   = fill(_REACTIVE_ANY, n)
     # A parameter binds from the argument that `find_cell_struct_parameter_slots`
     # gives, and the inferring outer constructor below is emitted. A schema with a
@@ -225,7 +257,8 @@ _emit_accessors(plan) = (
         name === :selection ? $(unwrap_selection)(getfield(obj, name)[]) :
                               getfield(obj, name)[]),
     :(Base.setproperty!(obj::$(plan.name), name::Symbol, val) =
-        (getfield(obj, name)[] = $(_check_declared_write)(obj, name, val))),
+        (getfield(obj, name)[] =
+             $(_check_declared_write)(obj, name, $(_wrap_list_write)(obj, name, val)))),
 )
 
 """
@@ -370,7 +403,10 @@ _has_keyword_ctors(plan) = plan.programmer_default_count > 0 || plan.declared_fi
 # which the type registers from its own package — so this macro names no concrete
 # collection type. See `_emit_collection_ctors`.
 function _collection_slot(plan)
-    hits = findall(t -> t isa Symbol && is_collection_field_type(Val(t)), plan.field_types)
+    hits = findall(plan.field_types) do t
+        name = _declared_type_name(t)
+        name !== nothing && is_collection_field_type(Val(name))
+    end
     length(hits) == 1 ? hits[1] : 0
 end
 

@@ -296,19 +296,37 @@ end
 # The setter of the cell layout calls it before the write. A computation is not a
 # value: the cell computes its value later, and a read narrows it. A `PendingValue`
 # stands for a value that a later step makes.
-# It answers the value to write: `value`, or in the mode `:throw` the value that Julia
-# converts it to with no loss (rule 2 of the seam), so that the three layouts agree.
 function _check_declared_write(document, name::Symbol, value)
+    _DECLARED_TYPE_CHECK_MODE[] === :off && return value
+    declared_type = find_declared_field_type(typeof(document), name)
+    declared_type === nothing && return value
+    convert_assigned_value(document, declared_type, value; name)
+end
+
+"""
+    convert_assigned_value(owner, declared_type, value; name = nothing) -> value
+
+The value that a direct write by program code puts into a place of
+`declared_type`, under the mode of the check. A value of the type passes, and so do
+a `Computation` and a `PendingValue`. In the mode `:throw`, a value that Julia
+converts with no loss is converted (rule 2 of [`convert_to_declared_type`](@ref)),
+and any other value throws a [`DeclaredTypeMismatchException`](@ref). In the mode
+`:record` the mismatch is recorded, and in `:record` and `:off` the value passes as
+it is. Text does not become an insertion here: program code wrote it, not a person.
+
+The setter and the constructor of the cell layout call it for a field, and a
+collection that keeps the type of its elements calls it for each element write.
+"""
+function convert_assigned_value(owner, declared_type::Type, value; name = nothing)
     mode = _DECLARED_TYPE_CHECK_MODE[]
     mode === :off && return value
-    (value isa Computation || value isa PendingValue) && return value
-    declared_type = find_declared_field_type(typeof(document), name)
-    (declared_type === nothing || value isa declared_type) && return value
+    (value isa declared_type || value isa Computation || value isa PendingValue) && return value
     if mode === :throw
         converted = _convert_losslessly(declared_type, value)
         converted === _NOT_CONVERTED || return converted
     end
-    _report_declared_type_mismatch(mode, typeof(document), name, declared_type, value)
+    _report_declared_type_mismatch(mode, owner isa Type ? owner : typeof(owner), name,
+                                   declared_type, value)
     value
 end
 

@@ -52,7 +52,7 @@ that holds an array of objects.
     end
 """
 @document struct JsonArray <: JsonDocument
-    elements::CellVector = CellVector()
+    elements::CellVector{Document} = CellVector{Document}()
     collapsed::Bool = false
 end
 
@@ -84,7 +84,7 @@ Use it to read the fields of a JSON record by their names.
     keys(item)                        # the names of its fields
 """
 @document struct JsonObject <: JsonDocument
-    entries::CellVector = CellVector()
+    entries::CellVector{Document} = CellVector{Document}()
     collapsed::Bool = false
 end    
 

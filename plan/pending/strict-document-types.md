@@ -487,6 +487,26 @@ worktree. The three domains test different parts of the model:
     (S-2). A field declared `CellVector{T}`, as the four list fields of JSON and XML, holds a
     `CellVector{T}` in every layout. The other options were: admit a plain `Vector{T}` too, as a
     second form (B), or refuse it and change the 16 callers (C).
+    *Built (2026-10-06), with S-2:*
+    - `CellVector{T}`: the element type is the first parameter of the type, before the cell
+      parameters, and the bare `CellVector(…)` makes a `CellVector{Any}`. The macro emits the
+      positional constructors only as `CellVector{T}(…)`, because no field binds `T`, so the
+      bare 2- and 3-argument forms of `CellVector`, `ICCellVector` and `MCCellVector` forward to
+      `{Any}`. `CellVector{T}()`, `CellVector{T}(items)` and `CellVector{T}(cells::Vector{Cell})`
+      make a typed list; the last keeps the given slot cells. `ReactiveCellVector` is
+      `CellVector{<:Any, <:ReactiveCell}`. A sort, a reverse and a copy keep `T`, and
+      `find_declared_element_type` answers `T`.
+    - Each element write (`setindex!`, `push!`, `insert!`, the typed constructors) meets the
+      check through `convert_assigned_value(owner, declared_type, value; name)`, the public
+      form of the check of a direct write (rules 1 and 2 under the mode), which the setter now
+      shares. A cell given as an element is checked for its value.
+    - `@document`: a field declared `Vector{X}` holds `CellVector{X}` in the reactive layout
+      (`_cell_value_types` keeps the parameter), the collection sugar also finds a field
+      declared `CellVector{X}`, and a plain vector given to a reactive list field becomes the
+      list of the field, in the constructor and in the setter, in every mode.
+    - The four list fields of JSON and XML are `CellVector{Document}`, and the constructors of
+      `XmlElement` build `CellVector{Document}`.
+    - Tests: `test_kernel()` 4175 pass, 2 broken; `test_json()` 235 pass; `test_xml()` 80 pass.
   - [ ] Group 5, a lazy list in a field declared `CellVector`: it belongs with group 4 and S-2.
     `HorizontalLayout` and `VerticalLayout` have constructors that take a `ListNode`, so their
     declaration is too narrow. But the collection sugar of `@document` (Rule C,

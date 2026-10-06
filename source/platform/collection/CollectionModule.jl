@@ -30,7 +30,7 @@ using ..ReferenceModule
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: copy_document, sync_document!, has_document_duplicate,
                          is_element_collection, is_collection_field_type,
-                         get_cell_layout_field_type
+                         get_cell_layout_field_type, find_declared_element_type
 import ..OperationModule: child_reference_steps, get_slot_at
 import ..ProjectionModule: make_children_container, get_children_container_type
 

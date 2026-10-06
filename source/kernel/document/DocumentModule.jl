@@ -48,7 +48,8 @@ export DeclaredTypeMismatchException, DeclaredTypeMismatchRecord, PendingValue,
        set_declared_type_check_mode!, get_declared_type_check_mode,
        collect_declared_type_mismatches, clear_declared_type_mismatches!,
        find_declared_field_type, find_declared_element_type,
-       convert_to_declared_type, convert_written_value, is_admitted_by_declared_type
+       convert_to_declared_type, convert_written_value, convert_assigned_value,
+       is_admitted_by_declared_type
 export SelectionDocument, unwrap_selection
 export DocumentWalk, walk_document, make_string_predicate
 # how deep `show` descends before it elides
