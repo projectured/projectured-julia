@@ -1077,6 +1077,18 @@ cross-invalidate each other's animation graph. No clock is shared by the whole
 process: an owner without a frame loop starts a heartbeat on its own clock with
 `start_wall_clock!`, on the task that reads that clock.
 
+**The editor of an evaluation is state of one evaluation.** While the code of
+the evaluator, of the assistant or of the `execute_julia_code` tool runs,
+`_run_expression` binds its editor in a `ScopedValue`, and
+`get_evaluation_editor()` reads it. The tasks that the code starts get the same
+editor, and nothing else does. Only a verb reads it, and only as the default of
+its `editor` keyword, `focus_pane!(reference; editor = get_evaluation_editor())`,
+so the code of a person or a model names no editor. Every other code passes the
+editor it has: an operation gets it from `evaluate_operation(editor, operation)`,
+and a projection, the editor loop and a call from a package never read the
+scope. The argument guard, `test/suite/arguments.jl`, fails on a call of
+`get_evaluation_editor` anywhere else.
+
 **Accepted carve-out — state that is identical for every editor.** Process-global
 state is permitted precisely when its value is the same for every editor in the
 process: no editor can observe another's writes through it, so there is no

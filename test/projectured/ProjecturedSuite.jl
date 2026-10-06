@@ -306,10 +306,12 @@ The argument guard: the clause on optional positional arguments of
 `documentation/rule/code-quality-rules.md` §4. A public definition outside a port
 fails when it takes more than one optional positional argument, or one beside
 keyword arguments, unless a `# @optional:` marker says why. A `# @positional:`
-marker fails too, because the count of positional arguments is advice.
+marker fails too, because the count of positional arguments is advice. A call of
+`get_evaluation_editor` fails anywhere but as the default of an `editor` keyword
+(PAR-PER-EDITOR-STATE).
 
-A private helper is out of scope for now. It loads nothing and runs in about a
-second.
+A private helper is out of scope for the optional clause. It loads nothing and
+runs in about a second.
 """
 function test_arguments()
     @testset "arguments" begin
@@ -318,6 +320,22 @@ function test_arguments()
             @test violation == ""
         end
         @test isempty(argument_violations(root))
+        # A call of `get_evaluation_editor` stands only as the default of an
+        # `editor` keyword: not in a body, not at a call, not for another keyword.
+        mktempdir() do fixture
+            mkpath(joinpath(fixture, "source"))
+            write(joinpath(fixture, "source", "Verbs.jl"), """
+                good_verb(x; editor = get_evaluation_editor()) = editor
+                typed_verb(x; editor::Any = get_evaluation_editor()) = editor
+                function body_read(x)
+                    get_evaluation_editor()
+                end
+                call_site(x) = good_verb(x; editor = get_evaluation_editor())
+                other_keyword(x; target = get_evaluation_editor()) = target
+                """)
+            @test find_evaluation_editor_reads(fixture) ==
+                  ["source/Verbs.jl:4", "source/Verbs.jl:6", "source/Verbs.jl:7"]
+        end
     end
 end
 

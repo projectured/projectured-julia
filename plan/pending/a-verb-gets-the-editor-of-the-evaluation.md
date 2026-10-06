@@ -1,9 +1,7 @@
 # A verb gets the editor of the evaluation
 
-> **Kind:** plan · **Status:** pending, 2026-10-06. The owner decided the
-> mechanism, the form of a verb and the names (§2). The place of the rule, D3
-> and D4 are open (§9). Step 2 waits for the place of the rule, and step 3
-> waits for D4. ·
+> **Kind:** plan · **Status:** in progress, 2026-10-06, on the branch
+> `evaluation-editor`. The owner decided every open question (§2). ·
 > **Stands on:** [PAR-PER-EDITOR-STATE](../../documentation/rule/architecture-invariants.md#par-per-editor-state),
 > [code-quality-rules.md §4](../../documentation/rule/code-quality-rules.md),
 > [agent.md](../../documentation/package/kernel/agent.md),
@@ -33,6 +31,10 @@ Three things do not change:
   caller may leave out is a keyword."
 - **D2, the names:** `get_evaluation_editor()` and
   `MissingEvaluationEditorException`. The owner said: "I accept the names".
+- **D2, the place of the rule:** a paragraph in PAR-PER-EDITOR-STATE. **D3:** the
+  global `editor` in the scratch module stays. **D4:** the 13 declared verbs,
+  then the other exported verbs except five, and `count` and `directory` become
+  keywords. The owner said: "for 1, ok / D3, agreed / D4, ok".
 
 ## 3. What exists
 
@@ -311,6 +313,19 @@ lands on the branch.
      that only loads needs 2.1 GB.
 2. **The rule and the guard** (§5.4). Test: `test_arguments()`, and one case
    that the guard must refuse.
+
+   **Done 2026-10-06.** What the implementation found:
+   - The paragraph stands in PAR-PER-EDITOR-STATE after the sentences about the
+     animation clock, before the carve-out.
+   - `find_evaluation_editor_reads` walks the parsed tree. It skips the default
+     of an `editor` keyword, with or without a type, and it does not report the
+     signature of a definition, but it reads the other defaults in it. The check
+     covers private definitions too.
+   - The definition of `get_evaluation_editor` needs no exception: its body
+     reads `_EVALUATION_EDITOR[]`, and its docstring is a string.
+   - The fixture case finds a read in a body, at a call site and as the default
+     of another keyword, and passes two `editor` defaults. `test_arguments()`
+     2 / 2.
 3. **The verbs of projectured-julia**, with the editor as a keyword, and their docstrings,
    their call sites and their tests. First the 13 declared verbs, then the
    verbs that D4 adds. Test: the test function of each slice that holds a verb,
@@ -385,20 +400,20 @@ guard does not see it, but the rule says no.
   `MissingEvaluationEditorException`. The function is `get_`, not `find_`,
   because it never returns `nothing`: it throws outside an evaluation. The
   exception puts its adjective first, as `RecordedFaultException` does.
-- **Open: the place of the rule.** Proposed: a paragraph in
+- **The place of the rule. Decided 2026-10-06:** a paragraph in
   PAR-PER-EDITOR-STATE, because that invariant already says that state of one
   evaluation is task-local, and the guard of §5.4 enforces the rule. The other
-  option is a new invariant, with an ID of its own that the seal audit can name.
+  option was a new invariant, with an ID of its own that the seal audit can name.
 
-**D3. Open: the global `editor` in the scratch module.** Proposed: it stays, so
-that code that reads `editor.document` keeps working.
+**D3. The global `editor` in the scratch module. Decided 2026-10-06:** it
+stays, so that code that reads `editor.document` keeps working.
 
-**D4. Open: which verbs, and the three optional arguments.** Proposed: the 13
-declared verbs, and then the exported verbs of §4.1 except the last group
+**D4. Which verbs, and the three optional arguments. Decided 2026-10-06:** the
+13 declared verbs, and then the exported verbs of §4.1 except the last group
 (`find_rooted_operation`, `read_rooted_operation`, `sync_draft_selection!`,
 `copy_system_colors!`, `copy_zoom_to_display!`). The code that calls those five
-has the editor already. Proposed: `count` of `delete_elements!` and `directory`
-of the two file dialogs become keywords, with no marker.
+has the editor already. `count` of `delete_elements!` and `directory` of the two
+file dialogs become keywords, with no marker.
 
 ## 10. Risks
 

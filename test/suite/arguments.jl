@@ -16,6 +16,11 @@
 # helper inside one file costs one reader one file, and a public function costs
 # every call site.
 #
+# **It also fails on a call of `get_evaluation_editor` that is not the default of
+# an `editor` keyword** of a definition, private or public. PAR-PER-EDITOR-STATE
+# says it: only a verb reads the editor of an evaluation, and only when its
+# caller names no editor.
+#
 # **Static, and deliberately.** It parses each file with the parser of Julia and
 # loads nothing, so it runs in about a second and reads a definition rather than
 # a line of text.
@@ -192,12 +197,81 @@ function find_positional_markers(root::AbstractString)
     sort!(found)
 end
 
+_is_evaluation_editor_call(x) =
+    x isa Expr && x.head === :call && _argument_name(x.args[1]) == "get_evaluation_editor"
+
+# A keyword of a signature that is `editor = get_evaluation_editor()`, with or
+# without a type on `editor`.
+function _is_editor_keyword_default(parameter)
+    (parameter isa Expr && parameter.head === :kw) || return false
+    name = parameter.args[1]
+    name isa Expr && name.head === :(::) && (name = name.args[1])
+    name === :editor && _is_evaluation_editor_call(parameter.args[2])
+end
+
+# The calls of `get_evaluation_editor` in `expression`, as `file:line`. The
+# default of an `editor` keyword of a definition is skipped. The signature of a
+# definition names its function and calls nothing, so it is not reported, but
+# the walk reads its other defaults.
+function _collect_evaluation_editor_reads!(found, expression, file, line,
+                                           signatures = Base.IdSet{Any}(),
+                                           defaults = Base.IdSet{Any}())
+    expression isa Expr || return line
+    expression in defaults && return line
+    if _is_argument_definition(expression)
+        signature = _argument_signature(expression.args[1])
+        if signature isa Expr && signature.head === :call
+            push!(signatures, signature)
+            for argument in signature.args[2:end]
+                (argument isa Expr && argument.head === :parameters) || continue
+                for parameter in argument.args
+                    _is_editor_keyword_default(parameter) && push!(defaults, parameter.args[2])
+                end
+            end
+        end
+    end
+    _is_evaluation_editor_call(expression) && !(expression in signatures) &&
+        push!(found, "$(file):$(line)")
+    for argument in expression.args
+        argument isa LineNumberNode && (line = argument.line; continue)
+        line = _collect_evaluation_editor_reads!(found, argument, file, line,
+                                                 signatures, defaults)
+    end
+    line
+end
+
+"""
+    find_evaluation_editor_reads(root) -> Vector{String}
+
+Every call of `get_evaluation_editor` under the folders the rule covers that is
+not the default of an `editor` keyword of a definition, as `file:line`.
+"""
+function find_evaluation_editor_reads(root::AbstractString)
+    found = String[]
+    for folder in ARGUMENT_ROOTS
+        full = joinpath(root, folder)
+        isdir(full) || continue
+        for (here, _dirs, names) in walkdir(full), name in names
+            endswith(name, ".jl") || continue
+            path = relpath(joinpath(here, name), root)
+            parsed = try
+                Meta.parseall(read(joinpath(root, path), String); filename = path)
+            catch
+                continue          # the naming guard reports a file the parser refuses
+            end
+            _collect_evaluation_editor_reads!(found, parsed, path, 0)
+        end
+    end
+    sort!(found)
+end
+
 """
     argument_violations(root) -> Vector{String}
 
 A public definition outside a port that takes more than one optional positional
-argument, or one beside a keyword argument, with no `# @optional:` marker; and
-every `# @positional:` marker.
+argument, or one beside a keyword argument, with no `# @optional:` marker; every
+`# @positional:` marker; and every call of `get_evaluation_editor` that is not
+the default of an `editor` keyword.
 """
 function argument_violations(root::AbstractString)
     out = String[]
@@ -213,6 +287,11 @@ function argument_violations(root::AbstractString)
     for place in find_positional_markers(root)
         push!(out, "$(place) has a `# @positional:` marker, which no rule needs: the " *
                    "count of positional arguments is advice; remove the marker")
+    end
+    for place in find_evaluation_editor_reads(root)
+        push!(out, "$(place) calls get_evaluation_editor outside the default of an " *
+                   "`editor` keyword — pass the editor that the code has, or take it as " *
+                   "`editor = get_evaluation_editor()`; see PAR-PER-EDITOR-STATE")
     end
     out
 end
