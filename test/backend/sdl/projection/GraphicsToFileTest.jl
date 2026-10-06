@@ -87,6 +87,46 @@ end
     rm(filename)
 end
 
+@testset "an arc draws its sweep and nothing else" begin
+    # The band of radius 30 to 40 around (50, 50), on white, with no supersample:
+    # the supersample smooths an edge and hides a pixel that is wrong.
+    red   = StyleColor(1.0, 0.0, 0.0, 1.0)
+    white = StyleColor(1.0, 1.0, 1.0, 1.0)
+    # The BGR bytes of a 100x100 BMP of `shapes` on white, bottom-up, and the
+    # RGB of the pixel (x, y) in them.
+    function draw_pixels(shapes)
+        canvas = GraphicsCanvas(Any[GraphicsRect(0, 0, 100, 100; color = white), shapes...])
+        filename = tempname() * ".bmp"
+        write_image(canvas, filename; width = 100, height = 100, supersample = 1)
+        bytes = read(filename)
+        rm(filename)
+        le(i, n) = sum(Int(bytes[i + k]) << (8k) for k in 0:(n - 1))
+        bytes[le(11, 4) + 1:end], le(29, 2) ÷ 8
+    end
+    function pixel_at(drawn, x, y)
+        pixels, depth = drawn
+        i = (100 - 1 - y) * (((100 * depth + 3) ÷ 4) * 4) + x * depth + 1
+        (pixels[i + 2], pixels[i + 1], pixels[i])
+    end
+    quarter = draw_pixels([GraphicsArc(50, 50, 40; width = 10, start_angle = 0, sweep_angle = 90, color = red)])
+    @test pixel_at(quarter, 75, 25) == (0xff, 0x00, 0x00)   # 45 degrees, in the band
+    @test pixel_at(quarter, 60, 13) == (0xff, 0x00, 0x00)   # 16 degrees: the sweep starts at the top
+    @test pixel_at(quarter, 40, 13) == (0xff, 0xff, 0xff)   # 344 degrees: before the start
+    @test pixel_at(quarter, 25, 25) == (0xff, 0xff, 0xff)   # 315 degrees, in the band
+    @test pixel_at(quarter, 75, 75) == (0xff, 0xff, 0xff)   # 135 degrees, past the end
+    @test pixel_at(quarter, 50, 50) == (0xff, 0xff, 0xff)   # the center
+    @test pixel_at(quarter, 63, 37) == (0xff, 0xff, 0xff)   # 45 degrees, inside the inner edge
+
+    # A whole sweep colors exactly the pixels of the ring of a circle.
+    ring = draw_pixels([GraphicsArc(50, 50, 40; width = 10, color = red)])
+    circle = draw_pixels([GraphicsCircle(50, 50, 40; color = color_transparent, border_width = 10,
+                                         border_color = red)])
+    @test ring == circle
+    @test pixel_at(ring, 25, 25) == (0xff, 0x00, 0x00)
+    # An empty sweep draws nothing.
+    @test draw_pixels([GraphicsArc(50, 50, 40; width = 10, sweep_angle = 0, color = red)]) == draw_pixels([])
+end
+
 @testset "GraphicsCanvasToImageFile projection" begin
     doc  = make_json_document_example()
     filename = tempname() * ".bmp"

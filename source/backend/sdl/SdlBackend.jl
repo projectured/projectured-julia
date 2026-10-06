@@ -1723,6 +1723,58 @@ function _render_circle!(renderer::Ptr{SDL_Renderer}, circ::GraphicsCircle, ox::
     end
 end
 
+# ── Render a GraphicsArc element ─────────────────────────────────────
+
+# Fill the band between the radii `rad` and `rad - bw` from `start` through
+# `sweep` degrees (0 at the top, clockwise on the screen) as one strip of
+# triangles with float vertices. A segment is about two device pixels of the
+# outer edge long, so the supersample downsample smooths the curve as it smooths
+# the rows of `_stroke_ring!`.
+function _fill_arc_band!(renderer::Ptr{SDL_Renderer}, cx::Int, cy::Int, rad::Int, bw::Int,
+                         start::Float64, sweep::Float64,
+                         r::UInt8, g::UInt8, b::UInt8, a::UInt8)
+    fx = Ref{Cfloat}(0); fy = Ref{Cfloat}(0)
+    SDL_RenderGetScale(renderer, fx, fy)
+    f = Float64(fx[]); f <= 0 && (f = 1.0)
+    rin = rad - bw
+    n = max(2, ceil(Int, deg2rad(sweep) * rad * f / 2))
+    col = SDL_Color(r, g, b, a)
+    z = SDL_FPoint(0.0f0, 0.0f0)
+    verts = Vector{SDL_Vertex}(undef, 2 * (n + 1))
+    for k in 0:n
+        s, c = sincosd(start + sweep * k / n)
+        verts[2k + 1] = SDL_Vertex(SDL_FPoint(Cfloat(cx + rad * s), Cfloat(cy - rad * c)), col, z)
+        verts[2k + 2] = SDL_Vertex(SDL_FPoint(Cfloat(cx + rin * s), Cfloat(cy - rin * c)), col, z)
+    end
+    idx = Vector{Cint}(undef, 6n)
+    for k in 0:(n - 1)
+        o = Cint(2k)
+        idx[6k + 1:6k + 6] .= (o, o + Cint(1), o + Cint(2), o + Cint(1), o + Cint(3), o + Cint(2))
+    end
+    GC.@preserve verts idx begin
+        SDL_RenderGeometry(renderer, Ptr{SDL_Texture}(C_NULL),
+                           pointer(verts), Cint(length(verts)),
+                           pointer(idx), Cint(length(idx)))
+    end
+end
+
+function _render_arc!(renderer::Ptr{SDL_Renderer}, arc::GraphicsArc, ox::Int, oy::Int)
+    arc.color.alpha == 0 && return
+    sweep = Float64(arc.sweep_angle)
+    sweep > 0 || return
+    rad = Int(arc.radius)
+    rad > 0 || return
+    bw = clamp(Int(arc.width), 1, rad)
+    cx, cy = Int(arc.cx) + ox, Int(arc.cy) + oy
+    if sweep >= 360
+        # The whole ring is the ring of a circle, drawn the same way.
+        SDL_SetRenderDrawColor(renderer, _rgba8(arc.color)...)
+        _stroke_ring!(renderer, cx, cy, rad, bw)
+    else
+        _fill_arc_band!(renderer, cx, cy, rad, bw, Float64(arc.start_angle), sweep, _rgba8(arc.color)...)
+    end
+end
+
 # ── Render a GraphicsImage element ─────────────────────────────────────
 
 function _render_image!(renderer::Ptr{SDL_Renderer}, img::GraphicsImage, ox::Int, oy::Int)
@@ -1852,6 +1904,8 @@ function _dispatch_render_elem!(renderer::Ptr{SDL_Renderer}, elem, ox::Int, oy::
         _render_spline!(renderer, elem, ox, oy)
     elseif elem isa GraphicsCircle
         _render_circle!(renderer, elem, ox, oy)
+    elseif elem isa GraphicsArc
+        _render_arc!(renderer, elem, ox, oy)
     elseif elem isa GraphicsViewport
         _render_viewport!(renderer, elem, ox, oy, ratio)
     elseif elem isa GraphicsImage
