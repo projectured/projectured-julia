@@ -22,8 +22,10 @@ _get_columns(kind_columns) = vcat(_LEADING_COLUMNS, kind_columns, _TRAILING_COLU
 
 _make_share_policy(weight) = SizePolicy(nothing, nothing, nothing, Float64(weight))
 
-function _make_column_policies(p, columns)
-    Any[index == 1 ? Fixed(round(Int, p.button_size.y[])) : _make_share_policy(share)
+# The columns of a table: each holds the policy of its width.
+function _make_table_columns(p, columns)
+    Any[WidgetTableColumn(; policy = index == 1 ? Fixed(round(Int, p.button_size.y[])) :
+                                                  _make_share_policy(share))
         for (index, (_, share)) in enumerate(columns)]
 end
 
@@ -286,10 +288,9 @@ function _build_table(p, doc::TaskGroupDocument)
         node
     end
     table = WidgetTable(; column_headers = _get_column_headers(columns),
-                        rows = ListNode(make_widget_table_row(Any["" for _ in columns])),
-                        column_count = length(columns),
-                        column_policies = _make_column_policies(p, columns))
-    set_cell_computation!(getfield(table, :rows), () -> begin
+                        cells = ListNode(make_widget_table_row(Any["" for _ in columns])),
+                        columns = _make_table_columns(p, columns))
+    set_cell_computation!(getfield(table, :cells), () -> begin
         shown = _compute_shown_indices(doc)
         isempty(shown) ? CellVector() : make_row_node(shown, 1)
     end)
@@ -306,8 +307,7 @@ function _build_whole_table(p, doc::TaskGroupDocument)
     documents = getfield(doc, :tasks)[]
     rows = Any[_build_table_row(p, doc, group, kind_columns, index, documents[index])
                for index in _compute_shown_indices(doc)]
-    WidgetTable(_get_column_headers(columns), rows;
-                column_policies = _make_column_policies(p, columns))
+    WidgetTable(_get_column_headers(columns), rows; columns = _make_table_columns(p, columns))
 end
 
 # ── The detail of one task ───────────────────────────────────────────────────
