@@ -553,7 +553,7 @@ new tab".
     default of a side button, so the browser does not leave the page.
   - The `@gestures` table of `Navigator` binds a click of `:back` and `:forward`
     with any modifier; a part on the page answers no such click.
-- [ ] **11. Documentation.** A design document for the slice, the keys in
+- [x] **11. Documentation.** A design document for the slice, the keys in
   [keyboard-and-mouse-guide.md](../../documentation/guide/keyboard-and-mouse-guide.md),
   and the example in
   [examples-tour.md](../../documentation/guide/examples-tour.md).
@@ -561,7 +561,11 @@ new tab".
     [navigator.md](../../documentation/package/platform/navigator/navigator.md),
     its row in the package index, and the keys in the keyboard guide, for steps
     1 to 4 (2026-10-06). Each later step updates the document.
-  - [ ] The example in the examples tour, after step 5. A fact found on the way
+  - [x] The example in the examples tour, after step 5. Done 2026-10-06: the
+    section "A table and its detail page" opens the data frame example from the
+    evaluator of the application, because the gallery of `run_example` draws no
+    popup. A headless check of the editor that `run_application` builds, with the
+    example opened by `open_pane!`, passed the 11 checks of the live run. A fact found on the way
     (2026-10-06): a host gives an opened window only the rows that it names, so
     the list of choices opened an empty window in the application and in the
     gallery; the tests gave popups the natural renderer. **Decided (owner,
