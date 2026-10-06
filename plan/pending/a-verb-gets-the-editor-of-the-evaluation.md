@@ -1,7 +1,8 @@
 # A verb gets the editor of the evaluation
 
 > **Kind:** plan · **Status:** in progress, 2026-10-06, on the branch
-> `evaluation-editor`. The owner decided every open question (§2). ·
+> `evaluation-editor`. Steps 1 to 4 are done; step 5 is half done and its second
+> part waits for the owner; step 6 did not run (§7). ·
 > **Stands on:** [PAR-PER-EDITOR-STATE](../../documentation/rule/architecture-invariants.md#par-per-editor-state),
 > [code-quality-rules.md §4](../../documentation/rule/code-quality-rules.md),
 > [agent.md](../../documentation/package/kernel/agent.md),
@@ -411,9 +412,45 @@ lands on the branch.
    declared verbs, and the docstring of `CampaignVerbs` that says "Every verb
    takes the editor first". Run `Pkg.precompile` and a scan of the calls,
    because a change of signature in projectured-julia breaks a call there.
+
+   **First part done 2026-10-06; second part waits for the owner.**
+   - **The calls of the projectured verbs in omnet-julia** follow the keyword
+     form: omnet-julia branch `evaluation-editor`, 57f39ae9, worktree
+     `omnet-julia-evaluation-editor`. The rewrite tool changed 71 calls; 13
+     calls of `get_window_tree`, the code strings of the scripted model, the
+     docstrings, the system texts and `documentation/guide/assistant-guide.md`
+     changed by hand. `plan/` and the fixture of `PromptNamesTest.jl` keep the
+     old text. inet-julia and opp_repl call none of the verbs.
+     `Projectured.jl` is a release copy and is not changed by hand.
+   - **projectured `main` moved during the work** (ffb99115a to e9faed132: the
+     task slice), and omnet `main` needs its `TaskModule`. The branch is rebased
+     onto e9faed132. The task slice called `close_pane!(editor, reference)` once
+     and showed `open_pane!(editor, group; …)` in two examples; 642840f8a
+     changes them.
+   - **Tests of omnet-julia**, in a scratch environment with absolute paths to the
+     two worktrees, and again with the paths at the two `main` checkouts: the
+     counts are equal. `test_pane_program()` 46/1, `test_campaign_verbs()` 7/0/3,
+     `test_result_verbs()` 62/1, `test_study_verbs()` 52/1/1,
+     `test_select_and_paste()` 47/1/8, `test_ide_window_wrap()` 37/1/1,
+     `test_ide_file_navigator()` 8, `test_assistant_problem_table()` 16,
+     `test_assistant_turn_misses()` 8. Every failure is the same assertion on
+     both sides; one moved from line 314 to line 310 because the lines above it
+     became shorter.
+   - **Open: the verbs of omnet-julia themselves.** Two facts came up. The draft
+     `omnet-julia/plan/pending/verbs-belong-to-their-subject.md` proposes that
+     most of these verbs take their subject, such as a directory or a filter,
+     and no editor at all. And the task slice brought 11 verbs into
+     projectured-julia that take the editor first (`list_task_groups`,
+     `find_task_group`, `describe_task_group`, `describe_task`,
+     `get_task_output`, `wait_for_task_group!`, `stop_tasks!`, `stop_task!`,
+     `rerun_tasks!`, `close_task_group!`, `open_task_group_pane`), which D4 did
+     not name. Both stay as they are until the owner decides.
 6. **A check with the model.** Run `tool/assistant/rehearsal.jl` on the seeds,
    before and after. The model writes the verbs without `editor`, and the count
    of turns that pass does not go down.
+
+   **Not run.** The rehearsal runs a model through Ollama, and a model run needs
+   47 GB of available memory; the machine had about 37 GB.
 
 ## 8. Out of scope
 
