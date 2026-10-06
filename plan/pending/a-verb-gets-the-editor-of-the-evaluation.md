@@ -1,8 +1,8 @@
 # A verb gets the editor of the evaluation
 
 > **Kind:** plan · **Status:** in progress, 2026-10-06, on the branch
-> `evaluation-editor`. Steps 1 to 4 are done; step 5 is half done and its second
-> part waits for the owner; step 6 did not run (§7). ·
+> `evaluation-editor`. Steps 1 to 5 are done; step 6 waits, because the owner
+> said not to run Ollama now (§7). ·
 > **Stands on:** [PAR-PER-EDITOR-STATE](../../documentation/rule/architecture-invariants.md#par-per-editor-state),
 > [code-quality-rules.md §4](../../documentation/rule/code-quality-rules.md),
 > [agent.md](../../documentation/package/kernel/agent.md),
@@ -464,6 +464,21 @@ lands on the branch.
        rehearsal. The four texts that said "every verb takes the editor first"
        say what is now.
      - The argument guard reports nothing new on either repository.
+     - A test called the start verbs through a loop variable,
+       `start(editor; config = "AlphaTwo")`, which no tool sees. A search for a
+       verb name with no call after it found no other such place.
+     - Both `main` branches moved again during the work: projectured to
+       1fd52ac14 (the progress bar is `WidgetProgressBar`, and a progress ring),
+       omnet to 3ed4e90b. Both branches are rebased onto them. One conflict, an
+       example in `WidgetDocument.jl`, keeps both changes; the new example of
+       the progress ring lost its editor.
+     - Final tests on the rebased branches. projectured-julia: the 40 test
+       functions of steps 1 to 5 pass, except `test_arguments()`, whose three
+       violations (`drain_task_feed!`, `WidgetProgressBar`,
+       `WidgetProgressRing`) `main` has too. omnet-julia, against both worktrees
+       and against both `main` checkouts: the same counts, and the same
+       failures, on both sides; `test_task_verbs()` 42 / 42. The two tests of
+       the assistant that start an Ollama model did not run.
 6. **A check with the model.** Run `tool/assistant/rehearsal.jl` on the seeds,
    before and after. The model writes the verbs without `editor`, and the count
    of turns that pass does not go down.
