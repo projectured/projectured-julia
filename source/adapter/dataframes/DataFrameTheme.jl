@@ -34,9 +34,9 @@ one.
     "The gap between the parts of the expression bar: the words, the fields and the glyph."
     expression_gap::Spacing = Spacing(8)
     "A field of the filter row or of the expression bar whose text does not parse."
-    invalid_query::StyleColor = ColorRole(:error_tint)
+    invalid_query::ThemeColor = ColorRole(:error_tint)
     "The glyph of the header of a column that does not sort."
-    unsorted_glyph::StyleColor = ColorRole(:text_faint)
+    unsorted_glyph::ThemeColor = ColorRole(:text_faint)
     "The width of a column of the table when a wide frame draws its columns as a list."
     list_column_width::ControlSize = ControlSize(160)
     "The width and the height of the list in the dialog of the values of a column."

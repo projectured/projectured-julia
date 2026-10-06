@@ -59,9 +59,9 @@ incremental updates.
 @document struct TextNewline <: TextDocument
     font::StyleFont
     font_color::StyleColor = ""
-    fill_color::StyleColor = nothing
-    line_color::StyleColor = nothing
-    padding::Inset = nothing
+    fill_color::Union{StyleColor, Nothing} = nothing
+    line_color::Union{StyleColor, Nothing} = nothing
+    padding::Union{Inset, Nothing} = nothing
 end
 
 # ── TextSpacing ─────────────────────────────────────────────────────
@@ -91,9 +91,9 @@ in pixels or character spaces.
     unit::Symbol
     font::StyleFont
     font_color::StyleColor
-    fill_color::StyleColor
-    line_color::StyleColor
-    padding::Inset
+    fill_color::Union{StyleColor, Nothing}
+    line_color::Union{StyleColor, Nothing}
+    padding::Union{Inset, Nothing}
 end
 
 TextSpacing(size::Number; unit=:pixel, font, font_color="", fill_color=nothing, line_color=nothing, padding=nothing) =
@@ -129,9 +129,9 @@ refers to the cursor within the span's `content` field:  `.content{k}`
     content::AbstractString
     font::ImmutableCell{StyleFont}
     font_color::ImmutableCell{StyleColor}
-    fill_color::StyleColor
-    line_color::StyleColor
-    padding::Inset
+    fill_color::Union{StyleColor, Nothing}
+    line_color::Union{StyleColor, Nothing}
+    padding::Union{Inset, Nothing}
     pointer_shape::Any
 end
 
@@ -216,9 +216,9 @@ it, take the style of the nearest text run of its line.
     content::Document
     width::Int32
     height::Int32
-    fill_color::StyleColor
-    line_color::StyleColor
-    padding::Inset
+    fill_color::Union{StyleColor, Nothing}
+    line_color::Union{StyleColor, Nothing}
+    padding::Union{Inset, Nothing}
 end
 
 TextGraphics(content, width::Integer, height::Integer; fill_color=nothing, line_color=nothing, padding=nothing) =

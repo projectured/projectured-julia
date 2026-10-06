@@ -28,29 +28,29 @@ plain values of the default theme.
     "The colors of the kinds of arrows and events that name no color of their own, in order, when the style names no cycle."
     series_colors::Vector{ThemeColor} = ThemeColor[ColorRole(Symbol("series_", i)) for i in 1:8]
     "The whole canvas, behind the body."
-    background::StyleColor = ColorRole(:background)
+    background::ThemeColor = ColorRole(:background)
     "The body, where the lanes and their events draw."
-    body_background::StyleColor = ColorRole(:surface)
+    body_background::ThemeColor = ColorRole(:surface)
     "A lane's line, when the lane names no color of its own."
-    axis::StyleColor = ColorRole(:border_strong)
+    axis::ThemeColor = ColorRole(:border_strong)
     "A tick, a lane name, a title, a readout, and a label."
-    text_color::StyleColor = ColorRole(:text_muted)
+    text_color::ThemeColor = ColorRole(:text_muted)
     "The time-scale strip, when the chart names no color of its own."
-    gutter::StyleColor = ColorRole(:surface_sunken)
+    gutter::ThemeColor = ColorRole(:surface_sunken)
     "The border of the gutter strip."
-    gutter_border::StyleColor = ColorRole(:border)
+    gutter_border::ThemeColor = ColorRole(:border)
     "The dotted line a tick draws down through the body."
-    hairline::StyleColor = ColorRole(:grid)
+    hairline::ThemeColor = ColorRole(:grid)
     "The wash over a stretch where the clock stands still."
-    zero_time::StyleColor = ColorRole(:hover)
+    zero_time::ThemeColor = ColorRole(:hover)
     "An arrow, when its kind names no color of its own."
-    arrow::StyleColor = ColorRole(:series_1)
+    arrow::ThemeColor = ColorRole(:series_1)
     "An occurrence, when its kind names no color of its own."
-    event::StyleColor = ColorRole(:series_4)
+    event::ThemeColor = ColorRole(:series_4)
     "The ring, the highlight and the cursor line of a selection."
-    selected::StyleColor = ColorRole(:selection_ring)
+    selected::ThemeColor = ColorRole(:selection_ring)
     "The ring and the highlight of what the pointer is over."
-    hover::StyleColor = ColorRole(:selection_ring; alpha = 0.5)
+    hover::ThemeColor = ColorRole(:selection_ring; alpha = 0.5)
     "The opacity of a state band's generated color, when it names none of its own."
     band_overlay_alpha::Float64 = 0.45
     "The font of the chart's title."

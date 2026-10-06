@@ -54,11 +54,11 @@ and `WidgetAlert` for a message with a title.
     #
     # The bare colour keeps the font of the theme, so a line coloured by
     # severity still follows the window's theme. It wins over `style`.
-    text_style::ImmutableCell{StyleText}
+    text_style::ImmutableCell{Union{StyleText, Nothing}}
     visible::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
 end
@@ -137,9 +137,9 @@ only read, and `WidgetSpinBox` for a number.
     placeholder::Any
     visible::Bool
     enabled::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
 end
@@ -225,9 +225,9 @@ a value typed as text.
     validator::Any
     visible::Bool
     enabled::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
 end
@@ -281,9 +281,9 @@ opens on a click, and `WidgetRadioGroup` for a few choices that stay visible.
     width::Int
     visible::Bool
     enabled::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     scroll_position::Point2D     # view state: the offset of the rows of a list that scrolls itself
     vertical_scroll_bar::Any     # :auto, nothing, or the WidgetScrollBar of an owner
@@ -365,9 +365,9 @@ See also `WidgetSwitch`, which is the same choice drawn as a slide, and
     label::Any                  # what the box means, drawn after it, or nothing
     visible::Bool
     enabled::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     gestures::Any               # per-instance gesture bindings (see get_instance_gesture_bindings)
     tooltip::Any
@@ -452,9 +452,9 @@ for one choice among several.
     dialog::Any
     visible::Bool
     enabled::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     pressed::Bool
     labels::Any
@@ -518,9 +518,9 @@ A floating tooltip overlay..
     size::Point2D
     content::Any
     visible::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
 end
@@ -555,9 +555,9 @@ still works.
     menu::Any
     visible::Bool
     enabled::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
 end
@@ -594,9 +594,9 @@ open it from a `WidgetButton`'s `dialog` field.
     buttons::CellVector
     popup_id::Symbol
     visible::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
 end
@@ -656,9 +656,9 @@ A menu containing a sequence of `WidgetMenuItem`s..
     elements::CellVector = CellVector()
     orientation::Symbol = :vertical
     visible::Bool = true
-    margin::Inset = nothing
-    border::Inset = nothing
-    padding::Inset = nothing
+    margin::Union{Inset, Nothing} = nothing
+    border::Union{Inset, Nothing} = nothing
+    padding::Union{Inset, Nothing} = nothing
     style::Any = nothing
     tooltip::Any
 end
@@ -707,9 +707,9 @@ records it as an edit of the person.
     operation::Any
     visible::Bool
     enabled::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
 end
@@ -765,9 +765,9 @@ item writes it.
     gestures::Any
     visible::Bool
     enabled::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     pressed::Bool
     tooltip::Any
@@ -819,9 +819,9 @@ See also `WidgetCard`, which frames one thing with a title, and `VerticalLayout`
     child_width::Any
     child_height::Any
     visible::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
 end
@@ -850,9 +850,9 @@ below the menu bar in a `WidgetShell`.
 @document struct WidgetToolbar <: WidgetDocument
     elements::CellVector = CellVector()
     visible::Bool = true
-    margin::Inset = nothing
-    border::Inset = nothing
-    padding::Inset = nothing
+    margin::Union{Inset, Nothing} = nothing
+    border::Union{Inset, Nothing} = nothing
+    padding::Union{Inset, Nothing} = nothing
     style::Any = nothing
     tooltip::Any
 end
@@ -1042,9 +1042,9 @@ A thin bottom band of status text `segments` (each stringified) — Qt's
 @document struct WidgetStatusBar <: WidgetDocument
     elements::CellVector = CellVector()
     visible::Bool = true
-    margin::Inset = nothing
-    border::Inset = nothing
-    padding::Inset = nothing
+    margin::Union{Inset, Nothing} = nothing
+    border::Union{Inset, Nothing} = nothing
+    padding::Union{Inset, Nothing} = nothing
     style::Any = nothing
     tooltip::Any
 end
@@ -1074,16 +1074,16 @@ Top-level window shell..
 """
 @document struct WidgetShell <: WidgetDocument
     content::Any
-    size::Point2D
-    overlay::WidgetTooltip
-    menu_bar::WidgetMenu
-    toolbar::WidgetToolbar
-    context_menu::WidgetMenu
-    status_bar::WidgetStatusBar
+    size::Union{Point2D, Nothing}
+    overlay::Union{WidgetTooltip, Nothing}
+    menu_bar::Union{WidgetMenu, Nothing}
+    toolbar::Union{WidgetToolbar, Nothing}
+    context_menu::Union{WidgetMenu, Nothing}
+    status_bar::Union{WidgetStatusBar, Nothing}
     visible::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
 end
@@ -1130,9 +1130,9 @@ whose `title` names a tab.
     title::Any
     content::Any
     visible::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
 end
@@ -1187,9 +1187,9 @@ See also `HorizontalLayout`, `VerticalLayout` and `WidgetTabbedPane`.
     elements::CellVector
     sizes::CellVector
     visible::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     active_splitter::Int
     drag_anchor::Any
@@ -1318,9 +1318,9 @@ children shown at once.
 @document struct WidgetTabbedPane <: WidgetDocument
     selector_element_pairs::CellVector = CellVector()
     visible::Bool = true
-    margin::Inset = nothing
-    border::Inset = nothing
-    padding::Inset = nothing
+    margin::Union{Inset, Nothing} = nothing
+    border::Union{Inset, Nothing} = nothing
+    padding::Union{Inset, Nothing} = nothing
     style::Any = nothing
     tab_scroll::Int = 0
     closable::Bool = false
@@ -1405,16 +1405,16 @@ See also `WidgetCard`, whose `height` bounds a body that scrolls.
 """
 @document struct WidgetScrollPane <: WidgetDocument
     content::Any
-    position::Point2D
-    size::Point2D
+    position::Union{Point2D, Nothing}
+    size::Union{Point2D, Nothing}
     scroll_position::Point2D
     follow_end::Bool
     vertical_scroll_bar::Any     # :auto, nothing, or the WidgetScrollBar of a maker
     horizontal_scroll_bar::Any   # :auto, nothing, or the WidgetScrollBar of a maker
     visible::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
 end
@@ -1458,13 +1458,13 @@ translate+scale subset is rendered today; rotation/shear is future work.
 """
 @document struct WidgetTransformPane <: WidgetDocument
     content::Any
-    position::Point2D
+    position::Union{Point2D, Nothing}
     size::Point2D
     transform::AffineTransform
     visible::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
 end
@@ -1509,12 +1509,12 @@ view is, as the owner of a list that the widget walks from its head: set its
     value::Float64
     thumb_size::Float64
     thumb_drag::Any      # view state: the drag of the thumb that is on, `(along, value, travel)` at the press, or nothing
-    position::Point2D
-    size::Point2D
+    position::Union{Point2D, Nothing}
+    size::Union{Point2D, Nothing}
     visible::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
 end
@@ -1602,9 +1602,9 @@ See also `WidgetAlert` for a message with a title, and `WidgetLabel`.
     variant::Symbol
     role::Any
     visible::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
 end
@@ -1638,9 +1638,9 @@ See also `WidgetCard`, which frames a group instead of dividing two.
     orientation::Symbol
     length::Int
     visible::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
 end
@@ -1726,9 +1726,9 @@ folding sections, and `VerticalLayout` to stack cards.
     collapsed::Bool
     variant::Symbol
     collapsible::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
 end
@@ -1787,9 +1787,9 @@ See also `WidgetCheckbox` and `WidgetToggleGroup`.
     label::Any           # what the switch means, drawn after it, or nothing
     visible::Bool
     enabled::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     duration::Int        # slide length in ms; the projection draws no slide
     anim_from::Float64   # knob fraction [0,1] when a slide began
@@ -1831,9 +1831,9 @@ See also `WidgetProgressRing`, which shows the same value in one line of text,
     value::Union{Nothing, Float64}
     width::Int
     visible::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
 end
@@ -1916,9 +1916,9 @@ a share that is only shown.
     width::Int
     visible::Bool
     enabled::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     dragging::Bool     # the knob is held: a move keeps writing until release
     press_value::Any   # the value of the knob at the press while it is held, else nothing
@@ -1993,9 +1993,9 @@ for many choices that open on a click.
     selected::Int
     visible::Bool
     enabled::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
 end
@@ -2017,9 +2017,9 @@ A circular avatar showing initials (image-clipping is future work).
     initials::Any
     size::Int
     visible::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
 end
@@ -2058,9 +2058,9 @@ line.
     variant::Symbol
     width::Int
     visible::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
 end
@@ -2083,9 +2083,9 @@ A muted rounded placeholder block for loading states.
     width::Int
     height::Int
     visible::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
 end
@@ -2113,9 +2113,9 @@ color near the background shows too. A swatch takes no input.
     color::StyleColor
     size::Any
     visible::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
 end
@@ -2167,9 +2167,9 @@ and so do Return and Space while the toggle has the focus.
     pressed::Bool
     visible::Bool
     enabled::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
 end
@@ -2221,9 +2221,9 @@ for on or off.
     selected::Int
     visible::Bool
     enabled::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     values::Any        # what each option means, or nothing = its index
     target::Any        # what a pick writes to, or nothing = this group
@@ -2284,9 +2284,9 @@ visible, and `WidgetList` for a list that stays open.
     width::Int
     visible::Bool
     enabled::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
 end
@@ -2319,9 +2319,9 @@ to `evaluate_operation`.
     popup_id::Symbol
     width::Int
     visible::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
 end
@@ -2359,9 +2359,9 @@ read.
     rows::Int
     visible::Bool
     enabled::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
 end
@@ -2417,9 +2417,9 @@ section that folds.
     expanded::Int
     width::Int
     visible::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
 end
@@ -2646,9 +2646,9 @@ See also `make_result_table` and `WidgetList` for one column.
     row_policy::Any              # SizePolicy — a body row whose data names none
     cell_policy::Symbol          # :clip | :wrap — the cells of a body column whose data names none
     visible::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     scroll_position::Point2D     # view state: the one offset of the parts of a table that scrolls itself
     top_row::Int                 # view state: the row at the top of a list of rows, counted from its head
@@ -2962,9 +2962,9 @@ and `horizontal_scroll_bar` are its bars, as a `WidgetScrollPane` takes them.
     position::Point2D
     roots::CellVector
     visible::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     expanded::Set{Vector{Int}}   # transient: node paths whose children show
     gestures::Any                # per-instance tree-level gesture bindings

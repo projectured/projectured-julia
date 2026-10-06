@@ -43,9 +43,9 @@ theme.
     "A row that cannot run right now."
     palette_muted_text::TextRole = TextRole(:text_faint)
     "The fill of the panel the palette draws itself on."
-    palette_background::StyleColor = ColorRole(:surface)
+    palette_background::ThemeColor = ColorRole(:surface)
     "The border of the panel the palette draws itself on."
-    palette_border::StyleColor = ColorRole(:border_strong)
+    palette_border::ThemeColor = ColorRole(:border_strong)
     "The radius of the corners of the panel."
     palette_radius::Radius = Radius(6)
     "The width of the border of the panel."

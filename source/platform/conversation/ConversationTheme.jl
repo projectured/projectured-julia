@@ -53,15 +53,15 @@ with no styles holds the plain values of the default theme.
     "The `=` prompt before the result of a form whose evaluation failed."
     error_prompt_text::TextRole = TextRole(:error_text; base = :code_font)
     "The typed text of an editable part of the composer."
-    plain_color::StyleColor = ColorRole(:text)
+    plain_color::ThemeColor = ColorRole(:text)
     "The placeholder of an empty part, and the static words of a kind chooser."
-    placeholder_color::StyleColor = ColorRole(:text_faint)
+    placeholder_color::ThemeColor = ColorRole(:text_faint)
     "The value of a kind chooser that names a known kind."
-    valid_color::StyleColor = ColorRole(:success_text)
+    valid_color::ThemeColor = ColorRole(:success_text)
     "The value of a kind chooser that names no kind."
-    invalid_color::StyleColor = ColorRole(:error_text)
+    invalid_color::ThemeColor = ColorRole(:error_text)
     "The hint that completes the value of a kind chooser."
-    completion_hint_color::StyleColor = ColorRole(:text_faint)
+    completion_hint_color::ThemeColor = ColorRole(:text_faint)
     "The gap between the parts of one turn, and between the cards of the composer."
     part_gap::Spacing = Spacing(8)
     "The gap between the turns of a transcript."

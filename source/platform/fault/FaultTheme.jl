@@ -32,7 +32,7 @@ holds the plain values of the default theme.
     "The line the log shows while it holds no fault."
     empty_text::TextRole = TextRole(:text_faint)
     "The surface of the panel that shows the log over the content of a window: dark and translucent, with a red cast, so the content stays readable and the panel says that it is not chrome."
-    panel_background::StyleColor = ColorRole(:error_fill; alpha = 0.92)
+    panel_background::ThemeColor = ColorRole(:error_fill; alpha = 0.92)
     "The space between the panel and the edges of the window."
     panel_margin::Spacing = Spacing(12)
     "The space inside the panel, around the lines of the log."

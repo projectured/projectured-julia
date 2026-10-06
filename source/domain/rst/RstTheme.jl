@@ -67,7 +67,7 @@ color, picked by the level while it prints.
     "The font of a section title past the third level, in the rendered form."
     title_font::FontRole           = FontRole(weight = 700, relative_size = 0.9)
     "The color of a section title in the rendered form."
-    title_color::StyleColor         = ColorRole(:heading)
+    title_color::ThemeColor         = ColorRole(:heading)
     "The caption under a rendered figure."
     caption_text::TextRole         = TextRole(:text_muted; italic = true)
     "A marker of the rendered form: a transition rule, and the arrow of a literal include."

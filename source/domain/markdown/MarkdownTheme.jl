@@ -57,9 +57,9 @@ values of the default theme. A heading holds the four fonts of its levels,
     "The font of a heading past the third level, in the rendered form."
     heading_font::FontRole         = FontRole(weight = 700, relative_size = 0.9)
     "The color of a heading in the rendered form."
-    heading_color::StyleColor       = ColorRole(:heading)
+    heading_color::ThemeColor       = ColorRole(:heading)
     "The color of a link in the rendered form."
-    link_color::StyleColor          = ColorRole(:link)
+    link_color::ThemeColor          = ColorRole(:link)
     "The caption under a rendered image."
     caption_text::TextRole         = TextRole(:text_muted; italic = true)
     "A marker of the rendered form: a thematic break rule, a quote bar, a code fence's language, a list marker."

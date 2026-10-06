@@ -64,7 +64,7 @@ values of the default theme.
     "The completion that the insertion offers."
     hint_text::TextRole = TextRole(:text_faint)
     "The color of the typed text of the insertion while it names nothing."
-    wrong_color::StyleColor = ColorRole(:error_text)
+    wrong_color::ThemeColor = ColorRole(:error_text)
     "The color of the typed text of the insertion while it names one thing."
-    found_color::StyleColor = ColorRole(:success_text)
+    found_color::ThemeColor = ColorRole(:success_text)
 end

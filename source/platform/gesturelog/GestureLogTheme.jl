@@ -32,7 +32,7 @@ with no styles holds the plain values of the default theme.
     "The line the log shows while it holds no gesture."
     empty_text::TextRole = TextRole(:text_faint)
     "The surface of the panel that shows the log over the content of a window: dark and translucent, so the content stays readable and the light text of the log reads over any content."
-    panel_background::StyleColor = ColorRole(:surface_inverse)
+    panel_background::ThemeColor = ColorRole(:surface_inverse)
     "The space between the panel and the edges of the window."
     panel_margin::Spacing = Spacing(12)
     "The space inside the panel, around the lines of the log."

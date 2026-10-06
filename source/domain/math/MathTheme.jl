@@ -41,9 +41,9 @@ of the default theme.
     "The oblique face: a variable."
     slanted_font::FontRole = FontRole(italic = true)
     "The color of every part."
-    ink::StyleColor = ColorRole(:text)
+    ink::ThemeColor = ColorRole(:text)
     "The color of an empty slot."
-    hint::StyleColor = ColorRole(:text_faint)
+    hint::ThemeColor = ColorRole(:text_faint)
     "The color that washes a selected box."
-    selection_wash::StyleColor = ColorRole(:selection_band)
+    selection_wash::ThemeColor = ColorRole(:selection_band)
 end

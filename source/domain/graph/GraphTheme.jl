@@ -17,9 +17,9 @@ not; with no theme it holds the plain values of the default theme.
 """
 @theme struct GraphTheme
     "The fill of the box of a node, under its content."
-    node_fill::StyleColor = ColorRole(:surface)
+    node_fill::ThemeColor = ColorRole(:surface)
     "The border of the box of a node."
-    node_border::StyleColor = ColorRole(:border_strong)
+    node_border::ThemeColor = ColorRole(:border_strong)
     "The width of the border of the box of a node."
     node_border_width::LineWidth = LineWidth(2)
     "The radius of the corners of the box of a node."
@@ -27,13 +27,13 @@ not; with no theme it holds the plain values of the default theme.
     "The space between the content of a node and its box."
     node_padding::Spacing = Spacing(8)
     "The line of an edge and its arrowhead."
-    edge::StyleColor = ColorRole(:border_strong)
+    edge::ThemeColor = ColorRole(:border_strong)
     "The width of the line of an edge."
     edge_width::LineWidth = LineWidth(2)
     "The length of the arrowhead of a directed edge."
     arrow_size::ControlSize = ControlSize(10)
     "The ring around a highlighted node, and the line over a highlighted edge."
-    highlight::StyleColor = ColorRole(:accent)
+    highlight::ThemeColor = ColorRole(:accent)
     "The width of the ring of a highlighted node and of the line of a highlighted edge."
     highlight_width::LineWidth = LineWidth(3)
     "The space between the box of a highlighted node and its ring."

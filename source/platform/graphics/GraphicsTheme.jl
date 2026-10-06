@@ -20,9 +20,9 @@ with the same theme, from the same appearance.
     "The mark of a fault that a projection of the graphics domain raised."
     fault_text::TextRole = TextRole(:error_text; weight = 700)
     "The ring around an object that is selected as a whole."
-    selection_ring::StyleColor = ColorRole(:selection_ring)
+    selection_ring::ThemeColor = ColorRole(:selection_ring)
     "The band under a selected row of a list, a tree or a table."
-    selection_band::StyleColor = ColorRole(:selection_band)
+    selection_band::ThemeColor = ColorRole(:selection_band)
     "The width of the ring around an object that is selected as a whole."
     selection_ring_width::LineWidth = LineWidth(2)
     "The radius of the corners of the ring around an object that is selected as a whole."

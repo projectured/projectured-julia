@@ -24,33 +24,33 @@ default theme. A value that a chart's own
 """
 @theme struct ChartTheme
     "The canvas behind the whole chart."
-    background::StyleColor      = ColorRole(:background)
+    background::ThemeColor      = ColorRole(:background)
     "The plot rectangle, under the series."
-    plot_background::StyleColor = ColorRole(:surface)
+    plot_background::ThemeColor = ColorRole(:surface)
     "The two axis lines, the tick marks and the border of the grid frame."
-    axis::StyleColor            = ColorRole(:border_strong)
+    axis::ThemeColor            = ColorRole(:border_strong)
     "A gridline."
-    grid::StyleColor            = ColorRole(:grid)
+    grid::ThemeColor            = ColorRole(:grid)
     "The title, the axis titles, the tick labels and the legend's \"and N more\" line."
-    text_color::StyleColor      = ColorRole(:text_muted)
+    text_color::ThemeColor      = ColorRole(:text_muted)
     "The fill of a selected part."
-    selected_fill::StyleColor   = ColorRole(:selection_band)
+    selected_fill::ThemeColor   = ColorRole(:selection_band)
     "The outline of a selected part."
-    selected_edge::StyleColor   = ColorRole(:selection_ring)
+    selected_edge::ThemeColor   = ColorRole(:selection_ring)
     "The fill of a hovered legend item."
-    hover_fill::StyleColor      = ColorRole(:hover)
+    hover_fill::ThemeColor      = ColorRole(:hover)
     "The colors of the series of a chart whose style names no cycle of its own, in the order of the series."
     series_colors::Vector{ThemeColor} = ThemeColor[ColorRole(Symbol("series_", i)) for i in 1:8]
     "The legend swatch of a strip series, neutral because the band draws in many colors."
-    strip_swatch::StyleColor    = ColorRole(:border_strong)
+    strip_swatch::ThemeColor    = ColorRole(:border_strong)
     "The border between adjacent strip segments."
-    strip_edge::StyleColor      = ColorRole(:grid)
+    strip_edge::ThemeColor      = ColorRole(:grid)
     "The label of a strip segment whose own color is too dark for the normal text color."
-    strip_contrast_text::StyleColor = ColorRole(:text_on_accent)
+    strip_contrast_text::ThemeColor = ColorRole(:text_on_accent)
     "The readout lines of the pointer."
-    crosshair::StyleColor       = ColorRole(:accent; alpha = 0.7)
+    crosshair::ThemeColor       = ColorRole(:accent; alpha = 0.7)
     "The rubber band of a zoom drag."
-    band_fill::StyleColor       = ColorRole(:selection_band)
+    band_fill::ThemeColor       = ColorRole(:selection_band)
     "The font of the chart's own title."
     title_font::FontRole       = FontRole(base = :axis_font, weight = 700, relative_size = 16 / 14)
     "The font of an axis title, a tick label and a strip's segment name."

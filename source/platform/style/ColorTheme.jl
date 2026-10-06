@@ -32,156 +32,156 @@ bold.
 @theme struct ColorTheme
     # ── Surfaces ──
     "The background of a window and of an editor."
-    background::StyleColor = PaletteColor(:neutral, 2)
+    background::ThemeColor = PaletteColor(:neutral, 2)
     "A raised surface: a card, a menu, a popup, a panel. It is lighter than the background in both modes."
-    surface::StyleColor = PaletteColor(:neutral, 1)
+    surface::ThemeColor = PaletteColor(:neutral, 1)
     "A quiet surface: a track, a gutter, a disabled control, a sunken field."
-    surface_sunken::StyleColor = PaletteColor(:neutral, 3)
+    surface_sunken::ThemeColor = PaletteColor(:neutral, 3)
     "A panel over the content of a window, such as the fault log: dark in the light mode, light in the dark mode."
-    surface_inverse::StyleColor = PaletteColor(:neutral, 12; alpha = 0.92)
+    surface_inverse::ThemeColor = PaletteColor(:neutral, 12; alpha = 0.92)
     # ── Texts ──
     "The text: prose, a label, a value, a plain name."
-    text::StyleColor = PaletteColor(:neutral, 12)
+    text::ThemeColor = PaletteColor(:neutral, 12)
     "A quiet text: a caption, a detail, a number of a line."
-    text_muted::StyleColor = PaletteColor(:neutral, 11; minimum_contrast = 4.5)
+    text_muted::ThemeColor = PaletteColor(:neutral, 11; minimum_contrast = 4.5)
     "A faint text: a placeholder, a hint, a disabled label."
-    text_faint::StyleColor = PaletteColor(:neutral, 10; minimum_contrast = 3.0)
+    text_faint::ThemeColor = PaletteColor(:neutral, 10; minimum_contrast = 3.0)
     "A text on a solid fill of the accent or of a status."
     text_on_accent::StyleColor = color_white
     "A text on the inverse surface."
-    text_inverse::StyleColor = PaletteColor(:neutral, 1)
+    text_inverse::ThemeColor = PaletteColor(:neutral, 1)
     "A quiet text on the inverse surface."
-    text_inverse_muted::StyleColor = PaletteColor(:neutral, 8)
+    text_inverse_muted::ThemeColor = PaletteColor(:neutral, 8)
     # ── Lines ──
     "A faint line: the border of a card and of a pane, a separator."
-    border::StyleColor = PaletteColor(:neutral, 6)
+    border::ThemeColor = PaletteColor(:neutral, 6)
     "A strong line: the border of a control that takes a value, an axis."
-    border_strong::StyleColor = PaletteColor(:neutral, 8; minimum_contrast = 3.0)
+    border_strong::ThemeColor = PaletteColor(:neutral, 8; minimum_contrast = 3.0)
     "A grid line and a hairline of a chart."
-    grid::StyleColor = PaletteColor(:neutral, 4)
+    grid::ThemeColor = PaletteColor(:neutral, 4)
     # ── Accent ──
     "A solid fill of the accent: a default button, a checked box, a progress bar; white text reads on it."
-    accent::StyleColor = PaletteColor(:accent, 9; minimum_contrast = 4.5, against = color_white)
+    accent::ThemeColor = PaletteColor(:accent, 9; minimum_contrast = 4.5, against = color_white)
     "The solid fill of the accent under the pointer."
-    accent_hover::StyleColor = PaletteColor(:accent, 10; minimum_contrast = 4.5, against = color_white)
+    accent_hover::ThemeColor = PaletteColor(:accent, 10; minimum_contrast = 4.5, against = color_white)
     "A text in the accent: a link, the current item."
-    accent_text::StyleColor = PaletteColor(:accent, 11; minimum_contrast = 4.5)
+    accent_text::ThemeColor = PaletteColor(:accent, 11; minimum_contrast = 4.5)
     "A tint of the accent: the fill of a hovered or a chosen item of a list or a menu."
-    accent_tint::StyleColor = PaletteColor(:accent, 3)
+    accent_tint::ThemeColor = PaletteColor(:accent, 3)
     "The ring around the control that holds the keyboard. It differs from the selection ring, so a control selected as a whole and a control with the caret look different."
-    focus_ring::StyleColor = PaletteColor(:accent, 8; minimum_contrast = 3.0)
+    focus_ring::ThemeColor = PaletteColor(:accent, 8; minimum_contrast = 3.0)
     # ── Layers of a state ──
     "The layer over a part under the pointer."
-    hover::StyleColor = PaletteColor(:neutral, 12; alpha = 0.06)
+    hover::ThemeColor = PaletteColor(:neutral, 12; alpha = 0.06)
     "The layer over a pressed part."
-    pressed::StyleColor = PaletteColor(:neutral, 12; alpha = 0.12)
+    pressed::ThemeColor = PaletteColor(:neutral, 12; alpha = 0.12)
     "The band under a selected text and a selected row, while it holds the keyboard."
-    selection_band::StyleColor = PaletteColor(:accent, 9; alpha = 0.25)
+    selection_band::ThemeColor = PaletteColor(:accent, 9; alpha = 0.25)
     "The band under a selected text, while another part holds the keyboard."
-    selection_band_dormant::StyleColor = PaletteColor(:neutral, 9; alpha = 0.2)
+    selection_band_dormant::ThemeColor = PaletteColor(:neutral, 9; alpha = 0.2)
     "The ring around a part that is selected as a whole."
-    selection_ring::StyleColor = PaletteColor(:accent, 9; minimum_contrast = 3.0)
+    selection_ring::ThemeColor = PaletteColor(:accent, 9; minimum_contrast = 3.0)
     "The band under a match of a search."
-    search_match::StyleColor = PaletteColor(:amber, 9; alpha = 0.45)
+    search_match::ThemeColor = PaletteColor(:amber, 9; alpha = 0.45)
     "The caret of the text that holds the keyboard."
-    caret::StyleColor = PaletteColor(:neutral, 12)
+    caret::ThemeColor = PaletteColor(:neutral, 12)
     "The caret of a text that keeps its place while another holds the keyboard."
-    caret_dormant::StyleColor = PaletteColor(:neutral, 9)
+    caret_dormant::ThemeColor = PaletteColor(:neutral, 9)
     # ── Status ──
     "A solid mark of an error, and the fill of an action that deletes; white text reads on it."
-    error_fill::StyleColor = PaletteColor(:red, 9; minimum_contrast = 4.5, against = color_white)
+    error_fill::ThemeColor = PaletteColor(:red, 9; minimum_contrast = 4.5, against = color_white)
     "The text of an error: a message, a value that does not parse, a fault."
-    error_text::StyleColor = PaletteColor(:red, 11; minimum_contrast = 4.5)
+    error_text::ThemeColor = PaletteColor(:red, 11; minimum_contrast = 4.5)
     "A tint of an error: the fill behind a field that does not parse."
-    error_tint::StyleColor = PaletteColor(:red, 3)
+    error_tint::ThemeColor = PaletteColor(:red, 3)
     "A solid mark of a warning."
-    warning_fill::StyleColor = PaletteColor(:amber, 9)
+    warning_fill::ThemeColor = PaletteColor(:amber, 9)
     "The text of a warning, and of a step where a run stops."
-    warning_text::StyleColor = PaletteColor(:amber, 11; minimum_contrast = 4.5)
+    warning_text::ThemeColor = PaletteColor(:amber, 11; minimum_contrast = 4.5)
     "A tint of a warning."
-    warning_tint::StyleColor = PaletteColor(:amber, 3)
+    warning_tint::ThemeColor = PaletteColor(:amber, 3)
     "A solid mark of a success; white text reads on it."
-    success_fill::StyleColor = PaletteColor(:green, 9; minimum_contrast = 4.5, against = color_white)
+    success_fill::ThemeColor = PaletteColor(:green, 9; minimum_contrast = 4.5, against = color_white)
     "The text of a success: a value that names a known thing."
-    success_text::StyleColor = PaletteColor(:green, 11; minimum_contrast = 4.5)
+    success_text::ThemeColor = PaletteColor(:green, 11; minimum_contrast = 4.5)
     "A tint of a success."
-    success_tint::StyleColor = PaletteColor(:green, 3)
+    success_tint::ThemeColor = PaletteColor(:green, 3)
     "A solid mark of an information."
-    info_fill::StyleColor = PaletteColor(:blue, 9)
+    info_fill::ThemeColor = PaletteColor(:blue, 9)
     "The text of an information, such as the level of a message."
-    info_text::StyleColor = PaletteColor(:blue, 11; minimum_contrast = 4.5)
+    info_text::ThemeColor = PaletteColor(:blue, 11; minimum_contrast = 4.5)
     "A tint of an information."
-    info_tint::StyleColor = PaletteColor(:blue, 3)
+    info_tint::ThemeColor = PaletteColor(:blue, 3)
     # ── Tokens ──
     "A keyword of a language, a directive."
-    keyword::StyleColor = PaletteColor(:violet, 11; minimum_contrast = 4.5)
+    keyword::ThemeColor = PaletteColor(:violet, 11; minimum_contrast = 4.5)
     "A function, at its definition and at a call, a function of mathematics, a process."
-    function_name::StyleColor = PaletteColor(:blue, 11; minimum_contrast = 4.5)
+    function_name::ThemeColor = PaletteColor(:blue, 11; minimum_contrast = 4.5)
     "A macro. It takes the colour of a function."
-    macro_name::StyleColor = ColorRole(:function_name)
+    macro_name::ThemeColor = ColorRole(:function_name)
     "An event and a timer of a machine. It takes the colour of a function."
-    event::StyleColor = ColorRole(:function_name)
+    event::ThemeColor = ColorRole(:function_name)
     "A field, a field after a dot, a key, an attribute, a column."
-    field::StyleColor = PaletteColor(:blue, 11; minimum_contrast = 4.5)
+    field::ThemeColor = PaletteColor(:blue, 11; minimum_contrast = 4.5)
     "A string, a code span, a literal block."
-    string_literal::StyleColor = PaletteColor(:green, 11; minimum_contrast = 4.5)
+    string_literal::ThemeColor = PaletteColor(:green, 11; minimum_contrast = 4.5)
     "A character. It takes the colour of a string."
-    character_literal::StyleColor = ColorRole(:string_literal)
+    character_literal::ThemeColor = ColorRole(:string_literal)
     "A number: an integer, a float, an index."
-    number_literal::StyleColor = PaletteColor(:orange, 11; minimum_contrast = 4.5)
+    number_literal::ThemeColor = PaletteColor(:orange, 11; minimum_contrast = 4.5)
     "A boolean: `true` and `false`."
-    boolean_literal::StyleColor = PaletteColor(:pink, 11; minimum_contrast = 4.5)
+    boolean_literal::ThemeColor = PaletteColor(:pink, 11; minimum_contrast = 4.5)
     "A null: `null`, `nothing`, `missing`. It takes the colour of a boolean."
-    null_literal::StyleColor = ColorRole(:boolean_literal)
+    null_literal::ThemeColor = ColorRole(:boolean_literal)
     "A symbol, such as `:name`."
-    symbol_literal::StyleColor = PaletteColor(:teal, 11; minimum_contrast = 4.5)
+    symbol_literal::ThemeColor = PaletteColor(:teal, 11; minimum_contrast = 4.5)
     "A named constant that is no literal: a constant of mathematics, a substitution, the value of a field of a packet."
-    constant::StyleColor = PaletteColor(:orange, 11; minimum_contrast = 4.5)
+    constant::ThemeColor = PaletteColor(:orange, 11; minimum_contrast = 4.5)
     "A type, a struct, a SQL table, a data type, a machine and a component of an FSM."
-    type_name::StyleColor = PaletteColor(:amber, 11; minimum_contrast = 4.5)
+    type_name::ThemeColor = PaletteColor(:amber, 11; minimum_contrast = 4.5)
     "A parameter of a type, such as a variable of `where`. It takes the colour of a type."
-    type_parameter::StyleColor = ColorRole(:type_name)
+    type_parameter::ThemeColor = ColorRole(:type_name)
     "A module, a schema, a database, a folder. It takes the colour of a type."
-    module_name::StyleColor = ColorRole(:type_name)
+    module_name::ThemeColor = ColorRole(:type_name)
     "A variable, and a name of a kind that the view does not know."
-    variable::StyleColor = PaletteColor(:neutral, 12)
+    variable::ThemeColor = PaletteColor(:neutral, 12)
     "A parameter of a function, the name of a keyword argument, the name of an option. It takes the colour of a variable."
-    parameter::StyleColor = ColorRole(:variable)
+    parameter::ThemeColor = ColorRole(:variable)
     "A member of a fixed set of named values, such as a state of a machine. It takes the colour of a symbol."
-    enum_member::StyleColor = ColorRole(:symbol_literal)
+    enum_member::ThemeColor = ColorRole(:symbol_literal)
     "A tag of a markup, such as an XML element. It takes the colour of a keyword."
-    tag::StyleColor = ColorRole(:keyword)
+    tag::ThemeColor = ColorRole(:keyword)
     "A link, a URL, a cross-reference."
-    link::StyleColor = PaletteColor(:accent, 11; minimum_contrast = 4.5)
+    link::ThemeColor = PaletteColor(:accent, 11; minimum_contrast = 4.5)
     "An operator."
-    operator::StyleColor = PaletteColor(:neutral, 11; minimum_contrast = 4.5)
+    operator::ThemeColor = PaletteColor(:neutral, 11; minimum_contrast = 4.5)
     "A bracket, a comma, a colon, a quote."
-    punctuation::StyleColor = PaletteColor(:neutral, 11; minimum_contrast = 4.5)
+    punctuation::ThemeColor = PaletteColor(:neutral, 11; minimum_contrast = 4.5)
     "The brackets around the part under the pointer."
-    punctuation_lit::StyleColor = PaletteColor(:neutral, 12)
+    punctuation_lit::ThemeColor = PaletteColor(:neutral, 12)
     "A comment."
-    comment::StyleColor = PaletteColor(:neutral, 11; minimum_contrast = 4.5)
+    comment::ThemeColor = PaletteColor(:neutral, 11; minimum_contrast = 4.5)
     "A mark of a markup: a heading mark, a bullet, an emphasis mark, a fence."
-    markup::StyleColor = PaletteColor(:neutral, 11; minimum_contrast = 4.5)
+    markup::ThemeColor = PaletteColor(:neutral, 11; minimum_contrast = 4.5)
     "A heading and a title."
-    heading::StyleColor = PaletteColor(:neutral, 12)
+    heading::ThemeColor = PaletteColor(:neutral, 12)
     # ── Series of a chart ──
     "The first series of a chart."
-    series_1::StyleColor = PaletteColor(:blue, 9)
+    series_1::ThemeColor = PaletteColor(:blue, 9)
     "The second series of a chart."
-    series_2::StyleColor = PaletteColor(:orange, 9)
+    series_2::ThemeColor = PaletteColor(:orange, 9)
     "The third series of a chart."
-    series_3::StyleColor = PaletteColor(:green, 9)
+    series_3::ThemeColor = PaletteColor(:green, 9)
     "The fourth series of a chart."
-    series_4::StyleColor = PaletteColor(:pink, 9)
+    series_4::ThemeColor = PaletteColor(:pink, 9)
     "The fifth series of a chart."
-    series_5::StyleColor = PaletteColor(:teal, 9)
+    series_5::ThemeColor = PaletteColor(:teal, 9)
     "The sixth series of a chart."
-    series_6::StyleColor = PaletteColor(:violet, 9)
+    series_6::ThemeColor = PaletteColor(:violet, 9)
     "The seventh series of a chart."
-    series_7::StyleColor = PaletteColor(:amber, 9)
+    series_7::ThemeColor = PaletteColor(:amber, 9)
     "The eighth series of a chart."
-    series_8::StyleColor = PaletteColor(:red, 9)
+    series_8::ThemeColor = PaletteColor(:red, 9)
     # ── Overlays ──
     "The shadow under a raised part."
     shadow::StyleColor = StyleColor(0.0, 0.0, 0.0, 0.08)

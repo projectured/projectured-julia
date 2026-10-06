@@ -442,6 +442,23 @@ worktree. The three domains test different parts of the model:
 - [ ] **Step 3: the check.** Add the check of §3.3 to the reactive layout and to the `CellVector`,
   for every type at once (S-1). A refused write throws the exception type of S-6. The writes that
   Step 0 found in other domains are fixed in this step, or the check does not land.
+  *In progress (2026-10-06).* The groups of the inventory (Step 0):
+  - [x] **Group 1, a missing optional value:** 147 declarations became `Union{X, Nothing}`: the
+    margin, border and padding of 41 widgets, the optional parts of `WidgetShell`, the position
+    and size of the scroll panes, scroll bars and `WidgetTransformPane.position`, the inner type
+    of `WidgetLabel.text_style::ImmutableCell{…}`, and the fill color, line color and padding of
+    `TextString`, `TextSpacing`, `TextNewline` and `TextGraphics`. `JsonBool.value` and
+    `YamlBool.value` are not in this group: they get `nothing` and a `String` during an edit.
+  - [x] **Group 2, the theme colors:** 155 fields of 20 themes became `ThemeColor`, the union
+    `Union{StyleColor, PaletteColor, ColorRole}` that the color set already declares as what a
+    color field of a theme holds (`ThemeColor.jl:77`).
+  - A Sonnet agent made both edits from the lists of the inventory; the diff is one declaration
+    for each listed field and nothing else. A probe in the `:throw` mode constructs
+    `ColorTheme()`, `WidgetTheme()` and a `TextString` with no padding. `ChartTheme()` still
+    fails on `series_colors`, which is group 4.
+  - [ ] Group 3, the markers of a template: waits for the owner.
+  - [ ] Group 4, a plain `Vector` in a field declared `Vector{T}`: waits for the owner.
+  - [ ] Groups 5 to 8.
 - [ ] **Step 4: the fields of the three domains.** Each narrow field that a person edits admits
   the insertion and the nothing (law 1).
   - Julia: each of the 52 `Document` fields and the 5 `Union{Document,Nothing}` fields chooses

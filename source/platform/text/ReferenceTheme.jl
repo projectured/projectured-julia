@@ -28,15 +28,15 @@ of the default theme.
     "The italic \"which is\" that connects one line of the human-readable form to the line below it."
     aside_font::FontRole = FontRole(italic = true)
     "A delimiter, a comma or a colon, and the plain words of a phrase, such as \"the \" or \"of \"."
-    punctuation_color::StyleColor = ColorRole(:punctuation)
+    punctuation_color::ThemeColor = ColorRole(:punctuation)
     "The name of a field or of a step."
-    name_color::StyleColor = ColorRole(:field)
+    name_color::ThemeColor = ColorRole(:field)
     "An element index, a position, a range bound, or a point coordinate."
-    index_color::StyleColor = ColorRole(:number_literal)
+    index_color::ThemeColor = ColorRole(:number_literal)
     "The type that a step descends from, or the parent type of a step, when it is known."
-    type_color::StyleColor = ColorRole(:type_name)
+    type_color::ThemeColor = ColorRole(:type_name)
     "The name of a projection."
-    projection_color::StyleColor = ColorRole(:type_name)
+    projection_color::ThemeColor = ColorRole(:type_name)
     "A step of a kind neither form describes, and a type that is not found."
-    unknown_color::StyleColor = ColorRole(:error_text)
+    unknown_color::ThemeColor = ColorRole(:error_text)
 end

@@ -24,72 +24,72 @@ builder fills them from a theme, scaled or not.
 @theme struct WidgetTheme
     # ── Palette ──
     "The surface behind the widgets of a window."
-    background::StyleColor = ColorRole(:background)
+    background::ThemeColor = ColorRole(:background)
     "The text and the marks on the background."
-    foreground::StyleColor = ColorRole(:text)
+    foreground::ThemeColor = ColorRole(:text)
     "The surface of a card, an alert and a panel."
-    card::StyleColor = ColorRole(:surface)
+    card::ThemeColor = ColorRole(:surface)
     "The text on a card."
-    card_foreground::StyleColor = ColorRole(:text)
+    card_foreground::ThemeColor = ColorRole(:text)
     "The surface of a menu, a popup and a tooltip."
-    popover::StyleColor = ColorRole(:surface)
+    popover::ThemeColor = ColorRole(:surface)
     "The text on a menu, a popup and a tooltip."
-    popover_foreground::StyleColor = ColorRole(:text)
+    popover_foreground::ThemeColor = ColorRole(:text)
     "A quiet surface: a disabled control, a skeleton, a track."
-    muted::StyleColor = ColorRole(:surface_sunken)
+    muted::ThemeColor = ColorRole(:surface_sunken)
     "Quiet text: a caption, a hint, a placeholder."
-    muted_foreground::StyleColor = ColorRole(:text_muted)
+    muted_foreground::ThemeColor = ColorRole(:text_muted)
     "The color of the main action: a default button, a checked box, a selected item."
-    primary::StyleColor = ColorRole(:accent)
+    primary::ThemeColor = ColorRole(:accent)
     "The text on the primary color."
-    primary_foreground::StyleColor = ColorRole(:text_on_accent)
+    primary_foreground::ThemeColor = ColorRole(:text_on_accent)
     "The surface of a secondary button."
-    secondary::StyleColor = ColorRole(:surface_sunken)
+    secondary::ThemeColor = ColorRole(:surface_sunken)
     "The text on a secondary button."
-    secondary_foreground::StyleColor = ColorRole(:text)
+    secondary_foreground::ThemeColor = ColorRole(:text)
     "The surface of a hovered or a selected item in a list or a menu."
-    accent::StyleColor = ColorRole(:accent_tint)
+    accent::ThemeColor = ColorRole(:accent_tint)
     "The text on the accent color."
-    accent_foreground::StyleColor = ColorRole(:accent_text)
+    accent_foreground::ThemeColor = ColorRole(:accent_text)
     "The color of an action that deletes or an error."
-    destructive::StyleColor = ColorRole(:error_fill)
+    destructive::ThemeColor = ColorRole(:error_fill)
     "The text on the destructive color."
-    destructive_foreground::StyleColor = ColorRole(:text_on_accent)
+    destructive_foreground::ThemeColor = ColorRole(:text_on_accent)
     "The surface of a mark of a success, such as a badge."
-    success_surface::StyleColor = ColorRole(:success_tint)
+    success_surface::ThemeColor = ColorRole(:success_tint)
     "The text on the success surface."
-    success_foreground::StyleColor = ColorRole(:success_text)
+    success_foreground::ThemeColor = ColorRole(:success_text)
     "The surface of a mark of a warning, such as a badge."
-    warning_surface::StyleColor = ColorRole(:warning_tint)
+    warning_surface::ThemeColor = ColorRole(:warning_tint)
     "The text on the warning surface."
-    warning_foreground::StyleColor = ColorRole(:warning_text)
+    warning_foreground::ThemeColor = ColorRole(:warning_text)
     "The surface of a mark of an error, such as a badge."
-    error_surface::StyleColor = ColorRole(:error_tint)
+    error_surface::ThemeColor = ColorRole(:error_tint)
     "The text on the error surface."
-    error_foreground::StyleColor = ColorRole(:error_text)
+    error_foreground::ThemeColor = ColorRole(:error_text)
     "The surface of a mark of an information, such as a badge."
-    info_surface::StyleColor = ColorRole(:info_tint)
+    info_surface::ThemeColor = ColorRole(:info_tint)
     "The text on the info surface."
-    info_foreground::StyleColor = ColorRole(:info_text)
+    info_foreground::ThemeColor = ColorRole(:info_text)
     "The border of a card, a pane and a separator."
-    border::StyleColor = ColorRole(:border)
+    border::ThemeColor = ColorRole(:border)
     "The border of a control that takes text or a value."
-    input::StyleColor = ColorRole(:border_strong)
+    input::ThemeColor = ColorRole(:border_strong)
     "The focus ring of a control."
-    ring::StyleColor = ColorRole(:focus_ring)
+    ring::ThemeColor = ColorRole(:focus_ring)
     "The track of a switch that is off."
-    track_off::StyleColor = ColorRole(:border_strong)
+    track_off::ThemeColor = ColorRole(:border_strong)
     # ── Decorations ──
     "The shadow under a card and a popup."
-    shadow::StyleColor = ColorRole(:shadow)
+    shadow::ThemeColor = ColorRole(:shadow)
     "The layer that covers the window behind a dialog."
-    scrim::StyleColor = ColorRole(:scrim)
+    scrim::ThemeColor = ColorRole(:scrim)
     "The layer over a widget under the pointer."
-    hover::StyleColor = ColorRole(:hover)
+    hover::ThemeColor = ColorRole(:hover)
     "The layer over a pressed widget."
-    pressed::StyleColor = ColorRole(:pressed)
+    pressed::ThemeColor = ColorRole(:pressed)
     "The knob of a switch and of a slider."
-    knob::StyleColor = ColorRole(:text_on_accent)
+    knob::ThemeColor = ColorRole(:text_on_accent)
     # ── Fonts ──
     "The font of the text of a widget."
     font::StyleFont = StyleFont("Ubuntu", 13)
