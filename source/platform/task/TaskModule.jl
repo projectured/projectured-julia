@@ -28,6 +28,7 @@ using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
 using ..StyleModule
+using ..ToolModule
 using ..WidgetModule
 import ..DocumentModule: copy_document, has_document_duplicate, get_document_title
 import ..DomainModule: accepts_pasted_document

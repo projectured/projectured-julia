@@ -392,7 +392,7 @@ pixels.
 # Example
 
     open_pane!(WidgetButton("Run again";
-                                    action = editor -> run_simulations!(select_simulations!(editor; config = "TandemQueue")));
+                                    action = editor -> run_simulations!(select_simulations!(; config = "TandemQueue")));
                title = "Runner")
 
 `action` is that command. Pass an `Action` to bind a shared one: the button
@@ -1109,7 +1109,7 @@ documents.
 
 # Example
 
-    table = make_result_table(get_simulation_scalar_results(get_project_result_directory(editor)))
+    table = make_result_table(get_simulation_scalar_results(get_project_result_directory()))
     open_pane!(WidgetTitlePane("Delay", table); title = "Delay")
 
 See also `WidgetCard`, which adds a description and a footer, and `open_pane!`,
@@ -1153,7 +1153,7 @@ two documents in tabs of their own, use `show_layout` and the panes.
 
 # Example
 
-    root = get_project_result_directory(editor)
+    root = get_project_result_directory()
     table = make_result_table(get_simulation_scalar_results(root))
     plot = make_result_plot(get_simulation_vector_results(root))
     open_pane!(WidgetSplitPane(:horizontal, Any[table, plot]; sizes = [400, 400]); title = "Split")
@@ -1287,7 +1287,7 @@ this is for tabs inside a widget.
 
 # Example
 
-    root = get_project_result_directory(editor)
+    root = get_project_result_directory()
     table = make_result_table(get_simulation_scalar_results(root))
     plot = make_result_plot(get_simulation_vector_results(root))
     open_pane!(WidgetTabbedPane(Any[("Scalars", table), ("Vectors", plot)]); title = "Results")
@@ -1360,7 +1360,7 @@ added, which is what a log or a transcript wants.
 
 # Example
 
-    table = make_result_table(get_simulation_scalar_results(get_project_result_directory(editor)))
+    table = make_result_table(get_simulation_scalar_results(get_project_result_directory()))
     open_pane!(WidgetScrollPane(table; size = Point2D(600, 300)); title = "Scalars")
 
 With `follow_end=true` the pane sticks to the *bottom* of its content — newly
@@ -1625,7 +1625,7 @@ surface is.
 
 # Example
 
-    table = make_result_table(get_simulation_scalar_results(get_project_result_directory(editor)))
+    table = make_result_table(get_simulation_scalar_results(get_project_result_directory()))
     open_pane!(WidgetCard(; title = "Delay", content = table, width = 600); title = "Delay")
 
 `collapsed` is transient view state (like `WidgetScrollPane.scroll_position`): a
@@ -2345,7 +2345,7 @@ the open one.
 
 # Example
 
-    root = get_project_result_directory(editor)
+    root = get_project_result_directory()
     table = make_result_table(get_simulation_scalar_results(root))
     plot = make_result_plot(get_simulation_vector_results(root))
     open_pane!(WidgetAccordion(Any[("Scalars", table), ("Vectors", plot)]; expanded = 2, width = 600); title = "Results")
@@ -3077,7 +3077,7 @@ with none otherwise.
 
 # Example
 
-    again = Action("Run again"; callback = editor -> run_simulations!(select_simulations!(editor; config = "TandemQueue")))
+    again = Action("Run again"; callback = editor -> run_simulations!(select_simulations!(; config = "TandemQueue")))
     open_pane!(WidgetButton(again); title = "Runner")
 
 `shortcut` is a `KeyDownPattern` (build one with [`Shortcut`]); `icon` is the

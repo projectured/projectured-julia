@@ -171,9 +171,11 @@ A person at the REPL and a model through `execute_julia_code` read and act on
 the groups of the session with the verbs of the slice: `list_task_groups`,
 `find_task_group`, `describe_task_group`, `describe_task`, `get_task_output`,
 `stop_tasks!`, `stop_task!`, `rerun_tasks!`, `wait_for_task_group!` and
-`close_task_group!`. Each takes `editor` first and does its document work on
-the task of the editor through `run_on_editor_task!`, so a person at the REPL
-calls it while the window runs. `describe_task` writes the facts that the kind
+`close_task_group!`. Each but `wait_for_task_group!` takes the keyword
+`editor = get_evaluation_editor()`, so the code of a model names no editor;
+`wait_for_task_group!` takes `editor` first. Each does its document work on the
+task of the editor through `run_on_editor_task!`, so a person at the REPL, who
+passes `editor`, calls it while the window runs. `describe_task` writes the facts that the kind
 of the task gives (`format_task_details`).
 
 **A client of `execute_julia_code` never passes `wait = true`.** The call runs

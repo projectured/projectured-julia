@@ -20,32 +20,32 @@ function test_task_group_verbs()
         identifier = getfield(group, :identifier)[]
 
         @testset "a group is listed and found" begin
-            line = only(l for l in split(string(list_task_groups(editor)), "\n")
+            line = only(l for l in split(string(list_task_groups(; editor)), "\n")
                         if startswith(l, identifier * " "))
             @test occursin("the verbs", line) && occursin("2/2", line)
-            @test find_task_group(editor, identifier) === group
-            @test find_task_group(editor, "the verbs") === group
-            @test find_task_group(editor, "no such group") === nothing
+            @test find_task_group(identifier; editor) === group
+            @test find_task_group("the verbs"; editor) === group
+            @test find_task_group("no such group"; editor) === nothing
         end
 
         @testset "a group and a task are described with the facts of their kind" begin
             summary = compute_task_group_summary(get_task_group(group)).summary
-            text = string(describe_task_group(editor, group))
+            text = string(describe_task_group(group; editor))
             @test startswith(text, summary)
             @test occursin("2. fail — ERROR (unexpected)", text) && !occursin("1. alpha", text)
-            @test occursin("1. alpha — DONE", string(describe_task_group(editor, group; tasks = :all)))
-            detail = string(describe_task(editor, group, 2))
+            @test occursin("1. alpha — DONE", string(describe_task_group(group; tasks = :all, editor)))
+            detail = string(describe_task(group, 2; editor))
             @test occursin("script: echo oops", detail) && occursin("ended: ERROR", detail)
             @test occursin("stderr:\noops", detail)
-            @test string(get_task_output(editor, group, 1)) == "alpha"
-            @test string(get_task_output(editor, group, 2; stream = :stderr)) == "oops"
+            @test string(get_task_output(group, 1; editor)) == "alpha"
+            @test string(get_task_output(group, 2; stream = :stderr, editor)) == "oops"
         end
 
         @testset "a group is stopped, run again and closed" begin
-            @test string(stop_task!(editor, group, 1)) == "Stopping task 1."
-            @test rerun_tasks!(editor, group; which = :all, wait = true) === group
+            @test string(stop_task!(group, 1; editor)) == "Stopping task 1."
+            @test rerun_tasks!(group; which = :all, wait = true, editor) === group
             @test build_task_group_document_counts(group)[:done] == 1
-            @test occursin("Closed the group " * identifier, string(close_task_group!(editor, group)))
+            @test occursin("Closed the group " * identifier, string(close_task_group!(group; editor)))
             @test isempty(get_pane_groups(editor.document)[1].tabs)
             @test !any(g -> g === group, get_session_task_group_list().groups)
         end

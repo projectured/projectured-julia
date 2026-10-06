@@ -413,7 +413,7 @@ lands on the branch.
    takes the editor first". Run `Pkg.precompile` and a scan of the calls,
    because a change of signature in projectured-julia breaks a call there.
 
-   **First part done 2026-10-06; second part waits for the owner.**
+   **Done 2026-10-06, in two parts.**
    - **The calls of the projectured verbs in omnet-julia** follow the keyword
      form: omnet-julia branch `evaluation-editor`, 57f39ae9, worktree
      `omnet-julia-evaluation-editor`. The rewrite tool changed 71 calls; 13
@@ -436,15 +436,34 @@ lands on the branch.
      `test_assistant_turn_misses()` 8. Every failure is the same assertion on
      both sides; one moved from line 314 to line 310 because the lines above it
      became shorter.
-   - **Open: the verbs of omnet-julia themselves.** Two facts came up. The draft
+   - **The verbs of omnet-julia themselves, and the task verbs.** Two facts came
+     up before this part: the draft
      `omnet-julia/plan/pending/verbs-belong-to-their-subject.md` proposes that
-     most of these verbs take their subject, such as a directory or a filter,
-     and no editor at all. And the task slice brought 11 verbs into
-     projectured-julia that take the editor first (`list_task_groups`,
-     `find_task_group`, `describe_task_group`, `describe_task`,
-     `get_task_output`, `wait_for_task_group!`, `stop_tasks!`, `stop_task!`,
-     `rerun_tasks!`, `close_task_group!`, `open_task_group_pane`), which D4 did
-     not name. Both stay as they are until the owner decides.
+     most omnet verbs take their subject and no editor, and the task slice
+     brought 11 verbs into projectured-julia that take the editor first. The
+     owner decided (2026-10-06): "follow the changes with omnet verbs too".
+     - The 9 task verbs that `make_task_api()` declares take the keyword:
+       `list_task_groups`, `find_task_group`, `describe_task_group`,
+       `describe_task`, `get_task_output`, `stop_tasks!`, `stop_task!`,
+       `rerun_tasks!`, `close_task_group!`. `wait_for_task_group!` and
+       `open_task_group_pane` keep the editor first: code that has an editor
+       calls them, as D4 did for such functions.
+     - The 20 omnet verbs that a declaration names now (the task slice moved
+       the others) take the keyword: `select_simulations!`, `run_simulations!`,
+       `stop_simulations!`, the six test verbs of `TaskVerbs` and
+       `select_tasks`, `get_project_result_directory`, `make_result_table`, and
+       the nine editor verbs of `StudyVerbs`. The functions that no declaration
+       names keep the editor first: `get_runner_filter`, `watch_notebook!`,
+       `install_notebook!`, `run_filter_in_new_pane!`, `show_task_group_pane!`,
+       and the helpers of the rehearsal and of the demo.
+     - Three passes: the parser tool changed 12 calls in projectured-julia and
+       93 in omnet-julia; a script moved the editor of each definition and of
+       its docstring signature to the keyword; the examples in strings, in
+       docstrings and in the guides lost the editor. `SearchLogCorpus.jl`
+       keeps the old text, because it records what a model wrote in a past
+       rehearsal. The four texts that said "every verb takes the editor first"
+       say what is now.
+     - The argument guard reports nothing new on either repository.
 6. **A check with the model.** Run `tool/assistant/rehearsal.jl` on the seeds,
    before and after. The model writes the verbs without `editor`, and the count
    of turns that pass does not go down.

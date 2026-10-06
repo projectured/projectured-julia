@@ -432,7 +432,7 @@ to state an expectation from it.
 
 # Example
 
-    p_block = add_study_formula!(get_study(editor), "p_{block}", "((1 - ρ) ρ^n)/(1 - ρ^(n + 1))")
+    p_block = add_study_formula!(get_study(), "p_{block}", "((1 - ρ) ρ^n)/(1 - ρ^(n + 1))")
     println(get_formula_value(p_block))
 
 See also `add_study_formula!`, `add_expectation!`.
