@@ -99,6 +99,9 @@ Base.:(==)(vector::AbstractVector, list::CellVector) = list == vector
 # for a vector; `vcat` would otherwise take the whole list as one element.
 Base.vcat(list::CellVector, rest...) = vcat(collect(list), rest...)
 Base.filter(f, list::CellVector) = filter(f, collect(list))
+# A range or a vector of indices takes those elements as a vector, as of a vector.
+Base.getindex(list::CellVector, indices::AbstractVector{<:Integer}) =
+    eltype(list)[list[i] for i in indices]
 
 # A plain vector given to a field declared `ListDocument` becomes a `CellVector`.
 ListDocument(items::AbstractVector) = CellVector(items)

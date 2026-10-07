@@ -54,7 +54,7 @@ and `WidgetAlert` for a message with a title.
     #
     # The bare colour keeps the font of the theme, so a line coloured by
     # severity still follows the window's theme. It wins over `style`.
-    text_style::ImmutableCell{Union{StyleText, StyleFont, Nothing}}
+    text_style::ImmutableCell{Union{StyleText, StyleFont, StyleColor, Nothing}}
     visible::Bool
     margin::Union{Inset, Nothing}
     border::Union{Inset, Nothing}
@@ -1878,9 +1878,9 @@ See also `WidgetProgressBar`, which shows the same value as a bar.
     position::Point2D
     value::Union{Nothing, Float64}
     visible::Bool
-    margin::Inset
-    border::Inset
-    padding::Inset
+    margin::Union{Inset, Nothing}
+    border::Union{Inset, Nothing}
+    padding::Union{Inset, Nothing}
     style::Any
     tooltip::Any
 end

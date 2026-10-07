@@ -105,7 +105,7 @@ function _count_pivot_categories(pivot::PivotTable, dimension)
     key = (pivot.source_version, dimension.bin, Tuple(dimension.hidden_values))
     _get_pivot_memo!(pivot, (:categories, dimension.column), key) do
         get_pivot_row_count(compute_pivot_cross_table(pivot.source, [PivotDimension(dimension.column;
-            hidden_values = dimension.hidden_values, bin = dimension.bin)], PivotDimension[]))
+            hidden_values = collect(dimension.hidden_values), bin = dimension.bin)], PivotDimension[]))
     end
 end
 

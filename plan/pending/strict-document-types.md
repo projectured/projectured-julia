@@ -580,6 +580,20 @@ worktree. The three domains test different parts of the model:
     `DeclaredTypeMismatchException`. Step 3 is done for projectured-julia. omnet-julia and
     inet-julia declare their own documents and have had no inventory yet, so the default mode
     can refuse writes there.
+  - [x] **The rebase onto `main`** (2026-10-07, `a0fe21cb3`, 204 commits newer than the base).
+    Four files conflicted, where `main` added fields beside the changed declarations
+    (`TextDocument.jl`, `WidgetDocument.jl`, `WidgetTheme.jl`, `CollectionModule.jl`,
+    `FrameStatisticsTheme.jl`); each resolution keeps the new field of `main` with the new
+    declaration. A run of the 24 suites in the throw mode against a run of `main` (the same
+    driver, the same conditions) found the new code of `main` that the model must follow: two
+    themes (`TaskTheme`, `McpLogTheme`), the margins of `WidgetProgressRing`, a label whose text
+    style is a color (`WidgetLabel.text_style` admits `StyleColor`, which the printer reads), a
+    range of a list (`getindex` of a `CellVector` with a vector of indices answers a
+    `Vector{T}`), two helpers of the frame statistics typed for a `Vector`, and a pivot keyword
+    typed `AbstractVector` (the call reads the list with `collect`). After the fixes,
+    `test_pivot()` (299) and `test_dataframes()` (608) equal `main`, and the widget, task,
+    navigator, tool theme and frame statistics tests pass. `InterfaceApiTest` fails on `main`
+    too (it expects 31 names, and the list has 32).
   - [x] **Group 5, a lazy list in a field declared `CellVector`.** `children` of
     `HorizontalLayout`, `VerticalLayout` and `GridLayout`, and the two header strips of
     `WidgetTable`, get a `ListNode`, a lazy list that a viewport reads from the middle. The

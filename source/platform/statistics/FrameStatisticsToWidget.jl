@@ -155,7 +155,7 @@ const _SLOW_FRAME_FACTOR = 2
 # The frame time above which a frame is slow: two times the median of the
 # column `column` of `columns`, without the frames that did not measure it.
 # `Inf` when the table has no such column, so no frame is slow.
-function _compute_slow_frame_limit(columns::Vector, column::Union{Int,Nothing})
+function _compute_slow_frame_limit(columns, column::Union{Int,Nothing})
     (column === nothing || column > length(columns)) && return Inf
     values = sort!(filter(!isnan, columns[column]))
     isempty(values) && return Inf
@@ -165,7 +165,7 @@ function _compute_slow_frame_limit(columns::Vector, column::Union{Int,Nothing})
 end
 
 # Whether the frame at the place `i` of `columns` is slow.
-_is_slow_frame(columns::Vector, column::Union{Int,Nothing}, limit::Float64, i::Int) =
+_is_slow_frame(columns, column::Union{Int,Nothing}, limit::Float64, i::Int) =
     column !== nothing && column <= length(columns) && columns[column][i] > limit
 
 # The unit of a row as its column shows it.
@@ -264,7 +264,7 @@ end
 # negative number, so its widest value is its largest. With no measure, each
 # column keeps the policy of the table.
 function _make_frame_column_policies(p::FrameStatisticsToWidget, summary::Vector,
-                                     units::Vector{Symbol}, columns::Vector)
+                                     units::Vector{Symbol}, columns)
     measure = p.measure
     measure === nothing && return Any[]
     header_font, row_font = p.header_text.font, p.row_text.font
