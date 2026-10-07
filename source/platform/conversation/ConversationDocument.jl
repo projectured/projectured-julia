@@ -61,6 +61,57 @@ make_conversation_thinking_part(text = ""; collapsed::Bool = true, kwargs...) =
 # Accessor mirroring ConversationModule.make_evaluator_result_text / _eval_*.
 _thinking_text(t::ConversationThinking) = t.text
 
+# ── ConversationPermissionRequest ─────────────────────────────────────────────
+
+"""
+    ConversationPermissionRequest(title, options; reply = nothing)
+
+An external agent asks a person whether it can run a tool, and waits for the
+answer. `title` says what the tool does. `options` are the answers that the
+agent offers, each an `AgentPermissionOption`. `answer` is the name of the
+option that the person chose, `"Cancelled"` when the turn ended first, and empty
+while the agent waits.
+
+`reply` sends the chosen option to the agent. It is a live function and no data:
+the duplicate of a request has none, and a request with none can not be
+answered. [`answer_permission_request!`](@ref) answers a request.
+"""
+@document struct ConversationPermissionRequest <: ConversationDocument
+    title::String
+    options::Vector{AgentPermissionOption}
+    answer::String
+    reply::Any
+end
+
+ConversationPermissionRequest(title::AbstractString, options::AbstractVector; reply = nothing) =
+    ConversationPermissionRequest(Cell(String(title)), Cell(collect(AgentPermissionOption, options)),
+                                  Cell(""), Cell(reply), Cell(nothing))
+
+"""
+    is_permission_request_open(request) -> Bool
+
+Whether the agent still waits for the answer of a person to `request`.
+"""
+is_permission_request_open(request::ConversationPermissionRequest) =
+    isempty(request.answer) && request.reply !== nothing
+
+"""
+    answer_permission_request!(request, option_id)
+
+Answer `request` with the option whose id is `option_id`, or as cancelled with
+`nothing`. The first answer goes to the agent, and a later one does nothing.
+"""
+function answer_permission_request!(request::ConversationPermissionRequest,
+                                     option_id::Union{Nothing,AbstractString})
+    is_permission_request_open(request) || return nothing
+    index = option_id === nothing ? nothing : findfirst(option -> option.id == option_id, request.options)
+    request.answer = index === nothing ? "Cancelled" : request.options[index].name
+    reply = request.reply
+    request.reply = nothing
+    reply(index === nothing ? nothing : String(option_id))
+    nothing
+end
+
 # ── ConversationTurn ──────────────────────────────────────────────────────────
 
 """
@@ -133,6 +184,10 @@ has_dormant_selection(::ConversationDraft) = true
 
 # A conversation is what a person said and read, so its duplicate is a copy of it.
 has_document_duplicate(::ConversationDocument) = true
+
+# The reply of a request goes to the agent that asked, and a copy did not ask.
+copy_document(policy::DuplicatePolicy, request::ConversationPermissionRequest) =
+    copy_document_fields(policy, request; reply = nothing)
 
 # The assistant a draft links back to is not the draft's own, so the duplicate of
 # a draft keeps the link. The duplicate of an assistant puts its own link there.

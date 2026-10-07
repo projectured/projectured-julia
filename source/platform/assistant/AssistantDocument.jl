@@ -79,6 +79,17 @@ the size to the backend. It is one of the three keywords every backend accepts, 
 a backend it does not apply to ignores it: a hosted provider's window comes with the
 model and cannot be set per request.
 
+**An external agent is a backend too.** With `backend = :acp` a turn goes to an
+agent that runs its own loop in another process, such as Claude through
+`claude-agent-acp`, and the agent runs its own tools. `agent_command` is the
+command line that starts the agent, `"claude-agent-acp"` by default.
+`agent_session_meta` is the JSON `_meta` that a new session of the agent gets;
+its default asks `claude-agent-acp` for the summary of its reasoning, and an
+agent that does not read it ignores it. The package `ProjecturedACP` must be
+loaded. `agent_session` is the live link to
+the agent, an `ExternalAgentSession`: `nothing` until the first turn starts it,
+or one that a test gives. It is no data, like `llm`.
+
 `llm` defaults to `nothing` and `api_key` to empty: the backend and key are
 resolved **at submit time**, not here. This keeps the choice out of the
 precompiled image — documents are built eagerly into `const`s during
@@ -100,7 +111,26 @@ behaviour pass an explicit `llm` (a `FakeLlm`/`ScriptedLlm` from
     status::Symbol
     collapse_thinking::Bool
     llm::Union{Nothing,Llm}
+    agent_command::String
+    agent_session_meta::String
+    agent_session::Any
 end
+
+# The command of the external agent that an assistant starts when nobody names
+# another.
+const DEFAULT_AGENT_COMMAND = "claude-agent-acp"
+
+# The `_meta` of a new session of the external agent when nobody names another.
+# `claude-agent-acp` reads SDK options from `claudeCode.options`, and a recent
+# model streams no text of its reasoning unless `thinking.display` says
+# `"summarized"`.
+const DEFAULT_AGENT_SESSION_META =
+    raw"""{"claudeCode": {"options": {"thinking": {"type": "adaptive", "display": "summarized"}}}}"""
+
+# What the fork of an assistant with an external agent says under the history it
+# copied.
+const FORK_AGENT_NOTE =
+    "This copy talks to the agent in a new session. The agent does not have the history above."
 
 # A fresh user draft (one active text typein) for the composer input pane.
 _default_draft() = ConversationDraft([ConversationPart(PrimitiveString(""))])
@@ -115,12 +145,17 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
                               context::Integer = 0,
                               status::Symbol = :idle,
                               collapse_thinking::Bool = true,
-                              llm::Union{Nothing,Llm} = nothing)
+                              llm::Union{Nothing,Llm} = nothing,
+                              agent_command::AbstractString = DEFAULT_AGENT_COMMAND,
+                              agent_session_meta::AbstractString = DEFAULT_AGENT_SESSION_META,
+                              agent_session = nothing)
     a = Assistant(Cell(conversation), Cell(input), Cell(draft),
                            Cell(backend), Cell(String(model)), Cell(String(system)),
                            Cell(String(api_key)), Cell(Int(context)), Cell(status),
                            Cell(collapse_thinking),
                            Cell(llm),
+                           Cell(String(agent_command)), Cell(String(agent_session_meta)),
+                           Cell(agent_session),
                            Cell(nothing))
     # Back-link the draft to its owning assistant so the composer's ENTER can be
     # turned into a submit (push into the conversation + stream a reply).
@@ -132,7 +167,7 @@ set_cell_computation!(a::Assistant, f::Function) = (set_cell_computation!(getfie
 
 # A key must never be written to a file, so `api_key` is not one of the
 # arguments a `.pred` file writes. A live connection is not data either: `llm`
-# is a fake or a running client, `status` is what a turn is doing right now,
+# is a fake or a running client, `agent_session` is a running agent, `status` is what a turn is doing right now,
 # and `conversation`/`input`/`draft` are this session's exchange, not the
 # next one's — so a save keeps only the settings that describe an assistant
 # rather than a moment of one, and a load starts a fresh, empty conversation.
@@ -142,6 +177,8 @@ pred_arguments(a::Assistant) = (), Pair{Symbol,Any}[
     :system            => a.system,
     :context           => a.context,
     :collapse_thinking => a.collapse_thinking,
+    :agent_command     => a.agent_command,
+    :agent_session_meta => a.agent_session_meta,
 ]
 
 # The name the tab calls itself. No alias: `get_insertion_names` already derives
@@ -156,17 +193,24 @@ get_document_title(::Assistant) = ASSISTANT_TITLE
 # fork starts idle. A reply that streams stays with the assistant that started
 # it: its task writes there, and it is the last turn, pushed when the stream
 # began, so the fork leaves it out.
+#
+# The session of an external agent stays with the assistant that opened it. The
+# fork starts a new session at its first turn, and a note in its transcript says
+# that the agent of the fork does not have the history above it.
 has_document_duplicate(::Assistant) = true
 
 function copy_document(policy::DuplicatePolicy, assistant::Assistant)
     draft = copy_document_fields(policy, assistant.draft; assistant = nothing)
-    fork = copy_document_fields(policy, assistant; draft = draft, status = :idle)
+    fork = copy_document_fields(policy, assistant; draft = draft, status = :idle,
+                                agent_session = nothing)
     draft.assistant = fork
     turns = fork.conversation.turns
     if assistant.status === :streaming && !isempty(turns) &&
        turns[length(turns)].role === :assistant
         deleteat!(turns, length(turns))
     end
+    assistant.agent_session === nothing ||
+        push!(turns, ConversationTurn(:assistant, [ConversationPart(FORK_AGENT_NOTE)]))
     fork
 end
 

@@ -21,7 +21,11 @@ one, and the generics of the kernel's `AgentModule` drive it.
 - `directory`   — where the agent starts, and where a session works when the
                   caller names no other place.
 - `session_meta` — the `_meta` that `session/new` sends, for an agent that reads
-                  options there. Empty sends none.
+                  options there: a dictionary, or its JSON text. Empty sends none.
+                  `claude-agent-acp` reads `claudeCode.options` there, so
+                  `{"claudeCode": {"options": {"thinking": {"type": "adaptive",
+                  "display": "summarized"}}}}` makes it send the summary of its
+                  reasoning.
 - `streams`     — `(input, output)` to talk on instead of a process, for an
                   agent in this process; `nothing` starts `command`.
 
@@ -45,12 +49,25 @@ end
 make_agent_connection(::Val{:acp}; command::AbstractVector{<:AbstractString} = String[],
                       environment::AbstractDict = Dict{String,String}(),
                       directory::AbstractString = pwd(),
-                      session_meta::AbstractDict = Dict{String,Any}(),
+                      session_meta::Union{AbstractDict,AbstractString} = Dict{String,Any}(),
                       streams::Union{Nothing,Tuple{IO,IO}} = nothing) =
     AcpConnection(String.(command), Dict{String,String}(environment), String(directory),
-                  Dict{String,Any}(session_meta), streams, nothing,
+                  _read_session_meta(session_meta), streams, nothing,
                   Dict{String,Any}(), Dict{String,Any}(), Any[],
                   Dict{String,AcpTurn}(), ReentrantLock())
+
+_read_session_meta(meta::AbstractDict) = Dict{String,Any}(meta)
+function _read_session_meta(text::AbstractString)
+    isempty(strip(text)) && return Dict{String,Any}()
+    meta = try
+        _make_plain(JSON3.read(text))
+    catch exception
+        exception isa ArgumentError || rethrow()
+        nothing
+    end
+    meta isa Dict{String,Any} || error("The session options of the agent are no JSON object: $(text)")
+    meta
+end
 
 function start_agent_connection!(connection::AcpConnection)
     connection.transport === nothing || return connection
@@ -235,6 +252,7 @@ function _answer_permission_request(connection::AcpConnection, params::Dict{Stri
         nothing
     end
     lock(() -> push!(turn.waiting_replies, reply), connection.turns_lock)
+    foreach(turn.on_event, _close_open_block!(Any[], turn))
     turn.on_event(AgentPermissionRequest(
         tool_call isa Dict{String,Any} ? _read_tool_call(tool_call) : AgentToolCallUpdate(""),
         options, reply))

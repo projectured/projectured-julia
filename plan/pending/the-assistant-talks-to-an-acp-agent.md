@@ -406,15 +406,43 @@ document never holds the editor.
   - The package registers in `environment/all`, in `ProjecturedTest`, in the
     loading test, which checks that the umbrella does not load it, and in
     `PROJECTURED_PACKAGE_READMES`.
-- [ ] **1.5 The assistant turn.** `backend = :acp` branches in
-  `_launch_agent_turn!`. The prompt blocks come from the user parts since the
-  last agent turn. Each event becomes a part, posted with
-  `run_on_editor_task!(…; wait = false)`.
-- [ ] **1.6 The permission card (M2).**
-- [ ] **1.7 The thought text.** Find the setting, flag or option that makes the
-  agent send `agent_thought_chunk`. Then map it to `ConversationThinking`. Try
-  first `_meta.claudeCode.options.settings.showThinkingSummaries = true` in
-  `session/new`. It is not tested.
+- [x] **1.5 The assistant turn.** Done: `ExternalAgentTurn.jl` in the
+  assistant slice. Decisions made in the step:
+  - The assistant has two new fields: `agent_command`, data that a save keeps,
+    and `agent_session`, a live `ExternalAgentSession` like `llm`, which holds
+    the connection, the session id and the MCP server. The session id is not
+    data yet, because save and load wait for step 2.4.
+  - The prompt is the text of each user turn after the last assistant turn.
+    `_make_user_turn_text` is the loop body of `build_messages`, so a local
+    evaluation reads the same in both kinds of turn.
+  - A tool call becomes an `EvaluatorForm`, and its updates fill it. A tool of
+    the server `projectured` comes back as `mcp__projectured__<name>`, and the
+    turn draws it as `<name>`, so `execute_julia_code` shows its code.
+  - The plan is one Markdown part with a checklist, which each update replaces.
+  - The stop of a text block reads the text part again in place of the last
+    part. So both sides close an open block before any other part: the adapter
+    before a tool call, a plan and a permission request, and the turn before a
+    new part of another kind. Text after such a part opens a new block.
+  - Escape stops a turn of an external agent with
+    `CancelAssistantTurnOperation`. At any other time Escape stays the
+    composer's revert.
+  - The duplicate of an assistant gets no session, and a note turn says that
+    the agent does not have the history above it (Q4).
+- [x] **1.6 The permission card (M2).** Done: `ConversationPermissionRequest`
+  in the conversation slice, drawn by `_permission_card` with one
+  `WidgetButton` for each option. A click runs `InvokeActionOperation` with
+  `answer_permission_request!`, so no new operation type was needed. The
+  buttons work while `is_permission_request_open`, and a line says the answer.
+  The end of a turn answers an open request as cancelled. The duplicate of a
+  request has no reply.
+- [ ] **1.7 The thought text.** Found on 2026-10-07: `claude-agent-acp` spreads
+  `_meta.claudeCode.options` of `session/new` over its own SDK options, and
+  `{"thinking": {"type": "adaptive", "display": "summarized"}}` there brings
+  `agent_thought_chunk` updates with a summary of the reasoning (38 chunks in a
+  probe). `showThinkingSummaries` in `settings`, in the project settings, or
+  with `MAX_THINKING_TOKENS` gave none. The adapter says why: recent models
+  default `thinking.display` to `"omitted"`. The setting `agent_session_meta`
+  carries this `_meta` as JSON, with that value as its default.
 - [x] **1.8 The MCP server of the session (M3).** Done in ProjecturedMCP.
   Decisions made in the step:
   - `McpServer` takes `port = 0` for a free port and `secret = true` for a
@@ -430,8 +458,13 @@ document never holds the editor.
     the server. It is not in the list of M1. It belongs to M3, because the
     assistant must give the agent the secret, and the tuple has the shape that
     `open_agent_session!` takes.
-- [ ] **1.9 The list of agents (M4)**, a group in the settings slice, with the
-  default entry `claude-agent-acp`.
+- [x] **1.9 The list of agents (M4).** Done in `StartSettings` of the
+  application slice, not in a new group of the settings slice. The layering
+  table of the platform does not let the assistant slice use the settings
+  slices, and the application already reads the backend of the assistant from
+  `StartSettings`. A setting holds only `Bool`, `Int`, `Float64`, `Symbol` or
+  `String`, so phase 1 has one agent, not a list: `assistant = :acp` and
+  `agent_command = "claude-agent-acp"`. A list waits for phase 2.
 - [ ] **1.10 A live check.** Use the real adapter and the plan of the owner. One
   turn calls `execute_julia_code` through MCP, and one undo reverts it. The
   check also renders the pane, and runs in a fresh process.

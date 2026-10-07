@@ -9,9 +9,10 @@
 #                                The user's band is tinted and the model's is
 #                                plain — neither draws a border.
 #     ConversationPart         → the part's `content` document (recursed), bare.
-#                                Code, a thinking block and an evaluation each keep
-#                                a quiet tinted panel with a one-line tag; every
-#                                other kind draws no chrome at all.
+#                                Code, a thinking block, an evaluation and a
+#                                permission request each keep a quiet tinted panel
+#                                with a one-line tag; every other kind draws no
+#                                chrome at all.
 #
 # A turn is collapsible, and so is a part that kept a panel. Each is a
 # `collapsible` card, which draws a chevron before its header and, while
@@ -245,6 +246,7 @@ function print_document(projection::ConversationPartToWidget,
     folds = Pair{Any,Any}[]
     output = content isa EvaluatorForm        ? _eval_card(projection, content, part, folds) :
              content isa ConversationThinking ? _thinking_card(projection, content, part)    :
+             content isa ConversationPermissionRequest ? _permission_card(projection, content, part) :
              _is_code(content)                ? _code_card(projection, content, part)        :
              content
     iomap = ConversationPartToWidgetIoMap(projection, part, output, folds)
@@ -292,6 +294,24 @@ _code_card(p, content, part::ConversationPart) =
 # The tag is a word like every other tag.
 _thinking_card(p, t::ConversationThinking, part::ConversationPart) =
     _part_card(p, "thinking", _thinking_body(t), part)
+
+# A permission request is the question over one button for each answer. The
+# buttons work while the agent waits, and the line under them says the answer
+# once there is one.
+function _permission_card(p, request::ConversationPermissionRequest, part::ConversationPart)
+    buttons = Any[]
+    for option in request.options
+        button = WidgetButton(option.name; action = _ -> answer_permission_request!(request, option.id))
+        set_cell_computation!(getfield(button, :enabled), () -> is_permission_request_open(request))
+        push!(buttons, button)
+    end
+    status = WidgetLabel(""; text_style = p.section_text)
+    set_cell_computation!(getfield(status, :content),
+                          () -> (answer = request.answer; isempty(answer) ? "" : "Answer: " * answer))
+    body = VerticalLayout(Any[WidgetLabel(request.title), HorizontalLayout(buttons; gap = p.section_gap), status];
+                          gap = p.section_gap)
+    _part_card(p, "permission", body, part)
+end
 
 # An evaluation is its header over its two sections. The header names the tool
 # or the resource, and the part folds as a whole; each section folds on its own.

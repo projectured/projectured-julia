@@ -10,9 +10,11 @@
     APPLICATION_ASSISTANTS
 
 The assistant backends [`run_application`](@ref) accepts: `:ollama`, `:anthropic`,
-and `:none` for a window without the assistant pane.
+`:acp` for an external agent, and `:none` for a window without the assistant pane.
+The backend `:acp` needs the package `ProjecturedACP`, which a person loads by
+name.
 """
-const APPLICATION_ASSISTANTS = (:ollama, :anthropic, :none)
+const APPLICATION_ASSISTANTS = (:ollama, :anthropic, :acp, :none)
 
 """
     get_application_greeting_text(backend::Symbol) -> String
@@ -42,13 +44,20 @@ function get_application_greeting_text(backend::Symbol)
         """
     requirement = backend === :anthropic ?
         "I use Claude. The environment variable ANTHROPIC_API_KEY must hold your key." :
+        backend === :acp ?
+        "I am an external agent that runs its own loop, through the Agent Client " *
+        "Protocol (ACP). The package ProjecturedACP must be loaded, the agent command " *
+        "must be installed, and the agent must be signed in with its own sign-in. " *
+        "Escape stops my turn." :
         "I use a local model through Ollama. The Ollama server must run on this " *
         "machine, and the model must be pulled."
     body * "\n" * requirement
 end
 
 """
-    make_application_assistant(backend::Symbol; model = "", context = 0, llm = nothing) -> Assistant or nothing
+    make_application_assistant(backend::Symbol; model = "", context = 0, llm = nothing,
+                               agent_command = DEFAULT_AGENT_COMMAND,
+                               agent_session_meta = DEFAULT_AGENT_SESSION_META) -> Assistant or nothing
 
 The assistant pane of the application. `backend` is one of
 [`APPLICATION_ASSISTANTS`](@ref); `:none` answers `nothing`, and the window then
@@ -56,10 +65,14 @@ has no assistant pane. An empty `model` means the default model of the backend,
 and a `context` of `0` means its default token window. A given `llm` is the model
 that the assistant asks, in place of the one it builds from `backend`, `model` and
 `context`: a scripted model that stands in for the real one, or an `OllamaLlm`
-with a `seed` and a `temperature`.
+with a `seed` and a `temperature`. `agent_command` is the command line of the
+external agent of the backend `:acp`, and `agent_session_meta` the JSON `_meta`
+of its sessions.
 """
 function make_application_assistant(backend::Symbol; model::AbstractString = "",
-                                    context::Integer = 0, llm = nothing)
+                                    context::Integer = 0, llm = nothing,
+                                    agent_command::AbstractString = DEFAULT_AGENT_COMMAND,
+                                    agent_session_meta::AbstractString = DEFAULT_AGENT_SESSION_META)
     backend in APPLICATION_ASSISTANTS ||
         error("make_application_assistant: the backend must be one of ",
               join(APPLICATION_ASSISTANTS, ", "), ", not ", repr(backend))
@@ -68,7 +81,8 @@ function make_application_assistant(backend::Symbol; model::AbstractString = "",
         ConversationTurn(:assistant, [ConversationPart(get_application_greeting_text(backend))])])
     Assistant(; conversation = greeting, backend = backend, model = String(model),
                 context = context, system = make_application_system(),
-                api_key = get(ENV, "ANTHROPIC_API_KEY", ""), llm = llm)
+                api_key = get(ENV, "ANTHROPIC_API_KEY", ""), llm = llm,
+                agent_command = agent_command, agent_session_meta = agent_session_meta)
 end
 
 """
@@ -269,7 +283,9 @@ end
 _make_assistant_factory(::Nothing) = nothing
 _make_assistant_factory(assistant::Assistant) =
     _ -> make_application_assistant(assistant.backend; model = assistant.model,
-                                    context = assistant.context)
+                                    context = assistant.context,
+                                    agent_command = assistant.agent_command,
+                                    agent_session_meta = assistant.agent_session_meta)
 
 # The pane stage leaves what a tab holds as it is, and the renderer draws it. A
 # file tab, the Files pane and the assistant each register their own natural
@@ -463,7 +479,9 @@ function run_application(paths::AbstractString...;
                                          context, mcp)
     start = get_settings_group!(settings, StartSettings)
     assistant, model, mcp = start.assistant, start.model, start.mcp
-    chat = make_application_assistant(assistant; model, context = start.context)
+    chat = make_application_assistant(assistant; model, context = start.context,
+                                      agent_command = start.agent_command,
+                                      agent_session_meta = start.agent_session_meta)
     backend === nothing && (backend = default_backend())
     # The root is the application's own pane tree, so the tabs leave it as it is.
     # The settings carry the fault policy of the command line, and the first print

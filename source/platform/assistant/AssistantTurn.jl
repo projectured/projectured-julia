@@ -241,7 +241,7 @@ function _launch_agent_turn!(editor, a::Assistant)
     a.status = :streaming
     @async begin
         try
-            _run_agent_loop!(editor, a)
+            a.backend === :acp ? _run_external_agent_turn!(editor, a) : _run_agent_loop!(editor, a)
         catch e
             traceback = catch_backtrace()
             err = sprint(showerror, e, traceback)
@@ -462,25 +462,7 @@ function build_messages(conversation::ConversationConversation)
     while i <= length(turns)
         t = turns[i]
         if t.role === :user
-            texts = String[]
-            for part in t.parts
-                c = part.content
-                if c isa ConversationThinking
-                    # User turns never legitimately contain thinking; drop it.
-                    continue
-                elseif c isa EvaluatorForm
-                    push!(texts, "I ran the following Julia code:\n```julia\n" * _eval_code(c) *
-                                 "\n```\nResult:\n```\n" * _eval_result(c) * "\n```")
-                else
-                    push!(texts, _block_text(c))
-                end
-            end
-            # The turn's parts serialize into one text block, blank-line separated so
-            # a heading / prose part never runs straight into the next fenced source
-            # (adjacent API text blocks concatenate with no separator). An empty turn
-            # still needs a non-empty block.
-            merged = isempty(texts) ? " " : join(texts, "\n\n")
-            push!(out, LlmMessage(:user, LlmContent[LlmText(merged)]))
+            push!(out, LlmMessage(:user, LlmContent[LlmText(_make_user_turn_text(t))]))
             i += 1
         elseif t.role === :assistant
             # Coalesce consecutive assistant turns into one logical turn before
@@ -499,6 +481,27 @@ function build_messages(conversation::ConversationConversation)
         end
     end
     out
+end
+
+# The text of one user turn: its parts in one block, blank-line separated so a
+# heading or a prose part never runs straight into the next fenced source
+# (adjacent text blocks of an API concatenate with no separator). An empty turn
+# still needs a non-empty block. A user turn never legitimately holds thinking,
+# so a thinking part is dropped.
+function _make_user_turn_text(t::ConversationTurn)
+    texts = String[]
+    for part in t.parts
+        c = part.content
+        if c isa ConversationThinking
+            continue
+        elseif c isa EvaluatorForm
+            push!(texts, "I ran the following Julia code:\n```julia\n" * _eval_code(c) *
+                         "\n```\nResult:\n```\n" * _eval_result(c) * "\n```")
+        else
+            push!(texts, _block_text(c))
+        end
+    end
+    isempty(texts) ? " " : join(texts, "\n\n")
 end
 
 # Serialize one :assistant turn — an ordered mix of thinking / text / eval parts —
@@ -716,16 +719,19 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
 
     @info "[assistant] turn done" elapsed_s=round(time() - turn_t0; digits=2)
 
-    run_on_editor_task!(editor; wait = false) do
-        turn.stop_reason = stop_reason
-        # If the whole turn produced nothing (e.g. an immediate stop, or an
-        # error before any content), drop the empty placeholder so it doesn't
-        # render as a bare "assistant:" line.
-        if isempty(turn.parts)
-            elems = getfield(a.conversation.turns, :elements)[]
-            if !isempty(elems) && elems[end][] === turn
-                deleteat!(a.conversation.turns, length(elems))
-            end
+    run_on_editor_task!(() -> _finish_turn!(a, turn, stop_reason), editor; wait = false)
+    nothing
+end
+
+# A turn ends with its stop reason. A turn that produced nothing (an immediate
+# stop, or an error before any content) is dropped, so it does not render as a
+# bare "assistant:" line.
+function _finish_turn!(a::Assistant, turn::ConversationTurn, stop_reason::Symbol)
+    turn.stop_reason = stop_reason
+    if isempty(turn.parts)
+        elems = getfield(a.conversation.turns, :elements)[]
+        if !isempty(elems) && elems[end][] === turn
+            deleteat!(a.conversation.turns, length(elems))
         end
     end
     nothing
@@ -989,9 +995,14 @@ read_intent(::AssistantToWidgetCard, iomap, evt::KeyPress) =
     (a = iomap.input; a isa Assistant && _is_draft_selected(a) ?
         resolve_composer_host_operation(a, read_composer_gesture(a.draft, evt)) : nothing)
 
-read_intent(::AssistantToWidgetCard, iomap, evt::KeyDown) =
-    (a = iomap.input; a isa Assistant && _is_draft_selected(a) ?
-        resolve_composer_host_operation(a, read_composer_gesture(a.draft, evt)) : nothing)
+# Escape stops the turn of an external agent while it runs. The composer's own
+# Escape, which reverts the draft, answers at any other time.
+function read_intent(::AssistantToWidgetCard, iomap, evt::KeyDown)
+    a = iomap.input
+    a isa Assistant || return nothing
+    evt.key === :escape && is_external_agent_turn_running(a) && return CancelAssistantTurnOperation(a)
+    _is_draft_selected(a) ? resolve_composer_host_operation(a, read_composer_gesture(a.draft, evt)) : nothing
+end
 
 # An operation made below, said onward. `resolve_composer_host_operation` turns
 # the two the assistant owns into its own. An operation that carries a path — the

@@ -3,8 +3,9 @@
 #
 # ACP sends the text of an answer as chunks with no frame around them, and the
 # kernel's events frame a block with a start and a stop. So a turn keeps the
-# kind of the block that is open, and a chunk of another kind, another message
-# or a new tool call closes it first. A turn's end closes the last one.
+# kind of the block that is open, and a chunk of another kind, another message,
+# a new tool call, a plan or a question for the person closes it first. A
+# turn's end closes the last one.
 
 """
     AcpTurn(on_event)
@@ -39,6 +40,7 @@ function _translate_session_update!(turn::AcpTurn, update::Dict{String,Any})
     elseif kind == "tool_call_update"
         push!(events, _read_tool_call(update))
     elseif kind == "plan"
+        _close_open_block!(events, turn)
         push!(events, AgentPlanUpdate(AgentPlanEntry[_read_plan_entry(entry)
                                                      for entry in get(update, "entries", Any[])
                                                      if entry isa Dict{String,Any}]))

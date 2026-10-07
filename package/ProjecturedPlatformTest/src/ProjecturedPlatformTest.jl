@@ -392,6 +392,7 @@ end
 
 include("../../../test/platform/conversation/AssistantApiTest.jl")
 include("../../../test/platform/conversation/ConversationThemeTest.jl")
+include("../../../test/platform/conversation/ExternalAgentTurnTest.jl")
 
 include("../../../test/platform/conversation/ConversationSuite.jl")
 end # module ConversationTests

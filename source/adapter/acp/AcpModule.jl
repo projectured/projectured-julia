@@ -40,7 +40,8 @@ import ..AgentModule: make_agent_connection, start_agent_connection!, open_agent
                       send_agent_prompt!, cancel_agent_prompt!, close_agent_session!,
                       stop_agent_connection!
 
-export AcpConnection, AcpRequestException
+export AcpRequestException
+export AcpConnection
 
 include("AcpTransport.jl")
 include("AcpUpdate.jl")

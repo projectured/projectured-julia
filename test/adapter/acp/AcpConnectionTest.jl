@@ -56,6 +56,21 @@ function test_acp_connection()
             stop_agent_connection!(connection)
         end
 
+        @testset "the _meta of a session can be a JSON text" begin
+            agent = _make_fake_agent()
+            connection = make_fake_connection(agent;
+                session_meta = """{"claudeCode": {"options": {"thinking": {"type": "adaptive", "display": "summarized"}}}}""")
+            open_agent_session!(connection)
+            meta = only(get_received(agent, "session/new"))["params"]["_meta"]
+            @test meta["claudeCode"]["options"]["thinking"]["display"] == "summarized"
+            stop_agent_connection!(connection)
+            empty = make_fake_connection(_make_fake_agent(); session_meta = "  ")
+            @test isempty(empty.session_meta)
+            stop_agent_connection!(empty)
+            @test_throws ErrorException make_agent_connection(:acp; session_meta = "[1, 2]")
+            @test_throws ErrorException make_agent_connection(:acp; session_meta = "{not json")
+        end
+
         @testset "an agent that needs a sign-in says how" begin
             agent = _make_fake_agent(Dict{String,Function}(
                 "session/new" => (agent, params) -> throw(AcpRequestException(-32000, "Authentication required"))))
