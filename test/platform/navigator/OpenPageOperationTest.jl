@@ -23,20 +23,24 @@ end
 _nav_ctrl_click(click) = MouseClick(click.button, click.x, click.y, 1, ModifierKeys(ctrl = true); time = 0.0)
 
 # A content of two parts, a home page and the shelf, whose domain resolves the
-# target `#title` of a link to the book of that title.
+# target `#title` of a link to the book of that title, and the name of a file in
+# `folder` to the path of that file.
 @document struct NavigatorTestSite
     home::Any
     shelf::Any
+    folder::String = ""
 end
 
 function ProjecturedPlatform.NavigatorModule.find_navigator_target(site::NavigatorTestSite, target::AbstractString)
+    file = joinpath(site.folder, target)
+    !isempty(site.folder) && isfile(file) && return file
     startswith(target, "#") || return nothing
     index = findfirst(book -> book.title == target[2:end], collect(site.shelf.books))
     index === nothing ? nothing :
         Reference(FieldReferenceStep("shelf"), FieldReferenceStep("books"), RangeReferenceStep(index - 1, index))
 end
 
-_nav_make_site(shelf) = NavigatorTestSite(_nav_make_linked_page(_nav_make_shelf()), shelf, nothing)
+_nav_make_site(shelf; folder = "") = NavigatorTestSite(_nav_make_linked_page(_nav_make_shelf()), shelf, folder, nothing)
 
 # A file of the test domain around a document, as a file tab holds one.
 @document struct NavigatorTestFile <: FileDocument
@@ -204,6 +208,33 @@ function test_open_page_operation()
         @test length(tabs) == 2
         @test tabs[2].content.content === site
         @test get_navigator_page(tabs[2].content) === shelf.books[2]
+    end
+
+    @testset "a target that names a file opens it with a navigator, in a history with settings" begin
+        folder = mktempdir()
+        path = joinpath(folder, "notes.txt")
+        write(path, "hello")
+        site = _nav_make_site(_nav_make_shelf(); folder)
+        navigator = Navigator(site, @reference(site, home))
+        editor, backend = _nav_editor(navigator)
+        answer = read_rooted_operation(editor, @reference(navigator, content.home.children[2]), _nav_link("notes.txt"))
+        @test answer isa OpenFileOperation && answer.path == path
+        @test answer.file_wrap(PrimitiveString("x")) isa Navigator
+        # The navigator holds the file, and an editor with settings puts a history
+        # around the navigator, so it records the edits of every page.
+        for (settings, has_history) in ((make_settings(), true), (false, false))
+            editor = build_editor(_nav_make_shelf(), _nav_natural(); backend = HeadlessBackend(),
+                                  devices = Device[Keyboard(), Mouse(), Display()], window = false, tabs = true,
+                                  appearance = false, settings)
+            run_frame!(editor)
+            evaluate_operation(editor, answer)
+            drain_operations!(editor)
+            run_frame!(editor)
+            found = only(search_documents(editor.document, node -> node isa Navigator && node.content isa TextFile))
+            @test found.content.filename == path
+            buffers = search_documents(editor.document, node -> node isa UndoBuffer && node.content === found)
+            @test length(buffers) == (has_history ? 1 : 0)
+        end
     end
 
     @testset "a navigator that an open makes from a file tab keeps the file as its content" begin

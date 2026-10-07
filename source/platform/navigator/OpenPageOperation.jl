@@ -24,7 +24,8 @@ answers it, and the nearest navigator around the part takes it; see
   link does in a browser.
 
 An open that no navigator takes opens a new tab with a navigator on the page,
-when the editor evaluates it. For the path form, the content of that navigator
+when the editor evaluates it. A target that names a file opens that file in a new
+tab with a navigator, as the open of a file does. For the path form, the content of that navigator
 is the document of the tab that holds the part, past a history, and a file
 stays: so Parent reaches the rest of it, and a target is resolved against it.
 
@@ -78,6 +79,7 @@ function evaluate_operation(editor, operation::OpenPageOperation)
     content === nothing && return nothing
     if operation.target !== nothing
         address = find_navigator_target(content, operation.target)
+        address isa AbstractString && return evaluate_operation(editor, OpenFileOperation(address; file_wrap = Navigator))
         address isa Reference || return nothing
         address = annotate_reference_types(content, strip_reference_types(address))
     end

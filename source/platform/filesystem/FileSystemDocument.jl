@@ -67,36 +67,45 @@ make_filesystem_chooser(directory::AbstractString) =
 # ── Open a file ───────────────────────────────────────────────────────────────
 
 """
-    OpenFileOperation(path; wrap = identity)
+    OpenFileOperation(path; wrap = identity, file_wrap = identity)
 
 Names a file to open at `path`. This slice draws a file tree; it does not know
 where an opened file goes — a tab, a pane, a page — so it names the intent and
 nothing else. The slice that knows the destination defines
 `evaluate_operation` for it.
 
-`wrap` is applied to the file document before anything holds it. It is how an
-application gives every file it opens an overlay of its own — a history, say —
-without this slice naming one.
+`wrap` is applied to the content that the file document holds, and `file_wrap`
+to the file document: an opener puts a part of its own around the file there,
+such as a navigator. When the editor has settings, the evaluation of the open
+gives the file a history, whatever started the open: around the part that
+`file_wrap` makes, so it records every edit of that part, and else around the
+content, inside the file, as a file tab has it.
 """
 struct OpenFileOperation <: Operation
     path::String
     wrap::Any
+    file_wrap::Any
 end
 
-OpenFileOperation(path::AbstractString; wrap = identity) =
-    OpenFileOperation(String(path), wrap)
+OpenFileOperation(path::AbstractString; wrap = identity, file_wrap = identity) =
+    OpenFileOperation(String(path), wrap, file_wrap)
 
 # It carries its own subject and names no reference, so every reader between
 # the gesture and the editor passes it up unchanged.
 OperationModule.is_self_contained_operation(::OpenFileOperation) = true
 
-# The destination is a pane tree, in a new tab: `make_file_tab_content` reads the
-# file into the document type its extension owns, in a scroll pane, and `get_pane_file_group` asks the
-# pane tree where a file belongs. This runs while the editor evaluates the open,
-# so the new tab is posted, and the loop evaluates it at the top of the next
-# frame.
+# The destination is a pane tree, in a new tab: `make_file_tab` reads the file into
+# the document type its extension owns, in a scroll pane, and `get_pane_file_group`
+# asks the pane tree where a file belongs. An editor with settings gives the file a
+# history (`make_history_wrap`), around the part that the opener puts around the
+# file, or around the content. This runs while the editor evaluates the open, so
+# the new tab is posted, and the loop evaluates it at the top of the next frame.
 function evaluate_operation(editor, op::OpenFileOperation)
-    tab = make_file_tab_content(op.path, op.wrap)
+    settings = find_editor_settings(; editor)
+    history = settings === nothing ? identity : make_history_wrap(settings)
+    tab = op.file_wrap === identity ?
+          make_file_tab_content(op.path, document -> history(op.wrap(document))) :
+          WidgetScrollPane(history(op.file_wrap(make_file_tab(op.path, op.wrap))))
     post_pane_operation!(editor, make_open_pane_operation(tab; group = get_pane_file_group(; editor), editor))
     nothing
 end

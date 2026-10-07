@@ -441,10 +441,12 @@ end
 
 # A link to a target: the domain of the content resolves it. A part of the
 # content opens as a visit, or, for a new tab, as an open rooted at the content,
-# which goes on up. A target that names nothing here is answered, and does
+# which goes on up. A file opens in a new tab with a navigator of its own, as the
+# open of a file does. A target that names nothing here is answered, and does
 # nothing.
 function _follow_navigator_target(navigator::Navigator, operation::OpenPageOperation)
     found = find_navigator_target(navigator.content, operation.target)
+    found isa AbstractString && return OpenFileOperation(found; file_wrap = Navigator)
     found isa Reference || return DoNothingOperation()
     operation.place === :here || return OpenPageOperation(navigator.content, found, operation.place)
     something(make_navigator_open_operation(navigator, found), DoNothingOperation())

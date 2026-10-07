@@ -17,6 +17,7 @@ using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
 using ..EventModule
+using ..FileSystemModule
 using ..GestureBindingModule
 using ..GestureModule
 using ..IntentModule

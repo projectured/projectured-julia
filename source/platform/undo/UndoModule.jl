@@ -61,6 +61,7 @@ import ..EditorModule: wrap_editor!, get_wrapper_layers
 import ..ProjectionModule: print_document, read_intent,
                            map_reference_forward, map_reference_backward
 
+export make_history_wrap
 export UndoDocument, UndoBuffer, UndoEntry, is_undo_barrier,
        push_undo_entry!, clear_undo_history!, is_undo_step,
        RecordUndoOperation, UndoOperation, RedoOperation, make_undoable_operation,

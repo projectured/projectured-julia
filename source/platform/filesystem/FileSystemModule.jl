@@ -35,9 +35,11 @@ using ..ProjectionModule
 using ..ReferenceModule
 using ..SelectionModule
 using ..SerializationModule
+using ..SettingsManagingModule
 using ..StyleModule
 using ..SyntaxModule
 using ..TextModule
+using ..UndoModule
 using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.

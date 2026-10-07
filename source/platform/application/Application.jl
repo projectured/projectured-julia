@@ -140,8 +140,7 @@ natural renderer, which every loaded domain registers itself with, so the
 application names no domain.
 """
 function make_application_content_projections(; measure = FontFileMeasure(),
-                                               appearance::Appearance = Appearance(),
-                                               settings::Settings = make_settings())
+                                               appearance::Appearance = Appearance())
     text_to_graphics = ChainingProjection(WordWrapping(measure = measure),
                                           TextToGraphics(measure = measure))
     conversation_rows = Pair{Type,Any}[
@@ -162,8 +161,7 @@ function make_application_content_projections(; measure = FontFileMeasure(),
         WorkspaceDocument => ChainingProjection(
             RecursiveProjection(WorkspaceToFileSystem()),
             RecursiveProjection(FaultCatchingProjection(
-                inner = FileSystemToWidget(
-                    open_file = path -> OpenFileOperation(path; wrap = make_history_wrap(settings))),
+                inner = FileSystemToWidget(),
                 substitute = FaultToWidget())),
             RecursiveProjection(FaultCatchingProjection(
                 inner = WidgetToGraphics(; measure = measure,
@@ -202,9 +200,8 @@ It is the **content** alone. The wrappers of `build_editor` that
 [`make_application_wrappers`](@ref) names go over it.
 """
 function make_application_projection(; measure = FontFileMeasure(),
-                                     appearance::Appearance = Appearance(),
-                                     settings::Settings = make_settings())
-    content = make_application_content_projections(; measure, appearance, settings)
+                                     appearance::Appearance = Appearance())
+    content = make_application_content_projections(; measure, appearance)
     _make_application_pane_projection(content, measure, appearance)
 end
 
@@ -262,7 +259,7 @@ function make_application_window(paths::AbstractVector;
                                  settings::Settings = make_settings())
     # The caller's `build_editor` adds the appearance and the settings wrappers.
     parts = make_editor_parts(make_application_document(paths; root, assistant, settings),
-                              make_application_projection(; measure, appearance, settings);
+                              make_application_projection(; measure, appearance);
                               appearance = false, settings = false,
                               make_application_wrappers(; root, assistant, status_bar, measure,
                                                           appearance)...)
@@ -409,17 +406,6 @@ function make_application_settings(file::Union{AbstractString,Nothing};
 end
 
 """
-    make_history_wrap(settings) -> Function
-
-The function that puts a document into an `UndoBuffer` whose capacity is the cell
-of `undo_capacity` of the `HistorySettings` of `settings`, so the history follows
-a change of the setting.
-"""
-make_history_wrap(settings::Settings) =
-    content -> UndoBuffer(content; capacity = get_setting_cell(
-        get_settings_group!(settings, HistorySettings), :undo_capacity))
-
-"""
     run_application(paths...; backend = nothing,
                     assistant = nothing, model = nothing, mcp = nothing,
                     mcp_host = nothing, mcp_port = nothing, root = pwd(),
@@ -488,7 +474,7 @@ function run_application(paths::AbstractString...;
                          is_sound_enabled = fault.is_sound_enabled)
     editor = build_editor(make_application_document(collect(String, paths); root,
                                                     assistant = chat, settings),
-                          make_application_projection(; measure, appearance, settings);
+                          make_application_projection(; measure, appearance);
                           backend, appearance, settings, fault_policy = policy,
                           # The natural projection draws what a tooltip holds. The
                           # other windows that a wrapper opens draw with the rows a
@@ -496,8 +482,7 @@ function run_application(paths::AbstractString...;
                           window = (; title = "ProjecturEd", width, height,
                                     opened_window_projections = vcat(
                                         Pair{Type,Any}[make_natural_tooltip_row(; measure, appearance)],
-                                        make_application_content_projections(; measure, appearance,
-                                                                             settings))),
+                                        make_application_content_projections(; measure, appearance))),
                           make_application_wrappers(; root, assistant = chat, measure, appearance)...)
     start_application!(editor; mcp, assistant, model)
     run_editor!(editor; mcp = mcp ? (; host = mcp_host, port = mcp_port) : false)

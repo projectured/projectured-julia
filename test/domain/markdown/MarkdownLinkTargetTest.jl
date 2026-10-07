@@ -78,6 +78,21 @@ function test_markdown_link_gestures()
         @test _find_markdown_open(answer(click)) === nothing
     end
 
+    @testset "a link to a file beside the page answers the open of that file with a navigator" begin
+        folder = mktempdir()
+        write(joinpath(folder, "guide.md"), "# Guide\n")
+        file = MarkdownFile(joinpath(folder, "readme.md"), parse_markdown("Read the [guide](guide.md) first.\n"))
+        navigator = Navigator(file)
+        editor, backend = platform._nav_editor(navigator)
+        click = platform._nav_click(backend, "guide")
+        @test click !== nothing
+        answer = read_intent(editor.projection, nothing, Intent(click), editor.iomap).operation
+        opened = answer isa OpenFileOperation ? answer :
+                 answer isa CompoundOperation ? only(o for o in answer.operations if o isa OpenFileOperation) : nothing
+        @test opened isa OpenFileOperation && opened.path == joinpath(folder, "guide.md")
+        @test opened.file_wrap(file) isa Navigator
+    end
+
     @testset "the tooltip of a link shows its target" begin
         root = parse_markdown(_MARKDOWN_LINK_SOURCE)
         link = only(child for child in root.elements[2].content if child isa MarkdownLink)

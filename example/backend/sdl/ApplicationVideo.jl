@@ -120,12 +120,11 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
     try
         # One appearance for the views, the windows they open, the wrappers and the
         # Appearance tab, as in `run_application`, so a change of the look shows.
-        editor = build_editor(document, make_application_projection(; measure, appearance, settings);
+        editor = build_editor(document, make_application_projection(; measure, appearance);
                               backend, appearance, settings, fault_policy = policy,
                               window = (; title, width, height,
                                         opened_window_projections =
-                                            make_application_content_projections(; measure, appearance,
-                                                                                 settings)),
+                                            make_application_content_projections(; measure, appearance)),
                               _with_gesture_overlay(make_application_wrappers(; root, assistant = chat,
                                                                               status_bar, measure,
                                                                               appearance),
