@@ -228,26 +228,22 @@ tab of notes and one of scratch space on the right.
 
 ---
 
-## 7. A table and its detail page (a navigator in the application)
+## 7. A table and its detail page (a navigator)
 
 A navigator shows one part of a document at a time, as a tab of a browser shows
 one page of a site, with Back, Forward, Parent and an address. This example is a
 data frame of thirty rows in a navigator: the table is the first page, and a row
-opens as a page of its own, a form of its columns. It runs in the application,
-because the list of the choices of a name opens in a window of its own, which
-the gallery of `run_example` does not draw.
+opens as a page of its own, a form of its columns.
 
 ```julia
-using Projectured, ProjecturedSDL
-run_application()
+using Projectured, ProjecturedExample, ProjecturedSDL, ProjecturedDataFramesExample
+run_example(make_data_frame_navigator_example(; rows = 30), make_natural_projection_example();
+            name = "Products")
 ```
 
-Then type in the Evaluator:
-
-```julia
-using ProjecturedDataFramesExample
-open_pane!(make_data_frame_navigator_example(; rows = 30); title = "Products")
-```
+In the application, open it from the Evaluator:
+`using ProjecturedDataFramesExample`, then
+`open_pane!(make_data_frame_navigator_example(; rows = 30); title = "Products")`.
 
 **What to try:**
 - Double-click the number of a row, or select the row and press `Ctrl+Return`:

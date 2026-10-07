@@ -680,7 +680,9 @@ new tab".
     section "A table and its detail page" opens the data frame example from the
     evaluator of the application, because the gallery of `run_example` draws no
     popup. A headless check of the editor that `run_application` builds, with the
-    example opened by `open_pane!`, passed the 11 checks of the live run. A fact found on the way
+    example opened by `open_pane!`, passed the 11 checks of the live run. After
+    the rebase on main 8486e997a, whose gallery draws a window that opens later,
+    `run_example` passed the same 11 checks headless, and the tour uses it. A fact found on the way
     (2026-10-06): a host gives an opened window only the rows that it names, so
     the list of choices opened an empty window in the application and in the
     gallery; the tests gave popups the natural renderer. **Decided (owner,
