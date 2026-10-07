@@ -47,6 +47,7 @@ include("../../../test/domain/markdown/MarkdownWrapTest.jl")
 include("../../../test/domain/markdown/MarkdownEmbedCardTest.jl")
 include("../../../test/domain/markdown/MarkdownTableTest.jl")
 include("../../../test/domain/markdown/MarkdownImageLeafTest.jl")
+include("../../../test/domain/markdown/MarkdownLinkTargetTest.jl")
 include("../../../test/domain/markdown/projection/MarkdownThemeTest.jl")
 include("../../../test/domain/markdown/MarkdownSuite.jl")
 

@@ -544,9 +544,23 @@ new tab".
   - [ ] 6b. Markdown: the target of an anchor (a heading by its slug) and of a
     relative file; the gestures of a link in the source view and in the rendered
     view; the look of a link (its colour, the hand pointer, its address in a
-    tooltip).
+    tooltip). The targets are done, 2026-10-07 (`MarkdownLinkTarget.jl`):
+    `compute_markdown_heading_slug` as GitHub writes an anchor; a relative file
+    must exist, because the open of a missing file makes an empty one; a URL with
+    a scheme names nothing.
   - [ ] 6c. rst: the target of a reference (an `.. _name:` target), and the same
-    gestures and look.
+    gestures and look. The targets are done, 2026-10-07 (`RstLinkTarget.jl`):
+    the part after a target of the name, or a section whose title reads it, as
+    rst compares names; then a relative file that exists.
+  - Facts found 2026-10-07 for the gestures and the look, which wait for the
+    owner: in a text view the text layer answers every click with a caret, and an
+    `override` rule takes a claimed gesture only for a key, along the selection
+    (`_read_override_gesture` in `ProjectionTemplate.jl`); the outward read of a
+    click stops at the first answer (`_read_outward`). So no table of a link can
+    take a Ctrl+click in the source view, and no projection can take a plain
+    click in the rendered view. The text layer draws one I-beam region over a
+    whole text (`TextToGraphics.jl`), and a span has no pointer shape. A tooltip
+    needs nothing new: `make_tooltip_binding` in the table of the link.
   - [ ] 6d. A file link opens the file in a new tab with a navigator, and the
     application gives every opened file its history (Q6). The mechanism goes to
     the owner before it is built.

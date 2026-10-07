@@ -42,6 +42,7 @@ for _src in _SOURCES
 end
 
 include("../../../test/domain/rst/document/RstParserTest.jl")
+include("../../../test/domain/rst/document/RstLinkTargetTest.jl")
 include("../../../test/domain/rst/projection/RstEmbedCardTest.jl")
 include("../../../test/domain/rst/projection/RstThemeTest.jl")
 

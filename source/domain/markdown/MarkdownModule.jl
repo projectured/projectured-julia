@@ -12,11 +12,12 @@ using ..PlatformModule
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_computation!, set_cell_value!
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..NavigatorModule: find_navigator_target
 import ..SerializationModule: emit_text, get_document_section,
                               get_file_domain, make_reference_leaf, find_reference_marker, parse_file_content
 
 export MarkdownDocument, set_cell_computation!
-export parse_markdown, parse_markdown_file
+export parse_markdown, parse_markdown_file, compute_markdown_heading_slug
 export MarkdownTheme, ScaledMarkdownTheme
 export MarkdownInsertionToSyntaxLeaf, MarkdownTextToSyntaxLeaf, MarkdownCodeToSyntaxLeaf,
        MarkdownThematicBreakToSyntaxLeaf, MarkdownEmphasisToSyntaxNode, MarkdownStrongToSyntaxNode,
@@ -38,6 +39,7 @@ include("MarkdownParser.jl")
 include("MarkdownTheme.jl")
 include("MarkdownToSyntax.jl")
 include("MarkdownFile.jl")
+include("MarkdownLinkTarget.jl")
 include("MarkdownToLayout.jl")
 
 
