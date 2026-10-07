@@ -170,6 +170,12 @@ OpenPopupOperation(; id::Symbol, x::Integer = 0, y::Integer = 0,
                      auto_dismiss::Bool = true, content::Document) =
     OpenPopupOperation(id, Int(x), Int(y), Int(width), Int(height), auto_dismiss, content)
 
+# It carries its content and a position in the frame of the reader that holds
+# it, and names no place in a document. So it passes up through a projection
+# that puts its output where its input is, such as the view of a document in a
+# pane, as it is; a container that places its child moves the position.
+OperationModule.is_self_contained_operation(::OpenPopupOperation) = true
+
 function map_operation_position(operation::OpenPopupOperation, move)
     x, y = move(operation.x, operation.y)
     OpenPopupOperation(operation.id, Int(x), Int(y), operation.width, operation.height,
