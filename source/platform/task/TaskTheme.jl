@@ -17,15 +17,15 @@ appearance.
     "The space between a heading and the badge beside it, and between the buttons of a row."
     inline_gap::Spacing = Spacing(10)
     "A result that did what was expected of it: `DONE`, `PASS`, `KEEP`."
-    success_color::StyleColor = ColorRole(:success_text)
+    success_color::ThemeColor = ColorRole(:success_text)
     "A result that was skipped or stopped: `SKIP`, `CANCEL`."
-    info_color::StyleColor = ColorRole(:info_text)
+    info_color::ThemeColor = ColorRole(:info_text)
     "A result that needs a look: `FAIL`, and an `INSERT` or an `UPDATE` that changed a store."
-    warning_color::StyleColor = ColorRole(:warning_text)
+    warning_color::ThemeColor = ColorRole(:warning_text)
     "A result that went wrong: `ERROR`."
-    error_color::StyleColor = ColorRole(:error_text)
+    error_color::ThemeColor = ColorRole(:error_text)
     "A task that runs."
-    running_color::StyleColor = ColorRole(:accent_text)
+    running_color::ThemeColor = ColorRole(:accent_text)
     "A task that waits, and a value that says little."
-    muted_color::StyleColor = ColorRole(:text_muted)
+    muted_color::ThemeColor = ColorRole(:text_muted)
 end
