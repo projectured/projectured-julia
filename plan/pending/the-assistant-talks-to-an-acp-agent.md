@@ -372,7 +372,17 @@ document never holds the editor.
 - [ ] **1.2 The fake agent.** A Julia script that answers from a recorded
   transcript. Remove the account data from the record. The tests run with no
   network and no Node.js.
-- [ ] **1.3 The kernel seam (M1).**
+- [x] **1.3 The kernel seam (M1).** Done. Three fragments of `AgentModule`:
+  `AgentConnectionInterface.jl`, `AgentConnectionDefaults.jl` and
+  `AgentConnectionEvent.jl`. Decisions made in the step:
+  - `set_agent_option!` waits for phase 2, because nothing calls it before the
+    config options of step 2.1. A generic with no method is a promise.
+  - The private `_get_agent_server_names` became the exported
+    `get_agent_server_names`, beside the new `get_agent_connection_names`, as
+    `get_llm_backend_names` is. The assistant asks with it whether `:mcp` is
+    loaded. Both read the method table with `_collect_val_kinds`.
+  - `send_agent_prompt!` takes a vector of `LlmContent`. Phase 1 sends
+    `LlmText` only.
 - [ ] **1.4 The connection.** `initialize`, `session/new`, `session/prompt`,
   `session/cancel` and `session/close`, on top of 1.1.
 - [ ] **1.5 The assistant turn.** `backend = :acp` branches in

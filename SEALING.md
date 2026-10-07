@@ -191,6 +191,9 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `agent/AgentDefaults.jl`
   - ⬜ `agent/Agent.jl`
   - ⬜ `agent/AgentLoop.jl`
+  - ⬜ `agent/AgentConnectionInterface.jl`
+  - ⬜ `agent/AgentConnectionDefaults.jl`
+  - ⬜ `agent/AgentConnectionEvent.jl`
 - **Layer 21 — feed** (`feed/`)
   - ⬜ `feed/FeedModule.jl`
   - ⬜ `feed/FeedInterface.jl`
