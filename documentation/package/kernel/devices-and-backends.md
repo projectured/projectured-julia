@@ -739,6 +739,14 @@ because the description is the name and there is no pattern to derive one from. 
 `nothing` rule binds no pattern variable, so its body reads `doc` and `sel` only.
 `override(nothing)` is an error, because override claims a key and there is none.
 
+An `override` rule takes a click too, after a stage nearer the output answered it,
+as a text view answers each click with a caret. The template reads the claimed
+click along the path of the part that the click selected, mapped into its input,
+innermost first, also through a part that no template prints; each part answers
+with the bindings of its projection, then with its table. So a link in a text view
+binds `override(Ctrl+click)` in its table, and a view in which a plain click
+follows a link binds `override(click)` on the projection of the link.
+
 `name` is filled in by `@gestures`, and only when the author wrote a description
 **and** the rule reads no event. A rule that binds a pattern variable — JSON's
 `when(KeyPress(c), isdigit(c))` — has no name, because a name carries no event to

@@ -84,6 +84,8 @@ every page, also where the page uses the same key.
 | click on a name in the address | open that page |
 | click on the arrow before a name in the address | the list of the other parts at the place of that name: type to narrow it, or a number to go to that element; Up and Down move the row, Enter or a click opens the row, Escape closes the list |
 | click on **Names**, **Path** or **Types** in the bar | show the address as the next of the three views; Shift + click shows the one before |
+| Ctrl + click on a link in a markdown or rst source view | follow the link; Ctrl + Shift + click opens it in a new tab |
+| click on a link in a rendered markdown or rst page | follow the link; Ctrl + click opens it in a new tab |
 | Ctrl + L, or click on the path in the path view | edit the path in place; Tab takes the hint of a field name, Enter opens the path, Escape ends the edit |
 | right click on a part of a page | **Open as a page** or **Open in a new tab** |
 | double click on the number of a row of a data frame | open the row as a page: a form of its columns |

@@ -127,9 +127,12 @@ A link is the part of a domain or of a view that answers `OpenPageOperation(docu
 
 - With `document === nothing`, `reference` is a path from the part that answers. Every reader on the way up maps it, as any path. This form opens the part itself or a part under it.
 - With a `document`, the operation carries its own root and goes up unchanged. This form opens any object.
+- With a `target`, the path form names the link, and `target` is the text of what it names, as its domain writes it: `#install`, `guide.md`, an rst name.
 - `place` is `:here`, the default, or `:new_tab`, as Ctrl+click does in a browser.
 
 The operation registers with `operation_reference`, `retarget_operation` and `is_self_contained_operation`, so no reader of another slice names it. The nearest navigator around the part takes an open with `:here`. A path under its content becomes the address. An object that is the content, or a document on the address, becomes the path from the content. Any other object becomes the content of a new visit, with no parent: the navigator does not search its content, because a search walks every value of the content. With `:new_tab`, the navigator passes up an open rooted at its content.
+
+A target is resolved by the domain of the content: `find_navigator_target(content, target)` answers a `Reference` to a part, the absolute path of a file, or `nothing`. A part opens as a visit, or in a new tab; a file opens in a new tab with a navigator around it (`OpenFileOperation` with `file_wrap`), with a history around the navigator when the editor has settings, so the history records the edits of every page; a target that names nothing is answered and does nothing. A navigator that an open makes from a file tab keeps the file document as its content, so a relative link is read against the name of the file. The markdown and the rst domains answer the function ([markdown.md](../../domain/markdown/markdown.md), [rst.md](../../domain/rst/rst.md)).
 
 An open that no navigator takes reaches the editor. Its evaluation posts the opening of a new tab with a navigator on the page (`post_pane_operation!`), as the open of a file does. For the path form, the content of that navigator is the document of the tab that holds the part, past the layers that `get_edited_field` names, such as an undo and a file, so Parent reaches the rest of it.
 
@@ -183,4 +186,4 @@ A part that opens a page answers `OpenPageOperation(nothing, EmptyReference())` 
 - The list of choices opens at the point of the press, and no key opens it.
 - The hint of an insertion completes the name of a field, not an element.
 - The view on demand, which draws a document that has no view of its own, does not pass an operation with a fixed place (`read_rooted_operation`) into itself. A verb of the assistant at a place inside such a page reaches no part.
-- A link in the data of a domain, such as a markdown link, does not answer `OpenPageOperation` yet.
+- A history inside the content of a navigator does not record an edit on a page below the root ([undo.md](../undo/undo.md)).

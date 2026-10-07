@@ -496,7 +496,7 @@ new tab".
     the owner's rule that a part scrolls where it is made. A page whose view has
     no scroll pane, such as JSON, is cut at the bottom of the navigator.
   - `test_data_frame_row_page()`, 31 tests after A5 and A6.
-- [ ] **6. Links in the data.** Markdown and rst links that a press follows,
+- [x] **6. Links in the data.** Markdown and rst links that a press follows,
   drawn as links. A file reference. A named target after D7.
   **Decided (owner, 2026-10-06):**
   - The gesture: in a source view, Ctrl+click follows a link in the navigator,
@@ -554,14 +554,14 @@ new tab".
     navigator answers a target that names nothing here with
     `DoNothingOperation`, so the press does nothing else; a file path that the
     function answers opens nothing until 6d.
-  - [ ] 6b. Markdown: the target of an anchor (a heading by its slug) and of a
+  - [x] 6b. Markdown: the target of an anchor (a heading by its slug) and of a
     relative file; the gestures of a link in the source view and in the rendered
     view; the look of a link (its colour, the hand pointer, its address in a
     tooltip). The targets are done, 2026-10-07 (`MarkdownLinkTarget.jl`):
     `compute_markdown_heading_slug` as GitHub writes an anchor; a relative file
     must exist, because the open of a missing file makes an empty one; a URL with
     a scheme names nothing.
-  - [ ] 6c. rst: the target of a reference (an `.. _name:` target), and the same
+  - [x] 6c. rst: the target of a reference (an `.. _name:` target), and the same
     gestures and look. The targets are done, 2026-10-07 (`RstLinkTarget.jl`):
     the part after a target of the name, or a section whose title reads it, as
     rst compares names; then a relative file that exists.
@@ -590,10 +590,39 @@ new tab".
     navigator, so its tab is a history around a navigator around the file. The
     option not chosen: a reader of the application that gives a history to each
     open that passes it.
-  - [ ] 6d. A file link opens the file in a new tab with a navigator, and the
+  - [x] 6d. A file link opens the file in a new tab with a navigator, and the
     application gives every opened file its history (Q6). The mechanism goes to
-    the owner before it is built.
-  - [ ] 6e. Tests, the design document, and the keyboard guide.
+    the owner before it is built. Done 2026-10-07, by Q10 (a):
+    `OpenFileOperation(path; wrap, file_wrap)`, and the evaluation puts a history
+    around the part of `file_wrap`, or around the content inside the file.
+    `make_history_wrap` is in the undo slice; the Files pane passes no history of
+    its own, and the menu Open gets one too.
+  - [x] 6e. Tests, the design document, and the keyboard guide. Done 2026-10-07:
+    the tests of the open, of markdown and of rst links, of the text layer; the
+    documents of the navigator, markdown, rst, text, undo, file system, the
+    claimed click in devices-and-backends.md, and the keyboard guide.
+  What was built and decided on the way, 2026-10-07:
+  - The claimed click (Q7) is in `ProjectionTemplate.jl`: it reads the path of
+    the claimed selection, maps it into the input of the node, and goes along
+    it, innermost first, through template nodes and through other parts child by
+    child, as a route does; each part answers with its projection bindings, then
+    with its table, and only `override` bindings fire.
+  - The source view keeps the I-beam over a link (my decision): a plain click
+    there puts the caret, and a hand would promise a click that does not follow.
+    The rendered views show the hand (Q8), which is the view that a navigator and
+    the application draw: markdown and rst register their rendered rows with the
+    natural renderer.
+  - The rendered rst section had no maps of its own, so a click inside it
+    selected the section and the reference got no click. It maps its title and
+    each block now; the type-in sweep of the `rst_rendered` example drops from
+    2520 to 630 failures against the baseline at the branch point, and the
+    `rst` and `markdown_rendered` sweeps stay as they were (240 and 8).
+  - `TextString` has the field `pointer_shape`; the constructor of the fields
+    that `@document` makes takes it in the seventh place, so a call with six
+    values and `Cell(nothing)` for the selection now gives no shape and the
+    default selection, which is the same span.
+  - A relative file that does not exist names nothing, because the open of a
+    missing file makes an empty one.
 - [x] **7. Panes and files.** The tab title follows the page. A duplicate copies
   the lists. A save keeps the address only (D6). Done, 2026-10-06, with one
   change of the plan:

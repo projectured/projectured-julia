@@ -77,6 +77,10 @@ Four rules make the two work together, and a run of typing keeps them (see above
 3. **A buffer never records its own undo or redo.** It records the undo of another buffer.
 4. **An outer buffer does not apply its filter again** to a step that an inner buffer recorded. Two levels that disagree lose the order that they share, and that order is what lets an outer entry name an inner step.
 
+### The history of an opened file
+
+`make_history_wrap(settings)` puts a document into a buffer whose capacity is the cell of `undo_capacity` of `HistorySettings`. When the editor has settings, the evaluation of the open of a file gives the file such a history, whatever started the open (the Files pane, the menu Open, a link): around the part that the opener puts around the file document, such as a navigator, so the buffer records every edit of that part, and else around the content inside the file, as a file tab of the application has it.
+
 ### The keys
 
 | Key | What it does |
@@ -150,4 +154,5 @@ register_undo_tools!(editor.tools)
 ## Limits
 
 - `test_undo_round_trip()` marks `@test_broken` each sampled gesture whose operation has no inverse, and logs the gesture. Such a step becomes a barrier.
+- A buffer records only the edits that pass through its own reader. A navigator prints its page directly, so an edit on a page below the root of the content of a navigator bypasses a buffer inside that content, as in the tab that "Open in a new tab" makes from a file tab. A history that records every edit of its document from any view is the plan [a-history-records-every-edit-of-its-document.md](../../../../plan/pending/a-history-records-every-edit-of-its-document.md).
 - The history panel is read-only. A click on a line would need a reference map through three stages and an operation that takes several steps back at once; neither exists.

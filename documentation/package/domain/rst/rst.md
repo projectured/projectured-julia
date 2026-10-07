@@ -63,6 +63,10 @@ The body of a code block, a literal include, a literal block, a math block, a ra
 
 The rule moves the blocks and does not change them, so the reference maps only change the head: `elements[i]` becomes `children[i]`. In a section the title takes the first slot, so the index moves by one. The title prints as one line of text in the font of its level.
 
+### References
+
+A reference follows its target with the target form of `OpenPageOperation` ([navigator.md](../../platform/navigator/navigator.md)): its embedded target, or its text for a named reference. In the source view Ctrl+click follows it and Ctrl+Shift+click opens it in a new tab; in the rendered view a plain click follows it, Ctrl+click opens a new tab, and the pointer is a hand over it. Its tooltip shows its target. `find_navigator_target` names the part after an `.. _name:` target, or a section whose title reads the name, as rst compares names; an `RstFile` also names a file beside it that exists.
+
 ### The text form
 
 `parse_rst` works on a vector of lines that its caller has already dedented to column zero, and tries the block constructs in a fixed order. A construct that owns an indented body, such as a directive, a list item or a definition, dedents that body and gives it to the same reader. So nesting needs no special case. Sections come out flat, as title markers, and one pass after the read assigns the depths by order of first use and builds the tree.
@@ -141,7 +145,6 @@ print_natural_text(doc)                     # the RST source
 - **`literalinclude` and `include` do not read their file.** The projection shows the path and the slice bounds, and it does not apply `start-at` or `end-at`. A read needs a loader context, such as the `FileProject` of the serialization slice, and the projection has none.
 - **A role is a styled string.** A Sphinx role such as `:doc:` does not resolve to its target.
 - **The source view prints the start number of an enumerated list on every item.** A template rule has no access to the index of an item. RST numbers the items again when it renders them, and a re-parse gives the same list. The rendered view counts correctly, because `RstEnumeratedListToStyledNode` builds its items by hand.
-- **`RstSectionToStyledNode` has no reference mappers.** The rendered section prints, but a selection does not map through it, so navigation in the rendered view stops at a section. The source view and the page of blocks map fully.
 - **The title of a section in the page of blocks is flat.** Its inline markup prints as plain text, because a layout child gets no ambient `:rst_style`. A selection maps into the blocks of the section, not into its title.
 - **The rendered grid table keeps the drawn grid.** It does not lay the cells out as a table.
 - **A figure path resolves against the working directory of the process**, not against the file of the figure. A path that does not resolve prints as text.
