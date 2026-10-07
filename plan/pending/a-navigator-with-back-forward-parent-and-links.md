@@ -533,6 +533,19 @@ new tab".
     menu Open (`FileDialog.jl`) opens a file with no history today. The options
     not chosen: a navigator tab with no history, or a file link that opens the
     file as the Files pane does, with no navigator.
+  - **Q10, decided (owner, 2026-10-07):** Q9 changes, because of two facts found
+    while building it. The `wrap` of the open of a file goes around the content
+    inside the file (`make_file_tab`), so a navigator in `wrap` would not have the
+    file as its root. And a history records only the edits that pass through its
+    own projection; a navigator prints a page directly, so a page below the root
+    of the content bypasses a history inside it. For step 6, option (a):
+    `OpenFileOperation` gets a second hook for what goes around the file
+    document; a link gives a navigator, and the evaluation builds a history
+    around the navigator around the file. A plain file keeps its history inside
+    the file. Option (c), a history that records every edit of its document from
+    any view, is its own plan:
+    [a-history-records-every-edit-of-its-document.md](a-history-records-every-edit-of-its-document.md).
+    The option not chosen: (b), the history around the file for every file tab.
   The parts:
   - [x] 6a. The target form of `OpenPageOperation`, `find_navigator_target`
     with a default of `nothing`, the resolution by the navigator and by the
