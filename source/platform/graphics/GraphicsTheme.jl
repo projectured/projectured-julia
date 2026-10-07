@@ -18,7 +18,7 @@ with the same theme, from the same appearance.
     "The base font of the fault mark."
     font::StyleFont = StyleFont("DejaVu Sans Mono", 13)
     "The mark of a fault that a projection of the graphics domain raised."
-    fault_text::TextRole = TextRole(:error_text; weight = 700)
+    fault_text::ThemeText = TextRole(:error_text; weight = 700)
     "The ring around an object that is selected as a whole."
     selection_ring::ThemeColor = ColorRole(:selection_ring)
     "The band under a selected row of a list, a tree or a table."

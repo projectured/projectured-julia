@@ -22,15 +22,15 @@ with no styles holds the plain values of the default theme.
     "The font that the texts of this theme follow: its family, its weight and its size."
     font::StyleFont = StyleFont("DejaVu Sans Mono", 13)
     "The number of the entry."
-    index_text::TextRole = TextRole(:text_muted)
+    index_text::ThemeText = TextRole(:text_muted)
     "The gesture that the entry records."
-    gesture_text::TextRole = TextRole(:accent_text; weight = 700)
+    gesture_text::ThemeText = TextRole(:accent_text; weight = 700)
     "The operation the gesture makes."
-    operation_text::TextRole = TextRole(:text)
+    operation_text::ThemeText = TextRole(:text)
     "A line that records a selection, which is context and not a change."
-    muted_text::TextRole = TextRole(:text_faint)
+    muted_text::ThemeText = TextRole(:text_faint)
     "The line the log shows while it holds no gesture."
-    empty_text::TextRole = TextRole(:text_faint)
+    empty_text::ThemeText = TextRole(:text_faint)
     "The surface of the panel that shows the log over the content of a window: dark and translucent, so the content stays readable and the light text of the log reads over any content."
     panel_background::ThemeColor = ColorRole(:surface_inverse)
     "The space between the panel and the edges of the window."

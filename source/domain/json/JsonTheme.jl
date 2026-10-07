@@ -22,19 +22,19 @@ default theme.
     "The font that the texts of this theme follow: its family, its weight and its size."
     font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "A null value."
-    null_text::TextRole = TextRole(:null_literal)
+    null_text::ThemeText = TextRole(:null_literal)
     "A boolean value."
-    bool_text::TextRole = TextRole(:boolean_literal)
+    bool_text::ThemeText = TextRole(:boolean_literal)
     "A number value."
-    number_text::TextRole = TextRole(:number_literal)
+    number_text::ThemeText = TextRole(:number_literal)
     "A string value."
-    string_text::TextRole = TextRole(:string_literal)
+    string_text::ThemeText = TextRole(:string_literal)
     "The quotes around a string."
-    quote_text::TextRole = TextRole(:punctuation)
+    quote_text::ThemeText = TextRole(:punctuation)
     "The key of an object member, with its quotes."
-    key_text::TextRole = TextRole(:field)
+    key_text::ThemeText = TextRole(:field)
     "The brackets of an array and the braces of an object."
-    delimiter_text::TextRole = TextRole(:punctuation; weight = 700)
+    delimiter_text::ThemeText = TextRole(:punctuation; weight = 700)
     "A comma, and the colon of a member."
-    separator_text::TextRole = TextRole(:punctuation)
+    separator_text::ThemeText = TextRole(:punctuation)
 end

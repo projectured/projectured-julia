@@ -249,7 +249,13 @@ function _convert_losslessly(declared_type, value)
     catch
         return _NOT_CONVERTED
     end
-    (converted isa declared_type && isequal(converted, value)) ? converted : _NOT_CONVERTED
+    converted isa declared_type || return _NOT_CONVERTED
+    # A number that becomes another number can change, as a large `Int` does in a
+    # `Float64`: it must stay equal. Any other conversion of Julia loses nothing or
+    # throws.
+    (value isa Number && converted isa Number && !isequal(converted, value)) &&
+        return _NOT_CONVERTED
+    converted
 end
 
 function _is_losslessly_convertible(declared_type, value)

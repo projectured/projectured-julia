@@ -23,7 +23,7 @@ tree of the file system follows the widget theme instead.
     "The font that the texts of this theme follow: its family, its weight and its size."
     font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The basename of a file."
-    file_text::TextRole = TextRole(:text)
+    file_text::ThemeText = TextRole(:text)
     "The name of a directory."
-    directory_text::TextRole = TextRole(:module_name; weight = 700)
+    directory_text::ThemeText = TextRole(:module_name; weight = 700)
 end

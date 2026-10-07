@@ -54,11 +54,11 @@ plain values of the default theme.
     "The opacity of a state band's generated color, when it names none of its own."
     band_overlay_alpha::Float64 = 0.45
     "The font of the chart's title."
-    title_font::FontRole = FontRole(base = :axis_font, weight = 700, relative_size = 16 / 14)
+    title_font::ThemeFont = FontRole(base = :axis_font, weight = 700, relative_size = 16 / 14)
     "The font of a tick, a lane name, a readout and the empty-chart placeholder."
     axis_font::StyleFont = StyleFont("Ubuntu", 12)
     "The font of the label of an event, an arrow or a band."
-    label_font::FontRole = FontRole(base = :axis_font)
+    label_font::ThemeFont = FontRole(base = :axis_font)
     "The space around the whole chart."
     padding::Spacing = Spacing(8)
     "The space inside a gutter, above and below its text."

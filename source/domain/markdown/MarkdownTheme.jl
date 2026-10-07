@@ -29,41 +29,41 @@ values of the default theme. A heading holds the four fonts of its levels,
     "The font that the code of this theme follows: its family, its weight and its size."
     code_font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "A marker: an insertion placeholder, a tick, a break, an emphasis mark, a quote mark, a bullet, a pipe, a bracket, a fence."
-    marker_text::TextRole          = TextRole(:markup; base = :code_font)
+    marker_text::ThemeText          = TextRole(:markup; base = :code_font)
     "The text of the source form, and the root."
-    source_text::TextRole          = TextRole(:text; base = :code_font)
+    source_text::ThemeText          = TextRole(:text; base = :code_font)
     "A code span and a code block, in the source form."
-    code_text::TextRole            = TextRole(:string_literal; base = :code_font)
+    code_text::ThemeText            = TextRole(:string_literal; base = :code_font)
     "The language of a code block, and the value of an inline code span in the rendered form."
-    language_text::TextRole        = TextRole(:keyword; base = :code_font)
+    language_text::ThemeText        = TextRole(:keyword; base = :code_font)
     "The `#` marker of a heading, in the source form."
-    heading_marker_text::TextRole  = TextRole(:markup; base = :code_font, weight = 700)
+    heading_marker_text::ThemeText  = TextRole(:markup; base = :code_font, weight = 700)
     "The url of a link or an image."
-    url_text::TextRole             = TextRole(:link; base = :code_font)
+    url_text::ThemeText             = TextRole(:link; base = :code_font)
     "The alt text of an image."
-    alt_text::TextRole             = TextRole(:string_literal; base = :code_font)
+    alt_text::ThemeText             = TextRole(:string_literal; base = :code_font)
     "The plain prose of the rendered form."
-    body_text::TextRole            = TextRole(:text)
+    body_text::ThemeText            = TextRole(:text)
     "The font a bold run takes in the rendered form."
-    bold_font::FontRole            = FontRole(weight = 700)
+    bold_font::ThemeFont            = FontRole(weight = 700)
     "The font an italic run takes in the rendered form."
-    italic_font::FontRole          = FontRole(italic = true)
+    italic_font::ThemeFont          = FontRole(italic = true)
     "The font of a level 1 heading in the rendered form."
-    heading_1_font::FontRole       = FontRole(weight = 700, relative_size = 1.8)
+    heading_1_font::ThemeFont       = FontRole(weight = 700, relative_size = 1.8)
     "The font of a level 2 heading in the rendered form."
-    heading_2_font::FontRole       = FontRole(weight = 700, relative_size = 1.2)
+    heading_2_font::ThemeFont       = FontRole(weight = 700, relative_size = 1.2)
     "The font of a level 3 heading in the rendered form."
-    heading_3_font::FontRole       = FontRole(weight = 700, relative_size = 1.1)
+    heading_3_font::ThemeFont       = FontRole(weight = 700, relative_size = 1.1)
     "The font of a heading past the third level, in the rendered form."
-    heading_font::FontRole         = FontRole(weight = 700, relative_size = 0.9)
+    heading_font::ThemeFont         = FontRole(weight = 700, relative_size = 0.9)
     "The color of a heading in the rendered form."
     heading_color::ThemeColor       = ColorRole(:heading)
     "The color of a link in the rendered form."
     link_color::ThemeColor          = ColorRole(:link)
     "The caption under a rendered image."
-    caption_text::TextRole         = TextRole(:text_muted; italic = true)
+    caption_text::ThemeText         = TextRole(:text_muted; italic = true)
     "A marker of the rendered form: a thematic break rule, a quote bar, a code fence's language, a list marker."
-    rendered_marker_text::TextRole = TextRole(:markup; base = :code_font, family = "DejaVu Sans Mono")
+    rendered_marker_text::ThemeText = TextRole(:markup; base = :code_font, family = "DejaVu Sans Mono")
     "The gap between the blocks of a markdown page."
     block_gap::Spacing              = Spacing(8)
 end

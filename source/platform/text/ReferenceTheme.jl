@@ -26,7 +26,7 @@ of the default theme.
     "The body of both forms."
     font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The italic \"which is\" that connects one line of the human-readable form to the line below it."
-    aside_font::FontRole = FontRole(italic = true)
+    aside_font::ThemeFont = FontRole(italic = true)
     "A delimiter, a comma or a colon, and the plain words of a phrase, such as \"the \" or \"of \"."
     punctuation_color::ThemeColor = ColorRole(:punctuation)
     "The name of a field or of a step."

@@ -22,17 +22,17 @@ of the default theme.
     "The font that the texts of this theme follow: its family, its weight and its size."
     font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "A null value."
-    null_text::TextRole      = TextRole(:null_literal)
+    null_text::ThemeText      = TextRole(:null_literal)
     "A boolean value."
-    bool_text::TextRole      = TextRole(:boolean_literal)
+    bool_text::ThemeText      = TextRole(:boolean_literal)
     "A number value."
-    number_text::TextRole    = TextRole(:number_literal)
+    number_text::ThemeText    = TextRole(:number_literal)
     "A string value."
-    string_text::TextRole    = TextRole(:string_literal)
+    string_text::ThemeText    = TextRole(:string_literal)
     "The key of a mapping entry."
-    key_text::TextRole       = TextRole(:field)
+    key_text::ThemeText       = TextRole(:field)
     "The brackets of a flow sequence, the braces of a flow mapping, and the `- ` marker of a block sequence."
-    delimiter_text::TextRole = TextRole(:punctuation; weight = 700)
+    delimiter_text::ThemeText = TextRole(:punctuation; weight = 700)
     "A comma, and the colon of a mapping entry."
-    separator_text::TextRole = TextRole(:punctuation)
+    separator_text::ThemeText = TextRole(:punctuation)
 end

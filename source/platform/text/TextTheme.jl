@@ -40,19 +40,19 @@ colors and fonts as keywords: no view of the platform builds them.
     "The distance between the lines of prose, as a multiple of the natural line height of its font."
     prose_line_spacing::LineSpacing = MultipleSpacing(1.3)
     "A boolean that a primitive projection prints as text."
-    bool_text::TextRole = TextRole(:boolean_literal)
+    bool_text::ThemeText = TextRole(:boolean_literal)
     "A number that a primitive projection prints as text."
-    number_text::TextRole = TextRole(:number_literal)
+    number_text::ThemeText = TextRole(:number_literal)
     "A string that a primitive projection prints as text."
-    string_text::TextRole = TextRole(:string_literal)
+    string_text::ThemeText = TextRole(:string_literal)
     "The text of a type-in that is no value yet, such as `1e` on the way to a number."
     wrong_color::ThemeColor = ColorRole(:error_text)
     "What an empty type-in shows, such as `missing` in a cell of a data frame."
-    placeholder_text::TextRole = TextRole(:text_faint)
+    placeholder_text::ThemeText = TextRole(:text_faint)
     "A text that no other field styles, such as the name of an empty document."
-    plain_text::TextRole = TextRole(:text)
+    plain_text::ThemeText = TextRole(:text)
     "The number before each line of a text with line numbers."
-    line_number_text::TextRole = TextRole(:text_muted)
+    line_number_text::ThemeText = TextRole(:text_muted)
     "The surface behind each match of a search in a text."
     match_highlight::ThemeColor = ColorRole(:search_match)
     "The surface of the character under a block caret, which shows inverted."
@@ -60,7 +60,7 @@ colors and fonts as keywords: no view of the platform builds them.
     "The character under a block caret, which shows inverted."
     inverted_foreground::ThemeColor = ColorRole(:background)
     "The mark of a part whose projection failed, in place of that part."
-    fault_text::TextRole = TextRole(:error_text; family = "DejaVu Sans Mono", weight = 700,
+    fault_text::ThemeText = TextRole(:error_text; family = "DejaVu Sans Mono", weight = 700,
                                     relative_size = 0.8)
 end
 

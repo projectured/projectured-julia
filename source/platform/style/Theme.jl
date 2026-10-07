@@ -79,6 +79,13 @@ struct IconSize{T} <: ThemeLength
     value::T
 end
 
+# A bare number, an `Inset` or a `Point2D` converts to a kind of length, so a field
+# declared with the kind takes it at the write, by rule 2 of the check of a declared
+# type, and keeps the kind that it declares.
+for kind in (:Spacing, :Radius, :LineWidth, :ControlSize, :IconSize)
+    @eval Base.convert(::Type{$kind}, value::Union{Real, Inset, Point2D}) = $kind(value)
+end
+
 """
     scale_length(length, factor)
 
@@ -98,11 +105,10 @@ scale_length(point::Point2D, factor::Real) =
 """
     convert_theme_value(T, value)
 
-`value` in the kind of length that the declared type `T` of a field names. A field
-of a document is a plain cell, so its declared type is not checked; this gives a
-bare number of a field declared `Radius` the kind `Radius`, so it takes the radius
-scale. A value of the kind already, and a field of any other type, stay as they
-are.
+`value` in the kind of length that the declared type `T` of a field names. It gives
+a bare number of a field declared `Radius` the kind `Radius`, so it takes the radius
+scale, also where the check of a declared type let the bare number pass. A value of
+the kind already, and a field of any other type, stay as they are.
 """
 convert_theme_value(::Type, value) = value
 convert_theme_value(::Type{<:Spacing}, value) = value isa Spacing ? value : Spacing(value)
@@ -313,7 +319,7 @@ is.
         "The font that the texts of this theme follow."
         font::StyleFont     = StyleFont("Ubuntu Mono", 20)
         "The text of a key."
-        key_text::TextRole  = TextRole(color_solarized_blue; weight = 700)
+        key_text::ThemeText = TextRole(color_solarized_blue; weight = 700)
         "The indent of a nested value."
         indent::Spacing     = Spacing(16)
     end

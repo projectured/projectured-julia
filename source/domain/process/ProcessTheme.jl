@@ -25,17 +25,17 @@ values of the default theme.
     "The font that the texts of this theme follow: its family, its weight and its size."
     font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "`process`, `step`, `if`, `else`, `while`, `for`, `in`, `break`, `continue` and `return`, and the keyword of a diagram label."
-    keyword_text::TextRole    = TextRole(:keyword; weight = 700)
+    keyword_text::ThemeText    = TextRole(:keyword; weight = 700)
     "The name of a process."
-    name_text::TextRole       = TextRole(:function_name; weight = 700)
+    name_text::ThemeText       = TextRole(:function_name; weight = 700)
     "The description of a step, and the text of a step label in a diagram."
-    action_text::TextRole     = TextRole(:text)
+    action_text::ThemeText     = TextRole(:text)
     "The punctuation around a part, an unrefined `<condition>`, `<variable>` or `<iterable>` marker, the chrome of a diagram label, and an edge label."
-    chrome_text::TextRole     = TextRole(:punctuation)
+    chrome_text::ThemeText     = TextRole(:punctuation)
     "The keyword of the node where a debug session stops."
-    current_text::TextRole    = TextRole(:warning_text; weight = 700)
+    current_text::ThemeText    = TextRole(:warning_text; weight = 700)
     "The keyword of a node that holds a breakpoint."
-    breakpoint_text::TextRole = TextRole(:error_text; weight = 700)
+    breakpoint_text::ThemeText = TextRole(:error_text; weight = 700)
     "The label of the start or the stop terminal in a diagram."
-    terminal_text::TextRole   = TextRole(:keyword; weight = 700)
+    terminal_text::ThemeText   = TextRole(:keyword; weight = 700)
 end

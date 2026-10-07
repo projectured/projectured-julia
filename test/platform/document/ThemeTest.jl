@@ -37,15 +37,15 @@ end
 @theme struct ThRoles
     font::StyleFont = StyleFont("Ubuntu", 20)
     code_font::StyleFont = StyleFont("Ubuntu Mono", 14)
-    title::FontRole = FontRole(weight = 700, relative_size = 1.8)
-    keyword::TextRole = TextRole(color_solarized_blue; base = :code_font, weight = 700)
-    marker::TextRole = TextRole(color_black; base = :code_font, family = "DejaVu Sans Mono")
+    title::ThemeFont = FontRole(weight = 700, relative_size = 1.8)
+    keyword::ThemeText = TextRole(color_solarized_blue; base = :code_font, weight = 700)
+    marker::ThemeText = TextRole(color_black; base = :code_font, family = "DejaVu Sans Mono")
 end
 
 @theme struct ThRoleOverRole
     font::StyleFont = StyleFont("Ubuntu", 20)
-    title::FontRole = FontRole(weight = 700)
-    wrong::FontRole = FontRole(base = :title)
+    title::ThemeFont = FontRole(weight = 700)
+    wrong::ThemeFont = FontRole(base = :title)
 end
 
 @theme struct ThUndocumented

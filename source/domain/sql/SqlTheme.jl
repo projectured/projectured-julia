@@ -23,27 +23,27 @@ of the default theme.
     "The font that the texts of this theme follow: its family, its weight and its size."
     font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "A reserved word, such as `SELECT`, `FROM`, `WHERE` or `AND`."
-    keyword_text::TextRole = TextRole(:keyword; weight = 700)
+    keyword_text::ThemeText = TextRole(:keyword; weight = 700)
     "A raw expression, and any other text that is not a keyword, a name or a value."
-    plain_text::TextRole   = TextRole(:text)
+    plain_text::ThemeText   = TextRole(:text)
     "A column, and the qualifier before it."
-    column_text::TextRole  = TextRole(:field)
+    column_text::ThemeText  = TextRole(:field)
     "An alias of a column or of a table."
-    alias_text::TextRole   = TextRole(:variable)
+    alias_text::ThemeText   = TextRole(:variable)
     "A data type."
-    type_text::TextRole    = TextRole(:type_name)
+    type_text::ThemeText    = TextRole(:type_name)
     "A boolean value: `TRUE` and `FALSE`."
-    bool_text::TextRole    = TextRole(:boolean_literal)
+    bool_text::ThemeText    = TextRole(:boolean_literal)
     "A number value."
-    number_text::TextRole  = TextRole(:number_literal)
+    number_text::ThemeText  = TextRole(:number_literal)
     "A string value, with its quotes."
-    string_text::TextRole  = TextRole(:string_literal)
+    string_text::ThemeText  = TextRole(:string_literal)
     "A table, with its schema and its alias."
-    table_text::TextRole   = TextRole(:type_name)
+    table_text::ThemeText   = TextRole(:type_name)
     "The name of a schema."
-    schema_text::TextRole  = TextRole(:module_name)
+    schema_text::ThemeText  = TextRole(:module_name)
     "The brackets, the commas, the spaces and the semicolons between the parts of a statement."
-    punctuation_text::TextRole = TextRole(:punctuation; weight = 700)
+    punctuation_text::ThemeText = TextRole(:punctuation; weight = 700)
 end
 
 # The plain font of a SQL projection that holds only a `StyleFont`, not a full

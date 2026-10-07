@@ -13,7 +13,7 @@ using ProjecturedKernel.EventModule: SystemColors
 @theme struct ThColored
     font::StyleFont = StyleFont("Ubuntu", 14)
     key::ThemeColor = ColorRole(:field)
-    word::TextRole = TextRole(:keyword; weight = 700)
+    word::ThemeText = TextRole(:keyword; weight = 700)
     step::ThemeColor = PaletteColor(:green, 9)
     fixed::StyleColor = color_white
 end

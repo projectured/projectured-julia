@@ -552,7 +552,7 @@ worktree. The three domains test different parts of the model:
       with a font of its own takes by design. In the mode `:throw`, `test_dataframes()` (556),
       `test_fault_part()`, `test_widget_icon()`, `test_baseline_alignment()` and
       `test_file_project()` pass.
-  - [ ] **The theme fields.** Real themes declare 180 fields `TextRole` and 26 `FontRole`, and
+  - [x] **The theme fields.** Real themes declare 180 fields `TextRole` and 26 `FontRole`, and
     a test writes a fixed `StyleText` into such a field, saves the appearance and loads it again.
     A test also gives a bare number to a length field (`gap = 5` for `Spacing`), which
     `convert_theme_value` converts only when the theme is scaled. **Decided by the owner,
@@ -562,6 +562,15 @@ worktree. The three domains test different parts of the model:
     (`ThemeFont = Union{StyleFont, FontRole}`), and a bare number becomes its length kind when
     the theme is made. The other option was to keep the role types strict and refuse a fixed
     style and a bare number (B).
+    *Built (2026-10-07):* `ThemeText` and `ThemeFont` are at the end of `FontRole.jl`, beside
+    `ThemeColor`, and the 181 `TextRole` and 24 `FontRole` fields of 32 theme files declare
+    them. The five kinds of length (`Spacing`, `Radius`, `LineWidth`, `ControlSize`,
+    `IconSize`) have a `Base.convert` from a number, an `Inset` or a `Point2D`, so rule 2 of the
+    check gives a bare number its kind at the write. Rule 2 asks for `isequal` only when a
+    number becomes another number, which is where a conversion can change a value; a wrapper
+    such as `Spacing(5)` is never `isequal` to `5`. `convert_theme_value` still converts when
+    the theme is scaled, for a value that the check let pass. In the mode `:throw`,
+    `test_theme()`, `test_color_theme()` and `test_appearance_tab()` (107) pass.
   - [x] **Group 5, a lazy list in a field declared `CellVector`.** `children` of
     `HorizontalLayout`, `VerticalLayout` and `GridLayout`, and the two header strips of
     `WidgetTable`, get a `ListNode`, a lazy list that a viewport reads from the middle. The

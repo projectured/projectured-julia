@@ -94,9 +94,9 @@ builder fills them from a theme, scaled or not.
     "The font of the text of a widget."
     font::StyleFont = StyleFont("Ubuntu", 13)
     "The font of a title and of a header."
-    font_bold::FontRole = FontRole(weight = 700)
+    font_bold::ThemeFont = FontRole(weight = 700)
     "The font of a caption and of a badge."
-    font_small::FontRole = FontRole(relative_size = 0.9)
+    font_small::ThemeFont = FontRole(relative_size = 0.9)
     # ── Spacing ──
     "The space inside a button, a text box and the other controls."
     control_padding::Spacing = Spacing(Inset(5, 5, 10, 10))

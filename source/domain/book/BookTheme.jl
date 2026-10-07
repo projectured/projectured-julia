@@ -25,21 +25,21 @@ of the default theme.
     "The font that the code of this theme follows: its family, its weight and its size."
     code_font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The title of a book."
-    title_text::TextRole          = TextRole(:heading; weight = 700, relative_size = 1.8)
+    title_text::ThemeText          = TextRole(:heading; weight = 700, relative_size = 1.8)
     "The \"Written by \" that introduces the author."
-    author_prefix_text::TextRole  = TextRole(:text_muted; italic = true)
+    author_prefix_text::ThemeText  = TextRole(:text_muted; italic = true)
     "The author of a book."
-    author_text::TextRole         = TextRole(:text; italic = true)
+    author_text::ThemeText         = TextRole(:text; italic = true)
     "The title of a chapter."
-    chapter_title_text::TextRole  = TextRole(:heading; weight = 700, relative_size = 1.2)
+    chapter_title_text::ThemeText  = TextRole(:heading; weight = 700, relative_size = 1.2)
     "The numbering of a chapter."
-    numbering_text::TextRole      = TextRole(:text_muted; weight = 700, relative_size = 1.2)
+    numbering_text::ThemeText      = TextRole(:text_muted; weight = 700, relative_size = 1.2)
     "A paragraph, and the blank line between the elements of a book or a chapter."
-    paragraph_text::TextRole      = TextRole(:text; base = :code_font)
+    paragraph_text::ThemeText      = TextRole(:text; base = :code_font)
     "The insertion leaf, and a picture with no path yet."
-    placeholder_text::TextRole    = TextRole(:text_faint; base = :code_font)
+    placeholder_text::ThemeText    = TextRole(:text_faint; base = :code_font)
     "The bullet of a list item."
-    bullet_text::TextRole         = TextRole(:markup; base = :code_font)
+    bullet_text::ThemeText         = TextRole(:markup; base = :code_font)
     "The caption of a picture."
-    picture_text::TextRole        = TextRole(:text_muted; base = :code_font)
+    picture_text::ThemeText        = TextRole(:text_muted; base = :code_font)
 end

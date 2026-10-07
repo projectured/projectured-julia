@@ -23,15 +23,15 @@ projection built with no styles holds the plain values of the default theme.
     "The font that the texts of this theme follow: its family, its weight and its size."
     font::StyleFont = StyleFont("DejaVu Sans", 13)
     "The line that says what a list holds."
-    heading_text::TextRole = TextRole(:text_muted)
+    heading_text::ThemeText = TextRole(:text_muted)
     "The name of a type, in a list."
-    name_text::TextRole = TextRole(:heading; weight = 700, relative_size = 1.125)
+    name_text::ThemeText = TextRole(:heading; weight = 700, relative_size = 1.125)
     "The package and the typed names of a type, in a list; the version, the Julia version and the home page, on the about page."
-    detail_text::TextRole = TextRole(:text_muted)
+    detail_text::ThemeText = TextRole(:text_muted)
     "The first paragraph of a type's docstring, in a list; the sentence of the about page."
-    description_text::TextRole = TextRole(:text)
+    description_text::ThemeText = TextRole(:text)
     "The line a list shows for a type with no docstring."
-    muted_text::TextRole = TextRole(:text_faint; italic = true)
+    muted_text::ThemeText = TextRole(:text_faint; italic = true)
     "The name of the program, on the about page."
-    title_text::TextRole = TextRole(:heading; weight = 700, relative_size = 1.5)
+    title_text::ThemeText = TextRole(:heading; weight = 700, relative_size = 1.5)
 end

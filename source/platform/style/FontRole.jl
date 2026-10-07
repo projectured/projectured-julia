@@ -80,3 +80,21 @@ function get_role_base(role::FontRole, theme)
                             "of $(nameof(get_theme_type(theme))) holds $(typeof(base))"))
     base
 end
+
+"""
+    ThemeText
+
+What a text field of a theme holds: a [`TextRole`](@ref), which follows a role of
+the colour theme and a base font of the theme, or a fixed `StyleText`, which the
+appearance tab can set in place of the role.
+"""
+const ThemeText = Union{StyleText, TextRole}
+
+"""
+    ThemeFont
+
+What a font field of a theme holds: a [`FontRole`](@ref), which follows a base font
+of the theme, or a fixed `StyleFont`, which the appearance tab can set in place of
+the role.
+"""
+const ThemeFont = Union{StyleFont, FontRole}
