@@ -88,7 +88,7 @@ The IO map holds `char_to_coord`, one `SegmentCoordinate` for each drawn piece: 
 
 ### The gutter
 
-**The gutter of a line is a property of the line**, as its indentation is: `TextLine.gutter` holds one document of any type, or `nothing`. It is not in the caret space and not in the flat string, so no caret of the text stands in it and a copy of a range never holds it, and it stays with its line when lines are added above. `TextGutter` is the gutter of a line of code; its fields are its lanes, `marker`, `number` and `fold`, and each holds a mark, any document that the recursion prints to graphics. A stage fills its own field. A view that wants other lanes brings a gutter type of its own and a projection for it.
+**The gutter of a line is a property of the line**, as its indentation is: `TextLine.gutter` holds one document of any type, or `nothing`. It is not in the caret space and not in the flat string, so no caret of the text stands in it and a copy of a range never holds it, and it stays with its line when lines are added above. `TextGutter` is the gutter of a line of code; its fields are its lanes, `marker`, `number` and `fold`, and each holds a mark, any document that the recursion prints to graphics. A stage fills its own field, by name: it copies the gutter of its input line with that field replaced and every other cell kept, as `TextLineNumbering` does with `number`, or makes a `TextGutter` for a line with none. `TextLineNumbering` pads each number to the digits of the largest one, and a click that selects a number selects the whole line in its input. A view that wants other lanes brings a gutter type of its own and a projection for it.
 
 `TextGutterToGraphics(; marker_width, number_width, fold_width, gap)` draws a `TextGutter` as one row: the marker, the number and the fold lane from the left. A lane is as wide as its mark and at least its width, so a lane keeps its width on a line that has no mark in it; a stage that wants a lane to grow gives every mark of the lane the same width. A marker and a fold stand in the middle of their lane, a number at its right, and the marks that draw text stand on one baseline.
 
@@ -101,7 +101,7 @@ A decorator is a projection from `TextBlock` to `TextBlock`. You put it before `
 | Projection | What it does |
 | --- | --- |
 | `WordWrapping(; max_width, measure)` | breaks lines at word boundaries, at the maximum of the range on the width (`ctx.maximum_width`), exact or bounded, cut at `max_width` when one is given; with neither, a line does not wrap |
-| `TextLineNumbering(; width, separator, font)` | puts a number span before each line |
+| `TextLineNumbering(; width, separator, style, field, gutter_type)` | on a block of lines, puts the number of each line in the field `field` of its gutter; on a block of spans, puts a number span before each line |
 | `TextFiltering(pattern; invert)` | keeps only the lines that match the pattern |
 | `TextHighlighting(pattern; color)` | sets `fill_color` on each match |
 | `SelectionInverting()` | shows the selection as inverse video in the span colours |

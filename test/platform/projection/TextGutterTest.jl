@@ -9,7 +9,7 @@ using Test
 using ProjecturedKernel.GestureModule: MouseClick
 using ProjecturedPlatform.TextModule: TextGutter, TextGutterToGraphics, TextBlockToScrollLayout,
     TextBlock, TextLine, TextString, TextToGraphics, TextRangeReferenceStep, PrimitiveNumberToText,
-    TextDocument
+    TextDocument, TextLineNumbering
 using ProjecturedPlatform.LayoutModule: ScrollLayout
 using ProjecturedPlatform.WidgetModule: WidgetScrollPane, Point2D, WidgetToGraphics
 using ProjecturedPlatform.GraphicsModule: GraphicsCanvas, GraphicsRect, GraphicsViewport,
@@ -54,6 +54,20 @@ function _gt_steps(reference)
 end
 
 _gt_unwrap(x) = x isa AbstractCell ? x[] : x
+
+# A chain that numbers the lines and draws them with their gutters, and the
+# recursion that prints the marks: a number is a `TextBlock`, which the text draws.
+_gt_numbering_chain() = ChainingProjection(TextLineNumbering(),
+                                           TextBlockToScrollLayout(; measure = _gt_measure()))
+_gt_mark_renderer() = RecursiveProjection(TypeDispatchingProjection(Pair{Type, Any}[
+    TextGutter => TextGutterToGraphics(),
+    TextBlock => TextToGraphics(; measure = _gt_measure()),
+    GraphicsCanvas => GraphicsToGraphics()]))
+
+_gt_plain_line(text) = TextLine(TextString(text, _GT_SMALL, color_default))
+
+# The text of the number in the gutter of output line `i`.
+_gt_number_text(output, i) = output.elements[i].gutter.number.elements[1].content
 
 function test_text_gutter()
 @testset "the gutter of a text" begin
@@ -155,6 +169,47 @@ function test_text_gutter()
 
         # On an empty lane: nothing.
         @test click(5, Int(rows[1].row.y[]) + 3) === nothing
+    end
+
+    @testset "TextLineNumbering puts the number of each line in its gutter" begin
+        marker = _gt_marker()
+        lines = TextDocument[_gt_plain_line("line $n") for n in 1:9]
+        lines[3] = TextLine(TextString("line 3", _GT_SMALL, color_default);
+                            gutter = TextGutter(; marker))
+        block = TextBlock(lines)
+        chain = _gt_numbering_chain()
+        renderer = _gt_mark_renderer()
+        iomap = print_document(chain, renderer, block, PrinterContext())
+        numbered = iomap.step_iomaps[1][].output
+        @test [_gt_number_text(numbered, i) for i in 1:9] == string.(1:9)
+        # The other lanes keep their cells: the marker of line 3 is the same mark.
+        @test numbered.elements[3].gutter.marker === marker
+        @test getfield(numbered.elements[3].gutter, :marker) === getfield(block.elements[3].gutter, :marker)
+        # The tenth line gives every number a second digit.
+        push!(block.elements, _gt_plain_line("line 10"))
+        @test _gt_number_text(numbered, 1) == " 1"
+        @test _gt_number_text(numbered, 10) == "10"
+        # Every row of the gutter has one width.
+        layout = iomap.step_iomaps[2][]
+        widths = [Int(row.iomap.output.w[]) for row in _gt_unwrap(layout.gutter_rows)]
+        @test length(widths) == 10 && allequal(widths)
+    end
+
+    @testset "a click on a number selects its line" begin
+        block = TextBlock(TextDocument[_gt_plain_line("alpha"), _gt_plain_line("beta"),
+                                       _gt_plain_line("gamma")])
+        chain = _gt_numbering_chain()
+        renderer = _gt_mark_renderer()
+        iomap = print_document(chain, renderer, block, PrinterContext())
+        layout = iomap.step_iomaps[2][]
+        row = _gt_unwrap(layout.gutter_rows)[2]
+        number_x = Int(getfield(row.iomap, :child_iomaps)[][2][1][]) + 1
+        click = MouseClick(:left, number_x, Int(row.row.y[]) + 3, ModifierKeys(); time = 0.0)
+        answer = read_intent(chain, renderer, Intent(click), iomap).operation
+        @test answer isa ReplaceSelectionOperation
+        # "alpha" and its break are 6 characters, and "beta" is 4.
+        @test strip_reference_types(answer.path) ==
+              ConcreteReference(TextRangeReferenceStep(6, 10), EmptyReference())
     end
 
     @testset "in a scroll pane the gutter is the left edge" begin

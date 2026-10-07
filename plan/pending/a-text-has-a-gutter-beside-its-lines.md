@@ -396,8 +396,20 @@ The order of the work, each step on its own commit, each with its test.
    (R12). Test: `test_text_gutter()`, 29 assertions; `test_printer`,
    `test_reader` and `test_position_navigation` of the example, 2011, 225 and
    146; the text tests and the layering guard pass.
-2. **Line numbers in the gutter.** `TextLineNumbering` on a block of lines puts
+2. ✅ **Done (2026-10-07, branch `text-gutter`). Line numbers in the gutter.** `TextLineNumbering` on a block of lines puts
    a `:number` mark. A click on a number selects the line.
+   *What the implementation found:* `TextLineNumbering` takes `field` and
+   `gutter_type` and keeps its span mode for a block of spans, which has no line
+   to hold a gutter. On a block of lines each output line shares the spans, the
+   indentation, the selection and the part under the pointer of its input line,
+   and has a gutter that `copy_document_fields` makes from the input gutter with
+   every cell given, the number replaced. The number is a `TextBlock` whose text
+   is a cell of the count of the lines, so a new line pads every number again
+   and makes no line again. A path maps to the same path, but a path into the
+   numbers, which has no pre-image; a selection of a number becomes the flat
+   range of its line. Test: `test_text_gutter()`, 37 assertions with the
+   numbering; `test_text_line_numbering()` and `test_inline_image_caret()` pass
+   unchanged.
 3. **The decorators keep the gutter** (§5.5). `WordWrapping` wraps inside a
    line, and its list of the lines does not depend on the width, so a change
    of the width wraps each line again and makes no new list. The scroll pane
