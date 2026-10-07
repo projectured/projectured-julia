@@ -47,6 +47,10 @@ tests:    ProjecturedKernelTest ← ProjecturedPlatformTest ← the 18 domain te
   against a stand-in server, and two live-server tests that skip themselves
   when no Ollama server answers), but gates on a reachable server rather than
   a native library.
+  [package/acp/test](../../package/ProjecturedACPTest) (`test_acp()` — the
+  translation of the updates of an agent, the connection against a fake agent
+  in the test process, and the transport with a small child agent) needs no
+  network, no Node.js and no sign-in.
 - [package/projectured/test](../../package/ProjecturedTest/src/ProjecturedTest.jl) — the umbrella:
   the genuinely **cross-package** suites. Two kinds live here: the sweeps over
   the interleaved `examples` / `catalog` aggregate (`ExampleSweeps`,

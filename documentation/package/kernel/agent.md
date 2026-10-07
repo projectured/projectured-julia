@@ -468,14 +468,17 @@ it buys is that a name outside the list fails in the round that used it, with an
 error the model reads and corrects, instead of the model choosing among thousands
 of names that mean nothing to its task.
 
-## `agent/`: the two directions
+## `agent/`: the three directions
 
 ```
-AgentModule.jl     (AgentModule)  the module: both halves share its namespace
-AgentInterface.jl  inbound  — make/start/stop_agent_server!, run_on_editor_task!, declared
-AgentDefaults.jl   inbound  — the fallbacks, when no server package is loaded
-Agent.jl           outbound — the Agent, and AgentToolResult
-AgentLoop.jl       outbound — run_turn!
+AgentModule.jl               (AgentModule)  the module: all three halves share its namespace
+AgentInterface.jl            inbound  — make/start/stop_agent_server!, get_agent_server_access, run_on_editor_task!, declared
+AgentDefaults.jl             inbound  — the fallbacks, when no server package is loaded
+Agent.jl                     outbound — the Agent, and AgentToolResult
+AgentLoop.jl                 outbound — run_turn!
+AgentConnectionInterface.jl  external — the seven generics of a connection, declared
+AgentConnectionDefaults.jl   external — the Symbol entry, the error for a missing package, get_agent_connection_names
+AgentConnectionEvent.jl      external — the events an agent reports
 ```
 
 **Inbound** is something outside the process driving *this* editor. The editor loop
@@ -511,11 +514,35 @@ with `:error`, and its tool calls do not run. A tool that throws gives an
 `AgentToolResult` with `is_error = true`. An exception that
 `is_passthrough_exception` names goes through the loop, and `run_turn!` throws it.
 
-### Both directions call from another task
+**External** is this editor driving an agent that runs its own loop in another process. The agent owns its model, its tools and its history. The editor sends it a prompt, shows what it reports, and answers what it asks. It is not an `Llm`: `run_turn!` would run the tool calls of the agent a second time. [acp.md](../adapter/acp/acp.md) describes the one package that implements it.
+
+### The external direction
+
+A caller names a connection by a symbol and never names its type, as it does for a server and for a backend:
+
+```julia
+connection = make_agent_connection(:acp; command = ["claude-agent-acp"])
+start_agent_connection!(connection)
+session_id = open_agent_session!(connection; directory = pwd(), mcp_servers = [access])
+stop_reason = send_agent_prompt!(connection, session_id, prompt; on_event)
+```
+
+The seven generics are `make_agent_connection(kind; kwargs...)`, `start_agent_connection!`, `open_agent_session!`, `send_agent_prompt!`, `cancel_agent_prompt!`, `close_agent_session!` and `stop_agent_connection!`. A package adds the methods for its kind. The `Symbol` entry dispatches to `make_agent_connection(::Val{kind})`. When no package answers, the entry throws an error that lists the loaded kinds. `get_agent_connection_names()` reads those kinds from the method table, as `get_llm_backend_names()` does. `get_agent_server_names()` does the same for the servers of the inbound direction.
+
+`send_agent_prompt!` takes a prompt, a vector of `LlmContent`, and waits until the turn of the agent ends. It answers why the turn ended: `:end_turn`, `:max_tokens`, `:max_turn_requests`, `:refusal` or `:cancelled`. It calls `on_event` on a task that is not the editor task, so the caller posts its writes through `run_on_editor_task!`. `on_event` gets these events:
+
+- `LlmTextStart`, `LlmTextDelta` and `LlmTextStop` for the text of the answer, and the three `LlmThinking…` events for its reasoning. They are the events that `stream_turn` sends, so the code that draws a model answer draws an agent answer.
+- `AgentToolCallUpdate` for a tool call that the agent runs itself. The event reports the call. The editor does not run it. A field that is `nothing` keeps the value of the last update with the same `id`.
+- `AgentPlanUpdate` for the plan of the agent. Each one replaces the plan before it.
+- `AgentPermissionRequest` for a question that waits for a person. Its `reply` takes the id of the chosen option, or `nothing`. The first call answers the agent. `cancel_agent_prompt!` answers each request that waits as `nothing`.
+
+The agent reaches the tools of the editor through the inbound direction. `get_agent_server_access(server)` answers `(name, url, headers)` for a server, and the tuple has the shape that `open_agent_session!` takes for an entry of `mcp_servers`. So the caller hands the MCP server of its editor to the agent without the type of the server. The inbound direction also gives the server a free port and a secret; see [mcp.md](../adapter/mcp/mcp.md).
+
+### All directions call from another task
 
 An MCP server calls a tool on the task of the server, and a turn runs on a task
-of its own. A tool can write what the editor shows, and a frame of the editor
-reads it on the editor task. So both directions call through one door:
+of its own. The events of an external agent also arrive on a task of its own. A tool can write what the editor shows, and a frame of the editor
+reads it on the editor task. So every direction calls through one door:
 
 ```julia
 run_on_editor_task!(function_, target; wait = true) -> value
@@ -539,6 +566,8 @@ layer answers it for an `Editor` whose loop runs on another task;
 | Seam | Declared in | Implemented by |
 | --- | --- | --- |
 | `make_agent_server(:mcp, …)` | `agent/AgentInterface.jl` | `ProjecturedMCP` (`package/ProjecturedMCP`, source in `source/adapter/mcp/`) |
+| `get_agent_server_access` | `agent/AgentInterface.jl` | `ProjecturedMCP` |
+| `make_agent_connection(:acp, …)` and the six other generics of a connection | `agent/AgentConnectionInterface.jl` | `ProjecturedACP` (`package/ProjecturedACP`, source in `source/adapter/acp/`); `ScriptedAgentConnection` in `ProjecturedKernelExample` |
 | `run_on_editor_task!` | `agent/AgentInterface.jl` | the editor layer (`editor/Inbox.jl`) for an `Editor`; the default in `agent/AgentDefaults.jl` runs every other target at once |
 | `stream_turn`, `render_tool_schema`, `make_llm` | `llm/LlmInterface.jl` | `ProjecturedAnthropic`, `ProjecturedOllama`; `FakeLlm` / `ScriptedLlm` in `ProjecturedKernelExample` |
 | a `Tool`'s handler | `tool/Tool.jl` | `register_default_tools!`, and anyone else who registers one |

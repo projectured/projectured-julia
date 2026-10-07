@@ -17,11 +17,12 @@ The assistant slice of `ProjecturedPlatform` puts a chat with a model beside the
 | `conversation`, `draft` | the history and the next message, documents of the [conversation slice](../conversation/conversation.md) |
 | `backend`, `model`, `api_key`, `context`, `system` | the settings of a turn |
 | `llm` | an `Llm` that replaces the backend; a test puts a `FakeLlm` or a `ScriptedLlm` there |
+| `agent_command`, `agent_session_meta`, `agent_session` | the command that starts an external agent, the JSON `_meta` of its sessions, and the live link to it; see "The turn of an external agent" |
 | `status` | `:idle`, `:streaming` or `:error` |
 | `collapse_thinking` | whether a thinking part starts folded |
 | `input` | a `PrimitiveString` that no printer shows; see Limits |
 
-`backend` is `:ollama` by default, `:anthropic`, or `:none`. An empty `model` and a `context` of `0` mean the default of the backend. The constructor sets `draft.assistant` to the new assistant, so Return and Alt+Return in the composer become operations of this assistant.
+`backend` is `:ollama` by default, `:anthropic`, `:acp` for an external agent, or `:none`. An empty `model` and a `context` of `0` mean the default of the backend. The constructor sets `draft.assistant` to the new assistant, so Return and Alt+Return in the composer become operations of this assistant.
 
 ### A turn
 
@@ -67,6 +68,31 @@ The model gets `list_tools(editor.tools)`, the tool set of the editor. The assis
 
 `AssistantToWidgetCard(; title, transcript_height, cell_height)` shows the same two panes in a card of a fixed height, for a page that holds an assistant. Each half scrolls, so a new turn does not make the page longer. Each container of the card carries the selection down with its own prefix removed. While the selection is in the draft, the reader of the card gives a key that nothing below took to the table of the composer.
 
+### The turn of an external agent
+
+With `backend = :acp` the task of the turn runs `_run_external_agent_turn!` in place of `_run_agent_loop!`. The agent runs its own loop and its own tools, so the assistant builds no `Llm` and runs no `run_turn!`. [acp.md](../../adapter/acp/acp.md) describes the connection.
+
+1. **The session starts at the first turn.** The package `ProjecturedACP` must be loaded; otherwise the turn shows an error that says `using ProjecturedACP`. The assistant splits `agent_command` into words (default `"claude-agent-acp"`), makes the connection with `make_agent_connection(:acp; command, directory = pwd(), session_meta = agent_session_meta)`, and keeps it in `agent_session`, an `ExternalAgentSession` with the connection, the `session_id` and the `tool_server`. The same connection serves the later turns. `agent_session` is no data: a save does not write it, and a duplicate does not share it.
+2. **The agent gets the tools of the editor.** When `:mcp` is among `get_agent_server_names()`, the assistant makes the MCP server with `port = 0` and `secret = true`, starts it, and gives `get_agent_server_access(server)` to `open_agent_session!`. The agent then calls `execute_julia_code` and the other tools with the secret, and each call runs on the editor task, so an edit is an operation and undo works. Without `ProjecturedMCP` the agent has its own tools only.
+3. **The prompt is what the person said since the last answer.** `_make_external_agent_prompt` takes each user turn after the last assistant turn and makes one `LlmText` block from it with `_make_user_turn_text`. The agent holds the history before them, so the assistant sends nothing twice. A local evaluation (Alt+Return) is in the prompt as text.
+4. **Each event becomes a part.** The assistant posts the writes with `run_on_editor_task!(…; wait = false)`.
+
+| Event | Part of the assistant turn |
+| --- | --- |
+| `LlmTextStart`…`LlmTextStop` | a prose part |
+| `LlmThinkingStart`…`LlmThinkingStop` | a `ConversationThinking` part |
+| `AgentToolCallUpdate` | one `EvaluatorForm` for each call `id`; later updates fill its input, its output and its failure; the prefix `mcp__projectured__` of a tool name is removed |
+| `AgentPlanUpdate` | one prose part with a checklist, which each update replaces |
+| `AgentPermissionRequest` | a `ConversationPermissionRequest` |
+
+A text or thinking block closes before a part of another kind comes, and text after it opens a new block.
+
+**The permission card.** A `ConversationPermissionRequest` holds a title, the options of the agent, the `answer` and a `reply` function. The pane draws it as a card with one button for each option. A click calls `answer_permission_request!`, which stores the name of the option, sends its id through `reply`, and disables the buttons. A request has one answer: a later call does nothing. A request that nobody answered when the turn ends gets the answer `"Cancelled"`. The `reply` is no data, so the duplicate of a request has none.
+
+**Escape cancels the turn.** While a turn of an external agent runs, Escape in the composer gives `CancelAssistantTurnOperation`. It calls `cancel_agent_prompt!` on a task of its own. The agent stops, each waiting request is answered as cancelled, and the turn ends with `:cancelled`. At any other time Escape reverts the draft.
+
+**A duplicate starts a new session.** A copy of an assistant with a live `agent_session` has `agent_session = nothing`, so its first turn starts a new connection. It ends its conversation with the note "This copy talks to the agent in a new session. The agent does not have the history above."
+
 ### When a turn fails
 
 - **No backend.** With `backend = :none` and no `llm`, a submit shows an error turn that names the backends whose packages are loaded.
@@ -75,7 +101,7 @@ The model gets `list_tools(editor.tools)`, the tool set of the editor. The assis
 
 ### A copy and a save
 
-A copy of an assistant is a fork: it has the conversation so far and a draft of its own, and it starts idle. A reply that streams stays with the original. `pred_arguments` saves only `backend`, `model`, `system`, `context` and `collapse_thinking`. A key is never written to a file, and a loaded assistant starts with an empty conversation. `accepts_pasted_document` and `accepts_opened_file` return `false`, so a paste or an opened file does not replace the assistant.
+A copy of an assistant is a fork: it has the conversation so far and a draft of its own, and it starts idle. A reply that streams stays with the original. `pred_arguments` saves only `backend`, `model`, `system`, `context`, `collapse_thinking`, `agent_command` and `agent_session_meta`. A key is never written to a file, and a loaded assistant starts with an empty conversation. `accepts_pasted_document` and `accepts_opened_file` return `false`, so a paste or an opened file does not replace the assistant.
 
 ## How it fits
 
@@ -100,6 +126,7 @@ The package registers the natural row `:assistant`, `Assistant => AssistantToWid
 ```julia
 assistant = Assistant(; backend = :ollama)                   # a local model, the default
 assistant = Assistant(; backend = :anthropic, model = "")    # Claude, with ANTHROPIC_API_KEY
+assistant = Assistant(; backend = :acp)                       # an external agent; needs using ProjecturedACP
 assistant = Assistant(; llm = FakeLlm())                     # a canned reply, for a test
 run_assistant_example(; backend = :ollama)                   # the example with a real model
 ```
