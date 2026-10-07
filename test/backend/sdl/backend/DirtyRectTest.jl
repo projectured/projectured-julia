@@ -526,6 +526,32 @@ end
     @test sort(SDL._compute_dirty_region(res, top)) == [(0, 0, 52, 52), (23, 23, 77, 77)]
 end
 
+@testset "a list that a layout read before the walk clears what it no longer holds" begin
+    # The badges of a zone of a pivot, where a drag adds the badge of the drop and
+    # its end takes it out. The size of a canvas reads its elements, so the layout
+    # around the row computes the new list, and the walk finds no stale cell.
+    a = GraphicsRect(0, 0, 50, 20)
+    b = GraphicsRect(60, 0, 50, 20)
+    c = GraphicsRect(60, 0, 30, 20)
+    step = Cell(1)
+    row = GraphicsCanvas(CellVector(@computation step[] == 1 ? Any[a, b] : step[] == 2 ? Any[a, c] : Any[a]),
+                         layout_none)
+    res = make_res()
+    SDL._compute_dirty_rect(res, row)
+    @test SDL._compute_dirty_rect(res, row) === nothing
+    # A smaller graphic in the place of the second: the second is cleared.
+    step[] = 2
+    length(row.elements)
+    @test SDL._compute_dirty_rect(res, row) == (58, 0, 112, 22)
+    # The same elements give no rectangle.
+    length(row.elements)
+    @test SDL._compute_dirty_rect(res, row) === nothing
+    # The last element leaves the list.
+    step[] = 3
+    length(row.elements)
+    @test SDL._compute_dirty_rect(res, row) == (58, 0, 92, 22)
+end
+
 @testset "a leaf has a signature only when its hash follows what it draws" begin
     @test SDL._compute_leaf_signature(GraphicsRect(0, 0, 10, 10; color = color_red)) !== nothing
     @test SDL._compute_leaf_signature(GraphicsText("a", 0, 0; font = StyleFont("Ubuntu", 20))) !== nothing
