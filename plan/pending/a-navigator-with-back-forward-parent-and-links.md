@@ -511,6 +511,42 @@ new tab".
     opens that file in a new tab with a navigator, as the open of a file does;
     a web URL does nothing in this step, and its tooltip shows it. The option
     not chosen for a URL: the system browser, a side effect outside the editor.
+  - **Q4, decided (owner, 2026-10-07):** a link answers a third form of
+    `OpenPageOperation`: the path of the link, as the path form has it, and
+    `target`, the text of the target as the domain writes it (`#install`,
+    `guide.md`, an rst name). The nearest navigator resolves the target on its
+    content; with no navigator, the editor resolves it against the document of
+    the tab that holds the link, and opens a navigator tab. The option not
+    chosen: a new operation type with the same flow.
+  - **Q5, decided (owner, 2026-10-07):** the function of D7 is
+    `find_navigator_target(root, target)`: a `Reference` to a part of `root`,
+    the absolute path of a file, or `nothing` for a web URL or an unknown name.
+    A navigator that an open makes from a file tab keeps the file document as
+    its content root, past the history only, so the file is its first page and a
+    relative file name is read against the name of that file. The option not
+    chosen: the content past the file, and a file name read against the folder
+    of the Files pane.
+  - **Q6, decided (owner, 2026-10-07):** the application gives its history to
+    every file that is opened when the open is evaluated, not only through the
+    Files pane, so the navigator tab of a linked file has undo too. Facts: only
+    the application knows the history wrap (`make_history_wrap(settings)`); the
+    menu Open (`FileDialog.jl`) opens a file with no history today. The options
+    not chosen: a navigator tab with no history, or a file link that opens the
+    file as the Files pane does, with no navigator.
+  The parts:
+  - [ ] 6a. The target form of `OpenPageOperation`, `find_navigator_target`
+    with a default of `nothing`, the resolution by the navigator and by the
+    editor, and the content root of a navigator made from a file tab (Q5).
+  - [ ] 6b. Markdown: the target of an anchor (a heading by its slug) and of a
+    relative file; the gestures of a link in the source view and in the rendered
+    view; the look of a link (its colour, the hand pointer, its address in a
+    tooltip).
+  - [ ] 6c. rst: the target of a reference (an `.. _name:` target), and the same
+    gestures and look.
+  - [ ] 6d. A file link opens the file in a new tab with a navigator, and the
+    application gives every opened file its history (Q6). The mechanism goes to
+    the owner before it is built.
+  - [ ] 6e. Tests, the design document, and the keyboard guide.
 - [x] **7. Panes and files.** The tab title follows the page. A duplicate copies
   the lists. A save keeps the address only (D6). Done, 2026-10-06, with one
   change of the plan:
