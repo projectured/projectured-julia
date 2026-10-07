@@ -118,6 +118,65 @@ function test_external_agent_turn()
             @test isempty(collect(a.conversation.turns))
         end
 
+        @testset "the options of the agent arrive at the open and change by a pick" begin
+            connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("One."), LlmTextStop()]];
+                                                 options = make_scripted_agent_options())
+            a = _make_agent_assistant(connection)
+            @test isempty(a.agent_options)
+            # A start with no message opens the session and shows the options.
+            evaluate_operation((document = a,), StartExternalAgentOperation(a))
+            @test timedwait(() -> length(a.agent_options) == 3, 10.0; pollint = 0.01) === :ok
+            @test isempty(connection.prompts) && length(connection.sessions) == 1
+            # A second start does nothing, and the first message uses the same session.
+            evaluate_operation((document = a,), StartExternalAgentOperation(a))
+            _submit_to_agent!(a, "Hello")
+            @test length(connection.sessions) == 1
+            @test only(connection.prompts) == Any[LlmText("Hello")]
+            evaluate_operation((document = a,), SetAgentOptionOperation(a, "effort", "max"))
+            @test timedwait(() -> a.agent_options[2].current_value == "max", 10.0; pollint = 0.01) === :ok
+            @test connection.option_sets == ["effort" => "max"]
+            # A reset forgets the options with the session.
+            evaluate_operation((document = a,), ResetConversationOperation(a))
+            @test isempty(a.agent_options)
+        end
+
+        @testset "an update of the options during a turn draws no part" begin
+            options = make_scripted_agent_options()
+            planned = AgentOption[option.id == "mode" ?
+                AgentOption(option.id, option.name, option.description, option.category, "plan", option.values) :
+                option for option in options]
+            connection = ScriptedAgentConnection([Any[
+                LlmTextStart(), LlmTextDelta("I plan."), AgentOptionsUpdate(planned), LlmTextDelta(" Done."), LlmTextStop()]];
+                options)
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "Plan")
+            @test a.agent_options[3].current_value == "plan"
+            parts = collect(collect(a.conversation.turns)[end].parts)
+            @test length(parts) == 1
+            @test occursin("I plan. Done.", AssistantModule._part_text(only(parts)))
+        end
+
+        @testset "the option bar says the value that holds, and a pick sets another" begin
+            connection = ScriptedAgentConnection(Any[]; options = make_scripted_agent_options())
+            a = _make_agent_assistant(connection)
+            bar = make_agent_option_bar(a)
+            items = collect(bar.elements)
+            label(item) = string(item.action.label)
+            @test label(items[1]) == "Start the agent"
+            @test [item.visible for item in items] == [true, false, false]
+            @test items[1].submenu === nothing
+            # The first item starts the agent when there are no options.
+            items[1].action.callback((document = a,))
+            @test timedwait(() -> length(a.agent_options) == 3, 10.0; pollint = 0.01) === :ok
+            @test [label(item) for item in items] == ["Model: Opus 5.5", "Effort: High", "Mode: Manual"]
+            @test all(item -> item.visible, items)
+            effort = collect(items[2].submenu.elements)
+            @test [label(item) for item in effort] == ["✓ High", "   Max"]
+            effort[2].action.callback((document = a,))
+            @test timedwait(() -> label(items[2]) == "Effort: Max", 10.0; pollint = 0.01) === :ok
+            @test connection.option_sets == ["effort" => "max"]
+        end
+
         @testset "a question of the agent waits for the person" begin
             options = [AgentPermissionOption("allow", "Allow", :allow_once),
                        AgentPermissionOption("reject", "Reject", :reject_once)]

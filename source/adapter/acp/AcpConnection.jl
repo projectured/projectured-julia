@@ -33,6 +33,7 @@ one, and the generics of the kernel's `AgentModule` drive it.
 `initialize`. `turns` holds the prompt that runs in each session, and
 `withdrawable_replies` the reply of each request that waits for a person, by
 its JSON-RPC id, so the agent can withdraw it with `\$/cancel_request`.
+`session_options` holds the last options of each session.
 """
 mutable struct AcpConnection
     command::Vector{String}
@@ -46,6 +47,7 @@ mutable struct AcpConnection
     auth_methods::Vector{Any}
     turns::Dict{String,AcpTurn}
     withdrawable_replies::Dict{Any,Function}
+    session_options::Dict{String,Vector{AgentOption}}
     turns_lock::ReentrantLock
 end
 
@@ -57,7 +59,8 @@ make_agent_connection(::Val{:acp}; command::AbstractVector{<:AbstractString} = S
     AcpConnection(String.(command), Dict{String,String}(environment), String(directory),
                   _read_session_meta(session_meta), streams, nothing,
                   Dict{String,Any}(), Dict{String,Any}(), Any[],
-                  Dict{String,AcpTurn}(), Dict{Any,Function}(), ReentrantLock())
+                  Dict{String,AcpTurn}(), Dict{Any,Function}(),
+                  Dict{String,Vector{AgentOption}}(), ReentrantLock())
 
 _read_session_meta(meta::AbstractDict) = Dict{String,Any}(meta)
 function _read_session_meta(text::AbstractString)
@@ -126,7 +129,7 @@ function _open_connection_transport(connection::AcpConnection)
 end
 
 function open_agent_session!(connection::AcpConnection; directory::AbstractString = connection.directory,
-                             mcp_servers::AbstractVector = Any[])
+                             mcp_servers::AbstractVector = Any[], on_event = nothing)
     transport = _get_started_transport(connection)
     params = Dict{String,Any}("cwd" => String(directory),
                               "mcpServers" => Any[_render_mcp_server(server) for server in mcp_servers])
@@ -138,7 +141,26 @@ function open_agent_session!(connection::AcpConnection; directory::AbstractStrin
             error(_format_sign_in_message(connection))
         rethrow()
     end
-    string(result["sessionId"])
+    session_id = string(result["sessionId"])
+    _store_session_options!(connection, session_id, get(result, "configOptions", Any[]), on_event)
+    session_id
+end
+
+function set_agent_option!(connection::AcpConnection, session_id::AbstractString,
+                           option_id::AbstractString, value::AbstractString; on_event = nothing)
+    result = send_acp_request!(_get_started_transport(connection), "session/set_config_option",
+        Dict{String,Any}("sessionId" => String(session_id), "configId" => String(option_id),
+                         "value" => String(value)); timeout = 60)
+    _store_session_options!(connection, session_id, get(result, "configOptions", Any[]), on_event)
+    nothing
+end
+
+# The options of an answer, kept for the session and given to `on_event`.
+function _store_session_options!(connection::AcpConnection, session_id::AbstractString, list, on_event)
+    options = _read_agent_options(list)
+    lock(() -> connection.session_options[String(session_id)] = options, connection.turns_lock)
+    on_event === nothing || on_event(AgentOptionsUpdate(options))
+    nothing
 end
 
 _render_mcp_server(server) = Dict{String,Any}(
@@ -191,6 +213,7 @@ function cancel_agent_prompt!(connection::AcpConnection, session_id::AbstractStr
 end
 
 function close_agent_session!(connection::AcpConnection, session_id::AbstractString)
+    lock(() -> delete!(connection.session_options, session_id), connection.turns_lock)
     transport = connection.transport
     transport === nothing && return nothing
     capabilities = _get_object(connection.agent_capabilities, "sessionCapabilities")
@@ -233,9 +256,28 @@ function _receive_notification(connection::AcpConnection, method::String, params
     session_id = string(get(params, "sessionId", ""))
     turn = lock(() -> get(connection.turns, session_id, nothing), connection.turns_lock)
     update = get(params, "update", nothing)
-    (turn === nothing || !(update isa Dict{String,Any})) && return nothing
-    foreach(turn.on_event, _translate_session_update!(turn, update))
+    update isa Dict{String,Any} || return nothing
+    kind = get(update, "sessionUpdate", "")
+    events = kind == "current_mode_update" ? _translate_mode_update(connection, session_id, update) :
+             kind == "config_option_update" ?
+                 Any[AgentOptionsUpdate(_read_agent_options(get(update, "configOptions", Any[])))] :
+             turn === nothing ? Any[] : _translate_session_update!(turn, update)
+    # The options of a session stay current also outside a prompt.
+    for event in events
+        event isa AgentOptionsUpdate || continue
+        lock(() -> connection.session_options[session_id] = event.options, connection.turns_lock)
+    end
+    turn === nothing || foreach(turn.on_event, events)
     nothing
+end
+
+# A new mode, as the options of the session with the option of the category
+# `:mode` set to it.
+function _translate_mode_update(connection::AcpConnection, session_id::String, update::Dict{String,Any})
+    mode = get(update, "currentModeId", nothing)
+    options = lock(() -> get(connection.session_options, session_id, nothing), connection.turns_lock)
+    (mode isa AbstractString && options !== nothing) || return Any[]
+    Any[AgentOptionsUpdate(_set_current_value(options, option -> option.category === :mode, String(mode)))]
 end
 
 # The requests of the agent that the client answers. A request for a file or a

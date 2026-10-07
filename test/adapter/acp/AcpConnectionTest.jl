@@ -71,6 +71,44 @@ function test_acp_connection()
             @test_throws ErrorException make_agent_connection(:acp; session_meta = "{not json")
         end
 
+        @testset "the options of a session at the open, at a set, and in an update" begin
+            agent = _make_fake_agent(Dict{String,Function}(
+                "session/set_config_option" => function (agent, params)
+                    options = deepcopy(FAKE_CONFIG_OPTIONS)
+                    only(o for o in options if o["id"] == params["configId"])["currentValue"] = params["value"]
+                    Dict("configOptions" => options)
+                end,
+                "session/prompt" => function (agent, params)
+                    session = params["sessionId"]
+                    send_fake_update(agent, session, Dict("sessionUpdate" => "current_mode_update",
+                                                          "currentModeId" => "plan"))
+                    Dict("stopReason" => "end_turn")
+                end))
+            connection = make_fake_connection(agent)
+            events = Any[]
+            session_id = open_agent_session!(connection; on_event = event -> push!(events, event))
+            options = only(events).options
+            @test [option.category for option in options] == [:mode, :model, :thought_level]
+            model = options[2]
+            @test (model.id, model.name, model.current_value) == ("model", "Model", "opus")
+            # A group of values shows as values.
+            @test [value.name for value in model.values] == ["Opus 5.5", "Sonnet 5.5"]
+            empty!(events)
+            set_agent_option!(connection, session_id, "effort", "max"; on_event = event -> push!(events, event))
+            @test only(get_received(agent, "session/set_config_option"))["params"] ==
+                  Dict{String,Any}("sessionId" => session_id, "configId" => "effort", "value" => "max")
+            @test only(events).options[3].current_value == "max"
+            # A new mode during a prompt reaches the prompt as all the options.
+            prompt_events = Any[]
+            send_agent_prompt!(connection, session_id, [LlmText("Plan it")];
+                               on_event = event -> push!(prompt_events, event))
+            update = only(event for event in prompt_events if event isa AgentOptionsUpdate)
+            @test update.options[1].current_value == "plan"
+            @test update.options[3].current_value == "max"
+            @test connection.session_options[session_id][1].current_value == "plan"
+            stop_agent_connection!(connection)
+        end
+
         @testset "an agent that needs a sign-in says how" begin
             agent = _make_fake_agent(Dict{String,Function}(
                 "session/new" => (agent, params) -> throw(AcpRequestException(-32000, "Authentication required"))))

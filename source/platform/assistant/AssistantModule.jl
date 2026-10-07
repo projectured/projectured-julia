@@ -60,7 +60,8 @@ export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
        parse_markdown_blocks
 export register_assistant_api!, get_registered_assistant_api
 export ExternalAgentSession, is_external_agent_turn_running, CancelAssistantTurnOperation,
-       stop_external_agent!
+       stop_external_agent!, StartExternalAgentOperation, SetAgentOptionOperation,
+       make_agent_option_bar
 
 
 include("AssistantDocument.jl")

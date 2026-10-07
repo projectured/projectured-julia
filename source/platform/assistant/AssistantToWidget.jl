@@ -12,18 +12,22 @@ const _MAIN_WEIGHT = 1.0
 
 """
     AssistantToWidgetSplitPane(theme)
-    AssistantToWidgetSplitPane(; composer_min_height)
+    AssistantToWidgetSplitPane(; composer_min_height, option_bar_height)
 
 The assistant as a split pane: the transcript over the composer. The composer
 keeps the least height that the `ConversationTheme` gives, and the transcript
-takes the rest. With no theme it takes the value of the default theme.
+takes the rest. An assistant with an external agent has a row of its options
+under the composer, of the height that the theme gives. With no theme it takes
+the values of the default theme.
 """
 @projection UntrackedCell struct AssistantToWidgetSplitPane
     composer_min_height::Int = get_conversation_style(nothing, :composer_min_height)
+    option_bar_height::Int = get_conversation_style(nothing, :option_bar_height)
 end
 
 AssistantToWidgetSplitPane(theme::Union{ConversationTheme,ScaledConversationTheme}) =
-    AssistantToWidgetSplitPane(; composer_min_height = get_conversation_style(theme, :composer_min_height))
+    AssistantToWidgetSplitPane(; composer_min_height = get_conversation_style(theme, :composer_min_height),
+                                 option_bar_height = get_conversation_style(theme, :option_bar_height))
 
 """
     AssistantToWidgetCard(; title, transcript_height, cell_height, gap)
@@ -74,13 +78,22 @@ function print_document(projection::AssistantToWidgetSplitPane,
     input_pane = WidgetScrollPane(a.draft)
     # Conversation takes the main weight; the input box stays at its minimum
     # (≈3 monospace rows) and does not grow with the window.
-    column = WidgetSplitPane(:vertical, Any[
+    panes = Any[
         LayoutConstraint(conv_pane;
                          min_height=0, preferred_height=0, weight_height=_MAIN_WEIGHT),
         LayoutConstraint(input_pane;
                          min_height=projection.composer_min_height,
                          preferred_height=projection.composer_min_height),
-    ])
+    ]
+    # An external agent has options of its own, and a row of menus under the
+    # composer shows them. It is the last child, so the maps below, which name
+    # the first two, stay as they are, and a click on it is a click on a part
+    # that the view drew. A split pane prints a child at the height of its slot,
+    # so the row declares its height.
+    a.backend === :acp && push!(panes, LayoutConstraint(make_agent_option_bar(a);
+                                                        min_height = projection.option_bar_height,
+                                                        preferred_height = projection.option_bar_height))
+    column = WidgetSplitPane(:vertical, panes)
     iomap = SimpleIoMap(projection, a, column)
     # A key is routed by selection: the split pane sends it to the pane that the
     # assistant's selection names. The part under the pointer follows the same map.
@@ -304,4 +317,57 @@ function __init__()
     register_natural_graphics!(:assistant,
         (; measure, appearance) -> Pair{Type,Any}[Assistant =>
             AssistantToWidgetSplitPane(get_scaled_theme!(appearance, ConversationTheme))])
+end
+
+# ── The options of an external agent ───────────────────────────────────────
+
+# The options of an external agent that the bar shows, in this order, with the
+# word that names each one.
+const _AGENT_OPTION_BAR = ((:model, "Model"), (:thought_level, "Effort"), (:mode, "Mode"))
+
+"""
+    make_agent_option_bar(assistant) -> WidgetMenu
+
+A row of menus for the options of the external agent of `assistant`: its model,
+how much it reasons (its effort), and its mode. Each menu says the value that
+holds, and a pick sets the option with `SetAgentOptionOperation`. Before a
+session is open there are no options, and the row is one item, "Start the
+agent", which starts the agent with `StartExternalAgentOperation`. A menu whose
+option the agent does not have is hidden.
+"""
+function make_agent_option_bar(a::Assistant)
+    items = Any[]
+    for (index, (category, word)) in enumerate(_AGENT_OPTION_BAR)
+        item = WidgetMenuItem(word; action = editor -> evaluate_operation(editor, StartExternalAgentOperation(a)))
+        set_cell_computation!(item, () -> _get_agent_option_label(a, category, word, index))
+        set_cell_computation!(getfield(item, :visible),
+                              () -> isempty(a.agent_options) ? index == 1 :
+                                    _find_agent_option(a, category) !== nothing)
+        set_cell_computation!(getfield(item, :submenu), () -> _make_agent_option_menu(a, category))
+        push!(items, item)
+    end
+    WidgetMenu(items; orientation = :horizontal)
+end
+
+function _find_agent_option(a::Assistant, category::Symbol)
+    options = a.agent_options
+    index = findfirst(option -> option.category === category, options)
+    index === nothing ? nothing : options[index]
+end
+
+function _get_agent_option_label(a::Assistant, category::Symbol, word::String, index::Int)
+    option = _find_agent_option(a, category)
+    option === nothing && return index == 1 && isempty(a.agent_options) ? "Start the agent" : word
+    value = findfirst(value -> value.value == option.current_value, option.values)
+    word * ": " * (value === nothing ? option.current_value : option.values[value].name)
+end
+
+# The values of one option, with a mark before the one that holds.
+function _make_agent_option_menu(a::Assistant, category::Symbol)
+    option = _find_agent_option(a, category)
+    option === nothing && return nothing
+    WidgetMenu(Any[WidgetMenuItem((value.value == option.current_value ? "✓ " : "   ") * value.name;
+                                  action = editor -> evaluate_operation(editor,
+                                      SetAgentOptionOperation(a, option.id, value.value)))
+                   for value in option.values])
 end

@@ -26,8 +26,10 @@ AcpTurn(on_event::Function) = AcpTurn(on_event, :none, "", Function[])
 
 # The events of one `session/update`, in order. An update kind that the client
 # does not show (`available_commands_update`, `usage_update`,
-# `current_mode_update`, `config_option_update`, `session_info_update`,
-# `user_message_chunk`), and a kind it does not know, answers no event.
+# `session_info_update`, `user_message_chunk`), and a kind it does not know,
+# answers no event. The connection answers the two updates of the options,
+# `config_option_update` and `current_mode_update`, because it keeps the options
+# of each session also outside a prompt.
 function _translate_session_update!(turn::AcpTurn, update::Dict{String,Any})
     kind = get(update, "sessionUpdate", "")
     events = Any[]
@@ -149,3 +151,44 @@ function _find_symbol(object::Dict{String,Any}, key::String)
     value = _find_string(object, key)
     value === nothing ? nothing : Symbol(value)
 end
+
+# The options of a session, from the `configOptions` of an answer or an update.
+# A value list can hold groups, each with its own `options`, and the client
+# shows their values in one list.
+function _read_agent_options(list)
+    options = AgentOption[]
+    list isa Vector{Any} || return options
+    for item in list
+        item isa Dict{String,Any} || continue
+        values = AgentOptionValue[]
+        _append_option_values!(values, get(item, "options", Any[]))
+        current = get(item, "currentValue", "")
+        push!(options, AgentOption(string(get(item, "id", "")), string(get(item, "name", "")),
+                                   string(something(get(item, "description", nothing), "")),
+                                   something(_find_symbol(item, "category"), :other),
+                                   current isa AbstractString ? String(current) : string(current),
+                                   values))
+    end
+    options
+end
+
+function _append_option_values!(values::Vector{AgentOptionValue}, list)
+    list isa Vector{Any} || return values
+    for item in list
+        item isa Dict{String,Any} || continue
+        if haskey(item, "options")
+            _append_option_values!(values, item["options"])
+        else
+            push!(values, AgentOptionValue(string(get(item, "value", "")), string(get(item, "name", "")),
+                                           string(something(get(item, "description", nothing), ""))))
+        end
+    end
+    values
+end
+
+# The options with `option_id` set to `value`, for an update that names only
+# the new value.
+_set_current_value(options::Vector{AgentOption}, matches::Function, value::String) =
+    AgentOption[matches(option) ?
+                AgentOption(option.id, option.name, option.description, option.category, value, option.values) :
+                option for option in options]

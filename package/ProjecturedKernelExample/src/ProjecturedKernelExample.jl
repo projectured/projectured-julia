@@ -37,7 +37,8 @@ import ProjecturedKernel.LlmModule: Llm, stream_turn, LlmRequest, LlmToolUse,
     LlmToolUseStart, LlmToolInputDelta, LlmToolUseStop,
     LlmTurnEnd
 import ProjecturedKernel.AgentModule
-import ProjecturedKernel.AgentModule: AgentToolCallUpdate, AgentPermissionOption, AgentPermissionRequest
+import ProjecturedKernel.AgentModule: AgentToolCallUpdate, AgentPermissionOption, AgentPermissionRequest,
+    AgentOption, AgentOptionValue, AgentOptionsUpdate
 
 include("../../../example/kernel/Harness.jl")
 include("../../../example/kernel/LlmFake.jl")         # FakeLlm — canned-reply test double (no network)
@@ -53,7 +54,7 @@ export Example, AtomicDocument, force_projected
 export write_example_image, record_example_video, make_typein_gestures
 export FakeLlm, ScriptedLlm,
        make_scripted_turn, make_scripted_think, make_scripted_say, make_scripted_run
-export ScriptedAgentConnection, make_scripted_permission_step
+export ScriptedAgentConnection, make_scripted_permission_step, make_scripted_agent_options
 export HeadlessBackend, rendered_output, push_event!
 export ScaleQuestion, measure_search_scale!
 export collect_package_modules, make_corpus_declaration, make_corpus_tool_set,

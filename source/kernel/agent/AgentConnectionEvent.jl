@@ -81,3 +81,42 @@ struct AgentPermissionRequest <: AgentEvent
     options::Vector{AgentPermissionOption}
     reply::Function
 end
+
+"""
+    AgentOptionValue(value, name, description)
+
+One value that an option of an external agent can take: `value` is what the
+agent reads, and `name` and `description` are what a person reads.
+"""
+struct AgentOptionValue
+    value::String
+    name::String
+    description::String
+end
+
+"""
+    AgentOption(id, name, description, category, current_value, values)
+
+One option of a session of an external agent, such as its model. `category`
+says what kind of option it is: `:mode`, `:model`, `:thought_level` (how much
+the model reasons), `:model_config`, or `:other`. `current_value` is the
+`value` of the value that holds now, and `values` lists every value it can take.
+"""
+struct AgentOption
+    id::String
+    name::String
+    description::String
+    category::Symbol
+    current_value::String
+    values::Vector{AgentOptionValue}
+end
+
+"""
+    AgentOptionsUpdate(options)
+
+All the options of a session of an external agent as they stand now. Each update
+replaces the options before it.
+"""
+struct AgentOptionsUpdate <: AgentEvent
+    options::Vector{AgentOption}
+end

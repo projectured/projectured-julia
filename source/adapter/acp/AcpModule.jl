@@ -6,8 +6,9 @@ agent that runs its own loop in another process, such as Claude through the
 adapter `claude-agent-acp`. Depends on `ProjecturedKernel` plus JSON3, and
 implements the external-agent seam of the kernel's `AgentModule`:
 `AcpConnection` and its methods of `make_agent_connection`,
-`start_agent_connection!`, `open_agent_session!`, `send_agent_prompt!`,
-`cancel_agent_prompt!`, `close_agent_session!` and `stop_agent_connection!`.
+`start_agent_connection!`, `open_agent_session!`, `set_agent_option!`,
+`send_agent_prompt!`, `cancel_agent_prompt!`, `close_agent_session!` and
+`stop_agent_connection!`.
 
 **Every piece of the wire format of ACP lives here and nowhere else.** The
 editor speaks the kernel's vocabulary: an `LlmText` prompt, the `LlmText…` and
@@ -37,8 +38,8 @@ using JSON3
 
 # Imported to extend: this module adds a method to each of these.
 import ..AgentModule: make_agent_connection, start_agent_connection!, open_agent_session!,
-                      send_agent_prompt!, cancel_agent_prompt!, close_agent_session!,
-                      stop_agent_connection!
+                      set_agent_option!, send_agent_prompt!, cancel_agent_prompt!,
+                      close_agent_session!, stop_agent_connection!
 
 export AcpRequestException
 export AcpConnection

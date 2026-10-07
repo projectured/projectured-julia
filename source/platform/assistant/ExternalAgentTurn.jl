@@ -24,7 +24,9 @@ The live link of an assistant to its external agent:
                   a prompt holds each user turn once, and `-1` until the first
                   turn counts them;
 - `is_cancelled` — whether the person stopped the turn that runs; the end of
-                  the turn clears it.
+                  the turn clears it;
+- `start_lock`  — held while the agent starts and its session opens, so a turn
+                  and a start from the option bar open one session.
 
 It is no data: a save does not write it, and a duplicate of the assistant does
 not share it.
@@ -35,10 +37,11 @@ mutable struct ExternalAgentSession
     tool_server::Any
     sent_turn_count::Int
     is_cancelled::Bool
+    start_lock::ReentrantLock
 end
 
 ExternalAgentSession(connection; session_id::AbstractString = "", tool_server = nothing) =
-    ExternalAgentSession(connection, String(session_id), tool_server, -1, false)
+    ExternalAgentSession(connection, String(session_id), tool_server, -1, false, ReentrantLock())
 
 """
     is_external_agent_turn_running(assistant) -> Bool
@@ -85,7 +88,7 @@ function _run_external_agent_turn!(editor, a::Assistant)
                              :tool_forms => Dict{String,EvaluatorForm}(), :plan_part => nothing,
                              :permission_requests => ConversationPermissionRequest[])
     stop_reason = try
-        _start_external_agent_session!(editor, session)
+        _start_external_agent_session!(editor, a, session)
         prompt, turn_count = run_on_editor_task!(editor) do
             _make_external_agent_prompt(a.conversation, session.sent_turn_count)
         end
@@ -141,16 +144,81 @@ function _make_external_agent_session!(editor, a::Assistant)
 end
 
 # The agent started, with the MCP server of the editor when its package is
-# loaded, and a session open that names it.
-function _start_external_agent_session!(editor, session::ExternalAgentSession)
-    Base.invokelatest(start_agent_connection!, session.connection)
-    if isempty(session.session_id)
-        server = _start_agent_tool_server!(editor, session)
-        servers = server === nothing ? Any[] : Any[Base.invokelatest(get_agent_server_access, server)]
-        session.session_id = Base.invokelatest(open_agent_session!, session.connection;
-                                               directory = pwd(), mcp_servers = servers)
+# loaded, and a session open that names it. The options of the new session
+# reach `agent_options`.
+function _start_external_agent_session!(editor, a::Assistant, session::ExternalAgentSession)
+    lock(session.start_lock) do
+        Base.invokelatest(start_agent_connection!, session.connection)
+        if isempty(session.session_id)
+            server = _start_agent_tool_server!(editor, session)
+            servers = server === nothing ? Any[] : Any[Base.invokelatest(get_agent_server_access, server)]
+            session.session_id = Base.invokelatest(open_agent_session!, session.connection;
+                directory = pwd(), mcp_servers = servers,
+                on_event = event -> _post_agent_options!(editor, a, event))
+        end
     end
     session
+end
+
+_post_agent_options!(editor, a::Assistant, event) =
+    event isa AgentOptionsUpdate &&
+        run_on_editor_task!(() -> a.agent_options = event.options, editor; wait = false)
+
+"""
+    StartExternalAgentOperation(assistant)
+
+Start the external agent of `assistant` and open its session, with no prompt,
+so its options show before the first message. A failure shows in the
+conversation, as the failure of a turn does. It does nothing for an assistant
+whose backend is not `:acp`, or whose session is open.
+"""
+struct StartExternalAgentOperation <: Operation
+    assistant::Assistant
+end
+
+function evaluate_operation(editor, operation::StartExternalAgentOperation)
+    a = operation.assistant
+    a.backend === :acp || return nothing
+    session = a.agent_session
+    session isa ExternalAgentSession && !isempty(session.session_id) && return nothing
+    errormonitor(@async try
+        _start_external_agent_session!(editor, a, _make_external_agent_session!(editor, a))
+    catch exception
+        a.agent_session isa ExternalAgentSession && _close_external_agent_session!(a.agent_session)
+        message = sprint(showerror, exception)
+        run_on_editor_task!(editor; wait = false) do
+            push!(a.conversation.turns, ConversationTurn(:assistant, [ConversationPart("Error: " * message)]))
+        end
+    end)
+    nothing
+end
+
+"""
+    SetAgentOptionOperation(assistant, option_id, value)
+
+Set the option `option_id` of the session of the external agent of `assistant`
+to `value`, such as the model or how much it reasons. The agent answers with all
+its options, and they replace `agent_options`. It does nothing while no session
+is open.
+"""
+struct SetAgentOptionOperation <: Operation
+    assistant::Assistant
+    option_id::String
+    value::String
+end
+
+function evaluate_operation(editor, operation::SetAgentOptionOperation)
+    a = operation.assistant
+    session = a.agent_session
+    (session isa ExternalAgentSession && !isempty(session.session_id)) || return nothing
+    errormonitor(@async try
+        Base.invokelatest(set_agent_option!, session.connection, session.session_id,
+                          operation.option_id, operation.value;
+                          on_event = event -> _post_agent_options!(editor, a, event))
+    catch exception
+        @warn "The agent did not set its option." option = operation.option_id exception
+    end)
+    nothing
 end
 
 # The agent stopped and its session forgotten; the next turn starts both again.
@@ -177,6 +245,7 @@ function stop_external_agent!(a::Assistant)
     session = a.agent_session
     session isa ExternalAgentSession || return nothing
     a.agent_session = nothing
+    a.agent_options = AgentOption[]
     errormonitor(@async begin
         _close_external_agent_session!(session)
         session.tool_server === nothing || Base.invokelatest(stop_agent_server!, session.tool_server)
@@ -216,12 +285,15 @@ function _handle_external_agent_event!(event, a::Assistant, turn::ConversationTu
         _handle_agent_event!(LlmTextStart(), a, turn, state, nothing)
     elseif event isa LlmThinkingDelta && state[:current_thinking] === nothing
         _handle_agent_event!(LlmThinkingStart(), a, turn, state, nothing)
-    elseif !(event isa LlmEvent) && !(event isa AgentToolCallUpdate && haskey(state[:tool_forms], event.id))
+    elseif !(event isa LlmEvent) && !(event isa AgentOptionsUpdate) &&
+           !(event isa AgentToolCallUpdate && haskey(state[:tool_forms], event.id))
         state[:current_block] === nothing || _handle_agent_event!(LlmTextStop(), a, turn, state, nothing)
         state[:current_thinking] === nothing || _handle_agent_event!(LlmThinkingStop(), a, turn, state, nothing)
     end
     if event isa LlmEvent
         _handle_agent_event!(event, a, turn, state, nothing)
+    elseif event isa AgentOptionsUpdate
+        a.agent_options = event.options
     elseif event isa AgentToolCallUpdate
         _apply_tool_call_update!(turn, state, event)
     elseif event isa AgentPlanUpdate

@@ -121,11 +121,27 @@ const FAKE_INITIALIZE_RESULT = Dict(
     "authMethods" => [Dict("id" => "fake-login", "name" => "Log in", "type" => "terminal",
                            "description" => "Run `fake /login` in the terminal", "args" => ["--cli"])])
 
+# Options of a session in the shape that `claude-agent-acp` 0.87.0 gives, cut
+# down, with the values of the model in a group.
+const FAKE_CONFIG_OPTIONS = [
+    Dict("id" => "mode", "name" => "Mode", "category" => "mode", "type" => "select",
+         "currentValue" => "default",
+         "options" => [Dict("value" => "default", "name" => "Manual"),
+                       Dict("value" => "plan", "name" => "Plan")]),
+    Dict("id" => "model", "name" => "Model", "category" => "model", "type" => "select",
+         "currentValue" => "opus",
+         "options" => [Dict("group" => "latest", "name" => "Latest",
+                            "options" => [Dict("value" => "opus", "name" => "Opus 5.5"),
+                                          Dict("value" => "sonnet", "name" => "Sonnet 5.5")])]),
+    Dict("id" => "effort", "name" => "Effort", "category" => "thought_level", "type" => "select",
+         "currentValue" => "high",
+         "options" => [Dict("value" => "high", "name" => "High"), Dict("value" => "max", "name" => "Max")])]
+
 # The handlers that a test starts from: an agent that starts, opens the session
-# `session-1`, and ends each prompt with `end_turn`.
+# `session-1` with `FAKE_CONFIG_OPTIONS`, and ends each prompt with `end_turn`.
 make_fake_handlers() = Dict{String,Function}(
     "initialize" => (agent, params) -> FAKE_INITIALIZE_RESULT,
-    "session/new" => (agent, params) -> Dict("sessionId" => "session-1"),
+    "session/new" => (agent, params) -> Dict("sessionId" => "session-1", "configOptions" => FAKE_CONFIG_OPTIONS),
     "session/prompt" => (agent, params) -> Dict("stopReason" => "end_turn"),
     "session/close" => (agent, params) -> Dict())
 

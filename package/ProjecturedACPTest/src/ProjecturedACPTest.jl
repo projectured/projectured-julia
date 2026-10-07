@@ -23,9 +23,9 @@ using ProjecturedKernel.LlmModule: LlmText, LlmToolUse,
     LlmTextStart, LlmTextDelta, LlmTextStop,
     LlmThinkingStart, LlmThinkingDelta, LlmThinkingStop
 using ProjecturedKernel.AgentModule: make_agent_connection, start_agent_connection!,
-    open_agent_session!, send_agent_prompt!, cancel_agent_prompt!, close_agent_session!,
-    stop_agent_connection!, AgentToolCallUpdate, AgentPlanEntry, AgentPlanUpdate,
-    AgentPermissionRequest
+    open_agent_session!, set_agent_option!, send_agent_prompt!, cancel_agent_prompt!,
+    close_agent_session!, stop_agent_connection!, AgentToolCallUpdate, AgentPlanEntry,
+    AgentPlanUpdate, AgentPermissionRequest, AgentOptionsUpdate
 
 include("../../../test/adapter/acp/FakeAcpAgent.jl")
 include("../../../test/adapter/acp/AcpUpdateTest.jl")

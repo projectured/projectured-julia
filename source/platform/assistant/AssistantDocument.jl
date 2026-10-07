@@ -88,7 +88,9 @@ its default asks `claude-agent-acp` for the summary of its reasoning, and an
 agent that does not read it ignores it. The package `ProjecturedACP` must be
 loaded. `agent_session` is the live link to
 the agent, an `ExternalAgentSession`: `nothing` until the first turn starts it,
-or one that a test gives. It is no data, like `llm`.
+or one that a test gives. It is no data, like `llm`. `agent_options` are the options of
+the session of the agent, such as its model and how much it reasons, as the agent
+last listed them: empty until a session opens. They are no data either.
 
 `llm` defaults to `nothing` and `api_key` to empty: the backend and key are
 resolved **at submit time**, not here. This keeps the choice out of the
@@ -114,6 +116,7 @@ behaviour pass an explicit `llm` (a `FakeLlm`/`ScriptedLlm` from
     agent_command::String
     agent_session_meta::String
     agent_session::Any
+    agent_options::Vector{AgentOption}
 end
 
 # The command of the external agent that an assistant starts when nobody names
@@ -148,14 +151,15 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
                               llm::Union{Nothing,Llm} = nothing,
                               agent_command::AbstractString = DEFAULT_AGENT_COMMAND,
                               agent_session_meta::AbstractString = DEFAULT_AGENT_SESSION_META,
-                              agent_session = nothing)
+                              agent_session = nothing,
+                              agent_options::AbstractVector = AgentOption[])
     a = Assistant(Cell(conversation), Cell(input), Cell(draft),
                            Cell(backend), Cell(String(model)), Cell(String(system)),
                            Cell(String(api_key)), Cell(Int(context)), Cell(status),
                            Cell(collapse_thinking),
                            Cell(llm),
                            Cell(String(agent_command)), Cell(String(agent_session_meta)),
-                           Cell(agent_session),
+                           Cell(agent_session), Cell(collect(AgentOption, agent_options)),
                            Cell(nothing))
     # Back-link the draft to its owning assistant so the composer's ENTER can be
     # turned into a submit (push into the conversation + stream a reply).
@@ -204,7 +208,7 @@ has_document_duplicate(::Assistant) = true
 function copy_document(policy::DuplicatePolicy, assistant::Assistant)
     draft = copy_document_fields(policy, assistant.draft; assistant = nothing)
     fork = copy_document_fields(policy, assistant; draft = draft, status = :idle,
-                                agent_session = nothing)
+                                agent_session = nothing, agent_options = AgentOption[])
     draft.assistant = fork
     turns = fork.conversation.turns
     if assistant.status === :streaming && !isempty(turns) &&

@@ -713,6 +713,33 @@ function test_application()
                 @test any(text -> occursin("Gestures", text), drawn())
             end
 
+            @testset "a press on the bar of an agent starts it, and a press on an option opens its menu" begin
+                connection = ScriptedAgentConnection(Any[]; options = make_scripted_agent_options())
+                chat = make_application_assistant(:acp)
+                chat.agent_session = ExternalAgentSession(connection)
+                document, scene, composed, iomap = _app_make_scene(paths[1:1], dir; assistant = chat)
+                editor = _app_make_editor(scene, composed, iomap)
+                drawn() = _app_drawn_at(print_document(composed, scene).output.windows[1].content)
+                (x, y) = only((x, y) for (text, x, y) in drawn() if text == "Start the agent")
+                _app_apply!(editor, _app_fire(composed, iomap, MouseClick(:left, x + 2, y + 2, 1,
+                                                                         ModifierKeys(); time = 0.0)))
+                @test timedwait(() -> length(chat.agent_options) == 3, 10.0; pollint = 0.01) === :ok
+                @test isempty(connection.prompts)
+                texts = [text for (text, _, _) in drawn()]
+                @test all(label -> label in texts, ("Model: Opus 5.5", "Effort: High", "Mode: Manual"))
+                @test !("Start the agent" in texts)
+                iomap = print_document(composed, scene)
+                (x, y) = only((x, y) for (text, x, y) in _app_drawn_at(iomap.output.windows[1].content)
+                              if text == "Effort: High")
+                # The menu opens as a window under the option while the press is read,
+                # through the view of the assistant in its pane, as the menu of a name does.
+                _app_fire(composed, iomap, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 0.0))
+                @test length(scene.windows) == 2
+                popup = scene.windows[2].content
+                @test popup isa WidgetMenu
+                @test [string(item.action.label) for item in popup.elements] == ["✓ High", "   Max"]
+            end
+
             @testset "a press on a menu name opens its menu as a window under the name" begin
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
                 drawn = _app_drawn_at(print_document(composed, scene).output.windows[1].content)

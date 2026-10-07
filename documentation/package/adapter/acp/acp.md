@@ -14,9 +14,10 @@ The kernel declares seven generics for a connection in `source/kernel/agent/Agen
 | --- | --- |
 | `make_agent_connection(::Val{:acp}; command, environment, directory, session_meta, streams)` | makes an `AcpConnection`; it starts nothing |
 | `start_agent_connection!` | starts the process of the agent and sends `initialize` with `protocolVersion: 1` |
-| `open_agent_session!` | sends `session/new` with the working directory and the MCP servers; returns the session id |
+| `open_agent_session!` | sends `session/new` with the working directory and the MCP servers, gives the `configOptions` of the answer to `on_event`, and returns the session id |
 | `send_agent_prompt!` | sends `session/prompt` and waits for its answer; returns the stop reason |
 | `cancel_agent_prompt!` | sends the notification `session/cancel` and answers each waiting request as cancelled |
+| `set_agent_option!` | sends `session/set_config_option` and gives the options of the answer to `on_event` |
 | `close_agent_session!` | sends `session/close`, when the agent lists that capability |
 | `stop_agent_connection!` | ends the agent and its process group |
 
@@ -51,7 +52,9 @@ The agent reports its work as `session/update` notifications. `AcpUpdate.jl` tra
 | `plan` | one `AgentPlanUpdate` with the whole plan |
 | any other kind | no event |
 
-ACP sends text with no frame around it, and the events of the kernel frame a block with a start and a stop. So an `AcpTurn` keeps the kind of the open block and the `messageId` of the message. A chunk of another kind or of another `messageId`, a new tool call and a plan close the open block first. Only the reader task changes this state. A permission request arrives on a task of its own and leaves it as it is; the assistant closes its own open block before it draws the card. The end of the prompt closes the last block. The usage, the commands, the modes, the config options and the session information of the agent give no event.
+ACP sends text with no frame around it, and the events of the kernel frame a block with a start and a stop. So an `AcpTurn` keeps the kind of the open block and the `messageId` of the message. A chunk of another kind or of another `messageId`, a new tool call and a plan close the open block first. Only the reader task changes this state. A permission request arrives on a task of its own and leaves it as it is; the assistant closes its own open block before it draws the card. The end of the prompt closes the last block. The usage, the commands and the session information of the agent give no event.
+
+**The options of a session.** The connection reads the `configOptions` of `session/new`, of the answer to `session/set_config_option` and of a `config_option_update`, and keeps the last ones of each session, also outside a prompt. A group of values shows as values. A `current_mode_update` names only the new mode, so the connection answers it as the kept options with the option of the category `mode` set to it. Each of these updates reaches the prompt that runs as an `AgentOptionsUpdate`. The connection keeps no `on_event` of `open_agent_session!` or `set_agent_option!` after the call.
 
 An `AgentToolCallUpdate` takes its `name` from the field `name`, or else from `_meta.claudeCode.toolName`, where `claude-agent-acp` puts it. The `output` is the text of the content of the call. A diff becomes its path and its lines marked `-` and `+`.
 

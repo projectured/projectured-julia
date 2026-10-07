@@ -29,16 +29,32 @@ that runs already stays as it is.
 function start_agent_connection! end
 
 """
-    open_agent_session!(connection; directory, mcp_servers = []) -> String
+    open_agent_session!(connection; directory, mcp_servers = [], on_event = nothing) -> String
 
 Open a new session of the agent, and answer its id. The agent works in
 `directory`. It connects to each of `mcp_servers`, a named tuple
 `(name, url, headers)` that names an MCP server over HTTP: `headers` is a
 `Vector{Pair{String,String}}` that the agent sends with each request.
 
+`on_event`, when given, gets the events of the open: an `AgentOptionsUpdate`
+with the options of the session. The connection keeps no reference to it after
+the call, so a caller can capture what it must not store. An update that the
+agent sends later reaches the `on_event` of the prompt that runs, and an update
+outside a prompt is dropped.
+
 Throws when the agent needs a sign-in, with a message that says how to sign in.
 """
 function open_agent_session! end
+
+"""
+    set_agent_option!(connection, session_id, option_id, value; on_event = nothing)
+
+Set the option `option_id` of the session to `value`, the `value` of one of the
+`AgentOptionValue`s that the option lists. The agent answers with all its
+options, which reach `on_event`, when given, as an `AgentOptionsUpdate`. The
+connection keeps no reference to `on_event` after the call.
+"""
+function set_agent_option! end
 
 """
     send_agent_prompt!(connection, session_id, prompt; on_event) -> Symbol

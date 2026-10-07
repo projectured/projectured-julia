@@ -523,18 +523,22 @@ A caller names a connection by a symbol and never names its type, as it does for
 ```julia
 connection = make_agent_connection(:acp; command = ["claude-agent-acp"])
 start_agent_connection!(connection)
-session_id = open_agent_session!(connection; directory = pwd(), mcp_servers = [access])
+session_id = open_agent_session!(connection; directory = pwd(), mcp_servers = [access], on_event)
+set_agent_option!(connection, session_id, "effort", "max"; on_event)
 stop_reason = send_agent_prompt!(connection, session_id, prompt; on_event)
 ```
 
-The seven generics are `make_agent_connection(kind; kwargs...)`, `start_agent_connection!`, `open_agent_session!`, `send_agent_prompt!`, `cancel_agent_prompt!`, `close_agent_session!` and `stop_agent_connection!`. A package adds the methods for its kind. The `Symbol` entry dispatches to `make_agent_connection(::Val{kind})`. When no package answers, the entry throws an error that lists the loaded kinds. `get_agent_connection_names()` reads those kinds from the method table, as `get_llm_backend_names()` does. `get_agent_server_names()` does the same for the servers of the inbound direction.
+The eight generics are `make_agent_connection(kind; kwargs...)`, `start_agent_connection!`, `open_agent_session!`, `set_agent_option!`, `send_agent_prompt!`, `cancel_agent_prompt!`, `close_agent_session!` and `stop_agent_connection!`. A package adds the methods for its kind. The `Symbol` entry dispatches to `make_agent_connection(::Val{kind})`. When no package answers, the entry throws an error that lists the loaded kinds. `get_agent_connection_names()` reads those kinds from the method table, as `get_llm_backend_names()` does. `get_agent_server_names()` does the same for the servers of the inbound direction.
 
 `send_agent_prompt!` takes a prompt, a vector of `LlmContent`, and waits until the turn of the agent ends. It answers why the turn ended: `:end_turn`, `:max_tokens`, `:max_turn_requests`, `:refusal` or `:cancelled`. It calls `on_event` on a task that is not the editor task, so the caller posts its writes through `run_on_editor_task!`. `on_event` gets these events:
 
 - `LlmTextStart`, `LlmTextDelta` and `LlmTextStop` for the text of the answer, and the three `LlmThinking…` events for its reasoning. They are the events that `stream_turn` sends, so the code that draws a model answer draws an agent answer.
 - `AgentToolCallUpdate` for a tool call that the agent runs itself. The event reports the call. The editor does not run it. A field that is `nothing` keeps the value of the last update with the same `id`.
 - `AgentPlanUpdate` for the plan of the agent. Each one replaces the plan before it.
+- `AgentOptionsUpdate` for all the options of the session, when the agent changes one during the prompt, such as its mode.
 - `AgentPermissionRequest` for a question that waits for a person. Its `reply` takes the id of the chosen option, or `nothing`. The first call answers the agent and answers `true`; a later call does nothing and answers `false`. `cancel_agent_prompt!` answers each request that waits as `nothing`.
+
+**The options of a session.** An `AgentOption` is one option, such as the model, with its `category` (`:mode`, `:model`, `:thought_level`, `:model_config` or `:other`), its `current_value`, and its `values`, each an `AgentOptionValue` with a `value` for the agent and a `name` for a person. `open_agent_session!` gives the options of the new session to its `on_event` as an `AgentOptionsUpdate`. `set_agent_option!` sets one option, and gives all the options that the agent answers to its `on_event`. **A connection keeps no `on_event` after the call that took it.** A caller captures the editor in it to post its writes, and a document must not hold the editor, even through the connection that it holds. So an update outside a call and outside a prompt has nowhere to go and is dropped; an agent changes its options during a prompt, and that update reaches the `on_event` of the prompt.
 
 The agent reaches the tools of the editor through the inbound direction. `get_agent_server_access(server)` answers `(name, url, headers)` for a server, and the tuple has the shape that `open_agent_session!` takes for an entry of `mcp_servers`. So the caller hands the MCP server of its editor to the agent without the type of the server. The inbound direction also gives the server a free port and a secret; see [mcp.md](../adapter/mcp/mcp.md).
 

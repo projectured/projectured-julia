@@ -20,13 +20,14 @@ Seven fragments share this namespace:
   contract, answered when no concrete server package is loaded.
 - [`AgentConnectionInterface.jl`](AgentConnectionInterface.jl) — the
   external-agent contract: `make_agent_connection`, `start_agent_connection!`,
-  `open_agent_session!`, `send_agent_prompt!`, `cancel_agent_prompt!`,
-  `close_agent_session!` and `stop_agent_connection!`, each a body-less generic.
+  `open_agent_session!`, `set_agent_option!`, `send_agent_prompt!`,
+  `cancel_agent_prompt!`, `close_agent_session!` and `stop_agent_connection!`,
+  each a body-less generic.
 - [`AgentConnectionDefaults.jl`](AgentConnectionDefaults.jl) — the fallback
   behaviours for that contract.
 - [`AgentConnectionEvent.jl`](AgentConnectionEvent.jl) — the events an external
-  agent reports: `AgentToolCallUpdate`, `AgentPlanUpdate` and
-  `AgentPermissionRequest`.
+  agent reports: `AgentToolCallUpdate`, `AgentPlanUpdate`,
+  `AgentPermissionRequest` and `AgentOptionsUpdate`.
 
 **What the loop owns, and what it does not.** It owns the *control flow* of an agent
 turn: stream a round, collect the tool calls the model made, dispatch them through
@@ -59,10 +60,11 @@ export Agent, run_turn!, AgentEvent, AgentToolResult
 export make_agent_server, start_agent_server!, stop_agent_server!, run_on_editor_task!
 export get_agent_server_names, get_agent_server_access
 export make_agent_connection, start_agent_connection!, open_agent_session!,
-       send_agent_prompt!, cancel_agent_prompt!, close_agent_session!,
+       set_agent_option!, send_agent_prompt!, cancel_agent_prompt!, close_agent_session!,
        stop_agent_connection!, get_agent_connection_names
 export AgentToolCallUpdate, AgentPlanEntry, AgentPlanUpdate,
-       AgentPermissionOption, AgentPermissionRequest
+       AgentPermissionOption, AgentPermissionRequest,
+       AgentOptionValue, AgentOption, AgentOptionsUpdate
 
 include("AgentInterface.jl")
 include("AgentDefaults.jl")

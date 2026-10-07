@@ -84,4 +84,6 @@ with no styles holds the plain values of the default theme.
     card_gap::Spacing = Spacing(6)
     "The least height of the composer under the transcript of the assistant."
     composer_min_height::ControlSize = ControlSize(200)
+    "The height of the row of the options of an external agent under the composer."
+    option_bar_height::ControlSize = ControlSize(32)
 end

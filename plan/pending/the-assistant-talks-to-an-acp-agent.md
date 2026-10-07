@@ -562,7 +562,39 @@ from the command line of the projectured UI.
 
 ### Phase 2: the agent as a full partner
 
-- [ ] 2.1 Config options as a card: model, effort, mode.
+- [x] **2.1 Config options: model, effort, mode.** Done. The owner approved on
+  2026-10-07 the path for session events and three menus in the pane.
+  Decisions made in the step:
+  - **No stored `on_event`.** A handler that the connection keeps for the whole
+    session would hold a closure with the editor inside the assistant, and no
+    document holds the editor, not even in a closure. So `on_event` of
+    `open_agent_session!` and of the new `set_agent_option!` lives only for the
+    call. An update that the agent sends during a prompt reaches the `on_event`
+    of the prompt; one outside a call and a prompt is dropped. The connection
+    keeps the last options of each session, also outside a prompt, and answers
+    a `current_mode_update` from them.
+  - The kernel gets `set_agent_option!` (an approved name), `AgentOption`,
+    `AgentOptionValue` and `AgentOptionsUpdate`.
+  - The assistant gets `agent_options`, live and not saved, and
+    `StartExternalAgentOperation`, which opens the session with no prompt, and
+    `SetAgentOptionOperation`. A lock in `ExternalAgentSession` makes a turn
+    and a start open one session.
+  - The row is `make_agent_option_bar`: a horizontal `WidgetMenu` under the
+    composer, the third child of the split pane, so the maps of the transcript
+    and the composer stay as they are. Before a session it is one item, "Start
+    the agent". A split pane prints a child at the height of its slot, so the
+    row has a height of its own, the new `option_bar_height` of
+    `ConversationTheme`.
+  - **A fix outside the step:** a submenu inside a pane did not open, because
+    the default reader of a projection dropped `OpenPopupOperation`, which
+    names no reference. `OpenPopupOperation` is now self-contained, as
+    `CloseWindowOperation` is. Every popup test passes, and a `WidgetSelect`
+    in a pane can now open its list too.
+  - A pick holds for the session. A new session starts with the values that
+    the agent gives; a pick that lasts across sessions is not built.
+  - Tests: ACP 93 of 93, the platform conversation suite 153 of 153, the
+    application test 355 with 2 known broken, with a press on "Start the
+    agent" and on "Effort: High" at their drawn places.
 - [ ] 2.2 Slash commands in the composer.
 - [ ] 2.3 Usage meter and tab title.
 - [ ] 2.4 Save, load, resume and delete.
