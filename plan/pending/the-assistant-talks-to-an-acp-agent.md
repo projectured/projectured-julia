@@ -1,8 +1,10 @@
 # The assistant talks to an ACP agent
 
-> **Status (2026-10-07): NOT STARTED.** Nothing is implemented. The owner
-> answered every question on 2026-10-07; see "Decisions". Nothing is open
-> before step 1.1. The feature comes in a release after the first one.
+> **Status (2026-10-07): PHASE 1 DONE on the branch `acp-agent`, not landed.**
+> Steps 1.1 to 1.10 are done, and the live check passed with the real agent.
+> Phases 2 and 3 are not started. The owner answered every question on
+> 2026-10-07; see "Decisions". The feature comes in a release after the first
+> one.
 
 ## Goal
 
@@ -435,14 +437,17 @@ document never holds the editor.
   buttons work while `is_permission_request_open`, and a line says the answer.
   The end of a turn answers an open request as cancelled. The duplicate of a
   request has no reply.
-- [ ] **1.7 The thought text.** Found on 2026-10-07: `claude-agent-acp` spreads
+- [x] **1.7 The thought text.** Done. Found on 2026-10-07: `claude-agent-acp` spreads
   `_meta.claudeCode.options` of `session/new` over its own SDK options, and
   `{"thinking": {"type": "adaptive", "display": "summarized"}}` there brings
   `agent_thought_chunk` updates with a summary of the reasoning (38 chunks in a
   probe). `showThinkingSummaries` in `settings`, in the project settings, or
   with `MAX_THINKING_TOKENS` gave none. The adapter says why: recent models
   default `thinking.display` to `"omitted"`. The setting `agent_session_meta`
-  carries this `_meta` as JSON, with that value as its default.
+  carries this `_meta` as JSON, with that value as its default, and
+  `make_agent_connection(:acp; session_meta)` takes it as a dictionary or as
+  its JSON text. The live check of step 1.10 got 8 or 9 thinking parts in each
+  turn.
 - [x] **1.8 The MCP server of the session (M3).** Done in ProjecturedMCP.
   Decisions made in the step:
   - `McpServer` takes `port = 0` for a free port and `secret = true` for a
@@ -465,9 +470,27 @@ document never holds the editor.
   `StartSettings`. A setting holds only `Bool`, `Int`, `Float64`, `Symbol` or
   `String`, so phase 1 has one agent, not a list: `assistant = :acp` and
   `agent_command = "claude-agent-acp"`. A list waits for phase 2.
-- [ ] **1.10 A live check.** Use the real adapter and the plan of the owner. One
-  turn calls `execute_julia_code` through MCP, and one undo reverts it. The
-  check also renders the pane, and runs in a fresh process.
+- [x] **1.10 A live check.** Done on 2026-10-07 with `claude-agent-acp` 0.87.0
+  (Node.js 24.21.0) and the Claude sign-in of the owner, in a fresh process with
+  an application editor on a `HeadlessBackend`. The script is
+  `/var/tmp/acp-work/live-check.jl`, outside the repository. Results:
+  - The prompt asked to change `count` from 1 to 2 in an open `data.json`. The
+    agent found the tools of the MCP server with the secret, asked 8 or 9
+    times for permission, which the script answered with "Yes", and called
+    `search_api`, `search_guides` and `execute_julia_code`. It wrote the value
+    with `replace_referenced_value!`, an operation.
+  - The tab showed `{ "count": 2 }` after the turn, and `{ "count": 1 }` after
+    one `undo`, as Ctrl+Z. The turn ended with `end_turn` in 60 to 80 s.
+  - One frame drew the thinking parts, the permission cards with their
+    buttons, and the line `Answer: Yes`. A search of the drawn tree with
+    `search_documents` misses the elements of a reactive canvas, such as the
+    label of a button; a walk that reads each `ReactiveCell` finds them.
+  - The editor that `build_editor` makes has no `undo` tool; the application
+    registers it with `register_undo_tools!` at its start, and the check does
+    the same.
+  - No agent process lived on after the stop.
+  - A permission card showed the raw tool name `mcp__projectured__…`. The
+    card now removes the prefix, as the form does.
 
 ### Phase 2: the agent as a full partner
 

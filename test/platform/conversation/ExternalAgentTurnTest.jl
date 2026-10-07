@@ -57,11 +57,11 @@ function test_external_agent_turn()
             options = [AgentPermissionOption("allow", "Allow", :allow_once),
                        AgentPermissionOption("reject", "Reject", :reject_once)]
             connection = ScriptedAgentConnection([Any[make_scripted_permission_step(
-                AgentToolCallUpdate("t1"; title = "Edit a.jl"), options)]])
+                AgentToolCallUpdate("t1"; title = "mcp__projectured__execute_julia_code"), options)]])
             a = _make_agent_assistant(connection)
             _submit_to_agent!(a, "Edit"; wait = false)
             request = _wait_for_permission_request(a)
-            @test request.title == "The agent asks to run: Edit a.jl"
+            @test request.title == "The agent asks to run: execute_julia_code"
             @test is_permission_request_open(request)
             answer_permission_request!(request, "allow")
             _wait_for_idle(a)

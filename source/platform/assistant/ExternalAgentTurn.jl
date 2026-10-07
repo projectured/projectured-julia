@@ -150,7 +150,7 @@ function _handle_external_agent_event!(event, a::Assistant, turn::ConversationTu
     elseif event isa AgentPlanUpdate
         _apply_plan_update!(turn, state, event)
     elseif event isa AgentPermissionRequest
-        title = something(event.tool_call.title, event.tool_call.name, "a tool")
+        title = _remove_agent_tool_prefix(something(event.tool_call.title, event.tool_call.name, "a tool"))
         request = ConversationPermissionRequest("The agent asks to run: " * title, event.options;
                                                 reply = event.reply)
         push!(state[:permission_requests], request)
@@ -196,11 +196,13 @@ end
 
 # The name of a tool for a person: the name that the agent gives, or its title.
 # A tool of this editor's MCP server comes back with the prefix the agent gives
-# a server's tools, `mcp__projectured__`, and is drawn as the tool it is.
-function _get_agent_tool_name(update::AgentToolCallUpdate)
-    name = something(update.name, update.title, "tool")
-    startswith(name, AGENT_TOOL_PREFIX) ? name[(length(AGENT_TOOL_PREFIX) + 1):end] : name
-end
+# a server's tools, `mcp__projectured__`, and the form and the question name it
+# as the tool it is.
+_get_agent_tool_name(update::AgentToolCallUpdate) =
+    _remove_agent_tool_prefix(something(update.name, update.title, "tool"))
+
+_remove_agent_tool_prefix(name::AbstractString) =
+    startswith(name, AGENT_TOOL_PREFIX) ? String(name[(length(AGENT_TOOL_PREFIX) + 1):end]) : String(name)
 
 const AGENT_TOOL_PREFIX = "mcp__projectured__"
 
