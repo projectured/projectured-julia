@@ -38,14 +38,16 @@ export LayoutDocument, FormLayout, LayoutExpr, make_layout_anchor, constrain, al
        compute_axis_offsets, find_axis_band, compute_axis_extents, layout_min,
        layout_max, layout_preferred, get_column_span, layout_weight,
        SizePolicy, Fixed, Content, Relative, Fill,
-       AnchoredEntry, AnchoredLayout, compute_anchored_positions
+       AnchoredEntry, AnchoredLayout, compute_anchored_positions,
+       ScrollLayout, SCROLL_LAYOUT_PARTS, compute_scroll_layout_extents,
+       get_scroll_layout_place, find_scroll_layout_part_at
 export SolverAnchor, SolverRelation, ConstraintSolver, FallbackConstraintSolver,
        solve_constraint_layout
 export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
        GridLayoutToGraphicsCanvas, FlowLayoutToGraphicsCanvas,
        StackLayoutToGraphicsCanvas, LayoutConstraintToGraphicsCanvas,
        ConstraintLayoutToGraphicsCanvas, AnchoredLayoutToGraphicsCanvas,
-       LayoutToGraphics, GridLayoutIoMap, LayoutListIoMap, GridLayoutListIoMap,
+       ScrollLayoutToGraphicsCanvas, LayoutToGraphics, GridLayoutIoMap, LayoutListIoMap, GridLayoutListIoMap,
        get_grid_list_head, find_grid_list_row, get_grid_list_column_head, find_grid_list_cell
 export CellVectorToVerticalLayout
 export HorizontalLayout, VerticalLayout, GridLayout, FlowLayout, StackLayout

@@ -924,6 +924,113 @@ function _anchored_overlaps(pi, ei, pj, ej)
     xi < xj + wj && xj < xi + wi && yi < yj + hj && yj < yi + hi
 end
 
+# ── ScrollLayout ─────────────────────────────────────────────────────────────
+#
+# A center and the parts around it. On its own the layout puts the parts in a
+# grid of three columns and three rows. A scroll pane that shows a
+# `ScrollLayout` takes it apart, and gives each part a viewport of its own that
+# moves with the one offset of the pane on the axes on which the part scrolls.
+
+"""
+    ScrollLayout(; center, top, bottom, left, right,
+                 top_left, top_right, bottom_left, bottom_right)
+
+A `center` and up to four edges and four corners around it, each any document
+or `nothing`. On its own it puts its parts in three columns and three rows (see
+[`compute_scroll_layout_extents`](@ref)). In a `WidgetScrollPane` the pane moves
+the center on both axes, the top and the bottom edge left and right with it, the
+left and the right edge up and down with it, and the corners not at all, so the
+edges and the corners stay in view.
+
+The content that makes the parts makes them agree: a left edge as high as the
+center, with its rows beside the rows of the center, as a gutter stands beside
+the lines of a text.
+"""
+@document struct ScrollLayout <: LayoutDocument
+    center::Union{Document, Nothing} = nothing
+    top::Union{Document, Nothing} = nothing
+    bottom::Union{Document, Nothing} = nothing
+    left::Union{Document, Nothing} = nothing
+    right::Union{Document, Nothing} = nothing
+    top_left::Union{Document, Nothing} = nothing
+    top_right::Union{Document, Nothing} = nothing
+    bottom_left::Union{Document, Nothing} = nothing
+    bottom_right::Union{Document, Nothing} = nothing
+end
+
+"""
+    SCROLL_LAYOUT_PARTS
+
+The names of the parts of a `ScrollLayout`, row by row from the top left. Its
+projection keeps and draws the parts in this order, and the functions of the
+layout name a part by its index here.
+"""
+const SCROLL_LAYOUT_PARTS = (:top_left, :top, :top_right, :left, :center, :right,
+                             :bottom_left, :bottom, :bottom_right)
+
+# The column (1 left, 2 middle, 3 right) and the row (1 top, 2 middle, 3 bottom)
+# of the part at `index` of `SCROLL_LAYOUT_PARTS`.
+_get_scroll_part_column(index::Integer) = mod1(index, 3)
+_get_scroll_part_row(index::Integer) = div(index - 1, 3) + 1
+
+"""
+    compute_scroll_layout_extents(sizes) -> (widths, heights)
+
+The widths of the three columns and the heights of the three rows of a
+`ScrollLayout`. `sizes` holds one `(w, h)` for each part of
+[`SCROLL_LAYOUT_PARTS`](@ref), in that order, or `nothing` for a part that is
+absent. A column is as wide as its widest part, and a row as high as its highest
+part. Pure, so it is tested on numbers alone.
+"""
+function compute_scroll_layout_extents(sizes)
+    widths = [0, 0, 0]
+    heights = [0, 0, 0]
+    for (index, size) in enumerate(sizes)
+        size === nothing && continue
+        column, row = _get_scroll_part_column(index), _get_scroll_part_row(index)
+        widths[column] = max(widths[column], Int(size[1]))
+        heights[row] = max(heights[row], Int(size[2]))
+    end
+    (Tuple(widths), Tuple(heights))
+end
+
+"""
+    get_scroll_layout_place(index, widths, heights) -> (x, y)
+
+Where the part at `index` of `SCROLL_LAYOUT_PARTS` stands in the layout that puts
+the parts together: the left edge of its column and the top edge of its row.
+"""
+function get_scroll_layout_place(index::Integer, widths, heights)
+    column, row = _get_scroll_part_column(index), _get_scroll_part_row(index)
+    (sum(widths[1:column-1]; init = 0), sum(heights[1:row-1]; init = 0))
+end
+
+"""
+    find_scroll_layout_part_at(x, y, widths, heights) -> index | nothing
+
+The index in `SCROLL_LAYOUT_PARTS` of the cell of the three columns and the three
+rows that holds the point `(x, y)` of the layout that puts the parts together, or
+`nothing` for a point outside it. The cell can be the place of a part that is
+absent. The layout, the scroll pane and the content that made the parts find a
+part by this one function, so they agree.
+"""
+function find_scroll_layout_part_at(x::Integer, y::Integer, widths, heights)
+    column = _find_scroll_band(x, widths)
+    row = _find_scroll_band(y, heights)
+    (column === nothing || row === nothing) ? nothing : (row - 1) * 3 + column
+end
+
+# The band of `extents` that holds `v`, or `nothing` when `v` is outside them all.
+function _find_scroll_band(v::Integer, extents)
+    v < 0 && return nothing
+    edge = 0
+    for (k, extent) in enumerate(extents)
+        edge += extent
+        v < edge && return k
+    end
+    nothing
+end
+
 # ── ConstraintLayout ─────────────────────────────────────────────────────────
 #
 # Free-form layout: children are positioned by *solving* a system of linear

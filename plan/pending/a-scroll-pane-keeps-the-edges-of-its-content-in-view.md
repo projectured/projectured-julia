@@ -415,11 +415,24 @@ stands, and no new channel is needed.
 
 Each step on its own commit, each with its test.
 
-1. **`ScrollLayout` in `layout`.** The document, its fields as the reference
+1. ✅ **Done (2026-10-07, branch `text-gutter`). `ScrollLayout` in `layout`.** The document, its fields as the reference
    vocabulary, the one function that gives the place of each part (§7.6), and
    `LayoutToGraphics`, which prints it as one canvas with the edges around the
    center, and maps a reference and a click through it. Test: a layout test with
    a canvas in each part; an example.
+   *What the implementation found:* `ScrollLayoutToGraphicsCanvas` keeps one entry
+   for each part of `SCROLL_LAYOUT_PARTS`, `nothing` for an absent part, so the
+   index of an entry names its part. Three helpers of the layout slice learned
+   that shape: `make_slot_reference` and `_drawn_child_index` skip a `nothing`
+   entry, and `_backward_descend` and `_read_layout_move` take the steps of a
+   child as a keyword, so a child can be a field and not `children[i]`. The
+   center is printed after the other parts, with `with_inner_size` by the widths
+   of the left and the right column and the heights of the top and the bottom
+   row. A part selected as a whole draws no ring: the ring of a layout reads
+   `children[i]`. The example is not written; step 2 has one with a scroll pane.
+   Test: `test_scroll_layout()`, 27 assertions; `test_anchored_layout`,
+   `test_layout_point`, `test_layout_closeout` and `test_mouse_target_move` pass
+   unchanged.
 2. **`WidgetScrollPane` takes a `ScrollLayout` apart** (§7.4): a viewport for
    each part, the offsets (§7.1), the sizes and the width that it offers (§7.5),
    the frame of a point (§7.6), and the wheel over any part (S5). A content that

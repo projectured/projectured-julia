@@ -15,6 +15,7 @@ The layout slice of `ProjecturedPlatform` places documents of any kind next to e
 | `FlowLayout` | a row that wraps at the edge of its range, or at `max_width` when that is less; it is as wide as its widest line, or as the edge of an exact range, but not wider than `max_width` unless one child is |
 | `StackLayout` | children on top of each other, the last on top |
 | `AnchoredLayout` | a `content`, and children placed next to parts of it |
+| `ScrollLayout` | a `center`, and up to four edges and four corners around it |
 | `ConstraintLayout` | children placed by linear relations between their edges |
 
 A child is any document that has a projection to a `GraphicsCanvas`. The package names no widget and no domain.
@@ -66,6 +67,12 @@ The `children` of a `VerticalLayout` or a `HorizontalLayout` can be a `ListNode`
 ### The anchored layout
 
 `AnchoredLayout` prints its `content` exactly as it prints alone, and then places each `AnchoredEntry` next to a target: a child document, or a reference into the content that the content's IO map maps to a graphics node. `compute_anchored_positions` tries the preferred side, then the opposite side, then the two other sides, and clamps into the region if no side fits. Children that still overlap stack downward.
+
+### The scroll layout
+
+`ScrollLayout` holds a `center` and up to four edges (`top`, `bottom`, `left`, `right`) and four corners (`top_left`, `top_right`, `bottom_left`, `bottom_right`), each any document or `nothing`. Printed on its own, by `ScrollLayoutToGraphicsCanvas`, it puts its parts in three columns and three rows: a column is as wide as its widest part and a row as high as its highest part (`compute_scroll_layout_extents`). The edges and the corners get a free range, and the center gets the range of the layout less the left and the right column and the top and the bottom row, so a text in the center wraps at what is left and no edge reads the range of the center. A `WidgetScrollPane` takes the same document apart instead and keeps its edges in view while the center scrolls.
+
+The parts are fields, so a reference into a part begins with its name, `.center…` or `.left…`, and a click goes to the part at its point and comes back re-rooted into that field. The functions that find a part by its index in `SCROLL_LAYOUT_PARTS` (`get_scroll_layout_place`, `find_scroll_layout_part_at`) are the ones that the scroll pane and the content that made the parts use too, so they agree on where each part is.
 
 ### Events
 
