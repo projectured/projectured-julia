@@ -34,6 +34,15 @@
 > emission change into a new plan: that settles ownership, not direction. Defer
 > the call.
 
+> **Waiting for step 3 of Phase 3 (2026-10-07):** three plans need
+> `SyntaxToText` to emit `TextLine`, and the owner decided that this plan does
+> it (D7 of [a-text-has-a-gutter-beside-its-lines.md](a-text-has-a-gutter-beside-its-lines.md)):
+> that plan from its step 5,
+> [a-text-folds-a-region-of-its-lines.md](a-text-folds-a-region-of-its-lines.md)
+> from its step 3, and
+> [a-scroll-pane-keeps-the-edges-of-its-content-in-view.md](a-scroll-pane-keeps-the-edges-of-its-content-in-view.md)
+> in its step 3.
+
 Three related changes to [package/text/main/Text.jl](../../source/text/Text.jl),
 ordered so each lands on its own:
 
