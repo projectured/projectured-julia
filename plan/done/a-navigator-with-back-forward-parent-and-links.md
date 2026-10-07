@@ -1,8 +1,11 @@
 # A navigator shows one page of any document, with back, forward, parent, an address and links
 
-> **Kind:** plan · **Status:** pending, 2026-10-06. The owner decided D1 to D9
-> on 2026-10-06 (§8); D7 waits for step 6. Steps 1 to 5, 7 and 10 are done on the
-> branch `navigator`; §9 holds the questions that they raised. ·
+> **Kind:** plan · **Status:** done, 2026-10-07. The owner decided D1 to D9 on
+> 2026-10-06 (§8), the questions of §9 and of step 6 on 2026-10-06 and
+> 2026-10-07, and the address of §10. Every step is done; step 9 moved to
+> [component-document.md](../pending/component-document.md), and a history that
+> records every edit of its document is
+> [a-history-records-every-edit-of-its-document.md](../pending/a-history-records-every-edit-of-its-document.md). ·
 > **Stands on:** [concepts.md](../../documentation/design/concepts.md),
 > [pane.md](../../documentation/package/platform/pane/pane.md),
 > [generic-projections.md](../../documentation/package/platform/projection/generic-projections.md),
@@ -544,7 +547,7 @@ new tab".
     around the navigator around the file. A plain file keeps its history inside
     the file. Option (c), a history that records every edit of its document from
     any view, is its own plan:
-    [a-history-records-every-edit-of-its-document.md](a-history-records-every-edit-of-its-document.md).
+    [a-history-records-every-edit-of-its-document.md](../pending/a-history-records-every-edit-of-its-document.md).
     The option not chosen: (b), the history around the file for every file tab.
   The parts:
   - [x] 6a. The target form of `OpenPageOperation`, `find_navigator_target`
@@ -653,7 +656,7 @@ new tab".
   Enter reads them.
 - [ ] **9. Master and detail.** `ComponentToWidget` on two navigators. Moved out
   of this plan by the owner (Q7, 2026-10-06), to
-  [component-document.md](component-document.md).
+  [component-document.md](../pending/component-document.md).
 - [x] **10. The side buttons of the mouse** (D5): `MouseButtons`, the SDL
   backend and the web backend. Done, 2026-10-06:
   - The event layer names the side buttons `:back` and `:forward`, by what a
@@ -816,7 +819,7 @@ answer to a proposal. Each answer is under its question.
     shown and not edited. The design continues in §10, one decision at a time;
     Q5 and Q6 close into it.
 - **Q7. Step 9, master and detail.** It needs `ComponentToWidget`, which
-  [component-document.md](component-document.md) also plans. Recommendation: do
+  [component-document.md](../pending/component-document.md) also plans. Recommendation: do
   it in that plan, on two navigators, after this branch lands.
   - **Owner, 2026-10-06:** yes, master and detail separately. Step 9 leaves this
     plan.

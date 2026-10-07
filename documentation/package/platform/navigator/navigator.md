@@ -163,7 +163,7 @@ A navigator is a document like any other, so it nests: a tab holds it, a page ca
 - **The list of choices is the context menu of a name.** The owner chose it on 2026-10-06. A popup takes no focus and its answer passes no navigator, and the context menu already carries the path of its part up and lifts the edit of an item to it. The options not chosen: a window of the navigator that takes the focus, with a new operation and a second lift; and the field in the bar, with a list that takes no key.
 - **No search for an object.** An open of an object that is not on the address makes the object a new content. A search over a frame of ten million rows reads every value.
 
-The plan with the alternatives is [plan/pending/a-navigator-with-back-forward-parent-and-links.md](../../../../plan/pending/a-navigator-with-back-forward-parent-and-links.md).
+The plan with the alternatives is [plan/done/a-navigator-with-back-forward-parent-and-links.md](../../../../plan/done/a-navigator-with-back-forward-parent-and-links.md).
 
 ## Usage
 
