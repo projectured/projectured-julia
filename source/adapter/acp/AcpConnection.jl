@@ -30,7 +30,9 @@ one, and the generics of the kernel's `AgentModule` drive it.
                   agent in this process; `nothing` starts `command`.
 
 `agent_info`, `agent_capabilities` and `auth_methods` hold what the agent said in
-`initialize`. `turns` holds the prompt that runs in each session.
+`initialize`. `turns` holds the prompt that runs in each session, and
+`withdrawable_replies` the reply of each request that waits for a person, by
+its JSON-RPC id, so the agent can withdraw it with `\$/cancel_request`.
 """
 mutable struct AcpConnection
     command::Vector{String}
@@ -43,6 +45,7 @@ mutable struct AcpConnection
     agent_capabilities::Dict{String,Any}
     auth_methods::Vector{Any}
     turns::Dict{String,AcpTurn}
+    withdrawable_replies::Dict{Any,Function}
     turns_lock::ReentrantLock
 end
 
@@ -54,7 +57,7 @@ make_agent_connection(::Val{:acp}; command::AbstractVector{<:AbstractString} = S
     AcpConnection(String.(command), Dict{String,String}(environment), String(directory),
                   _read_session_meta(session_meta), streams, nothing,
                   Dict{String,Any}(), Dict{String,Any}(), Any[],
-                  Dict{String,AcpTurn}(), ReentrantLock())
+                  Dict{String,AcpTurn}(), Dict{Any,Function}(), ReentrantLock())
 
 _read_session_meta(meta::AbstractDict) = Dict{String,Any}(meta)
 function _read_session_meta(text::AbstractString)
@@ -106,7 +109,7 @@ end
 
 function _open_connection_transport(connection::AcpConnection)
     handlers = (; on_notification = (method, params) -> _receive_notification(connection, method, params),
-                  on_request = (method, params) -> _answer_request(connection, method, params))
+                  on_request = (method, params, id) -> _answer_request(connection, method, params, id))
     connection.streams === nothing ||
         return open_acp_transport(connection.streams...; handlers...)
     isempty(connection.command) && error("The agent has no command.")
@@ -216,9 +219,16 @@ function _get_started_transport(connection::AcpConnection)
     transport
 end
 
-# A `session/update` goes to the prompt that runs in its session. An update
+# A `session/update` goes to the prompt that runs in its session, and a
+# `$/cancel_request` withdraws the request of the agent that it names. An update
 # outside a prompt, and every other notification, is dropped unread.
 function _receive_notification(connection::AcpConnection, method::String, params::Dict{String,Any})
+    if method == "\$/cancel_request"
+        request_id = get(params, "requestId", nothing)
+        reply = lock(() -> get(connection.withdrawable_replies, request_id, nothing), connection.turns_lock)
+        reply === nothing || reply(nothing)
+        return nothing
+    end
     method == "session/update" || return nothing
     session_id = string(get(params, "sessionId", ""))
     turn = lock(() -> get(connection.turns, session_id, nothing), connection.turns_lock)
@@ -231,16 +241,17 @@ end
 # The requests of the agent that the client answers. A request for a file or a
 # terminal gets "method not found", because the client offers neither in
 # `initialize`.
-function _answer_request(connection::AcpConnection, method::String, params::Dict{String,Any})
-    method == "session/request_permission" && return _answer_permission_request(connection, params)
+function _answer_request(connection::AcpConnection, method::String, params::Dict{String,Any}, id)
+    method == "session/request_permission" && return _answer_permission_request(connection, params, id)
     throw(AcpRequestException(ACP_METHOD_NOT_FOUND, "The client has no method `$(method)`."))
 end
 
 const ACP_CANCELLED_OUTCOME = Dict{String,Any}("outcome" => Dict{String,Any}("outcome" => "cancelled"))
 
 # The request goes to the person as an `AgentPermissionRequest`, and the task of
-# the request waits for the reply. A request outside a prompt is cancelled.
-function _answer_permission_request(connection::AcpConnection, params::Dict{String,Any})
+# the request waits for the reply. A request outside a prompt is cancelled, and
+# so is a request that the agent withdraws.
+function _answer_permission_request(connection::AcpConnection, params::Dict{String,Any}, id)
     session_id = string(get(params, "sessionId", ""))
     turn = lock(() -> get(connection.turns, session_id, nothing), connection.turns_lock)
     turn === nothing && return ACP_CANCELLED_OUTCOME
@@ -256,12 +267,18 @@ function _answer_permission_request(connection::AcpConnection, params::Dict{Stri
         put!(choice, option_id === nothing ? nothing : String(option_id))
         true
     end
-    lock(() -> push!(turn.waiting_replies, reply), connection.turns_lock)
+    lock(connection.turns_lock) do
+        push!(turn.waiting_replies, reply)
+        connection.withdrawable_replies[id] = reply
+    end
     turn.on_event(AgentPermissionRequest(
         tool_call isa Dict{String,Any} ? _read_tool_call(tool_call) : AgentToolCallUpdate(""),
         options, reply))
     option_id = take!(choice)
-    lock(() -> filter!(waiting -> waiting !== reply, turn.waiting_replies), connection.turns_lock)
+    lock(connection.turns_lock) do
+        filter!(waiting -> waiting !== reply, turn.waiting_replies)
+        delete!(connection.withdrawable_replies, id)
+    end
     option_id === nothing && return ACP_CANCELLED_OUTCOME
     Dict{String,Any}("outcome" => Dict{String,Any}("outcome" => "selected", "optionId" => option_id))
 end

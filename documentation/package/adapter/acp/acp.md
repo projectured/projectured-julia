@@ -65,7 +65,7 @@ A `session/request_permission` request of the agent waits on a task of its own. 
 4. The first call of `reply` puts the id of the chosen option, or `nothing`, into the channel, and answers `true`. A later call does nothing and answers `false`, so the assistant can show that an answer came after a cancel.
 5. The answer is `selected` with the option id, or `cancelled` for `nothing`.
 
-The wait has a bound. `cancel_agent_prompt!`, the end of the prompt and `stop_agent_connection!` each call `reply(nothing)` for every request that waits. So a request never waits after its turn.
+The wait has a bound. `cancel_agent_prompt!`, the end of the prompt and `stop_agent_connection!` each call `reply(nothing)` for every request that waits. So a request never waits after its turn. The agent can also withdraw one request with the notification `$/cancel_request` and its JSON-RPC id: the connection keeps the reply of each waiting request by that id, calls `reply(nothing)`, and the agent gets the valid answer `cancelled`.
 
 A worked example: the agent asks to run `execute_julia_code` with the options `allow_once` and `reject_once`. The assistant draws a card with two buttons. The person clicks the first one, `reply("allow_once")` runs, and the agent gets `{"outcome": {"outcome": "selected", "optionId": "allow_once"}}`. If the person presses Escape before the click, the turn is cancelled, `reply(nothing)` runs, and the agent gets `{"outcome": {"outcome": "cancelled"}}`.
 
@@ -90,6 +90,8 @@ assistant = Assistant(; backend = :acp)         # runs "claude-agent-acp"
 assistant = Assistant(; backend = :acp, agent_command = "my-agent --acp")
 run_application(; assistant = :acp)
 ```
+
+From the shell, `bin/projectured --assistant=acp` and a built `projectured` do the same: the program carries `ProjecturedACP`, and `--agent-command=COMMAND` names the command of the agent for one run.
 
 The default `agent_command` is `"claude-agent-acp"`. The command must be installed, and the adapter `@agentclientprotocol/claude-agent-acp` needs Node.js 22 or newer. The person signs in with the flow of the agent. For Claude, that is `claude /login` in a terminal, or an existing sign-in of the machine. The tab of the assistant shows an error turn that says how to sign in when the agent needs it.
 

@@ -32,8 +32,9 @@ that reads what the agent writes.
 
 `on_notification(method, params)` gets each notification of the agent, on the
 reader task and in the order the agent wrote them, so a handler must not wait.
-`on_request(method, params)` answers each request of the agent with a result,
-or throws an `AcpRequestException`. It runs on a task of its own, so it can
+`on_request(method, params, id)` answers each request of the agent with a
+result, or throws an `AcpRequestException`. `id` is the JSON-RPC id of the
+request, by which the agent can withdraw it with `\$/cancel_request`. It runs on a task of its own, so it can
 wait for a person.
 """
 mutable struct AcpTransport
@@ -259,7 +260,7 @@ end
 function _answer_acp_request!(transport::AcpTransport, id, method::String, params::Dict{String,Any})
     answer = try
         Dict{String,Any}("jsonrpc" => "2.0", "id" => id,
-                         "result" => transport.on_request(method, params))
+                         "result" => transport.on_request(method, params, id))
     catch exception
         failure = exception isa AcpRequestException ? exception :
                   AcpRequestException(ACP_INTERNAL_ERROR, "The client failed to answer `$(method)`.")

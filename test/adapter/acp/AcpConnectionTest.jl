@@ -173,6 +173,31 @@ function test_acp_connection()
             stop_agent_connection!(connection)
         end
 
+        @testset "the agent withdraws a request that waits" begin
+            outcome = Ref{Any}(nothing)
+            requests = AgentPermissionRequest[]
+            agent = _make_fake_agent(Dict{String,Function}(
+                "session/prompt" => function (agent, params)
+                    asked = @async ask_fake_client(agent, "session/request_permission", Dict(
+                        "sessionId" => params["sessionId"],
+                        "toolCall" => Dict("toolCallId" => "t1"),
+                        "options" => [Dict("optionId" => "allow", "name" => "Allow", "kind" => "allow_once")]))
+                    _wait_until(() -> !isempty(requests))
+                    send_fake_message(agent, Dict("jsonrpc" => "2.0", "method" => "\$/cancel_request",
+                                                  "params" => Dict("requestId" => agent.next_id)))
+                    outcome[] = fetch(asked)["result"]["outcome"]
+                    Dict("stopReason" => "end_turn")
+                end))
+            connection = make_fake_connection(agent)
+            session_id = open_agent_session!(connection)
+            send_agent_prompt!(connection, session_id, [LlmText("Edit")];
+                               on_event = event -> event isa AgentPermissionRequest && push!(requests, event))
+            @test outcome[] == Dict{String,Any}("outcome" => "cancelled")
+            @test only(requests).reply("allow") == false
+            @test isempty(connection.withdrawable_replies)
+            stop_agent_connection!(connection)
+        end
+
         @testset "the client refuses a file and a terminal" begin
             answers = Dict{String,Any}()
             agent = _make_fake_agent(Dict{String,Function}(

@@ -541,6 +541,25 @@ naming law. All are fixed except one part of #3, which phase 2 keeps:
     `_find_object` became `_get_object`, and `_find_free_port` became
     `_choose_free_port`, because neither answers `nothing`.
 
+### The command line (the owner, 2026-10-07)
+
+The owner asked on 2026-10-07, when phase 1 landed, for a way to use the agent
+from the command line of the projectured UI.
+
+- [x] **C.1 `--assistant=acp` and `--agent-command`.** Done.
+  `parse_application_arguments` takes `--agent-command=COMMAND`, one argument
+  that the shell quotes, and `run_application` and `make_application_settings`
+  take `agent_command`. The command line wins over `StartSettings` for its run,
+  as `--model` does. The program of `bin/projectured` and of a build carries
+  `ProjecturedACP` beside the other model adapters, so `--assistant=acp` works
+  in both. This is no AutoIntegration: a binary holds a fixed set of packages,
+  and Q6 is about the umbrella in a Julia session. `PROJECTURED_OPTIONS`,
+  `PROJECTURED_REQUIREMENTS`, the option table of application.md, the assistant
+  guide and the README say how.
+- On this machine the adapter is in the Node.js prefix of the home folder, so
+  `PATH="$HOME/.local/opt/node/bin:$PATH" bin/projectured --assistant=acp`
+  starts it.
+
 ### Phase 2: the agent as a full partner
 
 - [ ] 2.1 Config options as a card: model, effort, mode.
@@ -549,7 +568,11 @@ naming law. All are fixed except one part of #3, which phase 2 keeps:
 - [ ] 2.4 Save, load, resume and delete.
 - [ ] 2.5 Terminal sign-in and logout (R3).
 - [ ] 2.6 Elicitation forms.
-- [ ] 2.7 Request cancel, and the prompt queue.
+- [ ] 2.7 Request cancel, and the prompt queue. **The request cancel is done:**
+  the agent withdraws a permission request with `$/cancel_request` and its
+  JSON-RPC id, the connection replies `nothing`, and the agent gets the valid
+  answer `cancelled`. The transport gives the handler the id of each request.
+  The prompt queue is open.
 - [ ] 2.8 The ACP Registry as a source for the list of agents.
 - [ ] 2.9 A hook for the close of a document, so the close of a tab stops its
   agent and its MCP server (review #3).
