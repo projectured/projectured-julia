@@ -63,6 +63,7 @@ export TextTheme, ScaledTextTheme
 export ReferenceTheme, ScaledReferenceTheme
 export TextToGraphics, TextToGraphicsIoMap
 export TextGutter, TextGutterToGraphics, TextBlockToScrollLayout, TextBlockToScrollLayoutIoMap
+export TextFold, TextFolding, TextFoldingIoMap
 export TextBlockToString, TextStringToString, TextNewlineToString, TextSpacingToString, TextGraphicsToString,
        TextLineToString, TextToString
 export TextLineNumbering, LineNumbering
@@ -88,6 +89,7 @@ include("TextBlockToScrollLayout.jl")
 include("TextToString.jl")
 include("FaultToText.jl")
 include("TextLineNumbering.jl")
+include("TextFolding.jl")
 include("WordWrapping.jl")
 include("TextFiltering.jl")
 include("TextFirstLine.jl")

@@ -1,8 +1,8 @@
 # A text folds a region of its lines
 
-> **Kind:** plan · **Status:** pending, 2026-10-07. A design in progress with the
-> owner. The owner decided T1 to T5 on 2026-10-07; §7 holds the steps, which
-> nobody started. The names are tentative. ·
+> **Kind:** plan · **Status:** pending, 2026-10-07. The owner decided T1 to T5 on
+> 2026-10-07; §7 holds the steps. Steps 1 and 2 are done on the branch
+> `text-gutter`; steps 3 and 4 wait for `SyntaxToText` to emit lines. ·
 > **Stands on:** [text.md](../../documentation/package/platform/text/text.md),
 > [syntax.md](../../documentation/package/platform/syntax/syntax.md),
 > [a-text-has-a-gutter-beside-its-lines.md](a-text-has-a-gutter-beside-its-lines.md),
@@ -302,10 +302,13 @@ a region shows `…`, which is (a).
 Each step on its own commit, each with its test. Step 3 needs `SyntaxToText` to
 emit lines (D7 of the gutter plan).
 
-1. **The region of a line.** `TextLine` gets its `fold` field: nothing or a
+1. ✅ **Done (2026-10-07, branch `text-gutter`). The region of a line.** `TextLine` gets its `fold` field: nothing or a
    region with the count of the lines after the first, the `collapsed` cell and
    an optional placeholder (T1, T5). Test: the text document tests.
-2. **`TextFolding`.** It drops the lines that a closed region hides, with a table
+   *What the implementation found:* the region is the document `TextFold`
+   (`line_count`, `collapsed`, `placeholder`), and `TextLine.fold` holds it. A
+   fold is no candidate of the insertion, as a line and a gutter are not.
+2. ✅ **Done (2026-10-07, branch `text-gutter`). `TextFolding`.** It drops the lines that a closed region hides, with a table
    of the input index of each output element, and maps a reference through it
    (T2). Its reader steps the caret over a closed region with all four arrows. It
    fills the `fold` field of the gutter with the triangle, puts the placeholder at
@@ -314,6 +317,23 @@ emit lines (D7 of the gutter plan).
    example of hand-made lines with nested regions and numbers. Test: a test of
    its own, with `TextLineNumbering` before it, which asserts that the numbers
    after a closed region stay.
+   *What the implementation found:* the flat runs of `TextFiltering`
+   (`_make_flat_runs`) count the implied break of a `TextLine`, so one run for
+   each line shown maps a caret, a range and a box; a path into a line that is no
+   text selection, such as one into its gutter, maps by the index of the line.
+   The triangle is a `TextBlock` whose text follows `collapsed`, filled into the
+   gutter as `TextLineNumbering` fills the numbers. The defaults are the text
+   glyphs ▾ and ▸, because the icon table is in the widget slice, which the text
+   can not name; a builder can give the Lucide chevrons and their font. A click
+   that selects a caret past the end of the input line of a closed fold is on its
+   placeholder. A write of a value of a part of a line, such as a widget in the
+   gutter, maps by the index of the line. The example `text_folding_example` is a
+   small JSON text with a fold of the object and a nested fold of the list, whose
+   placeholder `…],` closes the list on its line; its renderer sends a block of
+   lines to the chain and a block of spans, the text of a mark, to the text.
+   Rendered to a PDF: open, the list closed (the next number is 8), and the
+   object closed (`{…}`). Test: `test_text_folding()`, 18 assertions; the
+   printer, reader and navigation tests of the example, 2637, 225 and 100.
 3. **The syntax emits regions.** A keyword of `SyntaxCompoundToText` chooses
    text regions (T4): each collapsible node prints its children and gives its
    first line a region whose `collapsed` cell is its own and whose placeholder is

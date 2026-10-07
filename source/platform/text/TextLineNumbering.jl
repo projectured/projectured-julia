@@ -232,7 +232,7 @@ function _make_numbered_line(p::TextLineNumbering, line::TextLine, numbers::Cell
                                 style.font, style.color))
     field, gutter_type = p.field, p.gutter_type
     gutter = Cell(@computation _make_filled_gutter(line.gutter, field, mark, gutter_type))
-    TextLine(getfield(line, :elements), getfield(line, :indentation), gutter,
+    TextLine(getfield(line, :elements), getfield(line, :indentation), gutter, getfield(line, :fold),
              getfield(line, :selection), getfield(line, :mouse_target))
 end
 

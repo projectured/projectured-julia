@@ -259,7 +259,7 @@ TextBlock(f::Function) = TextBlock(CellVector(Computation(f)), Cell(nothing))
 # ── TextLine ───────────────────────────────────────────────────────────
 
 """
-    TextLine(spans...; indentation = 0, gutter = nothing)
+    TextLine(spans...; indentation = 0, gutter = nothing, fold = nothing)
 
 One line of a `TextBlock`: a sequence of spans that **contains no line break** and
 **implies one before itself**. A block of `n` lines therefore renders with `n-1`
@@ -284,22 +284,28 @@ recursion prints to graphics, such as a [`TextGutter`](@ref), or `nothing`. It i
 a property of the line too: it is not in the caret space and not in the flat
 string, and it stays with the line when lines are added above it.
 `TextBlockToScrollLayout` draws it at the height of the line.
+
+`fold` is the [`TextFold`](@ref) that starts at this line, or `nothing`: a region
+of this line and the lines after it, which `TextFolding` hides but this one when
+it is closed.
 """
 @document struct TextLine <: TextDocument
     elements::CollectionDocument = CellVector()
     indentation::Int = 0
     gutter::Union{Document, Nothing} = nothing
+    fold::Union{Document, Nothing} = nothing
 end
 
-TextLine(spans::Vector{<:TextDocument}; indentation::Integer = 0, gutter = nothing) =
+TextLine(spans::Vector{<:TextDocument}; indentation::Integer = 0, gutter = nothing, fold = nothing) =
     TextLine(CellVector(Cell[Cell(s) for s in spans]), Cell(Int(indentation)), Cell(gutter),
+             Cell(fold), Cell(nothing))
+
+TextLine(spans::TextDocument...; indentation::Integer = 0, gutter = nothing, fold = nothing) =
+    TextLine(collect(TextDocument, spans); indentation, gutter, fold)
+
+TextLine(f::Function; indentation::Integer = 0, gutter = nothing, fold = nothing) =
+    TextLine(CellVector(Computation(f)), Cell(Int(indentation)), Cell(gutter), Cell(fold),
              Cell(nothing))
-
-TextLine(spans::TextDocument...; indentation::Integer = 0, gutter = nothing) =
-    TextLine(collect(TextDocument, spans); indentation, gutter)
-
-TextLine(f::Function; indentation::Integer = 0, gutter = nothing) =
-    TextLine(CellVector(Computation(f)), Cell(Int(indentation)), Cell(gutter), Cell(nothing))
 
 # A lone line is not a document — it is a part of a block. Both of its fields are
 # defaulted, so unlike the span types (each has a required field, and so no
@@ -331,6 +337,27 @@ end
 # A gutter is a part of a line, not a document to insert on its own; like a line,
 # it has only defaulted fields and would be a candidate of the insertion.
 DomainModule.insertable(::Type{<:TextGutter}) = false
+
+# ── TextFold ───────────────────────────────────────────────────────────
+
+"""
+    TextFold(; line_count = 0, collapsed = false, placeholder = nothing)
+
+A region of lines that can fold: the line whose `fold` it is and the
+`line_count` lines after it. While it is `collapsed`, `TextFolding` hides all its
+lines but the first one, and puts `placeholder` at the end of the first one, or
+`…` when it is `nothing`. The lines stay in the text, so a number counts them.
+A projection that makes the region can give it the `collapsed` cell of the part
+it shows, so the state stays in the document. `ToggleCollapseOperation` flips it.
+"""
+@document struct TextFold <: TextDocument
+    line_count::Int = 0
+    collapsed::Bool = false
+    placeholder::Union{Document, Nothing} = nothing
+end
+
+# A fold is a part of a line, not a document to insert on its own.
+DomainModule.insertable(::Type{<:TextFold}) = false
 
 # ── Span coordinates ──────────────────────────────────────────────────────
 #

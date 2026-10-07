@@ -234,6 +234,7 @@ include("../../../test/platform/projection/AnchoredLayoutTest.jl")
 include("../../../test/platform/projection/ScrollLayoutTest.jl")
 include("../../../test/platform/projection/ScrollPanePartsTest.jl")
 include("../../../test/platform/projection/TextGutterTest.jl")
+include("../../../test/platform/projection/TextFoldingTest.jl")
 # ── interaction decorators (clipboard / tooltip) ─────────────────────────────
 # The clipboard copy/cut/paste projection and the tooltip decorator's
 # open/close state machine — both live in visual now and use only base/visual

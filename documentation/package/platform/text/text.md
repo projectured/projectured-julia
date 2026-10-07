@@ -17,6 +17,7 @@ The text slice of `ProjecturedPlatform` holds styled text as a flat sequence of 
 | `TextGraphics` | a graphics document, such as an image, inline as one glyph and one caret position; it has no font and no colour |
 | `TextLine` | one line of spans, with an `indentation` and a `gutter` |
 | `TextGutter` | the gutter of a line of code: a `marker`, a `number` and a `fold`, each a mark or `nothing` |
+| `TextFold` | a region of lines that folds: its `line_count` after its first line, `collapsed`, and a `placeholder` |
 
 A `TextString` keeps `content` in a reactive `Cell`, because you type into it. `font` and `font_color` are an `ImmutableCell` by default: the style of a span is authored and not edited, so no glyph gets a dependency edge on it. Pass a `Cell` to make one of them reactive.
 
@@ -94,6 +95,12 @@ The IO map holds `char_to_coord`, one `SegmentCoordinate` for each drawn piece: 
 
 `TextBlockToScrollLayout(; measure, …)` draws a `TextBlock` as a [`ScrollLayout`](../layout/layout.md#the-scroll-layout): the center is the canvas of the lines, laid out as `TextToGraphics` lays them out, and the left edge holds the gutter of each line, with its first baseline on the first baseline of the line. The left edge is as high as the lines and as wide as the gutter of the first line that has one. A `WidgetScrollPane` keeps it at its left edge while the lines scroll; anywhere else a chain ends with `LayoutToGraphics`, which draws it at the left of the lines. A click on a gutter goes to the projection of the gutter and on to the mark at the point, re-rooted into `.elements[i].gutter`; a click that a mark does not take selects the mark, so the stage that made it can answer. A key goes to the gutter that the selection is in, and else to the lines. A chain that holds gutters needs a recursion, because the recursion prints each gutter and each mark.
 
+### Folds
+
+**A text fold hides lines that the text holds.** `TextLine.fold` holds the `TextFold` that starts at the line, or `nothing`; the fold holds the line and the `line_count` lines after it, and at most one fold starts at a line. `TextFolding` drops the lines that a closed fold hides after its first line, and a closed fold inside a hidden region with them. The lines stay in its input, so a stage before it counts them: `TextLineNumbering` before `TextFolding` gives the lines after a closed fold their own numbers. This is not the syntax fold, where a closed node prints no children, so its lines are not in the text and the numbers after it change.
+
+`TextFolding` puts a triangle, open or closed, in the `fold` field of the gutter of the first line of each fold, and the placeholder of a closed fold at the end of its first line: the spans of the `placeholder` of the fold, such as `…],` for a list, or `…`. A click on the triangle or on the placeholder answers `ToggleCollapseOperation(fold)`, and the operation with no target that Ctrl+. makes gets the innermost fold around the line of the caret. A projection that makes a fold can give it the `collapsed` cell of the part that it shows, so the state stays in the document. It maps a caret with one run of flat offsets for each line shown, and it reads a key against its output, so a motion steps over a closed fold.
+
 ### The decorators
 
 A decorator is a projection from `TextBlock` to `TextBlock`. You put it before `TextToGraphics` in a chain.
@@ -101,6 +108,7 @@ A decorator is a projection from `TextBlock` to `TextBlock`. You put it before `
 | Projection | What it does |
 | --- | --- |
 | `WordWrapping(; max_width, measure)` | breaks lines at word boundaries, at the maximum of the range on the width (`ctx.maximum_width`), exact or bounded, cut at `max_width` when one is given; with neither, a line does not wrap |
+| `TextFolding(; field, gutter_type, open_mark, closed_mark, theme)` | hides the lines that a closed fold holds after its first line, and puts its triangle in the gutter and its placeholder at the end of the first line |
 | `TextLineNumbering(; width, separator, style, field, gutter_type)` | on a block of lines, puts the number of each line in the field `field` of its gutter; on a block of spans, puts a number span before each line |
 | `TextFiltering(pattern; invert)` | keeps only the lines that match the pattern |
 | `TextHighlighting(pattern; color)` | sets `fill_color` on each match |
@@ -182,12 +190,13 @@ projection = ChainingProjection(WordWrapping(measure = FontFileMeasure()),
                                 TextToGraphics(measure = FontFileMeasure()))
 ```
 
-- Examples: `text_example`, `plain_text_example`, `text_with_image_example`, the text layout examples of [Layout](#layout) (`text_layout_examples` and `text_spacing_examples`), `word_wrapping_example`, `line_numbering_example`, `text_gutter_example`, `text_filtering_example` and `text_highlighting_example` in `example/platform/`. The atomic catalog has one document for each span type and for `TextLine`.
-- Tests: `test_text()` for the documents and the gesture table, `test_text_to_graphics()`, `test_text_line_model()`, `test_inline_image_caret()`, `test_word_wrapping()`, `test_text_filtering()`, `test_text_first_line()`, `test_text_line_numbering()`, `test_text_highlighting()`, `test_selection_inverting()` and `test_text_gutter()` in `test/platform/`, and `test_text_range_selection()` in the umbrella suite.
+- Examples: `text_example`, `plain_text_example`, `text_with_image_example`, the text layout examples of [Layout](#layout) (`text_layout_examples` and `text_spacing_examples`), `word_wrapping_example`, `line_numbering_example`, `text_gutter_example`, `text_folding_example`, `text_filtering_example` and `text_highlighting_example` in `example/platform/`. The atomic catalog has one document for each span type and for `TextLine`.
+- Tests: `test_text()` for the documents and the gesture table, `test_text_to_graphics()`, `test_text_line_model()`, `test_inline_image_caret()`, `test_word_wrapping()`, `test_text_filtering()`, `test_text_first_line()`, `test_text_line_numbering()`, `test_text_highlighting()`, `test_selection_inverting()`, `test_text_gutter()` and `test_text_folding()` in `test/platform/`, and `test_text_range_selection()` in the umbrella suite.
 
 ## Limits
 
 - A text of a lazy list has no gutter: `TextBlockToScrollLayout` draws only its lines.
+- A caret that an edit or a search puts into a line that a fold hides does not open the fold.
 - Outside a scroll pane, a text that wraps wraps at the whole width that it is offered, so its gutter makes it wider than the offer by the width of the gutter. A scroll pane offers the text the width beside the gutter.
 - The gutter has no colors of its own in `TextTheme` yet: no background and no rule between it and the lines.
 - An edit over a range that crosses two spans does nothing, also a range of text and an image.
