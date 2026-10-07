@@ -40,7 +40,7 @@ export LayoutDocument, FormLayout, LayoutExpr, make_layout_anchor, constrain, al
        SizePolicy, Fixed, Content, Relative, Fill,
        AnchoredEntry, AnchoredLayout, compute_anchored_positions,
        ScrollLayout, SCROLL_LAYOUT_PARTS, compute_scroll_layout_extents,
-       get_scroll_layout_place, find_scroll_layout_part_at
+       get_scroll_layout_cell, get_scroll_layout_place, find_scroll_layout_part_at
 export SolverAnchor, SolverRelation, ConstraintSolver, FallbackConstraintSolver,
        solve_constraint_layout
 export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,

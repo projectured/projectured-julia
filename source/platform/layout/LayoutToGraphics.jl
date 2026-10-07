@@ -2442,8 +2442,11 @@ function _scroll_layout_build(recursion, doc::ScrollLayout, ctx)
         iomaps[index] = _recurse_child(recursion, child, cctx)
     end
     # The extents of the parts around the center, which the range of the center
-    # is reduced by.
-    around = Cell(@computation compute_scroll_layout_extents(_get_scroll_part_sizes(iomaps)))
+    # is reduced by. They are read from a copy that never holds the center: the
+    # center can take its width from its range, and a cell of the range that read
+    # the center would read itself.
+    around_iomaps = copy(iomaps)
+    around = Cell(@computation compute_scroll_layout_extents(_get_scroll_part_sizes(around_iomaps)))
     center = doc.center
     if center !== nothing
         inset_w = Cell(@computation (e = around[]; Int32(e[1][1] + e[1][3])))

@@ -41,8 +41,20 @@ function read_intent(p::_SlProbe, iomap, evt::MouseClick)
 end
 read_intent(::_SlProbe, iomap, payload) = nothing
 
+# A part that fills the width of its range, as a text that wraps does: a rectangle
+# prints as a canvas as wide as the maximum of the range.
+struct _SlFill <: Projection end
+
+function print_document(p::_SlFill, recursion, input::GraphicsRect, ctx)
+    edge = ctx.maximum_width
+    canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), Cell(@computation Int32(edge[])),
+                            Cell(Int32(10)), CellVector(Cell[Cell(input)]), layout_none, true,
+                            Cell(nothing))
+    SimpleIoMap(p, input, canvas)
+end
+
 _sl_renderer(probe) = RecursiveProjection(TypeDispatchingProjection(vcat(
-    LayoutToGraphics().dispatch, Pair{Type, Any}[GraphicsCanvas => probe])))
+    LayoutToGraphics().dispatch, Pair{Type, Any}[GraphicsCanvas => probe, GraphicsRect => _SlFill()])))
 
 _sl_index(part) = findfirst(==(part), SCROLL_LAYOUT_PARTS)
 
@@ -115,6 +127,18 @@ function test_scroll_layout()
         @test Int(center_context.maximum_width[]) == 250
         @test Int(center_context.maximum_height[]) == 385
         @test probe.contexts[objectid(left)].maximum_width === nothing
+    end
+
+    @testset "a center that fills its range reads no extent of its own" begin
+        # The range of the center is the range of the layout less the edges; a
+        # range that read the center's own width would make a cycle of cells.
+        layout = ScrollLayout(; center = GraphicsRect(0, 0, 5, 5; color = color_black),
+                              left = _sl_part(30, 10), right = _sl_part(20, 10))
+        renderer = _sl_renderer(_SlProbe())
+        context = with_exact_size(PrinterContext(); width = Cell(Int32(300)))
+        output = print_document(renderer, renderer, layout, context).output
+        @test Int(output.w[]) == 300
+        @test _sl_positions(output) == [(0, 0), (30, 0), (280, 0)]
     end
 
     @testset "a reference into a part maps to the node that draws it, and back" begin

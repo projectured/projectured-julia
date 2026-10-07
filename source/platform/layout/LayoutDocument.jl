@@ -968,10 +968,13 @@ layout name a part by its index here.
 const SCROLL_LAYOUT_PARTS = (:top_left, :top, :top_right, :left, :center, :right,
                              :bottom_left, :bottom, :bottom_right)
 
-# The column (1 left, 2 middle, 3 right) and the row (1 top, 2 middle, 3 bottom)
-# of the part at `index` of `SCROLL_LAYOUT_PARTS`.
-_get_scroll_part_column(index::Integer) = mod1(index, 3)
-_get_scroll_part_row(index::Integer) = div(index - 1, 3) + 1
+"""
+    get_scroll_layout_cell(index) -> (column, row)
+
+The column (1 left, 2 middle, 3 right) and the row (1 top, 2 middle, 3 bottom) of
+the part at `index` of [`SCROLL_LAYOUT_PARTS`](@ref).
+"""
+get_scroll_layout_cell(index::Integer) = (mod1(index, 3), div(index - 1, 3) + 1)
 
 """
     compute_scroll_layout_extents(sizes) -> (widths, heights)
@@ -987,7 +990,7 @@ function compute_scroll_layout_extents(sizes)
     heights = [0, 0, 0]
     for (index, size) in enumerate(sizes)
         size === nothing && continue
-        column, row = _get_scroll_part_column(index), _get_scroll_part_row(index)
+        column, row = get_scroll_layout_cell(index)
         widths[column] = max(widths[column], Int(size[1]))
         heights[row] = max(heights[row], Int(size[2]))
     end
@@ -1001,7 +1004,7 @@ Where the part at `index` of `SCROLL_LAYOUT_PARTS` stands in the layout that put
 the parts together: the left edge of its column and the top edge of its row.
 """
 function get_scroll_layout_place(index::Integer, widths, heights)
-    column, row = _get_scroll_part_column(index), _get_scroll_part_row(index)
+    column, row = get_scroll_layout_cell(index)
     (sum(widths[1:column-1]; init = 0), sum(heights[1:row-1]; init = 0))
 end
 
