@@ -481,6 +481,7 @@ function _multi_window_projection(projections::Vector; measure=FontFileMeasure()
     for i in 1:n
         targets[i] = @reference ::ScreenDocument.windows::CellVector[i]::WindowDocument.content::Document
     end
+    opened = _make_opened_window_dispatch(measure)
     ref_dispatch = ReferenceDispatchingProjection(ref -> begin
         # Exact match — apply that window's example projection here. The
         # NestingProjection (recursion=IdentityProjection) lets the inner
@@ -497,8 +498,9 @@ function _multi_window_projection(projections::Vector; measure=FontFileMeasure()
         # shell and recurses each window's content back through this dispatch.
         ref isa EmptyReference &&
             return WindowManagingProjection(inner = ScreenToScreen())
-        # Anything outside a window's content target — preserve.
-        return IdentityProjection()
+        # Anything outside a window's content target: the content of a window
+        # that opens later, such as a menu, draws by its type.
+        return opened
     end)
     # A type seam in front of the reference dispatch so dynamically-opened windows
     # render by content type: a `WindowDocument` (re-projected by the manager when
@@ -516,6 +518,17 @@ end
 # The type entry that renders the gesture-help window's content. Every composer
 # carries it, so `gesture_help=true` works whichever one the flags pick.
 _gesture_map_entry(measure) = GestureMap => make_gesture_map_projection(measure)
+
+# What draws the content of a window that opens later and holds no example: the
+# menu of a right click, the options of a select and the menu of a menu bar
+# through the rows of the widgets and the layouts, and a tooltip through the
+# natural projection; any other document stays as it is. Every composer carries
+# it, so a popup draws whichever one the flags pick.
+_make_opened_window_dispatch(measure) =
+    TypeDispatchingProjection(
+        make_opened_window_projections(; gesture_help = false, measure,
+                                       content = Pair{Type,Any}[make_natural_tooltip_row(; measure)])...,
+        Any => IdentityProjection())
 
 # ── Tooltip variant ──────────────────────────────────────────────────────
 #
@@ -563,6 +576,7 @@ function _multi_window_projection_tooltipped(projections::Vector; measure=FontFi
         position = _ -> (100, 100, 1200, 600),
         title    = "Selection",
     )
+    opened = _make_opened_window_dispatch(measure)
     ref_dispatch = ReferenceDispatchingProjection(ref -> begin
         for i in 1:n
             is_reference_equal(strip_reference_types(ref), strip_reference_types(targets[i])) || continue
@@ -573,7 +587,7 @@ function _multi_window_projection_tooltipped(projections::Vector; measure=FontFi
             is_reference_prefix(ref, t) || continue
             return CopyingProjection()
         end
-        return IdentityProjection()
+        return opened
     end)
     RecursiveProjection(
         TypeDispatchingProjection(

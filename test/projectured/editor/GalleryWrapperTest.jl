@@ -10,8 +10,9 @@ using Test
 using ProjecturedExample: make_dragging_document, make_dragging_projection,
                           make_shell_document, make_shell_projection,
                           make_command_palette_decorator_projection,
-                          _build_window_scene
+                          _build_window_scene, make_example_editor
 using ProjecturedKernel.ReferenceModule: try_evaluate_reference
+using ProjecturedPlatform.CollectionModule: ListNode
 
 # The number of text leaves a canvas draws. An empty frame counts 0, so this
 # separates "renders the content" from "renders a frame around nothing".
@@ -29,6 +30,24 @@ function _gw_count_texts(x)
         return 1
     end
     0
+end
+
+# Every text a canvas draws, as (x, y, text), through viewports; the rows of a list
+# are left out.
+function _gw_texts(x, ox = 0, oy = 0, found = Tuple{Int,Int,String}[])
+    x isa Cell && return _gw_texts(x[], ox, oy, found)
+    if x isa GraphicsCanvas
+        elements = x.elements isa Cell ? x.elements[] : x.elements
+        elements isa ListNode && return found
+        for e in elements
+            _gw_texts(e, ox + Int(x.x), oy + Int(x.y), found)
+        end
+    elseif x isa GraphicsViewport
+        _gw_texts(x.content, ox + Int(x.x), oy + Int(x.y), found)
+    elseif x isa GraphicsText
+        isempty(string(x.text)) || push!(found, (ox + Int(x.x), oy + Int(x.y), string(x.text)))
+    end
+    found
 end
 
 function _gw_render(projection, document)
@@ -105,6 +124,26 @@ function test_gallery_wrappers()
             @test try_evaluate_reference(screen, lifted) ===
                   try_evaluate_reference(inner, getfield(inner, :selection)[])
         end
+    end
+
+    @testset "a right click opens a menu that draws in its own window" begin
+        # The gallery draws a window that opens later, such as the menu of a
+        # right click, through the rows of the widgets.
+        example = only(e for e in examples if e.name == "pivot")
+        backend = HeadlessBackend()
+        editor = make_example_editor(Any[example.make_document()], Any[example.make_projection()],
+                                     String["pivot"]; backend, width = 1000, height = 700)
+        run_frame!(editor)
+        force(value) = value isa Cell ? force(value[]) : value
+        windows() = collect(force(force(get_iomap_output(editor.iomap)).windows))
+        main = only(windows())
+        (x, y) = first((t[1], t[2]) for t in _gw_texts(main.content) if t[3] == "region")
+        send!(event) = (push_event!(backend, WindowInput(main.id, event)); run_frame!(editor))
+        send!(MouseMove(x + 3, y + 3, MouseButtons(), ModifierKeys(); time = 1.0))
+        send!(MouseDown(:right, x + 3, y + 3, ModifierKeys(); time = 1.1))
+        send!(MouseUp(:right, x + 3, y + 3, ModifierKeys(); time = 1.15))
+        menu = only(window for window in windows() if window.id !== main.id)
+        @test "Show the totals" in [t[3] for t in _gw_texts(menu.content)]
     end
 end
 end
