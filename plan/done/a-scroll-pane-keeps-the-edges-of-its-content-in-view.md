@@ -1,18 +1,18 @@
 # A scroll pane keeps the edges of its content in view
 
-> **Kind:** plan · **Status:** pending, 2026-10-07. The owner decided Q1 to Q6 on
-> 2026-10-07 (§7); §8 holds the steps, which nobody started. The names are
-> tentative. ·
+> **Kind:** plan · **Status:** done, 2026-10-07, on the branch `text-gutter`. The
+> owner decided Q1 to Q6 on 2026-10-07 (§7); §8 holds the steps, and step 4 is
+> for a later plan. ·
 > **Stands on:** [widget.md](../../documentation/package/platform/widget/widget.md),
 > [graphics.md](../../documentation/package/platform/graphics/graphics.md),
 > [projection-system.md](../../documentation/package/kernel/projection-system.md),
 > [architecture-invariants.md](../../documentation/rule/architecture-invariants.md),
-> [a-text-has-a-gutter-beside-its-lines.md](a-text-has-a-gutter-beside-its-lines.md)
+> [a-text-has-a-gutter-beside-its-lines.md](../pending/a-text-has-a-gutter-beside-its-lines.md)
 
 ## 1. The goal
 
 The gutter of a text must move up and down with the text and must not move left
-and right ([a-text-has-a-gutter-beside-its-lines.md](a-text-has-a-gutter-beside-its-lines.md),
+and right ([a-text-has-a-gutter-beside-its-lines.md](../pending/a-text-has-a-gutter-beside-its-lines.md),
 D5). The owner rejected the four ways that plan offered: "I would prefer the
 widget and graphics domain unchanged, no hacks".
 
@@ -459,9 +459,9 @@ Each step on its own commit, each with its test.
    `test_scroll_pane_parts()`, 24 assertions; `test_scroll_layout()`, 29; and 19
    tests of the scroll pane, the table, the shell, the routes and the pointer
    pass unchanged.
-3. **The text gives a `ScrollLayout`**: `TextBlockToScrollLayout`, with the
+3. ✅ **Done (2026-10-07), as step 1 of the gutter plan. The text gives a `ScrollLayout`**: `TextBlockToScrollLayout`, with the
    gutter as the left edge, in
-   [a-text-has-a-gutter-beside-its-lines.md](a-text-has-a-gutter-beside-its-lines.md).
+   [a-text-has-a-gutter-beside-its-lines.md](../pending/a-text-has-a-gutter-beside-its-lines.md).
    `text` gets the edge to `layout` in the table of
    [package-rules.md](../../documentation/rule/package-rules.md) and in the
    layering guard of the platform.

@@ -4,7 +4,7 @@
 > nobody started the steps. The owner decided D1, D2, D3, D8 and D10 on
 > 2026-10-06, and D4, D5, D7 and D11 on 2026-10-07, and D6 through T3 of the
 > fold plan; D5 through
-> [a-scroll-pane-keeps-the-edges-of-its-content-in-view.md](a-scroll-pane-keeps-the-edges-of-its-content-in-view.md),
+> [a-scroll-pane-keeps-the-edges-of-its-content-in-view.md](../done/a-scroll-pane-keeps-the-edges-of-its-content-in-view.md),
 > and D4 led to
 > [a-text-folds-a-region-of-its-lines.md](a-text-folds-a-region-of-its-lines.md).
 > The names are tentative. ·
@@ -256,7 +256,7 @@ own field is its own.
 gutter. Nothing else needs the geometry of a line, and nothing must keep two
 parts in step (R5 by construction).
 
-- **The output is a `ScrollLayout`** ([a-scroll-pane-keeps-the-edges-of-its-content-in-view.md](a-scroll-pane-keeps-the-edges-of-its-content-in-view.md)): the gutter canvas is its left edge,
+- **The output is a `ScrollLayout`** ([a-scroll-pane-keeps-the-edges-of-its-content-in-view.md](../done/a-scroll-pane-keeps-the-edges-of-its-content-in-view.md)): the gutter canvas is its left edge,
   and the canvas of the lines, with the caret and the selection band, is its
   center. Each gutter row stands at the `y` of its line, and the two canvases
   have the same height, so their rows agree by construction. In a
@@ -347,7 +347,7 @@ for a collapsible node in place of a syntax fold. The design of the text fold is
 ### 5.7 Scroll
 
 The gutter is the left edge of a `ScrollLayout`, which `WidgetScrollPane` takes
-apart (D5, [a-scroll-pane-keeps-the-edges-of-its-content-in-view.md](a-scroll-pane-keeps-the-edges-of-its-content-in-view.md)).
+apart (D5, [a-scroll-pane-keeps-the-edges-of-its-content-in-view.md](../done/a-scroll-pane-keeps-the-edges-of-its-content-in-view.md)).
 
 - **Up and down.** The pane moves the left edge and the center by the same `y`,
   so the gutter stays beside its lines (R5).
@@ -403,7 +403,7 @@ The order of the work, each step on its own commit, each with its test.
    of the width wraps each line again and makes no new list. The scroll pane
    offers the width of its center viewport, which reads the width of the
    gutter, so the width of the gutter must not depend on the wrap (Q4 of
-   [a-scroll-pane-keeps-the-edges-of-its-content-in-view.md](a-scroll-pane-keeps-the-edges-of-its-content-in-view.md)).
+   [a-scroll-pane-keeps-the-edges-of-its-content-in-view.md](../done/a-scroll-pane-keeps-the-edges-of-its-content-in-view.md)).
 4. **`SyntaxToText` emits lines: not a step of this plan (D7).** It is step 3
    of Phase 3 of [text-domain-kit.md](text-domain-kit.md), with the join rule of
    an inline child that it names. Steps 5 and 6 wait for it.
@@ -418,7 +418,7 @@ The order of the work, each step on its own commit, each with its test.
 ### The order across the plans (D7)
 
 1. The steps on hand-made lines, in any order between the plans: steps 1 and 2
-   of [a-scroll-pane-keeps-the-edges-of-its-content-in-view.md](a-scroll-pane-keeps-the-edges-of-its-content-in-view.md), steps 1 to 3 of this plan, and steps 1 and 2 of [a-text-folds-a-region-of-its-lines.md](a-text-folds-a-region-of-its-lines.md). Step 1 of this
+   of [a-scroll-pane-keeps-the-edges-of-its-content-in-view.md](../done/a-scroll-pane-keeps-the-edges-of-its-content-in-view.md), steps 1 to 3 of this plan, and steps 1 and 2 of [a-text-folds-a-region-of-its-lines.md](a-text-folds-a-region-of-its-lines.md). Step 1 of this
    plan needs step 1 of the scroll plan.
 2. Step 3 of Phase 3 of [text-domain-kit.md](text-domain-kit.md): `SyntaxToText`
    emits lines, with the join rule of an inline child.
@@ -516,7 +516,7 @@ Every decision is taken. A recommendation that I gave is marked as mine.
 - **D5 Left and right scroll. Decided, the owner, 2026-10-07:** the gutter is
   the left edge of a `ScrollLayout`, and `WidgetScrollPane` takes it apart, so
   the gutter moves up and down with the lines and stays at the left edge (§5.7).
-  The design is [a-scroll-pane-keeps-the-edges-of-its-content-in-view.md](a-scroll-pane-keeps-the-edges-of-its-content-in-view.md), where the owner decided its six questions on 2026-10-07.
+  The design is [a-scroll-pane-keeps-the-edges-of-its-content-in-view.md](../done/a-scroll-pane-keeps-the-edges-of-its-content-in-view.md), where the owner decided its six questions on 2026-10-07.
   How it came there: I offered (a) the scroll pane gives its `x` to its content
   as a property of the printer context, (b) two panes as the table, which needs
   a wrapper that splits the output of `TextToGraphics`, (c) a flag that keeps an
@@ -541,7 +541,7 @@ Every decision is taken. A recommendation that I gave is marked as mine.
   "`SyntaxToText` emits `TextLine`", and rejected a new plan for it: "that
   settles ownership, not direction". That plan also says that the join rule of an
   inline child is missing. The change is not done. Three plans now need it: this
-  plan from its step 5, [a-text-folds-a-region-of-its-lines.md](a-text-folds-a-region-of-its-lines.md) from its step 3, and [a-scroll-pane-keeps-the-edges-of-its-content-in-view.md](a-scroll-pane-keeps-the-edges-of-its-content-in-view.md) in its step 3. These steps do
+  plan from its step 5, [a-text-folds-a-region-of-its-lines.md](a-text-folds-a-region-of-its-lines.md) from its step 3, and [a-scroll-pane-keeps-the-edges-of-its-content-in-view.md](../done/a-scroll-pane-keeps-the-edges-of-its-content-in-view.md) in its step 3. These steps do
   not need it, because they work on hand-made lines: steps 1 to 3 of this plan,
   steps 1 and 2 of the fold plan, and steps 1 and 2 of the scroll plan.
   (a) This plan does it as its step 4, and text-domain-kit says so.

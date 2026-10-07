@@ -40,7 +40,7 @@
 > that plan from its step 5,
 > [a-text-folds-a-region-of-its-lines.md](a-text-folds-a-region-of-its-lines.md)
 > from its step 3, and
-> [a-scroll-pane-keeps-the-edges-of-its-content-in-view.md](a-scroll-pane-keeps-the-edges-of-its-content-in-view.md)
+> [a-scroll-pane-keeps-the-edges-of-its-content-in-view.md](../done/a-scroll-pane-keeps-the-edges-of-its-content-in-view.md)
 > in its step 3.
 
 Three related changes to [package/text/main/Text.jl](../../source/text/Text.jl),
