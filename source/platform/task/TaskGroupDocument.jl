@@ -43,11 +43,15 @@ See also `start_task_group_document!`, `stop_task_group_document!` and
   ends: the total, the finished, running and waiting tasks, the counts of each
   code, the worst code and whether all is expected. It is written only when one
   of them changes, so a view of them is not drawn again at each drain.
-- `selected::Int` — the task the detail of the pane shows, or 0.
+- `selected::Int` — the task the detail of the pane shows, `-1` for the
+  preparation of the group, or 0 for none.
 - `groups` — the `TaskGroupDocument` of each task that is a group, by its place:
   the pane shows it in the detail of that task.
 - `row_filter` — which rows the pane shows: `"all"`, `"running"` or
   `"unexpected"`, as a `PrimitiveString` that the choice of the pane writes.
+- `preparation` — the document of the preparation of the group: a
+  `TaskGroupDocument` when it is a group, a [`TaskDocument`](@ref) when it is
+  one task, or `nothing` when the group has none.
 """
 @document struct TaskGroupDocument <: Document
     title::String
@@ -62,6 +66,7 @@ See also `start_task_group_document!`, `stop_task_group_document!` and
     selected::Int
     row_filter::Any
     groups::Any
+    preparation::Any
 end
 
 const _TASK_GROUP_COUNT = Threads.Atomic{Int}(0)
@@ -90,6 +95,12 @@ function wrap_task_group_document(group::TaskGroup; title::AbstractString = grou
     groups = Dict{Int,Any}(index => wrap_task_group_document(task; title = task.name,
                                                              identifier = string(identifier, ".", index))
                            for (index, task) in enumerate(group.tasks) if task isa TaskGroup)
+    # The preparation has the place 0, before the first task.
+    preparation = group.preparation === nothing ? nothing :
+                  group.preparation isa TaskGroup ?
+                      wrap_task_group_document(group.preparation; title = group.preparation.name,
+                                               identifier = string(identifier, ".0")) :
+                      TaskDocument(group.preparation)
     # The tally starts as the tasks do. Every write of a status keeps it from here
     # on, so the group never has to count its tasks to know whether it is finished.
     tally = Dict{Symbol,Int}(:pending => 0, :running => 0, :done => 0,
@@ -103,8 +114,9 @@ function wrap_task_group_document(group::TaskGroup; title::AbstractString = grou
                             CellVector(Cell[Cell(d) for d in documents]),
                             Cell(group), Cell(tally), Cell(String(identifier)),
                             Cell(summary), Cell(_get_summary_counts(summary)), Cell(0),
-                            Cell(PrimitiveString("all")), Cell(groups))
+                            Cell(PrimitiveString("all")), Cell(groups), Cell(preparation))
     group.on_start = _make_task_group_wiring(doc)
+    preparation === nothing || (group.on_preparation = _make_preparation_wiring(preparation))
     doc
 end
 
@@ -148,6 +160,64 @@ function _make_task_group_wiring(doc::TaskGroupDocument)
             _write_task!(doc, documents[index], snapshot)
         end)
     end
+end
+
+# The preparation is watched as a task is, into its own document, and the tally
+# of the group does not count it. A preparation that is a group writes its own
+# tasks; the first copy of its execution puts them back to waiting, as for an
+# inner group.
+function _make_preparation_wiring(document)
+    store = get_session_task_feed_store()
+    function (execution)
+        first_copy = Ref(true)
+        register_task_execution!(store, execution, snapshot -> begin
+            if document isa TaskGroupDocument
+                if first_copy[]
+                    first_copy[] = false
+                    _reset_tasks!(document, eachindex(get_task_group(document).tasks))
+                end
+                _refresh_status!(document)
+                _write_summary!(document)
+            else
+                write_task_snapshot!(document, snapshot)
+            end
+        end)
+    end
+end
+
+"""
+    get_task_group_preparation(doc) -> TaskGroupDocument, TaskDocument or nothing
+
+The document of the preparation of the group, or `nothing` when it has none.
+"""
+get_task_group_preparation(doc::TaskGroupDocument) = getfield(doc, :preparation)[]
+
+"""
+    describe_task_group_preparation(doc) -> (text, state, expected)
+
+The preparation of a group in words, such as `Before the tasks: building inet —
+ERROR: …`, with its `state`: `:waiting`, `:running`, or the result code it ended
+with; and whether that end was expected. The group must have a preparation.
+"""
+function describe_task_group_preparation(doc::TaskGroupDocument)
+    preparation = get_task_group_preparation(doc)
+    words = "Before the tasks: " * _describe_preparation(get_task_group(doc).preparation)
+    if preparation isa TaskGroupDocument
+        status = getfield(preparation, :status)[]
+        status === :pending && return (words * " — waiting", :waiting, true)
+        status in (:running, :stopping) && return (words * " — running", :running, true)
+        summary = getfield(preparation, :summary)[]
+        summary.is_expected && return (words * " — " * summary.result, summary.result, true)
+        return (words * " — " * summary.result * (summary.reason === nothing ? "" : ": " * summary.reason),
+                summary.result, false)
+    end
+    result = getfield(preparation, :result)[]
+    if result === nothing
+        waiting = getfield(preparation, :status)[] === :pending
+        return (words * (waiting ? " — waiting" : " — running"), waiting ? :waiting : :running, true)
+    end
+    is_expected(result) && return (words * " — " * result.result, result.result, true)
+    (words * " — " * format_task_result(result), result.result, false)
 end
 
 # Every write of a status on a task of a group goes through here or

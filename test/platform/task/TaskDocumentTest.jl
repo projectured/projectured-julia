@@ -129,6 +129,37 @@ function test_task_document()
             @test counts[:done] == 4 && counts[:error] == 1 && counts[:pending] == 0
         end
 
+        @testset "a document of a group follows its preparation, which it does not count" begin
+            tasks = [_TaskGroupProbeTask("a", "exit 0"), _TaskGroupProbeTask("b", "exit 0")]
+            build(code) = TaskGroup([_TaskGroupProbeTask("compile", "exit $code")]; name = "stub",
+                                    action = "Building")
+            document = wrap_task_group_document(TaskGroup(tasks; jobs = 1, preparation = build(0)))
+            preparation = get_task_group_preparation(document)
+            @test preparation isa TaskGroupDocument
+            @test getfield(preparation, :identifier)[] == getfield(document, :identifier)[] * ".0"
+            @test describe_task_group_preparation(document) == ("Before the tasks: building stub — waiting", :waiting, true)
+            wait_task_group_document(start_task_group_document!(document))
+            @test getfield(document, :summary)[].total == 2
+            @test build_task_group_document_counts(document)[:done] == 2
+            @test build_task_group_document_counts(preparation)[:done] == 1
+            @test describe_task_group_preparation(document) == ("Before the tasks: building stub — DONE", "DONE", true)
+
+            failing = wrap_task_group_document(TaskGroup(tasks; jobs = 1, preparation = build(2)))
+            wait_task_group_document(start_task_group_document!(failing))
+            (text, state, expected) = describe_task_group_preparation(failing)
+            @test startswith(text, "Before the tasks: building stub — ERROR") && state == "ERROR" && !expected
+            @test build_task_group_document_counts(failing)[:cancelled] == 2
+            @test get_task_group_document_status(failing) === :finished
+            @test occursin(text, string(TaskModule._describe_task_group(failing, :all, 20)))
+
+            # A preparation that is one task has the document of a task.
+            single = wrap_task_group_document(TaskGroup(tasks; jobs = 1,
+                                                        preparation = _TaskGroupProbeTask("prepare", "exit 0")))
+            @test get_task_group_preparation(single) isa TaskDocument
+            wait_task_group_document(start_task_group_document!(single))
+            @test describe_task_group_preparation(single) == ("Before the tasks: prepare — DONE", "DONE", true)
+        end
+
         @testset "a stop finishes the group" begin
             document = wrap_task_group_document(
                 TaskGroup(_make_task_group_probe_tasks(30); jobs = 5))

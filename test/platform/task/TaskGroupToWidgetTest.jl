@@ -120,6 +120,22 @@ function test_task_views()
             @test count(==("Run all"), words) == 1
         end
 
+        @testset "the card shows the preparation, and the detail its pane" begin
+            build = TaskGroup([_TaskGroupProbeTask("compile", "exit 2")]; name = "stub", action = "Building")
+            document = wrap_task_group_document(TaskGroup(_make_task_group_probe_tasks(0.0); jobs = 1,
+                                                          preparation = build))
+            wait_task_group_document(start_task_group_document!(document))
+            words = _collect_task_view_words(document)
+            @test any(startswith("Before the tasks: building stub — ERROR"), words)
+            @test "Show" in words && "5 CANCEL unexpected" in words
+            select_task_document!(document, -1)
+            words = _collect_task_view_words(document)
+            # The card of the build, under the card of the group, with no actions
+            # of its own.
+            @test "stub" in words && "1 ERROR unexpected" in words
+            @test count(==("Run all"), words) == 1
+        end
+
         @testset "the tab and the Tasks pane follow the group" begin
             document = wrap_task_group_document(
                 TaskGroup(_make_task_group_probe_tasks(0.0); name = "tabbed", jobs = 4))

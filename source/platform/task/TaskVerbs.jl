@@ -100,8 +100,9 @@ end
 
 **What a group of tasks did**: the summary line of `opp_repl` (how many tasks, of
 each result, expected or not, and the time), the reason of what was not
-expected, and then one line for each task that `tasks` names — `:unexpected`,
-`:running` or `:all` — at most `limit` of them.
+expected, the state of the preparation when the group has one (such as the
+build before its runs), and then one line for each task that `tasks` names —
+`:unexpected`, `:running` or `:all` — at most `limit` of them.
 
 Use it to tell the person how a group of tasks went, and which tasks failed.
 
@@ -127,6 +128,8 @@ function _describe_task_group(group::TaskGroupDocument, tasks::Symbol, limit::In
     end
     isempty(s.summary) || push!(lines, s.summary)
     s.reason === nothing || push!(lines, s.reason)
+    get_task_group_preparation(group) === nothing ||
+        push!(lines, first(describe_task_group_preparation(group)))
     indices = _select_task_indices(group, tasks)
     for index in first(indices, limit)
         push!(lines, _format_task_line(group, index))

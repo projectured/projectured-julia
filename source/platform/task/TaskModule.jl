@@ -66,7 +66,7 @@ export TaskGroupDocument, make_task_group_identifier, get_task_group, wrap_task_
        start_task_group_document!, rerun_task_group_document!, stop_task_group_document!,
        wait_task_group_document, select_task_document!, build_task_group_document_counts,
        measure_task_group_document_progress, get_task_group_document_status,
-       find_task_group_document
+       find_task_group_document, get_task_group_preparation, describe_task_group_preparation
 export TaskTheme, ScaledTaskTheme, get_task_style, TaskGroupDocumentToWidgetPane,
        TaskGroupListToWidgetPane, make_task_group_tab_title, make_task_group_list_tab_title,
        format_memory_size, make_task_progress_bar, build_task_graphics_entry

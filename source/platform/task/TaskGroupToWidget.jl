@@ -211,9 +211,48 @@ function _build_summary_card(p, doc::TaskGroupDocument; actions::Bool = true)
     row = HorizontalLayout(actions ? Any[run_all, stop, again, rows] : Any[rows];
                            vertical_align = :center, gap = p.inline_gap)
     progress = make_task_progress_bar(() -> get_summary().progress)
-    WidgetCard(; title = heading,
-               content = VerticalLayout(Any[chips, progress, timing, words, reason, row];
-                                        gap = p.stack_gap, child_width = Fill))
+    preparation = _build_preparation_line(p, doc)
+    lines = preparation === nothing ? Any[chips, progress, timing, words, reason, row] :
+                                      Any[preparation, chips, progress, timing, words, reason, row]
+    WidgetCard(; title = heading, content = VerticalLayout(lines; gap = p.stack_gap, child_width = Fill))
+end
+
+# ── The preparation ──────────────────────────────────────────────────────────
+
+# The line of the preparation of a group: what it is, its state, and why it
+# failed when it did, with a button that shows it in the detail. `nothing` for a
+# group with no preparation.
+function _build_preparation_line(p, doc::TaskGroupDocument)
+    preparation = get_task_group_preparation(doc)
+    preparation === nothing && return nothing
+    state = _make_live_label(() -> _get_preparation_label(p, doc))
+    show = _make_action_button(p, "Show", () -> select_task_document!(doc, -1); enabled = () -> true)
+    HorizontalLayout(Any[state, show]; vertical_align = :center, gap = p.inline_gap)
+end
+
+# The words of the state of the preparation and their colour: muted while it
+# waits and when it ended as expected, the colour of its code when it did not.
+function _get_preparation_label(p, doc::TaskGroupDocument)
+    (text, state, expected) = describe_task_group_preparation(doc)
+    state === :waiting && return (text, p.muted_color)
+    state === :running && return (text, p.running_color)
+    expected && return (text, p.muted_color)
+    codes = get_result_codes(get_task_group(doc).preparation)
+    (text, _get_role_color(p, get_result_role(codes, state)))
+end
+
+# The detail of the preparation: the pane of a preparation that is a group, or
+# the state, the facts and the output of one that is one task.
+function _build_preparation_detail(p, doc::TaskGroupDocument, bounded::Bool)
+    preparation = get_task_group_preparation(doc)
+    preparation === nothing && return Any[_make_label("This group has no preparation.", p.muted_color)]
+    preparation isa TaskGroupDocument && return _build_group_parts(p, preparation, bounded; actions = false)
+    Any[_make_live_label(() -> _get_preparation_label(p, doc)),
+        _build_task_details(p, getfield(preparation, :task)[], preparation),
+        _make_label("stdout", p.muted_color),
+        _build_output_pane(() -> getfield(preparation, :output)[]; weight = 2),
+        _make_label("stderr", p.muted_color),
+        _build_output_pane(() -> getfield(preparation, :error_output)[]; weight = 1)]
 end
 
 # A button that runs `action` while `enabled()` holds. A refused action is a
@@ -320,6 +359,7 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
     detail = VerticalLayout(Any[]; gap = p.stack_gap, child_width = Fill)
     set_cell_computation!(getfield(detail.children, :elements), () -> begin
         index = getfield(doc, :selected)[]
+        index == -1 && return Cell[Cell(x) for x in _build_preparation_detail(p, doc, bounded)]
         documents = getfield(doc, :tasks)[]
         (1 <= index <= length(documents)) ||
             return Cell[Cell(_make_label("Press › on a row to see its task here.", p.muted_color))]
