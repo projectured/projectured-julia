@@ -155,7 +155,8 @@ end
 function record_task_execution_sync!(slot::_TaskGroupSlot, execution, shadow,
                                      before::Symbol, made::Bool)
     doc = slot.group
-    document = _task_documents(doc)[slot.index]
+    # One entry, not a copy of every task document: a sync runs for each task.
+    document = getfield(doc, :tasks)[][slot.index]
     if made
         add_task_execution!(document, execution, shadow)
         inner = find_task_group_document(doc, slot.index)
