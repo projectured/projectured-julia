@@ -259,7 +259,7 @@ TextBlock(f::Function) = TextBlock(CellVector(Computation(f)), Cell(nothing))
 # ── TextLine ───────────────────────────────────────────────────────────
 
 """
-    TextLine(spans...; indentation = 0)
+    TextLine(spans...; indentation = 0, gutter = nothing)
 
 One line of a `TextBlock`: a sequence of spans that **contains no line break** and
 **implies one before itself**. A block of `n` lines therefore renders with `n-1`
@@ -278,20 +278,28 @@ A block's elements are meant to be *either* spans *or* lines, not a mix. Mixing
 degrades gracefully rather than erroring (a line still breaks before itself), but
 the flat character offsets get hard to reason about, and no projection produces
 such a block.
+
+`gutter` is what the gutter shows beside the line: any document that the
+recursion prints to graphics, such as a [`TextGutter`](@ref), or `nothing`. It is
+a property of the line too: it is not in the caret space and not in the flat
+string, and it stays with the line when lines are added above it.
+`TextBlockToScrollLayout` draws it at the height of the line.
 """
 @document struct TextLine <: TextDocument
     elements::CollectionDocument = CellVector()
     indentation::Int = 0
+    gutter::Union{Document, Nothing} = nothing
 end
 
-TextLine(spans::Vector{<:TextDocument}; indentation::Integer = 0) =
-    TextLine(CellVector(Cell[Cell(s) for s in spans]), Cell(Int(indentation)), Cell(nothing))
+TextLine(spans::Vector{<:TextDocument}; indentation::Integer = 0, gutter = nothing) =
+    TextLine(CellVector(Cell[Cell(s) for s in spans]), Cell(Int(indentation)), Cell(gutter),
+             Cell(nothing))
 
-TextLine(spans::TextDocument...; indentation::Integer = 0) =
-    TextLine(collect(TextDocument, spans); indentation)
+TextLine(spans::TextDocument...; indentation::Integer = 0, gutter = nothing) =
+    TextLine(collect(TextDocument, spans); indentation, gutter)
 
-TextLine(f::Function; indentation::Integer = 0) =
-    TextLine(CellVector(Computation(f)), Cell(Int(indentation)), Cell(nothing))
+TextLine(f::Function; indentation::Integer = 0, gutter = nothing) =
+    TextLine(CellVector(Computation(f)), Cell(Int(indentation)), Cell(gutter), Cell(nothing))
 
 # A lone line is not a document — it is a part of a block. Both of its fields are
 # defaulted, so unlike the span types (each has a required field, and so no
@@ -301,6 +309,28 @@ TextLine(f::Function; indentation::Integer = 0) =
 # line. It would also make `text` ambiguous — both `text block` and `text line`
 # start with it. Opt out, as `@domain` does for its own placeholder.
 DomainModule.insertable(::Type{<:TextLine}) = false
+
+# ── TextGutter ─────────────────────────────────────────────────────────
+
+"""
+    TextGutter(; marker = nothing, number = nothing, fold = nothing)
+
+The gutter of a line of code: a lane for a marker, such as a breakpoint or a
+diagnostic, a lane for the number of the line, and a lane for the triangle of a
+fold. Each field holds a mark, any document that the recursion prints to graphics,
+or `nothing`. A stage fills its field by name, and `TextGutterToGraphics` lays the
+lanes out. A view that wants other lanes brings a gutter type of its own and a
+projection for it.
+"""
+@document struct TextGutter <: TextDocument
+    marker::Union{Document, Nothing} = nothing
+    number::Union{Document, Nothing} = nothing
+    fold::Union{Document, Nothing} = nothing
+end
+
+# A gutter is a part of a line, not a document to insert on its own; like a line,
+# it has only defaulted fields and would be a candidate of the insertion.
+DomainModule.insertable(::Type{<:TextGutter}) = false
 
 # ── Span coordinates ──────────────────────────────────────────────────────
 #

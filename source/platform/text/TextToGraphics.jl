@@ -53,6 +53,8 @@ text segment with character range, pixel position, font, and text.
     char_to_coord::Cell  # Cell{Vector{SegmentCoordinate}}
     highlight_offset::Cell  # Cell{Int} — number of highlight rects prepended before text segments
     first_baseline::Cell    # Cell{Union{Int,Nothing}} — the baseline of the first line, from the top
+    lines::Cell             # Cell{Vector} — the line groups (`_line_groups`)
+    line_cells::Any         # L -> the cells of line group L (`layout`, `y`, `h`), or `nothing`
 end
 
 # The baseline of the first line of the text, for a row that aligns its children
@@ -650,7 +652,8 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
         baseline = first_line.layout[].first_baseline
         baseline === nothing ? nothing : Int(first_line.y[]) + baseline
     end))
-    TextToGraphicsIoMap(p, styled, canvas, char_to_coord, highlight_offset, first_baseline)
+    TextToGraphicsIoMap(p, styled, canvas, char_to_coord, highlight_offset, first_baseline,
+                        lines_cell, get_line_cells)
 end
 
 # The pointer regions of the spans of `text` that name a shape: one over each
@@ -686,8 +689,9 @@ end
 #
 # A group is one visual line: the spans that render on it (each tagged with its
 # `SpanPath`, so a span inside a `TextLine` addresses `[i, j]`), the `indentation`
-# it opens with, the `TextNewline` element that terminates it (or `nothing`), and
-# whether an implicit line break precedes it.
+# it opens with, the `TextNewline` element that terminates it (or `nothing`),
+# whether an implicit line break precedes it, and `line`, the index of the
+# `TextLine` element that it lays out, or 0.
 #
 # Lines arrive by two mechanisms and the grouping honours both:
 #   • a `TextNewline` *element* terminates the current line;
@@ -710,23 +714,26 @@ function _line_groups(styled::TextBlock)
     indentation = 0
     break_before = false
     is_line = false
+    line = 0
     for (i, element) in enumerate(styled.elements)
         if element isa TextNewline
             push!(groups, (spans = spans, newline = element, indentation = indentation,
-                           break_before = break_before, is_line = is_line))
+                           break_before = break_before, is_line = is_line, line = line))
             spans = Tuple{SpanPath,Any}[]
             indentation = 0
             break_before = false
             is_line = false
+            line = 0
         elseif element isa TextLine
             if i > 1
                 push!(groups, (spans = spans, newline = nothing, indentation = indentation,
-                               break_before = break_before, is_line = is_line))
+                               break_before = break_before, is_line = is_line, line = line))
                 spans = Tuple{SpanPath,Any}[]
             end
             indentation = element.indentation
             break_before = i > 1
             is_line = true
+            line = i
             for (j, span) in enumerate(element.elements)
                 push!(spans, (Int[i, j], span))
             end
@@ -735,7 +742,7 @@ function _line_groups(styled::TextBlock)
         end
     end
     push!(groups, (spans = spans, newline = nothing, indentation = indentation,
-                   break_before = break_before, is_line = is_line))
+                   break_before = break_before, is_line = is_line, line = line))
     groups
 end
 
@@ -1310,7 +1317,8 @@ function _print_listnode(p::TextToGraphics, styled::TextBlock, ctx)
     head_node = styled.elements::ListNode
     output_head = _build_paragraph_node(p, head_node, 0.0)
     canvas = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0), output_head, layout_vertical, false, Cell(nothing))
-    TextToGraphicsIoMap(p, styled, canvas, Cell(SegmentCoordinate[]), Cell(0), Cell(nothing))
+    TextToGraphicsIoMap(p, styled, canvas, Cell(SegmentCoordinate[]), Cell(0), Cell(nothing),
+                        Cell(NamedTuple[]), nothing)
 end
 
 """

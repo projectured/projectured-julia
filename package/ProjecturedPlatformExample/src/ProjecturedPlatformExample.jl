@@ -60,6 +60,7 @@ include("../../../example/platform/ObjectDocumentExample.jl")
 include("../../../example/platform/ObjectToWidgetDocumentExample.jl")
 include("../../../example/platform/ObjectFieldDocumentExample.jl")
 include("../../../example/platform/LineNumberingDocumentExample.jl")
+include("../../../example/platform/TextGutterDocumentExample.jl")
 include("../../../example/platform/TextToStringDocumentExample.jl")
 include("../../../example/platform/WordWrappingDocumentExample.jl")
 include("../../../example/platform/TextFilteringDocumentExample.jl")
@@ -81,6 +82,7 @@ include("../../../example/platform/ObjectProjectionExample.jl")
 include("../../../example/platform/ObjectToWidgetProjectionExample.jl")
 include("../../../example/platform/ObjectFieldProjectionExample.jl")
 include("../../../example/platform/LineNumberingProjectionExample.jl")
+include("../../../example/platform/TextGutterProjectionExample.jl")
 include("../../../example/platform/TextToStringProjectionExample.jl")
 include("../../../example/platform/WordWrappingProjectionExample.jl")
 include("../../../example/platform/TextFilteringProjectionExample.jl")
@@ -109,7 +111,7 @@ export integers_from_bidirectional, layout_example, lazy_bidirectional_example
 export make_primes_around, is_prime_number, make_lazy_list_view, show_lazy_list!
 export show_beside!
 export lazy_bidirectional_node, lazy_example, lazy_filter, lazy_filter_bidirectional
-export lazy_node, line_numbering_example, make_anchored_layout_document_example
+export lazy_node, line_numbering_example, text_gutter_example, make_anchored_layout_document_example
 export make_clipboard_collection_document_example, make_clipboard_slice_document_example
 export make_collection_document_example, make_cell_table_document_example
 export make_list_node_document_example, make_collection_projection_example

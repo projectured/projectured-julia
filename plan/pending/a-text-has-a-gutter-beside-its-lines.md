@@ -367,7 +367,7 @@ apart (D5, [a-scroll-pane-keeps-the-edges-of-its-content-in-view.md](a-scroll-pa
 
 The order of the work, each step on its own commit, each with its test.
 
-1. **The gutter of a line.** It needs step 1 of the scroll plan, `ScrollLayout`.
+1. ✅ **Done (2026-10-07, branch `text-gutter`). The gutter of a line.** It needs step 1 of the scroll plan, `ScrollLayout`.
    `TextLine.gutter`, `TextGutter`, `TextGutterToGraphics`,
    `TextBlockToScrollLayout` with the layout code that it shares with
    `TextToGraphics`, the layout of
@@ -375,6 +375,27 @@ The order of the work, each step on its own commit, each with its test.
    lines with numbers, markers and a widget in a mark. The example and the test
    print through a dispatcher, because a mark needs a recursion (D8). Test:
    `test_text_to_graphics()` and a new gutter test.
+   *What the implementation found:* `TextBlockToScrollLayout` prints the lines
+   with the `TextToGraphics` that it holds and reads two things that its IO map
+   now gives: the line groups, each of which names its `TextLine` (`line`), and
+   the cells of each line (`line_cells`). A row of the gutter stands at
+   `y + baseline of the line − baseline of the gutter`, or in the middle of the
+   line when the gutter draws no text. A line whose gutter is `nothing` has no
+   row. The left edge is an arrow region for the pointer. A mark whose mapper
+   answers a point with the point itself, as a graphics shape does, is the part
+   at the point, and a path that ends at the node of a mark names the mark
+   itself. `text` depends on `layout` now, with a bare `using ..LayoutModule`, as
+   the layering guard asks. The gutter of the pane needed the band rule of the
+   scroll plan: a gutter is as high as the lines, whose height follows the
+   offered width. The example `text_gutter_example` is seven lines of code in a
+   scroll pane, with numbers as `PrimitiveNumber` marks, a breakpoint dot and a
+   check box; its marks are of other types than `TextBlock`, because its own
+   dispatcher sends a `TextBlock` to `TextBlockToScrollLayout`. Rendered to a
+   PDF, scrolled by (60, 40), the gutter moves up only and stays at the left
+   edge. Not done here: a lazy text has no gutter, and the gutter has no theme
+   (R12). Test: `test_text_gutter()`, 29 assertions; `test_printer`,
+   `test_reader` and `test_position_navigation` of the example, 2011, 225 and
+   146; the text tests and the layering guard pass.
 2. **Line numbers in the gutter.** `TextLineNumbering` on a block of lines puts
    a `:number` mark. A click on a number selects the line.
 3. **The decorators keep the gutter** (§5.5). `WordWrapping` wraps inside a

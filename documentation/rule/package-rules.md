@@ -199,7 +199,7 @@ guard of the platform checks every edge below against the code.
 | `graphics` | Collection, Projection, Style | — |
 | `screen` | Collection, Graphics, Primitive, Projection | — |
 | `layout` | Collection, Focus, Graphics, Projection | — |
-| `text` | Collection, Domain, Graphics, Primitive, Projection, Style | — |
+| `text` | Collection, Domain, Graphics, Layout, Primitive, Projection, Style | — |
 | `widget` | Collection, Domain, Focus, Graphics, Layout, Primitive, Projection, Screen, Serialization, Style, Text | — |
 | `reflection` | Collection, Widget | — |
 | `clipboard` | Collection, Domain, Primitive, Projection, Serialization, Text | — |

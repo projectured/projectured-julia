@@ -15,7 +15,8 @@ The text slice of `ProjecturedPlatform` holds styled text as a flat sequence of 
 | `TextNewline` | a line break, with the same style fields |
 | `TextSpacing` | a gap of `size` in `:pixel` or `:space` units |
 | `TextGraphics` | a graphics document, such as an image, inline as one glyph and one caret position; it has no font and no colour |
-| `TextLine` | one line of spans, with an `indentation` |
+| `TextLine` | one line of spans, with an `indentation` and a `gutter` |
+| `TextGutter` | the gutter of a line of code: a `marker`, a `number` and a `fold`, each a mark or `nothing` |
 
 A `TextString` keeps `content` in a reactive `Cell`, because you type into it. `font` and `font_color` are an `ImmutableCell` by default: the style of a span is authored and not edited, so no glyph gets a dependency edge on it. Pass a `Cell` to make one of them reactive.
 
@@ -84,6 +85,14 @@ The IO map holds `char_to_coord`, one `SegmentCoordinate` for each drawn piece: 
 **A text reference maps forward to the characters that draw it**, as specifically as the output allows. A caret, and a range that one segment holds, map to the text node of that segment followed by the characters in it, `text{a:b}`; a caret is a range of no width. The text node of a segment is found in the canvas of its line by its place and its text, because a fill comes before some texts. A range across segments maps to the smallest node that holds all of its rows, the canvas of its line or the stack of lines, followed by a `RegionReferenceStep`: the box of the rows that its highlight draws.
 
 **A text whose spans are a lazy list** (`ListNode`) is drawn as a list of paragraph canvases, one per paragraph between newlines. A span, and the characters of it, `elements[i].content{a:b}`, map to the text node of the span in its paragraph canvas; spans of one paragraph map to the paragraph canvas followed by a region, and spans of more paragraphs to the canvas of the text. The spans and the paragraphs count from their heads: the head paragraph holds the head span, and the paragraph before it ends at the span before the head. The stages before it map a lazy list forward by the same count: `CollectionListNodeToSyntax` maps element `k` to element `k` of its output, and `SyntaxListToText` maps element `k` to its spans in the list of spans.
+
+### The gutter
+
+**The gutter of a line is a property of the line**, as its indentation is: `TextLine.gutter` holds one document of any type, or `nothing`. It is not in the caret space and not in the flat string, so no caret of the text stands in it and a copy of a range never holds it, and it stays with its line when lines are added above. `TextGutter` is the gutter of a line of code; its fields are its lanes, `marker`, `number` and `fold`, and each holds a mark, any document that the recursion prints to graphics. A stage fills its own field. A view that wants other lanes brings a gutter type of its own and a projection for it.
+
+`TextGutterToGraphics(; marker_width, number_width, fold_width, gap)` draws a `TextGutter` as one row: the marker, the number and the fold lane from the left. A lane is as wide as its mark and at least its width, so a lane keeps its width on a line that has no mark in it; a stage that wants a lane to grow gives every mark of the lane the same width. A marker and a fold stand in the middle of their lane, a number at its right, and the marks that draw text stand on one baseline.
+
+`TextBlockToScrollLayout(; measure, …)` draws a `TextBlock` as a [`ScrollLayout`](../layout/layout.md#the-scroll-layout): the center is the canvas of the lines, laid out as `TextToGraphics` lays them out, and the left edge holds the gutter of each line, with its first baseline on the first baseline of the line. The left edge is as high as the lines and as wide as the gutter of the first line that has one. A `WidgetScrollPane` keeps it at its left edge while the lines scroll; anywhere else a chain ends with `LayoutToGraphics`, which draws it at the left of the lines. A click on a gutter goes to the projection of the gutter and on to the mark at the point, re-rooted into `.elements[i].gutter`; a click that a mark does not take selects the mark, so the stage that made it can answer. A key goes to the gutter that the selection is in, and else to the lines. A chain that holds gutters needs a recursion, because the recursion prints each gutter and each mark.
 
 ### The decorators
 
@@ -173,11 +182,14 @@ projection = ChainingProjection(WordWrapping(measure = FontFileMeasure()),
                                 TextToGraphics(measure = FontFileMeasure()))
 ```
 
-- Examples: `text_example`, `plain_text_example`, `text_with_image_example`, the text layout examples of [Layout](#layout) (`text_layout_examples` and `text_spacing_examples`), `word_wrapping_example`, `line_numbering_example`, `text_filtering_example` and `text_highlighting_example` in `example/platform/`. The atomic catalog has one document for each span type and for `TextLine`.
-- Tests: `test_text()` for the documents and the gesture table, `test_text_to_graphics()`, `test_text_line_model()`, `test_inline_image_caret()`, `test_word_wrapping()`, `test_text_filtering()`, `test_text_first_line()`, `test_text_line_numbering()`, `test_text_highlighting()` and `test_selection_inverting()` in `test/platform/`, and `test_text_range_selection()` in the umbrella suite.
+- Examples: `text_example`, `plain_text_example`, `text_with_image_example`, the text layout examples of [Layout](#layout) (`text_layout_examples` and `text_spacing_examples`), `word_wrapping_example`, `line_numbering_example`, `text_gutter_example`, `text_filtering_example` and `text_highlighting_example` in `example/platform/`. The atomic catalog has one document for each span type and for `TextLine`.
+- Tests: `test_text()` for the documents and the gesture table, `test_text_to_graphics()`, `test_text_line_model()`, `test_inline_image_caret()`, `test_word_wrapping()`, `test_text_filtering()`, `test_text_first_line()`, `test_text_line_numbering()`, `test_text_highlighting()`, `test_selection_inverting()` and `test_text_gutter()` in `test/platform/`, and `test_text_range_selection()` in the umbrella suite.
 
 ## Limits
 
+- A text of a lazy list has no gutter: `TextBlockToScrollLayout` draws only its lines.
+- Outside a scroll pane, a text that wraps wraps at the whole width that it is offered, so its gutter makes it wider than the offer by the width of the gutter. A scroll pane offers the text the width beside the gutter.
+- The gutter has no colors of its own in `TextTheme` yet: no background and no rule between it and the lines.
 - An edit over a range that crosses two spans does nothing, also a range of text and an image.
 - Through `SyntaxToText`, an image in a leaf is not edited: Backspace and Delete beside it make no element write.
 - Through `WordWrapping`, a caret can not stand on an empty line between two `TextNewline`s: the backward map takes an offset in a gap to the nearest run.

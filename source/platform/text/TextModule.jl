@@ -36,6 +36,7 @@ using ..GestureModule
 using ..GraphicsModule
 import ..GraphicsModule: find_first_baseline
 using ..IoMapModule
+using ..LayoutModule
 using ..OperationModule
 using ..PrimitiveModule
 using ..ProjectionAlgebraModule
@@ -61,6 +62,7 @@ export SpanPath, get_flat_base, make_flat_caret_reference, make_flat_range_refer
 export TextTheme, ScaledTextTheme
 export ReferenceTheme, ScaledReferenceTheme
 export TextToGraphics, TextToGraphicsIoMap
+export TextGutter, TextGutterToGraphics, TextBlockToScrollLayout, TextBlockToScrollLayoutIoMap
 export TextBlockToString, TextStringToString, TextNewlineToString, TextSpacingToString, TextGraphicsToString,
        TextLineToString, TextToString
 export TextLineNumbering, LineNumbering
@@ -81,6 +83,8 @@ include("TextRangeReferenceStep.jl")
 include("TextDocument.jl")
 include("TextTheme.jl")
 include("TextToGraphics.jl")
+include("TextGutterToGraphics.jl")
+include("TextBlockToScrollLayout.jl")
 include("TextToString.jl")
 include("FaultToText.jl")
 include("TextLineNumbering.jl")
