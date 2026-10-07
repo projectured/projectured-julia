@@ -81,8 +81,8 @@ end
 function _select_task_indices(group::TaskGroupDocument, tasks::Symbol)
     documents = _get_task_documents(group)
     tasks === :all && return collect(eachindex(documents))
-    tasks === :running && return [i for (i, d) in enumerate(documents) if getfield(d, :status)[] === :running]
-    is_unexpected(d) = (r = getfield(d, :result)[]; r !== nothing && r.result != r.expected_result)
+    tasks === :running && return [i for (i, d) in enumerate(documents) if get_task_document_status(d) === :running]
+    is_unexpected(d) = (r = get_task_document_result(d); r !== nothing && r.result != r.expected_result)
     tasks === :unexpected && return [i for (i, d) in enumerate(documents) if is_unexpected(d)]
     error("tasks is :unexpected, :running or :all, not $(repr(tasks))")
 end
@@ -90,8 +90,8 @@ end
 function _format_task_line(group::TaskGroupDocument, index::Integer)
     document = _get_task_documents(group)[index]
     task = getfield(document, :task)[]
-    result = getfield(document, :result)[]
-    state = result === nothing ? String(getfield(document, :status)[]) : format_task_result(result)
+    result = get_task_document_result(document)
+    state = result === nothing ? String(get_task_document_status(document)) : format_task_result(result)
     string(index, ". ", format_task_parameters(task), " — ", state)
 end
 
@@ -161,23 +161,25 @@ end
 function _describe_task(group::TaskGroupDocument, index::Integer)
     document = _get_task_documents(group)[index]
     task = getfield(document, :task)[]
-    result = getfield(document, :result)[]
+    current = get_current_task_execution(document)
+    result = current === nothing ? nothing : current.result
     lines = String[_format_task_line(group, index), format_task_details(task, result)...]
-    process = getfield(document, :process_id)[]
-    process === nothing || push!(lines, "process: " * string(process))
-    started = getfield(document, :start_time)[]
-    if started !== nothing
-        finished = something(getfield(document, :end_time)[], time())
-        push!(lines, "elapsed: " * format_elapsed_time(finished - started; precision = 1))
+    if current !== nothing
+        current.process_id === nothing || push!(lines, "process: " * string(current.process_id))
+        started = current.start_time
+        if started !== nothing
+            finished = something(current.end_time, time())
+            push!(lines, "elapsed: " * format_elapsed_time(finished - started; precision = 1))
+        end
     end
     executions = getfield(document, :executions)[]
     isempty(executions) || push!(lines, "executions: " * string(length(executions)))
     for (number, execution) in enumerate(get_earlier_task_executions(document))
         push!(lines, string("  earlier ", number, ": ", first(describe_task_execution(execution))))
     end
-    for (label, field) in (("stdout", :output), ("stderr", :error_output))
-        output = getfield(document, field)[]
-        (output isa AbstractVector && !isempty(output)) || continue
+    for (label, stream) in (("stdout", :output), ("stderr", :error_output))
+        output = collect_task_document_lines(document, stream)
+        isempty(output) && continue
         push!(lines, label * ":")
         append!(lines, last(output, 10))
     end
@@ -203,8 +205,8 @@ function get_task_output(group::TaskGroupDocument, index::Integer;
     stream in (:stdout, :stderr) || error("stream is :stdout or :stderr, not $(repr(stream))")
     run_on_editor_task!(editor) do
         document = _get_task_documents(group)[index]
-        output = getfield(document, stream === :stdout ? :output : :error_output)[]
-        (output isa AbstractVector && !isempty(output)) || return Text("(nothing printed)")
+        output = collect_task_document_lines(document, stream === :stdout ? :output : :error_output)
+        isempty(output) && return Text("(nothing printed)")
         Text(join(last(output, lines), "\n"))
     end
 end

@@ -106,7 +106,7 @@ function wrap_task_group_document(group::TaskGroup; title::AbstractString = grou
     tally = Dict{Symbol,Int}(:pending => 0, :running => 0, :done => 0,
                              :error => 0, :cancelled => 0, :skipped => 0)
     for d in documents
-        state = getfield(d, :status)[]
+        state = get_task_document_status(d)
         tally[state] = get(tally, state, 0) + 1
     end
     summary = compute_task_group_summary(group)
@@ -135,65 +135,70 @@ _task_documents(doc::TaskGroupDocument) =
     TaskDocument[document for document in getfield(doc, :tasks)[]]
 
 # Each task of the group is watched from the moment it starts: the session
-# `TaskFeedStore` copies what its execution says into the task's own document,
-# and keeps the tally and the state of the group with it, on the task that reads
-# the documents. The pool names the task by its place, and the place is the same
-# in both lists for the whole life of the group. The group calls this at each
-# start of a task, whoever started the group, so the tasks of an inner group
-# reach their documents too.
-#
-# The first copy of an execution adds it to the executions of its document, on
-# the task that reads the documents. A task that is a group starts its own tasks
-# again: that first copy also puts the tasks of its document back to waiting,
-# before their own copies come.
-function _make_task_group_wiring(doc::TaskGroupDocument)
-    documents = _task_documents(doc)
-    store = get_session_task_feed_store()
-    function (index, execution)
-        inner = find_task_group_document(doc, index)
-        first_copy = Ref(true)
-        register_task_execution!(store, execution, snapshot -> begin
-            if first_copy[]
-                first_copy[] = false
-                add_task_execution!(documents[index], execution)
-                if inner !== nothing
-                    _reset_tasks!(inner, eachindex(get_task_group(inner).tasks))
-                    _refresh_status!(inner)
-                end
-            end
-            _write_task!(doc, documents[index], snapshot)
-        end)
+# `TaskFeedStore` syncs the shadow of its execution, and tells the slot of the
+# task in the group, on the task that reads the documents. The pool names the
+# task by its place, and the place is the same in both lists for the whole life
+# of the group. The group calls this at each start of a task, whoever started the
+# group, so the tasks of an inner group reach their documents too.
+_make_task_group_wiring(doc::TaskGroupDocument) =
+    (index, execution) -> register_task_execution!(get_session_task_feed_store(), execution,
+                                                   _TaskGroupSlot(doc, index))
+
+# The owner of the execution of task `index` of a group.
+struct _TaskGroupSlot
+    group::TaskGroupDocument
+    index::Int
+end
+
+# The first sync of an execution adds its shadow to the document of the task. A
+# task that is a group starts its own tasks again: that first sync also puts the
+# tasks of its document back to waiting, before their own syncs come. Each sync
+# moves the task in the tally when its state changed. A sync of an execution
+# that the document no longer shows changes nothing.
+function record_task_execution_sync!(slot::_TaskGroupSlot, execution, shadow,
+                                     before::Symbol, made::Bool)
+    doc = slot.group
+    document = _task_documents(doc)[slot.index]
+    if made
+        before = get_task_document_status(document)
+        add_task_execution!(document, execution, shadow)
+        inner = find_task_group_document(doc, slot.index)
+        if inner !== nothing
+            _reset_tasks!(inner, eachindex(get_task_group(inner).tasks))
+            _refresh_status!(inner)
+        end
+    elseif get_current_task_execution(document) !== shadow
+        return nothing
     end
+    _retally!(doc, before, shadow.status)
+    _refresh_status!(doc)
+    _write_summary!(doc)
+    nothing
 end
 
 # The preparation is watched as a task is, into its own document, and the tally
 # of the group does not count it. A group runs its preparation at each start and
-# each run again; a preparation that is one task starts its document afresh at
-# the first copy of each execution, and adds the execution to it. A preparation
-# that is a group writes its own tasks; the first copy of its execution puts them
-# back to waiting, as for an inner group.
+# each run again. A preparation that is one task is owned by its document, which
+# starts afresh with each execution. A preparation that is a group writes its own
+# tasks; the first sync of its execution puts them back to waiting, as for an
+# inner group.
 function _make_preparation_wiring(document)
-    store = get_session_task_feed_store()
-    function (execution)
-        first_copy = Ref(true)
-        register_task_execution!(store, execution, snapshot -> begin
-            if document isa TaskGroupDocument
-                if first_copy[]
-                    first_copy[] = false
-                    _reset_tasks!(document, eachindex(get_task_group(document).tasks))
-                end
-                _refresh_status!(document)
-                _write_summary!(document)
-            else
-                if first_copy[]
-                    first_copy[] = false
-                    reset_task_document!(document, :running)
-                    add_task_execution!(document, execution)
-                end
-                write_task_snapshot!(document, snapshot)
-            end
-        end)
-    end
+    owner = document isa TaskGroupDocument ? _TaskGroupPreparation(document) : document
+    execution -> register_task_execution!(get_session_task_feed_store(), execution, owner)
+end
+
+# The owner of the execution of a preparation that is a group.
+struct _TaskGroupPreparation
+    group::TaskGroupDocument
+end
+
+function record_task_execution_sync!(preparation::_TaskGroupPreparation, execution, shadow,
+                                     before::Symbol, made::Bool)
+    doc = preparation.group
+    made && _reset_tasks!(doc, eachindex(get_task_group(doc).tasks))
+    _refresh_status!(doc)
+    _write_summary!(doc)
+    nothing
 end
 
 """
@@ -222,27 +227,16 @@ function describe_task_group_preparation(doc::TaskGroupDocument)
         return (words * " — " * summary.result * (summary.reason === nothing ? "" : ": " * summary.reason),
                 summary.result, false)
     end
-    result = getfield(preparation, :result)[]
+    result = get_task_document_result(preparation)
     if result === nothing
-        waiting = getfield(preparation, :status)[] === :pending
+        waiting = get_task_document_status(preparation) === :pending
         return (words * (waiting ? " — waiting" : " — running"), waiting ? :waiting : :running, true)
     end
     is_expected(result) && return (words * " — " * result.result, result.result, true)
     (words * " — " * format_task_result(result), result.result, false)
 end
 
-# Every write of a status on a task of a group goes through here or
-# `_reset_tasks!`: a tally that one caller bypasses is worse than no tally,
-# because it is believed.
-function _write_task!(doc::TaskGroupDocument, document, snapshot)
-    before, after = write_task_snapshot!(document, snapshot)
-    _retally!(doc, before, after)
-    _refresh_status!(doc)
-    _write_summary!(doc)
-    document
-end
-
-# The summary of the group, written with each change a drain copies, on the task
+# The summary of the group, written with each change a drain syncs, on the task
 # that reads the documents.
 function _write_summary!(doc::TaskGroupDocument)
     summary = compute_task_group_summary(get_task_group(doc))
@@ -268,14 +262,16 @@ function _retally!(doc::TaskGroupDocument, before::Symbol, after::Symbol)
     doc
 end
 
-# The tasks that are about to start again wait, and say nothing of an execution
-# before.
+# The tasks that are about to start again wait, with no current execution. Every
+# change of the state of a task of a group goes through here or through the
+# sync of its slot: a tally that one caller bypasses is worse than no tally,
+# because it is believed.
 function _reset_tasks!(doc::TaskGroupDocument, indices)
     documents = _task_documents(doc)
     for index in indices
         document = documents[index]
-        before = getfield(document, :status)[]
-        reset_task_document!(document, :pending)
+        before = get_task_document_status(document)
+        reset_task_document!(document)
         _retally!(doc, before, :pending)
     end
     doc
@@ -379,7 +375,7 @@ select_task_document!(doc::TaskGroupDocument, index::Integer) =
 
 # What the group believes, without asking the tasks. `build_task_group_document_counts` is
 # the authority and walks them; a test asserts the two agree after a group ran,
-# which is what catches a status written past `_write_task!`.
+# which is what catches a change of state that passed the sync of a slot.
 function _live_counts(doc::TaskGroupDocument)
     tally = getfield(doc, :tally)[]
     tally isa Dict && return tally
@@ -396,7 +392,7 @@ function build_task_group_document_counts(doc::TaskGroupDocument)
     counts = Dict{Symbol,Int}(:pending => 0, :running => 0, :done => 0,
                               :error => 0, :cancelled => 0, :skipped => 0, :total => 0)
     for document in _task_documents(doc)
-        state = getfield(document, :status)[]
+        state = get_task_document_status(document)
         counts[state] = get(counts, state, 0) + 1
         counts[:total] += 1
     end
@@ -415,11 +411,11 @@ function measure_task_group_document_progress(doc::TaskGroupDocument)
     isempty(documents) && return 1.0
     done = 0.0
     for document in documents
-        state = getfield(document, :status)[]
+        state = get_task_document_status(document)
         if state in (:done, :error, :cancelled, :skipped)
             done += 1.0
         elseif state === :running
-            progress = getfield(document, :progress)[]
+            progress = get_current_task_execution(document).progress
             progress === nothing || (done += progress)
         end
     end

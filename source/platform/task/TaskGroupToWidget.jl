@@ -116,12 +116,19 @@ function _get_group_state(p, doc::TaskGroupDocument, group)
     (counts.result, _get_role_color(p, get_result_role(group.codes, counts.result)))
 end
 
+# A field of the current execution of a task, as its shadow holds it, or
+# `nothing` when the task has no current execution.
+function _get_current_field(document::TaskDocument, name::Symbol)
+    current = get_current_task_execution(document)
+    current === nothing ? nothing : getproperty(current, name)
+end
+
 # What a task document says in the column `state`: its result code once it has
 # one, else the state it is in.
 function _get_task_state(p, group, document::TaskDocument)
-    result = getfield(document, :result)[]
+    result = get_task_document_result(document)
     result === nothing || return (result.result, _get_role_color(p, get_result_role(group.codes, result.result)))
-    status = getfield(document, :status)[]
+    status = get_task_document_status(document)
     status === :running && return ("running", p.running_color)
     status === :cancelling && return ("stopping", p.running_color)
     (string(status), p.muted_color)
@@ -131,24 +138,24 @@ end
 # runs counts on with each drain.
 function _format_task_elapsed_time(doc::TaskGroupDocument, document::TaskDocument)
     getfield(doc, :summary)[]
-    started = getfield(document, :start_time)[]
+    started = _get_current_field(document, :start_time)
     started === nothing && return ""
-    _format_duration(something(getfield(document, :end_time)[], time()) - started; precision = 1)
+    _format_duration(something(_get_current_field(document, :end_time), time()) - started; precision = 1)
 end
 
 function _format_task_progress(document::TaskDocument)
-    progress = getfield(document, :progress)[]
+    progress = _get_current_field(document, :progress)
     progress !== nothing && return string(round(Int, 100 * progress), "%")
-    something(getfield(document, :position)[], "")
+    something(_get_current_field(document, :position), "")
 end
 
 # The column `result`: what a finished task ended with, in the words of
 # `opp_repl`, else the last line the task printed.
 function _format_task_outcome(document::TaskDocument)
-    result = getfield(document, :result)[]
+    result = get_task_document_result(document)
     result === nothing || return format_task_result(result)
-    lines = getfield(document, :output)[]
-    (lines isa AbstractVector && !isempty(lines)) ? last(lines) : ""
+    output = _get_current_field(document, :output)
+    output === nothing ? "" : something(find_last_output_line(output), "")
 end
 
 # ── The summary card ─────────────────────────────────────────────────────────
@@ -252,9 +259,9 @@ function _build_preparation_detail(p, doc::TaskGroupDocument, bounded::Bool)
         _build_task_details(p, getfield(preparation, :task)[], preparation),
         _build_earlier_executions(p, preparation),
         _make_label("stdout", p.muted_color),
-        _build_output_pane(() -> getfield(preparation, :output)[]; weight = 2),
+        _build_output_pane(() -> collect_task_document_lines(preparation, :output); weight = 2),
         _make_label("stderr", p.muted_color),
-        _build_output_pane(() -> getfield(preparation, :error_output)[]; weight = 1)]
+        _build_output_pane(() -> collect_task_document_lines(preparation, :error_output); weight = 1)]
 end
 
 # A button that runs `action` while `enabled()` holds. A refused action is a
@@ -286,10 +293,10 @@ function _compute_shown_indices(doc::TaskGroupDocument)
     choice = getfield(doc, :row_filter)[]
     word = something(choice.value, "all")
     word == "running" &&
-        return [i for (i, d) in enumerate(documents) if getfield(d, :status)[] in (:running, :cancelling)]
+        return [i for (i, d) in enumerate(documents) if get_task_document_status(d) in (:running, :cancelling)]
     word == "unexpected" &&
         return [i for (i, d) in enumerate(documents)
-                if (r = getfield(d, :result)[]) !== nothing && r.result != r.expected_result]
+                if (r = get_task_document_result(d)) !== nothing && r.result != r.expected_result]
     collect(eachindex(documents))
 end
 
@@ -302,10 +309,10 @@ function _build_table_row(p, doc::TaskGroupDocument, group, kind_columns, index:
         (WidgetLabel(format_task_column(task, name)) for (name, _) in kind_columns)...,
         WidgetLabel(() -> _format_task_progress(document)),
         WidgetLabel(() -> _format_task_elapsed_time(doc, document)),
-        WidgetLabel(() -> _format_or_blank(getfield(document, :process_id)[])),
-        WidgetLabel(() -> (load = getfield(document, :processor_load)[];
+        WidgetLabel(() -> _format_or_blank(_get_current_field(document, :process_id))),
+        WidgetLabel(() -> (load = _get_current_field(document, :processor_load);
                            load === nothing ? "" : string(round(Int, load), "%"))),
-        WidgetLabel(() -> (bytes = getfield(document, :resident_memory)[];
+        WidgetLabel(() -> (bytes = _get_current_field(document, :resident_memory);
                            bytes === nothing ? "" : format_memory_size(bytes))),
         WidgetLabel(() -> _format_task_outcome(document))]
 end
@@ -380,14 +387,14 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
         push!(parts, _build_task_details(p, task, document))
         push!(parts, WidgetLabel(() -> begin
             facts = String[]
-            process = getfield(document, :process_id)[]
+            process = _get_current_field(document, :process_id)
             process === nothing || push!(facts, "process " * string(process))
             elapsed = _format_task_elapsed_time(doc, document)
             isempty(elapsed) || push!(facts, "elapsed " * elapsed)
             join(facts, " · ")
         end))
         push!(parts, _make_live_label(() -> begin
-            result = getfield(document, :result)[]
+            result = get_task_document_result(document)
             result === nothing ? ("", p.muted_color) :
                 (format_task_result(result),
                  _get_role_color(p, get_result_role(group.codes, result.result)))
@@ -395,7 +402,7 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
         push!(parts, _build_earlier_executions(p, document))
         stop = WidgetButton("Stop"; size = p.button_size,
                             action = _ -> _run_guarded("stop", () -> _stop_task(group, index)))
-        set_cell_computation!(getfield(stop, :enabled), () -> getfield(document, :status)[] === :running)
+        set_cell_computation!(getfield(stop, :enabled), () -> get_task_document_status(document) === :running)
         again = WidgetButton("Run again"; size = p.button_size,
                              action = _ -> _run_guarded("run again", () -> rerun_task_group_document!(doc, [index])))
         set_cell_computation!(getfield(again, :enabled),
@@ -405,9 +412,10 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
         push!(parts, HorizontalLayout(Any[stop, again, actions...]; vertical_align = :center,
                                       gap = p.inline_gap))
         push!(parts, _make_label("stdout", p.muted_color))
-        push!(parts, _build_output_pane(() -> getfield(document, :output)[]; weight = 2))
+        push!(parts, _build_output_pane(() -> collect_task_document_lines(document, :output); weight = 2))
         push!(parts, _make_label("stderr", p.muted_color))
-        push!(parts, _build_output_pane(() -> getfield(document, :error_output)[]; weight = 1))
+        push!(parts, _build_output_pane(() -> collect_task_document_lines(document, :error_output);
+                                        weight = 1))
         Cell[Cell(x) for x in parts]
     end)
     detail
@@ -419,7 +427,7 @@ function _build_task_details(p, task, document::TaskDocument)
     lines = VerticalLayout(Any[]; gap = p.stack_gap, child_width = Fill)
     set_cell_computation!(getfield(lines.children, :elements), () ->
         Cell[Cell(WidgetLabel(line))
-             for line in format_task_details(task, getfield(document, :result)[])])
+             for line in format_task_details(task, get_task_document_result(document))])
     lines
 end
 

@@ -297,7 +297,7 @@ function _run_preparation!(group::TaskGroup)
     group.preparation_run = execution
     group.on_preparation === nothing || group.on_preparation(execution)
     wait_task_execution(execution)
-    result = lock(() -> execution.result, execution.lock)
+    result = lock(() -> execution.result, execution.runtime.lock)
     result === nothing || is_expected(result) ? nothing :
         string("Not started: ", _describe_preparation(preparation), " ended ", result.result)
 end
@@ -404,7 +404,7 @@ function start_task(group::TaskGroup; on_finish = nothing)
     end
     follow(group)
     start_task_group!(group; on_change = follow)
-    execution.reader = @async begin
+    execution.runtime.reader = @async begin
         wait_task_group(group)
         follow(group)
         finish_task_execution!(execution, compute_task_group_result(group); finish = on_finish)
@@ -708,7 +708,7 @@ function compute_task_group_summary(group::TaskGroup; now::Real = time())
     leaves = _collect_task_group_leaves(group)
     for (task, run) in leaves
         run === nothing && continue
-        (result, fraction, started, ended) = lock(run.lock) do
+        (result, fraction, started, ended) = lock(run.runtime.lock) do
             (run.result, run.progress, run.start_time, run.end_time)
         end
         if result === nothing

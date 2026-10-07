@@ -274,7 +274,8 @@ function start_task(step::BuildCommandTask; on_finish = nothing)
             _finish_build_step!(step, execution, "DONE", "DONE", nothing, elapsed, code, nothing,
                                 on_finish)
         else
-            message = lock(() -> strip(format_output_text(execution.error_output)), execution.lock)
+            message = lock(() -> strip(format_output_text(execution.error_output)),
+                           execution.runtime.lock)
             _finish_build_step!(step, execution, "ERROR", "DONE",
                                 "Non-zero exit code: " * string(code), elapsed, code,
                                 isempty(message) ? nothing : String(message), on_finish)

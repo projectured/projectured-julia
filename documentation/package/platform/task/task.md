@@ -65,13 +65,22 @@ tense when the group ends: `Running` becomes `Ran`.
 
 A task that runs a program starts it with `start_process_task!(execution,
 command; read_line, finish)` and answers at once. `TaskExecution` is what one
-start of a task says while it runs, and what it ended with: its status, its
-process and identifier, its times, a `progress` fraction and a `position` text,
-what the process printed on stdout and on stderr, its processor load and resident
-memory, and its result. The readers of the process write it only through
-`update_task_execution!`, which holds its lock, because the readers and a reader
-of the screen can run on two threads; a reader takes a copy with
-`get_task_execution_snapshot`.
+start of a task says while it runs, and what it ended with: its status, the
+identifier of its process, its times, a `progress` fraction and a `position`
+text, what the process printed on stdout and on stderr, its processor load and
+resident memory, and its result. It is a live state, `@document [M, C]`: the bare
+name is the native layout, which the readers of the process write only through
+`update_task_execution!`. That function holds the lock of the `TaskRuntime` of the
+execution, because the readers and the editor task can run on two threads. The
+runtime also holds the process, the reader task, the count of the writes and
+the last sample of the processor time; no view shows it.
+
+The editor task shows an execution through its shadow in the cell layout:
+`make_task_execution_shadow(execution)` makes it, and `sync_document!(shadow,
+execution)` brings it up to date under the lock. A sync writes a field only when
+its value changed, so a view of a field that did not change is not drawn again.
+It copies a stream only when lines came, because a `TaskOutput` changes in place,
+and a shadow that held the same object would never see a new line.
 
 Each stream is a `TaskOutput`: the first 100 lines, the last 1000, and the count
 of the lines between, so a process that prints without end cannot fill the
@@ -165,18 +174,21 @@ project is a sequential group of phases, each a concurrent group of steps.
 
 ## The documents and the feed
 
-`TaskDocument` is one task on the screen: the task, the state of its current
-execution and what it ended with, and every execution of the task, the newest
-last. It holds nothing that a kind of task knows: a view asks the task for its
-columns, its facts and its buttons. `start_task!(document; options...)` starts
-the task through `start_task` of its kind and answers at once; `stop_task!` and
-`wait_task_document` act on the current execution.
+`TaskDocument` is one task on the screen: the task, the native layout of its
+current execution in `running`, and the shadow of every execution of the task in
+`executions`, the newest last. It holds nothing that a kind of task knows: a view
+asks the task for its columns, its facts and its buttons.
+`start_task!(document; options...)` starts the task through `start_task` of its
+kind and answers at once; `stop_task!` and `wait_task_document` act on the
+current execution. A view reads the shadow of the current execution
+(`get_current_task_execution`), and `get_task_document_status`,
+`get_task_document_result` and `collect_task_document_lines` read its status, its
+result and its lines.
 
 A start again, or a run again of a group, adds an execution and replaces none
-(`add_task_execution!`). The fields of the document show the current execution,
-and the earlier ones keep their own results (`get_earlier_task_executions`). A
-task that waits to start again has no current execution, so all its executions
-are earlier then. The row of a task in the pane shows the current execution; the
+(`add_task_execution!`). The earlier executions keep their own results
+(`get_earlier_task_executions`). A task that waits to start again has no current
+execution, so its status is `:pending` and all its executions are earlier then. The row of a task in the pane shows the current execution; the
 detail lists the earlier ones, each with its verdict and its start time
 (`describe_task_execution`), and `describe_task` says how many ran. An execution
 keeps its output within the bounds of `TaskOutput`, so each run again of a group
@@ -184,15 +196,17 @@ adds at most those lines for each task that ran again, until the group is
 closed.
 
 No reader of a process writes a cell. A `TaskFeedStore` holds each execution
-that runs with the function that copies it into its document, and
-`drain_task_feed!` copies what changed, on the task that reads the documents.
-A window gives its editor a `TaskFeed`, which drains at most once in its
-interval and asks for a frame only while an execution runs. A caller with no
-window drains the store itself: `wait_task_document` and
+that runs with its shadow and its owner, the document that shows it, and
+`drain_task_feed!` syncs each shadow whose execution changed, on the task that
+reads the documents. After a sync it calls `record_task_execution_sync!` with the
+owner: a group counts the change of the state there, and a document adds a
+shadow that the drain made. A window gives its editor a `TaskFeed`, which drains
+at most once in its interval and asks for a frame only while an execution runs.
+A caller with no window drains the store itself: `wait_task_document` and
 `wait_task_group_document` do.
 
 `TaskGroupDocument` is a group on the screen: the `TaskGroup`, one
-`TaskDocument` for each task, a tally of the states that each write keeps, the
+`TaskDocument` for each task, a tally of the states that each sync keeps, the
 summary, and an identifier `T1`, `T2`, … that never changes. Each task that is
 a group has a `TaskGroupDocument` of its own, `T1.1`, `T1.2`, …
 (`find_task_group_document`); only the outer group has a row in the Tasks pane.

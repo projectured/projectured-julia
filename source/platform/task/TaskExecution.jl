@@ -63,39 +63,66 @@ function format_output_text(lines::TaskOutput)
     isempty(collected) ? "" : join(collected, "\n") * "\n"
 end
 
+"""A copy of the kept lines and the count, which no later line changes."""
+Base.copy(lines::TaskOutput) =
+    TaskOutput(copy(lines.head), copy(lines.tail), lines.head_limit, lines.tail_limit, lines.count)
+
 # ── The execution ────────────────────────────────────────────────────────────
+
+"""
+    TaskRuntime()
+
+What an execution needs while its process runs, and which no view shows: the
+lock that its writers and its readers take, the process, the task that reads
+the streams of the process, the count of the writes, and the last sample of the
+processor time. The shadow of an execution does not hold it.
+"""
+mutable struct TaskRuntime
+    lock::ReentrantLock
+    process::Union{Base.Process,Nothing}
+    reader::Union{Task,Nothing}
+    # Counts every write, so a reader knows whether anything changed since it
+    # last looked.
+    version::Int
+    # The processor time of the process at the last sample, in clock ticks, and
+    # when that sample was taken.
+    processor_ticks::Union{Int,Nothing}
+    sampled_at::Union{Float64,Nothing}
+end
+
+TaskRuntime() = TaskRuntime(ReentrantLock(), nothing, nothing, 0, nothing, nothing)
 
 """
     TaskExecution(task)
 
-What one start of a task says while it runs, and what it ended with. The readers
-of its process write it, and only through [`update_task_execution!`](@ref),
-which holds its lock; a reader on another task takes a copy with
-[`get_task_execution_snapshot`](@ref).
+What one start of a task says while it runs, and what it ended with: a live
+state (P3 of the catalog). The bare name is the native layout, which the readers
+of its process write, and only through [`update_task_execution!`](@ref), which
+holds the lock of its runtime. The editor task shows it through a shadow in the
+cell layout ([`make_task_execution_shadow`](@ref)), which `sync_document!`
+brings up to date.
 
 # Fields
+- `task` — the task that runs.
 - `status` — `:pending`, `:running`, `:cancelling`, `:done`, `:error`,
   `:cancelled` or `:skipped`.
-- `process`, `process_id` — the process of the task and its identifier, once it
-  started.
+- `process_id` — the identifier of the process, once it started.
 - `start_time`, `end_time` — the wall-clock times of the start and of the end.
 - `progress` — a fraction while the task reports one, or `nothing`.
 - `position` — where the task is, in a short text that its kind writes, such as
   the event and the time of a simulation that reports no fraction; or `nothing`.
 - `output`, `error_output` — what the process printed on stdout and on stderr,
-  as [`TaskOutput`](@ref).
+  as [`TaskOutput`](@ref). A shadow holds a copy, made when a line came.
 - `processor_load` — the processor time the process used since the last sample,
   in percent of one processor; `resident_memory` — its resident memory, in
   bytes. [`sample_task_usage!`](@ref) reads both.
 - `result` — the [`TaskResult`](@ref) once the task ended.
-- `version` — counts every write, so a reader knows whether anything changed
-  since it last looked.
+- `runtime` — the [`TaskRuntime`](@ref) of the native layout; `nothing` in a
+  shadow.
 """
-mutable struct TaskExecution
-    lock::ReentrantLock
+@document [M, C] struct TaskExecution
     task::AbstractTask
     status::Symbol
-    process::Union{Base.Process,Nothing}
     process_id::Union{Int,Nothing}
     start_time::Union{Float64,Nothing}
     end_time::Union{Float64,Nothing}
@@ -106,18 +133,12 @@ mutable struct TaskExecution
     processor_load::Union{Float64,Nothing}
     resident_memory::Union{Int,Nothing}
     result::Union{TaskResult,Nothing}
-    version::Int
-    reader::Union{Task,Nothing}
-    # The processor time of the process at the last sample, in clock ticks, and
-    # when that sample was taken.
-    processor_ticks::Union{Int,Nothing}
-    sampled_at::Union{Float64,Nothing}
+    runtime::Union{TaskRuntime,Nothing}
 end
 
 TaskExecution(task::AbstractTask) =
-    TaskExecution(ReentrantLock(), task, :pending, nothing, nothing, nothing, nothing,
-                  nothing, nothing, TaskOutput(), TaskOutput(), nothing, nothing,
-                  nothing, 0, nothing, nothing, nothing)
+    TaskExecution(task, :pending, nothing, nothing, nothing, nothing, nothing,
+                  TaskOutput(), TaskOutput(), nothing, nothing, nothing, TaskRuntime())
 
 Base.show(io::IO, execution::TaskExecution) =
     print(io, "TaskExecution(", execution.task, ", ", execution.status, ")")
@@ -125,68 +146,89 @@ Base.show(io::IO, execution::TaskExecution) =
 """
     update_task_execution!(f, execution) -> execution
 
-Write `execution` with `f(execution)`, under its lock, and count the write in
-its `version`.
+Write `execution` with `f(execution)`, under the lock of its runtime, and count
+the write.
 """
 function update_task_execution!(f, execution::TaskExecution)
-    lock(execution.lock) do
+    runtime = execution.runtime
+    lock(runtime.lock) do
         f(execution)
-        execution.version += 1
+        runtime.version += 1
     end
     execution
 end
 
-"""
-    get_task_execution_snapshot(execution; output_count = -1, error_output_count = -1) -> NamedTuple
+"""The count of the writes of `execution`, read under its lock."""
+get_task_execution_version(execution::TaskExecution) =
+    lock(() -> execution.runtime.version, execution.runtime.lock)
 
-A copy of what `execution` holds now, taken under its lock. The lines of a
-stream are copied only when the count of its lines differs from the count the
-reader gives; otherwise that part is `nothing`. The copy holds `version`,
-`status`, `process_id`, `start_time`, `end_time`, `progress`, `position`,
-`output`, `output_count`, `error_output`, `error_output_count`,
-`processor_load`, `resident_memory` and `result`.
+# The fields that a shadow takes as they are; the two streams are copied, and the
+# runtime stays with the native layout.
+const _SHADOW_FIELDS = (:task, :status, :process_id, :start_time, :end_time, :progress,
+                        :position, :processor_load, :resident_memory, :result)
+
 """
-function get_task_execution_snapshot(execution::TaskExecution; output_count::Integer = -1,
-                                     error_output_count::Integer = -1)
-    lock(execution.lock) do
-        (version = execution.version, status = execution.status,
-         process_id = execution.process_id, start_time = execution.start_time,
-         end_time = execution.end_time, progress = execution.progress,
-         position = execution.position,
-         output = execution.output.count == output_count ? nothing :
-                  collect_output_lines(execution.output),
-         output_count = execution.output.count,
-         error_output = execution.error_output.count == error_output_count ? nothing :
-                        collect_output_lines(execution.error_output),
-         error_output_count = execution.error_output.count,
-         processor_load = execution.processor_load,
-         resident_memory = execution.resident_memory, result = execution.result)
+    make_task_execution_shadow(execution) -> shadow
+
+The shadow of `execution` in the cell layout, which a view reads: its fields as
+they are now, and a copy of the lines of each stream, read under the lock. The
+shadow holds no runtime. Make it on the editor task.
+"""
+function make_task_execution_shadow(execution::TaskExecution)
+    lock(execution.runtime.lock) do
+        ACTaskExecution(execution.task, execution.status, execution.process_id,
+                        execution.start_time, execution.end_time, execution.progress,
+                        execution.position, copy(execution.output), copy(execution.error_output),
+                        execution.processor_load, execution.resident_memory, execution.result,
+                        nothing)
     end
 end
 
 """
-    describe_task_execution(execution) -> (text, result)
+    sync_document!(shadow, execution) -> shadow
+
+Bring the shadow of an execution up to date, under the lock of the execution,
+on the editor task. A field is written only when its value changed, and a stream
+only when lines came since the last sync, as a copy that no later line changes.
+"""
+function sync_document!(shadow::ACTaskExecution, execution::TaskExecution, policy, depth::Int)
+    lock(execution.runtime.lock) do
+        for name in _SHADOW_FIELDS
+            value = getfield(execution, name)
+            isequal(getproperty(shadow, name), value) || setproperty!(shadow, name, value)
+        end
+        for name in (:output, :error_output)
+            lines = getfield(execution, name)
+            lines.count == getproperty(shadow, name).count || setproperty!(shadow, name, copy(lines))
+        end
+    end
+    shadow
+end
+
+"""
+    describe_task_execution(shadow) -> (text, result)
 
 One execution in words: when it started and what it ended with, such as
 `started 18:40:01 — ERROR (unexpected) in 1.2 s`, and the `TaskResult` it ended
-with, or `nothing` while it has not ended. It reads the execution under its
-lock, so any task can call it.
+with, or `nothing` while it has not ended. It reads the shadow of the execution.
 """
-function describe_task_execution(execution::TaskExecution)
-    (status, start_time, result) =
-        lock(() -> (execution.status, execution.start_time, execution.result), execution.lock)
+function describe_task_execution(shadow::ACTaskExecution)
+    (status, start_time, result) = (shadow.status, shadow.start_time, shadow.result)
     started = start_time === nothing ? "not started" :
               "started " * Libc.strftime("%H:%M:%S", start_time)
     (started * " — " * (result === nothing ? String(status) : format_task_result(result)), result)
 end
 
 """Whether the process of the task is alive."""
-is_task_running(execution::TaskExecution) =
-    execution.process !== nothing && process_running(execution.process)
+function is_task_running(execution::TaskExecution)
+    process = execution.runtime.process
+    process !== nothing && process_running(process)
+end
 
 """Block until the task has ended and its result is set."""
 function wait_task_execution(execution::TaskExecution)
-    execution.reader === nothing || wait(execution.reader)
+    reader = execution.runtime.reader
+    reader === nothing || wait(reader)
     execution
 end
 
@@ -201,7 +243,7 @@ nothing.
 function stop_task_execution!(execution::TaskExecution)
     if is_task_running(execution)
         update_task_execution!(e -> (e.status = :cancelling), execution)
-        _interrupt_process_group(execution.process)
+        _interrupt_process_group(execution.runtime.process)
     end
     execution
 end
@@ -283,17 +325,17 @@ function start_process_task!(execution::TaskExecution, command::Base.AbstractCmd
         nothing
     end
     update_task_execution!(execution) do e
-        e.process = process
+        e.runtime.process = process
         e.process_id = process_id
         e.status = :running
         e.start_time = started
     end
-    execution.reader = @async begin
+    execution.runtime.reader = @async begin
         error_reader = @async _read_task_stream(error_output, execution, :error_output, nothing)
         _read_task_stream(output, execution, :output, read_line)
         wait(error_reader)
         wait(process)
-        cancelled = lock(() -> execution.status === :cancelling, execution.lock)
+        cancelled = lock(() -> execution.status === :cancelling, execution.runtime.lock)
         finish(process, cancelled, time() - started)
     end
     execution
@@ -331,12 +373,14 @@ function sample_task_usage!(execution::TaskExecution; now::Real = time())
     usage === nothing && return execution
     ticks, resident = usage
     update_task_execution!(execution) do e
-        if e.processor_ticks !== nothing && e.sampled_at !== nothing && now > e.sampled_at
-            e.processor_load = 100 * (ticks - e.processor_ticks) /
-                               _get_clock_ticks_per_second() / (now - e.sampled_at)
+        runtime = e.runtime
+        if runtime.processor_ticks !== nothing && runtime.sampled_at !== nothing &&
+           now > runtime.sampled_at
+            e.processor_load = 100 * (ticks - runtime.processor_ticks) /
+                               _get_clock_ticks_per_second() / (now - runtime.sampled_at)
         end
-        e.processor_ticks = ticks
-        e.sampled_at = Float64(now)
+        runtime.processor_ticks = ticks
+        runtime.sampled_at = Float64(now)
         e.resident_memory = resident
     end
 end

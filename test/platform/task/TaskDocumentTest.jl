@@ -1,10 +1,18 @@
 # The documents of tasks, with plain shell commands as the work: a document
-# follows its execution only through a drain, a feed copies at most once in an
+# follows its execution only through a drain, a feed syncs at most once in an
 # interval, and a group document keeps its counts, its summary and its status
 # through a run, a run again and a stop. The probe task is the one of
 # `TaskGroupTest.jl`.
 
 const _TaskDocumentFeed = ProjecturedKernel.FeedModule
+
+# An owner of an execution that keeps what each sync told it.
+struct _TaskDocumentFeedOwner
+    syncs::Vector{Tuple{Symbol,Bool}}
+end
+TaskModule.record_task_execution_sync!(owner::_TaskDocumentFeedOwner, execution, shadow,
+                                       before::Symbol, made::Bool) =
+    (push!(owner.syncs, (before, made)); nothing)
 
 function test_task_document()
     @testset "task document" begin
@@ -12,50 +20,52 @@ function test_task_document()
             # The task lives a moment, so its process has an identifier to ask for.
             document = TaskDocument(_TaskGroupProbeTask("echo",
                 "sleep 0.2; echo one; echo two >&2; exit 0"))
-            @test getfield(document, :status)[] === :pending
+            @test get_task_document_status(document) === :pending
             @test isempty(getfield(document, :executions)[])
+            @test get_current_task_execution(document) === nothing
             start_task!(document)
-            @test getfield(document, :status)[] === :running
+            @test get_task_document_status(document) === :running
             wait_task_execution(getfield(document, :running)[])
-            # Until a drain, the document says what it said when the task started.
-            @test isempty(getfield(document, :output)[])
+            # Until a drain, the shadow says what the execution said when it started.
+            @test isempty(collect_task_document_lines(document))
             wait_task_document(document)
-            @test getfield(document, :status)[] === :done
-            @test getfield(document, :output)[] == ["one"]
-            @test getfield(document, :error_output)[] == ["two"]
-            @test getfield(document, :result)[].result == "DONE"
-            @test getfield(document, :process_id)[] !== nothing
-            @test getfield(document, :end_time)[] >= getfield(document, :start_time)[]
+            current = get_current_task_execution(document)
+            @test get_task_document_status(document) === :done
+            @test collect_task_document_lines(document) == ["one"]
+            @test collect_task_document_lines(document, :error_output) == ["two"]
+            @test get_task_document_result(document).result == "DONE"
+            @test current.process_id !== nothing
+            @test current.end_time >= current.start_time
 
             failed = TaskDocument(_TaskGroupProbeTask("fail", "exit 3"))
             wait_task_document(start_task!(failed))
-            @test getfield(failed, :status)[] === :error
-            @test getfield(failed, :result)[].reason == "Non-zero exit code: 3"
+            @test get_task_document_status(failed) === :error
+            @test get_task_document_result(failed).reason == "Non-zero exit code: 3"
 
             # A start again begins from nothing, and keeps the first execution
             # with its result: the document holds both, the newest last.
             start_task!(failed)
-            @test getfield(failed, :status)[] === :running
-            @test getfield(failed, :result)[] === nothing
+            @test get_task_document_status(failed) === :running
+            @test get_task_document_result(failed) === nothing
             wait_task_document(failed)
             executions = getfield(failed, :executions)[]
             @test length(executions) == 2
-            @test getfield(failed, :running)[] === executions[2]
+            @test get_current_task_execution(failed) === executions[2]
             @test get_earlier_task_executions(failed) == executions[1:1]
             (text, result) = describe_task_execution(executions[1])
             @test result.reason == "Non-zero exit code: 3"
             @test occursin(r"^started \d\d:\d\d:\d\d — ERROR", text)
         end
 
-        @testset "a feed copies at most once in an interval" begin
+        @testset "a feed syncs at most once in an interval" begin
             task = _TaskGroupProbeTask("one", "exit 0")
             store = TaskFeedStore()
             clock = Ref(10.0)
             feed = TaskFeed(; store = store, flush_interval = 0.25, now = () -> clock[])
             @test _TaskDocumentFeed.compute_wake_deadline(feed, nothing) === nothing
             execution = TaskExecution(task)
-            writes = Ref(0)
-            register_task_execution!(store, execution, snapshot -> (writes[] += 1))
+            owner = _TaskDocumentFeedOwner(Tuple{Symbol,Bool}[])
+            register_task_execution!(store, execution, owner)
             @test _TaskDocumentFeed.compute_wake_deadline(feed, nothing) == 0.25
             @test _TaskDocumentFeed.drain_changes!(feed, nothing) == 1
             update_task_execution!(e -> (e.progress = 0.5), execution)
@@ -64,12 +74,13 @@ function test_task_document()
             @test _TaskDocumentFeed.drain_changes!(feed, nothing) == 1
             clock[] += 0.25
             @test _TaskDocumentFeed.drain_changes!(feed, nothing) == 0     # nothing changed
-            @test writes[] == 2
+            # The first drain made the shadow, the second synced it.
+            @test owner.syncs == [(:pending, true), (:pending, false)]
             finish_task_execution!(execution,
                 _TaskGroupProbeResult(task, "DONE", "DONE", nothing, 0.1))
             clock[] += 0.25
             @test _TaskDocumentFeed.drain_changes!(feed, nothing) == 1
-            # The end is copied, so the execution is let go and no frame is asked for.
+            # The end is synced, so the execution is let go and no frame is asked for.
             @test !has_task_feed_entries(store)
             @test _TaskDocumentFeed.compute_wake_deadline(feed, nothing) === nothing
         end
@@ -98,17 +109,17 @@ function test_task_document()
             @test getfield(document, :counts)[].result == "ERROR"
 
             documents = collect(getfield(document, :tasks)[])
-            failed = only(i for (i, d) in enumerate(documents) if getfield(d, :status)[] === :error)
+            failed = only(i for (i, d) in enumerate(documents) if get_task_document_status(d) === :error)
             kept = first(i for i in eachindex(documents) if i != failed)
-            before = getfield(documents[kept], :result)[]
+            before = get_task_document_result(documents[kept])
             rerun_task_group_document!(document, :failed)
             # The task waits to start again: it has no current execution, and its
             # first one is earlier.
             @test getfield(documents[failed], :running)[] === nothing
             @test length(get_earlier_task_executions(documents[failed])) == 1
             wait_task_group_document(document)
-            @test getfield(documents[kept], :result)[] === before
-            @test getfield(documents[failed], :status)[] === :error
+            @test get_task_document_result(documents[kept]) === before
+            @test get_task_document_status(documents[failed]) === :error
             # The run again added an execution and kept the first; the task that
             # did not run again has its one execution.
             @test length(getfield(documents[failed], :executions)[]) == 2

@@ -61,7 +61,7 @@ function test_task_execution()
             execution = _start_probe_process(
                 "echo 'progress 10% at one'; echo 'a warning' >&2; sleep 1; echo 'progress 50% at two'")
             @test _wait_task_status(execution, :running) === :running
-            @test execution.process_id == getpid(execution.process)
+            @test execution.process_id == getpid(execution.runtime.process)
             @test isdir("/proc/$(execution.process_id)")
             @test execution.start_time !== nothing && execution.end_time === nothing
             sample_task_usage!(execution)
@@ -79,15 +79,29 @@ function test_task_execution()
             @test execution.progress == 0.5 && execution.position == "two"
         end
 
-        @testset "a copy of an execution leaves out what the reader has" begin
+        @testset "a shadow follows its execution, and a sync writes only what changed" begin
             execution = wait_task_execution(_start_probe_process("echo out; echo err >&2; exit 3"))
-            snapshot = get_task_execution_snapshot(execution)
-            @test snapshot.result.result == "ERROR" && snapshot.status === :error
-            @test snapshot.output == ["out"] && snapshot.error_output == ["err"]
-            again = get_task_execution_snapshot(execution; output_count = snapshot.output_count,
-                                                error_output_count = snapshot.error_output_count)
-            @test again.output === nothing && again.error_output === nothing
-            @test again.version == snapshot.version
+            shadow = make_task_execution_shadow(execution)
+            @test shadow isa ACTaskExecution && shadow.runtime === nothing
+            @test shadow.result.result == "ERROR" && shadow.status === :error
+            @test collect_output_lines(shadow.output) == ["out"]
+            @test collect_output_lines(shadow.error_output) == ["err"]
+            # A reader of the status recomputes only when a sync writes the status.
+            reads = Ref(0)
+            status = Cell(nothing)
+            set_cell_computation!(status, () -> (reads[] += 1; shadow.status))
+            @test status[] === :error && reads[] == 1
+            # The shadow holds a copy of a stream, which a later line does not change.
+            output, error_output = shadow.output, shadow.error_output
+            update_task_execution!(e -> append_output_line!(e.output, "late"), execution)
+            @test collect_output_lines(shadow.output) == ["out"]
+            sync_document!(shadow, execution)
+            @test collect_output_lines(shadow.output) == ["out", "late"]
+            @test shadow.output !== output && shadow.error_output === error_output
+            @test status[] === :error && reads[] == 1
+            update_task_execution!(e -> (e.status = :done), execution)
+            sync_document!(shadow, execution)
+            @test status[] === :done && reads[] == 2
         end
 
         @testset "a stop ends the process as cancelled" begin

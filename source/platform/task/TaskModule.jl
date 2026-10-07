@@ -30,7 +30,7 @@ using ..ReferenceModule
 using ..StyleModule
 using ..ToolModule
 using ..WidgetModule
-import ..DocumentModule: copy_document, has_document_duplicate, get_document_title
+import ..DocumentModule: copy_document, has_document_duplicate, get_document_title, sync_document!
 import ..DomainModule: accepts_pasted_document
 import ..FeedModule: drain_changes!, compute_wake_deadline
 import ..PaneModule: make_pane_tab_title
@@ -42,8 +42,9 @@ export AbstractTask, TaskResult, ResultCodes, RUN_RESULT_CODES, TEST_RESULT_CODE
        format_past_tense, format_task_result, get_task_columns, format_task_column,
        get_task_actions, format_task_details
 export TaskOutput, append_output_line!, get_left_out_line_count, collect_output_lines,
-       find_last_output_line, format_output_text, TaskExecution, update_task_execution!,
-       get_task_execution_snapshot, describe_task_execution, is_task_running, wait_task_execution,
+       find_last_output_line, format_output_text, TaskRuntime, TaskExecution, ATaskExecution,
+       ACTaskExecution, update_task_execution!, get_task_execution_version,
+       make_task_execution_shadow, describe_task_execution, is_task_running, wait_task_execution,
        stop_task_execution!, get_task_status, finish_task_execution!, start_process_task!,
        sample_task_usage!
 export TaskGroup, TaskStartFailure, TaskNotStarted, get_default_job_count, start_task, is_concurrent,
@@ -57,10 +58,10 @@ export BuildStepTask, BuildCommandTask, BuildCopyTask, BuildRemoveTask, BuildSte
        read_dependency_file,
        find_build_step_input_files, is_build_step_up_to_date
 export TaskFeedStore, TaskFeed, get_session_task_feed_store, register_task_execution!,
-       drain_task_feed!, has_task_feed_entries, make_task_feeds
+       record_task_execution_sync!, drain_task_feed!, has_task_feed_entries, make_task_feeds
 export TaskDocument, start_task!, stop_task!, wait_task_document, reset_task_document!,
-       add_task_execution!, get_earlier_task_executions,
-       write_task_snapshot!, record_task_result!
+       add_task_execution!, get_earlier_task_executions, get_current_task_execution,
+       get_task_document_status, get_task_document_result, collect_task_document_lines
 export TaskGroupList, get_session_task_group_list, add_task_group!, remove_task_group!,
        set_task_group_opener!, open_task_group_pane
 export TaskGroupDocument, make_task_group_identifier, get_task_group, wrap_task_group_document,
