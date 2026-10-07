@@ -6,9 +6,9 @@
 > branch `view-drag`. Not pushed. ·
 > **Stands on:** [widget.md](../../documentation/package/platform/widget/widget.md),
 > [layout-rules.md](../../documentation/rule/layout-rules.md),
-> [view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md),
-> [filter-sort-and-find-any-table.md](filter-sort-and-find-any-table.md),
-> [a-table-scrolls-its-own-parts.md](../done/a-table-scrolls-its-own-parts.md)
+> [view-and-edit-a-data-frame.md](../pending/view-and-edit-a-data-frame.md),
+> [filter-sort-and-find-any-table.md](../pending/filter-sort-and-find-any-table.md),
+> [a-table-scrolls-its-own-parts.md](a-table-scrolls-its-own-parts.md)
 
 This plan gives a scroll bar to every view that scrolls: a scroll pane, a
 list, a tree and a table. It says where the bar sits, when it shows, what a
@@ -22,7 +22,7 @@ pointer, in every view that scrolls. A maker of a widget does nothing for it:
 a widget that scrolls shows its bar.
 
 The plan also moves the bar of the data frame view and of the frame
-statistics into the widget table. [filter-sort-and-find-any-table.md](filter-sort-and-find-any-table.md)
+statistics into the widget table. [filter-sort-and-find-any-table.md](../pending/filter-sort-and-find-any-table.md)
 step 2 expects the bar there.
 
 ## 2. The owner's decisions (2026-10-06)
