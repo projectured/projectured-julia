@@ -5350,9 +5350,12 @@ const _PANE_CENTER = findfirst(==(:center), SCROLL_LAYOUT_PARTS)
 # The parts that a pane takes apart. `canvases` holds the canvas of each part of
 # `SCROLL_LAYOUT_PARTS`, or `nothing`; a part that is no canvas is not drawn.
 # `extents` is what `compute_scroll_layout_extents` gives for all the parts, the
-# frame in which the content reads a point, and `edges` the same for the parts
-# around the center alone, which the view of the center is reduced by: it never
-# reads the center, whose width can come from the width that the pane offers.
+# frame in which the content reads a point, and `edges` the extents of the bands
+# around the center, which the view of the center is reduced by: a part gives
+# only its extent across the band that it decides, so `edges` never reads an
+# extent that can follow the center, whose width comes from the width that the
+# pane offers. A gutter is as high as the lines beside it, and their height
+# depends on that width.
 # The printer fills in `elements`, the index of the viewport of each part among
 # the elements of the pane, 0 for none, and `view_w` and `view_h`, the cells of
 # the extent of the center viewport.
@@ -5371,11 +5374,19 @@ function _make_pane_parts(layout::ScrollLayout)
         canvas = getproperty(layout, part)
         push!(canvases, canvas isa GraphicsCanvas ? canvas : nothing)
     end
-    sizes(center) = Any[(canvas === nothing || (!center && index == _PANE_CENTER)) ? nothing :
-                        (Int(canvas.w), Int(canvas.h)) for (index, canvas) in enumerate(canvases)]
+    sizes() = Any[canvas === nothing ? nothing : (Int(canvas.w), Int(canvas.h)) for canvas in canvases]
+    function band_sizes()
+        out = Any[]
+        for (index, canvas) in enumerate(canvases)
+            column, row = get_scroll_layout_cell(index)
+            push!(out, canvas === nothing ? nothing :
+                       (column == 2 ? 0 : Int(canvas.w), row == 2 ? 0 : Int(canvas.h)))
+        end
+        out
+    end
     _PaneParts(canvases,
-               Cell(@computation compute_scroll_layout_extents(sizes(true))),
-               Cell(@computation compute_scroll_layout_extents(sizes(false))),
+               Cell(@computation compute_scroll_layout_extents(sizes())),
+               Cell(@computation compute_scroll_layout_extents(band_sizes())),
                zeros(Int, length(canvases)), nothing, nothing)
 end
 

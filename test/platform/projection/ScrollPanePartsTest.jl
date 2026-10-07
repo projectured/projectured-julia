@@ -47,7 +47,27 @@ read_intent(::_SppContent, iomap, payload) = nothing
 # The output is the input, so a reference into a part names the same part.
 map_reference_forward(::_SppContent, iomap, reference) = reference
 
+# A content that makes its parts as a text with a gutter does: a center as wide
+# as the width it is offered, which wraps a fixed area into that width, and a
+# left edge as high as the center. The marker type says which content it is.
+struct _SppWrapping <: Document end
+
+struct _SppWrappingContent <: Projection end
+
+function print_document(p::_SppWrappingContent, recursion, input::_SppWrapping, ctx)
+    edge = ctx.maximum_width
+    center = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), Cell(@computation Int32(edge[])),
+                            Cell(@computation Int32(cld(8000, max(1, Int(edge[]))))),
+                            CellVector(Cell[Cell(GraphicsRect(0, 0, 10, 10; color = color_black))]),
+                            layout_none, true, Cell(nothing))
+    left = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(20)), getfield(center, :h),
+                          CellVector(Cell[Cell(GraphicsRect(0, 0, 20, 10; color = color_black))]),
+                          layout_none, true, Cell(nothing))
+    SimpleIoMap(p, input, ScrollLayout(; center, left))
+end
+
 _spp_renderer(content) = RecursiveProjection(TypeDispatchingProjection(vcat(
+    Pair{Type, Any}[_SppWrapping => _SppWrappingContent()],
     Pair{Type, Any}[ScrollLayout => content],
     WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FixedMeasure(10, 15, 5, 0)).dispatch)))
 
@@ -135,6 +155,16 @@ function test_scroll_pane_parts()
         @test written !== nothing
         @test Int(written.x[]) == 50
         @test Int(written.y[]) > 30
+    end
+
+    @testset "a left edge as high as a center that wraps makes no cycle" begin
+        wrapping = WidgetScrollPane(_SppWrapping(); size = Point2D(100, 50))
+        wrapped = print_document(renderer, wrapping)
+        boxes = [_spp_box(v) for v in _spp_viewports(wrapped.output)]
+        # The center gets 100 - 20, and 8000 / 80 = 100 rows of height.
+        @test boxes[2][3:4] == (80, 50)
+        @test Int(wrapped.parts.canvases[5].h[]) == 100
+        @test Int(wrapped.parts.canvases[4].h[]) == 100
     end
 
     @testset "a reference into a part maps to the canvas in its viewport" begin

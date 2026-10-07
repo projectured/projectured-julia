@@ -2430,6 +2430,26 @@ _reroot_into_scroll_part(document, op, index::Integer) =
 _get_scroll_part_sizes(iomaps::Vector) =
     Any[iomap === nothing ? nothing : (_child_w(iomap), _child_h(iomap)) for iomap in iomaps]
 
+# The size of each part along the axes on which it decides a band around the
+# center, and 0 along the others: a part beside the center decides the width of
+# its column and not the height of the middle row, a part above or below it the
+# height of its row and not the width of the middle column, and the center
+# decides no band. So the extents of the bands around the center never read an
+# extent that can follow the center, such as the height of a gutter beside lines
+# that wrap.
+function _get_scroll_part_band_sizes(iomaps::Vector)
+    sizes = Any[]
+    for (index, iomap) in enumerate(iomaps)
+        if iomap === nothing
+            push!(sizes, nothing)
+            continue
+        end
+        column, row = get_scroll_layout_cell(index)
+        push!(sizes, (column == 2 ? 0 : _child_w(iomap), row == 2 ? 0 : _child_h(iomap)))
+    end
+    sizes
+end
+
 function _scroll_layout_build(recursion, doc::ScrollLayout, ctx)
     iomaps = Any[nothing for _ in SCROLL_LAYOUT_PARTS]
     center_index = _find_scroll_part_index("center")
@@ -2441,12 +2461,10 @@ function _scroll_layout_build(recursion, doc::ScrollLayout, ctx)
                                width = nothing, height = nothing)
         iomaps[index] = _recurse_child(recursion, child, cctx)
     end
-    # The extents of the parts around the center, which the range of the center
-    # is reduced by. They are read from a copy that never holds the center: the
-    # center can take its width from its range, and a cell of the range that read
-    # the center would read itself.
-    around_iomaps = copy(iomaps)
-    around = Cell(@computation compute_scroll_layout_extents(_get_scroll_part_sizes(around_iomaps)))
+    # The extents of the bands around the center, which the range of the center
+    # is reduced by. The center can take its width from its range, so they read
+    # no extent that can follow the center (`_get_scroll_part_band_sizes`).
+    around = Cell(@computation compute_scroll_layout_extents(_get_scroll_part_band_sizes(iomaps)))
     center = doc.center
     if center !== nothing
         inset_w = Cell(@computation (e = around[]; Int32(e[1][1] + e[1][3])))
