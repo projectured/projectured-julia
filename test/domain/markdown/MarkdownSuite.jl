@@ -30,9 +30,10 @@ function test_markdown()
         test_markdown_image_leaf()
         test_markdown_theme()
         test_markdown_link_target()
+        test_markdown_link_gestures()
     end
 end
 
-export test_markdown_link_target
+export test_markdown_link_target, test_markdown_link_gestures
 export test_markdown, test_markdown_layering, test_markdown_parser, test_markdown_page_wrap, test_markdown_embed_card,
        test_markdown_page_table, test_markdown_image_leaf, test_markdown_theme

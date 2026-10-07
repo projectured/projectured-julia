@@ -1453,8 +1453,73 @@ end
 # Nothing is lost: only a template node hosts gestures, and gestures are all this is
 # looking for.
 function read_intent(p::Projection, iomap::TemplateIoMap, c::ClaimedGesture)
+    c.gesture isa MouseClick && return _read_override_click(p, iomap, c.gesture, c.operation)
     c.gesture isa Union{KeyPress, KeyDown} || return nothing
     return _read_override_gesture(iomap, c.gesture, c.operation)
+end
+
+# A click that a stage nearer the output already answered, as a text view answers
+# each click with a caret. It goes to the parts on the path of the part that the
+# click selected, innermost first, as a claimed key goes along the selection: the
+# answer of a stage is not applied yet, so the path is the one of the claimed
+# selection, mapped into this node's input. A part that no template prints answers
+# with the bindings of its projection, then with its document's table. Only
+# `override` bindings fire.
+function _read_override_click(p, iomap::TemplateIoMap, evt, claimed)
+    selected = _find_claimed_selection(claimed)
+    selected === nothing && return nothing
+    path = map_reference_backward(p, iomap, selected)
+    path isa Reference || return nothing
+    return _read_override_click_along(iomap, evt, claimed, path)
+end
+
+function _read_override_click_along(iomap::TemplateIoMap, evt, claimed, path)
+    input = iomap.input
+    input isa Document || return nothing
+    fc = _focused_child(iomap.wiring, iomap, path)
+    if fc !== nothing
+        child, steps = fc
+        below = _get_path_below_steps(path, steps)
+        if below !== nothing
+            content = get_content_iomap(child)
+            child_op = content isa TemplateIoMap ?
+                       _read_override_click_along(content, evt, claimed, below) :
+                       _read_part_override_click(content, evt, claimed)
+            child_op === nothing || return reroot_operation(child_op, steps)
+        end
+    end
+    return read_gesture(input, evt; claimed)
+end
+
+function _read_part_override_click(iomap, evt, claimed)
+    input = get_iomap_input(iomap)
+    selection = input isa Document ? get_selection(input) : nothing
+    bindings = get_projection_gesture_bindings(get_iomap_projection(iomap), iomap)
+    own = isempty(bindings) ? nothing : fire_gesture_bindings(bindings, input, evt; selection, claimed)
+    own === nothing || return own
+    return input isa Document ? read_gesture(input, evt; claimed) : nothing
+end
+
+# The path of the selection that a claimed answer makes, or `nothing`.
+_find_claimed_selection(operation::ReplaceSelectionOperation) = operation.path
+_find_claimed_selection(operation::WrappingOperation) = _find_claimed_selection(get_wrapped_operation(operation))
+function _find_claimed_selection(operation::CompoundOperation)
+    for member in operation.operations
+        found = _find_claimed_selection(member)
+        found === nothing || return found
+    end
+    nothing
+end
+_find_claimed_selection(::Any) = nothing
+
+# The part of `path` below the steps that lead to a child, or `nothing` when
+# `path` does not go through them.
+function _get_path_below_steps(path, steps)
+    for step in steps
+        (path isa ConcreteReference && path.head == step) || return nothing
+        path = path.tail
+    end
+    path
 end
 
 function _read_override_gesture(iomap::TemplateIoMap, evt, claimed)
@@ -1479,7 +1544,8 @@ end
 The 4-arg reader [`@projection_template`](@ref) emits for each template projection.
 It offers this node's input domain the gesture *before* translating an operation
 that the stages nearer the output already produced for it — the seam an `override`
-binding fires through — and otherwise behaves like the generic bridge in
+binding fires through: a key along the selection, a click along the path of the
+part that the click selected — and otherwise behaves like the generic bridge in
 `ProjectionModule`. A key goes to the reader of the focused child with `recursion`.
 The answer keeps the description and the domain of `change`. A change with a route
 goes on to the child that the route names, as it does through the generic bridge.
@@ -1499,7 +1565,8 @@ function read_template_intent(p, recursion, change::Intent, iomap)
     change.route isa ConcreteReference && change.operation !== nothing &&
         return Intent(change.gesture, nothing)
     is_key = iomap isa TemplateIoMap && change.gesture isa Union{KeyPress, KeyDown}
-    if is_key && change.operation !== nothing
+    is_click = iomap isa TemplateIoMap && change.gesture isa MouseClick
+    if (is_key || is_click) && change.operation !== nothing
         override = read_intent(p, iomap, ClaimedGesture(change.gesture, change.operation))
         override === nothing ||
             return Intent(change.gesture, override, change.description, change.domain)

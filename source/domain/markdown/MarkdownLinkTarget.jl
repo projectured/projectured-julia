@@ -1,6 +1,41 @@
-# Fragment of `MarkdownModule` — what the target of a link names, for a navigator
-# whose content is a page: `#slug` names a heading of the page, a relative path
-# names a file beside the file of the page, and a URL names nothing here.
+# Fragment of `MarkdownModule` — a link: the gestures that follow it, and what its
+# target names, for a navigator whose content is a page: `#slug` names a heading
+# of the page, a relative path names a file beside the file of the page, and a URL
+# names nothing here.
+
+# ── The gestures of a link ────────────────────────────────────────────────────
+#
+# A link answers the target form of `OpenPageOperation`, and the nearest navigator
+# resolves it. In the source view a press puts the caret in the text of the link,
+# so Ctrl+click follows the link and Ctrl+Shift+click opens it in a new tab; the
+# rendered view follows it on a plain click and opens a new tab on Ctrl+click, as a
+# browser does. Each is an `override` rule, which takes the click from the caret of
+# the text. The tooltip of a link shows its target.
+
+_make_link_open(link::MarkdownLink, place::Symbol) =
+    OpenPageOperation(nothing, EmptyReference(), place; target = link.url)
+
+_make_link_binding(modifiers::Vector{Symbol}, place::Symbol, description::String) =
+    GestureBinding(MouseClickPattern(:left; modifiers), (link, gesture) -> _make_link_open(link, place);
+                   description, domain = "markdown", override = true)
+
+const _MARKDOWN_LINK_BINDINGS = GestureBinding[
+    _make_link_binding([:ctrl], :here, "Follow the link"),
+    _make_link_binding([:ctrl, :shift], :new_tab, "Open the link in a new tab"),
+    make_tooltip_binding(link -> isempty(link.url) ? nothing : PrimitiveString(link.url);
+                         description = "Show the target of the link")]
+
+@gestures MarkdownLink begin
+    splice(_MARKDOWN_LINK_BINDINGS)
+end
+
+const _RENDERED_LINK_BINDINGS = GestureBinding[
+    _make_link_binding(Symbol[], :here, "Follow the link"),
+    _make_link_binding([:ctrl], :new_tab, "Open the link in a new tab")]
+
+get_projection_gesture_bindings(::MarkdownLinkToStyledNode, iomap) = _RENDERED_LINK_BINDINGS
+
+# ── What a target names ───────────────────────────────────────────────────────
 
 """
     compute_markdown_heading_slug(heading) -> String
