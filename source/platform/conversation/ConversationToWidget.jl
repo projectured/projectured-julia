@@ -510,6 +510,12 @@ for P in (ConversationConversationToWidgetComposite,
               :ReplaceNumberRangeOperation)
         @eval read_intent(::$P, iomap, op::$O) = nothing
     end
+    # A compound says each of its parts onward, and a path in it says which part
+    # it named, as a path alone does; so the start of a drag in a compound names
+    # its part, and the drag comes back to it.
+    @eval read_intent(p::$P, iomap, op::CompoundOperation) =
+        CompoundOperation(Any[o isa Union{ReplacePathOperation,CompoundOperation} ? read_intent(p, iomap, o) : o
+                              for o in op.operations])
     # Anything else an operation says, it says onward.
     @eval read_intent(::$P, iomap, op::Operation) = op
     # A raw gesture is not an intent. Answering one would claim it, and the level

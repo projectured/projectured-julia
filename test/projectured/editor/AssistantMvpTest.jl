@@ -399,9 +399,56 @@ end
 Run the Assistant MVP test suite: the four scripted scenes
 plus the reactive-thunk probe. No SDL, no network.
 """
+# The transcript of the assistant is a pane in the output of the view, and its bar
+# is a part that the view drew. A press on the thumb starts a drag that names the
+# pane through the view, and the drag comes back along that path and scrolls the
+# transcript.
+function _mvp_test_transcript_bar_drag()
+    @testset "a drag of the thumb of the transcript scrolls it" begin
+        turns = [ConversationTurn(:user, [ConversationPart("line $i")]) for i in 1:40]
+        a = Assistant(; conversation = ConversationConversation(turns), llm = FakeLlm("ok"))
+        chain = make_assistant_projection_example(; measure = _mvp_measure)
+        offer = ProjectionModule.with_exact_size(ProjectionModule.PrinterContext();
+                                                 width = Cell(Int32(600)), height = Cell(Int32(400)))
+        iomap = print_document(chain, nothing, a, offer)
+        pane = iomap.step_iomaps[1][].output.elements[1].child
+        @test pane isa WidgetModule.WidgetScrollPane
+        plain = ModifierKeys()
+        read(gesture, route = nothing) =
+            read_intent(chain, nothing, Intent(gesture, nothing, "", "", route), iomap).operation
+        names_bar(x, y) = occursin("vertical_scroll_bar",
+                                   string(strip_reference_types(compute_part_at_point(iomap, x, y))))
+        # The bar is the first point from the right edge that names it.
+        x = something(findfirst(x -> names_bar(x, 40), 599:-1:400), 0)
+        @test x > 0
+        x = 600 - x
+        # The thumb is where a press starts a drag.
+        starts(y) = (answer = read(MouseDown(:left, x, y, plain; time = 0.0));
+                     answer isa CompoundOperation && any(o -> o isa StartDragOperation, answer.operations))
+        y = something(findfirst(starts, 1:399), 0)
+        @test y > 0
+        press = read(MouseDown(:left, x, y, plain; time = 0.0))
+        start = only(o for o in press.operations if o isa StartDragOperation)
+        function apply!(answer)
+            for o in (answer isa CompoundOperation ? answer.operations : Any[answer])
+                write = o isa ReplaceViewStateOperation ? get_wrapped_operation(o) : o
+                write isa ReplaceReferencedValueOperation && write.document !== nothing &&
+                    evaluate_operation(nothing, o)
+            end
+        end
+        apply!(press)
+        @test pane.follow_end
+        # Up from the end: the transcript leaves its end and scrolls up.
+        apply!(read(DragMove(x, y - 60, plain; time = 0.0), start.path))
+        @test !pane.follow_end
+        apply!(read(DragEnd(x, y - 60, plain; time = 0.0), start.path))
+    end
+end
+
 function test_assistant_mvp()
     @testset "Assistant MVP" begin
         _mvp_test_card_fills_its_page()
+        _mvp_test_transcript_bar_drag()
         _mvp_test_reactive_thunk()
         _mvp_test_scenes()
         _mvp_test_fake_llm_dispatch()

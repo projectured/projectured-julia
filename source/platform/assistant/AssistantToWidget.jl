@@ -169,8 +169,9 @@ end
 # And back. A click in a pane is a click in the document that pane holds, so the
 # caret lands where it was aimed rather than on the card as a whole — which is
 # the difference between a card a reader can click into and one they can only
-# click at.
-function map_reference_backward(::AssistantToWidgetCard, iomap::SimpleIoMap, reference)
+# click at. Any other part of the card is a part that the view drew, as the
+# default map names it, so the drag of a bar of a pane comes back to the pane.
+function map_reference_backward(p::AssistantToWidgetCard, iomap::SimpleIoMap, reference)
     reference isa Reference || return nothing
     steps = get_reference_steps(reference)
     for (pane, name) in ((1, "conversation"), (2, "draft"))
@@ -181,7 +182,7 @@ function map_reference_backward(::AssistantToWidgetCard, iomap::SimpleIoMap, ref
         return _steps_to_reference(vcat(Any[FieldReferenceStep(name)],
                                         steps[(length(prefix) + 1):end]))
     end
-    nothing
+    invoke(map_reference_backward, Tuple{Projection,Any,Any}, p, iomap, reference)
 end
 
 # A click that named no pane is still a click on the card, and the card takes it
@@ -200,7 +201,7 @@ function map_reference_forward(::AssistantToWidgetSplitPane, iomap, reference)
     end
 end
 
-function map_reference_backward(::AssistantToWidgetSplitPane,
+function map_reference_backward(p::AssistantToWidgetSplitPane,
                                  iomap,
                                  reference)
     # The assistant projects to a vertical WidgetSplitPane with the
@@ -220,7 +221,9 @@ function map_reference_backward(::AssistantToWidgetSplitPane,
     # spliced path must be typed all the way down or the strict check refuses it.
     assistant = iomap === nothing ? nothing : iomap.input
     typed(document, tail) = document === nothing ? tail : annotate_reference_types(document, tail)
-    @reference_case reference begin
+    # Any other part, such as the divider or a pane with its bar, is a part that
+    # the view drew, as the default map names it, so a drag there comes back.
+    answer = @reference_case reference begin
         ::WidgetSplitPane.elements{s:e}.child.content.rest... => begin
             i = s + 1
             if i == 1
@@ -232,6 +235,8 @@ function map_reference_backward(::AssistantToWidgetSplitPane,
             end
         end
     end
+    answer === nothing || return answer
+    invoke(map_reference_backward, Tuple{Projection,Any,Any}, p, iomap, reference)
 end
 
 function read_intent(p::AssistantToWidgetSplitPane,

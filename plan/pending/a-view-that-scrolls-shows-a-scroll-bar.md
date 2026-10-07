@@ -427,9 +427,22 @@ part.
     the way: the two readers of `WorkspaceToFileSystem` passed a compound answer
     unchanged, so the start of a drag in it kept the path of the stage below.
     They map a compound member by member now, as the default reader does.
-  - [ ] 9.4 A survey of the views with a backward map of their own; each that
+  - [x] 9.4 A survey of the views with a backward map of their own; each that
     answers `nothing` for a part it drew answers the default introduced
-    reference.
+    reference. The survey found 24 views. Three answered `nothing` for such a
+    part: the file tree (9.3), `AssistantToWidgetCard` and
+    `AssistantToWidgetSplitPane`, whose maps now end in the default. Two
+    stages passed a compound answer unchanged, so a path in it kept the domain
+    of the stage below: the workspace (9.3) and the three projections of
+    `ConversationToWidget`, which now map each path in a compound. The
+    appearance names the empty path of its pane as its own empty path already,
+    and the settings, the statistics, the pivot table, the task group and the
+    MCP log use the default map. A view whose drag path ends at its input as a
+    whole needs no introduced step: a routed gesture at the empty path of a
+    chain is read by position from its deepest stage, which reaches the pane.
+    Test: `_mvp_test_transcript_bar_drag()` in the assistant tests presses the
+    thumb of the transcript and drags it through the view, 5 pass; with the
+    maps of `main`, the bar is not even named.
   - [ ] 9.5 Tests: `test_routed_gesture()`, the tooltip and the right click in
     a view, `test_platform()`, the application test, and a live check of a drag
     of the thumb in the file tree.
