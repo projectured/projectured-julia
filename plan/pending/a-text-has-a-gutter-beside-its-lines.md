@@ -416,6 +416,19 @@ The order of the work, each step on its own commit, each with its test.
    offers the width of its center viewport, which reads the width of the
    gutter, so the width of the gutter must not depend on the wrap (Q4 of
    [a-scroll-pane-keeps-the-edges-of-its-content-in-view.md](../done/a-scroll-pane-keeps-the-edges-of-its-content-in-view.md)).
+   *Found before the work, 2026-10-07; a question for the owner.* Every
+   decorator keeps the gutter of a line today, because each one passes a
+   `TextLine` through unchanged. But none of them knows lines: `WordWrapping` does
+   not wrap inside a line, `TextHighlighting` marks no match inside a line,
+   `TextFiltering` takes a block of lines as one line, because it ends a line only
+   at a `TextNewline`, and `TextFirstLine` does the same. To wrap inside a line,
+   `WordWrapping` must put soft breaks inside a `TextLine`, against the rule that
+   a line holds no break, and `TextToGraphics` must break a row at a soft break
+   inside a line and map a caret across it; the flat runs of the decorators know
+   only spans at the top of a block. This is the work that
+   [text-domain-kit.md](text-domain-kit.md) names for its Phase 3: the remaining
+   consumers learn lines. Its escape, `TextLineFlattening`, would drop the
+   gutter, so it does not serve here.
 4. **`SyntaxToText` emits lines: not a step of this plan (D7).** It is step 3
    of Phase 3 of [text-domain-kit.md](text-domain-kit.md), with the join rule of
    an inline child that it names. Steps 5 and 6 wait for it.
