@@ -606,31 +606,28 @@ end
 
 # ── Pie ──────────────────────────────────────────────────────────────────
 
-# The slices of the first visible pie series, in the coordinates of the plot: a
-# polygon of each arc and the centre, from the top, clockwise, in the colour of
-# the slice. A slice of no positive, finite value is not drawn.
+# The slices of the first visible pie series, in the coordinates of the plot: an
+# arc as wide as its radius for each slice, from the top, clockwise, in the
+# colour of the slice. An arc keeps its angles exact and a backend draws it on the
+# circle, so the pie stays round at any scale of the display. A slice of no
+# positive, finite value is not drawn.
 function _pie_elements!(out, g)
     isempty(g.series) && return out
     _, s = first(g.series)
     values = Float64[(v isa Real && isfinite(v) && v > 0) ? Float64(v) : 0.0 for v in s.values]
     total = sum(values; init = 0.0)
     total > 0 || return out
-    cx, cy = g.plot_w / 2, g.plot_h / 2
-    radius = max(1.0, min(g.plot_w, g.plot_h) / 2 - 2)
+    cx, cy = round(Int, g.plot_w / 2), round(Int, g.plot_h / 2)
+    radius = max(1, floor(Int, min(g.plot_w, g.plot_h) / 2) - 2)
     cycle = _get_color_cycle(g.style, g.theme_values)
-    angle = -π / 2
+    start = 0.0
     for (k, value) in enumerate(values)
         value > 0 || continue
-        span = 2π * value / total
-        steps = max(2, ceil(Int, span / (π / 30)))
-        points = Tuple{Int,Int}[(round(Int, cx), round(Int, cy))]
-        for j in 0:steps
-            a = angle + span * j / steps
-            push!(points, (round(Int, cx + radius * cos(a)), round(Int, cy + radius * sin(a))))
-        end
+        sweep = 360 * value / total
         own = (s.colors === nothing || k > length(s.colors)) ? nothing : s.colors[k]
-        push!(out, GraphicsPolygon(points; color = get_series_color(own, k, cycle)))
-        angle += span
+        push!(out, GraphicsArc(cx, cy, radius; width = radius, start_angle = start, sweep_angle = sweep,
+                               color = get_series_color(own, k, cycle)))
+        start += sweep
     end
     out
 end

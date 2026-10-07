@@ -23,7 +23,7 @@
 | `ChartHistogramSeries` | `binedges`, `binvalues`, the underflow and overflow, and the `cumulative` and `density` flags |
 | `ChartStripSeries` | `x` times, `values` as state codes, the `states` name table, `x_end`, and `state_colors` |
 
-The order of `series` is the draw order and the legend order. A chart has two axis families: a `ChartAxis` on x carries line, scatter, histogram and strip series, and a `ChartCategoryAxis` on x carries bar series. The renderer leaves out a series of the wrong family and still draws the frame. A chart of pie series draws no axis: the first visible pie series fills the plot, from the top, clockwise, a polygon for each slice of positive value, and the legend lists the slices.
+The order of `series` is the draw order and the legend order. A chart has two axis families: a `ChartAxis` on x carries line, scatter, histogram and strip series, and a `ChartCategoryAxis` on x carries bar series. The renderer leaves out a series of the wrong family and still draws the frame. A chart of pie series draws no axis: the first visible pie series fills the plot, from the top, clockwise, a `GraphicsArc` as wide as its radius for each slice of positive value, so the pie stays round at any scale of the display, and the legend lists the slices.
 
 **A series holds whole columns, one cell for each column.** A column is numeric leaf data and no caret goes into it, so a cell for each sample costs about 88 bytes and gives nothing. An assignment of a new column, `chart.series[1].y = v`, repaints the chart without a new print of the projection. Any `AbstractVector{<:Real}` works, so a column of a data frame goes into a series directly. This is an exception to `PAR-FINEST-GRANULARITY`, on the same grounds as `GraphicsPolyline.points`.
 

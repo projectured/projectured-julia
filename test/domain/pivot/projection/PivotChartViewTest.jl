@@ -62,25 +62,25 @@ many = make_pivot_table((k = string.(1:20), v = collect(1.0:20.0)); cells = ["k"
 projection = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
 context = with_exact_size(PrinterContext(); width = Cell(Int32(900)), height = Cell(Int32(500)))
 io = print_document(projection, nothing, pivot, context)
-polygons = Ref(0)
-function count_polygons(node)
-    node isa GraphicsPolygon && (polygons[] += 1)
+slices = Ref(0)
+function count_slices(node)
+    node isa GraphicsArc && (slices[] += 1)
     if node isa GraphicsCanvas
         elements = node.elements
         if elements isa ListNode
             n = elements
             while n !== nothing
-                count_polygons(n.value); n = n.next
+                count_slices(n.value); n = n.next
             end
         else
-            foreach(count_polygons, elements)
+            foreach(count_slices, elements)
         end
     elseif node isa GraphicsViewport
-        count_polygons(node.content)
+        count_slices(node.content)
     end
 end
-count_polygons(io.output)
-@test polygons[] == 3 * 3 * 4 - 1
+count_slices(io.output)
+@test slices[] == 3 * 3 * 4 - 1
 
 end
 end
