@@ -1462,9 +1462,9 @@ end
 # each click with a caret. It goes to the parts on the path of the part that the
 # click selected, innermost first, as a claimed key goes along the selection: the
 # answer of a stage is not applied yet, so the path is the one of the claimed
-# selection, mapped into this node's input. A part that no template prints answers
-# with the bindings of its projection, then with its document's table. Only
-# `override` bindings fire.
+# selection, mapped into this node's input. Each part answers with the bindings of
+# its projection, then with its document's table, so a view can give a click a
+# meaning of its own. Only `override` bindings fire.
 function _read_override_click(p, iomap::TemplateIoMap, evt, claimed)
     selected = _find_claimed_selection(claimed)
     selected === nothing && return nothing
@@ -1484,14 +1484,41 @@ function _read_override_click_along(iomap::TemplateIoMap, evt, claimed, path)
             content = get_content_iomap(child)
             child_op = content isa TemplateIoMap ?
                        _read_override_click_along(content, evt, claimed, below) :
-                       _read_part_override_click(content, evt, claimed)
+                       _read_part_override_click(content, evt, claimed, below)
             child_op === nothing || return reroot_operation(child_op, steps)
         end
     end
-    return read_gesture(input, evt; claimed)
+    return _read_own_override_click(iomap, evt, claimed)
 end
 
-function _read_part_override_click(iomap, evt, claimed)
+# A part that no template prints: the child whose input the path reaches first,
+# as a route reaches a child (`read_routed_child`), then the part itself.
+function _read_part_override_click(iomap, evt, claimed, path)
+    children = get_child_iomaps(iomap)
+    node, rest, taken = get_iomap_input(iomap), path, ReferenceStep[]
+    while children !== nothing && rest isa ConcreteReference
+        node = try
+            evaluate_reference_step(rest.head, node)
+        catch exception
+            is_passthrough_exception(exception) && rethrow()
+            break
+        end
+        push!(taken, rest.head)
+        rest = rest.tail
+        index = findfirst(child -> get_iomap_input(child) === node, children)
+        index === nothing && continue
+        content = get_content_iomap(children[index])
+        child_op = content isa TemplateIoMap ?
+                   _read_override_click_along(content, evt, claimed, rest) :
+                   _read_part_override_click(content, evt, claimed, rest)
+        child_op === nothing || return reroot_operation(child_op, Tuple(taken))
+        break
+    end
+    return _read_own_override_click(iomap, evt, claimed)
+end
+
+# The bindings of the projection of a part, then the table of its document.
+function _read_own_override_click(iomap, evt, claimed)
     input = get_iomap_input(iomap)
     selection = input isa Document ? get_selection(input) : nothing
     bindings = get_projection_gesture_bindings(get_iomap_projection(iomap), iomap)

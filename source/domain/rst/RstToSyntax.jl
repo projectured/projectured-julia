@@ -1054,8 +1054,84 @@ function ProjectionModule.print_document(p::RstSectionToStyledNode, recursion, d
                                 open=TextString("\n\n" * indent, p.style))
             for k in eachindex(maps)]
     end)
-    node = SyntaxNode(items; sep=TextString(() -> "", p.style), indentation=0)
-    ChildrenIoMap(p, doc, node, child_iomaps)
+    iomap_cell = Cell(nothing)
+    paths = make_output_path_cells(doc, path -> begin
+        im = iomap_cell[]
+        im === nothing ? nothing : map_reference_forward(p, im, path)
+    end)
+    node = SyntaxNode(items; sep=TextString(() -> "", p.style), indentation=0, paths...)
+    iomap = ChildrenIoMap(p, doc, node, child_iomaps)
+    iomap_cell[] = iomap
+    return iomap
+end
+
+# A title child is `children[k]`; a body block is the one child of the node that
+# opens with its blank line, `children[n + j].children[1]`, where `n` is the length
+# of the title.
+function map_reference_forward(p::RstSectionToStyledNode, iomap::ChildrenIoMap, reference)
+    n = length(iomap.input.title)
+    @reference_case reference begin
+        ∅ => @reference ::SyntaxNode
+        proj(^(p), inner) => inner
+        title{s:e}.rest... => begin
+            child_i = s + 1
+            iomaps = iomap.child_iomaps
+            1 <= child_i <= n || return nothing
+            child = iomaps[child_i]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference ::SyntaxNode.children::CellVector[child_i].^(inner)
+        end
+        elements{s:e}.rest... => begin
+            child_i = n + s + 1
+            iomaps = iomap.child_iomaps
+            child_i <= length(iomaps) || return nothing
+            child = iomaps[child_i]
+            inner = map_reference_forward(child.projection, child, rest)
+            inner === nothing && return nothing
+            @reference ::SyntaxNode.children::CellVector[child_i]::SyntaxNode.children::CellVector[1].^(inner)
+        end
+    end
+end
+
+function map_reference_backward(p::RstSectionToStyledNode, iomap::ChildrenIoMap, reference)
+    n = length(iomap.input.title)
+    @reference_case reference begin
+        ∅ => @reference ::RstSection
+        ::SyntaxNode.children{s:e}.rest... => begin
+            child_i = s + 1
+            iomaps = iomap.child_iomaps
+            1 <= child_i <= length(iomaps) || return make_introduced_reference(p, iomap, reference)
+            child = iomaps[child_i]
+            if child_i <= n
+                inner = map_reference_backward(child.projection, child, rest)
+                inner === nothing && return nothing
+                return @reference ::RstSection.title::CellVector[child_i].^(inner)
+            end
+            element_i = child_i - n
+            @reference_case rest begin
+                ::SyntaxNode.children{t:u}.block_rest... => begin
+                    inner = map_reference_backward(child.projection, child, block_rest)
+                    inner === nothing && return nothing
+                    @reference ::RstSection.elements::CellVector[element_i].^(inner)
+                end
+                __ => make_introduced_reference(p, iomap, reference)
+            end
+        end
+        __ => make_introduced_reference(p, iomap, reference)
+    end
+end
+
+function read_intent(p::RstSectionToStyledNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
+    result = map_reference_backward(p, iomap, op.path)
+    result === nothing && return nothing
+    make_path_operation(op, result)
+end
+
+function read_intent(p::RstSectionToStyledNode, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
+    new_ref = map_reference_backward(p, iomap, op.reference)
+    (new_ref === nothing || has_introduced_step(new_ref)) && return nothing
+    ReplaceStringRangeOperation(new_ref, op.replacement)
 end
 
 # ── RstEnumeratedListToStyledNode (rendered; the numbers actually count) ─────
