@@ -1,8 +1,9 @@
 # A view that scrolls shows a scroll bar
 
-> **Kind:** plan · **Status:** pending, 2026-10-06. The decisions of §2 are
-> made. Steps 1 to 8 are done on the branch `scroll-bars`, not landed. One
-> question of §8 is open: the drag of a thumb in the file tree. ·
+> **Kind:** plan · **Status:** pending, 2026-10-07. The decisions of §2 are
+> made, and no question is open. Steps 1 to 8 landed on `main` as `11334c3e8`
+> on 2026-10-06, not pushed. Step 9, a drag inside the output of a view (D9),
+> waits. ·
 > **Stands on:** [widget.md](../../documentation/package/platform/widget/widget.md),
 > [layout-rules.md](../../documentation/rule/layout-rules.md),
 > [view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md),
@@ -55,6 +56,12 @@ step 2 expects the bar there.
   no bar on that axis.
 - **D8. `:auto` is the default.** A field of a bar holds `:auto`, `nothing`
   or a `WidgetScrollBar`. CSS names the same rule `overflow: auto`.
+- **D9. A drag inside the output of a view comes back by the chain**
+  (2026-10-07). A part that a view drew has no path in the input of the view,
+  and the kernel names it by an introduced reference. The chain follows such a
+  path for a gesture, so a drag that starts on that part comes back to it. The
+  other choice, that each view keeps the drag of its parts as the data frame
+  view does, repeats the code of an owner in each view.
 
 ## 3. What exists
 
@@ -291,6 +298,46 @@ the edge of a column:
   the table does, because no path reaches it. The statistics give their table
   no mouse target, so their bar lights only while its thumb is dragged.
 
+### 4.7 A drag inside the output of a view (D9)
+
+Steps 1 to 8 showed the problem on the file tree: a click on the track and the
+wheel scroll it, and a drag of the thumb does nothing.
+
+- **The press.** The thumb answers `StartDragOperation` with the empty path,
+  and each container puts its own step in front of it. A view maps the path
+  back to its input. `FileSystemToWidgetTree` maps only the paths of the nodes
+  of its tree, and answers `nothing` for the empty path, the tree itself. The
+  default reader carries a compound whole or not at all, so it drops the whole
+  answer to the press, also the write of `thumb_drag`.
+- **The plain empty path does not help.** The default backward map gives the
+  empty path of the output back as the empty path of the input. But the forward
+  map of the file tree view sends the empty path of the file system document to
+  the root row `roots[1]`, because a selection of the whole folder lights the
+  root row. So the view names its tree itself by an introduced reference,
+  `make_introduced_reference(p, iomap, EmptyReference())`, and its forward map
+  answers an introduced reference first, with `find_introduced_path`.
+- **Each part of the drag.** The drag tracker sends a `DragMove`, a `DragEnd` and
+  a `DragCancel` along the kept path. `_read_routed_chain` in
+  [Chaining.jl](../../source/platform/projection/higherorder/Chaining.jl) maps the
+  route forward, stage by stage, and each container moves the point into the
+  frame of its child. Today it first evaluates the route on the input of the
+  chain, and drops the gesture when that fails; a route that starts with an
+  introduced step always fails. A gesture needs no place in the input, only a
+  route forward, so for a gesture the chain skips that check and maps an
+  introduced step forward with `find_introduced_path`, as its own comment says.
+  An operation still needs its place.
+- **The other views.** About twenty views have a backward map of their own:
+  the assistant, the appearance, the navigator, the panes, the conversation, the
+  evaluator, the pivot table, Markdown, reStructuredText, the row of a data
+  frame. Each that answers `nothing` for a part it drew answers the default
+  introduced reference instead, so a drag inside it comes back too.
+- **To verify first.** In the Explorer, the outer stage `WorkspaceToFileSystem`
+  puts its own introduced step in front of the path of its inner stage. A probe
+  shows whether the chain maps that path forward again to the tree.
+- **The owners keep their code for now.** The data frame view and the
+  statistics keep the drag of their bar themselves (§4.6). With D9 they could
+  leave it to the chain; that is a later choice, not part of step 9.
+
 ## 5. Steps
 
 Each step is one commit with its test. Each step updates
@@ -364,8 +411,22 @@ part.
     folder opens, and a click on the track moves one page. The owner turned the
     wheel over it by hand, and it scrolled; the wheel events that the driver
     pushed carry no point, so they did not. **A drag of the thumb does nothing:**
-    see §8.
+    see §4.7.
   - The pages of omnet-julia were not checked.
+- [ ] **9. A drag inside the output of a view** (D9, §4.7).
+  - [ ] 9.1 A test that fails today: a press on the thumb of the file tree
+    through the Explorer chain, then a `DragMove` routed along the path of its
+    answer, scrolls the tree.
+  - [ ] 9.2 `_read_routed_chain`: a gesture whose route does not evaluate on
+    the input of the chain goes forward by its introduced path.
+  - [ ] 9.3 `FileSystemToWidgetTree` names its tree itself by an introduced
+    reference, and its forward map answers an introduced reference first.
+  - [ ] 9.4 A survey of the views with a backward map of their own; each that
+    answers `nothing` for a part it drew answers the default introduced
+    reference.
+  - [ ] 9.5 Tests: `test_routed_gesture()`, the tooltip and the right click in
+    a view, `test_platform()`, the application test, and a live check of a drag
+    of the thumb in the file tree.
 
 ## 6. Not in this plan
 
@@ -397,6 +458,9 @@ Each item needs a decision of its own.
   bar document.
 - **A hidden bar, `visible = false`, for no bar.** The owner chose `nothing`
   (D7), which needs no bar document.
+- **Each view keeps the drag of its parts,** as the data frame view does (D9).
+  A bar that a pane makes is in no field of the view, so each view would make
+  its own bar, count its rows, and repeat the code of an owner.
 - **A constructor that builds `[content | bar]` in a `GridLayout`.** It
   changes the document tree: `get_edited_field(:content)`, the title of a
   file tab, the `.pred` file of a pane and every selection path through the
@@ -405,28 +469,7 @@ Each item needs a decision of its own.
 
 ## 8. Open questions
 
-1. **A drag of a thumb inside the output of a view that drops the path of
-   the drag.** The thumb answers `StartDragOperation` with the empty path, and
-   each widget around it keeps that path. A view maps it back to its own
-   input. The file tree view, `FileSystemToWidgetTree`, maps no path but a node
-   of the tree, so it drops the start of the drag, and the chain drops the whole
-   answer to the press: in the file tree a drag of the thumb does nothing (a
-   click on the track and the wheel work). The settings page works, because its
-   view maps the path. Two ways out, and the recommendation is the first:
-   - **The chain follows an introduced reference.** `_read_routed_chain` in
-     [Chaining.jl](../../source/platform/projection/higherorder/Chaining.jl)
-     drops a routed gesture whose route does not evaluate on its input, and an
-     introduced reference never does. A gesture needs no place in the input,
-     only a route forward, so the chain can map it forward by
-     `find_introduced_path`, as its comment already says it does. Each view
-     whose backward map answers `nothing` for a part it made then answers the
-     default introduced reference. This fixes every drag inside the output of a
-     view, also a slider or a splitter, and the data frame view and the
-     statistics would not need to keep the drag themselves. It is a change of
-     the routing design, so it waits for the owner.
-   - **Each such view keeps the drag itself,** as the data frame view does. A
-     bar that a pane makes is not in a field of the view, so the view would
-     need a way to reach it.
+None. D9 decided the last one, the drag inside the output of a view.
 
 ## 9. Risks
 
