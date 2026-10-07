@@ -333,6 +333,15 @@ function test_application()
             @test command.backend === nothing && command.assistant === nothing
             @test command.model === nothing && command.mcp === nothing
             @test command.context === nothing && !command.strict_fault_policy
+            @test command.agent_command === nothing
+            # The command of an external agent is one argument, with its spaces.
+            command = parse_application_arguments(["--assistant=acp",
+                                                   "--agent-command=node /opt/agent/index.js"])
+            @test command.assistant === :acp
+            @test command.agent_command == "node /opt/agent/index.js"
+            start = get_settings_group!(make_application_settings(nothing; agent_command = "my-agent"),
+                                        StartSettings)
+            @test start.agent_command == "my-agent"
             command = parse_application_arguments(
                 ["a.json", "--backend=web", "--assistant=none",
                  "--model=small", "--root=/tmp", "--mcp", "--context=8192",

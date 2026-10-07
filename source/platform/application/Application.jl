@@ -386,7 +386,8 @@ make_application_system() =
 
 """
     make_application_settings(file; fault_policy = nothing, assistant = nothing,
-                              model = nothing, context = nothing, mcp = nothing)
+                              model = nothing, context = nothing, mcp = nothing,
+                              agent_command = nothing)
         -> Settings
 
 The settings of the application window, from the weakest source: the defaults,
@@ -400,7 +401,8 @@ function make_application_settings(file::Union{AbstractString,Nothing};
                                    assistant::Union{Symbol,Nothing} = nothing,
                                    model::Union{AbstractString,Nothing} = nothing,
                                    context::Union{Integer,Nothing} = nothing,
-                                   mcp::Union{Bool,Nothing} = nothing)
+                                   mcp::Union{Bool,Nothing} = nothing,
+                                   agent_command::Union{AbstractString,Nothing} = nothing)
     settings = make_settings()
     if file !== nothing
         settings.file = String(file)
@@ -418,6 +420,7 @@ function make_application_settings(file::Union{AbstractString,Nothing};
     model === nothing || (start.model = String(model))
     context === nothing || (start.context = Int(context))
     mcp === nothing || (start.mcp = mcp)
+    agent_command === nothing || (start.agent_command = String(agent_command))
     settings
 end
 
@@ -425,7 +428,7 @@ end
     run_application(paths...; backend = nothing,
                     assistant = nothing, model = nothing, mcp = nothing,
                     mcp_host = nothing, mcp_port = nothing, root = pwd(),
-                    context = nothing,
+                    context = nothing, agent_command = nothing,
                     width = nothing, height = nothing, fault_policy = nothing,
                     appearance = load_appearance!(Appearance()),
                     settings_file = get_settings_file())
@@ -435,8 +438,9 @@ window closes.
 
 - `backend` is a constructed backend, for example `SdlBackend()` or
   `WebBackend()`. `nothing` takes the default backend.
-- `assistant` is `:ollama`, `:anthropic` or `:none`, and `model` names the model
-  of that backend; empty means its default.
+- `assistant` is `:ollama`, `:anthropic`, `:acp` or `:none`, and `model` names
+  the model of that backend; empty means its default. `:acp` is an external agent
+  that `agent_command` starts, and it needs the package `ProjecturedACP`.
 - `mcp` starts an MCP server beside the window, so an external client drives the
   same editor with the same tools. `mcp_host` and `mcp_port` say where it
   listens; each one that is `nothing` takes the default, `127.0.0.1` and `9876`.
@@ -444,8 +448,8 @@ window closes.
 - `context` is how many tokens of the conversation the model may see; `0` leaves
   the backend's own answer. It matters for a local model, whose window costs
   memory on this machine.
-- `assistant`, `model`, `mcp` and `context` that are `nothing` take the
-  `StartSettings` of the settings file, so a person sets them in the settings
+- `assistant`, `model`, `mcp`, `context` and `agent_command` that are `nothing`
+  take the `StartSettings` of the settings file, so a person sets them in the settings
   tab for the next start; a value given here wins for this run.
 - `fault_policy` is what the editor does with a fault, for this run. `nothing`
   leaves it to the settings; `make_strict_fault_policy()` stops at the first one.
@@ -470,13 +474,14 @@ function run_application(paths::AbstractString...;
                          mcp_port::Union{Integer,Nothing} = nothing,
                          root::AbstractString = pwd(),
                          context::Union{Integer,Nothing} = nothing,
+                         agent_command::Union{AbstractString,Nothing} = nothing,
                          width = nothing, height = nothing,
                          fault_policy::Union{FaultPolicy,Nothing} = nothing,
                          measure = FontFileMeasure(),
                          appearance::Appearance = load_appearance!(Appearance()),
                          settings_file::Union{AbstractString,Nothing} = get_settings_file())
     settings = make_application_settings(settings_file; fault_policy, assistant, model,
-                                         context, mcp)
+                                         context, mcp, agent_command)
     start = get_settings_group!(settings, StartSettings)
     assistant, model, mcp = start.assistant, start.model, start.mcp
     chat = make_application_assistant(assistant; model, context = start.context,
@@ -523,6 +528,10 @@ that names it.
 `mcp_port` are then the values given, and `nothing` where the command line
 gives none.
 
+`--agent-command=COMMAND` is the command line of the external agent of
+`--assistant=acp`, one argument that the shell quotes, as
+`--agent-command="node /opt/claude-agent-acp/dist/index.js"`.
+
 The `--help` text of a binary lists the same options: the builder writes it
 from `PROJECTURED_OPTIONS`, and a test compares the two.
 """
@@ -542,7 +551,7 @@ function parse_application_arguments(arguments::AbstractVector{<:AbstractString}
             strict_fault_policy = true
         elseif startswith(argument, "--") && occursin('=', argument)
             key, value = split(argument[3:end], '='; limit = 2)
-            key in ("backend", "assistant", "model", "root", "context") ||
+            key in ("backend", "assistant", "model", "root", "context", "agent-command") ||
                 error("unknown option $(repr(argument))")
             values[key] = String(value)
         elseif startswith(argument, "-")
@@ -560,7 +569,8 @@ function parse_application_arguments(arguments::AbstractVector{<:AbstractString}
     haskey(values, "context") && (context === nothing || context < 0) &&
         error("--context is a count of tokens, not ", repr(values["context"]))
     (; files, backend, assistant, model = get(values, "model", nothing),
-       root = values["root"], mcp, mcp_host, mcp_port, context, strict_fault_policy)
+       root = values["root"], mcp, mcp_host, mcp_port, context, strict_fault_policy,
+       agent_command = get(values, "agent-command", nothing))
 end
 
 # The value of `--mcp=`: `PORT`, or `HOST:PORT`. The port follows the last colon.
@@ -603,7 +613,7 @@ function run_application_command(arguments; backends)
                         assistant = command.assistant, model = command.model,
                         mcp = command.mcp, mcp_host = command.mcp_host,
                         mcp_port = command.mcp_port, root = command.root,
-                        context = command.context,
+                        context = command.context, agent_command = command.agent_command,
                         fault_policy = command.strict_fault_policy ?
                             make_strict_fault_policy() : nothing)
         Cint(0)

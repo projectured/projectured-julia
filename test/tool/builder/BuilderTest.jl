@@ -116,7 +116,7 @@ function test_build_executable()
             flags = Set(first(split(label, '=')) for (label, _) in usage.options)
             @test flags == Set(["--backend", "--assistant", "--model",
                                 "--root", "--mcp", "--context",
-                                "--strict-fault-policy"])
+                                "--strict-fault-policy", "--agent-command"])
             # The binary takes both forms of `--mcp`: the flag alone, and the
             # flag with the address.
             @test "--mcp" in collect_option_flags(usage)
@@ -955,7 +955,7 @@ function test_build_executable()
             @test Set(keys(deps)) == Set(["PrecompileTools", "ProjecturedPlatform",
                                           PROJECTURED_APPLICATION_IMPORTS...,
                                           "ProjecturedOllama", "ProjecturedAnthropic",
-                                          "ProjecturedMCP", "ProjecturedSDL",
+                                          "ProjecturedMCP", "ProjecturedACP", "ProjecturedSDL",
                                           "ProjecturedWeb",
                                           "alsa_plugins_jll"])
             source = read(joinpath(project, "src", "ProjecturedApp.jl"), String)
@@ -964,7 +964,8 @@ function test_build_executable()
                            source)
             @test occursin("ProjecturedPlatform.warm_application()", source)
             @test occursin("--backend=sdl|web", source)
-            @test occursin("--assistant=ollama|anthropic|none", source)
+            @test occursin("--assistant=ollama|anthropic|acp|none", source)
+            @test occursin("--agent-command=COMMAND", source)
             text = format_usage("projectured", make_projectured_usage([:sdl, :web]))
             @test all(line -> length(line) <= 80, split(text, '\n'))
 

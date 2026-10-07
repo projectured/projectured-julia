@@ -126,14 +126,15 @@ The options of the `projectured` command that every build takes, as
 more than one backend. The builder writes its own four options after these.
 """
 const PROJECTURED_OPTIONS = [
-    "--assistant=ollama|anthropic|none" =>
-        "the model backend of the assistant (default: the\nsettings, ollama at first), or no assistant",
+    "--assistant=ollama|anthropic|acp|none" =>
+        "the model backend of the assistant, an external\nagent (acp), or no assistant (default: the\nsettings, ollama at first)",
     "--model=NAME" => "the model of that backend (default: the settings,\nelse the default model of the backend)",
     "--root=DIRECTORY" => "the directory that the Files pane lists (default:\nthe current directory)",
     "--mcp" => "start an MCP server at http://127.0.0.1:9876/mcp",
     "--mcp=[HOST:]PORT" => "start an MCP server at http://HOST:PORT/mcp\n(HOST is 127.0.0.1 when it is not given)",
     "--context=TOKENS" => "how many tokens of the conversation the model may\nsee (default: the settings, else the default of the\nbackend)",
     "--strict-fault-policy" => "stop at the first fault and print its stack,\ninstead of surviving it",
+    "--agent-command=COMMAND" => "the command line of the external agent of\n--assistant=acp (default: the settings,\nclaude-agent-acp at first)",
 ]
 
 """
@@ -145,8 +146,10 @@ README.
 const PROJECTURED_REQUIREMENTS = [
     "Linux on x86-64.",
     "A display for the native window, or a web browser with --backend=web.",
-    "For the assistant: an Ollama server with a pulled model, or an Anthropic " *
-        "API key in the environment variable ANTHROPIC_API_KEY.",
+    "For the assistant: an Ollama server with a pulled model, an Anthropic " *
+        "API key in the environment variable ANTHROPIC_API_KEY, or, with " *
+        "--assistant=acp, an agent of the Agent Client Protocol such as " *
+        "claude-agent-acp (Node.js 22 or newer), signed in with its own sign-in.",
 ]
 
 """
@@ -283,7 +286,7 @@ function build_projectured_executable(; name::AbstractString = "projectured",
     main = :(ProjecturedPlatform.run_application_command(ARGS; backends = $table))
     build_executable(context; name = name,
                      packages = vcat(["ProjecturedPlatform", "ProjecturedOllama",
-                                      "ProjecturedAnthropic", "ProjecturedMCP"],
+                                      "ProjecturedAnthropic", "ProjecturedMCP", "ProjecturedACP"],
                                      backend_packages),
                      imports = PROJECTURED_APPLICATION_IMPORTS,
                      main = main,
