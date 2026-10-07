@@ -92,9 +92,9 @@ end
 # ── Printer ───────────────────────────────────────────────────────────────────
 
 function print_document(p::FileSystemToWidgetTree, recursion, doc::FileSystemDocument, ctx)
-    # The tree's paths (its selection, its mouse target) are the node paths of the
-    # document's.
-    paths = make_output_path_cells(doc, _map_tree_reference_forward)
+    # The tree's paths (its selection, its mouse target) are the forward images of
+    # the document's: a node path, or a part that the view drew.
+    paths = make_output_path_cells(doc, path -> map_reference_forward(p, nothing, path))
     # The roots are a reactive thunk so structural file-system changes rebuild the
     # node tree without re-running `print_document`.
     roots = CellVector(@computation Any[_fs_node(doc, p.open_file)])
@@ -115,16 +115,22 @@ end
 # ── Reference mapping (file-system ⇄ WidgetTree node-path) ─────────────────────
 
 # Forward: a file-system selection (`elements[a].elements[b]…` or `∅`) → the tree
-# node `roots[1].children[a].children[b]…`.
-map_reference_forward(p::FileSystemToWidgetTree, iomap::SimpleIoMap, reference) =
-    _map_tree_reference_forward(reference)
+# node `roots[1].children[a].children[b]…`. A part that the view drew, such as the
+# tree itself or its bar, is the path in the tree that its introduced reference
+# holds.
+map_reference_forward(p::FileSystemToWidgetTree, iomap, reference) =
+    something(find_introduced_path(p, reference), Some(_map_tree_reference_forward(reference)))
 
 # Backward: a node path of the tree (`roots[1].children[a].children[b]…`) → the
-# file-system reference `elements[a].elements[b]…` (or `∅` for the root node).
+# file-system reference `elements[a].elements[b]…` (or `∅` for the root node). Any
+# other part of the tree, the tree itself as well, is a part that the view drew:
+# an introduced reference names it. The empty path of the file system names the
+# folder, whose row is the root row, so the tree itself needs the reference of a
+# part of the view.
 function map_reference_backward(p::FileSystemToWidgetTree, iomap::SimpleIoMap, reference)
-    reference isa ConcreteReference || return nothing
+    reference isa Reference || return nothing
     idxs = _tree_ref_indices(reference)
-    idxs === nothing && return nothing
+    idxs === nothing && return make_introduced_reference(p, iomap, strip_reference_types(reference))
     _fs_ref_from_indices(idxs)
 end
 

@@ -178,12 +178,19 @@ const _NO_NODE = gensym(:no_node)
 # its output. The deepest stage reads it first, and an earlier stage reads it
 # when the later answers nothing, as a chain reads a gesture with no route
 # (`_read_chain_from`).
+#
+# A route to a part that a stage drew holds an introduced step, which names no
+# node of the input. An operation needs its place, so it stops there. A gesture
+# needs only the way forward, so it goes on, and the stage that drew the part maps
+# the step forward into its output: so a drag that a part inside the output of a
+# view starts comes back to that part.
 function _read_routed_chain(seq::ChainingProjection, recursion, change::Intent,
                             iomap::ChainingIoMap)
     n = length(seq.projections)
-    place = try_evaluate_reference(iomap.input, change.route, nothing)
-    place === nothing && return Intent(change.gesture, nothing)
     is_gesture = change.operation === nothing
+    place = try_evaluate_reference(iomap.input, change.route, nothing)
+    place === nothing && !(is_gesture && has_introduced_step(change.route)) &&
+        return Intent(change.gesture, nothing)
     routes = Reference[change.route]
     while length(routes) < n
         stage = length(routes)
@@ -195,6 +202,10 @@ function _read_routed_chain(seq::ChainingProjection, recursion, change::Intent,
         forward === nothing && is_gesture &&
             (forward = find_introduced_path(stage_iomap.projection, routes[stage]))
         forward isa Reference || break
+        if is_gesture && has_introduced_step(forward)
+            push!(routes, forward)
+            continue
+        end
         node = try_evaluate_reference(next_iomap.input, forward, _NO_NODE)
         node === _NO_NODE && break
         is_gesture || node === place || break

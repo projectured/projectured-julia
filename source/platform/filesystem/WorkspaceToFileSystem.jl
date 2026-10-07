@@ -36,16 +36,27 @@ end
 # back to `proj(p, path)` on the folder, and forward by unwrapping it; `∅` maps to
 # `∅` both ways.
 
-# A path from the tree maps back onto the folder. Anything else that is an
-# operation passes as it is, but a raw gesture does not: the ChainingProjection
-# reader gives the input-domain stage first say on the bare gesture, and
-# returning the gesture there would short-circuit the whole read with a
-# non-operation "operation".
+# A path from the tree maps back onto the folder, also each path in a compound.
+# Anything else that is an operation passes as it is, but a raw gesture does not:
+# the ChainingProjection reader gives the input-domain stage first say on the
+# bare gesture, and returning the gesture there would short-circuit the whole
+# read with a non-operation "operation".
 function read_intent(p::WorkspaceFolderToFileSystemDirectory, iomap, op)
     op isa Operation || return nothing
+    op isa CompoundOperation && return _read_compound_answer(o -> read_intent(p, iomap, o), op)
     op isa ReplacePathOperation || return op
     path = map_reference_backward(p, iomap, get_operation_path(op))
     path === nothing ? nothing : make_path_operation(op, path)
+end
+
+# A compound maps member by member, as the default reader of a projection maps
+# it: the answer to a move keeps each member that maps, and any other compound,
+# such as the start of a drag with its writes, goes back whole or not at all.
+function _read_compound_answer(read_member, operation::CompoundOperation)
+    mapped = Any[read_member(o) for o in operation.operations]
+    has_mouse_target(operation) && return join_move_answers(mapped...)
+    any(isnothing, mapped) && return nothing
+    CompoundOperation(mapped)
 end
 
 # ── WorkspaceToFileSystemDirectory (projects children via recursion) ─────────
@@ -92,10 +103,12 @@ function map_reference_backward(::WorkspaceToFileSystemDirectory, iomap, referen
     @reference ::Workspace.folders::CellVector[1].^(inner)
 end
 
-# A path from the view (the selection, or any other kind) maps back onto the workspace. Anything else that is
-# an operation passes as it is, and a raw gesture is declined, as for a folder.
+# A path from the view (the selection, or any other kind) maps back onto the workspace,
+# also each path in a compound. Anything else that is an operation passes as it is,
+# and a raw gesture is declined, as for a folder.
 function read_intent(p::WorkspaceToFileSystemDirectory, iomap, op)
     op isa Operation || return nothing
+    op isa CompoundOperation && return _read_compound_answer(o -> read_intent(p, iomap, o), op)
     op isa ReplacePathOperation || return op
     path = map_reference_backward(p, iomap, get_operation_path(op))
     path === nothing ? nothing : make_path_operation(op, path)

@@ -414,13 +414,19 @@ part.
     see §4.7.
   - The pages of omnet-julia were not checked.
 - [ ] **9. A drag inside the output of a view** (D9, §4.7).
-  - [ ] 9.1 A test that fails today: a press on the thumb of the file tree
+  - [x] 9.1 A test that fails today: a press on the thumb of the file tree
     through the Explorer chain, then a `DragMove` routed along the path of its
-    answer, scrolls the tree.
-  - [ ] 9.2 `_read_routed_chain`: a gesture whose route does not evaluate on
-    the input of the chain goes forward by its introduced path.
-  - [ ] 9.3 `FileSystemToWidgetTree` names its tree itself by an introduced
-    reference, and its forward map answers an introduced reference first.
+    answer, scrolls the tree. In `test_filesystem_to_widget()`; with the code of
+    `main` the press answers nothing, and with step 9 the test passes, 6 of 6.
+  - [x] 9.2 `_read_routed_chain`: a gesture whose route has an introduced step
+    goes on although the route names no node of the input, at the start and at
+    each stage; an operation still stops where its place ends.
+  - [x] 9.3 `FileSystemToWidgetTree` names any part of its tree that is no node,
+    the tree itself as well, by an introduced reference, and its forward map and
+    the output paths of its tree answer an introduced reference first. Found on
+    the way: the two readers of `WorkspaceToFileSystem` passed a compound answer
+    unchanged, so the start of a drag in it kept the path of the stage below.
+    They map a compound member by member now, as the default reader does.
   - [ ] 9.4 A survey of the views with a backward map of their own; each that
     answers `nothing` for a part it drew answers the default introduced
     reference.

@@ -94,4 +94,50 @@ end
         @test has_children([1, 1]) && !has_children([1, 2]) && !has_children([1, 3])
     end
 end
+
+# A drag of the thumb of the tree starts in the output of two views: the tree
+# that `FileSystemToWidgetTree` makes, under the stage of the workspace. The
+# start of the drag names the tree through both views, and each part of the drag
+# goes back along that path to the tree, which scrolls.
+@testset "a drag of the thumb of the tree comes back through the views" begin
+    mktempdir() do dir
+        for name in ("a", "b", "c", "d", "e", "f", "g", "h")
+            write(joinpath(dir, name * ".jl"), "")
+        end
+        workspace = Workspace([WorkspaceFolder("here", dir)])
+        projection = ChainingProjection(RecursiveProjection(WorkspaceToFileSystem()),
+                                        RecursiveProjection(FileSystemToWidget()),
+                                        NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0)))
+        offer = with_exact_size(PrinterContext(); width = Cell(Int32(300)), height = Cell(Int32(60)))
+        iomap = print_document(projection, nothing, workspace, offer)
+        tree = iomap.step_iomaps[2][].output
+        rows = get_content_iomap(iomap.step_iomaps[end][])
+        bar = only(b for b in get_content_iomap(rows.pane).bars if b.field == "vertical_scroll_bar")
+        @test Int(bar.place.w) > 0
+        x = rows.place[1] + Int(bar.place.x) + 2
+        y = rows.place[2] + Int(bar.place.y) + 2
+        plain = ModifierKeys()
+        read(gesture, route = nothing) =
+            read_intent(projection, nothing, Intent(gesture, nothing, "", "", route), iomap).operation
+        # Evaluate the writes of an answer that carry their document.
+        function apply!(answer)
+            for o in (answer isa CompoundOperation ? answer.operations : Any[answer])
+                write = o isa ReplaceViewStateOperation ? get_wrapped_operation(o) : o
+                write isa ReplaceReferencedValueOperation && write.document !== nothing &&
+                    evaluate_operation(nothing, o)
+            end
+        end
+        press = read(MouseDown(:left, x, y, plain; time = 0.0))
+        @test press isa CompoundOperation
+        start = only(o for o in press.operations if o isa StartDragOperation)
+        # The path names the tree through both views, so it starts at the folder.
+        @test first(get_reference_steps(strip_reference_types(start.path))) == FieldReferenceStep("folders")
+        apply!(press)
+        @test bar.document.thumb_drag !== nothing
+        apply!(read(DragMove(x, y + 30, plain; time = 0.0), start.path))
+        @test Int(tree.scroll_position.y[]) > 0
+        apply!(read(DragEnd(x, y + 30, plain; time = 0.0), start.path))
+        @test bar.document.thumb_drag === nothing
+    end
+end
 end
