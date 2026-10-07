@@ -31,8 +31,8 @@ See also `start_task_group_document!`, `stop_task_group_document!` and
 - `jobs::Int` — how many tasks go at once.
 - `status::Symbol` — `:pending`, `:running`, `:stopping` or `:finished`.
 - `tasks::CellVector` — one [`TaskDocument`](@ref) for each task, in the order
-  the group was made. The order never changes, so a run again replaces what one
-  entry says and renumbers nothing.
+  the group was made. The order never changes, so a run again adds an execution
+  to an entry and renumbers nothing.
 - `group` — the `TaskGroup`: its name and its action, its codes, and the
   execution of each task once it starts.
 - `tally` — how many tasks are in each state, kept by each write of a state.
@@ -142,9 +142,10 @@ _task_documents(doc::TaskGroupDocument) =
 # start of a task, whoever started the group, so the tasks of an inner group
 # reach their documents too.
 #
-# A task that is a group starts its own tasks again: the first copy of its
-# execution puts the tasks of its document back to waiting, on the task that
-# reads the documents, before their own copies come.
+# The first copy of an execution adds it to the executions of its document, on
+# the task that reads the documents. A task that is a group starts its own tasks
+# again: that first copy also puts the tasks of its document back to waiting,
+# before their own copies come.
 function _make_task_group_wiring(doc::TaskGroupDocument)
     documents = _task_documents(doc)
     store = get_session_task_feed_store()
@@ -152,10 +153,13 @@ function _make_task_group_wiring(doc::TaskGroupDocument)
         inner = find_task_group_document(doc, index)
         first_copy = Ref(true)
         register_task_execution!(store, execution, snapshot -> begin
-            if inner !== nothing && first_copy[]
+            if first_copy[]
                 first_copy[] = false
-                _reset_tasks!(inner, eachindex(get_task_group(inner).tasks))
-                _refresh_status!(inner)
+                add_task_execution!(documents[index], execution)
+                if inner !== nothing
+                    _reset_tasks!(inner, eachindex(get_task_group(inner).tasks))
+                    _refresh_status!(inner)
+                end
             end
             _write_task!(doc, documents[index], snapshot)
         end)
@@ -163,9 +167,11 @@ function _make_task_group_wiring(doc::TaskGroupDocument)
 end
 
 # The preparation is watched as a task is, into its own document, and the tally
-# of the group does not count it. A preparation that is a group writes its own
-# tasks; the first copy of its execution puts them back to waiting, as for an
-# inner group.
+# of the group does not count it. A group runs its preparation at each start and
+# each run again; a preparation that is one task starts its document afresh at
+# the first copy of each execution, and adds the execution to it. A preparation
+# that is a group writes its own tasks; the first copy of its execution puts them
+# back to waiting, as for an inner group.
 function _make_preparation_wiring(document)
     store = get_session_task_feed_store()
     function (execution)
@@ -179,6 +185,11 @@ function _make_preparation_wiring(document)
                 _refresh_status!(document)
                 _write_summary!(document)
             else
+                if first_copy[]
+                    first_copy[] = false
+                    reset_task_document!(document, :running)
+                    add_task_execution!(document, execution)
+                end
                 write_task_snapshot!(document, snapshot)
             end
         end)

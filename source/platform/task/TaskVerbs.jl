@@ -143,8 +143,8 @@ end
 
 **Everything of one task of a group**: its state and its result, what its kind
 says of it (`format_task_details`, such as its command line, its exit code and
-its error), its process, its time, and the last lines of its output and of its
-errors.
+its error), its process, its time, how many executions ran and what the earlier
+ones ended with, and the last lines of its output and of its errors.
 
 Use it to tell the person why one task failed.
 
@@ -169,6 +169,11 @@ function _describe_task(group::TaskGroupDocument, index::Integer)
     if started !== nothing
         finished = something(getfield(document, :end_time)[], time())
         push!(lines, "elapsed: " * format_elapsed_time(finished - started; precision = 1))
+    end
+    executions = getfield(document, :executions)[]
+    isempty(executions) || push!(lines, "executions: " * string(length(executions)))
+    for (number, execution) in enumerate(get_earlier_task_executions(document))
+        push!(lines, string("  earlier ", number, ": ", first(describe_task_execution(execution))))
     end
     for (label, field) in (("stdout", :output), ("stderr", :error_output))
         output = getfield(document, field)[]

@@ -37,6 +37,7 @@ function test_task_group_verbs()
             detail = string(describe_task(group, 2; editor))
             @test occursin("script: echo oops", detail) && occursin("ended: ERROR", detail)
             @test occursin("stderr:\noops", detail)
+            @test occursin("executions: 1", detail) && !occursin("earlier", detail)
             @test string(get_task_output(group, 1; editor)) == "alpha"
             @test string(get_task_output(group, 2; stream = :stderr, editor)) == "oops"
         end
@@ -45,6 +46,9 @@ function test_task_group_verbs()
             @test string(stop_task!(group, 1; editor)) == "Stopping task 1."
             @test rerun_tasks!(group; which = :all, wait = true, editor) === group
             @test build_task_group_document_counts(group)[:done] == 1
+            detail = string(describe_task(group, 2; editor))
+            @test occursin("executions: 2", detail)
+            @test occursin(r"earlier 1: started \d\d:\d\d:\d\d — ERROR", detail)
             @test occursin("Closed the group " * identifier, string(close_task_group!(group; editor)))
             @test isempty(get_pane_groups(editor.document)[1].tabs)
             @test !any(g -> g === group, get_session_task_group_list().groups)

@@ -164,6 +164,22 @@ function get_task_execution_snapshot(execution::TaskExecution; output_count::Int
     end
 end
 
+"""
+    describe_task_execution(execution) -> (text, result)
+
+One execution in words: when it started and what it ended with, such as
+`started 18:40:01 — ERROR (unexpected) in 1.2 s`, and the `TaskResult` it ended
+with, or `nothing` while it has not ended. It reads the execution under its
+lock, so any task can call it.
+"""
+function describe_task_execution(execution::TaskExecution)
+    (status, start_time, result) =
+        lock(() -> (execution.status, execution.start_time, execution.result), execution.lock)
+    started = start_time === nothing ? "not started" :
+              "started " * Libc.strftime("%H:%M:%S", start_time)
+    (started * " — " * (result === nothing ? String(status) : format_task_result(result)), result)
+end
+
 """Whether the process of the task is alive."""
 is_task_running(execution::TaskExecution) =
     execution.process !== nothing && process_running(execution.process)

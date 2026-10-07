@@ -43,7 +43,7 @@ export AbstractTask, TaskResult, ResultCodes, RUN_RESULT_CODES, TEST_RESULT_CODE
        get_task_actions, format_task_details
 export TaskOutput, append_output_line!, get_left_out_line_count, collect_output_lines,
        find_last_output_line, format_output_text, TaskExecution, update_task_execution!,
-       get_task_execution_snapshot, is_task_running, wait_task_execution,
+       get_task_execution_snapshot, describe_task_execution, is_task_running, wait_task_execution,
        stop_task_execution!, get_task_status, finish_task_execution!, start_process_task!,
        sample_task_usage!
 export TaskGroup, TaskStartFailure, TaskNotStarted, get_default_job_count, start_task, is_concurrent,
@@ -59,6 +59,7 @@ export BuildStepTask, BuildCommandTask, BuildCopyTask, BuildRemoveTask, BuildSte
 export TaskFeedStore, TaskFeed, get_session_task_feed_store, register_task_execution!,
        drain_task_feed!, has_task_feed_entries, make_task_feeds
 export TaskDocument, start_task!, stop_task!, wait_task_document, reset_task_document!,
+       add_task_execution!, get_earlier_task_executions,
        write_task_snapshot!, record_task_result!
 export TaskGroupList, get_session_task_group_list, add_task_group!, remove_task_group!,
        set_task_group_opener!, open_task_group_pane

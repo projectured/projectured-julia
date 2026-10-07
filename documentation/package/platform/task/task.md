@@ -165,12 +165,23 @@ project is a sequential group of phases, each a concurrent group of steps.
 
 ## The documents and the feed
 
-`TaskDocument` is one task on the screen: the task, the state of its execution
-and what it ended with. It holds nothing that a kind of task knows: a view asks
-the task for its columns, its facts and its buttons.
-`start_task!(document; options...)` starts the task through `start_task` of its
-kind and answers at once; `stop_task!` and `wait_task_document` act on the
-execution.
+`TaskDocument` is one task on the screen: the task, the state of its current
+execution and what it ended with, and every execution of the task, the newest
+last. It holds nothing that a kind of task knows: a view asks the task for its
+columns, its facts and its buttons. `start_task!(document; options...)` starts
+the task through `start_task` of its kind and answers at once; `stop_task!` and
+`wait_task_document` act on the current execution.
+
+A start again, or a run again of a group, adds an execution and replaces none
+(`add_task_execution!`). The fields of the document show the current execution,
+and the earlier ones keep their own results (`get_earlier_task_executions`). A
+task that waits to start again has no current execution, so all its executions
+are earlier then. The row of a task in the pane shows the current execution; the
+detail lists the earlier ones, each with its verdict and its start time
+(`describe_task_execution`), and `describe_task` says how many ran. An execution
+keeps its output within the bounds of `TaskOutput`, so each run again of a group
+adds at most those lines for each task that ran again, until the group is
+closed.
 
 No reader of a process writes a cell. A `TaskFeedStore` holds each execution
 that runs with the function that copies it into its document, and

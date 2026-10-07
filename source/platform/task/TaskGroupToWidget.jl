@@ -242,13 +242,15 @@ function _get_preparation_label(p, doc::TaskGroupDocument)
 end
 
 # The detail of the preparation: the pane of a preparation that is a group, or
-# the state, the facts and the output of one that is one task.
+# the state, the facts, the earlier executions and the output of one that is one
+# task.
 function _build_preparation_detail(p, doc::TaskGroupDocument, bounded::Bool)
     preparation = get_task_group_preparation(doc)
     preparation === nothing && return Any[_make_label("This group has no preparation.", p.muted_color)]
     preparation isa TaskGroupDocument && return _build_group_parts(p, preparation, bounded; actions = false)
     Any[_make_live_label(() -> _get_preparation_label(p, doc)),
         _build_task_details(p, getfield(preparation, :task)[], preparation),
+        _build_earlier_executions(p, preparation),
         _make_label("stdout", p.muted_color),
         _build_output_pane(() -> getfield(preparation, :output)[]; weight = 2),
         _make_label("stderr", p.muted_color),
@@ -390,6 +392,7 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
                 (format_task_result(result),
                  _get_role_color(p, get_result_role(group.codes, result.result)))
         end))
+        push!(parts, _build_earlier_executions(p, document))
         stop = WidgetButton("Stop"; size = p.button_size,
                             action = _ -> _run_guarded("stop", () -> _stop_task(group, index)))
         set_cell_computation!(getfield(stop, :enabled), () -> getfield(document, :status)[] === :running)
@@ -417,6 +420,26 @@ function _build_task_details(p, task, document::TaskDocument)
     set_cell_computation!(getfield(lines.children, :elements), () ->
         Cell[Cell(WidgetLabel(line))
              for line in format_task_details(task, getfield(document, :result)[])])
+    lines
+end
+
+# The executions before the current one, the oldest first, each with its verdict
+# in the color of its role among the codes of its result. A task that ran once or
+# never shows none.
+function _build_earlier_executions(p, document::TaskDocument)
+    lines = VerticalLayout(Any[]; gap = p.stack_gap, child_width = Fill)
+    set_cell_computation!(getfield(lines.children, :elements), () -> begin
+        earlier = get_earlier_task_executions(document)
+        isempty(earlier) && return Cell[]
+        parts = Any[_make_label("Earlier executions", p.muted_color)]
+        for (number, execution) in enumerate(earlier)
+            (text, result) = describe_task_execution(execution)
+            color = result === nothing ? p.muted_color :
+                    _get_role_color(p, get_result_role(get_result_codes(result), result.result))
+            push!(parts, _make_label(string(number, ". ", text), color))
+        end
+        Cell[Cell(x) for x in parts]
+    end)
     lines
 end
 

@@ -13,6 +13,7 @@ function test_task_document()
             document = TaskDocument(_TaskGroupProbeTask("echo",
                 "sleep 0.2; echo one; echo two >&2; exit 0"))
             @test getfield(document, :status)[] === :pending
+            @test isempty(getfield(document, :executions)[])
             start_task!(document)
             @test getfield(document, :status)[] === :running
             wait_task_execution(getfield(document, :running)[])
@@ -31,11 +32,19 @@ function test_task_document()
             @test getfield(failed, :status)[] === :error
             @test getfield(failed, :result)[].reason == "Non-zero exit code: 3"
 
-            # A start again begins from nothing.
+            # A start again begins from nothing, and keeps the first execution
+            # with its result: the document holds both, the newest last.
             start_task!(failed)
             @test getfield(failed, :status)[] === :running
             @test getfield(failed, :result)[] === nothing
             wait_task_document(failed)
+            executions = getfield(failed, :executions)[]
+            @test length(executions) == 2
+            @test getfield(failed, :running)[] === executions[2]
+            @test get_earlier_task_executions(failed) == executions[1:1]
+            (text, result) = describe_task_execution(executions[1])
+            @test result.reason == "Non-zero exit code: 3"
+            @test occursin(r"^started \d\d:\d\d:\d\d — ERROR", text)
         end
 
         @testset "a feed copies at most once in an interval" begin
@@ -93,9 +102,18 @@ function test_task_document()
             kept = first(i for i in eachindex(documents) if i != failed)
             before = getfield(documents[kept], :result)[]
             rerun_task_group_document!(document, :failed)
+            # The task waits to start again: it has no current execution, and its
+            # first one is earlier.
+            @test getfield(documents[failed], :running)[] === nothing
+            @test length(get_earlier_task_executions(documents[failed])) == 1
             wait_task_group_document(document)
             @test getfield(documents[kept], :result)[] === before
             @test getfield(documents[failed], :status)[] === :error
+            # The run again added an execution and kept the first; the task that
+            # did not run again has its one execution.
+            @test length(getfield(documents[failed], :executions)[]) == 2
+            @test only(get_earlier_task_executions(documents[failed])).result.result == "ERROR"
+            @test length(getfield(documents[kept], :executions)[]) == 1
             @test build_task_group_document_counts(document)[:done] == 4
             @test get_task_group_document_status(document) === :finished
         end
@@ -157,6 +175,13 @@ function test_task_document()
                                                         preparation = _TaskGroupProbeTask("prepare", "exit 0")))
             @test get_task_group_preparation(single) isa TaskDocument
             wait_task_group_document(start_task_group_document!(single))
+            @test describe_task_group_preparation(single) == ("Before the tasks: prepare — DONE", "DONE", true)
+            # A run again runs the preparation again, and its document keeps the
+            # first execution.
+            wait_task_group_document(rerun_task_group_document!(single, :all))
+            prepare = get_task_group_preparation(single)
+            @test length(getfield(prepare, :executions)[]) == 2
+            @test length(get_earlier_task_executions(prepare)) == 1
             @test describe_task_group_preparation(single) == ("Before the tasks: prepare — DONE", "DONE", true)
         end
 

@@ -100,6 +100,14 @@ function test_task_views()
             empty!(_TASK_VIEW_PRESSES)
             operation.action.callback(nothing)
             @test _TASK_VIEW_PRESSES == ["fail"]
+
+            # A run again of the failed task: the detail lists its first
+            # execution, with its verdict, under the current one.
+            @test !("Earlier executions" in words)
+            wait_task_group_document(rerun_task_group_document!(document, [2]))
+            words = _collect_task_view_words(document)
+            @test "Earlier executions" in words
+            @test any(w -> occursin(r"^1\. started \d\d:\d\d:\d\d — ERROR", w), words)
         end
 
         @testset "the row of an inner group shows its pane in the detail" begin
