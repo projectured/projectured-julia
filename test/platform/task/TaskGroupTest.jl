@@ -25,8 +25,15 @@ function TaskModule.start_task(task::_TaskGroupProbeTask; on_finish = nothing)
         finish_task_execution!(execution,
             _TaskGroupProbeResult(task, code, "DONE", reason, elapsed); finish = on_finish)
     end
-    start_process_task!(execution, `sh -c $(task.script)`; finish)
+    start_process_task!(execution, `sh -c $(task.script)`; finish, on_finish)
 end
+
+# A kind of task whose end throws before it writes a result.
+struct _TaskGroupFinishFailureProbe <: AbstractTask end
+TaskModule.get_result_codes(::_TaskGroupFinishFailureProbe) = RUN_RESULT_CODES
+TaskModule.start_task(task::_TaskGroupFinishFailureProbe; on_finish = nothing) =
+    start_process_task!(TaskExecution(task), `sh -c "exit 0"`;
+                        finish = (process, cancelled, elapsed) -> error("no result"), on_finish)
 
 # A kind of task whose start throws.
 struct _TaskGroupStartFailureProbe <: AbstractTask end
@@ -139,6 +146,24 @@ function test_task_group()
             @test build_task_group_summary(outer).running == 0
             @test outer.runs[1].result.result == "CANCEL"
             @test outer.runs[2] === nothing
+        end
+
+        @testset "an end that throws ends its task as an error, and the group ends" begin
+            group = TaskGroup(AbstractTask[_TaskGroupFinishFailureProbe(),
+                                           _TaskGroupProbeTask("after", "exit 0")]; jobs = 1)
+            runner = @test_logs (:error, "the end of a task failed") match_mode = :any begin
+                runner = @async run_task_group(group)
+                deadline = time() + 10
+                while !istaskdone(runner) && time() < deadline
+                    sleep(0.02)
+                end
+                runner
+            end
+            @test istaskdone(runner)
+            results = collect_task_group_results(group)
+            @test results[1] isa TaskFinishFailure && results[1].result == "ERROR"
+            @test occursin("no result", results[1].reason)
+            @test results[2].result == "DONE"
         end
 
         @testset "a start that throws ends its task as an error, and the group goes on" begin

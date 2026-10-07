@@ -45,7 +45,8 @@ export TaskOutput, append_output_line!, get_left_out_line_count, collect_output_
        find_last_output_line, format_output_text, TaskRuntime, TaskExecution, ATaskExecution,
        ACTaskExecution, update_task_execution!, get_task_execution_version,
        make_task_execution_shadow, describe_task_execution, is_task_running, wait_task_execution,
-       stop_task_execution!, get_task_status, finish_task_execution!, start_process_task!,
+       stop_task_execution!, get_task_status, finish_task_execution!, TaskFinishFailure,
+       start_process_task!,
        sample_task_usage!
 export TaskGroup, TaskStartFailure, TaskNotStarted, get_default_job_count, start_task, is_concurrent,
        format_task_group_description, format_task_group_close_description,

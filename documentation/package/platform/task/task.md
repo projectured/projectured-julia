@@ -82,6 +82,13 @@ its value changed, so a view of a field that did not change is not drawn again.
 It copies a stream only when lines came, because a `TaskOutput` changes in place,
 and a shadow that held the same object would never see a new line.
 
+The end of a kind, the `finish` of `start_process_task!`, runs on the task that
+reads the process, which nobody waits for. When it throws before it wrote a
+result, `start_process_task!` logs the error and ends the execution with a
+`TaskFinishFailure` (`ERROR`, the exception in its reason), which goes to the
+`on_finish` that the kind passes. Without that, the task would never end, and a
+group that waits for it would wait forever.
+
 Each stream is a `TaskOutput`: the first 100 lines, the last 1000, and the count
 of the lines between, so a process that prints without end cannot fill the
 memory. `read_line(execution, line)` sees each line of stdout under the lock, and

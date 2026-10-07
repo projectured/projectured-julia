@@ -114,6 +114,21 @@ function test_task_execution()
             @test !is_task_running(execution)
         end
 
+        @testset "an end that throws ends the task with a TaskFinishFailure" begin
+            ended = TaskResult[]
+            execution = TaskExecution(_TaskExecutionProbeTask())
+            @test_logs (:error, "the end of a task failed") match_mode = :any begin
+                start_process_task!(execution, `sh -c "exit 0"`;
+                                    finish = (process, cancelled, elapsed) -> error("no result"),
+                                    on_finish = result -> push!(ended, result))
+                wait_task_execution(execution)
+            end
+            @test execution.result isa TaskFinishFailure && execution.status === :error
+            @test !is_expected(execution.result)
+            @test startswith(execution.result.reason, "The end failed: ")
+            @test only(ended) === execution.result
+        end
+
         @testset "a stop reaches the programs that the process started" begin
             execution = _start_probe_process("sleep 30; echo late")
             @test _wait_task_status(execution, :running) === :running

@@ -281,7 +281,7 @@ function start_task(step::BuildCommandTask; on_finish = nothing)
                                 isempty(message) ? nothing : String(message), on_finish)
         end
     end
-    start_process_task!(execution, command; finish)
+    start_process_task!(execution, command; finish, on_finish)
 end
 
 """

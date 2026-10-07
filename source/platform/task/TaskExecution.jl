@@ -296,7 +296,22 @@ function finish_task_execution!(execution::TaskExecution, result::TaskResult; fi
 end
 
 """
-    start_process_task!(execution, command; read_line = nothing, finish) -> execution
+    TaskFinishFailure
+
+What a task ended with when the end of its kind threw before it wrote a result:
+`ERROR`, with the exception in its `reason`. [`start_process_task!`](@ref) writes
+it, so the task ends and a group that waits for it goes on.
+"""
+struct TaskFinishFailure <: TaskResult
+    task::AbstractTask
+    result::String
+    expected_result::String
+    reason::Union{String,Nothing}
+    elapsed_wall_time::Union{Float64,Nothing}
+end
+
+"""
+    start_process_task!(execution, command; read_line = nothing, finish, on_finish = nothing) -> execution
 
 Start `command` for the task of `execution`, and answer at once. Two readers
 append what the process prints to `output` and to `error_output`, line by line;
@@ -304,13 +319,18 @@ append what the process prints to `output` and to `error_output`, line by line;
 of task can write `progress` and `position` from it. When the process has ended
 and both streams are read, `finish(process, cancelled, elapsed)` makes the
 result, with `cancelled` true when [`stop_task_execution!`](@ref) asked for the
-end, and calls [`finish_task_execution!`](@ref).
+end, and calls [`finish_task_execution!`](@ref) with `on_finish`.
+
+`finish` runs on the task that reads the process, which nobody waits for. When
+it throws before it wrote a result, the error is logged and the execution ends
+with a [`TaskFinishFailure`](@ref), which goes to `on_finish`: without it the
+task would never end, and a group that waits for it would wait forever.
 
 A `Cmd` starts in a process group of its own, so a stop reaches the programs
 that it starts, and a Ctrl+C at the REPL does not reach the task.
 """
 function start_process_task!(execution::TaskExecution, command::Base.AbstractCmd;
-                             read_line = nothing, finish)
+                             read_line = nothing, finish, on_finish = nothing)
     command isa Cmd && (command = Cmd(command; detach = true))
     output = Pipe()
     error_output = Pipe()
@@ -336,7 +356,18 @@ function start_process_task!(execution::TaskExecution, command::Base.AbstractCmd
         wait(error_reader)
         wait(process)
         cancelled = lock(() -> execution.status === :cancelling, execution.runtime.lock)
-        finish(process, cancelled, time() - started)
+        try
+            finish(process, cancelled, time() - started)
+        catch exception
+            @error "the end of a task failed" task = execution.task exception = (exception, catch_backtrace())
+            lock(() -> execution.result, execution.runtime.lock) === nothing &&
+                finish_task_execution!(execution,
+                    TaskFinishFailure(execution.task, "ERROR",
+                                      get_result_codes(execution.task).expected,
+                                      "The end failed: " * sprint(showerror, exception),
+                                      time() - started);
+                    finish = on_finish)
+        end
     end
     execution
 end
