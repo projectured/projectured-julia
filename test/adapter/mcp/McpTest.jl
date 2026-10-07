@@ -638,6 +638,35 @@ function test_mcp_server()
                 end
             end
 
+            @testset "a server with a secret answers only a client that sends it" begin
+                server = make_agent_server(:mcp, _mcp_editor(); port = 0, secret = true)
+                access = get_agent_server_access(server)
+                @test server.port != 0
+                @test access.name == "projectured"
+                @test access.url == "http://127.0.0.1:$(server.port)/mcp"
+                header = only(access.headers)
+                @test first(header) == "Authorization"
+                @test startswith(last(header), "Bearer ") && length(last(header)) == 7 + 64
+                body = "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"initialize\", \"params\": " *
+                       "{\"protocolVersion\": \"2025-06-18\", \"capabilities\": {}, " *
+                       "\"clientInfo\": {\"name\": \"test\", \"version\": \"1\"}}}"
+                post(headers) = HTTP.post(access.url,
+                    ["Content-Type" => "application/json",
+                     "Accept" => "application/json, text/event-stream", headers...],
+                    body; retry = false, readtimeout = 10, status_exception = false)
+                try
+                    start_agent_server!(server)
+                    @test post(Pair{String,String}[]).status == 401
+                    @test post(["Authorization" => "Bearer wrong"]).status == 401
+                    answer = post([header])
+                    @test answer.status == 200
+                    @test occursin("protocolVersion", String(answer.body))
+                finally
+                    stop_agent_server!(server)
+                end
+                @test isempty(get_agent_server_access(McpServer(_mcp_editor(); port = 0)).headers)
+            end
+
             @testset "the start record and a later message reach the message log" begin
                 store = MessageLogStore()
                 # The capture wraps a logger that takes Info and prints nowhere.

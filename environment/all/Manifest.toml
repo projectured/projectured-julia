@@ -1227,7 +1227,7 @@ uuid = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
 version = "0.1.0"
 
 [[deps.ProjecturedMCP]]
-deps = ["ModelContextProtocol", "ProjecturedKernel", "ProjecturedPlatform"]
+deps = ["HTTP", "ModelContextProtocol", "ProjecturedKernel", "ProjecturedPlatform", "Random", "Sockets"]
 path = "../../package/ProjecturedMCP"
 uuid = "2b4e36b2-6b10-43fd-9b63-0a09efcd22da"
 version = "0.1.0"

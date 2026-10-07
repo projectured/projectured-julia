@@ -35,6 +35,16 @@ Stop the agent server and release its resources.
 function stop_agent_server! end
 
 """
+    get_agent_server_access(server) -> (name, url, headers)
+
+What a client needs to reach `server`: its `name`, its `url`, and the `headers`
+that each request must carry, a `Vector{Pair{String,String}}`. The tuple has the
+shape that `open_agent_session!` takes for an MCP server, so a caller hands the
+server of its editor to an external agent.
+"""
+function get_agent_server_access end
+
+"""
     run_on_editor_task!(function_, target; wait = true) -> value
 
 Run `function_()` on the task that owns `target`, and answer its value.

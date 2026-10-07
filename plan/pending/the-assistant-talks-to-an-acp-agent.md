@@ -415,7 +415,21 @@ document never holds the editor.
   agent send `agent_thought_chunk`. Then map it to `ConversationThinking`. Try
   first `_meta.claudeCode.options.settings.showThinkingSummaries = true` in
   `session/new`. It is not tested.
-- [ ] **1.8 The MCP server of the session (M3).**
+- [x] **1.8 The MCP server of the session (M3).** Done in ProjecturedMCP.
+  Decisions made in the step:
+  - `McpServer` takes `port = 0` for a free port and `secret = true` for a
+    random secret of 32 bytes. ProjecturedMCP gets HTTP, Random and Sockets as
+    dependencies.
+  - The library has no hook for a header check. So a server with a secret
+    serves the requests itself with `HTTP.serve!`, checks
+    `Authorization: Bearer <secret>` in constant time, answers `401` without
+    it, and hands the request to `ModelContextProtocol.handle_request`. It also
+    sets `allowed_origins`.
+  - A new kernel generic, `get_agent_server_access(server) -> (name, url,
+    headers)`, gives a caller the address and the header without the type of
+    the server. It is not in the list of M1. It belongs to M3, because the
+    assistant must give the agent the secret, and the tuple has the shape that
+    `open_agent_session!` takes.
 - [ ] **1.9 The list of agents (M4)**, a group in the settings slice, with the
   default entry `claude-agent-acp`.
 - [ ] **1.10 A live check.** Use the real adapter and the plan of the owner. One

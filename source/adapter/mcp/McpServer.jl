@@ -19,11 +19,18 @@ const DEFAULT_MCP_PORT = 9876
 
 """
     McpServer(editor; instructions = DEFAULT_MCP_INSTRUCTIONS,
-              host = DEFAULT_MCP_HOST, port = DEFAULT_MCP_PORT)
+              host = DEFAULT_MCP_HOST, port = DEFAULT_MCP_PORT, secret = false)
 
 An MCP server bound to an editor. It listens at `http://<host>:<port>/mcp`,
 which is `http://127.0.0.1:9876/mcp` by default. Start/stop it through the
 `AgentModule` generics (`start_agent_server!` / `stop_agent_server!`).
+
+A `port` of `0` takes a port that no other program holds. A server with
+`secret = true` makes a random secret of 32 bytes, and it answers only a request
+that carries `Authorization: Bearer <secret>`. Any other request gets `401`, so
+a program of this machine that does not know the secret, or a web page that
+reaches the loopback address, can not run a tool. `get_agent_server_access`
+gives the address and the header to the client that the editor chose.
 """
 mutable struct McpServer
     editor::Any
@@ -31,11 +38,13 @@ mutable struct McpServer
     task::Union{Task,Nothing}
     host::String
     port::Int
+    secret::String
 end
 
 function McpServer(editor; instructions::AbstractString = DEFAULT_MCP_INSTRUCTIONS,
                    host::AbstractString = DEFAULT_MCP_HOST,
-                   port::Integer = DEFAULT_MCP_PORT)
+                   port::Integer = DEFAULT_MCP_PORT,
+                   secret::Bool = false)
     srv = mcp_server(
         name        = "projectured",
         version     = "0.1.0",
@@ -56,7 +65,17 @@ function McpServer(editor; instructions::AbstractString = DEFAULT_MCP_INSTRUCTIO
         title        = srv.config.title,
         icons        = srv.config.icons,
     )
-    McpServer(editor, srv, nothing, String(host), Int(port))
+    port == 0 && (port = _find_free_port(host))
+    McpServer(editor, srv, nothing, String(host), Int(port),
+              secret ? bytes2hex(rand(RandomDevice(), UInt8, 32)) : "")
+end
+
+# A port that no other program holds now. The port is free again when the
+# listener closes, and the server binds it soon after.
+function _find_free_port(host::AbstractString)
+    port, listener = listenany(getaddrinfo(host), 20000)
+    close(listener)
+    Int(port)
 end
 
 # Agent control-surface factory methods: the editor loop drives the MCP server
@@ -64,6 +83,9 @@ end
 make_agent_server(::Val{:mcp}, editor; kwargs...) = McpServer(editor; kwargs...)
 start_agent_server!(mcp::McpServer) = start_mcp!(mcp)
 stop_agent_server!(mcp::McpServer) = stop_mcp!(mcp)
+get_agent_server_access(mcp::McpServer) =
+    (name = "projectured", url = "http://$(mcp.host):$(mcp.port)/mcp",
+     headers = isempty(mcp.secret) ? Pair{String,String}[] : ["Authorization" => "Bearer " * mcp.secret])
 
 """
     start_mcp!(mcp::McpServer) -> McpServer
@@ -80,6 +102,7 @@ function start_mcp!(mcp::McpServer)
         host     = mcp.host,
         port     = mcp.port,
         endpoint = "/mcp",
+        allowed_origins = isempty(mcp.secret) ? String[] : ["http://$(mcp.host):$(mcp.port)"],
     )
     mcp.server.transport = transport
     # `start!` of the library installs a logger of its own as the global logger,
@@ -91,7 +114,8 @@ function start_mcp!(mcp::McpServer)
     # `start!` writes as it starts reaches the message log and not stderr.
     previous = Base.CoreLogging.global_logger()
     try
-        ModelContextProtocol.connect(transport)
+        isempty(mcp.secret) ? ModelContextProtocol.connect(transport) :
+                              _connect_with_secret!(transport, mcp.secret)
         mcp.task = @async Base.CoreLogging.with_logger(previous) do
             start!(mcp.server)
         end
@@ -104,6 +128,43 @@ function start_mcp!(mcp::McpServer)
         Base.CoreLogging.global_logger(previous)
     end
     mcp
+end
+
+# `connect` of the library serves each request with `handle_request`, and it
+# has no place for a check of a header. So a server with a secret serves the
+# requests itself, the same way, and hands only a request with the secret to
+# `handle_request`.
+function _connect_with_secret!(transport::HttpTransport, secret::String)
+    transport.connected && return nothing
+    transport.connected = true
+    expected = "Bearer " * secret
+    try
+        transport.server = HTTP.serve!(transport.host, transport.port; stream = true) do stream
+            if _is_secret_equal(HTTP.header(stream.message, "Authorization", ""), expected)
+                ModelContextProtocol.handle_request(transport, stream)
+            else
+                HTTP.setstatus(stream, 401)
+                HTTP.setheader(stream, "Content-Length" => "0")
+                HTTP.startwrite(stream)
+            end
+        end
+    catch
+        transport.connected = false
+        rethrow()
+    end
+    nothing
+end
+
+# A comparison whose time does not depend on where the two texts differ, so the
+# time of an answer tells nothing about the secret.
+function _is_secret_equal(given::AbstractString, expected::AbstractString)
+    a, b = codeunits(given), codeunits(expected)
+    length(a) == length(b) || return false
+    difference = 0x00
+    for index in eachindex(a, b)
+        difference |= a[index] ⊻ b[index]
+    end
+    difference == 0x00
 end
 
 """

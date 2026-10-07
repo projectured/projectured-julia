@@ -14,8 +14,8 @@ Seven fragments share this namespace:
   reports a completed tool call with.
 - [`AgentLoop.jl`](AgentLoop.jl) — `run_turn!`, the loop.
 - [`AgentInterface.jl`](AgentInterface.jl) — the agent-server contract:
-  `make_agent_server`, `start_agent_server!`, `stop_agent_server!` and
-  `run_on_editor_task!`, each a body-less generic.
+  `make_agent_server`, `start_agent_server!`, `stop_agent_server!`,
+  `get_agent_server_access` and `run_on_editor_task!`, each a body-less generic.
 - [`AgentDefaults.jl`](AgentDefaults.jl) — the fallback behaviours for that
   contract, answered when no concrete server package is loaded.
 - [`AgentConnectionInterface.jl`](AgentConnectionInterface.jl) — the
@@ -57,7 +57,7 @@ using ..ToolModule
 
 export Agent, run_turn!, AgentEvent, AgentToolResult
 export make_agent_server, start_agent_server!, stop_agent_server!, run_on_editor_task!
-export get_agent_server_names
+export get_agent_server_names, get_agent_server_access
 export make_agent_connection, start_agent_connection!, open_agent_session!,
        send_agent_prompt!, cancel_agent_prompt!, close_agent_session!,
        stop_agent_connection!, get_agent_connection_names

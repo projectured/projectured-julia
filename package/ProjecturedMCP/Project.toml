@@ -4,15 +4,19 @@ version = "0.1.0"
 authors = []
 
 [deps]
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 ModelContextProtocol = "c58f755f-f2a7-4f48-bf29-4e9659b78499"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+Sockets = "6462fe0b-24de-5631-8697-dd941f90decc"
 
 [sources]
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
 
 [compat]
+HTTP = "1.11.0"
 ModelContextProtocol = "0.4.1"
 
 # AutoIntegration loads this package when Projectured and ModelContextProtocol are loaded,

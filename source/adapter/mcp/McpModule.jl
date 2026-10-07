@@ -31,7 +31,11 @@ using ModelContextProtocol: HttpTransport, MCPResource, MCPTool, Server, ServerC
 using ..McpLogModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..AgentModule: make_agent_server, start_agent_server!, stop_agent_server!
+import ..AgentModule: make_agent_server, start_agent_server!, stop_agent_server!,
+                      get_agent_server_access
+import HTTP
+using Random: RandomDevice
+using Sockets: getaddrinfo, listenany
 
 export McpServer, start_mcp!, stop_mcp!, render_mcp_tools, render_mcp_resources
 
