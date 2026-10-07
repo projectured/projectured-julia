@@ -99,16 +99,18 @@ is_permission_request_open(request::ConversationPermissionRequest) =
     answer_permission_request!(request, option_id)
 
 Answer `request` with the option whose id is `option_id`, or as cancelled with
-`nothing`. The first answer goes to the agent, and a later one does nothing.
+`nothing`. The first answer goes to the agent, and a later one does nothing. A
+`reply` that answers `false` says that the agent had its answer already, from a
+cancel of the turn, and the request then shows `"Cancelled"`.
 """
 function answer_permission_request!(request::ConversationPermissionRequest,
                                      option_id::Union{Nothing,AbstractString})
     is_permission_request_open(request) || return nothing
     index = option_id === nothing ? nothing : findfirst(option -> option.id == option_id, request.options)
-    request.answer = index === nothing ? "Cancelled" : request.options[index].name
     reply = request.reply
     request.reply = nothing
-    reply(index === nothing ? nothing : String(option_id))
+    is_delivered = reply(index === nothing ? nothing : String(option_id)) !== false
+    request.answer = index === nothing || !is_delivered ? "Cancelled" : request.options[index].name
     nothing
 end
 

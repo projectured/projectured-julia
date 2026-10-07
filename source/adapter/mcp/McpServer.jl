@@ -65,14 +65,14 @@ function McpServer(editor; instructions::AbstractString = DEFAULT_MCP_INSTRUCTIO
         title        = srv.config.title,
         icons        = srv.config.icons,
     )
-    port == 0 && (port = _find_free_port(host))
+    port == 0 && (port = _choose_free_port(host))
     McpServer(editor, srv, nothing, String(host), Int(port),
               secret ? bytes2hex(rand(RandomDevice(), UInt8, 32)) : "")
 end
 
 # A port that no other program holds now. The port is free again when the
 # listener closes, and the server binds it soon after.
-function _find_free_port(host::AbstractString)
+function _choose_free_port(host::AbstractString)
     port, listener = listenany(getaddrinfo(host), 20000)
     close(listener)
     Int(port)
@@ -143,6 +143,7 @@ function _connect_with_secret!(transport::HttpTransport, secret::String)
             if _is_secret_equal(HTTP.header(stream.message, "Authorization", ""), expected)
                 ModelContextProtocol.handle_request(transport, stream)
             else
+                _drain_request_body!(stream)
                 HTTP.setstatus(stream, 401)
                 HTTP.setheader(stream, "Content-Length" => "0")
                 HTTP.startwrite(stream)
@@ -151,6 +152,17 @@ function _connect_with_secret!(transport::HttpTransport, secret::String)
     catch
         transport.connected = false
         rethrow()
+    end
+    nothing
+end
+
+# The body of a refused request is read and dropped, up to 64 KiB, so the server
+# answers a complete request and the library logs no broken one. A body that is
+# larger ends the connection after the answer.
+function _drain_request_body!(stream)
+    remaining = 65536
+    while remaining > 0 && !eof(stream)
+        remaining -= length(readavailable(stream))
     end
     nothing
 end

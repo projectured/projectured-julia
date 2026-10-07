@@ -70,10 +70,15 @@ function _read_session_meta(text::AbstractString)
 end
 
 function start_agent_connection!(connection::AcpConnection)
-    connection.transport === nothing || return connection
+    # An agent that ended is started again. Its sessions ended with it.
+    transport = connection.transport
+    if transport !== nothing
+        _is_transport_open(transport) && return connection
+        stop_agent_connection!(connection)
+    end
     connection.transport = _open_connection_transport(connection)
     result = try
-        send_acp_request(connection.transport, "initialize", Dict{String,Any}(
+        send_acp_request!(connection.transport, "initialize", Dict{String,Any}(
             "protocolVersion" => ACP_PROTOCOL_VERSION,
             "clientCapabilities" => Dict{String,Any}(
                 "fs" => Dict{String,Any}("readTextFile" => false, "writeTextFile" => false),
@@ -92,8 +97,8 @@ function start_agent_connection!(connection::AcpConnection)
         error("The agent speaks ACP version $(something(version, "unknown")), " *
               "and this client speaks version $(ACP_PROTOCOL_VERSION).")
     end
-    connection.agent_info = _find_object(result, "agentInfo")
-    connection.agent_capabilities = _find_object(result, "agentCapabilities")
+    connection.agent_info = _get_object(result, "agentInfo")
+    connection.agent_capabilities = _get_object(result, "agentCapabilities")
     authentication = get(result, "authMethods", nothing)
     connection.auth_methods = authentication isa Vector{Any} ? authentication : Any[]
     connection
@@ -124,7 +129,7 @@ function open_agent_session!(connection::AcpConnection; directory::AbstractStrin
                               "mcpServers" => Any[_render_mcp_server(server) for server in mcp_servers])
     isempty(connection.session_meta) || (params["_meta"] = connection.session_meta)
     result = try
-        send_acp_request(transport, "session/new", params; timeout = 120)
+        send_acp_request!(transport, "session/new", params; timeout = 120)
     catch exception
         exception isa AcpRequestException && exception.code == ACP_AUTHENTICATION_REQUIRED &&
             error(_format_sign_in_message(connection))
@@ -159,7 +164,7 @@ function send_agent_prompt!(connection::AcpConnection, session_id::AbstractStrin
     turn = AcpTurn(on_event)
     lock(() -> connection.turns[session_id] = turn, connection.turns_lock)
     try
-        result = send_acp_request(transport, "session/prompt", Dict{String,Any}(
+        result = send_acp_request!(transport, "session/prompt", Dict{String,Any}(
             "sessionId" => String(session_id),
             "prompt" => Any[_render_prompt_content(content) for content in prompt]))
         Symbol(string(get(result, "stopReason", "end_turn")))
@@ -176,7 +181,7 @@ _render_prompt_content(content) =
 
 function cancel_agent_prompt!(connection::AcpConnection, session_id::AbstractString)
     transport = _get_started_transport(connection)
-    send_acp_notification(transport, "session/cancel", Dict{String,Any}("sessionId" => String(session_id)))
+    send_acp_notification!(transport, "session/cancel", Dict{String,Any}("sessionId" => String(session_id)))
     turn = lock(() -> get(connection.turns, session_id, nothing), connection.turns_lock)
     turn === nothing || _cancel_waiting_replies!(turn)
     nothing
@@ -185,10 +190,10 @@ end
 function close_agent_session!(connection::AcpConnection, session_id::AbstractString)
     transport = connection.transport
     transport === nothing && return nothing
-    capabilities = _find_object(connection.agent_capabilities, "sessionCapabilities")
+    capabilities = _get_object(connection.agent_capabilities, "sessionCapabilities")
     haskey(capabilities, "close") || return nothing
     try
-        send_acp_request(transport, "session/close", Dict{String,Any}("sessionId" => String(session_id));
+        send_acp_request!(transport, "session/close", Dict{String,Any}("sessionId" => String(session_id));
                          timeout = 30)
     catch exception
         @warn "The agent did not close its session." exception
@@ -247,12 +252,11 @@ function _answer_permission_request(connection::AcpConnection, params::Dict{Stri
     choice = Channel{Union{Nothing,String}}(1)
     is_answered = Threads.Atomic{Bool}(false)
     reply = function (option_id)
-        Threads.atomic_xchg!(is_answered, true) ||
-            put!(choice, option_id === nothing ? nothing : String(option_id))
-        nothing
+        Threads.atomic_xchg!(is_answered, true) && return false
+        put!(choice, option_id === nothing ? nothing : String(option_id))
+        true
     end
     lock(() -> push!(turn.waiting_replies, reply), connection.turns_lock)
-    foreach(turn.on_event, _close_open_block!(Any[], turn))
     turn.on_event(AgentPermissionRequest(
         tool_call isa Dict{String,Any} ? _read_tool_call(tool_call) : AgentToolCallUpdate(""),
         options, reply))
@@ -269,7 +273,7 @@ function _cancel_waiting_replies!(turn::AcpTurn)
     nothing
 end
 
-function _find_object(object, key::String)
+function _get_object(object, key::String)
     value = object isa Dict{String,Any} ? get(object, key, nothing) : nothing
     value isa Dict{String,Any} ? value : Dict{String,Any}()
 end

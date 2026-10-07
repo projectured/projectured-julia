@@ -166,7 +166,11 @@ end
 set_cell_computation!(a::Assistant, f::Function) = (set_cell_computation!(getfield(a, :conversation), f); a)
 
 # A key must never be written to a file, so `api_key` is not one of the
-# arguments a `.pred` file writes. A live connection is not data either: `llm`
+# arguments a `.pred` file writes. A command is not one either: a file that named
+# the program of an external agent, or the options of its sessions, would start
+# it at the next message, and a `.pred` file runs no code. So `agent_command` and
+# `agent_session_meta` come from the settings of the application, never from a
+# file. A live connection is not data either: `llm`
 # is a fake or a running client, `agent_session` is a running agent, `status` is what a turn is doing right now,
 # and `conversation`/`input`/`draft` are this session's exchange, not the
 # next one's — so a save keeps only the settings that describe an assistant
@@ -177,8 +181,6 @@ pred_arguments(a::Assistant) = (), Pair{Symbol,Any}[
     :system            => a.system,
     :context           => a.context,
     :collapse_thinking => a.collapse_thinking,
-    :agent_command     => a.agent_command,
-    :agent_session_meta => a.agent_session_meta,
 ]
 
 # The name the tab calls itself. No alias: `get_insertion_names` already derives

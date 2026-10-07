@@ -53,6 +53,71 @@ function test_external_agent_turn()
             @test length(connection.sessions) == 1
         end
 
+        @testset "a turn that never reached the agent is in the next prompt" begin
+            connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("Sure."), LlmTextStop()]];
+                                                 failing_opens = 1)
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "Explain X")
+            @test a.status === :error
+            @test isempty(connection.prompts)
+            _submit_to_agent!(a, "Try again")
+            @test a.status === :idle
+            @test only(connection.prompts) == Any[LlmText("Explain X"), LlmText("Try again")]
+        end
+
+        @testset "a turn that the person cancelled is not sent again" begin
+            connection = ScriptedAgentConnection([
+                Any[(connection, on_event) -> timedwait(() -> connection.is_cancelled, 10.0; pollint = 0.01)],
+                Any[LlmTextStart(), LlmTextDelta("B."), LlmTextStop()]])
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "A"; wait = false)
+            @test timedwait(() -> length(connection.prompts) == 1, 10.0; pollint = 0.01) === :ok
+            evaluate_operation((document = a,), CancelAssistantTurnOperation(a))
+            _wait_for_idle(a)
+            # The cancelled turn drew nothing, so it is gone.
+            @test [turn.role for turn in collect(a.conversation.turns)] == [:user]
+            _submit_to_agent!(a, "B")
+            @test connection.prompts == [Any[LlmText("A")], Any[LlmText("B")]]
+        end
+
+        @testset "a cancel while the session starts sends no prompt" begin
+            assistant = Ref{Any}(nothing)
+            connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("Late."), LlmTextStop()]];
+                on_start = _ -> timedwait(() -> assistant[].agent_session.is_cancelled, 10.0; pollint = 0.01))
+            a = _make_agent_assistant(connection)
+            assistant[] = a
+            _submit_to_agent!(a, "Slow"; wait = false)
+            @test is_external_agent_turn_running(a)
+            evaluate_operation((document = a,), CancelAssistantTurnOperation(a))
+            _wait_for_idle(a)
+            @test isempty(connection.prompts)
+            connection.on_start = nothing
+            _submit_to_agent!(a, "Next")
+            @test only(connection.prompts) == Any[LlmText("Next")]
+        end
+
+        @testset "an update can name a tool that an earlier one left unnamed" begin
+            connection = ScriptedAgentConnection([Any[
+                AgentToolCallUpdate("t1"; status = :in_progress),
+                AgentToolCallUpdate("t1"; name = "mcp__projectured__execute_julia_code",
+                                    input = Dict{String,Any}("code" => "2 + 2"))]])
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "Add")
+            form = only(part.content for part in collect(collect(a.conversation.turns)[end].parts)
+                        if part.content isa EvaluatorForm)
+            @test form.tool_name == "execute_julia_code"
+            @test form.source == "2 + 2"
+        end
+
+        @testset "a reset of the conversation stops the agent" begin
+            connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("One."), LlmTextStop()]])
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "First")
+            evaluate_operation((document = a,), ResetConversationOperation(a))
+            @test a.agent_session === nothing
+            @test isempty(collect(a.conversation.turns))
+        end
+
         @testset "a question of the agent waits for the person" begin
             options = [AgentPermissionOption("allow", "Allow", :allow_once),
                        AgentPermissionOption("reject", "Reject", :reject_once)]
@@ -106,6 +171,11 @@ function test_external_agent_turn()
             answer_permission_request!(request, "reject")
             @test !any(button -> button.enabled, buttons)
             @test request.answer == "Reject"
+            # A reply that comes after a cancel shows as cancelled.
+            late = ConversationPermissionRequest("Run it?",
+                [AgentPermissionOption("allow", "Allow", :allow_once)]; reply = _ -> false)
+            answer_permission_request!(late, "allow")
+            @test late.answer == "Cancelled"
             # The copy of a request can not be answered.
             duplicate = copy_document(DuplicatePolicy(), ConversationPermissionRequest("Run it?",
                 [AgentPermissionOption("allow", "Allow", :allow_once)]; reply = _ -> nothing))
@@ -132,11 +202,11 @@ function test_external_agent_turn()
             @test occursin("The backend :acp needs the package ProjecturedACP", text)
         end
 
-        @testset "the agent command is a setting that a save keeps" begin
+        @testset "a save keeps no command and no session options" begin
             a = Assistant(; backend = :acp, agent_command = "my-agent --flag")
             _, keywords = pred_arguments(a)
-            @test (:agent_command => "my-agent --flag") in keywords
-            @test (:agent_session_meta => DEFAULT_AGENT_SESSION_META) in keywords
+            @test (:backend => :acp) in keywords
+            @test !any(pair -> first(pair) in (:agent_command, :agent_session_meta), keywords)
             @test Assistant().agent_command == DEFAULT_AGENT_COMMAND
             @test occursin("\"display\": \"summarized\"", Assistant().agent_session_meta)
         end

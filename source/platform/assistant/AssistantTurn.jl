@@ -196,9 +196,12 @@ function evaluate_operation(editor, op::ClearInputOperation)
     nothing
 end
 
+# A new conversation is a new session of an external agent, which holds the
+# history of the old one.
 function evaluate_operation(editor, op::ResetConversationOperation)
     op.assistant.conversation = ConversationConversation()
     _set_input!(op.assistant, "")
+    stop_external_agent!(op.assistant)
     nothing
 end
 

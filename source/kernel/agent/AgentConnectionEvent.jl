@@ -71,8 +71,10 @@ end
 
 An external agent asks whether it can run `tool_call`, and waits for the answer.
 `reply` takes the `id` of the option that the person chose, or `nothing` when
-the person chose none. The first call answers the agent, and a later call does
-nothing. A cancel of the turn answers the request as `nothing`.
+the person chose none. The first call answers the agent and answers `true`. A
+later call does nothing and answers `false`, so a caller can tell an answer that
+reached the agent from one that came too late. A cancel of the turn answers the
+request as `nothing`.
 """
 struct AgentPermissionRequest <: AgentEvent
     tool_call::AgentToolCallUpdate

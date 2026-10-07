@@ -40,6 +40,7 @@ mutable struct AcpTransport
     input::IO
     output::IO
     process::Union{Nothing,Base.Process}
+    process_id::Int32
     on_notification::Function
     on_request::Function
     write_lock::ReentrantLock
@@ -62,7 +63,9 @@ standard error goes to the debug log.
 function open_acp_transport(input::IO, output::IO;
                             process::Union{Nothing,Base.Process} = nothing,
                             on_notification::Function, on_request::Function)
-    transport = AcpTransport(input, output, process, on_notification, on_request,
+    transport = AcpTransport(input, output, process,
+                             process === nothing ? Int32(0) : Int32(getpid(process)),
+                             on_notification, on_request,
                              ReentrantLock(), ReentrantLock(),
                              Dict{Int,Channel{Dict{String,Any}}}(), 0, false, nothing)
     transport.reader = errormonitor(@async _read_acp_messages(transport))
@@ -74,7 +77,12 @@ function open_acp_transport(command::Cmd; on_notification::Function, on_request:
     process = open(pipeline(command; stderr = errors), "r+")
     close(errors.in)
     errormonitor(@async _read_agent_errors(errors))
-    open_acp_transport(process.in, process.out; process, on_notification, on_request)
+    transport = open_acp_transport(process.in, process.out; process, on_notification, on_request)
+    # The end of the agent closes the transport, so a request does not wait for
+    # an answer that can not come, even while a child of the agent keeps the
+    # output of the agent open.
+    errormonitor(@async (wait(process); close_acp_transport!(transport)))
+    transport
 end
 
 # The standard error of an agent holds its own log. It goes to the debug log, so
@@ -86,14 +94,14 @@ function _read_agent_errors(errors::IO)
 end
 
 """
-    send_acp_request(transport, method, params; timeout = Inf) -> result
+    send_acp_request!(transport, method, params; timeout = Inf) -> result
 
 Send a request and wait for its answer. Answers the `result` of the answer, and
 throws an `AcpRequestException` for an `error`, or when the agent ends first. A
 finite `timeout`, in seconds, throws an error when the agent does not answer in
 time.
 """
-function send_acp_request(transport::AcpTransport, method::AbstractString, params;
+function send_acp_request!(transport::AcpTransport, method::AbstractString, params;
                           timeout::Real = Inf)
     channel = Channel{Dict{String,Any}}(1)
     id = lock(transport.pending_lock) do
@@ -102,7 +110,7 @@ function send_acp_request(transport::AcpTransport, method::AbstractString, param
         transport.next_id
     end
     try
-        _write_acp_message(transport, Dict{String,Any}(
+        _write_acp_message!(transport, Dict{String,Any}(
             "jsonrpc" => "2.0", "id" => id, "method" => method, "params" => params))
         if isfinite(timeout)
             timedwait(() -> isready(channel), Float64(timeout); pollint = 0.05) === :ok ||
@@ -121,12 +129,12 @@ function send_acp_request(transport::AcpTransport, method::AbstractString, param
 end
 
 """
-    send_acp_notification(transport, method, params)
+    send_acp_notification!(transport, method, params)
 
 Send a notification, which has no answer.
 """
-send_acp_notification(transport::AcpTransport, method::AbstractString, params) =
-    _write_acp_message(transport, Dict{String,Any}(
+send_acp_notification!(transport::AcpTransport, method::AbstractString, params) =
+    _write_acp_message!(transport, Dict{String,Any}(
         "jsonrpc" => "2.0", "method" => method, "params" => params))
 
 """
@@ -134,8 +142,10 @@ send_acp_notification(transport::AcpTransport, method::AbstractString, params) =
 
 Close the transport. The input of the agent closes, so an agent ends at the end
 of its input. A process that still runs after five seconds gets `SIGTERM`, and
-after two more `SIGKILL`, sent to its whole process group, so no child of the
-agent lives on. Each request that waits for an answer throws.
+after two more `SIGKILL`, sent to its whole process group. The group gets
+`SIGTERM` at the end in any case, so no child of the agent lives on after the
+agent ends. Each request that waits for an answer throws. The end of the
+process of the agent closes the transport too.
 """
 function close_acp_transport!(transport::AcpTransport)
     transport.is_closed && return transport
@@ -148,26 +158,36 @@ function close_acp_transport!(transport::AcpTransport)
         end
     end
     process = transport.process
-    if process !== nothing && timedwait(() -> process_exited(process), 5.0) !== :ok
-        _signal_process_group(process, Base.SIGTERM)
-        timedwait(() -> process_exited(process), 2.0) === :ok ||
-            _signal_process_group(process, Base.SIGKILL)
+    if process !== nothing
+        if timedwait(() -> process_exited(process), 5.0) !== :ok
+            _signal_process_group!(transport, Base.SIGTERM)
+            timedwait(() -> process_exited(process), 2.0) === :ok ||
+                _signal_process_group!(transport, Base.SIGKILL)
+        end
+        _signal_process_group!(transport, Base.SIGTERM)
     end
     _fail_waiting_requests!(transport)
     transport
 end
 
 # The agent starts in a process group of its own, so the group is the agent and
-# every process it started.
-function _signal_process_group(process::Base.Process, signal::Integer)
-    process_exited(process) && return nothing
+# every process it started, and the group outlives an agent whose children still
+# run. A group with no process left answers the signal with `ESRCH`, which does
+# no harm.
+function _signal_process_group!(transport::AcpTransport, signal::Integer)
     if Sys.isunix()
-        ccall(:kill, Cint, (Cint, Cint), -getpid(process), signal)
+        transport.process_id > 0 && ccall(:kill, Cint, (Cint, Cint), -transport.process_id, signal)
     else
-        kill(process, signal)
+        process = transport.process
+        process === nothing || process_exited(process) || kill(process, signal)
     end
     nothing
 end
+
+# Whether the transport can still carry a message: it is not closed, and its
+# reader still reads what the agent writes.
+_is_transport_open(transport::AcpTransport) =
+    !transport.is_closed && (transport.reader === nothing || !istaskdone(transport.reader))
 
 # Each request that waits gets an error answer, so its sender throws.
 function _fail_waiting_requests!(transport::AcpTransport)
@@ -178,7 +198,7 @@ function _fail_waiting_requests!(transport::AcpTransport)
     end
 end
 
-function _write_acp_message(transport::AcpTransport, message::Dict{String,Any})
+function _write_acp_message!(transport::AcpTransport, message::Dict{String,Any})
     text = JSON3.write(message)
     lock(transport.write_lock) do
         transport.is_closed && error("The connection to the agent is closed.")
@@ -205,7 +225,7 @@ function _read_acp_messages(transport::AcpTransport)
                 @warn "An agent wrote a line that is not JSON."
                 continue
             end
-            message isa Dict{String,Any} && _dispatch_acp_message(transport, message)
+            message isa Dict{String,Any} && _dispatch_acp_message!(transport, message)
         end
     catch exception
         transport.is_closed || @warn "The reader of an agent stopped." exception
@@ -214,14 +234,14 @@ function _read_acp_messages(transport::AcpTransport)
     end
 end
 
-function _dispatch_acp_message(transport::AcpTransport, message::Dict{String,Any})
+function _dispatch_acp_message!(transport::AcpTransport, message::Dict{String,Any})
     if haskey(message, "method")
         method = string(message["method"])
         params = get(message, "params", nothing)
         params isa Dict{String,Any} || (params = Dict{String,Any}())
         if haskey(message, "id")
             id = message["id"]
-            errormonitor(@async _answer_acp_request(transport, id, method, params))
+            errormonitor(@async _answer_acp_request!(transport, id, method, params))
         else
             try
                 transport.on_notification(method, params)
@@ -236,7 +256,7 @@ function _dispatch_acp_message(transport::AcpTransport, message::Dict{String,Any
     nothing
 end
 
-function _answer_acp_request(transport::AcpTransport, id, method::String, params::Dict{String,Any})
+function _answer_acp_request!(transport::AcpTransport, id, method::String, params::Dict{String,Any})
     answer = try
         Dict{String,Any}("jsonrpc" => "2.0", "id" => id,
                          "result" => transport.on_request(method, params))
@@ -248,7 +268,7 @@ function _answer_acp_request(transport::AcpTransport, id, method::String, params
         Dict{String,Any}("jsonrpc" => "2.0", "id" => id, "error" => Dict{String,Any}(
             "code" => failure.code, "message" => failure.message))
     end
-    transport.is_closed || _write_acp_message(transport, answer)
+    transport.is_closed || _write_acp_message!(transport, answer)
     nothing
 end
 

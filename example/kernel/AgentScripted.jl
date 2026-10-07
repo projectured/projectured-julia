@@ -5,7 +5,7 @@
 # production build.
 
 """
-    ScriptedAgentConnection(turns)
+    ScriptedAgentConnection(turns; failing_opens = 0, on_start = nothing)
 
 An external agent that plays `turns`, one for each prompt. A turn is a vector of
 steps. A step that is an event goes to `on_event` as it is. A step that is a
@@ -16,6 +16,10 @@ The connection records what a test asserts: `sessions` holds the `directory` and
 the `mcp_servers` of each session that opened, and `prompts` each prompt. A
 cancel answers each request that waits as cancelled, and the turn then answers
 `:cancelled`. A turn with no script answers `:end_turn` at once.
+
+The first `failing_opens` sessions fail to open, as for an agent that needs a
+sign-in. `on_start`, when given, gets the connection at each start, for a start
+that takes its time.
 """
 mutable struct ScriptedAgentConnection
     turns::Vector{Vector{Any}}
@@ -26,18 +30,27 @@ mutable struct ScriptedAgentConnection
     prompts::Vector{Vector{Any}}
     waiting_replies::Vector{Function}
     answers::Vector{Any}
+    failing_opens::Int
+    on_start::Any
 end
 
-ScriptedAgentConnection(turns::AbstractVector) =
+ScriptedAgentConnection(turns::AbstractVector; failing_opens::Integer = 0, on_start = nothing) =
     ScriptedAgentConnection([collect(Any, turn) for turn in turns], 0, false, false,
-                            Any[], Vector{Any}[], Function[], Any[])
+                            Any[], Vector{Any}[], Function[], Any[], Int(failing_opens), on_start)
 
-AgentModule.start_agent_connection!(connection::ScriptedAgentConnection) =
-    (connection.is_started = true; connection)
+function AgentModule.start_agent_connection!(connection::ScriptedAgentConnection)
+    connection.on_start === nothing || connection.on_start(connection)
+    connection.is_started = true
+    connection
+end
 
 function AgentModule.open_agent_session!(connection::ScriptedAgentConnection;
                                          directory::AbstractString = pwd(),
                                          mcp_servers::AbstractVector = Any[])
+    if connection.failing_opens > 0
+        connection.failing_opens -= 1
+        error("The scripted agent needs a sign-in.")
+    end
     push!(connection.sessions, (directory = String(directory), mcp_servers = collect(mcp_servers)))
     "scripted-session-$(length(connection.sessions))"
 end
@@ -76,7 +89,8 @@ function make_scripted_permission_step(tool_call::AgentToolCallUpdate,
                                        options::AbstractVector{AgentPermissionOption})
     function (connection::ScriptedAgentConnection, on_event::Function)
         choice = Channel{Any}(1)
-        reply = option_id -> (isready(choice) || put!(choice, option_id); nothing)
+        is_answered = Threads.Atomic{Bool}(false)
+        reply = option_id -> (Threads.atomic_xchg!(is_answered, true) ? false : (put!(choice, option_id); true))
         push!(connection.waiting_replies, reply)
         on_event(AgentPermissionRequest(tool_call, collect(options), reply))
         answer = timedwait(() -> isready(choice), 10.0; pollint = 0.01) === :ok ? take!(choice) : nothing

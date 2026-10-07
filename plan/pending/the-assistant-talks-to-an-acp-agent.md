@@ -492,6 +492,46 @@ document never holds the editor.
   - A permission card showed the raw tool name `mcp__projectured__…`. The
     card now removes the prefix, as the form does.
 
+### The review of phase 1 (2026-10-07)
+
+A code review of the branch found nine faults and some names that broke the
+naming law. All are fixed except one part of #3, which phase 2 keeps:
+
+1. **A `.pred` file could start any program.** `pred_arguments` saved
+   `agent_command` and `agent_session_meta`, so an opened file could name a
+   program that the next message started. A `.pred` file runs no code. Both
+   fields are no longer saved, and they come from `StartSettings`.
+2. **A dead agent was never started again.** `start_agent_connection!` now
+   starts an agent again when its transport is closed or its reader ended, and
+   a task that waits for the end of the agent process closes the transport, also
+   when a child of the agent keeps the output open. A failed turn stops the
+   connection and forgets the session id.
+3. **The agent and its MCP server outlived the assistant.** The group now gets
+   `SIGTERM` at every close, also after the agent ended by itself, and a reset of
+   the conversation stops the agent with `stop_external_agent!`. **Open:** the
+   close of a tab does not stop its agent, because projectured has no hook for
+   the close of a document. The agent ends with the editor process, at the end
+   of its input, so the leak is bounded. Phase 2 needs a close hook.
+4. **The prompt boundary was a guess from the roles of the turns.** The session
+   now counts the turns that the agent saw, `sent_turn_count`, and the count moves
+   only when `send_agent_prompt!` returns.
+5. **Escape during the start of a session did nothing.** The session now has an
+   `is_cancelled` flag that holds for one turn; a turn that is still starting
+   sends no prompt.
+6. **A card could show an answer that came after a cancel.** `reply` now answers
+   `true` when it reached the agent and `false` after; the card then shows
+   `"Cancelled"`.
+7. **A refused request was logged as an error.** The server now reads the body
+   of a refused request before its `401`.
+8. **An update before its `tool_call` fixed a wrong name.** A later update with
+   a name now renames the form.
+9. **Two tasks changed the open block.** The request task no longer closes a
+   block; the assistant does it.
+10. **Names.** A function with an external effect got `!`
+    (`send_acp_request!`, `send_acp_notification!` and four private ones),
+    `_find_object` became `_get_object`, and `_find_free_port` became
+    `_choose_free_port`, because neither answers `nothing`.
+
 ### Phase 2: the agent as a full partner
 
 - [ ] 2.1 Config options as a card: model, effort, mode.
@@ -502,6 +542,8 @@ document never holds the editor.
 - [ ] 2.6 Elicitation forms.
 - [ ] 2.7 Request cancel, and the prompt queue.
 - [ ] 2.8 The ACP Registry as a source for the list of agents.
+- [ ] 2.9 A hook for the close of a document, so the close of a tab stops its
+  agent and its MCP server (review #3).
 
 ### Phase 3: the agent sees what projectured sees
 

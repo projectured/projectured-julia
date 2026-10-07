@@ -13,9 +13,10 @@ for line in eachline(stdin)
     occursin("initialize", line) || continue
     println(replace(ENV["CHILD_AGENT_ANSWER"], "ANSWER_ID" => m[1]))
     flush(stdout)
-    if get(ENV, "CHILD_AGENT_STAYS", "") == "yes"
+    if get(ENV, "CHILD_AGENT_STAYS", "") in ("yes", "leaves")
         grandchild = run(`sleep 3600`; wait = false)
         write(ENV["CHILD_AGENT_PID_FILE"], string(getpid(grandchild)))
+        ENV["CHILD_AGENT_STAYS"] == "leaves" && exit(0)
         sleep(3600)
     end
 end
@@ -59,6 +60,28 @@ function test_acp_transport()
                 @test process_exited(process)
                 @test time() - started < 10
                 @test timedwait(() -> !_is_process_alive(grandchild), 5.0) === :ok
+            end
+        end
+
+        @testset "an agent that ends closes its transport, and a start starts it again" begin
+            mktempdir() do directory
+                pid_file = joinpath(directory, "grandchild.pid")
+                connection = make_agent_connection(:acp; command = _make_child_command(),
+                    environment = Dict("CHILD_AGENT_ANSWER" => _CHILD_ANSWER, "CHILD_AGENT_STAYS" => "leaves",
+                                       "CHILD_AGENT_PID_FILE" => pid_file))
+                start_agent_connection!(connection)
+                first_process = connection.transport.process
+                # The agent ends and leaves a child that holds its output open.
+                @test timedwait(() -> process_exited(first_process), 30.0) === :ok
+                @test timedwait(() -> connection.transport.is_closed, 10.0) === :ok
+                grandchild = parse(Int, read(pid_file, String))
+                @test timedwait(() -> !_is_process_alive(grandchild), 10.0) === :ok
+                @test_throws Exception open_agent_session!(connection)
+                rm(pid_file)
+                start_agent_connection!(connection)
+                @test connection.transport.process !== first_process
+                @test connection.agent_info["title"] == "Child Agent"
+                stop_agent_connection!(connection)
             end
         end
 

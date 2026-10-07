@@ -142,8 +142,8 @@ function test_acp_connection()
             @test request.tool_call.title == "Edit a.jl"
             @test [option.kind for option in request.options] == [:allow_once, :reject_once]
             @test outcome[] == Dict{String,Any}("outcome" => "selected", "optionId" => "allow")
-            # A second reply does nothing.
-            request.reply("reject")
+            # A second reply does nothing, and says so.
+            @test request.reply("reject") == false
             @test outcome[]["optionId"] == "allow"
             stop_agent_connection!(connection)
         end

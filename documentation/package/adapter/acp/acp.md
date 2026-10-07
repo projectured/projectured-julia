@@ -30,12 +30,14 @@ The capabilities of `initialize` give the agent no file access and no terminal: 
 
 `AcpTransport.jl` carries JSON-RPC 2.0. Each message is one JSON object on one line. The client writes to the standard input of the agent and reads its standard output.
 
-- **The reader task** reads the lines and hands each message to its place. A response goes to the request that waits for it. `send_acp_request` blocks on a channel for the answer and throws an `AcpRequestException` for an error answer.
+- **The reader task** reads the lines and hands each message to its place. A response goes to the request that waits for it. `send_acp_request!` blocks on a channel for the answer and throws an `AcpRequestException` for an error answer.
 - **A notification of the agent** runs on the reader task, in order, so the chunks of an answer keep their order. The handler must not wait.
 - **A request of the agent** runs on a task of its own, so it can wait for a person. The handler answers with a result or throws an `AcpRequestException`.
 - **The standard error of the agent** goes to the debug log. The transport logs no message content, because an agent can send account data.
 
-The agent starts with `detach = true`, so it has a process group of its own. `close_acp_transport!` closes the input of the agent first, because an agent ends when its input ends. A process that still runs after 5 seconds gets `SIGTERM`, sent to the whole group. After 2 more seconds it gets `SIGKILL`. So no child of the agent lives on. Each request that waits for an answer throws.
+The agent starts with `detach = true`, so it has a process group of its own. `close_acp_transport!` closes the input of the agent first, because an agent ends when its input ends. A process that still runs after 5 seconds gets `SIGTERM`, sent to the whole group. After 2 more seconds it gets `SIGKILL`. At the end the group gets `SIGTERM` in any case, because a child of the agent can outlive an agent that ended at the end of its input. So no child of the agent lives on. Each request that waits for an answer throws.
+
+A task waits for the end of the agent process and closes the transport then, so a request does not wait for an answer that can not come, even while a child of the agent keeps the output open. `start_agent_connection!` starts an agent again when its transport is closed or its reader ended; the sessions of the old agent ended with it.
 
 ### The translation of an update
 
@@ -49,7 +51,7 @@ The agent reports its work as `session/update` notifications. `AcpUpdate.jl` tra
 | `plan` | one `AgentPlanUpdate` with the whole plan |
 | any other kind | no event |
 
-ACP sends text with no frame around it, and the events of the kernel frame a block with a start and a stop. So an `AcpTurn` keeps the kind of the open block and the `messageId` of the message. A chunk of another kind or of another `messageId`, a new tool call, a plan and a permission request close the open block first. The end of the prompt closes the last block. The usage, the commands, the modes, the config options and the session information of the agent give no event.
+ACP sends text with no frame around it, and the events of the kernel frame a block with a start and a stop. So an `AcpTurn` keeps the kind of the open block and the `messageId` of the message. A chunk of another kind or of another `messageId`, a new tool call and a plan close the open block first. Only the reader task changes this state. A permission request arrives on a task of its own and leaves it as it is; the assistant closes its own open block before it draws the card. The end of the prompt closes the last block. The usage, the commands, the modes, the config options and the session information of the agent give no event.
 
 An `AgentToolCallUpdate` takes its `name` from the field `name`, or else from `_meta.claudeCode.toolName`, where `claude-agent-acp` puts it. The `output` is the text of the content of the call. A diff becomes its path and its lines marked `-` and `+`.
 
@@ -60,7 +62,7 @@ A `session/request_permission` request of the agent waits on a task of its own. 
 1. It looks for the prompt that runs in the session. A request outside a prompt is answered as cancelled.
 2. It makes an `AgentPermissionRequest` with the tool call, the options of the agent and a `reply` function.
 3. It sends the request to `on_event` and waits on a channel.
-4. The first call of `reply` puts the id of the chosen option, or `nothing`, into the channel. A later call does nothing.
+4. The first call of `reply` puts the id of the chosen option, or `nothing`, into the channel, and answers `true`. A later call does nothing and answers `false`, so the assistant can show that an answer came after a cancel.
 5. The answer is `selected` with the option id, or `cancelled` for `nothing`.
 
 The wait has a bound. `cancel_agent_prompt!`, the end of the prompt and `stop_agent_connection!` each call `reply(nothing)` for every request that waits. So a request never waits after its turn.
@@ -118,7 +120,7 @@ The design follows six rules. They are facts of the code, and they are not legal
 
 - `test_acp()` runs the layering guard, `test_acp_update()`, `test_acp_connection()` and `test_acp_transport()`. It needs no network, no Node.js and no sign-in.
 - `test/adapter/acp/FakeAcpAgent.jl` is a fake agent that runs in the test process, on two `Base.BufferStream`s. Each test gives it the handlers of its methods, so it can also ask the client a question.
-- The transport test starts a small child agent written in Julia. It checks that a grandchild of the agent ends when the connection stops.
+- The transport test starts a small child agent written in Julia. It checks that a grandchild of the agent ends when the connection stops, also when the agent ends first, and that a start after the end of an agent starts a new one.
 - The tests of the assistant turn use `ScriptedAgentConnection`; see [assistant.md](../../platform/assistant/assistant.md).
 
 ## Limits

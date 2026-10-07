@@ -4,8 +4,9 @@
 # ACP sends the text of an answer as chunks with no frame around them, and the
 # kernel's events frame a block with a start and a stop. So a turn keeps the
 # kind of the block that is open, and a chunk of another kind, another message,
-# a new tool call, a plan or a question for the person closes it first. A
-# turn's end closes the last one.
+# a new tool call or a plan closes it first. A turn's end closes the last one.
+# Only the reader task changes this state; a question for the person arrives on
+# a task of its own and leaves it as it is.
 
 """
     AcpTurn(on_event)

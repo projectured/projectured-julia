@@ -534,7 +534,7 @@ The seven generics are `make_agent_connection(kind; kwargs...)`, `start_agent_co
 - `LlmTextStart`, `LlmTextDelta` and `LlmTextStop` for the text of the answer, and the three `LlmThinking…` events for its reasoning. They are the events that `stream_turn` sends, so the code that draws a model answer draws an agent answer.
 - `AgentToolCallUpdate` for a tool call that the agent runs itself. The event reports the call. The editor does not run it. A field that is `nothing` keeps the value of the last update with the same `id`.
 - `AgentPlanUpdate` for the plan of the agent. Each one replaces the plan before it.
-- `AgentPermissionRequest` for a question that waits for a person. Its `reply` takes the id of the chosen option, or `nothing`. The first call answers the agent. `cancel_agent_prompt!` answers each request that waits as `nothing`.
+- `AgentPermissionRequest` for a question that waits for a person. Its `reply` takes the id of the chosen option, or `nothing`. The first call answers the agent and answers `true`; a later call does nothing and answers `false`. `cancel_agent_prompt!` answers each request that waits as `nothing`.
 
 The agent reaches the tools of the editor through the inbound direction. `get_agent_server_access(server)` answers `(name, url, headers)` for a server, and the tuple has the shape that `open_agent_session!` takes for an entry of `mcp_servers`. So the caller hands the MCP server of its editor to the agent without the type of the server. The inbound direction also gives the server a free port and a secret; see [mcp.md](../adapter/mcp/mcp.md).
 
