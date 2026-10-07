@@ -55,7 +55,7 @@ function test_task_group()
             @test measure_task_group_progress(group) == 0.0
             observed = Int[]
             start_task_group!(group)
-            sampler = @async while group.scheduler === nothing || !istaskdone(group.scheduler)
+            sampler = @async while group.runtime.scheduler === nothing || !istaskdone(group.runtime.scheduler)
                 push!(observed, build_task_group_summary(group).running)
                 sleep(0.02)
             end
@@ -106,7 +106,7 @@ function test_task_group()
             @test !is_concurrent(outer) && get_result_codes(outer) === RUN_RESULT_CODES
             agree = Bool[]
             start_task_group!(outer)
-            sampler = @async while outer.scheduler === nothing || !istaskdone(outer.scheduler)
+            sampler = @async while outer.runtime.scheduler === nothing || !istaskdone(outer.runtime.scheduler)
                 summary = build_task_group_summary(outer)
                 inner = [build_task_group_summary(phase) for phase in phases]
                 push!(agree, summary.total == sum(s.total for s in inner) &&
@@ -148,6 +148,52 @@ function test_task_group()
             @test outer.runs[2] === nothing
         end
 
+        @testset "the tally gives the summary that a walk of every task gives" begin
+            # The first task ends after the inner one, so the order of the ends is
+            # not the order of the tasks; the details of the two unexpected
+            # results tie, and the words list them in the order of the tasks.
+            inner = TaskGroup(AbstractTask[_TaskGroupProbeTask("i1", "exit 0"),
+                                           _TaskGroupProbeTask("i2", "exit 4")]; name = "inner", jobs = 2)
+            tasks = AbstractTask[_TaskGroupProbeTask("a", "sleep 0.3; exit 3"), inner,
+                                 _TaskGroupProbeTask("b", "exit 0")]
+            group = run_task_group(TaskGroup(tasks; jobs = 2))
+            walked = compute_task_group_result(group)
+            summary = compute_task_group_summary(group)
+            @test summary.total == 4 && summary.finished == 4 && summary.running == 0
+            @test summary.result == walked.result == "ERROR"
+            @test summary.summary == format_task_group_summary(walked)
+            @test summary.reason == format_task_group_reason(walked) ==
+                  "2/4 unexpected: 1x Non-zero exit code: 3, 1x Non-zero exit code: 4"
+            @test summary.counts == [(code, walked.num_expected[code], walked.num_unexpected[code])
+                                     for code in group.codes.codes
+                                     if walked.num_expected[code] + walked.num_unexpected[code] > 0]
+            @test summary.slowest !== nothing && summary.slowest[1] == "a"
+            @test build_task_group_summary(group).counts == Dict("DONE" => 2, "ERROR" => 2)
+            # A run again counts the failures again, and no result twice.
+            wait_task_group(rerun_task_group!(group, :failed))
+            @test compute_task_group_summary(group).finished == 4
+            @test compute_task_group_summary(group).summary ==
+                  format_task_group_summary(compute_task_group_result(group))
+        end
+
+        @testset "a shadow of a group follows its counts, and writes what changed" begin
+            group = TaskGroup(AbstractTask[_TaskGroupProbeTask("a", "exit 0"),
+                                           _TaskGroupProbeTask("b", "exit 1")]; jobs = 1)
+            shadow = make_task_group_shadow(group)
+            @test shadow isa ACTaskGroup && shadow.runs === nothing && shadow.runtime === nothing
+            @test shadow.counts.pending == 2 && shadow.summary.finished == 0
+            reads = Ref(0)
+            counts = Cell(nothing)
+            set_cell_computation!(counts, () -> (reads[] += 1; shadow.counts))
+            @test counts[].pending == 2 && reads[] == 1
+            sync_document!(shadow, group)                   # nothing changed
+            @test counts[].pending == 2 && reads[] == 1
+            run_task_group(group)
+            sync_document!(shadow, group)
+            @test counts[].finished == 2 && reads[] == 2
+            @test shadow.summary.result == "ERROR"
+        end
+
         @testset "an end that throws ends its task as an error, and the group ends" begin
             group = TaskGroup(AbstractTask[_TaskGroupFinishFailureProbe(),
                                            _TaskGroupProbeTask("after", "exit 0")]; jobs = 1)
@@ -184,10 +230,10 @@ function test_task_group()
             group = TaskGroup(tasks; jobs = 1,
                               preparation = _TaskGroupProbeTask("prepare", "touch $marker"))
             started = Any[]
-            group.on_preparation = execution -> push!(started, execution)
+            group.runtime.on_preparation = execution -> push!(started, execution)
             run_task_group(group)
-            @test only(started) === group.preparation_run
-            @test group.preparation_run.result.result == "DONE"
+            @test only(started) === group.runtime.preparation_run
+            @test group.runtime.preparation_run.result.result == "DONE"
             # The tasks found what the preparation made, and only they are counted.
             summary = build_task_group_summary(group)
             @test summary.total == 2 && summary.counts == Dict("DONE" => 2)
@@ -197,7 +243,7 @@ function test_task_group()
                                 preparation = TaskGroup([_TaskGroupProbeTask("compile", "exit 2")];
                                                         name = "stub", action = "Building"))
             run_task_group(failing)
-            @test failing.preparation_run.result.result == "ERROR"
+            @test failing.runtime.preparation_run.result.result == "ERROR"
             results = collect_task_group_results(failing)
             @test results[1] isa TaskNotStarted && results[1].result == "CANCEL"
             @test results[1].reason == "Not started: building stub ended ERROR"
@@ -219,14 +265,14 @@ function test_task_group()
                               preparation = _TaskGroupProbeTask("prepare", "trap 'kill \$!; exit 130' INT; sleep 30 & wait \$!"))
             start_task_group!(group)
             deadline = time() + 10
-            while (group.preparation_run === nothing || !is_task_running(group.preparation_run)) && time() < deadline
+            while (group.runtime.preparation_run === nothing || !is_task_running(group.runtime.preparation_run)) && time() < deadline
                 sleep(0.02)
             end
             stopped_at = time()
             stop_task_group!(group)
             wait_task_group(group)
             @test time() - stopped_at < 10
-            @test group.preparation_run.result.result == "CANCEL"
+            @test group.runtime.preparation_run.result.result == "CANCEL"
             @test group.runs[1] === nothing
         end
 

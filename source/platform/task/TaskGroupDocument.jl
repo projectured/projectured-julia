@@ -33,16 +33,16 @@ See also `start_task_group_document!`, `stop_task_group_document!` and
 - `tasks::CellVector` — one [`TaskDocument`](@ref) for each task, in the order
   the group was made. The order never changes, so a run again adds an execution
   to an entry and renumbers nothing.
-- `group` — the `TaskGroup`: its name and its action, its codes, and the
-  execution of each task once it starts.
-- `tally` — how many tasks are in each state, kept by each write of a state.
+- `group` — the native `TaskGroup`: its name and its action, its codes, and the
+  execution of each task once it starts; a start, a stop and a run again act on
+  it.
+- `shadow` — the shadow of the group ([`make_task_group_shadow`](@ref)), which
+  the slot of each task syncs after the task: its summary, and its counts, the
+  parts of the summary that change only when a task starts or ends
+  ([`get_task_group_document_summary`](@ref),
+  [`get_task_group_document_counts`](@ref)).
 - `identifier::String` — `T1`, `T2`, …: the name of the group that never
   changes, whatever the title becomes.
-- `summary` — the `TaskGroupSummary` of the group, written with each change.
-- `counts` — the parts of the summary that change only when a task starts or
-  ends: the total, the finished, running and waiting tasks, the counts of each
-  code, the worst code and whether all is expected. It is written only when one
-  of them changes, so a view of them is not drawn again at each drain.
 - `selected::Int` — the task the detail of the pane shows, `-1` for the
   preparation of the group, or 0 for none.
 - `groups` — the `TaskGroupDocument` of each task that is a group, by its place:
@@ -59,10 +59,8 @@ See also `start_task_group_document!`, `stop_task_group_document!` and
     status::Symbol
     tasks::CellVector
     group::Any
-    tally::Any
+    shadow::Any
     identifier::String
-    summary::Any
-    counts::Any
     selected::Int
     row_filter::Any
     groups::Any
@@ -81,6 +79,13 @@ make_task_group_identifier() = "T" * string(Threads.atomic_add!(_TASK_GROUP_COUN
 
 """The engine `TaskGroup` the document holds."""
 get_task_group(doc::TaskGroupDocument) = getfield(doc, :group)[]
+
+"""The `TaskGroupSummary` of the group at the last sync of its shadow."""
+get_task_group_document_summary(doc::TaskGroupDocument) = getfield(doc, :shadow)[].summary
+
+"""The counts of the summary of the group at the last sync of its shadow
+([`get_task_group_counts`](@ref))."""
+get_task_group_document_counts(doc::TaskGroupDocument) = getfield(doc, :shadow)[].counts
 
 """
     wrap_task_group_document(group; title = group.name, identifier = make_task_group_identifier())
@@ -101,22 +106,14 @@ function wrap_task_group_document(group::TaskGroup; title::AbstractString = grou
                       wrap_task_group_document(group.preparation; title = group.preparation.name,
                                                identifier = string(identifier, ".0")) :
                       TaskDocument(group.preparation)
-    # The tally starts as the tasks do. Every write of a status keeps it from here
-    # on, so the group never has to count its tasks to know whether it is finished.
-    tally = Dict{Symbol,Int}(:pending => 0, :running => 0, :done => 0,
-                             :error => 0, :cancelled => 0, :skipped => 0)
-    for d in documents
-        state = get_task_document_status(d)
-        tally[state] = get(tally, state, 0) + 1
-    end
-    summary = compute_task_group_summary(group)
     doc = TaskGroupDocument(Cell(String(title)), Cell(group.jobs), Cell(:pending),
                             CellVector(Cell[Cell(d) for d in documents]),
-                            Cell(group), Cell(tally), Cell(String(identifier)),
-                            Cell(summary), Cell(_get_summary_counts(summary)), Cell(0),
+                            Cell(group), Cell(make_task_group_shadow(group)),
+                            Cell(String(identifier)), Cell(0),
                             Cell(PrimitiveString("all")), Cell(groups), Cell(preparation))
-    group.on_start = _make_task_group_wiring(doc)
-    preparation === nothing || (group.on_preparation = _make_preparation_wiring(preparation))
+    group.runtime.on_start = _make_task_group_wiring(doc)
+    preparation === nothing ||
+        (group.runtime.on_preparation = _make_preparation_wiring(preparation))
     doc
 end
 
@@ -153,26 +150,23 @@ end
 # The first sync of an execution adds its shadow to the document of the task. A
 # task that is a group starts its own tasks again: that first sync also puts the
 # tasks of its document back to waiting, before their own syncs come. Each sync
-# moves the task in the tally when its state changed. A sync of an execution
-# that the document no longer shows changes nothing.
+# then syncs the shadow of the group, whose counts the status reads. A sync of an
+# execution that the document no longer shows changes nothing.
 function record_task_execution_sync!(slot::_TaskGroupSlot, execution, shadow,
                                      before::Symbol, made::Bool)
     doc = slot.group
     document = _task_documents(doc)[slot.index]
     if made
-        before = get_task_document_status(document)
         add_task_execution!(document, execution, shadow)
         inner = find_task_group_document(doc, slot.index)
         if inner !== nothing
             _reset_tasks!(inner, eachindex(get_task_group(inner).tasks))
-            _refresh_status!(inner)
+            _sync_task_group_shadow!(inner)
         end
     elseif get_current_task_execution(document) !== shadow
         return nothing
     end
-    _retally!(doc, before, shadow.status)
-    _refresh_status!(doc)
-    _write_summary!(doc)
+    _sync_task_group_shadow!(doc)
     nothing
 end
 
@@ -196,8 +190,7 @@ function record_task_execution_sync!(preparation::_TaskGroupPreparation, executi
                                      before::Symbol, made::Bool)
     doc = preparation.group
     made && _reset_tasks!(doc, eachindex(get_task_group(doc).tasks))
-    _refresh_status!(doc)
-    _write_summary!(doc)
+    _sync_task_group_shadow!(doc)
     nothing
 end
 
@@ -222,7 +215,7 @@ function describe_task_group_preparation(doc::TaskGroupDocument)
         status = getfield(preparation, :status)[]
         status === :pending && return (words * " — waiting", :waiting, true)
         status in (:running, :stopping) && return (words * " — running", :running, true)
-        summary = getfield(preparation, :summary)[]
+        summary = get_task_group_document_summary(preparation)
         summary.is_expected && return (words * " — " * summary.result, summary.result, true)
         return (words * " — " * summary.result * (summary.reason === nothing ? "" : ": " * summary.reason),
                 summary.result, false)
@@ -236,59 +229,36 @@ function describe_task_group_preparation(doc::TaskGroupDocument)
     (words * " — " * format_task_result(result), result.result, false)
 end
 
-# The summary of the group, written with each change a drain syncs, on the task
-# that reads the documents.
-function _write_summary!(doc::TaskGroupDocument)
-    summary = compute_task_group_summary(get_task_group(doc))
-    set_cell_value!(getfield(doc, :summary), summary)
-    counts = _get_summary_counts(summary)
-    counts == getfield(doc, :counts)[] || set_cell_value!(getfield(doc, :counts), counts)
+# Sync the shadow of the group, and the status that its counts give, on the
+# task that reads the documents.
+function _sync_task_group_shadow!(doc::TaskGroupDocument)
+    sync_document!(getfield(doc, :shadow)[], get_task_group(doc))
+    _refresh_status!(doc)
     doc
 end
 
-# The parts of a summary that change only when a task starts or ends.
-_get_summary_counts(summary::TaskGroupSummary) =
-    (total = summary.total, finished = summary.finished, running = summary.running,
-     pending = summary.pending, counts = summary.counts, result = summary.result,
-     is_expected = summary.is_expected)
-
-# One task left `before` and arrived at `after`: move it in the tally.
-function _retally!(doc::TaskGroupDocument, before::Symbol, after::Symbol)
-    before === after && return doc
-    tally = getfield(doc, :tally)[]
-    tally isa Dict || return doc
-    tally[before] = max(0, get(tally, before, 0) - 1)
-    tally[after] = get(tally, after, 0) + 1
-    doc
-end
-
-# The tasks that are about to start again wait, with no current execution. Every
-# change of the state of a task of a group goes through here or through the
-# sync of its slot: a tally that one caller bypasses is worse than no tally,
-# because it is believed.
+# The tasks that are about to start again wait, with no current execution.
 function _reset_tasks!(doc::TaskGroupDocument, indices)
     documents = _task_documents(doc)
     for index in indices
-        document = documents[index]
-        before = get_task_document_status(document)
-        reset_task_document!(document)
-        _retally!(doc, before, :pending)
+        reset_task_document!(documents[index])
     end
     doc
 end
 
 # Called whenever a task starts or ends, so it must not count the tasks. It reads
-# the tally, which is O(1). A count is one walk of every task per change: on
-# 18,500 tasks, 13 ms a walk and 2 walks a task, about eight minutes in which the
-# window answers nothing, because this runs on the task of the driver, and the
-# driver shares the thread that draws.
+# the counts of the shadow of the group, which the tally of the scheduler makes
+# without a walk. A count is one walk of every task per change: on 18,500 tasks,
+# 13 ms a walk and 2 walks a task, about eight minutes in which the window
+# answers nothing, because this runs on the task of the driver, and the driver
+# shares the thread that draws.
 #
 # A group that was told to stop starts no task that waits, so its waiting tasks
 # do not keep it running: it is finished once nothing runs.
 function _refresh_status!(doc::TaskGroupDocument)
-    counts = _live_counts(doc)
-    running = counts[:running]
-    pending = counts[:pending]
+    counts = get_task_group_document_counts(doc)
+    running = counts.running
+    pending = counts.pending
     current = getfield(doc, :status)[]
     stopping = current === :stopping || get_task_group(doc).stopping
     next = running > 0 ? (stopping ? :stopping : :running) :
@@ -308,12 +278,12 @@ the list of the session that the Tasks pane shows.
 function start_task_group_document!(doc::TaskGroupDocument)
     group = get_task_group(doc)
     # A group that runs goes on as it is: its Run is off while it goes.
-    group.scheduler !== nothing && !istaskdone(group.scheduler) && return doc
+    group.runtime.scheduler !== nothing && !istaskdone(group.runtime.scheduler) && return doc
     group.jobs = max(1, getfield(doc, :jobs)[])
     set_cell_value!(getfield(doc, :status), :running)
     _reset_tasks!(doc, eachindex(group.tasks))
     start_task_group!(group)
-    _write_summary!(doc)
+    _sync_task_group_shadow!(doc)
     add_task_group!(get_session_task_group_list(), doc)
     doc
 end
@@ -334,7 +304,7 @@ function rerun_task_group_document!(doc::TaskGroupDocument, which = :failed)
     set_cell_value!(getfield(doc, :status), :running)
     _reset_tasks!(doc, indices)
     rerun_task_group!(group, indices)
-    _write_summary!(doc)
+    _sync_task_group_shadow!(doc)
     add_task_group!(get_session_task_group_list(), doc)
     doc
 end
@@ -347,7 +317,7 @@ function stop_task_group_document!(doc::TaskGroupDocument)
     set_cell_value!(getfield(doc, :status), :stopping)
     stop_task_group!(group)
     # A group whose tasks all ended is finished now; no task writes again to say so.
-    _refresh_status!(doc)
+    _sync_task_group_shadow!(doc)
     doc
 end
 
@@ -360,8 +330,7 @@ For a caller with no window, on the task that reads the documents.
 function wait_task_group_document(doc::TaskGroupDocument)
     wait_task_group(get_task_group(doc))
     drain_task_feed!()
-    _refresh_status!(doc)
-    _write_summary!(doc)
+    _sync_task_group_shadow!(doc)
     doc
 end
 
@@ -372,15 +341,6 @@ Show task `index` in the detail of the pane, or none with 0.
 """
 select_task_document!(doc::TaskGroupDocument, index::Integer) =
     (set_cell_value!(getfield(doc, :selected), Int(index)); doc)
-
-# What the group believes, without asking the tasks. `build_task_group_document_counts` is
-# the authority and walks them; a test asserts the two agree after a group ran,
-# which is what catches a change of state that passed the sync of a slot.
-function _live_counts(doc::TaskGroupDocument)
-    tally = getfield(doc, :tally)[]
-    tally isa Dict && return tally
-    build_task_group_document_counts(doc)
-end
 
 """
     build_task_group_document_counts(doc) -> Dict{Symbol,Int}

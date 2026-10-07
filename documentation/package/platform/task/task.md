@@ -116,9 +116,24 @@ of task adds a method to, and its `TaskExecution` stays in `runs` for the whole
 life of the group. `rerun_task_group!(group, which)` runs again the tasks that
 `which` names — `:all`, `:unfinished`, `:unexpected`, `:failed` or their
 positions — in place, and keeps every other execution. `stop_task_group!`
-starts no more tasks and stops the ones that run. `finish`, when it is set, is
-called once when the last task of a start ends: an update writes its store
-there.
+starts no more tasks and stops the ones that run. `runtime.finish`, when it is
+set, is called once when the last task of a start ends: an update writes its
+store there.
+
+**A group is a live state**, `@document [M, C] struct TaskGroup <: AbstractTask`.
+Its native layout holds the tasks, the names, the codes, the times, the `runs`,
+the `tally` that its scheduler keeps, and the `summary` and `counts` of the last
+sync. A `TaskGroupRuntime` holds what no view shows: the lock of the tally, the
+scheduler, `finish`, `on_start`, `on_preparation` and `preparation_run`. The
+`TaskGroupTally` counts the tasks of the group that are no groups: the finished
+ones, the places that run, the counts of each code, the unexpected details by
+place, the durations and the slowest. The construction and each start build it
+once from the executions; the scheduler adds each start and each end. So
+`compute_task_group_summary` costs the codes, the inner groups and the running
+tasks, and not a walk of every task. `make_task_group_shadow` makes the shadow
+in the cell layout, which holds no `runs`, `tally` or `runtime`, and
+`sync_document!(shadow, group)` computes the summary and writes the fields that
+changed; the counts change only when a task starts or ends.
 
 **A group is a kind of task.** A task of a group can be a group, as a
 `MultipleTasks` of `opp_repl` holds others: a sequential group of phases, each a
@@ -130,7 +145,7 @@ summary and the result of a group count the tasks that are no groups, at every
 depth, so a build of five phases says how many of its 1700 compiles ended, and
 the row of each phase says the same of its own.
 
-`on_start`, a field of the group, is called at each start of one of its tasks,
+`runtime.on_start` is called at each start of one of the tasks of the group,
 whoever started the group. The document of a group sets it, so the tasks of an
 inner group report to their documents as the tasks of the outer group do.
 
@@ -212,16 +227,17 @@ at most once in its interval and asks for a frame only while an execution runs.
 A caller with no window drains the store itself: `wait_task_document` and
 `wait_task_group_document` do.
 
-`TaskGroupDocument` is a group on the screen: the `TaskGroup`, one
-`TaskDocument` for each task, a tally of the states that each sync keeps, the
-summary, and an identifier `T1`, `T2`, … that never changes. Each task that is
+`TaskGroupDocument` is a group on the screen: the native `TaskGroup`, its
+shadow, one `TaskDocument` for each task, and an identifier `T1`, `T2`, … that
+never changes. The slot of each task syncs the shadow of the group after the
+task (`get_task_group_document_summary`, `get_task_group_document_counts`). Each task that is
 a group has a `TaskGroupDocument` of its own, `T1.1`, `T1.2`, …
 (`find_task_group_document`); only the outer group has a row in the Tasks pane.
 `start_task_group_document!`, `rerun_task_group_document!` and
 `stop_task_group_document!` act on the group, and its status is `:pending`,
-`:running`, `:stopping` or `:finished`. The status reads the tally, not the
-documents, so a group of 18,500 tasks costs the same at each change as a group
-of five.
+`:running`, `:stopping` or `:finished`. The status reads the counts of the
+shadow, not the documents, so a group of 18,500 tasks costs the same at each
+change as a group of five.
 
 `TaskGroupList` is the groups of the session, newest first, that the Tasks pane
 shows. A group adds itself when it starts, and stays until a person closes its

@@ -99,14 +99,16 @@ function test_task_document()
             @test get_task_group_document_status(document) === :finished
             counts = build_task_group_document_counts(document)
             @test counts[:done] == 4 && counts[:error] == 1 && counts[:total] == 5
-            # The tally that each write keeps agrees with a count of the documents.
-            tally = getfield(document, :tally)[]
-            @test all(tally[state] == counts[state] for state in keys(tally))
+            # The counts of the shadow, which the tally of the scheduler makes,
+            # agree with a count of the documents.
+            synced = get_task_group_document_counts(document)
+            @test synced.finished == counts[:done] + counts[:error]
+            @test synced.running == counts[:running] && synced.pending == counts[:pending]
             @test measure_task_group_document_progress(document) == 1.0
-            summary = getfield(document, :summary)[]
+            summary = get_task_group_document_summary(document)
             @test summary.finished == 5
             @test ("DONE", 4, 0) in summary.counts && ("ERROR", 0, 1) in summary.counts
-            @test getfield(document, :counts)[].result == "ERROR"
+            @test get_task_group_document_counts(document).result == "ERROR"
 
             documents = collect(getfield(document, :tasks)[])
             failed = only(i for (i, d) in enumerate(documents) if get_task_document_status(d) === :error)
@@ -140,8 +142,8 @@ function test_task_document()
             start_task_group_document!(document)
             wait_task_group_document(document)
             @test get_task_group_document_status(document) === :finished
-            @test getfield(document, :summary)[].total == 10
-            @test getfield(document, :counts)[].finished == 10
+            @test get_task_group_document_summary(document).total == 10
+            @test get_task_group_document_counts(document).finished == 10
             for index in 1:2
                 counts = build_task_group_document_counts(find_task_group_document(document, index))
                 @test counts[:done] == 4 && counts[:error] == 1
@@ -168,7 +170,7 @@ function test_task_document()
             @test getfield(preparation, :identifier)[] == getfield(document, :identifier)[] * ".0"
             @test describe_task_group_preparation(document) == ("Before the tasks: building stub — waiting", :waiting, true)
             wait_task_group_document(start_task_group_document!(document))
-            @test getfield(document, :summary)[].total == 2
+            @test get_task_group_document_summary(document).total == 2
             @test build_task_group_document_counts(document)[:done] == 2
             @test build_task_group_document_counts(preparation)[:done] == 1
             @test describe_task_group_preparation(document) == ("Before the tasks: building stub — DONE", "DONE", true)
@@ -213,7 +215,7 @@ function test_task_document()
             wait_task_group_document(document)
             @test get_task_group_document_status(document) === :finished
             @test build_task_group_document_counts(document)[:cancelled] == 5
-            @test getfield(document, :counts)[].result == "CANCEL"
+            @test get_task_group_document_counts(document).result == "CANCEL"
         end
     end
 end

@@ -108,7 +108,7 @@ end
 # change only when a task starts or ends.
 function _get_group_state(p, doc::TaskGroupDocument, group)
     status = getfield(doc, :status)[]
-    counts = getfield(doc, :counts)[]
+    counts = get_task_group_document_counts(doc)
     status === :running && return ("running", p.running_color)
     status === :stopping && return ("stopping", p.running_color)
     counts.finished == 0 && return ("not started", p.muted_color)
@@ -137,7 +137,7 @@ end
 # The time a task took, or is taking: the summary cell is read so a task that
 # runs counts on with each drain.
 function _format_task_elapsed_time(doc::TaskGroupDocument, document::TaskDocument)
-    getfield(doc, :summary)[]
+    get_task_group_document_summary(doc)
     started = _get_current_field(document, :start_time)
     started === nothing && return ""
     _format_duration(something(_get_current_field(document, :end_time), time()) - started; precision = 1)
@@ -164,7 +164,7 @@ end
 # the outer group stops it and runs it again.
 function _build_summary_card(p, doc::TaskGroupDocument; actions::Bool = true)
     group = get_task_group(doc)
-    get_summary() = getfield(doc, :summary)[]
+    get_summary() = get_task_group_document_summary(doc)
     title = WidgetLabel(() -> getfield(doc, :title)[])
     identifier = WidgetBadge(getfield(doc, :identifier)[]; variant = :outline)
     state = _make_live_label(() -> _get_group_state(p, doc, group))
@@ -507,7 +507,7 @@ group this title, also when its caller gives the name as a plain string.
 """
 function make_task_group_tab_title(doc::TaskGroupDocument; name = getfield(doc, :title)[])
     group = get_task_group(doc)
-    state() = (status = getfield(doc, :status)[], counts = getfield(doc, :counts)[],
+    state() = (status = getfield(doc, :status)[], counts = get_task_group_document_counts(doc),
                cancelled = group.stopping)
     PaneTabTitle(String(name);
                  icon = () -> _get_tab_icon(state()),
@@ -571,7 +571,7 @@ end
 # The summary card in short: what the group is, how far it is, what it found,
 # and the time.
 function _format_tab_tooltip(doc::TaskGroupDocument, group)
-    s = getfield(doc, :summary)[]
+    s = get_task_group_document_summary(doc)
     running = getfield(doc, :status)[] in (:running, :stopping)
     heading = running ? format_task_group_description(group) : format_task_group_close_description(group)
     lines = String[string(getfield(doc, :title)[], " (", getfield(doc, :identifier)[], ")"),
@@ -667,7 +667,7 @@ function _build_list_row(p, list::TaskGroupList, doc::TaskGroupDocument)
     stop_button = _make_action_button(p, "Stop", () -> stop_task_group_document!(doc); enabled = is_going)
     again_button = _make_action_button(p, "Run unexpected again",
                                        () -> rerun_task_group_document!(doc, :unexpected);
-                                       enabled = () -> !is_going() && !getfield(doc, :counts)[].is_expected)
+                                       enabled = () -> !is_going() && !get_task_group_document_counts(doc).is_expected)
     close_button = _make_action_button(p, "Close", () -> remove_task_group!(list, doc);
                                        enabled = () -> !is_going())
     Any[show_button,
@@ -675,9 +675,9 @@ function _build_list_row(p, list::TaskGroupList, doc::TaskGroupDocument)
         WidgetLabel(() -> getfield(doc, :title)[]),
         WidgetLabel(group.name),
         _make_live_label(() -> _get_group_state(p, doc, group)),
-        WidgetLabel(() -> _format_group_counts(getfield(doc, :counts)[])),
-        WidgetLabel(() -> string(round(Int, 100 * getfield(doc, :summary)[].progress), "%")),
-        WidgetLabel(() -> (e = getfield(doc, :summary)[].elapsed; e === nothing ? "" : _format_duration(e))),
+        WidgetLabel(() -> _format_group_counts(get_task_group_document_counts(doc))),
+        WidgetLabel(() -> string(round(Int, 100 * get_task_group_document_summary(doc).progress), "%")),
+        WidgetLabel(() -> (e = get_task_group_document_summary(doc).elapsed; e === nothing ? "" : _format_duration(e))),
         HorizontalLayout(Any[stop_button, again_button, close_button]; vertical_align = :center,
                          gap = p.inline_gap)]
 end
