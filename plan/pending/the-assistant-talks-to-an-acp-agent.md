@@ -1,9 +1,8 @@
 # The assistant talks to an ACP agent
 
 > **Status (2026-10-07): NOT STARTED.** Nothing is implemented. The owner
-> answered the first four questions on 2026-10-07; see "Decisions". The
-> mechanisms M1 to M4 and the questions Q1 to Q7 are open. Gate G1 must close
-> before a public release.
+> answered every question on 2026-10-07; see "Decisions". Nothing is open
+> before step 1.1. The feature comes in a release after the first one.
 
 ## Goal
 
@@ -37,6 +36,29 @@ The owner answered these on 2026-10-07:
 3. **Node.js can be installed when necessary.** The adapter needs it.
 4. **This plan is written** in `plan/pending/`.
 
+The owner answered the open points on 2026-10-07. The owner chose two answers.
+The owner took the recommendation for every other point:
+
+5. **The mechanisms M1 to M4 are approved, with the proposed names (Q1).** M1
+   uses `LlmTextDelta` and `LlmThinkingDelta` again. M2 is a card in the
+   transcript. M3 is a token in `headers`. M4 is a group in the settings slice.
+6. **Each assistant has its own adapter process (Q2)**, in a field that is not
+   data, like `llm`.
+7. **Past turns of an ACP assistant are read-only (Q3)** in phase 1. A branch
+   from an edited turn can be a later feature.
+8. **A duplicate starts a new session (Q4)**, and the transcript gets a note
+   that the agent does not have the history. A fork waits until `session/fork`
+   is stable.
+9. **The list of agents is a group in the settings slice (Q5).**
+10. **`ProjecturedACP` loads only when the person loads it (Q6).** The owner
+    chose this. It has no AutoIntegration trigger.
+11. **The servers of the person stay (Q7).** The projectured server has its own
+    name, and the session does not send `strictMcpConfig`.
+12. **Anthropic is not asked before the release (G1).** The owner chose this.
+    The release follows R1 to R6.
+13. **The feature comes in a release after the first one (Q8).** The first
+    release does the core only.
+
 ## Facts (2026-10-07)
 
 ### The protocol
@@ -56,6 +78,9 @@ The owner answered these on 2026-10-07:
   the `model_config` category (2026-06-24), `$/cancel_request` (2026-06-29),
   boolean config options (2026-07-06), elicitation (2026-07-22), and tool call
   names (2026-09-17).
+- `session/fork` is not part of stable ACP v1.
+- An HTTP entry of `mcpServers` in `session/new` has `type`, `name`, `url` and
+  `headers`, a list of `name` and `value` pairs.
 - "MCP over ACP" is a draft RFD. It lets a client give an MCP server through the
   ACP connection itself, with no port. It is not usable now.
 - No Julia library for ACP exists. Projectured needs its own transport.
@@ -109,6 +134,11 @@ it must not go into the repository as it is.
 - **File access.** The adapter has `readTextFile` and `writeTextFile`
   pass-throughs, but I found no built-in tool that calls them in 0.87.0. Claude
   reads and writes files with its own tools.
+- **Session options from the client.** The adapter reads
+  `_meta.claudeCode.options` in `session/new` and gives it to the SDK on top of
+  its own options: `settings`, `strictMcpConfig`, `env`, `extraArgs`,
+  `mcpServers` and more.
+- **Fork.** The adapter answers a fork as `unstable_forkSession`.
 - **Elicitation.** When the client advertises `elicitation.form`, the adapter
   shows the `AskUserQuestion` tool of Claude as a form elicitation. Without it,
   the adapter disables that tool. URL elicitation serves the OAuth of an MCP
@@ -133,6 +163,11 @@ it must not go into the repository as it is.
   found no check of an authorization header.
 - `~/.claude.json` names an MCP server `omnet-ide` at the same default URL. The
   agent loads that file too.
+- The settings slice
+  ([Settings.jl](../../source/platform/settings/Settings.jl)) keeps typed
+  groups. Its file is in `~/.config/projectured`, and it has Save and Load.
+- `ProjecturedOllama` and `ProjecturedAnthropic` load by AutoIntegration with
+  the trigger `Projectured` alone.
 
 ## The subscription and a public release
 
@@ -180,12 +215,12 @@ it must not go into the repository as it is.
 - **R6.** The documentation says that the use of the plan counts as Anthropic
   decides, and that this can change.
 
-### Gate G1 (the owner)
+### Gate G1: decided
 
-Before the public release, the owner decides whether to ask Anthropic (contact
-sales) if a release that starts `claude-agent-acp` with the plan of the person
-needs approval. R1 to R5 follow the text, but the line "offer claude.ai login"
-is thin, because projectured shows the auth method of the agent.
+The owner decided on 2026-10-07 not to ask Anthropic before the release. The
+release follows R1 to R6. The line "offer claude.ai login" is thin, because
+projectured shows the auth method of the agent. So R3 must hold: the sign-in
+form is the form of the agent, in a terminal, and never a form of projectured.
 
 ## How it fits
 
@@ -214,20 +249,22 @@ With the projectured loop, the conversation is the only truth.
 `build_messages` derives the prompt from it at each round. With ACP, the
 session of the agent holds the history, and the transcript shows it. So:
 
-- An edit of a past turn does not reach the agent. See Q3.
+- An edit of a past turn does not reach the agent, so past turns are read-only
+  (Q3).
 - A reset of the conversation starts a new session.
 - A save keeps the session id, and a load resumes the session (phase 2).
-- A duplicate forks the session when the agent advertises `fork`. See Q4.
+- A duplicate starts a new session, and the transcript gets a note that the
+  agent does not have the history (Q4).
 - A local evaluation (ALT+ENTER, `EvaluateDraftTurnOperation`) puts a form and
   its result into the transcript, but the agent does not see it. The next prompt
   carries every user part that came after the last agent turn, as text or
   resource blocks.
 
-## New mechanisms (the owner approves each one)
+## New mechanisms (approved 2026-10-07)
 
 - **M1. A kernel seam for an external agent.** These are generics in `agent/`
-  with no body, like `make_agent_server`, and the adapter answers them. Each
-  name is a proposal, and it follows
+  with no body, like `make_agent_server`, and the adapter answers them. The
+  owner approved the names. They follow
   [naming-rules.md](../../documentation/rule/naming-rules.md):
   - `make_agent_connection(kind::Symbol; command, args, env)`
   - `start_agent_connection!(connection)`, which sends `initialize`
@@ -258,14 +295,14 @@ session of the agent holds the history, and the transcript shows it. So:
   - It gives the token in the `headers` of the `mcpServers` entry of
     `session/new`, and it sets `allowed_origins`.
   - The server refuses a request without the token. This needs a check that
-    ModelContextProtocol.jl does not have now.
-- **M4. The list of agents.** It is a settings document, data only. Each entry
-  has a name, a command, args and env. The first entry is
+    ModelContextProtocol.jl does not have now. ProjecturedMCP wraps the handler,
+    or the change goes upstream.
+- **M4. The list of agents.** It is a group in the settings slice, data only,
+  saved in the settings file. Each entry has a name, a command, args, env and
+  the `_meta` that `session/new` sends. The default entry is
   `claude-agent-acp`. Phase 2 can fill the list from the ACP Registry.
 
 ## The package
-
-The names are proposals:
 
 - **The package** is `ProjecturedACP` in `package/ProjecturedACP/`. The slice is
   `source/adapter/acp/`, and the module is `AcpModule`.
@@ -280,16 +317,20 @@ The names are proposals:
   - `AcpUpdate.jl`: from `session/update` to the kernel events
 - **The tests** are `ProjecturedACPTest`, with `test_acp()` and
   `test_acp_layering()`.
-- **The load** follows the MCP package: AutoIntegration loads it, or the person
-  loads it. See Q6.
+- **The load.** The person loads the package with `using ProjecturedACP`. Its
+  `Project.toml` has no `[auto-integration]` section (Q6). Without the package,
+  `backend = :acp` answers an error that says which package to load.
 
 The assistant gets `backend = :acp`, and two data fields:
 
 - `agent`: the name of an entry in the list of agents
 - `session_id`: empty until the first turn
 
-The live connection follows the field `llm`. It is no data: a save does not
-write it, and a duplicate does not share it. See Q2.
+Each assistant has its own adapter process (Q2). The live connection follows the
+field `llm`. It is no data: a save does not write it, and a duplicate does not
+share it. The first turn starts it. The close of the tab or of the editor stops
+it. The connection keeps the callback of a turn only while the turn runs, so the
+document never holds the editor.
 
 ## Capabilities by phase
 
@@ -307,7 +348,8 @@ write it, and a duplicate does not share it. See Q2.
 | `available_commands_update` | 2 | `/` completion in the composer |
 | `usage_update` | 2 | a meter of the context window |
 | `session_info_update` | 2 | the title of the tab |
-| `session/list`, `resume`, `delete`, `fork` | 2 | save, load and duplicate |
+| `session/list`, `resume`, `delete` | 2 | save and load |
+| `session/fork` | when stable | a duplicate starts a new session until then (Q4) |
 | `auth.terminal`, `logout` | 2 | R3 |
 | `elicitation.form` | 2 | after [a-form-edits-a-plain-value.md](a-form-edits-a-plain-value.md); turns on `AskUserQuestion` |
 | `$/cancel_request` | 2 | |
@@ -330,7 +372,7 @@ write it, and a duplicate does not share it. See Q2.
 - [ ] **1.2 The fake agent.** A Julia script that answers from a recorded
   transcript. Remove the account data from the record. The tests run with no
   network and no Node.js.
-- [ ] **1.3 The kernel seam (M1)**, after the owner approves the names.
+- [ ] **1.3 The kernel seam (M1).**
 - [ ] **1.4 The connection.** `initialize`, `session/new`, `session/prompt`,
   `session/cancel` and `session/close`, on top of 1.1.
 - [ ] **1.5 The assistant turn.** `backend = :acp` branches in
@@ -339,9 +381,12 @@ write it, and a duplicate does not share it. See Q2.
   `run_on_editor_task!(…; wait = false)`.
 - [ ] **1.6 The permission card (M2).**
 - [ ] **1.7 The thought text.** Find the setting, flag or option that makes the
-  agent send `agent_thought_chunk`. Then map it to `ConversationThinking`.
+  agent send `agent_thought_chunk`. Then map it to `ConversationThinking`. Try
+  first `_meta.claudeCode.options.settings.showThinkingSummaries = true` in
+  `session/new`. It is not tested.
 - [ ] **1.8 The MCP server of the session (M3).**
-- [ ] **1.9 The list of agents (M4)**, with one entry for this machine.
+- [ ] **1.9 The list of agents (M4)**, a group in the settings slice, with the
+  default entry `claude-agent-acp`.
 - [ ] **1.10 A live check.** Use the real adapter and the plan of the owner. One
   turn calls `execute_julia_code` through MCP, and one undo reverts it. The
   check also renders the pane, and runs in a fresh process.
@@ -351,7 +396,7 @@ write it, and a duplicate does not share it. See Q2.
 - [ ] 2.1 Config options as a card: model, effort, mode.
 - [ ] 2.2 Slash commands in the composer.
 - [ ] 2.3 Usage meter and tab title.
-- [ ] 2.4 Save, load, resume, delete and fork.
+- [ ] 2.4 Save, load, resume and delete.
 - [ ] 2.5 Terminal sign-in and logout (R3).
 - [ ] 2.6 Elicitation forms.
 - [ ] 2.7 Request cancel, and the prompt queue.
@@ -362,30 +407,40 @@ write it, and a duplicate does not share it. See Q2.
 - [ ] 3.1 A view as an image in the prompt.
 - [ ] 3.2 File access through the editor, if an agent calls `fs/*`.
 
-## Questions for the owner
+## The questions and their answers
 
-- **Q1.** Do you approve M1 to M4, and the names?
-- **Q2.** Where does the live connection live? My recommendation: one adapter
-  process for each assistant, in a field like `llm`. The first turn starts it,
-  and the close of the tab or the editor stops it.
-- **Q3.** Can a person edit a past turn of an ACP assistant? My recommendation:
-  no. The past turns are read-only, because the agent does not see an edit.
-- **Q4.** What does a duplicate of an ACP assistant do? My recommendation: a
-  `session/fork` when the agent advertises it, and else a new session with a
-  note in the transcript.
-- **Q5.** Where is the list of agents kept: a settings document, a `.pred` file,
-  or the environment?
-- **Q6.** Does `ProjecturedACP` load by AutoIntegration, like the MCP package,
-  or only when the person loads it?
-- **Q7.** Is the duplicate `omnet-ide` entry in `~/.claude.json` a problem?
-  The agent then sees the same tools twice, when an editor also runs `--mcp` on
-  port 9876.
+The owner answered each question on 2026-10-07. The decisions are in
+"Decisions" above. This list keeps the options that the owner did not choose.
+
+- **Q1. M1 to M4 and the names.** Approved. M1 could also be in the platform
+  `assistant/`, but the adapter then needs the platform. M2 could be a popup
+  window, but the popup loses the context and records no answer. M3 could be a
+  relay over a Unix socket, which adds a program. M4 could use environment
+  variables.
+- **Q2. The live connection.** One process for each assistant. One process for
+  each editor saves little, because each Claude session runs its own Claude
+  Code process anyway. It also needs an owner that knows ACP.
+- **Q3. An edit of a past turn.** Read-only. A mark "the agent does not see
+  this" was the other option. A branch from an edited turn can be a later
+  feature.
+- **Q4. A duplicate.** A new session with a note. `session/fork` is unstable
+  now. "No duplicate" was the third option.
+- **Q5. The list of agents.** The settings slice.
+- **Q6. The load.** Only when the person loads it. The owner chose this over
+  AutoIntegration.
+- **Q7. The `omnet-ide` entry.** The servers of the person stay. With two
+  editors, `omnet-ide` can reach the other editor; the owner changes the entry
+  on the machine when that matters. `strictMcpConfig` was the other option. It
+  also removes the other servers of the person, and it works only for Claude.
+- **Q8. The release.** A release after the first one.
+- **G1. Ask Anthropic.** No. The owner chose this.
 
 ## Risks
 
 - **The adapter changes often.** It is at 0.87 with a preview channel. Pin the
   version, and test against a recorded transcript.
-- **The rules and the billing can change**, with notice (G1, R6).
+- **The rules and the billing can change**, with notice (R6). Read the legal
+  page of Claude Code again before the release.
 - **Local access.** The MCP server runs Julia code. Without M3, any program on
   this machine, or a web page through DNS rebinding, can call it.
 - **Files on disk.** The agent edits files with its own tools, outside
