@@ -491,6 +491,15 @@ document never holds the editor.
   - No agent process lived on after the stop.
   - A permission card showed the raw tool name `mcp__projectured__…`. The
     card now removes the prefix, as the form does.
+  - A fourth run, after the fixes of the review, passed the turn, the edit, the
+    thinking parts and the cards. But its undo answered "There is nothing to
+    take back": this time the agent called `evaluate_operation(editor,
+    ReplaceReferencedValueOperation(…))` itself, and the history did not record
+    the edit. The three runs before used `replace_referenced_value!`, which the
+    history records. **A finding for the owner, outside this plan:** the tool
+    surface lets a model make an edit that undo can not take back. The
+    assistant with its own loop and any MCP client can do the same, so the fix
+    belongs to the tool surface or the undo slice, not to ACP.
 
 ### The review of phase 1 (2026-10-07)
 
