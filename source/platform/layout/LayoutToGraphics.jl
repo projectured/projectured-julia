@@ -670,11 +670,10 @@ with an untyped node — which is how a container that answered an untyped path
 showed up: not as a wrong selection, but as a throw one projection higher.
 
 `steps_of(index)` names the steps from the document to the child of an entry; by
-default the entries are `field[i]` in order.
+default the entries are the `children` in order.
 """
-function _backward_descend(document, entries::Vector, field::String, reference, drawn;
-                           steps_of = index -> (FieldReferenceStep(field),
-                                                RangeReferenceStep(index - 1, index)))
+function _backward_descend(document, entries::Vector, reference, drawn;
+                           steps_of = _get_layout_child_steps)
     reference isa ConcreteReference || return nothing
     head = reference.head
     (head isa FieldReferenceStep && head.name == "elements") || return nothing
@@ -719,7 +718,7 @@ function _children_backward(iomap::_LayoutChildrenIoMap, reference,
     entries = getfield(iomap, :child_iomaps)[]::Vector
     point = find_reference_point(reference)
     point === nothing || return _point_backward(iomap.input, entries, point; topmost_first)
-    _backward_descend(iomap.input, entries, "children", reference, drawn)
+    _backward_descend(iomap.input, entries, reference, drawn)
 end
 
 """
@@ -2524,7 +2523,7 @@ function map_reference_backward(::ScrollLayoutToGraphicsCanvas, iomap, reference
     point = find_reference_point(reference)
     point === nothing ||
         return _point_backward(iomap.input, entries, point; steps_of = _get_scroll_part_steps)
-    _backward_descend(iomap.input, entries, "", reference, output -> output isa GraphicsDocument;
+    _backward_descend(iomap.input, entries, reference, output -> output isa GraphicsDocument;
                       steps_of = _get_scroll_part_steps)
 end
 
