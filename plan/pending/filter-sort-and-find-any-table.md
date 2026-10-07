@@ -1,8 +1,9 @@
 # Filter, sort and find any table, as a chain of projections
 
-> **Kind:** plan · **Status:** tentative, 2026-10-05. Nothing in it is decided
-> past §2; it waits for the first release of the data frame view, and for a
-> design review before any step starts. ·
+> **Kind:** plan · **Status:** tentative, 2026-10-05; the user's view (§3) is
+> decided, 2026-10-07. Nothing else is decided past §2. The first release of
+> the data frame view is done; a design review of the model (§5) comes before
+> any step starts. ·
 > **Stands on:** [view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md),
 > [concepts.md](../../documentation/design/concepts.md),
 > [widget.md](../../documentation/package/platform/widget/widget.md),
@@ -38,7 +39,81 @@ widget table at the end.
   indices for any other kind.
 - **The plan is tentative** ("this should be just a tenative plan").
 
-## 3. What exists
+## 3. The user's view (decided 2026-10-07)
+
+The owner asked, from first principles, what a person sees and does to sort
+and filter any collection, and how the assistant does it. The proposal below
+is mine; the owner answered "Agreed all", also to Q1 to Q4.
+
+**The concepts a person meets.** A *collection* is any group of items that the
+editor shows: a list, the rows of a table, the children of a tree node, the
+lines of a text, a JSON array. A *filter* shows only the items where a
+condition holds; the other items still exist. A *sort* shows the items in an
+order; the data keeps its own order. *Find* moves to the next item where a
+condition holds and hides nothing. A *view*, a pane, has its own filter and
+sort, so a duplicate of a pane is a second view of the same data with another
+filter. The words "projection", "lens" and "stage" are not in the interface.
+
+**Start by pointing.** The menu of a value inside an item offers "Show only
+items like this", "Hide items like this", "Sort by this", and for a number or a
+date "… greater than this" and "… less than this". The path from the item to
+that value applies to every item, at any depth (Q4): a column, a field of a
+record, `address.city`. A header of a table gives the same commands; a click
+on a header sorts, and a Shift+click adds a sort key. A quick text field keeps
+the items that contain its text.
+
+**Chips at the collection.** A filter or a sort shows as a bar of chips inline,
+at the collection, in the flow of the document (Q3), for example
+`12 of 340 · kind = b × · price > 3 × · ↑ price, ↓ id ×`. A click on a chip
+edits its field, its operator and its value; × removes it; a drag orders the
+sort keys; "Show all" removes every chip. A collapsed collection shows
+"12 of 340", and an empty result says "No items match" with "Show all". The
+chips are a small document: they are edited with the gestures of the editor,
+undone, and copied with the view.
+
+**The rules.**
+- A filter and a sort never change the data. "Sort the data like this" and
+  "Delete the hidden items" are separate commands, named as edits, each a step
+  of undo.
+- The filter and the sort are saved with the view, the pane and the workspace,
+  and never in the file of the data (Q1).
+- An edit through a view goes to the data: a new item shows at its sorted
+  place and the selection follows it. An item that an edit makes fail the
+  filter hides when the edit is committed, and the selection goes to the
+  nearest item that shows, the rule of D6 and D10 of the data frame view, for
+  every collection (Q2).
+- Live data applies the filter again as it grows, and the selected item keeps
+  its place on the screen.
+- A tree shows each match with its ancestors.
+- Values of different kinds sort as numbers, then text, then missing values.
+
+**The kinds of collection.** Plain values: the item itself is the field.
+Records (structs, JSON objects, the rows of a data frame): their fields or
+columns. Nested items: any path inside the item. The lines of a text: the line,
+as `TextFiltering` does. A tree: one level, with the ancestors of the matches.
+
+**The assistant** uses the same concepts and the same operations as a person.
+- It knows the collection that "this" names, from the selection or a
+  referenced document, by its path.
+- It edits the chips with verbs, such as `filter!`, `sort!` and `show_all!`,
+  which make the operations that a press on a chip makes. Each change is a step
+  of undo and shows in the gesture log, and a person removes a chip of the
+  assistant with ×.
+- It reads the chips, so it can say "12 of 340 runs: kind = b, sorted by price".
+- It does not change the data to answer a question about the view: it reads
+  the data with code to compute an answer, it changes the chips to show
+  something, and it sorts or deletes in the data only when a person asks for
+  that edit.
+
+## 4. What exists
+
+- The table interface is on main (5d282dd0e, from the pivot plan, P5 and P9):
+  `TableInterface.jl` in the `collection` slice, with `is_table`,
+  `get_table_row_count`, `get_table_column_names`, `get_table_column_type`,
+  `get_table_value`, `find_table_column` and `make_table_part`, whose
+  `TablePart` is the generic view by indices. A vector of named tuples, a named
+  tuple of vectors and an `AbstractDataFrame` are tables. It covers the records
+  of §3; plain values, trees and the lines of a text are not tables in it.
 
 - `FilteringProjection(predicate)` keeps the elements of a collection that the
   predicate passes. Its IO map holds the kept indices, so `[j]` of the output
@@ -58,7 +133,7 @@ widget table at the end.
   as one vector of indices; its query is a document; its paths name the rows
   and the columns of the frame; its find walks the kept rows.
 
-## 4. The model (tentative)
+## 5. The model (tentative)
 
 - **A table** is a collection of rows with named columns. A small interface
   reads it: the count of rows, the names and the types of the columns, and the
@@ -90,7 +165,7 @@ widget table at the end.
   ones that can not grow or shrink, turn the edit off by column or for the
   table.
 
-## 5. What the data frame view becomes
+## 6. What the data frame view becomes
 
 - The source, the frame, with the table interface on `AbstractDataFrame`.
 - A query document, which the filter and the sort stages read, and which the
@@ -101,12 +176,17 @@ widget table at the end.
   columns); the refresh of a frame that a program changed; the rules of a
   `SubDataFrame`; `display`.
 
-## 6. Open questions
+## 7. Open questions
 
 - The names: of the table interface, of the generic view by indices, of the
   stages.
 - Whether the filter row, the expression bar and the find field are parts of
-  the widget table, or a decorator around it.
+  the widget table, or a decorator around it. §3 puts the chips inline at any
+  collection, not only at a table, which points to a decorator of a
+  collection.
+- How the model reaches the collections of §3 that are not tables: plain
+  values, the children of a tree node, the lines of a text; and how a key is a
+  path inside an item.
 - How the rules that keep the row of the selection at its place on the screen
   (D10 of the data frame plan) read the order of the rows before and after a
   write, when the order is the output of a chain.
@@ -115,10 +195,11 @@ widget table at the end.
 - How a stage with its parameters in cells shows in the gesture help and is
   saved, beside a stage that reads a query document.
 
-## 7. Steps (tentative)
+## 8. Steps (tentative)
 
 - [ ] **1.** The table interface, and filter and sort stages that keep only an
-  index vector, over it.
+  index vector, over it. The interface and the view by indices are on main
+  (§4); the stages are not.
 - [ ] **2.** The widget table takes any table, with the lazy rows from an
   anchor and the scroll bar.
 - [ ] **3.** The query document, the filter row and the find, as generic
@@ -130,7 +211,7 @@ widget table at the end.
 - [ ] **6.** The edit back through the chain, and the native and the generic
   views.
 
-## 8. Risks
+## 9. Risks
 
 - A wide change of the data frame adapter and its 535 tests, just after its
   first release.
