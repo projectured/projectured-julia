@@ -552,6 +552,16 @@ worktree. The three domains test different parts of the model:
       with a font of its own takes by design. In the mode `:throw`, `test_dataframes()` (556),
       `test_fault_part()`, `test_widget_icon()`, `test_baseline_alignment()` and
       `test_file_project()` pass.
+  - [ ] **The theme fields.** Real themes declare 180 fields `TextRole` and 26 `FontRole`, and
+    a test writes a fixed `StyleText` into such a field, saves the appearance and loads it again.
+    A test also gives a bare number to a length field (`gap = 5` for `Spacing`), which
+    `convert_theme_value` converts only when the theme is scaled. **Decided by the owner,
+    2026-10-07: option A, mirror the color set,** because the appearance tab of the application
+    can set a font or a color in place of a role. A text field holds a role or a fixed style
+    (`ThemeText = Union{StyleText, TextRole}`), a font field holds a role or a fixed font
+    (`ThemeFont = Union{StyleFont, FontRole}`), and a bare number becomes its length kind when
+    the theme is made. The other option was to keep the role types strict and refuse a fixed
+    style and a bare number (B).
   - [x] **Group 5, a lazy list in a field declared `CellVector`.** `children` of
     `HorizontalLayout`, `VerticalLayout` and `GridLayout`, and the two header strips of
     `WidgetTable`, get a `ListNode`, a lazy list that a viewport reads from the middle. The
