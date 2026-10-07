@@ -903,6 +903,7 @@ WidgetScrollBarToGraphicsCanvas(theme;
     output::GraphicsCanvas
     content_iomap::Any
     bars::Any        # the bars that the pane draws: `(field, document, iomap, place)` each
+    parts::Any       # the parts of a `ScrollLayout` that the pane takes apart, or `nothing`
 end
 
 # What a route reaches through this container: see `_collect_child_iomaps`.
@@ -5328,8 +5329,181 @@ function _clamp_to_list_ends(content::GraphicsCanvas, offset::Int, view::Int, ax
     offset
 end
 
+# ── The parts of a ScrollLayout in a scroll pane ────────────────────────────
+#
+# A content whose output is a `ScrollLayout` gives the pane its parts. The pane
+# puts each part in a viewport of its own, in three columns and three rows of its
+# view: the left and the right column as wide as the parts in them, the top and
+# the bottom row as high as the parts in them, and the center viewport the rest.
+# The one offset of the pane moves the center on both axes, the top and the bottom
+# edge by its `x`, the left and the right edge by its `y`, and no corner. The
+# center is the canvas that the pane scrolls: its extent and its list limit the
+# offset, as the extent and the list of a canvas content do.
+#
+# The content reads a point in the frame in which `LayoutToGraphics` puts the
+# parts together (`get_scroll_layout_place`), so it reads one frame in a pane and
+# at the end of a chain alike.
+
+# The index of the center in `SCROLL_LAYOUT_PARTS`.
+const _PANE_CENTER = findfirst(==(:center), SCROLL_LAYOUT_PARTS)
+
+# The parts that a pane takes apart. `canvases` holds the canvas of each part of
+# `SCROLL_LAYOUT_PARTS`, or `nothing`; a part that is no canvas is not drawn.
+# `extents` is what `compute_scroll_layout_extents` gives for all the parts, the
+# frame in which the content reads a point, and `edges` the same for the parts
+# around the center alone, which the view of the center is reduced by: it never
+# reads the center, whose width can come from the width that the pane offers.
+# The printer fills in `elements`, the index of the viewport of each part among
+# the elements of the pane, 0 for none, and `view_w` and `view_h`, the cells of
+# the extent of the center viewport.
+mutable struct _PaneParts
+    canvases::Vector{Any}
+    extents::Cell
+    edges::Cell
+    elements::Vector{Int}
+    view_w::Any
+    view_h::Any
+end
+
+function _make_pane_parts(layout::ScrollLayout)
+    canvases = Any[]
+    for part in SCROLL_LAYOUT_PARTS
+        canvas = getproperty(layout, part)
+        push!(canvases, canvas isa GraphicsCanvas ? canvas : nothing)
+    end
+    sizes(center) = Any[(canvas === nothing || (!center && index == _PANE_CENTER)) ? nothing :
+                        (Int(canvas.w), Int(canvas.h)) for (index, canvas) in enumerate(canvases)]
+    _PaneParts(canvases,
+               Cell(@computation compute_scroll_layout_extents(sizes(true))),
+               Cell(@computation compute_scroll_layout_extents(sizes(false))),
+               zeros(Int, length(canvases)), nothing, nothing)
+end
+
+# What the parts around the center take from the view of the pane: the width of
+# the left and the right column, and the height of the top and the bottom row.
+function _get_pane_part_insets(parts::_PaneParts)
+    widths, heights = parts.edges[]
+    (widths[1] + widths[3], heights[1] + heights[3])
+end
+
+# The start and the extent of band `band` (1 near, 2 middle, 3 far) of the view
+# of a pane along one axis: the near and the far band are as large as the parts
+# in them, `extents`, and the middle band, the view of the center, is `view`.
+_get_pane_band_start(band::Int, extents, view::Int) =
+    band == 1 ? 0 : band == 2 ? extents[1] : extents[1] + view
+_get_pane_band_extent(band::Int, extents, view::Int) =
+    band == 1 ? extents[1] : band == 2 ? view : extents[3]
+
+# How far the pane scrolls the center, `(x, y)`.
+function _get_pane_part_scroll(w::WidgetScrollPane, parts::_PaneParts)
+    center = parts.canvases[_PANE_CENTER]
+    center === nothing && return (0, 0)
+    (_pane_scroll_x(w, center, Int(parts.view_w[])), _pane_scroll_y(w, center, Int(parts.view_h[])))
+end
+
+# A coordinate of the view of a pane along one axis, in the frame in which the
+# parts are put together: the near band stays, the middle band moves by the
+# scroll, and the far band follows the middle band of the parts, `middle`, in
+# place of the view. `_move_out_of_parts` is its inverse.
+function _move_into_parts(v::Int, near::Int, view::Int, scroll::Int, middle::Int)
+    v < near && return v
+    v < near + view && return v + scroll
+    v - view + middle
+end
+
+function _move_out_of_parts(a::Int, near::Int, view::Int, scroll::Int, middle::Int)
+    a < near && return a
+    a < near + middle && return a - scroll
+    a - middle + view
+end
+
+# Put each part of `parts` in a viewport of its own, at its band of the view of
+# the pane, moved by the scroll on the axes on which the part scrolls.
+function _push_pane_part_viewports!(elems::Vector, w::WidgetScrollPane, parts::_PaneParts,
+                                    cox::Int, coy::Int, vw_cell::Cell, vh_cell::Cell)
+    parts.view_w = Cell(@computation Int32(max(0, Int(vw_cell[]) - _get_pane_part_insets(parts)[1])))
+    parts.view_h = Cell(@computation Int32(max(0, Int(vh_cell[]) - _get_pane_part_insets(parts)[2])))
+    scroll = Cell(@computation _get_pane_part_scroll(w, parts))
+    for (index, canvas) in enumerate(parts.canvases)
+        canvas === nothing && continue
+        column, row = get_scroll_layout_cell(index)
+        x = Cell(@computation Int32(cox + _get_pane_band_start(column, parts.edges[][1], Int(parts.view_w[]))))
+        y = Cell(@computation Int32(coy + _get_pane_band_start(row, parts.edges[][2], Int(parts.view_h[]))))
+        view_w = Cell(@computation Int32(_get_pane_band_extent(column, parts.edges[][1], Int(parts.view_w[]))))
+        view_h = Cell(@computation Int32(_get_pane_band_extent(row, parts.edges[][2], Int(parts.view_h[]))))
+        offset_x = column == 2 ? Cell(@computation Int32(-scroll[][1])) : Cell(Int32(0))
+        offset_y = row == 2 ? Cell(@computation Int32(-scroll[][2])) : Cell(Int32(0))
+        held_elements = getfield(canvas, :elements)
+        held = held_elements isa CellVector ? held_elements : CellVector(Cell[Cell(canvas)])
+        push!(elems, GraphicsViewport(x, y, view_w, view_h,
+                                      Cell(GraphicsCanvas(offset_x, offset_y, Int32(0), Int32(0), held,
+                                                          layout_none, true, Cell(nothing))),
+                                      Cell(affine_identity), Cell(nothing)))
+        parts.elements[index] = length(elems)
+    end
+end
+
+# The parts that a pane takes apart, or `nothing`; a transform pane has none.
+_get_pane_parts(iomap) = nothing
+_get_pane_parts(iomap::WidgetScrollPaneToGraphicsCanvasIoMap) = iomap.parts
+
+# The canvas that a pane scrolls on both axes: the center of its parts, or the
+# canvas of its content.
+function _get_pane_scroll_canvas(iomap::WidgetScrollPaneToGraphicsCanvasIoMap)
+    iomap.parts === nothing || return iomap.parts.canvases[_PANE_CENTER]
+    iomap.content_iomap === nothing ? nothing : iomap.content_iomap.output
+end
+
+# The view in which a pane scrolls its canvas: the view of the center of its
+# parts, or its whole view.
+function _get_pane_scroll_view(p, iomap::WidgetScrollPaneToGraphicsCanvasIoMap)
+    parts = iomap.parts
+    parts === nothing || return (Int(parts.view_w[]), Int(parts.view_h[]))
+    tx, ty = _inset_total(p, iomap.input)
+    (max(0, Int(iomap.output.w[]) - tx), max(0, Int(iomap.output.h[]) - ty))
+end
+
+# Whether the point `(x, y)` of the frame of the content of a pane lands on
+# something that the content drew: on the canvas of the content, or on the part
+# at the point.
+function _is_pane_content_hit(iomap, x::Int, y::Int)
+    canvas = iomap.content_iomap === nothing ? nothing : iomap.content_iomap.output
+    canvas isa GraphicsCanvas && hit_element_at(canvas, x, y) !== nothing
+end
+
+function _is_pane_content_hit(iomap::WidgetScrollPaneToGraphicsCanvasIoMap, x::Int, y::Int)
+    parts = iomap.parts
+    parts === nothing && return @invoke _is_pane_content_hit(iomap::Any, x::Int, y::Int)
+    widths, heights = parts.extents[]
+    index = find_scroll_layout_part_at(x, y, widths, heights)
+    index === nothing && return false
+    canvas = parts.canvases[index]
+    canvas === nothing && return false
+    place_x, place_y = get_scroll_layout_place(index, widths, heights)
+    hit_element_at(canvas, x - place_x, y - place_y) !== nothing
+end
+
+# A reference into the parts that the content answered, `part/...`, as the
+# reference of the node that draws it: the canvas in the viewport of the part.
+function _map_pane_part_forward(iomap, parts::_PaneParts, inner)
+    inner isa ConcreteReference || return nothing
+    head = inner.head
+    head isa FieldReferenceStep || return nothing
+    index = findfirst(part -> String(part) == head.name, SCROLL_LAYOUT_PARTS)
+    index === nothing && return nothing
+    k = parts.elements[index]
+    k == 0 && return nothing
+    elements = unwrap_cell(getfield(unwrap_cell(get_iomap_output(iomap)), :elements))
+    body = unwrap_cell(elements[k])
+    held = find_node_reference(getfield(body, :content), parts.canvases[index]; depth = 1)
+    rest = held === nothing ? inner.tail : concat_references(held, inner.tail)
+    ConcreteReference(FieldReferenceStep("elements"),
+        ConcreteReference(RangeReferenceStep(k - 1, k),
+            ConcreteReference(FieldReferenceStep("content"), rest)))
+end
+
 function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::WidgetScrollPane, ctx)
-    w.visible == false && return WidgetScrollPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), nothing, Any[])
+    w.visible == false && return WidgetScrollPaneToGraphicsCanvasIoMap(p, w, _empty_canvas(), nothing, Any[], nothing)
     pos = w.position
     sz  = w.size
     px = pos isa Point2D ? _sc(Int(pos.x[])) : 0
@@ -5378,6 +5552,13 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     content_iomap = nothing
     content = w.content
     inner_canvas = nothing
+    parts = nothing
+    # What the parts around the center of a `ScrollLayout` take from the view: 0
+    # until the content prints, and the extent of its edges after, so the pane
+    # offers the content the view of its center, as a table offers its cells the
+    # width beside its header column.
+    part_inset_w = Cell(Int32(0))
+    part_inset_h = Cell(Int32(0))
     if content isa Document
         # A clipped axis gives the content its extent exactly. An unclipped axis
         # passes the parent's range on, less the insets: an edge stays an edge,
@@ -5386,14 +5567,27 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
         content_ctx = with_inner_size(ctx; width = tx, height = ty)
         offer_w === nothing || (content_ctx = with_exact_size(content_ctx; width = offer_w))
         offer_h === nothing || (content_ctx = with_exact_size(content_ctx; height = offer_h))
+        content_ctx = with_inner_size(content_ctx; width = part_inset_w, height = part_inset_h)
         content_iomap = print_child(recursion, content, content_ctx)
-        inner_canvas = content_iomap.output::GraphicsCanvas
+        output = content_iomap.output
+        if output isa ScrollLayout
+            parts = _make_pane_parts(output)
+            set_cell_computation!(part_inset_w, () -> Int32(_get_pane_part_insets(parts)[1]))
+            set_cell_computation!(part_inset_h, () -> Int32(_get_pane_part_insets(parts)[2]))
+        else
+            inner_canvas = output::GraphicsCanvas
+        end
     end
     # The content's extent cells and not their values: a value read here would
     # make the pane's own print depend on it, and a content that grows would
-    # print the pane and everything in it again.
-    vw_cell = _pane_extent(offer_w, inner_canvas === nothing ? nothing : getfield(inner_canvas, :w))
-    vh_cell = _pane_extent(offer_h, inner_canvas === nothing ? nothing : getfield(inner_canvas, :h))
+    # print the pane and everything in it again. The extent of parts is the
+    # extent of the layout that puts them together.
+    content_w = parts !== nothing ? Cell(@computation Int32(sum(parts.extents[][1]))) :
+                inner_canvas === nothing ? nothing : getfield(inner_canvas, :w)
+    content_h = parts !== nothing ? Cell(@computation Int32(sum(parts.extents[][2]))) :
+                inner_canvas === nothing ? nothing : getfield(inner_canvas, :h)
+    vw_cell = _pane_extent(offer_w, content_w)
+    vh_cell = _pane_extent(offer_h, content_h)
     # Horizontal offset of the content inside the viewport. A list that runs to
     # the side stops at its ends.
     inner_x = Cell(@computation Int32(-(inner_canvas === nothing ?
@@ -5430,9 +5624,15 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
                                                           layout_none, true, Cell(nothing))),
                                       Cell(affine_identity),
                                       Cell(nothing)))
+    elseif parts !== nothing
+        _push_pane_part_viewports!(elems, w, parts, cox, coy, vw_cell, vh_cell)
     end
-    # The bars lie over the content, so they come after it.
-    bars = _print_pane_bars(p, recursion, w, ctx, inner_canvas, vw_cell, vh_cell)
+    # The bars lie over the content, so they come after it. They scroll the
+    # center of parts, in the view of the center.
+    bars = parts === nothing ?
+        _print_pane_bars(p, recursion, w, ctx, inner_canvas, vw_cell, vh_cell) :
+        _print_pane_bars(p, recursion, w, ctx, parts.canvases[_PANE_CENTER], vw_cell, vh_cell;
+                         scroll_view_w = parts.view_w, scroll_view_h = parts.view_h)
     for bar in bars
         push!(elems, bar.place)
     end
@@ -5448,7 +5648,7 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     outer = GraphicsCanvas(Cell(Int32(px)), Cell(Int32(py)), outer_w, outer_h,
                            CellVector(Cell[Cell(e) for e in elems]),
                            layout_none, true, Cell(nothing))
-    WidgetScrollPaneToGraphicsCanvasIoMap(p, w, outer, content_iomap, bars)
+    WidgetScrollPaneToGraphicsCanvasIoMap(p, w, outer, content_iomap, bars, parts)
 end
 
 # The viewport of a scroll pane or a transform pane shows the content in a canvas
@@ -5470,6 +5670,8 @@ function _map_viewport_content_forward(iomap, reference)
     child = first(children)
     inner = map_reference_forward(get_iomap_projection(child), child, reference.tail)
     inner === nothing && return nothing
+    parts = _get_pane_parts(iomap)
+    parts === nothing || return _map_pane_part_forward(iomap, parts, strip_reference_types(inner))
     elements = unwrap_cell(getfield(unwrap_cell(get_iomap_output(iomap)), :elements))
     k = findfirst(i -> unwrap_cell(elements[i]) isa GraphicsViewport, 1:length(elements))
     k === nothing && return nothing
@@ -5508,10 +5710,35 @@ function _find_scroll_pane_local_point(p::WidgetScrollPaneToGraphicsCanvas,
     w = iomap.input
     cox, coy = _content_offset(p, w)
     tx, ty = _inset_total(p, w)
-    content = iomap.content_iomap.output
-    sx = _pane_scroll_x(w, content, Int(iomap.output.w) - tx)
-    sy = _pane_scroll_y(w, content, Int(iomap.output.h) - ty)
-    (x - cox + sx, y - coy + sy)
+    parts = iomap.parts
+    if parts === nothing
+        content = iomap.content_iomap.output
+        sx = _pane_scroll_x(w, content, Int(iomap.output.w) - tx)
+        sy = _pane_scroll_y(w, content, Int(iomap.output.h) - ty)
+        return (x - cox + sx, y - coy + sy)
+    end
+    # Parts: the frame in which the layout puts them together.
+    sx, sy = _get_pane_part_scroll(w, parts)
+    widths, heights = parts.extents[]
+    edge_widths, edge_heights = parts.edges[]
+    (_move_into_parts(x - cox, edge_widths[1], Int(parts.view_w[]), sx, widths[2]),
+     _move_into_parts(y - coy, edge_heights[1], Int(parts.view_h[]), sy, heights[2]))
+end
+
+# The inverse: a point of the frame of the content as a point of the pane.
+function _find_scroll_pane_point(p::WidgetScrollPaneToGraphicsCanvas,
+                                 iomap::WidgetScrollPaneToGraphicsCanvasIoMap, x::Int, y::Int)
+    parts = iomap.parts
+    if parts === nothing
+        ox, oy = _find_scroll_pane_local_point(p, iomap, 0, 0)
+        return (x - ox, y - oy)
+    end
+    cox, coy = _content_offset(p, iomap.input)
+    sx, sy = _get_pane_part_scroll(iomap.input, parts)
+    widths, heights = parts.extents[]
+    edge_widths, edge_heights = parts.edges[]
+    (_move_out_of_parts(x, edge_widths[1], Int(parts.view_w[]), sx, widths[2]) + cox,
+     _move_out_of_parts(y, edge_heights[1], Int(parts.view_h[]), sy, heights[2]) + coy)
 end
 
 # Whether `point` lies on what a widget drew, judged as `_outside_widget` judges a
@@ -5543,12 +5770,10 @@ function _scroll_room(p, iomap)
     out = iomap.output
     cim = iomap.content_iomap
     (out isa GraphicsCanvas && cim !== nothing) || return nothing
-    content = cim.output
+    content = _get_pane_scroll_canvas(iomap)
     content isa GraphicsDocument || return nothing
     content isa GraphicsCanvas && is_infinite_canvas(content) && return nothing
-    tx, ty = _inset_total(p, iomap.input)
-    view_w = max(0, Int(out.w[]) - tx)
-    view_h = max(0, Int(out.h[]) - ty)
+    view_w, view_h = _get_pane_scroll_view(p, iomap)
     # The extent that the pane draws with (`_pane_scroll_y`): the size that a
     # canvas declares, or else what is drawn, with the measure of the pane.
     content_w, content_h = content isa GraphicsCanvas ? (Int(content.w), Int(content.h)) :
@@ -5603,7 +5828,7 @@ function _self_scroll(p, iomap, canvas, evt)
             _write_view_state(w, "follow_end", false),
             _write_view_state(w, "scroll_position", Point2D(x, y))])
     end
-    content = iomap.content_iomap === nothing ? nothing : iomap.content_iomap.output
+    content = _get_pane_scroll_canvas(iomap)
     room === nothing && content isa GraphicsCanvas && is_infinite_canvas(content) &&
         return _scroll_list_by(p, iomap, content, dx, dy)
     op = _scroll_by(w, dx, dy, room)
@@ -5623,9 +5848,7 @@ end
 # its edge, as it does over any content.
 function _scroll_list_by(p, iomap, content::GraphicsCanvas, dx::Int, dy::Int)
     w = iomap.input
-    tx, ty = _inset_total(p, w)
-    view_w = Int(iomap.output.w) - tx
-    view_h = Int(iomap.output.h) - ty
+    view_w, view_h = _get_pane_scroll_view(p, iomap)
     drawn_x = _pane_scroll_x(w, content, view_w)
     drawn_y = _pane_scroll_y(w, content, view_h)
     x = _find_list_canvas(content, :x) === nothing ?
@@ -5658,9 +5881,7 @@ end
 # (`read_container_gesture`); a dwell anywhere else is on the pane itself.
 function _read_pane_dwell(p, iomap, dwell::MouseDwell; point, move_out)
     content_iomap = iomap.content_iomap
-    canvas = content_iomap === nothing ? nothing : content_iomap.output
-    on_content = canvas isa GraphicsCanvas &&
-                 hit_element_at(canvas, point...) !== nothing &&
+    on_content = _is_pane_content_hit(iomap, point...) &&
                  _is_point_in_pane_view(p, iomap, dwell.x, dwell.y)
     on_content || return read_container_gesture(nothing, dwell, iomap.input)
     local_dwell = shift_event_position(dwell, point[1] - dwell.x, point[2] - dwell.y)
@@ -5681,10 +5902,9 @@ function _read_scroll_pane_move(p::WidgetScrollPaneToGraphicsCanvas,
     content_iomap = iomap.content_iomap
     content_iomap === nothing && return target
     lx, ly = _find_scroll_pane_local_point(p, iomap, evt.x, evt.y)
-    canvas = content_iomap.output
     on_content = bar === nothing && !_outside_widget(iomap, evt) &&
                  _is_point_in_pane_view(p, iomap, evt.x, evt.y) &&
-                 canvas isa GraphicsCanvas && hit_element_at(canvas, lx, ly) !== nothing
+                 _is_pane_content_hit(iomap, lx, ly)
     join_move_answers(_retarget_op(p, iomap, _read_single_child_move(iomap.input, "content", content_iomap,
                                                                      evt, evt.x - lx, evt.y - ly, on_content)),
                       target)
@@ -5837,11 +6057,15 @@ end
 # The bars of a pane, each printed along the edge of the view and the padding
 # around it, and placed in a canvas over the content. A bar that the thumb
 # fills shows nothing and takes no point. When both bars show, each stops before
-# the corner square.
+# the corner square. The numbers of a bar compare `content` with the view in
+# which the pane scrolls it, `scroll_view_w` and `scroll_view_h`: the view of the
+# center of parts, and else the whole view.
 function _print_pane_bars(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::WidgetScrollPane,
-                          ctx, content, view_w, view_h)
+                          ctx, content, view_w, view_h;
+                          scroll_view_w = view_w, scroll_view_h = view_h)
     thickness = p.scroll_bar_thickness
-    asked = [(field, _get_pane_bar(w, field, content, view_w, view_h)) for field in _PANE_BAR_FIELDS]
+    asked = [(field, _get_pane_bar(w, field, content, scroll_view_w, scroll_view_h))
+             for field in _PANE_BAR_FIELDS]
     shown = Dict(field => bar === nothing ? Cell(false) :
                           Cell(@computation Float64(bar.thumb_size) < 1.0)
                  for (field, bar) in asked)
@@ -11514,10 +11738,9 @@ function ProjectionModule.read_child_by_route(p::WidgetScrollPaneToGraphicsCanva
                                               iomap::WidgetScrollPaneToGraphicsCanvasIoMap, child)
     child === iomap.content_iomap ||
         return read_routed_intent(get_iomap_projection(child), recursion, change, child)
-    ox, oy = _find_scroll_pane_local_point(p, iomap, 0, 0)
     read_routed_child_in_frame(recursion, change, child;
-                               move_in = (x, y) -> (x + ox, y + oy),
-                               move_out = (x, y) -> (x - ox, y - oy))
+                               move_in = (x, y) -> _find_scroll_pane_local_point(p, iomap, Int(x), Int(y)),
+                               move_out = (x, y) -> _find_scroll_pane_point(p, iomap, Int(x), Int(y)))
 end
 
 # A transform pane moves the point through the inverse of its transform.

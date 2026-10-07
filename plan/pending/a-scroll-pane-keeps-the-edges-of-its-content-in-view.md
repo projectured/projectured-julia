@@ -433,7 +433,7 @@ Each step on its own commit, each with its test.
    Test: `test_scroll_layout()`, 27 assertions; `test_anchored_layout`,
    `test_layout_point`, `test_layout_closeout` and `test_mouse_target_move` pass
    unchanged.
-2. **`WidgetScrollPane` takes a `ScrollLayout` apart** (§7.4): a viewport for
+2. ✅ **Done (2026-10-07, branch `text-gutter`). `WidgetScrollPane` takes a `ScrollLayout` apart** (§7.4): a viewport for
    each part, the offsets (§7.1), the sizes and the width that it offers (§7.5),
    the frame of a point (§7.6), and the wheel over any part (S5). A content that
    gives a canvas sees no change. Test: a scroll pane test with a
@@ -441,6 +441,24 @@ Each step on its own commit, each with its test.
    right point, a wheel over an edge moves the one offset, the offered width is
    the width of the center viewport; and the scroll pane tests of today pass
    unchanged.
+   *What the implementation found:* the IO map of the pane keeps the parts
+   (`_PaneParts`): the canvas of each part, the extents of all of them, which the
+   frame of a point reads, the extents of the parts around the center alone,
+   which the view of the center reads, and the index of the viewport of each
+   part. A part that is no canvas is not drawn. The offered width follows the
+   table: a cell of 0 before the print, `with_inner_size` by it, and
+   `set_cell_computation!` after the print when the output is a `ScrollLayout`.
+   The extents of the edges are a cell of their own that never reads the
+   center, because the width of the center can come from the offer; the same
+   held for `ScrollLayoutToGraphicsCanvas`, whose first form read the center
+   lazily, and step 1 got a test with a center that fills its range. A bar takes
+   its place from the whole view and its numbers from the center, so a vertical
+   bar runs past the top and the bottom row. The routed reader moves a point with
+   the band rule and its inverse, not by one offset. The example waits for the
+   text: step 3 shows a text with a gutter in a pane. Test:
+   `test_scroll_pane_parts()`, 24 assertions; `test_scroll_layout()`, 29; and 19
+   tests of the scroll pane, the table, the shell, the routes and the pointer
+   pass unchanged.
 3. **The text gives a `ScrollLayout`**: `TextBlockToScrollLayout`, with the
    gutter as the left edge, in
    [a-text-has-a-gutter-beside-its-lines.md](a-text-has-a-gutter-beside-its-lines.md).
