@@ -236,7 +236,11 @@ end
                                            make_hinted_text(() -> doc.text;
                                                             empty_thunk = () -> isempty(doc.text),
                                                             placeholder = "link",
-                                                            style = prj.text_style));
+                                                            style = prj.text_style,
+                                                            # The rendered view follows a reference
+                                                            # on a click, so it shows the hand.
+                                                            pointer_shape = prj.show_markers ? nothing :
+                                                                            :pointing_hand));
                                      open=TextString(prj.show_markers ? "`" : "", prj.marker_style)),
                           # With the markers off the target is not shown at all:
                           # the natural notation says where a link points by

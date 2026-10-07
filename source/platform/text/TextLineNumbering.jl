@@ -74,6 +74,7 @@ function _line_numbering_span(original::TextString, content::AbstractString)
                getfield(original, :fill_color),
                getfield(original, :line_color),
                getfield(original, :padding),
+               getfield(original, :pointer_shape),
                Cell(nothing))
 end
 

@@ -142,6 +142,19 @@ function test_part_pointer_shape()
                   for (x, y) in points[inside])
     end
 
+    @testset "a span that names a pointer shape has it over its text, and the I-beam elsewhere" begin
+        font = StyleFont("Ubuntu Mono", 20)
+        text = TextBlock(TextString("see ", font, color_black),
+                         TextString("link", StyleText(font, color_black), :pointing_hand),
+                         TextString(" here", font, color_black))
+        iomap = print_document(TextToGraphics(measure = _POINTER_PART_MEASURE), text)
+        segment = only(s for s in iomap.char_to_coord if s.text == "link")
+        @test find_pointer_shape(iomap.output, segment.x + 1, segment.y + 1) === :pointing_hand
+        @test find_pointer_shape(iomap.output, segment.x + segment.width - 1, segment.y + 1) === :pointing_hand
+        @test find_pointer_shape(iomap.output, segment.x - 2, segment.y + 1) === :ibeam
+        @test find_pointer_shape(iomap.output, segment.x + segment.width + 2, segment.y + 1) === :ibeam
+    end
+
     @testset "a button is a pointing hand where a click runs its action" begin
         for (enabled, button) in ((true, WidgetButton("Go"; size = Point2D(120, 40), action = _ -> nothing)),
                                   (false, WidgetButton("Go"; size = Point2D(120, 40), action = _ -> nothing,

@@ -560,7 +560,7 @@ function _editable_body(p, c::DocumentInsertion)
     # Cell, not the immutable default — pass it explicitly. font stays immutable
     # (authored).
     value_span = TextString(Cell(@computation _value(c)), p.code_font, Cell(p.plain_color),
-                            nothing, nothing, nothing)
+                            nothing, nothing, nothing, nothing)
     set_cell_computation!(getfield(value_span, :font_color), function ()
         state = name_completion(c).state
         state === :invalid ? p.invalid_color :
@@ -579,7 +579,7 @@ end
 function _editable_body(p, c)
     show() = (v = _value(c); isempty(v) ? _PLACEHOLDER : v)
     # reactive font_color (set below); font stays immutable.
-    ts = TextString(Cell(Computation(show)), p.code_font, Cell(p.plain_color), nothing, nothing, nothing)
+    ts = TextString(Cell(Computation(show)), p.code_font, Cell(p.plain_color), nothing, nothing, nothing, nothing)
     set_cell_computation!(getfield(ts, :font_color),
            () -> isempty(_value(c)) ? p.placeholder_color : p.plain_color)
     TextBlock(ts)

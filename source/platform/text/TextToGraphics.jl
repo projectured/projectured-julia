@@ -632,8 +632,14 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # caret at the point, so the last element is an I-beam over the box of the
     # lines.
     ibeam = GraphicsPointerShape(0, 0, () -> canvas_w[], () -> canvas_h[], :ibeam)
+    # A span that names a pointer shape, such as a link with the hand, has a region
+    # of its shape over each of its segments, after the I-beam, so it wins there.
+    # A text with no such span reads no segment for it.
+    span_shapes = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), canvas_w, canvas_h,
+                                 CellVector(Computation(() -> _make_span_shape_regions(styled, char_to_coord))),
+                                 layout_none, true, Cell(nothing))
     top_elements = CellVector(Cell[Cell(highlight_canvas), Cell(lines_stack), Cell(cursor_rect),
-                                   Cell(ibeam)])
+                                   Cell(ibeam), Cell(span_shapes)])
     canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), canvas_w, canvas_h,
                             top_elements, layout_none, true, Cell(nothing))
     # The baseline of the first line: the one of the layout of the first line,
@@ -645,6 +651,31 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
         baseline === nothing ? nothing : Int(first_line.y[]) + baseline
     end))
     TextToGraphicsIoMap(p, styled, canvas, char_to_coord, highlight_offset, first_baseline)
+end
+
+# The pointer regions of the spans of `text` that name a shape: one over each
+# segment that the coordinates in `coordinates` place.
+function _make_span_shape_regions(text::TextBlock, coordinates)
+    _has_span_shape(text) || return Any[]
+    regions = Any[]
+    for segment in coordinates[]
+        span = _find_segment_span(text, segment.span_path)
+        shape = span isa TextString ? span.pointer_shape : nothing
+        shape === nothing && continue
+        push!(regions, GraphicsPointerShape(segment.x, segment.y, segment.width, segment.height, shape))
+    end
+    regions
+end
+
+_has_span_shape(text::TextBlock) =
+    any(element -> element isa TextString ? element.pointer_shape !== nothing :
+                   element isa TextLine && any(span -> span isa TextString && span.pointer_shape !== nothing,
+                                                element.elements),
+        text.elements)
+
+function _find_segment_span(text::TextBlock, path::SpanPath)
+    element = text.elements[path[1]]
+    length(path) == 1 ? element : element.elements[path[2]]
 end
 
 # ── Line grouping ─────────────────────────────────────────────────────────────

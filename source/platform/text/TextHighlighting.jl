@@ -164,6 +164,7 @@ function _make_span(original::TextString, content::AbstractString, fill_color::C
                fill_color,
                getfield(original, :line_color),
                getfield(original, :padding),
+               getfield(original, :pointer_shape),
                Cell(nothing))
 end
 

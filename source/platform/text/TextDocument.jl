@@ -118,6 +118,9 @@ style fields stay reactive (highlighting writes `fill_color`).
 - `fill_color::Cell` — holds background fill color or `nothing`
 - `line_color::Cell` — holds border/line color or `nothing`
 - `padding::Cell`    — holds inset/padding value or `nothing`
+- `pointer_shape::Cell` — holds the shape of the pointer over the span, one of
+  `POINTER_SHAPES`, such as `:pointing_hand` over a link, or `nothing` for the
+  I-beam of the text around it
 
 When a `TextBlock` selection path descends into a span, the sub-path
 refers to the cursor within the span's `content` field:  `.content{k}`
@@ -129,6 +132,7 @@ refers to the cursor within the span's `content` field:  `.content{k}`
     fill_color::StyleColor
     line_color::StyleColor
     padding::Inset
+    pointer_shape::Any
 end
 
 """
@@ -162,15 +166,23 @@ TextString(content::Function, font::StyleFont, font_color::StyleColor) =
 TextString(content::AbstractString, style::StyleText) = TextString(content, style.font, style.color)
 TextString(content::Function,      style::StyleText) = TextString(content, style.font, style.color)
 
+# A run in a style, with the shape of the pointer over it, or `nothing`.
+TextString(content::AbstractString, style::StyleText, pointer_shape::Union{Nothing,Symbol}) =
+    TextString(Cell(content), style.font, style.color, Cell(nothing), Cell(nothing), Cell(nothing),
+               Cell(pointer_shape), Cell(nothing))
+TextString(content::Function, style::StyleText, pointer_shape::Union{Nothing,Symbol}) =
+    TextString(Cell(Computation(content)), style.font, style.color, Cell(nothing), Cell(nothing), Cell(nothing),
+               Cell(pointer_shape), Cell(nothing))
+
 # A text span that shows a muted placeholder while the value is empty. Both text
 # and colour are reactive, so the hint disappears the moment the user types.
 function make_hinted_text(content_thunk; empty_thunk, placeholder::AbstractString,
-                          style::StyleText)
+                          style::StyleText, pointer_shape::Union{Nothing,Symbol} = nothing)
     TextString(
         Cell(@computation empty_thunk() ? placeholder : content_thunk()),
         style.font,                                                        # immutable (authored font)
         Cell(@computation empty_thunk() ? color_solarized_gray : style.color),   # reactive (hint colour); @style: content of the document
-        Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+        Cell(nothing), Cell(nothing), Cell(nothing), Cell(pointer_shape), Cell(nothing))
 end
 
 # ── TextGraphics ─────────────────────────────────────────────────────

@@ -220,6 +220,7 @@ function _make_span(original::TextString, content::String)
                getfield(original, :fill_color),
                getfield(original, :line_color),
                getfield(original, :padding),
+               getfield(original, :pointer_shape),
                Cell(nothing))
 end
 

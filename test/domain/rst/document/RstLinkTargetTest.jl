@@ -109,6 +109,15 @@ function test_rst_link_gestures()
         @test length(navigator.back) == 1
     end
 
+    @testset "the rendered page shows the hand over a reference, and the I-beam over its text" begin
+        editor, backend = platform._nav_editor(Navigator(parse_rst(_RST_LINK_SOURCE)))
+        canvas = last(rendered_output(backend))
+        @test find_pointer_shape(canvas, platform._nav_click(backend, "queueing").x,
+                                 platform._nav_click(backend, "queueing").y) === :pointing_hand
+        see = platform._nav_click(backend, "See ")
+        @test find_pointer_shape(canvas, see.x, see.y) === :ibeam
+    end
+
     @testset "the tooltip of a reference shows its target" begin
         root = parse_rst(_RST_LINK_SOURCE)
         paragraph = root.elements[1].elements[1]

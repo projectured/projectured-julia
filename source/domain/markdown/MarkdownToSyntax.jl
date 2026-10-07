@@ -269,8 +269,8 @@ end
 
 # ── MarkdownStyledTextToSyntaxLeaf (rendered MarkdownText; reads ambient) ──────
 # Same output shape and reference mapping as the source text leaf; the only
-# difference is the font, taken from the ambient `:md_style` (or the theme's
-# body default).
+# differences are the font, taken from the ambient `:md_style` (or the theme's
+# body default), and the pointer over a link, taken from `:md_pointer_shape`.
 
 @projection UntrackedCell struct MarkdownStyledTextToSyntaxLeaf
     style::StyleText = get_markdown_style(nothing, :body_text)
@@ -293,8 +293,9 @@ end
 
 function print_document(p::MarkdownStyledTextToSyntaxLeaf, recursion, t::MarkdownText, ctx)
     style = get_property(ctx, :md_style, p.style)
+    shape = get_property(ctx, :md_pointer_shape, nothing)
     paths = make_output_path_cells(t, path -> map_reference_forward(p, nothing, path))
-    SimpleIoMap(p, t, SyntaxLeaf(TextString(() -> t.content, style); paths...))
+    SimpleIoMap(p, t, SyntaxLeaf(TextString(() -> t.content, style, shape); paths...))
 end
 
 function read_intent(p::MarkdownStyledTextToSyntaxLeaf, iomap, op::ReplaceStringRangeOperation)
@@ -380,15 +381,22 @@ _mode_style(p::MarkdownEmphasisToStyledNode, ambient::StyleText, doc) =
     StyleText(unwrap_cell(p.italic_font), ambient.color)
 _mode_style(p::MarkdownLinkToStyledNode, ambient::StyleText, doc) =
     StyleText(ambient.font, unwrap_cell(p.link_color))
+
+# The pointer over the text of a container: the hand over a link, which a click
+# follows, and the pointer of the container around it elsewhere.
+_mode_pointer_shape(::MarkdownLinkToStyledNode, ambient) = :pointing_hand
+_mode_pointer_shape(::MarkdownStyledInline, ambient) = ambient
 _mode_style(p::MarkdownHeadingToStyledNode, ambient::StyleText, doc) =
     StyleText(_get_heading_font(p, clamp(doc.level, 1, 6)), unwrap_cell(p.heading_color))
 
 function print_document(p::MarkdownStyledInline, recursion, doc, ctx)
     ambient = get_property(ctx, :md_style, unwrap_cell(p.body_text))
     style = _mode_style(p, ambient, doc)
+    shape = _mode_pointer_shape(p, get_property(ctx, :md_pointer_shape, nothing))
     child_iomaps = Cell(@computation([
         print_child(recursion, child,
-            with_property(make_child_context(ctx, FieldReferenceStep("content"), ElementReferenceStep(i)), :md_style, style))
+            with_property(with_property(make_child_context(ctx, FieldReferenceStep("content"), ElementReferenceStep(i)),
+                                        :md_style, style), :md_pointer_shape, shape))
         for (i, child) in enumerate(doc.content)]))
     items = CellVector(@computation SyntaxDocument[im.output for im in child_iomaps[]])
     iomap_cell = Cell(nothing)

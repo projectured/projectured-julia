@@ -156,6 +156,9 @@ function test_click_roundtrip(label, document, projection; broken=nothing)
                 # ToggleCollapseOperation. That is a legitimate outcome — skip
                 # the cursor round-trip for those glyphs.
                 op isa ToggleCollapseOperation && continue
+                # A click on a link in a rendered view follows the link, and puts
+                # no caret: the span of the link shows the hand for it.
+                _is_click_roundtrip_link_follow(op) && continue
                 if !(op isa ReplaceSelectionOperation)
                     push!(errors, "click ($cx,$cy) span=$(sc.span_path) char=$k produced no ReplaceSelectionOperation")
                     continue
@@ -425,3 +428,11 @@ test_click_roundtrip(example::Example) =
 test_text_navigation_invariants(example::Example; directions=(:right, :left), broken=()) =
     test_text_navigation_invariants(example.name, example.document, example.projection;
                              directions=directions, broken=broken)
+
+# Whether a click answered the open of the target of a link.
+_is_click_roundtrip_link_follow(operation::OpenPageOperation) = operation.target !== nothing
+_is_click_roundtrip_link_follow(operation::CompoundOperation) =
+    any(_is_click_roundtrip_link_follow, operation.operations)
+_is_click_roundtrip_link_follow(operation::WrappingOperation) =
+    _is_click_roundtrip_link_follow(get_wrapped_operation(operation))
+_is_click_roundtrip_link_follow(::Any) = false

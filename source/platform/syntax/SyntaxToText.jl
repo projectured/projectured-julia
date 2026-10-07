@@ -823,7 +823,7 @@ function _make_lit_delimiter(buf::SpliceBuffer, p::SyntaxCompoundToText,
         TextString(getfield(span, :content), getfield(span, :font),
                    Cell(@computation _compute_delimiter_color(p, level[], span.font_color)),
                    getfield(span, :fill_color), getfield(span, :line_color),
-                   getfield(span, :padding), Cell(nothing)))
+                   getfield(span, :padding), getfield(span, :pointer_shape), Cell(nothing)))
     pair.first => lit
 end
 

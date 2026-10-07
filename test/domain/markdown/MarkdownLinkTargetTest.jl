@@ -48,6 +48,16 @@ function test_markdown_link_gestures()
         @test length(navigator.back) == 1
     end
 
+    @testset "the rendered page shows the hand over a link, and the I-beam over its text" begin
+        root = parse_markdown(_MARKDOWN_LINK_SOURCE)
+        editor, backend = platform._nav_editor(Navigator(root))
+        canvas = last(rendered_output(backend))
+        link = platform._nav_click(backend, "setup")
+        text = platform._nav_click(backend, "Read the ")
+        @test find_pointer_shape(canvas, link.x, link.y) === :pointing_hand
+        @test find_pointer_shape(canvas, text.x, text.y) === :ibeam
+    end
+
     @testset "Ctrl+click on the rendered page opens the target in a new tab" begin
         root = parse_markdown(_MARKDOWN_LINK_SOURCE)
         navigator = Navigator(root)
