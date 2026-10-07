@@ -131,6 +131,14 @@ A start that throws ends its task as `ERROR`, a `TaskStartFailure` with the
 exception in its reason, and the group goes on with its other tasks, so one bad
 task does not leave a group that never ends.
 
+A group can have a `preparation`: one task, such as the build of a project,
+that runs at each start of the group before its tasks, as a batch of runs of
+`opp_repl` builds first. When the preparation ends with a result that is not
+expected, no task starts, and each ends as `CANCEL` with a `TaskNotStarted`
+result whose reason names the preparation, at every depth. The preparation is
+not one of the tasks, so the counts, the codes, the result and the places of a
+group are those of its tasks; a stop of the group stops it too.
+
 ## The steps of a build
 
 `BuildStepTask` is a step of a build, as `common/compile.py` of `opp_repl` has

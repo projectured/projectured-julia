@@ -46,7 +46,7 @@ export TaskOutput, append_output_line!, get_left_out_line_count, collect_output_
        get_task_execution_snapshot, is_task_running, wait_task_execution,
        stop_task_execution!, get_task_status, finish_task_execution!, start_process_task!,
        sample_task_usage!
-export TaskGroup, TaskStartFailure, get_default_job_count, start_task, is_concurrent,
+export TaskGroup, TaskStartFailure, TaskNotStarted, get_default_job_count, start_task, is_concurrent,
        format_task_group_description, format_task_group_close_description,
        start_task_group!, stop_task_group!, wait_task_group, rerun_task_group!, run_task_group,
        collect_task_group_results, compute_task_group_indices, build_task_group_summary,

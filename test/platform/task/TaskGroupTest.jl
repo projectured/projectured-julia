@@ -151,6 +151,60 @@ function test_task_group()
             @test build_task_group_summary(group).finished == 3
         end
 
+        @testset "a preparation runs first, and its failure keeps every task from starting" begin
+            folder = mktempdir()
+            marker = joinpath(folder, "prepared")
+            tasks = AbstractTask[_TaskGroupProbeTask("a", "test -f $marker"),
+                                 TaskGroup([_TaskGroupProbeTask("b", "test -f $marker")]; name = "inner")]
+            group = TaskGroup(tasks; jobs = 1,
+                              preparation = _TaskGroupProbeTask("prepare", "touch $marker"))
+            started = Any[]
+            group.on_preparation = execution -> push!(started, execution)
+            run_task_group(group)
+            @test only(started) === group.preparation_run
+            @test group.preparation_run.result.result == "DONE"
+            # The tasks found what the preparation made, and only they are counted.
+            summary = build_task_group_summary(group)
+            @test summary.total == 2 && summary.counts == Dict("DONE" => 2)
+            @test length(group) == 2
+
+            failing = TaskGroup(tasks; jobs = 1,
+                                preparation = TaskGroup([_TaskGroupProbeTask("compile", "exit 2")];
+                                                        name = "stub", action = "Building"))
+            run_task_group(failing)
+            @test failing.preparation_run.result.result == "ERROR"
+            results = collect_task_group_results(failing)
+            @test results[1] isa TaskNotStarted && results[1].result == "CANCEL"
+            @test results[1].reason == "Not started: building stub ended ERROR"
+            # An inner group ends each of its tasks so.
+            inner = only(collect_task_group_results(failing.tasks[2]))
+            @test inner isa TaskNotStarted && inner.result == "CANCEL"
+            @test build_task_group_summary(failing).counts == Dict("CANCEL" => 2)
+            @test !is_expected(compute_task_group_result(failing))
+
+            # A run again runs the preparation again.
+            rm(marker)
+            rerun_task_group!(group, :all)
+            wait_task_group(group)
+            @test length(started) == 2 && isfile(marker)
+        end
+
+        @testset "a stop of a group stops its preparation" begin
+            group = TaskGroup([_TaskGroupProbeTask("a", "exit 0")];
+                              preparation = _TaskGroupProbeTask("prepare", "trap 'kill \$!; exit 130' INT; sleep 30 & wait \$!"))
+            start_task_group!(group)
+            deadline = time() + 10
+            while (group.preparation_run === nothing || !is_task_running(group.preparation_run)) && time() < deadline
+                sleep(0.02)
+            end
+            stopped_at = time()
+            stop_task_group!(group)
+            wait_task_group(group)
+            @test time() - stopped_at < 10
+            @test group.preparation_run.result.result == "CANCEL"
+            @test group.runs[1] === nothing
+        end
+
         @testset "a stop ends every task" begin
             group = TaskGroup(_make_task_group_probe_tasks(30); jobs = 5)
             start_task_group!(group)

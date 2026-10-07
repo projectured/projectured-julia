@@ -38,8 +38,23 @@ struct TaskStartFailure <: TaskResult
 end
 
 """
+    TaskNotStarted
+
+What a task of a group ended with when the preparation of the group ended with
+a result that is not expected: `CANCEL`, with a reason that names the
+preparation and its result. The task never started.
+"""
+struct TaskNotStarted <: TaskResult
+    task::AbstractTask
+    result::String
+    expected_result::String
+    reason::Union{String,Nothing}
+    elapsed_wall_time::Union{Float64,Nothing}
+end
+
+"""
     TaskGroup(tasks; name = "task", action = "", jobs = get_default_job_count(),
-              codes = nothing)
+              codes = nothing, preparation = nothing)
 
 A group of tasks and what became of each: `MultipleTasks` of `opp_repl`.
 `runs[i]` is `nothing` until `tasks[i]` starts, and the [`TaskExecution`](@ref) of
@@ -62,6 +77,15 @@ group sets it, so the tasks of an inner group reach their documents too.
 `MultipleTasks` of `opp_repl` can hold others: a sequential group of phases,
 each a concurrent group of steps. The counts, the progress and the result of a
 group count the tasks that are no groups, at every depth.
+
+**A group can have a preparation**, one task that runs at each start of the
+group, before its tasks, as a batch of runs of `opp_repl` builds its project
+first. When the preparation ends with a result that is not expected, no task
+starts, and each ends with a [`TaskNotStarted`](@ref) result. The preparation
+is not one of the tasks: the counts, the codes, the result and the places of
+the group are those of its tasks. `preparation_run` is its execution of the
+last start, and `on_preparation`, when it is set, is called with that
+execution when the preparation starts.
 """
 mutable struct TaskGroup <: AbstractTask
     tasks::Vector{AbstractTask}
@@ -76,16 +100,20 @@ mutable struct TaskGroup <: AbstractTask
     end_time::Union{Float64,Nothing}
     finish::Union{Function,Nothing}
     on_start::Union{Function,Nothing}
+    preparation::Union{AbstractTask,Nothing}
+    preparation_run::Union{TaskExecution,Nothing}
+    on_preparation::Union{Function,Nothing}
 end
 
 function TaskGroup(tasks::AbstractVector{<:AbstractTask}; name::AbstractString = "task",
                    action::AbstractString = "", jobs::Integer = get_default_job_count(),
-                   codes::Union{ResultCodes,Nothing} = nothing)
+                   codes::Union{ResultCodes,Nothing} = nothing,
+                   preparation::Union{AbstractTask,Nothing} = nothing)
     resolved = codes !== nothing ? codes :
                isempty(tasks) ? RUN_RESULT_CODES : get_result_codes(first(tasks))
     TaskGroup(AbstractTask[t for t in tasks], Union{TaskExecution,Nothing}[nothing for _ in tasks],
               String(name), String(action), max(1, Int(jobs)), resolved,
-              nothing, false, nothing, nothing, nothing, nothing)
+              nothing, false, nothing, nothing, nothing, nothing, preparation, nothing, nothing)
 end
 
 get_result_codes(group::TaskGroup) = group.codes
@@ -192,6 +220,16 @@ end
 # waits — an executable that is missing answers at once — cannot block on the
 # report. An unbuffered channel would deadlock exactly there.
 function _drive!(group::TaskGroup, indices::Vector{Int}, on_start, on_finish, on_change)
+    if group.preparation !== nothing
+        reason = _run_preparation!(group)
+        group.stopping && return _finish_drive!(group)
+        if reason !== nothing
+            for index in indices
+                _end_unstarted_task!(group, index, reason, on_start, on_finish, on_change)
+            end
+            return _finish_drive!(group)
+        end
+    end
     finished = Channel{Int}(max(1, length(indices)))
     next = 1
     active = 0
@@ -225,6 +263,11 @@ function _drive!(group::TaskGroup, indices::Vector{Int}, on_start, on_finish, on
         on_change === nothing || on_change(group)
     end
     close(finished)
+    _finish_drive!(group)
+end
+
+# The end of a start of the group: its `finish`, and the time.
+function _finish_drive!(group::TaskGroup)
     if group.finish !== nothing
         try
             group.finish(group)
@@ -236,15 +279,70 @@ function _drive!(group::TaskGroup, indices::Vector{Int}, on_start, on_finish, on
     group
 end
 
+# Run the preparation of the group to its end. It answers why the tasks must not
+# start, or `nothing` when they can. A start that throws ends the preparation as
+# an error, as it ends a task.
+function _run_preparation!(group::TaskGroup)
+    preparation = group.preparation
+    execution = try
+        start_task(preparation)
+    catch exception
+        @error "the preparation of the group $(repr(group.name)) failed to start" exception = (exception, catch_backtrace())
+        failed = TaskExecution(preparation)
+        finish_task_execution!(failed,
+            TaskStartFailure(preparation, "ERROR", get_result_codes(preparation).expected,
+                             "The start failed: " * sprint(showerror, exception), nothing))
+        failed
+    end
+    group.preparation_run = execution
+    group.on_preparation === nothing || group.on_preparation(execution)
+    wait_task_execution(execution)
+    result = lock(() -> execution.result, execution.lock)
+    result === nothing || is_expected(result) ? nothing :
+        string("Not started: ", _describe_preparation(preparation), " ended ", result.result)
+end
+
+_describe_preparation(preparation::TaskGroup) =
+    isempty(preparation.action) ? preparation.name : lowercase(preparation.action) * " " * preparation.name
+_describe_preparation(preparation::AbstractTask) = format_task_parameters(preparation)
+
+# End task `index` of the group without a start, as `CANCEL` with `reason`. An
+# inner group ends each of its tasks so; its execution reaches its document
+# before theirs, as a start does.
+function _end_unstarted_task!(group::TaskGroup, index::Int, reason::String, on_start, on_finish, on_change)
+    task = group.tasks[index]
+    execution = TaskExecution(task)
+    group.runs[index] = execution
+    on_start === nothing || on_start(index, execution)
+    group.on_start === nothing || group.on_start(index, execution)
+    if task isa TaskGroup
+        for inner in eachindex(task.tasks)
+            _end_unstarted_task!(task, inner, reason, nothing, nothing, nothing)
+        end
+        result = compute_task_group_result(task)
+    else
+        result = TaskNotStarted(task, "CANCEL", group.codes.expected, reason, nothing)
+    end
+    finish_task_execution!(execution, result)
+    on_finish === nothing || on_finish(index, result)
+    on_change === nothing || on_change(group)
+    execution
+end
+
 """
     stop_task_group!(group)
 
-Stop every task that is going, and start no more. A task that is going is
-interrupted rather than killed, so a program that catches the interrupt can
-still finish its work, and the task ends as `CANCEL`.
+Stop every task that is going, and the preparation when it is going, and start
+no more. A task that is going is interrupted rather than killed, so a program
+that catches the interrupt can still finish its work, and the task ends as
+`CANCEL`.
 """
 function stop_task_group!(group::TaskGroup)
     group.stopping = true
+    run = group.preparation_run
+    if run !== nothing && is_task_running(run)
+        group.preparation isa TaskGroup ? stop_task_group!(group.preparation) : stop_task_execution!(run)
+    end
     for (task, run) in zip(group.tasks, group.runs)
         task isa TaskGroup ? stop_task_group!(task) : run === nothing || stop_task_execution!(run)
     end
