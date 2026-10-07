@@ -561,6 +561,22 @@ new tab".
     click in the rendered view. The text layer draws one I-beam region over a
     whole text (`TextToGraphics.jl`), and a span has no pointer shape. A tooltip
     needs nothing new: `make_tooltip_binding` in the table of the link.
+  - **Q7, decided (owner, 2026-10-07):** the template reads a claimed click as it
+    reads a claimed key, but along the path of the part that the click selected,
+    innermost first. A link binds `override(Ctrl+click)` and
+    `override(Ctrl+Shift+click)` in its gesture table, and the rendered view
+    `override(click)` on its link. The option not chosen: the navigator asks the
+    domain whether a selected part is a link, inside a navigator only.
+  - **Q8, decided (owner, 2026-10-07):** a text span gets a pointer shape, which
+    the syntax of a link sets, and the text layer draws a region for it. The
+    option not chosen: no hand pointer in this step.
+  - **Q9, decided (owner, 2026-10-07):** the evaluation of an open gives the file
+    a history when the editor has settings: `make_history_wrap` moves to the undo
+    slice, and the file system slice gets the edges `undo` and
+    `settingsmanaging`. An opener passes only its own wrap; a link passes a
+    navigator, so its tab is a history around a navigator around the file. The
+    option not chosen: a reader of the application that gives a history to each
+    open that passes it.
   - [ ] 6d. A file link opens the file in a new tab with a navigator, and the
     application gives every opened file its history (Q6). The mechanism goes to
     the owner before it is built.
