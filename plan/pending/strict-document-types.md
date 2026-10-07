@@ -571,6 +571,9 @@ worktree. The three domains test different parts of the model:
     such as `Spacing(5)` is never `isequal` to `5`. `convert_theme_value` still converts when
     the theme is scaled, for a value that the check let pass. In the mode `:throw`,
     `test_theme()`, `test_color_theme()` and `test_appearance_tab()` (107) pass.
+  - [ ] **The default mode is `:throw`** (2026-10-07, commit after `7305d5348`): a new process
+    refuses each write of a value that the declared type does not admit. `:record` and `:off`
+    stay for an inventory and for a migration. Then the 23 suites run in the default mode.
   - [x] **Group 5, a lazy list in a field declared `CellVector`.** `children` of
     `HorizontalLayout`, `VerticalLayout` and `GridLayout`, and the two header strips of
     `WidgetTable`, get a `ListNode`, a lazy list that a viewport reads from the middle. The

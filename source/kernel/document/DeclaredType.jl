@@ -61,16 +61,16 @@ abstract type PendingValue end
 # ── The mode ──────────────────────────────────────────────────────────────────
 
 const _DECLARED_TYPE_CHECK_MODES = (:off, :record, :throw)
-const _DECLARED_TYPE_CHECK_MODE = Ref(:off)
+const _DECLARED_TYPE_CHECK_MODE = Ref(:throw)
 
 """
     set_declared_type_check_mode!(mode)
 
 Say what the check of a declared type does with a value that the type does not
-admit. `:off` checks nothing. `:record` keeps the mismatch, which
+admit. `:throw`, the mode of a new process, throws a
+[`DeclaredTypeMismatchException`](@ref). `:record` keeps the mismatch, which
 [`collect_declared_type_mismatches`](@ref) answers, and lets the write go on.
-`:throw` throws a [`DeclaredTypeMismatchException`](@ref). The mode is one for
-the whole process.
+`:off` checks nothing. The mode is one for the whole process.
 
 Use `:record` to make an inventory of the writes that a stricter declaration
 would refuse: set it, run the code, and read the records.
