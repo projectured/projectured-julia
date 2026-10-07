@@ -401,7 +401,8 @@ end
 # press. A held move past the threshold starts the drag, and the drag tracker
 # sends the pivot `DragMove`, `DragEnd` and `DragCancel` by its path. A move
 # writes the place where a drop puts the item, which the bar shows; the release
-# makes the edit of the drop, and a cancel drops nothing.
+# makes the edit of the drop, and a cancel drops nothing. A right click or a dwell
+# that the table and the bar do not answer goes to the item under the pointer.
 function read_intent(p::PivotTableToWidget, recursion, change::Intent, iomap::PivotTableToWidgetIoMap)
     pivot = iomap.input
     gesture = change.gesture
@@ -425,6 +426,8 @@ function read_intent(p::PivotTableToWidget, recursion, change::Intent, iomap::Pi
     end
     (drag !== nothing && !drag.started && gesture isa MouseUp) &&
         return Intent(gesture, _write_pivot_drag(pivot, nothing))
+    change.operation === nothing && is_outward_gesture(gesture) &&
+        return Intent(gesture, _read_pivot_part_gesture(pivot, gesture))
     answer = invoke(read_intent, Tuple{Projection,Any,Intent,Any}, p, recursion, change, iomap)
     operation = answer isa Intent ? answer.operation : answer
     if operation !== nothing && _is_pivot_source_edit(operation)
@@ -438,6 +441,16 @@ function read_intent(p::PivotTableToWidget, recursion, change::Intent, iomap::Pi
         return Intent(gesture, _join_pivot_operations(start, answer isa Intent ? answer.operation : answer))
     end
     answer
+end
+
+# A right click or a dwell that the table and the bar do not answer: the item
+# under the pointer reads it first, a measure with its menu, and then the pivot,
+# as a container gives such a gesture to the part at its point. The bar draws an
+# item as a badge, so the mouse target of the pivot names the item.
+function _read_pivot_part_gesture(pivot::PivotTable, gesture)
+    found = _find_pivot_zone_item(get_mouse_target(pivot))
+    steps = found === nothing ? () : (FieldReferenceStep(found[1]), ElementReferenceStep(found[2]))
+    read_gesture_outward(nothing, gesture, pivot; steps, with_part = true)
 end
 
 # A key that the table and the bar do not take: the gestures of the pivot answer it.

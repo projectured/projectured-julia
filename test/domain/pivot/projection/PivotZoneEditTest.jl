@@ -7,20 +7,23 @@ through the loop of a real editor.
 _pz_measure() = FixedMeasure(10, 18, 6, 0)
 _pz_columns(zone) = String[item.column for item in zone]
 
-# An editor that shows `pivot` in the window `W`.
-function _pz_editor(pivot)
+# An editor that shows `pivot` in the window `W`, with the window of a context
+# menu when `context_menu` is set.
+function _pz_editor(pivot; context_menu::Bool = false)
     scene = make_window_scene(pivot, "W"; width = 900, height = 500)
     opened = make_opened_window_projections(; measure = _pz_measure())
     composed = make_window_scene_projection(make_pivot_projection_example(measure = _pz_measure());
                                             opened_window_projections = opened)
-    document, projection = make_tracking_screen(scene, composed)
+    document, projection = make_tracking_screen(scene, composed;
+        inner_wrappers = context_menu ? [wrap_context_menu_window] : [])
     backend = HeadlessBackend()
     editor = Editor(document, projection; backend = backend, devices = Device[Keyboard(), Mouse()])
     run_frame!(editor)
     (editor, backend)
 end
 
-_pz_send!(editor, backend, event) = (push_event!(backend, WindowInput(:W, event)); run_frame!(editor))
+_pz_send!(editor, backend, event; window = :W) =
+    (push_event!(backend, WindowInput(window, event)); run_frame!(editor))
 const _PZ_NONE = ModifierKeys()
 _pz_force(value) = value isa Cell ? _pz_force(value[]) : value
 
@@ -30,6 +33,13 @@ function _pz_texts(editor)
     _pivot_texts(root)
 end
 _pz_place(editor, text; nth = 1) = (found = [t for t in _pz_texts(editor) if t[3] == text]; found[nth])
+
+# Where each text is drawn in the window `id`, or nothing when no window has it.
+function _pz_window_texts(editor, id::Symbol)
+    windows = _pz_force(_pz_force(get_iomap_output(editor.iomap)).windows)
+    index = findfirst(window -> window.id === id, collect(windows))
+    index === nothing ? nothing : _pivot_texts(_pz_force(windows[index].content))
+end
 
 # A move of the pointer onto `text`, and a press there.
 function _pz_press!(editor, backend, text; nth = 1, time = 1.0)
@@ -135,6 +145,38 @@ x, y = _pz_place(editor, "Fields")
 _pz_drag!(editor, backend, "count(quarter)" in [t[3] for t in _pz_texts(editor)] ? "count(quarter)" : "count",
           x + 3, y + 3)
 @test [(m.column, m.aggregate) for m in pivot.measures] == [("amount", :sum)]
+
+# ── The menu of a right click ────────────────────────────────────────────────
+
+# A right click on a measure opens the menu of the measure, its aggregates. F2
+# adds the menu of the pivot after it, and a choice of an aggregate writes it.
+pivot = make_pivot_document_example()
+editor, backend = _pz_editor(pivot; context_menu = true)
+x, y = _pz_place(editor, "sum(amount)")
+_pz_send!(editor, backend, MouseMove(x + 3, y + 3, MouseButtons(), _PZ_NONE; time = 4.0))
+_pz_send!(editor, backend, MouseDown(:right, x + 3, y + 3, _PZ_NONE; time = 4.1))
+_pz_send!(editor, backend, MouseUp(:right, x + 3, y + 3, _PZ_NONE; time = 4.15))
+menu = _pz_window_texts(editor, :widget_popup)
+@test menu !== nothing
+@test "mean(amount)" in [t[3] for t in menu]
+@test !("Show the totals" in [t[3] for t in menu])
+_pz_send!(editor, backend, KeyDown(:f2, _PZ_NONE; time = 4.3))
+menu = _pz_window_texts(editor, :widget_popup)
+@test "mean(amount)" in [t[3] for t in menu] && "Show the totals" in [t[3] for t in menu]
+x, y = first((t[1], t[2]) for t in menu if t[3] == "mean(amount)")
+_pz_send!(editor, backend, MouseDown(:left, x + 3, y + 3, _PZ_NONE; time = 4.5); window = :widget_popup)
+_pz_send!(editor, backend, MouseUp(:left, x + 3, y + 3, _PZ_NONE; time = 4.55); window = :widget_popup)
+@test only(pivot.measures).aggregate === :mean
+@test _pz_window_texts(editor, :widget_popup) === nothing
+
+# A right click on a dimension opens the menu of the pivot with the items of the
+# dimension first.
+x, y = _pz_place(editor, "year")
+_pz_send!(editor, backend, MouseMove(x + 3, y + 3, MouseButtons(), _PZ_NONE; time = 5.0))
+_pz_send!(editor, backend, MouseDown(:right, x + 3, y + 3, _PZ_NONE; time = 5.1))
+_pz_send!(editor, backend, MouseUp(:right, x + 3, y + 3, _PZ_NONE; time = 5.15))
+menu = [t[3] for t in something(_pz_window_texts(editor, :widget_popup), [])]
+@test "Order by the measure" in menu && "Show the totals" in menu
 
 end
 end
