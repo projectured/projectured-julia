@@ -534,9 +534,13 @@ new tab".
     not chosen: a navigator tab with no history, or a file link that opens the
     file as the Files pane does, with no navigator.
   The parts:
-  - [ ] 6a. The target form of `OpenPageOperation`, `find_navigator_target`
+  - [x] 6a. The target form of `OpenPageOperation`, `find_navigator_target`
     with a default of `nothing`, the resolution by the navigator and by the
-    editor, and the content root of a navigator made from a file tab (Q5).
+    editor, and the content root of a navigator made from a file tab (Q5). Done
+    2026-10-07: the field `target` and the keyword of the constructor; the
+    navigator answers a target that names nothing here with
+    `DoNothingOperation`, so the press does nothing else; a file path that the
+    function answers opens nothing until 6d.
   - [ ] 6b. Markdown: the target of an anchor (a heading by its slug) and of a
     relative file; the gestures of a link in the source view and in the rendered
     view; the look of a link (its colour, the hand pointer, its address in a

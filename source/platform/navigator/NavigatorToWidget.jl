@@ -422,6 +422,7 @@ end
 
 function _translate_answer(iomap::NavigatorToWidgetIoMap, operation::OpenPageOperation, gesture)
     navigator = iomap.input
+    operation.target === nothing || return _follow_navigator_target(navigator, operation)
     if operation.document === nothing
         # The path of an open from the page starts at the field `content`; any
         # other path names no part of the content, and the open goes on up.
@@ -436,6 +437,17 @@ function _translate_answer(iomap::NavigatorToWidgetIoMap, operation::OpenPageOpe
     operation.place === :here || return operation
     something(make_navigator_open_operation(navigator, operation.document, operation.reference),
               DoNothingOperation())
+end
+
+# A link to a target: the domain of the content resolves it. A part of the
+# content opens as a visit, or, for a new tab, as an open rooted at the content,
+# which goes on up. A target that names nothing here is answered, and does
+# nothing.
+function _follow_navigator_target(navigator::Navigator, operation::OpenPageOperation)
+    found = find_navigator_target(navigator.content, operation.target)
+    found isa Reference || return DoNothingOperation()
+    operation.place === :here || return OpenPageOperation(navigator.content, found, operation.place)
+    something(make_navigator_open_operation(navigator, found), DoNothingOperation())
 end
 
 # A write of the address copy, such as the view that the control picks, is view

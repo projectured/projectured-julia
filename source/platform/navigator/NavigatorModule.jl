@@ -56,7 +56,7 @@ export make_navigator_address_edit_operation, make_navigator_address_commit_oper
 export NavigatorToWidget, make_navigator_projection
 export NavigatorChoiceListToWidget, make_navigator_choice_list_projection
 export ReferenceStepToSyntaxLeaf, make_navigator_address_projection
-export OpenPageOperation
+export OpenPageOperation, find_navigator_target
 
 include("NavigatorDocument.jl")
 include("NavigatorVisits.jl")

@@ -22,6 +22,30 @@ end
 
 _nav_ctrl_click(click) = MouseClick(click.button, click.x, click.y, 1, ModifierKeys(ctrl = true); time = 0.0)
 
+# A content of two parts, a home page and the shelf, whose domain resolves the
+# target `#title` of a link to the book of that title.
+@document struct NavigatorTestSite
+    home::Any
+    shelf::Any
+end
+
+function ProjecturedPlatform.NavigatorModule.find_navigator_target(site::NavigatorTestSite, target::AbstractString)
+    startswith(target, "#") || return nothing
+    index = findfirst(book -> book.title == target[2:end], collect(site.shelf.books))
+    index === nothing ? nothing :
+        Reference(FieldReferenceStep("shelf"), FieldReferenceStep("books"), RangeReferenceStep(index - 1, index))
+end
+
+_nav_make_site(shelf) = NavigatorTestSite(_nav_make_linked_page(_nav_make_shelf()), shelf, nothing)
+
+# A file of the test domain around a document, as a file tab holds one.
+@document struct NavigatorTestFile <: FileDocument
+    filename::String
+    content::Any
+end
+
+_nav_link(target; place = :here) = OpenPageOperation(nothing, EmptyReference(), place; target)
+
 _nav_tabs(editor) = editor.document.root.tabs
 
 function test_open_page_operation()
@@ -129,6 +153,70 @@ function test_open_page_operation()
         @test get_navigator_page(opened) === shelf
         @test _nav_is(find_navigator_parent_address(opened), EmptyReference())
         @test _nav_has_texts(backend, "VerticalLayout", _NAV_CHOICES, "Shelf")
+    end
+
+    @testset "a link to a target: the domain of the content resolves it" begin
+        @test find_navigator_target(_nav_make_shelf(), "#B") === nothing
+        @test _nav_link("#B").target == "#B"
+        @test retarget_operation(_nav_link("#B"), Reference(FieldReferenceStep("home"))).target == "#B"
+        @test describe_operation(_nav_link("#B")) == "Follow the link to #B"
+        shelf = _nav_make_shelf()
+        site = _nav_make_site(shelf)
+        navigator = Navigator(site, @reference(site, home))
+        editor, backend = _nav_editor(navigator)
+        place = @reference(navigator, content.home.children[2])
+        evaluate_operation(editor, read_rooted_operation(editor, place, _nav_link("#B")))
+        run_frame!(editor)
+        @test get_navigator_page(navigator) === shelf.books[2]
+        @test length(navigator.back) == 1
+        # A target that names nothing here is answered, and opens nothing.
+        _nav_apply!(_NavHolder(navigator), make_navigator_back_operation(navigator))
+        answer = read_rooted_operation(editor, place, _nav_link("https://example.org"))
+        @test answer !== nothing
+        evaluate_operation(editor, answer)
+        @test get_navigator_page(navigator) === site.home
+    end
+
+    @testset "a link to a target in a new tab, and with no navigator" begin
+        shelf = _nav_make_shelf()
+        site = _nav_make_site(shelf)
+        navigator = Navigator(site, @reference(site, home))
+        editor, backend = _nav_editor(navigator; tabs = true)
+        place = @reference(editor.document, root.tabs[1].content.content.home.children[2])
+        evaluate_operation(editor, read_rooted_operation(editor, place, _nav_link("#A"; place = :new_tab)))
+        drain_operations!(editor)
+        run_frame!(editor)
+        tabs = _nav_tabs(editor)
+        @test length(tabs) == 2
+        @test tabs[2].content.content === site
+        @test get_navigator_page(tabs[2].content) === shelf.books[1]
+        @test get_navigator_page(navigator) === site.home
+        # With no navigator, the editor resolves the target against the document of
+        # the tab that holds the link.
+        shelf = _nav_make_shelf()
+        site = _nav_make_site(shelf)
+        editor, backend = _nav_editor(site; tabs = true)
+        link = OpenPageOperation(nothing, @reference(editor.document, root.tabs[1].content.home); target = "#B")
+        evaluate_operation(editor, link)
+        drain_operations!(editor)
+        run_frame!(editor)
+        tabs = _nav_tabs(editor)
+        @test length(tabs) == 2
+        @test tabs[2].content.content === site
+        @test get_navigator_page(tabs[2].content) === shelf.books[2]
+    end
+
+    @testset "a navigator that an open makes from a file tab keeps the file as its content" begin
+        shelf = _nav_make_shelf()
+        file = NavigatorTestFile("shelf.txt", shelf, nothing)
+        editor, backend = _nav_editor(file; tabs = true)
+        open = OpenPageOperation(nothing, @reference(editor.document, root.tabs[1].content.content.books[2]))
+        evaluate_operation(editor, open)
+        drain_operations!(editor)
+        run_frame!(editor)
+        opened = _nav_tabs(editor)[2].content
+        @test opened.content === file
+        @test get_navigator_page(opened) === shelf.books[2]
     end
 end
 end
