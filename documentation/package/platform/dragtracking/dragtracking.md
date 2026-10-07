@@ -13,6 +13,8 @@ A part answers `StartDragOperation(path, dragged)` from its own place, the empty
 - **at the press**, for a part whose press has no other meaning, such as the thumb of a slider or the divider of a split pane;
 - **after a small move of 5 pixels from the press**, for a part whose click has a meaning of its own, such as the tab of a pane or an element of a list that a drag reorders. A press that is released before that move is a plain click.
 
+**A drag inside the output of a view.** A part that a view drew has no path in the input of the view. The view names it by an introduced reference, as the default backward map does, and a chain routes a gesture along such a path: an operation stops where its route names no node of the input, and a gesture goes on, so each stage maps the introduced step forward into its output. So a drag that starts on a part inside the output of a view, such as the thumb of the bar of the file tree, comes back to that part. A drag whose path ends at the input of a view as a whole is read by position from the deepest stage of the chain, which reaches the part that the output starts with. A view whose backward map answers `nothing` for a part it drew drops the start of the drag, and the default reader drops the whole answer to the press with it; such a map ends in the default.
+
 `dragged` is the thing that a global drag carries to the part that takes it, and `nothing` for a local drag such as the thumb of a slider.
 
 ### The wrapper's state

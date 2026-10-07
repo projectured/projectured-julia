@@ -1,9 +1,9 @@
 # A view that scrolls shows a scroll bar
 
-> **Kind:** plan · **Status:** pending, 2026-10-07. The decisions of §2 are
-> made, and no question is open. Steps 1 to 8 landed on `main` as `11334c3e8`
-> on 2026-10-06, not pushed. Step 9, a drag inside the output of a view (D9),
-> waits. ·
+> **Kind:** plan · **Status:** done, 2026-10-07. The decisions of §2 are made,
+> and no question is open. Steps 1 to 8 landed on `main` as `11334c3e8` on
+> 2026-10-06; step 9, a drag inside the output of a view (D9), is done on the
+> branch `view-drag`. Not pushed. ·
 > **Stands on:** [widget.md](../../documentation/package/platform/widget/widget.md),
 > [layout-rules.md](../../documentation/rule/layout-rules.md),
 > [view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md),
@@ -413,7 +413,7 @@ part.
     pushed carry no point, so they did not. **A drag of the thumb does nothing:**
     see §4.7.
   - The pages of omnet-julia were not checked.
-- [ ] **9. A drag inside the output of a view** (D9, §4.7).
+- [x] **9. A drag inside the output of a view** (D9, §4.7).
   - [x] 9.1 A test that fails today: a press on the thumb of the file tree
     through the Explorer chain, then a `DragMove` routed along the path of its
     answer, scrolls the tree. In `test_filesystem_to_widget()`; with the code of
@@ -443,9 +443,16 @@ part.
     Test: `_mvp_test_transcript_bar_drag()` in the assistant tests presses the
     thumb of the transcript and drags it through the view, 5 pass; with the
     maps of `main`, the bar is not even named.
-  - [ ] 9.5 Tests: `test_routed_gesture()`, the tooltip and the right click in
-    a view, `test_platform()`, the application test, and a live check of a drag
-    of the thumb in the file tree.
+  - [x] 9.5 Tests: `test_routed_gesture()` 37, `test_tooltip()`, the assistant
+    tests 132 (the same 4 broken as on `main`), the conversation tests, the
+    application test 344 (2 broken as before), `test_dataframes()` 608, the
+    statistics 138, the printers 285639 and the readers 24525 pass;
+    `test_platform()` in a process of its own: 101202 pass, 8 broken, and the 2
+    failures of `InterfaceApiTest.jl` that `main` has. Live, 2026-10-07, at
+    density 2, where a pushed event takes device pixels: a drag of the thumb of
+    the file tree scrolls it to its end, and a drag of the thumb of the
+    appearance page scrolls the page. [dragtracking.md](../../documentation/package/platform/dragtracking/dragtracking.md)
+    says how a drag inside the output of a view comes back.
 
 ## 6. Not in this plan
 
