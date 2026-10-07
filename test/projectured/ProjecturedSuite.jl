@@ -109,6 +109,9 @@ using ProjecturedODBCTest
 # one live test skips itself when none answers.
 using ProjecturedAnthropicTest
 using ProjecturedOllamaTest
+# The suite of the ACP client. It talks to a fake agent in this process and to a
+# small child process, so it needs no Node.js and no sign-in.
+using ProjecturedACPTest
 # The suite of the data frame view. It prints its views without a window.
 using ProjecturedDataFramesTest
 # A pivot of a data frame names two packages that do not depend on each other.
@@ -453,6 +456,7 @@ function test_all()
     test_pivot()
     test_anthropic()
     test_ollama()
+    test_acp()
     test_dataframes()
     test_integration()
     end

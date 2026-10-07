@@ -13,7 +13,7 @@ const _UUIDS = Dict(
     "ProjecturedSDL"         => "f0002b97-94ba-416c-b93c-86cdc095626f",
     "SimpleDirectMediaLayer" => "98e33af6-2ee5-5afd-9e75-cbc738b767c4")
 
-const _INTEGRATION_NAMES = ("AutoIntegration", "Projectured", "ProjecturedAnthropic",
+const _INTEGRATION_NAMES = ("AutoIntegration", "Projectured", "ProjecturedACP", "ProjecturedAnthropic",
                             "ProjecturedDataFrames", "ProjecturedIntegrations", "ProjecturedJSON",
                             "ProjecturedMCP",
                             "ProjecturedODBC", "ProjecturedOllama", "ProjecturedOpenRouter",

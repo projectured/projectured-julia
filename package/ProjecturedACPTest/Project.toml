@@ -1,0 +1,20 @@
+name = "ProjecturedACPTest"
+uuid = "dfd9a8b0-7188-4a87-beb1-6fdb9ddf5993"
+version = "0.1.0"
+authors = []
+
+# The ACP tier of the test-package DAG. The suite talks to a fake agent in this
+# process and to a small child process in plain Julia, so it needs no network,
+# no Node.js and no sign-in.
+
+[deps]
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+ProjecturedACP = "c086a6dc-7bb1-453d-ac62-5c5ddfbfdd44"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+ProjecturedACP = {path = "../ProjecturedACP"}
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}

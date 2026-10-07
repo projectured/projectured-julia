@@ -7,6 +7,7 @@ version = "0.1.0"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
 ProjecturedAll = "3e41c706-0d64-40b0-8e9d-89616f7fa6cc"
+ProjecturedACPTest = "dfd9a8b0-7188-4a87-beb1-6fdb9ddf5993"
 ProjecturedAnthropicTest = "6d6e7243-47fe-4ef5-bfc4-3f9d59ae8572"
 ProjecturedBookTest = "ed85f55b-e74c-4f3b-8176-8899111cfda7"
 ProjecturedChartTest = "c5b98bcf-e28d-4a35-99f8-6857f35710ad"
@@ -59,6 +60,7 @@ TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
+ProjecturedACPTest = {path = "../ProjecturedACPTest"}
 ProjecturedAnthropicTest = {path = "../ProjecturedAnthropicTest"}
 ProjecturedBookTest = {path = "../ProjecturedBookTest"}
 ProjecturedChartTest = {path = "../ProjecturedChartTest"}

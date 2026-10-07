@@ -365,13 +365,23 @@ document never holds the editor.
 
 ### Phase 1: one turn, end to end
 
-- [ ] **1.1 The transport.** JSON-RPC 2.0 over stdio, a reader task, ids,
-  notifications, answers to the requests of the agent, and stderr to the log.
-  The close ends the process group, because a child of the adapter must not
-  live on. Test it against a fake agent.
-- [ ] **1.2 The fake agent.** A Julia script that answers from a recorded
-  transcript. Remove the account data from the record. The tests run with no
-  network and no Node.js.
+- [x] **1.1 The transport.** Done: `AcpTransport.jl`. Decisions made in the
+  step:
+  - The agent starts with `detach = true`, so it has a process group of its
+    own. The close ends its input first, because an agent ends at the end of its
+    input. After 5 s the group gets `SIGTERM`, and after 2 s more `SIGKILL`. A
+    test checks that a grandchild of the agent ends too.
+  - A notification of the agent runs on the reader task, in order, so the text
+    of an answer keeps its order. A request of the agent runs on a task of its
+    own, so it can wait for a person.
+  - The transport logs no message content, because an agent can send account
+    data. The standard error of the agent goes to the debug log.
+- [x] **1.2 The fake agent.** Done: `test/adapter/acp/FakeAcpAgent.jl`. The
+  fake agent is not a script that replays the record of the probe. It runs in
+  the test process, on two `Base.BufferStream`s, and each test gives it the
+  handlers of its methods. This is faster, it can ask the client, and it holds
+  no data of the account. The tests of a real process start a small child agent
+  in plain Julia. `test_acp()` passes 71 of 71, with no network and no Node.js.
 - [x] **1.3 The kernel seam (M1).** Done. Three fragments of `AgentModule`:
   `AgentConnectionInterface.jl`, `AgentConnectionDefaults.jl` and
   `AgentConnectionEvent.jl`. Decisions made in the step:
@@ -383,8 +393,19 @@ document never holds the editor.
     loaded. Both read the method table with `_collect_val_kinds`.
   - `send_agent_prompt!` takes a vector of `LlmContent`. Phase 1 sends
     `LlmText` only.
-- [ ] **1.4 The connection.** `initialize`, `session/new`, `session/prompt`,
-  `session/cancel` and `session/close`, on top of 1.1.
+- [x] **1.4 The connection.** Done: `AcpConnection.jl` and `AcpUpdate.jl`.
+  Decisions made in the step:
+  - `initialize` offers no `fs`, no `terminal` and no `auth.terminal` in
+    phase 1.
+  - A chunk of another kind, of another `messageId`, or a new tool call closes
+    the open text or thinking block. The end of a prompt closes the last one.
+  - A tool call takes its `name` from `name`, or else from
+    `_meta.claudeCode.toolName`, where `claude-agent-acp` puts it.
+  - An update that phase 1 does not show is dropped: usage, commands, modes,
+    config options and session information.
+  - The package registers in `environment/all`, in `ProjecturedTest`, in the
+    loading test, which checks that the umbrella does not load it, and in
+    `PROJECTURED_PACKAGE_READMES`.
 - [ ] **1.5 The assistant turn.** `backend = :acp` branches in
   `_launch_agent_turn!`. The prompt blocks come from the user parts since the
   last agent turn. Each event becomes a part, posted with
