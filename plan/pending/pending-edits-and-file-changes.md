@@ -226,6 +226,11 @@ step 4.
     string back out, as `write_document_file` does. The save now takes it out
     for a file type that holds no document (`get_file_domain(T) === Union{}`).
   - Not done: the application does not watch the files that it opens yet.
+  - **A reload reads by the type of its document** (2026-10-08, for the omnet
+    store): `ReloadFileOperation` read a file again through the parser of its
+    extension, so a store in a `.json` file came back as JSON. It now reads
+    through `make_file` of the type of the file document when the extension
+    names another type; a file type that its extension names reads as before.
 - [ ] **4.** The rebase of pending changes on a changed file, with the log of a
   dropped change. A test that removes an entry, then changes the file on disk.
 - [ ] **5.** The guide of each new slice in `documentation/package/platform/`.
