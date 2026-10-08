@@ -52,6 +52,7 @@ const object_field_syntax_example = Example("object_field_syntax", make_object_f
 const line_numbering_example = Example("line_numbering", make_line_numbering_document_example, make_line_numbering_projection_example)
 const text_gutter_example    = Example("text_gutter",    make_text_gutter_document_example,    make_text_gutter_projection_example)
 const text_folding_example   = Example("text_folding",   make_text_folding_document_example,   make_text_folding_projection_example)
+const syntax_folding_example = Example("syntax_folding", make_syntax_folding_document_example, make_syntax_folding_projection_example)
 const word_wrapping_example  = Example("word_wrapping",  make_word_wrapping_document_example,  make_word_wrapping_projection_example)
 const text_filtering_example = Example("text_filtering", make_text_filtering_document_example, make_text_filtering_projection_example)
 const text_highlighting_example = Example("text_highlighting", make_text_highlighting_document_example, make_text_highlighting_projection_example)
@@ -130,6 +131,7 @@ const platform_examples = Example[
     line_numbering_example,
     text_gutter_example,
     text_folding_example,
+    syntax_folding_example,
     word_wrapping_example,
     text_filtering_example,
     text_highlighting_example,

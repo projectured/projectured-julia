@@ -365,10 +365,19 @@ emit lines (D7 of the gutter plan).
    **Known:** a closed region hides its last line whole, so a separator that the
    parent puts after the closing delimiter, such as the `,` of `],`, does not show
    on the folded line: `"lanes": […]`.
-4. **A view of code with text folds:** `SyntaxCompoundToText` with regions →
-   `TextLineNumbering` → `TextFolding` → `TextBlockToScrollLayout` in a
-   `WidgetScrollPane`. The testing guide and the text design document say the
-   order: the numbers before the fold.
+4. ~~**A view of code with text folds:**~~ **Done 2026-10-08, branch
+   `text-gutter`.** `SyntaxCompoundToText` with regions → `TextLineNumbering` →
+   `TextFolding` → `TextBlockToScrollLayout` in a `WidgetScrollPane`. The testing
+   guide and the text design document say the order: the numbers before the fold.
+
+   What was built: the example `syntax_folding`, a Lisp function whose body and
+   whose `cond` indent, printed by `RecursiveProjection(SyntaxToText(text_folds =
+   true))` as a stage of its own (so a child prints to text), then numbered,
+   folded and drawn with its gutter; the outer recursion prints the pane and the
+   marks. Rendered and checked: the triangles on lines 1 and 5, and a closed
+   `cond` shows `(…)` on line 5, hides lines 6 to 9, and the next number is 10.
+   Test: a click on the triangle of a syntax node answers a toggle whose fold
+   shares the `collapsed` cell of the node (`TextFoldingTest.jl`).
 5. **Later, not in this plan:** a caret that an edit or a search puts into a
    hidden line opens its region (F6); fold all and open all; a list of regions
    on a line (T4 c).

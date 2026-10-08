@@ -98,5 +98,22 @@ function test_text_folding()
         @test answer isa ToggleCollapseOperation
         @test answer.target === inner
     end
+    @testset "a click on the triangle of a syntax node toggles the node" begin
+        body = SyntaxNode(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b")];
+                          open = "(", close = ")", sep = " ", indentation = 1)
+        syntax_chain = ChainingProjection(RecursiveProjection(SyntaxToText(text_folds = true)),
+                                          TextLineNumbering(), TextFolding(),
+                                          TextBlockToScrollLayout(; measure = _ft_measure()))
+        syntax_iomap = print_document(syntax_chain, renderer, body, PrinterContext())
+        syntax_layout = syntax_iomap.step_iomaps[4][]
+        row = _ft_unwrap(syntax_layout.gutter_rows)[1]
+        fold_x = Int(getfield(row.iomap, :child_iomaps)[][3][1][]) + 1
+        answer = read_intent(syntax_chain, renderer,
+                             Intent(MouseClick(:left, fold_x, Int(row.row.y[]) + 3, ModifierKeys(); time = 0.0)),
+                             syntax_iomap).operation
+        @test answer isa ToggleCollapseOperation
+        # The fold shares the `collapsed` cell of the node, so the toggle folds the node.
+        @test getfield(answer.target, :collapsed) === getfield(body, :collapsed)
+    end
 end
 end

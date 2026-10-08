@@ -778,6 +778,11 @@ The design of step 1, found when the work started (2026-10-08):
    process after other parts; run alone, the part counts 8217 in the clone of the
    step and in the baseline, and no example of `test_domain_examples` has fewer
    passes than in the baseline (108 examples, counted one by one).
+
+   The opt-in locality tests, which no suite calls, fail on the baseline as on
+   the branch: `test_selection_localities()` 7821 pass and 13579 fail on the
+   baseline, 7791 and 13534 on the branch; `test_value_localities()` 18 and 224 on
+   both. So the lines add no failure there.
 4. **The decorators learn lines.**
    - 4a. ~~**`WordWrapping` wraps a line by its soft breaks** (Q4 (d)).~~ **Done
      2026-10-08**, the commit after step 1, done before step 3 because step 1 left

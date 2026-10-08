@@ -199,7 +199,7 @@ projection = ChainingProjection(WordWrapping(measure = FontFileMeasure()),
                                 TextToGraphics(measure = FontFileMeasure()))
 ```
 
-- Examples: `text_example`, `plain_text_example`, `text_with_image_example`, the text layout examples of [Layout](#layout) (`text_layout_examples` and `text_spacing_examples`), `word_wrapping_example`, `line_numbering_example`, `text_gutter_example`, `text_folding_example`, `text_filtering_example` and `text_highlighting_example` in `example/platform/`. The atomic catalog has one document for each span type and for `TextLine`.
+- Examples: `text_example`, `plain_text_example`, `text_with_image_example`, the text layout examples of [Layout](#layout) (`text_layout_examples` and `text_spacing_examples`), `word_wrapping_example`, `line_numbering_example`, `text_gutter_example`, `text_folding_example`, `syntax_folding_example` (syntax with text folds, numbered and folded in a scroll pane), `text_filtering_example` and `text_highlighting_example` in `example/platform/`. The atomic catalog has one document for each span type and for `TextLine`.
 - Tests: `test_text()` for the documents and the gesture table, `test_text_to_graphics()`, `test_text_line_model()`, `test_inline_image_caret()`, `test_word_wrapping()`, `test_text_filtering()`, `test_text_first_line()`, `test_text_line_numbering()`, `test_text_highlighting()`, `test_selection_inverting()`, `test_text_gutter()` and `test_text_folding()` in `test/platform/`, and `test_text_range_selection()` in the umbrella suite.
 
 ## Limits
