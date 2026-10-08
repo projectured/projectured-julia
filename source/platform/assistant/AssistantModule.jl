@@ -50,7 +50,7 @@ import ..OperationModule: evaluate_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SerializationModule: pred_arguments
 
-export Assistant, ASSISTANT_TITLE, DEFAULT_ASSISTANT_SYSTEM, DEFAULT_AGENT_COMMAND,
+export Assistant, ASSISTANT_TITLE, DEFAULT_ASSISTANT_SYSTEM, DEFAULT_AGENT_INSTRUCTIONS, DEFAULT_AGENT_COMMAND,
        DEFAULT_AGENT_SESSION_META
 export AssistantToWidgetSplitPane, AssistantToWidgetCard
 export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,

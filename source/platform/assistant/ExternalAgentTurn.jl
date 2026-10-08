@@ -153,7 +153,7 @@ function _start_external_agent_session!(editor, a::Assistant, session::ExternalA
             server = _start_agent_tool_server!(editor, session)
             servers = server === nothing ? Any[] : Any[Base.invokelatest(get_agent_server_access, server)]
             session.session_id = Base.invokelatest(open_agent_session!, session.connection;
-                directory = pwd(), mcp_servers = servers,
+                directory = pwd(), mcp_servers = servers, instructions = DEFAULT_AGENT_INSTRUCTIONS,
                 on_event = event -> _post_agent_options!(editor, a, event))
         end
     end
@@ -267,7 +267,8 @@ release_document!(editor, a::Assistant) = stop_external_agent!(a)
 function _start_agent_tool_server!(editor, session::ExternalAgentSession)
     session.tool_server === nothing || return session.tool_server
     :mcp in Base.invokelatest(get_agent_server_names) || return nothing
-    server = Base.invokelatest(make_agent_server, :mcp, editor; port = 0, secret = true)
+    server = Base.invokelatest(make_agent_server, :mcp, editor; port = 0, secret = true,
+                               instructions = DEFAULT_AGENT_INSTRUCTIONS)
     Base.invokelatest(start_agent_server!, server)
     session.tool_server = server
 end

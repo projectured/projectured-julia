@@ -12,8 +12,8 @@ steps. A step that is an event goes to `on_event` as it is. A step that is a
 function gets the connection and `on_event`, for an agent that waits, as
 [`make_scripted_permission_step`](@ref) does.
 
-The connection records what a test asserts: `sessions` holds the `directory` and
-the `mcp_servers` of each session that opened, and `prompts` each prompt. A
+The connection records what a test asserts: `sessions` holds the `directory`,
+the `mcp_servers` and the `instructions` of each session that opened, and `prompts` each prompt. A
 cancel answers each request that waits as cancelled, and the turn then answers
 `:cancelled`. A turn with no script answers `:end_turn` at once.
 
@@ -52,12 +52,14 @@ end
 
 function AgentModule.open_agent_session!(connection::ScriptedAgentConnection;
                                          directory::AbstractString = pwd(),
-                                         mcp_servers::AbstractVector = Any[], on_event = nothing)
+                                         mcp_servers::AbstractVector = Any[], instructions::AbstractString = "",
+                                         on_event = nothing)
     if connection.failing_opens > 0
         connection.failing_opens -= 1
         error("The scripted agent needs a sign-in.")
     end
-    push!(connection.sessions, (directory = String(directory), mcp_servers = collect(mcp_servers)))
+    push!(connection.sessions, (directory = String(directory), mcp_servers = collect(mcp_servers),
+                                instructions = String(instructions)))
     on_event === nothing || isempty(connection.options) || on_event(AgentOptionsUpdate(copy(connection.options)))
     "scripted-session-$(length(connection.sessions))"
 end

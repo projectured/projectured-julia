@@ -11,8 +11,10 @@ caller names another. `McpServer` has its own, domain-free instructions
 (`DEFAULT_MCP_INSTRUCTIONS` in `source/adapter/mcp/Mcp.jl`), so the MCP module keeps
 no dependency on the assistant.
 """
-const DEFAULT_ASSISTANT_SYSTEM = "You are Claude working inside the ProjecturEd editor — a projectional editor built in Julia.\n\n" *
-                                  "Use `execute_julia_code` to inspect and modify the editor's document and projection; " *
+# The guide to the tools of the editor that the native assistant and an external
+# agent share: how to inspect and change the running editor through
+# `execute_julia_code`, and how to find an API or a guide.
+const EDITOR_TOOL_GUIDE = "Use `execute_julia_code` to inspect and modify the editor's document and projection; " *
                                   "the variable `editor` is bound to the running editor.\n\n" *
                                   "MANDATORY — read this BEFORE writing any code:\n" *
                                   "- resource://guide/guide/orientation  (the concept index — your starting point)\n" *
@@ -51,8 +53,33 @@ const DEFAULT_ASSISTANT_SYSTEM = "You are Claude working inside the ProjecturEd 
                                   "- Read full text with `read_resource(uri)`; read a function's full docs with " *
                                   "`read_function_documentation(\"Module\", \"name\")`.\n" *
                                   "- `list_resources` enumerates documentation/module/class resources if you need to browse.\n\n" *
-                                  "NEVER guess names or signatures — search for them.\n" *
+                                  "NEVER guess names or signatures — search for them.\n"
+
+const DEFAULT_ASSISTANT_SYSTEM = "You are Claude working inside the ProjecturEd editor — a projectional editor built in Julia.\n\n" *
+                                  EDITOR_TOOL_GUIDE *
                                   "NEVER search in files, read files, or run shell commands — use the editor's search tools and resources."
+
+"""
+    DEFAULT_AGENT_INSTRUCTIONS
+
+The instructions of the MCP server that an external agent of the assistant
+gets, and the text that the editor adds to the system prompt of the agent: the
+agent runs inside the editor of the person, the MCP server controls that
+editor, and a request about what the editor shows goes through its tools.
+They hold the guide to the tools that the native assistant gets, but not its
+rule against files and shell commands, because a person can ask an agent for
+work on files.
+"""
+const DEFAULT_AGENT_INSTRUCTIONS =
+    "You run inside ProjecturEd, the projectional editor built in Julia that the person uses now, " *
+    "as the agent of its assistant pane. The MCP server `projectured` controls this running editor: " *
+    "its windows, panes, tabs, open documents and widgets.\n\n" *
+    "When the person asks you to show, open, change, arrange or build something in the editor — " *
+    "a tab, a pane, a table, a form, a widget, or a value in an open document — do it in the running " *
+    "editor with the tools of this server. Do not write source files, change the code of ProjecturEd, " *
+    "or start a git worktree for such a request. Use your own file and shell tools only when the " *
+    "person asks for work on files or on the code of a project.\n\n" *
+    EDITOR_TOOL_GUIDE
 
 """
     Assistant(; conversation, input, backend, model, system, api_key, context, status, llm)

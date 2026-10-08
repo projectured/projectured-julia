@@ -523,7 +523,7 @@ A caller names a connection by a symbol and never names its type, as it does for
 ```julia
 connection = make_agent_connection(:acp)   # the built-in agent; `command` names another
 start_agent_connection!(connection)
-session_id = open_agent_session!(connection; directory = pwd(), mcp_servers = [access], on_event)
+session_id = open_agent_session!(connection; directory = pwd(), mcp_servers = [access], instructions, on_event)
 set_agent_option!(connection, session_id, "effort", "max"; on_event)
 stop_reason = send_agent_prompt!(connection, session_id, prompt; on_event)
 ```
@@ -542,6 +542,8 @@ The eight generics are `make_agent_connection(kind; kwargs...)`, `start_agent_co
 - `AgentPermissionRequest` for a question that waits for a person. Its `reply` takes the id of the chosen option, or `nothing`. The first call answers the agent and answers `true`; a later call does nothing and answers `false`. `cancel_agent_prompt!` answers each request that waits as `nothing`.
 
 **The options of a session.** An `AgentOption` is one option, such as the model, with its `category` (`:mode`, `:model`, `:thought_level`, `:model_config` or `:other`), its `current_value`, and its `values`, each an `AgentOptionValue` with a `value` for the agent and a `name` for a person. `open_agent_session!` gives the options of the new session to its `on_event` as an `AgentOptionsUpdate`. `set_agent_option!` sets one option, and gives all the options that the agent answers to its `on_event`. **A connection keeps no `on_event` after the call that took it.** A caller captures the editor in it to post its writes, and a document must not hold the editor, even through the connection that it holds. So an update of the session that comes outside a call and outside a prompt — its options, its usage, its title, its commands — waits in the connection, the latest of each kind, and the next prompt gets them first. An agent can name its session just after a prompt ends, and the name is not lost.
+
+`instructions` is text that the agent adds to its system prompt: what its host is, and how to use the tools of the host. An agent that has no way to take it ignores it.
 
 The agent reaches the tools of the editor through the inbound direction. `get_agent_server_access(server)` answers `(name, url, headers)` for a server, and the tuple has the shape that `open_agent_session!` takes for an entry of `mcp_servers`. So the caller hands the MCP server of its editor to the agent without the type of the server. The inbound direction also gives the server a free port and a secret; see [mcp.md](../adapter/mcp/mcp.md).
 

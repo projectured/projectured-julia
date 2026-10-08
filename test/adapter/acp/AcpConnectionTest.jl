@@ -71,6 +71,26 @@ function test_acp_connection()
             @test_throws ErrorException make_agent_connection(:acp; session_meta = "{not json")
         end
 
+        @testset "the instructions of a session join its _meta, beside its options" begin
+            agent = _make_fake_agent()
+            connection = make_fake_connection(agent;
+                session_meta = """{"claudeCode": {"options": {"thinking": {"type": "adaptive", "display": "summarized"}}}}""")
+            open_agent_session!(connection; instructions = "You run inside the editor.")
+            options = only(get_received(agent, "session/new"))["params"]["_meta"]["claudeCode"]["options"]
+            @test options["thinking"]["display"] == "summarized"
+            @test options["systemPrompt"] == Dict{String,Any}("type" => "preset", "preset" => "claude_code",
+                                                              "append" => "You run inside the editor.")
+            # The setting of the connection keeps no instructions.
+            @test !haskey(connection.session_meta["claudeCode"]["options"], "systemPrompt")
+            stop_agent_connection!(connection)
+            # Without a `_meta`, the instructions make one.
+            bare = _make_fake_agent()
+            connection = make_fake_connection(bare)
+            open_agent_session!(connection; instructions = "Host.")
+            @test only(get_received(bare, "session/new"))["params"]["_meta"]["claudeCode"]["options"]["systemPrompt"]["append"] == "Host."
+            stop_agent_connection!(connection)
+        end
+
         @testset "the options of a session at the open, at a set, and in an update" begin
             agent = _make_fake_agent(Dict{String,Function}(
                 "session/set_config_option" => function (agent, params)

@@ -162,12 +162,14 @@ end
 _log_agent_line(line) = @debug "agent" line
 
 function open_agent_session!(connection::AcpConnection; directory::AbstractString = connection.directory,
-                             mcp_servers::AbstractVector = Any[], on_event = nothing)
+                             mcp_servers::AbstractVector = Any[], instructions::AbstractString = "",
+                             on_event = nothing)
     transport = _get_started_transport(connection)
+    meta = _add_instructions(connection.session_meta, instructions)
     request = ACP.NewSessionRequest(
         cwd = String(directory),
         mcp_servers = ACP.McpServer[_make_mcp_server(server) for server in mcp_servers],
-        meta = isempty(connection.session_meta) ? nothing : connection.session_meta)
+        meta = isempty(meta) ? nothing : meta)
     result = try
         ACP.send_request!(transport, request; timeout = 120)
     catch exception
@@ -188,6 +190,22 @@ function set_agent_option!(connection::AcpConnection, session_id::AbstractString
         timeout = 60)
     _store_session_options!(connection, session_id, get(ACP.get_json(result), "configOptions", Any[]), on_event)
     nothing
+end
+
+# The `_meta` of a session with `instructions` in it. ACP has no field for the
+# system prompt of an agent, so the instructions go where the Claude agents of
+# ACP read an addition to it, `claudeCode.options.systemPrompt.append`, beside
+# the other options of the `_meta`. Another agent ignores that key.
+function _add_instructions(meta::Dict{String,Any}, instructions::AbstractString)
+    isempty(instructions) && return meta
+    merged = deepcopy(meta)
+    claude = get!(() -> Dict{String,Any}(), merged, "claudeCode")
+    claude isa Dict{String,Any} || return meta
+    options = get!(() -> Dict{String,Any}(), claude, "options")
+    options isa Dict{String,Any} || return meta
+    options["systemPrompt"] = Dict{String,Any}("type" => "preset", "preset" => "claude_code",
+                                               "append" => String(instructions))
+    merged
 end
 
 # The options of an answer, kept for the session and given to `on_event`.
