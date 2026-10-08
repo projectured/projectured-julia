@@ -223,7 +223,7 @@ fields are the roles: what a colour does, such as `background`, `text_muted`,
 `accent` or `keyword`. `@theme` declares it, with a default step of a ramp for
 each role, so `ColorTheme()` is the default colour theme, and the appearance
 holds one `ColorTheme` for each pair of a mode and a contrast. The roles are
-in nine groups:
+in ten groups:
 
 | Group | Example roles |
 | --- | --- |
@@ -233,9 +233,17 @@ in nine groups:
 | Accent | `accent`, `accent_text`, `accent_tint`, `focus_ring` |
 | The layers of a state | `hover`, `pressed`, `selection_band`, `selection_ring`, `caret` |
 | Status | `error_fill`, `error_text`, `warning_text`, `success_text`, `info_text` |
-| Tokens | `keyword`, `definition`, `function_name`, `field`, `string_literal`, `constant`, `type_name`, `reference`, `link`, `operator`, `punctuation`, `punctuation_lit`, `comment`, `markup`, `heading` |
+| Tokens | `keyword`, `definition`, `function_name`, `field`, `type_name`, `reference`, `link`, `operator`, `punctuation`, `punctuation_lit`, `comment`, `markup`, `heading` |
+| The values of the tokens | `string_literal`, `character_literal`, `number_literal`, `boolean_literal`, `null_literal`, `symbol_literal`, `constant` |
 | The series of a chart | `series_1` … `series_8` |
 | Overlays | `shadow`, `scrim` |
+
+Each kind of value has a role of its own, and every view that prints a value
+names the role of its kind: a number in JSON, in Julia, in SQL and in a cell of
+a data frame has the color of `number_literal`. Two roles name another role by
+default: `character_literal` takes the color of `string_literal`, and
+`null_literal` the color of `boolean_literal`. The role `constant` colors a
+named constant that is no literal, such as a constant of mathematics.
 
 Almost every field holds a `PaletteColor`; a few hold a fixed colour instead,
 such as `text_on_accent = color_white` and the overlays `shadow` and `scrim`.
