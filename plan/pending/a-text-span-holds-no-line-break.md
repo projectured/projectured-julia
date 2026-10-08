@@ -17,10 +17,9 @@ The rule, decided by the owner on 2026-10-08:
 - **A `TextString` holds no `'\n'`.** A break is always a line: the break
   before a `TextLine`, or a `TextNewline` element.
 - **The domain states which fields can hold lines, by the type it gives the
-  value.** A `TextString` is one run. A `String` or a `TextDocument` is a text that
-  can have lines. The recursion prints a `String` with a projection such as
-  `StringToTextBlock`, which gives a `TextBlock` of lines. A domain can keep a
-  `String` field, or hold a `TextDocument` where it wants to.
+  value.** A `TextString` is one run, and a `TextBlock` of `TextLine`s is a text of
+  lines. A domain can keep a `String` field, or hold a `TextDocument` where it
+  wants to (N1 below says who turns which into lines).
 - **The syntax states nothing of its own.** A syntax content field takes what the
   domain gives.
 
@@ -58,9 +57,11 @@ by the index of the line.
    caret, so a new `TextLine` takes the runs after the caret; Backspace at the
    start of a line and Delete at its end join two lines; a paste of a text with
    breaks makes lines. A typed character edits one run.
-3. A `String` with breaks becomes a `TextBlock` of lines through
-   `StringToTextBlock`, which reuses the `TextLine` of a line whose text did not
-   change. A split or a join of a line there maps back to an edit of the string.
+3. A domain stage turns a `String` of its own with breaks into a `TextBlock` of
+   lines in its style, as it turns a string into a styled `TextString` today
+   (N1). A line whose text did not change stays the same object, and a split or a
+   join of a line maps back to an edit of the string. `StringToTextBlock` does the
+   same for a string that no domain decides.
 4. The content fields of the syntax (`value`, `open`, `close`, `sep`) take a
    `TextDocument`, and a leaf joins the lines of a block value as a compound joins
    the lines of a child: its first line joins the line of `open`, and `close`
@@ -106,8 +107,34 @@ by the index of the line.
 
 One at a time, with the owner.
 
-- **N1 `StringToTextBlock`.** Its name, its package (the text domain), and how
-  the recursion chooses it for a `String` that a leaf value holds.
+- **N1 Who turns a string into lines. Decided, the owner, 2026-10-08:** the
+  domain stage, as it turns a string into styled text today.
+  - A domain stage converts its own strings into styled text: `JuliaToSyntax`
+    already gives a comment or a docstring as `TextString(() -> d.text, p.doc_style)`.
+    For a field of many lines that text is a `TextBlock` of `TextLine`s in the
+    style of the domain. There is no new text type.
+  - A plain string never goes through the generic recursion: in a document that
+    mixes domains, a dispatch on `String` can not know which domain a string
+    belongs to, so only the domain that holds it can style it.
+  - A field can also hold a text-domain document. The domain stage checks the
+    value with `isa`: a plain string it converts itself; a `TextString`, a
+    `TextBlock` or another text document it recurses into, because the type of a
+    text document says what it is.
+  - The value of a `SyntaxLeaf` takes a `TextDocument`: a `TextString` for one
+    run, a `TextBlock` for lines.
+  - `StringToTextBlock` is a projection of the text domain for a string that no
+    domain decides, such as a string that stands on its own; most domains decide
+    themselves.
+
+  The options that the owner did not take: a new text type that may hold `'\n'`,
+  printed by a row of the recursion; a `String` value with a `style` field on the
+  leaf; a child projection `StringToTextBlock` that every domain stage calls.
+- **N1b The shared helper and the edit of a line.** Every domain stage needs the
+  same conversion of a string into styled lines, as `make_hinted_text` makes a
+  styled run today, and an edit of a line must map back to an offset in the
+  string, as `bound(...)` maps an edit of one run today. Open.
+- **N1c A text document in a field.** What the recursion of the domain-to-syntax
+  stage does with a text document that a field holds. Open.
 - **N2 A child on each line.** What replaces `sep = TextString("\n")`: a compound
   that puts each child on a line of its own with no indentation, through the
   `indentation` that exists or a new field.
