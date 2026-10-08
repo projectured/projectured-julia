@@ -691,6 +691,15 @@ worktree. The three domains test different parts of the model:
       put a plain vector into an explicit cell for a list field, and `make_task_group_shadow`
       gave `nothing` for `runs`. Fixed in `357390771`: a typed `CellVector` in those cells, and
       an empty list of runs in the shadow, which no code reads and the sync does not write.
+      The test of the shadow asserts `isempty(shadow.runs)` where it asserted `nothing`. The
+      options of an external agent are found with `findfirst`, which reads a list through
+      `keys`, so the list protocol gives `keys` its indices (`4e0b426e3`).
+    - *The results after the rebase,* both sides with the loopback interface up:
+      `test_kernel`, `test_acp`, `test_simulator`, `test_ned`, `test_campaign_ui`,
+      `test_legacy` and `test_inet` have the same counts on the branch and on `main`. In
+      `OmnetPresentationTest`, 71 of 74 functions are equal; the two of the engine buffer
+      below fail on the branch only, and `test_sim_control_panel` fails once on `main` and
+      passes on the branch. `test_integration` on `main`: 1275519 pass, 3 fail, 1578 broken.
     - **Open, for the owner: a scratch buffer of an engine in a cell layout.** The other two
       functions fail on the branch only. `reactive_parallel_simulator` builds the reactive shadow
       of a `ParallelEngine` from the fields of the native engine, and `green_buf` is a
