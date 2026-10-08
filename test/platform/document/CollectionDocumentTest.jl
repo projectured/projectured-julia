@@ -17,6 +17,12 @@ end
     entries::Vector{TypedListEntry} = TypedListEntry[]
 end
 
+# A field that names a kind that is not reactive keeps its plain vector in the cell
+# layout, as a scratch buffer does.
+@document [M, C] struct BufferHolder
+    buffer::MutableCell{Vector{String}}
+end
+
 function test_collection()
 @testset "ReactiveCollection" begin
 
@@ -487,6 +493,16 @@ end # @testset "ReactiveCollection"
         @test getfield(native, :names) isa Vector{String}
         @test getfield(native, :names) == ["a", "b"]
         @test convert(Vector{String}, CellVector(Any["x"])) == ["x"]
+    end
+
+    @testset "a field that names a kind that is not reactive holds a plain vector" begin
+        buffer = Vector{String}(undef, 2)
+        shadow = ACBufferHolder(buffer, nothing)
+        @test getfield(shadow, :buffer) isa MutableCell{Vector{String}}
+        @test shadow.buffer === buffer
+        shadow.buffer = ["a"]
+        @test shadow.buffer isa Vector{String}
+        @test shadow.buffer == ["a"]
     end
 
     @testset "a list finds an element by its index" begin

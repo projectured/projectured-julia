@@ -79,8 +79,13 @@ _declared_type_name(::Any) = nothing
 # A type that the cell layout holds goes through `_get_cell_layout_value_type` when
 # the schema is defined, so a native layout of another schema becomes its family. A
 # list type keeps its head, because `_is_list_field_type` reads the expression.
+#
+# Only a reactive field holds a list. A field that names a kind that is not reactive,
+# such as a buffer declared `MutableCell{Vector{T}}`, holds its value as one value.
 function _cell_value_types(plan)
-    map(get_cell_struct_value_types(plan)) do vt
+    named_kinds = get_cell_struct_field_kinds(plan; default = missing)
+    map(zip(get_cell_struct_value_types(plan), named_kinds)) do (vt, kind)
+        kind === missing || kind === ReactiveCell || return _make_cell_layout_type_call(vt)
         name = _declared_type_name(vt)
         substitute = name === nothing ? nothing : get_cell_layout_field_type(Val(name))
         if substitute === nothing
