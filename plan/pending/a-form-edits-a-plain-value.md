@@ -1,8 +1,8 @@
 # A form edits a plain value
 
 > **Status (2026-10-08): IN PROGRESS** on the branch `plain-value-form`, in the
-> worktree `projectured-julia-plain-value-form`. Steps 1 to 7 are done; step 7
-> and the next steps are on the branch `text-config-in-documents`, on top of this
+> worktree `projectured-julia-plain-value-form`. Steps 1 to 8 are done; steps 7
+> and 8 and the next steps are on the branch `text-config-in-documents`, on top of this
 > one, after
 > [text-projection-config-into-document.md](../done/text-projection-config-into-document.md)
 > retired `ProjectionConfiguringProjection` (decision 17). The owner
@@ -877,11 +877,37 @@ form of part C and not readers that part C removes.
    - For step 9: `widget.md` still says, under "From a domain to widgets" and in
      its limits, that `ObjectToWidget` maps no reference.
 
-8. ⬜ **The examples.** One form for A and one for B, on the same plain value and
+8. ✅ **The examples.** One form for A and one for B, on the same plain value and
    the same layout, and a form whose widgets hold `ObjectField` values (C).
    Register them in
    [PlatformExamples.jl](../../example/platform/PlatformExamples.jl). Run
    `test_example(...)` for each.
+
+   **Done 2026-10-08**, on the branch `text-config-in-documents`. In
+   `ObjectFieldDocumentExample.jl`: a plain `PlainServer` with a plain
+   `PlainServerWindow`, the schemas `PlainServerForm` and
+   `PlainServerWindowForm`, and one layout, `_make_plain_server_form(root)`, of
+   four fields with a nested title. `plain_server_copy_form` (A) lays it on
+   `convert_object_to_document(PlainServerForm, server)`; `plain_server_cell_form`
+   (B) lays it on `Cell(server)`; `object_field_widget_form` (C) is a form whose
+   widgets the author chooses (`WidgetText`, `WidgetSpinBox`, `WidgetSwitch`),
+   each with a field in its value slot. All three draw with
+   `make_object_field_form_projection_example`. The comment of the old form
+   example no longer says that `ObjectToWidget` shows a vector element as
+   read-only.
+   - `walk_printer_output` and `walk_repl_loop` report no error on the three.
+   - `test_example(...)` (in `environment/all`): `plain_server_copy_form` 2088
+     pass 122 fail, `plain_server_cell_form` 2075/122,
+     `object_field_widget_form` 1669/104, `object_field_form` 2389/198. On
+     main 24746844d, `object_field_form` gives 2531/181/7 broken. The failures
+     follow the pattern of every widget example on main: the type-in walk
+     types into the labels, and a `WidgetLabel` draws no caret, also in a form
+     with no field; the seed key Ctrl+Home selects nothing; and a key in the
+     text box of a field answers the store and the caret move
+     (`CompoundOperation`, decision 9) where the walk expects a
+     `ReplaceStringRangeOperation`. On main the same keys answered nothing, and
+     the labels failed one check later, because the example copied the form in
+     a first stage.
 9. ⬜ **The documents.**
    [primitive.md](../../documentation/package/platform/primitive/primitive.md)
    gets the two ways and the table.
