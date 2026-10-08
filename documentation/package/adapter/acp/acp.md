@@ -29,16 +29,18 @@ The capabilities of `initialize` give the agent no file access and no terminal: 
 
 ### The transport
 
-`AcpTransport.jl` carries JSON-RPC 2.0. Each message is one JSON object on one line. The client writes to the standard input of the agent and reads its standard output.
+The package [`AgentClientProtocol`](https://github.com/projectured/AgentClientProtocol.jl) carries the messages. It holds the types of the protocol, generated from its schema, and a connection that talks JSON-RPC 2.0 over two streams, one JSON object on each line. `AcpConnection` keeps that connection in its field `transport`, and gives it an `AcpClientHandler`, which answers what the agent sends.
 
-- **The reader task** reads the lines and hands each message to its place. A response goes to the request that waits for it. `send_acp_request!` blocks on a channel for the answer and throws an `AcpRequestException` for an error answer.
+- **The reader task** of the connection reads the lines and hands each message to its place. A response goes to the request that waits for it. `send_request!` throws a `ProtocolException` for an error answer.
 - **A notification of the agent** runs on the reader task, in order, so the chunks of an answer keep their order. The handler must not wait.
-- **A request of the agent** runs on a task of its own, so it can wait for a person. The handler answers with a result or throws an `AcpRequestException`.
-- **The standard error of the agent** goes to the debug log. The transport logs no message content, because an agent can send account data.
+- **A request of the agent** runs on a task of its own, so it can wait for a person. A request that the handler does not serve, such as a file or a terminal request, gets the error "method not found".
+- **The standard error of the agent** goes to the debug log. The connection logs no message content, because an agent can send account data.
 
-The agent starts with `detach = true`, so it has a process group of its own. `close_acp_transport!` closes the input of the agent first, because an agent ends when its input ends. A process that still runs after 5 seconds gets `SIGTERM`, sent to the whole group. After 2 more seconds it gets `SIGKILL`. At the end the group gets `SIGTERM` in any case, because a child of the agent can outlive an agent that ended at the end of its input. So no child of the agent lives on. Each request that waits for an answer throws.
+The connection starts the agent in a process group of its own. `close_connection!` closes the input of the agent first, because an agent ends when its input ends. A process that still runs after 5 seconds gets `SIGTERM`, sent to the whole group. After 2 more seconds it gets `SIGKILL`. At the end the group gets `SIGTERM` in any case, because a child of the agent can outlive an agent that ended at the end of its input. So no child of the agent lives on. Each request that waits for an answer throws.
 
-A task waits for the end of the agent process and closes the transport then, so a request does not wait for an answer that can not come, even while a child of the agent keeps the output open. `start_agent_connection!` starts an agent again when its transport is closed or its reader ended; the sessions of the old agent ended with it.
+The end of the agent process closes the connection, so a request does not wait for an answer that can not come, even while a child of the agent keeps the output open. `start_agent_connection!` starts an agent again when its connection is closed or its reader ended; the sessions of the old agent ended with it.
+
+The requests that the package sends are the typed requests of `AgentClientProtocol`, such as `PromptRequest`. The translation of the updates reads the JSON object of each update with the defaults of its fields, so a field that an agent leaves out gives no error.
 
 ### The translation of an update
 
@@ -62,7 +64,7 @@ An `AgentToolCallUpdate` takes its `name` from the field `name`, or else from `_
 
 ### The permission request
 
-A `session/request_permission` request of the agent waits on a task of its own. `_answer_permission_request` does this:
+A `session/request_permission` request of the agent waits on a task of its own. The method of `answer_request` for `AcpClientHandler` does this:
 
 1. It looks for the prompt that runs in the session. A request outside a prompt is answered as cancelled.
 2. It makes an `AgentPermissionRequest` with the tool call, the options of the agent and a `reply` function.
@@ -70,7 +72,7 @@ A `session/request_permission` request of the agent waits on a task of its own. 
 4. The first call of `reply` puts the id of the chosen option, or `nothing`, into the channel, and answers `true`. A later call does nothing and answers `false`, so the assistant can show that an answer came after a cancel.
 5. The answer is `selected` with the option id, or `cancelled` for `nothing`.
 
-The wait has a bound. `cancel_agent_prompt!`, the end of the prompt and `stop_agent_connection!` each call `reply(nothing)` for every request that waits. So a request never waits after its turn. The agent can also withdraw one request with the notification `$/cancel_request` and its JSON-RPC id: the connection keeps the reply of each waiting request by that id, calls `reply(nothing)`, and the agent gets the valid answer `cancelled`.
+The wait has a bound. `cancel_agent_prompt!`, the end of the prompt and `stop_agent_connection!` each call `reply(nothing)` for every request that waits. So a request never waits after its turn. The agent can also withdraw one request with the notification `$/cancel_request` and its JSON-RPC id: the handler gives `reply(nothing)` to `add_cancel_callback!` of the request, and the agent gets the valid answer `cancelled`. A request that the agent withdrew before the handler shows it does not reach the person.
 
 A worked example: the agent asks to run `execute_julia_code` with the options `allow_once` and `reject_once`. The assistant draws a card with two buttons. The person clicks the first one, `reply("allow_once")` runs, and the agent gets `{"outcome": {"outcome": "selected", "optionId": "allow_once"}}`. If the person presses Escape before the click, the turn is cancelled, `reply(nothing)` runs, and the agent gets `{"outcome": {"outcome": "cancelled"}}`.
 
@@ -80,7 +82,7 @@ A worked example: the agent asks to run `execute_julia_code` with the options `a
 
 ## How it fits
 
-The package depends on the kernel and on `JSON3`. It does not depend on `ProjecturedPlatform`: it translates to the events of the kernel, and the assistant draws them. The third-party dependency is the reason that it is an opt-in package; see [package-rules.md](../../../rule/package-rules.md). Its `Project.toml` has no `[auto-integration]` section, so the umbrella never loads it. A person loads it with `using ProjecturedACP`.
+The package depends on the kernel and on `AgentClientProtocol`, a package of its own repository in ProjecturedRegistry. It does not depend on `ProjecturedPlatform`: it translates to the events of the kernel, and the assistant draws them. The third-party dependency is the reason that it is an opt-in package; see [package-rules.md](../../../rule/package-rules.md). Its `Project.toml` has no `[auto-integration]` section, so the umbrella never loads it. A person loads it with `using ProjecturedACP`.
 
 The assistant slice builds the connection and drives a turn; [assistant.md](../../platform/assistant/assistant.md) describes that. The agent reaches the tools of the editor through the MCP server of [mcp.md](../mcp/mcp.md). The assistant gives that server to `open_agent_session!` as an entry of `mcp_servers`: a named tuple `(name, url, headers)` that `get_agent_server_access` returns. The package renders each entry as `{"type": "http", "name", "url", "headers": [{"name", "value"}]}`. So ACP carries the conversation, and MCP carries the tools.
 
@@ -127,12 +129,13 @@ The design follows six rules. They are facts of the code, and they are not legal
 
 - `test_acp()` runs the layering guard, `test_acp_update()`, `test_acp_connection()` and `test_acp_transport()`. It needs no network, no Node.js and no sign-in.
 - `test/adapter/acp/FakeAcpAgent.jl` is a fake agent that runs in the test process, on two `Base.BufferStream`s. Each test gives it the handlers of its methods, so it can also ask the client a question.
+- `AgentClientProtocol` has its own tests: the types, a client against an agent in one process, a process, and the recorded messages of `claude-agent-acp`.
 - The transport test starts a small child agent written in Julia. It checks that a grandchild of the agent ends when the connection stops, also when the agent ends first, and that a start after the end of an agent starts a new one.
 - The tests of the assistant turn use `ScriptedAgentConnection`; see [assistant.md](../../platform/assistant/assistant.md).
 
 ## Limits
 
-- The package covers one turn: text, thinking, tool calls, the plan, permission requests, cancel and close. The config options (model, effort, mode), the slash commands, the usage meter, the session title, saved sessions, the sign-in in a terminal, forms and an image in a prompt are not implemented.
+- The package covers a turn and the state of a session: text, thinking, tool calls, the plan, permission requests, cancel, close, the config options (model, effort, mode), the slash commands, the usage meter and the session title. Saved sessions, the sign-in in a terminal, forms and an image in a prompt are not implemented.
 - The thinking of Claude arrives only as a summary, and only because the `_meta` of the session names it. `claude-agent-acp` spreads `_meta.claudeCode.options` of `session/new` over its own SDK options, and a recent model streams no text of its reasoning unless `thinking.display` is `"summarized"`. The assistant sends `{"claudeCode": {"options": {"thinking": {"type": "adaptive", "display": "summarized"}}}}` by default (`agent_session_meta`). Another agent ignores this `_meta`.
 - The prompt carries text only. `send_agent_prompt!` throws an `ArgumentError` for another kind of content.
 - No test runs the real adapter. A change that only the real agent would catch needs a live check with Node.js and a signed-in agent.

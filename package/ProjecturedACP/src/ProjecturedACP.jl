@@ -2,9 +2,9 @@
     ProjecturedACP
 
 The Agent Client Protocol (ACP) client, a package of its own because it needs
-JSON3 and starts an agent in another process. `using ProjecturedACP` registers
-the `:acp` kind of `make_agent_connection`; the slice is `AcpModule`, in
-`source/adapter/acp/`.
+`AgentClientProtocol` and starts an agent in another process.
+`using ProjecturedACP` registers the `:acp` kind of `make_agent_connection`; the
+slice is `AcpModule`, in `source/adapter/acp/`.
 
 The loop below binds every submodule of the packages below this one as a
 `const`, so a source file here names a module exactly as the module names
@@ -28,7 +28,8 @@ end
 include("../../../source/adapter/acp/AcpModule.jl")
 
 # A person loads this package by name, so its names are exported here.
-using .AcpModule: AcpConnection, AcpRequestException
-export AcpConnection, AcpRequestException
+using .AcpModule: AcpConnection
+using AgentClientProtocol: ProtocolException
+export AcpConnection, ProtocolException
 
 end # module ProjecturedACP

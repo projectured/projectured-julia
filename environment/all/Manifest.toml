@@ -2,7 +2,7 @@
 
 julia_version = "1.13.1"
 manifest_format = "2.1"
-project_hash = "8608bdaec6c0a78660f28f0f7f83b82748b3bf37"
+project_hash = "f791e62506cf81e0f235c80130cb9e5da7684a3e"
 
 [[deps.AMD]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
@@ -10,6 +10,12 @@ git-tree-sha1 = "344f3d221a6bee75925b5c97a30cfd870f12a138"
 registries = "General"
 uuid = "14f7f29c-3bd6-536c-9a0b-7339e30b5a3e"
 version = "0.5.4"
+
+[[deps.AgentClientProtocol]]
+deps = ["JSON"]
+path = "../../../agent-client-protocol"
+uuid = "9897b34e-e318-42ec-8700-51bd28135f60"
+version = "0.1.0"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -925,7 +931,7 @@ uuid = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 version = "0.1.0"
 
 [[deps.ProjecturedACP]]
-deps = ["JSON3", "ProjecturedKernel"]
+deps = ["AgentClientProtocol", "ProjecturedKernel"]
 path = "../../package/ProjecturedACP"
 uuid = "c086a6dc-7bb1-453d-ac62-5c5ddfbfdd44"
 version = "0.1.0"

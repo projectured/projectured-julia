@@ -38,7 +38,7 @@ function test_acp_transport()
             connection = make_agent_connection(:acp; command = _make_child_command(),
                                                environment = Dict("CHILD_AGENT_ANSWER" => _CHILD_ANSWER))
             start_agent_connection!(connection)
-            @test connection.agent_info["title"] == "Child Agent"
+            @test connection.agent_info.title == "Child Agent"
             process = connection.transport.process
             stop_agent_connection!(connection)
             @test process_exited(process)
@@ -80,7 +80,7 @@ function test_acp_transport()
                 rm(pid_file)
                 start_agent_connection!(connection)
                 @test connection.transport.process !== first_process
-                @test connection.agent_info["title"] == "Child Agent"
+                @test connection.agent_info.title == "Child Agent"
                 stop_agent_connection!(connection)
             end
         end

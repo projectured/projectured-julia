@@ -89,7 +89,7 @@ function _read_tool_call(update::Dict{String,Any})
     raw_output = get(update, "rawOutput", nothing)
     output = content isa Vector{Any} && !isempty(content) ? _format_tool_content(content) :
              raw_output isa AbstractString ? String(raw_output) :
-             raw_output === nothing ? nothing : JSON3.write(raw_output)
+             raw_output === nothing ? nothing : ACP.write_json(raw_output)
     AgentToolCallUpdate(string(get(update, "toolCallId", ""));
                         name, title = _find_string(update, "title"),
                         kind = _find_symbol(update, "kind"),

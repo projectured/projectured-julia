@@ -21,8 +21,8 @@ function test_acp_connection()
                   Dict{String,Any}("readTextFile" => false, "writeTextFile" => false)
             @test initialize["clientCapabilities"]["terminal"] == false
             @test initialize["clientInfo"]["name"] == "projectured"
-            @test connection.agent_info["title"] == "Fake Agent"
-            @test haskey(connection.agent_capabilities, "sessionCapabilities")
+            @test connection.agent_info.title == "Fake Agent"
+            @test connection.agent_capabilities.session_capabilities.close !== nothing
             stop_agent_connection!(connection)
             @test connection.transport === nothing
         end
@@ -148,7 +148,7 @@ function test_acp_connection()
 
         @testset "an agent that needs a sign-in says how" begin
             agent = _make_fake_agent(Dict{String,Function}(
-                "session/new" => (agent, params) -> throw(AcpRequestException(-32000, "Authentication required"))))
+                "session/new" => (agent, params) -> throw(ProtocolException(-32000, "Authentication required"))))
             connection = make_fake_connection(agent)
             message = try
                 open_agent_session!(connection)
@@ -270,7 +270,7 @@ function test_acp_connection()
                                on_event = event -> event isa AgentPermissionRequest && push!(requests, event))
             @test outcome[] == Dict{String,Any}("outcome" => "cancelled")
             @test only(requests).reply("allow") == false
-            @test isempty(connection.withdrawable_replies)
+            @test isempty(connection.transport.answering)
             stop_agent_connection!(connection)
         end
 
@@ -306,7 +306,7 @@ function test_acp_connection()
                 "session/prompt" => (agent, params) -> (close(agent.to_client); Dict("stopReason" => "end_turn"))))
             connection = make_fake_connection(agent)
             session_id = open_agent_session!(connection)
-            @test_throws AcpRequestException send_agent_prompt!(connection, session_id, [LlmText("Hi")];
+            @test_throws ProtocolException send_agent_prompt!(connection, session_id, [LlmText("Hi")];
                                                                 on_event = identity)
             stop_agent_connection!(connection)
         end

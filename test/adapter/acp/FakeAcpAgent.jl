@@ -7,7 +7,7 @@
     FakeAcpAgent(handlers)
 
 An agent that answers the request `method` with `handlers[method](agent, params)`.
-A handler answers a result, or throws an `AcpRequestException` for an error
+A handler answers a result, or throws a `ProtocolException` for an error
 answer. It runs on a task of its own, so it can send updates with
 `send_fake_update` and ask the client with `ask_fake_client` before it answers.
 A request with no handler gets "method not found".
@@ -92,10 +92,10 @@ function _answer_fake_request(agent::FakeAcpAgent, message::Dict{String,Any})
     handler = get(agent.handlers, method, nothing)
     answer = try
         handler === nothing &&
-            throw(AcpRequestException(-32601, "the fake agent has no method `$(method)`"))
+            throw(ProtocolException(-32601, "the fake agent has no method `$(method)`"))
         Dict("jsonrpc" => "2.0", "id" => message["id"], "result" => handler(agent, params))
     catch exception
-        exception isa AcpRequestException || rethrow()
+        exception isa ProtocolException || rethrow()
         Dict("jsonrpc" => "2.0", "id" => message["id"],
              "error" => Dict("code" => exception.code, "message" => exception.message))
     end
