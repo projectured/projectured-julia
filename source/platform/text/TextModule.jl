@@ -69,7 +69,7 @@ export TextBlockToString, TextStringToString, TextNewlineToString, TextSpacingTo
 export TextLineNumbering, LineNumbering
 export WordWrapping, WordWrappingIoMap, WrapSegment
 export make_text_pattern
-export TextFiltering, TextFilteringIoMap
+export FilteredText, FilteredTextToText, FilteredTextToTextIoMap
 export TextFirstLine, TextFirstLineIoMap
 export HighlightedText, HighlightedTextToText, HighlightedTextToTextIoMap, HighlightSegment
 export SelectionInverting, SelectionInvertingIoMap, SelectionSegment
@@ -93,7 +93,7 @@ include("TextLineNumbering.jl")
 include("TextFolding.jl")
 include("WordWrapping.jl")
 include("TextPattern.jl")
-include("TextFiltering.jl")
+include("FilteredTextToText.jl")
 include("TextFirstLine.jl")
 include("HighlightedTextToText.jl")
 include("SelectionInverting.jl")

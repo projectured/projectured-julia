@@ -11,6 +11,7 @@ const _splice_value! = ProjecturedKernel.OperationModule.splice_value!
 # and a plain block as it is.
 _ii_text_stage() = RecursiveProjection(TypeDispatchingProjection(
     HighlightedText => HighlightedTextToText(),
+    FilteredText    => FilteredTextToText(),
     TextBlock       => IdentityProjection()))
 
 # The block of a document that is a block or wraps one in its `text`.
@@ -223,12 +224,14 @@ end
     # A wrapper of a text, such as a highlight, is the document, and its stage
     # passes the edit to the block in its `text`.
     decorators = (WordWrapping(measure = measure, max_width = 1000),
-                  TextFiltering(r""), TextFirstLine(), TextLineNumbering())
+                  TextFirstLine(), TextLineNumbering())
     chains = Any[(TextToGraphics(measure = measure), identity),
                  ((ChainingProjection(d, TextToGraphics(measure = measure)), identity)
                   for d in decorators)...,
                  (ChainingProjection(_ii_text_stage(), TextToGraphics(measure = measure)),
-                  block -> HighlightedText(text = block, pattern = "b"))]
+                  block -> HighlightedText(text = block, pattern = "b")),
+                 (ChainingProjection(_ii_text_stage(), TextToGraphics(measure = measure)),
+                  block -> FilteredText(text = block))]
     for (projection, wrap) in chains
         editor(block) = _InlineImageEditor(wrap(block))
         block_of(e) = _ii_block_of(e.document)
@@ -324,11 +327,14 @@ end
     plain(decorator) = (string(nameof(typeof(decorator))),
                         ChainingProjection(decorator, TextToGraphics(measure = measure)), identity)
     entries = Any[(plain(d) for d in (WordWrapping(measure = measure, max_width = 1000),
-                                      TextFiltering(r"ab"), TextFirstLine(), TextLineNumbering(),
+                                      TextFirstLine(), TextLineNumbering(),
                                       SelectionInverting(block_cursor = false)))...,
                   ("HighlightedTextToText",
                    ChainingProjection(_ii_text_stage(), TextToGraphics(measure = measure)),
-                   block -> HighlightedText(text = block, pattern = "b"))]
+                   block -> HighlightedText(text = block, pattern = "b")),
+                  ("FilteredTextToText",
+                   ChainingProjection(_ii_text_stage(), TextToGraphics(measure = measure)),
+                   block -> FilteredText(text = block, pattern = "ab"))]
     for (name, projection, wrap) in entries
         document = wrap(TextBlock(_image(), _run("ab"), _image()))
         # The flat offset after `event` from caret `k`, back in the document, and

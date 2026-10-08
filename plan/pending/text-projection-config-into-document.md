@@ -273,11 +273,36 @@ of the step, not `test_all()`.
      `walk_repl_loop` report no error on the example `text_highlighting`; the
      naming guard passes.
 
-3. ⬜ **`FilteredText` and `FilteredTextToText`; `TextFiltering` goes.** The same,
+3. ✅ **`FilteredText` and `FilteredTextToText`; `TextFiltering` goes.** The same,
    with `invert`, `TextFilteringTest.jl` (10 call sites), its example, and the
    other 2 call sites of `InlineImageCaretTest.jl`. And a `FilteredText` around a
    `HighlightedText`: the filter keeps the highlighted lines, and a caret and an
    edit map back through both.
+
+   **Done 2026-10-08.** What the implementation found and decided:
+   - **The helpers of step 2 serve as they are.** `FilteredTextToText` prints
+     `text` through the recursion of its stage and uses `_forward_map_text`,
+     `_backward_map_text` and `_read_text_operation`. The box and caret logic of
+     the backward map moved into `_backward_map_kept`, which takes the kept
+     table and the two blocks. `_filter`, `_make_filter_runs` and `_forward_map`
+     did not change.
+   - **`_effective_pattern` is gone**: `make_text_pattern` of step 1 takes its
+     place, and a pattern that does not compile keeps every line.
+   - **A filter around a highlight works with no new code.** The text stage
+     holds both rows, the filter prints the `HighlightedText` through the
+     recursion, and filters the block that the highlight gives. A caret maps
+     back to `text.text…`, and an edit of a highlighted run writes the block.
+   - `TextFiltering.jl` moved to `FilteredTextToText.jl` with `git mv`.
+     `TextFilteringTest.jl` became `FilteredTextToTextTest.jl`, and
+     `test_text_filtering` became `test_filtered_text_to_text`, also in the
+     umbrella suite.
+   - **Still not green until steps 4 and 5:** `ProjectionConfiguringTest.jl`,
+     the gallery branches `text_highlighting` and `text_filtering`, and the
+     comment in `GalleryWrapperProjectionExample.jl` name the old projections.
+   - `test_filtered_text_to_text()` 37 pass, `test_highlighted_text_to_text()`
+     86, `test_inline_image_caret()` 261, `test_object_to_widget()` passes;
+     `walk_printer_output` and `walk_repl_loop` report no error on the examples
+     `text_filtering` and `text_highlighting`; the naming guard passes.
 4. ⬜ **The view and the gallery.** The view document, its projection, which
    arranges the bar and the content by `overlaid`, and its `@gestures` table. A
    function of the examples makes the view and its projection, and takes the

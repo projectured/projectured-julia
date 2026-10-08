@@ -395,6 +395,36 @@ See also `make_text_pattern`, which makes the pattern from the fields.
     case_insensitive::Bool = false
 end
 
+# ── FilteredText ────────────────────────────────────────────────────────────
+
+"""
+    FilteredText(; text, pattern = "", regex = false, case_insensitive = false,
+                 invert = false)
+
+A text with only the lines that match a pattern: the `grep` of a find bar.
+
+Use it to narrow a text to the lines that a person looks for, and to let the
+person change the pattern. `text` is the text: a `TextBlock`, or another
+document whose projection gives one, such as a `HighlightedText`. `pattern`,
+`regex` and `case_insensitive` make the pattern, as for `HighlightedText`
+(`make_text_pattern`), and `invert` keeps the lines that do not match. An empty
+pattern keeps every line. `FilteredTextToText` draws it.
+
+# Example
+
+    FilteredText(text = HighlightedText(text = block, pattern = "dolor"),
+                 pattern = "dolor")   # the lines with "dolor", marked
+
+See also `HighlightedText`, which marks the matches and keeps every line.
+"""
+@document struct FilteredText
+    text::Any
+    pattern::String = ""
+    regex::Bool = false
+    case_insensitive::Bool = false
+    invert::Bool = false
+end
+
 # ── Span coordinates ──────────────────────────────────────────────────────
 #
 # A span's coordinate within a block is an *index path*, not a single index:
@@ -634,7 +664,7 @@ caret a *lowered* `ReplaceStringRangeOperation` leaves behind after a character 
 `nothing` for a range, a whole-element `∅` / `TextSpanReferenceStep` selection, or any
 non-caret shape.
 
-The text→text decorators (`WordWrapping`, `LineNumbering`, `TextFiltering`,
+The text→text decorators (`WordWrapping`, `LineNumbering`, `FilteredTextToText`,
 `HighlightedTextToText`, `SelectionInverting`) forward-map the cursor through this, so the
 caret renders no matter which representation the last operation left on the block —
 without it, a structural caret maps to nothing and the cursor disappears after an edit.
@@ -1103,7 +1133,7 @@ function get_flat_selection(text::TextBlock)
 end
 
 # ── Decorator flat↔element helpers ─────────────────────────────────────────
-# The text→text decorators (WordWrapping, LineNumbering, TextFiltering,
+# The text→text decorators (WordWrapping, LineNumbering, FilteredTextToText,
 # HighlightedTextToText, SelectionInverting) remap the flat cursor between their input
 # and output blocks through a per-span seg table keyed on element index + char.
 # These bridge a flat offset (the break/indentation-aware caret space) and the
