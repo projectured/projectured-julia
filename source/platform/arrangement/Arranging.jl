@@ -49,8 +49,10 @@ get_child_iomaps(iomap::ArrangingIoMap) = Any[iomap.inner_iomap]
 # Everything goes on to the document, and the answer is rooted under the field
 # `document`, so its reference is valid against the arrangement. A gesture with a
 # route goes the way of every container, so the gesture table of the
-# arrangement reads it too, as the context menu of a value needs. An edit that
-# leaves the arrangement with no entry takes the arrangement away.
+# arrangement reads it too, as the context menu of a value needs. An
+# `ArrangeCollectionOperation` from inside the document becomes the edit of the
+# arrangement, and an edit that leaves the arrangement with no entry takes the
+# arrangement away.
 function read_intent(p::ArrangingProjection, recursion, change::Intent, iomap::ArrangingIoMap)
     if change.route !== nothing
         answer = read_routed_child(recursion, change, iomap)
@@ -60,7 +62,20 @@ function read_intent(p::ArrangingProjection, recursion, change::Intent, iomap::A
         answer = read_intent(get_iomap_projection(inner), recursion, change, inner)
         operation = reroot_operation(answer isa Intent ? answer.operation : answer, (FieldReferenceStep("document"),))
     end
+    operation = _make_arranged_change(iomap.input, operation)
     Intent(change.gesture, _take_away_when_empty(iomap.input, operation))
+end
+
+# `operation`, or the edit of `arrangement` that it makes when it arranges a
+# collection inside the document of `arrangement`.
+function _make_arranged_change(arrangement::ArrangementDocument, operation)
+    operation isa ArrangeCollectionOperation || return operation
+    at = @reference_case strip_reference_types(operation.at) begin
+        document.rest... => rest
+        __ => nothing
+    end
+    at === nothing && return operation
+    make_arrangement_change_edit(arrangement, ArrangeCollectionOperation(at, operation.description))
 end
 
 # `operation`, or the edit that puts the document of `arrangement` in its place

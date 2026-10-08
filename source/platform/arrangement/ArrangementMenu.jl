@@ -53,10 +53,7 @@ function make_arrangement_edits(arrangement::ArrangementDocument, item)
     for (label, key) in _make_item_sort_keys(item)
         push!(edits, (label, _make_sort_edit(arrangement, entry, item.at, key)))
     end
-    if entry !== nothing
-        e = findfirst(other -> other === entry, collect(arrangement.entries))
-        push!(edits, ("Show all", _make_splice(arrangement, "entries", e - 1, e, Any[])))
-    end
+    entry === nothing || push!(edits, ("Show all", make_entry_removal_edit(arrangement, entry)))
     edits
 end
 

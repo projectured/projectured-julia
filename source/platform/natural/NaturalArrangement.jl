@@ -156,14 +156,10 @@ function _make_chip_removal(arrangement, entry, i::Int, description, k::Int)
     _make_entry_removal(arrangement, entry)
 end
 
-# The edit that takes `entry` away from `arrangement`.
-function _make_entry_removal(arrangement, entry)
-    arrangement === nothing && return nothing
-    e = findfirst(other -> other === entry, collect(arrangement.entries))
-    e === nothing && return nothing
-    ReplaceReferencedValueOperation(arrangement,
-        extend_reference(EmptyReference(), FieldReferenceStep("entries"), RangeReferenceStep(e - 1, e)), Any[])
-end
+# The edit that takes `entry` away from `arrangement`, which is `nothing` when the
+# bar prints outside an arrangement.
+_make_entry_removal(arrangement, entry) =
+    arrangement === nothing ? nothing : make_entry_removal_edit(arrangement, entry)
 
 # The menu of an arranged document on a right click: the edits of the value under
 # the pointer, which filter or sort the collection that holds it.

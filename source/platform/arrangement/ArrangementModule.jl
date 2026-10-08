@@ -24,9 +24,11 @@ using ..ReferenceModule
 import ..DocumentModule: get_document_title
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
                            get_child_iomaps
+import ..OperationModule: operation_reference, retarget_operation
 
 export ArrangementDocument, ArrangementEntry, ArrangementChips, ArrangementFilter, ArrangementCondition,
        ArrangementSort, ArrangementSortKey
+export ArrangeCollectionOperation, make_arrangement_change_edit, make_first_arrangement, make_entry_removal_edit
 export make_arrangement_projection, ArrangingProjection, ArrangingIoMap, make_arranged_dispatch,
        find_arranged_projection, ArrangedChainingProjection, get_arranged_wrap_steps
 export PickingProjection, PickingIoMap, get_arrangement_value, compute_filter_rows, is_condition_holding,
@@ -34,6 +36,7 @@ export PickingProjection, PickingIoMap, get_arrangement_value, compute_filter_ro
 export find_arranged_item, make_arrangement_edits, make_first_arrangement_edits
 
 include("ArrangementDocument.jl")
+include("ArrangeCollectionOperation.jl")
 include("Arranging.jl")
 include("Picking.jl")
 include("ArrangementMenu.jl")

@@ -460,7 +460,60 @@ Each step ends with its own tests and a commit, in a worktree.
       `VerticalLayout`. No recursion passes that place, so the arrangement
       does not act there. Step 7 puts a stage at the parent node for such a
       field collection.
-  - [ ] **3d.** The quick text field, the header gestures, and find.
+  - [ ] **3d.** The quick text field, the header gestures, and find. The
+    owner's answers (2026-10-08) to my four recommendations:
+    1. "yes": a sort glyph in the header of each table that the natural
+       renderer draws, as the data frame view has: a click goes off, ↑, ↓,
+       and Shift+click adds a key. A press on the label still selects the
+       column.
+    2. "(b)": a new operation, `ArrangeCollectionOperation(at, description)`.
+       The nearest reader that holds an arrangement, or that can make one,
+       turns it into the edit. The verbs of the assistant use it too.
+    3. "yes": a quick text field at the end of the bar keeps the items where
+       any value inside the item contains the text, with a key form for "any
+       value"; the menu gets "Filter by text…", which makes the entry and puts
+       the caret in the field.
+    4. "agreed": find moves the selection only, as in the data frame view
+       (Ctrl+F, F3, Shift+F3), and marks no match yet.
+
+    Facts found before the code:
+    - The natural renderer draws no table of data with a header: a vector of
+      records prints as reflected syntax or a stack of blocks, and only some
+      domains build a `WidgetTable`. The printer of any table comes in step 5,
+      so the glyph goes with step 5.
+    - A field in the bar needs its caret at a path in the entry, such as
+      `entries[1].projections[1].conditions[2].value`, because there is one
+      selection from the root. The bar draws at the collection, inside the
+      print of the document, so `ArrangingProjection` can not map such a path
+      forward to the field, and a key with that route reaches no field. The
+      quick text field and the field of find wait for a decision of how.
+
+    Parts:
+    - [x] **3d-1.** `ArrangeCollectionOperation` and its two holders: the
+      reader of `ArrangingProjection` and the reader of the pane tree. Done
+      2026-10-08:
+      - `ArrangeCollectionOperation(at, description)` is a path operation
+        (`operation_reference` and `retarget_operation`), so every reader on
+        the way out reroots and maps `at` as it maps any path. Its description
+        gives way to the description of the same kind at `at` (mine): a
+        filter or a sort with items replaces the items of the one there, which
+        keeps its identity, so the chain of the place is not built again; an
+        empty one takes its kind away; `nothing` takes the entry away, as Show
+        all does. A new filter goes first in an entry, any other kind last.
+      - `make_arrangement_change_edit(arrangement, operation)` and
+        `make_first_arrangement(document, operation)` in the slice
+        `arrangement`; the reader of `ArrangingProjection` uses the first, and
+        the pane reader the second, for a tab whose content nobody arranged.
+        `make_entry_removal_edit` moved from the natural slice to the
+        arrangement slice, so both use it.
+      - The pane reader maps `at` back to the tree and walks it to the content
+        of a tab, with the walk that the outward read of a right click uses
+        (`_walk_pane_path`). `PaneArrangement.jl` is included after
+        `PaneToWidget.jl`, so it holds this reader beside the menu of a tab.
+      - `test_arrange_collection_operation` (20): the edits of an
+        arrangement, the first arrangement, and in an editor an operation
+        lifted from the content of a tab, then from inside the arranged
+        content, and then `nothing`, which gives the plain document back.
 - [ ] **4.** The verbs of the assistant, as edits of the view document, and the
   read of an entry.
 - [ ] **5.** The widget table takes any table, with the lazy rows from an anchor

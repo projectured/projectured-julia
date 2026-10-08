@@ -1,5 +1,6 @@
 # Fragment of `PaneModule` — the first arrangement of the content of a tab: the
-# menu of a value in a content that nobody arranged.
+# menu of a value in a content that nobody arranged, and the operation that
+# arranges a collection in such a content.
 
 # The menu of the value under the pointer in a tab whose content nobody
 # arranged: the edits that filter or sort the collection that holds the value,
@@ -24,4 +25,19 @@ function _make_first_arrangement_menu(tab::PaneTab)
     edits = make_first_arrangement_edits(content, item,
         arrangement -> ReplaceReferencedValueOperation(tab, "content", arrangement))
     WidgetMenu(Any[WidgetMenuItem(label; operation) for (label, operation) in edits])
+end
+
+# A collection in the content of a tab that nobody arranged: the first
+# arrangement of the content goes in its place. The reader of an arranged content
+# answers the operation itself, so it comes here only from a content that nobody
+# arranged.
+function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap, operation::ArrangeCollectionOperation)
+    path = map_reference_backward(p, iomap, operation.at)
+    path isa Reference || return nothing
+    path = strip_reference_types(path)
+    (steps, tab) = _walk_pane_path(iomap.input, path)
+    (tab === nothing || tab.content isa ArrangementDocument) && return nothing
+    at = extend_reference(EmptyReference(), collect(get_reference_steps(path))[length(steps) + 1:end]...)
+    arrangement = make_first_arrangement(tab.content, ArrangeCollectionOperation(at, operation.description))
+    arrangement === nothing ? nothing : ReplaceReferencedValueOperation(tab, "content", arrangement)
 end

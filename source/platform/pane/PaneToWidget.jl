@@ -653,17 +653,17 @@ end
 function _read_pane_outward(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap, change::Intent)
     tree = iomap.input
     answer = change.operation === nothing ? nothing : read_intent(p, iomap, change.operation)
-    (steps, with_part) = _find_pane_stretch(tree, get_mouse_target(tree))
-    read_gesture_outward(answer, change.gesture, tree; steps, with_part)
+    (steps, tab) = _walk_pane_path(tree, get_mouse_target(tree))
+    read_gesture_outward(answer, change.gesture, tree; steps, with_part = tab === nothing)
 end
 
-# The steps of `path` that stay in the pane tree, and whether the part at their
-# end belongs to the pane tree. The walk ends at the content of a tab, the one
-# place where a document of another domain enters the tree, which the stage below
-# reads.
-function _find_pane_stretch(tree::PaneTree, path)
+# The steps of `path`, a path from the tree, that stay in the pane tree, and the
+# tab whose content the last of them goes into, or `nothing` when the part at
+# their end belongs to the pane tree. The content of a tab is the one place where
+# a document of another domain enters the tree, and the stage below reads it.
+function _walk_pane_path(tree::PaneTree, path)
     steps = ReferenceStep[]
-    path isa ConcreteReference || return (steps, true)
+    path isa ConcreteReference || return (steps, nothing)
     node = tree
     for step in get_reference_steps(path)
         parent = node
@@ -675,9 +675,9 @@ function _find_pane_stretch(tree::PaneTree, path)
         end
         push!(steps, step)
         parent isa PaneTab && step isa FieldReferenceStep && step.name == "content" &&
-            return (steps, false)
+            return (steps, parent)
     end
-    (steps, true)
+    (steps, nothing)
 end
 
 function _focus_from_press(iomap::PaneTreeToWidgetIoMap, press)
