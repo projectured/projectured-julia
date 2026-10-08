@@ -826,16 +826,29 @@ read_intent(::SqlWhereClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 # ── SqlScalarValueToSyntaxLeaf ───────────────────────────────────────────────
 
 @projection UntrackedCell struct SqlScalarValueToSyntaxLeaf
-    style::StyleText = get_sql_style(nothing, :plain_text)
+    bool_style::StyleText = get_sql_style(nothing, :bool_text)
+    number_style::StyleText = get_sql_style(nothing, :number_text)
+    string_style::StyleText = get_sql_style(nothing, :string_text)
 end
 
-@projection_template SqlScalarValueToSyntaxLeaf SqlScalarValue (p, doc) ->
-    SyntaxLeaf(TextString(() -> begin
-                   val = doc.value
-                   val isa Bool           ? (val ? "TRUE" : "FALSE") :
-                   val isa AbstractString ? _quote_string_literal(val) :
-                   string(val)
-               end, p.style))
+@projection_template SqlScalarValueToSyntaxLeaf SqlScalarValue (p, doc) -> begin
+    style = Cell(@computation _get_sql_value_style(p, doc.value))
+    SyntaxLeaf(TextString(Cell(@computation begin
+                              val = doc.value
+                              val isa Bool           ? (val ? "TRUE" : "FALSE") :
+                              val isa AbstractString ? _quote_string_literal(val) :
+                              string(val)
+                          end),
+                          Cell(@computation style[].font), Cell(@computation style[].color),
+                          Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing)))
+end
+
+# The style of the kind of `value`: a boolean, a string, or a number.
+function _get_sql_value_style(p::SqlScalarValueToSyntaxLeaf, value)
+    value isa Bool && return p.bool_style
+    value isa AbstractString && return p.string_style
+    p.number_style
+end
 
 # The text of a string literal: the value between two quotes, with each quote in
 # it written twice.
@@ -1926,7 +1939,9 @@ function SqlToSyntax(; theme = nothing, syntax_theme = nothing)
         SqlRightOuterJoin       => jt,
         SqlFullOuterJoin        => jt,
         SqlCrossJoin            => jt,
-        SqlScalarValue          => SqlScalarValueToSyntaxLeaf(; leaf_plain_style...),
+        SqlScalarValue          => SqlScalarValueToSyntaxLeaf(; bool_style = get_style(:bool_text),
+                                                             number_style = get_style(:number_text),
+                                                             string_style = get_style(:string_text)),
         SqlRawExpression        => SqlRawExpressionToSyntaxLeaf(; leaf_plain_style...),
         SqlRawCondition         => SqlRawConditionToSyntaxLeaf(; leaf_plain_style...),
         SqlComparison           => SqlComparisonToSyntaxNode(; clause_styles...),
