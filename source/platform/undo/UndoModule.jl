@@ -52,7 +52,8 @@ using ..EditorModule
 using ..ProjectionAlgebraModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..DocumentModule: get_wrapped_document, replace_wrapped_document!, get_edited_field
+import ..DocumentModule: get_wrapped_document, replace_wrapped_document!, get_edited_field,
+                         get_document_title
 import ..OperationModule: evaluate_operation, make_inverse_operation,
                           get_wrapped_operation, rewrap_operation,
                           is_self_contained_operation

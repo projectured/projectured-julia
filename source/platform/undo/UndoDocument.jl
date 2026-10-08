@@ -92,6 +92,9 @@ get_wrapped_document(buffer::UndoBuffer) = get_wrapped_document(buffer.content)
 # A person edits the document that a history keeps the steps of.
 get_edited_field(::UndoBuffer) = :content
 
+# A tab that holds a history is called after the document in it.
+get_document_title(buffer::UndoBuffer) = get_document_title(buffer.content)
+
 # A buffer survives its document being replaced, and forgets its history: the
 # steps of the old document say nothing about the new one.
 function replace_wrapped_document!(buffer::UndoBuffer, document)

@@ -6,7 +6,9 @@ write gate, and recreation after an external deletion.
 
 using Test
 using ProjecturedPlatform.SerializationModule
-using ProjecturedKernel.DocumentModule: @document
+using ProjecturedPlatform.FileFormatModule: make_file_tab, make_file_tab_content
+using ProjecturedPlatform.UndoModule: UndoBuffer
+using ProjecturedKernel.DocumentModule: @document, get_document_title
 
 """
 A file whose whole node is its content: its title and its body are the file,
@@ -59,6 +61,17 @@ function test_text_file()
             # one file can name another.
             @test save_project!(FileProject(d, [note, TextFile("b.txt", "plain")]))
             @test read(joinpath(d, "b.txt"), String) == "plain"
+            # A tab holds the file itself under its absolute path, and a history
+            # goes around the file, because no content inside it can hold one.
+            path = joinpath(d, "a.note")
+            tab = make_file_tab(path)
+            @test tab isa NoteFile
+            @test get_filename(tab) == abspath(path)
+            @test tab.title == "Title" && tab.body == "Body"
+            buffer = make_file_tab(path, UndoBuffer)
+            @test buffer isa UndoBuffer && buffer.content isa NoteFile
+            @test get_filename(buffer.content) == abspath(path)
+            @test get_document_title(make_file_tab_content(path, UndoBuffer)) == "a.note"
         finally
             rm(d; recursive = true, force = true)
         end

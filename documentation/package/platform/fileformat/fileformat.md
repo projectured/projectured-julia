@@ -36,7 +36,7 @@ A path that does not exist opens as `make_document_seed(Val(extension))`. A doma
 
 ### A file in a tab
 
-`make_file_tab(path, wrap = identity)` makes the file document of a tab: the type that the extension is registered under, with the absolute path and the content of `read_document_file`. `wrap` applies to the content first. An application gives every file an overlay with it, for example `make_file_tab(path, UndoBuffer)` for an undo history, and this package does not name the overlay.
+`make_file_tab(path, wrap = identity)` makes the file document of a tab: the type that the extension is registered under, with the absolute path and the content of `read_document_file`. `wrap` applies to the content first. An application gives every file an overlay with it, for example `make_file_tab(path, UndoBuffer)` for an undo history, and this package does not name the overlay. A file that is its own content (`is_own_content`), such as a `NedFile`, has no content apart from itself: the tab holds the file that `make_file` builds under the absolute path, and `wrap` applies to the file.
 
 `make_file_tab_content(path, wrap = identity)` makes the content of a tab that shows the file: the file document of `make_file_tab` in a `WidgetScrollPane`, so a file longer than its tab scrolls. The scroll is made where the file tab is made, and not by the tab, because a tab page gets no scroll of its own: a page can hold two parts that each scroll. The application and `OpenFileOperation` open each file tab with it.
 

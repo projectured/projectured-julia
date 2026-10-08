@@ -107,7 +107,7 @@ seed and saving creates the file.
 make_document_for(path::AbstractString) = make_document_seed(Val(_ext_symbol(_ext(path))))
 
 """
-    make_file_tab(path, wrap = identity) -> FileDocument
+    make_file_tab(path, wrap = identity) -> file document, or what `wrap` makes of it
 
 The file document a tab opens for `path`: the type its extension is registered
 under, holding the absolute path and [`read_document_file`](@ref)'s content. A
@@ -118,12 +118,23 @@ and `ReloadFileOperation` read the file back through, and what
 the working directory still saves and reloads through the file it was opened
 from.
 
+A file that is its own content ([`is_own_content`](@ref)), such as a `NedFile`,
+holds no content apart from itself. The tab then holds the file that
+[`make_file`](@ref) builds from the text under the absolute path.
+
 `wrap` is applied to the content before the file holds it. It is how an
 application gives every file it opens an overlay of its own — a history, say —
-without this layer naming one.
+without this layer naming one. A file that is its own content is its content, so
+`wrap` is applied to the file, and the result is what `wrap` makes.
 """
-make_file_tab(path::AbstractString, wrap = identity) =
-    get_file_document_type(path)(abspath(path), wrap(read_document_file(path)))
+function make_file_tab(path::AbstractString, wrap = identity)
+    file_type = get_file_document_type(path)
+    content = read_document_file(path)
+    is_own_content(content) || return file_type(abspath(path), wrap(content))
+    # The read built the file with the name that its parser gives, which is not the
+    # absolute path.
+    wrap(make_file(file_type, abspath(path), read(path, String)))
+end
 
 """
     make_file_tab_content(path, wrap = identity) -> WidgetScrollPane
