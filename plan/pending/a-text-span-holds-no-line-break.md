@@ -148,7 +148,10 @@ One at a time, with the owner.
   names the type it makes. The option not taken: a projection per domain through
   `project(:text; as = …)`.
 - **N1c A text document in a field.** What the recursion of the domain-to-syntax
-  stage does with a text document that a field holds. Open.
+  stage does with a text document that a field holds. **Left open, the owner,
+  2026-10-08:** no domain holds a text document in a field today, so the row
+  waits for the first domain that does; the likely row is a leaf whose value is
+  that document itself.
 - **N2 A child on each line.** What replaces `sep = TextString("\n")`: a compound
   that puts each child on a line of its own with no indentation, through the
   `indentation` that exists or a new field.
