@@ -255,15 +255,15 @@ new roles.
 Part A is done on the branch `value-colors`. Nothing is on `main`.
 
 1. ✅ `ColorTheme`: the five roles of section 4.2, with their high contrast
-   values (`831f2dfc7`).
-2. ✅ Section 6.1: each field names the role of its kind (`f2606dcfd`). The
+   values (`50f5674a5`).
+2. ✅ Section 6.1: each field names the role of its kind (`89a2694dd`). The
    field `char_text` of `SyntaxTheme` (section 6.2) went into this commit,
    because it is in the same file as the fields of section 6.1.
 3. ✅ Section 6.2: the fields of `JuliaTheme` and `JuliaCodePieces`
-   (`6f0118e2c`). `<:`, `->` and the `$` of an interpolation take
+   (`289e6dfdd`). `<:`, `->` and the `$` of an interpolation take
    `operator_text`.
 4. ✅ Section 6.3: `SqlTheme` has `bool_text`, `number_text` and `string_text`
-   (`95d2bd7aa`). A `SqlScalarValue` can hold any kind, so the leaf computes
+   (`8a3f14465`). A `SqlScalarValue` can hold any kind, so the leaf computes
    its style from the present value, as `RstRoleToStyledLeaf` computes its
    color, and the style follows an edit that changes the kind.
 5. ✅ Tests, in the commits above:
@@ -516,17 +516,17 @@ caret stay as they are.
 
 1. ✅ `ColorTheme`: the roles of section 10.7; the themes that change only a
    role (`DbCatalogTheme`, `ProcessTheme`, `FormulaTheme`, `FileSystemTheme`,
-   `ReferenceTheme`, `XmlTheme`, `MathTheme`) (`a0923d531`). The old roles
+   `ReferenceTheme`, `XmlTheme`, `MathTheme`) (`fa2eeb022`). The old roles
    `definition` and `reference` stayed until step 6, so that each commit
    builds with no view that names a role the theme does not have.
-2. ✅ SQL (`83c728f66`). Each name stays one leaf: `q.col` takes the style of
+2. ✅ SQL (`25e077b8b`). Each name stays one leaf: `q.col` takes the style of
    a column, and `table AS alias` the style of a table, so the leaves and the
    places of the caret stay as they are. The alias of a select item and of a
    subquery is a leaf of its own and takes `alias_text`.
-3. ✅ FSM (`72f32d094`). `stay` and `ignore` take the keyword style, because
+3. ✅ FSM (`7501ec702`). `stay` and `ignore` take the keyword style, because
    the ending leaf is a target only when the transition has one.
-4. ✅ RST (`f6fe38d70`).
-5. ✅ Julia: the names in a single slot (`6850d1102`). A slot whose place gives the kind
+4. ✅ RST (`a1c0f31a4`).
+5. ✅ Julia: the names in a single slot (`758c9f10c`). A slot whose place gives the kind
    prints a bare identifier with
    `project(:slot; as = _style_identifier(style))`, the feature that the callee
    of a call uses: the name of a function at its definition (bold), the result
@@ -537,7 +537,7 @@ caret stay as they are.
    `draw_texts`, gives the text, the color and the weight of each drawn piece,
    so the test asserts what the screen shows.
 6. ✅ The roles `definition` and `reference` go away; the style guide names the
-   roles of the names (`6e98e6eed`).
+   roles of the names (`f3619da2d`).
 7. ✅ Tests of each step, and screenshots in `/var/tmp/value-colors/sample2`
    (a Julia module, a SQL query, an XML element and the reflection of an FSM,
    in light and dark). The tests of each step ran before its
@@ -551,8 +551,8 @@ caret stay as they are.
      `test_process` 312, and the style guard.
    - All with no failure and no error, after one fix: `test_appearance_tab`
      asserted the old role of `SyntaxTheme.bool_text`. Part A changed that
-     role in `f2606dcfd`, and the test run of Part A did not include the
-     appearance tab. `3ecdf0df5` makes the test follow.
+     role in `89a2694dd`, and the test run of Part A did not include the
+     appearance tab. `fa45c5d30` makes the test follow.
    - The sweep after B1, on 2026-10-09: `test_platform` 114502 pass, 41 fail,
      25 error, 8 broken; `test_json` 231; `test_yaml` 58 and 2 broken;
      `test_markdown` 262; `test_book` 33; `test_integration` 1382050 pass,
