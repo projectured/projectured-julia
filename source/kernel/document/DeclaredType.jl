@@ -44,7 +44,13 @@ _describe_mismatch_type(value::Document) = get_document_schema_name(typeof(value
 _describe_mismatch_type(value) = typeof(value)
 
 function _describe_mismatch_value(value)
-    text = repr(value; context = :limit => true)
+    text = try
+        repr(value; context = :limit => true)
+    catch
+        # A value that can not show itself, such as a document with an undefined
+        # slot in a vector, is named by its type.
+        return "a " * string(_describe_mismatch_type(value))
+    end
     length(text) <= 80 ? text : first(text, 77) * "..."
 end
 

@@ -104,11 +104,12 @@ _make_cell_layout_type_call(vt) = :($(_get_cell_layout_value_type)($vt))
 # The type that a cell layout holds where a field declares `T`. A native layout of a
 # schema stands for the family of the schema: the bare name of `@document [M, C]` is
 # the native layout, and a cell layout holds the cell layout of its child. A union
-# maps each member. Any other type, and a type parameter, stay as they are.
+# maps each member. A native layout with parameters, named bare, is a `UnionAll`. Any
+# other type, and a type parameter, stay as they are.
 @inline _get_cell_layout_value_type(T) = T
 @inline _get_cell_layout_value_type(T::Union) =
     Union{_get_cell_layout_value_type(T.a), _get_cell_layout_value_type(T.b)}
-@inline function _get_cell_layout_value_type(T::DataType)
+@inline function _get_cell_layout_value_type(T::Union{DataType, UnionAll})
     T <: Document || return T
     native = get_document_native_type(T)
     native !== nothing && native === Base.typename(T).wrapper ? get_document_family(T) : T

@@ -104,6 +104,19 @@ end
     child::DmNative
 end
 
+# The same with a schema that has a parameter: the bare name is a `UnionAll`.
+@document [M, C] struct DmParametricNative{A}
+    a::A
+end
+
+@document struct DmParametricOwner
+    child::DmParametricNative
+end
+
+# A value that can not show itself, for the text of a refused write.
+struct DmUnshowable end
+Base.show(io::IO, ::DmUnshowable) = error("DmUnshowable can not show itself")
+
 # `I` first binds it to the immutable native struct — a value a hot path copies
 # rather than mutates. `selection::Nothing` is written out for the same reason it
 # is on a value document: the injected union is over heap types, and one of them
@@ -410,6 +423,13 @@ end
         @test copied.child isa ACDmNative
         @test copied.child.a == 4
     end
+    @test find_declared_field_type(DmParametricOwner, :child) === ADmParametricNative
+    shadow = copy_document(ReactiveCell, DmParametricNative{Int}(5, nothing))
+    @test DmParametricOwner(shadow).child === shadow
+    # The text of a refused write names a value that can not show itself by its type.
+    text = sprint(showerror, DeclaredTypeMismatchException(DmNativeOwner, :child, DmNative,
+                                                          DmUnshowable()))
+    @test endswith(text, ": a $(DmUnshowable)")
 end
 
 @testset "a docstring reaches the struct that the bare name names" begin
