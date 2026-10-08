@@ -604,6 +604,29 @@ worktree. The three domains test different parts of the model:
     the call. Only a looser cell, such as a `ReactiveCell{Any}`, reaches the check, which is not
     inlined. Measured: `JsonNumber(42)` allocates 144 bytes in the mode `:throw` and in the mode
     `:off`, and a setter write allocates 0 bytes in both. `test_font_face()` passes.
+  - [ ] **omnet-julia and inet-julia** (inventory 2026-10-08). Scratch environments in
+    `/var/tmp/strict-types/` copy `environment/all` of each repository with absolute paths:
+    omnet-julia and inet-julia from detached worktrees at their `main` (`997af6df`, `28c50d9`),
+    and projectured-julia from the branch or from `main`. The manifest of omnet-julia was older
+    than `ProjecturedPivot`, which the umbrella now loads, and `OmnetCampaignUiTest` and
+    `OmnetIdeTest` were no direct dependencies; a resolve of the scratch environments fixed
+    both. 29 omnet suites (not `OmnetPresentationTest`, which takes about 348 minutes) and 5
+    inet suites ran against the branch in the mode `:record` and against `main`:
+    - inet-julia: all 5 suites equal `main`. omnet-julia: 26 suites equal `main`; `test_ide`
+      reached its time limit in both runs; `test_legacy` fails at the same 17 places with 110
+      errors of `NedAgreementTest` in both, and ran 2 tests fewer, which varies from run to
+      run; `test_simulator` compared two list fields with `==`, so two lists are now equal when
+      their elements are, and a list hashes as a vector (`6defadfd5`).
+    - The writes that the mode `:throw` refuses, in omnet-julia: `Configuration.entries` and
+      `ConfigurationEntry.designator` (`make_configuration_shadow` passes cells that hold plain
+      vectors), `NedCondition.condition` (a test gives `nothing`), `NedPropertyKey.name` (a test
+      gives a vector), `VectorResult.samples` (a test gives a `CellVector{Any}`). In inet-julia:
+      four colors of `PacketDiagramTheme` declared `StyleColor` with a `ColorRole` default.
+      Rule 2 converts the rest: `CatalogEntry.title` (a `SubString`) and the bare lengths that
+      omnet-julia gives `WidgetTheme`. In the mode `:throw`, `test_simulator` has these 2
+      errors (`ConfigurationTest.jl:525`, `runtests.jl:287`).
+    - Each fix works with `main` of projectured-julia too, so the two repositories can take
+      them before the branch lands.
   - [x] **Group 5, a lazy list in a field declared `CellVector`.** `children` of
     `HorizontalLayout`, `VerticalLayout` and `GridLayout`, and the two header strips of
     `WidgetTable`, get a `ListNode`, a lazy list that a viewport reads from the middle. The
