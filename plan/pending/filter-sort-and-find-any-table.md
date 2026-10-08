@@ -1,9 +1,8 @@
 # Filter, sort and find any table, as a chain of projections
 
-> **Kind:** plan · **Status:** tentative, 2026-10-05; the user's view (§3) is
-> decided, 2026-10-07. Nothing else is decided past §2. The first release of
-> the data frame view is done; a design review of the model (§5) comes before
-> any step starts. ·
+> **Kind:** plan · **Status:** pending. The user's view (§3) is decided,
+> 2026-10-07, and the model (§5), 2026-10-08. The steps (§8) wait for the
+> owner's word to start. ·
 > **Stands on:** [view-and-edit-a-data-frame.md](view-and-edit-a-data-frame.md),
 > [concepts.md](../../documentation/design/concepts.md),
 > [widget.md](../../documentation/package/platform/widget/widget.md),
@@ -132,45 +131,128 @@ as `TextFiltering` does. A tree: one level, with the ancestors of the matches.
   (3,026 lines, 535 tests): its `kept_rows` is a filter and then a sort, kept
   as one vector of indices; its query is a document; its paths name the rows
   and the columns of the frame; its find walks the kept rows.
+- A printer knows where its input is: `PrinterContext.reference` is the path
+  from the root of the document to the input, and a printer extends it for a
+  child with `make_child_context`.
+- `ReferenceDispatchingProjection` chooses an inner projection by that path,
+  from pairs or from a function with the patterns of `@reference_case`
+  (`above()`, `_`). It chooses once, when the position prints. Its IO map sends
+  the output of the inner one through a cell, so the IO map keeps its identity.
+  `ApplyAtProjection` and `SortingAtProjection` are built on it: a projection
+  at one path, the part above it copied, and everything below it kept.
+- `SortingProjection` prints each child with the source index
+  (`make_child_context(ctx, ElementReferenceStep(i))`), so a position below it
+  sees the path of the source. `FilteringProjection` passes the kept items
+  through without a print, so the printer after it numbers them by their
+  shown place. The readers of both map a path of the output back to the
+  source, so an operation reaches the right item.
 
-## 5. The model (tentative)
+## 5. The model (decided 2026-10-08)
 
-- **A table** is a collection of rows with named columns. A small interface
-  reads it: the count of rows, the names and the types of the columns, and the
-  value at a row and a column; a kind that has a vector of a column gives it,
-  for speed. A kind that takes a write says so, by column, and a kind that
-  can grow or shrink says so.
-- **A filter stage** maps a table to a table of the same kind, with the rows
-  that its predicate passes. Its IO map holds the kept indices, so a path
-  `rows[j]` of the output goes back to the row of the source, and an edit in
-  the output goes back with it.
-  - A kind with a native view gives it: a filtered data frame is a
-    `SubDataFrame` of the kept rows, with no copy.
-  - Any other kind gets a generic view by indices over the source.
-- **A sort stage** does the same with a permutation. A filter and a sort that
-  follow each other can be one stage with one index vector, as `kept_rows` is.
-- **The predicate and the sort keys** come from the parameters of the stage, or
-  from a query document that the stage reads. The filter of a column (a text, a
-  regular expression, a range of numbers, a list of values) is a predicate on
-  one column, by its element type; the expression filter of the data frame is a
-  predicate of a kind that reads its columns as vectors.
-- **Find is not a stage that makes a table.** It marks the matches in the
-  output, as `TextHighlighting` marks a text, and a command moves the
-  selection to the next match.
-- **Size.** A stage keeps only its index vector, and builds no document for a
-  row. The widget table builds the rows that it shows, from the head of its
-  list, and the scroll bar moves into the widget table, so every table has one.
-- **Edit.** A write in the output maps back through the chain to the source. A
-  native view writes through by itself. The kinds that take no write, and the
-  ones that can not grow or shrink, turn the edit off by column or for the
-  table.
+The owner compared two ways to give each collection its own filter and sort:
+a stage that is always there in front of the printer of each kind of
+collection and passes its input through, or a dispatch on the path that
+follows a document of what a person placed where. The owner asked which one is
+more future proof and combines better by composition, and agreed to the second
+(way 1). It is the first composition that a person edits: by the chips, a
+person places projections at a collection.
+
+**The view document of a pane.** The pane keeps one document of entries. An
+entry is a place, a path or a pattern of `@reference_case`, and an ordered list
+of the projections that a person put there; the order is the order of the
+chain. With the example of §3 and an array `events` in each run:
+
+```
+view of the pane
+  entries:
+    [1] at: .runs
+        projections:
+          [1] filter     conditions: [ .status ≠ "failed" ]
+          [2] sort       keys:       [ ↑ .delay ]
+    [2] at: .runs[_].events                (a pattern: the events of every run)
+        projections:
+          [1] first      count: 10
+    [3] at: .notes
+        projections:
+          [1] show as    table
+```
+
+- A projection in the list is a small document, its kind and its parameters,
+  and not a Julia closure, so the view document is saved with the pane,
+  copied with a duplicate of the pane, undone, and edited by the assistant as
+  any document. A method for each kind turns it into a projection, for example
+  `make_view_projection(description::FilterDescription) = FilterStage(description)`.
+- The chips of §3 are a drawing of one entry: a chip for each condition and
+  for each sort key. A stage reads its parameters through their cells, so an
+  edit of a value or of an operator changes only the data of the stage. The
+  composition at a path changes only when a projection is added to the list
+  or removed from it.
+- Filter and sort are the first two kinds. The same entry takes later ones with
+  no new wiring: group, pivot, the first n items, show as a table, a chart of a
+  column; and their order is free, for example a sort, then the first 10, then
+  a filter.
+
+**The dispatch.** The pipeline is built once, before it prints, as a dispatch
+on the path:
+
+```julia
+RecursiveProjection(ReferenceDispatchingProjection(reference ->
+    # the chain of the entry whose place matches `reference`, then the default
+    # printer; the default printer alone when no entry matches
+))
+```
+
+The IO map of the dispatch makes its inner IO map a computation that reads only
+the entry of its own path. When that entry changes, it prints the chosen chain
+again, and the output cell, which keeps the identity of the IO map, follows it.
+The readers and the maps read the inner IO map from its cell. The inner print
+runs under `peek`, so that what it reads as it prints does not make the
+dispatch print again, as the parts of a table of a list do. The kernel does not
+change.
+
+**Paths below a stage.** A stage prints its children with the source index, as
+`SortingProjection` does, so `ctx.reference` below a filtered or sorted
+collection is the path of the source item, `.runs[4].events`, and a nested
+entry such as [2] matches. The readers of the stages map an operation back to
+the source, so the selection and an edit find the right item.
+
+**The filter and the sort stages.**
+- A condition and a sort key name a path inside one item: the empty path for a
+  plain value, a field of a record, a column of a table, or a deeper path such
+  as `.address.city`. So the stages reach every collection of §3, a table or
+  not.
+- A stage keeps only its vector of indices, and builds no document for an
+  item. A kind of collection with a native view gives it, such as a
+  `SubDataFrame` of the kept rows; a table gets the generic view by indices,
+  `TablePart`, and any other collection a vector of its kept items.
+- The filter of a column by its element type (a text, a regular expression, a
+  range of numbers, a list of values) is a condition on one path; the
+  expression filter of the data frame is a condition of a kind that reads the
+  columns as vectors.
+
+**Find** is not a stage. It marks the matches, as `TextHighlighting` marks a
+text, and a command moves the selection to the next match.
+
+**Size.** A stage keeps only its index vector. The widget table builds the rows
+that it shows, from the head of its list, and the scroll bar moves into the
+widget table, so every table has one.
+
+**Edit.** A write through the view maps back through the readers to the
+source. A native view writes through by itself. A kind that takes no write, or
+that can not grow or shrink, turns the edit off by column or for the
+collection.
+
+**State.** View state that a document keeps, such as a scroll position or the
+open nodes of a tree, survives a change of the composition at a path. State
+that no document keeps is lost then, as it is at any print (the owner).
 
 ## 6. What the data frame view becomes
 
 - The source, the frame, with the table interface on `AbstractDataFrame`.
-- A query document, which the filter and the sort stages read, and which the
-  filter row, the expression bar and the find field edit.
-- The chain: the frame, the filter, the sort, the widget table.
+- Its query becomes the entry of the frame in the view document: the filter
+  row, the expression bar and the sort of a header edit the projections of
+  that entry; the find marks and moves as §5 says.
+- The chain at the frame: its filter, its sort, the widget table.
 - Its own part: the expression filter, compiled over the column vectors; the
   native operations (a write of a value, the insert and the delete of rows and
   columns); the refresh of a frame that a program changed; the rules of a
@@ -178,38 +260,44 @@ as `TextFiltering` does. A tree: one level, with the ancestors of the matches.
 
 ## 7. Open questions
 
-- The names: of the table interface, of the generic view by indices, of the
-  stages.
-- Whether the filter row, the expression bar and the find field are parts of
-  the widget table, or a decorator around it. §3 puts the chips inline at any
-  collection, not only at a table, which points to a decorator of a
-  collection.
-- How the model reaches the collections of §3 that are not tables: plain
-  values, the children of a tree node, the lines of a text; and how a key is a
-  path inside an item.
+- The names: of the view document and its entries, of the descriptions of the
+  projections, and of the stages.
+- How the bar of chips draws beside a printed collection in each kind of
+  output: a line of syntax in a text view, a widget in a widget view.
+- Which entry wins when a path and a pattern both match one place.
+- In which slice the view document, the descriptions and their methods go, so
+  that every builder of a pipeline names them (the slice order).
 - How the rules that keep the row of the selection at its place on the screen
   (D10 of the data frame plan) read the order of the rows before and after a
   write, when the order is the output of a chain.
 - The cost of a generic sort over the table interface, against the sort of
   DataFrames.
-- How a stage with its parameters in cells shows in the gesture help and is
-  saved, beside a stage that reads a query document.
+- How the projections of an entry show in the gesture help.
 
-## 8. Steps (tentative)
+## 8. Steps
 
-- [ ] **1.** The table interface, and filter and sort stages that keep only an
-  index vector, over it. The interface and the view by indices are on main
-  (§4); the stages are not.
-- [ ] **2.** The widget table takes any table, with the lazy rows from an
-  anchor and the scroll bar.
-- [ ] **3.** The query document, the filter row and the find, as generic
-  parts.
-- [ ] **4.** The data frame view onto the chain, with its tests unchanged, and a
-  comparison with the view before the change.
-- [ ] **5.** A second table: a `CellTable`, or the packet capture table of
+Each step ends with its own tests and a commit, in a worktree.
+
+- [ ] **1.** The view document of a pane, and the dispatch on it: the entries,
+  the descriptions and their methods, and the IO map whose inner IO map is a
+  computation. A test places a projection at a path and removes it, and only
+  that position prints again.
+- [ ] **2.** The filter and the sort stages: the index vector, the children
+  printed with the source index, conditions and keys as paths inside an item,
+  and the readers that map back. Tests over a vector of values, a vector of
+  records, a nested collection with a pattern entry, and a table.
+- [ ] **3.** The chips: the drawing of an entry beside a printed collection, in a
+  text view and in a widget view, and the commands of §3: "Show only items
+  like this", "Hide items like this", "Sort by this", a header, the quick text
+  field, and "Show all"; and find.
+- [ ] **4.** The verbs of the assistant, as edits of the view document, and the
+  read of an entry.
+- [ ] **5.** The widget table takes any table, with the lazy rows from an anchor
+  and the scroll bar.
+- [ ] **6.** The data frame view onto the view document and the chain, with its
+  tests unchanged, and a comparison with the view before the change.
+- [ ] **7.** A second kind: a JSON array, or the packet capture table of
   omnet-julia.
-- [ ] **6.** The edit back through the chain, and the native and the generic
-  views.
 
 ## 9. Risks
 
@@ -217,5 +305,9 @@ as `TextFiltering` does. A tree: one level, with the ancestors of the matches.
   first release.
 - A frame of ten million rows: a stage that builds anything for each row, or a
   print of each element, is too slow.
-- Two ways to hold the state of a filter can confuse a reader of the code; the
-  plan must say when each is the right one.
+- A printer that does not extend `ctx.reference` for its children puts a
+  nested entry at the path of its parent; each domain needs a test that an
+  entry at a path reaches the collection at that path.
+- The composition at a path changes when a person adds or removes a
+  projection, so that position prints again; state that no document keeps is
+  lost then.
