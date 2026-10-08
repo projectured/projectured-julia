@@ -1,12 +1,12 @@
 # Hoist editable text-projection config into documents
 
-> **Status (2026-10-08): IN PROGRESS** on the branch `text-config-in-documents`,
+> **Status (2026-10-08): DONE** on the branch `text-config-in-documents`,
 > on top of `plain-value-form`, in the worktree `projectured-julia-plain-value-form`.
-> Steps 1 to 6 are done. Question Q4 is open.
+> Steps 1 to 7 are done. Not on main and not pushed.
 > **Refreshed 2026-10-08.** The plan was written on
 > 2026-08-12 and refreshed on 2026-10-08 against the code of the branch
 > `plain-value-form`. It builds on part C of
-> [a-form-edits-a-plain-value.md](a-form-edits-a-plain-value.md): a widget slot
+> [a-form-edits-a-plain-value.md](../pending/a-form-edits-a-plain-value.md): a widget slot
 > that holds an `ObjectField`, and the table of
 > `make_object_field_widget_dispatch`. So it is implemented on a branch on top
 > of `plain-value-form`. Step 7 (part D) of that plan waits for this plan,
@@ -383,7 +383,7 @@ of the step, not `test_all()`.
    - For step 6: `widget.md` describes the caret of a plain value in a text
      box, and part C of the form plan has no section yet; the caret of a field
      goes into the documents with step 9 of
-     [a-form-edits-a-plain-value.md](a-form-edits-a-plain-value.md).
+     [a-form-edits-a-plain-value.md](../pending/a-form-edits-a-plain-value.md).
 5. ✅ **The tests of the view.** `ProjectionConfiguringTest.jl` becomes a test of
    the view, through an editor: typing in the pattern highlights again as a
    person types, the caret stays in the field, undo takes a key back, a press on
@@ -408,8 +408,14 @@ of the step, not `test_all()`.
    - Found: a glyph is drawn from its origin, and the box of the chevron starts
      a few pixels inside it, so the test presses 4 pixels inside the glyph.
    - Found: a press on the overlay bar where no control answers, such as its
-     padding, goes on to the text under it, because a `StackLayout` gives a
-     press to the next child when the top one declines. Open question Q4.
+     padding, went on to the text under it, because a `StackLayout` gives a
+     press to the next child when the top one declines. Question Q4, answered
+     by decision 12: the reader of `WidgetCardToGraphicsCanvas` answers a plain
+     left click on the card that nothing inside it uses with
+     `DoNothingOperation`. `test_widget_card_fold()` has a group for it, and
+     the view test a group "a press on an empty part of the bar over the text
+     keeps the caret", so it has 50 assertions. `widget.md` describes the solid
+     card under "A press goes by coordinate".
 
 6. ✅ **Retire `ProjectionConfiguringProjection`.** Delete
    `ProjectionConfiguring.jl`, its include, its export, and its mentions in the
@@ -439,8 +445,8 @@ of the step, not `test_all()`.
    `test_filtered_text_to_text()`, `test_platform_layering()` and the naming
    guard pass.
 
-7. ⬜ Move this plan to `plan/done/`, and go on with step 7 (part D) of
-   [a-form-edits-a-plain-value.md](a-form-edits-a-plain-value.md).
+7. ✅ Move this plan to `plan/done/`, and go on with step 7 (part D) of
+   [a-form-edits-a-plain-value.md](../pending/a-form-edits-a-plain-value.md).
 
 ## Decisions
 
@@ -468,7 +474,7 @@ The owner decided these on 2026-10-08:
    it is a look and not data. Rejected: a field of the document, as the plan of
    2026-08-12 had it.
 6. **The bar is a form of the document's own fields**, made with part C of
-   [a-form-edits-a-plain-value.md](a-form-edits-a-plain-value.md). Rejected: a
+   [a-form-edits-a-plain-value.md](../pending/a-form-edits-a-plain-value.md). Rejected: a
    bar that `ObjectToWidget` makes, as the plan of 2026-08-12 had it.
 7. **This plan comes before part D** of that plan.
 8. **The view is an authored document** (question Q1): a split pane that holds a
@@ -506,12 +512,13 @@ The owner decided these on 2026-10-08:
     projections of the field introduce, which no table of a document can build;
     a whole selection of a text box that takes a key.
 
+12. **A card is a solid surface** (question Q4, asked during step 5). A plain
+    left click on a `WidgetCard` that nothing inside it uses ends at the card,
+    so a press on the overlay bar does not reach the text under it. A right
+    click and an Alt+click go on, to the menus and to a whole selection.
+    Rejected: keep the press that falls through as a known limit; a setting of
+    `StackLayout` that makes its top child take every press inside its box.
+
 ## Open questions
 
-**Q4 (step 5): does the overlay bar catch the presses on its own area?** A press
-on the bar where no control answers, such as its padding or a label, goes on to
-the text under it and moves the caret there, because a `StackLayout` gives a
-press to the next child when the top one declines. No widget or layout of the
-platform catches the presses on its area now, so a fix is a new mechanism, for
-example a stack whose top child takes every press inside its box. The bar above
-the text has no such problem.
+None. Q3 and Q4 are answered by decisions 11 and 12.

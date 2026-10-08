@@ -1,9 +1,10 @@
 # A form edits a plain value
 
 > **Status (2026-10-08): IN PROGRESS** on the branch `plain-value-form`, in the
-> worktree `projectured-julia-plain-value-form`. Steps 1 to 6 are done. Step 7
-> waits for [text-projection-config-into-document.md](text-projection-config-into-document.md),
-> which retires `ProjectionConfiguringProjection` first (decision 17). The owner
+> worktree `projectured-julia-plain-value-form`. Steps 1 to 6 are done. Step 7 is
+> next: [text-projection-config-into-document.md](../done/text-projection-config-into-document.md)
+> retired `ProjectionConfiguringProjection` (decision 17) on the branch
+> `text-config-in-documents`, on top of this one, where step 7 goes on. The owner
 > answered the first six questions on 2026-10-06, chose the design of parts C and
 > D on 2026-10-08 (see "Decisions"), and asked for the implementation on
 > 2026-10-08.
@@ -566,7 +567,7 @@ ObjectToWidget(; is_record = x -> x isa ThirdPartyType || is_form_record(x))
 - `ProjectionConfiguringProjection` sets `visible` on the `WidgetComposite` that
   `ObjectToWidget` makes, and `ObjectToWidgetTest.jl` checks that shape. The
   chain must keep the composite as its root. The plan
-  [text-projection-config-into-document.md](text-projection-config-into-document.md)
+  [text-projection-config-into-document.md](../done/text-projection-config-into-document.md)
   retires `ProjectionConfiguringProjection`. If that plan lands first, this risk
   goes away.
 - A card keeps its collapse state on the card. After the change, the first stage
@@ -813,7 +814,7 @@ form of part C and not readers that part C removes.
      pass.
 
    **Changed 2026-10-08, by step 4 of
-   [text-projection-config-into-document.md](text-projection-config-into-document.md)
+   [text-projection-config-into-document.md](../done/text-projection-config-into-document.md)
    (its decision 11).** The caret in the widget of a field is a path in the
    document, `object.<path of the field>{start:stop}`, and no longer a path that
    `ObjectFieldToWidget` and `ObjectFieldToValue` introduce: the two map it to the
@@ -902,7 +903,7 @@ The owner decided these on 2026-10-08:
 The owner decided this on 2026-10-08, before step 7:
 
 17. **`ProjectionConfiguringProjection` is retired before part D**, by
-    [text-projection-config-into-document.md](text-projection-config-into-document.md),
+    [text-projection-config-into-document.md](../done/text-projection-config-into-document.md),
     which builds on part C. Before step 7 it showed that part D would have to
     change that projection: every chain that draws the output of
     `ObjectToWidget` needs the table of `make_object_field_widget_dispatch`; its
