@@ -68,7 +68,7 @@ end
     text_io = print_document(s2t, node_io.output)
     @test text_io.output.selection isa EmptyReference
     # The whole-element selection does not alter the rendered text.
-    @test occursin("1", join(s.content for s in text_io.output.elements))
+    @test occursin("1", get_flat_string(text_io.output))
 end
 
 @testset "forward: JsonObject whole → SyntaxNode ∅ → Text ∅" begin

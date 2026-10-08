@@ -1,42 +1,122 @@
+# The text of each span of each line of `block`, in order.
+_s2t_span_texts(block) = [span.content for line in block.elements for span in line.elements]
+
 function test_syntax_to_text()
 @testset "SyntaxToText" begin
 
 s2st = RecursiveProjection(SyntaxToText())
 stree = SyntaxLeaf("val"; open="[", close="]")
 sst = print_document(s2st, stree).output
-@test length(sst.elements) == 3
-@test sst.elements[1].content == "["
-@test sst.elements[2].content == "val"
-@test sst.elements[3].content == "]"
-@test sst.elements[1].font == StyleFont("Ubuntu Mono", 14)   # style comes from tree node (plain string = no style)
-@test sst.elements[2].font == StyleFont("Ubuntu Mono", 14)   # style comes from tree node
+@test length(sst.elements) == 1
+line = sst.elements[1]
+@test line isa TextLine
+@test _s2t_span_texts(sst) == ["[", "val", "]"]
+@test line.elements[1].font == StyleFont("Ubuntu Mono", 14)   # style comes from tree node (plain string = no style)
+@test line.elements[2].font == StyleFont("Ubuntu Mono", 14)   # style comes from tree node
 
 # node flattening
 sn = SyntaxNode(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b")]; open="(", close=")", sep=", ")
 sst2 = print_document(s2st, sn).output
-texts = [s.content for s in sst2.elements]
-@test join(texts) == "(a, b)"
+@test get_flat_string(sst2) == "(a, b)"
 
 # value-level incrementality
 lv = Cell("X")
 sl = SyntaxLeaf(() -> lv[]; open="[", close="]")
 sst3 = print_document(s2st, sl).output
-@test sst3.elements[2].content == "X"
+@test sst3.elements[1].elements[2].content == "X"
 @test is_cell_up_to_date(getfield(sst3.elements, :elements))  # spans structure still valid
 lv[] = "Y"
 @test is_cell_up_to_date(getfield(sst3.elements, :elements))  # still valid! only the text cell changed
-@test sst3.elements[2].content == "Y"
+@test sst3.elements[1].elements[2].content == "Y"
 
 # structural incrementality
 src2 = Cell(2)
 sn2 = SyntaxNode(() -> SyntaxDocument[SyntaxLeaf(string(i)) for i in 1:src2[]]; open="<", close=">", sep=",")
 sst4 = print_document(s2st, sn2).output
-_ = [s.content for s in sst4.elements]  # force eval
+_ = get_flat_string(sst4)  # force eval
 @test is_cell_up_to_date(getfield(sst4.elements, :elements))
 src2[] = 3
 @test !is_cell_up_to_date(getfield(sst4.elements, :elements))  # children changed → spans rebuild
 
 end # @testset "SyntaxToText"
+
+@testset "SyntaxToText lines" begin
+let
+_S2T = SyntaxModule
+pipe = RecursiveProjection(SyntaxToText())
+p = _S2T.SyntaxCompoundToText()
+_pos_to_selection(iomap, k::Int) = map_reference_backward(iomap.projection, iomap,
+    ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))
+_line_texts(block) = [" " ^ line.indentation * join(span.content for span in line.elements)
+                      for line in block.elements]
+
+@testset "a node that indents puts each child on a line of its own" begin
+    node = SyntaxNode(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b")];
+                      open="[", close="]", sep=",", indentation=1)
+    output = print_document(pipe, node).output
+    @test all(element -> element isa TextLine, output.elements)
+    @test _line_texts(output) == ["[", "  a,", "  b", "]"]
+    @test get_flat_string(output) == "[\n  a,\n  b\n]"
+end
+
+@testset "an ancestor widens the lines of the chrome of its children" begin
+    inner = SyntaxNode(SyntaxDocument[SyntaxLeaf("x")]; open="(", close=")", indentation=1)
+    outer = SyntaxNode(SyntaxDocument[inner]; open="[", close="]", indentation=1)
+    @test _line_texts(print_document(pipe, outer).output) == ["[", "  (", "    x", "  )", "]"]
+end
+
+@testset "a value with a break is one run, a row inside its line" begin
+    leaf = SyntaxLeaf("one\ntwo"; open="<", close=">")
+    node = SyntaxNode(SyntaxDocument[leaf]; open="[", close="]", indentation=1)
+    iomap = print_document(pipe, node)
+    @test _line_texts(iomap.output) == ["[", "  <one\ntwo>", "]"]
+    @test get_flat_string(iomap.output) == "[\n  <one\ntwo>\n]"
+    for k in 0:_S2T._subtree_len(node, p, 0)
+        @test _S2T._syntax_to_flat(node, _pos_to_selection(iomap, k), p, 0) == k
+    end
+    # The caret before the break is the caret before the '\n' of the value.
+    @test strip_reference_types(_pos_to_selection(iomap, 8)) ==
+          strip_reference_types(@reference(node, children[1].value{3}))
+end
+
+@testset "an edit of a span of a leaf edits its field" begin
+    leaf = SyntaxLeaf("one\ntwo"; open="<", close=">")
+    iomap = print_document(pipe, leaf)
+    value_range(start, stop) = ConcreteReference(FieldReferenceStep("value"),
+        ConcreteReference(RangeReferenceStep(start, stop), EmptyReference()))
+    edit = ReplaceStringRangeOperation(_S2T._make_span_range_path([1, 2], 5, 6), "W")
+    result = read_intent(iomap.projection, iomap, edit)
+    @test result isa ReplaceStringRangeOperation
+    @test strip_reference_types(result.reference) == value_range(5, 6)
+    # The end of the value is the value, not the close delimiter.
+    edit = ReplaceStringRangeOperation(_S2T._make_span_range_path([1, 2], 7, 7), "!")
+    result = read_intent(iomap.projection, iomap, edit)
+    @test strip_reference_types(result.reference) == value_range(7, 7)
+end
+
+@testset "a separator with a break is on lines" begin
+    node = SyntaxNode(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b")]; sep=";\n")
+    iomap = print_document(pipe, node)
+    @test _line_texts(iomap.output) == ["a;", "b"]
+    for k in 0:_S2T._subtree_len(node, p, 0)
+        @test _S2T._syntax_to_flat(node, _pos_to_selection(iomap, k), p, 0) == k
+    end
+end
+
+@testset "a structural edit keeps the lines that it does not change" begin
+    src = Cell(2)
+    leaves = SyntaxDocument[SyntaxLeaf(string(i)) for i in 1:3]
+    node = SyntaxNode(() -> leaves[1:src[]]; open="[", close="]", sep=",", indentation=1)
+    output = print_document(pipe, node).output
+    before = collect(output.elements)
+    src[] = 3
+    after = collect(output.elements)
+    @test length(after) == 5
+    @test after[1] === before[1]
+    @test after[2] === before[2]
+end
+end # let
+end # @testset "SyntaxToText lines"
 
 @testset "SyntaxToText flat-position round-trip" begin
 
@@ -108,13 +188,13 @@ pipe_on  = RecursiveProjection(SyntaxToText(expanded_marker=mk("▾"), collapsed
 
 # Marker off (default): byte-for-byte unchanged, no marker recorded.
 iomap_off = print_document(pipe_off, node)
-@test join(s.content for s in iomap_off.output.elements) == "[1, 2, 3]"
+@test get_flat_string(iomap_off.output) == "[1, 2, 3]"
 @test iomap_off.marker_index == 0
 
 # Marker on, expanded: leading ▾ as element 1.
 node.collapsed = false
 iomap_x = print_document(pipe_on, node)
-spans_x = [s.content for s in iomap_x.output.elements]
+spans_x = _s2t_span_texts(iomap_x.output)
 @test spans_x[1] == "▾"
 @test join(spans_x) == "▾[1, 2, 3]"
 @test iomap_x.marker_index == 1
@@ -123,7 +203,7 @@ spans_x = [s.content for s in iomap_x.output.elements]
 # ellipsis between the delimiters — the children are not laid out.
 node.collapsed = true
 iomap_c = print_document(pipe_on, node)
-spans_c = [s.content for s in iomap_c.output.elements]
+spans_c = _s2t_span_texts(iomap_c.output)
 @test spans_c[1] == "▸"
 @test join(spans_c) == "▸[…]"
 @test iomap_c.marker_index == 1
@@ -132,7 +212,7 @@ node.collapsed = false
 # Empty node: no marker even when configured (nothing to fold).
 empty_node = SyntaxNode(SyntaxDocument[]; open="[", close="]", sep=", ")
 iomap_e = print_document(pipe_on, empty_node)
-@test join(s.content for s in iomap_e.output.elements) == "[]"
+@test get_flat_string(iomap_e.output) == "[]"
 @test iomap_e.marker_index == 0
 
 # Offset shift: the marker adds exactly its length to the subtree, the marker
@@ -175,12 +255,12 @@ pipe = RecursiveProjection(SyntaxToText())
 p    = _S2T.SyntaxCompoundToText()
 
 # Expanded output, captured for the restoration check below.
-expanded = join(s.content for s in print_document(pipe, node).output.elements)
+expanded = get_flat_string(print_document(pipe, node).output)
 @test expanded == "[1, 2, 3]"
 
 # Collapsed (no marker configured): open + ellipsis + close.
 node.collapsed = true
-collapsed = join(s.content for s in print_document(pipe, node).output.elements)
+collapsed = get_flat_string(print_document(pipe, node).output)
 @test collapsed == "[…]"
 
 # Flat-position round-trip holds while collapsed.
@@ -200,21 +280,21 @@ end
 
 # Toggling back restores the expanded output byte-for-byte.
 node.collapsed = false
-@test join(s.content for s in print_document(pipe, node).output.elements) == expanded
+@test get_flat_string(print_document(pipe, node).output) == expanded
 
 # Empty node: collapsing adds no ellipsis (nothing to fold).
 empty_node = SyntaxNode(SyntaxDocument[]; open="[", close="]", sep=", ")
 empty_node.collapsed = true
-@test join(s.content for s in print_document(pipe, empty_node).output.elements) == "[]"
+@test get_flat_string(print_document(pipe, empty_node).output) == "[]"
 
 # Reactivity: toggling `collapsed` invalidates the output spans cell.
 react_node = SyntaxNode(SyntaxDocument[SyntaxLeaf("x")]; open="[", close="]", sep=", ")
 out = print_document(pipe, react_node).output
-_ = [s.content for s in out.elements]                       # force the spans cell
+_ = get_flat_string(out)                                    # force the spans cell
 @test is_cell_up_to_date(getfield(out.elements, :elements))
 react_node.collapsed = true
 @test !is_cell_up_to_date(getfield(out.elements, :elements))
-@test join(s.content for s in out.elements) == "[…]"
+@test get_flat_string(out) == "[…]"
 end # let
 
 end # @testset "SyntaxToText collapsed body"
@@ -334,11 +414,11 @@ s2st = RecursiveProjection(SyntaxToText())
 @testset "renders as its children, end to end" begin
     c = SyntaxConcatenation(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b")])
     out = print_document(s2st, c).output
-    @test [s.content for s in out.elements] == ["a", "b"]   # exactly two spans: no chrome
+    @test _s2t_span_texts(out) == ["a", "b"]   # exactly two spans: no chrome
     @test render(c) == "ab"
 
     # An empty concatenation renders nothing at all.
-    @test isempty(print_document(s2st, SyntaxConcatenation()).output.elements)
+    @test isempty(_s2t_span_texts(print_document(s2st, SyntaxConcatenation()).output))
 end
 
 @testset "a concatenation is a compound, a leaf is not" begin
@@ -372,7 +452,7 @@ end
     node = SyntaxNode(SyntaxDocument[SyntaxLeaf("x"), inner]; open="(", close=")", sep=",")
     p = _S2T.SyntaxCompoundToText()
     iomap = print_document(s2st, node)
-    @test join(s.content for s in iomap.output.elements) == "(x,ab)"
+    @test get_flat_string(iomap.output) == "(x,ab)"
     for k in 0:_S2T._subtree_len(node, p, 0)
         sel = map_reference_backward(iomap.projection, iomap,
                   ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))
@@ -388,11 +468,11 @@ end
     inner  = SyntaxNode(SyntaxDocument[leaf]; open="[", close="]", indentation=1)
     outer  = SyntaxNode(SyntaxDocument[SyntaxConcatenation(SyntaxDocument[inner])];
                         open="{", close="}", indentation=1)
-    through = join(s.content for s in print_document(s2st, outer).output.elements)
+    through = get_flat_string(print_document(s2st, outer).output)
     # The same tree with the concatenation removed must render identically —
     # a concatenation contributes no characters of its own.
     direct = SyntaxNode(SyntaxDocument[inner]; open="{", close="}", indentation=1)
-    @test through == join(s.content for s in print_document(s2st, direct).output.elements)
+    @test through == get_flat_string(print_document(s2st, direct).output)
     @test occursin("\n    k", through)   # k is indented twice: once per indenting node
 end
 
@@ -438,10 +518,10 @@ s2st = RecursiveProjection(SyntaxToText())
     s = SyntaxSeparation(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b"), SyntaxLeaf("c")];
                          separator=", ")
     out = print_document(s2st, s).output
-    @test join(x.content for x in out.elements) == "a, b, c"
+    @test get_flat_string(out) == "a, b, c"
     @test render(s) == "a, b, c"
     # n children, n-1 separators, and nothing else.
-    @test length(out.elements) == 5
+    @test length(_s2t_span_texts(out)) == 5
     @test get_separator(s).first === :separator      # its own field name, not `sep`
 end
 
@@ -452,7 +532,7 @@ end
     bare = SyntaxSeparation(kids())
     @test get_separator(bare) === nothing
     @test render(bare) == render(SyntaxConcatenation(kids()))
-    @test [x.content for x in print_document(s2st, bare).output.elements] == ["a", "b"]
+    @test _s2t_span_texts(print_document(s2st, bare).output) == ["a", "b"]
     # An empty separator string means the same thing as none.
     @test get_separator(SyntaxSeparation(kids(); separator="")) === nothing
 end
@@ -470,12 +550,13 @@ end
     # The forward image is a flat TextRangeReferenceStep; resolve it back to the span
     # it lands on to assert it is the first separator (element 2).
     flat = _S2T._text_side_flat(fwd)
-    span_idx, _ = _S2T._flat_to_span_char(iomap.output.elements, flat)
+    span_idx, _ = _S2T._flat_to_span_char(iomap.flat_elements, flat)
     @test span_idx == 2                       # the first separator, right after child 1
 
     # Backward from inside that first separator: projection-introduced chrome, NOT
     # `.separator{k}` — the same treatment SyntaxNode's `sep` already gets.
-    back = map_reference_backward(iomap.projection, iomap, _S2T._text_elem_path(2, 1))
+    back = map_reference_backward(iomap.projection, iomap,
+                                  _S2T._make_span_range_path([1, 2], 1, 1))
     @test back !== nothing
     @test strip_reference_types(back).head isa ProjectionReferenceStep
 end
@@ -485,7 +566,7 @@ end
     node  = SyntaxNode(SyntaxDocument[SyntaxLeaf("x"), inner]; open="(", close=")", sep=",")
     p = _S2T.SyntaxCompoundToText()
     iomap = print_document(s2st, node)
-    @test join(x.content for x in iomap.output.elements) == "(x,a|b)"
+    @test get_flat_string(iomap.output) == "(x,a|b)"
     for k in 0:_S2T._subtree_len(node, p, 0)
         sel = map_reference_backward(iomap.projection, iomap,
                   ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))
@@ -497,7 +578,7 @@ end
     # SQL's `_comma_body` shape: a separated list laid out on indented lines.
     body = SyntaxSeparation(SyntaxDocument[SyntaxLeaf("1"), SyntaxLeaf("2")]; separator=",")
     node = SyntaxNode(SyntaxDocument[body]; open="[", close="]", indentation=1)
-    @test occursin("\n  1,2", join(x.content for x in print_document(s2st, node).output.elements))
+    @test occursin("\n  1,2", get_flat_string(print_document(s2st, node).output))
 end
 
 @testset "tree navigation walks into and out of a separation" begin
@@ -549,11 +630,11 @@ end
     @test render(SyntaxDelimitation(leaf; closing_delimiter=";")) == "x;"
     # And an absent delimiter emits NO span, so it offers no caret.
     bare = print_document(s2st, SyntaxDelimitation(leaf)).output
-    @test [x.content for x in bare.elements] == ["x"]
+    @test _s2t_span_texts(bare) == ["x"]
 
     # The indentation wrapper puts its child on its own indented line.
     ind = print_document(s2st, SyntaxIndentation(leaf; indentation=1)).output
-    @test occursin("\n  x", join(x.content for x in ind.elements))
+    @test occursin("\n  x", get_flat_string(ind))
 end
 
 @testset "only a collapsible wrapper can collapse" begin
@@ -568,7 +649,7 @@ end
     @test _S2T._active_marker(p_on, SyntaxCollapsible(leaf)) !== nothing
     # Collapsed, the child is replaced by the ellipsis.
     folded = print_document(s2st, SyntaxCollapsible(leaf; collapsed=true)).output
-    @test !occursin("x", join(c.content for c in folded.elements))
+    @test !occursin("x", get_flat_string(folded))
 end
 
 @testset "a caret round-trips through a .content hop" begin
@@ -579,7 +660,7 @@ end
     node  = SyntaxNode(SyntaxDocument[SyntaxLeaf("x"), inner]; open="[", close="]", sep=",")
     p = _S2T.SyntaxCompoundToText()
     iomap = print_document(s2st, node)
-    @test join(c.content for c in iomap.output.elements) == "[x,(ab)]"
+    @test get_flat_string(iomap.output) == "[x,(ab)]"
     for k in 0:_S2T._subtree_len(node, p, 0)
         sel = map_reference_backward(iomap.projection, iomap,
                   ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))
@@ -588,7 +669,7 @@ end
 end
 
 @testset "wrappers stack" begin
-    text(d) = join(c.content for c in print_document(s2st, d).output.elements)
+    text(d) = get_flat_string(print_document(s2st, d).output)
     kids() = SyntaxDocument[SyntaxLeaf("1"), SyntaxLeaf("2")]
 
     # A delimited, indented, separated list, stacked out of three wrappers.

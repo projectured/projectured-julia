@@ -22,9 +22,9 @@ function test_book_to_syntax()
 @testset "BookToSyntax" begin
 
 b2s = RecursiveProjection(BookToSyntax())
-render(doc) = join(s.content for s in
+render(doc) = get_flat_string(
     print_document(RecursiveProjection(SyntaxToText()),
-                   print_document(b2s, doc).output).output.elements)
+                   print_document(b2s, doc).output).output)
 para(text) = BookParagraph(TextBlock(TextString(text)))
 
     @testset "a book renders its title, and its author only when it has one" begin

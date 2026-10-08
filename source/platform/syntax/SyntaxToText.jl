@@ -1,21 +1,26 @@
 # Fragment of `SyntaxModule`.
 #
 # Syntax → Text projection. Each `SyntaxNode` transforms only its own single level —
-# marker, delimiters, separators, newline/indent decoration — and projects every
-# child one level down through `recursion` (`print_child`), splicing the child's
-# output element list into its own (School A; see the recursion contract in
-# package/kernel/doc/projection-system.md). The per-child element ranges and the child
-# IoMaps are recorded in the IoMap so the mappers and reader can peel the one
-# `.children[i]` step this node owns and delegate the rest to the child's own mapper.
+# marker, delimiters, separators, lines and indentation — and projects every child
+# one level down through `recursion` (`print_child`), joining the child's output
+# lines into its own (School A; see the recursion contract in
+# package/kernel/doc/projection-system.md). The output is a block of `TextLine`s. The
+# per-child entry ranges and the child IoMaps are recorded in the IoMap so the
+# mappers and reader can peel the one `.children[i]` step this node owns and
+# delegate the rest to the child's own mapper.
 # ── SyntaxLeafToText ───────────────────────────────────────────────────
 # One span per delimiter the leaf actually has, plus the value: a delimited leaf
-# renders [open, value, close], a bare one renders just [value]. An absent
-# delimiter (`nothing`) emits no span, so it offers no cursor position either —
-# `.open{k}` on a leaf without an opening delimiter addresses nothing and the
-# mappers decline it.
+# renders [open, value, close], a bare one renders just [value], on one line. An
+# absent delimiter (`nothing`) emits no span, so it offers no cursor position
+# either — `.open{k}` on a leaf without an opening delimiter addresses nothing and
+# the mappers decline it.
 #
-# The span indices are therefore *derived*, not fixed: on a bare leaf the value
-# is element 1, on a delimited one element 2.
+# A `TextString` value is one run, so the leaf never reads its content to find a
+# break, and an edit of the value leaves the line valid. A `'\n'` that a value
+# still holds is a row inside the line, as `TextToGraphics` draws it.
+#
+# The mappers count in the flat text of the fields, open ++ value ++ close, whose
+# offsets are the flat offsets of the line.
 #
 # The TextStrings are extracted directly from the leaf, preserving
 # whatever font/color was set by the upstream projection.
@@ -27,18 +32,19 @@ _leaf_spans(leaf::SyntaxLeaf) =
     TextDocument[s for s in (leaf.open, leaf.value, leaf.close) if s !== nothing]
 
 # The leaf's rendered fields, in span order — the index of a field in this list
-# is its element index.
+# is the index of its span on the line.
 _leaf_fields(leaf::SyntaxLeaf) =
     Symbol[f for (f, s) in ((:open, leaf.open), (:value, leaf.value), (:close, leaf.close))
            if s !== nothing]
 
-# Element index of a leaf field, or 0 when that delimiter is absent.
+# The index of the span of a leaf field on the line, or 0 when that delimiter is
+# absent.
 function _leaf_span_index(leaf::SyntaxLeaf, field::Symbol)
     i = findfirst(==(field), _leaf_fields(leaf))
     i === nothing ? 0 : i
 end
 
-# The field rendered at element index `idx`, or `nothing` when out of range.
+# The field rendered at span index `idx`, or `nothing` when out of range.
 function _leaf_field_at(leaf::SyntaxLeaf, idx::Int)
     fields = _leaf_fields(leaf)
     (1 <= idx <= length(fields)) ? fields[idx] : nothing
@@ -66,10 +72,10 @@ function map_reference_backward(::SyntaxLeafToText, iomap, reference)
     reference = strip_reference_types(reference)   # selections are canonical (checkpointed)
     reference isa EmptyReference && return @reference()
     _is_flat_text_range(reference) && return nothing
-    # Tree selection path: .elements[i]∅ → select the whole leaf
-    _parse_tree_elem_path(reference) !== nothing && return @reference()
+    # A whole span of a line selects the whole leaf.
+    _parse_tree_span_path(reference) !== nothing && return @reference()
     spans = _leaf_spans(iomap.input)
-    flat = _text_side_flat(reference, spans)
+    flat = _compute_output_flat(iomap.output, reference)
     flat === nothing && return nothing
     loc = _flat_to_span_char(spans, flat)
     loc === nothing && return nothing
@@ -93,15 +99,23 @@ function map_reference_backward(::SyntaxLeafToText, iomap, reference)
     return nothing
 end
 
-# Selection mapping (SyntaxLeaf → TextBlock, one span per present field):
-# leaf.selection[] is translated to a TextBlock span cursor, where the element
-# index of each field is its position among the fields the leaf actually renders
-# (so on a bare leaf `.value` is element 1, on a delimited leaf element 2):
+# The lines of a leaf: its spans in order, each cut at each `'\n'`.
+_make_leaf_lines(leaf::SyntaxLeaf) = TextLine[TextLine(_leaf_spans(leaf))]
+
+# The field of the leaf and the offset in it of span `k` of line `i` of the output,
+# or `nothing`.
+function _find_leaf_piece(leaf::SyntaxLeaf, i::Int, k::Int)
+    i == 1 || return nothing
+    field = _leaf_field_at(leaf, k)
+    field === nothing ? nothing : (field, 0)
+end
+
+# Selection mapping (SyntaxLeaf → TextBlock of lines): leaf.selection[] is
+# translated to a flat caret over the text of the fields the leaf renders, in order
+# (an absent delimiter renders nothing):
 #   .open[k]       →  the open span   (only if the leaf has an opening delimiter)
 #   .value[k]      →  the value span
 #   .close[k]      →  the close span  (only if the leaf has a closing delimiter)
-#   PS(p).open[k]  →  the open span
-#   PS(p).close[k] →  the close span
 #   anything else  →  no cursor
 function print_document(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
     # The state travels with the image: a dormant selection maps forward as a
@@ -110,9 +124,9 @@ function print_document(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
         leaf_path = strip_reference_types(path)            # canonical → plain skeleton
         leaf_path isa EmptyReference && return @reference()
         c = _leaf_cursor(leaf, leaf_path)
-        c < 0 ? nothing : _flat_to_text_elem_path(_leaf_spans(leaf), c)
+        c < 0 ? nothing : _flat_text_path(c)
     end)
-    SimpleIoMap(p, leaf, TextBlock(CellVector(@computation _leaf_spans(leaf)),
+    SimpleIoMap(p, leaf, TextBlock(CellVector(@computation _make_leaf_lines(leaf)),
                                    paths.selection, paths.mouse_target))
 end
 
@@ -149,21 +163,26 @@ function read_intent(p::SyntaxLeafToText, recursion, change::Intent, iomap::Simp
 end
 
 # Translate a TextBlock-domain `ReplaceStringRangeOperation` (referencing
-# `.elements[i].content[s:e]`) back to a SyntaxLeaf-domain op on the edited span's
-# field. An edit on ANY present span — `.open` / `.value` / `.close` — maps to that
-# field: the syntax domain owns all of its own text. The `.value` edit maps on through
-# to the input document; an `.open` / `.close` edit is a projection-introduced delimiter,
-# which the downstream domain projection defers (no document pre-image; see the
-# introduced-output branch in `ReaderDefaults`), so the key falls through to the
-# structural gesture. Which element index each span occupies depends on which delimiters
-# the leaf has, so ask the leaf.
+# `.elements[i].elements[k].content[s:e]`, characters of span `k` of line `i`) back
+# to a SyntaxLeaf-domain op on the edited span's field. An edit on ANY present span
+# — `.open` / `.value` / `.close` — maps to that field: the syntax domain owns all of
+# its own text. The `.value` edit maps on through to the input document; an `.open` /
+# `.close` edit is a projection-introduced delimiter, which the downstream domain
+# projection defers (no document pre-image; see the introduced-output branch in
+# `ReaderDefaults`), so the key falls through to the structural gesture. Which field
+# a span of a line shows, and where in it, depends on the delimiters and the breaks
+# of the leaf, so ask the leaf.
 function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
-    parsed = _parse_text_elem_range(op.reference)
+    parsed = _parse_span_range(op.reference)
     parsed === nothing && return nothing
-    span_idx, char_start, char_stop = parsed
+    span_path, char_start, char_stop = parsed
+    length(span_path) == 2 || return nothing
     leaf = iomap.input
-    field = _leaf_field_at(leaf, span_idx)
-    field === nothing && return nothing
+    piece = _find_leaf_piece(leaf, span_path[1], span_path[2])
+    piece === nothing && return nothing
+    field, offset = piece
+    char_start += offset
+    char_stop += offset
     # Prefer content over the projection's own delimiters. An insertion (a zero-width
     # edit) sitting on the boundary between the opening delimiter and the value belongs
     # to the value, even when the value is empty. The lowering counts a boundary offset
@@ -212,7 +231,7 @@ end
 # For inline nodes (empty open delimiter, like key: value pairs):
 #   child₁ sep child₂ …
 # Each child is projected one level down via `print_child(recursion, child, …)`
-# and its `output.elements` are spliced in — this node never walks the subtree by
+# and its output lines are joined in — this node never walks the subtree by
 # type (School A). Reading node.children registers it as a dependency of the
 # `child_iomaps` cell, so structural changes trigger a re-splice.
 
@@ -262,10 +281,14 @@ SyntaxCompoundToText(; indent_size::Int = 2,
                          ellipsis_style, delimiter_light_color, delimiter_light_levels,
                          decoration_font)
 
-# One IoMap for every compound, and it must be one: a parent reads its child's
-# `indent_indices` off the child's IoMap to widen them on splice
+# One IoMap for every compound, and it must be one: a parent reads the lines of
+# the chrome and the flat list of its child off the child's IoMap
 # (`_splice_child!`). A compound with an IoMap of its own type would be invisible
-# to that read, and every indent beneath it would silently stop being widened.
+# to that read, and no line beneath it would be widened.
+#
+# Every index below is an entry of `flat_elements`, the flat list of the output:
+# each span of each line in order, with the break and the indentation of each line
+# after the first. Its offsets are the flat offsets of the output.
 @iomap struct SyntaxCompoundToTextIoMap
     projection::Any
     input::SyntaxCompound
@@ -275,61 +298,64 @@ SyntaxCompoundToText(; indent_size::Int = 2,
     # them lets the mappers/reader peel the one `.children[i]` step this projection
     # owns and delegate the tail to the child's own mapper (School A).
     child_iomaps::Cell
-    # Cell{Vector{UnitRange{Int}}}: 1-based inclusive range in `output.elements`
-    # that each child's spliced element list occupies (parallel to child_iomaps).
+    # Cell{Vector{Any}}: the flat list of the output.
+    flat_elements::Cell
+    # Cell{Vector{UnitRange{Int}}}: 1-based inclusive range of entries that each
+    # child's lines occupy (parallel to child_iomaps).
     child_elem_ranges::Cell
-    # Cell{Vector{Int}}: element indices in `output.elements` of every line-start
-    # indent span in the whole spliced output — this node's own indents plus each
-    # child's indent_indices shifted by its splice base. This is what makes
-    # re-indent-on-splice compositional (an `indentation != 0` ancestor widens
-    # exactly these).
-    indent_indices::Cell
-    # Cell{Int}: index of the inline expand/collapse marker span in
-    # `output.elements` (always element 1 when present), or 0 when no marker
-    # was emitted. Recorded so the reader can recognise clicks on the marker.
+    # Cell{Vector{Bool}}: for each line of the output, whether its indentation is of
+    # the chrome of a compound, this one or one below it. A compound that indents
+    # widens exactly these lines of its children.
+    chrome_lines::Cell
+    # Cell{Int}: the entry of the inline expand/collapse marker (always entry 1
+    # when present), or 0 when no marker was emitted. Recorded so the reader can
+    # recognise clicks on the marker.
     marker_index::Cell
-    # Cell{Vector{Pair{Int,Symbol}}}: each delimiter span this compound emitted, as
-    # element index => the DOCUMENT FIELD it came from. Recorded by the printer
-    # rather than inferred, because with optional delimiters no position identifies
-    # them (the open span is not necessarily `marker_index + 1`, the close span not
-    # necessarily the last element) — and because the field name is the compound's
+    # Cell{Int}: the entry of the ellipsis of a collapsed node, or 0.
+    ellipsis_index::Cell
+    # Cell{Vector{Pair{Int,Tuple{Symbol,Int}}}}: each entry of a delimiter span that
+    # this compound emitted, a piece or a break, as entry => (the DOCUMENT FIELD it
+    # came from, the offset of the entry in the span). Recorded by the printer rather
+    # than inferred, because with optional delimiters no position identifies them
+    # (the open span is not necessarily `marker_index + 1`, the close span not
+    # necessarily the last entry) — and because the field name is the compound's
     # own: `SyntaxNode` says `open`, another compound may say something else. A
     # caret in one of these maps straight back to `.<field>{k}`.
     own_spans::Cell
-    # Cell{Vector{Int}}: element index of each separator span, in order (empty
-    # when the compound has no separator, or fewer than two children). Kept apart
-    # from `own_spans` because a separator is NOT backward-addressable — see
-    # `_push_separator!`.
+    # Cell{Vector{Pair{Int,Int}}}: each entry of each separator span, in order, as
+    # entry => the offset of the entry in the span (empty when the compound has no
+    # separator, or fewer than two children). Kept apart from `own_spans` because a
+    # separator is NOT backward-addressable — see `_push_separator!`.
     sep_indices::Cell
 end
 
 # ── Reference mapping (School A: own level + child delegation) ────────────
 # Both directions own exactly the one level this node lays out — marker/open/
-# close/sep/newline/indent/ellipsis chrome — and delegate anything inside a child
-# to that child's *own* mapper via the stored `child_iomaps`, shifting between the
-# child's element space and this node's spliced element space. No projection ever
+# close/sep/break/indentation/ellipsis chrome — and delegate anything inside a
+# child to that child's *own* mapper via the stored `child_iomaps`, shifting between
+# the flat list of the child's output and the flat list of this node's output. A
+# parent speaks to a child in the language of the child's output: a flat caret, a
+# whole span of a line, or characters of such a span. No projection ever
 # re-walks the input subtree by type. `_syntax_to_flat` is the flat metric of a
 # subtree for the edit disambiguation (see its section below).
 
 _rr_start(x) = x isa RangeReferenceStep ? x.start::Int : nothing
 
-# An own-span (open/close/sep) forward result. Convert (element index, char) to a
-# flat offset over this node's own output and re-anchor via `_flat_to_text_elem_path`
-# — this reproduces the end-of-span → next-non-empty-span anchoring exactly and
-# keeps every own-span forward image byte-identical to the pre-delegation printer.
+# An own-span (open/close/sep) forward result: the flat caret at character
+# `char_idx` from the start of entry `elem_idx`.
 function _anchor_nonempty(elements, elem_idx::Int, char_idx::Int)
     (1 <= elem_idx <= length(elements)) || return nothing
     flat = _text_elem_path_to_flat(elements, elem_idx, char_idx)
     flat < 0 && return nothing
-    _flat_to_text_elem_path(elements, flat)
+    _flat_text_path(flat)
 end
 
-# Shift a child's forward *cursor* image into this node's element/flat space: map
-# the child's element index to its spliced parent index, take the parent flat, and
-# re-anchor through `_flat_to_text_elem_path` (matching the old whole-tree walk and
-# — crucially — reading the *widened* parent spans, so re-indent-on-splice is
-# accounted for). Whole-element (∅) images are handled separately via element
-# ranges (`_child_elem_range`), never by adding a child-local flat.
+# Shift a child's forward *cursor* image into this node's flat space: map the
+# entry of the child's flat list to its entry in this node's list, and take the
+# flat offset there. It reads *this* node's entries, whose indentations of the
+# chrome are widened, so the widening is accounted for. Whole-element (∅) images
+# are handled separately via entry ranges (`_child_elem_range`), never by adding a
+# child-local flat.
 function _shift_child_cursor(inner, child_elements, elements, range::UnitRange{Int})
     child_flat = _text_side_flat(inner)
     child_flat === nothing && return nothing
@@ -341,11 +367,11 @@ function _shift_child_cursor(inner, child_elements, elements, range::UnitRange{I
     _flat_text_path(pf)
 end
 
-# Element-index range (in `iomap.output.elements`) covered by a whole-element
+# Entry range (in `iomap.flat_elements`) covered by a whole-element
 # (∅-terminating, children-only) sub-path under child `child_i`. Recurses through
 # nested `.children[j]` steps, shifting each level's child range by its splice
-# base — so the final flat, taken from *this* node's spliced (and widened) spans,
-# is correct even for indented descendants. `nothing` when the tail is a cursor
+# base — so the final flat, taken from *this* node's entries (with widened
+# indentations), is correct even for indented descendants. `nothing` when the tail is a cursor
 # path (ends in a field position) rather than a whole element, or descends into a
 # non-node child.
 function _child_elem_range(iomap::SyntaxCompoundToTextIoMap, child_i::Int, tail)
@@ -364,21 +390,21 @@ function _child_elem_range(iomap::SyntaxCompoundToTextIoMap, child_i::Int, tail)
     return (sub.start + offset):(sub.stop + offset)
 end
 
-# Element index of the delimiter span the compound rendered for field `fname`, or 0
-# when it has no such delimiter — in which case that field addresses no span, and
+# The first entry of the delimiter span the compound rendered for field `fname`, or
+# 0 when it has no such delimiter — in which case that field addresses no span, and
 # so offers no cursor position.
 function _own_index(iomap::SyntaxCompoundToTextIoMap, fname::AbstractString)
-    for (i, field) in iomap.own_spans
+    for (i, (field, _)) in iomap.own_spans
         String(field) == fname && return i
     end
     0
 end
 
-# The document field the delimiter span at element `j` came from, or `nothing` when
-# `j` is not one of this compound's delimiters.
+# The document field the delimiter entry `j` came from and the offset of the entry
+# in the span, or `nothing` when `j` is not an entry of this compound's delimiters.
 function _own_field(iomap::SyntaxCompoundToTextIoMap, j::Int)
-    for (i, field) in iomap.own_spans
-        i == j && return field
+    for (i, own) in iomap.own_spans
+        i == j && return own
     end
     nothing
 end
@@ -387,7 +413,7 @@ function map_reference_forward(p::SyntaxCompoundToText, iomap::SyntaxCompoundToT
     reference = strip_reference_types(reference)   # selections are canonical (checkpointed)
     reference isa EmptyReference && return @reference()     # whole node
     reference isa ConcreteReference || return nothing
-    elements = iomap.output.elements
+    elements = iomap.flat_elements
     node = iomap.input
     h = reference.head
     if h isa ProjectionReferenceStep
@@ -399,7 +425,7 @@ function map_reference_forward(p::SyntaxCompoundToText, iomap::SyntaxCompoundToT
         inner = h.output_path
         (inner isa ConcreteReference && inner.head isa RangeReferenceStep &&
          inner.tail isa EmptyReference) || return nothing
-        return _flat_to_text_elem_path(elements, inner.head.start::Int)
+        return _flat_text_path(inner.head.start::Int)
     end
     h isa FieldReferenceStep || return nothing
     # A step into a child — `.children[i]` or `.content`, whichever this compound uses.
@@ -422,7 +448,7 @@ function map_reference_forward(p::SyntaxCompoundToText, iomap::SyntaxCompoundToT
         child = cims[child_i]
         inner = map_reference_forward(child.projection, child, ctail)
         inner === nothing && return nothing
-        return _shift_child_cursor(inner, child.output.elements, elements, iomap.child_elem_ranges[child_i])
+        return _shift_child_cursor(inner, _compute_flat_entries(child), elements, iomap.child_elem_ranges[child_i])
     end
     rest = reference.tail
     rest isa ConcreteReference || return nothing
@@ -434,19 +460,13 @@ function map_reference_forward(p::SyntaxCompoundToText, iomap::SyntaxCompoundToT
     if separator !== nothing && fname == String(separator.first)
         seps = iomap.sep_indices
         isempty(seps) && return nothing
-        return _anchor_nonempty(elements, seps[1], k)
+        return _anchor_nonempty(elements, first(seps[1]), k)
     end
     # A delimiter, wherever the printer put it. A compound that has no such
     # delimiter rendered no span for it, so the field addresses nothing.
     i = _own_index(iomap, fname); i == 0 && return nothing
     return _anchor_nonempty(elements, i, k)
 end
-
-# Build a child-local output sub-reference to hand to a child's backward mapper:
-# a whole element (`char === nothing`) or a `.content{char}` cursor.
-_child_tree_path(idx::Int) =
-    ConcreteReference(FieldReferenceStep("elements"),
-        ConcreteReference(RangeReferenceStep(idx - 1, idx), EmptyReference()))
 
 # The step from `doc` into its `i`-th child — `.children[i]` for a sequence, `.content`
 # for a wrapper. The compound answers; this file does not care which it is.
@@ -461,48 +481,57 @@ function map_reference_backward(p::SyntaxCompoundToText, iomap::SyntaxCompoundTo
     reference = strip_reference_types(reference)   # selections are canonical (checkpointed)
     reference isa EmptyReference && return @reference()     # whole node
     _is_flat_text_range(reference) && return nothing
-    elements = iomap.output.elements
-    # Whole-element (tree) selection `.elements[j]∅`.
-    tree_j = _parse_tree_elem_path(reference)
-    tree_j !== nothing && return _backward_zone(p, iomap, tree_j, nothing)
-    # Flat text caret (`TextRangeReferenceStep{f}`, bare `{f}`, or the internal
-    # structural `.elements[j].content{c}`) → the element `(span, char)` it lands
-    # on, then classify by zone.
-    flat = _text_side_flat(reference, elements)
+    elements = iomap.flat_elements
+    # Whole span of a line (tree) selection `.elements[i].elements[k]∅`.
+    tree_path = _parse_tree_span_path(reference)
+    if tree_path !== nothing
+        tree_j = _find_span_entry(elements, tree_path[1], tree_path[2])
+        return tree_j === nothing ? nothing : _backward_zone(p, iomap, tree_j, nothing)
+    end
+    # Flat text caret (`TextRangeReferenceStep{f}`, bare `{f}`, or a caret in a span
+    # of a line) → the entry `(span, char)` it lands on, then classify by zone.
+    flat = _compute_output_flat(iomap.output, reference)
     flat === nothing && return nothing
     loc = _flat_to_span_char(elements, flat)
     loc === nothing && return nothing
     _backward_zone(p, iomap, loc[1], loc[2])
 end
 
-# Classify output element `j` into a zone and produce the source-domain selection.
+# Classify entry `j` of the flat list into a zone and produce the source-domain
+# selection.
 # `char === nothing` means a whole-element (∅) query; otherwise a cursor at `char`.
 #   child zone i → delegate the (shifted) sub-reference to child i's mapper and
 #                  prepend `.children[i]`;
 #   open / close → `.open{c}` / `.close{c}` (whole element on own chrome → ∅);
-#   any other own chrome (marker/newline/indent/sep/ellipsis) → a
+#   any other own chrome (marker, break, indentation, sep, ellipsis) → a
 #                  projection-introduced position `proj(p, {node-local flat})`.
 function _backward_zone(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, j::Int, char)
-    elements = iomap.output.elements
+    elements = iomap.flat_elements
     node = iomap.input
     (1 <= j <= length(elements)) || return nothing
     ranges = iomap.child_elem_ranges
     for (i, r) in enumerate(ranges)
         if j in r
-            # An indent span is pure whitespace chrome, rendered at *this* level's
-            # widened width (re-indent-on-splice). Its interior carets have no
-            # counterpart in the child's own, narrower version of the span — the
-            # widening is chrome this level added — so delegating there re-flattens
-            # over the un-widened spans and collapses the caret onto the following
-            # delimiter. Let an indent-span cursor fall through to a
-            # projection-introduced position here instead, which round-trips (its
-            # forward image is just this flat). ∅ (whole-element) queries still
-            # delegate: they select the child subtree, not a caret in the chrome.
-            char !== nothing && j in iomap.indent_indices && break
+            # An indentation is pure whitespace chrome, at *this* level's widened
+            # width. Its interior carets have no counterpart in the child's own,
+            # narrower indentation — the widening is chrome this level added — so
+            # delegating there re-flattens over the un-widened entries and collapses
+            # the caret onto the following delimiter. Let a caret in an indentation
+            # fall through to a projection-introduced position here instead, which
+            # round-trips (its forward image is just this flat). ∅ (whole-element)
+            # queries still delegate: they select the child subtree, not a caret in
+            # the chrome.
+            char !== nothing && elements[j] isa _LineIndentation && break
             cim = iomap.child_iomaps[i]
             child_local = j - r.start + 1
-            sub = char === nothing ? _child_tree_path(child_local) :
-                  _text_elem_path(child_local, char::Int)
+            child_elements = _compute_flat_entries(cim)
+            if char === nothing
+                span_path = _find_entry_span_path(child_elements, child_local)
+                span_path === nothing && return nothing
+                sub = _make_span_path(span_path, EmptyReference())
+            else
+                sub = _flat_text_path(_text_elem_path_to_flat(child_elements, child_local, char::Int))
+            end
             inner = map_reference_backward(cim.projection, cim, sub)
             inner === nothing && return nothing
             return _prepend_child(node, i, inner)
@@ -514,22 +543,22 @@ function _backward_zone(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMa
     # calls it — a compound may have neither, in which case no element maps back to a
     # delimiter at all. Separators are deliberately absent from `own_spans` and fall
     # through to the projection-introduced position below (see `_push_separator!`).
-    field = _own_field(iomap, j)
-    field !== nothing && return _own_span_path(node, field, c)
+    own = _own_field(iomap, j)
+    own !== nothing && return _own_span_path(node, own[1], own[2] + c)
     flat = _text_elem_path_to_flat(elements, j, c)
     return make_introduced_reference(p, node,
                ConcreteReference(Position, PositionReferenceStep(flat), EmptyReference(Position)))
 end
 
-# Renders `marker? open`, children interleaved with `sep` (plus `\n`+indent when
-# `indentation != 0`), then `close`, splicing each child's `output.elements`. The
+# Renders `marker? open`, children interleaved with `sep` (each on a line of its
+# own when `indentation != 0`), then `close`, joining the lines of each child. The
 # output selection is composed by `_compose_node_selection` (forward-mapping
 # node.selection, then a first-descendant-cursor fallback). See those functions.
 function print_document(p::SyntaxCompoundToText, recursion, node::SyntaxCompound, ctx)
-    # Per-projection decorative-span cache (no module-global state): reused across
-    # re-layouts so a structural edit keeps the identity of every unchanged
-    # marker/newline/indent/ellipsis span *and* every splice-widened child indent.
-    # Evict slots not seen this pass so the cache cannot grow unbounded.
+    # Per-projection decorative cache (no module-global state): reused across
+    # re-layouts so a structural edit keeps the identity of every unchanged ellipsis,
+    # lit delimiter and line. Evict slots not seen this pass so the cache cannot grow
+    # unbounded.
     deco = _DecoCache()
 
     # Delegate every child one level down through `recursion` (never re-walk the
@@ -554,11 +583,11 @@ function print_document(p::SyntaxCompoundToText, recursion, node::SyntaxCompound
         result
     end)
 
-    # Own chrome interleaved with each child's spliced element list. Returns a
-    # tuple `(elements, child_elem_ranges, indent_indices)`. This cell reads only
-    # syntax content and `child_iomaps` — never any selection cell — so the output
-    # element vector is stable across caret moves (spans-stability property); the
-    # separate selection cell below is what recomputes on a caret move.
+    # Own chrome interleaved with the lines of each child. Returns the lines and the
+    # tables of `_splice_result`. This cell reads only syntax content and
+    # `child_iomaps` — never any selection cell — so the output element vector is
+    # stable across caret moves (spans-stability property); the separate selection
+    # cell below is what recomputes on a caret move.
     # The level of this node around the part under the pointer, which colours its
     # delimiters. Only the colour cells of the delimiters read it, so a move of the
     # pointer lays out nothing again.
@@ -596,70 +625,258 @@ function print_document(p::SyntaxCompoundToText, recursion, node::SyntaxCompound
 
     iomap = SyntaxCompoundToTextIoMap(p, node, output,
         child_iomaps,
+        Cell(@computation spans[].flat_elements),
         Cell(@computation spans[].child_elem_ranges),
-        Cell(@computation spans[].indent_indices),
-        Cell(@computation _active_marker(p, node) === nothing ? 0 : 1),
+        Cell(@computation spans[].chrome_lines),
+        Cell(@computation spans[].marker_index),
+        Cell(@computation spans[].ellipsis_index),
         Cell(@computation spans[].own_spans),
         Cell(@computation spans[].sep_indices))
     iomap_cell[] = iomap
     iomap
 end
 
+# ── Lines ─────────────────────────────────────────────────────────────────────
+#
+# Syntax text is a block of `TextLine`s. A delimiter or a separator of a compound
+# that holds a `'\n'` is cut there into pieces on separate lines. It is a constant
+# of the domain, so the cut reads a cell that no edit writes. The break before a
+# line counts one flat offset, as the `'\n'` does, so the flat offsets of the lines
+# are the offsets of the text of the spans. A leaf value and a span of another
+# producer are one run each, and a `'\n'` in them is a row inside a line.
+
+# One line under construction: its spans, its indentation, and whether the
+# indentation is of the chrome of a compound. A compound that indents widens such
+# a line. A line that a break inside a span starts has indentation 0 and keeps it,
+# because the text of a span is the user's text and its spaces are its own.
+mutable struct _LineRecord
+    spans::Vector{TextDocument}
+    indentation::Int
+    is_chrome::Bool
+end
+
+_make_first_line_record() = _LineRecord(TextDocument[], 0, false)
+
+# An entry of the flat list of an output that is no span: the break before a line
+# after the first, and the indentation of such a line. The flat list of an output
+# holds each span of each line in order, and before each line after the first its
+# break and its indentation, so its offsets are the flat offsets of the output.
+struct _LineBreak end
+struct _LineIndentation
+    width::Int
+end
+
+const _LINE_BREAK = _LineBreak()
+
+_span_len(::_LineBreak) = 1
+_span_len(indentation::_LineIndentation) = indentation.width
+
+_is_split_span(span) = span isa TextString && occursin('\n', span.content::AbstractString)
+
+# The parts of `span` on lines, each `(k, offset)`: `k > 0` is piece `k` of its text
+# and `k == 0` a break, and `offset` is the place of the first character of the
+# part in the span. A span that holds no `'\n'` is one part, itself. A split span
+# has a part for each `'\n'` and for each non-empty run of characters between two.
+function _compute_span_parts(span)
+    _is_split_span(span) || return ((1, 0),)
+    parts = Tuple{Int,Int}[]
+    offset = 0
+    for (k, piece) in enumerate(split(span.content::AbstractString, '\n'))
+        k > 1 && push!(parts, (0, offset - 1))
+        isempty(piece) || push!(parts, (k, offset))
+        offset += length(piece) + 1
+    end
+    parts
+end
+
+# The text of piece `k` of `content`, or `""` when it has no such piece.
+function _compute_line_piece(content::AbstractString, k::Int)
+    pieces = split(content, '\n')
+    k <= length(pieces) ? String(pieces[k]) : ""
+end
+
+# Piece `k` of the split span `span`: a span in its style that shows that part of
+# its text, and follows an edit of it.
+function _make_line_piece(span::TextString, k::Int)
+    content = getfield(span, :content)
+    TextString(Cell(@computation _compute_line_piece(content[], k)), getfield(span, :font),
+               getfield(span, :font_color), getfield(span, :fill_color), getfield(span, :line_color),
+               getfield(span, :padding), getfield(span, :pointer_shape), Cell(nothing))
+end
+
+# The object of part `k` of `span`: the span itself when it holds no `'\n'`.
+_make_span_part(span, k::Int) = _is_split_span(span) ? _make_line_piece(span::TextString, k) : span
+
+# The lines of an output. A `TextLine` is a line; a span joins the line before it;
+# a `TextNewline` opens a line. `chrome_lines`, when given, tells which lines are of
+# the chrome.
+function _compute_output_lines(block::TextBlock, chrome_lines = nothing)
+    lines = _LineRecord[]
+    for element in block.elements
+        if element isa TextLine
+            k = length(lines) + 1
+            is_chrome = chrome_lines !== nothing && k <= length(chrome_lines) && chrome_lines[k]
+            push!(lines, _LineRecord(collect(TextDocument, element.elements), element.indentation, is_chrome))
+            continue
+        end
+        isempty(lines) && push!(lines, _make_first_line_record())
+        if element isa TextNewline
+            push!(lines, _LineRecord(TextDocument[], 0, false))
+        else
+            push!(lines[end].spans, element)
+        end
+    end
+    isempty(lines) && push!(lines, _make_first_line_record())
+    lines
+end
+
+# The flat list of `lines`.
+function _build_flat_entries(lines::Vector{_LineRecord})
+    entries = Any[]
+    for (i, line) in enumerate(lines)
+        if i > 1
+            push!(entries, _LINE_BREAK)
+            push!(entries, _LineIndentation(line.indentation))
+        end
+        append!(entries, line.spans)
+    end
+    entries
+end
+
+# The flat list of the output of a child: the one its IO map keeps, or the one of
+# its output lines.
+function _compute_flat_entries(iomap)
+    content = get_content_iomap(iomap)
+    content isa SyntaxCompoundToTextIoMap && return content.flat_elements
+    _build_flat_entries(_compute_output_lines(iomap.output))
+end
+
+# The lines of the output of a child, with the lines of the chrome marked.
+function _compute_child_lines(iomap)
+    content = get_content_iomap(iomap)
+    chrome_lines = content isa SyntaxCompoundToTextIoMap ? content.chrome_lines : nothing
+    _compute_output_lines(iomap.output, chrome_lines)
+end
+
+# The `TextLine` of `line`, the same object as the last layout when its spans and
+# its indentation are the same.
+function _make_output_line(deco, line::_LineRecord)
+    key = (:line, line.indentation, map(objectid, line.spans)...)
+    _deco_span(deco, key, () -> TextLine(line.spans; indentation = line.indentation))
+end
+
+# The entry of span `k` of line `i` in the flat list `entries`, or `nothing`.
+function _find_span_entry(entries, i::Int, k::Int)
+    line, position = 1, 0
+    for (j, entry) in enumerate(entries)
+        if entry isa _LineBreak
+            line += 1
+            position = 0
+        elseif !(entry isa _LineIndentation) && line == i
+            position += 1
+            position == k && return j
+        end
+        line > i && return nothing
+    end
+    nothing
+end
+
+# The span path `[i, k]` of entry `j` of `entries`, or `nothing` for a break or an
+# indentation.
+function _find_entry_span_path(entries, j::Int)
+    (1 <= j <= length(entries)) || return nothing
+    entries[j] isa Union{_LineBreak, _LineIndentation} && return nothing
+    line, position = 1, 0
+    for n in 1:j
+        entry = entries[n]
+        if entry isa _LineBreak
+            line += 1
+            position = 0
+        elseif !(entry isa _LineIndentation)
+            position += 1
+        end
+    end
+    Int[line, position]
+end
+
 # ── The shared splice core ───────────────────────────────────────────────────
 #
-# Own chrome (marker, open, sep, newline/indent decorations, ellipsis, close) is
-# emitted at **relative depth 0**; each child's `output.elements` are spliced
-# verbatim, save that an `indentation != 0` parent widens every span in the child's
-# `indent_indices` by one indent level (re-indent-on-splice — Settled decision 2).
-# Summed over ancestors this reproduces a `depth * indent_size` width byte-for-byte.
+# Own chrome (marker, open, sep, line breaks and indentation, ellipsis, close) is
+# emitted at **relative depth 0**; the lines of each child are joined in: the first
+# line of the child joins the open line, the last line of the child is the open
+# line after it, and an `indentation != 0` parent widens every line of the chrome
+# of the child by one indent level. Summed over ancestors this reproduces a
+# `depth * indent_size` indentation.
 #
 # A compound lays out up to five separable things at once: a collapse marker, a
-# pair of delimiters, a separator between children, newline/indent chrome, and the
-# children's own spans spliced in. Those five are exactly what the `Syntax` wrapper
+# pair of delimiters, a separator between children, lines and indentation, and the
+# children's own lines joined in. Those five are exactly what the `Syntax` wrapper
 # documents (`SyntaxCollapsible`, `SyntaxDelimitation`, `SyntaxSeparation`,
 # `SyntaxIndentation`, `SyntaxConcatenation`) each own on their own.
 #
 # So the layout is written once, here, as operations on a `SpliceBuffer`: the
-# element list under construction plus everything the reference mappers need to
-# know about where each span ended up. A `SyntaxNode` composes all five; a
-# `SyntaxConcatenation` composes none of them. Nothing is inferred from a
-# span's position — with optional delimiters no position identifies the open span
-# (it is not necessarily `marker_index + 1`) or the close span (not necessarily the
-# last element), so every operation *records* what it appended.
+# lines under construction plus everything the reference mappers need to know
+# about where each span ended up in the flat list of the output. A `SyntaxNode`
+# composes all five; a `SyntaxConcatenation` composes none of them. Nothing is
+# inferred from a span's position — with optional delimiters no position
+# identifies the open span (it is not necessarily `marker_index + 1`) or the close
+# span (not necessarily the last entry), so every operation *records* what it
+# appended.
 
 mutable struct SpliceBuffer
-    elements::Vector{TextDocument}
+    lines::Vector{_LineRecord}            # the last line is the open line
+    count::Int                            # the entries of the flat list so far
     child_elem_ranges::Vector{UnitRange{Int}}
-    indent_indices::Vector{Int}          # line-start indent spans, for ancestor widening
-    own_spans::Vector{Pair{Int,Symbol}}  # element index => the document field it came from
-    sep_indices::Vector{Int}             # each separator span, in order
-    deco::Any                            # decorative-span reuse cache (see _DecoCache)
-    nid::UInt                            # structural-slot key prefix for deco spans
-    deco_font::StyleFont                 # whitespace decorations track the content font
+    own_spans::Vector{Pair{Int,Tuple{Symbol,Int}}}  # entry => (document field, offset in the span)
+    sep_indices::Vector{Pair{Int,Int}}    # each entry of each separator => its offset in the span
+    marker_index::Int
+    ellipsis_index::Int
+    deco::Any                             # decorative reuse cache (see _DecoCache)
+    nid::UInt                             # structural-slot key prefix for deco objects
+    deco_font::StyleFont                  # the ellipsis tracks the content font
     indent_size::Int
 end
 
 SpliceBuffer(deco; nid::UInt, deco_font::StyleFont, indent_size::Int) =
-    SpliceBuffer(TextDocument[], UnitRange{Int}[], Int[], Pair{Int,Symbol}[], Int[],
-                 deco, nid, deco_font, indent_size)
+    SpliceBuffer([_make_first_line_record()], 0, UnitRange{Int}[], Pair{Int,Tuple{Symbol,Int}}[],
+                 Pair{Int,Int}[], 0, 0, deco, nid, deco_font, indent_size)
 
-# Append a span and return its element index; an absent span appends nothing and
-# has no index (0), so it carries no cursor position either.
+# Append one span to the open line, and return its entry.
+function _push_entry_span!(buf::SpliceBuffer, span)
+    push!(buf.lines[end].spans, span)
+    buf.count += 1
+end
+
+# Open a new line, and return the entry of its break; the entry of its indentation
+# follows.
+function _start_line!(buf::SpliceBuffer, indentation::Int, is_chrome::Bool)
+    push!(buf.lines, _LineRecord(TextDocument[], indentation, is_chrome))
+    buf.count += 2
+    buf.count - 1
+end
+
+# Append a span, cut at each `'\n'`, and return each of its entries with the offset
+# of the entry in the span, a piece or a break. An absent span appends nothing and
+# has no entry, so it carries no cursor position either.
 function _push_span!(buf::SpliceBuffer, span)
-    span === nothing && return 0
-    push!(buf.elements, span)
-    length(buf.elements)
+    span === nothing && return Pair{Int,Int}[]
+    places = Pair{Int,Int}[]
+    for (k, offset) in _compute_span_parts(span)
+        j = k == 0 ? _start_line!(buf, 0, false) : _push_entry_span!(buf, _make_span_part(span, k))
+        push!(places, j => offset)
+    end
+    places
 end
 
 # A delimiter, given as the `field => span` pair the compound answered. Recorded
 # against its DOCUMENT FIELD, not its position, so the mappers can hand a caret in
 # it straight back as `.<field>{k}` without knowing what this compound calls its
 # delimiters. A compound with no such delimiter answers `nothing` and emits nothing.
-_push_delimiter!(::SpliceBuffer, ::Nothing) = 0
+_push_delimiter!(::SpliceBuffer, ::Nothing) = nothing
 function _push_delimiter!(buf::SpliceBuffer, pair::Pair{Symbol,<:Any})
-    i = _push_span!(buf, pair.second)
-    i == 0 || push!(buf.own_spans, i => pair.first)
-    i
+    for (j, offset) in _push_span!(buf, pair.second)
+        push!(buf.own_spans, j => (pair.first, offset))
+    end
 end
 
 # The separator, between two children (never before the first).
@@ -669,15 +886,16 @@ end
 # `.sep{k}` — an edit there would change every separator at once, which the document
 # cannot express. Separators map backward as projection-introduced chrome; the
 # forward direction still resolves `.sep{k}` onto the first of them (see the mapper).
-_push_separator!(::SpliceBuffer, ::Nothing) = 0
+_push_separator!(::SpliceBuffer, ::Nothing) = nothing
 function _push_separator!(buf::SpliceBuffer, pair::Pair{Symbol,<:Any})
-    i = _push_span!(buf, pair.second)
-    i == 0 || push!(buf.sep_indices, i)
-    i
+    append!(buf.sep_indices, _push_span!(buf, pair.second))
 end
 
 # The collapse marker, ahead of everything else.
-_push_marker!(buf::SpliceBuffer, marker) = _push_span!(buf, marker)
+function _push_marker!(buf::SpliceBuffer, marker)
+    places = _push_span!(buf, marker)
+    isempty(places) || (buf.marker_index = first(places[1]))
+end
 
 # The glyph that stands in for a collapsed node's (un-projected) children. The
 # printer and the offset count read it both, so they agree on its length.
@@ -686,50 +904,45 @@ const _ELLIPSIS = "…"
 # The ellipsis standing in for a collapsed node's (un-projected) children.
 function _push_ellipsis!(buf::SpliceBuffer, style::StyleText)
     size = buf.deco_font.size
-    _push_span!(buf, _deco_span(buf.deco, (buf.nid, 0, :ellipsis),
+    places = _push_span!(buf, _deco_span(buf.deco, (buf.nid, 0, :ellipsis),
         () -> TextString(_ELLIPSIS, with_font_size(style.font, size), style.color)))
+    buf.ellipsis_index = first(places[1])
 end
 
-# One child's line chrome: a newline then an indent of width `depth * indent_size`.
-# Recorded in `indent_indices`, which is what an `indentation != 0` ancestor widens
-# (re-indent-on-splice). `slot` keys the decorative-span cache so an unchanged line
-# keeps its span identity across re-layouts.
-function _push_line_chrome!(buf::SpliceBuffer, slot::Int, depth::Int)
-    font, size = buf.deco_font, buf.indent_size
-    _push_span!(buf, _deco_span(buf.deco, (buf.nid, slot, depth == 0 ? :tnl : :nl),
-                                () -> _newline_span(font)))
-    i = _push_span!(buf, _deco_span(buf.deco, (buf.nid, slot, depth == 0 ? :tind : :ind),
-                                    () -> _indent_span(size, depth, font)))
-    push!(buf.indent_indices, i)
-    i
-end
+# One child's line chrome: a new line with an indentation of `depth * indent_size`,
+# which an `indentation != 0` ancestor widens.
+_push_line_chrome!(buf::SpliceBuffer, depth::Int) =
+    _start_line!(buf, depth * buf.indent_size, true)
 
-# Splice one child's spans into this buffer, widening every line-start indent the
-# child reported when this level indents, and propagating those indents upward
-# (shifted to their spliced position) so a higher indenting ancestor widens them
-# too. Records the element range the child occupies.
+# Join one child's lines into this buffer: its first line joins the open line, and
+# each other line follows, widened by one indent level when it is of the chrome and
+# this level indents. Records the entry range the child occupies.
 function _splice_child!(buf::SpliceBuffer, cim, widen::Bool)
-    base = length(buf.elements) + 1
-    content = get_content_iomap(cim)
-    child_iset = content isa SyntaxCompoundToTextIoMap ? Set(content.indent_indices) : Set{Int}()
-    for (j, s) in enumerate(cim.output.elements)
-        if j in child_iset && widen
-            s = _widen_indent_span(buf.deco, (buf.nid, :widen, objectid(cim.input), j),
-                                   s, buf.indent_size)
+    base = buf.count + 1
+    for (k, line) in enumerate(_compute_child_lines(cim))
+        if k > 1
+            indentation = line.is_chrome && widen ? line.indentation + buf.indent_size : line.indentation
+            _start_line!(buf, indentation, line.is_chrome)
         end
-        push!(buf.elements, s)
-        j in child_iset && push!(buf.indent_indices, length(buf.elements))
+        for span in line.spans
+            _push_entry_span!(buf, span)
+        end
     end
-    rng = base:length(buf.elements)
+    rng = base:buf.count
     push!(buf.child_elem_ranges, rng)
     rng
 end
 
 # What the printer hands to the IoMap.
-_splice_result(buf::SpliceBuffer) =
-    (elements = buf.elements, child_elem_ranges = buf.child_elem_ranges,
-     indent_indices = buf.indent_indices, own_spans = buf.own_spans,
-     sep_indices = buf.sep_indices)
+function _splice_result(buf::SpliceBuffer)
+    lines = buf.lines
+    (elements = TextLine[_make_output_line(buf.deco, line) for line in lines],
+     flat_elements = _build_flat_entries(lines),
+     chrome_lines = Bool[line.is_chrome for line in lines],
+     child_elem_ranges = buf.child_elem_ranges, own_spans = buf.own_spans,
+     sep_indices = buf.sep_indices, marker_index = buf.marker_index,
+     ellipsis_index = buf.ellipsis_index)
+end
 
 # Every compound is laid out by this one function, because every compound *is*
 # some subset of the same five jobs. It asks the document what it has — an opening
@@ -754,13 +967,12 @@ function _splice_compound(doc::SyntaxCompound, p::SyntaxCompoundToText, deco, ci
             i > 1 && _push_separator!(buf, separator)
             # This node's own child-line chrome, at relative depth 1 (ancestors
             # widen it further).
-            indent != 0 && _push_line_chrome!(buf, i, 1)
+            indent != 0 && _push_line_chrome!(buf, 1)
             _splice_child!(buf, cim, indent != 0)
         end
-        # Trailing newline + indent before the close delimiter, at relative depth 0
-        # — a zero-width indent, but the slot must exist so ancestors have something
-        # to widen and element counts never depend on depth.
-        indent > 0 && _push_line_chrome!(buf, 0, 0)
+        # The line of the close delimiter, at relative depth 0: no indentation of
+        # its own, but a line of the chrome, so that ancestors widen it.
+        indent > 0 && _push_line_chrome!(buf, 0)
     end
 
     _push_delimiter!(buf, _make_lit_delimiter(buf, p, get_closing_delimiter(doc), level))
@@ -878,9 +1090,9 @@ function _compose_node_selection(node::SyntaxCompound, p::SyntaxCompoundToText, 
         csel === nothing && continue
         cf = _text_side_flat(csel)
         cf === nothing && continue                 # skip ∅ / TextRect / non-cursor
-        loc = _flat_to_span_char(cim.output.elements, cf)
+        loc = _flat_to_span_char(_compute_flat_entries(cim), cf)
         loc === nothing && continue
-        pf = _text_elem_path_to_flat(iomap.output.elements, ranges[i].start + loc[1] - 1, loc[2])
+        pf = _text_elem_path_to_flat(iomap.flat_elements, ranges[i].start + loc[1] - 1, loc[2])
         pf < 0 && continue
         image = _flat_text_path(pf)
         # The promoted caret belongs to the child, so it carries the child's state.
@@ -945,17 +1157,16 @@ end
 # to that child's own `_resolve_click` (recursion in lockstep with the printer):
 #   - own inline marker (incl. the right-edge boundary pixel) or collapsed ellipsis
 #     → `ToggleCollapseOperation(this node)` — any modifier;
-#   - a child node zone → recurse with the child-local element path; a returned
+#   - a child node zone → recurse with the child-local flat caret; a returned
 #     `ToggleCollapseOperation` (object target) propagates up unchanged, a returned
 #     tree `ReplaceSelectionOperation` gets `.children[i]` prepended;
 #   - a leaf child zone → Alt: whole-leaf `.children[i]∅`; else cursor (`nothing`);
 #   - own delimiters/decoration → Alt: whole-node `∅`; else cursor (`nothing`).
 function _resolve_click(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, gesture, path)
-    elements = iomap.output.elements
-    # Locate the clicked element (prefer the reference's own element index; fall
-    # back through the flat offset for a bare `{n}`), plus the flat for the marker
-    # boundary-pixel test.
-    flat = _text_side_flat(path, elements)
+    elements = iomap.flat_elements
+    # Locate the clicked entry through the flat offset, which the marker
+    # boundary-pixel test reads too.
+    flat = _compute_output_flat(iomap.output, path)
     flat === nothing && return nothing
     loc = _flat_to_span_char(elements, flat)
     loc === nothing && return nothing
@@ -967,16 +1178,16 @@ function _resolve_click(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMa
     # right edge of the glyph maps to the open delimiter's first column).
     mi > 0 && flat <= length(elements[mi].content::AbstractString) &&
         return ToggleCollapseOperation(node)
-    # Own collapsed-body ellipsis (element after marker? + open).
-    is_syntax_collapsed(node) && length(get_syntax_children(node)) > 0 && j == mi + 2 &&
-        return ToggleCollapseOperation(node)
+    # Own collapsed-body ellipsis.
+    iomap.ellipsis_index > 0 && j == iomap.ellipsis_index && return ToggleCollapseOperation(node)
 
     for (i, r) in enumerate(iomap.child_elem_ranges)
         if j in r
             cim = get_content_iomap(iomap.child_iomaps[i])
             if cim isa SyntaxCompoundToTextIoMap
-                # Delegate the child-local element click to the child's resolver.
-                inner = _resolve_click(cim.projection, cim, gesture, _text_elem_path(j - r.start + 1, c))
+                # Delegate the child-local click to the child's resolver.
+                child_flat = _text_elem_path_to_flat(cim.flat_elements, j - r.start + 1, c)
+                inner = _resolve_click(cim.projection, cim, gesture, _flat_text_path(child_flat))
                 inner === nothing && return nothing
                 inner isa ToggleCollapseOperation && return inner   # object target, unchanged
                 inner isa ReplaceSelectionOperation &&
@@ -1021,16 +1232,20 @@ function read_intent(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, 
 end
 
 # Translate a flat-text `ReplaceStringRangeOperation` to a SyntaxNode-domain op.
-# The reference is single-span (`.elements[j].content{s:e}`). Classify element `j`
-# into a zone: a child zone delegates the shifted 3-arg read to that child's own
-# reader (the leaf `.value{s:e}` rewrite lives in `SyntaxLeafToText`) and prepends
+# The reference is single-span (`.elements[i].elements[k].content{s:e}`, span `k`
+# of line `i`). Classify its entry `j` into a zone: a child zone delegates the read,
+# as characters of a span of a line of the child, to that child's own reader (the
+# leaf `.value{s:e}` rewrite lives in `SyntaxLeafToText`) and prepends
 # `.children[i]`; own chrome is not editable. The zero-width input-selection
 # disambiguation is preserved.
 function read_intent(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, op::ReplaceStringRangeOperation)
-    parsed = _parse_text_elem_range(op.reference)
+    parsed = _parse_span_range(op.reference)
     parsed === nothing && return nothing
-    span_idx, char_start, char_stop = parsed
-    elements = iomap.output.elements
+    span_path, char_start, char_stop = parsed
+    length(span_path) == 2 || return nothing
+    elements = iomap.flat_elements
+    span_idx = _find_span_entry(elements, span_path[1], span_path[2])
+    span_idx === nothing && return nothing
     flat_start = _text_elem_path_to_flat(elements, span_idx, char_start)
     flat_stop  = _text_elem_path_to_flat(elements, span_idx, char_stop)
     (flat_start < 0 || flat_stop < 0) && return nothing
@@ -1055,13 +1270,14 @@ function read_intent(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, 
         end
     end
 
-    # Both endpoints share element `span_idx`; delegate its child zone.
+    # Both endpoints share entry `span_idx`; delegate its child zone.
     for (i, r) in enumerate(iomap.child_elem_ranges)
         if span_idx in r
             cim = iomap.child_iomaps[i]
-            child_local = span_idx - r.start + 1
+            child_path = _find_entry_span_path(_compute_flat_entries(cim), span_idx - r.start + 1)
+            child_path === nothing && return nothing
             child_op = ReplaceStringRangeOperation(
-                _text_elem_range(child_local, char_start, char_stop), op.replacement)
+                _make_span_range_path(child_path, char_start, char_stop), op.replacement)
             result = read_intent(cim.projection, cim, child_op)
             (result isa ReplaceStringRangeOperation) || return nothing
             return ReplaceStringRangeOperation(_prepend_child(iomap.input, i, result.reference), result.replacement)
@@ -1075,12 +1291,14 @@ function read_intent(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, 
     # field. For a domain-projected node the separator is projection-introduced, so the
     # domain's own reader defers this `.<field>` edit and the key falls through to a
     # structural gesture; for a standalone syntax document it edits the separator in place.
-    if span_idx in iomap.sep_indices
+    k = findfirst(place -> first(place) == span_idx, iomap.sep_indices)
+    if k !== nothing
         separator = get_separator(iomap.input)
         if separator !== nothing
+            offset = last(iomap.sep_indices[k])
             new_ref = ConcreteReference(get_reference_node_type(iomap.input),
                           FieldReferenceStep(String(separator.first)),
-                          ConcreteReference(TextString, RangeReferenceStep(char_start, char_stop),
+                          ConcreteReference(TextString, RangeReferenceStep(char_start + offset, char_stop + offset),
                               EmptyReference(Position)))
             return ReplaceStringRangeOperation(new_ref, op.replacement)
         end
@@ -1097,13 +1315,6 @@ function read_intent(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, 
     lowered = _lower_text_range(iomap.output, op)
     (lowered === nothing || is_text_element_write(lowered)) ? nothing : read_intent(p, iomap, lowered)
 end
-
-# `.elements[idx].content{s:e}` — the single-span replace-range reference shape.
-_text_elem_range(idx::Int, s::Int, e::Int) =
-    ConcreteReference(FieldReferenceStep("elements"),
-        ConcreteReference(RangeReferenceStep(idx - 1, idx),
-            ConcreteReference(FieldReferenceStep("content"),
-                ConcreteReference(RangeReferenceStep(s, e), EmptyReference()))))
 
 # True iff `path` ends in `.<field>[range]` — the shape a
 # ReplaceStringRangeOperation reference must have for `_split_replace_reference`.
@@ -1211,6 +1422,26 @@ function map_reference_backward(::SyntaxListToText, iomap, reference)
     return nothing
 end
 
+# The spans of an output of lines, with a `"\n"` span for each break and a span of
+# spaces for each indentation, in the font of the first text span. Their flat
+# offsets are the flat offsets of the lines.
+function _flatten_output_lines(block::TextBlock)
+    lines = _compute_output_lines(block)
+    font = UNSTYLED_TEXT_FONT
+    for line in lines, span in line.spans
+        span isa TextString && (font = span.font; break)
+    end
+    spans = TextDocument[]
+    for (i, line) in enumerate(lines)
+        if i > 1
+            push!(spans, TextString("\n", font))
+            push!(spans, TextString(" " ^ line.indentation, font))
+        end
+        append!(spans, line.spans)
+    end
+    spans
+end
+
 """
     print_document(::SyntaxListToText, recursion, ln::ListNode, ctx)
 
@@ -1235,7 +1466,7 @@ function _syntax_list_to_text_node(input_node::ListNode, recursion, ctx, cache::
     # Delegate this element one level down; its output spans (a leaf's
     # open/value/close, or a whole node's multi-line rendering) are spliced in.
     child_iomap = print_child(recursion, input_node.value, ctx)
-    spans = collect(child_iomap.output.elements)
+    spans = _flatten_output_lines(child_iomap.output)
 
     first_out = ListNode(spans[1])
     cache[input_node] = (first = first_out, count = length(spans), spans = spans, iomap = child_iomap)
@@ -1320,51 +1551,30 @@ end
 
 # ── Utility ──────────────────────────────────────────────────────────────────
 
-# Decoration spans (indentation, line breaks) are pure whitespace: their font is
-# irrelevant to what is drawn, but it DOES set the line's measured height
-# downstream (TextToGraphics measures every span and takes the max). So they must
-# carry the *content* font, not a hardcoded default — otherwise shrinking a
-# document's token font would leave the line pitch stuck at the old size. The font
-# is the enclosing node's own delimiter font (`node.open.font`, passed in as
-# `font`), so decoration tracks whatever size the upstream projection chose.
-_indent_span(indent_size::Int, depth::Int, font::StyleFont) =
-    TextString(" " ^ (depth * indent_size), font)
-_newline_span(font::StyleFont) = TextString("\n", font)
-
-# Widen a child's line-start indent span by `extra` spaces when an
-# `indentation != 0` parent splices it (re-indent-on-splice — Settled decision 2).
-# Preserves the child's font/color so the line height still tracks the child's
-# content size; cached like the other deco spans so re-layouts keep identity.
-_widen_indent_span(deco, key, span::TextString, extra::Int) =
-    _deco_span(deco, key, () ->
-        TextString(span.content * (" " ^ extra), span.font, span.font_color))
-
-# `_splice_node` re-runs the whole node's span assembly on any structural change,
-# which would allocate fresh newline/indent (and splice-widened child indent)
-# `TextString`s each pass — so a structural edit would orphan all of them (printer
-# locality — dimension C). They are pure, immutable content never used as a selection
-# target (the selection only ever descends into a leaf's `.content{k}`, see
-# `_leaf_cursor`), so each decorative position can keep ONE reused span across
-# re-layouts. `_DecoCache` is the reuse cache: a per-projection-invocation cache (it
-# lives in the `spans` cell's closure — never module-global state), keyed by the
-# decorative span's *structural slot* — `(node objectid, child index, role)` for own
-# chrome, `(node objectid, :widen, child objectid, elem index)` for a widened child
-# indent — stable across edits because the syntax nodes are themselves identity-stable
-# (the template engine reconciles them). `seen` records the slots touched in the
-# current pass so the caller can evict the rest.
+# `_splice_compound` runs the whole layout of a node again on any structural
+# change, which would allocate a fresh ellipsis, lit delimiter and line each pass,
+# so a structural edit would orphan all of them (printer locality, dimension C).
+# `_DecoCache` keeps one of each across layouts: a cache of one invocation of the
+# projection (it lives in the closure of the `spans` cell, never in module-global
+# state), keyed by the structural slot of the object, such as `(node objectid,
+# child index, role)`, which is stable across edits because the syntax nodes are
+# themselves identity-stable (the template engine reconciles them). A line is keyed
+# by its indentation and the identity of its spans. `seen` records the slots
+# touched in the current pass so the caller can evict the rest.
 struct _DecoCache
-    spans::Dict{Any,TextString}
+    spans::Dict{Any,Any}
     seen::Set{Any}
 end
-_DecoCache() = _DecoCache(Dict{Any,TextString}(), Set{Any}())
+_DecoCache() = _DecoCache(Dict{Any,Any}(), Set{Any}())
 
-# Reuse the decorative span for `key`, or make and cache it. With no cache (the
-# cursor pass, whose spans are thrown away) just make a fresh one.
+# Reuse the decorative object for `key`, or make and cache it. With no cache just
+# make a fresh one.
 function _deco_span(deco, key, make)
     deco === nothing && return make()
     push!(deco.seen, key)
     get!(make, deco.spans, key)
 end
+
 
 # The optional inline expand/collapse marker rendered immediately before the
 # open delimiter, in BOTH the expanded and collapsed states. Which glyph is
@@ -1558,12 +1768,12 @@ function _subtree_len(node::SyntaxCompound, p::SyntaxCompoundToText, depth::Int)
         child_depth = depth + 1
         for (i, child) in enumerate(children)
             i > 1 && (n += sep_len)
-            n += 1 + child_depth * p.indent_size          # \n + indent
+            n += 1 + child_depth * p.indent_size          # break + indentation
             n += _subtree_len(child, p, child_depth)
         end
         if indent > 0
-            # Trailing \n + indent emitted by the printer before the close
-            # delimiter, regardless of whether children was empty.
+            # The break and the indentation of the line of the close delimiter,
+            # which the printer emits regardless of whether children was empty.
             n += 1 + depth * p.indent_size
         end
     else
@@ -1607,98 +1817,82 @@ function _resolve_collapsible(node::SyntaxCompound, path)
     best
 end
 
-# Flat character offset a click resolved to, or -1. Accepts the
-# `.elements[i].content{c}` shape produced by `TextToGraphics` and the bare
-# flat `{n}` shape, mirroring `map_reference_backward`.
-function _click_flat_pos(iomap::SyntaxCompoundToTextIoMap, path)
-    if path isa ConcreteReference
-        h = path.head
-        if h isa RangeReferenceStep && path.tail isa EmptyReference
-            return h.start::Int
-        end
+# ── Paths in an output ────────────────────────────────────────────────────────
+
+# The span path that `path` names in an output, and what follows it:
+# `.elements[i].elements[k]` is span `[i, k]` of a block of lines, and `.elements[i]`
+# is span `[i]` of a block of spans. `nothing` when `path` starts in no span.
+function _split_span_path(path)
+    path = strip_reference_types(path)
+    (path isa ConcreteReference && path.head isa FieldReferenceStep &&
+     path.head.name == "elements") || return nothing
+    outer = path.tail
+    (outer isa ConcreteReference && outer.head isa RangeReferenceStep) || return nothing
+    i = outer.head.start + 1
+    rest = outer.tail
+    if rest isa ConcreteReference && rest.head isa FieldReferenceStep && rest.head.name == "elements"
+        inner = rest.tail
+        (inner isa ConcreteReference && inner.head isa RangeReferenceStep) || return nothing
+        return (Int[i, inner.head.start + 1], inner.tail)
     end
-    span_idx, char_idx = _parse_text_elem_path(path)
-    span_idx === nothing && return -1
-    _text_elem_path_to_flat(iomap.output.elements, span_idx, char_idx)
+    (Int[i], rest)
 end
 
-_text_elem_path(span_idx::Int, char_idx::Int) =
-    @reference ::TextBlock.elements::CellVector[span_idx]::TextString.content::String{char_idx}::Position
-
-# Parse a tree selection path: .elements[i]∅  (element ref without .content{k}).
-# Returns span_idx (1-based) or nothing.
-function _parse_tree_elem_path(path)
-    path = strip_reference_types(path)
-    path isa ConcreteReference || return nothing
-    h1 = path.head
-    h1 isa FieldReferenceStep && h1.name == "elements" || return nothing
-    t1 = path.tail
-    t1 isa ConcreteReference || return nothing
-    h2 = t1.head
-    h2 isa RangeReferenceStep || return nothing
-    t1.tail isa EmptyReference || return nothing
-    return h2.start + 1
+# The characters `(start, stop)` that `.content[start:stop]` names, or `nothing`.
+function _parse_content_range(path)
+    (path isa ConcreteReference && path.head isa FieldReferenceStep &&
+     path.head.name == "content") || return nothing
+    range = path.tail
+    (range isa ConcreteReference && range.head isa RangeReferenceStep) || return nothing
+    (range.head.start::Int, range.head.stop::Int)
 end
 
-function _parse_text_elem_path(path)
-    path = strip_reference_types(path)
-    path isa ConcreteReference || return (nothing, nothing)
-    h1 = path.head
-    h1 isa FieldReferenceStep && h1.name == "elements" || return (nothing, nothing)
-    t1 = path.tail
-    t1 isa ConcreteReference || return (nothing, nothing)
-    h2 = t1.head
-    h2 isa RangeReferenceStep || return (nothing, nothing)
-    span_idx = h2.start + 1
-    t2 = t1.tail
-    t2 isa ConcreteReference || return (nothing, nothing)
-    h3 = t2.head
-    h3 isa FieldReferenceStep && h3.name == "content" || return (nothing, nothing)
-    t3 = t2.tail
-    t3 isa ConcreteReference || return (nothing, nothing)
-    h4 = t3.head
-    h4 isa RangeReferenceStep || return (nothing, nothing)
-    return (span_idx, h4.start::Int)
+# A whole span of a line of an output, `.elements[i].elements[k]∅`: its span path,
+# or `nothing`.
+function _parse_tree_span_path(path)
+    parts = _split_span_path(path)
+    (parts !== nothing && length(parts[1]) == 2 && parts[2] isa EmptyReference) ? parts[1] : nothing
 end
 
-# Like `_parse_text_elem_path` but returns the full `(span_idx, char_start,
-# char_stop)` of the terminal `RangeReferenceStep`. Returns `nothing` on mismatch.
-function _parse_text_elem_range(path)
-    path = strip_reference_types(path)
-    path isa ConcreteReference || return nothing
-    h1 = path.head
-    (h1 isa FieldReferenceStep && h1.name == "elements") || return nothing
-    t1 = path.tail
-    t1 isa ConcreteReference || return nothing
-    h2 = t1.head
-    h2 isa RangeReferenceStep || return nothing
-    span_idx = h2.start + 1
-    t2 = t1.tail
-    t2 isa ConcreteReference || return nothing
-    h3 = t2.head
-    (h3 isa FieldReferenceStep && h3.name == "content") || return nothing
-    t3 = t2.tail
-    t3 isa ConcreteReference || return nothing
-    h4 = t3.head
-    h4 isa RangeReferenceStep || return nothing
-    return (span_idx, h4.start::Int, h4.stop::Int)
+# Characters of a span of an output, `….content[start:stop]`: `(span path, start,
+# stop)`, or `nothing`.
+function _parse_span_range(path)
+    parts = _split_span_path(path)
+    parts === nothing && return nothing
+    range = _parse_content_range(parts[2])
+    range === nothing ? nothing : (parts[1], range[1], range[2])
 end
 
-# The text-side caret path for a flat offset. Since the text domain now addresses
-# the cursor by flat offset directly (`TextRangeReferenceStep`), this just wraps the
-# offset — the `spans` argument is retained for call-site compatibility. (At a
-# SyntaxToText output there are no breaks/indentation, so this flat offset equals
-# the text layer's break-aware flat offset.)
-_flat_to_text_elem_path(spans, flat_pos::Int) = _flat_text_path(flat_pos)
+# The path of span `span_path` of an output, with `tail` after it.
+function _make_span_path(span_path::Vector{Int}, tail)
+    for index in reverse(span_path)
+        tail = ConcreteReference(FieldReferenceStep("elements"),
+                                 ConcreteReference(RangeReferenceStep(index - 1, index), tail))
+    end
+    tail
+end
+
+# `.elements[i].elements[k].content[start:stop]`: characters of span `k` of line `i`.
+_make_span_range_path(span_path::Vector{Int}, start::Int, stop::Int) =
+    _make_span_path(span_path, ConcreteReference(FieldReferenceStep("content"),
+                                                 ConcreteReference(RangeReferenceStep(start, stop), EmptyReference())))
+
+# The flat offset of a caret in the output `block`: a flat caret, or a caret in a
+# span of it. `nothing` for any other path.
+function _compute_output_flat(block::TextBlock, path)
+    flat = _text_side_flat(path)
+    flat === nothing || return flat
+    parsed = _parse_span_range(path)
+    parsed === nothing && return nothing
+    span_path, start, _ = parsed
+    base = get_flat_base(block, span_path)
+    base === nothing ? nothing : base + start
+end
 
 # The canonical flat caret path, rooted at the output TextBlock.
 _flat_text_path(flat::Int) =
     ConcreteReference(TextRangeReferenceStep(flat, flat), EmptyReference())
 
-# The flat offset of a text-side caret path (or `nothing` when it is not a caret).
-# Accepts the flat `TextRangeReferenceStep{f}` form, a bare block cursor `{f}`, and —
-# when `spans` is supplied — the internal structural `.elements[i].content{c}`
-# form still used for child sub-references inside the compound mappers.
 # A non-empty flat text range. The syntax chain maps a caret as one flat offset,
 # so a range has no image in it and its backward map declines: a `Shift` key
 # leaves the selection where it was.
@@ -1708,6 +1902,8 @@ function _is_flat_text_range(path)
         p.tail isa EmptyReference && p.head.start != p.head.stop
 end
 
+# The flat offset of a flat caret path, `TextRangeReferenceStep{f}` or a bare block
+# cursor `{f}`, or `nothing` when it is no such caret.
 function _text_side_flat(path)
     p = strip_reference_types(path)
     p isa ConcreteReference || return nothing
@@ -1715,18 +1911,10 @@ function _text_side_flat(path)
     (h isa TextRangeReferenceStep || h isa RangeReferenceStep) && p.tail isa EmptyReference || return nothing
     h.start::Int
 end
-function _text_side_flat(path, spans)
-    f = _text_side_flat(path)
-    f === nothing || return f
-    span_idx, char_idx = _parse_text_elem_path(path)
-    span_idx === nothing && return nothing
-    fl = _text_elem_path_to_flat(spans, span_idx, char_idx)
-    fl < 0 ? nothing : fl
-end
 
 # Inverse of `_text_elem_path_to_flat`: the `(span_idx, char)` a flat offset lands
-# on over span-content lengths (end-of-content anchors on the last non-empty span,
-# matching the old `_flat_to_text_elem_path`). `nothing` when there is no span.
+# on over span-content lengths (end-of-content anchors on the last non-empty
+# span). `nothing` when there is no span.
 function _flat_to_span_char(spans, flat_pos::Int)
     cumulative = 0
     last_nonempty = nothing

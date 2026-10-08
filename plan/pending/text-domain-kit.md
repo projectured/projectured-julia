@@ -694,27 +694,31 @@ The design of step 1, found when the work started (2026-10-08):
 
    The logs are in `/var/tmp/text-gutter/baseline/`, and the worktree
    `projectured-julia-text-gutter-baseline` stays at that commit for a rerun.
-1. **A leaf and a compound make lines.** One commit, because a compound can not
-   join the lines of a leaf and splice the spans of a compound at the same time.
-   `SyntaxLeafToText` splits a value or a delimiter that holds a `'\n'` into lines.
-   `SyntaxCompoundToText` builds its lines by the join rule of Q2: the chrome of a
-   node that indents becomes the indentation of its lines, and a delimiter or a
-   separator that holds a `'\n'` is split as a leaf value is. `indent_indices`, the
-   widened indent spans and the `"\n"` spans go. `SyntaxToTextTest.jl` changes from
-   the span list to lines.
-   **In progress (2026-10-08), written and not committed.** A first probe sweep
-   at a snapshot that still split a leaf value (4f15e0898, logs in
-   `/var/tmp/text-gutter/probe1/`), against the baseline:
-   - The same counts in `test_json`, `test_julia`, `test_sql`, `test_xml`,
-     `test_readers`, `test_repls`, `test_click_roundtrips`, `test_mouse_clicks`
-     and `test_position_navigations`; `test_printers` passes 28882 more, because a
-     block of lines has more elements to check.
-   - `test_markdown`: 7 Fail and 1 Error in `MarkdownWrapTest.jl` and
-     `MarkdownTableTest.jl`, because `WordWrapping` does not wrap inside a line.
-     Step 4 (Q4) gives the wrap back.
-   - `test_platform`: `SyntaxToTextTest.jl:29`, the property of Q5, and
-     `FileSystemToSyntaxTest.jl`, which read the span list (fixed, as is the same
-     read in `SyntaxTreeSelectionTest.jl` of the umbrella).
+1. ~~**A leaf and a compound make lines.**~~ **Done 2026-10-08.** One commit,
+   because a compound can not join the lines of a leaf and splice the spans of a
+   compound at the same time. `SyntaxCompoundToText` builds its lines by the join
+   rule of Q2: the chrome of a node that indents becomes the indentation of its
+   lines, and a delimiter or a separator that holds a `'\n'` is cut into lines.
+   A leaf is one line of runs and never reads its value (Q5). `indent_indices`,
+   the widened indent spans and the `"\n"` spans are gone. The lazy list path
+   flattens the lines of each element back into spans until step 3.
+   `SyntaxToTextTest.jl` asserts lines, with six new testsets.
+
+   Checked against the baseline in a clone at a snapshot of the step (logs in
+   `/var/tmp/text-gutter/probe2/`):
+   - The same counts in `test_platform` (only the 22 failures of the baseline),
+     `test_rst`, `test_formula`, `test_julia`, `test_readers`, `test_repls`,
+     `test_position_navigations`, `test_typeins`, `test_sql`, `test_json` and
+     `test_xml`. `test_book` passes after its test helper reads lines (33).
+     `test_syntax_tree_selection` passes (29). `test_printers` passes 28696
+     more, because a block of lines has more elements to check.
+   - **Known, for step 4:** `test_markdown` has 7 Fail and 1 Error in
+     `MarkdownWrapTest.jl` and `MarkdownTableTest.jl`, because `WordWrapping`
+     does not wrap inside a line. Prose of a syntax view does not wrap until
+     step 4.
+   - Four tests read the span list of a syntax output and now read its flat
+     string: `FileSystemToSyntaxTest.jl`, `BookToSyntaxTest.jl`,
+     `SyntaxTreeSelectionTest.jl` and `SyntaxToTextTest.jl`.
 2. *(merged into 1)*
 3. **The lazy list of lines.** `SyntaxListToText` makes a lazy list of lines (Q3),
    and the list path of `TextToGraphics` draws one canvas for each line.
