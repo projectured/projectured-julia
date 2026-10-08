@@ -129,10 +129,24 @@ One at a time, with the owner.
   The options that the owner did not take: a new text type that may hold `'\n'`,
   printed by a row of the recursion; a `String` value with a `style` field on the
   leaf; a child projection `StringToTextBlock` that every domain stage calls.
-- **N1b The shared helper and the edit of a line.** Every domain stage needs the
-  same conversion of a string into styled lines, as `make_hinted_text` makes a
-  styled run today, and an edit of a line must map back to an offset in the
-  string, as `bound(...)` maps an edit of one run today. Open.
+- **N1b The shared helper and the edit of a line. Decided (a), the owner,
+  2026-10-08:** a helper of the text domain, `make_text_block(content_thunk,
+  style)`, the twin of `make_hinted_text`: it makes a `TextBlock` of `TextLine`s
+  in the style from a string, and a line whose text did not change stays the same
+  object. A domain uses it where it uses a styled text today, inside `bound`:
+
+  ```julia
+  SyntaxLeaf(bound(:text, String, make_text_block(() -> d.text, p.doc_style)))
+  ```
+
+  The leaf names an edit in a block value by flat offset, `value[s:e]`. In a block
+  of lines that a string makes, the flat offset is the offset in the string,
+  because a break counts one as the `'\n'` does, so `bound` maps it to the field
+  unchanged; Enter becomes the insertion of `'\n'`, and Backspace at the start of
+  a line its deletion. No domain maps an edit itself, and the template engine does
+  not change. The owner asked for a name of the text domain; `make_text_block`
+  names the type it makes. The option not taken: a projection per domain through
+  `project(:text; as = …)`.
 - **N1c A text document in a field.** What the recursion of the domain-to-syntax
   stage does with a text document that a field holds. Open.
 - **N2 A child on each line.** What replaces `sep = TextString("\n")`: a compound
