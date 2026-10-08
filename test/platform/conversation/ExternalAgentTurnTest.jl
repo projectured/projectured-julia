@@ -176,14 +176,15 @@ function test_external_agent_turn()
             _submit_to_agent!(a, "Reply with OK")
             @test a.agent_title == "Reply with OK"
             @test get_document_title(a) == "Reply with OK"
-            @test format_agent_usage(a.agent_usage) == "Context: 36k of 1M tokens"
+            @test format_agent_usage(a.agent_usage) == "36k / 1M"
+            @test describe_agent_usage(a.agent_usage) == "The session uses 36k of the 1M tokens of its context."
             # The two updates draw no part, and the text stays one part.
             @test length(collect(collect(a.conversation.turns)[end].parts)) == 1
-            @test format_agent_usage(AgentUsageUpdate(1500, 200000, 0.456, "USD")) ==
-                  "Context: 2k of 200k tokens · 0.46 USD"
-            @test format_agent_usage(AgentUsageUpdate(10, 1_500_000, nothing, "")) ==
-                  "Context: 10 of 1.5M tokens"
-            @test format_agent_usage(nothing) == ""
+            @test format_agent_usage(AgentUsageUpdate(1500, 200000, 0.456, "USD")) == "2k / 200k · 0.46 USD"
+            @test describe_agent_usage(AgentUsageUpdate(1500, 200000, 0.456, "USD")) ==
+                  "The session uses 2k of the 200k tokens of its context. It has cost 0.46 USD."
+            @test format_agent_usage(AgentUsageUpdate(10, 1_500_000, nothing, "")) == "10 / 1.5M"
+            @test format_agent_usage(nothing) == "" && describe_agent_usage(nothing) === nothing
             # A reset forgets them with the session, and the tab is the assistant again.
             evaluate_operation((document = a,), ResetConversationOperation(a))
             @test a.agent_title == "" && a.agent_usage === nothing

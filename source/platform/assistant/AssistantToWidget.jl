@@ -98,6 +98,7 @@ function print_document(projection::AssistantToWidgetSplitPane,
     if a.backend === :acp
         usage = WidgetLabel("")
         set_cell_computation!(getfield(usage, :content), () -> format_agent_usage(a.agent_usage))
+        set_cell_computation!(getfield(usage, :tooltip), () -> describe_agent_usage(a.agent_usage))
         append!(items, Any[make_agent_option_bar(a), usage])
     end
     row = HorizontalLayout(items; gap = projection.option_gap)
@@ -420,15 +421,32 @@ end
 """
     format_agent_usage(usage) -> String
 
-The line that says how much of its context window a session of an external agent
-uses, as `"Context: 36k of 1M tokens"`, with what the session has cost when the
-agent says. Empty for `nothing`.
+The short line that says how much of its context window a session of an external
+agent uses, as `"36k / 1M"`, with what the session has cost when the agent says,
+as `"2k / 200k · 0.46 USD"`. Empty for `nothing`. The tooltip of the line says
+it in words; see [`describe_agent_usage`](@ref).
 """
 function format_agent_usage(usage)
     usage === nothing && return ""
-    text = "Context: " * _format_token_count(usage.used) * " of " * _format_token_count(usage.size) * " tokens"
-    usage.cost === nothing ? text : text * " · " * string(round(usage.cost; digits = 2)) * " " * usage.currency
+    text = _format_token_count(usage.used) * " / " * _format_token_count(usage.size)
+    usage.cost === nothing ? text : text * " · " * _format_agent_cost(usage)
 end
+
+"""
+    describe_agent_usage(usage) -> Union{Nothing,String}
+
+What the short line of [`format_agent_usage`](@ref) means, for its tooltip: as
+`"The session uses 36k of the 1M tokens of its context."`, with what it has
+cost when the agent says. `nothing` for `nothing`.
+"""
+function describe_agent_usage(usage)
+    usage === nothing && return nothing
+    text = "The session uses " * _format_token_count(usage.used) * " of the " *
+           _format_token_count(usage.size) * " tokens of its context."
+    usage.cost === nothing ? text : text * " It has cost " * _format_agent_cost(usage) * "."
+end
+
+_format_agent_cost(usage) = string(round(usage.cost; digits = 2)) * " " * usage.currency
 
 _format_token_count(count::Integer) =
     count >= 1_000_000 ? _format_one_decimal(count / 1_000_000) * "M" :

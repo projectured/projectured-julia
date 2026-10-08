@@ -744,8 +744,7 @@ function test_application()
                 chat.agent_usage = AgentUsageUpdate(36012, 1000000, nothing, "")
                 texts = [text for (text, _, _) in drawn()]
                 @test "Reply with OK" in texts
-                # The pane is narrow, and the line can wrap beside the stop button.
-                @test occursin("Context: 36k of 1M tokens", join(texts, " "))
+                @test "36k / 1M" in texts
             end
 
             @testset "a press on a menu name opens its menu as a window under the name" begin

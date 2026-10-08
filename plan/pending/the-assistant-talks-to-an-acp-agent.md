@@ -816,8 +816,12 @@ from the command line of the projectured UI.
     the stop waits for its first event; a tool call that runs is not stopped.
   - The button shows the Lucide stop icon and no word, with the tooltip "Stop
     the turn", so the row of an agent keeps its room. In a narrow pane the
-    line of the usage still wraps onto two lines inside the row; the
-    application test now checks its words.
+    line of the usage still wrapped onto two lines inside the row. The owner
+    chose on 2026-10-08 a shorter line: it is now "36k / 1M", with the cost
+    after it when the agent gives one, and its tooltip says it in words
+    ("The session uses 36k of the 1M tokens of its context."). The line fits
+    on one line again; tests: the turn of an external agent 180 of 180, the
+    application 357 with the 2 known broken.
   - A review of the first version found that a stop did not stop the model:
     when the code in an HTTP stream throws, HTTP.jl reads the rest of the
     answer before it closes the stream, so the turn ran to the end of the
