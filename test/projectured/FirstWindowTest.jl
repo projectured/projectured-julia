@@ -37,10 +37,18 @@ println("FIRST WINDOW COMPILED ", compute_first_window_compile_seconds())
 
 function test_first_window_compiles_little()
     @testset "the first window of a data frame compiles little" begin
-        command = addenv(`$(Base.julia_cmd()) --startup-file=no --project=$(Base.active_project())
+        # The binary alone, with the flags of a user's session: a test runs with
+        # bounds checks and often with coverage, and under those flags Julia
+        # compiles the packages again instead of using their images.
+        julia = first(Base.julia_cmd().exec)
+        command = addenv(`$julia --startup-file=no --project=$(Base.active_project())
                           -e $_FIRST_WINDOW_SESSION`, "SDL_VIDEODRIVER" => "offscreen")
-        output = read(pipeline(ignorestatus(command); stderr = devnull), String)
-        found = match(r"FIRST WINDOW COMPILED ([0-9.e+-]+)", output)
+        output, errors = IOBuffer(), IOBuffer()
+        run(pipeline(ignorestatus(command); stdout = output, stderr = errors))
+        found = match(r"FIRST WINDOW COMPILED ([0-9.e+-]+)", String(take!(output)))
+        found === nothing &&
+            println(stderr, "\nthe session of the first window printed no result:\n",
+                    last(String(take!(errors)), 3000))
         @test found !== nothing
         if found !== nothing
             seconds = parse(Float64, found[1])
