@@ -435,6 +435,16 @@ With these defaults, these names change their color on the screen:
   the names that the place gives (my recommendation)? Or in this plan?
 - **QB3. The vocabulary** of section 10.4, with the role `definition` removed
   and `reference` named `variable`?
+The answers so far: QB1 and QB2 go with the split of section 10.6. B1 takes
+option (c) and the hues that exist; more hues and the scope analysis wait with
+B2. QB3 has no answer of its own; B1 follows the vocabulary of section 10.7,
+which the message of the split named.
+
+- **QB4. An `as` on `collection`.** The parameters of a signature, of a
+  lambda and of `where`, and the names of keyword arguments, are elements of
+  a collection (section 10.10). An `as` on `collection(:f)` in the kernel
+  template engine, the same as on `project(:f)`, lets each take its role. Add
+  it?
 
 ### 10.6 Decision: B1 now, B2 later
 
@@ -504,13 +514,75 @@ caret stay as they are.
 
 ### 10.9 The steps of B1
 
-1. ⬜ `ColorTheme`: the roles of section 10.7, without `definition`, with
-   `variable` in place of `reference`; the themes that change only a role
-   (`DbCatalogTheme`, `ProcessTheme`, `FormulaTheme`, `FileSystemTheme`,
-   `ReferenceTheme`, `XmlTheme`, `MathTheme`); the style guide.
-2. ⬜ SQL: the names of section 10.8 and their printers.
-3. ⬜ FSM: the split names and references.
-4. ⬜ RST: the field name and the option name.
-5. ⬜ Julia: the names in a known slot.
-6. ⬜ Tests of each step, and screenshots.
+1. ✅ `ColorTheme`: the roles of section 10.7; the themes that change only a
+   role (`DbCatalogTheme`, `ProcessTheme`, `FormulaTheme`, `FileSystemTheme`,
+   `ReferenceTheme`, `XmlTheme`, `MathTheme`) (`a0923d531`). The old roles
+   `definition` and `reference` stayed until step 6, so that each commit
+   builds with no view that names a role the theme does not have.
+2. ✅ SQL (`83c728f66`). Each name stays one leaf: `q.col` takes the style of
+   a column, and `table AS alias` the style of a table, so the leaves and the
+   places of the caret stay as they are. The alias of a select item and of a
+   subquery is a leaf of its own and takes `alias_text`.
+3. ✅ FSM (`72f32d094`). `stay` and `ignore` take the keyword style, because
+   the ending leaf is a target only when the transition has one.
+4. ✅ RST (`f6fe38d70`).
+5. ✅ Julia: the names in a single slot (`6850d1102`). A slot whose place gives the kind
+   prints a bare identifier with
+   `project(:slot; as = _style_identifier(style))`, the feature that the callee
+   of a call uses: the name of a function at its definition (bold), the result
+   type, a type after `::`, the right side of `<:`, the head of `T{…}`, a
+   field after a dot, the name of a struct and of an abstract type (bold, also
+   on the left of `<:` through the new `lhs_style` of
+   `JuliaSubtypeToSyntaxNode`), a module (bold) and a macro. A new test helper,
+   `draw_texts`, gives the text, the color and the weight of each drawn piece,
+   so the test asserts what the screen shows.
+6. ✅ The roles `definition` and `reference` go away; the style guide names the
+   roles of the names (`6e98e6eed`).
+7. ✅ Tests of each step, and screenshots in `/var/tmp/value-colors/sample2`
+   (a Julia module, a SQL query, an XML element and the reflection of an FSM,
+   in light and dark). The tests of each step ran before its
+   commit:
+   - B1.1: `test_color_theme` 1463, `test_help_themes` 107, `test_filesystem`
+     84, `test_xml` 80, `test_dbcatalog` 74, `test_math` 182, `test_formula`
+     123, `test_process` 312.
+   - B1.2 to B1.4: `test_sql` 671, `test_fsm` 174, `test_rst` 111.
+   - B1.5 and B1.6: `test_text_and_syntax_themes` 17, `test_appearance_tab`
+     119, `test_julia` 538 and `test_julia_theme` 25, `test_fsm` 174,
+     `test_process` 312, and the style guard.
+   - All with no failure and no error, after one fix: `test_appearance_tab`
+     asserted the old role of `SyntaxTheme.bool_text`. Part A changed that
+     role in `f2606dcfd`, and the test run of Part A did not include the
+     appearance tab. `3ecdf0df5` makes the test follow.
+   - The sweep after B1, on 2026-10-09: `test_platform` 114502 pass, 41 fail,
+     25 error, 8 broken; `test_json` 231; `test_yaml` 58 and 2 broken;
+     `test_markdown` 262; `test_book` 33; `test_integration` 1382050 pass,
+     4 fail, 0 error, 1578 broken. The failures are in
+     `ExternalAgentTurnTest` (63), `InterfaceApiTest` (2, the docstring of
+     `WidgetProgressRing`), `McpLogTest` (1, known when the umbrella is
+     loaded), the navigation of the progress bar and the progress ring (2),
+     the catalog coverage (1, seven new document types of other work) and
+     `FirstWindowTest` (1, 7.3 s of compilation against a limit of 2.0). The
+     branch changes none of these areas.
+   - The check on `main` at `33710e99f`, with the same packages loaded: the
+     interface API fails twice in the same way, the external agent turn has
+     the same 38 failures and 25 errors, the navigation of the progress bar
+     fails, and the first window takes 6.75 s of compilation (7.30 s on the
+     branch). So every failure of the sweep is on `main` too.
 
+### 10.10 What B1 does not cover in Julia
+
+The template engine has an override for a single slot, `project(:f; as = …)`,
+but none for a collection, `collection(:f)`. So these names keep the role
+`variable`:
+
+- a parameter of a signature and of a lambda;
+- a parameter of `where` and the parameters in braces, such as `T` in `Q{T}`;
+- the name of a keyword argument of a call;
+- a field of a struct, which is a statement of the block of the struct;
+- the defined name of a header with braces, such as `P` in `struct P{T}`.
+
+The first three need an `as` on `collection(:f)` in
+`source/kernel/projection/ProjectionTemplate.jl`, the same as on `project`.
+This is a change of the kernel, so it waits for the owner (question QB4). The
+last two need a place two levels down, such as a statement in the block of a
+struct. The analysis of B2 can give them.
