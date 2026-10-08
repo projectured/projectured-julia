@@ -726,6 +726,15 @@ worktree. The three domains test different parts of the model:
       `UntrackedCell` of the example: an untracked cell takes no write, and the sync of the
       shadow writes these fields. No other field of the three repositories names a kind that
       is not reactive for a vector, so nothing else changes.
+      With A, `test_workbench` equals `main`. `test_parallel_sim_dashboard_panel` then showed
+      two more gaps. `ParallelMonitor.simulator` declares the bare `ParallelEngine`, which is
+      a `UnionAll` because the schema has a parameter, and the family mapping took only a
+      `DataType`; it now takes a `UnionAll` too (`19c56c049`). And the text of the refusal
+      called `repr` on the engine shadow, whose `show` reads the undefined slots of a buffer
+      and throws, so the test showed an `UndefRefError` in place of the refusal; the text now
+      names such a value by its type. The `show` of a document that reads an undefined slot
+      (`_is_shown_in_full` in `DocumentDefaults.jl`) fails on `main` too, and is not changed
+      here.
     - A fact for later: a bounded copy or sync puts an `UnsyncedDocument` where the walk stops,
       and a field that declares a narrow document type would refuse it. No caller does that
       today: the reflection and `SimulationInspection` hold the placeholder in a `ReflectedNode`.
