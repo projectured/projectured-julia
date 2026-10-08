@@ -208,6 +208,16 @@ One at a time, with the owner.
 - **N6 The order of the domains.** Julia first, because the gutter targets the
   Julia view.
 
+## 8. Facts found
+
+- 2026-10-08: the cell system has no cut-off (decision 10), so any line list
+  that is computed from a content changes after every keystroke in that content.
+- 2026-10-08: `TextToGraphics` kept a line canvas by the index of the line, so a
+  new line list laid out every line again, also when most `TextLine` objects were
+  the same. It now keeps it by the line object (rule 6).
+- 2026-10-08: the JSON view writes a newline inside a string as the escape `\n`,
+  so a JSON leaf never holds a break.
+
 ## 9. Steps (tentative)
 
 Each step is one commit, on a branch in a worktree, with its tests. Steps 2 to 4
@@ -253,13 +263,3 @@ change how every view of syntax makes its lines, so they land together.
 8. **omnet-julia**: NED and INI state their breaks in their texts, which removes
    their empty lines. It follows the landing of steps 2 to 4.
 9. **The documents**: `text.md`, `syntax.md` and the guides of the domains.
-
-## 8. Facts found
-
-- 2026-10-08: the cell system has no cut-off (decision 10), so any line list
-  that is computed from a content changes after every keystroke in that content.
-- 2026-10-08: `TextToGraphics` kept a line canvas by the index of the line, so a
-  new line list laid out every line again, also when most `TextLine` objects were
-  the same. It now keeps it by the line object (rule 6).
-- 2026-10-08: the JSON view writes a newline inside a string as the escape `\n`,
-  so a JSON leaf never holds a break.
