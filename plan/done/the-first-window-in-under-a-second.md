@@ -1,6 +1,6 @@
 # The first window in under a second
 
-Status: pending, 2026-10-08.
+Status: done, 2026-10-08.
 
 ## The request
 
@@ -206,3 +206,16 @@ The scripts are in `/var/tmp/meas`: `first_frame.jl` (the timing),
    `5d50788`, 98 packages. Before the push, the README ways ran as a new user
    against a scratch registry with the same versions: each works, and the first
    window opens in 0.66 to 0.71 s.
+
+## After the release
+
+The workflows of `3bd0cc2c`: 31 of 34 pass. `SDL` fails on `TreeRenderTest`
+and `Platform` on `test_interface_api`, as on `main` before this plan. In
+`Projectured`, the catalog coverage lists seven document types with a printer
+and no atom (`GraphicsRect`, which a fixture of `ScrollLayoutTest` prints, and
+six types of other sessions), and two navigation walks of the new progress bar
+find no state; neither comes from this plan. The guard failed there too: under
+`Pkg.test` and coverage, its child took the flags of the test and compiled the
+packages again, and printed nothing. The child now starts from the Julia binary
+with the flags of a user, and prints its error on a failure; the next release
+carries it.
