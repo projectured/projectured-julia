@@ -57,6 +57,31 @@ A projection reader maps a range edit back through the chain with no method of i
 
 `ObjectField` has no label field. `ObjectFieldToWidget` shows a bare control and needs no label, and `ObjectFieldToSyntax` takes the name from the last field step of the path with `get_object_field_name`. A path that ends in an element step has no name, and `get_object_field_name` returns `nothing`.
 
+### Two ways a form edits a plain value
+
+A plain value is a struct, a named tuple or a vector that holds its fields with no cell. A form edits it in one of two ways.
+
+**A, a copy.** `convert_object_to_document(T, object)` makes a document of the `@document` schema `T`. `convert_document_to_object(T, document; base)` makes a plain `T` from a document. Both match a field by its name.
+
+- A field of the schema that the object does not have is an error.
+- A field of the object that the schema does not have is not copied, so a schema can show a part of a value. The way back takes such a field from `base`, the value that the document was made from. With no `base`, it is an error.
+- A nested value converts when the declared type of the field in the schema is a schema. A vector converts element by element. The declared type comes from the native layout of the schema, so a schema with no native layout copies its values as they are.
+- A value that can change is copied, so the document and the value share no object.
+
+A commit is `convert_document_to_object`. A cancel drops the document.
+
+**B, in place.** Each field of the form is an `ObjectField` whose `object` is the plain value in a `Cell`. Every field of the form shares that `Cell`. A write goes through the write rules of `ReplaceReferencedValueOperation`; see [operation.md](../../kernel/operation.md). A plain value that is given as it is gets a cell of its own in each field. An immutable value is then replaced in that one cell, so another field does not see the edit. `get_object_field_root(field)` is the root that a write carries: the object when it is a document, and else the cell.
+
+| | A, a copy | B, in place |
+| --- | --- | --- |
+| Needs | a `@document` schema with the field names of the value | one `Cell` that holds the value |
+| Edits | a document that is a copy | the value itself |
+| Commit | `convert_document_to_object` | none; each edit is a commit |
+| Cancel | drop the document | none; undo takes back an edit |
+| Use when | the person must be able to cancel, or the form shows a part of the value | the edit must show at once in the value and in other views of it |
+
+**The caret of a field** is a range in the text of its value. In the document it is the path `object.<path of the field>{start:stop}`. `make_object_field_range_reference(field, start, stop)` makes it, and `find_object_field_range(field, reference)` reads it, or answers `nothing` for another path. The object of a field is no child of the field for a walk of children: `child_reference_steps(::ObjectField) = ()`. A selection still goes through `object`.
+
 ## How it fits
 
 The primitive slice depends on the kernel and on the serialization slice. The text, syntax, widget and projection slices, and panes and many domains, depend on it. `ObjectField` is in this slice because it is the lowest slice that both the widget and syntax slices use, and each of them holds one projection of it.
