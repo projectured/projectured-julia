@@ -51,6 +51,7 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | `gesturehelp` | [gesturehelp.md](platform/gesturehelp/gesturehelp.md) | the help window and the command palette |
 | `gesturelog` | [gesturelog.md](platform/gesturelog/gesturelog.md) | the log of the gestures of the session |
 | `fileformat` | [fileformat.md](platform/fileformat/fileformat.md) | the choice of a format by the file extension |
+| `filechange` | [filechange.md](platform/filechange/filechange.md) | the changes of files on disk, brought to their documents |
 | `fault` | [fault.md](platform/fault/fault.md) | the fault barrier, the fault log and the safe mode |
 | `filesystem` | [filesystem.md](platform/filesystem/filesystem.md) | the file system tree and the workspace of the Explorer |
 | `display` | [display.md](platform/display/display.md) | a value shown in an editor beside the REPL |

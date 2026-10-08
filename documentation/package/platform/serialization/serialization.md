@@ -30,7 +30,7 @@ A document graph can also be saved as text files that a version control system c
 2. Each file copies its content until it reaches a node that another file owns. There it writes a reference leaf in its own notation.
 3. `emit_text` prints the copy, and the file is written only when its bytes change.
 
-`save_project!(project)` writes every file. If a node is an orphan, it logs the reason, writes nothing and returns `false`. `save_file!(file, base_dir)` writes one file with no project, so its content must be a tree of its own domain with no cut.
+`save_project!(project)` writes every file. If a node is an orphan, it logs the reason, writes nothing and returns `false`. `save_file!(file, base_dir)` writes one file with no project, so its content must be a tree of its own domain with no cut. `cut_file_text(file, base_dir)` answers the text that `save_file!` writes, and writes nothing.
 
 `load_project(base_dir, filenames)` parses every file with its own format first; a reference leaf is then an ordinary leaf, such as a `JsonString` that holds a marker. It then walks each tree and replaces each reference leaf with the node that the marker names. Every tree exists before the first replacement, so two markers of one node get the same object and a cycle across files becomes a cycle in memory. A marker that names a file outside the set stays a leaf, so one file can be opened alone and saved back unchanged. `follow = true` also opens the files that the set names, and `tolerant = true` logs a file that does not open and keeps its markers as text.
 

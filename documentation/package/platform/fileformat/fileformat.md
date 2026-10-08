@@ -51,7 +51,7 @@ The `@gestures` table of `FileDocument` has two keys:
 | Ctrl+S | `SaveFileOperation` | writes the content to the file name of the document |
 | Ctrl+O | `ReloadFileOperation` | reads the file again into `content`; the key answers it together with a selection of the whole file |
 
-The save calls `save_file!`, which uses the `emit_text` of the file type, and not `write_document_file`. The content of a `TextFile` is a plain `String`, and `write_document_file` takes only a `Document`. The save writes the document inside a wrapper, found with `get_wrapped_document`, not the wrapper. The reload gives the new document to the wrapper with `replace_wrapped_document!`, so a history keeps its place. Both operations pass every reader unchanged, because `is_self_contained_operation` returns `true` for them.
+The save calls `save_file!`, which uses the `emit_text` of the file type, and not `write_document_file`. The content of a `TextFile` is a plain `String`, and `write_document_file` takes only a `Document`. The save writes the document inside a wrapper, found with `get_wrapped_document`, not the wrapper. A file that holds no document, such as a text file, is edited as a `PrimitiveString`, and the save takes the string back out. `compute_file_text(file)` answers the text that the save writes now, and writes nothing; the [file-change slice](../filechange/filechange.md) compares it with the file on disk. The reload gives the new document to the wrapper with `replace_wrapped_document!`, so a history keeps its place. Both operations pass every reader unchanged, because `is_self_contained_operation` returns `true` for them.
 
 ### The tool set
 

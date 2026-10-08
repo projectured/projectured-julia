@@ -198,12 +198,38 @@ step 4.
 - [ ] **2.** The marks drawn: the projection draws a mark over an inserted,
   updated and removed part, and a removed part struck through, in the widget
   table and in the syntax views.
-- [ ] **3.** The file-change feed: the watch, the drain, the reload of a file
+- [x] **3.** The file-change feed: the watch, the drain, the reload of a file
   with no pending change, the skip of the editor's own write. A test that
-  writes a watched file from another task.
+  writes a watched file from another task. **Done (2026-10-08)**, as built:
+  - The slice `filechange` (`FileChangeModule`): `FileChangeStore`,
+    `watch_document_file!`, `unwatch_document_file!`,
+    `is_document_file_watched`, `drain_file_changes!`, `FileChangeFeed`,
+    `make_file_change_feeds`. `ProjecturedPlatform` depends on the standard
+    library `FileWatching`.
+  - A `FolderMonitor` for each folder; an event marks every watched file of the
+    folder, because a write by a rename names another file. A folder whose
+    monitor can not open is polled every `poll_interval` seconds.
+  - **The text decides, not the undo position** (my recommendation, which
+    replaces the position of the undo buffer of my message): the drain compares
+    the file on disk with the text that a save of the document writes now, and
+    each with its hash at the last sync. Equal to the document: a save wrote
+    it. The document unchanged since the last sync: a reload. Else the edits
+    stay, and a `@warn` says that the file changed on disk, once for each
+    change. This needs no change of the undo slice and works for a file with
+    no history.
+  - To get that text, the serialization slice has `cut_file_text(file,
+    base_dir)`, which `save_file!` uses, and the file-format slice has
+    `compute_file_text(file)`, which unwraps a history as the save does.
+  - **A fault found and fixed on the way:** Ctrl+S of a text file failed on
+    main ("holds a PrimitiveString … that is not of its domain"), because the
+    editor edits a text as a `PrimitiveString` and the save did not take the
+    string back out, as `write_document_file` does. The save now takes it out
+    for a file type that holds no document (`get_file_domain(T) === Union{}`).
+  - Not done: the application does not watch the files that it opens yet.
 - [ ] **4.** The rebase of pending changes on a changed file, with the log of a
   dropped change. A test that removes an entry, then changes the file on disk.
 - [ ] **5.** The guide of each new slice in `documentation/package/platform/`.
+  `filechange.md` is written; `pendingedit` waits with steps 1, 2 and 4.
 
 ## 8. Risks
 

@@ -168,13 +168,32 @@ end
 # `FileDocument`.
 function evaluate_operation(editor, op::SaveFileOperation)
     file = op.file
-    # The file writes the document, not a wrapper around it: a content that
-    # carries a history writes what the history is about. The save walks the
-    # content for nodes of the file's own domain, and a wrapper is not one.
-    content = get_wrapped_document(get_file_content(file))
-    plain = Base.typename(typeof(file)).wrapper(get_filename(file), content)
-    save_file!(plain, dirname(abspath(get_filename(file))))
+    save_file!(_make_plain_file(file), dirname(abspath(get_filename(file))))
 end
+
+# The file with the document that it holds and not a wrapper around it: a content
+# that carries a history writes what the history is about. The save walks the
+# content for nodes of the file's own domain, and a wrapper is not one. A file
+# that holds no document, such as a text file, holds a `String`, which the
+# editor edits as a `PrimitiveString` (`_read_registered_file`); the save takes
+# the string back out.
+function _make_plain_file(file::FileDocument)
+    content = get_wrapped_document(get_file_content(file))
+    (content isa PrimitiveString && get_file_domain(typeof(file)) === Union{}) &&
+        (content = something(content.value, ""))
+    Base.typename(typeof(file)).wrapper(get_filename(file), content)
+end
+
+"""
+    compute_file_text(file) -> String
+
+The text that `SaveFileOperation` writes for `file` now: the document that the
+file holds, without a wrapper such as a history, in the notation of the file
+type. It writes nothing. Use it to compare a file document with its file on
+disk.
+"""
+compute_file_text(file::FileDocument) =
+    cut_file_text(_make_plain_file(file), dirname(abspath(get_filename(file))))
 
 # The text of a file is the text of what it holds, so a caller with a tab in
 # hand asks the file itself. The history a file carries stays out of the answer,

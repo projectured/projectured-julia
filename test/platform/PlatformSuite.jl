@@ -70,6 +70,7 @@ const PLATFORM_SLICE_EDGES = Dict{String, Vector{String}}(
                 "widget"],
     "fileformat" => ["collection", "domain", "layout", "natural", "primitive",
                      "projection", "serialization", "style", "syntax", "text", "widget"],
+    "filechange" => ["fileformat", "serialization"],
     "filesystem" => ["collection", "domain", "fileformat", "focus", "graphics", "natural",
                      "pane", "primitive", "projection", "serialization", "settingsmanaging",
                      "style", "syntax", "text", "undo", "widget"],
@@ -130,7 +131,7 @@ end
 Run the whole suite of the platform: its layering guard and the table of the
 edges between its slices, every unit test, the printer walk over its own
 examples, and the suites of the fault, file system, conversation, help, shell,
-undo and display slices.
+undo, file change and display slices.
 """
 function test_platform()
     @testset "ProjecturedPlatform" begin
@@ -327,6 +328,7 @@ function test_platform()
         test_help()
         test_shell()
         test_undo()
+        test_filechange()
         test_display()
     end
 end

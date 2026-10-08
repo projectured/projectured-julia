@@ -51,7 +51,7 @@ export import_document, export_document,
 export write_document_file, read_document_file, make_document_for, make_document_seed,
        make_file_tab, make_file_tab_content
 export export_document
-export SaveFileOperation, ReloadFileOperation
+export SaveFileOperation, ReloadFileOperation, compute_file_text
 export FileToContent
 export make_file_api
 

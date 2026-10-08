@@ -1,8 +1,8 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.13.0"
+julia_version = "1.13.1"
 manifest_format = "2.1"
-project_hash = "b759942f165c1f9e93424e2da1f536ffc3b36015"
+project_hash = "f45b592edd18daca45457e565f516ff011f9a78e"
 
 [[deps.ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -16,7 +16,7 @@ version = "1.11.0"
 deps = ["TOML"]
 path = "../../../auto-integration"
 uuid = "40fd747d-4b08-4b8c-98c4-74a2b6295b1b"
-version = "0.1.0"
+version = "0.1.1"
 
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
@@ -368,7 +368,7 @@ version = "1.9.1+0"
 [[deps.LibSSH2_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl", "OpenSSL_jll", "Zlib_jll"]
 uuid = "29816b5a-b9ab-546f-933c-edad1886dfa8"
-version = "1.11.103+0"
+version = "1.11.104+0"
 
 [[deps.LibUnwind_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl", "Zlib_jll"]
@@ -583,7 +583,7 @@ uuid = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 version = "0.1.0"
 
 [[deps.ProjecturedPlatform]]
-deps = ["PrecompileTools", "Printf", "ProjecturedKernel", "Serialization", "TOML"]
+deps = ["FileWatching", "PrecompileTools", "Printf", "ProjecturedKernel", "Serialization", "TOML"]
 path = "../../package/ProjecturedPlatform"
 uuid = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 version = "0.1.0"

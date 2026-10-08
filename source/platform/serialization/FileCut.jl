@@ -283,6 +283,22 @@ function save_project!(project::FileProject)
 end
 
 """
+    cut_file_text(file, base_dir = ".") -> String
+
+The text that [`save_file!`](@ref) writes for `file` into `base_dir`: the graph
+cut at the file, and printed in the notation of its file type. It writes
+nothing. It throws a [`FileCutException`](@ref) where the save refuses.
+
+Use it to compare a document with its file on disk.
+"""
+function cut_file_text(file, base_dir::AbstractString = ".")
+    is_file_document(file) ||
+        error("cut_file_text: not a file document (", typeof(file), ")")
+    owner = _assign_owners(FileProject(base_dir, Any[file]))
+    String(_cut_text(owner, file, true))
+end
+
+"""
     save_file!(file, base_dir) -> Bool
 
 Write one file with no context, so no reference can be written: the content
@@ -293,9 +309,8 @@ leaf of the domain is a plain leaf, and saves as one.
 function save_file!(file, base_dir::AbstractString)
     is_file_document(file) ||
         error("save_file!: not a file document (", typeof(file), ")")
-    owner = _assign_owners(FileProject(base_dir, Any[file]))
     text = try
-        _cut_text(owner, file, true)
+        cut_file_text(file, base_dir)
     catch e
         e isa FileCutException || rethrow()
         @error e.message

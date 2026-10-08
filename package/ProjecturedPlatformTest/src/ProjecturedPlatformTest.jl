@@ -493,6 +493,22 @@ include("../../../test/platform/undo/UndoBufferTest.jl")
 include("../../../test/platform/undo/UndoSuite.jl")
 end # module UndoTests
 
+module FileChangeTests
+
+using Test
+import ProjecturedPlatform
+using ProjecturedKernel.CellModule
+using ProjecturedKernel.OperationModule
+using ProjecturedKernel.FeedModule
+using ProjecturedPlatform.SerializationModule
+using ProjecturedPlatform.FileFormatModule
+using ProjecturedPlatform.FileChangeModule
+import ProjecturedPlatform.FileChangeModule
+
+include("../../../test/platform/filechange/FileChangeStoreTest.jl")
+include("../../../test/platform/filechange/FileChangeSuite.jl")
+end # module FileChangeTests
+
 module DisplayTests
 
 using Test
@@ -514,7 +530,8 @@ include("../../../test/platform/display/EditorDisplayTest.jl")
 include("../../../test/platform/display/DisplaySuite.jl")
 end # module DisplayTests
 
-for _part in (FaultTests, FileSystemTests, ConversationTests, HelpTests, ShellTests, UndoTests, DisplayTests)
+for _part in (FaultTests, FileSystemTests, ConversationTests, HelpTests, ShellTests, UndoTests,
+              FileChangeTests, DisplayTests)
     Core.eval(@__MODULE__, Expr(:using, Expr(:., :., nameof(_part))))
     for _n in names(_part)
         _n === nameof(_part) || Core.eval(@__MODULE__, Expr(:export, _n))

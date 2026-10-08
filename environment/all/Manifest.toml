@@ -29,7 +29,7 @@ version = "1.11.0"
 deps = ["TOML"]
 path = "../../../auto-integration"
 uuid = "40fd747d-4b08-4b8c-98c4-74a2b6295b1b"
-version = "0.1.0"
+version = "0.1.1"
 
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
@@ -1359,7 +1359,7 @@ uuid = "bf2a516e-32f2-44e2-9f63-c3afa81fdb4b"
 version = "0.1.0"
 
 [[deps.ProjecturedPlatform]]
-deps = ["PrecompileTools", "Printf", "ProjecturedKernel", "Serialization", "TOML"]
+deps = ["FileWatching", "PrecompileTools", "Printf", "ProjecturedKernel", "Serialization", "TOML"]
 path = "../../package/ProjecturedPlatform"
 uuid = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 version = "0.1.0"
