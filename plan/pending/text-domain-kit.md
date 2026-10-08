@@ -488,7 +488,8 @@ span by its index in the list: `child_elem_ranges`, `own_spans`, `sep_indices`,
 list exactly; the navigation sweeps assert no counts, but their broken markers
 can flip.
 
-**Q1 Where the lines come from.**
+**Q1 Where the lines come from. Decided (a), the owner, 2026-10-08:** every
+producer of syntax text emits lines.
 
 - (a) **Every producer of syntax text emits lines.** A span that holds a `'\n'`,
   a leaf value or a delimiter of a domain, is split at each break into pieces on
@@ -506,14 +507,41 @@ can flip.
   Markdown or a paragraph of reStructuredText is one line to the numbers and to
   the folds.
 
-*Recommendation: (a), because it is the direction decided on 2026-08-12 (this
-plan owns the change, and `SyntaxToText` emits lines), and only (a) gives every
-break a line and lets the syntax put a fold and a mark on a line. Its cost: the
-largest rewrite of the three, a split of leaf values with a table of segments,
-and every index-based helper of `SyntaxToText` learns span paths.*
+My recommendation was (a), because it is the direction decided on 2026-08-12
+(this plan owns the change, and `SyntaxToText` emits lines), and only (a) gives
+every break a line and lets the syntax put a fold and a mark on a line. Its cost:
+the largest rewrite of the three, a split of leaf values with a table of
+segments, and every index-based helper of `SyntaxToText` learns span paths.
 
-Still to decide after Q1: Q2 the join rule of an inline child, and Q3 how the
-lazy list path (`SyntaxListToText`) makes lines.
+**Q2 The join rule of a child.** The output of every leaf and every compound is
+a block of one line or more, and the first line of a compound is its open line,
+where its marker and its open delimiter go. The indentation of a line is relative
+to the start of the compound that made it. A compound appends its own chrome and
+its children so:
+
+1. The first line of a child joins the open line of the parent: its spans are
+   appended to that line.
+2. Every other line of the child is a line of the parent, in order.
+3. The last line of the child is the open line of the parent after it, so the
+   separator or the close delimiter that follows goes on that line.
+4. A parent that indents puts each child on a new line of its own, and before its
+   close delimiter, and adds `indent_size` to the indentation of every line of
+   the child, as it widens every indent span of the child today.
+5. The part that is open: what a joined line holds of the fold and of the gutter
+   of the child's first line, when the open line has some of its own.
+   - (a) The open line keeps its fold and its gutter whole; when it has none, it
+     takes those of the child's first line.
+   - (b) The open line keeps its fold, and takes the child's when it has none, as
+     T4 of the fold plan decided for two nodes on one line; the two gutters join
+     lane by lane, and in a lane that both fill, the mark of the open line stays.
+     A gutter of another type than the open line's is dropped.
+
+*Recommendation for 5: (b), because a mark of a domain can come from a node that
+starts in the middle of a line, such as the breakpoint of the second statement of
+`x = 1; y = 2`, and (a) would drop it when the line has a gutter of its own.*
+
+Still to decide after Q2: Q3 how the lazy list path (`SyntaxListToText`) makes
+lines.
 
 ### Phase 3 guards
 
