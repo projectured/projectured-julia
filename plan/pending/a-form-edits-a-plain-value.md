@@ -1,7 +1,7 @@
 # A form edits a plain value
 
 > **Status (2026-10-08): IN PROGRESS** on the branch `plain-value-form`, in the
-> worktree `projectured-julia-plain-value-form`. Steps 1 to 3 are done. The owner
+> worktree `projectured-julia-plain-value-form`. Steps 1 to 4 are done. The owner
 > answered the first six questions on 2026-10-06, chose the design of parts C and
 > D on 2026-10-08 (see "Decisions"), and asked for the implementation on
 > 2026-10-08.
@@ -44,8 +44,8 @@ end
 
 form(root) = FormLayout([
     (WidgetLabel("Name"),     WidgetText(ObjectField(root, "name"))),
-    (WidgetLabel("Capacity"), WidgetSpinBox(value = ObjectField(root, "capacity"))),
-    (WidgetLabel("Enabled"),  WidgetCheckbox(content = ObjectField(root, "enabled"))),
+    (WidgetLabel("Capacity"), WidgetSpinBox(ObjectField(root, "capacity"))),
+    (WidgetLabel("Enabled"),  WidgetCheckbox(ObjectField(root, "enabled"))),
 ])
 
 # A: a copy in a schema
@@ -250,11 +250,11 @@ value goes. The widget is the choice of control, and its settings, such as
 ```julia
 FormLayout([
     (WidgetLabel("Name"),     WidgetText(ObjectField(server, "name"))),
-    (WidgetLabel("Enabled"),  WidgetCheckbox(content = ObjectField(server, "enabled"))),
-    (WidgetLabel("Capacity"), WidgetSpinBox(value = ObjectField(server, "capacity"),
+    (WidgetLabel("Enabled"),  WidgetCheckbox(ObjectField(server, "enabled"))),
+    (WidgetLabel("Capacity"), WidgetSpinBox(ObjectField(server, "capacity");
                                             min = 1, max = 64)),
-    (WidgetLabel("Style"),    WidgetSelect(options = [:linear, :step, :bar],
-                                           value = ObjectField(series, "draw_style"))),
+    (WidgetLabel("Style"),    WidgetSelect(ObjectField(series, "draw_style");
+                                           options = Any[:linear, :step, :bar])),
     (WidgetLabel("Ratio"),    ObjectField(server, "ratio")),    # a bare field
 ])
 ```
@@ -423,11 +423,11 @@ The widget comes from a seam and a function argument (decision 16):
 ```julia
 # The seam: the default widget for a field, chosen by the type of its value.
 make_object_field_widget(field) = make_object_field_widget(get_object_field_value(field), field)
-make_object_field_widget(::Bool, field)           = WidgetCheckbox(content = field)
+make_object_field_widget(::Bool, field)           = WidgetCheckbox(field)
 make_object_field_widget(::AbstractString, field) = WidgetText(field)
 make_object_field_widget(::Real, field)           = WidgetText(field)
 make_object_field_widget(_, field)                = WidgetLabel(field)     # read only
-make_object_field_widget(::Quantity, field)       = WidgetSpinBox(value = field)  # a domain adds one
+make_object_field_widget(::Quantity, field)       = WidgetSpinBox(field)  # a domain adds one
 
 # The argument: a projection that makes a widget for a field takes it.
 ObjectFieldToWidget(; make_widget = make_object_field_widget)
@@ -522,7 +522,7 @@ nested field can get a chosen control too:
 ```julia
 ObjectToWidget(; make_widget = field ->
     get_object_field_name(field) == "draw_style" ?
-        WidgetSelect(options = [:linear, :step, :bar], value = field) :
+        WidgetSelect(field; options = Any[:linear, :step, :bar]) :
         make_object_field_widget(field))
 ```
 
@@ -658,7 +658,7 @@ form of part C and not readers that part C removes.
      which also ends the computation that binds the control to the field. The
      assertion is `@test_broken` with a `# @broken:` comment, and part C must
      promote it.
-4. ⬜ **C: the widgets ask their value child.** `ObjectFieldToValue`, the helper
+4. ✅ **C: the widgets ask their value child.** `ObjectFieldToValue`, the helper
    that asks a child for the operation that stores a value, the factory that
    puts each value widget into a `NestingProjection`, the change at each edit
    site of the table in part C, the `operation` field of `WidgetOption`, the
@@ -677,6 +677,63 @@ form of part C and not readers that part C removes.
    `TextBlock` content of a `WidgetText` that still draws as text; a child whose
    answer still names a place, which sends no edit. Run the tests of each
    changed widget with a plain value too.
+
+   **Done 2026-10-08.** What the implementation found and decided:
+   - **The IO map of a value widget.** The checkbox, the switch and the toggle
+     answer a new `WidgetValueIoMap(projection, input, output, value_iomap)`. The
+     slider, the spin box, the radio group, the select and the text keep their
+     own IO maps, each with a new field `value_iomap`. A `ContentIoMap` was
+     rejected: `get_child_iomaps` lists its inner IO map, and
+     `find_first_baseline` looks into it, but the child of a value slot draws
+     nothing. An IO map type that generic code does not know is not walked.
+   - **The fragment `WidgetValueSlot.jl`** holds the IO map, the print of a slot
+     (`_print_value_slot`), the read of its value (`_get_slot_value`), the
+     helper `make_slot_store_operation`, and the factory
+     `make_object_field_widget_dispatch`. `ObjectFieldToValue.jl` holds the
+     projection. Both are in the widget slice.
+   - **A slot is printed once, at print time.** A slot that holds a document
+     when the widget prints gets a reconciled child; a plain value gets none, so
+     a widget with plain values pays nothing.
+   - **A loop to avoid.** A value widget prints its slot through the recursion
+     that it gets. If that recursion makes a widget of an `ObjectField`, and the
+     row of the widget is no nesting, the print makes the widget again without
+     end. The header of `WidgetValueSlot.jl` says so; step 5 makes the factory
+     give a table that can not loop.
+   - **The slider and the toggle group already have `target` and `field`**, a
+     write-only binding: a drag writes `(target, field, value)`, and the knob
+     still draws the slider's own `value`. This plan keeps it. When the value
+     slot of a slider holds a document, the child makes the write and `target`
+     is not used. The toggle group is no value widget of this plan. Unifying the
+     two mechanisms is outside this plan.
+   - **The select** gives each `WidgetOption` its final `operation` when the
+     popup opens. A value that the child does not take gets
+     `DoNothingOperation()`, so that option does not fall back to a write on the
+     select, which would end the binding.
+   - **The text** decides at print time, with `run_untracked`, whether the child
+     of a document content gives graphics or a value, so the print does not
+     follow the value. Its caret goes through the child as a path that the child
+     introduces, as for today's `ObjectFieldToWidget`. A store moves no caret, so
+     an edit answers a `CompoundOperation` of the store and a
+     `ReplaceSelectionOperation` after the inserted text.
+   - **`_coerce`** rounds a `Float64` into an integer field, and converts a
+     number into a `Float64` field. New methods for a number were ambiguous with
+     the method for a `Bool`, so the two existing bodies changed.
+   - **The constructors take the value positionally**: `WidgetCheckbox(field)`,
+     `WidgetSpinBox(field; min, max)`, `WidgetSelect(field; options)`. The
+     examples of this plan are corrected.
+   - **The empty nesting** (decision 13): `NestingProjection()`; with no element
+     and no stored recursion, its reader and its mappers go to the IO map that
+     its print made, through that IO map's own projection.
+   - `test_widget_value_slot()` 25 pass, `test_empty_nesting()` 4 pass,
+     `test_object_field_to_widget()` keeps its baseline (1 broken), and
+     `test_object_conversion()` 24 pass. `test_platform()`: 102505 pass, 2 fail,
+     9 broken, in 22 minutes. The 2 failures are in `test_interface_api()`: the
+     interface list holds 32 names where the test expects 31, and the docstring
+     of `WidgetProgressRing` has no line "Use it to". The ring entered the list
+     in `8353fc722` (2026-10-06), which is in the base of this branch, and this
+     branch changes neither the list nor that docstring, so `main` fails the
+     same way. One of the 9 broken is the baseline marker of step 3.
+
 5. ⬜ **C: `ObjectFieldToWidget` makes the default widget.** It makes the widget
    with the field in its slot and prints it through the recursion. Its readers
    for the checkbox and for the text go away. The seam `make_object_field_widget`

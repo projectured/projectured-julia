@@ -43,3 +43,29 @@ function test_window_input_unwrapping()
 
 end
 end
+
+# A projection whose output is its input and whose reader answers one mark, so a
+# test sees which reader a payload reaches.
+struct NestMarkingProjection <: Projection end
+ProjecturedKernel.ProjectionModule.print_document(p::NestMarkingProjection, recursion, input, ctx) =
+    SimpleIoMap(p, input, input)
+ProjecturedKernel.ProjectionModule.read_intent(::NestMarkingProjection, iomap::SimpleIoMap, payload) =
+    ReplaceSelectionOperation(Reference(FieldReferenceStep("marked")))
+
+function test_empty_nesting()
+@testset "an empty NestingProjection prints and reads through the recursion" begin
+
+    empty = NestingProjection()
+    @test isempty(empty.elements)
+    number = PrimitiveNumber(1)
+    iomap = print_document(empty, NestMarkingProjection(), number, PrinterContext())
+    @test iomap.output === number            # printed by the recursion that it got
+
+    # A payload reaches the reader of the IO map that the print made, also with no
+    # recursion at the read.
+    answer = read_intent(empty, iomap, ReplaceSelectionOperation(EmptyReference()))
+    @test answer isa ReplaceSelectionOperation
+    @test get_reference_head(answer.path) == FieldReferenceStep("marked")
+
+end
+end

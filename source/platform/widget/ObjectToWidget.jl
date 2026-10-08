@@ -315,11 +315,16 @@ function _apply_range(s::AbstractString, cs::Int, ce::Int, repl::AbstractString)
 end
 
 # Coerce an edited value to the field's current type (text controls deliver
-# strings; numbers/bools are parsed). Unparseable input keeps the old value.
+# strings; numbers/bools are parsed; a slider delivers a `Float64`, which an
+# integer field rounds). Unparseable input keeps the old value.
 _coerce(::AbstractString, v) = String(v)
 _coerce(::Bool, v) = v isa Bool ? v : (v == true || v == "true" || v == "1")
-_coerce(cur::Integer, v) = v isa Integer ? v : something(tryparse(Int, String(v)), cur)
-_coerce(cur::AbstractFloat, v) = v isa AbstractFloat ? v : something(tryparse(Float64, String(v)), cur)
+_coerce(cur::Integer, v) =
+    v isa Integer ? v :
+    v isa AbstractFloat ? round(Int, v) : something(tryparse(Int, String(v)), cur)
+_coerce(cur::AbstractFloat, v) =
+    v isa AbstractFloat ? v :
+    v isa Real ? Float64(v) : something(tryparse(Float64, String(v)), cur)
 _coerce(_, v) = v
 
 # ── Reference mapping ─────────────────────────────────────────────────────

@@ -1680,7 +1680,10 @@ read_intent(::WidgetInsertionToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothin
 # move and every edit, and the widget re-roots what it answers under `content`
 # (see `map_reference_backward`). A Document content, typically a `TextBlock`, is
 # recursed through the chain. A plain value is drawn through a text view of its
-# string, which `_make_plain_text_view` makes.
+# string, which `_make_plain_text_view` makes. A document whose child gives a value
+# and not graphics, such as an `ObjectField` under a nesting of
+# `make_object_field_widget_dispatch`, is drawn through a text view of that value:
+# `value_iomap` is that child, and an edit asks it to store the new string.
 # @iomap so the reader reads content_iomap/input transparently; the content is
 # reconciled so a field grows reactively as text is typed
 # (PAR-STABLE-IOMAP-IDENTITY).
@@ -1689,6 +1692,7 @@ read_intent(::WidgetInsertionToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothin
     input::Any
     output::Any
     content_iomap::Any
+    value_iomap::Any   # the child of a document in `content` that gives a value, or nothing
 end
 
 # ── A plain value as a text ─────────────────────────────────────────────────
@@ -1705,8 +1709,7 @@ end
 
 # The spans of a field of code: a span for each piece of its text, in the color
 # of the piece, or of the field. `appearance` gives the colors of the language.
-function _make_code_spans(w, style::StyleText, appearance)
-    text = string(w.content)
+function _make_code_spans(w, style::StyleText, appearance; text = string(w.content))
     spans = Any[]
     start = 1
     for (count, color) in _get_plain_text_pieces(w, text, appearance)
@@ -1725,21 +1728,41 @@ function _get_plain_text_pieces(w, text::AbstractString, appearance)
     Base.invokelatest(compute_code_pieces, Val(language), text, appearance)
 end
 
-function _make_plain_text_view(w, style::StyleText, appearance)
+# `value_slot` is the cell of the child of a document in `content` that gives the
+# value to show, or `nothing` for a plain `content`.
+function _make_plain_text_view(w, style::StyleText, appearance; value_slot = nothing)
+    text = value_slot === nothing ? () -> string(w.content) : () -> string(value_slot[].output)
     language = hasfield(typeof(w), :language) ? w.language : nothing
-    view = language === nothing ? TextBlock(TextString(() -> string(w.content), style)) :
-                                  TextBlock(() -> _make_code_spans(w, style, appearance))
+    view = language === nothing ? TextBlock(TextString(text, style)) :
+                                  TextBlock(() -> _make_code_spans(w, style, appearance; text = text()))
     set_cell_computation!(getfield(view, :selection),
-                          () -> _get_plain_text_caret(w.selection))
+                          () -> _get_text_view_caret(w.selection, value_slot))
     set_cell_computation!(getfield(view, :mouse_target),
-                          () -> _get_plain_text_caret(w.mouse_target))
+                          () -> _get_text_view_caret(w.mouse_target, value_slot))
     view
+end
+
+_get_text_view_caret(selection, value_slot::Nothing) = _get_plain_text_caret(selection)
+_get_text_view_caret(selection, value_slot) = _get_value_text_caret(selection, value_slot[])
+
+# The caret of the view of the value that the child of a document in `content`
+# gives: the path under `content`, mapped forward through the child, which keeps
+# it as a path that it introduces (the defaults of `Projection`). A flat range of
+# the one span.
+function _get_value_text_caret(selection, child)
+    selection isa ConcreteReference || return nothing
+    stripped = strip_reference_types(selection)
+    head = get_reference_head(stripped)
+    (head isa FieldReferenceStep && head.name == "content") || return nothing
+    inner = map_reference_forward(child.projection, child, get_reference_tail(stripped))
+    inner isa ConcreteReference ? inner : nothing
 end
 
 # `appearance` is the appearance of a field of code, whose theme of its language
 # gives the colors, or `nothing`.
-function _print_plain_text_view(p, recursion, w, style::StyleText, ctx; appearance = nothing)
-    view = _make_plain_text_view(w, style, appearance)
+function _print_plain_text_view(p, recursion, w, style::StyleText, ctx; appearance = nothing,
+                                value_slot = nothing)
+    view = _make_plain_text_view(w, style, appearance; value_slot)
     measure = p.measure
     make_reconciled_child_iomap_cell(() -> view,
                           v -> print_document(TextToGraphics(measure = measure), recursion, v, ctx))
@@ -1765,11 +1788,11 @@ _make_content_range_reference(start::Int, stop::Int) =
 # domain answers a caret or a selection as a flat range, and an edit of the one
 # span as `elements[1].content[start:stop]`. The whole view, which a press on an
 # empty string answers, is the caret at the end of the string.
-function _map_plain_text_reference(w, reference)
+function _map_plain_text_reference(w, reference; text = string(w.content))
     reference === nothing && return nothing
     steps = get_reference_steps(strip_reference_types(reference))
     if isempty(steps)
-        n = length(string(w.content))
+        n = length(text)
         return _make_content_range_reference(n, n)
     end
     range = steps[end]
@@ -1783,7 +1806,6 @@ function _map_plain_text_reference(w, reference)
         # A range in span `k` of the pieces is that range moved by the length of
         # the spans before it. The lengths do not depend on the colors, so the
         # pieces need no appearance.
-        text = string(w.content)
         before = sum((first(piece) for piece in _get_plain_text_pieces(w, text, nothing)[1:steps[2].start]);
                      init = 0)
         return _make_content_range_reference(before + range.start, before + range.stop)
@@ -1810,12 +1832,18 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
     # A Document content (e.g. a TextBlock) is recursed through the outer
     # projection chain (which routes it to TextToGraphics); a plain value is
     # drawn through a text view of its string. Mirrors WidgetScrollPane's
-    # content recursion.
+    # content recursion. A document whose child gives a value and not graphics,
+    # as an `ObjectField` does under the nesting of a value widget, is drawn
+    # through a text view of that value. Which of the two a document is, is read
+    # once, here, and with no reader, so the print does not follow the value.
     content_ctx = _get_inner_content_context(p, w, ctx)
-    content_iomap = w.content isa Document ?
+    document_iomap = w.content isa Document ?
         make_reconciled_child_iomap_cell(() -> w.content, c -> print_child(recursion, c, content_ctx)) :
+        nothing
+    value_slot = _is_value_child(document_iomap) ? document_iomap : nothing
+    content_iomap = document_iomap !== nothing && value_slot === nothing ? document_iomap :
         _print_plain_text_view(p, recursion, w, _get_state_text(p, w, :label; state), content_ctx;
-                               appearance = p.appearance)
+                               appearance = p.appearance, value_slot)
     build = Cell(@computation begin
         radius = p.corner_radius
         inner = content_iomap[].output::GraphicsCanvas
@@ -1828,6 +1856,8 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
         # it takes, where its text begins, and is as wide as the example.
         placeholder = w.placeholder
         shows_placeholder = placeholder !== nothing && !(w.content isa Document) && isempty(string(w.content))
+        shows_placeholder |= placeholder !== nothing && value_slot !== nothing &&
+                             isempty(string(value_slot[].output))
         inner_w = Int(inner.w[])
         shows_placeholder && (inner_w = max(inner_w, _text_size(p.measure, p.placeholder_text.font,
                                                                 String(placeholder))[1]))
@@ -1855,8 +1885,14 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
                           whole = p.graphics_style)
         (width=outer_w, height=outer_h, elements=elems)
     end)
-    WidgetTextToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(pos)..., build), content_iomap)
+    WidgetTextToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(pos)..., build), content_iomap,
+                                    value_slot)
 end
+
+# Whether the child of a document in `content` gives a value and not graphics.
+_is_value_child(document_iomap::Nothing) = false
+_is_value_child(document_iomap) =
+    !(run_untracked(() -> document_iomap[].output) isa GraphicsCanvas)
 
 map_reference_forward(::WidgetTextToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 
@@ -1874,8 +1910,22 @@ function map_reference_backward(::WidgetTextToGraphicsCanvas, iomap::WidgetTextT
     point = find_reference_point(reference)
     point === nothing || return _map_text_point(point)
     w = iomap.input
+    child = iomap.value_iomap
+    child === nothing || return _map_value_text_reference(w, child, reference)
     w.content isa Document || return _map_plain_text_reference(w, reference)
     ConcreteReference(FieldReferenceStep("content"), reference)
+end
+
+# A reference of the text view of the value that the child of `content` gives,
+# mapped back through the child: the range of the view, as a flat range, is a path
+# that the child introduces, under `content`.
+function _map_value_text_reference(w, child, reference)
+    range = _map_plain_text_reference(w, reference; text = string(child.output))
+    range === nothing && return nothing
+    step = get_reference_steps(range)[end]
+    inner = map_reference_backward(child.projection, child,
+                                   make_flat_range_reference(step.start, step.stop))
+    inner === nothing ? nothing : ConcreteReference(FieldReferenceStep("content"), inner)
 end
 
 # A point of a text widget: its content is the part there, at that point. The
@@ -1891,9 +1941,34 @@ read_intent(::WidgetTextToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
 function read_intent(p::WidgetTextToGraphicsCanvas, iomap::WidgetTextToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     iomap.input.enabled === false && return nothing   # a disabled text widget accepts no edits
-    _validate_text_edit(iomap.input,
-                        _read_text_content_intent(p, iomap, evt, _content_offset(p, iomap.input)...))
+    operation = _validate_text_edit(iomap.input,
+        _read_text_content_intent(p, iomap, evt, _content_offset(p, iomap.input)...))
+    child = iomap.value_iomap
+    child === nothing ? operation : _make_value_text_store(iomap.input, child, operation)
 end
+
+# An edit of the text view of the value that the child of `content` gives: the
+# whole string after the edit, which the child stores (`make_slot_store_operation`),
+# and the caret after the inserted text. A store moves no caret, as the edit of a
+# plain value does, so the caret move is a second operation.
+function _make_value_text_store(w, child, operation::ReplaceStringRangeOperation)
+    range = _get_value_text_caret(operation.reference, child)
+    range === nothing && return nothing
+    step = get_reference_head(range)
+    edited = _apply_range(string(child.output), step.start, step.stop, operation.replacement)
+    store = make_slot_store_operation(w, :content, child, edited)
+    store === nothing && return nothing
+    caret = step.start + length(operation.replacement)
+    inner = map_reference_backward(child.projection, child, make_flat_range_reference(caret, caret))
+    inner === nothing && return store
+    CompoundOperation(Any[store,
+        ReplaceSelectionOperation(ConcreteReference(FieldReferenceStep("content"), inner))])
+end
+
+_make_value_text_store(w, child, operation::CompoundOperation) =
+    CompoundOperation(Any[_make_value_text_store(w, child, member) for member in operation.operations])
+
+_make_value_text_store(w, child, operation) = operation
 
 # Give an event to the text document that a text widget holds, and re-root the
 # answer under `content`. The Text domain makes every caret move and every edit.
@@ -1971,10 +2046,11 @@ function _push_mark_label!(elements::Vector, p, content, x::Int, y::Int)
 end
 
 function print_document(p::WidgetCheckboxToGraphicsCanvas, recursion, w::WidgetCheckbox, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetValueIoMap(p, w, _empty_canvas(), nothing)
     position = w.position::Point2D
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
-        checked = w.content === true
+    slot = _print_value_slot(recursion, w, :content, ctx)
+    WidgetValueIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+        checked = _get_slot_value(w, :content, _get_slot_child(slot)) === true
         enabled = !(w.enabled === false)
         box_size = p.indicator_size
         corner_radius = p.corner_radius
@@ -2001,7 +2077,7 @@ function print_document(p::WidgetCheckboxToGraphicsCanvas, recursion, w::WidgetC
         outer_width, outer_height = content.width + inset_width, content.height + inset_height
         _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, corner_radius)
         (width=outer_width, height=outer_height, elements=elements)
-    end))
+    end), slot)
 end
 
 map_reference_forward(::WidgetCheckboxToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
@@ -2010,33 +2086,35 @@ function map_reference_backward(::WidgetCheckboxToGraphicsCanvas, iomap, referen
     return nothing
 end
 
-# A click toggles the checkbox. By convention a leaf control reports an edit as
-# `ReplaceReferencedValueOperation(self, content, new_value)`; a configuring projection
-# (ObjectToWidget) intercepts it by control identity and redirects it onto the
-# bound parameter cell. A bare click that does not reach here leaves the value
-# unchanged.
-_checkbox_toggle(w) = ReplaceReferencedValueOperation(w,
-    ConcreteReference(FieldReferenceStep("content"), EmptyReference()), !(w.content === true))
+# A click toggles the checkbox: it stores the opposite of the value in `content`
+# (`make_slot_store_operation`). A plain value is written on the checkbox itself,
+# where a configuring projection (ObjectToWidget) intercepts it by control
+# identity and redirects it onto the bound parameter cell; a document in the slot,
+# such as an `ObjectField`, answers the write itself. A bare click that does not
+# reach here leaves the value unchanged.
+_checkbox_toggle(iomap::WidgetValueIoMap) =
+    make_slot_store_operation(iomap, :content,
+        !(_get_slot_value(iomap.input, :content, iomap.value_iomap) === true))
 
-function read_intent(::WidgetCheckboxToGraphicsCanvas, iomap::SimpleIoMap, evt::MouseClick)
+function read_intent(::WidgetCheckboxToGraphicsCanvas, iomap::WidgetValueIoMap, evt::MouseClick)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     w.enabled === false && return nothing   # a disabled checkbox swallows the click
     op = read_bound_gesture(w, evt); op === nothing || return op   # per-instance gestures win
     evt.button === :left || return nothing
-    _checkbox_toggle(w)
+    _checkbox_toggle(iomap)
 end
 
 # Enter / Space with no modifier toggle the focused checkbox (the keystroke
 # reaches it via the selection-driven routing). Tab is left to fall through
 # (nothing) so focus traversal can claim it.
-function read_intent(::WidgetCheckboxToGraphicsCanvas, iomap::SimpleIoMap, evt)
+function read_intent(::WidgetCheckboxToGraphicsCanvas, iomap::WidgetValueIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     w.enabled === false && return nothing
     op = read_bound_gesture(w, evt); op === nothing || return op   # per-instance gestures win
     _is_plain_key(evt, :return, :space) || return nothing
-    _checkbox_toggle(w)
+    _checkbox_toggle(iomap)
 end
 
 # ── WidgetButton ────────────────────────────────────────────────────────────
@@ -7546,10 +7624,11 @@ WidgetSwitchToGraphicsCanvas(theme; measure,
                                  focus_ring_stroke, label_text, label_disabled_text, label_gap)
 
 function print_document(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwitch, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetValueIoMap(p, w, _empty_canvas(), nothing)
     position = w.position::Point2D
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
-        on  = w.checked === true
+    slot = _print_value_slot(recursion, w, :checked, ctx)
+    WidgetValueIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+        on  = _get_slot_value(w, :checked, _get_slot_child(slot)) === true
         enabled = !(w.enabled === false)
         state = !enabled ? :disabled : on ? :checked : nothing
         track_width  = Int(p.track_size.x[])
@@ -7579,31 +7658,31 @@ function print_document(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwi
         outer_width, outer_height = content.width + inset_width, content.height + inset_height
         _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, track_height ÷ 2)
         (width=outer_width, height=outer_height, elements=elements)
-    end))
+    end), slot)
 end
 
-# A click, or Return or Space on the focused switch, toggles `checked`.
-_switch_toggle(w::WidgetSwitch) =
-    ReplaceReferencedValueOperation(w,
-        ConcreteReference(FieldReferenceStep("checked"), EmptyReference()),
-        !(w.checked === true))
+# A click, or Return or Space on the focused switch, toggles `checked`: it stores
+# the opposite of the value (`make_slot_store_operation`).
+_switch_toggle(iomap::WidgetValueIoMap) =
+    make_slot_store_operation(iomap, :checked,
+        !(_get_slot_value(iomap.input, :checked, iomap.value_iomap) === true))
 
-function read_intent(::WidgetSwitchToGraphicsCanvas, iomap::SimpleIoMap, evt::MouseClick)
+function read_intent(::WidgetSwitchToGraphicsCanvas, iomap::WidgetValueIoMap, evt::MouseClick)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     w.enabled === false && return nothing   # a disabled switch swallows the click
     op = read_bound_gesture(w, evt); op === nothing || return op   # per-instance gestures win
     evt.button === :left || return nothing
-    _switch_toggle(w)
+    _switch_toggle(iomap)
 end
 
-function read_intent(::WidgetSwitchToGraphicsCanvas, iomap::SimpleIoMap, evt)
+function read_intent(::WidgetSwitchToGraphicsCanvas, iomap::WidgetValueIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     w.enabled === false && return nothing
     op = read_bound_gesture(w, evt); op === nothing || return op   # per-instance gestures win
     _is_plain_key(evt, :return, :space) || return nothing
-    _switch_toggle(w)
+    _switch_toggle(iomap)
 end
 
 map_reference_forward(::WidgetSwitchToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
@@ -7819,10 +7898,11 @@ function print_document(p::WidgetSliderToGraphicsCanvas, recursion, w::WidgetSli
     track_authored = _sc(Int(w.width))
     track_outer_width = _resolve_width(ctx, track_authored > 0 ? track_authored + inset_width_only : 0, inset_width_only)
     track_width = track_outer_width - inset_width_only
+    slot = _print_value_slot(recursion, w, :value, ctx)
     WidgetSliderToGraphicsCanvasIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         enabled = !(w.enabled === false)
         state = enabled ? nothing : :disabled
-        value = clamp(Float64(w.value), 0.0, 1.0)
+        value = clamp(Float64(_get_slot_value(w, :value, _get_slot_child(slot))), 0.0, 1.0)
         box = _get_box_insets(p, w)
         colors = _get_box_colors(p, w; state)
         inset_width, inset_height = _inset_total(p, w)
@@ -7845,7 +7925,7 @@ function print_document(p::WidgetSliderToGraphicsCanvas, recursion, w::WidgetSli
         outer_width, outer_height = slider_width + inset_width, slider_height + inset_height
         _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, slider_height ÷ 2)
         (width=outer_width, height=outer_height, elements=elements)
-    end), track_width)
+    end), track_width, slot)
 end
 
 # The track width the printer drew with, so a press is turned into a value by the
@@ -7857,6 +7937,16 @@ end
     input::Any
     output::Any
     track_width::Any
+    value_iomap::Any   # the IO map of a document in `value`, or nothing
+end
+
+# What a drag to `value` writes, and the value that the knob then has. A document
+# in the value slot stores it (`make_slot_store_operation`), and the `target` of
+# the slider is not used; a plain value writes what `resolve_slider_write` names.
+function _make_slider_write(w::WidgetSlider, child, value::Float64)
+    child === nothing || return (make_slot_store_operation(w, :value, child, value), value)
+    document, field, written = resolve_slider_write(w, value)
+    (ReplaceReferencedValueOperation(document, field, written), written)
 end
 
 map_reference_forward(::WidgetSliderToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
@@ -7890,12 +7980,14 @@ function read_intent(p::WidgetSliderToGraphicsCanvas,
     w.enabled === false && return nothing
     width  = Int(iomap.track_width)
     content_x, _ = _content_offset(p, w)
-    resolve_write_at(x) = resolve_slider_write(w, _slider_value(width, x - content_x))
+    child = iomap.value_iomap
+    current_value() = Float64(_get_slot_value(w, :value, child))
+    write_at(x) = _make_slider_write(w, child, _slider_value(width, x - content_x))
     @gesture_case evt begin
         MouseDown(button, x, y) => begin
             button === :left || return nothing
             _outside_widget(iomap, evt) && return nothing
-            document, field, value = resolve_write_at(x)
+            write, _ = write_at(x)
             # Taking the knob is a second write, and it is on the slider itself
             # rather than on the target: what is held is a property of the
             # control, not of the value it stands for. The drag starts at the
@@ -7904,37 +7996,37 @@ function read_intent(p::WidgetSliderToGraphicsCanvas,
             # The pointer keeps the arrow of the press while the drag is on, also
             # over a part that has a shape of its own.
             CompoundOperation(Any[_write_view_state(w, "dragging", true),
-                                  _write_view_state(w, "press_value", Float64(w.value)),
-                                  ReplaceReferencedValueOperation(document, field, value),
+                                  _write_view_state(w, "press_value", current_value()),
+                                  something(write, DoNothingOperation()),
                                   StartDragOperation(EmptyReference(), nothing),
                                   make_screen_pointer_shape_operation(:arrow)])
         end
         MouseClick(button, x, y) => begin
             button === :left || return nothing
             _outside_widget(iomap, evt) && return nothing
-            document, field, value = resolve_write_at(x)
+            write, value = write_at(x)
             # A value the knob already has is not written again, so a real
             # click leaves one step in the history; the press is still taken.
-            Float64(w.value) == value && return _write_view_state(w, "dragging", false)
-            ReplaceReferencedValueOperation(document, field, value)
+            current_value() == value && return _write_view_state(w, "dragging", false)
+            write
         end
         DragMove(x, y) => begin
             # A drag that wanders off the control still moves it, which is the
             # whole difference between a slider and a row of buttons: the drag
             # comes by the path of the slider, wherever the pointer is.
             w.dragging === true || return nothing
-            document, field, value = resolve_write_at(x)
-            Float64(w.value) == value && return nothing
-            ReplaceReferencedValueOperation(document, field, value)
+            write, value = write_at(x)
+            current_value() == value && return nothing
+            write
         end
         DragEnd => _end_slider_drag(w)
         DragCancel => begin
             ending = _end_slider_drag(w)
             ending === nothing && return nothing
             start = w.press_value
-            (start isa Real && Float64(w.value) != Float64(start)) || return ending
-            document, field, value = resolve_slider_write(w, Float64(start))
-            CompoundOperation(Any[ending, ReplaceReferencedValueOperation(document, field, value)])
+            (start isa Real && current_value() != Float64(start)) || return ending
+            write, _ = _make_slider_write(w, child, Float64(start))
+            write === nothing ? ending : CompoundOperation(Any[ending, write])
         end
         _ => nothing
     end
@@ -8009,14 +8101,25 @@ WidgetRadioGroupToGraphicsCanvas(theme; measure,
     input::Any
     output::Any
     row_bounds::Any
+    value_iomap::Any   # the IO map of a document in `selected`, or nothing
+end
+
+# The index of the selected option. A document in `selected` gives an option, and
+# the index is its place in `options`, or `0` when it is no option.
+function _get_radio_selected(w::WidgetRadioGroup, child)
+    child === nothing && return Int(w.selected)
+    value = child.output
+    index = findfirst(option -> option == value, collect(w.options))
+    index === nothing ? 0 : index
 end
 
 function print_document(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::WidgetRadioGroup, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
+    slot = _print_value_slot(recursion, w, :selected, ctx)
     build = Cell(@computation begin
         enabled = !(w.enabled === false)
-        selected = Int(w.selected)
+        selected = _get_radio_selected(w, _get_slot_child(slot))
         diameter = p.button_size
         label_gap = p.label_gap
         row_gap = p.row_gap
@@ -8067,7 +8170,7 @@ function print_document(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::Widge
         (width=outer_width, height=outer_height, elements=elements, row_bounds=row_bounds)
     end)
     WidgetRadioGroupToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(position)..., build),
-                                          Cell(@computation build[].row_bounds))
+                                          Cell(@computation build[].row_bounds), slot)
 end
 
 map_reference_forward(::WidgetRadioGroupToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
@@ -8086,7 +8189,9 @@ end
 # A left press on the row of an option selects it: its circle and its label are
 # one target. While the group has the focus, the arrow keys select the next or the
 # previous option, and Return and Space select the first one when no option is on.
-# The option that is already on is not a change, so it answers nothing.
+# The option that is already on is not a change, so it answers nothing. A plain
+# `selected` stores the index; a document in it stores the option itself
+# (`make_slot_store_operation`).
 function read_intent(::WidgetRadioGroupToGraphicsCanvas,
                      iomap::WidgetRadioGroupToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
@@ -8094,7 +8199,8 @@ function read_intent(::WidgetRadioGroupToGraphicsCanvas,
     w.enabled === false && return nothing
     count = length(w.options)
     count == 0 && return nothing
-    selected = Int(w.selected)
+    child = iomap.value_iomap
+    selected = _get_radio_selected(w, child)
     option = if evt isa MouseClick
         evt.button === :left || return nothing
         _find_row_index(iomap.row_bounds, evt.y)
@@ -8108,7 +8214,8 @@ function read_intent(::WidgetRadioGroupToGraphicsCanvas,
         nothing
     end
     (option === nothing || option == selected) && return nothing
-    ReplaceReferencedValueOperation(w, "selected", option)
+    make_slot_store_operation(w, :selected, child,
+                              child === nothing ? option : collect(w.options)[option])
 end
 
 # ── WidgetAvatar ────────────────────────────────────────────────────────────
@@ -8601,11 +8708,12 @@ WidgetToggleToGraphicsCanvas(theme; measure,
                                  focus_ring_stroke, corner_radius)
 
 function print_document(p::WidgetToggleToGraphicsCanvas, recursion, w::WidgetToggle, ctx)
-    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    w.visible == false && return WidgetValueIoMap(p, w, _empty_canvas(), nothing)
     position = w.position::Point2D
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+    slot = _print_value_slot(recursion, w, :pressed, ctx)
+    WidgetValueIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         text = string(w.content)
-        on  = w.pressed === true
+        on  = _get_slot_value(w, :pressed, _get_slot_child(slot)) === true
         enabled = !(w.enabled === false)
         state = !enabled ? :disabled : on ? :checked : nothing
         label = _get_state_text(p, w, :label; state)
@@ -8624,7 +8732,7 @@ function print_document(p::WidgetToggleToGraphicsCanvas, recursion, w::WidgetTog
                     content_y + (content_height - text_height) ÷ 2, label.color)
         _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, radius)
         (width=outer_width, height=outer_height, elements=elements)
-    end))
+    end), slot)
 end
 
 map_reference_forward(::WidgetToggleToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
@@ -8632,13 +8740,15 @@ map_reference_backward(::WidgetToggleToGraphicsCanvas, iomap, reference) = nothi
 
 # A left press flips `pressed`, and so do Return and Space while the toggle has
 # the focus: a container gives a key only to the child that its selection names.
-function read_intent(::WidgetToggleToGraphicsCanvas, iomap::SimpleIoMap, evt)
+# The flip stores the opposite of the value (`make_slot_store_operation`).
+function read_intent(::WidgetToggleToGraphicsCanvas, iomap::WidgetValueIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     (w.visible === false || w.enabled === false) && return nothing
     activated = evt isa MouseClick ? evt.button === :left : _is_plain_key(evt, :return, :space)
     activated || return nothing
-    ReplaceReferencedValueOperation(w, "pressed", !(w.pressed === true))
+    make_slot_store_operation(iomap, :pressed,
+        !(_get_slot_value(w, :pressed, iomap.value_iomap) === true))
 end
 
 # ── WidgetToggleGroup ───────────────────────────────────────────────────────
@@ -8906,13 +9016,15 @@ WidgetSelectToGraphicsCanvas(theme; measure,
     output::Any
     control_width::Any
     control_height::Any
+    value_iomap::Any   # the IO map of a document in `value`, or nothing
 end
 
 function print_document(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetSelect, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
+    slot = _print_value_slot(recursion, w, :value, ctx)
     build = Cell(@computation begin
-        text = string(w.value)
+        text = string(_get_slot_value(w, :value, _get_slot_child(slot)))
         enabled = !(w.enabled === false)
         state = enabled ? nothing : :disabled
         box = _get_box_insets(p, w)
@@ -8940,7 +9052,8 @@ function print_document(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetSel
     end)
     canvas = _reactive_canvas_cell(_origin(position)..., build)
     WidgetSelectToGraphicsCanvasIoMap(p, w, canvas,
-                                      Cell(@computation build[].width), Cell(@computation build[].height))
+                                      Cell(@computation build[].width), Cell(@computation build[].height),
+                                      slot)
 end
 
 map_reference_forward(::WidgetSelectToGraphicsCanvas, iomap::WidgetSelectToGraphicsCanvasIoMap, reference) = _map_child_forward(iomap, reference)
@@ -8965,14 +9078,23 @@ function read_intent(p::WidgetSelectToGraphicsCanvas, iomap::WidgetSelectToGraph
 end
 
 # Build the dropdown: a vertical `WidgetMenu` of `WidgetOption`s (one per
-# selectable value, each pointing back at this select for the value write), so it
-# draws the popover of a menu, wrapped in an `OpenPopupOperation` under the box.
-# No options ⇒ nothing to open.
+# selectable value), so it draws the popover of a menu, wrapped in an
+# `OpenPopupOperation` under the box. No options ⇒ nothing to open.
+#
+# Each option holds the operation that its pick sends, made now, in the window of
+# the select (`make_slot_store_operation`): a write of the value on the select, or
+# what a document in the value slot gives for it. The pick runs in the window of
+# the popup, which has no way back to the select, so the operation must be final
+# when the popup opens. A value that the document does not take does nothing.
 function _open_select_popup(p::WidgetSelectToGraphicsCanvas, w::WidgetSelect,
                             iomap::WidgetSelectToGraphicsCanvasIoMap)
     opts = collect(w.options)
     isempty(opts) && return nothing
-    items = Any[WidgetOption(w, opt; width=iomap.control_width) for opt in opts]
+    child = iomap.value_iomap
+    items = Any[WidgetOption(w, opt; width=iomap.control_width,
+                             operation=something(make_slot_store_operation(w, :value, child, opt),
+                                                 DoNothingOperation()))
+                for opt in opts]
     ReplaceViewStateOperation(
         OpenPopupOperation(; id=:widget_popup, x=0, y=iomap.control_height + p.popup_gap,
                            auto_dismiss=true, content=WidgetMenu(items)))
@@ -9030,14 +9152,17 @@ end
 map_reference_forward(::WidgetOptionToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 map_reference_backward(::WidgetOptionToGraphicsCanvas, iomap, reference) = nothing
 
-# Pick: write `value` onto the target select (identity-rooted, so it round-trips
-# unchanged to the real select in the default window) and close the popup. The
-# WindowManager's CompoundOperation unpacking applies the close; the value write
-# bubbles to `evaluate_operation`.
-_pick_option(w::WidgetOption) = CompoundOperation(Any[
-    ReplaceReferencedValueOperation(w.select, "value", w.value),
-    CloseWindowOperation(w.popup_id),
-])
+# Pick: send the operation of the option, or else write `value` onto the target
+# select (identity-rooted, so it round-trips unchanged to the real select in the
+# default window), and close the popup. The WindowManager's CompoundOperation
+# unpacking applies the close; the value write bubbles to `evaluate_operation`.
+function _pick_option(w::WidgetOption)
+    operation = w.operation
+    CompoundOperation(Any[
+        operation === nothing ? ReplaceReferencedValueOperation(w.select, "value", w.value) : operation,
+        CloseWindowOperation(w.popup_id),
+    ])
+end
 
 function read_intent(::WidgetOptionToGraphicsCanvas, iomap::SimpleIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
@@ -9111,15 +9236,17 @@ WidgetSpinBoxToGraphicsCanvas(theme; measure,
     control_width::Any
     control_height::Any
     stepper_w::Any
+    value_iomap::Any   # the IO map of a document in `value`, or nothing
 end
 
 function print_document(p::WidgetSpinBoxToGraphicsCanvas, recursion, w::WidgetSpinBox, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
+    slot = _print_value_slot(recursion, w, :value, ctx)
     build = Cell(@computation begin
         enabled = !(w.enabled === false)
         state = enabled ? nothing : :disabled
-        text = string(w.value)
+        text = string(_get_slot_value(w, :value, _get_slot_child(slot)))
         box = _get_box_insets(p, w)
         colors = _get_box_colors(p, w; state)
         inset_width, inset_height = _inset_total(p, w)
@@ -9156,7 +9283,8 @@ function print_document(p::WidgetSpinBoxToGraphicsCanvas, recursion, w::WidgetSp
     end)
     canvas = _reactive_canvas_cell(_origin(position)..., build)
     WidgetSpinBoxToGraphicsCanvasIoMap(p, w, canvas,
-        Cell(@computation build[].width), Cell(@computation build[].height), Cell(@computation build[].stepper_w))
+        Cell(@computation build[].width), Cell(@computation build[].height), Cell(@computation build[].stepper_w),
+        slot)
 end
 
 map_reference_forward(::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetSpinBoxToGraphicsCanvasIoMap, reference) = _map_child_forward(iomap, reference)
@@ -9174,7 +9302,11 @@ function read_intent(p::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetSpinBoxToGra
     content_width = Int(iomap.control_width) - inset_width
     stepper_w = Int(iomap.stepper_w)
     sy = content_y - box.padding[2]
-    _step(delta) = ReplaceReferencedValueOperation(w, "value", _spin_clamp(w.value + delta, w.min, w.max))
+    # A step stores the value after it, inside `min` and `max`
+    # (`make_slot_store_operation`).
+    child = iomap.value_iomap
+    _step(delta) = make_slot_store_operation(w, :value, child,
+        _spin_clamp(_get_slot_value(w, :value, child) + delta, w.min, w.max))
     @gesture_case evt begin
         MouseClick(button, x, y) =>
             (button === :left && x - content_x >= content_width - stepper_w) ?

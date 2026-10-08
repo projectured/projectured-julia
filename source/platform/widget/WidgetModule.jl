@@ -87,6 +87,8 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
        register_icon!, make_glyph_icon, make_image_icon, find_icon_character
 export ObjectToWidget, ObjectToWidgetIoMap
 export ObjectFieldToWidget, ObjectFieldToWidgetIoMap
+export ObjectFieldToValue, WidgetValueIoMap, make_slot_store_operation,
+       make_object_field_widget_dispatch
 export CellTableToWidgetTable
 export WidgetTableListIoMap, make_widget_table_row
 export compute_scroll_bar_value, compute_scroll_bar_top_row, read_scroll_bar_drag, make_owned_scroll_bar_drag
@@ -108,6 +110,7 @@ export FaultToWidget
 
 
 include("WidgetDocument.jl")
+include("WidgetValueSlot.jl")
 include("WidgetStyle.jl")
 include("WidgetTheme.jl")
 include("WidgetToGraphics.jl")
@@ -117,6 +120,7 @@ include("WidgetTableHeaderLevels.jl")
 include("WidgetEmbedCard.jl")
 include("ObjectToWidget.jl")
 include("ObjectFieldToWidget.jl")
+include("ObjectFieldToValue.jl")
 include("CellTableToWidgetTable.jl")
 include("ProjectionConfiguring.jl")
 include("ContextMenuOperation.jl")

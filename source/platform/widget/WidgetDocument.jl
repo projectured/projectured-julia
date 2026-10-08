@@ -1783,7 +1783,7 @@ See also `WidgetCheckbox` and `WidgetToggleGroup`.
 """
 @document struct WidgetSwitch <: WidgetDocument
     position::Point2D
-    checked::Bool
+    checked::Union{Bool, Document}   # or a document whose value it shows, such as an `ObjectField`
     label::Any           # what the switch means, drawn after it, or nothing
     visible::Bool
     enabled::Bool
@@ -1797,7 +1797,7 @@ See also `WidgetCheckbox` and `WidgetToggleGroup`.
     gestures::Any        # per-instance gesture bindings (see get_instance_gesture_bindings)
     tooltip::Any
 end
-WidgetSwitch(; label = nothing, position::Point2D=Point2D(0, 0), checked::Bool=false,
+WidgetSwitch(; label = nothing, position::Point2D=Point2D(0, 0), checked::Union{Bool, Document}=false,
              visible::Bool=true, enabled::Bool=true,
              margin=nothing, border=nothing, padding=nothing, style=nothing,
              duration::Integer=0, gestures=GestureBinding[], tooltip=nothing) =
@@ -1912,7 +1912,7 @@ a share that is only shown.
 """
 @document struct WidgetSlider <: WidgetDocument
     position::Point2D
-    value::Float64
+    value::Union{Float64, Document}   # or a document whose value it shows, such as an `ObjectField`
     width::Int
     visible::Bool
     enabled::Bool
@@ -1940,11 +1940,11 @@ a share that is only shown.
     mapping::Any
     tooltip::Any
 end
-WidgetSlider(value::Real; position::Point2D=Point2D(0, 0), width::Integer=240, visible::Bool=true,
+WidgetSlider(value::Union{Real, Document}; position::Point2D=Point2D(0, 0), width::Integer=240, visible::Bool=true,
              enabled::Bool=true, margin=nothing, border=nothing, padding=nothing, style=nothing,
              target=nothing, field::AbstractString="value",
              mapping=nothing, tooltip=nothing) =
-    WidgetSlider(Cell(position), Cell(Float64(value)), Cell(Int(width)), Cell(visible),
+    WidgetSlider(Cell(position), Cell(value isa Real ? Float64(value) : value), Cell(Int(width)), Cell(visible),
                  Cell(enabled), Cell(margin), Cell(border), Cell(padding), Cell(style),
                  Cell(false), Cell(nothing), Cell(target), Cell(String(field)),
                  Cell(mapping), Cell(tooltip), Cell(nothing))
@@ -1990,7 +1990,7 @@ for many choices that open on a click.
 @document struct WidgetRadioGroup <: WidgetDocument
     position::Point2D
     options::CellVector
-    selected::Int
+    selected::Union{Int, Document}   # or a document whose value is an option, such as an `ObjectField`
     visible::Bool
     enabled::Bool
     margin::Union{Inset, Nothing}
@@ -1999,10 +1999,10 @@ for many choices that open on a click.
     style::Any
     tooltip::Any
 end
-WidgetRadioGroup(options::Vector; position::Point2D=Point2D(0, 0), selected::Integer=1, visible::Bool=true, enabled::Bool=true,
+WidgetRadioGroup(options::Vector; position::Point2D=Point2D(0, 0), selected::Union{Integer, Document}=1, visible::Bool=true, enabled::Bool=true,
                  margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
     WidgetRadioGroup(Cell(position), CellVector(Cell[Cell(o) for o in options]),
-                     Cell(Int(selected)), Cell(visible), Cell(enabled),
+                     Cell(selected isa Integer ? Int(selected) : selected), Cell(visible), Cell(enabled),
                      Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
 
 # ── WidgetAvatar ────────────────────────────────────────────────────────────
@@ -2164,7 +2164,7 @@ and so do Return and Space while the toggle has the focus.
 @document struct WidgetToggle <: WidgetDocument
     position::Point2D
     content::Any
-    pressed::Bool
+    pressed::Union{Bool, Document}   # or a document whose value it shows, such as an `ObjectField`
     visible::Bool
     enabled::Bool
     margin::Union{Inset, Nothing}
@@ -2173,7 +2173,7 @@ and so do Return and Space while the toggle has the focus.
     style::Any
     tooltip::Any
 end
-WidgetToggle(content; position::Point2D=Point2D(0, 0), pressed::Bool=false, visible::Bool=true, enabled::Bool=true,
+WidgetToggle(content; position::Point2D=Point2D(0, 0), pressed::Union{Bool, Document}=false, visible::Bool=true, enabled::Bool=true,
              margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
     WidgetToggle(Cell(position), Cell(content), Cell(pressed), Cell(visible), Cell(enabled),
                 Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
@@ -2301,21 +2301,25 @@ WidgetSelect(value; position::Point2D=Point2D(0, 0), options::Vector=Any[], widt
 # ── WidgetOption ──────────────────────────────────────────────────────────────
 
 """
-    WidgetOption(select, value; position, label=string(value), popup_id=:widget_popup, width=0)
+    WidgetOption(select, value; position, label=string(value), operation=nothing,
+                 popup_id=:widget_popup, width=0)
 
 One row of an open `WidgetSelect` dropdown. Holds the target `select` document (an
 identity pointer, so its click writes straight back to that object regardless of
-where it lives in the tree), the `value` to assign, the `label` to render, and the
-`popup_id` of the floating window to dismiss. A left click emits a
-`CompoundOperation` that writes `select.value = value` and closes `popup_id` — the
-window-route close is unpacked by `WindowManagingProjection`, the value write bubbles
-to `evaluate_operation`.
+where it lives in the tree), the `value` to assign, the `label` to render, the
+`operation` that a pick sends, and the `popup_id` of the floating window to
+dismiss. A left click emits a `CompoundOperation` of the `operation`, or else of a
+write `select.value = value`, and of the close of `popup_id` — the window-route
+close is unpacked by `WindowManagingProjection`, the value write bubbles to
+`evaluate_operation`. The select fills `operation` when it opens the popup, so a
+document in its value slot answers the write.
 """
 @document struct WidgetOption <: WidgetDocument
     position::Point2D
     select::Any
     value::Any
     label::Any
+    operation::Any     # what a pick sends, or nothing for a write of `value` on `select`
     popup_id::Symbol
     width::Int
     visible::Bool
@@ -2326,9 +2330,9 @@ to `evaluate_operation`.
     tooltip::Any
 end
 WidgetOption(select, value; position::Point2D=Point2D(0, 0), label=string(value),
-             popup_id::Symbol=:widget_popup, width::Integer=0, visible::Bool=true,
+             operation=nothing, popup_id::Symbol=:widget_popup, width::Integer=0, visible::Bool=true,
              margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
-    WidgetOption(Cell(position), Cell(select), Cell(value), Cell(label),
+    WidgetOption(Cell(position), Cell(select), Cell(value), Cell(label), Cell(operation),
                  Cell(popup_id), Cell(Int(width)), Cell(visible),
                  Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
 

@@ -152,6 +152,7 @@ function test_platform()
         test_searching()
         test_sorting()
         test_switching()
+        test_empty_nesting()
         test_identity()
         test_window_input_unwrapping()
         test_versioning_to_any()
@@ -207,6 +208,7 @@ function test_platform()
         # widget projections
         test_object_to_widget()
         test_object_field_to_widget()
+        test_widget_value_slot()
         test_object_field_to_syntax()
         test_reflection_to_widget()
         test_projection_configuring()
@@ -355,7 +357,7 @@ export PLATFORM_SLICE_EDGES, test_platform_slice_edges
 export test_bounded_sync, test_document_reflection
 export test_identity
 export test_collection, test_table_interface, test_mouse_target_field, test_mouse_target_chain, test_copying_projection, test_focusing, test_reversing, test_filtering, test_searching, test_sorting
-export test_switching, test_window_input_unwrapping
+export test_switching, test_window_input_unwrapping, test_empty_nesting
 export test_versioning_to_any
 export test_text_file, test_marker_language, test_pred_file
 export _text_leaf_length, _walk_document, collect_position_selections, collect_tree_selections
@@ -375,7 +377,7 @@ export test_plot_geometry,
        test_word_wrapping, test_text_filtering, test_text_first_line, test_text_line_numbering,
        test_text_highlighting, test_selection_inverting
 export test_reflection_to_widget
-export test_object_field_to_widget, test_object_field_to_syntax, test_object_conversion
+export test_object_field_to_widget, test_object_field_to_syntax, test_object_conversion, test_widget_value_slot
 export test_object_to_widget, test_projection_configuring,
        test_widget_text_editing, test_widget_button_behavior, test_widget_button_labels, test_widget_slider_drag, test_widget_scroll_bar, test_widget_live_values, test_widget_progress, test_size_range_child_rule, test_size_range_cross_axis, test_size_range_composite, test_size_range_one_child, test_size_range_main_axis, test_widget_card_fold, test_widget_selection, test_selection_walking, test_gesture_tracking, test_mouse_target_move, test_widget_gestures,
        test_widget_select_dropdown, test_widget_menu, test_widget_context_menu,

@@ -154,6 +154,7 @@ include("../../../test/platform/projection/SelectionInvertingTest.jl")
 # ── widget projections ───────────────────────────────────────────────────────
 include("../../../test/platform/projection/ObjectToWidgetTest.jl")
 include("../../../test/platform/projection/ObjectFieldToWidgetTest.jl")
+include("../../../test/platform/projection/WidgetValueSlotTest.jl")
 include("../../../test/platform/projection/ObjectFieldToSyntaxTest.jl")
 include("../../../test/platform/projection/MouseTargetDriver.jl")
 include("../../../test/platform/projection/ReflectionToWidgetTest.jl")
