@@ -82,6 +82,12 @@ end
     selection::ImmutableCell{Nothing}
 end
 
+# `DC` with no default: the schema has no keyword form.
+@document ImmutableCell [DC] struct DmValueRequired
+    a::Int
+    b::Int
+end
+
 # `M` first binds it to the mutable native struct — the object a simulator mutates.
 """
     DmNative(a)
@@ -370,6 +376,11 @@ end
     @test DmValue(2) isa DmValue
     @test DmValue(2).b == 7
     @test DmValue(a = 3).b == 7
+    # The forward takes keywords only for a schema that has a keyword form, so
+    # `hasmethod` with keyword names answers what a keyword call does.
+    @test hasmethod(DmValue, Tuple{}, (:a,))
+    @test DmValueRequired(1, 2).b == 2
+    @test !hasmethod(DmValueRequired, Tuple{}, (:a, :b))
 
     # `M` first. The bare name is the plain mutable struct: a field holds a value,
     # not a cell, and writing one is a `setfield!`.

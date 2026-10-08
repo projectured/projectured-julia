@@ -661,7 +661,16 @@ from the command line of the projectured UI.
       `TextString` as `ACStyleFont(family = …)`, the name of the cell layout of
       the value document `StyleFont`, and `ACStyleFont` has no keyword
       constructor. This is a fault on `main` for every `.pred` file with styled
-      text, and no test covers it.
+      text, and no test covers it. **Fixed on 2026-10-08**, first and in its own
+      commit, as the owner agreed. The cause: the forward that `[DC]` gives the
+      concrete spelling took every keyword, so `hasmethod` promised a keyword
+      form that `StyleFont` does not have, and `make_pred_document` called it.
+      The forward now takes keywords only when the schema has a keyword form,
+      and the read builds the value from its fields. Only `StyleColor`,
+      `StyleFont`, `StyleText` and, in inet-julia, `TagSet` and `RegionTag` are
+      `[DC]` schemas, none has a default, and no code calls them with keywords.
+      Tests: `test_document_macro()` 118 of 118, the new `test_pred_file()` 7
+      of 7, `test_kernel()` 4218 with the 2 known broken.
     - An `EvaluatorForm` can not write its `input::Dict{String,Any}`.
     - A `ConversationPermissionRequest` can not write its
       `AgentPermissionOption` values, and its `reply` is a live value.

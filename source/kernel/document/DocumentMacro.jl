@@ -347,7 +347,7 @@ selection, so there is no hand-written constructor to protect and `Foo()` must
 come from somewhere, which Rule Y cannot supply (`get_cell_struct_required_count == 0`).
 """
 function _emit_keyword_ctors(plan; schema::Symbol = plan.name)
-    (plan.programmer_default_count > 0 || plan.declared_field_count == 0) || return Any[]
+    _has_keyword_ctors(plan) || return Any[]
     kw_params = build_cell_struct_keyword_parameters(plan.field_names, plan.defaults)
     # The unprefixed one goes on the cell layout's own type name, not on the bare
     # name. When the bare name is bound to a spelling it reaches this method through
@@ -357,6 +357,10 @@ function _emit_keyword_ctors(plan; schema::Symbol = plan.name)
     [build_cell_struct_keyword_constructor(nm, plan.field_names; parameters = kw_params)
      for nm in names]
 end
+
+# Whether the schema of `plan` gets keyword constructors: the gate that
+# `_emit_keyword_ctors` describes.
+_has_keyword_ctors(plan) = plan.programmer_default_count > 0 || plan.declared_field_count == 0
 
 # The single collection field's position, or 0 when there is not exactly one. A
 # field's declared type opts in through `is_collection_field_type(::Val{name})`,
@@ -645,7 +649,7 @@ function _document_expr(args)
     injects_selection && _add_mouse_target_field!(plan)
     # One gensym'd argument list, shared by the inner ctor and the kind ctors.
     arg_names = [gensym(f) for f in plan.field_names]
-    binding_parts = _emit_bare_name_binding(names)
+    binding_parts = _emit_bare_name_binding(names; has_keywords = _has_keyword_ctors(plan))
 
     structdef = _emit_stem!(plan)
     inner_ctor, outer_ctor = _emit_autowrap_ctor(plan, arg_names; default = default)
@@ -789,7 +793,7 @@ function _emit_native_parts(plan, layouts, names)
     push!(native_parts, names.binding in (:M, :I) ? :(Base.@__doc__ $native_def) :
                                                     native_def)
     append!(native_parts, build_cell_struct_positional_constructors(plan, native))
-    if plan.programmer_default_count > 0 || plan.declared_field_count == 0
+    if _has_keyword_ctors(plan)
         parameters = build_cell_struct_keyword_parameters(plan.field_names, plan.defaults)
         push!(native_parts,
               build_cell_struct_keyword_constructor(native, plan.field_names; parameters))
@@ -821,9 +825,12 @@ _add_mouse_target_field!(plan) =
 # A bare name bound to a **spelling** also needs a constructor. An inner
 # constructor is defined on the parametric name alone, so a concrete
 # parameterization has no method of its own: `DCFoo(1, "z")` is a `MethodError`
-# without this. One catch-all covers Rule Y, Rule C and the keyword form, and a
-# domain's own `Foo(v::String)` stays more specific than it.
-function _emit_bare_name_binding(names)
+# without this. One catch-all covers Rule Y and Rule C, and the keyword form when
+# the schema has one, and a domain's own `Foo(v::String)` stays more specific than
+# it. The catch-all takes keywords only then, so `hasmethod` with keyword names
+# answers what a call does: a `.pred` file reads a schema with no keyword form
+# from its fields.
+function _emit_bare_name_binding(names; has_keywords::Bool)
     schema, binding, cell_name = names.schema, names.binding, names.cell_name
     binding_parts = Any[]
     if binding === :C
@@ -831,8 +838,9 @@ function _emit_bare_name_binding(names)
     else
         target = binding === :DC ? names.default_spelling : names.native
         push!(binding_parts, Expr(:const, Expr(:(=), schema, target)))
-        binding === :DC && push!(binding_parts,
-            :((::Type{$target})(args...; kw...) = $cell_name(args...; kw...)))
+        binding === :DC && push!(binding_parts, has_keywords ?
+            :((::Type{$target})(args...; kw...) = $cell_name(args...; kw...)) :
+            :((::Type{$target})(args...) = $cell_name(args...)))
     end
     push!(binding_parts, Expr(:export, schema, Symbol("AC", schema)))
     binding_parts

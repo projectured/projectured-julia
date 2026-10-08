@@ -138,8 +138,11 @@ The list's **first entry sets what the bare name `Foo` means**:
 | `DC` | `DCFoo`, the concrete default spelling | a value document stored by value in a config cell, where a `Foo`-typed field must inline |
 | `M` | `MFoo`, the plain `mutable struct` | a schema whose primary object is the one a simulator mutates |
 
-`DC` emits nothing that `C` does not; it only moves the bare name one step in.
-The coded name always resolves too. A `C` schema still gets `const ACFoo = Foo`,
+`DC` moves the bare name one step in. A concrete spelling has no constructor of
+its own, so `DC` adds one to `DCFoo` that passes its arguments to the cell
+layout. It takes keywords only when the schema has a keyword form, so `hasmethod`
+with keyword names answers what a call does, and a `.pred` file builds a schema
+with no keyword form from its fields. The coded name always resolves too. A `C` schema still gets `const ACFoo = Foo`,
 so `ACFoo` names the cell layout whichever binding the bare name took. A `[Kind]`
 token before the layout list (`ImmutableCell`, `MutableCell`, …) is the field
 cell kind the auto-wrapping constructor uses; it is independent of the layout
