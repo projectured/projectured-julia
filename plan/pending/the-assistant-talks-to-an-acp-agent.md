@@ -647,6 +647,20 @@ from the command line of the projectured UI.
   tab back, and the next turn starts a new agent without the memory of the
   agent; a resume of the same session waits for 2.4.
 
+- [x] 2.10 The agent knows that it runs inside the editor (the owner,
+  2026-10-08). Started in the repository, the built-in agent followed the
+  `CLAUDE.md` files there, and "add a table widget to the tab pane" became a
+  change of code in a new worktree. `DEFAULT_AGENT_INSTRUCTIONS` now says that
+  the agent runs inside the editor and that its MCP server controls that
+  editor, with the guide to the tools of the native assistant. The MCP server
+  of the agent gives it as its instructions, and `open_agent_session!` takes
+  it as `instructions`, which `AcpConnection` puts in the `_meta` as
+  `claudeCode.options.systemPrompt.append`; `ClaudeCodeACP` 0.1.2 passes it
+  with `--append-system-prompt-file`. Live check in the repository: the same
+  request used only the tools of the editor (11 questions, all of its MCP
+  server), opened a tab "Widgets" with a `WidgetTable` of 9 example widgets,
+  and changed no file and no worktree.
+
 ### Phase 3: the agent sees what projectured sees
 
 - [ ] 3.1 A view as an image in the prompt.
