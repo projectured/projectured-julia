@@ -24,6 +24,16 @@ join_collected_operations(inner::WrappingOperation, outer::WrappingOperation) =
 # is not an `Operation`, so a stray value does no harm.
 function evaluate_operation(editor, op) end
 
+# A copy with one field replaced, built by the constructor that takes every field.
+function with_object_field(object, name::Symbol, value)
+    T = typeof(object)
+    hasfield(T, name) || throw(ArgumentError("$(T) has no field $(name)"))
+    T((field == name ? value : getfield(object, field) for field in fieldnames(T))...)
+end
+
+with_object_field(object::NamedTuple, name::Symbol, value) =
+    merge(object, NamedTuple{(name,)}((value,)))
+
 # Catch-all: an object that caches no projection has nothing to drop; one that
 # does overrides this to clear its cache. Lets an operation ask without naming a
 # concrete editor type.

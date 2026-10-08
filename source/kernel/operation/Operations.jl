@@ -301,6 +301,142 @@ function _write_slot!(parent, step::ARangeReferenceStep, items::AbstractVector)
     end
 end
 
+# ── A slot of a plain value ───────────────────────────────────────────────
+#
+# A field of a struct that is no document holds its value with no cell. Such a
+# slot is written from the nearest cell above it on the path. A mutable struct
+# changes in place, and that cell is written again with what it holds, so each
+# reader of it reads again. An immutable struct, or a tuple, is copied with the
+# one slot changed, and the copy is written into the slot one level up, until a
+# slot that a cell holds takes it. With no cell above a field, nothing can take
+# the write or tell a reader of it, so the write throws. An element of a plain
+# container, such as a `Vector`, changes in place, and the nearest cell above it,
+# if any, is written again.
+
+# A field of a struct that holds its value with no cell. A document and a
+# dictionary keep the rules of `_write_slot!`.
+function _is_plain_field_slot(parent, step)
+    step isa AFieldReferenceStep || return false
+    (parent isa Document || parent isa AbstractDict) && return false
+    name = Symbol(step.name)
+    isstructtype(typeof(parent)) && hasfield(typeof(parent), name) &&
+        !(getfield(parent, name) isa AbstractCell)
+end
+
+# A container that is no document and has no rules of its own for its elements,
+# such as a `Vector`. A collection that declares `is_element_collection` keeps its
+# elements in its own way and is no plain container.
+_is_plain_container(parent) = !(parent isa Document) && !is_element_collection(parent)
+
+# A slot of a plain value: a plain field, an element of a tuple, or an element of a
+# plain container.
+_is_plain_slot(parent, step::AFieldReferenceStep) = _is_plain_field_slot(parent, step)
+_is_plain_slot(parent, step::ARangeReferenceStep) =
+    parent isa Tuple || _is_plain_container(parent)
+_is_plain_slot(parent, step) = false
+
+# A slot that can not change in place: a plain field of an immutable struct, or an
+# element of a tuple.
+_is_plain_immutable_slot(parent, step) =
+    (_is_plain_field_slot(parent, step) && !ismutable(parent)) ||
+    (parent isa Tuple && step isa ARangeReferenceStep)
+
+_make_written_copy(parent, step::AFieldReferenceStep, value) =
+    with_object_field(parent, Symbol(step.name), value)
+
+function _make_written_copy(parent::Tuple, step::ARangeReferenceStep, value)
+    step.stop - step.start == 1 ||
+        error("ReplaceReferencedValueOperation: a tuple takes one element at a time")
+    Base.setindex(parent, value, step.start + 1)
+end
+
+function _write_plain_field!(parent, step::AFieldReferenceStep, value)
+    name = Symbol(step.name)
+    setfield!(parent, name, convert(fieldtype(typeof(parent), name), value))
+end
+
+# The cell that `step` selects on `node`, or `nothing` when that slot holds no cell.
+function _find_cell_slot(node, step::AFieldReferenceStep)
+    node isa AbstractDict && return nothing
+    name = Symbol(step.name)
+    hasfield(typeof(node), name) || return nothing
+    slot = getfield(node, name)
+    slot isa AbstractCell ? slot : nothing
+end
+
+function _find_cell_slot(node, step::ARangeReferenceStep)
+    is_position_reference_step(step) && return nothing
+    slot = get_slot_at(node, step.start + 1)
+    slot isa AbstractCell ? slot : nothing
+end
+
+_find_cell_slot(node, step) = nothing
+
+# The nearest cell above the last step of `reference`, walked from `root`, or
+# `nothing` when no cell is above it. `holder` is the node whose slot the cell is,
+# or the cell itself when it is the root. `reference` is the path from `holder` to
+# the slot of the last step, so an operation that carries `holder` reaches it.
+function _find_cell_anchor(root, reference::ConcreteReference)
+    steps = get_reference_steps(reference)
+    anchor = root isa AbstractCell ? (holder = root, cell = root, first = 1) : nothing
+    node = unwrap_cell(root)
+    for k in 1:(length(steps) - 1)
+        cell = _find_cell_slot(node, steps[k])
+        cell === nothing || (anchor = (holder = node, cell = cell, first = k))
+        node = evaluate_reference_step(steps[k], node)
+    end
+    anchor === nothing && return nothing
+    (holder = anchor.holder, cell = anchor.cell,
+     reference = Reference(steps[anchor.first:end]...))
+end
+
+# Write a cell with the value that it holds, so each reader of it reads again. A
+# computed cell keeps its computation, which a write would end.
+function _touch_cell!(cell)
+    is_computed_cell(cell) && return nothing
+    cell[] = cell[]
+    nothing
+end
+
+_format_no_cell_message(parent) =
+    "ReplaceReferencedValueOperation: the $(typeof(parent)) on this path is a " *
+    "plain value, and no cell above it holds it, so nothing can take the write " *
+    "or tell a reader of it. Hold the value in a Cell, and give the cell as the " *
+    "root of the operation"
+
+# Write `value` at the non-empty `reference` from `root`, which can be a cell that
+# holds the value.
+function _write_reference!(root, reference::ConcreteReference, value)
+    parent_path, terminal = _split_terminal_step(reference)
+    top = unwrap_cell(root)
+    parent = parent_path isa EmptyReference ? top : evaluate_reference(top, parent_path)
+    if _is_plain_immutable_slot(parent, terminal)
+        copy = _make_written_copy(parent, terminal, value)
+        parent_path isa EmptyReference || return _write_reference!(root, parent_path, copy)
+        root isa AbstractCell || error(_format_no_cell_message(parent))
+        root[] = copy
+        return nothing
+    end
+    if _is_plain_field_slot(parent, terminal)
+        anchor = _find_cell_anchor(root, reference)
+        anchor === nothing && error(_format_no_cell_message(parent))
+        _write_plain_field!(parent, terminal, value)
+        _touch_cell!(anchor.cell)
+        return nothing
+    end
+    value = _convert_slot_value(top, parent_path, parent, terminal, value)
+    # The mouse target that passes through the slot follows the write.
+    written = _find_written_chain(parent, terminal, value)
+    _write_slot!(parent, terminal, value)
+    written === nothing || _follow_written_chain!(parent, written; root = top, parent_path)
+    # A plain container changed in place, so the cell above it tells its readers.
+    if terminal isa ARangeReferenceStep && _is_plain_container(parent)
+        anchor = _find_cell_anchor(root, reference)
+        anchor === nothing || _touch_cell!(anchor.cell)
+    end
+    nothing
+end
+
 """
     ReplaceReferencedValueOperation(document, reference, value)
 
@@ -315,6 +451,17 @@ selected by the `document` field:
   rooted there, so container/generic projections reroot the reference as the
   operation flows up (see `reroot_operation`). An empty `reference` then means a
   **whole-root swap**: rebind `editor.document` and drop the cached iomap.
+- **`document` is a cell** — the cell holds the root: `reference` starts at the
+  value that the cell holds, and an empty `reference` writes the cell.
+
+A slot of a plain value, a field that a struct holds with no cell, is written
+from the nearest cell above it on the path. A field of a mutable struct changes
+in place, and that cell is written again with what it holds, so each reader of
+it reads again. A field of an immutable struct, or an element of a tuple, is
+written by a copy ([`with_object_field`](@ref)) that goes into the slot one level
+up. With no cell above such a slot, the write throws. An element of a plain
+vector changes in place, and the nearest cell above it, if any, is written
+again in the same way.
 
 The write keeps the mouse target right where it passes through the slot: the
 document of the slot holds the path of the slot that its child holds after the
@@ -360,9 +507,14 @@ function evaluate_operation(editor, op::ReplaceReferencedValueOperation)
     reference = strip_reference_types(op.reference)
     # `document === nothing` ⇒ the reference is rooted at `editor.document`;
     # otherwise the operation carries its own root object (a widget, a projection
-    # parameter `Cell`).
+    # parameter `Cell`, a cell that holds a plain value).
     root = op.document === nothing ? editor.document : op.document
     if reference isa EmptyReference
+        # A carried cell holds its root, so the empty path names the cell itself.
+        if op.document isa AbstractCell
+            op.document[] = op.value
+            return
+        end
         # Whole-root swap: only meaningful when the root *is* `editor.document`
         # (there is no in-place "replace the object itself" for a carried root).
         # Rebind and ask the editor to drop its cached projection so the next print
@@ -376,14 +528,7 @@ function evaluate_operation(editor, op::ReplaceReferencedValueOperation)
         invalidate_projection!(editor)
         return
     end
-    parent_path, terminal = _split_terminal_step(reference)
-    parent = parent_path isa EmptyReference ? root :
-             evaluate_reference(root, parent_path)
-    value = _convert_slot_value(root, parent_path, parent, terminal, op.value)
-    # The mouse target that passes through the slot follows the write.
-    written = _find_written_chain(parent, terminal, value)
-    _write_slot!(parent, terminal, value)
-    written === nothing || _follow_written_chain!(parent, written; root, parent_path)
+    _write_reference!(root, reference, op.value)
 end
 
 """

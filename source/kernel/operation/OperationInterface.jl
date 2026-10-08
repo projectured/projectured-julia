@@ -179,6 +179,22 @@ sequence of spans) adds its own method for it.
 """
 function splice_value! end
 
+# ── The copy seam of a plain value (methods in OperationDefaults.jl) ───────
+
+"""
+    with_object_field(object, name::Symbol, value) -> copy
+
+A copy of the plain immutable `object` in which the field `name` holds `value`.
+`ReplaceReferencedValueOperation` uses it to write a field of a value that can
+not change in place: it writes the copy into the slot one level up, until a slot
+that a cell holds takes it.
+
+The default calls the constructor of `typeof(object)` with every field, the one
+field replaced, so the copy has the type of `object`. A `NamedTuple` merges.
+A type whose constructor does not take all of its fields adds a method.
+"""
+function with_object_field end
+
 """
     child_reference_steps(node) -> iterable of (step, child) pairs
 

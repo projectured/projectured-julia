@@ -79,16 +79,37 @@ function make_inverse_operation(document, op::ReplaceReferencedValueOperation)
     reference = strip_reference_types(op.reference)
     root = op.document === nothing ? document : op.document
     if reference isa EmptyReference
+        # A carried cell holds its root: put back what it holds now.
+        op.document isa AbstractCell &&
+            return ReplaceReferencedValueOperation(op.document, EmptyReference(),
+                                                   op.document[])
         # A whole-root swap, and only a document-rooted one has a root to swap:
         # put the root that is there now back.
         op.document === nothing || return nothing
         return ReplaceReferencedValueOperation(nothing, EmptyReference(), root)
     end
     parent_path, terminal = _split_terminal_step(reference)
-    parent = parent_path isa EmptyReference ? root :
-             try_evaluate_reference(root, parent_path)
+    top = unwrap_cell(root)
+    parent = parent_path isa EmptyReference ? top :
+             try_evaluate_reference(top, parent_path)
     parent === nothing && return nothing
-    _make_slot_inverse(op, parent, terminal, op.value)
+    inverse = _make_slot_inverse(op, parent, terminal, op.value)
+    (inverse !== nothing && _is_plain_slot(parent, terminal)) || return inverse
+    _anchor_plain_inverse(root, reference, inverse)
+end
+
+# The way back of a write into a slot of a plain value carries the holder of the
+# nearest cell above it, and not the parent. A copy replaces an immutable
+# parent, so that parent is gone when the way back runs; and only a write that
+# goes through the cell tells the readers of a mutable one. With no cell above,
+# the way back names the parent.
+function _anchor_plain_inverse(root, reference::ConcreteReference, inverse)
+    anchor = _find_cell_anchor(root, reference)
+    anchor === nothing && return inverse
+    steps = get_reference_steps(anchor.reference)
+    ReplaceReferencedValueOperation(anchor.holder,
+        Reference(steps[1:end-1]..., get_reference_steps(inverse.reference)...),
+        inverse.value)
 end
 
 # Every one of these answers an operation that CARRIES THE OBJECT it writes into,

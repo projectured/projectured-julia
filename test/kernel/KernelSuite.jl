@@ -75,6 +75,7 @@ function test_kernel()
         test_referenced_document()
         test_type_reference()
         test_selection()
+        test_operations()
         test_rerooting()
         test_inversion()
         test_traversal()
@@ -127,7 +128,7 @@ export test_fault_defaults, test_fault_record, test_fault_store,
        test_document_contract, test_document_macro,
        test_reference_builder, test_reference_evaluation, test_reference_rules, test_referenced_document,
        test_type_reference, test_selection,
-       test_rerooting,
+       test_operations, test_rerooting,
        test_inversion, test_traversal, test_description, test_intent,
        test_event_module, test_gesture_module, test_gesture_recognition,
        test_gesture_pattern,

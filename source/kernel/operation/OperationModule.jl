@@ -6,9 +6,10 @@ and applied by `evaluate_operation`. This module holds the abstract `Operation`
 supertype, the `evaluate_operation` / `invalidate_projection!` generics, the
 `make_inverse_operation` seam that answers the way back, the
 built-in cross-domain operations and their `evaluate_operation` methods, the
-`splice_*` text-edit helpers, and four open seams higher layers extend:
-`child_reference_steps` (per-container-document child traversal) and the
-per-path-bearing-operation reference seams `reroot_operation`,
+`splice_*` text-edit helpers, and five open seams higher layers extend:
+`child_reference_steps` (per-container-document child traversal),
+`with_object_field` (the copy that writes a field of a plain immutable value),
+and the per-path-bearing-operation reference seams `reroot_operation`,
 `operation_reference`, and `retarget_operation`. The
 selection-changing operations drive the selection primitives in the layer below,
 which is why the module sits above references and the selection contract.
@@ -21,7 +22,8 @@ The module lives in seven fragments that share this namespace:
   generics, and the declarations of the seams that the other fragments answer.
 - [`OperationDefaults.jl`](OperationDefaults.jl) — the fallbacks: the
   `evaluate_operation` methods for `nothing` and for a value that is not an
-  `Operation`, and the `invalidate_projection!` that drops nothing.
+  `Operation`, the `invalidate_projection!` that drops nothing, and the default
+  `with_object_field`.
 - [`Operations.jl`](Operations.jl) — the concrete operations, the `splice_*`
   text-edit helpers, and the `child_reference_steps` traversal seam.
 - [`PathChain.jl`](PathChain.jl) — `replace_path_chain!`, which writes a kind of
@@ -62,7 +64,7 @@ export Operation, WrappingOperation, get_wrapped_operation, rewrap_operation,
        ReplaceReferencedValueOperation, ReplaceViewStateOperation,
        make_replace_document_operation, make_insert_elements_operation,
        make_delete_elements_operation, SelectNextInsertionOperation, CompoundOperation,
-       splice_string, splice_number, splice_value!,
+       splice_string, splice_number, splice_value!, with_object_field,
        child_reference_steps,
        # from PathChain.jl
        replace_path_chain!, replace_mouse_target!, get_mouse_target, add_mouse_target,

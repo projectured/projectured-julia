@@ -1,9 +1,10 @@
 # A form edits a plain value
 
-> **Status (2026-10-08): NOT STARTED.** Nothing is implemented. The owner
-> answered the first six questions on 2026-10-06, and chose the design of part C
-> on 2026-10-08; see "Decisions". Every question is answered. The plan waits
-> for the word of the owner to start step 1.
+> **Status (2026-10-08): IN PROGRESS** on the branch `plain-value-form`, in the
+> worktree `projectured-julia-plain-value-form`. Step 1 is done. The owner
+> answered the first six questions on 2026-10-06, chose the design of parts C and
+> D on 2026-10-08 (see "Decisions"), and asked for the implementation on
+> 2026-10-08.
 
 ## Goal
 
@@ -578,7 +579,7 @@ Each step is one commit. Run the test of the step, not `test_all()`. The order
 puts part C before the read of a cell root, so the tests of that read use the
 form of part C and not readers that part C removes.
 
-1. ⬜ **The write rules of B, in the kernel.**
+1. ✅ **The write rules of B, in the kernel.**
    [Operations.jl](../../source/kernel/operation/Operations.jl),
    [Inversion.jl](../../source/kernel/operation/Inversion.jl), and
    `with_object_field` in `OperationInterface.jl` with its default methods in
@@ -586,6 +587,29 @@ form of part C and not readers that part C removes.
    [SEALING.md](../../SEALING.md) again before each edit. Tests: a new
    `test/kernel/operation/OperationsTest.jl` for the five rules, and new
    testsets in `InversionTest.jl` for the inverse of rules 3 and 4.
+
+   **Done 2026-10-08.** What the implementation found and decided:
+   - The tests of the inverse are in `OperationsTest.jl` too: each case of the
+     write takes its way back there, so `InversionTest.jl` did not change.
+   - **A container that declares `is_element_collection` keeps its own rules.**
+     Such a collection is no `Document`, but it keeps its elements in its own
+     way, for example in a cell for each element. The first version treated it
+     as a plain value and anchored its way back at the document above it; the
+     test "an inverse carries the object it writes into" of `InversionTest.jl`
+     failed. So a plain container is one that is no document and declares no
+     `is_element_collection` (`_is_plain_container`).
+   - **Rule 5 throws only for a field.** An element of a plain vector with no
+     cell above it is written in place, as callers expect. Only a plain field,
+     mutable or immutable, with no cell above it throws.
+   - **The default `with_object_field` calls `T(fields...)`**, so the copy keeps
+     the type of the value; a value of another type converts or throws there.
+   - **One walk, `_find_cell_anchor`, finds the nearest cell above a slot.** The
+     write uses its cell to tell the readers, and the inverse uses its holder and
+     path. A computed cell is not written again, because a write would end its
+     computation.
+   - `test_operations()` 43 pass; `test_inversion()` 74, `test_rerooting()` 60
+     and `test_description()` 27 pass; `test_kernel()` 4258 pass, 2 broken, 0
+     fail, which is the baseline of 2 broken in memory.
 2. ⬜ **The two functions of A, in the platform primitive slice.** A new fragment
    beside `ObjectField.jl`. Check the file name against the naming rules before
    it is made. Tests: a flat value, a nested value, a vector, a schema that
