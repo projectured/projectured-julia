@@ -633,6 +633,45 @@ worktree. The three domains test different parts of the model:
       landing, `OmnetPresentationTest` runs in the mode `:record`, in parts. The other options
       were: land this branch with the default `:record` first and turn on `:throw` in a second
       landing (B), or land all three together (C).
+    - *Built (2026-10-08), the two gaps in the kernel that the omnet writes showed:*
+      - The refusal of `Configuration.entries` came from the kernel. `copy_document(K, doc)`
+        copied a list field of a native layout as a plain vector, and the constructor check of
+        the cell layout refused it. A kinded copy now puts the list of the field there, in cells
+        of the kind `K` (`16c408c75`).
+      - Then the list showed the second gap. The bare name of `@document [M, C]` is the native
+        layout, so `entries::Vector{ConfigurationEntry}` declared
+        `CellVector{MConfigurationEntry}` in the cell layout, but the copy puts
+        `ACConfigurationEntry` elements there, and `collect` could not hold them. A scalar field
+        that names such a schema had the same gap. The cell layout now declares the family where
+        a field names a native layout: `_get_cell_layout_value_type` maps each declared type
+        when the schema is defined, a union maps each member, and a list type keeps its head
+        (`5241626a3`). Measured: `JsonNumber(42)` allocates 144 bytes and `StyleFont(…)` 0 bytes,
+        with the check and without it.
+    - *Built (2026-10-08), the branches `strict-document-types` of the two repositories:*
+      - omnet-julia `7b5785c7`, on `main` `3438da16`: `NedCondition.condition` declares
+        `Union{Nothing,String}`, as its docstring says; `make_configuration_shadow` keeps the list
+        that the copy makes and wraps a plain vector only when the copy gives one; the twin of a
+        vector result in `chart()` and in its test gives the plain vector of the field and wraps
+        it only when the kernel does not; the NED test makes a property key with
+        `make_ned_property_key`, so the literals do not go into the name. When this branch lands,
+        omnet-julia can drop the two guards (`… isa CellVector || …`).
+      - inet-julia `736aa58`, on `main` `28c50d9`: the four colors of `PacketDiagramTheme`
+        declare `ThemeColor`.
+      - Against `main` of projectured-julia (`a0fe21cb3`): `test_ned()` 79 pass,
+        `test_simulator()` 6950 pass. Against this branch at `5241626a3`, in the mode `:throw`:
+        `test_ned()` 79 pass, `test_simulator()` 6950 pass. inet-julia `test_inet()` against
+        both: 532 pass, 9 fail, 3 errors, the same counts as the earlier runs on the branch and
+        on `main` (a page file names `Projectured`, which `OmnetPresentation` does not bind, in
+        this scratch environment).
+      - The run of `OmnetPresentationTest` in the mode `:record` started 2026-10-08 07:40, in
+        two lanes that share the list of its 74 functions; each function writes its records and
+        its counts. The 24 suites of projectured-julia run again in the mode `:throw` at
+        `5241626a3` beside it, because the change of the macro reaches every schema. A user
+        service can not run them: `unshare -rn` fails there, and `PrivateNetwork=yes` has no
+        effect, so a test could reach the local model server.
+    - A fact for later: a bounded copy or sync puts an `UnsyncedDocument` where the walk stops,
+      and a field that declares a narrow document type would refuse it. No caller does that
+      today: the reflection and `SimulationInspection` hold the placeholder in a `ReflectedNode`.
   - [x] **Group 5, a lazy list in a field declared `CellVector`.** `children` of
     `HorizontalLayout`, `VerticalLayout` and `GridLayout`, and the two header strips of
     `WidgetTable`, get a `ListNode`, a lazy list that a viewport reads from the middle. The
