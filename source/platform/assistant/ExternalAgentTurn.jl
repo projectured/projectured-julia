@@ -59,22 +59,12 @@ Whether a turn of the external agent of `assistant` runs now.
 is_external_agent_turn_running(a::Assistant) =
     a.status === :streaming && a.backend === :acp && a.agent_session isa ExternalAgentSession
 
-"""
-    CancelAssistantTurnOperation(assistant)
-
-Ask the external agent of `assistant` to stop its turn. The agent answers each
-question that waits as cancelled, and the turn ends. A turn that is still
-starting its session sends no prompt. It does nothing when no turn of an
-external agent runs.
-"""
-struct CancelAssistantTurnOperation <: Operation
-    assistant::Assistant
-end
-
-function evaluate_operation(editor, operation::CancelAssistantTurnOperation)
-    a = operation.assistant
-    is_external_agent_turn_running(a) || return nothing
+# The external agent stops the turn that runs. A turn that is still starting its
+# session sends no prompt, and an open session gets `cancel_agent_prompt!`; the
+# agent answers each question that waits as cancelled, and the turn ends.
+function _cancel_external_agent_turn!(a::Assistant)
     session = a.agent_session
+    session isa ExternalAgentSession || return nothing
     session.is_cancelled = true
     isempty(session.session_id) && return nothing
     errormonitor(@async Base.invokelatest(cancel_agent_prompt!, session.connection, session.session_id))

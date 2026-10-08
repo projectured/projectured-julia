@@ -264,6 +264,34 @@ function _mvp_test_submit_while_streaming()
     end
 end
 
+# The stop button and Escape stop a turn of a model. The turn ends at its next
+# event, keeps what it streamed, and its stop reason is `:cancelled`.
+function _mvp_test_stop_turn()
+    @testset "a stop ends a turn of a model, which keeps what it streamed" begin
+        reply = repeat("word ", 200)
+        a = Assistant(; llm = FakeLlm(reply; delay = 0.01))
+        editor = _mvp_editor(a)
+        button = make_assistant_stop_button(a)
+        @test !button.enabled
+        a.input.value = "Go"
+        evaluate_operation(editor, SubmitProseOperation(a))
+        @test is_assistant_turn_running(a) && button.enabled
+        @test timedwait(() -> count("word", format_conversation(a.conversation)) >= 3, 10.0;
+                        pollint = 0.01) === :ok
+        # The composer's Escape stops the turn while it runs.
+        @test read_intent(AssistantToWidgetSplitPane(), (input = a,),
+                          ComposerRevertOperation(a.draft)) isa CancelAssistantTurnOperation
+        evaluate_operation(editor, InvokeActionOperation(button.action))
+        @test _mvp_wait_idle!(a) === :idle
+        @test collect(a.conversation.turns)[end].stop_reason === :cancelled
+        @test 3 <= count("word", format_conversation(a.conversation)) < 200
+        @test a.turn_control === nothing && !button.enabled
+        # With no turn that runs, Escape reverts the draft.
+        @test read_intent(AssistantToWidgetSplitPane(), (input = a,),
+                          ComposerRevertOperation(a.draft)) isa ComposerRevertOperation
+    end
+end
+
 # Alt+Return and the prose submit have the same guard as Return: a user turn in
 # the middle of a streamed turn would come between a tool call and its result.
 function _mvp_test_evaluate_while_streaming()
@@ -461,6 +489,7 @@ function test_assistant_mvp()
         _mvp_test_backend_must_be_named()
         _mvp_test_submit_while_streaming()
         _mvp_test_evaluate_while_streaming()
+        _mvp_test_stop_turn()
         _mvp_test_turn_writes_on_editor_task()
         _mvp_test_markdown_tool_result()
         _mvp_test_markdown_result_table()

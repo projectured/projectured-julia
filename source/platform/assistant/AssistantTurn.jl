@@ -67,6 +67,41 @@ struct ClearInputOperation <: Operation
 end
 
 """
+    CancelAssistantTurnOperation(assistant)
+
+Stop the turn of `assistant` that runs. A turn of a model ends at its next event
+or round, and keeps what it streamed. An external agent stops its turn, answers
+each question that waits as cancelled, and a turn that is still starting its
+session sends no prompt. It does nothing when no turn runs.
+"""
+struct CancelAssistantTurnOperation <: Operation
+    assistant::Assistant
+end
+
+"""
+    is_assistant_turn_running(assistant) -> Bool
+
+Whether a turn of `assistant` runs now, with a model or with an external agent.
+"""
+is_assistant_turn_running(a::Assistant) = a.status === :streaming
+
+"""
+    AssistantTurnControl()
+
+The live control of the turn of an assistant that runs: a stop sets
+`is_cancelled`. The assistant holds it in `turn_control` while the turn runs.
+"""
+mutable struct AssistantTurnControl
+    is_cancelled::Bool
+end
+
+AssistantTurnControl() = AssistantTurnControl(false)
+
+# What the callbacks of a turn of a model throw after a stop. It ends the stream
+# of the model, which closes its connection, and the loop of the kernel with it.
+struct TurnCancelledException <: Exception end
+
+"""
     ResetConversationOperation(assistant)
 
 Drop all messages from `assistant.conversation`, clear the input, and stop the
@@ -248,9 +283,11 @@ end
 # and applied in the drain of the next frame, which then paints them.
 function _launch_agent_turn!(editor, a::Assistant)
     a.status = :streaming
+    control = AssistantTurnControl()
+    a.turn_control = control
     @async begin
         try
-            a.backend === :acp ? _run_external_agent_turn!(editor, a) : _run_agent_loop!(editor, a)
+            a.backend === :acp ? _run_external_agent_turn!(editor, a) : _run_agent_loop!(editor, a; control)
         catch e
             traceback = catch_backtrace()
             err = sprint(showerror, e, traceback)
@@ -267,9 +304,19 @@ function _launch_agent_turn!(editor, a::Assistant)
         finally
             run_on_editor_task!(editor; wait = false) do
                 a.status === :streaming && (a.status = :idle)
+                a.turn_control === control && (a.turn_control = nothing)
             end
         end
     end
+    nothing
+end
+
+function evaluate_operation(editor, operation::CancelAssistantTurnOperation)
+    a = operation.assistant
+    is_assistant_turn_running(a) || return nothing
+    control = a.turn_control
+    control isa AssistantTurnControl && (control.is_cancelled = true)
+    a.backend === :acp && _cancel_external_agent_turn!(a)
     nothing
 end
 
@@ -663,7 +710,12 @@ end
 # does: each `LlmEvent` as it streams, and each `AgentToolResult`. A measurement
 # counts the rounds, the tool calls and the tokens there, and the conversation is
 # not made to carry them.
-function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function} = nothing)
+#
+# A stop sets `control.is_cancelled`. The next event, or the start of the next
+# round, then throws, which ends the stream of the model and the loop. The turn
+# keeps what it streamed, and its stop reason is `:cancelled`.
+function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function} = nothing,
+                          control::AssistantTurnControl = AssistantTurnControl())
     set = editor.tools
     # Resolve the backend now, not at construction. Reading ENV here — rather than
     # baking it into the precompiled document — is what lets a key exported before
@@ -717,14 +769,30 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
     # task and not waited for: a stream of many small parts is applied in few
     # frames. The posts of this task keep their order.
     agent = Agent(llm, set; system = a.system, thinking = true)
-    stop_reason = run_turn!(agent, editor;
-        messages = () -> run_on_editor_task!(() -> build_messages(a.conversation), editor),
-        on_event = ev -> begin
-            observe === nothing || observe(ev)
-            run_on_editor_task!(editor; wait = false) do
-                _handle_agent_event!(ev, a, turn, state, set)
-            end
-        end)
+    stop_reason = try
+        run_turn!(agent, editor;
+            messages = () -> begin
+                control.is_cancelled && throw(TurnCancelledException())
+                run_on_editor_task!(() -> build_messages(a.conversation), editor)
+            end,
+            on_event = ev -> begin
+                control.is_cancelled && throw(TurnCancelledException())
+                observe === nothing || observe(ev)
+                run_on_editor_task!(editor; wait = false) do
+                    _handle_agent_event!(ev, a, turn, state, set)
+                end
+            end)
+    catch exception
+        # A backend can wrap what a callback threw, so the flag tells a stop
+        # from a failure.
+        control.is_cancelled || rethrow()
+        # The blocks that streamed close, so their text is drawn as an answer.
+        run_on_editor_task!(editor; wait = false) do
+            state[:current_block] === nothing || _handle_agent_event!(LlmTextStop(), a, turn, state, set)
+            state[:current_thinking] === nothing || _handle_agent_event!(LlmThinkingStop(), a, turn, state, set)
+        end
+        :cancelled
+    end
 
     @info "[assistant] turn done" elapsed_s=round(time() - turn_t0; digits=2)
 
@@ -989,6 +1057,13 @@ function read_intent(::AssistantToWidgetSplitPane,
     SubmitDraftTurnOperation(iomap.input::Assistant)
 end
 
+# The composer's Escape stops the turn that runs, and reverts the draft at any
+# other time.
+function read_intent(::AssistantToWidgetSplitPane, iomap, op::ComposerRevertOperation)
+    a = iomap.input
+    a isa Assistant && is_assistant_turn_running(a) ? CancelAssistantTurnOperation(a) : op
+end
+
 # ── the card ────────────────────────────────────────────────────────────
 #
 # A key that nothing below took reaches the card's reader as the raw event. While
@@ -1004,12 +1079,12 @@ read_intent(::AssistantToWidgetCard, iomap, evt::KeyPress) =
     (a = iomap.input; a isa Assistant && _is_draft_selected(a) ?
         resolve_composer_host_operation(a, read_composer_gesture(a.draft, evt)) : nothing)
 
-# Escape stops the turn of an external agent while it runs. The composer's own
-# Escape, which reverts the draft, answers at any other time.
+# Escape stops the turn that runs. The composer's own Escape, which reverts the
+# draft, answers at any other time.
 function read_intent(::AssistantToWidgetCard, iomap, evt::KeyDown)
     a = iomap.input
     a isa Assistant || return nothing
-    evt.key === :escape && is_external_agent_turn_running(a) && return CancelAssistantTurnOperation(a)
+    evt.key === :escape && is_assistant_turn_running(a) && return CancelAssistantTurnOperation(a)
     _is_draft_selected(a) ? resolve_composer_host_operation(a, read_composer_gesture(a.draft, evt)) : nothing
 end
 

@@ -131,6 +131,10 @@ session uses, an `AgentUsageUpdate`, or `nothing`. `agent_commands` are the
 commands that the agent offers, as `/name` at the start of a prompt. They are no
 data either.
 
+`turn_control` is the live control of the turn that runs, an
+`AssistantTurnControl`, and `nothing` between turns. A stop sets its flag. It is
+no data, like `llm`.
+
 `llm` defaults to `nothing` and `api_key` to empty: the backend and key are
 resolved **at submit time**, not here. This keeps the choice out of the
 precompiled image — documents are built eagerly into `const`s during
@@ -152,6 +156,7 @@ behaviour pass an explicit `llm` (a `FakeLlm`/`ScriptedLlm` from
     status::Symbol
     collapse_thinking::Bool
     llm::Union{Nothing,Llm}
+    turn_control::Any
     agent_command::String
     agent_session_meta::String
     agent_session::Any
@@ -199,6 +204,7 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
                               status::Symbol = :idle,
                               collapse_thinking::Bool = true,
                               llm::Union{Nothing,Llm} = nothing,
+                              turn_control = nothing,
                               agent_command::AbstractString = DEFAULT_AGENT_COMMAND,
                               agent_session_meta::AbstractString = DEFAULT_AGENT_SESSION_META,
                               agent_session = nothing,
@@ -213,7 +219,7 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
                            Cell(backend), Cell(String(model)), Cell(String(system)),
                            Cell(String(api_key)), Cell(Int(context)), Cell(status),
                            Cell(collapse_thinking),
-                           Cell(llm),
+                           Cell(llm), Cell(turn_control),
                            Cell(String(agent_command)), Cell(String(agent_session_meta)),
                            Cell(agent_session), Cell(String(agent_session_id)),
                            Cell(String(agent_session_directory)), Cell(Int(agent_session_turn_count)),
@@ -289,7 +295,7 @@ has_document_duplicate(::Assistant) = true
 
 function copy_document(policy::DuplicatePolicy, assistant::Assistant)
     draft = copy_document_fields(policy, assistant.draft; assistant = nothing)
-    fork = copy_document_fields(policy, assistant; draft = draft, status = :idle,
+    fork = copy_document_fields(policy, assistant; draft = draft, status = :idle, turn_control = nothing,
                                 agent_session = nothing, agent_session_id = "",
                                 agent_session_directory = "", agent_session_turn_count = 0,
                                 agent_options = AgentOption[],

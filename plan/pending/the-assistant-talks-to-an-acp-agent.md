@@ -695,7 +695,8 @@ from the command line of the projectured UI.
     known broken; the static guards as on `main`.
     Open: `ClaudeCodeACP` makes the title of a resumed session again from the
     first prompt after the resume, so the tab takes a new name then. A fix
-    there needs a release 0.1.3: a resumed session makes no title.
+    there needs a release 0.1.3: a resumed session makes no title. The owner
+    said on 2026-10-08: no release yet.
   - [x] **2.4b Save and load in a `.pred` file.** The owner agreed on
     2026-10-08: for an assistant with an agent session, the file keeps the
     session id, its folder and the conversation; a load shows the
@@ -790,6 +791,39 @@ from the command line of the projectured UI.
   request used only the tools of the editor (11 questions, all of its MCP
   server), opened a tab "Widgets" with a `WidgetTable` of 9 example widgets,
   and changed no file and no worktree.
+
+- [x] 2.11 A stop button for the assistant (the owner asked on 2026-10-08:
+  "we also need a stop button for the assistant, no?"; after 2.4, "land it and
+  continue"). Done on the branch `assistant-stop`:
+  - A row under the composer holds a "Stop" button for every backend, which
+    is enabled only while a turn runs; for an external agent the row also
+    holds its options. A click evaluates `CancelAssistantTurnOperation`, which
+    now stops a turn of a model too.
+  - A turn of a model has an `AssistantTurnControl` in the new live field
+    `turn_control` of the assistant. A stop sets its flag, and the callbacks
+    of `_run_agent_loop!` (`on_event` and `messages`) then throw a
+    `TurnCancelledException`. That ends `stream_turn`, which closes the HTTP
+    connection, so the model stops; the kernel loop needs no change, because
+    `on_event` of a tool result is outside the guard of the tool call. The turn
+    keeps what it streamed, closes its open blocks, and ends with
+    `:cancelled`. Because a backend can wrap the exception, any failure while
+    the flag is set counts as the stop.
+  - Found: Escape stopped a turn only in the card. The application uses the
+    split pane, where Escape reached the composer and reverted the draft. The
+    split pane now turns the composer's `ComposerRevertOperation` into the
+    cancel while a turn runs, as it turns the composer's submit into its own.
+  - Limits: a model that reads a long prompt sends no event for a while, and
+    the stop waits for its first event; a tool call that runs is not stopped.
+  - The button shows the Lucide stop icon and no word, with the tooltip "Stop
+    the turn", so the row of an agent keeps its room. In a narrow pane the
+    line of the usage still wraps onto two lines inside the row; the
+    application test now checks its words.
+  - Tests: the turn of an external agent 178 of 178, the conversation suite
+    236 of 236, `test_assistant_mvp()` 141 with its 4 known broken (two
+    markers in a loop over two widths), the application 357 with the 2 known
+    broken, the icons 364 of 364; the static guards as on `main`. Run the MVP
+    suite and the application test apart: in one process the start of the
+    agent in the application test timed out.
 
 ### Phase 3: the agent sees what projectured sees
 

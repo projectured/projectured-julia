@@ -16,9 +16,9 @@ const _MAIN_WEIGHT = 1.0
 
 The assistant as a split pane: the transcript over the composer. The composer
 keeps the least height that the `ConversationTheme` gives, and the transcript
-takes the rest. An assistant with an external agent has a row of its options
-under the composer, of the height that the theme gives. With no theme it takes
-the values of the default theme.
+takes the rest. A row under the composer, of the height that the theme gives,
+holds the button that stops the turn that runs, and for an external agent the
+menus of its options. With no theme it takes the values of the default theme.
 """
 @projection UntrackedCell struct AssistantToWidgetSplitPane
     composer_min_height::Int = get_conversation_style(nothing, :composer_min_height)
@@ -87,19 +87,22 @@ function print_document(projection::AssistantToWidgetSplitPane,
                          min_height=projection.composer_min_height,
                          preferred_height=projection.composer_min_height),
     ]
-    # An external agent has options of its own, and a row of menus under the
-    # composer shows them. It is the last child, so the maps below, which name
-    # the first two, stay as they are, and a click on it is a click on a part
-    # that the view drew. A split pane prints a child at the height of its slot,
-    # so the row declares its height. Beside the menus, a line says how much of
-    # its context the session uses.
+    # A row under the composer holds the button that stops the turn that runs.
+    # An external agent has options of its own, and a row of menus beside the
+    # button shows them, and a line says how much of its context the session
+    # uses. The row is the last child, so the maps below, which name the first
+    # two, stay as they are, and a click on it is a click on a part that the view
+    # drew. A split pane prints a child at the height of its slot, so the row
+    # declares its height.
+    items = Any[make_assistant_stop_button(a)]
     if a.backend === :acp
         usage = WidgetLabel("")
         set_cell_computation!(getfield(usage, :content), () -> format_agent_usage(a.agent_usage))
-        row = HorizontalLayout(Any[make_agent_option_bar(a), usage]; gap = projection.option_gap)
-        push!(panes, LayoutConstraint(row; min_height = projection.option_bar_height,
-                                      preferred_height = projection.option_bar_height))
+        append!(items, Any[make_agent_option_bar(a), usage])
     end
+    row = HorizontalLayout(items; gap = projection.option_gap)
+    push!(panes, LayoutConstraint(row; min_height = projection.option_bar_height,
+                                  preferred_height = projection.option_bar_height))
     column = WidgetSplitPane(:vertical, panes)
     iomap = SimpleIoMap(projection, a, column)
     # A key is routed by selection: the split pane sends it to the pane that the
@@ -327,6 +330,21 @@ function __init__()
 end
 
 # ── The options of an external agent ───────────────────────────────────────
+
+"""
+    make_assistant_stop_button(assistant) -> WidgetButton
+
+The button that stops the turn of `assistant` that runs, with
+`CancelAssistantTurnOperation`. It is enabled only while a turn runs. It shows
+the stop icon and no word, so the row of the options of an agent keeps its
+room; its tooltip says what it does.
+"""
+function make_assistant_stop_button(a::Assistant)
+    button = WidgetButton(""; icon = :stop, tooltip = "Stop the turn",
+                          action = editor -> evaluate_operation(editor, CancelAssistantTurnOperation(a)))
+    set_cell_computation!(getfield(button, :enabled), () -> is_assistant_turn_running(a))
+    button
+end
 
 # The options of an external agent that the bar shows, in this order, with the
 # word that names each one.

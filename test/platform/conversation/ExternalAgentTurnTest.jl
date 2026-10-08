@@ -263,6 +263,8 @@ function test_external_agent_turn()
             _submit_to_agent!(a, "Edit"; wait = false)
             request = _wait_for_permission_request(a)
             @test is_external_agent_turn_running(a)
+            button = make_assistant_stop_button(a)
+            @test button.enabled
             escape = read_intent(AssistantToWidgetCard(), (input = a,), KeyDown(:escape, ModifierKeys(); time = 0.0))
             @test escape isa CancelAssistantTurnOperation
             evaluate_operation((document = a,), escape)
@@ -271,6 +273,7 @@ function test_external_agent_turn()
             @test request.answer == "Cancelled"
             last_turn = collect(a.conversation.turns)[end]
             @test last_turn.stop_reason === :cancelled
+            @test !button.enabled
             # With no turn that runs, Escape is the composer's again.
             @test !(read_intent(AssistantToWidgetCard(), (input = a,),
                                 KeyDown(:escape, ModifierKeys(); time = 0.0)) isa CancelAssistantTurnOperation)
