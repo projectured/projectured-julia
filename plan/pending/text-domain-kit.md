@@ -459,6 +459,62 @@ DomainModule.insertable(::Type{<:TextLine}) = false
 It becomes a candidate when the Text domain grows a caret-level insert gesture and the pipeline can
 render a line.
 
+### Step 3: the design (2026-10-08, in progress with the owner)
+
+The owner asked to start this step on the branch `text-gutter` (2026-10-08). A
+survey of the tree found where a line break of syntax text comes from, and it is
+not only the indentation chrome that `indent_indices` widens:
+
+- **The chrome of `SyntaxToText`**: a `TextString("\n")` and an indent span
+  before each child of a node that indents, and before its close delimiter.
+- **A leaf value**: a code block and a text of Markdown, a paragraph of a Book,
+  a docstring of Julia, a text node of XML, a raw text of SQL, a
+  `PrimitiveString`. No leaf shares the cell of its document: each is a derived
+  `TextString`, and an editable one writes back through `bound`.
+- **A delimiter or a separator of a domain**: about 40 in reStructuredText,
+  more in Markdown, Book, SQL (a clause ends in `"\n"` and indents itself) and
+  Formula.
+
+**The flat offsets do not change.** A `"\n"` span counts one offset and so does
+the implied break before a `TextLine`; an indent span of `n` spaces counts `n`
+and so does the indentation `n` of a line. So a block of lines has the flat
+offsets of the span list of today, and every mapper of `SyntaxToText` that
+works in flat offsets (a caret, a box, `_syntax_to_flat`, an introduced position,
+the zero-width edit) keeps working. What changes is every place that names a
+span by its index in the list: `child_elem_ranges`, `own_spans`, `sep_indices`,
+`marker_index`, `_text_elem_path_to_flat`, `_flat_to_span_char`, the parsers of
+`.elements[j].content{c}`, `_resolve_click`, the edit reader, and
+`SyntaxListToText`. `SyntaxToTextTest.jl` is the one test that asserts the span
+list exactly; the navigation sweeps assert no counts, but their broken markers
+can flip.
+
+**Q1 Where the lines come from.**
+
+- (a) **Every producer of syntax text emits lines.** A span that holds a `'\n'`,
+  a leaf value or a delimiter of a domain, is split at each break into pieces on
+  separate lines, with a table of segments that maps a piece back to its span by
+  offset, as `WordWrapping` maps its pieces; the chrome of a node that indents
+  becomes the indentation of its lines. Every break is a line, so a number counts
+  every line, and a fold and a mark of the syntax ride on the lines.
+- (b) **A stage after `SyntaxToText` makes the lines**: it splits the flat text at
+  each `'\n'` into `TextLine`s, with the same table of segments. `SyntaxToText`
+  stays as it is. But a fold of the syntax (step 3 of the fold plan) and a mark of
+  a domain can not reach the lines through a flat text, unless they travel in it
+  as elements of zero width, which D1 of the gutter plan did not choose.
+- (c) **Only the chrome makes lines**, and a `'\n'` inside a span stays there,
+  as `TextToGraphics` draws it today. The smallest change, but a code block of
+  Markdown or a paragraph of reStructuredText is one line to the numbers and to
+  the folds.
+
+*Recommendation: (a), because it is the direction decided on 2026-08-12 (this
+plan owns the change, and `SyntaxToText` emits lines), and only (a) gives every
+break a line and lets the syntax put a fold and a mark on a line. Its cost: the
+largest rewrite of the three, a split of leaf values with a table of segments,
+and every index-based helper of `SyntaxToText` learns span paths.*
+
+Still to decide after Q1: Q2 the join rule of an inline child, and Q3 how the
+lazy list path (`SyntaxListToText`) makes lines.
+
 ### Phase 3 guards
 
 `test_syntax_to_text()`, `test_word_wrapping()`, `test_line_numbering()` (checked
