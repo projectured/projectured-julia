@@ -160,6 +160,28 @@ function test_acp_connection()
             stop_agent_connection!(connection)
         end
 
+        @testset "an agent whose initialize breaks the schema still starts" begin
+            agent = _make_fake_agent(Dict{String,Function}(
+                "initialize" => (agent, params) -> Dict(
+                    "protocolVersion" => 1, "agentCapabilities" => [1], "authMethods" => [1],
+                    "agentInfo" => Dict("title" => "Odd Agent")),
+                "session/new" => (agent, params) -> throw(ProtocolException(-32000, "Authentication required"))))
+            connection = make_fake_connection(agent)
+            @test !connection.agent_capabilities.load_session
+            @test isempty(connection.auth_methods)
+            message = try
+                open_agent_session!(connection)
+                ""
+            catch exception
+                sprint(showerror, exception)
+            end
+            @test occursin("Odd Agent needs a sign-in.", message)
+            # An agent that lists no `close` gets no `session/close`.
+            close_agent_session!(connection, "session-1")
+            @test isempty(get_received(agent, "session/close"))
+            stop_agent_connection!(connection)
+        end
+
         @testset "the updates of a prompt arrive as events, in order" begin
             agent = _make_fake_agent(Dict{String,Function}(
                 "session/prompt" => function (agent, params)
@@ -270,7 +292,6 @@ function test_acp_connection()
                                on_event = event -> event isa AgentPermissionRequest && push!(requests, event))
             @test outcome[] == Dict{String,Any}("outcome" => "cancelled")
             @test only(requests).reply("allow") == false
-            @test isempty(connection.transport.answering)
             stop_agent_connection!(connection)
         end
 

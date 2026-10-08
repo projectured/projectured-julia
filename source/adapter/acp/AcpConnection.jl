@@ -110,10 +110,21 @@ function start_agent_connection!(connection::AcpConnection)
         error("The agent speaks ACP version $(something(version, "unknown")), " *
               "and this client speaks version $(ACP.PROTOCOL_VERSION).")
     end
-    connection.agent_info = result.agent_info
-    connection.agent_capabilities = result.agent_capabilities
-    connection.auth_methods = result.auth_methods
+    # A field that does not follow the schema reads as absent, so such an agent
+    # still starts.
+    connection.agent_info = _read_or_default(() -> result.agent_info, nothing)
+    connection.agent_capabilities = _read_or_default(() -> result.agent_capabilities, ACP.AgentCapabilities())
+    connection.auth_methods = _read_or_default(() -> result.auth_methods, ACP.AuthMethod[])
     connection
+end
+
+function _read_or_default(read::Function, default)
+    try
+        read()
+    catch exception
+        exception isa ArgumentError || rethrow()
+        default
+    end
 end
 
 function _open_connection_transport(connection::AcpConnection)
@@ -183,8 +194,8 @@ _make_mcp_server(server) = ACP.McpServerHttp(
 # What the agent said about its sign-in, as a sentence for a person. The
 # client starts no sign-in itself: the person signs in with the flow of the agent.
 function _format_sign_in_message(connection::AcpConnection)
-    info = connection.agent_info
-    title = info === nothing ? "The agent" : something(info.title, info.name)
+    info = connection.agent_info === nothing ? Dict{String,Any}() : ACP.get_json(connection.agent_info)
+    title = string(get(info, "title", get(info, "name", "The agent")))
     ways = String[]
     for method in connection.auth_methods
         json = ACP.get_json(method)
@@ -238,7 +249,8 @@ function close_agent_session!(connection::AcpConnection, session_id::AbstractStr
     end
     transport = connection.transport
     transport === nothing && return nothing
-    connection.agent_capabilities.session_capabilities.close === nothing && return nothing
+    capabilities = get(ACP.get_json(connection.agent_capabilities), "sessionCapabilities", nothing)
+    capabilities isa AbstractDict && haskey(capabilities, "close") || return nothing
     try
         ACP.send_request!(transport, ACP.CloseSessionRequest(session_id = String(session_id)); timeout = 30)
     catch exception

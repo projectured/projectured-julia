@@ -112,6 +112,30 @@ The owner decided on 2026-10-08:
   `AgentClientProtocol.Connection`, and `AcpClientHandler` answers the agent.
   `AcpRequestException` is gone; the package exports `ProtocolException` of the
   library.
+- **A review of both branches (2026-10-08)** found three faults on the error
+  paths of the library and some differences of behaviour in `ProjecturedACP`.
+  The library now always answers a request, refuses a request after the end of
+  its reader, keeps its reader on a bad message, delivers each answer once,
+  withdraws the requests of the other side at a close, and ends
+  `wait(connection)` at a close; each fault has a test. `ProjecturedACP` reads
+  `initialize` with the old tolerance: a field that breaks the schema reads as
+  absent. These differences stay, because they follow the protocol:
+  - A request of the agent without a required field, such as a
+    `session/request_permission` without `options`, gets `INVALID_PARAMS`; the
+    old client asked the person.
+  - A `session/update` without `update` logs a warning; the old client dropped
+    it without a word.
+  - The person sees "The connection closed before the answer came." where the
+    old text was "The agent ended before it answered.", and other words for a
+    timeout.
+  - A prompt with content that is not text throws before the turn starts, so
+    the waiting updates of the session stay for the next prompt.
+- **The live check with the real `claude-agent-acp` passed on the branch** on
+  2026-10-08: 9 tool calls, 9 permission requests answered, 9 thought parts,
+  the edit through MCP, and undo took it back.
+- **The order of the pushes:** `AgentClientProtocol.jl` must be on GitHub, on
+  its default branch, before projectured-julia pushes this branch, because the
+  CI checks it out and the release workflow adds it by its URL.
 - **CI:** the jobs on `environment/all` check out `AgentClientProtocol.jl`
   beside the repository, as they do `AutoIntegration.jl`. The release workflow
   that the builder writes adds both packages by their URLs, and the front page
@@ -279,8 +303,10 @@ editor ──ACP──▶ the agent (Julia) ──stream-json──▶ claude -p
 - [x] **C.8 `ProjecturedACP` on the library.** The map to the kernel seam
   stays; the transport and the connection come from the library. `test_acp()`
   and the assistant tests pass with no change of behavior. Done on the branch
-  `acp-library`: `test_acp()` 101 of 101, as before; the six standalone
-  guards give the same output as on `main`.
+  `acp-library`: `test_acp()` 104 of 104 (101 before, one private check gone,
+  four new assertions for an agent whose `initialize` breaks the schema); the
+  builder suite 507 of 507 (506 on `main`); the six standalone guards give the
+  same output as on `main`; the live check with the real adapter passes.
 
 ### B. The Claude agent
 
