@@ -1,13 +1,13 @@
 # A text folds a region of its lines
 
-> **Kind:** plan · **Status:** pending, 2026-10-07. The owner decided T1 to T5 on
-> 2026-10-07; §7 holds the steps. Steps 1 and 2 are done on the branch
-> `text-gutter`; steps 3 and 4 wait for `SyntaxToText` to emit lines. ·
+> **Kind:** plan · **Status:** done, 2026-10-08, on the branch `text-gutter`. The
+> owner decided T1 to T5 on 2026-10-07; §7 holds the steps, and steps 1 to 4 are
+> done; step 5 is later work, not in this plan. ·
 > **Stands on:** [text.md](../../documentation/package/platform/text/text.md),
 > [syntax.md](../../documentation/package/platform/syntax/syntax.md),
-> [a-text-has-a-gutter-beside-its-lines.md](a-text-has-a-gutter-beside-its-lines.md),
-> [collapse-expand-syntax-nodes.md](collapse-expand-syntax-nodes.md),
-> [text-domain-kit.md](text-domain-kit.md)
+> [a-text-has-a-gutter-beside-its-lines.md](../pending/a-text-has-a-gutter-beside-its-lines.md),
+> [collapse-expand-syntax-nodes.md](../pending/collapse-expand-syntax-nodes.md),
+> [text-domain-kit.md](../pending/text-domain-kit.md)
 
 ## 1. The goal
 
@@ -54,7 +54,7 @@ can fold, and the text editor folds them.
   marker glyph and an ellipsis, and turns a click on either into
   `ToggleCollapseOperation(node)`. Ctrl+. makes a `ToggleCollapseOperation` with
   no target, which the syntax stage resolves to the innermost collapsible node at
-  the caret ([collapse-expand-syntax-nodes.md](collapse-expand-syntax-nodes.md)).
+  the caret ([collapse-expand-syntax-nodes.md](../pending/collapse-expand-syntax-nodes.md)).
 - **A decorator that drops lines.** `TextFiltering` keeps only the lines that
   match a pattern. Its IO map keeps the input index of each output element, and a
   box on a dropped line has no image

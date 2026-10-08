@@ -7,7 +7,7 @@
 > fold plan; D5 through
 > [a-scroll-pane-keeps-the-edges-of-its-content-in-view.md](../done/a-scroll-pane-keeps-the-edges-of-its-content-in-view.md),
 > and D4 led to
-> [a-text-folds-a-region-of-its-lines.md](a-text-folds-a-region-of-its-lines.md).
+> [a-text-folds-a-region-of-its-lines.md](../done/a-text-folds-a-region-of-its-lines.md).
 > The names are tentative. ·
 > **Stands on:** [text.md](../../documentation/package/platform/text/text.md),
 > [syntax.md](../../documentation/package/platform/syntax/syntax.md),
@@ -241,7 +241,7 @@ field is an error of the builder.
 | Field of `TextGutter` | Who fills it | What it knows |
 | --- | --- | --- |
 | `number` | `TextLineNumbering`, a text decorator | the count of the lines, the caret line |
-| `fold` | `TextFolding`, a text decorator ([a-text-folds-a-region-of-its-lines.md](a-text-folds-a-region-of-its-lines.md)) | every region of its input, and if it is closed |
+| `fold` | `TextFolding`, a text decorator ([a-text-folds-a-region-of-its-lines.md](../done/a-text-folds-a-region-of-its-lines.md)) | every region of its input, and if it is closed |
 | `marker` | a domain stage, through the syntax node (later) | a breakpoint, a diagnostic |
 | a field of its own type | the owner of a long lazy text | its own numbers, because a lazy list counts from its head |
 
@@ -343,7 +343,7 @@ below it change. A **text fold** is a closed region of lines, which the text
 holds and the view hides, so `TextLineNumbering` counts the hidden lines and the
 numbers below it do not change. The syntax can be asked to emit a text region
 for a collapsible node in place of a syntax fold. The design of the text fold is
-[a-text-folds-a-region-of-its-lines.md](a-text-folds-a-region-of-its-lines.md).
+[a-text-folds-a-region-of-its-lines.md](../done/a-text-folds-a-region-of-its-lines.md).
 
 ### 5.7 Scroll
 
@@ -439,7 +439,7 @@ The order of the work, each step on its own commit, each with its test.
 4. **`SyntaxToText` emits lines: not a step of this plan (D7).** It is step 3
    of Phase 3 of [text-domain-kit.md](text-domain-kit.md), with the join rule of
    an inline child that it names. Steps 5 and 6 wait for it.
-5. **Fold triangles in the gutter** (done for hand-made lines by steps 1 and 2 of the fold plan; the rest waits for its steps 3 and 4): the steps of [a-text-folds-a-region-of-its-lines.md](a-text-folds-a-region-of-its-lines.md).
+5. **Fold triangles in the gutter** (done for hand-made lines by steps 1 and 2 of the fold plan; the rest waits for its steps 3 and 4): the steps of [a-text-folds-a-region-of-its-lines.md](../done/a-text-folds-a-region-of-its-lines.md).
    `TextFolding` fills the `fold` field.
 6. **The Julia code view** shows numbers and fold triangles. **Decided (b), the
    owner, 2026-10-08: only the code of a Julia file in its tab.** The file view
@@ -474,7 +474,7 @@ The order of the work, each step on its own commit, each with its test.
 ### The order across the plans (D7)
 
 1. The steps on hand-made lines, in any order between the plans: steps 1 and 2
-   of [a-scroll-pane-keeps-the-edges-of-its-content-in-view.md](../done/a-scroll-pane-keeps-the-edges-of-its-content-in-view.md), steps 1 to 3 of this plan, and steps 1 and 2 of [a-text-folds-a-region-of-its-lines.md](a-text-folds-a-region-of-its-lines.md). Step 1 of this
+   of [a-scroll-pane-keeps-the-edges-of-its-content-in-view.md](../done/a-scroll-pane-keeps-the-edges-of-its-content-in-view.md), steps 1 to 3 of this plan, and steps 1 and 2 of [a-text-folds-a-region-of-its-lines.md](../done/a-text-folds-a-region-of-its-lines.md). Step 1 of this
    plan needs step 1 of the scroll plan.
 2. Step 3 of Phase 3 of [text-domain-kit.md](text-domain-kit.md): `SyntaxToText`
    emits lines, with the join rule of an inline child.
@@ -564,7 +564,7 @@ Every decision is taken. A recommendation that I gave is marked as mine.
   syntax fold, the other is a text line region fold, the former cannot count the
   line numbers as if it would not be folded but the latter can, for that the text
   domain should also support folding and the syntax can be asked to emit foldable
-  text regions". The design of the text fold is [a-text-folds-a-region-of-its-lines.md](a-text-folds-a-region-of-its-lines.md). The options were (a) the
+  text regions". The design of the text fold is [a-text-folds-a-region-of-its-lines.md](../done/a-text-folds-a-region-of-its-lines.md). The options were (a) the
   lines of the view, (b) the lines with every fold open, where the line of a
   closed syntax fold says how many lines it hides, and (c) the lines of the
   source file. I recommended (b); it made the syntax print the children of a
@@ -586,7 +586,7 @@ Every decision is taken. A recommendation that I gave is marked as mine.
   which lays out each line twice. The owner proposed the scroll component with
   a center, four edges and four corners in place of all of them.
 - **D6 The fold marker. Decided, the owner, 2026-10-07, by D4 and by T3 of
-  [a-text-folds-a-region-of-its-lines.md](a-text-folds-a-region-of-its-lines.md):** the triangle of a text fold is in the fold lane of the gutter,
+  [a-text-folds-a-region-of-its-lines.md](../done/a-text-folds-a-region-of-its-lines.md):** the triangle of a text fold is in the fold lane of the gutter,
   and `TextFolding` fills it; the marker of a syntax fold stays inline. The
   options were (a) the gutter in place of the inline marker and (b) a choice of
   the builder.
@@ -597,7 +597,7 @@ Every decision is taken. A recommendation that I gave is marked as mine.
   "`SyntaxToText` emits `TextLine`", and rejected a new plan for it: "that
   settles ownership, not direction". That plan also says that the join rule of an
   inline child is missing. The change is not done. Three plans now need it: this
-  plan from its step 5, [a-text-folds-a-region-of-its-lines.md](a-text-folds-a-region-of-its-lines.md) from its step 3, and [a-scroll-pane-keeps-the-edges-of-its-content-in-view.md](../done/a-scroll-pane-keeps-the-edges-of-its-content-in-view.md) in its step 3. These steps do
+  plan from its step 5, [a-text-folds-a-region-of-its-lines.md](../done/a-text-folds-a-region-of-its-lines.md) from its step 3, and [a-scroll-pane-keeps-the-edges-of-its-content-in-view.md](../done/a-scroll-pane-keeps-the-edges-of-its-content-in-view.md) in its step 3. These steps do
   not need it, because they work on hand-made lines: steps 1 to 3 of this plan,
   steps 1 and 2 of the fold plan, and steps 1 and 2 of the scroll plan.
   (a) This plan does it as its step 4, and text-domain-kit says so.
