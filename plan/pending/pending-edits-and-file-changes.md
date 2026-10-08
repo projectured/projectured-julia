@@ -177,6 +177,11 @@ file at once, and the feed brings the change to the tab.
   copy of the input document as if the operations were executed. But we should
   keep this as a pending plan deferred."
 
+- On the feed: "yes" to my recommendation to build it now, for the omnet step
+  6.1, with (b): the feed reloads a file only when the person did not edit it
+  since its last load or save; else it leaves the file as it is and the log says
+  that the file changed on disk.
+
 So the model of 5.1 and 5.3 is not the decided one: a pending edit is replayed
 on a copy of the input document, as if the operation ran, and a mark is what
 that replay shows, not an overlay. The pending edits wait; this plan keeps them
