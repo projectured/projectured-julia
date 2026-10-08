@@ -2,23 +2,63 @@
 # runs in its `@compile_workload` so that its package image holds that code.
 
 """
-    WorkloadBackend()
+    WorkloadBackend(; events = make_workload_events())
 
-A backend with no device. It takes no input, and it reads the whole output of
-each frame, as a backend that draws reads it, so that every view of the window
-prints. [`run_display_workload`](@ref) runs the editor with it where no window
-opens.
+A backend with no device. It reads the whole output of each frame, as a backend
+that draws reads it, so that every view of the window prints. After its first
+output, it gives `events` to the window of that output, one for each read, as a
+hand gives them. [`run_display_workload`](@ref) runs the editor with it where no
+window opens.
 """
-struct WorkloadBackend <: Backend end
+mutable struct WorkloadBackend <: Backend
+    events::Vector{Event}
+    window_id::Union{Nothing,Symbol}
+    writes::Int
+    writes_at_last_event::Int
+end
+
+WorkloadBackend(; events::Vector{Event} = make_workload_events()) =
+    WorkloadBackend(events, nothing, 0, 0)
+
+"""
+    make_workload_events() -> Vector{Event}
+
+The gestures of a first look at a window of 1000 × 600: the pointer comes to its
+middle, the wheel turns down and up, a click, then the keys Down and Right. Their
+times are set when the backend gives them.
+"""
+make_workload_events() = Event[
+    MouseMove(500, 300; time = 0.0),
+    MouseScroll(0, -3, 500, 300; time = 0.0),
+    MouseScroll(0, 3, 500, 300; time = 0.0),
+    MouseDown(:left, 500, 300; time = 0.0),
+    MouseUp(:left, 500, 300; time = 0.0),
+    KeyDown(:down, ModifierKeys(); time = 0.0),
+    KeyDown(:right, ModifierKeys(); time = 0.0),
+]
 
 initialize_backend!(::WorkloadBackend) = nothing
 quit_backend!(::WorkloadBackend) = nothing
-take_from_devices!(::WorkloadBackend, devices) = nothing
 
-function write_to_devices!(::WorkloadBackend, devices, screen::ScreenDocument)
+function take_from_devices!(backend::WorkloadBackend, devices)
+    (backend.window_id === nothing || isempty(backend.events)) && return nothing
+    backend.writes_at_last_event = backend.writes
+    WindowInput(backend.window_id, _stamp_event(popfirst!(backend.events), time()))
+end
+
+# `event` with the time `time` in place of its own. The time is the last field of
+# every event, and the full constructor takes every field.
+function _stamp_event(event::Event, time::Float64)
+    type = typeof(event)
+    type(ntuple(i -> getfield(event, i), fieldcount(type) - 1)..., time)
+end
+
+function write_to_devices!(backend::WorkloadBackend, devices, screen::ScreenDocument)
     for window in screen.windows
+        backend.window_id === nothing && (backend.window_id = window.id)
         _read_graphics(window.content)
     end
+    backend.writes += 1
     nothing
 end
 
@@ -38,24 +78,46 @@ end
 """
     run_display_workload(value; backend = WorkloadBackend(), frames = 1) -> Nothing
 
-Show `value` as the first [`display_in_editor`](@ref) of a session shows it,
-with `backend`, until the editor has drawn `frames` frames, then stop the
-editor. A `Document` is shown as it is, another value through
-`make_value_document`. A package calls it in its `@compile_workload`, so that
-its package image holds the code of the first window. The session of
-`display_in_editor` stays as it is.
+Show `value` as a user shows it with [`display_in_editor`](@ref), with `backend`
+as the backend that a caller who names none gets, until the editor has drawn
+`frames` frames and a frame after the last event of a `WorkloadBackend`; then
+stop the editor. A `Document` is shown as it is, as the first call of
+`display_in_editor` shows the document of a value. A package calls it in its
+`@compile_workload`, where no editor of `display_in_editor` runs, so that its
+package image holds the code of the first window.
 """
 function run_display_workload(value; backend::Backend = WorkloadBackend(), frames::Int = 1)
-    document = value isa Document ? value : make_value_document(value)
-    session = _start_session(document, summary(value); backend, tabs = true, refresh_every = nothing)
-    try
-        deadline = time() + 300
-        while get_frame_count(session.editor.frame_measurements) < frames
-            (time() > deadline || !_is_session_alive(session)) && break
-            sleep(0.01)
+    with(DEFAULT_BACKEND => backend) do
+        if value isa Document
+            session = _start_session(value, summary(value); backend = nothing, tabs = true,
+                                     refresh_every = nothing)
+            try
+                _wait_for_workload(session, backend, frames)
+            finally
+                _close_session!(session)
+            end
+        else
+            display_in_editor(value)
+            try
+                _wait_for_workload(lock(() -> _SESSION[], _SESSION_LOCK), backend, frames)
+            finally
+                close_display_editor!()
+            end
         end
-    finally
-        _close_session!(session)
+    end
+    nothing
+end
+
+# Wait until the editor of `session` has drawn `frames` frames and, for a
+# `WorkloadBackend`, has given every event and drawn once after the last.
+function _wait_for_workload(session::_EditorSession, backend::Backend, frames::Int)
+    deadline = time() + 300
+    while time() < deadline && _is_session_alive(session)
+        drawn = get_frame_count(session.editor.frame_measurements) >= frames
+        given = !(backend isa WorkloadBackend) ||
+                (isempty(backend.events) && backend.writes > backend.writes_at_last_event)
+        drawn && given && return nothing
+        sleep(0.01)
     end
     nothing
 end
