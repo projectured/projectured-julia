@@ -8,7 +8,7 @@
 # reference path.
 """
     ReferenceDispatchingProjection(default, pairs...)
-    ReferenceDispatchingProjection(f::Function; reads_context = false)
+    ReferenceDispatchingProjection(f::Function; reads_context = false, applies = nothing, default = nothing)
 
 A compound projection that dispatches to different inner projections based on
 the current `reference` path argument.
@@ -24,6 +24,11 @@ also read a property of the printer context.
 The choice is a computation. A function that reads a cell chooses again when the
 cell changes, and when it answers another projection, the position prints again
 through the same IO map. A function that reads no cell chooses once.
+
+`applies(context)`, when given, says whether the choice can change at a position.
+Where it answers `false`, the dispatch prints `default`, or the projection that
+the function answers when there is no `default`, as it is, with no IO map of its
+own, so a position where nothing can change costs nothing.
 
 # Examples
 
@@ -43,13 +48,14 @@ struct ReferenceDispatchingProjection <: Projection
     dispatch::Vector{Pair{Any, Any}}
     cases::Any
     reads_context::Bool
+    applies::Any          # `nothing`, or `context -> Bool`: whether the choice can change
 end
 
 ReferenceDispatchingProjection(default, pairs::Pair...) =
-    ReferenceDispatchingProjection(default, collect(Pair{Any, Any}, pairs), nothing, false)
+    ReferenceDispatchingProjection(default, collect(Pair{Any, Any}, pairs), nothing, false, nothing)
 
-ReferenceDispatchingProjection(f::Function; reads_context::Bool = false) =
-    ReferenceDispatchingProjection(nothing, Pair{Any, Any}[], f, reads_context)
+ReferenceDispatchingProjection(f::Function; reads_context::Bool = false, applies = nothing, default = nothing) =
+    ReferenceDispatchingProjection(default, Pair{Any, Any}[], f, reads_context, applies)
 
 # ── Projection interface ──────────────────────────────────────────────────
 
@@ -79,6 +85,10 @@ end
 end
 
 function print_document(rdp::ReferenceDispatchingProjection, recursion, input, ctx)
+    if rdp.applies !== nothing && !rdp.applies(ctx)
+        fixed = rdp.default === nothing ? _dispatch_proj(rdp, ctx.reference, ctx) : rdp.default
+        return print_document(fixed, recursion, input, ctx)
+    end
     inner = make_reconciled_child_iomap_cell(() -> _dispatch_proj(rdp, ctx.reference, ctx),
         proj -> peek(Cell(@computation print_document(proj, recursion, input, ctx))))
     # The choice and the print happen now, as the rest of the pipeline assumes, and
@@ -105,3 +115,15 @@ function map_reference_backward(::ReferenceDispatchingProjection, iomap::Referen
     inner = iomap.inner_iomap
     return map_reference_backward(get_iomap_projection(inner), inner, reference)
 end
+
+# Where `applies` answered `false`, the dispatch gave the IO map of the projection
+# that it printed, and the projection that holds the dispatch calls it with that
+# IO map: the reader and the maps go to the projection of the IO map.
+read_intent(::ReferenceDispatchingProjection, recursion, change::Intent, iomap::IoMap) =
+    read_intent(get_iomap_projection(iomap), recursion, change, iomap)
+read_intent(::ReferenceDispatchingProjection, iomap::IoMap, payload) =
+    read_intent(get_iomap_projection(iomap), iomap, payload)
+map_reference_forward(::ReferenceDispatchingProjection, iomap::IoMap, reference) =
+    map_reference_forward(get_iomap_projection(iomap), iomap, reference)
+map_reference_backward(::ReferenceDispatchingProjection, iomap::IoMap, reference) =
+    map_reference_backward(get_iomap_projection(iomap), iomap, reference)

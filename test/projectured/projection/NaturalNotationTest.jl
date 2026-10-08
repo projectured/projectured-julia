@@ -23,8 +23,9 @@ function test_natural_notation()
         register_natural_format!(NaturalNotationTestRoot, :natural_notation_test_root, ".nntroot")
         register_natural_format!(NaturalNotationTestLeaf, :natural_notation_test_leaf, ".nntleaf")
 
-        # The one stage of a chain that stops at the rung of the notation.
-        get_stage(chain) = only(chain.projections).child
+        # The one stage of a chain that stops at the rung of the notation: the
+        # default of the dispatch that puts what a person arranged at a place.
+        get_stage(chain) = only(chain.projections).child.default
 
         @testset "the most derived registered type gives the notation" begin
             @test get_stage(make_natural_projection(NaturalNotationTestLeaf(), :syntax)) isa

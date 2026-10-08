@@ -34,6 +34,10 @@ function print_document(p::PickingProjection, recursion, input::AbstractVector, 
     PickingIoMap(p, input, Cell(@computation input[rows[]]), rows)
 end
 
+# A document that holds no items of its own passes through, with no rows, so a
+# recursion inside it can arrange the items where it prints them.
+print_document(p::PickingProjection, recursion, input, ctx) = PickingIoMap(p, input, input, Cell(nothing))
+
 # The path of the output for the path `path` of the input, or `nothing` for an
 # item that is not picked.
 function _map_picked_forward(rows, path)
@@ -47,6 +51,7 @@ function _map_picked_forward(rows, path)
 end
 
 function map_reference_forward(p::PickingProjection, iomap::PickingIoMap, reference)
+    iomap.rows === nothing && return reference
     @reference_case reference begin
         [i].rest... => begin
             j = findfirst(==(i), iomap.rows)
@@ -58,6 +63,7 @@ function map_reference_forward(p::PickingProjection, iomap::PickingIoMap, refere
 end
 
 function map_reference_backward(p::PickingProjection, iomap::PickingIoMap, reference)
+    iomap.rows === nothing && return reference
     @reference_case reference begin
         [j].rest... => begin
             rows = iomap.rows

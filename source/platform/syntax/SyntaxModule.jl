@@ -27,6 +27,7 @@ Selection semantics (`[i]` = 1-based item, `{k}` = 0-based cursor):
 """
 module SyntaxModule
 
+using ..ArrangementModule
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule

@@ -28,6 +28,7 @@ slice declares no operation of its own.
 """
 module PaneModule
 
+using ..ArrangementModule
 using ..CellModule
 using ..ClipboardModule
 using ..CollectionModule
@@ -65,6 +66,7 @@ import ..SerializationModule: pred_arguments, make_pred_document
 import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
 import ..ScreenModule: show_document!
 import ..OperationModule: find_drop_zone
+import ..GestureBindingModule: get_document_gesture_bindings_own
 
 export make_tabs_projection
 export PaneDocument, PaneTree, PaneSplit, PaneGroup, PaneTab, PaneTabTitle,
@@ -105,6 +107,7 @@ include("PaneSurgery.jl")
 include("PaneGeometry.jl")
 include("PaneProgram.jl")
 include("PaneGestures.jl")
+include("PaneArrangement.jl")
 include("PaneToWidget.jl")
 include("UserInterfaceFile.jl")
 include("PaneFile.jl")

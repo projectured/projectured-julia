@@ -21,6 +21,10 @@ document that a place shows, and the removal of the last entry takes it away.
     entries::CellVector
 end
 
+# The title of an arrangement is the title of the document that it holds.
+get_document_title(arrangement::ArrangementDocument) =
+    something(get_document_title(arrangement.document), "Arrangement")
+
 """
     ArrangementEntry(at, projections)
 
@@ -33,6 +37,19 @@ saved, copied and undone as any document.
 @document struct ArrangementEntry
     at::Any
     projections::CellVector
+end
+
+"""
+    ArrangementChips(entry, shown, total)
+
+What the bar of a place shows: the chips of `entry`, a chip for each condition of
+a filter and each key of a sort, and the count of the items, `shown` of `total`.
+`shown` and `total` are cells that follow the place.
+"""
+@document struct ArrangementChips
+    entry::Any
+    shown::Any
+    total::Any
 end
 
 """

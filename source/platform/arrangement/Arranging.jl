@@ -44,13 +44,35 @@ function print_document(p::ArrangingProjection, recursion, input::ArrangementDoc
     ArrangingIoMap(p, input, Cell(@computation inner[].output), inner)
 end
 
+get_child_iomaps(iomap::ArrangingIoMap) = Any[iomap.inner_iomap]
+
 # Everything goes on to the document, and the answer is rooted under the field
-# `document`, so its reference is valid against the arrangement.
+# `document`, so its reference is valid against the arrangement. A gesture with a
+# route goes the way of every container, so the gesture table of the
+# arrangement reads it too, as the context menu of a value needs. An edit that
+# leaves the arrangement with no entry takes the arrangement away.
 function read_intent(p::ArrangingProjection, recursion, change::Intent, iomap::ArrangingIoMap)
-    inner = iomap.inner_iomap
-    answer = read_intent(get_iomap_projection(inner), recursion, change, inner)
-    operation = answer isa Intent ? answer.operation : answer
-    Intent(change.gesture, reroot_operation(operation, (FieldReferenceStep("document"),)))
+    if change.route !== nothing
+        answer = read_routed_child(recursion, change, iomap)
+        operation = answer isa Intent ? answer.operation : answer
+    else
+        inner = iomap.inner_iomap
+        answer = read_intent(get_iomap_projection(inner), recursion, change, inner)
+        operation = reroot_operation(answer isa Intent ? answer.operation : answer, (FieldReferenceStep("document"),))
+    end
+    Intent(change.gesture, _take_away_when_empty(iomap.input, operation))
+end
+
+# `operation`, or the edit that puts the document of `arrangement` in its place
+# when `operation` takes away the last entry of `arrangement`. The edit is rooted
+# at the arrangement, so the readers around it carry it to its place.
+function _take_away_when_empty(arrangement::ArrangementDocument, operation)
+    operation isa ReplaceReferencedValueOperation && operation.document === arrangement || return operation
+    (length(arrangement.entries) == 1 && operation.value isa AbstractVector && isempty(operation.value)) ||
+        return operation
+    steps = get_reference_steps(strip_reference_types(operation.reference))
+    (length(steps) == 2 && steps[1] == FieldReferenceStep("entries")) || return operation
+    ReplaceReferencedValueOperation(nothing, EmptyReference(), arrangement.document)
 end
 
 read_intent(p::ArrangingProjection, iomap::ArrangingIoMap, payload) =
@@ -71,25 +93,34 @@ function map_reference_backward(::ArrangingProjection, iomap::ArrangingIoMap, re
 end
 
 """
-    make_arranged_dispatch(default) -> ReferenceDispatchingProjection
+    make_arranged_dispatch(default; bar = nothing) -> ReferenceDispatchingProjection
 
 The dispatch of a recursion that can show an arranged document. At a place
 where the `ArrangementDocument` above it has an entry with projections, it gives
 the chain of those projections and then `default`; at every other place it gives
 `default`, the projection that draws the place when nothing is arranged there.
 It chooses again when an entry changes, so a projection that a person adds or
-removes prints only its own place again.
+removes prints only its own place again. Outside an arrangement it prints
+`default` as it is, so a document that nobody arranged costs nothing more.
+
+`bar(entry)`, when given, makes the stage that shows the chips of `entry` with
+the items of the place; it comes after the projections of the entry and before
+`default`, which prints what it makes.
 
 # Example
 
     RecursiveProjection(make_arranged_dispatch(TypeDispatchingProjection(rows)))
 """
-make_arranged_dispatch(default) =
-    ReferenceDispatchingProjection((reference, context) -> find_arranged_projection(reference, context, default);
-                                   reads_context = true)
+make_arranged_dispatch(default; bar = nothing) =
+    ReferenceDispatchingProjection((reference, context) -> find_arranged_projection(reference, context, default; bar);
+                                   reads_context = true, applies = _is_arranged_context, default)
+
+# Whether a place can have an entry: it prints inside an arrangement. Outside one
+# the dispatch prints `default` as it is.
+_is_arranged_context(context) = get_property(context, :arrangement, nothing) !== nothing
 
 """
-    find_arranged_projection(reference, context, default) -> Projection
+    find_arranged_projection(reference, context, default; bar = nothing) -> Projection
 
 The projection at the place `reference` under the arrangement in `context`: the
 chain of the projections of the entry of that place, and then `default`, or
@@ -101,21 +132,26 @@ The place is found by its path in the document of the arrangement: an index
 after a filtered or sorted place is the index of the item in the source, which
 the picks of the places above give (`ArrangedChainingProjection`). An entry at a
 path wins over an entry at a pattern, and among entries of one kind the first
-wins.
+wins. A place is arranged once: where a stage above picked the items of this
+place already, the answer is `default`.
 """
-function find_arranged_projection(reference, context, default)
+function find_arranged_projection(reference, context, default; bar = nothing)
     arrangement = get_property(context, :arrangement, nothing)
     arrangement === nothing && return default
     relative = _find_relative_reference(arrangement.base, reference)
     relative === nothing && return default
-    relative = _find_source_reference(relative, get_property(context, :arranged_picks, Any[]))
+    picks = get_property(context, :arranged_picks, Any[])
+    # A place that a stage above picked already is arranged, as a document that
+    # two recursions print at one path, one inside the other, shows.
+    any(pick -> pick.source == relative && pick.rows[] !== nothing, picks) && return default
+    relative = _find_source_reference(relative, picks)
     entries = arrangement.arrangement.entries
     entry = something(_find_entry_at(entries, relative, Reference), _find_entry_at(entries, relative, AbstractVector),
                       Some(nothing))
     entry === nothing && return default
     descriptions = Any[description for description in entry.projections]
     isempty(descriptions) && return default
-    _get_entry_chain(arrangement, entry, descriptions, default)
+    _get_entry_chain(arrangement, entry, descriptions, default, bar)
 end
 
 # The first entry of `entries` whose place, of the kind `kind` (a path or a
@@ -131,19 +167,19 @@ end
 _is_entry_at(at::Reference, relative) = strip_reference_types(at) == relative
 _is_entry_at(at::AbstractVector, relative) = match_reference_pattern(:at, at, relative) !== nothing
 
-# `relative`, a path as it prints, with the index after each picked place turned
-# into the index of the item in the source, the innermost place first: the path
-# of a pick is a path as it prints, so an inner one matches before the indices
-# of the outer ones change.
+# `relative`, a path as it prints, with the path of each picked place as it
+# prints and the index after it turned into the path of the place in the source
+# and the index of the item there, the innermost place first: the path of a pick
+# is a path as it prints, so an inner one matches before the outer ones change.
 function _find_source_reference(relative, picks)
     for pick in Iterators.reverse(picks)
         rows = pick.rows[]
-        rows === nothing || (relative = _replace_picked_index(relative, pick.place, rows))
+        rows === nothing || (relative = _replace_picked_index(relative, pick.place, pick.source, rows))
     end
     relative
 end
 
-function _replace_picked_index(relative, place, rows)
+function _replace_picked_index(relative, place, source, rows)
     steps = get_reference_steps(relative)
     prefix = get_reference_steps(place)
     length(steps) > length(prefix) || return relative
@@ -152,9 +188,8 @@ function _replace_picked_index(relative, place, rows)
     (step isa RangeReferenceStep && is_element_reference_step(step)) || return relative
     j = step.start + 1
     (1 <= j <= length(rows)) || return relative
-    steps = collect(steps)
-    steps[length(prefix) + 1] = ElementReferenceStep(rows[j])
-    extend_reference(EmptyReference(), steps...)
+    extend_reference(EmptyReference(), get_reference_steps(source)..., ElementReferenceStep(rows[j]),
+                     steps[length(prefix) + 2:end]...)
 end
 
 # The path of `reference` below `base`, without types, or `nothing` when it is
@@ -172,14 +207,15 @@ end
 
 # The chain of `descriptions` and then `default`, built again only when the list
 # of descriptions of `entry` is another list.
-function _get_entry_chain(arrangement::_Arrangement, entry, descriptions, default)
+function _get_entry_chain(arrangement::_Arrangement, entry, descriptions, default, bar)
     cached = get(arrangement.chains, entry, nothing)
     if cached !== nothing && cached.default === default && length(cached.descriptions) == length(descriptions) &&
        all(cached.descriptions[i] === descriptions[i] for i in eachindex(descriptions))
         return cached.chain
     end
-    chain = ArrangedChainingProjection(ChainingProjection(Any[(make_arrangement_projection(d) for d in descriptions)...,
-                                                              default]))
+    stages = Any[(make_arrangement_projection(d) for d in descriptions)...]
+    bar === nothing || push!(stages, bar(entry))
+    chain = ArrangedChainingProjection(ChainingProjection(Any[stages..., default]))
     arrangement.chains[entry] = (descriptions = descriptions, default = default, chain = chain)
     chain
 end
@@ -202,8 +238,10 @@ function print_document(p::ArrangedChainingProjection, recursion, input, ctx)
     stages = p.chain.projections
     step_iomaps = Cell[]
     previous = Cell(input)
+    # The stages read the count of the items of the place, as the bar shows it.
+    ctx = with_property(ctx, :arranged_count, Cell(@computation length(input)))
     for (n, stage) in enumerate(stages)
-        stage_ctx = n == length(stages) ? _with_picked_rows(ctx, copy(step_iomaps)) : ctx
+        stage_ctx = n == length(stages) ? _with_picked_rows(ctx, copy(step_iomaps), stages) : ctx
         iomap_cell, previous = _make_chain_stage(stage, recursion, previous, stage_ctx)
         push!(step_iomaps, iomap_cell)
     end
@@ -219,17 +257,30 @@ function _make_chain_stage(stage, recursion, previous::Cell, ctx)
 end
 
 # `ctx` with the picks of the stages added to the picks of the places above it:
-# the path of this place below the arrangement, as it prints, and the index in
-# the input of the stages for each index of their output.
-function _with_picked_rows(ctx, stage_cells)
+# the path of this place below the arrangement, the path where its items print,
+# below the steps that a stage such as the bar puts above them
+# (`get_arranged_wrap_steps`), and the index in the input of the stages for each
+# index of their output.
+function _with_picked_rows(ctx, stage_cells, stages)
     arrangement = get_property(ctx, :arrangement, nothing)
     arrangement === nothing && return ctx
-    place = _find_relative_reference(arrangement.base, ctx.reference)
-    place === nothing && return ctx
+    source = _find_relative_reference(arrangement.base, ctx.reference)
+    source === nothing && return ctx
+    place = extend_reference(source, (step for stage in stages for step in get_arranged_wrap_steps(stage))...)
     rows = Cell(@computation _compose_picked_rows(stage_cells))
-    picks = Any[get_property(ctx, :arranged_picks, Any[])..., (place = place, rows = rows)]
+    picks = Any[get_property(ctx, :arranged_picks, Any[])..., (place = place, source = source, rows = rows)]
     with_property(ctx, :arranged_picks, picks)
 end
+
+"""
+    get_arranged_wrap_steps(stage) -> Tuple
+
+The steps that `stage`, a projection in the chain of an entry, puts above the
+items of its place in what it makes: none for a stage that passes the items, and
+`(children, [2])` for a bar that puts them second in a layout. The dispatch reads
+a path inside a place below these steps.
+"""
+get_arranged_wrap_steps(stage) = ()
 
 # The index in the input of the first stage for each index of the output of the
 # last stage that picks; `nothing` when no stage picks.
@@ -239,6 +290,7 @@ function _compose_picked_rows(stage_cells)
         iomap = cell[]
         iomap isa PickingIoMap || continue
         picked = iomap.rows
+        picked === nothing && continue
         rows = rows === nothing ? picked : rows[picked]
     end
     rows

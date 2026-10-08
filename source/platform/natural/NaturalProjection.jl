@@ -147,6 +147,10 @@ function NaturalToGraphics(; measure::TextMeasure,
 
     table = vcat(
         Pair{Type,Any}[p for p in extra],
+        # A document that a person arranged prints its document with the
+        # arrangement in the context, through this renderer.
+        Pair{Type,Any}[ArrangementDocument => ArrangingProjection(),
+                       ArrangementChips => ArrangementChipsToGraphics()],
         # layouts before widgets: a WidgetTable builds a GridLayout
         LayoutToGraphics(; theme = graphics_theme).dispatch,
         w2g.dispatch,                  # every widget node (incl. WidgetTable)
@@ -206,8 +210,11 @@ function NaturalToGraphics(; measure::TextMeasure,
     )
 
     # A barrier at the one recursion point: a fault costs one widget, one layout
-    # or one document of a domain, and it draws as a line of graphics.
-    RecursiveProjection(FaultCatchingProjection(inner = TypeDispatchingProjection(table),
+    # or one document of a domain, and it draws as a line of graphics. Inside it,
+    # the dispatch puts what a person arranged at a place before the row of the
+    # place, so a fault of a filter costs that place too.
+    RecursiveProjection(FaultCatchingProjection(inner = make_arranged_dispatch(TypeDispatchingProjection(table);
+                                                                               bar = ArrangementBarProjection),
                                                 substitute = FaultToGraphics()))
 end
 

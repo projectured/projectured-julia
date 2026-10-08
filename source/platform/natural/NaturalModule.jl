@@ -49,13 +49,17 @@ by a package that does not own the printer, or a rung that belongs to no domain.
 """
 module NaturalModule
 
+using ..ArrangementModule
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
 using ..DomainModule
 using ..GraphicsModule
+using ..GestureBindingModule
+using ..IntentModule
 using ..IoMapModule
 using ..LayoutModule
+using ..OperationModule
 using ..PrimitiveModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
@@ -66,7 +70,9 @@ using ..WidgetModule
 using ..ReferenceModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..ProjectionModule: print_document
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ArrangementModule: get_arranged_wrap_steps
+import ..GestureBindingModule: get_document_gesture_bindings_own
 import ..EditorModule: make_document_projection
 
 export register_natural_domain!, register_natural_notation!, register_natural_format!,
@@ -77,6 +83,7 @@ export register_natural_domain!, register_natural_notation!, register_natural_fo
        print_natural_text
 export register_natural_syntax!, register_natural_graphics!, register_natural_fallback!,
        get_natural_syntax_entries, get_natural_graphics_entries, get_natural_fallback_entries
+export ArrangementBarProjection, ArrangementBarIoMap, ArrangementChipsToGraphics, ArrangementChipsToGraphicsIoMap
 export NaturalToGraphics,
        register_natural_syntax!, register_natural_graphics!, register_natural_fallback!
 export TooltipContentToVerticalLayout, make_natural_tooltip_row
@@ -84,6 +91,7 @@ export TooltipContentToVerticalLayout, make_natural_tooltip_row
 
 include("NaturalNotation.jl")
 include("NaturalRegistry.jl")
+include("NaturalArrangement.jl")
 include("NaturalProjection.jl")
 include("TooltipContentToLayout.jl")
 

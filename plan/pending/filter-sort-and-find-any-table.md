@@ -376,7 +376,74 @@ Each step ends with its own tests and a commit, in a worktree.
 - [ ] **3.** The chips: the drawing of an entry beside a printed collection, in a
   text view and in a widget view, and the commands of §3: "Show only items
   like this", "Hide items like this", "Sort by this", a header, the quick text
-  field, and "Show all"; and find.
+  field, and "Show all"; and find. In parts:
+  - [x] **3a.** The dispatch in the natural renderer (the owner chose shape A:
+    "it doesn't change each domain, and that is good. Separation of concerns,
+    sorting/filtering does not have anything to do with the JSON domain"). The
+    natural and the syntax slices put `make_arranged_dispatch` in the three
+    recursions that print data: the graphics recursion of `NaturalToGraphics`,
+    the first stage of `make_natural_projection`, and the data stage of the
+    syntax fabric; the stages after them print what the first made, and get no
+    dispatch. No domain changes. Rules: a place is arranged once, so a
+    document that two recursions print at one path is picked by the outer; a
+    stage that can not pick its input passes it through, and the recursion
+    inside arranges it.
+    Fact found and measured (allocations, not time): a dispatch at every node
+    made a print of a reflected vector of 2000 numbers allocate 9.9 MiB against
+    6.7 MiB on the base. So `ReferenceDispatchingProjection` takes `applies`
+    and `default`: where `applies(context)` is false it prints `default` as it
+    is, with no IO map of its own, and the arranged dispatch applies only
+    inside an arrangement. Then 7.1 MiB, about 6% more. A projection that holds
+    the dispatch calls its reader and maps with the IO map of `default` then,
+    so the dispatch has methods for any IO map that go to its projection.
+    Fact found: `test_all` in one process ended at a memory cap of 12 GB, so the
+    sweep runs the groups of `test_all` in processes of their own.
+  - [x] **3b.** The bar of chips (the owner: "Q2: yes"): `make_arranged_dispatch`
+    takes `bar`, and the natural renderer gives `ArrangementBarProjection`, a
+    stage before the printer of the place that puts the items second in a
+    `VerticalLayout` under an `ArrangementChips(entry, shown, total)`; the
+    printer of the place prints that layout, so the layout routes a press and
+    maps a path. `get_arranged_wrap_steps` names the steps that the bar puts
+    above the items, `children[2]`, and a pick records the path of the place in
+    the source and where its items print. `ArrangementChipsToGraphics` draws
+    the count, a chip with × for each condition and sort key, and Show all; it
+    turns the press of a chip into an edit that names its own document, so a
+    history records it. Mine: a stage, not a wrapper around the chain, because
+    a wrapper would need the routing of a layout again.
+  - [x] **3c.** The context menu (the owner: a context menu). A right click
+    collects a layer from each document around the part. `ArrangementDocument`
+    has a binding in its gesture table that reads the path under the pointer
+    from its mouse target, and `ArrangingProjection` hands a routed gesture to
+    its document by the routed reader of a container, so the table of the
+    arrangement reads it. `find_arranged_item` finds the nearest collection on
+    the path, the item and the key; `make_arrangement_edits` gives "Show only
+    items like this", "Hide items like this", greater and less for a number,
+    "Sort by this" either way, and Show all, each an edit that names its own
+    document. The first chip: `PaneTab` has a binding that offers
+    `make_first_arrangement_edits`, which put `ArrangementDocument(content,
+    [entry])` in the place of the content; the menus are computed in the
+    `arrangement` slice and drawn by the natural and the pane slices, so the
+    pane gets one edge, to `arrangement`. The last chip: an edit that leaves an
+    arrangement with no entry becomes, in the reader of `ArrangingProjection`,
+    the edit that puts its document in its place, rooted at the arrangement.
+  - Facts of the checks of 3a to 3c (2026-10-08):
+    - The layout that the bar makes holds no selection of its own, so it did
+      not route a caret to the items; the bar sets the forward image of the
+      selection and of the mouse target of the items below `children[2]`.
+    - A document type with a printer needs an atom of the catalog or a place
+      in its list of types with none (`_NO_ATOM`). The catalog reaches a
+      document of a type that no domain bridges only through the Julia bridge,
+      which draws it as one object, so no string in it can be typed in. So
+      `ArrangementDocument` and `ArrangementChips` are in that list, as the
+      wrappers `DragTrackingState` and `GestureTrackingState` are; the tests of
+      the arrangement slice print them in the natural renderer.
+    - A run without network fails the tests of an external agent, the MCP log
+      and a file system document in the platform, and the Anthropic and the
+      Ollama suites; with network the platform passes, and the base fails the
+      model suites the same way without network.
+    - The test of the natural notation reads the stage of a domain as the
+      default of the dispatch of the first recursion.
+  - [ ] **3d.** The quick text field, the header gestures, and find.
 - [ ] **4.** The verbs of the assistant, as edits of the view document, and the
   read of an entry.
 - [ ] **5.** The widget table takes any table, with the lazy rows from an anchor

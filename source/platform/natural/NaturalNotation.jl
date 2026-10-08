@@ -303,7 +303,9 @@ function make_natural_projection(document, target::Symbol; measure = nothing,
         make === nothing && continue
         stages = target === rung ? Any[] : _climb(rung, target, measure, appearance)
         stages === nothing && continue
-        best = ChainingProjection(RecursiveProjection(_build(make, rung, measure, appearance)),
+        # The first stage prints the document, so it puts what a person arranged
+        # at its places; the stages after it print what the first one made.
+        best = ChainingProjection(RecursiveProjection(make_arranged_dispatch(_build(make, rung, measure, appearance))),
                                   (RecursiveProjection(s) for s in stages)...)
         break
     end

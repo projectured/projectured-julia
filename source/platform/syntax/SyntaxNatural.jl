@@ -86,10 +86,11 @@ function _make_spaced_text(measure::TextMeasure, appearance::Appearance, name::S
 end
 
 # The two recursive stages of the fabric, each with a barrier at its recursion
-# point, so a fault costs one node of the syntax tree or of its text.
+# point, so a fault costs one node of the syntax tree or of its text. The first
+# prints the data, so it puts what a person arranged at its places.
 _make_natural_syntax_stages(appearance::Appearance) = (
     RecursiveProjection(FaultCatchingProjection(
-        inner = TypeDispatchingProjection(make_natural_to_syntax_dispatch(; appearance = appearance)),
+        inner = make_arranged_dispatch(TypeDispatchingProjection(make_natural_to_syntax_dispatch(; appearance = appearance))),
         substitute = FaultToSyntax())),
     RecursiveProjection(FaultCatchingProjection(
         inner = SyntaxToText(; theme = get_scaled_theme!(appearance, SyntaxTheme)),
