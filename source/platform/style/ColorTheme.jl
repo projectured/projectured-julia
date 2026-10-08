@@ -115,8 +115,6 @@ bold.
     # ── Tokens ──
     "A keyword of a language, a directive."
     keyword::StyleColor = PaletteColor(:violet, 11; minimum_contrast = 4.5)
-    "The name of a declared thing: a function, a module, a table, a state, a formula."
-    definition::StyleColor = PaletteColor(:blue, 11; minimum_contrast = 4.5)
     "A function, at its definition and at a call, a function of mathematics, a process."
     function_name::StyleColor = PaletteColor(:blue, 11; minimum_contrast = 4.5)
     "A macro. It takes the colour of a function."
@@ -145,8 +143,6 @@ bold.
     type_parameter::StyleColor = ColorRole(:type_name)
     "A module, a schema, a database, a folder. It takes the colour of a type."
     module_name::StyleColor = ColorRole(:type_name)
-    "A use of a name: a variable, a reference to another part."
-    reference::StyleColor = PaletteColor(:neutral, 12)
     "A variable, and a name of a kind that the view does not know."
     variable::StyleColor = PaletteColor(:neutral, 12)
     "A parameter of a function, the name of a keyword argument, the name of an option. It takes the colour of a variable."
@@ -259,7 +255,6 @@ function make_color_theme(variant::Symbol)
         success_text = PaletteColor(:green, 11; minimum_contrast = 7.0),
         info_text = PaletteColor(:blue, 11; minimum_contrast = 7.0),
         keyword = PaletteColor(:violet, 11; minimum_contrast = 7.0),
-        definition = PaletteColor(:blue, 11; minimum_contrast = 7.0),
         function_name = PaletteColor(:blue, 11; minimum_contrast = 7.0),
         field = PaletteColor(:blue, 11; minimum_contrast = 7.0),
         string_literal = PaletteColor(:green, 11; minimum_contrast = 7.0),

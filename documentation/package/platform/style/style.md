@@ -223,7 +223,7 @@ fields are the roles: what a colour does, such as `background`, `text_muted`,
 `accent` or `keyword`. `@theme` declares it, with a default step of a ramp for
 each role, so `ColorTheme()` is the default colour theme, and the appearance
 holds one `ColorTheme` for each pair of a mode and a contrast. The roles are
-in ten groups:
+in eleven groups:
 
 | Group | Example roles |
 | --- | --- |
@@ -233,7 +233,8 @@ in ten groups:
 | Accent | `accent`, `accent_text`, `accent_tint`, `focus_ring` |
 | The layers of a state | `hover`, `pressed`, `selection_band`, `selection_ring`, `caret` |
 | Status | `error_fill`, `error_text`, `warning_text`, `success_text`, `info_text` |
-| Tokens | `keyword`, `definition`, `function_name`, `field`, `type_name`, `reference`, `link`, `operator`, `punctuation`, `punctuation_lit`, `comment`, `markup`, `heading` |
+| Tokens | `keyword`, `link`, `operator`, `punctuation`, `punctuation_lit`, `comment`, `markup`, `heading` |
+| The names of the tokens | `function_name`, `macro_name`, `event`, `field`, `type_name`, `type_parameter`, `module_name`, `variable`, `parameter`, `enum_member`, `tag` |
 | The values of the tokens | `string_literal`, `character_literal`, `number_literal`, `boolean_literal`, `null_literal`, `symbol_literal`, `constant` |
 | The series of a chart | `series_1` … `series_8` |
 | Overlays | `shadow`, `scrim` |
@@ -244,6 +245,15 @@ a data frame has the color of `number_literal`. Two roles name another role by
 default: `character_literal` takes the color of `string_literal`, and
 `null_literal` the color of `boolean_literal`. The role `constant` colors a
 named constant that is no literal, such as a constant of mathematics.
+
+Each kind of name has a role of its own too, and a view names the role of the
+kind that the place of a name gives: a column of SQL and a field after a dot in
+Julia are a `field`, a table and a type are a `type_name`. A name at its
+definition takes the role of its kind, and the field of its view theme makes it
+bold. Many kinds fall back to a role by default, because the palette has nine
+hues: `macro_name` and `event` take the colour of `function_name`,
+`type_parameter` and `module_name` that of `type_name`, `parameter` that of
+`variable`, `enum_member` that of `symbol_literal`, and `tag` that of `keyword`.
 
 Almost every field holds a `PaletteColor`; a few hold a fixed colour instead,
 such as `text_on_accent = color_white` and the overlays `shadow` and `scrim`.
