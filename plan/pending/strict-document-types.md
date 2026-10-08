@@ -681,6 +681,16 @@ worktree. The three domains test different parts of the model:
       of an entry (`59105e35`). Then 72 of the 74 functions have the same counts on the branch
       and on `main`; 38 errors on both come from a page file that names `Projectured` in this
       scratch environment.
+    - *The rebase (2026-10-08).* `main` of projectured-julia moved by 26 commits (ACP, the
+      external agent, a task group as a native layout with a cell shadow), and `main` of
+      omnet-julia by 7 (the guard of `start_process_task!`, which needs the new `main` of
+      projectured-julia). Both branches rebased with no conflict: projectured-julia on
+      `31144b09e`, omnet-julia on `ee023d84`. Against the old base, `test_campaign_ui` and
+      `test_legacy` failed on both kernels for that reason alone. The new code of `main` made
+      three refusals in the mode `:throw`: `Assistant(; …)` and `ConversationPermissionRequest`
+      put a plain vector into an explicit cell for a list field, and `make_task_group_shadow`
+      gave `nothing` for `runs`. Fixed in `357390771`: a typed `CellVector` in those cells, and
+      an empty list of runs in the shadow, which no code reads and the sync does not write.
     - **Open, for the owner: a scratch buffer of an engine in a cell layout.** The other two
       functions fail on the branch only. `reactive_parallel_simulator` builds the reactive shadow
       of a `ParallelEngine` from the fields of the native engine, and `green_buf` is a
