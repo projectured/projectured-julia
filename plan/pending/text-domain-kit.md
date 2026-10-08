@@ -527,8 +527,11 @@ its children so:
 4. A parent that indents puts each child on a new line of its own, and before its
    close delimiter, and adds `indent_size` to the indentation of every line of
    the child, as it widens every indent span of the child today.
-5. The part that is open: what a joined line holds of the fold and of the gutter
-   of the child's first line, when the open line has some of its own.
+5. What a joined line holds of the fold and of the gutter of the child's first
+   line, when the open line has some of its own. **Decided (b), the owner,
+   2026-10-08:** the open line keeps its fold and takes the child's when it has
+   none; the gutters join lane by lane, and the open line's mark stays in a lane
+   that both fill.
    - (a) The open line keeps its fold and its gutter whole; when it has none, it
      takes those of the child's first line.
    - (b) The open line keeps its fold, and takes the child's when it has none, as
@@ -536,12 +539,32 @@ its children so:
      lane by lane, and in a lane that both fill, the mark of the open line stays.
      A gutter of another type than the open line's is dropped.
 
-*Recommendation for 5: (b), because a mark of a domain can come from a node that
-starts in the middle of a line, such as the breakpoint of the second statement of
-`x = 1; y = 2`, and (a) would drop it when the line has a gutter of its own.*
+My recommendation for 5 was (b), because a mark of a domain can come from a node
+that starts in the middle of a line, such as the breakpoint of the second
+statement of `x = 1; y = 2`, and (a) would drop it when the line has a gutter of
+its own.
 
-Still to decide after Q2: Q3 how the lazy list path (`SyntaxListToText`) makes
+**Q3 The lazy list path.** `SyntaxListToText` prints a lazy list of syntax (a
+`ListNode`) as a `TextBlock` whose elements are a lazy list of spans, with a
+`TextNewline` between the spans of two elements. `TextToGraphics` draws such a
+text as one canvas for each paragraph between two `TextNewline`s, and counts the
+paragraphs from the head. With Q1, the output of each element is a block of
 lines.
+
+- (a) **A lazy list of lines.** Each node of the output list holds one
+  `TextLine`; an element of the input contributes its lines in order, and no
+  `TextNewline` stands between them, because a line implies its break. An element
+  maps to the run of its lines, counted from the head. `TextToGraphics` draws one
+  canvas for each line of the list, in place of one for each paragraph, and its
+  list path learns a line; a gutter for a lazy text can then come, line by line.
+- (b) **A lazy list of spans as today**, the lines of an element flattened back
+  into spans with a `TextNewline` between them. Nothing in `TextToGraphics`
+  changes, but a lazy text of syntax has no lines, so no gutter and no fold.
+
+*Recommendation: (a), because it is the one shape of text that Q1 chose, also for
+a text with no end, and it opens the gutter of a lazy text (a limit in
+`text.md`). Its cost: the list path of `TextToGraphics` and the mapping of
+`SyntaxListToText` learn lines.*
 
 ### Phase 3 guards
 
