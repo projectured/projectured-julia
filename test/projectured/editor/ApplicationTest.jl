@@ -329,7 +329,7 @@ function test_application()
             # An option that the command line does not give is `nothing`, so the
             # start settings decide it.
             command = parse_application_arguments(String[])
-            @test command.files == String[]
+            @test command.paths == String[]
             @test command.backend === nothing && command.assistant === nothing
             @test command.model === nothing && command.mcp === nothing
             @test command.context === nothing && !command.strict_fault_policy
@@ -346,7 +346,7 @@ function test_application()
                 ["a.json", "--backend=web", "--assistant=none",
                  "--model=small", "--root=/tmp", "--mcp", "--context=8192",
                  "--strict-fault-policy", "b.md"])
-            @test command.files == ["a.json", "b.md"]
+            @test command.paths == ["a.json", "b.md"]
             @test command.backend === :web
             @test command.assistant === :none && command.model == "small"
             @test command.root == "/tmp" && command.mcp
@@ -524,6 +524,11 @@ function test_application()
                 strict = make_application_settings(path; fault_policy = make_strict_fault_policy())
                 strict_fault = get_settings_group!(strict, FaultSettings)
                 @test !strict_fault.is_barrier_enabled && strict_fault.is_sound_enabled
+                # The settings make the policy that the editor starts with.
+                policy = make_fault_policy(strict_fault)
+                @test !policy.is_barrier_enabled && policy.is_console_enabled &&
+                      policy.is_sound_enabled
+                @test !make_fault_policy(fault).is_sound_enabled
                 @test make_application_settings(nothing).file == ""
                 # The start settings: the file, then the command line.
                 write(path, "[start]\nassistant = \"none\"\nmodel = \"small\"\ncontext = 4096\n")

@@ -33,7 +33,8 @@ The module lives in these fragments, which share this namespace:
 - [`FaultSafeMode.jl`](FaultSafeMode.jl) — the projection the editor falls back
   to when the printer has failed on every frame for long enough.
 - [`FaultSettings.jl`](FaultSettings.jl) — `FaultSettings`, what a person
-  chooses about a fault, and their apply to the policy of the editor.
+  chooses about a fault, the `FaultPolicy` that they make, and their apply to
+  the policy of the editor.
 """
 module FaultViewModule
 
@@ -81,7 +82,7 @@ export FaultLog, FaultLogEntry, get_session_fault_log, clear_fault_log!,
        make_fault_log_content_projection, make_fault_tolerant_projection,
        make_fault_log_panel_theme,
        FaultSafeModeProjection, FaultSafeModeIoMap,
-       FaultSettings
+       FaultSettings, make_fault_policy
 
 include("FaultDocument.jl")    # the log, the seam answer, and the gestures of a mark
 include("FaultTheme.jl")       # the theme of the log

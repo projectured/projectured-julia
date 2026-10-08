@@ -119,23 +119,69 @@ const PROJECTURED_SOURCE_OFFERS = [
 ]
 
 """
-    PROJECTURED_OPTIONS
+    APPLICATION_OPTIONS
 
-The options of the `projectured` command that every build takes, as
-`"--option=value" => "what it does"`. `--backend` is added when a build holds
-more than one backend. The builder writes its own four options after these.
+The options of a window application, as `(group, label, description)`: the
+`projectured` command takes all of them, and another window program built on
+the platform takes the groups that its build names. `parse_application_arguments`
+of the platform reads every one, and a test checks that the two agree.
+`--backend` is not here, because its values are the backends of a build. The
+builder writes its own four options after these.
+
+The groups:
+
+- `:assistant` — the assistant, its model, its context and the external agent;
+- `:mcp` — the MCP server;
+- `:fault` — what the program does with a fault;
+- `:files` — the folder that the Files pane lists.
 """
-const PROJECTURED_OPTIONS = [
-    "--assistant=ollama|anthropic|acp|none" =>
-        "the model backend of the assistant, an external\nagent (acp), or no assistant (default: the\nsettings, ollama at first)",
-    "--model=NAME" => "the model of that backend (default: the settings,\nelse the default model of the backend)",
-    "--root=DIRECTORY" => "the directory that the Files pane lists (default:\nthe current directory)",
-    "--mcp" => "start an MCP server at http://127.0.0.1:9876/mcp",
-    "--mcp=[HOST:]PORT" => "start an MCP server at http://HOST:PORT/mcp\n(HOST is 127.0.0.1 when it is not given)",
-    "--context=TOKENS" => "how many tokens of the conversation the model may\nsee (default: the settings, else the default of the\nbackend)",
-    "--strict-fault-policy" => "stop at the first fault and print its stack,\ninstead of surviving it",
-    "--agent-command=COMMAND" => "the command line of the external agent of\n--assistant=acp (default: the settings,\nthe built-in Claude Code agent at first)",
+const APPLICATION_OPTIONS = [
+    (group = :assistant, label = "--assistant=ollama|anthropic|acp|none",
+     description = "the model backend of the assistant, an external\nagent (acp), or no assistant (default: the\nsettings, ollama at first)"),
+    (group = :assistant, label = "--model=NAME",
+     description = "the model of that backend (default: the settings,\nelse the default model of the backend)"),
+    (group = :files, label = "--root=DIRECTORY",
+     description = "the directory that the Files pane lists (default:\nthe current directory)"),
+    (group = :mcp, label = "--mcp",
+     description = "start an MCP server at http://127.0.0.1:9876/mcp"),
+    (group = :mcp, label = "--mcp=[HOST:]PORT",
+     description = "start an MCP server at http://HOST:PORT/mcp\n(HOST is 127.0.0.1 when it is not given)"),
+    (group = :assistant, label = "--context=TOKENS",
+     description = "how many tokens of the conversation the model may\nsee (default: the settings, else the default of the\nbackend)"),
+    (group = :fault, label = "--strict-fault-policy",
+     description = "stop at the first fault and print its stack,\ninstead of surviving it"),
+    (group = :assistant, label = "--agent-command=COMMAND",
+     description = "the command line of the external agent of\n--assistant=acp (default: the settings,\nthe built-in Claude Code agent at first)"),
 ]
+
+"""
+    make_application_usage(description; synopsis = "[options] [files...]",
+                           groups = <every group>, backends = Symbol[]) -> Usage
+
+The `--help` text of a window application that offers the options of `groups`
+from [`APPLICATION_OPTIONS`](@ref), in the order of that table. With more than
+one of `backends`, `--backend` comes second and names them, and the first one
+is the default.
+"""
+function make_application_usage(description::AbstractString;
+                                synopsis::AbstractString = "[options] [files...]",
+                                groups = unique(option.group for option in APPLICATION_OPTIONS),
+                                backends = Symbol[])
+    known = unique(option.group for option in APPLICATION_OPTIONS)
+    for group in groups
+        group in known ||
+            error("make_application_usage: the groups are ", join(repr.(known), ", "),
+                  ", not ", repr(group))
+    end
+    options = [option.label => option.description
+               for option in APPLICATION_OPTIONS if option.group in groups]
+    if length(backends) > 1
+        insert!(options, min(2, length(options) + 1),
+                "--backend=" * join(String.(backends), "|") =>
+                    "where the window is drawn (default: $(first(backends)))")
+    end
+    Usage(description; synopsis = synopsis, options = options)
+end
 
 """
     PROJECTURED_REQUIREMENTS
@@ -217,16 +263,10 @@ const PROJECTURED_ASSETS = ["asset/web" => "share/projectured/web",
 
 The `--help` text of a `projectured` binary that holds `backends`.
 """
-function make_projectured_usage(backends)
-    options = copy(PROJECTURED_OPTIONS)
-    if length(backends) > 1
-        insert!(options, 2, "--backend=" * join(String.(backends), "|") =>
-            "where the window is drawn (default: $(first(backends)))")
-    end
-    Usage("Open files in a window, with a Files pane and an AI assistant.\n" *
-          "A file opens in the format that its extension names.";
-          synopsis = "[options] [files...]", options = options)
-end
+make_projectured_usage(backends) =
+    make_application_usage("Open files in a window, with a Files pane and an AI assistant.\n" *
+                           "A file opens in the format that its extension names.";
+                           backends = collect(backends))
 
 """
     PROJECTURED_APPLICATION_IMPORTS

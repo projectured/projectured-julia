@@ -35,10 +35,19 @@ function read_settings!(settings::FaultSettings, editor::Editor)
     nothing
 end
 
+"""
+    make_fault_policy(settings::FaultSettings) -> FaultPolicy
+
+The fault policy that `settings` choose, for an editor that a program builds
+from its settings.
+"""
+make_fault_policy(settings::FaultSettings) =
+    FaultPolicy(is_barrier_enabled = settings.is_barrier_enabled,
+                is_console_enabled = settings.is_console_enabled,
+                is_sound_enabled = settings.is_sound_enabled)
+
 function apply_settings!(editor::Editor, settings::FaultSettings)
-    policy = FaultPolicy(is_barrier_enabled = settings.is_barrier_enabled,
-                         is_console_enabled = settings.is_console_enabled,
-                         is_sound_enabled = settings.is_sound_enabled)
+    policy = make_fault_policy(settings)
     editor.fault_policy.is_barrier_enabled == policy.is_barrier_enabled ||
         invalidate_projection!(editor)
     editor.fault_policy = policy

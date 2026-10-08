@@ -494,10 +494,7 @@ function run_application(paths::AbstractString...;
     # The root is the application's own pane tree, so the tabs leave it as it is.
     # The settings carry the fault policy of the command line, and the first print
     # runs under it already.
-    fault = get_settings_group!(settings, FaultSettings)
-    policy = FaultPolicy(; is_barrier_enabled = fault.is_barrier_enabled,
-                         is_console_enabled = fault.is_console_enabled,
-                         is_sound_enabled = fault.is_sound_enabled)
+    policy = make_fault_policy(get_settings_group!(settings, FaultSettings))
     editor = build_editor(make_application_document(collect(String, paths); root,
                                                     assistant = chat, settings),
                           make_application_projection(; measure, appearance);
@@ -519,12 +516,13 @@ end
 """
     parse_application_arguments(arguments) -> NamedTuple
 
-The files and the options of a `projectured` command line, as the keywords of
-[`run_application`](@ref) take them, plus `files` and the backend name. The
-backend name is `nothing` when the command line gives none, and so are the
-assistant, the model, the context and `mcp`, so the `StartSettings` of the
-settings file decide them. An unknown option or a wrong value raises an error
-that names it.
+The options of the command line of a window application, as the keywords of
+[`run_application`](@ref) take them, plus `paths` and the backend name. `paths`
+are the plain arguments, and the program says what they are: the files to open
+for `projectured`. The backend name is `nothing` when the command line gives
+none, and so are the assistant, the model, the context and `mcp`, so the
+`StartSettings` of the settings file decide them. An unknown option or a wrong
+value raises an error that names it.
 
 `--mcp` starts the MCP server at its default address. `--mcp=PORT` and
 `--mcp=HOST:PORT` start it too, and say where it listens: `mcp_host` and
@@ -536,15 +534,17 @@ gives none.
 `--agent-command="node /opt/claude-agent-acp/dist/index.js"`. Without it, the
 built-in agent runs Claude Code.
 
-The `--help` text of a binary lists the same options: the builder writes it
-from `PROJECTURED_OPTIONS`, and a test compares the two.
+The `--help` text of a binary lists the options that its build offers: the
+builder writes it from `APPLICATION_OPTIONS`, and a test checks that this
+function reads every option of that table. A binary refuses an option that its
+help text does not list before this function reads the command line.
 """
 function parse_application_arguments(arguments::AbstractVector{<:AbstractString})
     values = Dict{String,String}("root" => pwd())
     mcp = nothing
     mcp_host, mcp_port = nothing, nothing
     strict_fault_policy = false
-    files = String[]
+    paths = String[]
     for argument in arguments
         if argument == "--mcp"
             mcp = true
@@ -561,7 +561,7 @@ function parse_application_arguments(arguments::AbstractVector{<:AbstractString}
         elseif startswith(argument, "-")
             error("unknown option $(repr(argument))")
         else
-            push!(files, String(argument))
+            push!(paths, String(argument))
         end
     end
     assistant = haskey(values, "assistant") ? Symbol(values["assistant"]) : nothing
@@ -572,7 +572,7 @@ function parse_application_arguments(arguments::AbstractVector{<:AbstractString}
     context = haskey(values, "context") ? tryparse(Int, values["context"]) : nothing
     haskey(values, "context") && (context === nothing || context < 0) &&
         error("--context is a count of tokens, not ", repr(values["context"]))
-    (; files, backend, assistant, model = get(values, "model", nothing),
+    (; paths, backend, assistant, model = get(values, "model", nothing),
        root = values["root"], mcp, mcp_host, mcp_port, context, strict_fault_policy,
        agent_command = get(values, "agent-command", nothing))
 end
@@ -612,7 +612,7 @@ function run_application_command(arguments; backends)
         return Cint(1)
     end
     try
-        run_application(command.files...;
+        run_application(command.paths...;
                         backend = backends[backend](),
                         assistant = command.assistant, model = command.model,
                         mcp = command.mcp, mcp_host = command.mcp_host,

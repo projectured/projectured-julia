@@ -130,6 +130,31 @@ function test_build_executable()
             end
             @test !any(label -> startswith(first(label), "--backend"),
                        make_projectured_usage([:sdl]).options)
+            # The values that the help text gives `--assistant` are the backends
+            # that the parser takes.
+            label = only(option.label for option in APPLICATION_OPTIONS
+                         if startswith(option.label, "--assistant="))
+            @test Symbol.(split(last(split(label, '=')), '|')) == collect(APPLICATION_ASSISTANTS)
+        end
+
+        @testset "a build offers the groups of options that it names" begin
+            labels(usage) = first.(usage.options)
+            @test labels(make_application_usage("x"; groups = [:fault])) ==
+                  ["--strict-fault-policy"]
+            # A window program over one folder, with an assistant and one
+            # backend: no `--root` and no `--backend`.
+            usage = make_application_usage("x"; synopsis = "[options] [folder]",
+                                           groups = [:assistant, :mcp, :fault],
+                                           backends = [:sdl])
+            @test labels(usage) == ["--assistant=ollama|anthropic|acp|none", "--model=NAME",
+                                    "--mcp", "--mcp=[HOST:]PORT", "--context=TOKENS",
+                                    "--strict-fault-policy", "--agent-command=COMMAND"]
+            @test usage.synopsis == "[options] [folder]"
+            @test !("--root=" in collect_option_flags(usage))
+            # With no group, two backends still give `--backend`.
+            @test labels(make_application_usage("x"; groups = Symbol[],
+                                                backends = [:sdl, :web])) == ["--backend=sdl|web"]
+            @test_throws ErrorException make_application_usage("x"; groups = [:colour])
         end
 
         @testset "the binary loads every package of the flat namespace" begin
