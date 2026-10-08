@@ -103,6 +103,16 @@ jobs:
       - name: Place AutoIntegration beside the repository
         if: matrix.project == 'environment/all'
         run: mv auto-integration ../auto-integration
+      # environment/all names AgentClientProtocol by the folder beside this
+      # repository too.
+      - uses: actions/checkout@v7
+        if: matrix.project == 'environment/all'
+        with:
+          repository: projectured/AgentClientProtocol.jl
+          path: agent-client-protocol
+      - name: Place AgentClientProtocol beside the repository
+        if: matrix.project == 'environment/all'
+        run: mv agent-client-protocol ../agent-client-protocol
       - uses: julia-actions/setup-julia@v3
         with:
           version: '1'

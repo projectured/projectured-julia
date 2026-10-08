@@ -406,6 +406,14 @@ of ProjecturEd when its triggers are loaded. `Projectured` depends on it.
 const AUTOINTEGRATION_URL = "https://github.com/projectured/AutoIntegration.jl"
 
 """
+    AGENT_CLIENT_PROTOCOL_URL
+
+The repository of AgentClientProtocol, the package of the Agent Client Protocol
+(ACP) that `ProjecturedACP` depends on.
+"""
+const AGENT_CLIENT_PROTOCOL_URL = "https://github.com/projectured/AgentClientProtocol.jl"
+
+"""
     AUTOPRECOMPILE_URL
 
 The repository of AutoPrecompile, the package that builds one package image for
@@ -876,6 +884,7 @@ function _format_projectured_release_overview(context::BuildContext, names)
     | [Projectured.jl]($PROJECTURED_RELEASE_URL) | This repository: the released packages, which the release writes from projectured-julia. |
     | [ProjecturedRegistry]($PROJECTURED_REGISTRY_URL) | The Julia registry that names each version of these packages. |
     | [AutoIntegration.jl]($AUTOINTEGRATION_URL) | The package that loads an installed package when its triggers are loaded. `Projectured` depends on it. |
+    | [AgentClientProtocol.jl]($AGENT_CLIENT_PROTOCOL_URL) | The Agent Client Protocol (ACP) in Julia, for a client and for an agent. `ProjecturedACP` depends on it. |
     | [AutoPrecompile.jl]($AUTOPRECOMPILE_URL) | The package that builds one package image for the packages that a session loads, from recorded precompile statements. |
 
     ## The packages
@@ -974,14 +983,15 @@ function _format_projectured_release_workflow(jobs)
               # longer than a key may be.
               include-matrix: false
               cache-name: julia-cache;package=\${{ matrix.package }};julia=\${{ matrix.julia }}
-          # AutoIntegration is a package of another repository, which no job
-          # develops. ProjecturedRegistry is private and a job has no token for
-          # it, so the package comes from its public repository, and General
-          # comes by itself.
-          - name: Add AutoIntegration
+          # AutoIntegration and AgentClientProtocol are packages of other
+          # repositories, which no job develops. ProjecturedRegistry is private
+          # and a job has no token for it, so the packages come from their public
+          # repositories, and General comes by itself.
+          - name: Add the packages of other repositories
             run: >-
               julia --project="\$RUNNER_TEMP/environment"
-              -e 'using Pkg; Pkg.add(url = "$AUTOINTEGRATION_URL")'
+              -e 'using Pkg; Pkg.add([PackageSpec(url = "$AUTOINTEGRATION_URL"),
+              PackageSpec(url = "$AGENT_CLIENT_PROTOCOL_URL")])'
           - name: Develop the packages that the test needs
             run: >-
               julia --project="\$RUNNER_TEMP/environment"
