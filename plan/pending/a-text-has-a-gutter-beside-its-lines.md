@@ -1,7 +1,8 @@
 # A text has a gutter beside its lines
 
-> **Kind:** plan · **Status:** pending, 2026-10-07. The design is decided, and
-> nobody started the steps. The owner decided D1, D2, D3, D8 and D10 on
+> **Kind:** plan · **Status:** pending, 2026-10-08. The design is decided. Steps 1,
+> 2, 3 and 7 are done on the branch `text-gutter`, and step 5 for hand-made lines;
+> steps 4 to 6 wait for `SyntaxToText` to emit lines, and step 8 is open. The owner decided D1, D2, D3, D8 and D10 on
 > 2026-10-06, and D4, D5, D7 and D11 on 2026-10-07, and D6 through T3 of the
 > fold plan; D5 through
 > [a-scroll-pane-keeps-the-edges-of-its-content-in-view.md](../done/a-scroll-pane-keeps-the-edges-of-its-content-in-view.md),
@@ -410,13 +411,19 @@ The order of the work, each step on its own commit, each with its test.
    range of its line. Test: `test_text_gutter()`, 37 assertions with the
    numbering; `test_text_line_numbering()` and `test_inline_image_caret()` pass
    unchanged.
-3. **The decorators keep the gutter** (§5.5). `WordWrapping` wraps inside a
+3. ✅ **Done (2026-10-08), as far as this plan goes. The decorators keep the gutter** (§5.5). `WordWrapping` wraps inside a
    line, and its list of the lines does not depend on the width, so a change
    of the width wraps each line again and makes no new list. The scroll pane
    offers the width of its center viewport, which reads the width of the
    gutter, so the width of the gutter must not depend on the wrap (Q4 of
    [a-scroll-pane-keeps-the-edges-of-its-content-in-view.md](../done/a-scroll-pane-keeps-the-edges-of-its-content-in-view.md)).
-   *Found before the work, 2026-10-07; a question for the owner.* Every
+   **Decided (b), the owner, 2026-10-07:** the decorators learn lines in
+   [text-domain-kit.md](text-domain-kit.md), next to `SyntaxToText` emitting
+   lines; this step keeps the gutter, which each decorator does by passing a line
+   through, and `test_text_gutter()` asserts it for `WordWrapping`,
+   `TextHighlighting`, `TextFiltering`, `SelectionInverting` and `TextFirstLine`.
+   The options were (a) all of it here and (c) only `WordWrapping` here.
+   *Found before the work, 2026-10-07.* Every
    decorator keeps the gutter of a line today, because each one passes a
    `TextLine` through unchanged. But none of them knows lines: `WordWrapping` does
    not wrap inside a line, `TextHighlighting` marks no match inside a line,
@@ -432,10 +439,10 @@ The order of the work, each step on its own commit, each with its test.
 4. **`SyntaxToText` emits lines: not a step of this plan (D7).** It is step 3
    of Phase 3 of [text-domain-kit.md](text-domain-kit.md), with the join rule of
    an inline child that it names. Steps 5 and 6 wait for it.
-5. **Fold triangles in the gutter:** the steps of [a-text-folds-a-region-of-its-lines.md](a-text-folds-a-region-of-its-lines.md).
+5. **Fold triangles in the gutter** (done for hand-made lines by steps 1 and 2 of the fold plan; the rest waits for its steps 3 and 4): the steps of [a-text-folds-a-region-of-its-lines.md](a-text-folds-a-region-of-its-lines.md).
    `TextFolding` fills the `fold` field.
 6. **The Julia code view** shows numbers and fold triangles.
-7. **Scroll** (§5.7): steps 1 and 2 of the scroll plan; then a file tab of code
+7. ✅ **Done (2026-10-07), by the scroll plan. Scroll** (§5.7): steps 1 and 2 of the scroll plan; then a file tab of code
    keeps its gutter at the left edge.
 8. **Markers.** A lane of markers keyed by a line, then marks that a domain
    node gives through its syntax node.

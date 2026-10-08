@@ -409,6 +409,31 @@ byte-identical to the base commit (125978 passed, 93 failed, 1 errored — all p
    is what each of those consumers will have to learn a path for, or get `TextLineFlattening` (C) in
    front of.
 
+**The consumers learn lines, and keep the gutter and the fold (moved here from
+step 3 of [a-text-has-a-gutter-beside-its-lines.md](a-text-has-a-gutter-beside-its-lines.md),
+the owner, 2026-10-07).** A `TextLine` now holds a `gutter` and a `fold` beside
+its spans and its indentation. Each decorator passes a line through unchanged,
+so it keeps both, and `test_text_gutter()` asserts it; but none of them knows
+lines. Measured on a block of three lines on 2026-10-08:
+
+- `WordWrapping` does not wrap inside a line. To wrap one, it must put soft breaks
+  inside a `TextLine`, against the rule that a line holds no break, so that rule
+  needs a decision; `TextToGraphics` must then break a row at such a break and
+  map a caret across it. Its list of the lines must not depend on the width: the
+  scroll pane offers the width of the view beside the gutter, which reads the
+  gutter (Q4 of [a-scroll-pane-keeps-the-edges-of-its-content-in-view.md](../done/a-scroll-pane-keeps-the-edges-of-its-content-in-view.md)).
+- `TextHighlighting` marks no match inside a line.
+- `TextFiltering` joins the text of the spans at the top of the block, and a line
+  adds none, so a pattern drops every line of a block of lines.
+- `TextFirstLine` keeps every line of a block of lines, because it cuts only at a
+  `TextNewline` or an embedded `'\n'`.
+- The flat runs of the decorators (`_make_flat_runs`) count the break of a line,
+  which `TextFolding` uses, but the decorators that split spans name a span by
+  its index at the top of the block.
+
+`TextLineFlattening`, the escape of shape C, would drop the gutter and the fold,
+so it does not serve a text with a gutter.
+
 **Found, not fixed** (pre-existing, both out of this phase's scope):
 
 - A caret in an **empty** `TextString` renders no caret at all: the layout `continue`s past an empty

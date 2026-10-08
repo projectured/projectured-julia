@@ -9,7 +9,8 @@ using Test
 using ProjecturedKernel.GestureModule: MouseClick
 using ProjecturedPlatform.TextModule: TextGutter, TextGutterToGraphics, TextBlockToScrollLayout,
     TextBlock, TextLine, TextString, TextToGraphics, TextRangeReferenceStep, PrimitiveNumberToText,
-    TextDocument, TextLineNumbering
+    TextDocument, TextLineNumbering, WordWrapping, TextHighlighting, TextFiltering,
+    SelectionInverting, TextFirstLine
 using ProjecturedPlatform.LayoutModule: ScrollLayout
 using ProjecturedPlatform.WidgetModule: WidgetScrollPane, Point2D, WidgetToGraphics
 using ProjecturedPlatform.GraphicsModule: GraphicsCanvas, GraphicsRect, GraphicsViewport,
@@ -210,6 +211,22 @@ function test_text_gutter()
         # "alpha" and its break are 6 characters, and "beta" is 4.
         @test strip_reference_types(answer.path) ==
               ConcreteReference(TextRangeReferenceStep(6, 10), EmptyReference())
+    end
+
+    @testset "a decorator keeps the gutter of a line" begin
+        # Each one passes a line through with its gutter. None of them knows lines
+        # yet, which is the work of text-domain-kit: a pattern of `TextFiltering`
+        # matches no line of a block of lines, so the filter here is idle.
+        block = _gt_block()
+        gutters = [line.gutter for line in block.elements]
+        for decorator in (WordWrapping(; max_width = 30, measure = _gt_measure()),
+                          TextHighlighting("a"), TextFiltering(), SelectionInverting(),
+                          TextFirstLine())
+            output = print_document(decorator, block).output
+            kept = [element.gutter for element in output.elements if element isa TextLine]
+            @test !isempty(kept)
+            @test all(any(g === gutter for gutter in gutters) for g in kept)
+        end
     end
 
     @testset "in a scroll pane the gutter is the left edge" begin
