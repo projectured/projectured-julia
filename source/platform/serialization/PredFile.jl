@@ -253,11 +253,20 @@ const _PRED_INDENT = "    "
 _print_pred_value(io::IO, reference::PredReference, where, indent) = print(io, reference.marker)
 _print_pred_value(io::IO, x::AbstractString, where, indent) = print(io, repr(String(x)))
 _print_pred_value(io::IO, ::Nothing, where, indent) = print(io, "nothing")
-# A symbol prints as `:name`. One whose name is not an identifier would print as
-# a call, which the reader takes for a type, so it is refused instead.
+# A symbol prints as Julia quotes it: `:name`, or an operator as `:+` or `:(=)`,
+# which the reader takes as a quoted symbol. One that does not read back as
+# itself from that text, such as `Symbol("a b")`, which prints as a call that the
+# reader would take for a type, is refused.
 function _print_pred_value(io::IO, x::Symbol, where, indent)
-    Base.isidentifier(String(x)) || _refuse_pred_value(x, where)
-    print(io, ":", x)
+    text = repr(x)
+    parsed = try
+        Meta.parse(text)
+    catch exception
+        exception isa Meta.ParseError || rethrow()
+        nothing
+    end
+    (parsed isa QuoteNode && parsed.value === x) || _refuse_pred_value(x, where)
+    print(io, text)
 end
 _print_pred_value(io::IO, x::Union{Bool,Integer,AbstractFloat,Char}, where, indent) =
     print(io, repr(x))

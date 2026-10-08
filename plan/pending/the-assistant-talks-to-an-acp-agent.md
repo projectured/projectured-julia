@@ -684,6 +684,10 @@ from the command line of the projectured UI.
       reset wins. One case stays: after a turn fails, the next prompt holds its
       message again, which a resumed agent can have seen already; a lost
       message is worse than one that comes twice.
+    Live check on 2026-10-08 with the built-in agent and the real `claude`, in
+    the headless editor loop: the agent remembered a word, the agent stopped as
+    at the close of a tab, and the next turn resumed the same session with no
+    note; the answer was the word, 3.5 s after the prompt.
     Tests: the ACP suite 124 of 124, the turn of an external agent 161 of 161
     alone, the conversation suite 219 of 219, the application 357 with the 2
     known broken; the static guards as on `main`.
@@ -714,6 +718,17 @@ from the command line of the projectured UI.
     - A `ConversationPermissionRequest` can not write its
       `AgentPermissionOption` values, and its `reply` is a live value.
     - A tool result is any document, which the notation can refuse.
+    - Found when the round trip ran again after the fix of the style: a part of
+      Julia code, and so the form of each `execute_julia_code` card, can not
+      be written. The writer refused a symbol whose name is not an identifier,
+      such as the operator `:+` or `:(=)`, and the reader refused a quoted
+      operator. Text, thinking, the plan, Markdown and JSON make the round
+      trip. **Fixed on 2026-10-08** in its own commit, as a fault on `main`:
+      the writer prints a symbol as `repr` when that text reads back as the
+      same symbol, and the reader takes every quoted symbol, which is data and
+      no call. `Symbol("a b")` and a dotted operator stay refused.
+      `test_pred_file()` 16 of 16, `test_marker_language()` 22 of 22,
+      `test_text_file()` 34 of 34.
   - **2.4c List and delete: later.** The owner agreed on 2026-10-08. The only way
     for `ClaudeCodeACP` is to read and delete the transcript files of Claude
     Code under `~/.claude/projects`, which Anthropic does not document.

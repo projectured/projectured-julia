@@ -443,10 +443,10 @@ function _evaluate_marker_name(name::Symbol)
     T
 end
 
-# `:holds` is a symbol literal when its name is an identifier. `Symbol("a b")`
-# is a call, and a call names a type or a verb, never a value.
-_is_marker_symbol(x) = x isa QuoteNode && x.value isa Symbol &&
-                       Base.isidentifier(String(x.value))
+# `:holds` is a symbol literal, and so is a quoted operator such as `:+` or
+# `:(=)`, which a Julia document holds. `Symbol("a b")` is a call, and a call
+# names a type or a verb, never a value.
+_is_marker_symbol(x) = x isa QuoteNode && x.value isa Symbol
 
 # The expression printed in one canonical form, for an error message: so
 # `file("a.json")` and `file( "a.json" )` read the same.
@@ -456,7 +456,7 @@ function _canonical_marker(e::Expr)
     String(take!(io))
 end
 
-_print_canonical(io::IO, quoted::QuoteNode) = print(io, ":", quoted.value)
+_print_canonical(io::IO, quoted::QuoteNode) = print(io, repr(quoted.value))
 
 function _print_canonical(io::IO, e::Expr)
     if e.head === :tuple
