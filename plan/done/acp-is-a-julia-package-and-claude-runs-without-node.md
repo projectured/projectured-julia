@@ -1,11 +1,14 @@
 # ACP is a Julia package, and Claude runs without Node.js
 
-> **Status (2026-10-08): STARTED.** The owner chose the way and the place, and
+> **Status (2026-10-08): DONE.** The owner chose the way and the place, and
 > took the recommendation of each question Q1 to Q6, on 2026-10-08; see
-> "Decisions"; the name of the agent on 2026-10-08 too. Part C is done: `AgentClientProtocol.jl` 0.1.0 is on GitHub and
-> in ProjecturedRegistry, and `ProjecturedACP` uses it. Part B is next. It follows
-> [the-assistant-talks-to-an-acp-agent.md](the-assistant-talks-to-an-acp-agent.md),
-> whose phase 1 and steps 2.1, 2.2 and 2.3 are on `main`.
+> "Decisions"; the name of the agent on 2026-10-08 too. Part C is done:
+> `AgentClientProtocol.jl` 0.1.0 is on GitHub and in ProjecturedRegistry, and
+> `ProjecturedACP` uses it. Part B is done: `ClaudeCodeACP.jl` 0.1.2 is on GitHub
+> and in ProjecturedRegistry, ProjecturEd runs it in its own process by default,
+> and the builder of ProjecturEd compiles its program. The steps that remain of
+> [the-assistant-talks-to-an-acp-agent.md](../pending/the-assistant-talks-to-an-acp-agent.md)
+> continue there.
 
 ## Goal
 
@@ -352,14 +355,28 @@ editor ──ACP──▶ the agent (Julia) ──stream-json──▶ claude -p
   recorded from `claude` 2.1.285 without account data, a client of
   AgentClientProtocol through ACP, and a shell script as a process. 96 tests,
   about 12 s.
-- [x] **B.10 The program**: a Pkg app (`[apps]` in `Project.toml`). The
-  compiled program with the builder of ProjecturEd is not made yet.
-  Done in the commits `b35bf25` to `9d570bd` of the agent. Live checks with the
+- [x] **B.10 The program**: a Pkg app (`[apps]` in `Project.toml`), and a
+  compiled program from the builder of ProjecturEd. The Pkg app is done in the
+  commits `b35bf25` to `9d570bd` of the agent. Live checks with the
   real `claude` on 2026-10-08: a prompt with a permission question and a
   second prompt that remembers the first; a cancel of a long answer, and a
   cancel while a question waits, each with a next prompt in the same process;
   and the app as a process: `initialize` after 2.6 s, a first prompt after
   7.6 s.
+
+  The compiled program is done on the branch `agent-program` of ProjecturEd:
+  `bin/build_claude_code_acp` builds `build/claude-code-acp/bin/claude-code-acp`
+  from the folder `claude-code-acp` beside the repository. The new file
+  `source/tool/builder/ClaudeCodeAcpProgram.jl` holds
+  `build_claude_code_acp_executable` and its workload: a client in the process
+  that sends `initialize` to `serve_agent` on two streams. A root of
+  `package_roots` can now be the folder of one package itself, because the
+  agent's repository is a package and not a folder of packages. The front end
+  refuses `--distribution` and `--backends` for this binary: the release copy
+  and the backends belong to ProjecturEd only. The build took 2 minutes and
+  gave 573 MB. Live with the real `claude`: `--help` in 0.23 s, `initialize`
+  after 1.7 s, a first prompt to `haiku` after 7.5 s. The builder tests: 520
+  of 520 (508 before); the static guards as on `main`.
 - [x] **The release of ClaudeCodeACP 0.1.0** (2026-10-08): the owner made the
   public repository `projectured/ClaudeCodeACP.jl` and pushed `main`. The CI
   needed ProjecturedRegistry beside General, because AgentClientProtocol is
@@ -378,8 +395,8 @@ editor ──ACP──▶ the agent (Julia) ──stream-json──▶ claude -p
   turn of an external agent 115, the application 357 and 2 broken as before,
   the builder 508 (507 before, one new assertion), the guards as on `main`.
   The live check through the editor passed with the default model: the edit
-  through MCP, 8 permission cards, and undo. It showed no thinking text; see
-  the open question below.
+  through MCP, 8 permission cards, and undo. It showed no thinking text; B.12
+  fixed that.
 - [x] **B.12 The thinking text of Opus 5.5.** In print mode,
   `showThinkingSummaries` gives the text for `haiku` but not for Opus 5.5: each
   `thinking_delta` comes empty. The flag `--thinking-display summarized` gives

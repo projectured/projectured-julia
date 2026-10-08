@@ -3,9 +3,9 @@
 > **Status (2026-10-08): PHASE 1 DONE and on `main` since 2026-10-07; phase 2
 > partly done.** Steps 1.1 to 1.10, the command line, 2.1, 2.2, 2.3 and the
 > request cancel of 2.7 are on `main`. Since the plan
-> [acp-is-a-julia-package-and-claude-runs-without-node.md](acp-is-a-julia-package-and-claude-runs-without-node.md),
+> [acp-is-a-julia-package-and-claude-runs-without-node.md](../done/acp-is-a-julia-package-and-claude-runs-without-node.md),
 > the built-in agent of `ProjecturedACP` runs Claude Code, and it is the
-> default agent. 2.9 is done too. Open: 2.4, 2.5, 2.6, the prompt queue of 2.7,
+> default agent. 2.9 and 2.10 are done too. Open: 2.4, 2.5, 2.6, the prompt queue of 2.7,
 > 2.8 and phase 3. The owner answered every question on 2026-10-07; see "Decisions".
 > The feature comes in a release after the first one.
 
