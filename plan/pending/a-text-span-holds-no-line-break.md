@@ -67,8 +67,11 @@ by the index of the line.
    goes on its last line.
 5. A delimiter or a separator of many lines is a block of lines, or the chrome
    puts it on a line of its own (§7, N3).
-6. `TextToGraphics` keys the canvas of a line by the line object, so an inserted
-   line lays out alone and the lines below keep their canvases.
+6. ~~`TextToGraphics` keys the canvas of a line by the line object~~, so an
+   inserted line lays out alone and the lines below keep their canvases. **Done
+   2026-10-08 on the branch `text-gutter`,** because a structural edit of the lines
+   of syntax text lost the graphics of every line after it (step 3 of Phase 3 of
+   `text-domain-kit.md`).
 7. `TextToGraphics` and `TextFirstLine` drop their rule for a `'\n'` inside a span.
 
 ## 5. What a keystroke costs
@@ -124,8 +127,8 @@ One at a time, with the owner.
 
 - 2026-10-08: the cell system has no cut-off (decision 10), so any line list
   that is computed from a content changes after every keystroke in that content.
-- 2026-10-08: `TextToGraphics` keys a line canvas by the index of the line, so a
-  new line list lays out every line again, also when most `TextLine` objects are
-  the same.
+- 2026-10-08: `TextToGraphics` kept a line canvas by the index of the line, so a
+  new line list laid out every line again, also when most `TextLine` objects were
+  the same. It now keeps it by the line object (rule 6).
 - 2026-10-08: the JSON view writes a newline inside a string as the escape `\n`,
   so a JSON leaf never holds a break.

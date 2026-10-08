@@ -1330,53 +1330,53 @@ function _ends_in_field_range(path)
 end
 
 # ── SyntaxListToText ──────────────────────────────────────────────────
-# ListNode(SyntaxDocument) → TextBlock with ListNode elements.
-# Each element is projected one level down via `print_child(recursion, …)` and its
-# output spans are spliced into the lazy ListNode chain, with a `TextNewline`
-# separator between elements. The ListNode structure is preserved lazily.
+# ListNode(SyntaxDocument) → TextBlock whose elements are a ListNode of lines.
+# Each element is projected one level down via `print_child(recursion, …)`, and its
+# output lines follow each other in the lazy list; a line implies its break, so no
+# element separates two elements. The ListNode structure is preserved lazily.
 
 struct SyntaxListToText <: Projection end
 
 # The IO map of a lazy list of syntax: for each input node that the printer
-# printed, the entry of its spans, `(first, count, spans, iomap)`: the first node
-# of its spans in the output list, their number, the spans, and the IO map of the
+# printed, the entry of its lines, `(first, last, count, iomap)`: the first and the
+# last node of its lines in the output list, their number, and the IO map of the
 # element.
 @iomap struct SyntaxListToTextIoMap
     projection::Any
     input::ListNode
     output::TextBlock
-    element_spans::IdDict{ListNode, Any}
+    element_lines::IdDict{ListNode, Any}
 end
 
-# Element `k` of the input list maps to its spans in the output list,
-# `elements{i-1:j}`. A span counts from the head of the output list, as an
-# element counts from the head of the input list, and the head span is the first
-# span of the head element. A part inside the element maps through the forward
-# map of the element, moved to the first span of the element.
+# Element `k` of the input list maps to its lines in the output list,
+# `elements{i-1:j}`. A line counts from the head of the output list, as an element
+# counts from the head of the input list, and the head line is the first line of
+# the head element. A part inside the element maps through the forward map of the
+# element, moved to the first line of the element.
 function map_reference_forward(::SyntaxListToText, iomap::SyntaxListToTextIoMap, reference)
     reference isa EmptyReference && return EmptyReference()
     reference isa ConcreteReference || return nothing
     step = get_reference_head(reference)
     (step isa ARangeReferenceStep && is_element_reference_step(step)) || return nothing
-    place = _find_element_spans(iomap, step.start + 1)
+    place = _find_element_lines(iomap, step.start + 1)
     place === nothing && return nothing
     first, entry = place
     rest = get_reference_tail(reference)
     inner = rest isa EmptyReference ? EmptyReference() :
             map_reference_forward(entry.iomap.projection, entry.iomap, rest)
-    inner === nothing ? nothing : _move_span_reference(inner, first, entry)
+    inner === nothing ? nothing : _move_line_reference(inner, first, entry)
 end
 
-# The index of the first span of element `index` in the output list, and the entry
-# of its spans; `nothing` when the input list has no such element. The output list
+# The index of the first line of element `index` in the output list, and the entry
+# of its lines; `nothing` when the input list has no such element. The output list
 # is read from its head towards the element, which prints the elements on the way.
-function _find_element_spans(iomap::SyntaxListToTextIoMap, index::Int)
+function _find_element_lines(iomap::SyntaxListToTextIoMap, index::Int)
     input_node = find_list_node(iomap.input, index)
     input_node === nothing && return nothing
     link, direction = index >= 1 ? (:next, 1) : (:prev, -1)
     node, position = iomap.output.elements, 1
     while node !== nothing
-        entry = get(iomap.element_spans, input_node, nothing)
+        entry = get(iomap.element_lines, input_node, nothing)
         entry !== nothing && entry.first === node && return (position, entry)
         node = getproperty(node, link)
         position += direction
@@ -1384,36 +1384,58 @@ function _find_element_spans(iomap::SyntaxListToTextIoMap, index::Int)
     nothing
 end
 
-# A reference into the text of one element, moved into the output list, whose
-# span `first` is the first span of the element. The whole text is all spans of
-# the element; a caret or characters inside one span are those characters of it;
-# a range across spans is those spans.
-function _move_span_reference(inner, first::Int, entry)
-    spans_of(start, stop, rest = EmptyReference()) =
+# The line `i`, the span `j` and the character `c` of the flat offset `flat` in a
+# block of lines; an offset at the boundary of two spans is the end of the earlier
+# one. `nothing` in a break or an indentation.
+function _find_line_place(block::TextBlock, flat::Int)
+    offsets = get_flat_offsets(block)
+    for (i, line) in enumerate(block.elements)
+        line isa TextLine || continue
+        base = offsets[i] + line.indentation
+        for (j, span) in enumerate(line.elements)
+            span_length = get_flat_length(span)
+            base <= flat <= base + span_length && return (i, j, flat - base)
+            base += span_length
+        end
+    end
+    nothing
+end
+
+# A reference into the output of one element, moved into the output list, whose
+# line `first` is the first line of the element. The whole element is all its
+# lines; a caret or characters inside one span are those characters of it; a range
+# across spans of one line is those spans; a range across lines is those lines.
+function _move_line_reference(inner, first::Int, entry)
+    lines_of(start, stop, rest = EmptyReference()) =
         ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(RangeReferenceStep(start, stop), rest))
-    inner isa EmptyReference && return spans_of(first - 1, first - 1 + entry.count)
+    inner isa EmptyReference && return lines_of(first - 1, first - 1 + entry.count)
     inner isa ConcreteReference || return nothing
     head = get_reference_head(inner)
-    if head isa TextRangeReferenceStep && get_reference_tail(inner) isa EmptyReference
-        start, stop = head.start, head.stop
-        place = _flat_to_span_char(entry.spans, start)
-        place === nothing && return nothing
-        span, char = place
-        if char + stop - start <= _span_len(entry.spans[span])
-            return spans_of(first - 2 + span, first - 1 + span,
-                ConcreteReference(FieldReferenceStep("content"),
-                    ConcreteReference(RangeReferenceStep(char, char + stop - start), EmptyReference())))
+    if (head isa TextRangeReferenceStep || head isa TextSpanReferenceStep) &&
+       get_reference_tail(inner) isa EmptyReference
+        block = entry.iomap.output
+        start = _find_line_place(block, head.start)
+        stop = _find_line_place(block, head.stop)
+        (start === nothing || stop === nothing) && return nothing
+        i, j, c = start
+        i2, j2, c2 = stop
+        line = first - 1 + i
+        if (i, j) == (i2, j2)
+            return lines_of(line - 1, line, ConcreteReference(FieldReferenceStep("elements"),
+                       ConcreteReference(RangeReferenceStep(j - 1, j),
+                           ConcreteReference(FieldReferenceStep("content"),
+                               ConcreteReference(RangeReferenceStep(c, c2), EmptyReference())))))
         end
-        last = _flat_to_span_char(entry.spans, stop - 1)
-        last === nothing && return nothing
-        return spans_of(first - 2 + span, first - 1 + last[1])
+        i == i2 && return lines_of(line - 1, line, ConcreteReference(FieldReferenceStep("elements"),
+                                       ConcreteReference(RangeReferenceStep(j - 1, j2), EmptyReference())))
+        return lines_of(line - 1, first - 1 + i2)
     end
     if head isa FieldReferenceStep && head.name == "elements"
         range = get_reference_tail(inner)
         range isa ConcreteReference || return nothing
         step = get_reference_head(range)
         step isa ARangeReferenceStep || return nothing
-        return spans_of(first - 1 + step.start, first - 1 + step.stop, get_reference_tail(range))
+        return lines_of(first - 1 + step.start, first - 1 + step.stop, get_reference_tail(range))
     end
     nothing
 end
@@ -1422,33 +1444,13 @@ function map_reference_backward(::SyntaxListToText, iomap, reference)
     return nothing
 end
 
-# The spans of an output of lines, with a `"\n"` span for each break and a span of
-# spaces for each indentation, in the font of the first text span. Their flat
-# offsets are the flat offsets of the lines.
-function _flatten_output_lines(block::TextBlock)
-    lines = _compute_output_lines(block)
-    font = UNSTYLED_TEXT_FONT
-    for line in lines, span in line.spans
-        span isa TextString && (font = span.font; break)
-    end
-    spans = TextDocument[]
-    for (i, line) in enumerate(lines)
-        if i > 1
-            push!(spans, TextString("\n", font))
-            push!(spans, TextString(" " ^ line.indentation, font))
-        end
-        append!(spans, line.spans)
-    end
-    spans
-end
-
 """
     print_document(::SyntaxListToText, recursion, ln::ListNode, ctx)
 
-Convert a `ListNode(SyntaxDocument)` to a `TextBlock` with `ListNode` elements.
-Each syntax element is projected through `recursion` (so a nested `SyntaxNode`
-renders exactly as it would standalone — with its own newlines/indentation),
-and its output spans are spliced in, `TextNewline`-separated.
+Convert a `ListNode(SyntaxDocument)` to a `TextBlock` whose elements are a
+`ListNode` of `TextLine`s. Each syntax element is projected through `recursion`
+(so a nested `SyntaxNode` renders exactly as it would standalone — with its own
+lines and indentation), and its lines follow each other in the list.
 """
 function print_document(p::SyntaxListToText, recursion, ln::ListNode, ctx)
     cache = IdDict{ListNode, Any}()
@@ -1456,61 +1458,52 @@ function print_document(p::SyntaxListToText, recursion, ln::ListNode, ctx)
     SyntaxListToTextIoMap(p, ln, TextBlock(out_head, Cell(nothing)), cache)
 end
 
-# `cache` maps each input ListNode to the entry of its spans, whose `first` is the
-# first output node of its rendered span chain. This makes the projection
+# The lines of the output of an element: its `TextLine`s, or the lines that its
+# spans make.
+function _make_element_lines(block::TextBlock)
+    elements = block.elements
+    (length(elements) > 0 && all(element -> element isa TextLine, elements)) &&
+        return collect(TextLine, elements)
+    TextLine[TextLine(line.spans; indentation = line.indentation) for line in _compute_output_lines(block)]
+end
+
+# `cache` maps each input ListNode to the entry of its lines, whose `first` is the
+# first output node of its lines and `last` the last. This makes the projection
 # idempotent under repeated traversal: walking next then prev returns to the same
 # object instead of materialising a fresh prev-chain on every call.
 function _syntax_list_to_text_node(input_node::ListNode, recursion, ctx, cache::IdDict)
     haskey(cache, input_node) && return cache[input_node].first
 
-    # Delegate this element one level down; its output spans (a leaf's
-    # open/value/close, or a whole node's multi-line rendering) are spliced in.
+    # Delegate this element one level down; its output lines (a leaf's one line,
+    # or a whole node's lines) follow each other in the list.
     child_iomap = print_child(recursion, input_node.value, ctx)
-    spans = _flatten_output_lines(child_iomap.output)
+    lines = _make_element_lines(child_iomap.output)
 
-    first_out = ListNode(spans[1])
-    cache[input_node] = (first = first_out, count = length(spans), spans = spans, iomap = child_iomap)
-
-    cur_out = first_out
-    for i in 2:length(spans)
-        next_out = ListNode(spans[i])
-        set_cell_value!(getfield(cur_out, :next), next_out)
-        set_cell_value!(getfield(next_out, :prev), cur_out)
-        cur_out = next_out
+    first_out = ListNode(lines[1])
+    last_out = first_out
+    for k in 2:length(lines)
+        next_out = ListNode(lines[k])
+        set_cell_value!(getfield(last_out, :next), next_out)
+        set_cell_value!(getfield(next_out, :prev), last_out)
+        last_out = next_out
     end
+    cache[input_node] = (first = first_out, last = last_out, count = length(lines), iomap = child_iomap)
 
-    # The paragraph separator inherits this element's content font (the first
-    # rendered span) so a blank line's height tracks the content size rather than a
-    # baked-in default; fall back to the module default only for an empty render.
-    nl_font = !isempty(spans) && spans[1] isa TextString ? spans[1].font : UNSTYLED_TEXT_FONT
-    nl_node = ListNode(TextNewline(font=nl_font))
-    set_cell_value!(getfield(cur_out, :next), nl_node)
-    set_cell_value!(getfield(nl_node, :prev), cur_out)
-
-    set_cell_computation!(getfield(nl_node, :next), () -> begin
+    set_cell_computation!(getfield(last_out, :next), () -> begin
         input_next = input_node.next
         input_next === nothing && return nothing
         next_first = _syntax_list_to_text_node(input_next, recursion, ctx, cache)
-        set_cell_value!(getfield(next_first, :prev), nl_node)
+        set_cell_value!(getfield(next_first, :prev), last_out)
         next_first
     end)
 
     set_cell_computation!(getfield(first_out, :prev), () -> begin
         input_prev = input_node.prev
         input_prev === nothing && return nothing
-        prev_first = _syntax_list_to_text_node(input_prev, recursion, ctx, cache)
-        # Walk forward through this paragraph's span chain to its trailing
-        # nl_node. Stop at the TextNewline rather than reading `cur.next`
-        # past it — nl_node.next is a lazy thunk that materialises the
-        # *next* paragraph, which for an infinite stream never terminates.
-        cur = prev_first
-        while !(cur.value isa TextNewline)
-            nxt = cur.next
-            nxt === nothing && break
-            cur = nxt
-        end
-        set_cell_value!(getfield(cur, :next), first_out)
-        cur
+        _syntax_list_to_text_node(input_prev, recursion, ctx, cache)
+        prev_last = cache[input_prev].last
+        set_cell_value!(getfield(prev_last, :next), first_out)
+        prev_last
     end)
 
     first_out

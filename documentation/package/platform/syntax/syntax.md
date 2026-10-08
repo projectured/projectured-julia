@@ -39,24 +39,30 @@ A sequence addresses child `i` as `.children[i]`, and a wrapper addresses its on
 
 `SyntaxToText()` is a `TypeDispatchingProjection` with `SyntaxLeafToText` for the leaf, one shared `SyntaxCompoundToText` for every compound, and `SyntaxListToText` for a lazy `ListNode`. The chain wraps it in a `RecursiveProjection`.
 
-**A compound prints only its own level.** It prints each child through `print_child` and splices the `elements` of the child output into its own list. It never walks the subtree below a child. `_splice_compound` lays out every compound in the same five steps. They are the fold marker, the opening delimiter, the children with separators, the line breaks and indentation, and the closing delimiter. A compound whose contract returns `nothing` or `0` for a step adds nothing for it. A folded compound prints no children and adds one ellipsis span.
+**Syntax text is a block of `TextLine`s.** A leaf prints one line of runs: its opening delimiter, its value and its closing delimiter. It never reads its value, so an edit of the value leaves the line valid; a `'\n'` that a value holds is a row inside the line. A delimiter or a separator of a compound that holds a `'\n'` is cut there into lines, because it is a constant of the domain, which no edit writes.
 
-The IO map, `SyntaxCompoundToTextIoMap`, records where each part went:
+**A compound prints only its own level.** It prints each child through `print_child` and joins the lines of the child output into its own lines: the first line of the child joins the open line, every other line follows, and the last line of the child is the open line after it, where the separator or the closing delimiter goes. It never walks the subtree below a child. `_splice_compound` lays out every compound in the same five steps. They are the fold marker, the opening delimiter, the children with separators, the lines and their indentation, and the closing delimiter. A compound whose contract returns `nothing` or `0` for a step adds nothing for it. A folded compound prints no children and adds one ellipsis span.
+
+The IO map, `SyntaxCompoundToTextIoMap`, records where each part went. Each index is an entry of `flat_elements`, the flat list of the output: each span of each line in order, with an entry for the break and one for the indentation of each line after the first. A break counts one flat offset and an indentation its width, so the offsets of the list are the flat offsets of the output.
 
 | Field | What it holds |
 | --- | --- |
 | `child_iomaps` | the IO map of each child |
-| `child_elem_ranges` | the range of output elements that each child fills |
-| `own_spans` | each delimiter span, as element index `=>` document field |
-| `sep_indices` | each separator span |
-| `indent_indices` | each indentation span, of this level and of all the levels below |
+| `flat_elements` | the flat list of the output |
+| `child_elem_ranges` | the range of entries that the lines of each child fill |
+| `chrome_lines` | for each line, whether its indentation is of the chrome of a compound |
 | `marker_index` | the fold marker, or 0 |
+| `ellipsis_index` | the ellipsis of a folded node, or 0 |
+| `own_spans` | each entry of a delimiter span, as entry `=>` (document field, offset in the span) |
+| `sep_indices` | each entry of each separator span, as entry `=>` offset in the span |
 
-Both reference maps use these ranges. A path under `.children[i]` goes to the map of child `i`, and the result moves by the start of the range of that child. A whole-element selection of a child becomes a `TextSpanReferenceStep` box over the range. A caret in a delimiter maps back to `.<field>{k}`. A caret on the marker, a line break, an indentation, the ellipsis or a separator maps back as a projection-introduced position, because no document field holds it. A separator is not in `own_spans`: one field makes `n - 1` spans, so a caret in one of them names no single place in the document.
+A parent speaks to a child in the language of the child output: a flat caret, a whole span `[i, j]` of a line, or characters of such a span. So a child that another projection prints works as a syntax child does. Both reference maps use these ranges. A path under `.children[i]` goes to the map of child `i`, and the result moves by the start of the range of that child. A whole-element selection of a child becomes a `TextSpanReferenceStep` box over the range. A caret in a delimiter maps back to `.<field>{k}`. A caret on the marker, a line break, an indentation, the ellipsis or a separator maps back as a projection-introduced position, because no document field holds it. A separator is not in `own_spans`: one field makes `n - 1` spans, so a caret in one of them names no single place in the document.
 
-**An indenting ancestor widens the indentation of its children.** A compound with `indentation != 0` puts a line break and an indentation span of one level before each child. When it splices a child, it widens every span that the child lists in `indent_indices` by one more level, and it adds them to its own list. So the depth adds up level by level, and no compound computes its absolute depth. A compound that indents also adds a line break and an empty indentation before its closing delimiter, so that an ancestor has a span to widen there too.
+**An indenting ancestor widens the lines of the chrome of its children.** A compound with `indentation != 0` starts a line with an indentation of one level before each child. When it joins a child, it adds one more level to every line that the child marks in `chrome_lines`, and it marks them in its own list. So the depth adds up level by level, and no compound computes its absolute depth. A compound that indents also starts a line with no indentation of its own before its closing delimiter, which an ancestor widens too. A line that a break inside a delimiter or a separator starts keeps indentation 0: the text of a span is its own, with its own spaces.
 
 The reader has the same shape. An edit in a span of child `i` goes to the reader of that child, and `.children[i]` goes in front of the result. An edit in a separator span changes the one separator field, so every gap changes. An edit on other spans of the node gives `nothing`. A click on the marker or on the ellipsis gives a `ToggleCollapseOperation` for the node, and an Alt+click selects the whole leaf or node under it. Ctrl+. arrives with no target, and the reader resolves it to the innermost compound that can fold and holds the caret.
+
+`SyntaxListToText` prints a lazy list of syntax as a lazy list of the lines of its elements, with no separator between two elements, because a line implies its break. Element `k` maps to the run of its lines, counted from the head, and a part of an element maps to the line, the span and the characters that hold it.
 
 At the seam between a value and its closing delimiter, the backward map of a leaf returns `value{n}` and not `close{0}`. The two are the same place on the screen, but only the value is editable. Without this, the only caret of an empty string could not be reached.
 
@@ -142,7 +148,8 @@ Its `__init__` calls `register_syntax_fallback!()`. That registers the reflectio
 ## Design decisions
 
 - **A compound prints only its own level.** A printer that walks the whole subtree prints every node again for one edit and loses the identity of each child output. The splice keeps the output of an unchanged child. See [plan/done/syntaxtotext-delegation.md](../../../../plan/done/syntaxtotext-delegation.md).
-- **The depth adds up level by level.** An indenting ancestor widens the indentation spans that its children report, which gives the same width as `depth * indent_size`. No compound needs its absolute depth.
+- **The depth adds up level by level.** An indenting ancestor widens the lines of the chrome that its children report, which gives the same width as `depth * indent_size`. No compound needs its absolute depth.
+- **Syntax text is lines, and a leaf never reads its value.** A line is what the gutter, the numbers and the folds of the text domain stand on. A `TextString` is one run, so a domain states that a field can hold lines by the type it gives the leaf value; a leaf that read its value to find a break would build its lines again after every keystroke, because a cell has no cut-off for an equal value. See [plan/pending/text-domain-kit.md](../../../../plan/pending/text-domain-kit.md), Q1 to Q5 of step 3 of Phase 3, and [plan/pending/a-text-span-holds-no-line-break.md](../../../../plan/pending/a-text-span-holds-no-line-break.md).
 - **The light of a delimiter is a colour cell, not a layout.** A move of the pointer changes the mouse target of each compound on the path. If the spans read the level, each move would lay out every compound on the path again. See [plan/done/a-document-knows-the-part-under-the-pointer.md](../../../../plan/done/a-document-knows-the-part-under-the-pointer.md), question Q8.
 - **The printer records where each span went.** With optional delimiters no position identifies the opening or the closing span, so `own_spans` holds the field of each one.
 - **The contract is five functions, not one type with five fields.** A wrapper adds one thing to any document and is a real level of the tree. `SyntaxConcatenation` and `SyntaxSeparation` can not get a delimiter by accident. See [plan/pending/simplest-syntax-document.md](../../../../plan/pending/simplest-syntax-document.md), whose first two phases are done.

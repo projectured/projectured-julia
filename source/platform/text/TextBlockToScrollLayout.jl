@@ -48,10 +48,10 @@ elements, the IO map of its gutter, and the canvas that places it.
     gutter_rows::Cell
 end
 
-# A row of the gutter: the output of the gutter of line group `group`, placed at
-# the height of that line.
-function _make_gutter_row(lines_iomap, group::Int, gutter_iomap)
-    cells = lines_iomap.line_cells(group)
+# A row of the gutter: the output of the gutter of `line`, placed at the height of
+# that line, wherever it stands.
+function _make_gutter_row(lines_iomap, line::TextLine, gutter_iomap)
+    cells = lines_iomap.line_cells(line)
     y = Cell(Computation(function ()
         top = Int(cells.y[])
         baseline = cells.layout[].first_baseline
@@ -93,8 +93,9 @@ function print_document(p::TextBlockToScrollLayout, recursion, block::TextBlock,
                         FieldReferenceStep("gutter"))
                 print_child(recursion, gutter, make_child_context(gutter_ctx, block, path...))
             end
-            key = (group, objectid(gutter))
-            row = get!(() -> _make_gutter_row(lines_iomap, group, gutter_iomap), rows, key)
+            # A row stays with its line, so a line inserted above it makes no row again.
+            key = (objectid(line), objectid(gutter))
+            row = get!(() -> _make_gutter_row(lines_iomap, line, gutter_iomap), rows, key)
             push!(live_gutters, gutter)
             push!(live_rows, key)
             push!(out, (group = group, line = line_group.line, iomap = gutter_iomap, row = row))

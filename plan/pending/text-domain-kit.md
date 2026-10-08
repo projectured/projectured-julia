@@ -741,8 +741,43 @@ The design of step 1, found when the work started (2026-10-08):
      string: `FileSystemToSyntaxTest.jl`, `BookToSyntaxTest.jl`,
      `SyntaxTreeSelectionTest.jl` and `SyntaxToTextTest.jl`.
 2. *(merged into 1)*
-3. **The lazy list of lines.** `SyntaxListToText` makes a lazy list of lines (Q3),
-   and the list path of `TextToGraphics` draws one canvas for each line.
+3. ~~**The lazy list of lines.**~~ **Done 2026-10-08.** `SyntaxListToText`
+   makes a lazy list of lines (Q3): the lines of each element follow each other,
+   with no separator, and the entry of an element holds its first and its last
+   line node and the count of its lines. An element maps to the run of its lines,
+   counted from the head; a caret, a range or a box in the element maps to the
+   line, the span and the characters that hold it (`_find_line_place`), or to the
+   spans of one line, or to lines. The adapter that flattened the lines into spans
+   is gone. `TextToGraphics` draws a lazy list whose nodes are `TextLine`s as a
+   lazy list of line canvases, each laid out by `_layout_group` as a line of a
+   block (indentation, soft breaks, images), and maps lines, spans and characters
+   to the text node of their row or to a region (`_map_list_lines_forward`). A
+   lazy list of spans is drawn by paragraphs as before. Tests: a lazy list of
+   lines (`TextToGraphicsTest.jl`), and the lazy chain of primes passes through
+   the lines.
+
+   **A line keeps its cells (found by the sweep of the rest of the suite at
+   81d67709c, 2026-10-08).** `PrinterLocalityTest.jl:452` ("Graphics structural
+   locality, dimension C, end-to-end") lost 28 % to 42 % of the graphics of the
+   JSON view on a structural edit, against under 20 % before step 1. Before step 1
+   syntax text was one group, whose graphics a structural edit reused by the
+   identity of their spans. With lines, `TextToGraphics` kept the cells and the
+   graphics of a line by its index, so an inserted line moved every line after it
+   to cells that drew other spans. Now a `TextLine` keeps its cells, its layout
+   and its graphics while it stays in the block, at any place: its layout names its
+   spans `[1, j]` and the coordinate map gives them the index of the line, and its
+   `y` reads the offset of its current place, which chains by place as before. A
+   group that is no line keeps its cells by its place. A row of the gutter stays
+   with its line too. This is rule 6 of
+   [a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md).
+
+   Checked at a snapshot (cf32a9a59, `/var/tmp/text-gutter/probe5/`): no part has
+   a failure above the baseline; `test_projections` is back to 724 with no
+   failure, and the console, Markdown and Book suites pass. That sweep counted 126
+   fewer passes in `test_position_navigations`, because it ran the part in one
+   process after other parts; run alone, the part counts 8217 in the clone of the
+   step and in the baseline, and no example of `test_domain_examples` has fewer
+   passes than in the baseline (108 examples, counted one by one).
 4. **The decorators learn lines.**
    - 4a. ~~**`WordWrapping` wraps a line by its soft breaks** (Q4 (d)).~~ **Done
      2026-10-08**, the commit after step 1, done before step 3 because step 1 left
@@ -774,9 +809,15 @@ The design of step 1, found when the work started (2026-10-08):
        through the segments of its line. A block caret at the end of a line
        inverts a space after the line. The console suite passes again (140). Later
        sweeps include `ProjecturedConsoleTest.test_console()`.
-     - `TextHighlighting`, `TextFiltering` and `TextFirstLine` are on blocks of
-       spans in every chain today (the gallery and the examples of plain text), so
-       no view regressed; they wait.
+     - ~~`TextHighlighting`, `TextFiltering` and `TextFirstLine`~~ **done
+       2026-10-08.** They are on blocks of spans in every chain today (the gallery
+       and the examples of plain text), so no view had regressed. On a block of
+       lines, `TextHighlighting` splits the spans of each line with a match, as
+       `SelectionInverting` does, with the same map of a line path
+       (`_map_line_path`, now in `TextDocument.jl` with `_make_line_with_spans`);
+       `TextFiltering` keeps the `TextLine`s whose text matches, and
+       `TextFirstLine` the first `TextLine`; both map over runs of the kept lines.
+       A test for each on a block of lines.
 5. **The sweeps.** Run the guards and the suites of step 0 again, and compare. A
    broken marker that changes gets a reason or a fix.
 6. **The documents.** `text.md` and the syntax document describe the lines of

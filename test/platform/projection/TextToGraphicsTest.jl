@@ -634,6 +634,44 @@ end
     @test box_of(both_ways, projection, element(-2)).y == -3 * first.height
 end
 
+# A lazy list of lines is drawn as a canvas for each line. A part of a line maps
+# to the text node that draws it; lines and canvases count from their heads.
+@testset "TextToGraphics draws a lazy list of lines" begin
+    measure = FixedMeasure(10, 18, 6, 0)
+    projection = TextToGraphics(measure = measure)
+    font = StyleFont("Ubuntu Mono", 20)
+    head = ListNode(TextLine(TextString("one", font, color_black), TextString("two", font, color_black)))
+    push!(head, TextLine(TextString("three", font, color_black); indentation = 2))
+    pushfirst!(head, TextLine(TextString("zero", font, color_black)))
+    text_block = TextBlock()
+    text_block.elements = head
+    iomap = print_document(projection, IdentityProjection(), text_block, PrinterContext())
+    range_of(start, stop, rest = EmptyReference()) =
+        ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(RangeReferenceStep(start, stop), rest))
+    content(start, stop) = ConcreteReference(FieldReferenceStep("content"),
+                                             ConcreteReference(RangeReferenceStep(start, stop), EmptyReference()))
+    image(reference) = map_reference_forward(projection, iomap, reference)
+    box_of(reference) = find_reference_box(iomap.output, image(reference); measure = measure)
+    # `two` is the second span of the head line.
+    two = box_of(range_of(0, 1, range_of(1, 2)))
+    @test (two.x, two.y, two.width) == (30, 0, 30)
+    # The next line is one line lower, and starts at its indentation; a whole line
+    # with one text maps to that text.
+    three = box_of(range_of(1, 2))
+    @test (three.x, three.y, three.width) == (20, two.height, 50)
+    # The characters `hr` of `three`.
+    characters = box_of(range_of(1, 2, range_of(0, 1, content(1, 3))))
+    @test (characters.x, characters.y, characters.width) == (30, three.y, 20)
+    # `zero`, the line before the head, is one line above it.
+    zero = box_of(range_of(-1, 0))
+    @test (zero.x, zero.y, zero.width) == (0, -two.height, 40)
+    # The head line, with its two spans, is a region of its canvas.
+    both = image(range_of(0, 1))
+    @test last(collect(get_reference_steps(both))) isa RegionReferenceStep
+    box = find_reference_box(iomap.output, both; measure = measure)
+    @test (box.x, box.y, box.width) == (0, 0, 60)
+end
+
 @testset "TextToGraphics starts a row at each soft break of a line" begin
 
 m = _test_measure(10, 18)
