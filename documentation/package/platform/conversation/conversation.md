@@ -79,7 +79,7 @@ After an evaluation, a form keeps its code as typed in `source`. When the `parse
 
 ## How it fits
 
-The conversation slice depends on the kernel and on the collection, domain, focus, natural, layout, primitive, projection, style, text and widget slices of `ProjecturedPlatform`. It calls `execute_julia_code!` of the `tool` layer of the kernel to evaluate a form.
+The conversation slice depends on the kernel and on the collection, domain, focus, natural, layout, primitive, projection, serialization, style, text and widget slices of `ProjecturedPlatform`. It uses the serialization slice for the file forms of `EvaluatorForm` and `ConversationPermissionRequest`. It calls `execute_julia_code!` of the `tool` layer of the kernel to evaluate a form.
 
 The assistant slice holds a `ConversationConversation` and a `ConversationDraft`, and adds the two host methods; see [assistant.md](../assistant/assistant.md). The shell slice puts an Evaluator button on the toolbar; see [shell.md](../shell/shell.md).
 

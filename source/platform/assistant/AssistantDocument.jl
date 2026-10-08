@@ -239,13 +239,31 @@ set_cell_computation!(a::Assistant, f::Function) = (set_cell_computation!(getfie
 # and `conversation`/`input`/`draft` are this session's exchange, not the
 # next one's — so a save keeps only the settings that describe an assistant
 # rather than a moment of one, and a load starts a fresh, empty conversation.
-pred_arguments(a::Assistant) = (), Pair{Symbol,Any}[
-    :backend           => a.backend,
-    :model             => a.model,
-    :system            => a.system,
-    :context           => a.context,
-    :collapse_thinking => a.collapse_thinking,
-]
+#
+# An assistant that keeps a session of an external agent is the exception: the
+# agent holds the history of that conversation. So its file also keeps the
+# conversation, and the id, the folder, the count of turns and the title of the
+# session, and the next turn after a load resumes the session. An id is no
+# command and no credential: the agent still comes from the settings.
+function pred_arguments(a::Assistant)
+    keywords = Pair{Symbol,Any}[
+        :backend           => a.backend,
+        :model             => a.model,
+        :system            => a.system,
+        :context           => a.context,
+        :collapse_thinking => a.collapse_thinking,
+    ]
+    if a.backend === :acp && !isempty(a.agent_session_id)
+        append!(keywords, Pair{Symbol,Any}[
+            :conversation             => a.conversation,
+            :agent_session_id         => a.agent_session_id,
+            :agent_session_directory  => a.agent_session_directory,
+            :agent_session_turn_count => a.agent_session_turn_count,
+            :agent_title              => a.agent_title,
+        ])
+    end
+    (), keywords
+end
 
 # The name the tab calls itself: the title that an external agent gave its
 # session, else the name of the assistant. A tab with an empty name asks at each

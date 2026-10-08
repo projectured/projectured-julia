@@ -694,7 +694,7 @@ from the command line of the projectured UI.
     Open: `ClaudeCodeACP` makes the title of a resumed session again from the
     first prompt after the resume, so the tab takes a new name then. A fix
     there needs a release 0.1.3: a resumed session makes no title.
-  - [ ] **2.4b Save and load in a `.pred` file.** The owner agreed on
+  - [x] **2.4b Save and load in a `.pred` file.** The owner agreed on
     2026-10-08: for an assistant with an agent session, the file keeps the
     session id, its folder and the conversation; a load shows the
     conversation, and the next turn resumes the session. It needs 2.4a.
@@ -729,6 +729,31 @@ from the command line of the projectured UI.
       no call. `Symbol("a b")` and a dotted operator stay refused.
       `test_pred_file()` 16 of 16, `test_marker_language()` 22 of 22,
       `test_text_file()` 34 of 34.
+    Done on 2026-10-08. Decisions made in the implementation:
+    - The file forms of the two conversation types live in the conversation
+      slice, which now depends on the serialization slice, as the widget, the
+      pane and the navigator slices do. Serialization depends on no slice, so
+      the edge makes no cycle.
+    - `EvaluatorForm` writes its `input` as a group of `(key, value)` pairs in
+      the order of the keys, an array as a vector, and a value as it is. A key
+      of a tool input can be any text, so a mapping of names can not hold it,
+      and the platform has no JSON library.
+    - `ConversationPermissionRequest` writes its options as groups of named
+      values, so the kernel type of an option needs no place among the types
+      that a file may build. It writes no `reply`, and a request that waits
+      reads back as `"Cancelled"`.
+    - An assistant with `backend = :acp` and a kept session also writes the
+      conversation, the id, the folder, the count of turns and the title of
+      the session, so the tab shows its title after a load. Another assistant
+      writes its settings as before.
+    Tests: the turn of an external agent 176 of 176 alone, the conversation
+    suite 234 of 234, the layering guards of the platform, the application 357
+    with the 2 known broken; the static guards as on `main`. Live check with the
+    built-in agent and every domain loaded: an answer with an
+    `execute_julia_code` call and a remembered word made 21449 characters with
+    two tool forms; the text was the same after the load; the loaded
+    assistant resumed the same session with no note and answered "The word was
+    HERON, and the result was 42."
   - **2.4c List and delete: later.** The owner agreed on 2026-10-08. The only way
     for `ClaudeCodeACP` is to read and delete the transcript files of Claude
     Code under `~/.claude/projects`, which Anthropic does not document.

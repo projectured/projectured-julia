@@ -426,6 +426,47 @@ function test_external_agent_turn()
             @test !any(pair -> first(pair) in (:agent_command, :agent_session_meta), keywords)
             @test Assistant().agent_command == DEFAULT_AGENT_COMMAND
             @test occursin("\"display\": \"summarized\"", Assistant().agent_session_meta)
+            # Without a kept session, the file keeps no conversation.
+            @test !any(pair -> first(pair) === :conversation, last(pred_arguments(Assistant(; backend = :acp))))
+        end
+
+        @testset "a save keeps the conversation of a kept session, and the next turn after a load resumes it" begin
+            input = Dict{String,Any}("code" => "1 + 1", "options" => Dict{String,Any}("a-b" => Any[1, 2.5, nothing, true]))
+            connection = ScriptedAgentConnection([
+                Any[LlmThinkingStart(), LlmThinkingDelta("I add."), LlmThinkingStop(),
+                    LlmTextStart(), LlmTextDelta("Let me run it."), LlmTextStop(),
+                    AgentToolCallUpdate("t1"; name = "mcp__projectured__execute_julia_code", title = "Run",
+                                        kind = :execute, status = :pending, input),
+                    AgentPlanUpdate([AgentPlanEntry("Add", :high, :in_progress)]),
+                    make_scripted_permission_step(AgentToolCallUpdate("t2"; title = "mcp__projectured__execute_julia_code"),
+                        [AgentPermissionOption("allow", "Allow", :allow_once),
+                         AgentPermissionOption("reject", "Reject", :reject_once)]),
+                    AgentToolCallUpdate("t1"; status = :completed, output = "2"),
+                    AgentSessionInfoUpdate("Add two numbers"),
+                    LlmTextStart(), LlmTextDelta("It is 2."), LlmTextStop()],
+                Any[LlmTextStart(), LlmTextDelta("Again."), LlmTextStop()]]; can_resume = true)
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "What is 1 + 1?"; wait = false)
+            answer_permission_request!(_wait_for_permission_request(a), "allow")
+            _wait_for_idle(a)
+            text = print_pred_text(a)
+            loaded = parse_pred_text(text)
+            @test loaded isa Assistant
+            @test print_pred_text(loaded) == text
+            @test (loaded.agent_session_id, loaded.agent_session_directory) == ("scripted-session-1", pwd())
+            @test loaded.agent_session_turn_count == a.agent_session_turn_count
+            @test get_document_title(loaded) == "Add two numbers"
+            @test loaded.agent_session === nothing
+            @test length(collect(loaded.conversation.turns)) == length(collect(a.conversation.turns))
+            parts = [part.content for part in collect(collect(loaded.conversation.turns)[end].parts)]
+            @test only(part for part in parts if part isa EvaluatorForm).input == input
+            request = only(part for part in parts if part isa ConversationPermissionRequest)
+            @test request.answer == "Allow" && !is_permission_request_open(request)
+            # The next turn resumes the session, and the prompt holds only the new message.
+            loaded.agent_session = ExternalAgentSession(connection)
+            _submit_to_agent!(loaded, "Again")
+            @test connection.sessions[end].session_id == "scripted-session-1"
+            @test connection.prompts[end] == [LlmText("Again")]
         end
     end
 end

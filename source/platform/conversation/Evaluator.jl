@@ -68,6 +68,41 @@ EvaluatorForm(form::Document;
                   Cell(String(source)), Cell(String(output)), Cell(Dict{String,Any}(input)),
                   Cell(form_collapsed), Cell(result_collapsed), Cell(nothing))
 
+# ── The file form ────────────────────────────────────────────────────────────
+
+# A `.pred` file writes the input of a tool call as its notation holds it: a JSON
+# object as a group of `(key, value)` pairs in the order of their keys, an array
+# as a vector, and a string, a number, a bool and `nothing` as they are. A key of
+# an input can be any text, so a mapping of names can not hold it.
+pred_arguments(f::EvaluatorForm) = (), Pair{Symbol,Any}[
+    :form             => f.form,
+    :result           => f.result,
+    :is_error         => f.is_error,
+    :tool_use_id      => f.tool_use_id,
+    :tool_name        => f.tool_name,
+    :source           => f.source,
+    :output           => f.output,
+    :input            => _make_file_json(f.input),
+    :form_collapsed   => f.form_collapsed,
+    :result_collapsed => f.result_collapsed,
+]
+
+function make_pred_document(::Type{<:EvaluatorForm}, positional, keywords)
+    values = Dict{Symbol,Any}(keywords)
+    form = pop!(values, :form)
+    input = _read_file_json(pop!(values, :input, ()))
+    EvaluatorForm(form; input, values...)
+end
+
+_make_file_json(value::AbstractDict) =
+    Tuple((String(key), _make_file_json(item)) for (key, item) in sort!(collect(value); by = first))
+_make_file_json(value::AbstractVector) = Any[_make_file_json(item) for item in value]
+_make_file_json(value) = value
+
+_read_file_json(value::Tuple) = Dict{String,Any}(String(first(pair)) => _read_file_json(last(pair)) for pair in value)
+_read_file_json(value::AbstractVector) = Any[_read_file_json(item) for item in value]
+_read_file_json(value) = value
+
 # ── The duplicate ────────────────────────────────────────────────────────────
 
 # The forms of an evaluator are what a person typed, and the folds are how they

@@ -75,6 +75,10 @@ while the agent waits.
 `reply` sends the chosen option to the agent. It is a live function and no data:
 the duplicate of a request has none, and a request with none can not be
 answered. [`answer_permission_request!`](@ref) answers a request.
+
+A `.pred` file keeps the title, the options and the answer, and no `reply`. A
+request that waits when it is saved reads back as `"Cancelled"`, because nobody
+can answer it after the load.
 """
 @document struct ConversationPermissionRequest <: ConversationDocument
     title::String
@@ -86,6 +90,23 @@ end
 ConversationPermissionRequest(title::AbstractString, options::AbstractVector; reply = nothing) =
     ConversationPermissionRequest(Cell(String(title)), Cell(collect(AgentPermissionOption, options)),
                                   Cell(""), Cell(reply), Cell(nothing))
+
+# An option is a group of named values in a file, so the kernel type of an
+# option needs no place among the types that a file may build.
+pred_arguments(request::ConversationPermissionRequest) = (), Pair{Symbol,Any}[
+    :title   => request.title,
+    :options => [(id = option.id, name = option.name, kind = option.kind) for option in request.options],
+    :answer  => isempty(request.answer) ? "Cancelled" : request.answer,
+]
+
+function make_pred_document(::Type{<:ConversationPermissionRequest}, positional, keywords)
+    values = Dict{Symbol,Any}(keywords)
+    options = AgentPermissionOption[AgentPermissionOption(String(option.id), String(option.name), option.kind)
+                                    for option in values[:options]]
+    request = ConversationPermissionRequest(values[:title], options)
+    request.answer = String(get(values, :answer, "Cancelled"))
+    request
+end
 
 """
     is_permission_request_open(request) -> Bool
