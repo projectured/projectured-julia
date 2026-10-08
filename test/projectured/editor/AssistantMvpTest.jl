@@ -286,9 +286,37 @@ function _mvp_test_stop_turn()
         @test collect(a.conversation.turns)[end].stop_reason === :cancelled
         @test 3 <= count("word", format_conversation(a.conversation)) < 200
         @test a.turn_control === nothing && !button.enabled
-        # With no turn that runs, Escape reverts the draft.
+        # With no turn that runs, Escape reverts the draft, and a submit starts a turn.
         @test read_intent(AssistantToWidgetSplitPane(), (input = a,),
                           ComposerRevertOperation(a.draft)) isa ComposerRevertOperation
+        a.llm = FakeLlm("Again.")
+        a.input.value = "Once more"
+        evaluate_operation(editor, SubmitProseOperation(a))
+        @test _mvp_wait_idle!(a) === :idle
+        @test collect(a.conversation.turns)[end].stop_reason === :end_turn
+    end
+
+    @testset "a stop while a tool runs keeps its result and runs no next round" begin
+        started, release = Channel{Nothing}(1), Channel{Nothing}(1)
+        tools = register_default_tools!(ToolSet())
+        register_tool!(tools, Tool("wait"; description = "Waits until the test lets it go.",
+                                   parameters = NamedTuple[],
+                                   handler = (target, args) -> (put!(started, nothing); take!(release); "waited")))
+        llm = ScriptedLlm([_tool_use_script("tu_1", "wait", Dict{String,Any}()), _final_text_script("Done.")])
+        a = Assistant(; llm)
+        editor = Editor(a, make_assistant_projection_example(); backend = HeadlessBackend(),
+                        devices = Device[], tools = tools)
+        a.input.value = "Go"
+        evaluate_operation(editor, SubmitProseOperation(a))
+        @test timedwait(() -> isready(started), 5.0; pollint = 0.01) === :ok
+        evaluate_operation(editor, CancelAssistantTurnOperation(a))
+        put!(release, nothing)
+        @test _mvp_wait_idle!(a) === :idle
+        last_turn = collect(a.conversation.turns)[end]
+        @test last_turn.stop_reason === :cancelled
+        form = only(part.content for part in collect(last_turn.parts) if part.content isa EvaluatorForm)
+        @test form.output == "waited"
+        @test !occursin("Done.", format_conversation(a.conversation))
     end
 end
 

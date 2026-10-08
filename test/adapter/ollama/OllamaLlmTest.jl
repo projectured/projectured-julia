@@ -169,6 +169,35 @@ for (body, is_whole) in ((first_line * last_line, true), (first_line, false))
     end
 end
 
+# ── a stop throws from `on_event`, and the connection closes at once, while the
+#    server would write its answer for five seconds more ──
+server = HTTP.serve!("127.0.0.1", 0; listenany = true, stream = true) do http
+    read(http)
+    HTTP.setstatus(http, 200)
+    HTTP.startwrite(http)
+    try
+        for index in 1:50
+            write(http, """{"message":{"role":"assistant","content":"w$index "},"done":false}\n""")
+            sleep(0.1)
+        end
+        write(http, last_line)
+    catch exception
+        exception isa Base.IOError || rethrow()
+    end
+end
+try
+    llm = OllamaLlm(; base_url = _get_local_url(server), model = "m", thinking = false)
+    deltas, stopped_at = Ref(0), Ref(0.0)
+    stop = ev -> (ev isa LlmTextDelta && (deltas[] += 1) >= 2 &&
+                  (stopped_at[] = time(); error("The person stopped the turn.")))
+    @test_throws Exception stream_turn(llm, request; on_event = stop)
+    # The time from the stop, so the compilation of the first call does not count.
+    @test time() - stopped_at[] < 1.0
+    @test deltas[] == 2
+finally
+    close(server)
+end
+
 # ── a line split across two reads is one event, not two ──
 out = Any[]
 handle = ProjecturedOllama.OllamaModule._line_handler(ev -> push!(out, ev))

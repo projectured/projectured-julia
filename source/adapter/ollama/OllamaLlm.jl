@@ -385,19 +385,27 @@ function stream_turn(llm::OllamaLlm, request::LlmRequest; on_event::Function)
         # `readline`, which warns about byte-by-byte reads on an HTTP.Stream) and
         # split on the newline; a buffer carries an incomplete line across chunks.
         buf = IOBuffer()
-        while !eof(io)
-            chunk = try
-                readavailable(io)
-            catch e
-                # An EOF ends the read. The check after the read throws when the
-                # stream sent no terminal event.
-                e isa EOFError ? UInt8[] : rethrow()
+        try
+            while !eof(io)
+                chunk = try
+                    readavailable(io)
+                catch e
+                    # An EOF ends the read. The check after the read throws when
+                    # the stream sent no terminal event.
+                    e isa EOFError ? UInt8[] : rethrow()
+                end
+                isempty(chunk) && continue
+                write(buf, chunk)
+                _drain_lines!(buf, handle_line)
             end
-            isempty(chunk) && continue
-            write(buf, chunk)
-            _drain_lines!(buf, handle_line)
+            _drain_lines!(buf, handle_line; final = true)
+        catch
+            # A caller that stops the turn throws from `on_event`. The close of an
+            # HTTP stream reads the rest of the answer first, so the connection
+            # closes here, and the model stops at once.
+            close(io.stream)
+            rethrow()
         end
-        _drain_lines!(buf, handle_line; final = true)
         HTTP.closeread(io)
     end
     ended[] || error("The Ollama stream of $(llm.model) ended before its `done` line.")

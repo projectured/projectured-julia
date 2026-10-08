@@ -80,7 +80,7 @@ end
 # and resumes the kept session. The count of the turns that the agent saw stays,
 # so a turn that never reached the agent is in the next prompt. Each answer of the
 # agent makes the assistant keep the session and that count.
-function _run_external_agent_turn!(editor, a::Assistant)
+function _run_external_agent_turn!(editor, a::Assistant; control::AssistantTurnControl = AssistantTurnControl())
     session = _make_external_agent_session!(editor, a)
     conversation = run_on_editor_task!(() -> a.conversation, editor)
     turn = ConversationTurn(:assistant)
@@ -92,7 +92,9 @@ function _run_external_agent_turn!(editor, a::Assistant)
         prompt, turn_count = run_on_editor_task!(editor) do
             _make_external_agent_prompt(a.conversation, session.sent_turn_count)
         end
-        if session.is_cancelled
+        # A stop that came before the session existed is in the control of the
+        # turn; one that came later is in the session too.
+        if session.is_cancelled || control.is_cancelled
             session.sent_turn_count = turn_count
             return nothing
         end

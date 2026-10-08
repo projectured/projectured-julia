@@ -23,14 +23,14 @@ The kernel declares the seam in `source/kernel/llm/LlmInterface.jl`, and [agent.
 
 `AnthropicLlm` holds `api_key`, `model`, `base_url` and `max_tokens`. An empty `model` calls `get_newest_anthropic_model(api_key)`. It reads `/v1/models` once in a process for each key and models URL, and keeps the first model, newest first, whose capabilities say that it takes adaptive thinking. With no key, or when the request fails, the answer is `"claude-opus-5"`. That name is an alias, not a dated identifier, so it names a model that exists after a new one comes out.
 
-`stream_turn` posts a request with `stream = true` and reads the server-sent events in chunks with `readavailable`. A buffer holds an incomplete event until the next chunk. `_translate_sse!` turns each named event into an `LlmEvent`:
+`stream_turn` posts a request with `stream = true` and reads the server-sent events in chunks with `readavailable`. A buffer holds an incomplete event until the next chunk. When `on_event` throws, as the assistant does after a stop, the adapter closes the connection before it passes the exception on. The close of an HTTP stream reads the rest of the answer first, so without that the model would write, and bill, all of it. `_translate_sse!` turns each named event into an `LlmEvent`:
 
 - `content_block_start` opens a text, a thinking, a redacted thinking or a tool call block.
 - `content_block_stop` does not name the kind of the block, so the adapter keeps the open block in a `Ref` and sends the matching stop event.
 - The arguments of a tool call arrive as JSON fragments. The adapter joins them and parses them when the block stops, so `LlmToolUseStop` carries a `Dict`. A payload that does not parse gives no arguments, and the turn goes on.
 - `message_start` gives the input tokens and `message_delta` the output tokens, and `LlmTurnEnd` carries both with the stop reason. The stop reasons `stop_sequence`, `refusal` and `pause_turn` give `:end_turn`.
 
-When a request sets `thinking`, the adapter sends `{"type": "adaptive", "display": "summarized"}` for a model whose name contains `opus` or `sonnet`, and nothing for another model. A thinking block goes back to the provider with its signature unchanged. An HTTP status of 400 or more throws an error with the body of the answer. An error inside the stream arrives as `LlmFailure`. A stream that ends before its turn end throws, as a dead socket does.
+When a request sets `thinking`, the adapter sends `{"type": "adaptive", "display": "summarized"}` for a model whose name contains `opus` or `sonnet`, and nothing for another model. A thinking block goes back to the provider with its signature unchanged. A thinking block with no signature, as one that a stop cut or one that another backend made, is left out, because the API answers a request that holds one with an error, and a message that is then empty is left out too. An HTTP status of 400 or more throws an error with the body of the answer. An error inside the stream arrives as `LlmFailure`. A stream that ends before its turn end throws, as a dead socket does.
 
 ## How it fits
 

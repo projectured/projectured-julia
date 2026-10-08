@@ -62,7 +62,7 @@ export register_assistant_api!, get_registered_assistant_api
 export ExternalAgentSession, is_external_agent_turn_running, CancelAssistantTurnOperation,
        stop_external_agent!, StartExternalAgentOperation, SetAgentOptionOperation,
        make_agent_option_bar, format_agent_usage
-export is_assistant_turn_running, AssistantTurnControl, make_assistant_stop_button
+export is_assistant_turn_running, make_assistant_stop_button
 
 
 include("AssistantDocument.jl")

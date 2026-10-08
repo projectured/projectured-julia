@@ -223,5 +223,49 @@ function test_anthropic_stream()
                 end
             end
         end
+
+        @testset "a stop closes the connection, and the model writes no more" begin
+            request = LlmRequest(messages = [LlmMessage(:user, "Say hello.")])
+            head = first(_RECORDED_STREAM,
+                         first(findfirst("event: content_block_delta", _RECORDED_STREAM)) - 1)
+            delta(index) = "event: content_block_delta\ndata: {\"type\":\"content_block_delta\"," *
+                           "\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"w$index \"}}\n\n"
+            server = HTTP.serve!("127.0.0.1", 0; listenany = true, stream = true) do http
+                read(http)
+                HTTP.setstatus(http, 200)
+                HTTP.startwrite(http)
+                try
+                    write(http, head)
+                    for index in 1:50
+                        write(http, delta(index))
+                        sleep(0.1)
+                    end
+                catch exception
+                    exception isa Base.IOError || rethrow()
+                end
+            end
+            try
+                llm = AnthropicLlm(; api_key = "key", model = "claude-opus-5",
+                                     base_url = _get_local_url(server, "/v1/messages"))
+                deltas, stopped_at = Ref(0), Ref(0.0)
+                stop = event -> (event isa LlmTextDelta && (deltas[] += 1) >= 2 &&
+                                 (stopped_at[] = time(); error("The person stopped the turn.")))
+                @test_throws Exception stream_turn(llm, request; on_event = stop)
+                # The time from the stop, so the compilation of the first call does
+                # not count.
+                @test time() - stopped_at[] < 1.0
+                @test deltas[] == 2
+            finally
+                close(server)
+            end
+        end
+
+        @testset "a thinking block with no signature is left out of a request" begin
+            wire = ProjecturedAnthropic.AnthropicModule._wire
+            message = LlmMessage(:assistant, LlmContent[LlmThinking("cut", ""), LlmText("Hello")])
+            @test [block["type"] for block in wire(message)["content"]] == ["text"]
+            signed = LlmMessage(:assistant, LlmContent[LlmThinking("whole", "sig")])
+            @test only(wire(signed)["content"])["signature"] == "sig"
+        end
     end
 end

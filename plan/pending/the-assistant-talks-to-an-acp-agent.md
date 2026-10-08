@@ -818,10 +818,26 @@ from the command line of the projectured UI.
     the turn", so the row of an agent keeps its room. In a narrow pane the
     line of the usage still wraps onto two lines inside the row; the
     application test now checks its words.
+  - A review of the first version found that a stop did not stop the model:
+    when the code in an HTTP stream throws, HTTP.jl reads the rest of the
+    answer before it closes the stream, so the turn ran to the end of the
+    answer, and Anthropic billed all of it. Measured: the call ended 4 s
+    after the stop. Fixes: each adapter (Ollama, Anthropic) closes the
+    connection when `on_event` throws, and then the call ends 0.15 s after
+    the stop. The review also found: a stop during a tool call lost the
+    record of the tool, so the result of a tool now passes and the loop ends
+    after it; a thinking block that a stop cut has no signature, which the
+    Anthropic API refuses, so the Anthropic adapter leaves out a thinking
+    block with no signature, and a message that is then empty; the catch
+    now lets an exception that means stop go on; and a stop of an external
+    turn before its session existed was lost, so that turn reads the control
+    too. `AssistantTurnControl` is no export.
   - Tests: the turn of an external agent 178 of 178, the conversation suite
-    236 of 236, `test_assistant_mvp()` 141 with its 4 known broken (two
+    236 of 236, `test_assistant_mvp()` 148 with its 4 known broken (two
     markers in a loop over two widths), the application 357 with the 2 known
-    broken, the icons 364 of 364; the static guards as on `main`. Run the MVP
+    broken, the icons 364 of 364, `test_ollama_stream()` 35 of 35 (the live
+    Ollama tests not run), `test_anthropic()` 43 with the skip of its live test;
+    the static guards as on `main`. Run the MVP
     suite and the application test apart: in one process the start of the
     agent in the application test timed out.
 

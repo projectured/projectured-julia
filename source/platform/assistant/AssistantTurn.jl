@@ -287,7 +287,7 @@ function _launch_agent_turn!(editor, a::Assistant)
     a.turn_control = control
     @async begin
         try
-            a.backend === :acp ? _run_external_agent_turn!(editor, a) : _run_agent_loop!(editor, a; control)
+            a.backend === :acp ? _run_external_agent_turn!(editor, a; control) : _run_agent_loop!(editor, a; control)
         catch e
             traceback = catch_backtrace()
             err = sprint(showerror, e, traceback)
@@ -712,8 +712,10 @@ end
 # not made to carry them.
 #
 # A stop sets `control.is_cancelled`. The next event, or the start of the next
-# round, then throws, which ends the stream of the model and the loop. The turn
-# keeps what it streamed, and its stop reason is `:cancelled`.
+# round, then throws, which ends the stream of the model and the loop. The result
+# of a tool that ran is still drawn first, so the transcript says what the tool
+# did, and no other tool of the round runs. The turn keeps what it streamed, and
+# its stop reason is `:cancelled`.
 function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function} = nothing,
                           control::AssistantTurnControl = AssistantTurnControl())
     set = editor.tools
@@ -776,13 +778,15 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
                 run_on_editor_task!(() -> build_messages(a.conversation), editor)
             end,
             on_event = ev -> begin
-                control.is_cancelled && throw(TurnCancelledException())
+                control.is_cancelled && !(ev isa AgentToolResult) && throw(TurnCancelledException())
                 observe === nothing || observe(ev)
                 run_on_editor_task!(editor; wait = false) do
                     _handle_agent_event!(ev, a, turn, state, set)
                 end
+                control.is_cancelled && throw(TurnCancelledException())
             end)
     catch exception
+        is_passthrough_exception(exception) && rethrow()
         # A backend can wrap what a callback threw, so the flag tells a stop
         # from a failure.
         control.is_cancelled || rethrow()

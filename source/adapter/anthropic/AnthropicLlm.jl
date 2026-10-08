@@ -165,8 +165,14 @@ _wire(c::LlmToolResult)       = Dict("type"        => "tool_result",
                                      "content"     => c.content,
                                      "is_error"    => c.is_error)
 
+# A thinking block with no signature, as one that a stop cut or one of another
+# backend, makes the API answer the request with an error, and a turn that ended
+# in it continues nothing, so it is left out. A message that is then empty is
+# left out too.
 _wire(m::LlmMessage) = Dict("role"    => String(m.role),
-                            "content" => Any[_wire(c) for c in m.content])
+                            "content" => Any[_wire(c) for c in m.content if !_is_unsigned_thinking(c)])
+
+_is_unsigned_thinking(c) = c isa LlmThinking && isempty(c.signature)
 
 # Extended thinking. Opus 4.x / Sonnet thinking models accept
 # `{"type":"adaptive","display":"summarized"}` — `display: "summarized"` is what
@@ -271,7 +277,8 @@ function stream_turn(llm::AnthropicLlm, request::LlmRequest; on_event::Function)
         "model"      => llm.model,
         "max_tokens" => llm.max_tokens,
         "stream"     => true,
-        "messages"   => Any[_wire(m) for m in request.messages],
+        "messages"   => Any[message for message in (_wire(m) for m in request.messages)
+                            if !isempty(message["content"])],
     )
     isempty(request.system) || (body["system"] = request.system)
     isempty(request.tools)  || (body["tools"]  = render_tool_schema(llm, request.tools))
@@ -348,19 +355,27 @@ function stream_turn(llm::AnthropicLlm, request::LlmRequest; on_event::Function)
         # warns about byte-by-byte reads on an HTTP.Stream) and split on the event
         # boundary "\n\n"; a buffer carries an incomplete event across chunks.
         buf = IOBuffer()
-        while !eof(io)
-            chunk = try
-                readavailable(io)
-            catch e
-                # An EOF ends the read. The check after the read throws when the
-                # stream sent no terminal event.
-                e isa EOFError ? UInt8[] : rethrow()
+        try
+            while !eof(io)
+                chunk = try
+                    readavailable(io)
+                catch e
+                    # An EOF ends the read. The check after the read throws when
+                    # the stream sent no terminal event.
+                    e isa EOFError ? UInt8[] : rethrow()
+                end
+                isempty(chunk) && continue
+                write(buf, chunk)
+                _drain_sse_events!(buf, emit; input_tokens)
             end
-            isempty(chunk) && continue
-            write(buf, chunk)
-            _drain_sse_events!(buf, emit; input_tokens)
+            _drain_sse_events!(buf, emit; final = true, input_tokens)
+        catch
+            # A caller that stops the turn throws from `on_event`. The close of an
+            # HTTP stream reads the rest of the answer first, and the model would
+            # write all of it, so the connection closes here.
+            close(io.stream)
+            rethrow()
         end
-        _drain_sse_events!(buf, emit; final = true, input_tokens)
         HTTP.closeread(io)
     end
     ended[] || error("Anthropic API error: the stream ended before its turn end")
