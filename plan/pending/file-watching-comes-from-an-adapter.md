@@ -45,8 +45,17 @@ standard library `FileWatching`, for the `FolderMonitor` of the slice
     with a limit of 10 s.
   - A new test checks the seam with a stand-in watcher, and a watch that
     answers `nothing`. It restores the registered watch at its end.
-- [ ] **Step 2.** The package `ProjecturedFileWatching` and its test package,
-  `environment/all`, and the test of the monitor.
+- [x] **Step 2.** The package `ProjecturedFileWatching` and its test package,
+  `environment/all`, and the test of the monitor. `test_filewatching()` passes,
+  12 of 12; in the same process `test_filechange()` passes with the monitor, 38
+  of 38, three times.
+  - The slice names the store bare (`using ..FileChangeModule`): the layering
+    guard refuses an `import` of a name that the file does not extend, and a
+    symbol list on a `using`.
+  - The test of the monitor gives the store a poll of 60 s, so only the monitor
+    can bring the change in the time of the test.
+  - Like `ProjecturedOpenRouterTest`, the test package is in `environment/all`
+    and not in the suite of `test_all`.
 - [ ] **Step 3.** The documents and the tables: the filechange document, the
   adapter document, the package index, the package rules, the auto-integration
   table, the summary of the builder; the guards of the packages.

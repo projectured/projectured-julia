@@ -2,7 +2,7 @@
 
 julia_version = "1.13.1"
 manifest_format = "2.1"
-project_hash = "40e79e41b7a8774f509cee9b340f4c7f3b876b3c"
+project_hash = "d6a237535f8b9657640112bf81b21a414abc4162"
 
 [[deps.AMD]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
@@ -1132,6 +1132,18 @@ version = "0.1.0"
 deps = ["ProjecturedAll", "ProjecturedExample", "ProjecturedKernelExample", "ProjecturedPlatform"]
 path = "../../package/ProjecturedFaultExample"
 uuid = "d499710c-e3ef-422e-9e97-2622a1fb16a4"
+version = "0.1.0"
+
+[[deps.ProjecturedFileWatching]]
+deps = ["FileWatching", "ProjecturedPlatform"]
+path = "../../package/ProjecturedFileWatching"
+uuid = "24009341-db0c-4146-9c93-d6004d091689"
+version = "0.1.0"
+
+[[deps.ProjecturedFileWatchingTest]]
+deps = ["FileWatching", "ProjecturedFileWatching", "ProjecturedKernelTest", "ProjecturedPlatform", "Test"]
+path = "../../package/ProjecturedFileWatchingTest"
+uuid = "d9c5415d-156f-495a-be45-b5a39f5bfc73"
 version = "0.1.0"
 
 [[deps.ProjecturedFormula]]

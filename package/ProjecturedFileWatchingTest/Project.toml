@@ -1,0 +1,20 @@
+name = "ProjecturedFileWatchingTest"
+uuid = "d9c5415d-156f-495a-be45-b5a39f5bfc73"
+version = "0.1.0"
+authors = []
+
+# The file watching tier of the test-package DAG. The suite checks that the
+# package registers its watch when it loads, and that a change of a file reaches
+# its document through a FolderMonitor, in a time that a poll does not reach.
+
+[deps]
+FileWatching = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
+ProjecturedFileWatching = "24009341-db0c-4146-9c93-d6004d091689"
+ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
+ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+ProjecturedFileWatching = {path = "../ProjecturedFileWatching"}
+ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}
+ProjecturedPlatform = {path = "../ProjecturedPlatform"}
