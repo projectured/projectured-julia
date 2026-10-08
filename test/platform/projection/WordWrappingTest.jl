@@ -201,4 +201,47 @@ caret = TextModule.make_flat_caret_reference(0)
 
 end # @testset "WordWrapping keeps an empty span"
 
+@testset "WordWrapping wraps a block of lines by its soft breaks" begin
+
+font = StyleFont("Ubuntu Mono", 20)
+m = _test_measure(10, 18)
+long = TextString("alpha beta gamma delta", font, color_default)
+short = TextString("x", font, color_default)
+input = TextBlock(TextDocument[TextLine(long; indentation = 2), TextLine(short)])
+avail = Cell(100)
+proj = WordWrapping(measure = m)
+iomap = print_document(proj, nothing, input, with_exact_size(PrinterContext(); width = avail))
+out = iomap.output
+
+# Each line keeps its spans and its indentation; only the soft breaks are new.
+@test length(out.elements) == 2
+@test out.elements[1].elements[1] === long
+@test out.elements[1].indentation == 2
+# 100 pixels less an indentation of 20 is 8 characters on a row, and the space
+# at a wrap stays at the end of the upper row.
+@test out.elements[1].soft_breaks == [6, 11, 17]
+@test out.elements[2].soft_breaks == Int[]
+
+# A soft break is no character, so every offset and every caret stays.
+@test get_flat_string(out) == get_flat_string(input)
+caret = make_flat_caret_reference(8)
+@test map_reference_forward(proj, iomap, caret) == caret
+@test map_reference_backward(proj, iomap, caret) == caret
+
+# A keystroke changes the soft breaks of its line, and neither the list of lines
+# nor the soft breaks of another line.
+@test out.elements[2].soft_breaks == Int[]
+getfield(long, :content)[] = "alpha beta gamma"
+@test is_cell_up_to_date(getfield(out.elements, :elements))
+@test !is_cell_up_to_date(getfield(out.elements[1], :soft_breaks))
+@test is_cell_up_to_date(getfield(out.elements[2], :soft_breaks))
+@test out.elements[1].soft_breaks == [6, 11]
+
+# A resize changes the soft breaks, and not the list of lines.
+avail[] = 1000
+@test is_cell_up_to_date(getfield(out.elements, :elements))
+@test out.elements[1].soft_breaks == Int[]
+
+end # @testset "WordWrapping wraps a block of lines by its soft breaks"
+
 end # test_word_wrapping

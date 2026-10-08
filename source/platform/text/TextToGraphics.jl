@@ -690,8 +690,10 @@ end
 # A group is one visual line: the spans that render on it (each tagged with its
 # `SpanPath`, so a span inside a `TextLine` addresses `[i, j]`), the `indentation`
 # it opens with, the `TextNewline` element that terminates it (or `nothing`),
-# whether an implicit line break precedes it, and `line`, the index of the
-# `TextLine` element that it lays out, or 0.
+# whether an implicit line break precedes it, `line`, the index of the `TextLine`
+# element that it lays out, or 0, and `soft_breaks`, the cell of the soft breaks of
+# that line, or `nothing`. The cell is not read here: the layout of the line reads
+# it, so a new wrap lays out only its line.
 #
 # Lines arrive by two mechanisms and the grouping honours both:
 #   • a `TextNewline` *element* terminates the current line;
@@ -715,25 +717,30 @@ function _line_groups(styled::TextBlock)
     break_before = false
     is_line = false
     line = 0
+    soft_breaks = nothing
     for (i, element) in enumerate(styled.elements)
         if element isa TextNewline
             push!(groups, (spans = spans, newline = element, indentation = indentation,
-                           break_before = break_before, is_line = is_line, line = line))
+                           break_before = break_before, is_line = is_line, line = line,
+                           soft_breaks = soft_breaks))
             spans = Tuple{SpanPath,Any}[]
             indentation = 0
             break_before = false
             is_line = false
             line = 0
+            soft_breaks = nothing
         elseif element isa TextLine
             if i > 1
                 push!(groups, (spans = spans, newline = nothing, indentation = indentation,
-                               break_before = break_before, is_line = is_line, line = line))
+                               break_before = break_before, is_line = is_line, line = line,
+                               soft_breaks = soft_breaks))
                 spans = Tuple{SpanPath,Any}[]
             end
             indentation = element.indentation
             break_before = i > 1
             is_line = true
             line = i
+            soft_breaks = getfield(element, :soft_breaks)
             for (j, span) in enumerate(element.elements)
                 push!(spans, (Int[i, j], span))
             end
@@ -742,7 +749,8 @@ function _line_groups(styled::TextBlock)
         end
     end
     push!(groups, (spans = spans, newline = nothing, indentation = indentation,
-                   break_before = break_before, is_line = is_line, line = line))
+                   break_before = break_before, is_line = is_line, line = line,
+                   soft_breaks = soft_breaks))
     groups
 end
 
@@ -755,7 +763,9 @@ end
 # false` — it needs the geometry, not the glyphs). Sharing the loop is what keeps
 # the caret on the character it was placed against.
 #
-# A group is one visual line, or more when a span embeds '\n'. Each visual line
+# A group is one visual line, or more when a span embeds '\n' or the line has soft
+# breaks. A soft break starts a row at the indentation of the line, and a caret at
+# a soft break stands at the start of the lower row. Each visual line
 # is set as a word processor sets a line: every box on it sits on one baseline,
 # its height comes from the largest ascent, descent and line gap of its boxes,
 # and `p.line_spacing` sets the distance to the next line. A piece of a line
@@ -776,9 +786,25 @@ function _layout_group(p::TextToGraphics, group, y0::Int, cursor_pos,
     last_font = nothing        # the font of the last text span: it sizes an empty last line
     is_caret_at(path, k) = cursor_pos !== nothing && g.cursor === nothing && g.caret === nothing &&
                            cursor_pos.span == path && cursor_pos.char == k
+    soft_breaks = group.soft_breaks === nothing ? Int[] : group.soft_breaks[]::Vector{Int}
+    line_offset = 0            # the offset in the text of the spans of the group
+    pending_caret = nothing    # the font of a caret that waits for the next row
+    # Close the open row at a soft break and start the next at the indentation,
+    # with the caret that waits for it.
+    function break_row!(font)
+        _close_line!(g, p, font, true, collect_spans)
+        g.pen = Float64(start_x)
+        if pending_caret !== nothing && g.cursor === nothing
+            g.caret = (round(Int, g.pen), pending_caret)
+        end
+        pending_caret = nothing
+    end
 
     for (index, (path, span)) in enumerate(group.spans)
+        span_base = line_offset
+        line_offset += get_flat_length(span)
         if span isa TextGraphics
+            span_base in soft_breaks && !isempty(g.boxes) && break_row!(last_font)
             width = Int(span.width::Int32)
             height = Int(span.height::Int32)
             x = round(Int, g.pen)
@@ -832,25 +858,44 @@ function _layout_group(p::TextToGraphics, group, y0::Int, cursor_pos,
                 continue
             end
 
-            # No wrap: emit the whole sub-line as a single segment, at the rounded
-            # real pen position, so a long line of many runs does not drift.
-            box = measure_string(p.measure, line, sf)
-            _, ascent, descent = compute_text_extent(box)
-            x = round(Int, g.pen)
-            g.pen += box.width
-            width = round(Int, g.pen) - x
-            push!(g.boxes, FontMetrics(box.ascent, box.descent, box.line_gap))
-            g.ink_descent = max(g.ink_descent, descent)
+            # Emit the sub-line as one segment for each row it is on, at the rounded
+            # real pen position, so a long line of many runs does not drift. A soft
+            # break inside it, or at its start, starts a row there.
             seg_len = length(line)
-            push!(g.pieces, (kind = :text, key = (span_oid, span_occ, li), path = path,
-                             char_start = char_offset, char_end = char_offset + seg_len,
-                             span = span, text = String(line), x = x, width = width,
-                             ascent = ascent, descent = descent, font = sf, color = col))
-            if cursor_pos !== nothing && g.cursor === nothing && g.caret === nothing &&
-               cursor_pos.span == path && char_offset <= cursor_pos.char <= char_offset + seg_len
-                g.caret = (x + _get_caret_x(p.measure, line, sf, cursor_pos.char - char_offset), sf)
+            sub_start = span_base + char_offset
+            cuts = Int[b - sub_start for b in soft_breaks if sub_start <= b < sub_start + seg_len]
+            (isempty(cuts) || cuts[1] != 0) && pushfirst!(cuts, 0)
+            push!(cuts, seg_len)
+            characters = collect(line)
+            for k in 1:(length(cuts) - 1)
+                piece_start, piece_end = cuts[k], cuts[k + 1]
+                (sub_start + piece_start) in soft_breaks && !isempty(g.boxes) && break_row!(sf)
+                piece = String(characters[(piece_start + 1):piece_end])
+                box = measure_string(p.measure, piece, sf)
+                _, ascent, descent = compute_text_extent(box)
+                x = round(Int, g.pen)
+                g.pen += box.width
+                width = round(Int, g.pen) - x
+                push!(g.boxes, FontMetrics(box.ascent, box.descent, box.line_gap))
+                g.ink_descent = max(g.ink_descent, descent)
+                key = k == 1 ? (span_oid, span_occ, li) : (span_oid, span_occ, li, k)
+                start, stop = char_offset + piece_start, char_offset + piece_end
+                push!(g.pieces, (kind = :text, key = key, path = path,
+                                 char_start = start, char_end = stop,
+                                 span = span, text = piece, x = x, width = width,
+                                 ascent = ascent, descent = descent, font = sf, color = col))
+                if cursor_pos !== nothing && g.cursor === nothing && g.caret === nothing &&
+                   cursor_pos.span == path && start <= cursor_pos.char <= stop
+                    # A caret at the end of a row that a soft break ends stands at
+                    # the start of the next row.
+                    if cursor_pos.char == stop && (span_base + stop) in soft_breaks
+                        pending_caret = sf
+                    else
+                        g.caret = (x + _get_caret_x(p.measure, piece, sf, cursor_pos.char - start), sf)
+                    end
+                end
+                g.max_x = max(g.max_x, round(Int, g.pen))
             end
-            g.max_x = max(g.max_x, round(Int, g.pen))
             char_offset += seg_len
         end
     end

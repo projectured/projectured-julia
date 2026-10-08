@@ -288,24 +288,32 @@ string, and it stays with the line when lines are added above it.
 `fold` is the [`TextFold`](@ref) that starts at this line, or `nothing`: a region
 of this line and the lines after it, which `TextFolding` hides but this one when
 it is closed.
+
+`soft_breaks` are the places where the line wraps: each is a character offset in
+the text of its spans, where an image counts one, and a new row of the line
+starts before that character. `WordWrapping` computes them for the width of the
+view, and `TextToGraphics` starts a row at each, at the indentation of the line.
+A soft break is no character: it is not in the caret space and not in the flat
+string, so a wrap moves no offset.
 """
 @document struct TextLine <: TextDocument
     elements::CollectionDocument = CellVector()
     indentation::Int = 0
     gutter::Union{Document, Nothing} = nothing
     fold::Union{Document, Nothing} = nothing
+    soft_breaks::Vector{Int} = Int[]
 end
 
 TextLine(spans::Vector{<:TextDocument}; indentation::Integer = 0, gutter = nothing, fold = nothing) =
     TextLine(CellVector(Cell[Cell(s) for s in spans]), Cell(Int(indentation)), Cell(gutter),
-             Cell(fold), Cell(nothing))
+             Cell(fold), Cell(Int[]), Cell(nothing))
 
 TextLine(spans::TextDocument...; indentation::Integer = 0, gutter = nothing, fold = nothing) =
     TextLine(collect(TextDocument, spans); indentation, gutter, fold)
 
 TextLine(f::Function; indentation::Integer = 0, gutter = nothing, fold = nothing) =
     TextLine(CellVector(Computation(f)), Cell(Int(indentation)), Cell(gutter), Cell(fold),
-             Cell(nothing))
+             Cell(Int[]), Cell(nothing))
 
 # A lone line is not a document — it is a part of a block. Both of its fields are
 # defaulted, so unlike the span types (each has a required field, and so no

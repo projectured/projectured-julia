@@ -12,6 +12,12 @@
 # lands at a wrap boundary stays as the last character of the previous visual
 # line. This makes the projection invertible by a clean piecewise-linear offset
 # table (`WordWrappingIoMap.segs`), used by selection mapping and the reader.
+#
+# A block of lines wraps without a change of its elements: each output line holds
+# the spans of its input line, and its `soft_breaks` cell holds the offsets where a
+# row starts, computed from the text of that line and the width. The list of lines
+# reads no width and no content, so a keystroke or a resize changes the soft breaks
+# of the lines it touches and nothing else, and every reference maps to itself.
 # ── Projection struct ───────────────────────────────────────────────────────
 
 """
@@ -62,10 +68,14 @@ end
 function print_document(p::WordWrapping, recursion, text::TextBlock, ctx)
     wrap_w_cell = _wrap_width_cell(p, ctx)
     measure_fn = p.measure
-    both = Cell(@computation _wrap(text, Int(wrap_w_cell[]), measure_fn))
+    # Each output line is made once and kept while its input line stays.
+    lines = IdDict{Any, Any}()
+    both = Cell(@computation _is_block_of_lines(text) ?
+                             _wrap_lines(text, lines, wrap_w_cell, measure_fn) :
+                             _wrap(text, Int(wrap_w_cell[]), measure_fn))
     elements_cv = CellVector(@computation both[][1])
     segs_cell = Cell(@computation both[][2])
-    paths = make_output_path_cells(text, path ->
+    paths = make_output_path_cells(text, path -> _is_block_of_lines(text) ? path :
         _forward_wrapped(segs_cell[], text, TextBlock(elements_cv, Cell(nothing)), path))
     output = TextBlock(elements_cv, paths.selection, paths.mouse_target)
     WordWrappingIoMap(p, text, output, segs_cell)
@@ -83,6 +93,94 @@ function _wrap_width_cell(p::WordWrapping, ctx)
         v = edge[]
         min(v isa Integer ? max(1, Int(v)) : _NO_WRAP_WIDTH, limit)
     end)
+end
+
+# The wrapped lines of a block of lines, with no segment: each line maps to
+# itself. Reads only the list of lines.
+function _wrap_lines(text::TextBlock, lines::IdDict, wrap_w_cell::Cell, measure_fn::TextMeasure)
+    out = TextDocument[]
+    live = IdDict{Any, Bool}()
+    for element in text.elements
+        if element isa TextLine
+            push!(out, get!(() -> _make_wrapped_line(element, wrap_w_cell, measure_fn), lines, element))
+            live[element] = true
+        else
+            push!(out, element)
+        end
+    end
+    for line in collect(keys(lines))
+        haskey(live, line) || delete!(lines, line)
+    end
+    (out, WrapSegment[])
+end
+
+# The output line of `line`: its spans and every other field, and the soft breaks
+# for the width that `wrap_w_cell` holds.
+function _make_wrapped_line(line::TextLine, wrap_w_cell::Cell, measure_fn::TextMeasure)
+    soft_breaks = Cell(@computation _compute_soft_breaks(line, Int(wrap_w_cell[]), measure_fn))
+    TextLine(getfield(line, :elements), getfield(line, :indentation), getfield(line, :gutter),
+             getfield(line, :fold), soft_breaks, getfield(line, :selection),
+             getfield(line, :mouse_target))
+end
+
+# The width of the indentation of `line`, in the font of its first text span, as
+# `TextToGraphics` draws it.
+function _measure_indentation(line::TextLine, measure_fn::TextMeasure)
+    line.indentation > 0 || return 0
+    for span in line.elements
+        span isa TextString &&
+            return first(compute_text_extent(measure_fn, " " ^ line.indentation, span.font::StyleFont))
+    end
+    0
+end
+
+# The soft breaks of `line` at the wrap width `wrap_w`, by the rule of
+# `_wrap_string!`: a row breaks before a word that would pass the width, and the
+# space before that word stays at the end of the upper row; an image that would
+# pass it starts a row; a `'\n'` in a span starts a row of its own. Every row starts
+# at the indentation of the line, so the width of a row is the width less the
+# indentation.
+function _compute_soft_breaks(line::TextLine, wrap_w::Int, measure_fn::TextMeasure)
+    breaks = Int[]
+    width = wrap_w - _measure_indentation(line, measure_fn)
+    width > 0 || return breaks
+    cx = 0
+    offset = 0
+    for span in line.elements
+        if span isa TextString
+            font = span.font::StyleFont
+            for (li, text_line) in enumerate(split(span.content::AbstractString, '\n'; keepempty = true))
+                if li > 1
+                    offset += 1
+                    cx = 0
+                end
+                for (wi, word) in enumerate(split(text_line, ' '; keepempty = true))
+                    separator = wi == 1 ? "" : " "
+                    candidate_w = first(compute_text_extent(measure_fn, separator * word, font))
+                    if cx > 0 && cx + candidate_w > width
+                        offset += length(separator)
+                        push!(breaks, offset)
+                        offset += length(word)
+                        cx = first(compute_text_extent(measure_fn, word, font))
+                    else
+                        offset += length(separator) + length(word)
+                        cx += candidate_w
+                    end
+                end
+            end
+        elseif span isa TextGraphics
+            image_w = Int(span.width::Int32)
+            if cx > 0 && cx + image_w > width
+                push!(breaks, offset)
+                cx = 0
+            end
+            offset += 1
+            cx += image_w
+        else
+            offset += get_flat_length(span)
+        end
+    end
+    breaks
 end
 
 # Returns (output_elements::Vector{TextDocument}, segs::Vector{WrapSegment}).
@@ -254,9 +352,11 @@ function _forward_wrapped(segs, input::TextBlock, output::TextBlock, selection)
 end
 
 map_reference_forward(p::WordWrapping, iomap::WordWrappingIoMap, reference) =
+    _is_block_of_lines(iomap.input) ? reference :
     _forward_wrapped(iomap.segs, iomap.input, iomap.output, reference)
 
 function map_reference_backward(p::WordWrapping, iomap::WordWrappingIoMap, reference)
+    _is_block_of_lines(iomap.input) && return reference
     box = _get_text_box(reference)
     box === nothing ||
         return _map_text_box(_reverse_flat_runs(_make_wrap_runs(iomap.segs, iomap.input, iomap.output)), box)

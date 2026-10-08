@@ -743,9 +743,28 @@ The design of step 1, found when the work started (2026-10-08):
 2. *(merged into 1)*
 3. **The lazy list of lines.** `SyntaxListToText` makes a lazy list of lines (Q3),
    and the list path of `TextToGraphics` draws one canvas for each line.
-4. **The decorators learn lines.** `TextHighlighting`, `TextFiltering`,
-   `TextFirstLine` and `SelectionInverting` name a span by its path in a line, and
-   `WordWrapping` wraps inside a line as Q4 decides.
+4. **The decorators learn lines.**
+   - 4a. ~~**`WordWrapping` wraps a line by its soft breaks** (Q4 (d)).~~ **Done
+     2026-10-08**, the commit after step 1, done before step 3 because step 1 left
+     the prose of a syntax view unwrapped. `TextLine` has the field
+     `soft_breaks`. On a block of lines, `WordWrapping` makes one output line for
+     each input line, which holds the cells of the input line and a cell of its
+     own, `_compute_soft_breaks`, that reads the text of the line and the width
+     (less the indentation); the list of lines reads neither. Every reference
+     maps to itself. `TextToGraphics` carries the cell of the soft breaks in the
+     group of a line without a read, and `_layout_group` reads it and starts a row
+     at each soft break, at the indentation; a caret at a soft break stands at the
+     start of the lower row. `TextLineNumbering` and `TextFolding` pass the field
+     through. The wrap of a block of spans is as before. Tests: a block of lines
+     wraps, a keystroke changes only the soft breaks of its line and a resize
+     changes no element (`WordWrappingTest.jl`); rows, carets and a click on a
+     row (`TextToGraphicsTest.jl`). `test_markdown` passes again (262), and
+     `test_book` (33). A sweep at a snapshot (`/var/tmp/text-gutter/probe3/`)
+     has no failure above the baseline in `test_platform`, the navigation and
+     type-in sweeps, the printers, the readers, the REPLs, the clicks, the
+     natural renders and round trips, Julia and SQL.
+   - 4b. `TextHighlighting`, `TextFiltering`, `TextFirstLine` and
+     `SelectionInverting` name a span by its path in a line.
 5. **The sweeps.** Run the guards and the suites of step 0 again, and compare. A
    broken marker that changes gets a reason or a fix.
 6. **The documents.** `text.md` and the syntax document describe the lines of

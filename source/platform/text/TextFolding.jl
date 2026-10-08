@@ -98,7 +98,7 @@ function _make_folded_line(p::TextFolding, line::TextLine, marks::IdDict, placeh
                             gutter_type)
     end))
     TextLine(elements, getfield(line, :indentation), gutter, getfield(line, :fold),
-             getfield(line, :selection), getfield(line, :mouse_target))
+             getfield(line, :soft_breaks), getfield(line, :selection), getfield(line, :mouse_target))
 end
 
 function print_document(p::TextFolding, recursion, text::TextBlock, ctx)
