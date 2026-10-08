@@ -183,8 +183,9 @@ The scripts are in `/var/tmp/meas`: `first_frame.jl` (the timing),
    | `main` (5 runs) | 53.4 s | 1.46 s | 0.17 s |
    | this branch (6 runs) | **0.86 s** | 1.87 s | 0.12 s |
 
-   At a load of 8 the branch measured 0.75 s. The build of the README packages
-   takes 135 s, from about 134 s with no workload in a fresh depot.
+   At a load of 8 the branch measured 0.75 s. From an empty depot of compiled
+   code, the build of the README packages took 199 s with the workloads (the
+   first build of step 2) and 134 s with none.
 7. [ ] D5: if the target is met, the front page of `Projectured.jl`, the web page
    and the README of AutoPrecompile stop recommending it. The statement files
    in `precompile/` stay while the dev REPL replays them.
