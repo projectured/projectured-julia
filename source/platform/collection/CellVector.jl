@@ -95,6 +95,10 @@ Base.eltype(::Type{<:CellVector{T}}) where {T} = T
 Base.:(==)(list::CellVector, vector::AbstractVector) =
     length(list) == length(vector) && all(i -> list[i] == vector[i], eachindex(vector))
 Base.:(==)(vector::AbstractVector, list::CellVector) = list == vector
+Base.:(==)(a::CellVector, b::CellVector) =
+    length(a) == length(b) && all(i -> a[i] == b[i], 1:length(a))
+# A list that equals a vector hashes as that vector, so equal values hash equal.
+Base.hash(list::CellVector, h::UInt) = hash(collect(list), h)
 # `vcat` and `filter` of a list answer a plain vector of its elements, as they do
 # for a vector; `vcat` would otherwise take the whole list as one element.
 Base.vcat(list::CellVector, rest...) = vcat(collect(list), rest...)
