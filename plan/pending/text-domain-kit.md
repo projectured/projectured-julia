@@ -598,18 +598,43 @@ inside a line, and `WordWrapping` learns a span path in a line.*
 
 Each step is one commit, and the flat offsets stay the same in every step.
 
+The design of step 1, found when the work started (2026-10-08):
+
+- **The flat list of an output.** Each IO map keeps the flat list of its output:
+  each span of each line in order, with an entry for the break before a line and
+  an entry for its indentation. A break counts one offset and an indentation its
+  width, so the offsets of the list are the offsets of the span list of today, and
+  the mappers keep their logic over it. A child is a contiguous range of the list
+  of its parent, as today.
+- **A parent speaks to a child in the language of the child's output:** a flat
+  caret, a span `[i, j]` of a line, or an edit of the characters of such a span.
+  So a child that another projection prints works as a syntax child does.
+- **Which lines an ancestor indents.** A line that the chrome of a compound starts
+  has an indentation that a compound that indents widens. A line that a break
+  inside a span starts, in a leaf value, a delimiter or a separator, has
+  indentation 0 and keeps it, as today: the text of a span is the user's text,
+  and its spaces are its own. The IO map records which lines are of the chrome.
+- **Rule 5 waits** for the first producer that puts a gutter or a fold on a line
+  of syntax text, step 3 of the fold plan.
+- **The cost of a keystroke.** A leaf reads the content of its spans to find the
+  breaks, and the cell system has no cut-off for an equal value, so a keystroke
+  in a leaf computes the lines again from the leaf to the root. Today the syntax
+  text is one group in `TextToGraphics`, so each keystroke lays out the whole
+  block again, and that cost stays the larger one. I expect no regression, and
+  step 5 measures a keystroke before and after.
+
 0. **The baseline.** Run the guards below and the suites of the domains that print
    through `SyntaxToText`, on the head of the branch before step 3, which already
    holds the gutter and the folds. Record the counts here, with the broken markers.
-1. **A leaf makes lines.** `SyntaxLeafToText` splits a value or a delimiter that
-   holds a `'\n'` into lines, with a table of segments that maps a piece back to
-   its span by offset, as `WordWrapping` does. Its mappers, its click and its edit
-   reader go through the table.
-2. **A compound joins lines.** `SyntaxCompoundToText` builds its lines by the join
-   rule of Q2, and the chrome of a node that indents becomes the indentation of its
-   lines. `indent_indices` and the widening go. Every helper that names a span by
-   its index learns a span path `[i, j]`. `SyntaxToTextTest.jl` changes from the
-   span list to lines.
+1. **A leaf and a compound make lines.** One commit, because a compound can not
+   join the lines of a leaf and splice the spans of a compound at the same time.
+   `SyntaxLeafToText` splits a value or a delimiter that holds a `'\n'` into lines.
+   `SyntaxCompoundToText` builds its lines by the join rule of Q2: the chrome of a
+   node that indents becomes the indentation of its lines, and a delimiter or a
+   separator that holds a `'\n'` is split as a leaf value is. `indent_indices`, the
+   widened indent spans and the `"\n"` spans go. `SyntaxToTextTest.jl` changes from
+   the span list to lines.
+2. *(merged into 1)*
 3. **The lazy list of lines.** `SyntaxListToText` makes a lazy list of lines (Q3),
    and the list path of `TextToGraphics` draws one canvas for each line.
 4. **The decorators learn lines.** `TextHighlighting`, `TextFiltering`,
