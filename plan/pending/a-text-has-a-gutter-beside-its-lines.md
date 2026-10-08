@@ -441,7 +441,14 @@ The order of the work, each step on its own commit, each with its test.
    an inline child that it names. Steps 5 and 6 wait for it.
 5. **Fold triangles in the gutter** (done for hand-made lines by steps 1 and 2 of the fold plan; the rest waits for its steps 3 and 4): the steps of [a-text-folds-a-region-of-its-lines.md](a-text-folds-a-region-of-its-lines.md).
    `TextFolding` fills the `fold` field.
-6. **The Julia code view** shows numbers and fold triangles.
+6. **The Julia code view** shows numbers and fold triangles. **Decided (b), the
+   owner, 2026-10-08: only the code of a Julia file in its tab.** The file view
+   prints its code through `SyntaxToText(text_folds = true)` →
+   `TextLineNumbering` → `TextFolding` → `TextBlockToScrollLayout`, inside the
+   scroll pane of the tab; a Julia snippet that stands inside another document,
+   such as a message or a value of a form, draws as before. The other option was
+   (a), every Julia code view, also a snippet of one line; a snippet has no scroll
+   pane of its own, and numbers on one or two lines say nothing.
 7. ✅ **Done (2026-10-07), by the scroll plan. Scroll** (§5.7): steps 1 and 2 of the scroll plan; then a file tab of code
    keeps its gutter at the left edge.
 8. **Markers.** A lane of markers keyed by a line, then marks that a domain
