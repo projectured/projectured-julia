@@ -699,7 +699,11 @@ worktree. The three domains test different parts of the model:
       `test_legacy` and `test_inet` have the same counts on the branch and on `main`. In
       `OmnetPresentationTest`, 71 of 74 functions are equal; the two of the engine buffer
       below fail on the branch only, and `test_sim_control_panel` fails once on `main` and
-      passes on the branch. `test_integration` on `main`: 1275519 pass, 3 fail, 1578 broken.
+      passes on the branch. At `4e0b426e3`, `test_platform` has the same 3 failures as `main`
+      (102445 pass against 102403), and `test_integration` the same 3 failures at the same
+      places (1275776 pass against 1275519, 1578 broken on both). The other 20 suites of
+      projectured-julia and 24 of omnet-julia were equal to `main` before the rebase, and the
+      new commits of `main` do not reach their code.
     - **Open, for the owner: a scratch buffer of an engine in a cell layout.** The other two
       functions fail on the branch only. `reactive_parallel_simulator` builds the reactive shadow
       of a `ParallelEngine` from the fields of the native engine, and `green_buf` is a
