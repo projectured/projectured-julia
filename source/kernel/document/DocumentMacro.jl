@@ -75,15 +75,38 @@ _declared_type_name(::Any) = nothing
 # collection registered a reactive counterpart for it — see
 # `get_cell_layout_field_type`. The NATIVE layout never asks, so it keeps the plain
 # type the programmer wrote.
+#
+# A type that the cell layout holds goes through `_get_cell_layout_value_type` when
+# the schema is defined, so a native layout of another schema becomes its family. A
+# list type keeps its head, because `_is_list_field_type` reads the expression.
 function _cell_value_types(plan)
     map(get_cell_struct_value_types(plan)) do vt
         name = _declared_type_name(vt)
         substitute = name === nothing ? nothing : get_cell_layout_field_type(Val(name))
-        substitute === nothing && return vt
+        if substitute === nothing
+            _is_list_field_type(vt) || return _make_cell_layout_type_call(vt)
+            substitute = vt isa Expr ? vt.args[1] : vt
+        end
         # `Vector{X}` keeps its element type: the cell layout holds `CellVector{X}`.
-        vt isa Expr && vt.head === :curly ? Expr(:curly, substitute, vt.args[2:end]...) :
-                                            substitute
+        vt isa Expr && vt.head === :curly ?
+            Expr(:curly, substitute, map(_make_cell_layout_type_call, vt.args[2:end])...) :
+            substitute
     end
+end
+
+_make_cell_layout_type_call(vt) = :($(_get_cell_layout_value_type)($vt))
+
+# The type that a cell layout holds where a field declares `T`. A native layout of a
+# schema stands for the family of the schema: the bare name of `@document [M, C]` is
+# the native layout, and a cell layout holds the cell layout of its child. A union
+# maps each member. Any other type, and a type parameter, stay as they are.
+@inline _get_cell_layout_value_type(T) = T
+@inline _get_cell_layout_value_type(T::Union) =
+    Union{_get_cell_layout_value_type(T.a), _get_cell_layout_value_type(T.b)}
+@inline function _get_cell_layout_value_type(T::DataType)
+    T <: Document || return T
+    native = get_document_native_type(T)
+    native !== nothing && native === Base.typename(T).wrapper ? get_document_family(T) : T
 end
 
 # Whether a field whose cell layout holds `vt` is a list field: its type names a

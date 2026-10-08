@@ -6,10 +6,15 @@ base registers onto the kernel's `OperationModule` generic is validated by the
 kernel operation-layer test through the default fieldnames-walk.
 """
 
-# A schema with a typed list field: the native layout holds a plain vector, and
-# the cell layout holds the list of the field.
+# A schema with typed list fields: the native layout holds a plain vector, and the
+# cell layout holds the list of the field. A list of a schema holds its family.
+@document [M, C] struct TypedListEntry
+    label::String
+end
+
 @document [M, C] struct TypedListHolder
     names::Vector{String} = String[]
+    entries::Vector{TypedListEntry} = TypedListEntry[]
 end
 
 function test_collection()
@@ -463,12 +468,16 @@ end # @testset "ReactiveCollection"
     end
 
     @testset "a kinded copy of a native layout holds the list of the field" begin
-        native = TypedListHolder(; names = ["a", "b"])
+        native = TypedListHolder(; names = ["a", "b"], entries = [TypedListEntry("x")])
         @test getfield(native, :names) isa Vector{String}
+        @test getfield(native, :entries) isa Vector{MTypedListEntry}
         for kind in (ReactiveCell, MutableCell, ImmutableCell)
             copied = copy_document(kind, native)
             @test getfield(copied, :names)[] isa CellVector{String}
             @test collect(copied.names) == ["a", "b"]
+            @test getfield(copied, :entries)[] isa CellVector{ATypedListEntry}
+            @test only(collect(copied.entries)) isa ACTypedListEntry
+            @test only(collect(copied.entries)).label == "x"
         end
     end
 
