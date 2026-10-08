@@ -594,6 +594,35 @@ one place that wraps, and the numbers, the folds and the gutter see one line for
 one line of the source. Its cost: the grouping of `TextToGraphics` breaks a row
 inside a line, and `WordWrapping` learns a span path in a line.*
 
+**Q5 A keystroke in a leaf.** Open. Found when the work started (2026-10-08).
+To split a leaf value at its breaks, the leaf reads the content of the value. The
+cell system has no cut-off for an equal value (decision 10 of
+`architecture-decisions.md`), so then every keystroke in any leaf builds the lines
+of the leaf again, and every compound up to the root joins its lines again.
+`SyntaxToTextTest.jl` asserts the opposite today: an edit of the text of a leaf
+leaves the span list valid. With lines, `TextToGraphics` lays out only the line
+whose span changed, but only while the list of lines stays valid.
+
+- (a) **Every leaf reads its value.** Every break is a line, also one that a
+  paste puts into a JSON string. A keystroke costs a join from the leaf to the
+  root and a layout of every line, about what one keystroke costs today, when
+  syntax text is one group. The test changes to assert the opposite.
+- (b) **Only a leaf that its domain marks reads its value.** A new field of
+  `SyntaxLeaf`, such as `is_multiline::Bool = false`, set by the domains whose
+  leaf holds a text of many lines: a code block and a text of Markdown, a
+  paragraph of a Book, a docstring and a string of Julia, a text node of XML, a
+  raw text of SQL. A keystroke in any other leaf lays out only its line. A break
+  in an unmarked leaf, from a paste, stays inside its span: `TextToGraphics` draws
+  it as a second row of the line, and the numbers count one line.
+- (c) **No leaf reads its value**, and a break in a value is always a row inside
+  a line (option (c) of Q1 for leaves). The delimiters and the chrome still make
+  lines.
+
+*Recommendation: (b), because it keeps the property that the test asserts, and
+it makes a keystroke in code lay out one line in place of the whole block. Its
+cost: a new field that six domains set, and a line that a paste can make counts
+as one line until the leaf is marked.*
+
 ### Step 3: the steps of the work
 
 Each step is one commit, and the flat offsets stay the same in every step.
