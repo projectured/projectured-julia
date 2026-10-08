@@ -155,13 +155,36 @@ The scripts are in `/var/tmp/meas`: `first_frame.jl` (the timing),
      events, and paints list nodes.
    - One blocker is left: `getindex(::CellVector, ::Integer)`, through
      `to_index(::Integer)`, from a caller that this round did not find.
-4. [ ] A guard: a test that loads the README packages under
-   `@snoop_invalidations` and fails when the invalidated instances of our
-   packages pass a ceiling.
-5. [ ] D4: the rule and its test.
-6. [ ] The measurement: interleaved against `main`, the same script. The target
-   is a first frame under one second. The trace of the session tells what is
-   still compiled.
+4. [x] A guard. Done (`00489b9ae`): `test_first_window_compiles_little` of the
+   integration suite starts the session of the README in a fresh process, with
+   `Base.cumulative_compile_time_ns`, and asserts that the first window compiles
+   for less than 2 s; it measures 0.65 s. Compile time and not wall time, so a
+   slow machine does not fail it. It needs no SnoopCompile: the packages load by
+   their ids, so it runs in the test environment of the release too.
+5. [x] D4. Done (`00489b9ae`): `package-rules.md` says where a workload lives and
+   the three rules that keep its code valid (D9, D7, D8), and the package graph
+   test allows the entry files of the three packages. The slice table lets
+   `display` use `collection`, `graphics` and `layout` (`0765cb199`), and the
+   workload names have their own export statement. Tests: the kernel suite 4,215
+   passed; the data frame suite 608; the platform tests that the change broke
+   pass again (pane surgery 99, built from empty 50, drag and drop 251, gestures
+   73, the window shell 138, the window wrappers 43, the layering guards); the
+   package graph 385. Two failures are on `main` as well and not from this
+   change: `test_interface_api` counts 32 names where it expects 31, and the SDL
+   `TreeRenderTest` sets a field `size` that `WidgetTree` does not have. The
+   static guards report what they report on `main`. `ProjecturedTest` does not
+   load in a worktree: `environment/all` names `AgentClientProtocol`, which this
+   depot lacks, and `ClaudeCodeACP`, a sibling checkout.
+6. [x] The measurement, 2026-10-08, interleaved, Julia 1.13.1, one thread, the
+   window offscreen, at a load of 48 to 61 from other work:
+
+   | | first frame, median | `using` line | a second first frame |
+   | --- | ---: | ---: | ---: |
+   | `main` (5 runs) | 53.4 s | 1.46 s | 0.17 s |
+   | this branch (6 runs) | **0.86 s** | 1.87 s | 0.12 s |
+
+   At a load of 8 the branch measured 0.75 s. The build of the README packages
+   takes 135 s, from about 134 s with no workload in a fresh depot.
 7. [ ] D5: if the target is met, the front page of `Projectured.jl`, the web page
    and the README of AutoPrecompile stop recommending it. The statement files
    in `precompile/` stay while the dev REPL replays them.
