@@ -594,6 +594,16 @@ worktree. The three domains test different parts of the model:
     `test_pivot()` (299) and `test_dataframes()` (608) equal `main`, and the widget, task,
     navigator, tool theme and frame statistics tests pass. `InterfaceApiTest` fails on `main`
     too (it expects 31 names, and the list has 32).
+  - [x] **The cost of the constructor check.** The run of the 24 suites against `main` showed two
+    failures of `FontFaceTest`: a `StyleFont`, a value document that is designed to allocate
+    nothing, allocated 240 bytes. The check walked the fields in a generic loop, with the
+    declared types in a tuple and an index that is not a constant. Now the macro emits one call
+    for each field, `_check_constructed_field(document, name, cell, DeclaredType)`, which
+    dispatches on the type of the cell: a cell whose type is already a subtype of the declared
+    type (an `ImmutableCell{String}` for a `String`) answers `nothing`, and the compiler drops
+    the call. Only a looser cell, such as a `ReactiveCell{Any}`, reaches the check, which is not
+    inlined. Measured: `JsonNumber(42)` allocates 144 bytes in the mode `:throw` and in the mode
+    `:off`, and a setter write allocates 0 bytes in both. `test_font_face()` passes.
   - [x] **Group 5, a lazy list in a field declared `CellVector`.** `children` of
     `HorizontalLayout`, `VerticalLayout` and `GridLayout`, and the two header strips of
     `WidgetTable`, get a `ListNode`, a lazy list that a viewport reads from the middle. The

@@ -338,31 +338,31 @@ function convert_assigned_value(owner, declared_type::Type, value; name = nothin
     value
 end
 
-# The constructor of the cell layout calls it with the new document. It checks the
-# value that each cell holds now, with no dependency on the cell, and leaves a
-# computed cell and a `PendingValue` alone. A later write to a cell that the caller
-# gave goes past it.
-function _check_constructed_document(document)
+# The constructor of the cell layout calls it for each field of the new document,
+# with the declared type of the field. A cell whose own type is already a subtype
+# of the declared type needs no check, and the compiler drops the call. Any other
+# cell has its value checked with no dependency on the cell; a computed cell and a
+# `PendingValue` are left alone. A later write to a cell that the caller gave goes
+# past the check.
+@inline _check_constructed_field(document, name::Symbol, cell::AbstractCell{T},
+                                 ::Type{D}) where {T, D} =
+    T <: D ? nothing : _check_constructed_value(document, name, cell, D)
+_check_constructed_field(document, name::Symbol, value, declared_type) = nothing
+
+@noinline function _check_constructed_value(document, name::Symbol, cell::AbstractCell,
+                                            declared_type::Type)
     mode = _DECLARED_TYPE_CHECK_MODE[]
-    mode === :off && return document
-    T = typeof(document)
-    declared = _declared_value_types(T)
-    declared === nothing && return document
-    for i in 1:min(fieldcount(T), length(declared))
-        cell = getfield(document, i)
-        cell isa AbstractCell || continue
-        is_computed_cell(cell) && continue
-        value = peek(cell)
-        (value isa declared[i] || value isa PendingValue) ||
-            _admit_constructed_value!(mode, T, i, cell, declared[i], value)
-    end
-    document
+    mode === :off && return nothing
+    is_computed_cell(cell) && return nothing
+    value = peek(cell)
+    (value isa declared_type || value isa PendingValue) && return nothing
+    _admit_constructed_value!(mode, typeof(document), name, cell, declared_type, value)
 end
 
 # In the mode `:throw`, a value that Julia converts with no loss goes into its cell
 # converted, when the cell can take a write that no other cell sees: a reactive or
 # a mutable cell with no dependent. Any other mismatch is reported.
-function _admit_constructed_value!(mode, T, i, cell, declared_type, value)
+function _admit_constructed_value!(mode, T, name, cell, declared_type, value)
     if mode === :throw && (cell isa ReactiveCell || cell isa MutableCell) &&
        !has_dependent_cells(cell)
         converted = _convert_losslessly(declared_type, value)
@@ -371,5 +371,5 @@ function _admit_constructed_value!(mode, T, i, cell, declared_type, value)
             return nothing
         end
     end
-    _report_declared_type_mismatch(mode, T, fieldname(T, i), declared_type, value)
+    _report_declared_type_mismatch(mode, T, name, declared_type, value)
 end

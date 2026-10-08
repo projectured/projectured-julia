@@ -220,19 +220,25 @@ function _emit_autowrap_ctor(plan, arg_names; default = ReactiveCell)
     head = isempty(names) ? :($(plan.name)($(params...))) :
            Expr(:where, :($(Expr(:curly, plan.name, names...))($(params...))),
                 plan.parameters...)
-    # Each path hands the new document to the check of the declared types.
-    check = _check_constructed_document
+    # Each path checks each field of the new document against its declared type,
+    # one field at a time with its type known, so a field whose cell type already
+    # has the declared type costs nothing.
+    document = gensym(:document)
+    field_checks = [:($(_check_constructed_field)($document, $(QuoteNode(plan.field_names[i])),
+                                                   getfield($document, $i), $(list_types[i])))
+                    for i in 1:n]
+    checked(construct) = :(let $document = $construct; $(field_checks...); $document end)
     body = quote
         $fill_target
         if $all_rc
-            return $check($(Expr(:call, Expr(:curly, :new, up_rc..., rc_any...), arg_names...)))
+            return $(checked(Expr(:call, Expr(:curly, :new, up_rc..., rc_any...), arg_names...)))
         elseif !($any_cell)
-            return $check($(Expr(:call, Expr(:curly, :new, up_raw..., def_types...),
-                                 [raw_wrap(i) for i in 1:n]...)))
+            return $(checked(Expr(:call, Expr(:curly, :new, up_raw..., def_types...),
+                                  [raw_wrap(i) for i in 1:n]...)))
         end
         $(wrap_stmts...)
-        $check($(Expr(:call, Expr(:curly, :new, up_mixed..., [:(typeof($w)) for w in wrapped]...),
-                      wrapped...)))
+        $(checked(Expr(:call, Expr(:curly, :new, up_mixed..., [:(typeof($w)) for w in wrapped]...),
+                       wrapped...)))
     end
     # `Expr(:function, …)` and not `:(function $head … end)`: the parser will not
     # take an interpolated signature.
