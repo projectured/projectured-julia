@@ -27,7 +27,6 @@ There are thirteen higher-order projections in ProjecturEd:
 | `FaultCatchingProjection` | passthrough printer for one part; a fault in a cell that the part built draws the `substitute` mark of the output domain in place of the part | `FaultCatching.jl` |
 | `TooltipDecoratorProjection` | dispatches on `TooltipSource`; reader runs a show/hide state machine | `TooltipDecorator.jl` |
 | `DraggingProjection` | dispatches on `DraggingState`; reader runs a press→drag→drop state machine emitting `MoveRangeOperation` | `Dragging.jl` |
-| `ProjectionConfiguringProjection` | extends the inner projection's output with an editable parameter-control bar | `ProjectionConfiguring.jl` |
 
 ## ChainingProjection
 

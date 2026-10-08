@@ -288,7 +288,6 @@ composes with any higher-order projection.
 | `FaultCatchingProjection` | The fault barrier of one part at a recursion point: a fault in a cell that the part built draws the mark of the output domain in place of the part |
 | `TooltipDecoratorProjection` | Dispatches on `TooltipSource`; reader runs a show/hide state machine |
 | `DraggingProjection` | Dispatches on `DraggingState`; reader runs a press→drag→drop state machine emitting `MoveRangeOperation` |
-| `ProjectionConfiguringProjection` | Extends the inner projection's output with an editable parameter-control bar |
 
 **Generic** (`generic/`):
 
@@ -332,8 +331,8 @@ composes with any higher-order projection.
 | `WordWrapping` | `Text` → `Text` (domain-preserving) |
 | `PrimitiveToText` | `Primitive` → `Text` |
 | `ReferenceToText` | `Reference` → `Text` |
-| `TextFiltering` | `Text` → `Text` (filter rows) |
-| `TextHighlighting` | `Text` → `Text` (highlight matches) |
+| `FilteredTextToText` | `FilteredText` → `Text` (keep the lines that match) |
+| `HighlightedTextToText` | `HighlightedText` → `Text` (highlight matches) |
 | `SqlToSyntax` | `Sql` → `Syntax` |
 | `SqlToCellTable` | `Sql` → `CellTable` |
 | `CellTableToWidgetTable` | `CellTable` → `WidgetTable` |

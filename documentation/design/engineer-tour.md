@@ -561,7 +561,7 @@ two lines.
 | Drag and drop for any list | wrap the subtree in `DraggingState`, add `DraggingProjection` |
 | A tooltip on anything | `TooltipDecoratorProjection` |
 | An editable form for any Julia object | `ObjectToWidget`, which reflects over the fields |
-| Live controls for a projection's own parameters | `ProjectionConfiguringProjection` |
+| A find bar: a form of the fields of a `HighlightedText` or a `FilteredText` | `FindBarView` |
 | A conceptually infinite document | `ListNode` with a lazy `next` cell; the editor builds only what you look at |
 | A database table as an editable document | `SqlToCellTable` → `CellTableToTable`, with the ODBC adapter behind it |
 | Snapshots of the document over time | the versioning overlay |

@@ -2,7 +2,7 @@
 
 > **Status (2026-10-08): IN PROGRESS** on the branch `text-config-in-documents`,
 > on top of `plain-value-form`, in the worktree `projectured-julia-plain-value-form`.
-> Steps 1 to 5 are done. Question Q4 is open.
+> Steps 1 to 6 are done. Question Q4 is open.
 > **Refreshed 2026-10-08.** The plan was written on
 > 2026-08-12 and refreshed on 2026-10-08 against the code of the branch
 > `plain-value-form`. It builds on part C of
@@ -411,7 +411,7 @@ of the step, not `test_all()`.
      padding, goes on to the text under it, because a `StackLayout` gives a
      press to the next child when the top one declines. Open question Q4.
 
-6. ⬜ **Retire `ProjectionConfiguringProjection`.** Delete
+6. ✅ **Retire `ProjectionConfiguringProjection`.** Delete
    `ProjectionConfiguring.jl`, its include, its export, and its mentions in the
    six documents and in the header of `ObjectToWidget.jl`. `ObjectToWidgetTest.jl`
    takes another fixture for its 6 uses of `TextHighlighting`, or part D
@@ -419,6 +419,26 @@ of the step, not `test_all()`.
    `ProjectionConfiguringProjection`, `TextHighlighting` and `TextFiltering`
    (with their IO maps); it already takes the version 0.2.0 at its next release,
    and this change falls into that step.
+
+   **Done 2026-10-08.** `ProjectionConfiguring.jl` is deleted with its include
+   and its export. The header of `ObjectToWidget.jl` names it no more, and
+   `ObjectToWidgetTest.jl` had its own fixture since step 2. The documents
+   `projection.md`, `higher-order-projections.md`, `system-anatomy.md`,
+   `projection-system.md`, `engineer-tour.md`, `widget.md` and `text.md` name
+   the new documents and projections: `widget.md` describes `FindBarView` and
+   lists the limit of Q4, `text.md` describes `HighlightedText` and
+   `FilteredText`, and `projection-system.md` counts `HighlightedTextToText` and
+   `FilteredTextToText` as domain-to-domain, because each takes a document of its
+   own. `ProjecturedPlatform` loses the exported names
+   `ProjectionConfiguringProjection`, `ProjectionConfiguringIoMap`,
+   `TextHighlighting`, `TextHighlightingIoMap`, `TextFiltering` and
+   `TextFilteringIoMap`. No source of omnet-julia or inet-julia names them; their
+   generated `PrecompileStatements.jl` name `TextFilteringModule.TextFiltering`,
+   a module that main does not have either. `test_find_bar_view_to_widget()`,
+   `test_object_to_widget()`, `test_highlighted_text_to_text()`,
+   `test_filtered_text_to_text()`, `test_platform_layering()` and the naming
+   guard pass.
+
 7. ⬜ Move this plan to `plan/done/`, and go on with step 7 (part D) of
    [a-form-edits-a-plain-value.md](a-form-edits-a-plain-value.md).
 

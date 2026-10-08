@@ -35,7 +35,7 @@ No projection here names a document type of a domain. A generic projection works
 
 The projection slice depends on the kernel, and on the collection slice for the containers and the primitive slice for the string edit. Nearly every slice above it composes its projections. It registers nothing.
 
-Four higher-order projections live in other slices, because each one needs a slice above this one: `WindowManagingProjection` in the screen slice, `TooltipDecoratorProjection` in the tooltip slice, `DraggingProjection` in the dragging slice, and `ProjectionConfiguringProjection` in the widget slice.
+Three higher-order projections live in other slices, because each one needs a slice above this one: `WindowManagingProjection` in the screen slice, `TooltipDecoratorProjection` in the tooltip slice, and `DraggingProjection` in the dragging slice.
 
 ## Design decisions
 

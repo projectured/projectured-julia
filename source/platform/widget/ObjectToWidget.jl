@@ -13,9 +13,7 @@
 #
 # The **root** object renders as a bare `WidgetComposite` wrapping a 2-column
 # (label | control) `GridLayout` — *no* surrounding card. Cards appear only for
-# *nested* composite values, so a flat object (only scalar fields) produces exactly
-# the historical output and the `ProjectionConfiguringProjection` control bar is
-# unaffected.
+# *nested* composite values.
 #
 # Fields it cannot render (a `Function`, a `StyleColor`, a plain struct without
 # `Cell` fields, …) are skipped — opaque forms stay non-editable.
@@ -32,9 +30,6 @@
 # from the root to the edited field — so an edit at any nesting depth writes the
 # right cell. Caret navigation *into* the tree (real `map_reference_*`) and nested
 # text-caret editing are deferred to a later navigation stage.
-#
-# Used by `ProjectionConfiguringProjection`, which projects an inner projection
-# *object* through this to build its parameter-control bar.
 # ── IoMap ─────────────────────────────────────────────────────────────────
 
 """
@@ -82,9 +77,7 @@ const _MAX_DEPTH = 16
 
 function print_document(p::ObjectToWidget, recursion, obj, ctx)
     controls = Tuple{Any,Reference}[]
-    # The root struct renders as a bare composite (no card), so a flat object is
-    # byte-identical to the historical output and ProjectionConfiguring still gets
-    # a WidgetComposite whose `visible` it can toggle.
+    # The root struct renders as a bare composite, with no card.
     grid = _struct_grid(p, obj, EmptyReference(), controls, 0)
     output = WidgetComposite(Any[grid])
     ObjectToWidgetIoMap(p, obj, output, controls)
