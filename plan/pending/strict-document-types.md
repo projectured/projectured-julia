@@ -735,6 +735,16 @@ worktree. The three domains test different parts of the model:
       names such a value by its type. The `show` of a document that reads an undefined slot
       (`_is_shown_in_full` in `DocumentDefaults.jl`) fails on `main` too, and is not changed
       here.
+      Then the dashboard test hung, and a probe crashed in the garbage collector: the test
+      syncs the shadow while the workers run, and a list field of the shadow made the sync read
+      the native vector element by element and build a new list, while the workers changed
+      that vector. On `main` the same sync stores one reference. A fact for the model: a shadow
+      of a source that other threads change must hold their working state as one value. So
+      every vector field of `ParallelEngine` declares `MutableCell` (`ca1f7288`): the four
+      buffers, `mod_to_cluster`, `module_hashes`, `event_counts`, `workers`, `unsealed_refs`
+      and `seal_batch`. The dashboard reads only `frontier_time` of the shadow. After this,
+      `test_simulator` (6950) and all 74 functions of `OmnetPresentationTest` have the same
+      counts on the branch and on `main`.
     - A fact for later: a bounded copy or sync puts an `UnsyncedDocument` where the walk stops,
       and a field that declares a narrow document type would refuse it. No caller does that
       today: the reflection and `SimulationInspection` hold the placeholder in a `ReflectedNode`.
