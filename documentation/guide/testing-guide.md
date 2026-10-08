@@ -491,6 +491,16 @@ transitively by all four examples) and the refactor in
 reference round-trip is exposed as the REPL walkers above rather than asserted,
 pending calibration on a running editor.
 
+## Scale: does a pane of 20,000 tasks stay a window?
+
+`test_task_group_scale(; task_count = 20_000, jobs = 16)` (`ProjecturedPlatformTest`)
+starts a group of `task_count` process tasks and checks P7 of the catalog of
+legacy documents: a print of the pane of the group builds only the rows of a
+window of 900 pixels, before and after the run, and the drains while the group
+runs cost no walk of every task. It starts 20,000 processes in about 25 s, so
+`test_platform` does not call it. Run it after a change of the task slice, of
+the walk of the part under the pointer, or of a lazy table.
+
 ## Reactivity: does the output follow the input?
 
 `test_reactivity()` sweeps every registered example and asserts the property no

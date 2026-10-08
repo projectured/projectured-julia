@@ -131,6 +131,24 @@ See also `set_cell_computation!`, which makes a cell compute, and `make_similar_
 function is_computed_cell end
 
 """
+    get_cell_computation(cell) -> Function or nothing
+
+The computation that `cell` computes its value with, or `nothing` when it holds
+a value.
+
+Use it to put a computation around the one that a cell has, so a caller acts on
+each value that the cell makes: the walk of the part under the pointer follows
+each node of a lazy list when the list builds it. The caller gives the new
+computation with `set_cell_computation!`.
+
+Only the reactive kind keeps a computation that a caller can put another one
+around, so the other kinds always return `nothing`.
+
+See also `is_computed_cell`.
+"""
+function get_cell_computation end
+
+"""
     has_dependent_cells(cell) -> Bool
 
 Whether a live computed cell reads `cell`.

@@ -212,8 +212,9 @@ struct/CellStructModule.jl        (CellStructModule): the struct of cells
 `CellInterface.jl` is the **interface file** of the layer: it declares the
 contract and nothing else. The read `c[]`, the untracked read `peek` and
 `is_cell_up_to_date` have their bodies in the file of each kind. The bodies of
-`unwrap_cell`, `get_cell_value_type`, `make_similar_cell`, `is_computed_cell` and
-`has_dependent_cells` are in the sibling `CellDefaults.jl`.
+`unwrap_cell`, `get_cell_value_type`, `make_similar_cell`, `is_computed_cell`,
+`get_cell_computation` and `has_dependent_cells` are in the sibling
+`CellDefaults.jl`.
 
 The animation clock is a `@cell_struct` that uses the engine, and it is not a
 part of the engine. It is its own layer, `clock/ClockModule.jl`, above the struct
@@ -246,11 +247,18 @@ The kind is an immutable struct with one pointer, so a struct of cells holds it
 inline, and two structs can share its function.
 
 Public surface: `AbstractCell`, `is_cell_up_to_date`, `unwrap_cell`,
-`get_cell_value_type`, `make_similar_cell`, `is_computed_cell`, `has_dependent_cells`,
-`Computation`, `@computation`, `ReactiveCell`, `Cell`, `set_cell_value!`,
-`set_cell_computation!`, `MutableCell`, `ImmutableCell` and `UntrackedCell`.
-`peek` is an untracked read, a method of `Base.peek`. `run_untracked` is internal
-to the layer.
+`get_cell_value_type`, `make_similar_cell`, `is_computed_cell`,
+`get_cell_computation`, `has_dependent_cells`, `run_untracked`, `Computation`,
+`@computation`, `ReactiveCell`, `Cell`, `set_cell_value!`, `set_cell_computation!`,
+`MutableCell`, `ImmutableCell` and `UntrackedCell`. `peek` is an untracked read, a
+method of `Base.peek`.
+
+`get_cell_computation(c)` answers the computation of a reactive cell, or `nothing`.
+A caller puts a computation around it with `set_cell_computation!`, so it acts on
+each value that the cell makes: the walk of the part under the pointer follows
+each node of a lazy list when the list builds it. That walk reads the node inside
+the computation of the link, so it reads it with `run_untracked`: the link must
+not compute again when a part of the node changes.
 
 ## CellStructModule: the struct of cells
 

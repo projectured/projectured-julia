@@ -157,6 +157,44 @@ function test_mouse_target_move()
 
 projection = make_widget_projection_example(measure = _mtm_measure())
 
+@testset "a row of a lazy list takes its part from the head, and the walk builds no row" begin
+    built = Ref(0)
+    function make_row_node(k)
+        built[] += 1
+        node = ListNode(CellVector(Cell[Cell(WidgetButton("row $k"))]))
+        set_cell_computation!(getfield(node, :next), () -> begin
+            following = make_row_node(k + 1)
+            set_cell_value!(getfield(following, :prev), node)
+            following
+        end)
+        node
+    end
+    table = WidgetTable(; column_headers = Any["row"], cells = make_row_node(1))
+    path = Cell(nothing)
+    follow_output_mouse_target!(table, () -> path[])
+    @test built[] == 1
+    head = getfield(table, :cells)[]
+    # The pointer is on the button of the third row: the list builds the rows up
+    # to it, and the button takes its part.
+    set_cell_value!(path, _mtm_path(FieldReferenceStep("cells"), ElementReferenceStep(3),
+                                    ElementReferenceStep(1)))
+    third = find_list_node(head, 3)
+    @test built[] == 3
+    @test get_mouse_target(third.value[1]) == EmptyReference()
+    @test get_mouse_target(head.value[1]) === nothing
+    # The pointer moves to the first row: the third row loses its part.
+    set_cell_value!(path, _mtm_path(FieldReferenceStep("cells"), ElementReferenceStep(1),
+                                    ElementReferenceStep(1)))
+    @test get_mouse_target(head.value[1]) == EmptyReference()
+    @test get_mouse_target(third.value[1]) === nothing
+    # The table scrolls one row: the same path counts from the new head.
+    second = find_list_node(head, 2)
+    set_cell_value!(getfield(table, :cells), second)
+    @test get_mouse_target(second.value[1]) == EmptyReference()
+    @test get_mouse_target(head.value[1]) === nothing
+    @test built[] == 3
+end
+
 @testset "across a composite of buttons" begin
     one = WidgetButton("One"; size = Point2D(80, 30))
     two = WidgetButton("Two"; size = Point2D(80, 30), position = Point2D(0, 40))
