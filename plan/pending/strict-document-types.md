@@ -717,6 +717,15 @@ worktree. The three domains test different parts of the model:
       schema of its own with only the values that a dashboard shows; (C) a list keeps an
       undefined slot, which a typed list can not mean. A field says what it is where it is
       declared.
+      *Built (2026-10-08):* `_cell_value_types` gives a list only to a field whose named kind
+      is missing or reactive; a field that names another kind keeps its value type, so no
+      constructor, setter, operation or kinded copy wraps it (`1afdeb9d5`, with a test of a
+      `MutableCell{Vector{String}}` buffer that has undefined slots). In omnet-julia,
+      `active`, `green_buf`, `merge_buf` and `drain_buf` of `ParallelEngine` declare
+      `MutableCell{Vector{ParallelEvent{A}}}` (`0adb3915`). The kind is `MutableCell`, not the
+      `UntrackedCell` of the example: an untracked cell takes no write, and the sync of the
+      shadow writes these fields. No other field of the three repositories names a kind that
+      is not reactive for a vector, so nothing else changes.
     - A fact for later: a bounded copy or sync puts an `UnsyncedDocument` where the walk stops,
       and a field that declares a narrow document type would refuse it. No caller does that
       today: the reflection and `SimulationInspection` hold the placeholder in a `ReflectedNode`.
