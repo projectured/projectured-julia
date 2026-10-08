@@ -507,6 +507,10 @@ producer of syntax text emits lines.
   Markdown or a paragraph of reStructuredText is one line to the numbers and to
   the folds.
 
+Q5 narrowed (a) on 2026-10-08: a leaf value is a run and is not split; a text of
+many lines reaches the lines through the rule of
+[a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md).
+
 My recommendation was (a), because it is the direction decided on 2026-08-12
 (this plan owns the change, and `SyntaxToText` emits lines), and only (a) gives
 every break a line and lets the syntax put a fold and a mark on a line. Its cost:
@@ -594,7 +598,16 @@ one place that wraps, and the numbers, the folds and the gutter see one line for
 one line of the source. Its cost: the grouping of `TextToGraphics` breaks a row
 inside a line, and `WordWrapping` learns a span path in a line.*
 
-**Q5 A keystroke in a leaf.** Open. Found when the work started (2026-10-08).
+**Q5 A keystroke in a leaf.** Found when the work started (2026-10-08).
+**Decided by a new rule, the owner, 2026-10-08:** none of (a), (b) and (c)
+below. A `TextString` holds no `'\n'`, and the domain states that a field can
+hold lines by the type it gives the leaf value: a `TextString` is one run, and a
+`String` or a `TextDocument` is text that can have lines, which the recursion
+prints with a projection such as `StringToTextBlock`. That rule is the plan
+[a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md). In this
+plan a leaf value is a `TextString`, so the leaf never reads it: an edit of a leaf
+leaves the lines valid, and a `'\n'` that a value still holds is a row inside its
+line until its domain moves to the new rule. The question, as it stood:
 To split a leaf value at its breaks, the leaf reads the content of the value. The
 cell system has no cut-off for an equal value (decision 10 of
 `architecture-decisions.md`), so then every keystroke in any leaf builds the lines
@@ -618,10 +631,12 @@ whose span changed, but only while the list of lines stays valid.
   a line (option (c) of Q1 for leaves). The delimiters and the chrome still make
   lines.
 
-*Recommendation: (b), because it keeps the property that the test asserts, and
-it makes a keystroke in code lay out one line in place of the whole block. Its
-cost: a new field that six domains set, and a line that a paste can make counts
-as one line until the leaf is marked.*
+My recommendation was (b), because it keeps the property that the test asserts.
+The owner stated the principle that moved the decision: an edit of the document
+must cause little change in the output down the chain. A flag on the syntax still
+makes the structure depend on the content, and the owner was not sure that the
+syntax is the place to state a break. The type of the value states it at the
+source.
 
 ### Step 3: the steps of the work
 
@@ -638,19 +653,22 @@ The design of step 1, found when the work started (2026-10-08):
 - **A parent speaks to a child in the language of the child's output:** a flat
   caret, a span `[i, j]` of a line, or an edit of the characters of such a span.
   So a child that another projection prints works as a syntax child does.
+- **Which spans are cut.** Only a delimiter or a separator of a compound that
+  holds a `'\n'` is cut into lines. It is a constant of the domain, so the cut
+  reads a cell that no edit writes. A leaf value and a span of another producer
+  are one run each (Q5).
 - **Which lines an ancestor indents.** A line that the chrome of a compound starts
   has an indentation that a compound that indents widens. A line that a break
-  inside a span starts, in a leaf value, a delimiter or a separator, has
-  indentation 0 and keeps it, as today: the text of a span is the user's text,
-  and its spaces are its own. The IO map records which lines are of the chrome.
+  inside a delimiter or a separator starts has indentation 0 and keeps it, as
+  today: the text of a span is its own, with its own spaces. The IO map records
+  which lines are of the chrome.
 - **Rule 5 waits** for the first producer that puts a gutter or a fold on a line
   of syntax text, step 3 of the fold plan.
-- **The cost of a keystroke.** A leaf reads the content of its spans to find the
-  breaks, and the cell system has no cut-off for an equal value, so a keystroke
-  in a leaf computes the lines again from the leaf to the root. Today the syntax
-  text is one group in `TextToGraphics`, so each keystroke lays out the whole
-  block again, and that cost stays the larger one. I expect no regression, and
-  step 5 measures a keystroke before and after.
+- **The cost of a keystroke.** A leaf reads no content, so a keystroke in a leaf
+  changes the content of one span and leaves every list of lines valid. With
+  lines, `TextToGraphics` then lays out only the line of that span, where today
+  syntax text is one group and a keystroke lays out the whole block. Step 5
+  measures a keystroke before and after.
 
 0. ~~**The baseline.**~~ **Done 2026-10-08**, at 32ad06496 (the head of the
    branch before step 3), each part in a process of its own. Every part ended,
@@ -684,9 +702,9 @@ The design of step 1, found when the work started (2026-10-08):
    separator that holds a `'\n'` is split as a leaf value is. `indent_indices`, the
    widened indent spans and the `"\n"` spans go. `SyntaxToTextTest.jl` changes from
    the span list to lines.
-   **In progress (2026-10-08), written and not committed; it waits for Q5.** A
-   probe sweep at a snapshot (4f15e0898, logs in `/var/tmp/text-gutter/probe1/`)
-   against the baseline:
+   **In progress (2026-10-08), written and not committed.** A first probe sweep
+   at a snapshot that still split a leaf value (4f15e0898, logs in
+   `/var/tmp/text-gutter/probe1/`), against the baseline:
    - The same counts in `test_json`, `test_julia`, `test_sql`, `test_xml`,
      `test_readers`, `test_repls`, `test_click_roundtrips`, `test_mouse_clicks`
      and `test_position_navigations`; `test_printers` passes 28882 more, because a
