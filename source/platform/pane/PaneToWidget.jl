@@ -626,6 +626,8 @@ function read_intent(p::PaneTreeToWidget, recursion, change::Intent,
     gesture = change.gesture
     state !== nothing && gesture isa Union{DragMove, DragEnd, DragCancel} &&
         return Intent(gesture, _read_tab_drag(iomap, state, gesture))
+    state === nothing && is_outward_gesture(gesture) &&
+        return Intent(gesture, _read_pane_outward(p, iomap, change))
     payload = change.operation === nothing ? gesture : change.operation
     answer = read_intent(p, iomap, payload)
     payload isa DragTabOperation && gesture isa MouseDown &&
@@ -641,6 +643,41 @@ function read_intent(p::PaneTreeToWidget, recursion, change::Intent,
     answer === nothing && press isa MouseClick && press.button === :left &&
         (answer = _focus_from_press(iomap, press))
     Intent(change.gesture, answer)
+end
+
+# A right click and a dwell go out from the part under the pointer. The stage
+# below reads the documents of the content of a tab, and the pane documents on
+# the path to the part, such as the tab, its group and the tree, read the gesture
+# here by the rule of `read_gesture_outward`. The path is the mouse target of the
+# tree.
+function _read_pane_outward(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap, change::Intent)
+    tree = iomap.input
+    answer = change.operation === nothing ? nothing : read_intent(p, iomap, change.operation)
+    (steps, with_part) = _find_pane_stretch(tree, get_mouse_target(tree))
+    read_gesture_outward(answer, change.gesture, tree; steps, with_part)
+end
+
+# The steps of `path` that stay in the pane tree, and whether the part at their
+# end belongs to the pane tree. The walk ends at the content of a tab, the one
+# place where a document of another domain enters the tree, which the stage below
+# reads.
+function _find_pane_stretch(tree::PaneTree, path)
+    steps = ReferenceStep[]
+    path isa ConcreteReference || return (steps, true)
+    node = tree
+    for step in get_reference_steps(path)
+        parent = node
+        node = try
+            evaluate_reference_step(step, node)
+        catch exception
+            is_passthrough_exception(exception) && rethrow()
+            break
+        end
+        push!(steps, step)
+        parent isa PaneTab && step isa FieldReferenceStep && step.name == "content" &&
+            return (steps, false)
+    end
+    (steps, true)
 end
 
 function _focus_from_press(iomap::PaneTreeToWidgetIoMap, press)

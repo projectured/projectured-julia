@@ -1,7 +1,44 @@
 # The menu of a value: the nearest collection that holds it, the edits that
 # filter or sort that collection by the value, the binding that opens the menu
 # of an arranged document, the last entry that takes the arrangement away, and
-# the first arrangement that the menu of a tab puts around its content.
+# the first arrangement that the menu of a tab puts around its content. In an
+# editor, a right click opens the menu and a press on Show all takes the
+# arrangement away. The context menu window is not in these editors, so a test
+# takes the menu from the answer of the click, as the window does.
+
+import ProjecturedKernelExample: HeadlessBackend, rendered_output, push_event!
+import ProjecturedKernel.EditorModule: build_editor, run_frame!
+import ProjecturedKernel.DeviceModule: Device, Keyboard, Mouse, Display
+
+# Each text of a canvas, at its place, also inside the viewport of a pane.
+function _arrangement_drawn(canvas, ox = 0, oy = 0, found = Tuple{String,Int,Int}[])
+    x = ox + Int(canvas.x)
+    y = oy + Int(canvas.y)
+    for element in canvas.elements
+        element = element isa Cell ? element[] : element
+        if element isa GraphicsText
+            push!(found, (String(element.text), x + Int(element.x), y + Int(element.y)))
+        elseif element isa GraphicsCanvas
+            _arrangement_drawn(element, x, y, found)
+        elseif element isa GraphicsViewport
+            _arrangement_drawn(element.content, x + Int(element.x) + round(Int, element.transform.e),
+                               y + Int(element.y) + round(Int, element.transform.f), found)
+        end
+    end
+    found
+end
+
+_arrangement_texts(backend) = first.(_arrangement_drawn(last(rendered_output(backend))))
+
+# The place of the last drawn text `text`.
+function _arrangement_place(backend, text)
+    drawn = _arrangement_drawn(last(rendered_output(backend)))
+    (_, x, y) = drawn[findlast(entry -> entry[1] == text, drawn)]
+    (x + 2, y + 2)
+end
+
+_arrangement_press!(editor, backend, events...) =
+    (foreach(event -> push_event!(backend, event), events); run_frame!(editor))
 
 function test_arrangement_menu()
 @testset "the menu of a value filters and sorts its collection" begin
@@ -81,6 +118,55 @@ function test_arrangement_menu()
         @test only(only(only(tab.content.entries).projections).conditions).value == "failed"
         # An arranged content has the menu of its arrangement, and the tab has none.
         @test read_gesture(tab, right_click) === nothing
+    end
+
+    @testset "in an editor, a right click arranges the content of a tab and Show all takes it away" begin
+        fruits = CellVector(Cell[Cell(PrimitiveString(name)) for name in ["pear", "apple", "fig", "grape"]])
+        natural = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
+        backend = HeadlessBackend()
+        editor = build_editor(fruits, natural; backend, devices = Device[Keyboard(), Mouse(), Display()],
+                              window = false, tabs = true, appearance = false, settings = false)
+        run_frame!(editor)
+        tab = only(editor.document.root.tabs)
+        @test tab.content === fruits
+        # The item `label` of the menu that a right click on the drawn text `text`
+        # opens, chosen as the context menu window chooses it.
+        function choose!(text, label)
+            (x, y) = _arrangement_place(backend, text)
+            _arrangement_press!(editor, backend, MouseMove(x, y; time = 0.0))
+            click = MouseClick(:right, x, y, 1, ModifierKeys(); time = 0.0)
+            open = read_intent(editor.projection, nothing, Intent(click), editor.iomap).operation
+            open isa WrappingOperation && (open = get_wrapped_operation(open))
+            @test open isa OpenContextMenuOperation
+            open isa OpenContextMenuOperation || return
+            items = [item for (_, menu) in open.layers for item in menu.elements
+                     if item isa WidgetMenuItem && item.action.label == label]
+            @test length(items) == 1
+            evaluate_operation(editor, read_rooted_operation(editor, open.source, only(items).operation))
+            drain_operations!(editor)
+            run_frame!(editor)
+        end
+        choose!("fig", "Hide items like this")
+        @test tab.content isa ArrangementDocument && tab.content.document === fruits
+        drawn = _arrangement_texts(backend)
+        @test "3 of 4" in drawn && "Show all" in drawn
+        @test !("fig" in drawn) && "pear" in drawn && "grape" in drawn
+        # The arranged content has the menu of its arrangement. The third drawn
+        # item is the fourth of the source, and the condition reads the source.
+        choose!("grape", "Hide items like this")
+        @test length(only(only(tab.content.entries).projections).conditions) == 2
+        drawn = _arrangement_texts(backend)
+        @test "2 of 4" in drawn && !("grape" in drawn) && "pear" in drawn && "apple" in drawn
+        # A press on Show all removes the last entry, and the reader of the
+        # arrangement puts the document back in its place.
+        (x, y) = _arrangement_place(backend, "Show all")
+        _arrangement_press!(editor, backend, MouseMove(x, y; time = 0.0),
+                            MouseClick(:left, x, y, 1, ModifierKeys(); time = 0.0))
+        drain_operations!(editor)
+        run_frame!(editor)
+        @test tab.content === fruits
+        drawn = _arrangement_texts(backend)
+        @test "fig" in drawn && !("Show all" in drawn)
     end
 end
 end

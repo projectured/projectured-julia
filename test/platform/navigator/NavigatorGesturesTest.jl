@@ -57,7 +57,10 @@ function test_navigator_gestures()
         navigator = Navigator(page)
         editor, backend = _nav_editor(navigator; tabs = true)
         opened = _nav_right_click(editor, backend, "Shelf")
-        (_, menu) = only(opened.layers)
+        # The menu of the part is the nearest layer. The tab around the
+        # navigator adds the layer of its own menu after it.
+        (title, menu) = first(opened.layers)
+        @test title == "Shelf"
         _nav_choose!(editor, opened, _nav_find_item(menu, "Open in a new tab"))
         tabs = _nav_tabs(editor)
         @test length(tabs) == 2

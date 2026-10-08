@@ -443,6 +443,23 @@ Each step ends with its own tests and a commit, in a worktree.
       model suites the same way without network.
     - The test of the natural notation reads the stage of a domain as the
       default of the dispatch of the first recursion.
+    - Found in an editor: the pane documents did not read a right click or a
+      dwell. The widget stage reads the documents of the content of a tab, but
+      the tab, its group and the tree are the input of the pane stage, and the
+      reader of `PaneTreeToWidget` asked only the table of the tree. So the
+      menu of a tab came only in a direct read. Now that reader reads its own
+      stretch by the rule of `read_gesture_outward`, along the mouse target of
+      the tree, up to the content of a tab. A test in an editor right clicks a
+      value and hides it, right clicks a value of the arranged content and
+      hides it (the third drawn item is the fourth of the source), and presses
+      Show all.
+    - The tab adds its layer after the nearer ones, so the test of a navigator
+      in a tab reads the menu of the part as the first layer.
+    - A gap until step 7: the menu offers to arrange a collection that its
+      parent prints inside its own print, such as the `children` of a
+      `VerticalLayout`. No recursion passes that place, so the arrangement
+      does not act there. Step 7 puts a stage at the parent node for such a
+      field collection.
   - [ ] **3d.** The quick text field, the header gestures, and find.
 - [ ] **4.** The verbs of the assistant, as edits of the view document, and the
   read of an entry.
