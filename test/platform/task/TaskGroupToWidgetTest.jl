@@ -140,6 +140,14 @@ function test_task_views()
             @test any(w -> occursin(r"^1\. started \d\d:\d\d:\d\d — ERROR", w), words)
         end
 
+        @testset "the progress of a task that runs is a ring" begin
+            running = TaskDocument(_TaskGroupProbeTask("r", "exit 0"); status = :running, progress = 0.45)
+            ring = TaskModule._make_task_progress_ring(running)
+            @test ring isa WidgetProgressRing && ring.visible && ring.value == 0.45
+            waiting = TaskModule._make_task_progress_ring(TaskDocument(_TaskGroupProbeTask("w", "exit 0")))
+            @test !waiting.visible && waiting.value === nothing
+        end
+
         @testset "the row of an inner group shows its pane in the detail" begin
             phases = [TaskGroup(_make_task_group_probe_tasks(0.0); name = "phase $i", jobs = 2)
                       for i in 1:2]

@@ -252,11 +252,13 @@ expected and the actions on the whole group; a table with one row for each task;
 and the detail of the task that a person picked, with its facts, its buttons
 and its two streams. The detail of a task that is a group is the pane of that
 group: its card, with no actions of its own, its table and its detail. The columns of the table are the pick and the state, the
-columns of the kind of the first task, and then the progress or the position,
-the elapsed time, the process, the processor, the memory and the result. A row
-reads the cells of its own document, so a task that reports draws only its own
-row again, and the rows are a lazy list, so a group of 22,731 tasks costs what a
-group of twenty costs.
+columns of the kind of the first task, and then the progress, the elapsed time,
+the process, the processor, the memory and the result. The progress is a
+`WidgetProgressRing` while the task runs: filled to the fraction that the task
+reports, or turning when it reports none, with the position of the task in its
+tooltip. A row reads the shadow of the current execution of its own document,
+so a task that reports draws only its own row again, and the rows are a lazy
+list, so a group of 22,731 tasks costs what a group of twenty costs.
 
 `make_task_group_tab_title` is the title of the tab of a group, and the
 `make_pane_tab_title` of a group: an icon and badges that say how far the group

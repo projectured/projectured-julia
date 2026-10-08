@@ -143,10 +143,15 @@ function _format_task_elapsed_time(doc::TaskGroupDocument, document::TaskDocumen
     _format_duration(something(_get_current_field(document, :end_time), time()) - started; precision = 1)
 end
 
-function _format_task_progress(document::TaskDocument)
-    progress = _get_current_field(document, :progress)
-    progress !== nothing && return string(round(Int, 100 * progress), "%")
-    something(_get_current_field(document, :position), "")
+# The column `progress`: a ring while the task runs, filled to the fraction that
+# it reports, or turning when it reports none. Its tooltip says where the task
+# is, such as the event and the time of a simulation.
+function _make_task_progress_ring(document::TaskDocument)
+    ring = WidgetProgressRing(() -> _get_current_field(document, :progress))
+    set_cell_computation!(getfield(ring, :visible),
+                          () -> get_task_document_status(document) in (:running, :cancelling))
+    set_cell_computation!(getfield(ring, :tooltip), () -> _get_current_field(document, :position))
+    ring
 end
 
 # The column `result`: what a finished task ended with, in the words of
@@ -307,7 +312,7 @@ function _build_table_row(p, doc::TaskGroupDocument, group, kind_columns, index:
     Any[pick,
         _make_live_label(() -> _get_task_state(p, group, document)),
         (WidgetLabel(format_task_column(task, name)) for (name, _) in kind_columns)...,
-        WidgetLabel(() -> _format_task_progress(document)),
+        _make_task_progress_ring(document),
         WidgetLabel(() -> _format_task_elapsed_time(doc, document)),
         WidgetLabel(() -> _format_or_blank(_get_current_field(document, :process_id))),
         WidgetLabel(() -> (load = _get_current_field(document, :processor_load);
