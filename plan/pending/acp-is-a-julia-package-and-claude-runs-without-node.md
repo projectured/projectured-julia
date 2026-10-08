@@ -320,11 +320,12 @@ editor ──ACP──▶ the agent (Julia) ──stream-json──▶ claude -p
 
 ### B. The Claude agent
 
-- [ ] **B.1 A live check of the contracts that the documentation does not
+- [x] **B.1 A live check of the contracts that the documentation does not
   give**: the JSON of a permission tool, the shape of a user message on
   standard input, where a title comes from, the event after a SIGINT, the
   thinking text with and without a display setting, and the state of `--bare`
-  for `-p`. Record each answer here.
+  for `-p`. Done on 2026-10-08 with `claude` 2.1.285; the answers are in
+  "The answers of B.1" below.
 - [ ] **B.2 The repository** `ClaudeCodeACP.jl` (decision 5), on `AgentClientProtocol.jl`, with
   ModelContextProtocol.jl and HTTP for the permission tool.
 - [ ] **B.3 The session**: one `claude -p` process for each session, its
@@ -342,6 +343,62 @@ editor ──ACP──▶ the agent (Julia) ──stream-json──▶ claude -p
   and later), and a compiled program with the builder of ProjecturEd (Q3).
 - [ ] **B.11 ProjecturEd uses it**: the default agent command, or the agent
   in the process of the editor, and a live check with the real `claude`.
+
+## The answers of B.1 (2026-10-08, `claude` 2.1.285)
+
+Each probe started `claude -p --input-format stream-json --output-format
+stream-json --verbose` from a clean environment (only `HOME`, `PATH`,
+`LANG`) in an empty folder, with the model `haiku`.
+
+- **A user message on standard input** is
+  `{"type": "user", "message": {"role": "user", "content": [{"type": "text",
+  "text": "…"}]}}`. One process carries many turns. Each turn sends its own
+  `system/init`, its events and one `result`. The end of standard input ends
+  the process with code 0.
+- **The session.** `--session-id <uuid>` keeps the id that the agent gives.
+  `--resume <id>` brings back the whole history, also after an interrupted
+  turn.
+- **The sign-in.** Without `--bare`, `system/init` says `apiKeySource:
+  "none"`, which is the sign-in of the person, and a `rate_limit_event` gives
+  the use of the windows of the plan. `--bare` is not the default yet, but the
+  headless page says again that it "will become the default for `-p` in a
+  future release", and bare mode reads no OAuth sign-in. The agent reads
+  `apiKeySource` and the error of a failed start at each start.
+- **The permission tool** (`--permission-prompt-tool mcp__<server>__<tool>`)
+  gets `{"tool_name", "input", "tool_use_id"}`, and `_meta` with
+  `claudecode/toolUseId`. It answers a text block with
+  `{"behavior": "allow", "updatedInput": <input>}` or
+  `{"behavior": "deny", "message": "…"}`. A deny becomes a `tool_result` with
+  `is_error: true` and the message as its content, and the `result` lists the
+  call in `permission_denials`.
+- **The thinking text.** By default a thinking block streams no text: each
+  `thinking_delta` is empty, with an estimate of its tokens, and a signature.
+  The documented setting `showThinkingSummaries`, given as
+  `--settings '{"showThinkingSummaries": true}'`, makes the deltas carry the
+  text.
+- **A cancel.** SIGINT ends the turn: a user message
+  "[Request interrupted by user]", then a `result` with the subtype
+  `error_during_execution`, `terminal_reason: "aborted_streaming"` and
+  `is_error: true`. Then the process ends with code 0 and reads no more input,
+  so the next prompt needs a new process with `--resume`. The message
+  `{"type": "control_request", "request_id": "…", "request": {"subtype":
+  "interrupt"}}` on standard input gives a `control_response` with `success`,
+  the same `result`, and the process stays for the next message. It is the wire
+  form of the `interrupt()` of the Agent SDK, which the headless page names
+  beside SIGINT and the capability `interrupt_receipt_v1` announces, but no
+  page gives its JSON.
+- **The title.** No documented event gives a generated title. `/rename
+  <name>` as a prompt sets the name of a session (v2.1.205 and later).
+  `claude-agent-acp` asks for a generated title with the control request
+  `generate_session_title`, which no page documents.
+- **The usage.** The `result` gives `usage`, `total_cost_usd` (an estimate of
+  the client), and `modelUsage[<model>]` with `contextWindow` and the token
+  counts, from which a `usage_update` gets `used` and `size`.
+- **The configuration of the person loads.** Without `--bare`, a session reads
+  the settings of the person (in the probes its output style), its skills and
+  commands (67 in `slash_commands`), its `CLAUDE.md`, and the connectors of
+  its claude.ai account as MCP servers. `--strict-mcp-config` keeps only the
+  servers of `--mcp-config`.
 
 ## Questions for the owner
 
