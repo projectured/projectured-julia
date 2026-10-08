@@ -6,6 +6,12 @@ base registers onto the kernel's `OperationModule` generic is validated by the
 kernel operation-layer test through the default fieldnames-walk.
 """
 
+# A schema with a typed list field: the native layout holds a plain vector, and
+# the cell layout holds the list of the field.
+@document [M, C] struct TypedListHolder
+    names::Vector{String} = String[]
+end
+
 function test_collection()
 @testset "ReactiveCollection" begin
 
@@ -454,6 +460,16 @@ end # @testset "ReactiveCollection"
         operation_module.evaluate_operation(editor, inverse)
         @test collect(v) == ["a", "b"]
         @test get_cell_at(v, 2) === slot
+    end
+
+    @testset "a kinded copy of a native layout holds the list of the field" begin
+        native = TypedListHolder(; names = ["a", "b"])
+        @test getfield(native, :names) isa Vector{String}
+        for kind in (ReactiveCell, MutableCell, ImmutableCell)
+            copied = copy_document(kind, native)
+            @test getfield(copied, :names)[] isa CellVector{String}
+            @test collect(copied.names) == ["a", "b"]
+        end
     end
 
 end # @testset "CellVector protocol"
