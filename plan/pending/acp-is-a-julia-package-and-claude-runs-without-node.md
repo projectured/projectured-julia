@@ -2,7 +2,10 @@
 
 > **Status (2026-10-08): STARTED.** The owner chose the way and the place, and
 > took the recommendation of each question Q1 to Q6, on 2026-10-08; see
-> "Decisions". It follows
+> "Decisions". Steps C.1 to C.6 and C.8 are done: the library is on the branch
+> `first-release` of `/home/projectured/workspace/agent-client-protocol`, and
+> `ProjecturedACP` uses it on the branch `acp-library` of projectured-julia.
+> C.7 waits for the owner, who pushes. It follows
 > [the-assistant-talks-to-an-acp-agent.md](the-assistant-talks-to-an-acp-agent.md),
 > whose phase 1 and steps 2.1, 2.2 and 2.3 are on `main`.
 
@@ -45,6 +48,74 @@ The owner decided on 2026-10-08:
    as a compiled program later (Q3); the licence is MIT (Q4); the types are
    generated from the schema (Q5); and ProjecturEd hosts the agent in its own
    process, with the program as the second way (Q6).
+
+## Decisions made in the implementation
+
+- **A type is a view of a JSON object, not a struct with typed fields.** The
+  schema has unions in seven forms, and some objects hold common fields and a
+  union part together (`SetSessionConfigOptionRequest`, `SessionConfigOption`,
+  `CreateElicitationRequest`). A struct for each form made the generator large
+  and fragile. A view holds the `Dict{String,Any}` of the object, and its
+  properties read the fields with their snake case names and their Julia types.
+  So the round trip is exact by construction, an unknown field travels without
+  a field `extra`, and a mixed form is only a list of properties. A property
+  reads its field when it is used; the connection checks the required fields
+  of the parameters of a message when the message comes.
+- **The forms of the generator:** an object; a tagged union (an abstract type,
+  a type for each tag, and `Other<Union>` for a tag that the schema does not
+  name); a structural union, which the required fields pick; a flat union,
+  whose alternatives only add optional fields (one type); a primitive union
+  (a Julia `Union`); an enum (an alias of `String` or `Int`, its values in the
+  documentation, named constants for `ErrorCode`); an alias. 207 objects, 15
+  tagged unions, 2 structural, 3 flat, 3 primitive, 19 enums, 18 aliases.
+- **A variant reuses the type of the definition that it references** when only
+  this alternative references it as a variant, as `ToolCall` and `TextContent`
+  do. Its tag is written when a field of the union holds it, because the same
+  type is also a plain field (`RequestPermissionRequest.toolCall` is a
+  `ToolCallUpdate` without a tag). The three variants of `ContentChunk` get
+  their own types, `UserMessageChunk`, `AgentMessageChunk` and
+  `AgentThoughtChunk`; another variant of its own is `<Union><Tag>`.
+- **The unstable definitions are not in a module of their own.** The schema
+  marks them with `**UNSTABLE**` in the description, and the generator copies
+  the description into the docstring. A module of their own would split a union
+  whose stable and unstable variants share one abstract type.
+- **The types are public, not exported.** Many names are short and general
+  (`Content`, `Diff`, `Range`, `Terminal`). The examples name them with the
+  module, `import AgentClientProtocol as ACP`.
+- **JSON.jl, not JSON3.** The General registry marks JSON3 as deprecated, with
+  JSON.jl as the alternative. JSON.jl 1.x is the one dependency of the library.
+  `ProjecturedACPTest` keeps JSON3 for its fake agent, whose wire code is an
+  independent check of the library.
+- **The handler API:** a `ClientHandler` or an `AgentHandler` with methods of
+  `answer_request(handler, request, context)` and
+  `receive_notification(handler, notification, connection)`, and the forms
+  with a method name for an extension method. A method that the handler does
+  not serve gets `METHOD_NOT_FOUND` before its fields are checked, so the
+  library asks the method table whether a method beside the default exists.
+- **`$/cancel_request` both ways:** `start_request!`, `wait_for_answer` and
+  `cancel_request!` on the sending side; `add_cancel_callback!` and
+  `is_request_cancelled` on the receiving side. The other side still answers a
+  withdrawn request.
+- **The recorded messages of `claude-agent-acp` 0.87.0** are one message of each
+  kind from the probe transcripts, without the `_auth/status_update`
+  notifications, which hold the account, and with only built-in commands and
+  agents in the lists.
+- **The library commits are on the branch `first-release`**, not on `main`,
+  because the landing is the owner's decision; the repository has no `main`
+  yet.
+- **C.7 comes after C.8.** The registry names the git tree of the released
+  commit, and C.8 changed the library once more.
+- **`ProjecturedACP` keeps its translation on plain JSON.** `AcpUpdate.jl` reads
+  the JSON object of each update with the defaults of its fields, so an agent
+  that leaves out a field gives no error; its tests stay as they are. The
+  requests that it sends are typed. The field `transport` holds the
+  `AgentClientProtocol.Connection`, and `AcpClientHandler` answers the agent.
+  `AcpRequestException` is gone; the package exports `ProtocolException` of the
+  library.
+- **CI:** the jobs on `environment/all` check out `AgentClientProtocol.jl`
+  beside the repository, as they do `AutoIntegration.jl`. The release workflow
+  that the builder writes adds both packages by their URLs, and the front page
+  of the release names the repository.
 
 ## Facts (2026-10-08)
 
@@ -133,8 +204,9 @@ AgentClientProtocol.jl
 - **The types are generated.** A generator in the repository reads
   `schema.json` and writes the Julia types and their JSON mapping. A new
   release of the schema is a run of the generator and a review of the diff.
-  The unstable definitions go into a module of their own. A NOTICE names the
-  Apache-2.0 source of the schema.
+  The unstable definitions carry the mark of the schema in their docstrings
+  (see "Decisions made in the implementation"). A NOTICE names the Apache-2.0
+  source of the schema.
 - **Unknown data travels.** Each type keeps `_meta`, and a field or a variant
   that the generator does not know is kept, not dropped, because the protocol
   grows by fields.
@@ -184,26 +256,31 @@ editor ──ACP──▶ the agent (Julia) ──stream-json──▶ claude -p
 
 ### C. The library
 
-- [ ] **C.1 The repository.** `AgentClientProtocol.jl` in
+- [x] **C.1 The repository.** `AgentClientProtocol.jl` in
   `/home/projectured/workspace/agent-client-protocol`, shaped like
   AutoIntegration.jl: `Project.toml` with JSON3, `src/`, `test/`, a README with
   the install from ProjecturedRegistry, the licence (Q4), CI.
-- [ ] **C.2 The generator and the types** of schema v1 1.7.0, with the NOTICE.
-- [ ] **C.3 The transport**, moved from `ProjecturedACP` and made general:
+- [x] **C.2 The generator and the types** of schema v1 1.7.0, with the NOTICE.
+  Done: commit `1d45016` of the library, 10,989 generated lines.
+- [x] **C.3 The transport**, moved from `ProjecturedACP` and made general:
   requests and notifications in both directions, the end of the process group,
   `$/cancel_request` sent and received.
-- [ ] **C.4 The client side**, with a handler type for the requests of the
+- [x] **C.4 The client side**, with a handler type for the requests of the
   agent.
-- [ ] **C.5 The agent side**, with a handler type for the requests of the
+- [x] **C.5 The agent side**, with a handler type for the requests of the
   client.
-- [ ] **C.6 The tests**: client against agent in one process, the cases of
+- [x] **C.6 The tests**: client against agent in one process, the cases of
   `test_acp()`, and the recorded answers of `claude-agent-acp` 0.87.0 without
-  account data.
+  account data. Done: C.3 to C.5 in `fe95afa`, C.6 in `c06b335` and
+  `e4aa4a6`; 138 tests pass in about 14 s. The README examples run against
+  each other over a process.
 - [ ] **C.7 The release 0.1.0 in ProjecturedRegistry.** The owner pushes the
   repository and the registry.
-- [ ] **C.8 `ProjecturedACP` on the library.** The map to the kernel seam
+- [x] **C.8 `ProjecturedACP` on the library.** The map to the kernel seam
   stays; the transport and the connection come from the library. `test_acp()`
-  and the assistant tests pass with no change of behavior.
+  and the assistant tests pass with no change of behavior. Done on the branch
+  `acp-library`: `test_acp()` 101 of 101, as before; the six standalone
+  guards give the same output as on `main`.
 
 ### B. The Claude agent
 
@@ -261,5 +338,5 @@ editor ──ACP──▶ the agent (Julia) ──stream-json──▶ claude -p
 - **The contracts that B.1 checks** can differ from what the SDK pages say.
 - **ACP v2** is a draft. The library starts with v1 and keeps v2 apart until
   it is stable.
-- **The schema has unstable parts**, which the library keeps in a module of
-  their own.
+- **The schema has unstable parts.** The library generates them with the
+  rest, and their docstrings carry the mark of the schema.
