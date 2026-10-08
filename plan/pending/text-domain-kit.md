@@ -652,9 +652,30 @@ The design of step 1, found when the work started (2026-10-08):
   block again, and that cost stays the larger one. I expect no regression, and
   step 5 measures a keystroke before and after.
 
-0. **The baseline.** Run the guards below and the suites of the domains that print
-   through `SyntaxToText`, on the head of the branch before step 3, which already
-   holds the gutter and the folds. Record the counts here, with the broken markers.
+0. ~~**The baseline.**~~ **Done 2026-10-08**, at 32ad06496 (the head of the
+   branch before step 3), each part in a process of its own. Every part ended,
+   and only `test_platform` has failures: 14 Fail and 8 Error, in
+   `ExternalAgentTurnTest.jl` (19), `McpLogTest.jl:55` (1) and
+   `InterfaceApiTest.jl:46,49` (2), none of them in the text or the syntax.
+
+   | part | Pass | Broken | part | Pass | Broken |
+   |---|---|---|---|---|---|
+   | `test_platform` | 107172 | 8 | `test_repls` | 24075 | 2 |
+   | `test_position_navigations` | 8217 | 5 | `test_printers` | 292114 | 0 |
+   | `test_typeins` | 5146 | 22 | `test_readers` | 24525 | 0 |
+   | `test_text_navigation_invariants_all` | 379 | 10 | `test_click_roundtrips` | 42 | 0 |
+   | `test_natural_renders_every_atom` | 2 | 0 | `test_tree_navigations` | 84 | 0 |
+   | `test_json` | 227 | 0 | `test_domain_examples` | 344953 | 0 |
+   | `test_yaml` | 54 | 2 | `test_mouse_clicks` | 34 | 12 |
+   | `test_xml` | 80 | 0 | `test_natural_round_trips_every_atom` | 4 | 0 |
+   | `test_math` | 182 | 0 | `test_markdown` | 262 | 0 |
+   | `test_fsm` | 163 | 0 | `test_rst` | 109 | 0 |
+   | `test_book` | 33 | 0 | `test_julia` | 526 | 0 |
+   | `test_sql` | 660 | 0 | `test_dbcatalog` | 74 | 0 |
+   | `test_formula` | 123 | 0 | | | |
+
+   The logs are in `/var/tmp/text-gutter/baseline/`, and the worktree
+   `projectured-julia-text-gutter-baseline` stays at that commit for a rerun.
 1. **A leaf and a compound make lines.** One commit, because a compound can not
    join the lines of a leaf and splice the spans of a compound at the same time.
    `SyntaxLeafToText` splits a value or a delimiter that holds a `'\n'` into lines.
