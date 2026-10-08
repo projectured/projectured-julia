@@ -39,7 +39,9 @@ backend that finds nothing, changes nothing. A later change comes as a
 """
 function copy_system_colors!(editor, appearance::Appearance)
     editor === nothing && return nothing
-    colors = find_system_colors(editor.backend)
+    # Through `invokelatest`: each backend package adds a method, and a call that
+    # inference resolves would be invalidated when such a package loads.
+    colors = Base.invokelatest(find_system_colors, editor.backend)
     colors === nothing || (appearance.system_colors = colors)
     nothing
 end

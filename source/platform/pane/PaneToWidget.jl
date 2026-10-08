@@ -703,7 +703,7 @@ function _read_tab_press(iomap::PaneTreeToWidgetIoMap, state, gesture)
     end
     target, zone = _find_tab_landing(iomap, state, gesture.x, gesture.y)
     CompoundOperation(Any[
-        _drag_write(tree, merge(state, (target = target, zone = zone, started = true))),
+        _drag_write(tree, merge(state::NamedTuple, (target = target, zone = zone, started = true))),
         StartDragOperation(EmptyReference(), (group = state.group, index = state.index)),
         make_screen_pointer_shape_operation(_get_tab_drop_shape(target))])
 end
@@ -722,7 +722,7 @@ function _read_tab_drag(iomap::PaneTreeToWidgetIoMap, state, gesture)
         # Only write when the target moved, so a drag across a pane is not one
         # write per pixel.
         (state.target === target && state.zone === zone) && return nothing
-        write = _drag_write(tree, merge(state, (target = target, zone = zone)))
+        write = _drag_write(tree, merge(state::NamedTuple, (target = target, zone = zone)))
         shape = _get_tab_drop_shape(target)
         shape === _get_tab_drop_shape(state.target) && return write
         return CompoundOperation(Any[write, make_screen_pointer_shape_operation(shape)])

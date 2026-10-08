@@ -31,7 +31,7 @@
 # markers for a logical pixel number that a document authors on a widget. A
 # theme value reaches the printer through a style field of the projection and
 # needs no marker.
-_sc(px::Integer) = Int(px)
+_sc(px) = Int(px)
 
 # A widget's authored `position` is in logical pixels, like insets.
 _origin(pos::Point2D) = (Int(pos.x[]), Int(pos.y[]))
@@ -149,7 +149,8 @@ end
 
 function _inset_total(p, w::WidgetDocument; variant = nothing)
     box = _get_box_insets(p, w; variant)
-    (sum(sides -> sides[1] + sides[3], box), sum(sides -> sides[2] + sides[4], box))
+    (box.margin[1] + box.margin[3] + box.border[1] + box.border[3] + box.padding[1] + box.padding[3],
+     box.margin[2] + box.margin[4] + box.border[2] + box.border[4] + box.padding[2] + box.padding[4])
 end
 
 # Push the band of `sides` inside the rectangle `(x, y, width, height)`: one rect

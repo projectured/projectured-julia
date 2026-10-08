@@ -112,7 +112,7 @@ const _NAMED_ACCENT_COLORS = Dict{String,NTuple{3,UInt8}}(
 # contrast and the accent: `'prefer-dark'`, `true` and `'orange'`. An answer that
 # is `nothing` or not known gives light, normal or no accent.
 function _convert_gsettings_answers(scheme::AbstractString, contrast, accent)
-    unquote(text) = strip(strip(text), '\'')
+    unquote(text) = strip(strip(String(text)::String), '\'')
     SystemColors(; mode = unquote(scheme) == "prefer-dark" ? :dark : :light,
                  contrast = contrast !== nothing && unquote(contrast) == "true" ? :high : :normal,
                  accent = accent === nothing ? nothing : get(_NAMED_ACCENT_COLORS, unquote(accent), nothing))

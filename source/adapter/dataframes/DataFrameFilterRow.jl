@@ -137,7 +137,7 @@ end
 function _make_query_corner(p, view)
     label = WidgetLabel("")
     set_cell_computation!(getfield(label, :content),
-                          () -> lpad(string(length(view.kept_rows)), ndigits(nrow(view.frame)), '\u2007'))
+                          () -> lpad(string(length(view.kept_rows)::Int), ndigits(nrow(view.frame)::Int), '\u2007'))
     function reason()
         keep = _parse_name_pattern(view.query.column_pattern)
         keep isa String ? keep : nothing

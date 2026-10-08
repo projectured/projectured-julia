@@ -95,7 +95,7 @@ function _print_grid_list(p, recursion, doc, ctx)
                                    avail_w; reads = k -> false)
     col_w = Cell[_gl_extent_cell(col_extents, k) for k in 1:n]
     col_x = Cell[_gl_col_x_cell(k, col_w, hgap) for k in 1:n]
-    total_w = Cell(@computation Int32(sum((Int(col_w[k][]) for k in 1:n); init = 0) +
+    total_w = Cell(@computation Int32(sum((Int(col_w[k][])::Int for k in 1:n); init = 0) +
                                       max(0, n - 1) * Int(hgap[])))
     state = GridListState(n, Dict{Int,Any}(), Cell(nothing), nothing, Dict{Int,Any}())
     # A new head in `children` drops every row built and starts again, and a

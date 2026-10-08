@@ -50,6 +50,15 @@ end
 function _sort_kept_rows(frame, kept::Vector{Int}, keys)
     columns = Tuple{String,Bool}[(key.column, key.descending) for key in keys if key.column in names(frame)]
     isempty(columns) && return kept
+    # Through `invokelatest`: the sort runs code of DataFrames that a package
+    # loaded later can invalidate, and a view that sorts nothing does not depend
+    # on it.
+    Base.invokelatest(_sort_rows_by_columns, frame, kept, columns)
+end
+
+# The `kept` rows of `frame` in the order of `columns`, each a name and whether it
+# descends.
+function _sort_rows_by_columns(frame, kept::Vector{Int}, columns::Vector{Tuple{String,Bool}})
     rows = Base.view(frame, kept, first.(columns))
     try
         kept[sortperm(rows, first.(columns); rev = last.(columns))]

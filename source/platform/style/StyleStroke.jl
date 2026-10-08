@@ -23,12 +23,12 @@ struct StyleStroke
     dash::Any
 end
 
-StyleStroke(color::StyleColor, width::Integer; dash=nothing) =
+StyleStroke(color::StyleColor, width; dash=nothing) =
     StyleStroke(color, Int(width), dash)
 
 # ── Construction ──────────────────────────────────────────────────────────────
 
-make_style_stroke(color::StyleColor, width::Integer; dash=nothing) =
+make_style_stroke(color::StyleColor, width; dash=nothing) =
     StyleStroke(color, Int(width), dash)
 
 function Base.show(io::IO, stroke::StyleStroke)

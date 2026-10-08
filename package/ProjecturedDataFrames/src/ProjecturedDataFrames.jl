@@ -12,10 +12,13 @@ lower package, so each module is bound once, under its own name.
 """
 module ProjecturedDataFrames
 
-using DataFrames
-
+# The platform loads before DataFrames, as in a session that writes `using
+# Projectured, DataFrames`. So the build meets the platform code that the
+# methods of DataFrames invalidate, and the workload compiles it into this image.
 using ProjecturedKernel
 using ProjecturedPlatform
+
+using DataFrames
 
 for _src in (ProjecturedKernel, ProjecturedPlatform)
     for _n in names(_src; all = true)

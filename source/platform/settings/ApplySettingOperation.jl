@@ -87,8 +87,10 @@ end
 Apply `group` to each target of `editor`: the editor, and its backend.
 """
 function apply_settings_to_editor!(editor, group::SettingsGroup)
-    apply_settings!(editor, group)
-    hasproperty(editor, :backend) && apply_settings!(editor.backend, group)
+    # Through `invokelatest`: each backend package adds methods, and a call that
+    # inference resolves would be invalidated when such a package loads.
+    Base.invokelatest(apply_settings!, editor, group)
+    hasfield(typeof(editor), :backend) && Base.invokelatest(apply_settings!, editor.backend, group)
     nothing
 end
 

@@ -29,8 +29,7 @@ const _LiveNumber = Union{Real, Cell, Function}
 const _LivePoints = Union{AbstractVector, Cell, Function}
 const _LiveText = Union{AbstractString, Cell, Function}
 
-_round_pixel(value::Integer) = Int32(value)
-_round_pixel(value::Real) = round(Int32, value)
+_round_pixel(value) = round(Int32, value)
 
 _make_pixel_cell(value::Real) = Cell(_round_pixel(value))
 _make_pixel_cell(value::Cell) = value
@@ -149,10 +148,10 @@ _norm_border(::Nothing) = color_transparent
 _norm_border(c::StyleColor) = c
 
 function GraphicsRect(x::_LiveNumber, y::_LiveNumber, w::_LiveNumber, h::_LiveNumber;
-                      color::StyleColor=color_white, radius::Integer=0,  # @style: content of the document
-                      radius_tl::Integer=radius, radius_tr::Integer=radius,
-                      radius_br::Integer=radius, radius_bl::Integer=radius,
-                      border_width::Integer=0, border_color=nothing)
+                      color::StyleColor=color_white, radius=0,  # @style: content of the document
+                      radius_tl=radius, radius_tr=radius,
+                      radius_br=radius, radius_bl=radius,
+                      border_width=0, border_color=nothing)
     GraphicsRect(_make_pixel_cell(x), _make_pixel_cell(y), _make_pixel_cell(w), _make_pixel_cell(h),
                  Cell(color),
                  Cell(Int32(radius_tl)), Cell(Int32(radius_tr)),
@@ -401,7 +400,7 @@ samples per span. Fewer than two points returns the points unchanged. This is
 the single tessellation path every backend (SDL/Web/PDF) uses, so curve quality
 is controlled in one place.
 """
-function tessellate_spline(points::AbstractVector, kind::Symbol, segments::Integer)
+function tessellate_spline(points::AbstractVector, kind::Symbol, segments)
     n = length(points)
     n < 2 && return [(Float64(p[1]), Float64(p[2])) for p in points]
     seg = max(1, Int(segments))

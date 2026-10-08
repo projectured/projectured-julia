@@ -19,5 +19,5 @@ get_display_size(::Backend) = (1280, 800)
 find_system_colors(::Backend) = nothing
 configure_devices!(::Backend, devices) = nothing
 open_native_windows!(::Backend, document) = nothing
-wait_for_input(::Backend, devices, timeout_seconds) = sleep(min(timeout_seconds, 0.01))
+wait_for_input(::Backend, devices, timeout_seconds) = sleep(min(Float64(timeout_seconds)::Float64, 0.01))
 wake_backend!(::Backend) = nothing

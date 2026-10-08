@@ -47,7 +47,7 @@ make_style_font(family::AbstractString, size::Integer; weight::Integer = 400, it
 
 `font` at `size` logical pixels, with its family, its weight and its slant.
 """
-with_font_size(font::StyleFont, size::Integer) =
+with_font_size(font::StyleFont, size) =
     StyleFont(font.family, Int(size), font.weight, font.italic)
 
 # ── Font size ────────────────────────────────────────────────────────────────

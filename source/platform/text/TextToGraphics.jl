@@ -1037,7 +1037,7 @@ function _close_line!(g::_GroupLayout, p::TextToGraphics, font, counts::Bool, co
                 push!(g.result, text)
                 g.by_key[text.key] = text
             end
-            push!(g.coord_map, SegmentCoordinate(piece.path, piece.char_start, piece.char_end,
+            push!(g.coord_map, SegmentCoordinate(piece.path::SpanPath, piece.char_start, piece.char_end,
                                                  piece.x, top, piece.font, piece.text, piece.width, height))
         elseif piece.kind === :image
             # Embed the span: a raster GraphicsImage for an image document, or a
@@ -1047,10 +1047,10 @@ function _close_line!(g::_GroupLayout, p::TextToGraphics, font, counts::Bool, co
                                                                     piece.width, piece.height))
             # Hit-testing takes an image as one atomic position (0..1). The font is
             # the one a caret beside the image takes.
-            push!(g.coord_map, SegmentCoordinate(piece.path, 0, 1, piece.x, top,
+            push!(g.coord_map, SegmentCoordinate(piece.path::SpanPath, 0, 1, piece.x, top,
                                                  piece.font, "", piece.width, height))
         else
-            push!(g.coord_map, SegmentCoordinate(piece.path, piece.char, piece.char, piece.x, top,
+            push!(g.coord_map, SegmentCoordinate(piece.path::SpanPath, piece.char, piece.char, piece.x, top,
                                                  piece.font, "", 0, height))
         end
     end

@@ -102,7 +102,7 @@ end
 The groups of `settings`, in the order of their names in a settings file.
 """
 get_settings_groups(settings::Settings) =
-    sort!(collect(values(settings.groups));
+    sort!(collect(values(settings.groups::Dict{Type,Any}));
           by = group -> get_settings_name(get_settings_group_type(group)))
 
 """

@@ -149,8 +149,8 @@ end
 # The name of column `name` in an expression: the name itself when it is an
 # identifier that parses as itself, which a keyword such as `end` does not, else
 # `var"name"`.
-function _get_expression_name(name::AbstractString)
-    name = String(name)
+function _get_expression_name(name)
+    name = String(name)::String
     (Base.isidentifier(name) && Meta.parse(name; raise = false) === Symbol(name)) ? name : "var" * repr(name)
 end
 
@@ -168,7 +168,7 @@ end
 # value of that column, and a test of the first letter of its first column of
 # strings; `nothing` for a frame that has neither.
 function _make_expression_example(frame)
-    columns = names(frame)
+    columns = names(frame)::Vector{String}
     get_type(name) = nonmissingtype(eltype(frame[!, name]))
     clauses = String[]
     number = findfirst(name -> _is_number_type(get_type(name)), columns)
