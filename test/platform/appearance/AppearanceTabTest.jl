@@ -250,8 +250,8 @@ end
     texts = first.(_at_collect_texts(iomap.output))
     @test "bool text" in texts
     @test !any(t -> startswith(t, "TextRole") || startswith(t, "StyleText"), texts)
-    @test format_theme_color(syntax.bool_text.color) == "@constant"
-    @test "@constant" in texts
+    @test format_theme_color(syntax.bool_text.color) == "@boolean_literal"
+    @test "@boolean_literal" in texts
     # The base font of the theme shows its family once; a role shows its size in
     # percent of the base.
     @test count(==("Ubuntu Mono"), texts) == 1
@@ -264,13 +264,13 @@ end
                      op isa ReplaceReferencedValueOperation && op.document === syntax &&
                      op.reference.head == FieldReferenceStep("bool_text"))
     @test next_role.value isa TextRole && next_role.value.font == before.font
-    @test next_role.value.color == ColorRole(:type_name)
+    @test next_role.value.color == ColorRole(:null_literal)
     # The button "Step" writes the step of a ramp that the role names, so the field
     # leaves the role and keeps its colour, and still follows the mode.
     to_step = only(op for (action, op) in tab.commands if action.label == "Step" &&
                    op isa ReplaceReferencedValueOperation && op.document === syntax &&
                    op.reference.head == FieldReferenceStep("bool_text"))
-    @test to_step.value.color == get_color_theme(appearance).constant
+    @test to_step.value.color == get_color_theme(appearance).boolean_literal
     @test to_step.value.color isa PaletteColor && to_step.value.font == before.font
     # The step to a heavier weight sets the weight of the role and keeps the colour.
     step = only(op for (action, op) in tab.commands if action.label == "+" &&
