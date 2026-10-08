@@ -116,7 +116,13 @@ its default asks the agent `claude-agent-acp` for the summary of its reasoning,
 and an agent that does not read it, as the built-in one, ignores it. The package `ProjecturedACP` must be
 loaded. `agent_session` is the live link to
 the agent, an `ExternalAgentSession`: `nothing` until the first turn starts it,
-or one that a test gives. It is no data, like `llm`. `agent_options` are the options of
+or one that a test gives. It is no data, like `llm`. `agent_session_id` is the
+id of the session of the agent that the assistant keeps, `agent_session_directory`
+its folder, and `agent_session_turn_count` how many turns of the conversation
+that session saw. They are written when the agent answers a prompt, and empty
+until then. A stop of the agent keeps them, so the next turn resumes that
+session with its history, as after the undo of the close of the tab; a new
+conversation and a duplicate clear them. `agent_options` are the options of
 the session of the agent, such as its model and how much it reasons, as the agent
 last listed them: empty until a session opens. `agent_title` is the title that
 the agent gave its session, empty until it gives one, and the tab of the
@@ -149,6 +155,9 @@ behaviour pass an explicit `llm` (a `FakeLlm`/`ScriptedLlm` from
     agent_command::String
     agent_session_meta::String
     agent_session::Any
+    agent_session_id::String
+    agent_session_directory::String
+    agent_session_turn_count::Int
     agent_options::Vector{AgentOption}
     agent_title::String
     agent_usage::Union{Nothing,AgentUsageUpdate}
@@ -171,6 +180,11 @@ const DEFAULT_AGENT_SESSION_META =
 const FORK_AGENT_NOTE =
     "This copy talks to the agent in a new session. The agent does not have the history above."
 
+# What the transcript says when the agent opened a new session in place of the
+# session that the assistant kept.
+const NEW_SESSION_AGENT_NOTE =
+    "The agent could not resume its session, so the next answer comes from a new session, which does not have the history above."
+
 # A fresh user draft (one active text typein) for the composer input pane.
 _default_draft() = ConversationDraft([ConversationPart(PrimitiveString(""))])
 
@@ -188,6 +202,9 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
                               agent_command::AbstractString = DEFAULT_AGENT_COMMAND,
                               agent_session_meta::AbstractString = DEFAULT_AGENT_SESSION_META,
                               agent_session = nothing,
+                              agent_session_id::AbstractString = "",
+                              agent_session_directory::AbstractString = "",
+                              agent_session_turn_count::Integer = 0,
                               agent_options::AbstractVector = AgentOption[],
                               agent_title::AbstractString = "",
                               agent_usage::Union{Nothing,AgentUsageUpdate} = nothing,
@@ -198,7 +215,9 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
                            Cell(collapse_thinking),
                            Cell(llm),
                            Cell(String(agent_command)), Cell(String(agent_session_meta)),
-                           Cell(agent_session), Cell(collect(AgentOption, agent_options)),
+                           Cell(agent_session), Cell(String(agent_session_id)),
+                           Cell(String(agent_session_directory)), Cell(Int(agent_session_turn_count)),
+                           Cell(collect(AgentOption, agent_options)),
                            Cell(String(agent_title)), Cell(agent_usage),
                            Cell(collect(AgentCommand, agent_commands)),
                            Cell(nothing))
@@ -244,15 +263,18 @@ get_document_title(a::Assistant) = isempty(a.agent_title) ? ASSISTANT_TITLE : a.
 # it: its task writes there, and it is the last turn, pushed when the stream
 # began, so the fork leaves it out.
 #
-# The session of an external agent stays with the assistant that opened it. The
-# fork starts a new session at its first turn, and a note in its transcript says
-# that the agent of the fork does not have the history above it.
+# The session of an external agent stays with the assistant that opened it, also
+# when the agent stopped and the assistant keeps the id of the session. The fork
+# starts a new session at its first turn, and a note in its transcript says that
+# the agent of the fork does not have the history above it.
 has_document_duplicate(::Assistant) = true
 
 function copy_document(policy::DuplicatePolicy, assistant::Assistant)
     draft = copy_document_fields(policy, assistant.draft; assistant = nothing)
     fork = copy_document_fields(policy, assistant; draft = draft, status = :idle,
-                                agent_session = nothing, agent_options = AgentOption[],
+                                agent_session = nothing, agent_session_id = "",
+                                agent_session_directory = "", agent_session_turn_count = 0,
+                                agent_options = AgentOption[],
                                 agent_title = "", agent_usage = nothing,
                                 agent_commands = AgentCommand[])
     draft.assistant = fork
@@ -261,7 +283,7 @@ function copy_document(policy::DuplicatePolicy, assistant::Assistant)
        turns[length(turns)].role === :assistant
         deleteat!(turns, length(turns))
     end
-    assistant.agent_session === nothing ||
+    (assistant.agent_session === nothing && isempty(assistant.agent_session_id)) ||
         push!(turns, ConversationTurn(:assistant, [ConversationPart(FORK_AGENT_NOTE)]))
     fork
 end

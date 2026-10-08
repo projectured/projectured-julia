@@ -115,9 +115,16 @@ function test_external_agent_turn()
             connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("One."), LlmTextStop()]])
             a = _make_agent_assistant(connection)
             _submit_to_agent!(a, "First")
+            @test a.agent_session_id == "scripted-session-1"
+            conversation = a.conversation
             evaluate_operation((document = a,), ResetConversationOperation(a))
             @test a.agent_session === nothing
             @test isempty(collect(a.conversation.turns))
+            # The new conversation is no part of the old session.
+            @test a.agent_session_id == "" && a.agent_session_directory == ""
+            # An answer that comes for the old conversation keeps no session.
+            AssistantModule._keep_agent_session!(a, conversation, ExternalAgentSession(connection; session_id = "old"))
+            @test a.agent_session_id == ""
         end
 
         @testset "the options of the agent arrive at the open and change by a pick" begin
@@ -298,6 +305,7 @@ function test_external_agent_turn()
             _submit_to_agent!(a, "First")
             fork = copy_document(DuplicatePolicy(), a)
             @test fork.agent_session === nothing
+            @test fork.agent_session_id == "" && fork.agent_session_directory == ""
             @test fork.agent_command == a.agent_command
             note = collect(fork.conversation.turns)[end]
             @test note.role === :assistant
@@ -313,6 +321,94 @@ function test_external_agent_turn()
             @test a.agent_session === nothing
             # A document that holds nothing outside the tree releases nothing.
             @test release_document!(nothing, Assistant()) === nothing
+        end
+
+        @testset "after a release, the next turn resumes the session" begin
+            connection = ScriptedAgentConnection([
+                Any[AgentSessionInfoUpdate("Hello"), LlmTextStart(), LlmTextDelta("One."), LlmTextStop()],
+                Any[LlmTextStart(), LlmTextDelta("Two."), LlmTextStop()]]; can_resume = true)
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "Hello")
+            @test (a.agent_session_id, a.agent_session_directory) == ("scripted-session-1", pwd())
+            @test a.agent_session_turn_count == 1
+            evaluate_operation((document = a,), ReleaseDocumentOperation(a))
+            # The stop keeps the session, and its title stays on the tab.
+            @test a.agent_session === nothing
+            @test a.agent_session_id == "scripted-session-1" && a.agent_title == "Hello"
+            # The agent starts again, as the next turn of an editor starts it.
+            a.agent_session = ExternalAgentSession(connection)
+            _submit_to_agent!(a, "Again")
+            @test connection.sessions[2].session_id == "scripted-session-1"
+            @test connection.sessions[2].directory == pwd()
+            @test a.agent_session_id == "scripted-session-1"
+            @test !any(turn -> occursin("does not have the history",
+                                        join(AssistantModule._part_text.(collect(turn.parts)))),
+                       collect(a.conversation.turns))
+            @test connection.prompts[2] == [LlmText("Again")]
+        end
+
+        @testset "a resume sends the turns that the kept session did not see" begin
+            connection = ScriptedAgentConnection([
+                Any[LlmTextStart(), LlmTextDelta("One."), LlmTextStop()],
+                Any[(connection, on_event) -> error("The agent stopped.")],
+                Any[LlmTextStart(), LlmTextDelta("Three."), LlmTextStop()]]; can_resume = true)
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "A")
+            _submit_to_agent!(a, "B")
+            @test a.status === :error
+            @test a.agent_session_turn_count == 1
+            evaluate_operation((document = a,), ReleaseDocumentOperation(a))
+            a.agent_session = ExternalAgentSession(connection)
+            _submit_to_agent!(a, "C")
+            @test connection.sessions[2].session_id == "scripted-session-1"
+            @test connection.prompts[end] == [LlmText("B"), LlmText("C")]
+        end
+
+        @testset "a resumed session whose first prompt fails does not resume again" begin
+            connection = ScriptedAgentConnection([
+                Any[LlmTextStart(), LlmTextDelta("One."), LlmTextStop()],
+                Any[(connection, on_event) -> error("Claude Code ended before the end of the turn.")],
+                Any[LlmTextStart(), LlmTextDelta("Three."), LlmTextStop()]]; can_resume = true)
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "Hello")
+            evaluate_operation((document = a,), ReleaseDocumentOperation(a))
+            a.agent_session = ExternalAgentSession(connection)
+            _submit_to_agent!(a, "Again")
+            @test a.status === :error
+            @test connection.sessions[2].session_id == "scripted-session-1"
+            # The agent did not answer in the resumed session, so it does not have it.
+            @test a.agent_session_id == "scripted-session-1" && a.agent_session_directory == ""
+            _submit_to_agent!(a, "Third")
+            @test connection.sessions[3].session_id == ""
+            @test a.agent_session_id == "scripted-session-3"
+            @test any(turn -> any(part -> AssistantModule._part_text(part) == AssistantModule.NEW_SESSION_AGENT_NOTE,
+                                  collect(turn.parts)),
+                      collect(a.conversation.turns))
+        end
+
+        @testset "an agent that can not resume opens a new session, and a note says so" begin
+            connection = ScriptedAgentConnection([
+                Any[AgentSessionInfoUpdate("Hello"), LlmTextStart(), LlmTextDelta("One."), LlmTextStop()],
+                Any[LlmTextStart(), LlmTextDelta("Two."), LlmTextStop()]])
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "Hello")
+            evaluate_operation((document = a,), ReleaseDocumentOperation(a))
+            a.agent_session = ExternalAgentSession(connection)
+            _submit_to_agent!(a, "Again")
+            @test connection.sessions[2].session_id == "scripted-session-1"
+            @test a.agent_session_id == "scripted-session-2"
+            # The title of the old session goes, and the note comes before the answer.
+            @test a.agent_title == ""
+            turns = collect(a.conversation.turns)
+            @test [turn.role for turn in turns[end-2:end]] == [:user, :assistant, :assistant]
+            @test AssistantModule._part_text(only(turns[end-1].parts)) == AssistantModule.NEW_SESSION_AGENT_NOTE
+            # A session whose folder is gone does not resume, and a new one opens.
+            evaluate_operation((document = a,), ReleaseDocumentOperation(a))
+            a.agent_session_directory = joinpath(pwd(), "no-such-folder")
+            a.agent_session = ExternalAgentSession(connection)
+            _submit_to_agent!(a, "Third")
+            @test connection.sessions[3].session_id == ""
+            @test connection.sessions[3].directory == pwd()
         end
 
         @testset "the backend :acp without its package says so" begin

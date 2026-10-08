@@ -161,25 +161,57 @@ end
 # a person who asks for it sees it, and nobody else does.
 _log_agent_line(line) = @debug "agent" line
 
+# A kept session resumes with `session/resume` when the answer to `initialize`
+# has `sessionCapabilities.resume`. When the answer to the resume is an error of
+# the protocol, as for a session that the agent does not have any more, a new
+# session opens, and the caller sees its new id. A needed sign-in, a timeout and
+# a closed connection go to the caller.
 function open_agent_session!(connection::AcpConnection; directory::AbstractString = connection.directory,
                              mcp_servers::AbstractVector = Any[], instructions::AbstractString = "",
-                             on_event = nothing)
+                             session_id::AbstractString = "", on_event = nothing)
     transport = _get_started_transport(connection)
     meta = _add_instructions(connection.session_meta, instructions)
-    request = ACP.NewSessionRequest(
-        cwd = String(directory),
-        mcp_servers = ACP.McpServer[_make_mcp_server(server) for server in mcp_servers],
-        meta = isempty(meta) ? nothing : meta)
-    result = try
+    meta = isempty(meta) ? nothing : meta
+    servers = ACP.McpServer[_make_mcp_server(server) for server in mcp_servers]
+    if !isempty(session_id) && _has_session_capability(connection, "resume")
+        result = try
+            _send_session_request!(connection, transport, ACP.ResumeSessionRequest(
+                session_id = String(session_id), cwd = String(directory), mcp_servers = servers, meta = meta))
+        catch exception
+            exception isa ACP.ProtocolException || rethrow()
+            @debug "The agent did not resume the session, so a new session opens." exception
+            nothing
+        end
+        if result !== nothing
+            _store_session_options!(connection, session_id, get(ACP.get_json(result), "configOptions", Any[]),
+                                    on_event)
+            return String(session_id)
+        end
+    end
+    result = _send_session_request!(connection, transport,
+        ACP.NewSessionRequest(cwd = String(directory), mcp_servers = servers, meta = meta))
+    new_id = result.session_id
+    _store_session_options!(connection, new_id, get(ACP.get_json(result), "configOptions", Any[]), on_event)
+    new_id
+end
+
+# A request that opens or resumes a session. An agent that needs a sign-in
+# answers an error whose message says how to sign in.
+function _send_session_request!(connection::AcpConnection, transport, request)
+    try
         ACP.send_request!(transport, request; timeout = 120)
     catch exception
         exception isa ACP.ProtocolException && exception.code == ACP.AUTHENTICATION_REQUIRED &&
             error(_format_sign_in_message(connection))
         rethrow()
     end
-    session_id = result.session_id
-    _store_session_options!(connection, session_id, get(ACP.get_json(result), "configOptions", Any[]), on_event)
-    session_id
+end
+
+# Whether the answer to `initialize` has the session method `name` in its
+# `sessionCapabilities`, such as `"resume"` or `"close"`.
+function _has_session_capability(connection::AcpConnection, name::AbstractString)
+    capabilities = get(ACP.get_json(connection.agent_capabilities), "sessionCapabilities", nothing)
+    capabilities isa AbstractDict && haskey(capabilities, name)
 end
 
 function set_agent_option!(connection::AcpConnection, session_id::AbstractString,
@@ -279,8 +311,7 @@ function close_agent_session!(connection::AcpConnection, session_id::AbstractStr
     end
     transport = connection.transport
     transport === nothing && return nothing
-    capabilities = get(ACP.get_json(connection.agent_capabilities), "sessionCapabilities", nothing)
-    capabilities isa AbstractDict && haskey(capabilities, "close") || return nothing
+    _has_session_capability(connection, "close") || return nothing
     try
         ACP.send_request!(transport, ACP.CloseSessionRequest(session_id = String(session_id)); timeout = 30)
     catch exception

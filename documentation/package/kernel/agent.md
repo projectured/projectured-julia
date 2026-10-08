@@ -528,6 +528,8 @@ set_agent_option!(connection, session_id, "effort", "max"; on_event)
 stop_reason = send_agent_prompt!(connection, session_id, prompt; on_event)
 ```
 
+With a `session_id`, `open_agent_session!` resumes that session, with the history that the agent keeps, when the agent can, and else opens a new session. The id that it returns says which: a new id means a session without the old history.
+
 The eight generics are `make_agent_connection(kind; kwargs...)`, `start_agent_connection!`, `open_agent_session!`, `set_agent_option!`, `send_agent_prompt!`, `cancel_agent_prompt!`, `close_agent_session!` and `stop_agent_connection!`. A package adds the methods for its kind. The `Symbol` entry dispatches to `make_agent_connection(::Val{kind})`. When no package answers, the entry throws an error that lists the loaded kinds. `get_agent_connection_names()` reads those kinds from the method table, as `get_llm_backend_names()` does. `get_agent_server_names()` does the same for the servers of the inbound direction.
 
 `send_agent_prompt!` takes a prompt, a vector of `LlmContent`, and waits until the turn of the agent ends. It answers why the turn ended: `:end_turn`, `:max_tokens`, `:max_turn_requests`, `:refusal` or `:cancelled`. It calls `on_event` on a task that is not the editor task, so the caller posts its writes through `run_on_editor_task!`. `on_event` gets these events:

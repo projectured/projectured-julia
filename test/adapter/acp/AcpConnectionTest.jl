@@ -91,6 +91,44 @@ function test_acp_connection()
             stop_agent_connection!(connection)
         end
 
+        @testset "a kept session resumes, and a session that the agent refuses opens anew" begin
+            # The agent resumes the session, in its folder and with the instructions.
+            agent = _make_fake_agent(Dict{String,Function}(
+                "session/resume" => (agent, params) -> Dict("configOptions" => FAKE_CONFIG_OPTIONS)))
+            connection = make_fake_connection(agent)
+            events = Any[]
+            @test open_agent_session!(connection; directory = "/work", session_id = "session-9",
+                                      instructions = "Host.", on_event = event -> push!(events, event)) == "session-9"
+            params = only(get_received(agent, "session/resume"))["params"]
+            @test (params["sessionId"], params["cwd"]) == ("session-9", "/work")
+            @test params["_meta"]["claudeCode"]["options"]["systemPrompt"]["append"] == "Host."
+            @test isempty(get_received(agent, "session/new"))
+            @test only(events) isa AgentOptionsUpdate
+            stop_agent_connection!(connection)
+            # An agent that refuses the resume opens a new session in its place.
+            refusing = _make_fake_agent()
+            connection = make_fake_connection(refusing)
+            @test open_agent_session!(connection; directory = "/work", session_id = "session-9") == "session-1"
+            @test length(get_received(refusing, "session/resume")) == 1
+            @test only(get_received(refusing, "session/new"))["params"]["cwd"] == "/work"
+            stop_agent_connection!(connection)
+            # An agent that offers no resume gets no request for one.
+            plain = _make_fake_agent(Dict{String,Function}(
+                "initialize" => (agent, params) -> merge(FAKE_INITIALIZE_RESULT, Dict("agentCapabilities" => Dict(
+                    "sessionCapabilities" => Dict("close" => Dict()))))))
+            connection = make_fake_connection(plain)
+            @test open_agent_session!(connection; session_id = "session-9") == "session-1"
+            @test isempty(get_received(plain, "session/resume"))
+            stop_agent_connection!(connection)
+            # A sign-in that the resume needs is no reason for a new session.
+            signed_out = _make_fake_agent(Dict{String,Function}(
+                "session/resume" => (agent, params) -> throw(ProtocolException(-32000, "Authentication required"))))
+            connection = make_fake_connection(signed_out)
+            @test_throws ErrorException open_agent_session!(connection; session_id = "session-9")
+            @test isempty(get_received(signed_out, "session/new"))
+            stop_agent_connection!(connection)
+        end
+
         @testset "the options of a session at the open, at a set, and in an update" begin
             agent = _make_fake_agent(Dict{String,Function}(
                 "session/set_config_option" => function (agent, params)

@@ -14,7 +14,7 @@ The kernel declares seven generics for a connection in `source/kernel/agent/Agen
 | --- | --- |
 | `make_agent_connection(::Val{:acp}; command, environment, directory, session_meta, streams)` | makes an `AcpConnection`; it starts nothing |
 | `start_agent_connection!` | starts the process of the agent and sends `initialize` with `protocolVersion: 1` |
-| `open_agent_session!` | sends `session/new` with the working directory, the MCP servers and, in the `_meta`, the `instructions` as `claudeCode.options.systemPrompt.append`, the key where the Claude agents of ACP read an addition to the system prompt; gives the `configOptions` of the answer to `on_event`, and returns the session id |
+| `open_agent_session!` | with a `session_id`, sends `session/resume` when the answer to `initialize` has `sessionCapabilities.resume`, and returns that id; else, or when the answer to the resume is an error, sends `session/new`. Either request goes with the working directory, the MCP servers and, in the `_meta`, the `instructions` as `claudeCode.options.systemPrompt.append`, the key where the Claude agents of ACP read an addition to the system prompt; gives the `configOptions` of the answer to `on_event`, and returns the session id |
 | `send_agent_prompt!` | sends `session/prompt` and waits for its answer; returns the stop reason |
 | `cancel_agent_prompt!` | sends the notification `session/cancel` and answers each waiting request as cancelled |
 | `set_agent_option!` | sends `session/set_config_option` and gives the options of the answer to `on_event` |

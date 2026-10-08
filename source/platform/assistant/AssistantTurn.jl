@@ -69,7 +69,8 @@ end
 """
     ResetConversationOperation(assistant)
 
-Drop all messages from `assistant.conversation` and clear the input.
+Drop all messages from `assistant.conversation`, clear the input, and stop the
+external agent and forget its session.
 """
 struct ResetConversationOperation <: Operation
     assistant::Assistant
@@ -197,11 +198,16 @@ function evaluate_operation(editor, op::ClearInputOperation)
 end
 
 # A new conversation is a new session of an external agent, which holds the
-# history of the old one.
+# history of the old one, so the assistant forgets the old session.
 function evaluate_operation(editor, op::ResetConversationOperation)
-    op.assistant.conversation = ConversationConversation()
-    _set_input!(op.assistant, "")
-    stop_external_agent!(op.assistant)
+    a = op.assistant
+    a.conversation = ConversationConversation()
+    _set_input!(a, "")
+    stop_external_agent!(a)
+    a.agent_session_id = ""
+    a.agent_session_directory = ""
+    a.agent_session_turn_count = 0
+    a.agent_title = ""
     nothing
 end
 

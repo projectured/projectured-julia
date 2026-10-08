@@ -23,6 +23,10 @@ The live link of an assistant to its external agent:
 - `sent_turn_count` — how many turns of the conversation the agent has seen, so
                   a prompt holds each user turn once, and `-1` until the first
                   turn counts them;
+- `directory`   — the folder of the session, empty until a turn opens it;
+- `is_resumed`  — whether the session is the kept session of the assistant,
+                  which the agent resumed;
+- `has_answered` — whether the agent answered a prompt since the session opened;
 - `is_cancelled` — whether the person stopped the turn that runs; the end of
                   the turn clears it;
 - `start_lock`  — held while the agent starts and its session opens, so a turn
@@ -36,12 +40,16 @@ mutable struct ExternalAgentSession
     session_id::String
     tool_server::Any
     sent_turn_count::Int
+    directory::String
+    is_resumed::Bool
+    has_answered::Bool
     is_cancelled::Bool
     start_lock::ReentrantLock
 end
 
 ExternalAgentSession(connection; session_id::AbstractString = "", tool_server = nothing) =
-    ExternalAgentSession(connection, String(session_id), tool_server, -1, false, ReentrantLock())
+    ExternalAgentSession(connection, String(session_id), tool_server, -1, "", false, false, false,
+                         ReentrantLock())
 
 """
     is_external_agent_turn_running(assistant) -> Bool
@@ -78,11 +86,13 @@ end
 # event as it arrives. Every write to the assistant goes through
 # `run_on_editor_task!`, as the writes of a turn of a model do.
 #
-# A turn that fails closes the connection and forgets the session, so the next
-# turn starts the agent again. The count of the turns that the agent saw stays,
-# so a turn that never reached the agent is in the next prompt.
+# A turn that fails closes the connection, so the next turn starts the agent again
+# and resumes the kept session. The count of the turns that the agent saw stays,
+# so a turn that never reached the agent is in the next prompt. Each answer of the
+# agent makes the assistant keep the session and that count.
 function _run_external_agent_turn!(editor, a::Assistant)
     session = _make_external_agent_session!(editor, a)
+    conversation = run_on_editor_task!(() -> a.conversation, editor)
     turn = ConversationTurn(:assistant)
     state = Dict{Symbol,Any}(:current_block => nothing, :current_thinking => nothing,
                              :tool_forms => Dict{String,EvaluatorForm}(), :plan_part => nothing,
@@ -102,8 +112,14 @@ function _run_external_agent_turn!(editor, a::Assistant)
                 _handle_external_agent_event!(event, a, turn, state)
             end)
         session.sent_turn_count = turn_count
+        session.has_answered = true
+        run_on_editor_task!(() -> _keep_agent_session!(a, conversation, session), editor; wait = false)
         reason
     catch
+        # A resumed session whose first prompt fails is no session that the
+        # agent has, as for a session in which the agent never answered.
+        session.is_resumed && !session.has_answered &&
+            run_on_editor_task!(() -> _drop_agent_session_folder!(a, conversation), editor; wait = false)
         _close_external_agent_session!(session)
         rethrow()
     finally
@@ -144,20 +160,67 @@ function _make_external_agent_session!(editor, a::Assistant)
 end
 
 # The agent started, with the MCP server of the editor when its package is
-# loaded, and a session open that names it. The options of the new session
-# reach `agent_options`.
+# loaded, and a session open that names it. The session that the assistant kept
+# resumes in its folder while the folder exists, so the agent has the history
+# that the transcript shows. The options of the session reach `agent_options`.
 function _start_external_agent_session!(editor, a::Assistant, session::ExternalAgentSession)
     lock(session.start_lock) do
         Base.invokelatest(start_agent_connection!, session.connection)
         if isempty(session.session_id)
             server = _start_agent_tool_server!(editor, session)
             servers = server === nothing ? Any[] : Any[Base.invokelatest(get_agent_server_access, server)]
-            session.session_id = Base.invokelatest(open_agent_session!, session.connection;
-                directory = pwd(), mcp_servers = servers, instructions = DEFAULT_AGENT_INSTRUCTIONS,
+            conversation, kept_id, kept_directory, kept_count = run_on_editor_task!(editor) do
+                a.conversation, a.agent_session_id, a.agent_session_directory, a.agent_session_turn_count
+            end
+            is_resumable = !isempty(kept_id) && isdir(kept_directory)
+            session.directory = is_resumable ? kept_directory : pwd()
+            session.is_resumed = false
+            session.has_answered = false
+            session_id = Base.invokelatest(open_agent_session!, session.connection;
+                directory = session.directory, mcp_servers = servers, instructions = DEFAULT_AGENT_INSTRUCTIONS,
+                session_id = is_resumable ? kept_id : "",
                 on_event = event -> _post_agent_options!(editor, a, event))
+            session.session_id = session_id
+            session.is_resumed = is_resumable && session_id == kept_id
+            if session.is_resumed
+                session.sent_turn_count = kept_count
+            elseif !isempty(kept_id)
+                run_on_editor_task!(() -> _forget_agent_session!(a, conversation), editor; wait = false)
+            end
         end
     end
     session
+end
+
+# The assistant keeps the session in which the agent answered, and how many turns
+# that session saw. A write for a conversation that a reset replaced does nothing.
+function _keep_agent_session!(a::Assistant, conversation::ConversationConversation,
+                              session::ExternalAgentSession)
+    a.conversation === conversation || return nothing
+    a.agent_session_id = session.session_id
+    a.agent_session_directory = session.directory
+    a.agent_session_turn_count = session.sent_turn_count
+    nothing
+end
+
+# A new session in place of the kept one has none of its history: the assistant
+# forgets the kept session and its title, and a note says so.
+function _forget_agent_session!(a::Assistant, conversation::ConversationConversation)
+    a.conversation === conversation || return nothing
+    a.agent_session_id = ""
+    a.agent_session_directory = ""
+    a.agent_session_turn_count = 0
+    a.agent_title = ""
+    push!(a.conversation.turns, ConversationTurn(:assistant, [ConversationPart(NEW_SESSION_AGENT_NOTE)]))
+    nothing
+end
+
+# A kept session without its folder does not resume, so the next turn opens a new
+# session, and the note of a new session says that it has none of the history.
+function _drop_agent_session_folder!(a::Assistant, conversation::ConversationConversation)
+    a.conversation === conversation || return nothing
+    a.agent_session_directory = ""
+    nothing
 end
 
 _post_agent_options!(editor, a::Assistant, event) =
@@ -221,9 +284,9 @@ function evaluate_operation(editor, operation::SetAgentOptionOperation)
     nothing
 end
 
-# The agent stopped and its session forgotten; the next turn starts both again.
-# The MCP server stays, because its port and its secret still serve a new
-# session.
+# The agent stopped, and the session object holds no open session; the next turn
+# starts the agent again and resumes the kept session. The MCP server stays,
+# because its port and its secret still serve the next session.
 function _close_external_agent_session!(session::ExternalAgentSession)
     session.session_id = ""
     try
@@ -237,16 +300,16 @@ end
 """
     stop_external_agent!(assistant)
 
-Stop the external agent of `assistant` and its MCP server, and forget its
-session, so the next turn starts a new agent with a new session. It does
-nothing for an assistant with no agent.
+Stop the external agent of `assistant` and its MCP server. The assistant keeps
+the id, the folder and the title of the session, so the next turn starts the
+agent again and resumes that session. It does nothing for an assistant with no
+agent.
 """
 function stop_external_agent!(a::Assistant)
     session = a.agent_session
     session isa ExternalAgentSession || return nothing
     a.agent_session = nothing
     a.agent_options = AgentOption[]
-    a.agent_title = ""
     a.agent_usage = nothing
     a.agent_commands = AgentCommand[]
     errormonitor(@async begin
@@ -258,7 +321,7 @@ end
 
 # An assistant whose tab closes stops its external agent, so no agent and no MCP
 # server outlive the tab. An undo of the close brings the assistant back, and
-# its next turn starts a new agent.
+# its next turn starts the agent again and resumes the session.
 release_document!(editor, a::Assistant) = stop_external_agent!(a)
 
 # The MCP server through which the agent reaches the tools of this editor: on a

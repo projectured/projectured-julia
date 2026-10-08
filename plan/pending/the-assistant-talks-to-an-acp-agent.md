@@ -641,8 +641,9 @@ from the command line of the projectured UI.
     conversation back, and the next turn opens a new session, so the agent does
     not have the history that the tab shows. A restart after a failure does the
     same.
-  - [ ] **2.4a Resume the same session.** My recommendation; open, because the
-    owner did not answer it yet. The assistant keeps `agent_session_id` and
+  - [x] **2.4a Resume the same session.** The owner agreed on 2026-10-08 ("I
+    agree", the answer to this question and to the fix of the style fault).
+    The assistant keeps `agent_session_id` and
     `agent_session_directory`, data that a stop keeps and a reset of the
     conversation and a duplicate clear. `open_agent_session!` takes a keyword
     `session_id`: with an id, the connection resumes that session when the
@@ -651,6 +652,44 @@ from the command line of the projectured UI.
     different id tells the turn to add the note that the agent does not have
     the history above. This uses the function that exists, as `instructions`
     did, in place of the two new functions of the first proposal.
+    Decisions made in the implementation:
+    - A stop keeps the title of the session too, so the tab that an undo
+      brings back keeps its name. A new session in place of the kept one
+      clears it.
+    - A turn that failed and stopped the connection also resumes at the next
+      turn, because the stop keeps the session.
+    - A session whose folder is gone does not resume: the folder of a new
+      session is `pwd()`, and the note comes.
+    - The note of a new session is an assistant turn after the message of the
+      person. The prompt takes the user turns by their index, so the note
+      does not hide that message.
+    - `AcpConnection` asks for the resume only when the agent offers
+      `sessionCapabilities.resume`. A refusal (a `ProtocolException`) opens a
+      new session, and a needed sign-in still goes to the caller.
+    - `ScriptedAgentConnection` gets `can_resume`, and each record of a session
+      keeps the asked `session_id`.
+    - A review of the first version found that a resume that the agent accepts
+      but whose prompt fails made every later turn fail: `ClaudeCodeACP` accepts
+      any resume, and Claude Code writes a session only at its first message,
+      so a session opened by "Start the agent" and closed before a prompt can
+      not resume. It also found that a resumed session could lose a turn that
+      never reached the agent, and that an answer after a reset could bring the
+      old session back. So the model is now: the assistant keeps a session only
+      when the agent answered a prompt in it, with a third field,
+      `agent_session_turn_count`, the count of the turns that it saw, which a
+      resumed session takes as its `sent_turn_count`. When the first prompt
+      after a resume fails, the assistant drops the folder of the kept session,
+      so the next turn opens a new session with the note. A write after an
+      answer applies only to the conversation in which the turn began, so a
+      reset wins. One case stays: after a turn fails, the next prompt holds its
+      message again, which a resumed agent can have seen already; a lost
+      message is worse than one that comes twice.
+    Tests: the ACP suite 124 of 124, the turn of an external agent 161 of 161
+    alone, the conversation suite 219 of 219, the application 357 with the 2
+    known broken; the static guards as on `main`.
+    Open: `ClaudeCodeACP` makes the title of a resumed session again from the
+    first prompt after the resume, so the tab takes a new name then. A fix
+    there needs a release 0.1.3: a resumed session makes no title.
   - [ ] **2.4b Save and load in a `.pred` file.** The owner agreed on
     2026-10-08: for an assistant with an agent session, the file keeps the
     session id, its folder and the conversation; a load shows the

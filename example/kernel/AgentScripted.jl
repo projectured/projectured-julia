@@ -5,7 +5,8 @@
 # production build.
 
 """
-    ScriptedAgentConnection(turns; failing_opens = 0, on_start = nothing, options = AgentOption[])
+    ScriptedAgentConnection(turns; failing_opens = 0, on_start = nothing, options = AgentOption[],
+                            can_resume = false)
 
 An external agent that plays `turns`, one for each prompt. A turn is a vector of
 steps. A step that is an event goes to `on_event` as it is. A step that is a
@@ -13,7 +14,9 @@ function gets the connection and `on_event`, for an agent that waits, as
 [`make_scripted_permission_step`](@ref) does.
 
 The connection records what a test asserts: `sessions` holds the `directory`,
-the `mcp_servers` and the `instructions` of each session that opened, and `prompts` each prompt. A
+the `mcp_servers`, the `instructions` and the asked `session_id` of each session
+that opened, and `prompts` each prompt. A connection that `can_resume` resumes
+an asked session and answers its id; another one opens a new session. A
 cancel answers each request that waits as cancelled, and the turn then answers
 `:cancelled`. A turn with no script answers `:end_turn` at once.
 
@@ -36,13 +39,14 @@ mutable struct ScriptedAgentConnection
     on_start::Any
     options::Vector{AgentOption}
     option_sets::Vector{Pair{String,String}}
+    can_resume::Bool
 end
 
 ScriptedAgentConnection(turns::AbstractVector; failing_opens::Integer = 0, on_start = nothing,
-                        options::AbstractVector = AgentOption[]) =
+                        options::AbstractVector = AgentOption[], can_resume::Bool = false) =
     ScriptedAgentConnection([collect(Any, turn) for turn in turns], 0, false, false,
                             Any[], Vector{Any}[], Function[], Any[], Int(failing_opens), on_start,
-                            collect(AgentOption, options), Pair{String,String}[])
+                            collect(AgentOption, options), Pair{String,String}[], can_resume)
 
 function AgentModule.start_agent_connection!(connection::ScriptedAgentConnection)
     connection.on_start === nothing || connection.on_start(connection)
@@ -53,14 +57,15 @@ end
 function AgentModule.open_agent_session!(connection::ScriptedAgentConnection;
                                          directory::AbstractString = pwd(),
                                          mcp_servers::AbstractVector = Any[], instructions::AbstractString = "",
-                                         on_event = nothing)
+                                         session_id::AbstractString = "", on_event = nothing)
     if connection.failing_opens > 0
         connection.failing_opens -= 1
         error("The scripted agent needs a sign-in.")
     end
     push!(connection.sessions, (directory = String(directory), mcp_servers = collect(mcp_servers),
-                                instructions = String(instructions)))
+                                instructions = String(instructions), session_id = String(session_id)))
     on_event === nothing || isempty(connection.options) || on_event(AgentOptionsUpdate(copy(connection.options)))
+    connection.can_resume && !isempty(session_id) && return String(session_id)
     "scripted-session-$(length(connection.sessions))"
 end
 

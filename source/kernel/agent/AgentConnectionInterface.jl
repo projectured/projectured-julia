@@ -29,15 +29,22 @@ that runs already stays as it is.
 function start_agent_connection! end
 
 """
-    open_agent_session!(connection; directory, mcp_servers = [], instructions = "", on_event = nothing) -> String
+    open_agent_session!(connection; directory, mcp_servers = [], instructions = "", session_id = "",
+                        on_event = nothing) -> String
 
-Open a new session of the agent, and answer its id. The agent works in
+Open a session of the agent, and answer its id. The agent works in
 `directory`. It connects to each of `mcp_servers`, a named tuple
 `(name, url, headers)` that names an MCP server over HTTP: `headers` is a
 `Vector{Pair{String,String}}` that the agent sends with each request.
 `instructions`, when not empty, is text that the agent adds to its system
 prompt: what its host is, and how to use the tools of the host. An agent that
 has no way to take it ignores it.
+
+With `session_id`, the connection resumes that session, with the history that
+the agent keeps for it, when the agent can; `directory` must then be the folder
+of that session. When the agent can not resume it, the connection opens a new
+session. So an id that is not `session_id` says that the agent does not have
+the history of the old session.
 
 `on_event`, when given, gets the events of the open: an `AgentOptionsUpdate`
 with the options of the session. The connection keeps no reference to it after
