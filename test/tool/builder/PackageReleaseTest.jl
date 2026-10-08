@@ -359,6 +359,24 @@ function test_package_release()
             @test read_project("FakeTop")["compat"]["FakeBase"] == "0.1.1"
         end
 
+        @testset "a package that no longer exports a name takes a minor step, and the package above a new bound" begin
+            write(joinpath(root, "source", "fakebase", "FakeBaseCode.jl"),
+                  "const THING = joinpath(@__DIR__, \"..\", \"..\", \"asset\", \"thing\")\n" *
+                  "export base\nbase() = 1\n")
+            results = Dict(result.name => result for result in release())
+            exported = results["FakeBase"].version
+            @test exported.minor == 1 && exported.patch > 0
+            top = results["FakeTop"].version
+            write(joinpath(root, "source", "fakebase", "FakeBaseCode.jl"),
+                  "const THING = joinpath(@__DIR__, \"..\", \"..\", \"asset\", \"thing\")\n" *
+                  "export foundation\nfoundation() = 1\n")
+            results = Dict(result.name => result for result in release())
+            @test results["FakeBase"].version == v"0.2.0"
+            @test results["FakeTop"].status === :changed
+            @test results["FakeTop"].version == VersionNumber(top.major, top.minor, top.patch + 1)
+            @test read_project("FakeTop")["compat"]["FakeBase"] == "0.2.0"
+        end
+
         @testset "the scan finds a path that leaves the package folder" begin
             folder = mktempdir()
             write(joinpath(folder, "Reads.jl"), """

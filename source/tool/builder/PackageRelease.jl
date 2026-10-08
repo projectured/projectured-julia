@@ -82,7 +82,14 @@ ignores, such as a coverage file, never reaches a user.
 **The version of a package.** A new package keeps the version of its
 `Project.toml`. A package whose content changed gets the next patch version of
 its released one, and caret bounds on its sibling packages from their versions
-in this release, its weak dependencies too. A package whose content did not change keeps its released
+in this release, its weak dependencies too. A changed package that no longer
+exports a name that its released version exports gets the next minor version
+instead, `0.1.2` → `0.2.0`, or from `1.0.0` on the next major one, because the
+code of a user that names it breaks; the build logs the names. Its exported names
+are the names of each `export` statement under its `src` and the struct of each
+`@document` and `@projection`, which export the names that they define. A
+package above it that did not change gets a caret bound on that version, and so
+the next patch version. A package whose content did not change keeps its released
 folder as it is, `[compat]` and `test/` included. The content is every file of
 the folder but those of `test/`, and the `Project.toml` without `version`,
 `[compat]` and `[sources]`: a change of a test gives no released package a new
@@ -181,10 +188,17 @@ function build_package_release!(context::BuildContext; packages,
                             for path in outside], "\n"))
         end
         versions = Dict{String,VersionNumber}()
+        breaking = Set{String}()
         for name in order
             staged, released = joinpath(staging, folders[name]), joinpath(output, folders[name])
             status, version = _compute_release_version(staged, released, projects[name];
                                                        whole = name in support)
+            # A sibling below that takes a breaking step needs a new bound here, and
+            # a new bound is a new version.
+            if status === :unchanged && any(in(breaking), _get_sibling_names(projects[name], projects))
+                status, version = :changed, VersionNumber(version.major, version.minor, version.patch + 1)
+            end
+            _is_breaking_step(released, version) && push!(breaking, name)
             versions[name] = version
             status === :unchanged ||
                 _write_release_project(joinpath(staged, "Project.toml"), projects[name],
@@ -468,8 +482,61 @@ function _compute_release_version(staged, released, project; whole::Bool = false
     _compute_content_digest(staged, project; whole) ==
         _compute_content_digest(released, previous; whole) &&
         return :unchanged, version
-    :changed, VersionNumber(version.major, version.minor, version.patch + 1)
+    # A support package is a test or an example, whose names no user imports.
+    removed = whole ? Symbol[] :
+        sort!(collect(setdiff(_collect_exported_names(released), _collect_exported_names(staged))))
+    isempty(removed) && return :changed, VersionNumber(version.major, version.minor, version.patch + 1)
+    @info "build_package_release!: $(project["name"]) no longer exports $(join(removed, ", ")), " *
+          "so it takes a breaking step"
+    version.major == 0 ? (:changed, VersionNumber(0, version.minor + 1, 0)) :
+                         (:changed, VersionNumber(version.major + 1, 0, 0))
 end
+
+# Whether `version` breaks the code of a user of the version released in
+# `released`: a new major version, or before `1.0.0` a new minor one.
+function _is_breaking_step(released, version::VersionNumber)
+    isfile(joinpath(released, "Project.toml")) || return false
+    previous = VersionNumber(TOML.parsefile(joinpath(released, "Project.toml"))["version"])
+    previous.major != version.major || (previous.major == 0 && previous.minor != version.minor)
+end
+
+# The names that the package in `folder` exports: the names of each `export`
+# statement under its `src`, and the struct of each `@document` and `@projection`,
+# which export the names that they define. A name that `Core.eval` exports again is
+# a name that a slice of the package exports already.
+function _collect_exported_names(folder::AbstractString)
+    names = Set{Symbol}()
+    source = joinpath(folder, "src")
+    isdir(source) || return names
+    for (root, _, files) in walkdir(source), file in files
+        endswith(file, ".jl") || continue
+        path = joinpath(root, file)
+        _collect_exported_names!(names, Meta.parseall(read(path, String); filename = path))
+    end
+    names
+end
+
+# The macros that export the struct that they define.
+const _EXPORTING_MACROS = (Symbol("@document"), Symbol("@projection"))
+
+function _collect_exported_names!(names::Set{Symbol}, expression)
+    expression isa Expr || return names
+    if expression.head === :export
+        foreach(name -> name isa Symbol && push!(names, name), expression.args)
+    elseif expression.head === :macrocall && expression.args[1] in _EXPORTING_MACROS
+        for argument in expression.args
+            argument isa Expr && argument.head === :struct &&
+                push!(names, _get_struct_name(argument.args[2]))
+        end
+    end
+    foreach(argument -> _collect_exported_names!(names, argument), expression.args)
+    names
+end
+
+# The name of a struct from the head of its definition: `Name`, `Name{T}`,
+# `Name <: Super` or `Name{T} <: Super`.
+_get_struct_name(head::Symbol) = head
+_get_struct_name(head::Expr) = _get_struct_name(head.args[1])
 
 # The files of `folder` under `context.root` that git tracks, as paths relative
 # to `context.root`.

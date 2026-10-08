@@ -295,7 +295,8 @@ are the design of the agent (2026-09-29), for Step B2:
    it is, `[compat]` included. Without this rule, a change in the kernel gives
    a new `[compat]`, and so a new version, to every package above it.
 3. A package that changed gets a patch step (`0.1.0` → `0.1.1`). Its bounds on
-   the siblings become caret bounds from their versions in this release.
+   the siblings become caret bounds from their versions in this release. A
+   package that no longer exports a name gets a minor step instead (B7).
 4. The versions live in the release copy and in the registry only. The
    `Project.toml` files of this repository keep `0.1.0`, so a release changes
    nothing in this repository.
@@ -920,8 +921,16 @@ step registers in General later, from the same release repository.
 `progress_bar_height`. A user with `[compat] ProjecturedPlatform = "0.1"`
 gets any 0.1.x at `pkg> up`, so a patch step would break that user.
 
-- [ ] Give the generator a way to give a package a minor step. Rule 3 of R11
-      gives a changed package only a patch step (`0.1.0` → `0.1.1`).
+- [x] Give the generator a way to give a package a minor step. Rule 3 of R11
+      gives a changed package only a patch step (`0.1.0` → `0.1.1`). Done on
+      2026-10-08, with no list to keep: the generator compares the exported names
+      of the released tree and of the new tree, the names of each `export`
+      statement under `src` and the struct of each `@document` and
+      `@projection`. A changed package that lost a name gets the next minor
+      version (from `1.0.0` on the next major), and the build logs the names. A
+      package above it that did not change gets a caret bound on that version,
+      and so the next patch version; without that, rule 2 would keep its bound on
+      the old minor version. `test_package_release` checks both, 75 of 75.
 - [ ] Generate the next release with `ProjecturedPlatform` at `0.2.0`. Each
       package above it gets a caret bound on `0.2`, and so a new version by
       rule 3.
