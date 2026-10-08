@@ -36,7 +36,7 @@ function read_intent(::ObjectFieldToValue, iomap::SimpleIoMap,
     (operation.document === nothing &&
      strip_reference_types(operation.reference) isa EmptyReference) || return operation
     field = iomap.input
-    ReplaceReferencedValueOperation(field.object, field.path,
+    ReplaceReferencedValueOperation(get_object_field_root(field), field.path,
                                     _coerce(get_object_field_value(field), operation.value))
 end
 

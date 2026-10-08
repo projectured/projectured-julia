@@ -1,3 +1,20 @@
+# A plain value, which is no document, with a plain value inside it, and a plain
+# value that can change in place.
+struct OfPlainWindow
+    title::String
+    width::Int
+end
+
+struct OfPlainServer
+    name::String
+    enabled::Bool
+    window::OfPlainWindow
+end
+
+mutable struct OfPlainCounter
+    count::Int
+end
+
 function test_object_field_to_widget()
 
 _of_server() = FormServer("gateway", 4, true, Any["alpha", "beta"], nothing)
@@ -40,11 +57,13 @@ _of_type!(editor, backend, character::Char) =
 # The tick that a checked checkbox draws.
 of_tick = string(Char(0xe06c))
 
-# The projection of the examples, with `make_widget` for a bare field.
+# The projection of the examples, with `make_widget` for a bare field, and with
+# the row of an undo buffer.
 function _of_projection(; make_widget = make_object_field_widget)
     measure = FontFileMeasure()
     w2g = WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure)
     RecursiveProjection(TypeDispatchingProjection(vcat(
+        Pair{Type,Any}[UndoBuffer => UndoBufferToAnyProjection()],
         LayoutToGraphics().dispatch,
         make_object_field_widget_dispatch(w2g.dispatch; make_widget),
         Pair{Type,Any}[TextBlock => TextToGraphics(measure = measure)])))
@@ -215,6 +234,47 @@ end # @testset
     texts = _of_texts(backend)
     @test all(text -> text in texts, ["Server name", "gateway", "Client name", "laptop",
                                        "Capacity", "4", "Enabled", of_tick, "Second tag", "beta"])
+
+end # @testset
+
+@testset "a plain value in one cell is edited by a form, and Ctrl+Z takes it back" begin
+
+    root = Cell(OfPlainServer("gateway", true, OfPlainWindow("Main", 800)))
+    title = Reference(FieldReferenceStep("window"), FieldReferenceStep("title"))
+    form = FormLayout([(WidgetLabel("Name"),    ObjectField(root, "name")),
+                       (WidgetLabel("Enabled"), ObjectField(root, "enabled")),
+                       (WidgetLabel("Title"),   ObjectField(root, title))])
+    editor, backend = _of_editor(UndoBuffer(form); projection = _of_projection())
+
+    # A key in the nested title replaces the value in the cell by a copy, which
+    # keeps the other fields.
+    _of_click!(editor, backend, "Main")
+    _of_type!(editor, backend, '!')
+    @test root[] isa OfPlainServer
+    @test occursin("!", root[].window.title)
+    @test root[].name == "gateway"
+
+    # The fields share the cell, so a second edit keeps the first.
+    _of_click!(editor, backend, of_tick)
+    @test root[].enabled == false
+    @test occursin("!", root[].window.title)
+
+    # Each way back writes the cell again.
+    push_event!(backend, KeyDown(:z, ModifierKeys(ctrl = true); time = 0.0)); run_frame!(editor)
+    @test root[].enabled == true
+    push_event!(backend, KeyDown(:z, ModifierKeys(ctrl = true); time = 0.0)); run_frame!(editor)
+    @test root[].window.title == "Main"
+
+end # @testset
+
+@testset "a plain mutable value changes in place, and the form repaints" begin
+
+    counter = OfPlainCounter(4)
+    editor, backend = _of_editor(FormLayout([(WidgetLabel("Count"), ObjectField(counter, "count"))]))
+    _of_click!(editor, backend, "4")
+    _of_type!(editor, backend, '2')
+    @test counter.count in (24, 42)
+    @test string(counter.count) in _of_texts(backend)
 
 end # @testset
 

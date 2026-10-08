@@ -1,7 +1,7 @@
 # A form edits a plain value
 
 > **Status (2026-10-08): IN PROGRESS** on the branch `plain-value-form`, in the
-> worktree `projectured-julia-plain-value-form`. Steps 1 to 5 are done. The owner
+> worktree `projectured-julia-plain-value-form`. Steps 1 to 6 are done. The owner
 > answered the first six questions on 2026-10-06, chose the design of parts C and
 > D on 2026-10-08 (see "Decisions"), and asked for the implementation on
 > 2026-10-08.
@@ -782,12 +782,33 @@ form of part C and not readers that part C removes.
      `test_example` lives in the umbrella test package, which this worktree has
      not instantiated, so the walkers stand in for it.
 
-6. ⬜ **B in a form: the read of a cell root, in `ObjectField`.**
+6. ✅ **B in a form: the read of a cell root, in `ObjectField`.**
    [ObjectField.jl](../../source/platform/primitive/ObjectField.jl). Tests,
    through the form of part C in an editor: a nested plain struct in a `Cell`, a
    checkbox press, a text edit, an undo, a mutable struct changed in place, and
    the exception when no cell holds the value. Run
    `test_object_field_to_widget()`.
+
+   **Done 2026-10-08.** What the implementation found and decided:
+   - **The read needed no change.** The `@document` constructor of `ObjectField`
+     uses a `Cell` given as `object` as the cell of that field, and two fields
+     made from one `Cell` share it. So `field.object` already reads the plain
+     value, in a computation, with the dependency on the cell.
+   - **The write needed the change:** `get_object_field_root(field)` is the
+     object when it is a document, which holds its own cells, and else the cell
+     of the `object` field. `ObjectFieldToValue` writes from that root, so the
+     rules of step 1 reach the plain value.
+   - **A plain value given as it is gets a cell of its own in each field.** A
+     mutable value then changes in place and the form repaints, because that
+     cell is above it. An immutable value is replaced in the cell of that one
+     field, so two fields of it would not see each other's edits; the docstring
+     of `ObjectField` says to give one `Cell` to every field of a plain value.
+     So no write through an `ObjectField` meets rule 5, which stays for a direct
+     `ReplaceReferencedValueOperation` and is tested in step 1.
+   - `test_object_field_to_widget()` 49 pass, with a nested immutable value in
+     one shared `Cell`, two edits and two undos, and a mutable value changed in
+     place; `test_widget_value_slot()` 25 and `test_object_field_to_syntax()` 13
+     pass.
 7. ⬜ **D: `ObjectToWidget` as a chain.** Files: [ObjectToWidget.jl](../../source/platform/widget/ObjectToWidget.jl)
    and a new file for the first stage. Tests: `ObjectToWidgetTest.jl` keeps its
    shape assertions, and gets a nested text edit, a vector element and a plain
