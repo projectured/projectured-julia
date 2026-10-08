@@ -931,9 +931,13 @@ gets any 0.1.x at `pkg> up`, so a patch step would break that user.
       package above it that did not change gets a caret bound on that version,
       and so the next patch version; without that, rule 2 would keep its bound on
       the old minor version. `test_package_release` checks both, 75 of 75.
-- [ ] Generate the next release with `ProjecturedPlatform` at `0.2.0`. Each
+- [x] Generate the next release with `ProjecturedPlatform` at `0.2.0`. Each
       package above it gets a caret bound on `0.2`, and so a new version by
-      rule 3.
+      rule 3. Done on 2026-10-08: `Projectured.jl` `3bd0cc2c` from projectured-julia
+      `07f118d48`, `ProjecturedRegistry` `5d50788`. The generator found the
+      removed names of `ProjecturedPlatform` and no other package with one. 84
+      packages are 0.1.1, 5 new packages 0.1.0, AutoIntegration 0.1.1. A normal
+      push, not an overwrite: 0.1.0 stays.
 
 ## Part G: a layout engine of our own, and the move of the port (R19, R26)
 

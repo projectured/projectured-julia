@@ -186,7 +186,23 @@ The scripts are in `/var/tmp/meas`: `first_frame.jl` (the timing),
    At a load of 8 the branch measured 0.75 s. From an empty depot of compiled
    code, the build of the README packages took 199 s with the workloads (the
    first build of step 2) and 134 s with none.
-7. [ ] D5: if the target is met, the front page of `Projectured.jl`, the web page
-   and the README of AutoPrecompile stop recommending it. The statement files
-   in `precompile/` stay while the dev REPL replays them.
-8. [ ] Release 0.1.1, by the steps of the release plan for a new version.
+7. [x] D5. Done on 2026-10-08: the front page of `Projectured.jl` (the generator,
+   `e7c21f873`) has no section "Faster sessions" and no row of AutoPrecompile.jl,
+   and its note says that the first `using` after an install compiles the
+   packages, and that the first window then opens in about a second. The README
+   of projectured-julia and the web page (`9fa75ea`) name AutoPrecompile no
+   more. The README of AutoPrecompile (`2fc8077`) says that ProjecturEd does not
+   need it, corrects the sentence that a reader on the Discourse quoted (a
+   workload caches all code that it runs, also of other packages), and says
+   that its measurement compared against packages with no workloads. The
+   statement files in `precompile/` stay: the dev REPL replays them.
+8. [x] The release, 2026-10-08: `Projectured.jl` `3bd0cc2c`, from projectured-julia
+   `07f118d48`; `ProjecturedPlatform` 0.2.0 by B7 of the release plan, which
+   found the removed names `WidgetProgress` and
+   `WidgetProgressToGraphicsCanvas` and no other; 84 packages 0.1.1; 5 new
+   packages 0.1.0 (`ProjecturedACP`, `ProjecturedPivot` and their support
+   packages); AutoIntegration 0.1.1, whose image now holds its load callback
+   (`458a9f8`; the `using` line takes about 0.35 s less). `ProjecturedRegistry`
+   `5d50788`, 98 packages. Before the push, the README ways ran as a new user
+   against a scratch registry with the same versions: each works, and the first
+   window opens in 0.66 to 0.71 s.
