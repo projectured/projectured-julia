@@ -37,6 +37,14 @@ widget table at the end.
   which DataFrames writes through to its parent, and a generic view by
   indices for any other kind.
 - **The plan is tentative** ("this should be just a tenative plan").
+- **A table of records** (2026-10-08, an answer in the omnet plan
+  `legacy-simulation-catalog-implementation.md`, Q-6.1-7): the editable table
+  of a list of records is generic, and the first user is the fingerprint store
+  of omnet, a `CellVector` of `LegacyFingerprintEntry` documents. The owner:
+  "agreed, it's (b), a generic table could work for any vector of the same
+  struct type, btw". A person deletes a row, inserts one and edits a cell
+  there; no projection does this today, and the data frame view is the only
+  one that edits a cell.
 
 ## 3. The user's view (decided 2026-10-07)
 
