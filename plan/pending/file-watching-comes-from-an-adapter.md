@@ -68,3 +68,14 @@ standard library `FileWatching`, for the `FolderMonitor` of the slice
     `FolderMonitor.jl`, and the module file holds the registration.
   - The standalone guards (`test/suite/*.jl`) report nothing of this branch; the
     arguments, documentation and exports guards report findings of main.
+
+## 5. Tests at the end
+
+- `test_filechange()` 38 of 38 with the poll, and with the monitor in a process
+  that loads the adapter; `test_filewatching()` 12 of 12.
+- `test_package_graph()` 392 of 392, `test_packages_declare_triggers()` 31 of
+  31, the naming, style and tree guards pass.
+- `test_package_release()` fails one check on main and on this branch: the
+  umbrella of the release copy bounds `AutoIntegration` to `0.1.1`, the version
+  that the manifest of main names since 6dfd63695, and the test expects `0.1.0`.
+  The branch passes 185 checks there, main 183.
