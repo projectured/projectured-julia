@@ -669,6 +669,30 @@ worktree. The three domains test different parts of the model:
         `5241626a3` beside it, because the change of the macro reaches every schema. A user
         service can not run them: `unshare -rn` fails there, and `PrivateNetwork=yes` has no
         effect, so a test could reach the local model server.
+    - *The run of `OmnetPresentationTest` (2026-10-08).* The suite takes 7 to 9 minutes, not
+      348. Its first run showed that omnet-julia used the lists of a reactive shadow as
+      vectors, now that the kinded copy makes them: a native constructor that copies a field of
+      the shadow (`ConfigurationEntry(e.designator, …)` in `lower_configuration_draft`), and
+      `format_designator_string(::Vector{<:ReferenceStep})`. Fixed by a convert in the list
+      protocol, `convert(V, list) = convert(V, collect(list))` (`c1193b07d`), and by a method of
+      `format_designator_string` for a list in omnet-julia (`249cfc9f`). omnet-julia's own
+      `copy_document` of a `Sweep` now gives the plain vector to the constructor, and the
+      composite workbench test makes its 2-point sweep a `Sweep`, not a vector inside the number
+      of an entry (`59105e35`). Then 72 of the 74 functions have the same counts on the branch
+      and on `main`; 38 errors on both come from a page file that names `Projectured` in this
+      scratch environment.
+    - **Open, for the owner: a scratch buffer of an engine in a cell layout.** The other two
+      functions fail on the branch only. `reactive_parallel_simulator` builds the reactive shadow
+      of a `ParallelEngine` from the fields of the native engine, and `green_buf` is a
+      `Vector{ParallelEvent}(undef, n)`. The constructor wraps it into a
+      `CellVector{ParallelEvent}`, which reads each slot, and an undefined slot throws
+      `UndefRefError`. A sync of the shadow would also walk each element of such a buffer, where
+      `main` replaces one value. The options: (A) a field that declares a kind that is not
+      reactive, such as `green_buf::UntrackedCell{Vector{…}}`, keeps its plain vector in the cell
+      layout, and the list applies only to a reactive field; (B) the shadow of an engine gets a
+      schema of its own with only the values that a dashboard shows; (C) a list keeps an
+      undefined slot, which a typed list can not mean. My recommendation is A, because the field
+      says what it is where it is declared.
     - A fact for later: a bounded copy or sync puts an `UnsyncedDocument` where the walk stops,
       and a field that declares a narrow document type would refuse it. No caller does that
       today: the reflection and `SimulationInspection` hold the placeholder in a `ReflectedNode`.
