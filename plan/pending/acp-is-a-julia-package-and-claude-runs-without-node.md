@@ -398,6 +398,16 @@ editor ──ACP──▶ the agent (Julia) ──stream-json──▶ claude -p
   the history, which needs the transcript files, and waits for a need.
 - **A prompt takes text, links and embedded text**, and no image, so the agent
   says `image: false`.
+- **A review of the agent (2026-10-08)** found four bugs and six risks, all
+  fixed in the commit `a05b7a1` of the agent, each with a test: a close now
+  cancels the prompt; a cancel or a close during the start of `claude` ends
+  the prompt before `claude` gets it; the MCP configuration with the secrets is
+  a private file, not a part of the command line; a failed start names only the
+  error of the system; a failure of the permission tool logs nothing of the
+  request; the end of a process counts also when a child keeps its output
+  open; a failed turn starts `claude` again. The cost needs no change: the
+  headless page says that a run with `--resume` reports the whole conversation.
+  115 tests pass, and the live checks pass again.
 
 ## The answers of B.1 (2026-10-08, `claude` 2.1.285)
 
