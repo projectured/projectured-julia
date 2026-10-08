@@ -489,5 +489,12 @@ end # @testset "ReactiveCollection"
         @test convert(Vector{String}, CellVector(Any["x"])) == ["x"]
     end
 
+    @testset "a list finds an element by its index" begin
+        list = CellVector(["a", "b", "b"])
+        @test findfirst(==("b"), list) == 2
+        @test findall(==("b"), list) == [2, 3]
+        @test collect(keys(list)) == [1, 2, 3]
+    end
+
 end # @testset "CellVector protocol"
 end # test_collection

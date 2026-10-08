@@ -180,7 +180,7 @@ function test_task_group()
             group = TaskGroup(AbstractTask[_TaskGroupProbeTask("a", "exit 0"),
                                            _TaskGroupProbeTask("b", "exit 1")]; jobs = 1)
             shadow = make_task_group_shadow(group)
-            @test shadow isa ACTaskGroup && shadow.runs === nothing && shadow.runtime === nothing
+            @test shadow isa ACTaskGroup && isempty(shadow.runs) && shadow.runtime === nothing
             @test shadow.counts.pending == 2 && shadow.summary.finished == 0
             reads = Ref(0)
             counts = Cell(nothing)

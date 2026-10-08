@@ -109,6 +109,8 @@ Base.getindex(list::CellVector, indices::AbstractVector{<:Integer}) =
 # A list converts to a vector of its elements, so a field or a container of a vector
 # type, such as a field of a native layout, takes a list as a plain vector.
 Base.convert(::Type{V}, list::CellVector) where {V<:AbstractVector} = convert(V, collect(list))
+# The keys of a list are its indices, so `findfirst`, `findall` and `pairs` read it.
+Base.keys(list::CellVector) = Base.OneTo(length(list))
 
 # A plain vector given to a field declared `ListDocument` becomes a `CellVector`.
 ListDocument(items::AbstractVector) = CellVector(items)
