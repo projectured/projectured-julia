@@ -254,6 +254,37 @@ collection.
 open nodes of a tree, survives a change of the composition at a path. State
 that no document keeps is lost then, as it is at any print (the owner).
 
+**Decided when the implementation started (2026-10-08):**
+- The view document is no part of a pane. It wraps the document that a place
+  shows, by composition (the owner: "it could be used without panes and has
+  nothing to do with panes in general. Composition is the rule"):
+  `ArrangementDocument(document, entries)`, the main document of a new slice
+  `arrangement`, after the projection algebra. The first chip puts it around
+  the document, and the last chip takes it away (the owner).
+- An entry is `ArrangementEntry(at, projections)` (mine: "placement" names the
+  anchored placement of the layout slice and the force layout of the graph
+  domain). The descriptions of the first two kinds are `ArrangementFilter` and
+  `ArrangementSort` (mine). `make_arrangement_projection(description)` turns a
+  description into its projection.
+- `ArrangingProjection` prints an `ArrangementDocument`: its document prints
+  through the recursion at the path `document`, with the arrangement and that
+  path in the printer context, and the output is the output of the document.
+- The dispatch is `ReferenceDispatchingProjection`, extended (the owner chose
+  this over a new projection): its function form can take the printer context
+  (`reads_context = true`), and its inner IO map is reconciled by the chosen
+  projection with `make_reconciled_child_iomap_cell`, as `SwitchingProjection`
+  does, with the print in a computation that is only peeked. A function that
+  reads no cell chooses once, so the users that exist keep their behaviour.
+  `make_arranged_dispatch(default)` gives the dispatch whose function
+  `find_arranged_projection` reads the entries of the arrangement in the
+  context; it builds the chain of an entry once for each list of projections.
+- Facts: the tabbed pane prints the element of a page with its own
+  `ctx.reference`, not extended by the step to the page, so the dispatch
+  compares the path below the document of the arrangement, which the
+  arrangement records when it prints. `ElementReferenceStep(i)` is
+  `RangeReferenceStep(i - 1, i)`, the step that a selection uses, so the path
+  of an entry and the path of a printer compare directly.
+
 ## 6. What the data frame view becomes
 
 - The source, the frame, with the table interface on `AbstractDataFrame`.
@@ -286,10 +317,21 @@ that no document keeps is lost then, as it is at any print (the owner).
 
 Each step ends with its own tests and a commit, in a worktree.
 
-- [ ] **1.** The view document of a pane, and the dispatch on it: the entries,
+- [x] **1.** The view document of a pane, and the dispatch on it: the entries,
   the descriptions and their methods, and the IO map whose inner IO map is a
   computation. A test places a projection at a path and removes it, and only
-  that position prints again.
+  that position prints again. Done 2026-10-08, as the decisions after §5 say:
+  `ArrangementDocument`, `ArrangementEntry`, `ArrangingProjection` and
+  `make_arranged_dispatch` in the slice `arrangement`, and the extended
+  `ReferenceDispatchingProjection`. Fact found: a dispatch whose choice was
+  only a lazy cell chose no longer while it printed, and a test of the
+  clipboard records the path at print time, so the dispatch makes its choice
+  with `peek` as it prints, as `ChainingProjection` builds its stages.
+  `test_arrangement` (10): an entry at a row prints only that row again, an
+  entry with no projection and an edit of another entry print nothing, and
+  the removal shows the row as it was. The platform: 102,416 pass, 8 broken
+  and 2 fail; the base 102,406, with the same 2 failures of
+  `test_interface_api`; the 10 more are the new test.
 - [ ] **2.** The filter and the sort stages: the index vector, the children
   printed with the source index, conditions and keys as paths inside an item,
   and the readers that map back. Tests over a vector of values, a vector of
