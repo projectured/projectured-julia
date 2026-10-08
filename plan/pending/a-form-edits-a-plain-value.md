@@ -1,0 +1,747 @@
+# A form edits a plain value
+
+> **Status (2026-10-08): NOT STARTED.** Nothing is implemented. The owner
+> answered the first six questions on 2026-10-06, and chose the design of part C
+> on 2026-10-08; see "Decisions". Every question is answered. The plan waits
+> for the word of the owner to start step 1.
+
+## Goal
+
+An author has a plain Julia value: a `struct` that is not a `@document`, and
+that can hold other plain values. The author lays out a form for it with
+`FormLayout`, `ObjectField` and `ObjectFieldToWidget`, and the form edits the
+value.
+
+The author chooses one of two ways to edit:
+
+- **A, a copy in a schema.** The author writes a `@document` schema with the same
+  field names. The library copies the value into a document of that schema. The
+  form edits the document. The author copies the document back into a plain
+  value at a commit, or drops it at a cancel.
+- **B, the value in a cell.** The author puts the plain value into one `Cell`.
+  Each edit writes a new value into the cell at once, and the form updates.
+
+Two more parts close the gaps that the first version leaves:
+
+- **C, a control for each field.** The author builds the widget tree as usual,
+  and puts an `ObjectField` in a widget slot where a value goes. The widget asks
+  the field for the operation that stores each value. A bare `ObjectField`, for
+  example in a markdown document, still becomes the default control for the type
+  of its value.
+- **D, `ObjectToWidget` shows a plain nested value.** The form that
+  `ObjectToWidget` makes edits at any depth, and opens a plain struct into a card.
+
+The layout and the projection are the same for A and for B. Only the root of
+each `ObjectField` changes:
+
+```julia
+struct Server            # a plain value, not a @document
+    name::String
+    capacity::Int
+    enabled::Bool
+end
+
+form(root) = FormLayout([
+    (WidgetLabel("Name"),     WidgetText(ObjectField(root, "name"))),
+    (WidgetLabel("Capacity"), WidgetSpinBox(value = ObjectField(root, "capacity"))),
+    (WidgetLabel("Enabled"),  WidgetCheckbox(content = ObjectField(root, "enabled"))),
+])
+
+# A: a copy in a schema
+@document struct ServerForm
+    name::String
+    capacity::Int
+    enabled::Bool
+end
+server_form = convert_object_to_document(ServerForm, server)
+document = form(server_form)
+server = convert_document_to_object(Server, server_form)   # at a commit
+
+# B: the value in a cell
+root = Cell(server)
+document = form(root)
+server = root[]                                        # the value after the edits
+```
+
+## The choice, in one table
+
+The two ways are two corners of a table with two axes: does the author write a
+schema, and does an edit reach the value at once.
+
+| | an edit writes at once | the author commits |
+| --- | --- | --- |
+| **a schema** | a `@document` value of the author's own (exists now) | **A** |
+| **no schema** | **B** | B on a copy: `draft = Cell(deepcopy(server))`, then `server = draft[]` |
+
+A gives a cell for each field. So only the control of the field that changed
+computes again, and the document works with all of the document machinery:
+`ObjectToWidget`, `copy_document`, `sync_document!` and the search. The cost is
+one schema for each type and a copy at each end.
+
+B needs no schema. All the controls under the cell compute again after each
+write. That is a small cost for a form, and a large one for a large value.
+
+## What the code does now
+
+Facts from the code on 2026-10-06:
+
+- **A read works on any object.** `_get_field` uses `getfield` and then
+  `unwrap_cell` ([ReferenceStep.jl:137](../../source/kernel/reference/ReferenceStep.jl#L137)).
+- **A write needs a `Cell` in the slot.** `_write_slot!` throws
+  `field … is not a Cell` for a plain field
+  ([Operations.jl:232](../../source/kernel/operation/Operations.jl#L232)). There is
+  no `setfield!` for a mutable struct, and no copy for an immutable one.
+- **A carried root that is a cell has no write.** `evaluate_operation` throws for
+  a carried root with an empty reference, and a field step on a `Cell` reads a
+  field of the cell itself.
+- **The inverse of a write carries the parent object**
+  ([Inversion.jl](../../source/kernel/operation/Inversion.jl), `_make_slot_inverse`).
+  For B that is wrong: a write replaces an immutable parent, so the old parent is
+  no longer in the value.
+- **A `ReactiveCell` write always tells its readers**, also when the new value is
+  the same object (`Base.setindex!` in
+  [ReactiveCell.jl](../../source/kernel/cell/ReactiveCell.jl)). So a cell can be
+  written with its own value to make its readers compute again.
+- **A `MutableCell` write tells no reader.** `MutableCell.jl` is sealed (🔒), and
+  this plan does not change it.
+- **The mouse target chain of a write** (`_find_written_chain` in
+  [PathChain.jl](../../source/kernel/operation/PathChain.jl)) answers `nothing`
+  for a parent that is not a `Document`, so a plain parent needs no change there.
+- **The kernel has no runtime dependency**
+  ([Project.toml](../../package/ProjecturedKernel/Project.toml)). So B can not use
+  ConstructionBase to make a copy of a struct.
+- **The macro has a native layout and a shadow sync** (`@document [M, C]`,
+  `sync_document!`). Both need a schema on both sides, so neither copies a plain
+  type that the author can not declare again.
+- **The reflection shadow** (`reflect_document`) copies any value, but its paths
+  are `children[i]`, not field names. So a form of `ObjectField(x, "name")` can not
+  use it.
+
+## Design of A
+
+Two functions, matched by field name:
+
+- `convert_object_to_document(T, object)` makes a document of schema `T`. Each
+  field of `T` takes the value of the field of `object` that has the same name.
+- `convert_document_to_object(T, document)` makes a plain `T`. Each field of `T`
+  takes the value of the field of `document` that has the same name. The
+  function calls the default constructor of `T` with the fields in their order.
+
+The rules:
+
+1. **A field of the schema that the object does not have** is an error. The
+   owner decided this on 2026-10-06: a silent default hides a typing error in a
+   field name.
+2. **A field of the object that the schema does not have** is not copied. So a
+   schema can show a part of a value.
+3. **A nested value converts too.** When the value type of a field of the schema
+   is a document schema and the value is not a document, the function converts
+   the value to that schema. The way back converts with the field type of the
+   plain `T`.
+4. **A vector** copies element by element. An element converts when the element
+   type of the schema is a document schema.
+
+A uses only public functions of the kernel: `fieldnames`, `unwrap_cell`,
+`get_cell_value_type` and the constructors that `@document` writes. So it needs
+no change in the kernel. A lives in the platform primitive slice, beside
+`ObjectField` (decided 2026-10-06).
+
+A commit or a cancel needs no helper of the library. B on a copy needs none
+either: the author writes `draft = Cell(deepcopy(x))` and `x = draft[]`
+(decided 2026-10-06).
+
+## Design of B
+
+### The write
+
+`evaluate_operation` of `ReplaceReferencedValueOperation` finds the slot to write
+in this order:
+
+1. **A cell field of a document, or an element of a document collection.** The
+   write does what it does now.
+2. **A carried root that is a cell, with an empty reference.** The write puts the
+   value into the cell.
+3. **A plain immutable parent**, such as a `struct`, a `NamedTuple` or a `Tuple`.
+   `with_object_field(parent, name, value)` makes a copy of the parent with the
+   one field changed. The write then puts that copy into the slot one level up,
+   and goes back to rule 1 for that slot.
+4. **A plain mutable parent**, such as a `mutable struct` with a field step, or a
+   `Vector` with an element step. The write changes the parent in place:
+   `setfield!` with a `convert` to the field type, or `setindex!`. Then it writes
+   the nearest cell above the parent with the value that the cell holds, so the
+   readers of the cell compute again. The owner chose a change in place over a
+   copy on 2026-10-06: an author who shares the object with other code expects it
+   to change.
+5. **No cell above the slot.** The write throws an exception that tells the
+   author to put the value into a `Cell`.
+
+A field step on a plain `Dict` names a key, and the write refuses it, as it does
+now (decided 2026-10-06).
+
+One private function finds the slot by these rules. Both the write and the
+inverse use it, so the two can not disagree.
+
+### The inverse
+
+The inverse writes the old value at the same full path, from the holder of the
+nearest cell above:
+`ReplaceReferencedValueOperation(holder, path from the holder, old value)`. The
+holder is the cell itself for a cell root, and the document for a cell field. So
+the inverse goes through the same rules, and an undo also updates the form.
+
+### The copy of a struct
+
+`with_object_field(object, name::Symbol, value)` is a new open function. Its name
+follows the rule for a derived copy (`with_<stem>`) in
+[naming-rules.md](../../documentation/rule/naming-rules.md). Its methods:
+
+- a struct: the default constructor of `typeof(object)` with all the fields, and
+  the one field changed;
+- a `NamedTuple`: `merge`;
+- a `Tuple`, with an element step: `Base.setindex`.
+
+A type whose inner constructor does not take all of its fields adds a method.
+
+### The read
+
+`get_object_field_value` reads the root through `unwrap_cell`. The read is in a
+cell computation, so the control depends on the root cell, and a write to that
+cell updates the control.
+
+### The limits of B
+
+- Each write makes every control under the cell compute again.
+- An immutable value is replaced by a new object at each write. A mutable value
+  is changed in place and keeps its identity.
+- A mutable value that other code changes, not with an operation, does not
+  update the form. The author can write the cell with its own value to update it.
+- A `MutableCell` root does not update the form, because its write tells no
+  reader.
+- `ObjectToWidget` does not show a plain nested struct until part D lands.
+
+## Design of C: a widget slot holds an `ObjectField`
+
+The owner chose this design on 2026-10-08. See "Decisions" for the designs that
+it replaces.
+
+### Now
+
+`ObjectFieldToWidget` selects the control by the type of the value: `Bool` gives
+a `WidgetCheckbox`, a `String` or a number gives a `WidgetText`, and all other
+values give a read-only `WidgetLabel`. Its `controls` table adds a row for a
+value type. So two `String` fields can not get two different controls, and a
+`Symbol` from a fixed set is read only. The chart inspector shows this:
+`draw_style`, `line_style` and `symbol` of a `ChartSeries` are `Symbol` values
+([ChartDocument.jl:124](../../source/domain/chart/ChartDocument.jl#L124)), so the
+inspector shows them and can not edit them.
+
+The reader maps back two edits only: a `ReplaceReferencedValueOperation` sent
+from the control itself, and a `ReplaceStringRangeOperation` in a `WidgetText`.
+No test sends a click through a whole hand-laid form. The tests in
+`ObjectFieldToWidgetTest.jl` call the reader of one field directly.
+
+### The model
+
+The author builds the widget tree as usual, and puts an `ObjectField` where a
+value goes. The widget is the choice of control, and its settings, such as
+`min`, `max` and `options`, are fields of the widget:
+
+```julia
+FormLayout([
+    (WidgetLabel("Name"),     WidgetText(ObjectField(server, "name"))),
+    (WidgetLabel("Enabled"),  WidgetCheckbox(content = ObjectField(server, "enabled"))),
+    (WidgetLabel("Capacity"), WidgetSpinBox(value = ObjectField(server, "capacity"),
+                                            min = 1, max = 64)),
+    (WidgetLabel("Style"),    WidgetSelect(options = [:linear, :step, :bar],
+                                           value = ObjectField(series, "draw_style"))),
+    (WidgetLabel("Ratio"),    ObjectField(server, "ratio")),    # a bare field
+])
+```
+
+Each part has one job:
+
+- **The widget** decides how the user sees a value and how the user picks or
+  enters a new one: a box, a popup, a row of buttons, a text.
+- **The field** decides how a value is read and how a value is stored. It
+  knows nothing about the widget.
+
+SwiftUI works the same way: a `Picker` lists its options, and a pick calls
+`binding.set(v)`.
+
+### The composition
+
+Two rows decide what an `ObjectField` becomes:
+
+- **In the shared recursion, a bare field becomes a control.** The row
+  `ObjectField => ObjectFieldToWidget` stays. A bare field can be in a layout, in
+  a card, or in a document that nobody builds by hand, such as a markdown
+  document whose reader makes `ObjectField` nodes. No builder function runs in
+  such a document, and its domain does not know about widgets.
+- **In a value widget, a field in a slot becomes a value.** The row of the
+  widget is a nesting:
+
+  ```julia
+  WidgetCheckbox => NestingProjection(WidgetCheckboxToGraphicsCanvas(...), ObjectFieldToValue())
+  ```
+
+  `NestingProjection` gives the widget printer a recursion made from
+  `ObjectFieldToValue` for its direct children only. Further down, it falls back
+  to the outer recursion
+  ([Nesting.jl:44-55](../../source/platform/projection/higherorder/Nesting.jl#L44-L55)).
+  `CollectionToSyntax` uses the same shape
+  ([CollectionToSyntax.jl:184](../../source/platform/syntax/CollectionToSyntax.jl#L184)).
+
+Only a higher-order projection of the projection algebra holds a projection
+field. The owner set this rule on 2026-10-08. So no widget projection takes a
+value projection as a parameter, and the algebra makes the composition.
+
+A factory of the widget slice makes the table. It takes the rows of
+`WidgetToGraphics(...).dispatch`, and puts the row of each value widget into
+the nesting. It uses the type-dispatch idiom behind a factory with no
+argument, as `PAR-HIGHER-ORDER-IS-DOMAIN-FREE` asks.
+
+- **The value widgets** are the checkbox, the switch, the toggle, the slider,
+  the spin box, the radio group, the select and the text. The step checks that
+  each of these printers recurses no child other than its value slot.
+- **A container keeps its row.** For example, a bare field as the content of a
+  card must stay a control.
+- **There is no loop.** `ObjectFieldToWidget` makes the default widget with the
+  field in its slot, and prints that widget through the recursion. The row of
+  that widget is a nesting, so its slot goes to `ObjectFieldToValue`.
+
+### How a widget uses a value slot
+
+- **A slot that holds a document** is printed with `print_child`. Through the
+  nesting it reaches `ObjectFieldToValue`. The widget keeps the child IO map, as
+  `WidgetText` keeps the IO map of its content now
+  (`make_reconciled_child_iomap_cell`).
+- **A slot that holds a plain value** has no child. The widget reads and writes
+  the slot itself, as now. So a widget with plain values pays nothing.
+
+**Forward.** The widget reads the value from the output of the child, in its
+reactive print.
+
+**Backward.** For each value that the widget offers or that the user enters,
+the widget asks the child for the operation that stores it. It calls the reader
+of the child IO map directly, with an ordinary operation: "replace your output
+with `v`", which is `ReplaceReferencedValueOperation(nothing, EmptyReference(),
+v)`. `CopyingProjection` gives a payload to the reader of its child in the same
+way (`_route_to_child`). The widget needs no recursion for this, which fits:
+the reader of `NestingProjection` passes the outer recursion to the widget
+([Nesting.jl:57-62](../../source/platform/projection/higherorder/Nesting.jl#L57-L62)).
+The answer for an `ObjectField` is `ReplaceReferencedValueOperation(F.object,
+F.path, v)`, with `v` converted to the type of the value that the field holds.
+
+One helper of the widget slice does this for every widget. With a child, it asks
+the child. With no child, it answers `ReplaceReferencedValueOperation(widget,
+slot, v)`, as the widgets do now. If the child answers an operation that still
+names a place in the output of the child, the slot does not take that value,
+and the widget sends no edit. The kernel reads such an operation as a write at
+the root of the editor, so it must never leave the widget.
+
+### The edit sites
+
+Each value widget asks the helper where it now builds
+`ReplaceReferencedValueOperation(w, slot, v)` (`WidgetToGraphics.jl`,
+2026-10-07):
+
+| widget | slot | the value that it asks to store |
+| --- | --- | --- |
+| `WidgetCheckbox` | `content` | the opposite of the value |
+| `WidgetSwitch` | `checked` | the opposite of the value |
+| `WidgetToggle` | `pressed` | the opposite of the value |
+| `WidgetSlider` | `value` | the new position, a `Float64` |
+| `WidgetSpinBox` | `value` | the value after a step, inside `min` and `max` |
+| `WidgetRadioGroup` | `selected` | the option at the new index |
+| `WidgetSelect` | `value` | each option, when the popup opens |
+| `WidgetText` | `content` | the whole string after a key |
+
+Two widgets convert in their own code:
+
+- **`WidgetRadioGroup`.** When `selected` holds a document, the value of the
+  child is an option, and the index to draw is its place in `options`. A value
+  that is not an option draws no selected option.
+- **`WidgetSlider`.** The value of the child becomes a `Float64` for the drawing.
+  The field converts the stored `Float64` back to its type. An `Integer` field
+  takes the nearest integer.
+
+### The popup of `WidgetSelect`
+
+The select asks its child for the operation of each option when the popup
+opens. That is in its reader, in the window of the form
+(`_open_select_popup`). `WidgetOption` gets an `operation` field, as
+`WidgetMenuItem` has one now. A pick sends the operation of the option and the
+close of the popup. The operation names the object of the field, so the pipeline
+of the popup passes it on unchanged. A select with a plain value fills each
+operation with a write on the select itself, which is what a pick does now.
+
+### The text slot
+
+`WidgetText.content` can be a `TextBlock`, which must still reach `TextToGraphics`
+through the outer recursion. So the inner element of the nesting of `WidgetText`
+is a dispatch with a fallback:
+`TypeDispatchingProjection(ObjectField => ObjectFieldToValue(), Any => <back into
+the outer recursion>)`. The algebra has no named projection that only sends its
+input back into the recursion. An empty `NestingProjection` does that
+([Nesting.jl:51-53](../../source/platform/projection/higherorder/Nesting.jl#L51-L53)),
+but its public constructor needs at least one element, and its reader answers
+nothing when it holds no stored recursion
+([Nesting.jl:59](../../source/platform/projection/higherorder/Nesting.jl#L59)).
+The fallback is an empty `NestingProjection` (decision 13). The step adds a
+public constructor with no element. It also makes the reader pass the payload
+to the IO map that the print made (`iomap.child_iomap`), through the projection
+of that IO map. The reader can not use its recursion argument, because a widget
+that asks its child directly calls the reader with no recursion.
+
+`WidgetText` sends a document content through the recursion now, and expects
+graphics back ([WidgetToGraphics.jl:1803](../../source/platform/widget/WidgetToGraphics.jl#L1803)).
+`ObjectFieldToValue` gives a value. So `WidgetText` gets a third case: a child
+output that is not graphics is drawn through its plain-text path. A character
+edit then makes the new string, and the widget asks the child to store it.
+
+### `ObjectFieldToValue`
+
+It is the inner element of the nesting of a value widget, not a row of the
+shared recursion.
+
+- **Its output** is a live value: a computed cell that reads the field. The step
+  checks how `@iomap` keeps a cell as the output.
+- **Its reader** answers a replace of its whole output with a write on the field,
+  converted to the type of the value. It passes every other payload on
+  unchanged.
+
+### `ObjectFieldToWidget`
+
+It stays, for a bare field (decision 12). It makes the widget for the field,
+and prints that widget through the recursion. Its reader gives each payload to
+the IO map of that widget. Its readers for the checkbox and for the text go
+away.
+
+The widget comes from a seam and a function argument (decision 16):
+
+```julia
+# The seam: the default widget for a field, chosen by the type of its value.
+make_object_field_widget(field) = make_object_field_widget(get_object_field_value(field), field)
+make_object_field_widget(::Bool, field)           = WidgetCheckbox(content = field)
+make_object_field_widget(::AbstractString, field) = WidgetText(field)
+make_object_field_widget(::Real, field)           = WidgetText(field)
+make_object_field_widget(_, field)                = WidgetLabel(field)     # read only
+make_object_field_widget(::Quantity, field)       = WidgetSpinBox(value = field)  # a domain adds one
+
+# The argument: a projection that makes a widget for a field takes it.
+ObjectFieldToWidget(; make_widget = make_object_field_widget)
+```
+
+- **The seam reads the value once**, when the projection prints. A value that
+  changes its type after the print keeps the old widget, as now.
+- **The function gets the `ObjectField`**, which carries the object, the path
+  and the value. So a function can decide by any of them, and fall back to the
+  seam.
+- **The argument covers a type that the author does not own.** A method of the
+  seam for such a type would be type piracy.
+- **The field of the projection holds a function, not a projection**, so it
+  keeps the rule that only a higher-order projection of the algebra holds a
+  projection field.
+- **The `controls` table goes away.** Julia dispatch on the type of the value
+  takes its place. No caller passes the table on 2026-10-06. The step checks
+  whether the release rule counts the removed keyword of the exported
+  constructor. Nothing exported is removed.
+
+A hand-laid form then needs one stage, not two: the recursion that draws the
+widgets, with the nesting rows and the row of `ObjectFieldToWidget`.
+`make_object_field_form_projection_example` changes to that one stage.
+
+### The typed slots
+
+Four slots can not hold an `ObjectField`: `WidgetSwitch.checked::Bool`,
+`WidgetToggle.pressed::Bool`, `WidgetSlider.value::Float64` and
+`WidgetRadioGroup.selected::Int`. Each declared type becomes `Union{T, Document}`,
+for example `checked::Union{Bool, Document}` (decision 11). A plain value keeps
+the type check of the slot, and any document can go into the slot.
+
+### The names
+
+The step chooses the names by
+[naming-rules.md](../../documentation/rule/naming-rules.md). The plan uses these
+working names: `ObjectFieldToValue`, "the helper" for the function that asks a
+child for the operation that stores a value, "the factory" for the function
+that makes the table, the seam `make_object_field_widget` and its argument
+`make_widget`, and, for part D, the trait `is_form_record` and its argument
+`is_record`.
+
+### The risks of C
+
+- **The caret of a text slot that holds a field.** The caret of the plain-text
+  path is `content[i:j]` in the selection of the widget. When `content` holds an
+  `ObjectField`, that path must step into the value of the field. The step
+  checks whether `ObjectField` can answer as a transparent wrapper
+  (`get_wrapped_document`, [document.md](../../documentation/package/kernel/document.md)).
+- **An output that is a cell.** The widget reads the value of the child inside
+  its own reactive print. The step checks that a write to the field reprints the
+  widget, and that a reprint of the child keeps the widget.
+- **Eight printers change.** Each change is the same call of the helper. The
+  tests of each widget must still pass with a plain value.
+
+## Design of D: `ObjectToWidget` shows a plain nested value
+
+### Now
+
+- `_value_kind` gives `:opaque` for a struct that has no cell field, and the form
+  does not show it. The rule keeps a style value, such as a `StyleColor` or an
+  `Inset`, from opening into a card of numbers.
+- A leaf edits only when its own slot is a cell. A text edit maps back only for a
+  field of the root, because the reader finds the field from the row of the grid
+  (`_parse_control_edit`). A vector element is read only.
+
+### The design
+
+`ObjectToWidget` makes the same form that an author makes by hand, and projects
+it with the same stage:
+
+1. A new first stage walks the object and makes a layout document. Each leaf
+   becomes a `WidgetLabel` and a widget in a `GridLayout`. The widget comes from
+   the function argument `make_widget` of `ObjectToWidget`, applied to
+   `ObjectField(root, path)` (decision 16). Each nested value becomes a
+   `WidgetCard`. The name of the stage must follow the naming rules, and the
+   step chooses it.
+2. The second stage is the recursion of a hand-laid form from part C: the
+   nesting rows of the value widgets, and the row
+   `ObjectField => ObjectFieldToWidget`.
+3. `ObjectToWidget` stays the name of the chain, so its callers do not change.
+
+Each `ObjectField` has its own IO map in the chain, and its own reader maps its
+edit. So an edit at any depth goes through `ObjectField` and the write rules of
+B: a nested text edit, a vector element and a plain nested value all edit. The
+reader of `ObjectToWidget`, with its parse of the grid row, goes away.
+
+`ObjectToWidget` takes the same function argument as `ObjectFieldToWidget`,
+with the same seam as its default. The function sees the whole path, so a
+nested field can get a chosen control too:
+
+```julia
+ObjectToWidget(; make_widget = field ->
+    get_object_field_name(field) == "draw_style" ?
+        WidgetSelect(options = [:linear, :step, :bar], value = field) :
+        make_object_field_widget(field))
+```
+
+With this, the chart inspector edits `draw_style`, `line_style` and `symbol`.
+
+A trait and a function argument decide which nested value opens into a card
+(decision 15):
+
+```julia
+is_form_record(value) = <the value has a cell field>      # the trait, today's rule
+is_form_record(::Server) = true                           # the author opts a type in
+
+ObjectToWidget(; is_record = is_form_record)              # the default
+ObjectToWidget(; is_record = _ -> false)                  # a form with no depth
+ObjectToWidget(; is_record = x -> x isa ThirdPartyType || is_form_record(x))
+```
+
+- **The trait gives the default for every form.** Its default method keeps
+  today's rule: a `@document` value with a cell field opens, and a plain struct
+  opens only when its type gets a method. So a `StyleColor` stays closed, and no
+  form that exists now changes.
+- **The argument lets one form decide differently.** It also covers a type that
+  the author does not own: a method of the trait for such a type would be type
+  piracy.
+- **The trait takes a value**, and a method can name a type, as
+  `is_form_record(::Server)` does.
+- **"Record" keeps the meaning that the document layer gives it**: a document
+  whose children are named fields
+  ([DocumentSync.jl](../../source/kernel/document/DocumentSync.jl)).
+- **The field holds a function, not a projection**, so it keeps the rule that
+  only a higher-order projection of the algebra holds a projection field.
+  `PAR-USE-PROJECTION-MACRO` allows a function field.
+- The trait lives in the widget slice, beside `ObjectToWidget`. The first stage
+  reads the function from the argument. `is_form_record` and `is_record` are
+  working names, and the step checks them against the naming rules.
+
+### The risks of D
+
+- `ProjectionConfiguringProjection` sets `visible` on the `WidgetComposite` that
+  `ObjectToWidget` makes, and `ObjectToWidgetTest.jl` checks that shape. The
+  chain must keep the composite as its root. The plan
+  [text-projection-config-into-document.md](text-projection-config-into-document.md)
+  retires `ProjectionConfiguringProjection`. If that plan lands first, this risk
+  goes away.
+- A card keeps its collapse state on the card. After the change, the first stage
+  makes the card at print time. The step must check that a print again keeps
+  the state.
+- D replaces the body of `ObjectToWidget`. It is the largest part of this plan,
+  and it stays in this plan (decision 14).
+
+## Steps
+
+Each step is one commit. Run the test of the step, not `test_all()`. The order
+puts part C before the read of a cell root, so the tests of that read use the
+form of part C and not readers that part C removes.
+
+1. ⬜ **The write rules of B, in the kernel.**
+   [Operations.jl](../../source/kernel/operation/Operations.jl),
+   [Inversion.jl](../../source/kernel/operation/Inversion.jl), and
+   `with_object_field` in `OperationInterface.jl` with its default methods in
+   `OperationDefaults.jl`. None of these files is sealed on 2026-10-06; check
+   [SEALING.md](../../SEALING.md) again before each edit. Tests: a new
+   `test/kernel/operation/OperationsTest.jl` for the five rules, and new
+   testsets in `InversionTest.jl` for the inverse of rules 3 and 4.
+2. ⬜ **The two functions of A, in the platform primitive slice.** A new fragment
+   beside `ObjectField.jl`. Check the file name against the naming rules before
+   it is made. Tests: a flat value, a nested value, a vector, a schema that
+   shows a part of a value, a schema field that the object does not have, and a
+   round trip.
+3. ⬜ **C: a test of the hand-laid form of today, before any change of C.** Send a
+   click on the checkbox and a key in a text field through the whole chain of
+   `make_object_field_form_projection_example`, in an editor, not to the reader
+   of one field. Record in this plan whether the form of today writes the field.
+   The result is the baseline for step 4.
+4. ⬜ **C: the widgets ask their value child.** `ObjectFieldToValue`, the helper
+   that asks a child for the operation that stores a value, the factory that
+   puts each value widget into a `NestingProjection`, the change at each edit
+   site of the table in part C, the `operation` field of `WidgetOption`, the
+   third case of `WidgetText` with its fallback (decision 13), and the four slot
+   types of decision 11. Files: a new fragment in `source/platform/widget/` for
+   `ObjectFieldToValue`, the helper and the factory,
+   [WidgetToGraphics.jl](../../source/platform/widget/WidgetToGraphics.jl),
+   [WidgetDocument.jl](../../source/platform/widget/WidgetDocument.jl) and
+   [Nesting.jl](../../source/platform/projection/higherorder/Nesting.jl). The
+   change of the reader of an empty nesting gets its own test in
+   `test/platform/projection/HigherOrderTest.jl`. On 2026-10-08 only
+   `GraphProjectionTest.jl` uses `NestingProjection` in a test. Tests, in
+   a new test file and through an editor: each widget of the table with an
+   `ObjectField` in its slot, an edit and an undo; a pick in the popup of a
+   select; the caret of a text field after a key and after a click; a
+   `TextBlock` content of a `WidgetText` that still draws as text; a child whose
+   answer still names a place, which sends no edit. Run the tests of each
+   changed widget with a plain value too.
+5. ⬜ **C: `ObjectFieldToWidget` makes the default widget.** It makes the widget
+   with the field in its slot and prints it through the recursion. Its readers
+   for the checkbox and for the text go away. The seam `make_object_field_widget`
+   and the argument `make_widget` take the place of its `controls` table. The
+   form example becomes one stage. Files:
+   [ObjectFieldToWidget.jl](../../source/platform/widget/ObjectFieldToWidget.jl),
+   [ObjectFieldDocumentExample.jl](../../example/platform/ObjectFieldDocumentExample.jl)
+   and [ObjectFieldProjectionExample.jl](../../example/platform/ObjectFieldProjectionExample.jl).
+   Tests: `ObjectFieldToWidgetTest.jl` follows the new form, and repeats the test
+   of step 3. A bare field inside another domain's document, such as a card,
+   becomes a control. Run `test_object_field_to_widget()`,
+   `test_object_field_to_syntax()` and `test_example(object_field_form_example)`.
+6. ⬜ **B in a form: the read of a cell root, in `ObjectField`.**
+   [ObjectField.jl](../../source/platform/primitive/ObjectField.jl). Tests,
+   through the form of part C in an editor: a nested plain struct in a `Cell`, a
+   checkbox press, a text edit, an undo, a mutable struct changed in place, and
+   the exception when no cell holds the value. Run
+   `test_object_field_to_widget()`.
+7. ⬜ **D: `ObjectToWidget` as a chain.** Files: [ObjectToWidget.jl](../../source/platform/widget/ObjectToWidget.jl)
+   and a new file for the first stage. Tests: `ObjectToWidgetTest.jl` keeps its
+   shape assertions, and gets a nested text edit, a vector element and a plain
+   nested value. Run the chart inspector example with `test_example(...)`, and
+   the test of `ProjectionConfiguringProjection` if it still exists.
+8. ⬜ **The examples.** One form for A and one for B, on the same plain value and
+   the same layout, and a form whose widgets hold `ObjectField` values (C).
+   Register them in
+   [PlatformExamples.jl](../../example/platform/PlatformExamples.jl). Run
+   `test_example(...)` for each.
+9. ⬜ **The documents.**
+   [primitive.md](../../documentation/package/platform/primitive/primitive.md)
+   gets the two ways and the table.
+   [operation.md](../../documentation/package/kernel/operation.md) gets the write
+   rules and the inverse.
+   [widget.md](../../documentation/package/platform/widget/widget.md) gets the
+   rule for a value slot that holds a document, the nesting rows, the helper,
+   the popup of the select, the new form of `ObjectFieldToWidget`, and the new
+   form of `ObjectToWidget` if D lands.
+10. ⬜ Move this plan to `plan/done/`.
+
+## Decisions
+
+The owner answered these on 2026-10-06:
+
+1. **A mutable struct in B changes in place.** It does not become a copy. The
+   write then writes the nearest cell again, so the form updates.
+2. **A lives in the platform primitive slice**, not in the kernel document layer.
+3. **A field of the schema that the object does not have is an error.**
+4. **B on a copy gets no helper.** The author writes `Cell(deepcopy(x))` and
+   `x = draft[]`.
+5. **The two gaps get a design**: part C and part D.
+6. **B keeps the refusal of a write to a `Dict` key.**
+
+The owner decided these on 2026-10-07:
+
+7. **The author puts an `ObjectField` in a widget slot**, and does not name a
+   control on the `ObjectField`. The widget is the choice of control, and its
+   settings are fields of the widget.
+8. **The projection handles an `ObjectField` in a slot.** The printer context
+   gets no field that says what a slot wants.
+
+The owner decided these on 2026-10-08:
+
+9. **The widget asks the field for the operation that stores a value.** A widget
+   prints a slot that holds a document as its child, reads the value from the
+   child, and asks the reader of the child for the operation that stores each
+   value that it offers or that the user enters. The field knows nothing about
+   how the widget offers values. The widget printers change at each edit site.
+10. **The select asks for the operation of each option when its popup opens**
+    (question C2). `WidgetOption` holds that operation, so a pick needs no route
+    from the popup back to the select.
+11. **The four typed slots become `Union{T, Document}`** (question C3). The
+    widget prints any document in a slot through the recursion, and does not know
+    that the child is an `ObjectField`.
+12. **A value widget gets a `NestingProjection` row**, with `ObjectFieldToValue`
+    as its inner element. The shared recursion keeps
+    `ObjectField => ObjectFieldToWidget` for a bare field (question C4), so
+    nothing exported is removed. The architectural rule behind it: only a
+    higher-order projection of the projection algebra holds a projection field.
+13. **The fallback row of the nesting of `WidgetText` is an empty
+    `NestingProjection`** (question C5). It gets a public constructor with no
+    element, and its reader passes the payload to the IO map that its print
+    made. The owner chose it over a new projection of the algebra.
+14. **Part D stays in this plan, as step 7** (question D3). It is not a plan of
+    its own.
+15. **A trait and a function argument decide which nested value opens into a
+    card** (question D1). The trait `is_form_record(value)` gives the default for
+    every form and keeps today's rule. The argument `is_record` of
+    `ObjectToWidget` lets one form decide differently. The owner chose this over
+    a keyword with a list of types, a trait alone, and opening every plain
+    struct.
+16. **A seam and a function argument choose the widget for a field** (question
+    D2). The seam `make_object_field_widget(field)` dispatches on the type of
+    the value. The argument `make_widget` of `ObjectFieldToWidget` and of
+    `ObjectToWidget` lets one form choose differently, by the path, the value or
+    the object. The owner chose this over a table whose keys are a type, a field
+    name or a path.
+
+The designs that decisions 7 to 13 replace:
+
+- **A control description on `ObjectField`**, such as
+  `ObjectField(series, "draw_style"; control = ChoiceControl([...]))`, with two
+  open functions for each description. The widget already says which control it
+  is.
+- **Each value widget reads an `ObjectField` in its slot itself.** Each widget
+  would name `ObjectField`. In decision 9 the widget asks its child, and it does
+  not know what the child is.
+- **A value projection for the state slots**, given to the widget projections as
+  a parameter, or one recursion in which the child context says whether a slot
+  wants graphics or a value. The owner: this is not a matter of the context; the
+  projection handles it.
+- **A chain for each widget row: a field stage, then the widget printer that
+  exists now** (decision 9 of 2026-10-07). The widget printers would not change.
+  But the field stage converts an edit only after the widget sends it, so a
+  widget can not ask it for operations in advance, such as the options of a
+  popup.
+- **An operation that exposes the operations it carries**, such as the open of a
+  popup, so that the chain converts each of them. It needs a new protocol in the
+  operation layer of the kernel.
+- **A value projection as a parameter of the widget projection.** It breaks the
+  rule that only a higher-order projection of the algebra holds a projection
+  field.
+- **One recursion, with a marker document** that means "the value of this
+  slot". It makes a new document for each slot at each print.
+- **A builder function in place of `ObjectFieldToWidget`.** A markdown document
+  whose reader makes `ObjectField` nodes runs no builder, so a bare field needs a
+  projection that makes its control.
+
+## Open questions
+
+None on 2026-10-08. The step that meets a new question records it here.
