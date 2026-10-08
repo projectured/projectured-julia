@@ -43,6 +43,34 @@ draw_font_sizes(document, appearance::Appearance) =
                                       PrinterContext(EmptyReference(), Cell(800), Cell(600),
                                                      Dict{Symbol,Any}())).output)
 
+"""
+    draw_texts(document, appearance) -> Vector{Tuple{String,StyleColor,Int}}
+
+The text, the colour and the weight of the font of each text that the natural
+renderer draws for `document` with `appearance`, in order, as
+[`draw_font_sizes`](@ref) draws them. A domain test asserts the role of a name
+or a value from what the screen shows.
+"""
+function draw_texts(document, appearance::Appearance)
+    texts = Tuple{String,StyleColor,Int}[]
+    function walk(c)
+        for element in c.elements
+            element = element isa Cell ? element[] : element
+            if element isa GraphicsCanvas
+                walk(element)
+            elseif element isa GraphicsViewport
+                walk(element.content)
+            elseif element isa GraphicsText
+                push!(texts, (element.text, element.color, element.font.weight))
+            end
+        end
+    end
+    walk(print_document(NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0), appearance),
+                        nothing, document,
+                        PrinterContext(EmptyReference(), Cell(800), Cell(600), Dict{Symbol,Any}())).output)
+    texts
+end
+
 function test_text_and_syntax_themes()
 @testset "the text and the syntax follow the scales of the appearance" begin
 

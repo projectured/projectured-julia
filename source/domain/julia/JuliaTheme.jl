@@ -23,8 +23,8 @@ values of the default theme.
 @theme struct JuliaTheme
     "The font that the texts of this theme follow: its family, its weight and its size."
     font::StyleFont = StyleFont("Ubuntu Mono", 14)
-    "A variable, and the label of an object that stands in the code, such as a widget pasted into a form."
-    identifier_text::TextRole = TextRole(:reference)
+    "A variable, a name whose kind the place does not give, and the label of an object that stands in the code, such as a widget pasted into a form."
+    identifier_text::TextRole = TextRole(:variable)
     "A string, a chunk of an interpolated string, the quotes of a string interpolation, and a docstring."
     string_text::TextRole = TextRole(:string_literal)
     "A character."
@@ -45,10 +45,20 @@ values of the default theme.
     symbol_text::TextRole = TextRole(:symbol_literal)
     "An operator, the dot of a field access, a range, `::`, `=`, `?:`, `<:`, `->`, and the dollar sign of a string interpolation."
     operator_text::TextRole = TextRole(:operator)
-    "The called function, and the name of a macro."
+    "The called function."
     callee_text::TextRole = TextRole(:function_name)
+    "The name of a function, at its definition."
+    function_definition_text::TextRole = TextRole(:function_name; weight = 700)
+    "The name of a macro."
+    macro_text::TextRole = TextRole(:macro_name)
+    "A type after `::`, after `<:`, and before `{`."
+    type_text::TextRole = TextRole(:type_name)
+    "The name of a struct and of an abstract type, at its definition."
+    type_definition_text::TextRole = TextRole(:type_name; weight = 700)
+    "A field after a dot."
+    field_text::TextRole = TextRole(:field)
     "The name of a module."
-    name_text::TextRole = TextRole(:definition; weight = 700)
+    module_text::TextRole = TextRole(:module_name; weight = 700)
     "The path of a `using`, and the typed text of the insertion."
     plain_text::TextRole = TextRole(:text)
     "The completion that the insertion offers."

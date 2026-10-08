@@ -24,6 +24,24 @@ function test_julia_theme()
     @test is_color_equal(JuliaStringToSyntaxLeaf().style.color, role(:string_literal))
     @test is_color_equal(JuliaCharToSyntaxLeaf().style.color, role(:character_literal))
     @test is_color_equal(JuliaSubtypeToSyntaxNode().op_style.color, role(:operator))
+    # A name whose kind its place gives takes the role of the kind, in bold at
+    # its definition, on the screen.
+    function drawn(source)
+        texts = draw_texts(parse_julia(source), Appearance())
+        name -> only(unique((color, weight) for (text, color, weight) in texts if strip(text) == name))
+    end
+    function_texts = drawn("function f(x::Int)::Bool\n    x.y\nend")
+    @test function_texts("f") == (role(:function_name), 700)
+    @test function_texts("Int") == (role(:type_name), 400)
+    @test function_texts("Bool") == (role(:type_name), 400)
+    @test function_texts("y") == (role(:field), 400)
+    @test function_texts("x") == (role(:variable), 400)
+    struct_texts = drawn("struct P <: Q{R}\n    a::Int\nend")
+    @test struct_texts("P") == (role(:type_name), 700)
+    @test struct_texts("Q") == (role(:type_name), 400)
+    @test drawn("abstract type A end")("A") == (role(:type_name), 700)
+    @test drawn("module M\nend")("M") == (role(:module_name), 700)
+    @test drawn("@show x")("@show") == (role(:macro_name), 400)
     # A projection holds its styles and no theme, and its builder reads a theme
     # that is not scaled as at no scale.
     @test !hasfield(JuliaIntegerToSyntaxLeaf, :theme)
