@@ -47,11 +47,10 @@ function make_sequencechart_inspector_projection_example(; measure=FontFileMeasu
     font = StyleFont("Ubuntu Mono", 20)
     w2g = WidgetToGraphics(font; measure=measure)
     form = ChainingProjection(
-        ObjectToWidget(fields=[:label, :visible],
-                       style=StyleText(font, color_default)),
+        ObjectToWidget(fields=[:label, :visible]),
         RecursiveProjection(TypeDispatchingProjection(vcat(
             LayoutToGraphics().dispatch,
-            w2g.dispatch,
+            make_object_field_widget_dispatch(w2g.dispatch),
             Pair{Type,Any}[TextBlock => TextToGraphics(measure=measure)]))))
     NaturalToGraphics(measure=measure, font=StyleFont("Ubuntu", 20),
         extra=Pair{Type,Any}[

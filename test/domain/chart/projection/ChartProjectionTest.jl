@@ -1224,14 +1224,11 @@ function test_chart_projection()
             # useless, and unusable at a million of them.
             @test !("x" in names) && !("y" in names)
 
-            # A checkbox edit in the form writes the series' own cell.
-            checkbox = form.controls[3][1]
-            op = read_intent(inspector, form,
-                ReplaceReferencedValueOperation(checkbox,
-                    ConcreteReference(FieldReferenceStep("content"), EmptyReference()),
-                    false))
-            @test op isa ReplaceReferencedValueOperation
-            @test op.document === series
+            # The checkbox holds a field of the series, so its write is a write of
+            # the series' own cell.
+            field = form.controls[3][1].content
+            @test field isa ObjectField && field.object === series
+            op = ReplaceReferencedValueOperation(get_object_field_root(field), field.path, false)
             @test String(op.reference.head.name) == "visible"
 
             # And that write repaints the chart, because it is the very cell the
@@ -1243,11 +1240,12 @@ function test_chart_projection()
                             if e isa GraphicsPolyline])
             @test after == before - 1
 
-            # A text edit round-trips the same way.
-            op = read_intent(inspector, form,
-                ReplaceReferencedValueOperation(form.controls[2][1],
-                    ConcreteReference(FieldReferenceStep("content"), EmptyReference()),
-                    "4"))
+            # A text edit round-trips the same way: the field turns the text into
+            # the number that it holds.
+            field = form.controls[2][1].content
+            value = print_document(ObjectFieldToValue(), field)
+            op = read_intent(ObjectFieldToValue(), value,
+                             ReplaceReferencedValueOperation(nothing, EmptyReference(), "4"))
             @test op isa ReplaceReferencedValueOperation
             @test String(op.reference.head.name) == "line_width"
             evaluate_operation(nothing, op)

@@ -16,7 +16,7 @@ using ..SelectionModule
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: has_document_duplicate
 import ..OperationModule: evaluate_operation, operation_reference, retarget_operation,
-                          make_inverse_operation
+                          make_inverse_operation, child_reference_steps
 
 export PrimitiveDocument, ReplaceRangeOperation, ReplaceNumberRangeOperation, ReplaceStringRangeOperation
 export has_only_number_characters

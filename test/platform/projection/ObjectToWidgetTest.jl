@@ -6,97 +6,174 @@ struct _OtwPatternParameters
     color::StyleColor
 end
 
+# A plain value that a document holds, and the document.
+struct OtwPlainWindow
+    title::String
+    width::Int
+end
+
+@document struct OtwPlainHolder
+    name::String
+    window::Any
+end
+
 function test_object_to_widget()
 
 # A renderable string field + a renderable bool field + an opaque (skipped) field.
 _proj() = _OtwPatternParameters(Cell("dolor"), Cell(false), color_red)
 
-_content_ref() = ConcreteReference(FieldReferenceStep("content"), EmptyReference())
+# The texts that the last frame draws, each with the point where it is drawn.
+function _otw_drawn(canvas, ox = 0, oy = 0, found = Tuple{String,Int,Int}[])
+    x = ox + Int(canvas.x)
+    y = oy + Int(canvas.y)
+    for element in canvas.elements
+        element = element isa Cell ? element[] : element
+        if element isa GraphicsText
+            push!(found, (String(element.text), x + Int(element.x), y + Int(element.y)))
+        elseif element isa GraphicsCanvas
+            _otw_drawn(element, x, y, found)
+        elseif element isa GraphicsViewport
+            _otw_drawn(element.content, x + Int(element.x) + round(Int, element.transform.e),
+                       y + Int(element.y) + round(Int, element.transform.f), found)
+        end
+    end
+    found
+end
 
-@testset "ObjectToWidget reflects renderable Cell fields into controls" begin
+_otw_texts(backend) = first.(_otw_drawn(last(rendered_output(backend))))
+
+function _otw_editor(document; projection = make_object_to_widget_projection_example())
+    backend = HeadlessBackend()
+    editor = build_editor(document, projection;
+        backend, devices = ProjecturedKernel.DeviceModule.Device[Keyboard(), Mouse(), Display()],
+        window = false, appearance = false, settings = false, tabs = false, focus_cycling = false)
+    run_frame!(editor)
+    (editor, backend)
+end
+
+function _otw_click!(editor, backend, text; dx = 2, dy = 2)
+    (_, x, y) = first(entry for entry in _otw_drawn(last(rendered_output(backend))) if entry[1] == text)
+    push_event!(backend, MouseClick(:left, x + dx, y + dy, 1, ModifierKeys(); time = 0.0))
+    run_frame!(editor)
+end
+
+_otw_type!(editor, backend, character::Char) =
+    (push_event!(backend, KeyPress(character, string(character), ModifierKeys(); time = 0.0));
+     run_frame!(editor))
+
+_otw_selection(document) = get_reference_steps(strip_reference_types(get_selection(document)))
+
+_otw_tick = string(Char(0xe06c))
+
+@testset "ObjectToWidget makes a widget of each field, which holds a field of the object" begin
 
     proj = _proj()
     iomap = print_document(ObjectToWidget(), proj)
     out = iomap.output
 
-    # The output is a WidgetComposite (a real widget, carrying `visible`) wrapping
-    # a 2-column (label | control) grid. The grid has 4 children: pattern
-    # (String → WidgetText) and case_insensitive (Bool → WidgetCheckbox); the
-    # StyleColor `color` field is skipped.
+    # The output is a WidgetComposite wrapping a 2-column (label | widget) grid.
+    # The StyleColor `color` field is skipped.
     @test out isa WidgetComposite
     grid = out.elements[1]
     @test grid isa GridLayout
     @test length(grid.children) == 4
-    @test [pth.head.name for (_, pth) in iomap.controls] == ["pattern", "case_insensitive"]
-    @test iomap.controls[1][1] isa WidgetText
-    @test iomap.controls[2][1] isa WidgetCheckbox
-    # The string control is editable: its content is a TextBlock viewing the field.
-    @test iomap.controls[1][1].content isa TextBlock
-    @test iomap.controls[1][1].content.elements[1].content == "dolor"
-    @test iomap.controls[2][1].content == false
+    @test [path.head.name for (_, path) in iomap.controls] == ["pattern", "case_insensitive"]
+    text, checkbox = iomap.controls[1][1], iomap.controls[2][1]
+    @test text isa WidgetText && checkbox isa WidgetCheckbox
+    @test grid.children[2] === text && grid.children[4] === checkbox
+    @test text.content isa ObjectField && get_object_field_value(text.content) == "dolor"
+    @test get_object_field_value(checkbox.content) == false
 
 end # @testset
 
-@testset "ObjectToWidget converts a text edit to a parameter value op" begin
+@testset "a field of an object whose parameters are cells writes the cell" begin
 
     proj = _proj()
     iomap = print_document(ObjectToWidget(), proj)
-
-    # A Text-domain edit on the pattern control: insert "X" at the end (caret at
-    # char 5 of "dolor"). Reference is rooted at the grid output: the pattern
-    # control is grid child 2 (row 1) → 0-based children[1], then into the
-    # WidgetText's TextBlock: children[1].content.elements[1].content[5:5].
-    ref = ConcreteReference(FieldReferenceStep("children"),
-            ConcreteReference(RangeReferenceStep(1, 2),
-              ConcreteReference(FieldReferenceStep("content"),
-                ConcreteReference(FieldReferenceStep("elements"),
-                  ConcreteReference(RangeReferenceStep(0, 1),
-                    ConcreteReference(FieldReferenceStep("content"),
-                      ConcreteReference(RangeReferenceStep(5, 5), EmptyReference())))))))
-    op = read_intent(ObjectToWidget(), iomap, ReplaceStringRangeOperation(ref, "X"))
-    @test op isa ReplaceReferencedValueOperation
-    @test op.document === proj
-    @test op.reference.head == FieldReferenceStep("pattern")
-    @test op.value == "dolorX"
-
-end # @testset
-
-@testset "ObjectToWidget redirects a checkbox edit to the object's field" begin
-
-    proj = _proj()
-    iomap = print_document(ObjectToWidget(), proj)
-
-    # The checkbox control emits an edit rooted at itself; redirect to the field.
-    cb_ctrl = iomap.controls[2][1]
-    op = read_intent(ObjectToWidget(), iomap,
-                         ReplaceReferencedValueOperation(cb_ctrl, _content_ref(), true))
-    @test op isa ReplaceReferencedValueOperation
-    @test op.document === proj
-    @test op.reference.head == FieldReferenceStep("case_insensitive")
-    @test op.value == true
-
-end # @testset
-
-@testset "ObjectToWidget coerces a checkbox edit to Bool" begin
-
-    proj = _proj()
-    iomap = print_document(ObjectToWidget(), proj)
-    cb_ctrl = iomap.controls[2][1]
-
-    op = read_intent(ObjectToWidget(), iomap,
-                         ReplaceReferencedValueOperation(cb_ctrl, _content_ref(), true))
-    evaluate_operation(nothing, op)
+    for (widget, value) in ((iomap.controls[1][1], "dolorX"), (iomap.controls[2][1], true))
+        field = widget.content
+        evaluate_operation(nothing,
+            ReplaceReferencedValueOperation(get_object_field_root(field), field.path, value))
+    end
+    @test proj.pattern[] == "dolorX"
     @test proj.case_insensitive[] === true
 
 end # @testset
 
-@testset "ObjectToWidget passes through an unrelated operation" begin
+@testset "make_widget chooses the widget of one field, and is_record the cards" begin
 
-    proj = _proj()
-    iomap = print_document(ObjectToWidget(), proj)
-    foreign = WidgetText("x")
-    op = ReplaceReferencedValueOperation(foreign, _content_ref(), "y")
-    @test read_intent(ObjectToWidget(), iomap, op) === op
+    switch = field -> get_object_field_name(field) == "dark_mode" ?
+                      WidgetSwitch(; checked = field) : make_object_field_widget(field)
+    app = make_nested_object_to_widget_document_example()
+    iomap = print_document(ObjectToWidget(; make_widget = switch), app)
+    @test only(w for (w, path) in iomap.controls if path.head.name == "dark_mode") isa WidgetSwitch
+    @test only(w for (w, path) in iomap.controls if path.head.name == "name") isa WidgetText
+
+    # With no record, the nested settings are not shown; the vector still is.
+    flat = print_document(ObjectToWidget(; is_record = _ -> false), app)
+    @test !any(path -> path.head.name == "window", (path for (_, path) in flat.controls))
+    @test any(path -> path.head.name == "tags", (path for (_, path) in flat.controls))
+
+end # @testset
+
+@testset "keys through the form edit a field, a nested field and an element, at the caret" begin
+
+    app = make_nested_object_to_widget_document_example()
+    editor, backend = _otw_editor(app)
+
+    _otw_click!(editor, backend, "MyApp")
+    _otw_type!(editor, backend, 'X')
+    @test app.name == "XMyApp"
+    @test _otw_selection(app) == [FieldReferenceStep("name"), RangeReferenceStep(1, 1)]
+
+    _otw_click!(editor, backend, "Main")
+    _otw_type!(editor, backend, '!')
+    @test app.window.title == "!Main"
+    @test _otw_selection(app) == [FieldReferenceStep("window"), FieldReferenceStep("title"),
+                                  RangeReferenceStep(1, 1)]
+
+    _otw_click!(editor, backend, "beta")
+    _otw_type!(editor, backend, '!')
+    @test app.tags[2] == "!beta"
+    @test app.tags[1] == "alpha"
+    @test _otw_selection(app)[1] == FieldReferenceStep("tags")
+
+    # A press on the tick of a checkbox writes its field.
+    _otw_click!(editor, backend, _otw_tick)
+    @test app.dark_mode == false
+
+end # @testset
+
+@testset "a card keeps its collapse while a field is edited" begin
+
+    app = make_nested_object_to_widget_document_example()
+    editor, backend = _otw_editor(app)
+    @test "Main" in _otw_texts(backend)
+    _otw_click!(editor, backend, string(Char(0xe06d)); dx = 4, dy = 4)
+    @test !("Main" in _otw_texts(backend))
+    _otw_click!(editor, backend, "MyApp")
+    _otw_type!(editor, backend, 'X')
+    @test app.name == "XMyApp"
+    @test !("Main" in _otw_texts(backend))
+
+end # @testset
+
+@testset "a plain value that a document holds opens with is_record and edits through a copy" begin
+
+    holder = OtwPlainHolder("gateway", OtwPlainWindow("Main", 800), nothing)
+    w2g = WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FontFileMeasure())
+    projection = ChainingProjection(
+        ObjectToWidget(; is_record = value -> value isa OtwPlainWindow || is_form_record(value)),
+        RecursiveProjection(TypeDispatchingProjection(vcat(
+            LayoutToGraphics().dispatch, make_object_field_widget_dispatch(w2g.dispatch)))))
+    editor, backend = _otw_editor(holder; projection)
+    @test "OtwPlainWindow" in _otw_texts(backend)
+    _otw_click!(editor, backend, "Main")
+    _otw_type!(editor, backend, '!')
+    @test holder.window isa OtwPlainWindow
+    @test holder.window.title == "!Main"
+    @test holder.window.width == 800
+    @test "!Main" in _otw_texts(backend)
 
 end # @testset
 
@@ -170,30 +247,6 @@ end # @testset
     evaluate_operation(nothing, ToggleCollapseOperation(window_card))
     @test window_card.collapsed == false
     @test window_card.content === body
-
-end # @testset
-
-@testset "ObjectToWidget edits a nested field through its full path" begin
-
-    app = make_nested_object_to_widget_document_example()
-    iomap = print_document(ObjectToWidget(), app)
-
-    # The deep checkbox is `window.visible`; its control path is window → visible.
-    vis = first((c, pth) for (c, pth) in iomap.controls
-                if c isa WidgetCheckbox && pth.head == FieldReferenceStep("window"))
-    vis_ctrl, vis_path = vis
-
-    op = read_intent(ObjectToWidget(), iomap,
-                         ReplaceReferencedValueOperation(vis_ctrl, _content_ref(), false))
-    @test op isa ReplaceReferencedValueOperation
-    @test op.document === app
-    @test op.reference.head == FieldReferenceStep("window")
-    @test op.reference.tail.head == FieldReferenceStep("visible")
-    @test op.value == false
-
-    # And it writes through to the nested cell.
-    evaluate_operation(nothing, op)
-    @test app.window.visible[] === false
 
 end # @testset
 

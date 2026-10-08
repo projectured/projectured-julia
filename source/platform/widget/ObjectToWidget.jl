@@ -1,86 +1,147 @@
 # Fragment of `WidgetModule`.
 #
-# Generic, reflection-driven projection from an arbitrary object to a widget
-# **form** that displays and edits the object's reactive parameters. It walks the
-# object's fields and, for each renderable one, emits a control:
+# Generic, reflection-driven projection from an object to a widget **form** that
+# shows and edits its fields. It makes the form that an author makes by hand: for
+# each field, a `WidgetLabel` with its name and the widget that `make_widget`
+# makes for `ObjectField(root, path)`, in a 2-column `GridLayout`:
 #
-#     String / number  → WidgetText      (editable when backed by a `Cell`)
-#     Bool             → WidgetCheckbox
-#     struct (with `Cell` fields) → a 2-column `GridLayout` of its own fields,
-#                                   wrapped in a collapsible `WidgetCard`
-#     vector / tuple   → a `VerticalLayout` of its elements, wrapped in a
-#                        collapsible `WidgetCard`
+#     String / number  → WidgetText(field)      (the defaults of
+#     Bool             → WidgetCheckbox(field)   `make_object_field_widget`)
+#     a record         → a 2-column grid of its own fields, in a collapsible
+#                        `WidgetCard`
+#     vector / tuple   → a `VerticalLayout` of its elements, in a collapsible
+#                        `WidgetCard`
 #
-# The **root** object renders as a bare `WidgetComposite` wrapping a 2-column
-# (label | control) `GridLayout` — *no* surrounding card. Cards appear only for
-# *nested* composite values.
+# A record is a value that `is_record` opens: by default `is_form_record`, a struct
+# that holds a cell field, such as a `@document`. Any other struct, such as a
+# `StyleColor`, is not shown.
 #
-# Fields it cannot render (a `Function`, a `StyleColor`, a plain struct without
-# `Cell` fields, …) are skipped — opaque forms stay non-editable.
+# The **root** object renders as a bare `WidgetComposite` wrapping its grid — *no*
+# surrounding card. Cards appear only for *nested* values.
 #
-# **Collapse.** Each nested card is collapsible. Collapse is transient *view* state
-# stored on the output `WidgetCard.collapsed` cell (like `WidgetScrollPane`'s scroll
-# offset): a click on the card's chevron — which `WidgetCardToGraphicsCanvas` turns
-# into `ToggleCollapseOperation(card)`, flipped by the default operation handler —
-# turns the chevron and shows or hides the body.
+# # The stage after it
 #
-# **Editing.** Controls edit the *object's own* cells. A checkbox click or a text
-# edit is matched (by control identity, or by the top-level grid row) and converted
-# to `ReplaceReferencedValueOperation(root, path, value)` where `path` is the full reference
-# from the root to the edited field — so an edit at any nesting depth writes the
-# right cell. Caret navigation *into* the tree (real `map_reference_*`) and nested
-# text-caret editing are deferred to a later navigation stage.
+# The output is a document of layouts and widgets whose value slots hold
+# `ObjectField`s. A chain draws it with a recursion that holds the rows of
+# `make_object_field_widget_dispatch`, as for a form an author makes:
+#
+#     ChainingProjection(ObjectToWidget(),
+#         RecursiveProjection(TypeDispatchingProjection(vcat(
+#             LayoutToGraphics().dispatch, make_object_field_widget_dispatch(w2g.dispatch)))))
+#
+# # Editing
+#
+# Each widget asks its field for the operation that stores a value, so an edit at
+# any depth writes through the field and the write rules of the kernel: a field of
+# a record, a nested text, an element of a vector, and a field of a plain value
+# that a record holds. This projection reads no edit itself.
+#
+# # The caret
+#
+# A caret in the text of a field is a path in the object: the path of the field
+# and a range, such as `window.title{3}`. The maps put it under the widget that
+# shows the field, with the slot of the widget and the step `object` of the
+# field before it (`make_object_field_range_reference`), and take them off on the
+# way back. The selection of each document of the form follows the part of the
+# path below it, as a key is routed by the selection.
+#
+# **Collapse.** Each nested card is collapsible. Collapse is view state on the
+# output `WidgetCard.collapsed` cell: a click on the chevron answers
+# `ToggleCollapseOperation(card)`. The form is made once for its input, so an edit
+# of a value keeps the collapse of every card.
+
 # ── IoMap ─────────────────────────────────────────────────────────────────
 
 """
     ObjectToWidgetIoMap(projection, input, output, controls)
 
-`input` is the projected (root) object; `controls` is a `Vector` of
-`(control_widget, path::Reference)` pairs — the map the reader uses to
-redirect a control's edit back onto the object's field cell. `path` is the full
-reference from the root object to the bound field (a single `FieldReferenceStep` for a
-top-level field, a deeper path for a nested one).
+`input` is the projected (root) object. `controls` holds one entry
+`(widget, path, steps, slot)` for each field that the form shows with a widget:
+the widget that the form made, the path from the root object to the field, the
+steps from the output to the widget, and the slot of the widget that holds the
+field, or `nothing`.
 """
 @iomap struct ObjectToWidgetIoMap
     projection::Any
     input::Any
     output::Any
-    controls::Vector{Tuple{Any,Reference}}
+    controls::Vector{Tuple{Any,Reference,Tuple,Any}}
 end
 
 # ── Projection ────────────────────────────────────────────────────────────
 
 """
-    ObjectToWidget(; fields=nothing)
+    is_form_record(value) -> Bool
 
-`fields=nothing` auto-detects every renderable field (in declaration order). Pass
-an explicit `Vector{Symbol}` to restrict/order the controls of the **root** object.
+Whether `ObjectToWidget` opens `value` into a card of its own fields when the
+form passes no `is_record`. True for a struct that holds a cell field, such as a
+`@document`; false for any other value, so a style value such as a `StyleColor`
+does not open into numbers.
+
+A type opts in with a method, and a plain value of it then edits through the
+write rules of the kernel:
+
+    is_form_record(::ServerSettings) = true
+"""
+is_form_record(value) = isstructtype(typeof(value)) && _has_cell_fields(value)
+
+_has_cell_fields(v) = any(f -> getfield(v, f) isa Cell, fieldnames(typeof(v)))
+
+"""
+    ObjectToWidget(; fields = nothing, make_widget = make_object_field_widget,
+                     is_record = is_form_record, theme = nothing, column_gap, row_gap)
+
+The projection of an object to a form of its fields. `fields` restricts and orders
+the fields of the **root** object; `nothing` shows every field that the form can
+show, in the order of declaration.
+
+`make_widget(field::ObjectField)` makes the widget of each field; it sees the
+whole path, so a nested field can get a chosen widget too. `is_record(value)` says
+whether a nested value opens into a card. The gaps come from `theme`, a
+`WidgetTheme`, or the default values.
+
+# Example
+
+    ObjectToWidget(; make_widget = field ->
+        get_object_field_name(field) == "draw_style" ?
+            WidgetSelect(field; options = Any[:linear, :step, :bar]) :
+            make_object_field_widget(field))
 """
 struct ObjectToWidget <: Projection
     fields::Union{Vector{Symbol},Nothing}
-    style::StyleText
+    make_widget::Any
+    is_record::Any
     column_gap::Int     # between the label column and the control column
     row_gap::Int        # between the rows of the form
 end
 
-ObjectToWidget(; fields=nothing, theme=nothing,
-               style::StyleText=StyleText(_get_theme_values(theme).font, _get_theme_values(theme).foreground),
+ObjectToWidget(; fields=nothing, make_widget=make_object_field_widget, is_record=is_form_record,
+               theme=nothing,
                column_gap::Integer=_get_theme_values(theme).form_column_gap,
                row_gap::Integer=_get_theme_values(theme).form_row_gap) =
-    ObjectToWidget(fields, style, Int(column_gap), Int(row_gap))
+    ObjectToWidget(fields, make_widget, is_record, Int(column_gap), Int(row_gap))
+
 # Recursion bound: stop descending into composite values past this depth and show
-# them read-only, so a cyclic or pathologically deep object graph can't loop
-# forever (the editor would otherwise hang printing it).
+# them as text, so a cyclic or pathologically deep object graph can't loop forever
+# (the editor would otherwise hang printing it).
 const _MAX_DEPTH = 16
+
+const _FORM_GRID_STEPS = (FieldReferenceStep("elements"), RangeReferenceStep(0, 1))
 
 # ── print_document ──────────────────────────────────────────────────────
 
 function print_document(p::ObjectToWidget, recursion, obj, ctx)
-    controls = Tuple{Any,Reference}[]
-    # The root struct renders as a bare composite, with no card.
-    grid = _struct_grid(p, obj, EmptyReference(), controls, 0)
+    # The fields of a plain root share one cell, so an edit through one shows in
+    # the others.
+    root = obj isa Document ? obj : Cell(obj)
+    controls = Tuple{Any,Reference,Tuple,Any}[]
+    grid = _struct_grid(p, root, obj, EmptyReference(), _FORM_GRID_STEPS, controls, 0)
     output = WidgetComposite(Any[grid])
-    ObjectToWidgetIoMap(p, obj, output, controls)
+    iomap = ObjectToWidgetIoMap(p, obj, output, controls)
+    set_output_path_computations!(output, obj, path -> map_reference_forward(p, iomap, path);
+                                  dormant = false)
+    set_output_tree_path_computations!(output)
+    iomap
 end
 
 # Two-argument convenience entry mirroring the editor's bare-call form.
@@ -95,43 +156,37 @@ function _displayable_fields(p::ObjectToWidget, obj, basepath::Reference)
     if p.fields !== nothing && basepath isa EmptyReference
         return p.fields
     end
-    Symbol[nm for nm in fieldnames(typeof(obj)) if _is_displayable_field(obj, nm)]
+    Symbol[nm for nm in fieldnames(typeof(obj)) if _is_displayable_field(p, obj, nm)]
 end
 
-function _is_displayable_field(obj, nm::Symbol)
+function _is_displayable_field(p::ObjectToWidget, obj, nm::Symbol)
     is_view_state_field(nm) && return false
     f = getfield(obj, nm)
-    _value_kind(f isa Cell ? f[] : f) !== :opaque
+    _value_kind(p, f isa Cell ? f[] : f) !== :opaque
 end
 
 # Classify a (cell-unwrapped) value into a render category.
-_value_kind(::Bool) = :bool                       # before Real: a Bool is a checkbox
-_value_kind(::AbstractString) = :string
-_value_kind(::Real) = :real
-_value_kind(::AbstractVector) = :vector
-_value_kind(::CellVector) = :vector
-_value_kind(::Tuple) = :vector
-function _value_kind(v)
-    # Recurse only into "document-like" structs — those carrying reactive `Cell`
-    # fields. Opaque value structs (StyleColor, Point2D, fonts, …) carry no cells
-    # and are skipped, so we never explode into rendering primitives.
-    isstructtype(typeof(v)) && _has_cell_fields(v) ? :struct : :opaque
-end
-_has_cell_fields(v) = any(f -> getfield(v, f) isa Cell, fieldnames(typeof(v)))
+_value_kind(p::ObjectToWidget, ::Bool) = :leaf
+_value_kind(p::ObjectToWidget, ::AbstractString) = :leaf
+_value_kind(p::ObjectToWidget, ::Real) = :leaf
+_value_kind(p::ObjectToWidget, ::Union{AbstractVector,Tuple,CellVector}) = :vector
+_value_kind(p::ObjectToWidget, v) = p.is_record(v) ? :record : :opaque
 
 # ── Building the widget tree ────────────────────────────────────────────────
 
-# A 2-column grid (label | value) of `obj`'s displayable fields. `basepath` is the
+# A 2-column grid (label | widget) of `obj`'s displayable fields. `basepath` is the
 # reference from the root object to `obj`; each field extends it by one step.
-# `depth` is the current nesting level (0 at the root), used to bound recursion.
-function _struct_grid(p::ObjectToWidget, obj, basepath::Reference, controls, depth::Int)
+# `steps` are the steps from the output to the grid. `depth` is the current
+# nesting level (0 at the root), used to bound recursion.
+function _struct_grid(p::ObjectToWidget, root, obj, basepath::Reference, steps::Tuple, controls, depth::Int)
     children = Any[]
     for nm in _displayable_fields(p, obj, basepath)
         f = getfield(obj, nm)
-        value = f isa Cell ? f[] : f
         path = extend_reference(basepath, FieldReferenceStep(String(nm)))
         push!(children, WidgetLabel(String(nm)))
-        push!(children, _print_value(p, value, f isa Cell ? f : nothing, path, controls, depth))
+        index = length(children) + 1
+        widget_steps = (steps..., FieldReferenceStep("children"), RangeReferenceStep(index - 1, index))
+        push!(children, _print_value(p, root, f isa Cell ? f[] : f, path, widget_steps, controls, depth))
     end
     # The controls fill the width that the form is offered, so the cards of the
     # nested values line up; with no width offered they keep their own.
@@ -140,47 +195,35 @@ function _struct_grid(p::ObjectToWidget, obj, basepath::Reference, controls, dep
                vertical_align=:center, column_policies=Any[Content, Fill])
 end
 
-# Project one value into a widget. `cell` is the backing `Cell` (or `nothing` when
-# the value is not individually cell-addressable, e.g. a vector element); a leaf is
-# registered as an editable control only when it has a backing cell.
-function _print_value(p::ObjectToWidget, value, cell, path::Reference, controls, depth::Int)
-    kind = _value_kind(value)
-    if kind === :bool
-        control = WidgetCheckbox(value)
-        cell isa Cell && push!(controls, (control, path))
-        return control
-    elseif kind === :string || kind === :real
-        if cell isa Cell
-            control = _editable_text_control(p, cell)
-            push!(controls, (control, path))
-            return control
-        end
-        return WidgetLabel(_as_string(value))   # read-only leaf
-    elseif (kind === :vector || kind === :struct) && depth >= _MAX_DEPTH
+# The widget of one value at `path`, which the output reaches by `steps`.
+function _print_value(p::ObjectToWidget, root, value, path::Reference, steps::Tuple, controls, depth::Int)
+    kind = _value_kind(p, value)
+    (kind === :vector || kind === :record) && depth >= _MAX_DEPTH &&
         return WidgetLabel(_as_string(value))   # recursion bound
-    elseif kind === :vector
-        return _print_vector(p, value, path, controls, depth + 1)
-    elseif kind === :struct
-        return _print_struct_card(p, value, path, controls, depth + 1)
-    end
-    WidgetLabel(_as_string(value))
+    kind === :vector && return _print_vector(p, root, value, path, steps, controls, depth + 1)
+    kind === :record && return _print_record_card(p, root, value, path, steps, controls, depth + 1)
+    field = ObjectField(root, path)
+    widget = p.make_widget(field)
+    push!(controls, (widget, path, steps, _find_object_field_slot(widget, field)))
+    widget
 end
 
-# A nested struct: its own 2-column grid inside a composite, in a collapsible card.
-function _print_struct_card(p::ObjectToWidget, obj, path::Reference, controls, depth::Int)
-    grid = _struct_grid(p, obj, path, controls, depth)
-    body = WidgetComposite(Any[grid])
-    _collapsible_card(p, _type_title(obj), body)
+# A nested record: its own 2-column grid inside a composite, in a collapsible card.
+function _print_record_card(p::ObjectToWidget, root, obj, path::Reference, steps::Tuple, controls, depth::Int)
+    grid_steps = (steps..., FieldReferenceStep("content"), _FORM_GRID_STEPS...)
+    grid = _struct_grid(p, root, obj, path, grid_steps, controls, depth)
+    _collapsible_card(p, _type_title(obj), WidgetComposite(Any[grid]))
 end
 
-# A vector / tuple: its elements stacked vertically, in a collapsible card. Vector
-# elements are not individually cell-addressable, so they render read-only (no
-# controls registered) — element editing belongs to the later navigation stage.
-function _print_vector(p::ObjectToWidget, vec, path::Reference, controls, depth::Int)
+# A vector / tuple: its elements stacked vertically, in a collapsible card. Each
+# element is a field of its own, at the path of the vector and its index.
+function _print_vector(p::ObjectToWidget, root, vec, path::Reference, steps::Tuple, controls, depth::Int)
     items = Any[]
     for (i, element) in enumerate(vec)
-        elpath = extend_reference(path, ElementReferenceStep(i))   # 1-based
-        push!(items, _print_value(p, element, nothing, elpath, controls, depth))
+        item_steps = (steps..., FieldReferenceStep("content"), FieldReferenceStep("children"),
+                      RangeReferenceStep(i - 1, i))
+        push!(items, _print_value(p, root, element, extend_reference(path, ElementReferenceStep(i)),
+                                  item_steps, controls, depth))
     end
     body = VerticalLayout(items; horizontal_align=:left, gap=p.row_gap)
     _collapsible_card(p, _vector_title(vec), body)
@@ -198,106 +241,7 @@ _collapsible_card(p::ObjectToWidget, title::AbstractString, body) =
 _type_title(obj) = String(nameof(typeof(obj)))
 _vector_title(vec) = string(length(vec)) * (length(vec) == 1 ? " item" : " items")
 
-# An editable text control: a WidgetText whose TextBlock content is a read-only,
-# reactive view of `cell` (so a change to the parameter re-renders it), with the
-# caret pinned to the end of the text. WidgetText recurses a Document content
-# through the Text domain, so caret navigation and editing originate in
-# TextToGraphics; the edit operation is converted back to the parameter by the
-# reader. Pinning the caret to the end keeps append/backspace correct without a
-# persistent cursor stored in the (projection-output) control bar.
-function _editable_text_control(p::ObjectToWidget, cell::Cell)
-    ts = TextString("", p.style)
-    set_cell_computation!(getfield(ts, :content), () -> _as_string(cell[]))
-    tt = TextBlock(ts)
-    set_cell_computation!(getfield(tt, :selection), () -> _end_cursor(length(_as_string(cell[]))))
-    WidgetText(tt)
-end
-
 _as_string(v) = v isa AbstractString ? String(v) : (v === nothing ? "" : string(v))
-
-# `elements[1].content{n}` — a zero-width caret at char offset n.
-_end_cursor(n::Int) = ConcreteReference(FieldReferenceStep("elements"),
-    ConcreteReference(RangeReferenceStep(0, 1),
-        ConcreteReference(FieldReferenceStep("content"),
-            ConcreteReference(RangeReferenceStep(n, n), EmptyReference()))))
-
-# ── read_intent ───────────────────────────────────────────────────────
-# Two control-edit shapes are converted to the input domain (a
-# ReplaceReferencedValueOperation that sets the parameter cell):
-#
-# - A checkbox click arrives as ReplaceReferencedValueOperation rooted at the control
-#   widget (identity); redirect it to the bound field at its full path — works at
-#   any nesting depth.
-# - A text edit arrives as a ReplaceStringRangeOperation whose reference is rooted
-#   at this projection's output (`…children[row]…content…`); identify the
-#   *top-level* field from the grid row, apply the character-range edit, and emit
-#   the new whole value. Nested text-caret edits are deferred to the navigation
-#   stage and pass through.
-
-function read_intent(p::ObjectToWidget, iomap::ObjectToWidgetIoMap, op::ReplaceReferencedValueOperation)
-    for (control, path) in iomap.controls
-        op.document === control || continue
-        current = evaluate_reference(iomap.input, path)
-        value = _coerce(current, op.value)
-        return ReplaceReferencedValueOperation(iomap.input, path, value)
-    end
-    op   # not one of ours — pass through
-end
-
-function read_intent(p::ObjectToWidget, iomap::ObjectToWidgetIoMap, op::ReplaceStringRangeOperation)
-    parsed = _parse_control_edit(op.reference)
-    parsed === nothing && return op
-    row, cstart, cstop = parsed
-    fields = _displayable_fields(p, iomap.input, EmptyReference())
-    (1 <= row <= length(fields)) || return op
-    nm = fields[row]
-    f = getfield(iomap.input, nm)
-    # Only a top-level, cell-backed string/number field is caret-editable here. If
-    # the parsed row is a nested card / read-only column, leave the op untouched.
-    (f isa Cell && _value_kind(f[]) in (:string, :real)) || return op
-    path = ConcreteReference(FieldReferenceStep(String(nm)), EmptyReference())
-    current = _as_string(f[])
-    newval = _coerce(f[], _apply_range(current, cstart, cstop, op.replacement))
-    ReplaceReferencedValueOperation(iomap.input, path, newval)
-end
-
-# A click on a control arrives as a ReplaceSelectionOperation rooted at the widget
-# output. The control caret is a derived view (pinned to the text end), so there is
-# no object-domain selection to set; consume it rather than letting it reach the
-# object (which has no widget-shaped reference path).
-read_intent(::ObjectToWidget, ::ObjectToWidgetIoMap, ::ReplacePathOperation) = nothing
-
-# Everything else (including ToggleCollapseOperation, whose target is the output
-# card itself) passes straight through to the editor.
-read_intent(::ObjectToWidget, ::ObjectToWidgetIoMap, op) = op
-
-# Parse a control text-edit reference. The output is a WidgetComposite wrapping the
-# root grid, so a renderer-produced reference looks like
-# `elements[0].children[flat].content.elements[1].content[cstart:cstop]` — the grid
-# child index follows the *first* `children` field. (A reference passed already
-# rooted at the grid, with no composite `elements` prefix, also works.) The grid
-# holds `[label, control]` per row, so the control for 1-based row r is child
-# `2r-1` (0-based) → `row = (flat + 1) ÷ 2`. The terminal RangeReferenceStep is the
-# character range.
-function _parse_control_edit(ref)
-    flat = nothing
-    term = nothing
-    after_children = false
-    cur = ref
-    while cur isa ConcreteReference
-        h = cur.head
-        if h isa FieldReferenceStep && h.name == "children"
-            after_children = true
-        elseif h isa RangeReferenceStep
-            after_children && flat === nothing && (flat = h.start)
-            term = h
-        end
-        cur = cur.tail
-    end
-    (flat === nothing || term === nothing) && return nothing
-    row = (flat + 1) ÷ 2
-    (row, term.start, term.stop)
-end
 
 # Character-aware range replace (0-based [s, e] boundaries).
 function _apply_range(s::AbstractString, cs::Int, ce::Int, repl::AbstractString)
@@ -321,10 +265,49 @@ _coerce(cur::AbstractFloat, v) =
 _coerce(_, v) = v
 
 # ── Reference mapping ─────────────────────────────────────────────────────
-# No caret goes into the object tree: the controls do not map into the reference
-# space of the object. The default backward mapping names a part of the controls
-# by an introduced reference, so a point names the control under it, and only
-# such a reference maps forward again.
+#
+# `<path of a field><rest>` ↔ `<steps to its widget>.<slot>.object.<path><rest>`,
+# where the rest is empty or a range in the text of the value. The whole field is
+# the whole widget. A part of the form that the object has no path for, such as a
+# label, is a path that this projection introduces, as the defaults of
+# `Projection` map it.
 
-map_reference_forward(p::ObjectToWidget, ::ObjectToWidgetIoMap, reference) =
-    find_introduced_path(p, reference)
+function map_reference_forward(p::ObjectToWidget, iomap::ObjectToWidgetIoMap, reference)
+    introduced = find_introduced_path(p, reference)
+    introduced === nothing || return introduced
+    reference isa EmptyReference && return EmptyReference(get_reference_node_type(iomap.output))
+    steps = get_reference_steps(strip_reference_types(reference))
+    for (_, path, widget_steps, slot) in iomap.controls
+        field = get_reference_steps(strip_reference_types(path))
+        _has_form_prefix(steps, field) || continue
+        rest = steps[(length(field) + 1):end]
+        isempty(rest) && return _annotate_form_path(iomap, widget_steps)
+        (slot === nothing || length(rest) != 1 || !(rest[1] isa RangeReferenceStep)) && return nothing
+        return _annotate_form_path(iomap, (widget_steps..., FieldReferenceStep(String(slot)),
+                                           FieldReferenceStep("object"), steps...))
+    end
+    nothing
+end
+
+function map_reference_backward(p::ObjectToWidget, iomap::ObjectToWidgetIoMap, reference)
+    if reference isa Reference
+        steps = get_reference_steps(strip_reference_types(reference))
+        for (_, path, widget_steps, slot) in iomap.controls
+            _has_form_prefix(steps, widget_steps) || continue
+            rest = steps[(length(widget_steps) + 1):end]
+            isempty(rest) && return path
+            slot === nothing && break
+            inner = (FieldReferenceStep(String(slot)), FieldReferenceStep("object"))
+            (_has_form_prefix(rest, inner) && !any(step -> step isa ProjectionReferenceStep, rest)) ||
+                break
+            return extend_reference(EmptyReference(), rest[(length(inner) + 1):end]...)
+        end
+    end
+    invoke(map_reference_backward, Tuple{Projection, Any, Any}, p, iomap, reference)
+end
+
+_has_form_prefix(steps, prefix) =
+    length(steps) >= length(prefix) && all(k -> steps[k] == prefix[k], eachindex(prefix))
+
+_annotate_form_path(iomap::ObjectToWidgetIoMap, steps) =
+    annotate_reference_types(iomap.output, extend_reference(EmptyReference(), steps...))

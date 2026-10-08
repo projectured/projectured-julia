@@ -46,11 +46,10 @@ function make_chart_inspector_projection_example(; measure=FontFileMeasure())
     # at a million samples, unusable.
     form = ChainingProjection(
         ObjectToWidget(fields=[:label, :draw_style, :line_style, :line_width,
-                               :symbol, :symbol_size, :visible],
-                       style=StyleText(font, color_default)),
+                               :symbol, :symbol_size, :visible]),
         RecursiveProjection(TypeDispatchingProjection(vcat(
             LayoutToGraphics().dispatch,
-            w2g.dispatch,
+            make_object_field_widget_dispatch(w2g.dispatch),
             Pair{Type,Any}[TextBlock => TextToGraphics(measure=measure)]))))
     NaturalToGraphics(measure=measure, font=StyleFont("Ubuntu", 20),
         extra=Pair{Type,Any}[

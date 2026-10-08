@@ -1,10 +1,11 @@
 # A form edits a plain value
 
 > **Status (2026-10-08): IN PROGRESS** on the branch `plain-value-form`, in the
-> worktree `projectured-julia-plain-value-form`. Steps 1 to 6 are done. Step 7 is
-> next: [text-projection-config-into-document.md](../done/text-projection-config-into-document.md)
-> retired `ProjectionConfiguringProjection` (decision 17) on the branch
-> `text-config-in-documents`, on top of this one, where step 7 goes on. The owner
+> worktree `projectured-julia-plain-value-form`. Steps 1 to 7 are done; step 7
+> and the next steps are on the branch `text-config-in-documents`, on top of this
+> one, after
+> [text-projection-config-into-document.md](../done/text-projection-config-into-document.md)
+> retired `ProjectionConfiguringProjection` (decision 17). The owner
 > answered the first six questions on 2026-10-06, chose the design of parts C and
 > D on 2026-10-08 (see "Decisions"), and asked for the implementation on
 > 2026-10-08.
@@ -820,12 +821,62 @@ form of part C and not readers that part C removes.
    `ObjectFieldToWidget` and `ObjectFieldToValue` introduce: the two map it to the
    caret of the widget and back. A bare `ObjectField` is a focus stop. The
    documents of step 9 describe this caret.
-7. ⬜ **D: `ObjectToWidget` as a chain.** Waits for the retirement of
+7. ✅ **D: `ObjectToWidget` as a chain.** Waits for the retirement of
    `ProjectionConfiguringProjection` (decision 17). Files: [ObjectToWidget.jl](../../source/platform/widget/ObjectToWidget.jl)
    and a new file for the first stage. Tests: `ObjectToWidgetTest.jl` keeps its
    shape assertions, and gets a nested text edit, a vector element and a plain
    nested value. Run the chart inspector example with `test_example(...)`, and
    the test of `ProjectionConfiguringProjection` if it still exists.
+
+   **Done 2026-10-08**, on the branch `text-config-in-documents`. What the
+   implementation found and chose (choices of the implementation):
+   - **`ObjectToWidget` is the first stage, and keeps its name.** It walks the
+     object and makes the form as a document: a `WidgetComposite` around a
+     2-column `GridLayout`, with a `WidgetLabel` and the widget that
+     `make_widget` makes for `ObjectField(root, path)` for each leaf, a
+     collapsible `WidgetCard` for each record, and a `VerticalLayout` of fields
+     for each vector. The root of a plain value is one `Cell` for all its
+     fields. No new name was needed.
+   - **A chain that draws the form needs the field rows.** Design item 3 said
+     that the callers do not change; they can not, because the renderer must
+     hold `make_object_field_widget_dispatch`, as decision 17 found. The three
+     example chains (the object form, the chart inspector, the sequence chart
+     inspector) change one line each, and drop the keyword `style`, which the
+     widgets of the fields take from the widget theme.
+   - **The reader goes.** Each widget asks its field for the store, so the
+     parse of the grid row and the redirect of a control edit are gone. The
+     `controls` of the IO map hold `(widget, path, steps, slot)`.
+   - **A caret in the form is a path in the object**, such as `window.title{3}`
+     (decision 11 of the retirement plan). The maps put it under the widget,
+     its slot and the step `object` of the field, and take them off; a part
+     with no path in the object is a path that the projection introduces. The
+     output takes its paths with `set_output_path_computations!` and
+     `set_output_tree_path_computations!`.
+   - **The object of an `ObjectField` is no child of the field**
+     (`child_reference_steps(::ObjectField) = ()`). Without it, the walk that
+     wires the paths of the output went from a field into the input document
+     and replaced its selection cell. A selection still goes through `object`.
+   - `is_form_record(value)` is the trait and `is_record` the argument, as
+     decision 15 named them; `make_widget` defaults to
+     `make_object_field_widget`.
+   - A card keeps its collapse while a field is edited, because the form is made
+     once for its input and a value is read through its field.
+   - Tests: `test_object_to_widget()` 60 pass. New: a widget of each field holds
+     a field of the object; a field of an object whose parameters are cells
+     writes the cell; `make_widget` and `is_record`; keys through an editor edit
+     a field, a nested field and an element of a vector, at the caret, and a
+     press on a tick writes a flag; a card keeps its collapse; a plain value
+     that a document holds opens with `is_record` and edits through a copy. The
+     tests of the old reader are gone. `test_chart_projection()` 322 pass, with
+     the property inspector on the field model. `test_object_field_to_widget()`,
+     `test_find_bar_view_to_widget()`, `test_widget_card_fold()` and
+     `test_widget_value_slot()` pass; `walk_printer_output` and
+     `walk_repl_loop` report no error on `object_to_widget`,
+     `nested_object_to_widget`, `chart_inspector` and
+     `sequencechart_inspector`; the naming guard and the layering guard pass.
+   - For step 9: `widget.md` still says, under "From a domain to widgets" and in
+     its limits, that `ObjectToWidget` maps no reference.
+
 8. ⬜ **The examples.** One form for A and one for B, on the same plain value and
    the same layout, and a form whose widgets hold `ObjectField` values (C).
    Register them in

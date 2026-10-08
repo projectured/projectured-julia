@@ -42,6 +42,13 @@ end
 ObjectField(object, field::AbstractString) =
     ObjectField(object, ConcreteReference(FieldReferenceStep(String(field)), EmptyReference()))
 
+# The object of a field is the place that the field names, not a child of the
+# field: it is a document of its own, or a part of one, somewhere else. So a walk
+# of the children of a document, such as the one that wires the paths of an
+# output that a printer built, does not go from a field into its object. A
+# selection still goes through `object` to a caret in the value.
+child_reference_steps(::ObjectField) = ()
+
 """
     get_object_field_value(field::ObjectField)
 
