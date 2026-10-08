@@ -571,7 +571,16 @@ also for a text with no end, and it opens the gutter of a lazy text (a limit in
 `text.md`). Its cost: the list path of `TextToGraphics` and the mapping of
 `SyntaxListToText` learn lines.
 
-**Q4 A wrap inside a line.** Open. After step 3 every syntax text is a block of
+**Q4 A wrap inside a line. Decided (d), the owner, 2026-10-08:** `WordWrapping`
+records the wrap points on the line, and `TextToGraphics` only starts a row at
+each. `TextLine` gets a field, `soft_breaks`: the character offsets in the text
+of its spans where a row starts. `WordWrapping` computes it, one cell for each
+line, from the text of the line and the width; the spans are shared with the
+input, and the flat offsets do not change. A keystroke or a resize then changes
+one cell for each line it touches, and the list of lines and the elements stay.
+The question, as it stood:
+
+After step 3 every syntax text is a block of
 lines, and the prose chain (`make_natural_prose_graphics`) and the application
 chain put `WordWrapping` in front of `TextToGraphics`. Today `WordWrapping`
 passes a `TextLine` through unwrapped, so a paragraph of prose would run past the
@@ -593,10 +602,22 @@ gutter, and the gutter is as wide as its widest row.
   `WordWrapping` stays for a list of spans. Two places then wrap text, and the
   renderer gets a second job.
 
-*Recommendation: (b), because it is the only one of the three with no cycle and
-one place that wraps, and the numbers, the folds and the gutter see one line for
-one line of the source. Its cost: the grouping of `TextToGraphics` breaks a row
-inside a line, and `WordWrapping` learns a span path in a line.*
+My first recommendation was (b). The owner rejected (c): `TextToGraphics` must
+not wrap, or two places decide where a line breaks. Then (d) came up:
+
+- (d) **`WordWrapping` records the wrap points on the line** in a new field, and
+  `TextToGraphics` starts a row at each offset, as it starts a row at a `'\n'`
+  in a span today. It decides nothing.
+
+The owner asked whether (a) has a cycle when only the first row carries the
+gutter and the others add nothing to its width. It does: the values are the same,
+but the gutter can reach the gutters only by a walk over the rows, and the list of
+rows depends on the width. The gutter width depends only on the gutters, so the
+output must keep one entry for each source line that holds its gutter, which (b)
+and (d) do; or the lane widths must be declared, which reverses the decision of
+the gutter plan that a lane is as wide as its widest mark. (d) changes neither the
+elements nor the flat offsets, so it fits the principle of the owner best: an
+edit or a resize changes a value, not the elements down the chain.
 
 **Q5 A keystroke in a leaf.** Found when the work started (2026-10-08).
 **Decided by a new rule, the owner, 2026-10-08:** none of (a), (b) and (c)
