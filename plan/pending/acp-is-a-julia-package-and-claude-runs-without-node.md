@@ -367,9 +367,25 @@ editor ──ACP──▶ the agent (Julia) ──stream-json──▶ claude -p
   registry `main` holds "New package: ClaudeCodeACP v0.1.0" (`4e0c116`), with
   the tree `33eb42c5`. On a fresh depot, `pkg> app add ClaudeCodeACP` installs
   the program, which answered a prompt with the real `claude`.
-- [ ] **B.11 ProjecturEd uses it**: the default agent command, or the agent
+- [x] **B.11 ProjecturEd uses it**: the default agent command, or the agent
   in the process of the editor, and a live check with the real `claude`.
-
+  Done on the branch `claude-code-acp` (`8763a1322` to `60d9096eb`):
+  `ProjecturedACP` depends on `ClaudeCodeACP`; an empty agent command starts
+  `ClaudeCodeACP.serve_agent` on two streams in the editor's process; the
+  default agent command is empty (the owner, 2026-10-08), and a command still
+  starts that program. The CI and the release workflow get `ClaudeCodeACP.jl`
+  as they get `AgentClientProtocol.jl`. Tests: `test_acp()` 108 of 108, the
+  turn of an external agent 115, the application 357 and 2 broken as before,
+  the builder 508 (507 before, one new assertion), the guards as on `main`.
+  The live check through the editor passed with the default model: the edit
+  through MCP, 8 permission cards, and undo. It showed no thinking text; see
+  the open question below.
+- [ ] **B.12 The thinking text of Opus 5.5** (open, needs the owner). In print
+  mode, `showThinkingSummaries` gives the text for `haiku` but not for Opus 5.5:
+  each `thinking_delta` comes empty. The flag `--thinking-display summarized`
+  gives it (probe of 2026-10-08), and the Agent SDK passes that flag, but the
+  help of `claude` and its documentation do not name it. A use of the flag
+  is a change of `ClaudeCodeACP`, so a version 0.1.1 and a new registry entry.
 ## Decisions made in the implementation of B
 
 - **The permission server is a small MCP server on HTTP.jl**, not
