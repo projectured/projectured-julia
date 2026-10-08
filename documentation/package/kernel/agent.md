@@ -521,7 +521,7 @@ with `:error`, and its tool calls do not run. A tool that throws gives an
 A caller names a connection by a symbol and never names its type, as it does for a server and for a backend:
 
 ```julia
-connection = make_agent_connection(:acp; command = ["claude-agent-acp"])
+connection = make_agent_connection(:acp)   # the built-in agent; `command` names another
 start_agent_connection!(connection)
 session_id = open_agent_session!(connection; directory = pwd(), mcp_servers = [access], on_event)
 set_agent_option!(connection, session_id, "effort", "max"; on_event)

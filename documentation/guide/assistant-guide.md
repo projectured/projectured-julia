@@ -55,19 +55,20 @@ bin/projectured --assistant=anthropic notes.md
 
 An agent of the Agent Client Protocol runs its own loop, its own model and its own tools, in a process of its own. The assistant sends it what you write and draws what it reports: its text, a summary of its reasoning, each tool call, and its plan. The agent reaches the open documents through the tools of this editor, so its edits are operations of the editor.
 
-The first agent is Claude, through the adapter `claude-agent-acp`. It needs Node.js 22 or newer:
+The built-in agent is Claude Code. It runs in the process of the editor and starts the `claude` program that you installed, so it needs no Node.js and no other program. Install Claude Code and sign in once, and then start:
 
 ```sh
-npm install -g @agentclientprotocol/claude-agent-acp
+claude auth login
 bin/projectured --assistant=acp notes.md
 ```
 
-The agent signs in with its own sign-in. When it has none, the conversation says how: for `claude-agent-acp`, run `claude /login` in a terminal.
+When Claude Code is not signed in, the conversation says how to sign in. The built-in agent is the package [ClaudeCodeACP.jl](https://github.com/projectured/ClaudeCodeACP.jl), which another editor can start as the program `claude-code-acp`.
 
-`--agent-command=COMMAND` names another agent, or the same one at another place, as one argument:
+`--agent-command=COMMAND` names another agent of the Agent Client Protocol, as one argument, which then runs in a process of its own and signs in with its own sign-in. For example, the adapter `claude-agent-acp`, which needs Node.js 22 or newer:
 
 ```sh
-bin/projectured --assistant=acp --agent-command="node $HOME/opt/claude-agent-acp/dist/index.js"
+npm install -g @agentclientprotocol/claude-agent-acp
+bin/projectured --assistant=acp --agent-command=claude-agent-acp
 ```
 
 The settings tab keeps the command for the next start. A session in Julia loads the client by name: `using ProjecturedACP`.

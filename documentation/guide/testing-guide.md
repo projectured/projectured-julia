@@ -49,8 +49,8 @@ tests:    ProjecturedKernelTest ← ProjecturedPlatformTest ← the 18 domain te
   a native library.
   [package/acp/test](../../package/ProjecturedACPTest) (`test_acp()` — the
   translation of the updates of an agent, the connection against a fake agent
-  in the test process, and the transport with a small child agent) needs no
-  network, no Node.js and no sign-in.
+  in the test process, the transport with a small child agent, and the start of
+  the built-in agent) needs no network, no Node.js, no `claude` and no sign-in.
 - [package/projectured/test](../../package/ProjecturedTest/src/ProjecturedTest.jl) — the umbrella:
   the genuinely **cross-package** suites. Two kinds live here: the sweeps over
   the interleaved `examples` / `catalog` aggregate (`ExampleSweeps`,

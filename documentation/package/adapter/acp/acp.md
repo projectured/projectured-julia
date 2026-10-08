@@ -2,7 +2,7 @@
 
 > **Kind:** design · **Status:** current · **Stands on:** [agent.md](../../kernel/agent.md), [assistant.md](../../platform/assistant/assistant.md), [mcp.md](../mcp/mcp.md)
 
-`ProjecturedACP` connects the assistant to an external agent that speaks the Agent Client Protocol (ACP), version 1. An example is Claude through the adapter `claude-agent-acp`. The agent runs in a child process and owns its model, its tools and its history. It is an opt-in package that implements the external direction of the `agent` layer of the kernel. This document says how the package starts the agent, how it translates the messages of the agent into the events of the kernel, how a permission request reaches a person, and why the package is built so.
+`ProjecturedACP` connects the assistant to an external agent that speaks the Agent Client Protocol (ACP), version 1. Its built-in agent runs Claude Code: the package [ClaudeCodeACP.jl](https://github.com/projectured/ClaudeCodeACP.jl) runs in the process of the editor and starts the `claude` program that the person installed. Another agent, such as the adapter `claude-agent-acp`, runs in a child process. The agent owns its model, its tools and its history. It is an opt-in package that implements the external direction of the `agent` layer of the kernel. This document says how the package starts the agent, how it translates the messages of the agent into the events of the kernel, how a permission request reaches a person, and why the package is built so.
 
 ## How it works
 
@@ -21,7 +21,7 @@ The kernel declares seven generics for a connection in `source/kernel/agent/Agen
 | `close_agent_session!` | sends `session/close`, when the agent lists that capability |
 | `stop_agent_connection!` | ends the agent and its process group |
 
-`command` is the program of the agent and its arguments, such as `["claude-agent-acp"]`. `environment` adds variables to the environment of the agent. `session_meta` is the `_meta` object that `session/new` sends, for an agent that reads options there: a dictionary, or its JSON text. `streams` is a pair of `IO` objects that replaces the process; a test uses it for an agent in the same process.
+`command` is the program of the agent and its arguments, such as `["claude-agent-acp"]`. An empty `command` starts the built-in agent: `ClaudeCodeACP.serve_agent` on a task of this process, on two `Base.BufferStream`s, so the connection talks to it as to any other agent. The close of the connection ends the input of the built-in agent, which then ends each of its sessions and their `claude`. `environment` adds variables to the environment of the agent. `session_meta` is the `_meta` object that `session/new` sends, for an agent that reads options there: a dictionary, or its JSON text. `streams` is a pair of `IO` objects that replaces the process; a test uses it for an agent in the same process.
 
 The capabilities of `initialize` give the agent no file access and no terminal: `fs.readTextFile`, `fs.writeTextFile` and `terminal` are `false`. A request for one of them gets the error "method not found". The client names itself `projectured` and sends its package version. When the agent answers with another protocol version, `start_agent_connection!` stops the agent and throws an error.
 
@@ -93,14 +93,14 @@ The test double `ScriptedAgentConnection` is in `ProjecturedKernelExample`, and 
 ```julia
 using ProjecturedACP
 get_agent_connection_names()                    # [:acp]
-assistant = Assistant(; backend = :acp)         # runs "claude-agent-acp"
+assistant = Assistant(; backend = :acp)         # the built-in agent: Claude Code
 assistant = Assistant(; backend = :acp, agent_command = "my-agent --acp")
 run_application(; assistant = :acp)
 ```
 
 From the shell, `bin/projectured --assistant=acp` and a built `projectured` do the same: the program carries `ProjecturedACP`, and `--agent-command=COMMAND` names the command of the agent for one run.
 
-The default `agent_command` is `"claude-agent-acp"`. The command must be installed, and the adapter `@agentclientprotocol/claude-agent-acp` needs Node.js 22 or newer. The person signs in with the flow of the agent. For Claude, that is `claude /login` in a terminal, or an existing sign-in of the machine. The tab of the assistant shows an error turn that says how to sign in when the agent needs it.
+The default `agent_command` is empty, which starts the built-in agent. It needs Claude Code installed and signed in: `claude auth login` in a terminal, or an existing sign-in of the machine. Another command must be installed; the adapter `@agentclientprotocol/claude-agent-acp`, for example, needs Node.js 22 or newer. The tab of the assistant shows an error turn that says how to sign in when the agent needs it.
 
 ## Design decisions
 
@@ -119,15 +119,16 @@ The default `agent_command` is `"claude-agent-acp"`. The command must be install
 The design follows six rules. They are facts of the code, and they are not legal advice.
 
 - **R1.** The package reads, stores, logs and forwards no Claude credential, no session token and no account data. It shows no sign-in form.
-- **R2.** The package does not bundle the adapter or Claude Code. The person installs the agent, and the package starts the command that the person configured, unmodified.
+- **R2.** The package bundles no Claude Code. The built-in agent starts the `claude` program that the person installed, unmodified, through its documented headless mode; another agent is the command that the person configured.
 - **R3.** The sign-in completes in the flow of the agent: an existing sign-in, or the terminal command that the agent names.
-- **R4.** The label of the agent is its own `agentInfo.title`, which is "Claude Agent" for the adapter. The product is never called "Claude Code".
+- **R4.** The label of the agent is its own `agentInfo.title`: "Claude Code" for the built-in agent, whose name says what it runs, and "Claude Agent" for the adapter. The README of the built-in agent says first that Anthropic did not make it.
 - **R5.** The integration is generic ACP. Any agent that speaks ACP version 1 can run in place of Claude.
 - **R6.** How the use of a plan counts is decided by Anthropic, and it can change. Read the current terms of Anthropic before you rely on a plan.
 
 ## Tests
 
-- `test_acp()` runs the layering guard, `test_acp_update()`, `test_acp_connection()` and `test_acp_transport()`. It needs no network, no Node.js and no sign-in.
+- `test_acp()` runs the layering guard, `test_acp_update()`, `test_acp_connection()` and `test_acp_transport()`. It needs no network, no Node.js, no `claude` and no sign-in. The transport test also starts the built-in agent and checks that it answers `initialize`, which starts no `claude`.
+- `ClaudeCodeACP` has its own tests: a fake `claude` that plays recorded turns, driven through ACP.
 - `test/adapter/acp/FakeAcpAgent.jl` is a fake agent that runs in the test process, on two `Base.BufferStream`s. Each test gives it the handlers of its methods, so it can also ask the client a question.
 - `AgentClientProtocol` has its own tests: the types, a client against an agent in one process, a process, and the recorded messages of `claude-agent-acp`.
 - The transport test starts a small child agent written in Julia. It checks that a grandchild of the agent ends when the connection stops, also when the agent ends first, and that a start after the end of an agent starts a new one.
@@ -136,7 +137,7 @@ The design follows six rules. They are facts of the code, and they are not legal
 ## Limits
 
 - The package covers a turn and the state of a session: text, thinking, tool calls, the plan, permission requests, cancel, close, the config options (model, effort, mode), the slash commands, the usage meter and the session title. Saved sessions, the sign-in in a terminal, forms and an image in a prompt are not implemented.
-- The thinking of Claude arrives only as a summary, and only because the `_meta` of the session names it. `claude-agent-acp` spreads `_meta.claudeCode.options` of `session/new` over its own SDK options, and a recent model streams no text of its reasoning unless `thinking.display` is `"summarized"`. The assistant sends `{"claudeCode": {"options": {"thinking": {"type": "adaptive", "display": "summarized"}}}}` by default (`agent_session_meta`). Another agent ignores this `_meta`.
+- The thinking of Claude arrives only as a summary. The setting `showThinkingSummaries` of the built-in agent turns it on. For the adapter, the `_meta` of the session names it: `claude-agent-acp` spreads `_meta.claudeCode.options` of `session/new` over its own SDK options, and a recent model streams no text of its reasoning unless `thinking.display` is `"summarized"`. The assistant sends `{"claudeCode": {"options": {"thinking": {"type": "adaptive", "display": "summarized"}}}}` by default (`agent_session_meta`). Another agent ignores this `_meta`.
 - The prompt carries text only. `send_agent_prompt!` throws an `ArgumentError` for another kind of content.
-- No test runs the real adapter. A change that only the real agent would catch needs a live check with Node.js and a signed-in agent.
+- No test runs the real `claude` or the adapter. A change that only the real agent would catch needs a live check with a signed-in Claude Code.
 - The agent edits files with its own tools, outside the operations of the editor.

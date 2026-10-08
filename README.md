@@ -83,7 +83,7 @@ bin/projectured --mcp a.json                 # with an MCP server for an externa
 
 The menu bar has **Open** and **Save As** for a file outside the directory the Files pane lists. `save_user_interface(path)` writes the whole window — its panes, its tabs and what each one holds — to one file, and `load_user_interface(path)` brings it back; an open file tab is saved as a reference to its file, not as a copy.
 
-**The assistant.** By default it asks a local model through [Ollama](https://ollama.com): the Ollama server must run on your machine, and the model must be pulled. For Claude, set `ANTHROPIC_API_KEY` in your environment and start with `--assistant=anthropic`. For an agent that runs its own loop, such as Claude through `claude-agent-acp`, start with `--assistant=acp`; [assistant-guide.md](documentation/guide/assistant-guide.md) says how. Without a server and without a key, the assistant pane opens and says what it needs.
+**The assistant.** By default it asks a local model through [Ollama](https://ollama.com): the Ollama server must run on your machine, and the model must be pulled. For Claude, set `ANTHROPIC_API_KEY` in your environment and start with `--assistant=anthropic`. For an agent that runs its own loop, start with `--assistant=acp`: the built-in agent runs Claude Code, which must be installed and signed in; [assistant-guide.md](documentation/guide/assistant-guide.md) says how. Without a server and without a key, the assistant pane opens and says what it needs.
 
 **A binary.** `bin/build_projectured` compiles the application into `build/projectured/`, which runs without Julia and without this checkout. [build-guide.md](documentation/guide/build-guide.md) says what the build does and what it costs.
 

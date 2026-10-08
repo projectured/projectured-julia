@@ -51,7 +51,7 @@ Each vocabulary is declared where its verbs are, so a second host that offers th
 | `--mcp=[HOST:]PORT` | start an MCP server there instead |
 | `--context=TOKENS` | how many tokens of the conversation the model may see (default: the start settings, else the backend's own default) |
 | `--strict-fault-policy` | stop at the first fault and print its stack, instead of surviving it |
-| `--agent-command=COMMAND` | the command line of the external agent of `--assistant=acp`, one argument that the shell quotes (default: the start settings, `claude-agent-acp` at first) |
+| `--agent-command=COMMAND` | the command line of the external agent of `--assistant=acp`, one argument that the shell quotes (default: the start settings, at first none, which starts the built-in Claude Code agent) |
 
 A path with no leading `-` is a file; an unknown option, or a value a keyword refuses, raises an error that `run_application_command` prints to `stderr` and turns into exit code 1.
 
