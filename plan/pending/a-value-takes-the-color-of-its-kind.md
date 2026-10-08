@@ -2,8 +2,8 @@
 
 > **Status:** in progress on the branch `value-colors`, in the worktree
 > `projectured-julia-value-colors`. Part A, the values (sections 4 to 8), is
-> done on the branch and is not on `main`. Part B, the names (section 10),
-> waits for the answers of section 10.5. The owner answered the questions of
+> done on the branch and is not on `main`. Part B, the names (section 10), is
+> split: B1 is in progress, and B2 is deferred (section 10.6). The owner answered the questions of
 > Part A on 2026-10-08 (section 9).
 
 ## 1. The request
@@ -435,3 +435,82 @@ With these defaults, these names change their color on the screen:
   the names that the place gives (my recommendation)? Or in this plan?
 - **QB3. The vocabulary** of section 10.4, with the role `definition` removed
   and `reference` named `variable`?
+
+### 10.6 Decision: B1 now, B2 later
+
+The owner asked on 2026-10-08 whether the conflict was only a Julia one. It is,
+in practice: only Julia shows more kinds of name side by side than the hues
+that are free, and only Julia needs a scope analysis. FSM guards and actions,
+process steps and fields of code hold Julia code too. The owner answered "yes,
+sounds good" to this split, and "for the Julia analysis I would defer that for
+now":
+
+- **B1, now.** The kinds of name that a printer knows from their place, in
+  every view, with the hues that exist (option (c) of section 10.3). It
+  includes the Julia names in a known slot.
+- **B2, deferred.** The scope analysis of Julia, and more hues for the kinds of
+  Julia that share a color.
+
+### 10.7 The roles of B1
+
+The vocabulary of section 10.4, with one change: a state of an FSM takes a new
+role `enum_member`, not `constant`, because a guard holds Julia numbers in
+orange beside the states.
+
+| Role | Default |
+| --- | --- |
+| `module_name` | falls back to `type_name` |
+| `type_name` | amber 11 (as now) |
+| `type_parameter` | falls back to `type_name` |
+| `function_name` | blue 11 (as now) |
+| `macro_name` | falls back to `function_name` |
+| `event` | falls back to `function_name` |
+| `parameter` | falls back to `variable` |
+| `variable` | neutral 12, the role `reference` with a new name |
+| `field` | blue 11 (as now) |
+| `tag` | falls back to `keyword` |
+| `enum_member` | falls back to `symbol_literal` |
+| `constant` | orange 11 (as now) |
+
+The role `definition` goes away. A name at its definition takes the role of
+its kind with `weight = 700`, and a parameter has `italic = true`.
+
+### 10.8 The fields of B1
+
+| Theme | Field now | After |
+| --- | --- | --- |
+| `JuliaTheme` | `identifier_text` (`reference`) | `variable` |
+| `JuliaTheme` | `name_text` (`definition`, bold), a module | renamed `module_text`: `module_name`, bold |
+| `JuliaTheme` | `callee_text` (`function_name`), also a macro | a call only; a new `macro_text`: `macro_name` |
+| `JuliaTheme` | new | `function_definition_text` (`function_name`, bold), `type_text` (`type_name`), `type_definition_text` (`type_name`, bold), `type_parameter_text`, `parameter_text` (italic), `field_text` |
+| `SqlTheme` | `name_text` (`definition`), a table and a schema | a table: `type_name`; a new `schema_text`: `module_name` |
+| `SqlTheme` | `plain_text`, also a column, an alias and a data type | new `column_text` (`field`), `alias_text` (`variable`), `type_text` (`type_name`) |
+| `DbCatalogTheme` | `table_text`, `schema_text`, `database_text` (`definition`, bold) | `type_name`, `module_name`, `module_name`, bold |
+| `FsmTheme` | `name_text` (`definition`) | `variable_name_text` (`variable`), `event_name_text` (`event`, an event and a timer), `state_name_text` (`enum_member`), `machine_name_text` (`type_name`, a machine and a component), all bold |
+| `FsmTheme` | `reference_text` (`reference`) | `event_reference_text` (`event`, a trigger, also in a diagram) and `state_reference_text` (`enum_member`, a target and `initial`) |
+| `FsmTheme` | `state_label_text` (`definition`, bold) | `enum_member`, bold |
+| `ProcessTheme` | `name_text` (`definition`) | `function_name`, bold |
+| `ProcessTheme` | `terminal_text` (`definition`, bold), the word `start` or `stop` | `keyword`, bold |
+| `FormulaTheme` | `name_text` (`definition`, bold) | `variable`, bold |
+| `FileSystemTheme` | `directory_text` (`definition`, bold) | `module_name`, bold |
+| `ReferenceTheme` | `projection_color` (`definition`) | `type_name` |
+| `XmlTheme` | `tag_text` (`keyword`, bold) | `tag`, bold |
+| `MathTheme` | `variable_text` (`reference`) | `variable` |
+| `RstTheme` | `reference_text` (`link`), also a field name and an option name | new `field_text` (`field`) and `option_text` (`parameter`) |
+
+The FSM transition prints `on EVENT` and `-> STATE` as one leaf each. Each
+leaf takes the style of what it names, so the leaves and the places of the
+caret stay as they are.
+
+### 10.9 The steps of B1
+
+1. ⬜ `ColorTheme`: the roles of section 10.7, without `definition`, with
+   `variable` in place of `reference`; the themes that change only a role
+   (`DbCatalogTheme`, `ProcessTheme`, `FormulaTheme`, `FileSystemTheme`,
+   `ReferenceTheme`, `XmlTheme`, `MathTheme`); the style guide.
+2. ⬜ SQL: the names of section 10.8 and their printers.
+3. ⬜ FSM: the split names and references.
+4. ⬜ RST: the field name and the option name.
+5. ⬜ Julia: the names in a known slot.
+6. ⬜ Tests of each step, and screenshots.
+
