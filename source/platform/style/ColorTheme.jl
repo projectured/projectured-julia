@@ -20,6 +20,11 @@ The roles are in groups: the surfaces, the texts, the lines, the accent, the
 layers of a state, the status, the tokens of a language, the series of a chart
 and the overlays. A text role of a token reaches a contrast of 4.5 against the
 backgrounds, and 7 in a high contrast theme.
+
+Each kind of value has a role of its own, the same in every view: a string, a
+character, a number, a boolean, a null and a symbol. A role can name another
+role: a character takes the colour of a string, and a null the colour of a
+boolean, until a person gives it a step of its own.
 """
 @theme struct ColorTheme
     # ── Surfaces ──
@@ -113,9 +118,19 @@ backgrounds, and 7 in a high contrast theme.
     function_name::StyleColor = PaletteColor(:blue, 11; minimum_contrast = 4.5)
     "A key, a field name, the name of an attribute."
     field::StyleColor = PaletteColor(:blue, 11; minimum_contrast = 4.5)
-    "A string, a character, a code span, a literal block."
+    "A string, a code span, a literal block."
     string_literal::StyleColor = PaletteColor(:green, 11; minimum_contrast = 4.5)
-    "A number, a boolean, a null, a symbol, an index."
+    "A character. It takes the colour of a string."
+    character_literal::StyleColor = ColorRole(:string_literal)
+    "A number: an integer, a float, an index."
+    number_literal::StyleColor = PaletteColor(:orange, 11; minimum_contrast = 4.5)
+    "A boolean: `true` and `false`."
+    boolean_literal::StyleColor = PaletteColor(:pink, 11; minimum_contrast = 4.5)
+    "A null: `null`, `nothing`, `missing`. It takes the colour of a boolean."
+    null_literal::StyleColor = ColorRole(:boolean_literal)
+    "A symbol, such as `:name`."
+    symbol_literal::StyleColor = PaletteColor(:teal, 11; minimum_contrast = 4.5)
+    "A named constant that is no literal: a constant of mathematics, a substitution, the value of a field of a packet."
     constant::StyleColor = PaletteColor(:orange, 11; minimum_contrast = 4.5)
     "The name of a type."
     type_name::StyleColor = PaletteColor(:amber, 11; minimum_contrast = 4.5)
@@ -229,6 +244,9 @@ function make_color_theme(variant::Symbol)
         function_name = PaletteColor(:blue, 11; minimum_contrast = 7.0),
         field = PaletteColor(:blue, 11; minimum_contrast = 7.0),
         string_literal = PaletteColor(:green, 11; minimum_contrast = 7.0),
+        number_literal = PaletteColor(:orange, 11; minimum_contrast = 7.0),
+        boolean_literal = PaletteColor(:pink, 11; minimum_contrast = 7.0),
+        symbol_literal = PaletteColor(:teal, 11; minimum_contrast = 7.0),
         constant = PaletteColor(:orange, 11; minimum_contrast = 7.0),
         type_name = PaletteColor(:amber, 11; minimum_contrast = 7.0),
         link = PaletteColor(:accent, 11; minimum_contrast = 7.0),

@@ -22,6 +22,7 @@ end
 # contrast that it needs in a normal and in a high contrast theme.
 const _CONTRAST_RULES = [
     ((:text, :text_muted, :keyword, :definition, :function_name, :field, :string_literal,
+      :character_literal, :number_literal, :boolean_literal, :null_literal, :symbol_literal,
       :constant, :type_name, :reference, :link, :operator, :punctuation, :punctuation_lit,
       :comment, :markup, :heading, :accent_text, :error_text, :warning_text, :success_text,
       :info_text), (:background, :surface), 4.5, 7.0),
@@ -100,6 +101,31 @@ end
         @test resolve_theme_color(ColorRole(:selection_ring), appearance) !=
               resolve_theme_color(ColorRole(:focus_ring), appearance)
     end
+end
+
+@testset "the kinds of a value differ in each palette and each variant" begin
+    # The least OKLab distance between two kinds. A string and a symbol are the
+    # nearest pair: 0.037 in the light Radix palette, and 0.028 in its high
+    # contrast variant, where a contrast of 7 takes green and teal to dark steps.
+    least = 0.025
+    kinds = (:string_literal, :number_literal, :boolean_literal, :symbol_literal)
+    for name in get_palette_names(), mode in (:light, :dark), contrast in (:normal, :high)
+        appearance = Appearance(color_palette = name, color_mode = mode, color_contrast = contrast)
+        function oklab(role)
+            lightness, chroma, hue = convert_color_to_oklch(resolve_theme_color(ColorRole(role), appearance))
+            (lightness, chroma * cosd(hue), chroma * sind(hue))
+        end
+        for (i, a) in enumerate(kinds), b in kinds[i+1:end]
+            distance = sqrt(sum(abs2, oklab(a) .- oklab(b)))
+            distance >= least || @info "kinds" name mode contrast a b distance
+            @test distance >= least
+        end
+    end
+    appearance = Appearance()
+    @test resolve_theme_color(ColorRole(:character_literal), appearance) ==
+          resolve_theme_color(ColorRole(:string_literal), appearance)
+    @test resolve_theme_color(ColorRole(:null_literal), appearance) ==
+          resolve_theme_color(ColorRole(:boolean_literal), appearance)
 end
 
 @testset "a role and a step resolve in the colour settings of the appearance" begin
