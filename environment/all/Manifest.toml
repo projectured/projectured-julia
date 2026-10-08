@@ -83,7 +83,7 @@ version = "1.18.7+0"
 deps = ["AgentClientProtocol", "HTTP", "JSON", "Random", "Sockets", "UUIDs"]
 path = "../../../claude-code-acp"
 uuid = "397ce549-bc36-418a-97e7-6295a63dbdc4"
-version = "0.1.0"
+version = "0.1.1"
 
 [[deps.CodeTracking]]
 deps = ["InteractiveUtils", "REPL", "UUIDs"]

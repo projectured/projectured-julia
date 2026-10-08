@@ -380,12 +380,19 @@ editor ──ACP──▶ the agent (Julia) ──stream-json──▶ claude -p
   The live check through the editor passed with the default model: the edit
   through MCP, 8 permission cards, and undo. It showed no thinking text; see
   the open question below.
-- [ ] **B.12 The thinking text of Opus 5.5** (open, needs the owner). In print
-  mode, `showThinkingSummaries` gives the text for `haiku` but not for Opus 5.5:
-  each `thinking_delta` comes empty. The flag `--thinking-display summarized`
-  gives it (probe of 2026-10-08), and the Agent SDK passes that flag, but the
-  help of `claude` and its documentation do not name it. A use of the flag
-  is a change of `ClaudeCodeACP`, so a version 0.1.1 and a new registry entry.
+- [x] **B.12 The thinking text of Opus 5.5.** In print mode,
+  `showThinkingSummaries` gives the text for `haiku` but not for Opus 5.5: each
+  `thinking_delta` comes empty. The flag `--thinking-display summarized` gives
+  it; the Agent SDK passes that flag, but the help of `claude` and its
+  documentation do not name it. The owner chose on 2026-10-08 to use it. The
+  agent checks once whether its `claude` takes the flag: a `claude` that knows
+  the flag refuses the wrong value in `claude --thinking-display no-such-display
+  --version` and names the flag (its values are `summarized`, `omitted` and
+  `highlights`), and one that does not know it prints its version. Done in
+  `ClaudeCodeACP` 0.1.1, commit `452c387` on its branch `thinking-display`; 121
+  tests. Live: a prompt to Opus 5.5 streamed 9 chunks of thinking, and the
+  live check through the editor showed 8 thinking parts beside the edit, the 8
+  permission cards and undo.
 ## Decisions made in the implementation of B
 
 - **The permission server is a small MCP server on HTTP.jl**, not
