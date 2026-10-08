@@ -2,7 +2,7 @@
 
 > **Status (2026-10-08): IN PROGRESS** on the branch `text-config-in-documents`,
 > on top of `plain-value-form`, in the worktree `projectured-julia-plain-value-form`.
-> Steps 1 to 4 are done.
+> Steps 1 to 5 are done. Question Q4 is open.
 > **Refreshed 2026-10-08.** The plan was written on
 > 2026-08-12 and refreshed on 2026-10-08 against the code of the branch
 > `plain-value-form`. It builds on part C of
@@ -384,7 +384,7 @@ of the step, not `test_all()`.
      box, and part C of the form plan has no section yet; the caret of a field
      goes into the documents with step 9 of
      [a-form-edits-a-plain-value.md](a-form-edits-a-plain-value.md).
-5. ⬜ **The tests of the view.** `ProjectionConfiguringTest.jl` becomes a test of
+5. ✅ **The tests of the view.** `ProjectionConfiguringTest.jl` becomes a test of
    the view, through an editor: typing in the pattern highlights again as a
    person types, the caret stays in the field, undo takes a key back, a press on
    a checkbox changes the matches, a press in the text puts a caret in the text.
@@ -393,6 +393,24 @@ of the step, not `test_all()`.
    puts the caret back in the text, a hide keeps the collapse and the placement,
    the button switches the placement, and the text keeps its place under an
    overlay bar.
+
+   **Done 2026-10-08.** `ProjectionConfiguringTest.jl` moved to
+   `FindBarViewToWidgetTest.jl` with `git mv`, and `test_projection_configuring`
+   became `test_find_bar_view_to_widget`, also in the umbrella suite. The test
+   drives a view through `build_editor` and a `HeadlessBackend`, with the rows
+   of the gallery, and 48 assertions pass in seven groups: the bar above and
+   over the text (the text keeps its place under the overlay bar); a press in
+   the text; Ctrl+F and Escape; typing and Backspace in the pattern; a press on
+   the checkbox of the case; a hide that keeps the collapse and the placement;
+   and Ctrl+Z, which takes back a key in the pattern and keeps no step for
+   `visible`, `overlaid` and `collapsed`. The `@test_broken` of typing is gone,
+   so the platform suite counts one broken test less.
+   - Found: a glyph is drawn from its origin, and the box of the chevron starts
+     a few pixels inside it, so the test presses 4 pixels inside the glyph.
+   - Found: a press on the overlay bar where no control answers, such as its
+     padding, goes on to the text under it, because a `StackLayout` gives a
+     press to the next child when the top one declines. Open question Q4.
+
 6. ⬜ **Retire `ProjectionConfiguringProjection`.** Delete
    `ProjectionConfiguring.jl`, its include, its export, and its mentions in the
    six documents and in the header of `ObjectToWidget.jl`. `ObjectToWidgetTest.jl`
@@ -470,4 +488,10 @@ The owner decided these on 2026-10-08:
 
 ## Open questions
 
-None on 2026-10-08. A step that meets a new question records it here.
+**Q4 (step 5): does the overlay bar catch the presses on its own area?** A press
+on the bar where no control answers, such as its padding or a label, goes on to
+the text under it and moves the caret there, because a `StackLayout` gives a
+press to the next child when the top one declines. No widget or layout of the
+platform catches the presses on its area now, so a fix is a new mechanism, for
+example a stack whose top child takes every press inside its box. The bar above
+the text has no such problem.

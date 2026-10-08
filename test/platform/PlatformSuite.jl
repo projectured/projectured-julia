@@ -212,7 +212,7 @@ function test_platform()
         test_widget_value_slot()
         test_object_field_to_syntax()
         test_reflection_to_widget()
-        test_projection_configuring()
+        test_find_bar_view_to_widget()
         test_cell_table_to_widget_table()
         test_widget_text_editing()
         test_widget_button_behavior()
@@ -379,7 +379,7 @@ export test_plot_geometry,
        test_highlighted_text_to_text, test_selection_inverting
 export test_reflection_to_widget
 export test_object_field_to_widget, test_object_field_to_syntax, test_object_conversion, test_widget_value_slot, test_text_pattern
-export test_object_to_widget, test_projection_configuring,
+export test_object_to_widget, test_find_bar_view_to_widget,
        test_widget_text_editing, test_widget_button_behavior, test_widget_button_labels, test_widget_slider_drag, test_widget_scroll_bar, test_widget_live_values, test_widget_progress, test_size_range_child_rule, test_size_range_cross_axis, test_size_range_composite, test_size_range_one_child, test_size_range_main_axis, test_widget_card_fold, test_widget_selection, test_selection_walking, test_gesture_tracking, test_mouse_target_move, test_widget_gestures,
        test_widget_select_dropdown, test_widget_menu, test_widget_context_menu,
        test_widget_dialog, test_widget_action, test_widget_icon, test_widget_colors, test_widget_scales, test_builder_appearance, test_text_and_syntax_themes, test_tool_themes, test_help_themes, collect_font_sizes, draw_font_sizes, draw_texts, test_appearance_wrapper, test_appearance_tab, test_appearance_file, test_settings, test_settings_wrapper, test_settings_tab, test_navigator_document, test_navigator_gestures, test_open_page_operation, test_navigator, test_navigator_visits, test_navigator_choices, test_navigator_address, test_navigator_to_widget, test_widget_tree,
