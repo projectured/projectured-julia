@@ -1,7 +1,7 @@
 # A form edits a plain value
 
 > **Status (2026-10-08): IN PROGRESS** on the branch `plain-value-form`, in the
-> worktree `projectured-julia-plain-value-form`. Steps 1 and 2 are done. The owner
+> worktree `projectured-julia-plain-value-form`. Steps 1 to 3 are done. The owner
 > answered the first six questions on 2026-10-06, chose the design of parts C and
 > D on 2026-10-08 (see "Decisions"), and asked for the implementation on
 > 2026-10-08.
@@ -638,11 +638,26 @@ form of part C and not readers that part C removes.
      a `Vector` field in the platform, becomes a vector on the way back.
    - `test_object_conversion()` 24 pass. The naming guard and
      `test_platform_layering()` pass.
-3. ⬜ **C: a test of the hand-laid form of today, before any change of C.** Send a
+3. ✅ **C: a test of the hand-laid form of today, before any change of C.** Send a
    click on the checkbox and a key in a text field through the whole chain of
    `make_object_field_form_projection_example`, in an editor, not to the reader
    of one field. Record in this plan whether the form of today writes the field.
    The result is the baseline for step 4.
+
+   **Done 2026-10-08.** The testset "a press and a key through the whole
+   hand-laid form write the fields" of `ObjectFieldToWidgetTest.jl` runs an
+   editor on a `HeadlessBackend`, finds each control by the text that the frame
+   draws, and presses it. The baseline:
+   - **A press on the text and a key write the field.** The press puts the caret
+     into the control through the path that `ObjectFieldToWidget` introduces,
+     and the key `X` writes `name = "Xgateway"`.
+   - **A press on the checkbox does not write the field.** The operation is
+     `set .content = false` on the control itself: it names the control, so
+     `CopyingProjection` routes it by the selection only, and it reaches the
+     reader of no `ObjectField`. It writes the `content` cell of the control,
+     which also ends the computation that binds the control to the field. The
+     assertion is `@test_broken` with a `# @broken:` comment, and part C must
+     promote it.
 4. ⬜ **C: the widgets ask their value child.** `ObjectFieldToValue`, the helper
    that asks a child for the operation that stores a value, the factory that
    puts each value widget into a `NestingProjection`, the change at each edit

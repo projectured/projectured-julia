@@ -176,4 +176,61 @@ end # @testset
 
 end # @testset
 
+# The texts that a frame draws, each with the point where it is drawn.
+function _of_drawn(canvas, ox = 0, oy = 0, found = Tuple{String,Int,Int}[])
+    x = ox + Int(canvas.x)
+    y = oy + Int(canvas.y)
+    for element in canvas.elements
+        element = element isa Cell ? element[] : element
+        if element isa GraphicsText
+            push!(found, (String(element.text), x + Int(element.x), y + Int(element.y)))
+        elseif element isa GraphicsCanvas
+            _of_drawn(element, x, y, found)
+        elseif element isa GraphicsViewport
+            _of_drawn(element.content, x + Int(element.x) + round(Int, element.transform.e),
+                      y + Int(element.y) + round(Int, element.transform.f), found)
+        end
+    end
+    found
+end
+
+# A press at the first text `text` of the last frame, and the frame after it.
+function _of_click!(editor, backend, text)
+    (_, x, y) = only(entry for entry in _of_drawn(last(rendered_output(backend)))
+                     if entry[1] == text)
+    push_event!(backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 0.0))
+    run_frame!(editor)
+end
+
+# The hand-laid form of the examples in an editor, through the whole chain, after
+# its first frame.
+function _of_form_editor()
+    form = make_object_field_form_document_example()
+    backend = HeadlessBackend()
+    editor = build_editor(form, make_object_field_form_projection_example();
+        backend, devices = ProjecturedKernel.DeviceModule.Device[Keyboard(), Mouse(), Display()],
+        window = false, appearance = false, settings = false, tabs = false,
+        focus_cycling = false)
+    run_frame!(editor)
+    server = first(c for c in form.children if c isa ObjectField).object
+    (editor, backend, server)
+end
+
+@testset "a press and a key through the whole hand-laid form write the fields" begin
+
+    editor, backend, server = _of_form_editor()
+
+    # A press on the text and a key write the name of the server.
+    _of_click!(editor, backend, "gateway")
+    push_event!(backend, KeyPress('X', "X", ModifierKeys(); time = 0.0))
+    run_frame!(editor)
+    @test server.name == "Xgateway"
+
+    # A press on the tick of the checkbox.
+    _of_click!(editor, backend, string(Char(0xe06c)))
+    # @broken: the press of the checkbox writes the `content` cell of the control and not the field, because its edit names the control and reaches the reader of no `ObjectField`; plan/pending/a-form-edits-a-plain-value.md, part C
+    @test_broken server.enabled == false
+
+end # @testset
+
 end # test_object_field_to_widget
