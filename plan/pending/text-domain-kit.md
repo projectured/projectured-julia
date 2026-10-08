@@ -544,7 +544,8 @@ that starts in the middle of a line, such as the breakpoint of the second
 statement of `x = 1; y = 2`, and (a) would drop it when the line has a gutter of
 its own.
 
-**Q3 The lazy list path.** `SyntaxListToText` prints a lazy list of syntax (a
+**Q3 The lazy list path. Decided (a), the owner, 2026-10-08:** a lazy list of
+lines. `SyntaxListToText` prints a lazy list of syntax (a
 `ListNode`) as a `TextBlock` whose elements are a lazy list of spans, with a
 `TextNewline` between the spans of two elements. `TextToGraphics` draws such a
 text as one canvas for each paragraph between two `TextNewline`s, and counts the
@@ -561,10 +562,63 @@ lines.
   into spans with a `TextNewline` between them. Nothing in `TextToGraphics`
   changes, but a lazy text of syntax has no lines, so no gutter and no fold.
 
-*Recommendation: (a), because it is the one shape of text that Q1 chose, also for
-a text with no end, and it opens the gutter of a lazy text (a limit in
+My recommendation was (a), because it is the one shape of text that Q1 chose,
+also for a text with no end, and it opens the gutter of a lazy text (a limit in
 `text.md`). Its cost: the list path of `TextToGraphics` and the mapping of
-`SyntaxListToText` learn lines.*
+`SyntaxListToText` learn lines.
+
+**Q4 A wrap inside a line.** Open. After step 3 every syntax text is a block of
+lines, and the prose chain (`make_natural_prose_graphics`) and the application
+chain put `WordWrapping` in front of `TextToGraphics`. Today `WordWrapping`
+passes a `TextLine` through unwrapped, so a paragraph of prose would run past the
+right edge. The width that a wrap uses is the width of the view beside the
+gutter, and the gutter is as wide as its widest row.
+
+- (a) **`WordWrapping` splits a line into many `TextLine`s.** The first keeps the
+  gutter and the fold, and the others have none. But the list of lines then
+  depends on the width, the rows of the gutter depend on the list, and the width
+  of the view depends on the gutter: a cycle of cells.
+- (b) **`WordWrapping` puts a soft `TextNewline` inside the `TextLine`.** The rule
+  "a line holds no break" becomes "a line holds no hard break", and only a stage
+  that wraps puts a break inside a line. `TextToGraphics` starts a new row there,
+  at the indentation of the line, and the row of the gutter stands on the first
+  row of the line. The list of lines and the rows of the gutter do not depend on
+  the width, so there is no cycle. A soft break counts one flat offset, as a soft
+  `TextNewline` counts today.
+- (c) **`TextToGraphics` wraps a line itself** at the width that it gets, and
+  `WordWrapping` stays for a list of spans. Two places then wrap text, and the
+  renderer gets a second job.
+
+*Recommendation: (b), because it is the only one of the three with no cycle and
+one place that wraps, and the numbers, the folds and the gutter see one line for
+one line of the source. Its cost: the grouping of `TextToGraphics` breaks a row
+inside a line, and `WordWrapping` learns a span path in a line.*
+
+### Step 3: the steps of the work
+
+Each step is one commit, and the flat offsets stay the same in every step.
+
+0. **The baseline.** Run the guards below and the suites of the domains that print
+   through `SyntaxToText`, on the head of the branch before step 3, which already
+   holds the gutter and the folds. Record the counts here, with the broken markers.
+1. **A leaf makes lines.** `SyntaxLeafToText` splits a value or a delimiter that
+   holds a `'\n'` into lines, with a table of segments that maps a piece back to
+   its span by offset, as `WordWrapping` does. Its mappers, its click and its edit
+   reader go through the table.
+2. **A compound joins lines.** `SyntaxCompoundToText` builds its lines by the join
+   rule of Q2, and the chrome of a node that indents becomes the indentation of its
+   lines. `indent_indices` and the widening go. Every helper that names a span by
+   its index learns a span path `[i, j]`. `SyntaxToTextTest.jl` changes from the
+   span list to lines.
+3. **The lazy list of lines.** `SyntaxListToText` makes a lazy list of lines (Q3),
+   and the list path of `TextToGraphics` draws one canvas for each line.
+4. **The decorators learn lines.** `TextHighlighting`, `TextFiltering`,
+   `TextFirstLine` and `SelectionInverting` name a span by its path in a line, and
+   `WordWrapping` wraps inside a line as Q4 decides.
+5. **The sweeps.** Run the guards and the suites of step 0 again, and compare. A
+   broken marker that changes gets a reason or a fix.
+6. **The documents.** `text.md` and the syntax document describe the lines of
+   syntax text, and the limit "a lazy text has no gutter" goes.
 
 ### Phase 3 guards
 
