@@ -466,6 +466,17 @@ The order of the work, each step on its own commit, each with its test.
    with rows, and the closing fence `"\n\"\"\"\n"` is a leaf value too, so the
    line of the function after it joins that line. A file of 16 lines with one
    docstring shows the numbers 1 to 9.
+
+   **Found after the landing (2026-10-08):** an editor with settings opens a file
+   with a history around its content, so the content of a `JuliaFile` is an
+   `UndoBuffer`, and the view of the file had no row for it: the warm-up of the
+   application and "every format draws" failed (`ApplicationTest.jl`). Now
+   `FileToContent(; content, accepts)` takes its own projection only for a content
+   that `accepts` answers `true` for, and the general recursion for any other; the
+   Julia view accepts the code or a history that holds the code, and its recursion
+   prints the history with `UndoBufferToAnyProjection`, so the history prints the
+   code with the view of the file and the gutter shows under it. Test: the history
+   cases of `test_julia_file_view()`.
 7. ✅ **Done (2026-10-07), by the scroll plan. Scroll** (§5.7): steps 1 and 2 of the scroll plan; then a file tab of code
    keeps its gutter at the left edge.
 8. **Markers.** A lane of markers keyed by a line, then marks that a domain

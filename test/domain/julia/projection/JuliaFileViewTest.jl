@@ -33,6 +33,14 @@ function test_julia_file_view()
     # The numbers of the three lines, and the open triangle of the function.
     @test "2" in texts && "3" in texts
     @test "▾" in texts
+    # An editor with settings opens a file with a history around its content; the
+    # history prints the code with the view of the file.
+    historic = WidgetScrollPane(JuliaFile("f.jl", UndoBuffer(code())); size = Point2D(400, 200))
+    texts = _julia_file_view_texts(print_document(projection, nothing, historic, context).output)
+    @test "2" in texts && "3" in texts && "▾" in texts
+    # Any other content draws through the general recursion.
+    other = WidgetScrollPane(JuliaFile("f.jl", UndoBuffer(TextBlock(TextString("plain")))); size = Point2D(400, 200))
+    @test "plain" in _julia_file_view_texts(print_document(projection, nothing, other, context).output)
     # A Julia document that is no file draws as code with no gutter.
     snippet = _julia_file_view_texts(print_document(projection, nothing, code(), context).output)
     @test !("2" in snippet) && !("▾" in snippet)

@@ -69,9 +69,15 @@ include("JuliaCodePieces.jl")
 # The code of a Julia file in its tab: its lines numbered and its nodes folded
 # as text, with the numbers and the triangles in a gutter that the scroll pane of
 # the tab keeps at its left edge. A Julia document inside another document draws
-# as code with no gutter, by the row of `:julia_code`.
+# as code with no gutter, by the row of `:julia_code`. The view takes the code,
+# or a history that holds the code, as an editor with settings opens a file; any
+# other content draws through the general recursion.
 make_graphics_projection(::Type{JuliaFile}; measure, appearance) =
-    FileToContent(; content = make_julia_file_code_projection(; measure, appearance))
+    FileToContent(; content = make_julia_file_code_projection(; measure, appearance),
+                  accepts = _is_julia_file_code)
+
+_is_julia_file_code(document) =
+    document isa JuliaDocument || (document isa UndoBuffer && document.content isa JuliaDocument)
 
 """
     make_julia_file_code_projection(; measure, appearance) -> Projection
@@ -79,7 +85,7 @@ make_graphics_projection(::Type{JuliaFile}; measure, appearance) =
 The view of the code of a Julia file: `JuliaToSyntax`, `SyntaxToText` with text
 folds, `TextLineNumbering`, `TextFolding` and `TextBlockToScrollLayout`, whose
 `ScrollLayout` the scroll pane of a file tab takes apart. Its recursion prints the
-marks of the gutter.
+marks of the gutter, and the code that a history holds.
 """
 function make_julia_file_code_projection(; measure, appearance)
     syntax_theme = get_scaled_theme!(appearance, SyntaxTheme)
@@ -92,6 +98,8 @@ function make_julia_file_code_projection(; measure, appearance)
         TextFolding(; theme = text_theme),
         TextBlockToScrollLayout(; measure, theme = text_theme, line_spacing))
     RecursiveProjection(TypeDispatchingProjection(
+        # A history prints what it holds, the code, through this recursion.
+        UndoBuffer => UndoBufferToAnyProjection(),
         JuliaDocument => code,
         TextGutter => TextGutterToGraphics(),
         TextBlock => TextToGraphics(; measure, theme = text_theme),
