@@ -145,3 +145,26 @@ it.
 struct AgentSessionInfoUpdate <: AgentEvent
     title::Union{Nothing,String}
 end
+
+"""
+    AgentCommand(name, description, input_hint)
+
+A command that an external agent offers, which a person runs by writing `/name`
+at the start of a prompt. `input_hint` says what the command takes after its
+name, empty when it takes nothing.
+"""
+struct AgentCommand
+    name::String
+    description::String
+    input_hint::String
+end
+
+"""
+    AgentCommandsUpdate(commands)
+
+All the commands that the session of an external agent offers now. Each update
+replaces the commands before it.
+"""
+struct AgentCommandsUpdate <: AgentEvent
+    commands::Vector{AgentCommand}
+end

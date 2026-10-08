@@ -25,10 +25,11 @@ end
 AcpTurn(on_event::Function) = AcpTurn(on_event, :none, "", Function[])
 
 # The events of one `session/update`, in order. An update kind that the client
-# does not show (`available_commands_update`, `user_message_chunk`), and a kind
-# it does not know, answers no event. The connection answers the updates of the
-# session — `config_option_update`, `current_mode_update`, `usage_update` and
-# `session_info_update` — because it keeps them also outside a prompt.
+# does not show (`user_message_chunk`), and a kind it does not know, answers no
+# event. The connection answers the updates of the session —
+# `config_option_update`, `current_mode_update`, `usage_update`,
+# `session_info_update` and `available_commands_update` — because it keeps them
+# also outside a prompt.
 function _translate_session_update!(turn::AcpTurn, update::Dict{String,Any})
     kind = get(update, "sessionUpdate", "")
     events = Any[]
@@ -210,4 +211,19 @@ function _read_session_title(update::Dict{String,Any})
     haskey(update, "title") || return nothing
     title = update["title"]
     title isa AbstractString ? String(title) : ""
+end
+
+# The commands that a session offers, each with what it takes after its name.
+function _read_agent_commands(list)
+    commands = AgentCommand[]
+    list isa Vector{Any} || return commands
+    for item in list
+        item isa Dict{String,Any} || continue
+        input = get(item, "input", nothing)
+        hint = input isa Dict{String,Any} ? get(input, "hint", "") : ""
+        push!(commands, AgentCommand(string(get(item, "name", "")),
+                                     string(something(get(item, "description", nothing), "")),
+                                     hint isa AbstractString ? String(hint) : ""))
+    end
+    commands
 end

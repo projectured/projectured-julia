@@ -27,8 +27,8 @@ Seven fragments share this namespace:
   behaviours for that contract.
 - [`AgentConnectionEvent.jl`](AgentConnectionEvent.jl) — the events an external
   agent reports: `AgentToolCallUpdate`, `AgentPlanUpdate`,
-  `AgentPermissionRequest`, `AgentOptionsUpdate`, `AgentUsageUpdate` and
-  `AgentSessionInfoUpdate`.
+  `AgentPermissionRequest`, `AgentOptionsUpdate`, `AgentUsageUpdate`,
+  `AgentSessionInfoUpdate` and `AgentCommandsUpdate`.
 
 **What the loop owns, and what it does not.** It owns the *control flow* of an agent
 turn: stream a round, collect the tool calls the model made, dispatch them through
@@ -66,7 +66,7 @@ export make_agent_connection, start_agent_connection!, open_agent_session!,
 export AgentToolCallUpdate, AgentPlanEntry, AgentPlanUpdate,
        AgentPermissionOption, AgentPermissionRequest,
        AgentOptionValue, AgentOption, AgentOptionsUpdate, AgentUsageUpdate,
-       AgentSessionInfoUpdate
+       AgentSessionInfoUpdate, AgentCommand, AgentCommandsUpdate
 
 include("AgentInterface.jl")
 include("AgentDefaults.jl")

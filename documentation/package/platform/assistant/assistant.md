@@ -97,6 +97,8 @@ A text or thinking block closes before a part of another kind comes, and text af
 
 **The title and the usage of the session.** `agent_title` holds the title that the agent gave its session, and `get_document_title` of the assistant answers it, or "Assistant" when there is none. The application opens the assistant in a tab with no name of its own, so the tab asks at each draw and shows the title of the session. A tab that the toolbar opens takes its name when it opens and keeps "Assistant". `agent_usage` holds the last `AgentUsageUpdate`, and a line beside the option menus says it with `format_agent_usage`, as "Context: 36k of 1M tokens", with the cost when the agent says. Both are no data; a reset and a duplicate start without them.
 
+**The commands of the agent.** `agent_commands` holds the commands that the agent offers, and the last menu of the row, "Commands", lists them as `/name`, each with its description as the tooltip. A pick writes `/name ` into the draft with `ComposerInputOperation`, and the person completes and sends the command; the agent reads it at the start of the prompt. The agent gives its commands with the first prompt, so the menu shows from then on. A completion of `/` while the person types is not built.
+
 **A duplicate starts a new session.** A copy of an assistant with a live `agent_session` has `agent_session = nothing`, so its first turn starts a new connection. It ends its conversation with the note "This copy talks to the agent in a new session. The agent does not have the history above."
 
 ### When a turn fails

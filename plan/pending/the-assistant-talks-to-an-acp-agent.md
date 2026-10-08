@@ -595,7 +595,17 @@ from the command line of the projectured UI.
   - Tests: ACP 93 of 93, the platform conversation suite 153 of 153, the
     application test 355 with 2 known broken, with a press on "Start the
     agent" and on "Effort: High" at their drawn places.
-- [ ] 2.2 Slash commands in the composer.
+- [x] **2.2 Slash commands.** Done as a menu, with no new mechanism. The kernel
+  gets `AgentCommand` and `AgentCommandsUpdate`, and the adapter translates
+  `available_commands_update`, a session kind that waits between prompts. The
+  row of the assistant gets a last menu, "Commands": each command is
+  `/name` with its description as the tooltip, and a pick writes `/name ` into
+  the draft with the `ComposerInputOperation` that the composer already has.
+  The agent sends its commands after the open of the session, so they reach the
+  assistant with the first prompt. A completion of `/` while the person types
+  would be new interaction design, and it is not built. Tests: ACP 101 of 101,
+  the platform conversation suite 173 of 173, the application test 357 with 2
+  known broken.
 - [x] **2.3 Usage meter and tab title.** Done. The owner decided on
   2026-10-07 that the tab shows the title from the agent. Decisions made in
   the step:

@@ -35,8 +35,8 @@ one, and the generics of the kernel's `AgentModule` drive it.
 its JSON-RPC id, so the agent can withdraw it with `\$/cancel_request`.
 `session_options` holds the last options of each session, and
 `waiting_session_events` the latest update of each kind of the session — its
-options, its usage, its title — that came while no prompt ran, for the next
-prompt.
+options, its usage, its title, its commands — that came while no prompt ran,
+for the next prompt.
 """
 mutable struct AcpConnection
     command::Vector{String}
@@ -277,6 +277,8 @@ function _receive_notification(connection::AcpConnection, method::String, params
                  Any[AgentOptionsUpdate(_read_agent_options(get(update, "configOptions", Any[])))] :
              kind == "usage_update" ? Any[_read_usage_update(update)] :
              kind == "session_info_update" ? Any[AgentSessionInfoUpdate(_read_session_title(update))] :
+             kind == "available_commands_update" ?
+                 Any[AgentCommandsUpdate(_read_agent_commands(get(update, "availableCommands", Any[])))] :
              turn === nothing ? Any[] : _translate_session_update!(turn, update)
     lock(connection.turns_lock) do
         # The options of a session stay current also outside a prompt.
@@ -289,7 +291,8 @@ function _receive_notification(connection::AcpConnection, method::String, params
         if turn === nothing
             waiting = get!(() -> Dict{DataType,Any}(), connection.waiting_session_events, session_id)
             for event in events
-                event isa Union{AgentOptionsUpdate,AgentUsageUpdate,AgentSessionInfoUpdate} &&
+                event isa Union{AgentOptionsUpdate,AgentUsageUpdate,AgentSessionInfoUpdate,
+                                AgentCommandsUpdate} &&
                     (waiting[typeof(event)] = event)
             end
         else

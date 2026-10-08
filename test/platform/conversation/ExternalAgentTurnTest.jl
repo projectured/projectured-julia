@@ -181,11 +181,35 @@ function test_external_agent_turn()
             @test get_document_title(a) == "Assistant"
         end
 
+        @testset "the commands of the agent show in a menu, and a pick writes one into the draft" begin
+            connection = ScriptedAgentConnection([Any[
+                AgentCommandsUpdate([AgentCommand("review", "Review the changes", "a branch"),
+                                     AgentCommand("compact", "", "")]),
+                LlmTextStart(), LlmTextDelta("Ready."), LlmTextStop()]];
+                options = make_scripted_agent_options())
+            a = _make_agent_assistant(connection)
+            bar = make_agent_option_bar(a)
+            commands = collect(bar.elements)[end]
+            @test string(commands.action.label) == "Commands"
+            @test !commands.visible && commands.submenu === nothing
+            _submit_to_agent!(a, "Hello")
+            @test [command.name for command in a.agent_commands] == ["review", "compact"]
+            @test commands.visible
+            items = collect(commands.submenu.elements)
+            @test [string(item.action.label) for item in items] == ["/review", "/compact"]
+            @test items[1].tooltip == "Review the changes"
+            items[1].action.callback((document = a,))
+            @test AssistantModule._text_to_string(collect(a.draft.parts)[end].content) == "/review "
+            evaluate_operation((document = a,), ResetConversationOperation(a))
+            @test isempty(a.agent_commands)
+        end
+
         @testset "the option bar says the value that holds, and a pick sets another" begin
             connection = ScriptedAgentConnection(Any[]; options = make_scripted_agent_options())
             a = _make_agent_assistant(connection)
             bar = make_agent_option_bar(a)
-            items = collect(bar.elements)
+            # The three option menus; the menu of the commands is the last item.
+            items = collect(bar.elements)[1:3]
             label(item) = string(item.action.label)
             @test label(items[1]) == "Start the agent"
             @test [item.visible for item in items] == [true, false, false]

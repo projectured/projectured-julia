@@ -128,12 +128,19 @@ function test_acp_connection()
             @test only(event for event in events if event isa AgentSessionInfoUpdate).title == "Reply with OK"
             # A title between two prompts waits for the next one, and comes first.
             send_fake_update(agent, session_id, Dict("sessionUpdate" => "session_info_update", "title" => "Renamed"))
+            send_fake_update(agent, session_id, Dict("sessionUpdate" => "available_commands_update",
+                "availableCommands" => [Dict("name" => "review", "description" => "Review the changes",
+                                             "input" => Dict("hint" => "a branch")),
+                                        Dict("name" => "compact", "description" => "Compact the history")]))
             send_fake_update(agent, session_id, Dict("sessionUpdate" => "agent_message_chunk",
                                                      "content" => Dict("type" => "text", "text" => "late")))
             @test _wait_until(() -> haskey(connection.waiting_session_events, session_id))
             empty!(events)
             send_agent_prompt!(connection, session_id, [LlmText("Again")]; on_event = event -> push!(events, event))
-            @test events[1] == AgentSessionInfoUpdate("Renamed")
+            @test AgentSessionInfoUpdate("Renamed") in events[1:2]
+            commands = only(event for event in events if event isa AgentCommandsUpdate).commands
+            @test [(command.name, command.input_hint) for command in commands] ==
+                  [("review", "a branch"), ("compact", "")]
             @test !any(event -> event isa LlmTextDelta && event.text == "late", events)
             @test isempty(connection.waiting_session_events)
             stop_agent_connection!(connection)

@@ -93,7 +93,9 @@ the session of the agent, such as its model and how much it reasons, as the agen
 last listed them: empty until a session opens. `agent_title` is the title that
 the agent gave its session, empty until it gives one, and the tab of the
 assistant shows it. `agent_usage` is how much of its context window the
-session uses, an `AgentUsageUpdate`, or `nothing`. They are no data either.
+session uses, an `AgentUsageUpdate`, or `nothing`. `agent_commands` are the
+commands that the agent offers, as `/name` at the start of a prompt. They are no
+data either.
 
 `llm` defaults to `nothing` and `api_key` to empty: the backend and key are
 resolved **at submit time**, not here. This keeps the choice out of the
@@ -122,6 +124,7 @@ behaviour pass an explicit `llm` (a `FakeLlm`/`ScriptedLlm` from
     agent_options::Vector{AgentOption}
     agent_title::String
     agent_usage::Union{Nothing,AgentUsageUpdate}
+    agent_commands::Vector{AgentCommand}
 end
 
 # The command of the external agent that an assistant starts when nobody names
@@ -159,7 +162,8 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
                               agent_session = nothing,
                               agent_options::AbstractVector = AgentOption[],
                               agent_title::AbstractString = "",
-                              agent_usage::Union{Nothing,AgentUsageUpdate} = nothing)
+                              agent_usage::Union{Nothing,AgentUsageUpdate} = nothing,
+                              agent_commands::AbstractVector = AgentCommand[])
     a = Assistant(Cell(conversation), Cell(input), Cell(draft),
                            Cell(backend), Cell(String(model)), Cell(String(system)),
                            Cell(String(api_key)), Cell(Int(context)), Cell(status),
@@ -168,6 +172,7 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
                            Cell(String(agent_command)), Cell(String(agent_session_meta)),
                            Cell(agent_session), Cell(collect(AgentOption, agent_options)),
                            Cell(String(agent_title)), Cell(agent_usage),
+                           Cell(collect(AgentCommand, agent_commands)),
                            Cell(nothing))
     # Back-link the draft to its owning assistant so the composer's ENTER can be
     # turned into a submit (push into the conversation + stream a reply).
@@ -220,7 +225,8 @@ function copy_document(policy::DuplicatePolicy, assistant::Assistant)
     draft = copy_document_fields(policy, assistant.draft; assistant = nothing)
     fork = copy_document_fields(policy, assistant; draft = draft, status = :idle,
                                 agent_session = nothing, agent_options = AgentOption[],
-                                agent_title = "", agent_usage = nothing)
+                                agent_title = "", agent_usage = nothing,
+                                agent_commands = AgentCommand[])
     draft.assistant = fork
     turns = fork.conversation.turns
     if assistant.status === :streaming && !isempty(turns) &&

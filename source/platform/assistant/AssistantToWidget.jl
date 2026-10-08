@@ -341,6 +341,11 @@ holds, and a pick sets the option with `SetAgentOptionOperation`. Before a
 session is open there are no options, and the row is one item, "Start the
 agent", which starts the agent with `StartExternalAgentOperation`. A menu whose
 option the agent does not have is hidden.
+
+A last menu, "Commands", lists the commands that the agent offers, each with
+its description as the tooltip. A pick writes `/name ` into the draft with
+`ComposerInputOperation`, and the person completes and sends it. The agent
+gives its commands with the first prompt, so the menu shows from then on.
 """
 function make_agent_option_bar(a::Assistant)
     items = Any[]
@@ -353,7 +358,22 @@ function make_agent_option_bar(a::Assistant)
         set_cell_computation!(getfield(item, :submenu), () -> _make_agent_option_menu(a, category))
         push!(items, item)
     end
+    commands = WidgetMenuItem("Commands")
+    set_cell_computation!(getfield(commands, :visible), () -> !isempty(a.agent_commands))
+    set_cell_computation!(getfield(commands, :submenu), () -> _make_agent_command_menu(a))
+    push!(items, commands)
     WidgetMenu(items; orientation = :horizontal)
+end
+
+# The commands of the agent, each written into the draft when it is picked.
+function _make_agent_command_menu(a::Assistant)
+    commands = a.agent_commands
+    isempty(commands) && return nothing
+    WidgetMenu(Any[WidgetMenuItem("/" * command.name;
+                                  tooltip = isempty(command.description) ? nothing : command.description,
+                                  action = editor -> evaluate_operation(editor,
+                                      ComposerInputOperation(a.draft, "/" * command.name * " ")))
+                   for command in commands])
 end
 
 function _find_agent_option(a::Assistant, category::Symbol)
