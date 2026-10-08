@@ -113,6 +113,15 @@ jobs:
       - name: Place AgentClientProtocol beside the repository
         if: matrix.project == 'environment/all'
         run: mv agent-client-protocol ../agent-client-protocol
+      # And ClaudeCodeACP.
+      - uses: actions/checkout@v7
+        if: matrix.project == 'environment/all'
+        with:
+          repository: projectured/ClaudeCodeACP.jl
+          path: claude-code-acp
+      - name: Place ClaudeCodeACP beside the repository
+        if: matrix.project == 'environment/all'
+        run: mv claude-code-acp ../claude-code-acp
       - uses: julia-actions/setup-julia@v3
         with:
           version: '1'

@@ -134,7 +134,7 @@ const PROJECTURED_OPTIONS = [
     "--mcp=[HOST:]PORT" => "start an MCP server at http://HOST:PORT/mcp\n(HOST is 127.0.0.1 when it is not given)",
     "--context=TOKENS" => "how many tokens of the conversation the model may\nsee (default: the settings, else the default of the\nbackend)",
     "--strict-fault-policy" => "stop at the first fault and print its stack,\ninstead of surviving it",
-    "--agent-command=COMMAND" => "the command line of the external agent of\n--assistant=acp (default: the settings,\nclaude-agent-acp at first)",
+    "--agent-command=COMMAND" => "the command line of the external agent of\n--assistant=acp (default: the settings,\nthe built-in Claude Code agent at first)",
 ]
 
 """
@@ -148,8 +148,8 @@ const PROJECTURED_REQUIREMENTS = [
     "A display for the native window, or a web browser with --backend=web.",
     "For the assistant: an Ollama server with a pulled model, an Anthropic " *
         "API key in the environment variable ANTHROPIC_API_KEY, or, with " *
-        "--assistant=acp, an agent of the Agent Client Protocol such as " *
-        "claude-agent-acp (Node.js 22 or newer), signed in with its own sign-in.",
+        "--assistant=acp, Claude Code installed and signed in, or another agent of " *
+        "the Agent Client Protocol, signed in with its own sign-in.",
 ]
 
 """
@@ -412,6 +412,14 @@ The repository of AgentClientProtocol, the package of the Agent Client Protocol
 (ACP) that `ProjecturedACP` depends on.
 """
 const AGENT_CLIENT_PROTOCOL_URL = "https://github.com/projectured/AgentClientProtocol.jl"
+
+"""
+    CLAUDE_CODE_ACP_URL
+
+The repository of ClaudeCodeACP, the ACP agent that runs Claude Code, which
+`ProjecturedACP` runs as its built-in agent.
+"""
+const CLAUDE_CODE_ACP_URL = "https://github.com/projectured/ClaudeCodeACP.jl"
 
 """
     AUTOPRECOMPILE_URL
@@ -885,6 +893,7 @@ function _format_projectured_release_overview(context::BuildContext, names)
     | [ProjecturedRegistry]($PROJECTURED_REGISTRY_URL) | The Julia registry that names each version of these packages. |
     | [AutoIntegration.jl]($AUTOINTEGRATION_URL) | The package that loads an installed package when its triggers are loaded. `Projectured` depends on it. |
     | [AgentClientProtocol.jl]($AGENT_CLIENT_PROTOCOL_URL) | The Agent Client Protocol (ACP) in Julia, for a client and for an agent. `ProjecturedACP` depends on it. |
+    | [ClaudeCodeACP.jl]($CLAUDE_CODE_ACP_URL) | An ACP agent that runs Claude Code. `ProjecturedACP` runs it as its built-in agent. |
     | [AutoPrecompile.jl]($AUTOPRECOMPILE_URL) | The package that builds one package image for the packages that a session loads, from recorded precompile statements. |
 
     ## The packages
@@ -983,15 +992,16 @@ function _format_projectured_release_workflow(jobs)
               # longer than a key may be.
               include-matrix: false
               cache-name: julia-cache;package=\${{ matrix.package }};julia=\${{ matrix.julia }}
-          # AutoIntegration and AgentClientProtocol are packages of other
-          # repositories, which no job develops. ProjecturedRegistry is private
-          # and a job has no token for it, so the packages come from their public
-          # repositories, and General comes by itself.
+          # AutoIntegration, AgentClientProtocol and ClaudeCodeACP are packages of
+          # other repositories, which no job develops. ProjecturedRegistry is
+          # private and a job has no token for it, so the packages come from their
+          # public repositories, and General comes by itself.
           - name: Add the packages of other repositories
             run: >-
               julia --project="\$RUNNER_TEMP/environment"
               -e 'using Pkg; Pkg.add([PackageSpec(url = "$AUTOINTEGRATION_URL"),
-              PackageSpec(url = "$AGENT_CLIENT_PROTOCOL_URL")])'
+              PackageSpec(url = "$AGENT_CLIENT_PROTOCOL_URL"),
+              PackageSpec(url = "$CLAUDE_CODE_ACP_URL")])'
           - name: Develop the packages that the test needs
             run: >-
               julia --project="\$RUNNER_TEMP/environment"

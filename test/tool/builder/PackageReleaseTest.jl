@@ -542,6 +542,7 @@ function test_package_release()
         # and no private registry.
         @test occursin("PackageSpec(url = \"$AUTOINTEGRATION_URL\")", workflow)
         @test occursin("PackageSpec(url = \"$AGENT_CLIENT_PROTOCOL_URL\")", workflow)
+        @test occursin("PackageSpec(url = \"$CLAUDE_CODE_ACP_URL\")", workflow)
         @test !occursin("Registry.add", workflow)
         # AutoIntegration, a package of a sibling repository, gets the bound of the
         # version that the manifest names.
