@@ -483,13 +483,16 @@ end
 Remove tab `index` of `group`. When it is the group's last tab the group goes
 too: it is dropped from its parent split, or — when that split is left with one
 element — the split is replaced by its remaining sibling. An empty root group
-stays, because a tree always has a root.
+stays, because a tree always has a root. Then the document of the tab is
+released with `ReleaseDocumentOperation`, so what it holds outside the tree,
+such as the agent of an assistant, ends.
 """
 function make_pane_close_tab_operation(tree::PaneTree, group::PaneGroup, index::Integer)
     n = length(group.tabs)
     (1 <= index <= n) || return nothing
-    n > 1 && return _close_one_tab(tree, group, index, n)
-    _close_group(tree, group)
+    close = n > 1 ? _close_one_tab(tree, group, index, n) : _close_group(tree, group)
+    close === nothing && return nothing
+    CompoundOperation(Any[close, ReleaseDocumentOperation(group.tabs[index].content)])
 end
 
 function _close_one_tab(tree::PaneTree, group::PaneGroup, index::Integer, n::Integer)

@@ -256,6 +256,11 @@ function stop_external_agent!(a::Assistant)
     nothing
 end
 
+# An assistant whose tab closes stops its external agent, so no agent and no MCP
+# server outlive the tab. An undo of the close brings the assistant back, and
+# its next turn starts a new agent.
+release_document!(editor, a::Assistant) = stop_external_agent!(a)
+
 # The MCP server through which the agent reaches the tools of this editor: on a
 # free port, with a secret that only this agent gets. With no MCP package loaded
 # the agent has its own tools only.

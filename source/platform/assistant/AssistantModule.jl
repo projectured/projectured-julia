@@ -45,7 +45,7 @@ using ..WidgetModule
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_computation!
 import ..DocumentModule: copy_document, get_document_title, has_document_duplicate
-import ..DomainModule: accepts_pasted_document, accepts_opened_file
+import ..DomainModule: accepts_pasted_document, accepts_opened_file, release_document!
 import ..OperationModule: evaluate_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SerializationModule: pred_arguments

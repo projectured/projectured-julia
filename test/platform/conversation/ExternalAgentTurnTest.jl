@@ -302,6 +302,17 @@ function test_external_agent_turn()
             @test AssistantModule._part_text(only(note.parts)) == AssistantModule.FORK_AGENT_NOTE
         end
 
+        @testset "a release, as the close of its tab makes, stops the agent" begin
+            connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("One."), LlmTextStop()]])
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "Hello")
+            @test a.agent_session isa ExternalAgentSession
+            evaluate_operation((document = a,), ReleaseDocumentOperation(a))
+            @test a.agent_session === nothing
+            # A document that holds nothing outside the tree releases nothing.
+            @test release_document!(nothing, Assistant()) === nothing
+        end
+
         @testset "the backend :acp without its package says so" begin
             a = Assistant(; backend = :acp)
             _submit_to_agent!(a, "Hello")

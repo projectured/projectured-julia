@@ -44,6 +44,10 @@ The `@gestures` tables of the domains call three functions of this package. Each
 
 `accepts_pasted_document`, `accepts_pasted_replacement`, `accepts_pasted_text` and `accepts_opened_file` default to `true`. A domain adds a method to refuse a paste or a file. `compute_context_menu` defaults to `nothing`; a document that has a menu computes it from its own fields, and its type binds a right click to it with `make_context_menu_binding` of the widget slice ([context-menu.md](../widget/context-menu.md)). A tooltip is not here: a document declares a binding of the tooltip package in its own gesture table ([tooltip.md](../tooltip/tooltip.md)).
 
+### The release of a document
+
+A document can hold something outside the document tree: the assistant holds the process of an external agent and an MCP server. When such a document leaves the window, `release_document!(editor, document)` frees it. The default frees nothing, and a document type that holds such a thing adds a method. `ReleaseDocumentOperation(document)` calls it, and the close of a tab adds it after the delete of the tab. It changes no document, so its inverse is `DoNothingOperation()`: an undo of the close brings the document back, and the document starts again what it needs when it needs it.
+
 ## How it fits
 
 The domain slice depends on the kernel only. Every domain uses it, and so do the text, syntax, clipboard, pane, file-format and natural slices.

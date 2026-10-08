@@ -5,8 +5,8 @@
 > request cancel of 2.7 are on `main`. Since the plan
 > [acp-is-a-julia-package-and-claude-runs-without-node.md](acp-is-a-julia-package-and-claude-runs-without-node.md),
 > the built-in agent of `ProjecturedACP` runs Claude Code, and it is the
-> default agent. Open: 2.4, 2.5, 2.6, the prompt queue of 2.7, 2.8, 2.9 and
-> phase 3. The owner answered every question on 2026-10-07; see "Decisions".
+> default agent. 2.9 is done too. Open: 2.4, 2.5, 2.6, the prompt queue of 2.7,
+> 2.8 and phase 3. The owner answered every question on 2026-10-07; see "Decisions".
 > The feature comes in a release after the first one.
 
 ## Goal
@@ -638,8 +638,14 @@ from the command line of the projectured UI.
   answer `cancelled`. The transport gives the handler the id of each request.
   The prompt queue is open.
 - [ ] 2.8 The ACP Registry as a source for the list of agents.
-- [ ] 2.9 A hook for the close of a document, so the close of a tab stops its
-  agent and its MCP server (review #3).
+- [x] 2.9 A hook for the close of a document, so the close of a tab stops its
+  agent and its MCP server (review #3). Done on 2026-10-08, as the owner
+  approved: `release_document!(editor, document)` and `ReleaseDocumentOperation`
+  in `DomainModule`; the close of a tab ends with the release of the document
+  of the tab, whose inverse is `DoNothingOperation()`; the method for an
+  `Assistant` calls `stop_external_agent!`. An undo of the close brings the
+  tab back, and the next turn starts a new agent without the memory of the
+  agent; a resume of the same session waits for 2.4.
 
 ### Phase 3: the agent sees what projectured sees
 

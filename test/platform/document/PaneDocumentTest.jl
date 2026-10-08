@@ -125,6 +125,23 @@ end
     @test get_pane_focus(tree) == (group, 1)
 end
 
+@testset "close a tab releases its document, and an undo brings the tab back" begin
+    tree, group, tabs = _flat(2)
+    editor = _PaneMockEditor(tree)
+    operation = make_pane_close_tab_operation(tree, group, 1)
+    release = last(operation.operations)
+    @test release isa ReleaseDocumentOperation
+    @test release.document === tabs[1].content
+    # The release changes no document, so its way back is to do nothing.
+    @test make_inverse_operation(tree, release) isa DoNothingOperation
+    inverse = evaluate_invertible_operation!(editor, operation)
+    @test length(group.tabs) == 1
+    @test inverse !== nothing
+    _apply!(editor, inverse)
+    @test length(group.tabs) == 2
+    @test group.tabs[1].content === tabs[1].content
+end
+
 @testset "close the last tab of the root group: the empty group stays" begin
     tree, group, tabs = _flat(1)
     editor = _PaneMockEditor(tree)
