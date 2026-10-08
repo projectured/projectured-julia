@@ -109,6 +109,36 @@ function test_acp_connection()
             stop_agent_connection!(connection)
         end
 
+        @testset "the usage and the title of a session, during and between prompts" begin
+            agent = _make_fake_agent(Dict{String,Function}(
+                "session/prompt" => function (agent, params)
+                    session = params["sessionId"]
+                    send_fake_update(agent, session, Dict("sessionUpdate" => "usage_update",
+                        "used" => 36012, "size" => 1000000, "cost" => Dict("amount" => 0.5, "currency" => "USD")))
+                    send_fake_update(agent, session, Dict("sessionUpdate" => "session_info_update",
+                                                          "title" => "Reply with OK"))
+                    Dict("stopReason" => "end_turn")
+                end))
+            connection = make_fake_connection(agent)
+            session_id = open_agent_session!(connection)
+            events = Any[]
+            send_agent_prompt!(connection, session_id, [LlmText("Hi")]; on_event = event -> push!(events, event))
+            usage = only(event for event in events if event isa AgentUsageUpdate)
+            @test (usage.used, usage.size, usage.cost, usage.currency) == (36012, 1000000, 0.5, "USD")
+            @test only(event for event in events if event isa AgentSessionInfoUpdate).title == "Reply with OK"
+            # A title between two prompts waits for the next one, and comes first.
+            send_fake_update(agent, session_id, Dict("sessionUpdate" => "session_info_update", "title" => "Renamed"))
+            send_fake_update(agent, session_id, Dict("sessionUpdate" => "agent_message_chunk",
+                                                     "content" => Dict("type" => "text", "text" => "late")))
+            @test _wait_until(() -> haskey(connection.waiting_session_events, session_id))
+            empty!(events)
+            send_agent_prompt!(connection, session_id, [LlmText("Again")]; on_event = event -> push!(events, event))
+            @test events[1] == AgentSessionInfoUpdate("Renamed")
+            @test !any(event -> event isa LlmTextDelta && event.text == "late", events)
+            @test isempty(connection.waiting_session_events)
+            stop_agent_connection!(connection)
+        end
+
         @testset "an agent that needs a sign-in says how" begin
             agent = _make_fake_agent(Dict{String,Function}(
                 "session/new" => (agent, params) -> throw(AcpRequestException(-32000, "Authentication required"))))
@@ -149,7 +179,8 @@ function test_acp_connection()
             @test events[1:6] == Any[LlmThinkingStart(), LlmThinkingDelta("think"), LlmThinkingStop(),
                                      LlmTextStart(), LlmTextDelta("Hi"), LlmTextStop()]
             @test events[7] isa AgentToolCallUpdate && events[7].id == "t1"
-            @test events[8:end] == Any[LlmTextStart(), LlmTextDelta("Done"), LlmTextStop()]
+            @test events[8] == AgentUsageUpdate(1, 2, nothing, "")
+            @test events[9:end] == Any[LlmTextStart(), LlmTextDelta("Done"), LlmTextStop()]
             @test isempty(connection.turns)
             stop_agent_connection!(connection)
         end

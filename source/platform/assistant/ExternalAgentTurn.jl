@@ -246,6 +246,8 @@ function stop_external_agent!(a::Assistant)
     session isa ExternalAgentSession || return nothing
     a.agent_session = nothing
     a.agent_options = AgentOption[]
+    a.agent_title = ""
+    a.agent_usage = nothing
     errormonitor(@async begin
         _close_external_agent_session!(session)
         session.tool_server === nothing || Base.invokelatest(stop_agent_server!, session.tool_server)
@@ -285,7 +287,7 @@ function _handle_external_agent_event!(event, a::Assistant, turn::ConversationTu
         _handle_agent_event!(LlmTextStart(), a, turn, state, nothing)
     elseif event isa LlmThinkingDelta && state[:current_thinking] === nothing
         _handle_agent_event!(LlmThinkingStart(), a, turn, state, nothing)
-    elseif !(event isa LlmEvent) && !(event isa AgentOptionsUpdate) &&
+    elseif !(event isa Union{LlmEvent,AgentOptionsUpdate,AgentUsageUpdate,AgentSessionInfoUpdate}) &&
            !(event isa AgentToolCallUpdate && haskey(state[:tool_forms], event.id))
         state[:current_block] === nothing || _handle_agent_event!(LlmTextStop(), a, turn, state, nothing)
         state[:current_thinking] === nothing || _handle_agent_event!(LlmThinkingStop(), a, turn, state, nothing)
@@ -294,6 +296,10 @@ function _handle_external_agent_event!(event, a::Assistant, turn::ConversationTu
         _handle_agent_event!(event, a, turn, state, nothing)
     elseif event isa AgentOptionsUpdate
         a.agent_options = event.options
+    elseif event isa AgentUsageUpdate
+        a.agent_usage = event
+    elseif event isa AgentSessionInfoUpdate
+        event.title === nothing || (a.agent_title = event.title)
     elseif event isa AgentToolCallUpdate
         _apply_tool_call_update!(turn, state, event)
     elseif event isa AgentPlanUpdate

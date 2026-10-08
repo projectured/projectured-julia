@@ -33,7 +33,10 @@ one, and the generics of the kernel's `AgentModule` drive it.
 `initialize`. `turns` holds the prompt that runs in each session, and
 `withdrawable_replies` the reply of each request that waits for a person, by
 its JSON-RPC id, so the agent can withdraw it with `\$/cancel_request`.
-`session_options` holds the last options of each session.
+`session_options` holds the last options of each session, and
+`waiting_session_events` the latest update of each kind of the session — its
+options, its usage, its title — that came while no prompt ran, for the next
+prompt.
 """
 mutable struct AcpConnection
     command::Vector{String}
@@ -48,6 +51,7 @@ mutable struct AcpConnection
     turns::Dict{String,AcpTurn}
     withdrawable_replies::Dict{Any,Function}
     session_options::Dict{String,Vector{AgentOption}}
+    waiting_session_events::Dict{String,Dict{DataType,Any}}
     turns_lock::ReentrantLock
 end
 
@@ -60,7 +64,8 @@ make_agent_connection(::Val{:acp}; command::AbstractVector{<:AbstractString} = S
                   _read_session_meta(session_meta), streams, nothing,
                   Dict{String,Any}(), Dict{String,Any}(), Any[],
                   Dict{String,AcpTurn}(), Dict{Any,Function}(),
-                  Dict{String,Vector{AgentOption}}(), ReentrantLock())
+                  Dict{String,Vector{AgentOption}}(), Dict{String,Dict{DataType,Any}}(),
+                  ReentrantLock())
 
 _read_session_meta(meta::AbstractDict) = Dict{String,Any}(meta)
 function _read_session_meta(text::AbstractString)
@@ -187,7 +192,13 @@ function send_agent_prompt!(connection::AcpConnection, session_id::AbstractStrin
                             prompt::AbstractVector; on_event::Function)
     transport = _get_started_transport(connection)
     turn = AcpTurn(on_event)
-    lock(() -> connection.turns[session_id] = turn, connection.turns_lock)
+    # The updates of the session that came while no prompt ran go first, under
+    # the lock, so a newer update that the reader gives the turn comes after them.
+    lock(connection.turns_lock) do
+        connection.turns[session_id] = turn
+        waiting = pop!(connection.waiting_session_events, session_id, nothing)
+        waiting === nothing || foreach(on_event, values(waiting))
+    end
     try
         result = send_acp_request!(transport, "session/prompt", Dict{String,Any}(
             "sessionId" => String(session_id),
@@ -213,7 +224,10 @@ function cancel_agent_prompt!(connection::AcpConnection, session_id::AbstractStr
 end
 
 function close_agent_session!(connection::AcpConnection, session_id::AbstractString)
-    lock(() -> delete!(connection.session_options, session_id), connection.turns_lock)
+    lock(connection.turns_lock) do
+        delete!(connection.session_options, session_id)
+        delete!(connection.waiting_session_events, session_id)
+    end
     transport = connection.transport
     transport === nothing && return nothing
     capabilities = _get_object(connection.agent_capabilities, "sessionCapabilities")
@@ -261,13 +275,27 @@ function _receive_notification(connection::AcpConnection, method::String, params
     events = kind == "current_mode_update" ? _translate_mode_update(connection, session_id, update) :
              kind == "config_option_update" ?
                  Any[AgentOptionsUpdate(_read_agent_options(get(update, "configOptions", Any[])))] :
+             kind == "usage_update" ? Any[_read_usage_update(update)] :
+             kind == "session_info_update" ? Any[AgentSessionInfoUpdate(_read_session_title(update))] :
              turn === nothing ? Any[] : _translate_session_update!(turn, update)
-    # The options of a session stay current also outside a prompt.
-    for event in events
-        event isa AgentOptionsUpdate || continue
-        lock(() -> connection.session_options[session_id] = event.options, connection.turns_lock)
+    lock(connection.turns_lock) do
+        # The options of a session stay current also outside a prompt.
+        for event in events
+            event isa AgentOptionsUpdate && (connection.session_options[session_id] = event.options)
+        end
+        # The turn is read again under the lock, so an update that comes as a
+        # prompt starts goes either to the waiting updates or to the prompt.
+        turn = get(connection.turns, session_id, nothing)
+        if turn === nothing
+            waiting = get!(() -> Dict{DataType,Any}(), connection.waiting_session_events, session_id)
+            for event in events
+                event isa Union{AgentOptionsUpdate,AgentUsageUpdate,AgentSessionInfoUpdate} &&
+                    (waiting[typeof(event)] = event)
+            end
+        else
+            foreach(turn.on_event, events)
+        end
     end
-    turn === nothing || foreach(turn.on_event, events)
     nothing
 end
 

@@ -25,7 +25,8 @@ using ProjecturedKernel.LlmModule: LlmText, LlmToolUse,
 using ProjecturedKernel.AgentModule: make_agent_connection, start_agent_connection!,
     open_agent_session!, set_agent_option!, send_agent_prompt!, cancel_agent_prompt!,
     close_agent_session!, stop_agent_connection!, AgentToolCallUpdate, AgentPlanEntry,
-    AgentPlanUpdate, AgentPermissionRequest, AgentOptionsUpdate
+    AgentPlanUpdate, AgentPermissionRequest, AgentOptionsUpdate, AgentUsageUpdate,
+    AgentSessionInfoUpdate
 
 include("../../../test/adapter/acp/FakeAcpAgent.jl")
 include("../../../test/adapter/acp/AcpUpdateTest.jl")

@@ -23,11 +23,13 @@ the values of the default theme.
 @projection UntrackedCell struct AssistantToWidgetSplitPane
     composer_min_height::Int = get_conversation_style(nothing, :composer_min_height)
     option_bar_height::Int = get_conversation_style(nothing, :option_bar_height)
+    option_gap::Int = get_conversation_style(nothing, :option_gap)
 end
 
 AssistantToWidgetSplitPane(theme::Union{ConversationTheme,ScaledConversationTheme}) =
     AssistantToWidgetSplitPane(; composer_min_height = get_conversation_style(theme, :composer_min_height),
-                                 option_bar_height = get_conversation_style(theme, :option_bar_height))
+                                 option_bar_height = get_conversation_style(theme, :option_bar_height),
+                                 option_gap = get_conversation_style(theme, :option_gap))
 
 """
     AssistantToWidgetCard(; title, transcript_height, cell_height, gap)
@@ -89,10 +91,15 @@ function print_document(projection::AssistantToWidgetSplitPane,
     # composer shows them. It is the last child, so the maps below, which name
     # the first two, stay as they are, and a click on it is a click on a part
     # that the view drew. A split pane prints a child at the height of its slot,
-    # so the row declares its height.
-    a.backend === :acp && push!(panes, LayoutConstraint(make_agent_option_bar(a);
-                                                        min_height = projection.option_bar_height,
-                                                        preferred_height = projection.option_bar_height))
+    # so the row declares its height. Beside the menus, a line says how much of
+    # its context the session uses.
+    if a.backend === :acp
+        usage = WidgetLabel("")
+        set_cell_computation!(getfield(usage, :content), () -> format_agent_usage(a.agent_usage))
+        row = HorizontalLayout(Any[make_agent_option_bar(a), usage]; gap = projection.option_gap)
+        push!(panes, LayoutConstraint(row; min_height = projection.option_bar_height,
+                                      preferred_height = projection.option_bar_height))
+    end
     column = WidgetSplitPane(:vertical, panes)
     iomap = SimpleIoMap(projection, a, column)
     # A key is routed by selection: the split pane sends it to the pane that the
@@ -371,3 +378,23 @@ function _make_agent_option_menu(a::Assistant, category::Symbol)
                                       SetAgentOptionOperation(a, option.id, value.value)))
                    for value in option.values])
 end
+
+"""
+    format_agent_usage(usage) -> String
+
+The line that says how much of its context window a session of an external agent
+uses, as `"Context: 36k of 1M tokens"`, with what the session has cost when the
+agent says. Empty for `nothing`.
+"""
+function format_agent_usage(usage)
+    usage === nothing && return ""
+    text = "Context: " * _format_token_count(usage.used) * " of " * _format_token_count(usage.size) * " tokens"
+    usage.cost === nothing ? text : text * " · " * string(round(usage.cost; digits = 2)) * " " * usage.currency
+end
+
+_format_token_count(count::Integer) =
+    count >= 1_000_000 ? _format_one_decimal(count / 1_000_000) * "M" :
+    count >= 1_000 ? string(round(Int, count / 1_000)) * "k" : string(count)
+
+_format_one_decimal(value::Real) = (rounded = round(value; digits = 1);
+                                    isinteger(rounded) ? string(Int(rounded)) : string(rounded))

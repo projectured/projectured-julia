@@ -39,8 +39,9 @@ Open a new session of the agent, and answer its id. The agent works in
 `on_event`, when given, gets the events of the open: an `AgentOptionsUpdate`
 with the options of the session. The connection keeps no reference to it after
 the call, so a caller can capture what it must not store. An update that the
-agent sends later reaches the `on_event` of the prompt that runs, and an update
-outside a prompt is dropped.
+agent sends later reaches the `on_event` of the prompt that runs. An update of
+the session that comes between two prompts — its options, its usage, its
+title — waits, and the next prompt gets the latest of each kind first.
 
 Throws when the agent needs a sign-in, with a message that says how to sign in.
 """
@@ -63,7 +64,8 @@ Send `prompt`, a vector of `LlmContent`, to the session, and wait until the turn
 of the agent ends. `on_event` gets each event of the turn as it arrives: an
 `LlmTextStart`, `LlmTextDelta` or `LlmTextStop` for the text of the answer, the
 same three of `LlmThinking…` for its reasoning, and an `AgentEvent` for what the
-agent does and asks. It is called on a task that is not the editor's.
+agent does and asks, and for its session: its options, its usage, its title.
+It is called on a task that is not the editor's.
 
 Answers why the turn ended: `:end_turn`, `:max_tokens`, `:max_turn_requests`,
 `:refusal` or `:cancelled`.

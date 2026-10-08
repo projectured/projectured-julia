@@ -120,3 +120,28 @@ replaces the options before it.
 struct AgentOptionsUpdate <: AgentEvent
     options::Vector{AgentOption}
 end
+
+"""
+    AgentUsageUpdate(used, size, cost, currency)
+
+How much of its context window the session of an external agent uses: `used`
+tokens of `size`. `cost` is what the session has cost so far, in `currency`, or
+`nothing` when the agent does not say.
+"""
+struct AgentUsageUpdate <: AgentEvent
+    used::Int
+    size::Int
+    cost::Union{Nothing,Float64}
+    currency::String
+end
+
+"""
+    AgentSessionInfoUpdate(title)
+
+What the agent says of its session: its `title`, a short name of what the
+session is about. `nothing` keeps the title before, and an empty title clears
+it.
+"""
+struct AgentSessionInfoUpdate <: AgentEvent
+    title::Union{Nothing,String}
+end

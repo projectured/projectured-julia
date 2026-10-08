@@ -125,7 +125,9 @@ function _make_application_pane_tree(tabs, workspace, assistant)
     groups = Any[places, files]
     weights = [0.2, 0.8]
     if assistant !== nothing
-        push!(groups, PaneGroup(PaneTab[PaneTab("Assistant", assistant)]))
+        # The tab has no name of its own, so it shows the name of the assistant,
+        # and the title that an external agent gives its session.
+        push!(groups, PaneGroup(PaneTab[PaneTab("", assistant)]))
         weights = [0.18, 0.5, 0.32]
     end
     tree = PaneTree(PaneSplit(:vertical, groups; weights = weights))

@@ -596,7 +596,26 @@ from the command line of the projectured UI.
     application test 355 with 2 known broken, with a press on "Start the
     agent" and on "Effort: High" at their drawn places.
 - [ ] 2.2 Slash commands in the composer.
-- [ ] 2.3 Usage meter and tab title.
+- [x] **2.3 Usage meter and tab title.** Done. The owner decided on
+  2026-10-07 that the tab shows the title from the agent. Decisions made in
+  the step:
+  - The kernel gets `AgentUsageUpdate` and `AgentSessionInfoUpdate`.
+  - **An update between prompts waits.** The agent can name its session just
+    after a prompt ends. So the connection keeps the latest update of each
+    session kind — options, usage, title — and the next prompt gets them
+    first, under the lock that registers it. This replaces "dropped" from step
+    2.1.
+  - `get_document_title` of the assistant answers `agent_title`, else
+    "Assistant". The pane rules say that a tab never renames itself; this tab
+    is the exception that the owner chose. The application opens the
+    assistant in a tab with an empty name, so the tab asks at each draw. A tab
+    that the toolbar opens takes its name at the open and keeps "Assistant";
+    to follow the title there, the pane slice would need a trait for a live
+    title.
+  - A line beside the option menus says the usage with `format_agent_usage`,
+    as "Context: 36k of 1M tokens", with the cost when the agent gives one.
+  - Tests: ACP 100 of 100, the platform conversation suite 164 of 164, the
+    application test 357 with 2 known broken, the history sweep 136 of 136.
 - [ ] 2.4 Save, load, resume and delete.
 - [ ] 2.5 Terminal sign-in and logout (R3).
 - [ ] 2.6 Elicitation forms.

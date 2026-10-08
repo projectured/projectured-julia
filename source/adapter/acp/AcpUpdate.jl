@@ -25,11 +25,10 @@ end
 AcpTurn(on_event::Function) = AcpTurn(on_event, :none, "", Function[])
 
 # The events of one `session/update`, in order. An update kind that the client
-# does not show (`available_commands_update`, `usage_update`,
-# `session_info_update`, `user_message_chunk`), and a kind it does not know,
-# answers no event. The connection answers the two updates of the options,
-# `config_option_update` and `current_mode_update`, because it keeps the options
-# of each session also outside a prompt.
+# does not show (`available_commands_update`, `user_message_chunk`), and a kind
+# it does not know, answers no event. The connection answers the updates of the
+# session — `config_option_update`, `current_mode_update`, `usage_update` and
+# `session_info_update` — because it keeps them also outside a prompt.
 function _translate_session_update!(turn::AcpTurn, update::Dict{String,Any})
     kind = get(update, "sessionUpdate", "")
     events = Any[]
@@ -192,3 +191,23 @@ _set_current_value(options::Vector{AgentOption}, matches::Function, value::Strin
     AgentOption[matches(option) ?
                 AgentOption(option.id, option.name, option.description, option.category, value, option.values) :
                 option for option in options]
+
+# How much of its context the session uses, and what it has cost so far when the
+# agent says.
+function _read_usage_update(update::Dict{String,Any})
+    cost = get(update, "cost", nothing)
+    amount = cost isa Dict{String,Any} ? get(cost, "amount", nothing) : nothing
+    AgentUsageUpdate(_read_count(get(update, "used", 0)), _read_count(get(update, "size", 0)),
+                     amount isa Real ? Float64(amount) : nothing,
+                     cost isa Dict{String,Any} ? string(get(cost, "currency", "")) : "")
+end
+
+_read_count(value) = value isa Real ? Int(round(value)) : 0
+
+# The title of a `session_info_update`: `nothing` when the update leaves it out,
+# empty when it clears it.
+function _read_session_title(update::Dict{String,Any})
+    haskey(update, "title") || return nothing
+    title = update["title"]
+    title isa AbstractString ? String(title) : ""
+end

@@ -738,6 +738,13 @@ function test_application()
                 popup = scene.windows[2].content
                 @test popup isa WidgetMenu
                 @test [string(item.action.label) for item in popup.elements] == ["✓ High", "   Max"]
+                # The tab shows the title that the agent gives its session, and the
+                # line beside the menus the usage of its context.
+                chat.agent_title = "Reply with OK"
+                chat.agent_usage = AgentUsageUpdate(36012, 1000000, nothing, "")
+                texts = [text for (text, _, _) in drawn()]
+                @test "Reply with OK" in texts
+                @test "Context: 36k of 1M tokens" in texts
             end
 
             @testset "a press on a menu name opens its menu as a window under the name" begin
