@@ -357,7 +357,7 @@ document never holds the editor.
 | `session/list`, `resume`, `delete` | 2 | save and load |
 | `session/fork` | when stable | a duplicate starts a new session until then (Q4) |
 | `auth.terminal`, `logout` | 2 | R3 |
-| `elicitation.form` | 2 | after [a-form-edits-a-plain-value.md](a-form-edits-a-plain-value.md); turns on `AskUserQuestion` |
+| `elicitation.form` | 2 | after [a-form-edits-a-plain-value.md](../done/a-form-edits-a-plain-value.md); turns on `AskUserQuestion` |
 | `$/cancel_request` | 2 | |
 | prompt queue (`_meta.steering`) | 2 | only when the agent advertises it |
 | `image` in a prompt | 3 | a view as an image |

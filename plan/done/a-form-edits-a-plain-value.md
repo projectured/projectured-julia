@@ -1,14 +1,13 @@
 # A form edits a plain value
 
-> **Status (2026-10-08): IN PROGRESS** on the branch `plain-value-form`, in the
-> worktree `projectured-julia-plain-value-form`. Steps 1 to 8 are done; steps 7
-> and 8 and the next steps are on the branch `text-config-in-documents`, on top of this
-> one, after
-> [text-projection-config-into-document.md](../done/text-projection-config-into-document.md)
+> **Status (2026-10-08): DONE.** Steps 1 to 6 are on the branch
+> `plain-value-form`, in the worktree `projectured-julia-plain-value-form`, and
+> steps 7 to 10 on the branch `text-config-in-documents` on top of it, after
+> [text-projection-config-into-document.md](text-projection-config-into-document.md)
 > retired `ProjectionConfiguringProjection` (decision 17). The owner
 > answered the first six questions on 2026-10-06, chose the design of parts C and
 > D on 2026-10-08 (see "Decisions"), and asked for the implementation on
-> 2026-10-08.
+> 2026-10-08. Not on main and not pushed.
 
 ## Goal
 
@@ -908,7 +907,7 @@ form of part C and not readers that part C removes.
      `ReplaceStringRangeOperation`. On main the same keys answered nothing, and
      the labels failed one check later, because the example copied the form in
      a first stage.
-9. ⬜ **The documents.**
+9. ✅ **The documents.**
    [primitive.md](../../documentation/package/platform/primitive/primitive.md)
    gets the two ways and the table.
    [operation.md](../../documentation/package/kernel/operation.md) gets the write
@@ -917,7 +916,19 @@ form of part C and not readers that part C removes.
    rule for a value slot that holds a document, the nesting rows, the helper,
    the popup of the select, the new form of `ObjectFieldToWidget`, and the new
    form of `ObjectToWidget` if D lands.
-10. ⬜ Move this plan to `plan/done/`.
+
+   **Done 2026-10-08.** `primitive.md` has the section "Two ways a form edits a
+   plain value", with A, B, the table and the caret of a field.
+   `operation.md` has the write rules of a plain value and the anchor of the
+   inverse. `widget.md` has the section "The value slot of a widget", and its
+   items of `ObjectToWidget` and `ObjectFieldToWidget` describe the form as a
+   document and the caret of a field; its limit that `ObjectToWidget` maps no
+   reference is gone, and the limit of a range step that splices a vector stays,
+   because `_write_slot!` still splices. `test_documentation()` passes; its
+   report names no sentence of these sections. A link of `text.md` follows the
+   retirement plan to `plan/done/`.
+
+10. ✅ Move this plan to `plan/done/`.
 
 ## Decisions
 

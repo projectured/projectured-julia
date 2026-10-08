@@ -6,7 +6,7 @@
 > **Refreshed 2026-10-08.** The plan was written on
 > 2026-08-12 and refreshed on 2026-10-08 against the code of the branch
 > `plain-value-form`. It builds on part C of
-> [a-form-edits-a-plain-value.md](../pending/a-form-edits-a-plain-value.md): a widget slot
+> [a-form-edits-a-plain-value.md](a-form-edits-a-plain-value.md): a widget slot
 > that holds an `ObjectField`, and the table of
 > `make_object_field_widget_dispatch`. So it is implemented on a branch on top
 > of `plain-value-form`. Step 7 (part D) of that plan waits for this plan,
@@ -383,7 +383,7 @@ of the step, not `test_all()`.
    - For step 6: `widget.md` describes the caret of a plain value in a text
      box, and part C of the form plan has no section yet; the caret of a field
      goes into the documents with step 9 of
-     [a-form-edits-a-plain-value.md](../pending/a-form-edits-a-plain-value.md).
+     [a-form-edits-a-plain-value.md](a-form-edits-a-plain-value.md).
 5. ✅ **The tests of the view.** `ProjectionConfiguringTest.jl` becomes a test of
    the view, through an editor: typing in the pattern highlights again as a
    person types, the caret stays in the field, undo takes a key back, a press on
@@ -446,7 +446,7 @@ of the step, not `test_all()`.
    guard pass.
 
 7. ✅ Move this plan to `plan/done/`, and go on with step 7 (part D) of
-   [a-form-edits-a-plain-value.md](../pending/a-form-edits-a-plain-value.md).
+   [a-form-edits-a-plain-value.md](a-form-edits-a-plain-value.md).
 
 ## Decisions
 
@@ -474,7 +474,7 @@ The owner decided these on 2026-10-08:
    it is a look and not data. Rejected: a field of the document, as the plan of
    2026-08-12 had it.
 6. **The bar is a form of the document's own fields**, made with part C of
-   [a-form-edits-a-plain-value.md](../pending/a-form-edits-a-plain-value.md). Rejected: a
+   [a-form-edits-a-plain-value.md](a-form-edits-a-plain-value.md). Rejected: a
    bar that `ObjectToWidget` makes, as the plan of 2026-08-12 had it.
 7. **This plan comes before part D** of that plan.
 8. **The view is an authored document** (question Q1): a split pane that holds a
