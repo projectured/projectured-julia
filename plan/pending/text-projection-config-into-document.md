@@ -1,229 +1,321 @@
 # Hoist editable text-projection config into documents
 
-> **Status (2026-08-12): NOT STARTED.** `ProjectionConfiguringProjection` still
-> exists and is not retired (`package/widget/main/ProjectionConfiguring.jl`).
-> No `HighlightedContent` / `FilteredContent` document or doc-driven composer
-> projection exists anywhere under `package/`. The `@test_broken` symptom this
-> plan opens with is still present, same root cause, now at
-> `package/substrate/test/projection/ProjectionConfiguringTest.jl:135`. Paths
-> below are corrected for the current per-domain package layout (the file no
-> longer needs the generic "each domain is its own package" layout note, since
-> every path is now translated).
+> **Status (2026-10-08): REFRESHED, NOT STARTED.** The plan was written on
+> 2026-08-12 and refreshed on 2026-10-08 against the code of the branch
+> `plain-value-form`. It builds on part C of
+> [a-form-edits-a-plain-value.md](a-form-edits-a-plain-value.md): a widget slot
+> that holds an `ObjectField`, and the table of
+> `make_object_field_widget_dispatch`. So it is implemented on a branch on top
+> of `plain-value-form`. Step 7 (part D) of that plan waits for this plan,
+> because part D would otherwise have to change `ProjectionConfiguringProjection`.
+> Every question is answered. The plan waits for the word of the owner to start
+> step 1.
 
-> **Decision (2026-08-12): this plan proceeds.** The owner chose to retire
-> `ProjectionConfiguringProjection`. An editable projection parameter lives on a
-> document field, not on a projection struct, so selection, undo, serialization
-> and versioning apply to it. This plan owns the retirement, and Step 8 stands.
->
-> **Rejected.** Keep the projection and fix the caret another way: it leaves the
-> configuration outside the document, so the four uniformity gains stay out of
-> reach. Keep both mechanisms side by side: two ways to do one thing. Defer the
-> call: four plans stay blocked.
+## Goal
 
-Retire `ProjectionConfiguringProjection` (pcp). Its editable parameters
-(`TextHighlighting.pattern`, `TextFiltering.pattern` / `invert` etc.) live on
-projection structs, which are not `@document`s and therefore have no
-`selection::Reference` — so the control widgets rendered from them have no
-durable focus/caret, which is exactly why `pcp` swallows control-slot
-`ReplaceSelectionOp`s (`ProjectionConfiguring.jl:117-121`
-[package/widget/main/ProjectionConfiguring.jl], "the control caret
-is derived"). That in turn is why the widget layer's selection-authoritative
-KeyPress routing can never reach the control bar (`WidgetToGraphics.jl:2634`
-[package/widget/main/WidgetToGraphics.jl], `_selected_split_slot` returns 0
-when no selection is set).
+Retire `ProjectionConfiguringProjection` (pcp). Today the editable parameters of
+`TextHighlighting` and `TextFiltering` (`pattern`, `case_insensitive`,
+`invert`) live in cells on the projection structs. A projection is no document,
+so it has no `selection`: the controls that pcp draws from those structs have no
+place for a caret. That is why pcp swallows every path under its control slot
+([ProjectionConfiguring.jl](../../source/platform/widget/ProjectionConfiguring.jl),
+rule 3 of its reader), and why typing in the bar is `@test_broken`
+([ProjectionConfiguringTest.jl:168](../../test/platform/projection/ProjectionConfiguringTest.jl#L168)).
 
-The failing subtest currently `@test_broken`ed at
-`ProjectionConfiguringTest.jl:135`
-(`package/substrate/test/projection/ProjectionConfiguringTest.jl`; was `:106`
-before the per-domain package split moved and renumbered the file; original
-commit `f16ce8b`) is the visible symptom.
+After this plan the parameters are fields of a document. Selection, undo,
+serialization and versioning then apply to them, because an editable parameter
+and a field of the document are the same thing.
+
+## What the code does now
+
+Facts from the code on 2026-10-08:
+
+- **The highlight and the filter are pure functions already.** `_highlight(text,
+  pattern, color)` ([TextHighlighting.jl:89](../../source/platform/text/TextHighlighting.jl#L89)),
+  `_filter(text, pattern, invert)` and `_effective_pattern(value,
+  case_insensitive)` ([TextFiltering.jl:51-57](../../source/platform/text/TextFiltering.jl#L51-L57))
+  take no projection. So step 1 of the plan of 2026-08-12 is done. The mappers
+  and the readers take the projection and its IO map.
+- **A pattern string is always the source of a regular expression.**
+  `_effective_pattern` calls `Regex(s)`, with the flag `i` when
+  `case_insensitive` holds. An empty string gives no pattern.
+- **A pattern that does not compile throws.** `Regex("dolor(")` raises an error
+  in the computation of the highlight, with no `try`. While a person types a
+  regular expression, most prefixes do not compile.
+- **pcp has these users:**
+  - the gallery, `run_example(...; text_highlighting = true)` and
+    `text_filtering = true` ([Gallery.jl:258-265](../../example/projectured/Gallery.jl#L258-L265));
+  - `make_text_configuring_projection`
+    ([GalleryWrapperProjectionExample.jl:78-93](../../example/projectured/GalleryWrapperProjectionExample.jl#L78-L93)),
+    exported twice from `ProjecturedExample`;
+  - `ProjectionConfiguringTest.jl`, six testsets, one `@test_broken`;
+  - the export of `WidgetModule`, and six documents: `widget.md`,
+    `projection.md`, `higher-order-projections.md`, `projection-system.md`,
+    `engineer-tour.md` and `system-anatomy.md`;
+  - the header of `ObjectToWidget.jl`, which says that pcp uses it.
+- **pcp also shows and hides its bar:** Ctrl+F toggles it and Escape hides it,
+  with a write that is marked as view state.
 
 ## Design
 
-Editable projection parameters move onto real `@document` wrapper nodes that
-live in `editor.document`. Selection, undo/redo, serialization, versioning,
-and widget focus all become uniform because "editable parameter" and
-"document field" become the same thing.
+### The documents
 
-```
-Before                              After
-─────────────────────────────────   ────────────────────────────────────
-editor.document                     editor.document
-  = TextBlock("alpha dolor")           = HighlightedContent(
-                                          pattern = "dolor",
-                                          case_insensitive = false,
-                                          color = color_yellow,
-                                          content = TextBlock("alpha dolor"),
-                                          selection = nothing)
-editor.projection
-  = ChainingProjection(              editor.projection
-      ProjectionConfiguring-           = ChainingProjection(
-        Projection(                        HighlightedContentComposer(),
-          inner=TextHighlighting(          renderer)
-                  "dolor")),
-      renderer)
-```
-
-`HighlightedContent` is a normal `@document`, so:
-
-- `HighlightedContent.selection` is a real `Reference` cell. Focusing the
-  pattern textbox is `doc.selection = @reference pattern{k}`. It survives
-  across prints because the document does.
-- `WidgetToGraphics`'s selection-authoritative rule is preserved unchanged.
-  No autofocus special case.
-- `pcp` Case 3 is unnecessary — control-slot `ReplaceSelectionOp`s become
-  normal document-scoped selection ops that the standard reader handles.
-- Undo/redo, serialization, `@gestures`, gesture-help, tests: all uniform.
-
-### Wrappers stay chained; do not flatten
-
-If we want both highlighting and filtering, the wrapper nesting stays deep:
+Two documents of the text slice. The names say what a person sees: a text with
+its matches marked, and a text with only its matching lines.
 
 ```julia
-HighlightedContent(
-    pattern = ...,
-    content = FilteredContent(
-        pattern = ...,
-        invert = ...,
-        content = TextBlock(...)))
+@document struct HighlightedText
+    text::Any                 # the text whose matches are highlighted
+    pattern::String
+    regex::Bool               # the pattern is a regular expression, else literal text
+    case_insensitive::Bool
+end
+
+@document struct FilteredText
+    text::Any                 # the text whose matching lines stay
+    pattern::String
+    regex::Bool
+    case_insensitive::Bool
+    invert::Bool              # keep the lines that do not match
+end
 ```
 
-**Do not** merge these into a single flat `TextView` document with combined
-config fields. Each layer has its own semantic (a highlight pattern and a
-filter pattern are distinct concepts; the user may want to focus into
-either), each layer has its own `.selection`, and reference paths stay
-locally interpretable at each level. The nesting is exactly the composition
-the projection chain currently expresses — just moved from projection space
-into document space, where it belongs.
+`case_insensitive` and `invert` keep the names of `TextHighlighting` and
+`TextFiltering`. The colour of a highlight is a look, not data, so it stays a
+setting of the projection, from the theme.
 
-## Migration path
+### The pattern
 
-**Path 1 (recommended) — parallel.** Keep `TextHighlighting` /
-`TextFiltering` as fixed-config projections for their many read-only
-call-sites. Add wrapper `@document`s and doc-driven projections alongside.
+One function of the text slice makes the pattern from the fields:
 
-- Extract the shared highlight/filter logic (regex compilation, span
-  scanning) into pure functions taking `(pattern, case_insensitive, ...)`.
-- Both the existing projection and the new doc-driven projection call these
-  primitives. No duplication.
+- `regex` false: the text is escaped, so `a.b` and `f(x)` match as written.
+- `case_insensitive`: the flag `i`.
+- An empty pattern, and a pattern that does not compile, give no pattern, so
+  the text shows no highlight and keeps every line. No error leaves the
+  computation.
 
-**Path 2 — full migration.** Retire `TextHighlighting` / `TextFiltering`
-entirely; everything routes through the doc wrappers. Buys a cleaner
-taxonomy at the price of ~40 test call-site rewrites. Not recommended
-unless we hit a maintenance reason to unify.
+This function takes the place of `_effective_pattern`, which goes with
+`TextFiltering`.
 
-## Scope inventory
+### The projections
 
-**Only 2 real callers of `pcp`** (paths current as of 2026-08-12; the domain
-examples moved to their own packages since this plan was written):
+`HighlightedTextToText` and `FilteredTextToText`, in the text slice. Each uses its
+own input: the recursion sends a `HighlightedText` to `HighlightedTextToText` by
+its type, and the fields of that node are the configuration. No projection looks
+up a configuration anywhere else.
 
-- `package/workbench/example/projection/Wrapper.jl:117` — `make_text_configuring_projection` factory.
-- `package/projectured/example/Gallery.jl:253,255` — the gallery entries calling `make_text_configuring_projection(TextHighlighting("dolor"))` and `make_text_configuring_projection(TextFiltering("dolor"))`.
+Each prints `doc.text` through the recursion first, and then highlights or
+filters the `TextBlock` that comes back, with the pattern computed from the
+fields of the document, inside a cell, so a write of a field highlights or
+filters again. The code of `TextHighlighting` and `TextFiltering` moves into the
+new projections, and the two old projections go (decision 10): the highlight and
+the filter of the spans, the table of segments or of kept elements, the mappers
+and the readers. So the wrappers nest, as the projections of today chain:
 
-Definitions / re-exports (mechanical to update):
+```julia
+FilteredText(text = HighlightedText(text = block, pattern = "dolor", …),
+             pattern = "^a", regex = true, …)   # filters the highlighted text
+```
 
-- `package/widget/main/ProjectionConfiguring.jl` — the module.
-- Its `include` line in `package/widget/main/ProjecturedWidget.jl` and its
-  re-export in `package/widget/main/ProjecturedWidget.jl`'s dependents (the
-  module now lives in its own `widget` package, not a shared `visual`/`domain`
-  package, so there is no separate cross-package re-export line left to edit).
-- Doc-comment mentions in `package/widget/main/{ObjectToWidget,Widget}.jl`.
+A reference of the document starts with the step `text`. On the way forward the
+mappers take it off, map the rest through the child of `text`, and then through
+the highlight or the filter. On the way back they go the other way and put the
+step `text` back.
 
-Tests:
+### The scope
 
-- `package/substrate/test/projection/ProjectionConfiguringTest.jl` — 5 testsets,
-  ~140 lines, one currently `@test_broken` at line 135.
-- Export list: `package/substrate/test/ProjecturedSubstrateTest.jl` (the
-  successor of `ProjecturedVisualTest.jl`).
+- **Only the subtree in `text`.** The bar, the rest of the document and other
+  panes are outside it.
+- **Only text.** The child of `text` must give a `TextBlock`; another document
+  there is drawn through the recursion, and its output is not highlighted.
+- **The rules of today stay.** A highlight matches inside one span, so a match
+  can not cross a change of style. A filter keeps or drops whole lines, split at
+  each `TextNewline`, and a line matches on the joined strings of its spans.
+- **The wrapper is part of the document.** To highlight a text, the document
+  wraps it: each path in the text gets the step `text` in front, and a save
+  keeps the pattern. That is what the decision of 2026-08-12 wanted: the
+  configuration is data.
+- **A search over a whole document is another feature.** `SearchingProjection`
+  walks any document and collects the objects whose string field matches; it
+  gives a list of matches, not marks in place.
 
-Configurable text projections (in scope):
+`TextHighlighting` and `TextFiltering` go (decision 10). A fixed highlight, such
+as "TODO" in every text, is a `HighlightedText` with a fixed pattern and no bar,
+and a pattern that lives outside the document is a field of the wrapper that
+holds a computed cell. `WordWrapping`, `TextFirstLine` and `TextLineNumbering`
+stay projections, because nobody edits their parameters: a parameter that a
+person edits is data of the document.
 
-| projection | fields |
-|---|---|
-| `TextHighlighting` | `pattern::Cell`, `case_insensitive::Cell`, `color::StyleColor` |
-| `TextFiltering`   | `pattern::Cell`, `case_insensitive::Cell`, `invert::Cell` |
+### The view
 
-Fields re-verified 2026-08-12 at `package/text/main/TextHighlighting.jl:49-53`
-and `package/text/main/TextFiltering.jl:50-54` — unchanged from the plan.
+The bar is a form of the document's own fields, made with part C, in a
+collapsible `WidgetCard` titled "Find" (or "Filter"). The view is a small
+document (working name `BarView`; the step chooses the name by the naming rules)
+that holds two authored children and one state:
 
-`WordWrapping` (`max_width`, `measure`) and `TextFirstLine` (empty) have no
-user-editable state; out of scope.
+```julia
+highlighted = HighlightedText(text = block, pattern = "dolor", regex = false,
+                              case_insensitive = false)
+bar = WidgetCard(; title = WidgetLabel("Find"), collapsible = true, content =
+    FormLayout([(WidgetLabel("Find"),               ObjectField(highlighted, "pattern")),
+                (WidgetLabel("Regular expression"), ObjectField(highlighted, "regex")),
+                (WidgetLabel("Ignore case"),        ObjectField(highlighted, "case_insensitive"))]))
+view = BarView(bar = bar, content = highlighted, overlaid = false)
+```
 
-Direct `TextHighlighting(...)` / `TextFiltering(...)` call-sites (all
-untouched under Path 1):
+**Three states, each on its own** (decision 9):
 
-- `package/substrate/example/projection/{TextHighlighting,TextFiltering}.jl` — the
-  gallery entries for the projections themselves (fixed pattern, no control).
-- `package/substrate/test/projection/TextHighlightingTest.jl` — 7 `print_document(TextHighlighting(...), ...)` cases.
-- `package/substrate/test/projection/TextFilteringTest.jl` — 8 similar cases.
-- `package/substrate/test/projection/ObjectToWidgetTest.jl` — `TextHighlighting` used as a fixture for `ObjectToWidget`.
+| State | Field | Where |
+| --- | --- | --- |
+| shown or hidden | `visible` | the card (exists) |
+| expanded or collapsed | `collapsed` | the card (exists; its chevron changes it) |
+| displaced or overlay | `overlaid` | the view document (new) |
+
+All three are view state, so a history keeps no step for them, and a hide keeps
+the other two: a bar that shows again is as it was. The projection of the view
+only arranges its two children by `overlaid`. Displaced: the bar above the
+content, in a vertical layout, so the content moves down. Overlay: the content
+laid out as usual, and the bar drawn over it, through `AnchoredLayout`. It maps a
+path of the arrangement back to the field `bar` or `content` of the view, and
+back again.
+
+**The keys** are a `@gestures` table of the view document. A key that the part
+under the caret does not take reaches that table, as a key reaches the table of
+the navigator ([NavigatorToWidget.jl:281](../../source/platform/navigator/NavigatorToWidget.jl#L281)):
+
+- **Ctrl+F**: the bar is shown and expanded, and the caret goes into the field of
+  the pattern. The placement stays.
+- **Escape**, with the caret in the bar: the bar is hidden, and the caret goes
+  back to the content. Its collapse and its placement stay.
+- **A press on the chevron** of the card: collapsed or expanded (exists).
+- **A button on the bar**: displaced or overlay.
+
+The projection of the whole view is one recursion: the layout rows, the table
+of `make_object_field_widget_dispatch`, the row of the view document, and
+`HighlightedText => ChainingProjection(HighlightedTextToText(), <the text renderer>)`.
+
+- **A key in the bar** is an ordinary write on a cell field of the document, so
+  undo works, and the highlight computation reads that cell.
+- **The caret of the bar** is in the `ObjectField` of the bar, which is a node of
+  the document, so the selection chain reaches it and it lasts across prints.
+- **A caret in the text** maps back through `HighlightedTextToText` to a path
+  that starts `text`, so it lives in the document too.
+
+The owner chose an authored view on 2026-10-08 (decision 8) and the three states
+with these keys (decision 9).
+
+To check in step 4: `AnchoredLayout` places a child beside a target, and a place
+inside a corner of the content may be missing; and a vertical layout gives no
+space to a hidden child, which a split pane may not.
 
 ## Steps
 
-1. **Extract shared primitives.** Refactor the pattern-scanning core out of
-   `TextHighlighting` / `TextFiltering` into pure functions in
-   `package/text/main/` (e.g. `_scan_highlights(text, pattern, case_insensitive)`,
-   `_filter_lines(text, pattern, case_insensitive, invert)`). Both the
-   existing projection and the new doc-driven projection call these.
-2. **Introduce `HighlightedContent`.** New `@document` at
-   `package/text/main/HighlightedContent.jl`, alongside a
-   `HighlightedContentToText` projection that reads its config from
-   `iomap.input.{pattern,case_insensitive,color}` and produces the same
-   highlighted `TextBlock` output the existing `TextHighlighting` projection
-   produces.
-3. **Introduce `FilteredContent`.** Symmetric: `package/text/main/
-   FilteredContent.jl` + `FilteredContentToText`.
-4. **Doc-composer projection.** Small projection that takes a wrapper doc
-   with a `content` sub-slice and any number of scalar/config sub-slices,
-   projects the config sub-slice via `ObjectToWidget` (the control bar), the
-   content sub-slice via a recursion-provided per-content projection, and
-   stacks them in a `WidgetSplitPane`. This is `pcp` with the config-state
-   hoisted out into the wrapper doc — much smaller, no Case 3, no
-   `control_widget` field on the iomap. Consider whether an existing
-   composer (e.g. via `WorkbenchToWidget`'s pane machinery) already covers
-   this before writing a new one.
-5. **Retarget `make_text_configuring_projection`.** Now takes
-   `content_doc` (a `TextBlock`), returns `(wrapper_doc, projection)` where
-   `wrapper_doc = HighlightedContent(pattern="dolor", content=content_doc)`
-   and `projection` is the composer + renderer chain.
-6. **Gallery.** Update `package/projectured/example/Gallery.jl:253,255` — the two
-   `text_highlighting=true` / `text_filtering=true` branches — to also swap
-   `document` (currently the plain `TextBlock`) with the wrapper doc.
-7. **Rewrite `ProjectionConfiguringTest.jl`.** The 5 testsets test pcp
-   semantics; they get rewritten around the composer + wrapper-doc model.
-   The `@test_broken` typing subtest becomes a normal `@test` and passes.
-8. **Retire `ProjectionConfiguringProjection`.** Delete the module + include
-   line + re-exports. Update the two doc-comment mentions in `ObjectToWidget.jl`
-   / `Widget.jl`. Move the plan to `plan/done/`.
+Each step is one commit, on a branch on top of `plain-value-form`. Run the test
+of the step, not `test_all()`.
 
-## Success criteria
+1. ⬜ **The pattern.** The function that makes the pattern from the fields.
+   Tests: literal text with the characters of a regular expression, a regular
+   expression, the flag for case, an empty pattern, and a pattern that does not
+   compile.
+2. ⬜ **`HighlightedText` and `HighlightedTextToText`; `TextHighlighting` goes.**
+   The code of `TextHighlighting.jl` moves into the new projection, which reads
+   its configuration from its input and handles the step `text`.
+   `TextHighlightingTest.jl` becomes the test of the new projection (10 call
+   sites), with these cases besides its own: the highlights follow a write of
+   each field; a caret in the text maps to a path that starts `text`, and back;
+   an edit of the text writes the text of the document; two highlighted texts in
+   one document each follow their own fields. The example
+   `TextHighlightingProjectionExample.jl` and its document become a
+   `HighlightedText`, and `InlineImageCaretTest.jl` wraps the text in one where
+   it chained the projection (2 call sites).
+3. ⬜ **`FilteredText` and `FilteredTextToText`; `TextFiltering` goes.** The same,
+   with `invert`, `TextFilteringTest.jl` (10 call sites), its example, and the
+   other 2 call sites of `InlineImageCaretTest.jl`. And a `FilteredText` around a
+   `HighlightedText`: the filter keeps the highlighted lines, and a caret and an
+   edit map back through both.
+4. ⬜ **The view and the gallery.** The view document, its projection, which
+   arranges the bar and the content by `overlaid`, and its `@gestures` table. A
+   function of the examples makes the view and its projection, and takes the
+   place of `make_text_configuring_projection`.
+   The two branches of `Gallery.jl` use it, and `content_unwrap` there learns the
+   fields of the view. The exports of `ProjecturedExample` follow.
+5. ⬜ **The tests of the view.** `ProjectionConfiguringTest.jl` becomes a test of
+   the view, through an editor: typing in the pattern highlights again as a
+   person types, the caret stays in the field, undo takes a key back, a press on
+   a checkbox changes the matches, a press in the text puts a caret in the text.
+   The `@test_broken` of typing becomes a `@test`. And the states: Ctrl+F shows
+   and expands the bar and puts the caret in the pattern, Escape hides it and
+   puts the caret back in the text, a hide keeps the collapse and the placement,
+   the button switches the placement, and the text keeps its place under an
+   overlay bar.
+6. ⬜ **Retire `ProjectionConfiguringProjection`.** Delete
+   `ProjectionConfiguring.jl`, its include, its export, and its mentions in the
+   six documents and in the header of `ObjectToWidget.jl`. `ObjectToWidgetTest.jl`
+   takes another fixture for its 6 uses of `TextHighlighting`, or part D
+   rewrites them. `ProjecturedPlatform` loses the exported names
+   `ProjectionConfiguringProjection`, `TextHighlighting` and `TextFiltering`
+   (with their IO maps); it already takes the version 0.2.0 at its next release,
+   and this change falls into that step.
+7. ⬜ Move this plan to `plan/done/`, and go on with step 7 (part D) of
+   [a-form-edits-a-plain-value.md](a-form-edits-a-plain-value.md).
 
-- `test_projection_configuring()` — the same 5 testsets, rewritten around
-  the wrapper doc — passes with all `@test`s green. No `@test_broken`.
-- `test_substrate()` full (the successor of `test_visual()` after the package
-  split): no new failures relative to `f16ce8b`.
-- Each domain's own `test_<domain>()` (the successor of `test_domain()`): no
-  new failures (the two gallery branches now build different documents;
-  regressions here would surface as broken example goldens, worth eyeballing).
-- Interactive: `run_example(...; text_highlighting=true)` — typing into the
-  pattern textbox re-highlights live; Tab / Escape behave sensibly;
-  focus survives across prints.
+## Decisions
 
-## Out of scope
+The owner decided these on 2026-08-12:
 
-- Migrating any other pcp-style patterns to the doc-config model — no
-  others exist today (grep confirms).
-- Any `WordWrapping` / `TextFirstLine` treatment — no user-editable state.
-- Path 2 (retiring `TextHighlighting`/`TextFiltering`).
-- Autofocus semantics in the widget layer (the alternative Option A from
-  the design discussion); the whole point of this plan is that we don't
-  need it.
-- Cross-editor / shared config (theme, font-size, per-user preferences) —
-  those are legitimately editor-owned, not document-owned, and would need
-  a different plan if we ever want them interactive.
+1. **Retire `ProjectionConfiguringProjection`.** An editable parameter of a
+   projection lives on a field of a document, not on a projection struct.
+   Rejected then: keep the projection and fix the caret another way (the
+   configuration stays outside the document); keep both mechanisms (two ways to
+   do one thing); defer the call (four plans stay blocked).
+2. **Keep `TextHighlighting` and `TextFiltering`** for the uses that edit no
+   parameter (path 1). Rejected then: route every use through the documents
+   (path 2), about 40 test call sites for no gain. Replaced on 2026-10-08 by
+   decision 10.
 
-## References
+The owner decided these on 2026-10-08:
 
-- Failing subtest currently `@test_broken`: `package/substrate/test/projection/ProjectionConfiguringTest.jl:135` (was `:106` before the package split; commit `f16ce8b`).
-- Widget layer selection-authoritative routing: `package/widget/main/WidgetToGraphics.jl:2634` (`WidgetSplitPane`, `_selected_split_slot`) and `:1868` (`WidgetComposite`, `_selected_composite_slot`) — plus `package/widget/doc/widget.md`.
-- pcp's control-slot consumption: `package/widget/main/ProjectionConfiguring.jl:117-121`.
+3. **The names are `HighlightedText` and `FilteredText`**, with the wrapped text
+   in the field `text`. Rejected: `HighlightedContent` and `FilteredContent`,
+   because the highlight works only on text and `Content` says nothing.
+4. **The pattern is a `String`, and a field `regex` chooses** between a regular
+   expression and literal text, as the find bar of an editor does. Rejected:
+   the string is always a regular expression, as today.
+5. **The colour of a highlight stays in the theme of the projection**, because
+   it is a look and not data. Rejected: a field of the document, as the plan of
+   2026-08-12 had it.
+6. **The bar is a form of the document's own fields**, made with part C of
+   [a-form-edits-a-plain-value.md](a-form-edits-a-plain-value.md). Rejected: a
+   bar that `ObjectToWidget` makes, as the plan of 2026-08-12 had it.
+7. **This plan comes before part D** of that plan.
+8. **The view is an authored document** (question Q1): a split pane that holds a
+   form of the document's own fields and the wrapper itself, which the caller
+   builds. The fields of the bar are nodes of the document, so the caret of the
+   bar is a real path in it. Rejected: a composer projection that makes the bar
+   and maps its caret to the path `.pattern{k}` of the document, which needs a
+   caret mapping of its own.
+9. **The bar has three states, each on its own** (question Q2): shown or hidden
+   (`visible` of the card), expanded or collapsed (`collapsed` of the card), and
+   displaced or overlay (`overlaid` of the view document). All three are view
+   state. Ctrl+F shows and expands the bar and puts the caret in the pattern;
+   Escape in the bar hides it and puts the caret back; the chevron collapses
+   and expands; a button switches the placement. The keys are a `@gestures`
+   table of the view document. So decision 8 holds with a small view document:
+   it holds the authored bar and content, and its projection only arranges them.
+   Rejected: a collapsible card alone with no keys; one field with the four
+   values hidden, collapsed, expanded and overlay, which forgets the collapse
+   and the placement at a hide.
+10. **`TextHighlighting` and `TextFiltering` go too** (path 2), and their code
+    moves into the new projections. On 2026-10-08 nothing in `source/`, in
+    omnet-julia or in inet-julia used them; only two examples, the gallery
+    through pcp, and tests did. Their one advantage, a pattern from outside the
+    document, is also a field of the wrapper that holds a computed cell. The
+    call sites: 10 + 10 in their own tests, which become the tests of the new
+    projections, 4 in `InlineImageCaretTest.jl`, 6 in `ObjectToWidgetTest.jl`,
+    6 in `ProjectionConfiguringTest.jl`, which this plan rewrites anyway, and 2
+    examples. Rejected: keep them beside the documents (path 1), two ways to do
+    one thing, and the question how the two share their code.
+
+## Open questions
+
+None on 2026-10-08. A step that meets a new question records it here.

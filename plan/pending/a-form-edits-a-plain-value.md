@@ -1,7 +1,9 @@
 # A form edits a plain value
 
 > **Status (2026-10-08): IN PROGRESS** on the branch `plain-value-form`, in the
-> worktree `projectured-julia-plain-value-form`. Steps 1 to 6 are done. The owner
+> worktree `projectured-julia-plain-value-form`. Steps 1 to 6 are done. Step 7
+> waits for [text-projection-config-into-document.md](text-projection-config-into-document.md),
+> which retires `ProjectionConfiguringProjection` first (decision 17). The owner
 > answered the first six questions on 2026-10-06, chose the design of parts C and
 > D on 2026-10-08 (see "Decisions"), and asked for the implementation on
 > 2026-10-08.
@@ -809,7 +811,8 @@ form of part C and not readers that part C removes.
      one shared `Cell`, two edits and two undos, and a mutable value changed in
      place; `test_widget_value_slot()` 25 and `test_object_field_to_syntax()` 13
      pass.
-7. ⬜ **D: `ObjectToWidget` as a chain.** Files: [ObjectToWidget.jl](../../source/platform/widget/ObjectToWidget.jl)
+7. ⬜ **D: `ObjectToWidget` as a chain.** Waits for the retirement of
+   `ProjectionConfiguringProjection` (decision 17). Files: [ObjectToWidget.jl](../../source/platform/widget/ObjectToWidget.jl)
    and a new file for the first stage. Tests: `ObjectToWidgetTest.jl` keeps its
    shape assertions, and gets a nested text edit, a vector element and a plain
    nested value. Run the chart inspector example with `test_example(...)`, and
@@ -887,6 +890,20 @@ The owner decided these on 2026-10-08:
     `ObjectToWidget` lets one form choose differently, by the path, the value or
     the object. The owner chose this over a table whose keys are a type, a field
     name or a path.
+
+The owner decided this on 2026-10-08, before step 7:
+
+17. **`ProjectionConfiguringProjection` is retired before part D**, by
+    [text-projection-config-into-document.md](text-projection-config-into-document.md),
+    which builds on part C. Before step 7 it showed that part D would have to
+    change that projection: every chain that draws the output of
+    `ObjectToWidget` needs the table of `make_object_field_widget_dispatch`; its
+    reader hands a control edit to the control, which now lets it pass, and then
+    gives the whole answer, with a caret move under the control slot, to the
+    inner projection, which drops it; and its root, a projection object, has no
+    `selection` for a caret. Rejected: change that projection in part D, work
+    that its retirement removes again; keep the old behaviour of
+    `ObjectToWidget` for it alone, two ways to do one thing.
 
 The designs that decisions 7 to 13 replace:
 
