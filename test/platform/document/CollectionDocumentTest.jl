@@ -481,5 +481,13 @@ end # @testset "ReactiveCollection"
         end
     end
 
+    @testset "a native layout takes the list of a cell layout as a vector" begin
+        shadow = copy_document(ReactiveCell, TypedListHolder(; names = ["a", "b"]))
+        native = TypedListHolder(; names = shadow.names)
+        @test getfield(native, :names) isa Vector{String}
+        @test getfield(native, :names) == ["a", "b"]
+        @test convert(Vector{String}, CellVector(Any["x"])) == ["x"]
+    end
+
 end # @testset "CellVector protocol"
 end # test_collection
