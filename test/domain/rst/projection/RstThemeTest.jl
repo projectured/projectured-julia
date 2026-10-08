@@ -39,6 +39,10 @@ Some *em* text.
     @test is_color_equal(leaf.style.color, get_theme_value(RstTheme(), :source_text).color)
     # A projection holds its styles and no theme, and its builder reads a theme
     # that is not scaled as at no scale.
+    # The name of a field and of an option take the roles of their kinds.
+    role(name) = resolve_theme_color(ColorRole(name), Appearance())
+    @test is_color_equal(RstFieldToSyntaxNode().name_style.color, role(:field))
+    @test is_color_equal(RstDirectiveOptionToSyntaxNode().name_style.color, role(:parameter))
     @test !hasfield(RstTextToSyntaxLeaf, :theme)
     @test !hasfield(RstSectionToStyledNode, :theme)
     @test !hasfield(RstSectionToVerticalLayout, :theme)

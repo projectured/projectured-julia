@@ -38,8 +38,12 @@ color, picked by the level while it prints.
     target_text::TextRole          = TextRole(:link; base = :code_font)
     "A role's value and a math block."
     value_text::TextRole           = TextRole(:string_literal; base = :code_font)
-    "A reference, a footnote label, a field name, a toctree entry, and a section's adornment."
+    "A reference, a footnote label, a toctree entry, and a section's adornment."
     reference_text::TextRole       = TextRole(:link; base = :code_font)
+    "The name of a field of a field list."
+    field_text::TextRole           = TextRole(:field; base = :code_font)
+    "The name of an option of a directive."
+    option_text::TextRole          = TextRole(:parameter; base = :code_font)
     "A substitution reference and the name of a substitution definition."
     substitution_text::TextRole    = TextRole(:constant; base = :code_font)
     "The name of a directive and the language of a code block."

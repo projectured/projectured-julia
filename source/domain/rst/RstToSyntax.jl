@@ -380,7 +380,7 @@ end
 
 @projection UntrackedCell struct RstFieldToSyntaxNode
     marker_style::StyleText = get_rst_style(nothing, :marker_text)
-    name_style::StyleText   = get_rst_style(nothing, :reference_text)
+    name_style::StyleText   = get_rst_style(nothing, :field_text)
 end
 
 @rst_indented RstFieldToSyntaxNode RstField (prj, doc, outer, inner) ->
@@ -544,7 +544,7 @@ end
 
 @projection UntrackedCell struct RstDirectiveOptionToSyntaxNode
     marker_style::StyleText = get_rst_style(nothing, :marker_text)
-    name_style::StyleText   = get_rst_style(nothing, :reference_text)
+    name_style::StyleText   = get_rst_style(nothing, :option_text)
     value_style::StyleText  = get_rst_style(nothing, :source_text)
 end
 
@@ -1349,7 +1349,7 @@ function _source_rules(theme)
         RstEnumeratedList          => RstEnumeratedListToSyntaxNode(; marker_style = marker),
         RstDefinitionItem          => RstDefinitionItemToSyntaxNode(; marker_style = marker),
         RstDefinitionList          => RstDefinitionListToSyntaxNode(),
-        RstField                   => RstFieldToSyntaxNode(; marker_style = marker, name_style = reference),
+        RstField                   => RstFieldToSyntaxNode(; marker_style = marker, name_style = get_style(:field_text)),
         RstFieldList               => RstFieldListToSyntaxNode(),
         RstBlockQuote              => RstBlockQuoteToSyntaxNode(; marker_style = marker),
         RstTransition              => RstTransitionToSyntaxLeaf(; style = marker),
@@ -1360,7 +1360,7 @@ function _source_rules(theme)
         RstTableCell               => RstTableCellToSyntaxNode(; marker_style = marker),
         RstTableRow                => RstTableRowToSyntaxNode(; marker_style = marker),
         RstGridTable               => RstGridTableToSyntaxNode(; style = marker),
-        RstDirectiveOption         => RstDirectiveOptionToSyntaxNode(; marker_style = marker, name_style = reference, value_style = source),
+        RstDirectiveOption         => RstDirectiveOptionToSyntaxNode(; marker_style = marker, name_style = get_style(:option_text), value_style = source),
         RstLiteralInclude          => RstLiteralIncludeToSyntaxNode(; media_styles...),
         RstFigure                  => RstFigureToSyntaxNode(; media_styles...),
         RstCodeBlock               => RstCodeBlockToSyntaxNode(; marker_style = marker, lang_style = directive, code_style = literal),
