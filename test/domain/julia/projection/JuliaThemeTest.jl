@@ -11,11 +11,19 @@ function test_julia_theme()
     @test draw_font_sizes(document, Appearance(font_scale = 1.5)) == round.(Int, plain .* 1.5)
     @test JuliaIntegerToSyntaxLeaf().style.font.size == 14
     theme = get_scaled_theme!(Appearance(font_scale = 1.5), JuliaTheme)
-    leaf = JuliaIntegerToSyntaxLeaf(; style = get_julia_style(theme, :constant_text))
+    leaf = JuliaIntegerToSyntaxLeaf(; style = get_julia_style(theme, :number_text))
     @test leaf.style.font.size == 21
-    @test is_color_equal(leaf.style.color, get_theme_value(JuliaTheme(), :constant_text).color)
-    @test is_color_equal(JuliaIntegerToSyntaxLeaf().style.color,
-                         resolve_theme_color(ColorRole(:constant), Appearance()))
+    @test is_color_equal(leaf.style.color, get_theme_value(JuliaTheme(), :number_text).color)
+    # Each kind of value takes the role of its kind, and `<:` an operator.
+    role(name) = resolve_theme_color(ColorRole(name), Appearance())
+    @test is_color_equal(JuliaIntegerToSyntaxLeaf().style.color, role(:number_literal))
+    @test is_color_equal(JuliaFloatToSyntaxLeaf().style.color, role(:number_literal))
+    @test is_color_equal(JuliaBoolToSyntaxLeaf().style.color, role(:boolean_literal))
+    @test is_color_equal(JuliaNothingToSyntaxLeaf().style.color, role(:null_literal))
+    @test is_color_equal(JuliaSymbolToSyntaxLeaf().style.color, role(:symbol_literal))
+    @test is_color_equal(JuliaStringToSyntaxLeaf().style.color, role(:string_literal))
+    @test is_color_equal(JuliaCharToSyntaxLeaf().style.color, role(:character_literal))
+    @test is_color_equal(JuliaSubtypeToSyntaxNode().op_style.color, role(:operator))
     # A projection holds its styles and no theme, and its builder reads a theme
     # that is not scaled as at no scale.
     @test !hasfield(JuliaIntegerToSyntaxLeaf, :theme)

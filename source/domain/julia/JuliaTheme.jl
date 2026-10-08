@@ -25,19 +25,25 @@ values of the default theme.
     font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "A variable, and the label of an object that stands in the code, such as a widget pasted into a form."
     identifier_text::TextRole = TextRole(:reference)
-    "A string, a character, a chunk of an interpolated string, the quotes of a string interpolation, and a docstring."
-    literal_text::TextRole = TextRole(:string_literal)
-    "A number, `true`, `false` and `nothing`."
-    constant_text::TextRole = TextRole(:constant)
+    "A string, a chunk of an interpolated string, the quotes of a string interpolation, and a docstring."
+    string_text::TextRole = TextRole(:string_literal)
+    "A character."
+    char_text::TextRole = TextRole(:character_literal)
+    "An integer and a float."
+    number_text::TextRole = TextRole(:number_literal)
+    "`true` and `false`."
+    bool_text::TextRole = TextRole(:boolean_literal)
+    "`nothing`."
+    nothing_text::TextRole = TextRole(:null_literal)
     "A quote, a delimiter, a separator, a brace and a fence."
     punctuation_text::TextRole = TextRole(:punctuation)
     "A comment, in a field of code that colors Julia as a person types it."
     comment_text::TextRole = TextRole(:comment)
     "A keyword."
     keyword_text::TextRole = TextRole(:keyword; weight = 700)
-    "A symbol, `<:`, `->`, and the dollar sign of a string interpolation."
-    symbol_text::TextRole = TextRole(:constant)
-    "An operator, the dot of a field access, a range, `::`, `=` and `?:`."
+    "A symbol, such as `:name`."
+    symbol_text::TextRole = TextRole(:symbol_literal)
+    "An operator, the dot of a field access, a range, `::`, `=`, `?:`, `<:`, `->`, and the dollar sign of a string interpolation."
     operator_text::TextRole = TextRole(:operator)
     "The called function, and the name of a macro."
     callee_text::TextRole = TextRole(:function_name)

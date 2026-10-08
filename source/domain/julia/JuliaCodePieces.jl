@@ -15,20 +15,20 @@ const _JULIA_CODE_TOKEN = r"(?<comment>#.*)|(?<string>\"(?:[^\"\\]|\\.)*\"?)|(?<
 const _JULIA_CODE_KEYWORDS = Set(["if", "else", "elseif", "end", "for", "while", "function", "return",
                                   "let", "begin", "do", "try", "catch", "finally", "where", "in", "isa"])
 
-# The words that the constant role colors, as it colors a number.
-const _JULIA_CODE_CONSTANTS = Set(["true", "false", "nothing"])
+# The words that are a value, by the text role of `JuliaTheme` that colors each.
+const _JULIA_CODE_CONSTANTS = Dict("true" => :bool_text, "false" => :bool_text, "nothing" => :nothing_text)
 
 # The text role of `JuliaTheme` that colors a token, or `nothing` for a name,
 # which keeps the color of the field.
 function _get_julia_code_role(token::RegexMatch)
     token[:comment] === nothing || return :comment_text
-    token[:number] === nothing || return :constant_text
-    (token[:string] === nothing && token[:char] === nothing) || return :literal_text
+    token[:number] === nothing || return :number_text
+    token[:string] === nothing || return :string_text
+    token[:char] === nothing || return :char_text
     token[:operator] === nothing || return :operator_text
     token[:symbol] === nothing || return :symbol_text
     token.match in _JULIA_CODE_KEYWORDS && return :keyword_text
-    token.match in _JULIA_CODE_CONSTANTS && return :constant_text
-    nothing
+    get(_JULIA_CODE_CONSTANTS, token.match, nothing)
 end
 
 # `appearance` gives its `JuliaTheme`, which a person edits, so a read of a color
