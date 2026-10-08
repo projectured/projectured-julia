@@ -109,9 +109,9 @@ end
 _box_value(value) = value isa AbstractCell ? _box_value(value[]) : value
 
 _box_number(node, name::Symbol) =
-    hasproperty(node, name) ? Float64(_box_value(getproperty(node, name))) : 0.0
+    hasfield(typeof(node), name) ? Float64(_box_value(getproperty(node, name))) : 0.0
 
-_has_box_place(node) = hasproperty(node, :x) && hasproperty(node, :y)
+_has_box_place(node) = hasfield(typeof(node), :x) && hasfield(typeof(node), :y)
 
 # The frame of the children of `node`, from the frame that the place of `node` is
 # given in. A viewport moves its content by its transform too.

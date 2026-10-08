@@ -868,8 +868,8 @@ function _hit_test_element(elem, x::Int, y::Int)
     end
 end
 
-_elem_x(elem) = hasproperty(elem, :x) ? Int(elem.x) : nothing
-_elem_y(elem) = hasproperty(elem, :y) ? Int(elem.y) : nothing
+_elem_x(elem) = hasfield(typeof(elem), :x) ? Int(elem.x) : nothing
+_elem_y(elem) = hasfield(typeof(elem), :y) ? Int(elem.y) : nothing
 
 """
     compute_first_visible_index(canvas, edge) -> Int

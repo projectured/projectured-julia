@@ -13,7 +13,7 @@ has_dormant_selection(::Any) = false
 # they are abandoning is exactly what a dormant node still holds.
 _get_stored_path(value) = value
 _get_stored_path(value::SelectionDocument) = value.primary
-is_live_selection(document) = _is_live_value(hasproperty(document, :selection) ?
+is_live_selection(document) = _is_live_value(hasfield(typeof(document), :selection) ?
                                             getfield(document, :selection)[] : nothing)
 _is_live_value(value) = true
 _is_live_value(value::SelectionDocument) = value.live
@@ -36,11 +36,11 @@ function map_selection_forward(source, map; map_missing::Bool = false)
 end
 
 get_stored_selection(document) =
-    hasproperty(document, :selection) ?
+    hasfield(typeof(document), :selection) ?
         _get_stored_path(getfield(document, :selection)[]) : nothing
 
 function clear_selection!(document)
-    hasproperty(document, :selection) || return
+    hasfield(typeof(document), :selection) || return
     sel = getfield(document, :selection)
     path = _get_stored_path(sel[])
     sel[] = nothing
@@ -100,7 +100,7 @@ end
 # Mark this node and everything below it on its own stored path as dormant. The
 # paths stay exactly where they are; only the flag changes.
 function _mark_dormant!(document)
-    hasproperty(document, :selection) || return
+    hasfield(typeof(document), :selection) || return
     cell = getfield(document, :selection)
     value = cell[]
     path = _get_stored_path(value)
@@ -128,7 +128,7 @@ function _restore_selection(document, path)
         rest = rest.tail
     end
     has_dormant_selection(node) || return path
-    hasproperty(node, :selection) || return path
+    hasfield(typeof(node), :selection) || return path
     value = getfield(node, :selection)[]
     (value isa SelectionDocument && !value.live) || return path
     dormant = value.primary
@@ -186,7 +186,7 @@ end
 # suffix into the matching child's selection cell, descending one navigation step
 # per level.
 function _set_selection_walk!(document, path)
-    if hasproperty(document, :selection)
+    if hasfield(typeof(document), :selection)
         getfield(document, :selection)[] = path
     end
     path isa ConcreteReference || return
@@ -228,7 +228,7 @@ macro selected(document, path...)
 end
 
 function replace_selection!(document, path)
-    hasproperty(document, :selection) || return
+    hasfield(typeof(document), :selection) || return
     _sync_selection!(document, _matched_selection(document, path))
     return
 end
@@ -262,7 +262,7 @@ end
 # Returns the value now held by `document.selection` so the caller can keep its
 # own path tail pointing at it (chain sharing).
 function _sync_selection!(document, path, owner = nothing)
-    hasproperty(document, :selection) || return path
+    hasfield(typeof(document), :selection) || return path
     cell = getfield(document, :selection)
     stored = cell[]
     old = _get_stored_path(stored)
@@ -319,7 +319,7 @@ function _selection_child(document, path::ConcreteReference)
         # stop walking gracefully rather than throwing FieldError. In the folded
         # model `h` is always the navigation step (the node type is a field), so
         # guard the field's presence explicitly.
-        hasproperty(document, sym) || return nothing
+        hasfield(typeof(document), sym) || return nothing
         unwrap_cell(getfield(document, sym))
     elseif h isa ARangeReferenceStep
         document isa AbstractString && return nothing

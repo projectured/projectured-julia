@@ -104,7 +104,7 @@ end
 # A field write: put back what the field holds now.
 _make_slot_inverse(op::ReplaceReferencedValueOperation, parent,
                    step::AFieldReferenceStep, value) =
-    hasproperty(parent, Symbol(step.name)) ?
+    hasfield(typeof(parent), Symbol(step.name)) ?
         ReplaceReferencedValueOperation(parent, Reference(step),
                                         getproperty(parent, Symbol(step.name))) :
         nothing

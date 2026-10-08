@@ -56,8 +56,8 @@ end
 # replaces the style field of the projection with the same name.
 
 function _get_part_color(w, name::Symbol, default)
-    style = hasproperty(w, :style) ? w.style : nothing
-    (style === nothing || !hasproperty(style, name)) && return default
+    style = hasfield(typeof(w), :style) ? w.style : nothing
+    (style === nothing || !hasfield(typeof(style), name)) && return default
     color = getproperty(style, name)
     color === nothing ? default : color
 end
@@ -86,7 +86,7 @@ function _find_style_field(p, part::Symbol, kind::Symbol, variant, state)
                            (Symbol(variant_word, part, "_", kind), false),
                            (Symbol(part, state_word, "_", kind), true),
                            (Symbol(part, "_", kind), false))
-        hasproperty(p, name) && return (name, stated && state === :disabled)
+        hasfield(typeof(p), name) && return (name, stated && state === :disabled)
     end
     nothing
 end
@@ -130,7 +130,7 @@ function _get_inset(w, p, name::Symbol; variant = nothing)
     inset = getproperty(w, name)
     inset === nothing || return inset::Inset
     varied = variant === nothing ? name : Symbol(variant, "_", name)
-    (hasproperty(p, varied) ? getproperty(p, varied) : getproperty(p, name))::Inset
+    (hasfield(typeof(p), varied) ? getproperty(p, varied) : getproperty(p, name))::Inset
 end
 
 _get_inset_sides(inset::Inset) =
@@ -1001,7 +1001,7 @@ end
 # Mirrors TextToGraphics' `_extract_image_data`: the domain layer only *reads*
 # the raw bytes, never decodes (that is the backend's job).
 function _image_payload(img::ImageDocument)
-    raw = hasproperty(img, :raw) ? img.raw : nothing
+    raw = hasfield(typeof(img), :raw) ? img.raw : nothing
     if raw isa Tuple && length(raw) == 3
         return (raw, Int(raw[2]), Int(raw[3]))
     end
@@ -1164,7 +1164,7 @@ _reactive_canvas(x::Int, y::Int, build_fn) = _reactive_canvas_cell(x, y, Cell(Co
 # text directly reports nothing, which is the same bug with more steps. A
 # projection that measures nothing (a composite holds already-drawn canvases, not
 # words) has no such field, and `nothing` here means the caller-free form.
-_p_measure(p) = hasproperty(p, :measure) ? p.measure : nothing
+_p_measure(p) = hasfield(typeof(p), :measure) ? p.measure : nothing
 
 _element_size(e, measure) =
     measure === nothing ? get_graphics_size(e) : get_graphics_size(e, measure)
@@ -1719,13 +1719,13 @@ end
 
 # The pieces of the text of `w`: one, or the pieces of the code of its language.
 function _get_plain_text_pieces(w, text::AbstractString, appearance)
-    language = hasproperty(w, :language) ? w.language : nothing
+    language = hasfield(typeof(w), :language) ? w.language : nothing
     language === nothing && return Tuple{Int,Any}[(length(text), nothing)]
     Base.invokelatest(compute_code_pieces, Val(language), text, appearance)
 end
 
 function _make_plain_text_view(w, style::StyleText, appearance)
-    language = hasproperty(w, :language) ? w.language : nothing
+    language = hasfield(typeof(w), :language) ? w.language : nothing
     view = language === nothing ? TextBlock(TextString(() -> string(w.content), style)) :
                                   TextBlock(() -> _make_code_spans(w, style, appearance))
     set_cell_computation!(getfield(view, :selection),
@@ -2896,7 +2896,7 @@ end
 function _find_menu_item_iomap(iomap)
     iomap = get_content_iomap(iomap)
     while !(iomap isa WidgetMenuItemToGraphicsCanvasIoMap)
-        hasproperty(iomap, :inner_iomap) || return nothing
+        hasfield(typeof(iomap), :inner_iomap) || return nothing
         iomap = get_content_iomap(iomap.inner_iomap)
     end
     iomap
@@ -3099,7 +3099,7 @@ end
 _get_placed_position(child::LayoutConstraint) = _get_placed_position(child.child)
 _get_placed_position(child::WidgetContextMenu) = _get_placed_position(child.child)
 function _get_placed_position(child)
-    hasproperty(child, :position) || return (0, 0)
+    hasfield(typeof(child), :position) || return (0, 0)
     position = child.position
     position isa Point2D ? (round(Int, position.x[]), round(Int, position.y[])) : (0, 0)
 end
@@ -5204,7 +5204,7 @@ end
 # Whether a page's document is selected as a whole. A control draws its own
 # focus ring, so its page draws none.
 _is_whole_selected_page(page) =
-    page isa Document && hasproperty(page, :selection) && !is_focusable_document(page) &&
+    page isa Document && hasfield(typeof(page), :selection) && !is_focusable_document(page) &&
     page.selection isa EmptyReference
 
 # True when tab `idx` holds a document that is not a widget — the case with no
@@ -5285,7 +5285,7 @@ end
 # its own.
 function _get_list_element_span(element, axis::Symbol)
     position, extent = axis === :y ? (:y, :h) : (:x, :w)
-    (hasproperty(element, position) && hasproperty(element, extent)) || return nothing
+    (hasfield(typeof(element), position) && hasfield(typeof(element), extent)) || return nothing
     first_edge = Int(getproperty(element, position))
     (first_edge, first_edge + Int(getproperty(element, extent)))
 end

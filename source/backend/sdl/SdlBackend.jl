@@ -1925,8 +1925,8 @@ function _dispatch_render_elem!(renderer::Ptr{SDL_Renderer}, elem, ox::Int, oy::
     # GraphicsFence and unknown types are silently skipped
 end
 
-_render_elem_x(elem) = hasproperty(elem, :x) ? Int(elem.x) : nothing
-_render_elem_y(elem) = hasproperty(elem, :y) ? Int(elem.y) : nothing
+_render_elem_x(elem) = hasfield(typeof(elem), :x) ? Int(elem.x) : nothing
+_render_elem_y(elem) = hasfield(typeof(elem), :y) ? Int(elem.y) : nothing
 
 # One element drawn, or skipped when reading it throws while an editor paints
 # with its barriers on: the editor records the fault, the rest of the canvas

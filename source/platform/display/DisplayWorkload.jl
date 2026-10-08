@@ -16,7 +16,9 @@ quit_backend!(::WorkloadBackend) = nothing
 take_from_devices!(::WorkloadBackend, devices) = nothing
 
 function write_to_devices!(::WorkloadBackend, devices, screen::ScreenDocument)
-    foreach(window -> _read_graphics(window.content), screen.windows)
+    for window in screen.windows
+        _read_graphics(window.content)
+    end
     nothing
 end
 
@@ -24,7 +26,11 @@ end
 # read.
 function _read_graphics(node)
     node isa AbstractCell && return _read_graphics(node[])
-    node isa GraphicsCanvas && foreach(_read_graphics, node.elements)
+    if node isa GraphicsCanvas
+        for element in node.elements
+            _read_graphics(element)
+        end
+    end
     node isa GraphicsViewport && _read_graphics(node.content)
     nothing
 end
