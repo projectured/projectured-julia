@@ -538,12 +538,11 @@ function test_package_release()
         @test all(version -> occursin("'$version'", versions), PROJECTURED_CI_JULIA_VERSIONS)
         develop = split(match(r"- \{package: ProjecturedJSON, develop: '([^']*)'", workflow)[1])
         @test issubset(["ProjecturedKernel", "ProjecturedPlatform", "ProjecturedJSON"], develop)
-        # A job adds the packages of other repositories from their repositories,
-        # and no private registry.
-        @test occursin("PackageSpec(url = \"$AUTOINTEGRATION_URL\")", workflow)
-        @test occursin("PackageSpec(url = \"$AGENT_CLIENT_PROTOCOL_URL\")", workflow)
-        @test occursin("PackageSpec(url = \"$CLAUDE_CODE_ACP_URL\")", workflow)
-        @test !occursin("Registry.add", workflow)
+        # A job adds ProjecturedRegistry beside General, which hold the packages
+        # of the other repositories, and adds no package by its URL.
+        @test occursin("Pkg.Registry.add(\"General\")", workflow)
+        @test occursin("Pkg.Registry.add(url = \"$PROJECTURED_REGISTRY_URL\")", workflow)
+        @test !occursin("PackageSpec(url", workflow)
         # AutoIntegration, a package of a sibling repository, gets the bound of the
         # version that the manifest names.
         umbrella = ProjecturedBuilder.BuilderModule.TOML.parsefile(

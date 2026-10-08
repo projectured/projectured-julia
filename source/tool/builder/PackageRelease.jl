@@ -61,8 +61,8 @@ them, and `folder` is where the package is in `output`. `status` is `:new`,
   folders of its code. `develop` holds the folders of the released packages
   and the support packages that the test needs, `name` included and
   dependencies first. A package reaches its siblings through a registry, which
-  holds a version only after its commit, and a job reaches no private
-  registry, so the test develops their folders instead.
+  holds a version only after its commit, so the test develops their folders
+  instead.
 - `overview` — `nothing`, or a function `overview(names)` whose text goes into
   `README.md` at the root of `output`, the front page of the release
   repository. `names` are the released packages, dependencies first.

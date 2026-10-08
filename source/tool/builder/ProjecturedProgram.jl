@@ -993,15 +993,13 @@ function _format_projectured_release_workflow(jobs)
               include-matrix: false
               cache-name: julia-cache;package=\${{ matrix.package }};julia=\${{ matrix.julia }}
           # AutoIntegration, AgentClientProtocol and ClaudeCodeACP are packages of
-          # other repositories, which no job develops. ProjecturedRegistry is
-          # private and a job has no token for it, so the packages come from their
-          # public repositories, and General comes by itself.
-          - name: Add the packages of other repositories
+          # other repositories, which no job develops. They come from
+          # ProjecturedRegistry, which the job adds beside General.
+          - name: Add the registries
             run: >-
               julia --project="\$RUNNER_TEMP/environment"
-              -e 'using Pkg; Pkg.add([PackageSpec(url = "$AUTOINTEGRATION_URL"),
-              PackageSpec(url = "$AGENT_CLIENT_PROTOCOL_URL"),
-              PackageSpec(url = "$CLAUDE_CODE_ACP_URL")])'
+              -e 'using Pkg; Pkg.Registry.add("General");
+              Pkg.Registry.add(url = "$PROJECTURED_REGISTRY_URL")'
           - name: Develop the packages that the test needs
             run: >-
               julia --project="\$RUNNER_TEMP/environment"
