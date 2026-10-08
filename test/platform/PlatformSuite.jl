@@ -101,7 +101,7 @@ const PLATFORM_SLICE_EDGES = Dict{String, Vector{String}}(
                     "serialization", "style", "syntax", "text", "widget"],
     "gesturetracking" => ["settings"],
     "dragtracking" => [],
-    "display" => ["natural", "screen", "style", "widget"],
+    "display" => ["collection", "graphics", "layout", "natural", "screen", "style", "widget"],
     "essentials" => ["display", "natural", "style"],
     "application" => ["assistant", "collection", "conversation", "domain", "fault",
                       "fileformat", "filesystem", "graphics", "natural", "pane", "primitive",

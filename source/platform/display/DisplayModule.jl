@@ -44,8 +44,8 @@ using ..WidgetModule
 
 import ..BackendModule: initialize_backend!, quit_backend!, take_from_devices!, write_to_devices!
 
-export EditorDisplay, display_in_editor, close_display_editor!, refresh_display_editor!,
-       WorkloadBackend, make_workload_events, make_workload_table, run_display_workload
+export EditorDisplay, display_in_editor, close_display_editor!, refresh_display_editor!
+export WorkloadBackend, make_workload_events, make_workload_table, run_display_workload
 
 include("EditorDisplay.jl")
 include("DisplayWorkload.jl")

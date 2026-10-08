@@ -44,7 +44,8 @@ end
 # both — and each fires **once**, because a replacement usually *contains* the node
 # it replaces (a split wraps the group it splits, a sibling sits inside the split
 # it collapses) and a second firing would walk in circles.
-function _trail_into!(current, target, pairs; subs::Vector{Pair{Any,Any}} = _NO_SUBSTITUTIONS)
+function _trail_into!(current, target, pairs; subs = _NO_SUBSTITUTIONS)
+    subs = convert(Vector{Pair{Any,Any}}, subs)::Vector{Pair{Any,Any}}
     index = findfirst(pair -> pair.first === current, subs)
     if index !== nothing
         current = subs[index].second
