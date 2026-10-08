@@ -2,7 +2,7 @@
 
 > **Status (2026-10-08): STARTED.** The owner chose the way and the place, and
 > took the recommendation of each question Q1 to Q6, on 2026-10-08; see
-> "Decisions". Part C is done: `AgentClientProtocol.jl` 0.1.0 is on GitHub and
+> "Decisions"; the name of the agent on 2026-10-08 too. Part C is done: `AgentClientProtocol.jl` 0.1.0 is on GitHub and
 > in ProjecturedRegistry, and `ProjecturedACP` uses it. Part B is next. It follows
 > [the-assistant-talks-to-an-acp-agent.md](the-assistant-talks-to-an-acp-agent.md),
 > whose phase 1 and steps 2.1, 2.2 and 2.3 are on `main`.
@@ -46,6 +46,12 @@ The owner decided on 2026-10-08:
    as a compiled program later (Q3); the licence is MIT (Q4); the types are
    generated from the schema (Q5); and ProjecturEd hosts the agent in its own
    process, with the program as the second way (Q6).
+5. **The agent is `ClaudeCodeACP.jl`, and its command is `claude-code-acp`**
+   (Q2, the owner, 2026-10-08). The name says what the agent is: it runs
+   Claude Code, the `claude` program, over ACP. A name that says what a thing
+   is does not say who made it, and the first line of the README says that
+   Anthropic did not make it. Its repository is
+   `projectured/ClaudeCodeACP.jl`, registered in ProjecturedRegistry.
 
 ## Decisions made in the implementation
 
@@ -319,7 +325,7 @@ editor ──ACP──▶ the agent (Julia) ──stream-json──▶ claude -p
   standard input, where a title comes from, the event after a SIGINT, the
   thinking text with and without a display setting, and the state of `--bare`
   for `-p`. Record each answer here.
-- [ ] **B.2 The repository** (Q2), on `AgentClientProtocol.jl`, with
+- [ ] **B.2 The repository** `ClaudeCodeACP.jl` (decision 5), on `AgentClientProtocol.jl`, with
   ModelContextProtocol.jl and HTTP for the permission tool.
 - [ ] **B.3 The session**: one `claude -p` process for each session, its
   start, its end, `--resume`.
@@ -341,10 +347,8 @@ editor ──ACP──▶ the agent (Julia) ──stream-json──▶ claude -p
 
 - **Q1. The name of the library.** My recommendation:
   `AgentClientProtocol.jl`, beside ModelContextProtocol.jl.
-- **Q2. The name and the place of the agent.** The name must not suggest that
-  Anthropic made it, and "Claude Code" must not be in it. My recommendation: a
-  repository of its own, registered in ProjecturedRegistry, with a neutral
-  name that you choose.
+- **Q2. The name and the place of the agent.** Answered: `ClaudeCodeACP.jl`,
+  a repository of its own, registered in ProjecturedRegistry (decision 5).
 - **Q3. How the agent reaches a person who does not use ProjecturEd.** My
   recommendation: a Pkg app first, then a compiled program.
 - **Q4. The licence.** AutoIntegration.jl is under MIT, and ProjecturEd under
