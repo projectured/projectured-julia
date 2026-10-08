@@ -99,4 +99,13 @@ end
 using .DisplayModule
 export EditorDisplay, display_in_editor, close_display_editor!, refresh_display_editor!
 
+# The first window of a session, with a backend that has no device, so that this
+# image holds the code of the editor, the window and its tools.
+using PrecompileTools: @setup_workload, @compile_workload
+@setup_workload begin
+    @compile_workload begin
+        run_display_workload(WidgetModule.WidgetLabel("ProjecturEd"))
+    end
+end
+
 end # module ProjecturedPlatform

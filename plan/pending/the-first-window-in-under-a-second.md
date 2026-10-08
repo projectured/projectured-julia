@@ -78,17 +78,26 @@ The scripts are in `/var/tmp/meas`: `first_frame.jl` (the timing),
    `hasproperty`. The docstring of `get_selection` says the same. Tests:
    `test_selection` 52, and of the data frames the columns 35, the paths 19 and
    the column edits 27.
-2. [ ] The workloads, with `PrecompileTools`:
-   - ProjecturedPlatform: `display_in_editor` of a value of the platform, with a
-     backend that declares no output, for a few frames, then
-     `close_display_editor!`.
-   - ProjecturedDataFrames: the same with a small data frame, with the column
-     types that users have most: `Int`, `Float64`, `String`, `Bool`, `missing`.
-   - ProjecturedSDL: `display_in_editor` with an offscreen `SdlBackend`.
-   - ProjecturedKernel: only if the trace shows kernel code that the platform
-     workload does not reach.
-   Check: the build passes, and no task or timer is left open after the
-   workload.
+2. [x] The workloads, with `PrecompileTools`. Done: `DisplayModule` has
+   `run_display_workload(value; backend, frames)`, which starts the editor as the
+   first `display_in_editor` does, waits for a frame and stops it, and
+   `WorkloadBackend`, a backend with no device that reads the whole output so
+   that every view prints. The platform shows a `WidgetLabel` with it,
+   ProjecturedDataFrames a frame of 20 rows with the columns `Int`, `Float64`,
+   `String`, `Bool` and `Union{Missing,Int}`, and ProjecturedSDL a `WidgetLabel`
+   with `SdlBackend` under `SDL_VIDEODRIVER=offscreen`. The kernel has no
+   workload: the platform reaches its code. PrecompileTools joins the `[deps]`
+   of the three packages, and the two manifests that hold them,
+   `environment/all` and `environment/readme-data-frame`, are changed by hand,
+   because a resolve in a worktree writes wrong paths for the sibling checkout.
+   Measured once: the build takes 199 s (134 s with no workload), the `using`
+   line 1.79 s, and the first frame 5.2 s (48 s with no workload). The session
+   still compiles 271 statements: 140 of the kernel and the platform, 88 of
+   Base and others, 30 of SDL, 12 of DataFrames, 1 of both. Among them are
+   `SdlBackend()` and `write_to_devices!(::SdlBackend, …)`, which the SDL
+   workload runs: when an image loads, Julia drops its code that a method of a
+   package loaded before it, absent at its build, can match. So the
+   invalidations of step 3 hit each image from both sides.
 3. [ ] The invalidations, the largest first, by D3. After each group, the root
    report again. Each file is checked against `SEALING.md` before the change.
 4. [ ] A guard: a test that loads the README packages under

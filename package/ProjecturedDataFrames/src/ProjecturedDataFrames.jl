@@ -43,4 +43,16 @@ export DataFrameColumnFilter, DataFrameSortKey, DataFrameQuery, DataFrameView, j
 using ProjecturedPlatform.EssentialsModule
 Core.eval(@__MODULE__, Expr(:export, filter(!=(:EssentialsModule), names(EssentialsModule))...))
 
+# The first window of a data frame, with the column types that a frame has most,
+# so that this image holds the code of its view.
+using PrecompileTools: @setup_workload, @compile_workload
+@setup_workload begin
+    frame = DataFrame(n = 1:20, square = (1:20) .^ 2, ratio = (1:20) ./ 3,
+                      name = string.("row ", 1:20), even = iseven.(1:20),
+                      maybe = [isodd(i) ? i : missing for i in 1:20])
+    @compile_workload begin
+        ProjecturedPlatform.run_display_workload(frame)
+    end
+end
+
 end # module ProjecturedDataFrames

@@ -42,4 +42,16 @@ export SdlBackend, write_image, open_offscreen_renderer, close_offscreen_rendere
 using ProjecturedPlatform.EssentialsModule
 Core.eval(@__MODULE__, Expr(:export, filter(!=(:EssentialsModule), names(EssentialsModule))...))
 
+# The first window of a session in SDL, offscreen, so that this image holds the
+# code that draws a window.
+using PrecompileTools: @setup_workload, @compile_workload
+@setup_workload begin
+    @compile_workload begin
+        withenv("SDL_VIDEODRIVER" => "offscreen") do
+            ProjecturedPlatform.run_display_workload(
+                ProjecturedPlatform.WidgetModule.WidgetLabel("ProjecturEd"); backend = SdlBackend())
+        end
+    end
+end
+
 end # module ProjecturedSDL
