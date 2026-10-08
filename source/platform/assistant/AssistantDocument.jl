@@ -80,12 +80,13 @@ a backend it does not apply to ignores it: a hosted provider's window comes with
 model and cannot be set per request.
 
 **An external agent is a backend too.** With `backend = :acp` a turn goes to an
-agent that runs its own loop in another process, such as Claude through
-`claude-agent-acp`, and the agent runs its own tools. `agent_command` is the
-command line that starts the agent, `"claude-agent-acp"` by default.
+agent that runs its own loop, and the agent runs its own tools. `agent_command`
+is the command line that starts the agent in another process. Empty, the
+default, starts the built-in agent of `ProjecturedACP` in this process, which
+runs Claude Code, the `claude` program that the person installed.
 `agent_session_meta` is the JSON `_meta` that a new session of the agent gets;
-its default asks `claude-agent-acp` for the summary of its reasoning, and an
-agent that does not read it ignores it. The package `ProjecturedACP` must be
+its default asks the agent `claude-agent-acp` for the summary of its reasoning,
+and an agent that does not read it, as the built-in one, ignores it. The package `ProjecturedACP` must be
 loaded. `agent_session` is the live link to
 the agent, an `ExternalAgentSession`: `nothing` until the first turn starts it,
 or one that a test gives. It is no data, like `llm`. `agent_options` are the options of
@@ -128,8 +129,8 @@ behaviour pass an explicit `llm` (a `FakeLlm`/`ScriptedLlm` from
 end
 
 # The command of the external agent that an assistant starts when nobody names
-# another.
-const DEFAULT_AGENT_COMMAND = "claude-agent-acp"
+# another: empty, which starts the built-in agent of `ProjecturedACP`.
+const DEFAULT_AGENT_COMMAND = ""
 
 # The `_meta` of a new session of the external agent when nobody names another.
 # `claude-agent-acp` reads SDK options from `claudeCode.options`, and a recent

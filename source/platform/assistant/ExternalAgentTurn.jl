@@ -128,8 +128,8 @@ function _make_external_agent_session!(editor, a::Assistant)
     if session === nothing
         :acp in Base.invokelatest(get_agent_connection_names) ||
             error("The backend :acp needs the package ProjecturedACP. Load it with `using ProjecturedACP`.")
+        # An empty command starts the built-in agent of `ProjecturedACP`.
         command = Base.shell_split(a.agent_command)
-        isempty(command) && error("The assistant has no agent command.")
         connection = Base.invokelatest(make_agent_connection, :acp; command, directory = pwd(),
                                        session_meta = a.agent_session_meta)
         session = ExternalAgentSession(connection)

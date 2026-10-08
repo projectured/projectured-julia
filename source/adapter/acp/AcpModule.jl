@@ -36,6 +36,7 @@ module AcpModule
 
 using ..KernelModule
 import AgentClientProtocol as ACP
+import ClaudeCodeACP
 
 # Imported to extend: this module adds a method to each of these.
 import ..AgentModule: make_agent_connection, start_agent_connection!, open_agent_session!,

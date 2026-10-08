@@ -46,8 +46,9 @@ function get_application_greeting_text(backend::Symbol)
         "I use Claude. The environment variable ANTHROPIC_API_KEY must hold your key." :
         backend === :acp ?
         "I am an external agent that runs its own loop, through the Agent Client " *
-        "Protocol (ACP). The package ProjecturedACP must be loaded, the agent command " *
-        "must be installed, and the agent must be signed in with its own sign-in. " *
+        "Protocol (ACP). The package ProjecturedACP must be loaded. Without an agent " *
+        "command I am Claude Code, which must be installed and signed in; with one, " *
+        "that agent must be installed and signed in with its own sign-in. " *
         "Escape stops my turn." :
         "I use a local model through Ollama. The Ollama server must run on this " *
         "machine, and the model must be pulled."
@@ -532,7 +533,8 @@ gives none.
 
 `--agent-command=COMMAND` is the command line of the external agent of
 `--assistant=acp`, one argument that the shell quotes, as
-`--agent-command="node /opt/claude-agent-acp/dist/index.js"`.
+`--agent-command="node /opt/claude-agent-acp/dist/index.js"`. Without it, the
+built-in agent runs Claude Code.
 
 The `--help` text of a binary lists the same options: the builder writes it
 from `PROJECTURED_OPTIONS`, and a test compares the two.

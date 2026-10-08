@@ -1,6 +1,6 @@
 # The transport with a real process: a child agent that starts and ends with its
-# input, one that ignores the end of its input and keeps a child of its own, and
-# a command that does not exist.
+# input, one that ignores the end of its input and keeps a child of its own, the
+# built-in agent of an empty command, and a command that does not exist.
 
 # A child agent in plain Julia: it answers `initialize` with the line in
 # `CHILD_AGENT_ANSWER`, with the id of the request in place of `ANSWER_ID`, and
@@ -83,6 +83,18 @@ function test_acp_transport()
                 @test connection.agent_info.title == "Child Agent"
                 stop_agent_connection!(connection)
             end
+        end
+
+        @testset "an empty command starts the built-in agent in this process" begin
+            connection = make_agent_connection(:acp)
+            start_agent_connection!(connection)
+            # The built-in agent answers `initialize` itself; `claude` starts only
+            # with a session.
+            @test connection.agent_info.name == "claude-code-acp"
+            @test connection.transport.process === nothing
+            @test connection.agent_capabilities.session_capabilities.resume !== nothing
+            stop_agent_connection!(connection)
+            @test connection.transport === nothing
         end
 
         @testset "a command that does not exist says so" begin

@@ -10,7 +10,9 @@ A connection to one agent that speaks ACP. `make_agent_connection(:acp; …)` ma
 one, and the generics of the kernel's `AgentModule` drive it.
 
 - `command`     — the program of the agent and its arguments, as
-                  `["claude-agent-acp"]`.
+                  `["claude-agent-acp"]`. Empty starts the built-in agent of
+                  `ClaudeCodeACP` in this process, which runs the `claude`
+                  program that the person installed.
 - `environment` — the variables that the agent gets beside the environment of
                   this process.
 - `directory`   — where the agent starts, and where a session works when the
@@ -133,7 +135,7 @@ function _open_connection_transport(connection::AcpConnection)
         input, output = connection.streams
         return ACP.open_connection(handler, output, input)
     end
-    isempty(connection.command) && error("The agent has no command.")
+    isempty(connection.command) && return _open_builtin_agent(handler)
     command = addenv(Cmd(Cmd(connection.command); dir = connection.directory), connection.environment)
     try
         ACP.open_connection(handler, command; log_line = _log_agent_line)
@@ -143,6 +145,16 @@ function _open_connection_transport(connection::AcpConnection)
               sprint(showerror, exception) * ". Install the agent, or set its command " *
               "in the settings of the assistant.")
     end
+end
+
+# The built-in agent: `ClaudeCodeACP` on a task of this process, on two streams.
+# The close of the connection ends the input of the agent, which then ends each
+# of its sessions and their `claude`.
+function _open_builtin_agent(handler::AcpClientHandler)
+    to_agent = Base.BufferStream()
+    to_client = Base.BufferStream()
+    errormonitor(@async ClaudeCodeACP.serve_agent(; input = to_agent, output = to_client))
+    ACP.open_connection(handler, to_client, to_agent)
 end
 
 # The standard error of an agent holds its own log. It goes to the debug log, so

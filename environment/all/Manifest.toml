@@ -2,7 +2,7 @@
 
 julia_version = "1.13.1"
 manifest_format = "2.1"
-project_hash = "f791e62506cf81e0f235c80130cb9e5da7684a3e"
+project_hash = "40e79e41b7a8774f509cee9b340f4c7f3b876b3c"
 
 [[deps.AMD]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
@@ -78,6 +78,12 @@ git-tree-sha1 = "1fa950ebc3e37eccd51c6a8fe1f92f7d86263522"
 registries = "General"
 uuid = "83423d85-b0ee-5818-9007-b63ccbeb887a"
 version = "1.18.7+0"
+
+[[deps.ClaudeCodeACP]]
+deps = ["AgentClientProtocol", "HTTP", "JSON", "Random", "Sockets", "UUIDs"]
+path = "../../../claude-code-acp"
+uuid = "397ce549-bc36-418a-97e7-6295a63dbdc4"
+version = "0.1.0"
 
 [[deps.CodeTracking]]
 deps = ["InteractiveUtils", "REPL", "UUIDs"]
@@ -931,7 +937,7 @@ uuid = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 version = "0.1.0"
 
 [[deps.ProjecturedACP]]
-deps = ["AgentClientProtocol", "ProjecturedKernel"]
+deps = ["AgentClientProtocol", "ClaudeCodeACP", "ProjecturedKernel"]
 path = "../../package/ProjecturedACP"
 uuid = "c086a6dc-7bb1-453d-ac62-5c5ddfbfdd44"
 version = "0.1.0"
