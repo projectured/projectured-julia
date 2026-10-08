@@ -5,8 +5,9 @@
 > request cancel of 2.7 are on `main`. Since the plan
 > [acp-is-a-julia-package-and-claude-runs-without-node.md](../done/acp-is-a-julia-package-and-claude-runs-without-node.md),
 > the built-in agent of `ProjecturedACP` runs Claude Code, and it is the
-> default agent. 2.9 and 2.10 are done too. Open: 2.4, 2.5, 2.6, the prompt queue of 2.7,
-> 2.8 and phase 3. The owner answered every question on 2026-10-07; see "Decisions".
+> default agent. 2.9 and 2.10 are done too, and 2.4a and 2.4b on the branch
+> `assistant-resume`. Open: the list and the delete of 2.4c, which wait, 2.5,
+> 2.6, the prompt queue of 2.7, 2.8 and phase 3. The owner answered every question on 2026-10-07; see "Decisions".
 > The feature comes in a release after the first one.
 
 ## Goal
@@ -629,7 +630,8 @@ from the command line of the projectured UI.
     as "Context: 36k of 1M tokens", with the cost when the agent gives one.
   - Tests: ACP 100 of 100, the platform conversation suite 164 of 164, the
     application test 357 with 2 known broken, the history sweep 136 of 136.
-- [ ] 2.4 Save, load, resume and delete. Split on 2026-10-08 into three parts.
+- [ ] 2.4 Save, load, resume and delete. Split on 2026-10-08 into three parts:
+  2.4a and 2.4b are done, and 2.4c waits.
   Facts found on 2026-10-08:
   - `ClaudeCodeACP` answers `session/resume` and `session/close`, and not
     `session/load`, `session/list` or `session/delete`. The schema 1.7.0 marks
