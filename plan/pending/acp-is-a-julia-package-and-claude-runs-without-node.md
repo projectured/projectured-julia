@@ -52,6 +52,16 @@ The owner decided on 2026-10-08:
    is does not say who made it, and the first line of the README says that
    Anthropic did not make it. Its repository is
    `projectured/ClaudeCodeACP.jl`, registered in ProjecturedRegistry.
+6. **The cancel** (the owner, 2026-10-08, after B.1): the agent sends the
+   interrupt message on standard input when `system/init` lists the
+   capability `interrupt_receipt_v1`, so the process stays; else it sends
+   SIGINT and starts the next prompt in a new process with `--resume`.
+7. **The title** (the owner, 2026-10-08): the agent makes the title of a
+   session from its first prompt, shortened, and uses no undocumented request.
+8. **The configuration of the person** (the owner, 2026-10-08): a session
+   loads it, as the normal `claude` does: settings, skills, commands,
+   `CLAUDE.md` and the claude.ai connectors. An option of the agent passes
+   `--strict-mcp-config`, so that only the MCP servers of the editor load.
 
 ## Decisions made in the implementation
 
