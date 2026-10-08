@@ -36,7 +36,7 @@ of the default theme.
     "The type that a step descends from, or the parent type of a step, when it is known."
     type_color::StyleColor = ColorRole(:type_name)
     "The name of a projection."
-    projection_color::StyleColor = ColorRole(:definition)
+    projection_color::StyleColor = ColorRole(:type_name)
     "A step of a kind neither form describes, and a type that is not found."
     unknown_color::StyleColor = ColorRole(:error_text)
 end

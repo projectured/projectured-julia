@@ -26,11 +26,11 @@ styles holds the plain values of the default theme.
     "A column, with its type."
     column_text::TextRole   = TextRole(:field)
     "The name of a table."
-    table_text::TextRole    = TextRole(:definition; weight = 700)
+    table_text::TextRole    = TextRole(:type_name; weight = 700)
     "The name of a schema."
-    schema_text::TextRole   = TextRole(:definition; weight = 700)
+    schema_text::TextRole   = TextRole(:module_name; weight = 700)
     "The name of a database and of an RDBMS."
-    database_text::TextRole = TextRole(:definition; weight = 700)
+    database_text::TextRole = TextRole(:module_name; weight = 700)
     "The keyword that opens a group of children, such as \"Columns\", \"Tables\", \"Schemas\" or \"Databases\"."
     keyword_text::TextRole  = TextRole(:text_muted)
 end

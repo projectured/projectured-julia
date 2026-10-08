@@ -24,7 +24,7 @@ default theme.
     "The text of a text node."
     content_text::TextRole         = TextRole(:text)
     "The name of an element's opening and closing tag."
-    tag_text::TextRole             = TextRole(:keyword; weight = 700)
+    tag_text::TextRole             = TextRole(:tag; weight = 700)
     "The angle brackets of a tag."
     delimiter_text::TextRole       = TextRole(:punctuation)
     "The name of an attribute."

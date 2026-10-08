@@ -21,10 +21,13 @@ layers of a state, the status, the tokens of a language, the series of a chart
 and the overlays. A text role of a token reaches a contrast of 4.5 against the
 backgrounds, and 7 in a high contrast theme.
 
-Each kind of value has a role of its own, the same in every view: a string, a
-character, a number, a boolean, a null and a symbol. A role can name another
-role: a character takes the colour of a string, and a null the colour of a
-boolean, until a person gives it a step of its own.
+Each kind of value and each kind of name has a role of its own, the same in
+every view: a string, a number, a boolean, a symbol; a function, a type, a
+module, a parameter, a variable, a field. A role can name another role: a
+character takes the colour of a string, a null the colour of a boolean, and a
+macro the colour of a function, until a person gives it a step of its own. A
+name at its definition takes the role of its kind, and its theme makes it
+bold.
 """
 @theme struct ColorTheme
     # ── Surfaces ──
@@ -110,13 +113,17 @@ boolean, until a person gives it a step of its own.
     "A tint of an information."
     info_tint::StyleColor = PaletteColor(:blue, 3)
     # ── Tokens ──
-    "A keyword of a language, a tag, a directive."
+    "A keyword of a language, a directive."
     keyword::StyleColor = PaletteColor(:violet, 11; minimum_contrast = 4.5)
     "The name of a declared thing: a function, a module, a table, a state, a formula."
     definition::StyleColor = PaletteColor(:blue, 11; minimum_contrast = 4.5)
-    "A called function, a macro."
+    "A function, at its definition and at a call, a function of mathematics, a process."
     function_name::StyleColor = PaletteColor(:blue, 11; minimum_contrast = 4.5)
-    "A key, a field name, the name of an attribute."
+    "A macro. It takes the colour of a function."
+    macro_name::StyleColor = ColorRole(:function_name)
+    "An event and a timer of a machine. It takes the colour of a function."
+    event::StyleColor = ColorRole(:function_name)
+    "A field, a field after a dot, a key, an attribute, a column."
     field::StyleColor = PaletteColor(:blue, 11; minimum_contrast = 4.5)
     "A string, a code span, a literal block."
     string_literal::StyleColor = PaletteColor(:green, 11; minimum_contrast = 4.5)
@@ -132,10 +139,22 @@ boolean, until a person gives it a step of its own.
     symbol_literal::StyleColor = PaletteColor(:teal, 11; minimum_contrast = 4.5)
     "A named constant that is no literal: a constant of mathematics, a substitution, the value of a field of a packet."
     constant::StyleColor = PaletteColor(:orange, 11; minimum_contrast = 4.5)
-    "The name of a type."
+    "A type, a struct, a SQL table, a data type, a machine and a component of an FSM."
     type_name::StyleColor = PaletteColor(:amber, 11; minimum_contrast = 4.5)
+    "A parameter of a type, such as a variable of `where`. It takes the colour of a type."
+    type_parameter::StyleColor = ColorRole(:type_name)
+    "A module, a schema, a database, a folder. It takes the colour of a type."
+    module_name::StyleColor = ColorRole(:type_name)
     "A use of a name: a variable, a reference to another part."
     reference::StyleColor = PaletteColor(:neutral, 12)
+    "A variable, and a name of a kind that the view does not know."
+    variable::StyleColor = PaletteColor(:neutral, 12)
+    "A parameter of a function, the name of a keyword argument, the name of an option. It takes the colour of a variable."
+    parameter::StyleColor = ColorRole(:variable)
+    "A member of a fixed set of named values, such as a state of a machine. It takes the colour of a symbol."
+    enum_member::StyleColor = ColorRole(:symbol_literal)
+    "A tag of a markup, such as an XML element. It takes the colour of a keyword."
+    tag::StyleColor = ColorRole(:keyword)
     "A link, a URL, a cross-reference."
     link::StyleColor = PaletteColor(:accent, 11; minimum_contrast = 4.5)
     "An operator."

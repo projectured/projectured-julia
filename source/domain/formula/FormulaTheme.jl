@@ -27,7 +27,7 @@ values of the default theme.
     "A reference to another formula, by its current name."
     reference_text::TextRole = TextRole(:link; base = :plain_font, weight = 700)
     "The name of a formula."
-    name_text::TextRole = TextRole(:definition; base = :plain_font, weight = 700)
+    name_text::TextRole = TextRole(:variable; base = :plain_font, weight = 700)
     "The `=` and the `⇒` of a formula's line."
     operator_text::TextRole = TextRole(:operator; base = :plain_font)
     "The value of a formula."

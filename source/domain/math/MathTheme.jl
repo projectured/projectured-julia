@@ -23,7 +23,7 @@ of the default theme.
     "The font that the code of this theme follows: its family, its weight and its size."
     code_font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "A variable."
-    variable_text::TextRole = TextRole(:reference; base = :code_font)
+    variable_text::TextRole = TextRole(:variable; base = :code_font)
     "An operator, and the `/` of a fraction."
     operator_text::TextRole = TextRole(:operator; base = :code_font)
     "A parenthesis, a brace, a bracket and the insertion leaf."

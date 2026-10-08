@@ -21,9 +21,10 @@ end
 # Each pair of a text role and the surfaces that it sits on, with the least
 # contrast that it needs in a normal and in a high contrast theme.
 const _CONTRAST_RULES = [
-    ((:text, :text_muted, :keyword, :definition, :function_name, :field, :string_literal,
+    ((:text, :text_muted, :keyword, :function_name, :macro_name, :event, :field, :string_literal,
       :character_literal, :number_literal, :boolean_literal, :null_literal, :symbol_literal,
-      :constant, :type_name, :reference, :link, :operator, :punctuation, :punctuation_lit,
+      :constant, :type_name, :type_parameter, :module_name, :variable, :parameter, :enum_member,
+      :tag, :link, :operator, :punctuation, :punctuation_lit,
       :comment, :markup, :heading, :accent_text, :error_text, :warning_text, :success_text,
       :info_text), (:background, :surface), 4.5, 7.0),
     ((:text_faint,), (:background, :surface), 3.0, 4.5),
@@ -128,6 +129,16 @@ end
           resolve_theme_color(ColorRole(:boolean_literal), appearance)
 end
 
+@testset "a kind of name takes the colour of the role that it names" begin
+    appearance = Appearance()
+    color(role) = resolve_theme_color(ColorRole(role), appearance)
+    @test color(:macro_name) == color(:event) == color(:function_name)
+    @test color(:type_parameter) == color(:module_name) == color(:type_name)
+    @test color(:parameter) == color(:variable)
+    @test color(:enum_member) == color(:symbol_literal)
+    @test color(:tag) == color(:keyword)
+end
+
 @testset "a role and a step resolve in the colour settings of the appearance" begin
     appearance = Appearance()
     @test get_color_variant(appearance) === :light
@@ -142,11 +153,11 @@ end
     @test faint.alpha == 0.5
     @test_throws "has no role" resolve_theme_color(ColorRole(:no_such_role), appearance)
     # A role may name another role, and a cycle is an error.
-    get_color_theme(appearance).definition = ColorRole(:keyword)
-    @test resolve_theme_color(ColorRole(:definition), appearance) ==
+    get_color_theme(appearance).field = ColorRole(:keyword)
+    @test resolve_theme_color(ColorRole(:field), appearance) ==
           resolve_theme_color(ColorRole(:keyword), appearance)
-    get_color_theme(appearance).keyword = ColorRole(:definition)
-    @test_throws "cycle" resolve_theme_color(ColorRole(:definition), appearance)
+    get_color_theme(appearance).keyword = ColorRole(:field)
+    @test_throws "cycle" resolve_theme_color(ColorRole(:field), appearance)
 end
 
 @testset "a scaled theme follows the mode, the palette settings and a fine-tune" begin
