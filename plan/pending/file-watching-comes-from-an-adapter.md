@@ -56,6 +56,15 @@ standard library `FileWatching`, for the `FolderMonitor` of the slice
     can bring the change in the time of the test.
   - Like `ProjecturedOpenRouterTest`, the test package is in `environment/all`
     and not in the suite of `test_all`.
-- [ ] **Step 3.** The documents and the tables: the filechange document, the
+- [x] **Step 3.** The documents and the tables: the filechange document, the
   adapter document, the package index, the package rules, the auto-integration
   table, the summary of the builder; the guards of the packages.
+  - The README table of the builder needs the entry: the release takes every
+    package that is not an example, a test or an exclusion, so the adapter is
+    released.
+  - `test_packages_declare_triggers()` lists the adapter beside the model
+    adapters.
+  - The exports guard wants the definitions in a fragment, so the function is in
+    `FolderMonitor.jl`, and the module file holds the registration.
+  - The standalone guards (`test/suite/*.jl`) report nothing of this branch; the
+    arguments, documentation and exports guards report findings of main.

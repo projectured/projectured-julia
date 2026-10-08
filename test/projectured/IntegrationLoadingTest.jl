@@ -181,10 +181,12 @@ end
 function test_packages_declare_triggers()
     @testset "each package of the umbrella declares its triggers" begin
         repository = normpath(joinpath(@__DIR__, "..", ".."))
-        # The domains, the console, PDF and the model adapters load with the umbrella.
+        # The domains, the console, PDF, the model adapters and the file watching
+        # adapter load with the umbrella.
         alone = [setdiff(_read_project_packages(repository, "ProjecturedAll"),
                          ["ProjecturedKernel", "ProjecturedPlatform"]);
-                 ["ProjecturedAnthropic", "ProjecturedOllama", "ProjecturedOpenRouter"]]
+                 ["ProjecturedAnthropic", "ProjecturedOllama", "ProjecturedOpenRouter",
+                  "ProjecturedFileWatching"]]
         for name in alone
             @test _read_declared_triggers(repository, name) == (["Projectured"], "auto")
         end

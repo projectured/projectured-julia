@@ -90,6 +90,7 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | `ProjecturedOllama` | [ollama.md](adapter/ollama/ollama.md) | the language model backend for a model on a local Ollama server, and its meaning vectors |
 | `ProjecturedACP` | [acp.md](adapter/acp/acp.md) | the connection to an external agent over the Agent Client Protocol, with Claude Code as its built-in agent |
 | `ProjecturedOpenRouter` | [openrouter.md](adapter/openrouter/openrouter.md) | the relevance model on the Decisions API of OpenRouter |
+| `ProjecturedFileWatching` | [filewatching.md](adapter/filewatching/filewatching.md) | the notifications of the system for a change of a file, in place of the poll of the file-change slice |
 | `ProjecturedMCP` | [mcp.md](adapter/mcp/mcp.md) | the MCP server |
 | `ProjecturedTulip` | [tulip.md](adapter/tulip/tulip.md) | the constraint solver of the layout |
 | `ProjecturedAdaptagrams` | [adaptagrams.md](adapter/adaptagrams/adaptagrams.md) | the native graph layout engine |

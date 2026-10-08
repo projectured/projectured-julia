@@ -24,8 +24,8 @@ using ..FeedModule
 import ..FeedModule: drain_changes!, attach_wake_callback!
 
 export FileChangeStore, get_session_file_change_store, watch_document_file!,
-       unwatch_document_file!, is_document_file_watched, drain_file_changes!,
-       register_folder_watch!
+       unwatch_document_file!, is_document_file_watched, register_folder_watch!,
+       drain_file_changes!
 export FileChangeFeed, make_file_change_feeds
 
 include("FileChangeStore.jl")
