@@ -22,6 +22,19 @@ struct _StandInFolderWatcher
 end
 Base.close(watcher::_StandInFolderWatcher) = (watcher.closed[] = true; nothing)
 
+# A file type that no extension names: an opener chooses it, as a store in a
+# `.json` file is chosen. It holds its text in capitals and writes it in small
+# letters.
+@document struct _ShoutedFile <: FileDocument
+    filename::String
+    content::Any
+end
+SerializationModule.get_file_domain(::Type{<:_ShoutedFile}) = Document
+SerializationModule.parse_file_content(::Type{<:_ShoutedFile}, text::AbstractString) =
+    PrimitiveString(uppercase(String(text)))
+SerializationModule.emit_text(file::_ShoutedFile) =
+    lowercase(something(getfield(get_file_content(file), :value)[], ""))
+
 # Wait until the store holds a change, for at most `seconds`.
 function _wait_for_file_change(store::FileChangeStore; seconds::Real = 10.0)
     deadline = time() + seconds
@@ -107,6 +120,23 @@ function test_file_change_store()
             @test _get_watched_text(tab) == "two\n"
             @test drain_changes!(feed, nothing) == 0
             unwatch_document_file!(tab; store)
+        end
+
+        @testset "a file type that an opener chose reads its own text again" begin
+            store = FileChangeStore()
+            folder = mktempdir()
+            path = joinpath(folder, "note.txt")
+            write(path, "hello\n")
+            file = _ShoutedFile(path, PrimitiveString("HELLO\n"))
+            @test compute_file_text(file) == "hello\n"
+            watch_document_file!(file; store)
+            write(path, "bye\n")
+            @test _wait_for_file_change(store)
+            @test drain_file_changes!(; store) == 1
+            # Read by its own type, not by the text file that `.txt` names.
+            @test get_file_content(file) isa PrimitiveString
+            @test getfield(get_file_content(file), :value)[] == "BYE\n"
+            unwatch_document_file!(file; store)
         end
 
         @testset "a folder with no notification is polled" begin

@@ -498,9 +498,13 @@ module FileChangeTests
 using Test
 import ProjecturedPlatform
 using ProjecturedKernel.CellModule
+using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.OperationModule
 using ProjecturedKernel.FeedModule
+using ProjecturedKernel.ReferenceModule: Reference
+using ProjecturedPlatform.PrimitiveModule: PrimitiveString
 using ProjecturedPlatform.SerializationModule
+import ProjecturedPlatform.SerializationModule
 using ProjecturedPlatform.FileFormatModule
 using ProjecturedPlatform.FileChangeModule
 import ProjecturedPlatform.FileChangeModule

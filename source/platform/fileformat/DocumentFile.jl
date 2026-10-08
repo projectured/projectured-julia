@@ -233,9 +233,24 @@ function evaluate_operation(editor, op::ReloadFileOperation)
     file = op.file
     # A wrapper around the content — a history — keeps its place and takes the
     # new document; a plain content is replaced outright.
-    file.content = replace_wrapped_document!(get_file_content(file),
-                                             read_document_file(get_filename(file)))
+    file.content = replace_wrapped_document!(get_file_content(file), _read_file_again(file))
     nothing
+end
+
+# The document of the file of `file`, read again as its own file type reads it.
+# An opener can choose a file type that its extension does not name, such as a
+# store in a `.json` file, and the reload must not hand that file to the parser
+# of the extension.
+function _read_file_again(file::FileDocument)
+    path = get_filename(file)
+    type = Base.typename(typeof(file)).wrapper
+    is_extension_type = has_file_document_type(path) && get_file_document_type(path) === type
+    (isfile(path) && !is_extension_type) ? _read_own_file(type, path) : read_document_file(path)
+end
+
+function _read_own_file(type, path::AbstractString)
+    content = get_file_content(make_file(type, basename(path), read(path, String)))
+    content isa AbstractString ? PrimitiveString(String(content)) : content
 end
 
 # Both commands need a name; decline (no binding fires) when the file has
