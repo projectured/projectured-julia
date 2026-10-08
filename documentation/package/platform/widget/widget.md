@@ -81,6 +81,8 @@ A container keeps an entry `(x, y, child_iomap)` for each child. For a pointer e
 
 **Only a left click moves the selection.** A reader that answers a click with a selection does so for the left button only: the rows of a list, a table and a tree, the tabs of a tabbed pane, a text field, an empty place of a pane, and the views of text, of a formula, of a sequence chart and of a conversation. A right click goes on outward to the gesture tables. So the menus of the part under the pointer and of the parts around it open, and the selection stays where it was ([context-menu.md](context-menu.md)). An Alt+click selects a whole object, and only with the left button.
 
+**A card is a solid surface.** A plain left click on a `WidgetCard` that nothing inside the card answers ends at the card, with a `DoNothingOperation`. So it does not reach a document that a `StackLayout` draws under the card, such as the text under the bar of a `FindBarView`. A right click and an Alt+click on the card go on, to the menus of the parts around it and to a whole selection.
+
 **A widget reads a point in the frame of its own canvas.** The container takes off the offset at which it placed the child and the place of the child's canvas, and `shift_event_position` of the graphics package moves the event. At the root, the window of the screen takes off the place of the root canvas of its content. A widget never takes its own place off a point. The backward map of a point follows the same frame and the same order, so a point maps to the child that a press there reaches.
 
 Each widget also compares the point with its own canvas in `_outside_widget`: the point must lie from 0 to the width and from 0 to the height. A container clips before it routes, but a widget can have no container above it. Without this test, a button at the root answers a press 800 pixels to its right.
@@ -331,4 +333,3 @@ write_example_image(widget_tree_example, "tree.png")
 - A path whose last step is a range writes a vector value as a splice. So an `ObjectField` whose value is a vector can not be replaced as one value.
 - The backends draw only the translation and the scale of a transform. Rotation and shear are dropped.
 - The scrim of a `WidgetDialog` fills the window of the dialog, not the screen. `ScreenDocument` has no size of the screen to center against.
-- A press on the overlay bar of a `FindBarView` where no control answers, such as its padding, goes on to the content under it, because a `StackLayout` gives a press to the next child when the top one declines.

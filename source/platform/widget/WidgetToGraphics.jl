@@ -7510,7 +7510,19 @@ end
 # Every other click routes into the card: the title and the content each read
 # their own. A Document title is the card's first child entry, and its
 # height is the height of the chevron's column.
+#
+# A card is a solid surface: a plain left click on it that nothing inside it
+# uses ends there, so it does not reach a document that a stack draws under the
+# card, such as the text under the bar of a find bar view. Any other click goes
+# on, to the menus of the parts around the card and to a whole selection.
 function read_intent(p::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt::MouseClick)
+    answer = _read_card_click(p, iomap, evt)
+    answer === nothing || return answer
+    (!_outside_widget(iomap, evt) && evt.button === :left && evt.modifiers == ModifierKeys()) ?
+        DoNothingOperation() : nothing
+end
+
+function _read_card_click(p::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt::MouseClick)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     entries = getfield(iomap, :child_iomaps)[]

@@ -123,6 +123,24 @@ _fb_fold!(editor, backend) = _fb_click!(editor, backend, _fb_chevron; dx = 4, dy
 
 end # @testset
 
+@testset "a press on an empty part of the bar over the text keeps the caret" begin
+
+    view = _fb_view()
+    editor, backend = _fb_editor(view)
+    _fb_click!(editor, backend, "beta gamma"; dx = 22)
+    in_text = _fb_selection(view)
+    _fb_click!(editor, backend, "Over")
+    # Left of the label "Find" of the form, in its cell, over the third line.
+    (left, _) = _fb_place(backend, "Regular expression")
+    (_, top) = last((x, y) for (t, x, y) in _fb_frame(backend) if t == "Find")
+    (_, line) = _fb_place(backend, "delta ")
+    @test line <= top + 4 < line + 20
+    push_event!(backend, MouseClick(:left, left + 35, top + 4, 1, ModifierKeys(); time = 0.0))
+    run_frame!(editor)
+    @test _fb_selection(view) == in_text
+
+end # @testset
+
 @testset "a press in the text puts a caret in the text" begin
 
     view = _fb_view()

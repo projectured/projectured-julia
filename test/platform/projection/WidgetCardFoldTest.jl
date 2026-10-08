@@ -2,7 +2,8 @@
 # title, pointing down while the card is open and right while it is collapsed;
 # the chevron's column is the fold target, and nothing else is; and a collapsed
 # card draws its header and nothing else. A card that names its own padding
-# draws with it. A WidgetAccordion opens and closes an item from its header.
+# draws with it. A card takes a plain left click on its own area. A WidgetAccordion
+# opens and closes an item from its header.
 
 _fold_font = StyleFont("Ubuntu Mono", 20)
 _fold_stub = FixedMeasure(10, 18, 6, 0)
@@ -217,5 +218,19 @@ function test_widget_card_fold()
                                   PrinterContext()).output
         @test Int(indented.w[]) == Int(bare.w[]) + 12
         @test Int(indented.h[]) == Int(bare.h[])
+    end
+
+    # A card is a solid surface, so a plain left click on it that nothing inside it
+    # uses ends at the card. A right click and an Alt+click go on, to the menus of
+    # the parts around the card and to a whole selection.
+    @testset "a card takes a plain left click on its own area" begin
+        proj = _fold_proj()
+        iomap = print_document(proj, proj, WidgetCard(; content = "abc", variant = :plain), PrinterContext())
+        click(button, x, y; modifiers = ModifierKeys()) =
+            read_intent(proj, iomap, MouseClick(button, x, y, modifiers; time = 0.0))
+        @test click(:left, 4, 4) isa DoNothingOperation          # the padding
+        @test !(click(:right, 4, 4) isa DoNothingOperation)
+        @test !(click(:left, 4, 4; modifiers = ModifierKeys(alt = true)) isa DoNothingOperation)
+        @test click(:left, 500, 500) === nothing                  # off the card
     end
 end
