@@ -520,6 +520,7 @@ function test_assistant_mvp()
         _mvp_test_stop_turn()
         _mvp_test_turn_writes_on_editor_task()
         _mvp_test_markdown_tool_result()
+        _mvp_test_agent_markdown_tool_result()
         _mvp_test_markdown_result_table()
     end
 end
@@ -529,6 +530,41 @@ end
 # A tool that declares `"text/markdown"` has its answer drawn as a Markdown
 # page, and the model gets the text the tool wrote. An error stays text, and so
 # does the answer of a tool that declares plain text.
+
+# In a turn of an agent, a tool of this editor, which the agent reaches through
+# the MCP server of the editor, gets the page that a turn of a model makes of its
+# answer. A tool of the agent itself, and an error, keep their text.
+function _mvp_test_agent_markdown_tool_result()
+    @testset "a tool of the editor that answers Markdown gets a Markdown page in a turn of an agent" begin
+        written = "# Found\n\n| a | b |\n|---|---|\n| 1 | 2 |\n"
+        connection = ScriptedAgentConnection([Any[
+            AgentToolCallUpdate("t1"; name = "mcp__projectured__read_resource", status = :pending,
+                                input = Dict{String,Any}("uri" => "doc://found")),
+            AgentToolCallUpdate("t1"; status = :completed, output = written),
+            AgentToolCallUpdate("t2"; name = "Read", status = :pending,
+                                input = Dict{String,Any}("file_path" => "/found.md")),
+            AgentToolCallUpdate("t2"; status = :completed, output = written),
+            AgentToolCallUpdate("t3"; name = "mcp__projectured__read_resource", status = :pending,
+                                input = Dict{String,Any}("uri" => "doc://lost")),
+            AgentToolCallUpdate("t3"; status = :failed, output = "# No resource doc://lost"),
+            LlmTextStart(), LlmTextDelta("Done."), LlmTextStop()]])
+        a = Assistant(; backend = :acp, agent_session = ExternalAgentSession(connection))
+        editor = _mvp_editor(a)
+        a.input.value = "Look it up"
+        evaluate_operation(editor, SubmitProseOperation(a))
+        @test _mvp_wait_idle!(a; timeout_seconds = 10.0) === :idle
+        forms = [part.content for turn in a.conversation.turns for part in turn.parts
+                 if part.content isa EvaluatorForm]
+        @test [form.tool_name for form in forms] == ["read_resource", "Read", "read_resource"]
+        resource, read, failed = forms
+        @test resource.result isa MarkdownRoot
+        @test any(block -> block isa MarkdownTable, resource.result.elements)
+        @test resource.output == written
+        @test read.result isa TextBlock
+        @test failed.is_error && failed.result isa TextBlock
+        stop_external_agent!(a)
+    end
+end
 
 function _mvp_test_markdown_tool_result()
     @testset "a tool that answers Markdown gets a Markdown page" begin

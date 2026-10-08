@@ -845,6 +845,27 @@ from the command line of the projectured UI.
     suite and the application test apart: in one process the start of the
     agent in the application test timed out.
 
+- [x] 2.12 The result of a tool of the editor in a turn of an agent (the owner
+  asked on 2026-10-08 why the ACP conversation parses no Markdown in resource
+  responses, and chose item 1 of the answer). Found: the text of an answer,
+  the code of `execute_julia_code` and the plan parse the same way in both
+  kinds of turn, but the turn of an agent made every tool result plain text,
+  while a turn of a model makes a Markdown page for a tool that declares
+  `text/markdown`, which the documentation tools of the editor do. Done on the
+  branch `assistant-tool-results`: the turn keeps the tool set of the editor
+  in its state, and a tool of the editor, found by its name without the prefix
+  `mcp__projectured__`, gets `_make_tool_result_document` as in a turn of a
+  model. A tool of the agent, such as `Read` of Claude Code, and an error keep
+  their text. Tests: `test_assistant_mvp()` 155 with its 4 known broken, the
+  turn of an external agent 180 of 180, the conversation suite 238 of 238,
+  the application 359 with the 2 known broken. Live with the built-in agent:
+  `list_resources`, `read_function_documentation` and `search_api` gave
+  Markdown pages, and `ToolSearch` of Claude Code gave text. Open, later: the
+  live document that `execute_julia_code`
+  returns through MCP, the media type of a resource block (a field of the
+  kernel event), and `Read` of a `.md` or `.jl` file as a document (a release
+  of `ClaudeCodeACP`).
+
 ### Phase 3: the agent sees what projectured sees
 
 - [ ] 3.1 A view as an image in the prompt.
