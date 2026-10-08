@@ -360,6 +360,13 @@ editor ──ACP──▶ the agent (Julia) ──stream-json──▶ claude -p
   cancel while a question waits, each with a next prompt in the same process;
   and the app as a process: `initialize` after 2.6 s, a first prompt after
   7.6 s.
+- [x] **The release of ClaudeCodeACP 0.1.0** (2026-10-08): the owner made the
+  public repository `projectured/ClaudeCodeACP.jl` and pushed `main`. The CI
+  needed ProjecturedRegistry beside General, because AgentClientProtocol is
+  only there; with that step (`1f81220`) it passes on Julia 1.12 and 1. The
+  registry `main` holds "New package: ClaudeCodeACP v0.1.0" (`4e0c116`), with
+  the tree `33eb42c5`. On a fresh depot, `pkg> app add ClaudeCodeACP` installs
+  the program, which answered a prompt with the real `claude`.
 - [ ] **B.11 ProjecturEd uses it**: the default agent command, or the agent
   in the process of the editor, and a live check with the real `claude`.
 
