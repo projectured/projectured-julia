@@ -48,8 +48,8 @@ using PrecompileTools: @setup_workload, @compile_workload
 @setup_workload begin
     @compile_workload begin
         withenv("SDL_VIDEODRIVER" => "offscreen") do
-            ProjecturedPlatform.run_display_workload(
-                ProjecturedPlatform.WidgetModule.WidgetLabel("ProjecturEd"); backend = SdlBackend())
+            ProjecturedPlatform.run_display_workload(ProjecturedPlatform.make_workload_table();
+                                                     backend = SdlBackend())
         end
     end
 end

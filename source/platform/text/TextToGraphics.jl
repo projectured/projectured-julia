@@ -1098,8 +1098,8 @@ function _compute_span_bases(styled::TextBlock)
         box += group.indentation
         caret += group.indentation
         for (path, span) in group.spans
-            box_offsets[path] = box
-            caret_offsets[path] = caret
+            box_offsets[path::SpanPath] = box
+            caret_offsets[path::SpanPath] = caret
             box += _box_flat_length(span)
             caret += get_flat_length(span)
         end
@@ -1146,10 +1146,10 @@ function _indent_width(p::TextToGraphics, group, block_font::Cell)
     group.indentation > 0 || return 0
     for (_, span) in group.spans
         font = _element_font(span)
-        font === nothing || return first(compute_text_extent(p.measure, " "^group.indentation, font))
+        font === nothing || return first(compute_text_extent(p.measure, " "^(group.indentation::Int), font))
     end
     font = block_font[]
-    font === nothing ? 0 : first(compute_text_extent(p.measure, " "^group.indentation, font))
+    font === nothing ? 0 : first(compute_text_extent(p.measure, " "^(group.indentation::Int), font))
 end
 
 # The font an empty line is sized with. A flat block carries it on the

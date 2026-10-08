@@ -76,6 +76,20 @@ function _read_graphics(node)
 end
 
 """
+    make_workload_table(rows::Int = 1000) -> WidgetTable
+
+A table of `rows` rows of a number and its square, whose rows come from a lazy
+list, as the rows of a large table do: a window shows a few of them. A list of
+rows needs a width for each column. A workload shows it, so that its image holds
+the code that draws such a table.
+"""
+make_workload_table(rows::Int = 1000) =
+    WidgetTable(; column_headers = Any[WidgetLabel("n"), WidgetLabel("square")],
+                column_policy = Fixed(80),
+                cells = make_index_list(rows, 1, k -> CellVector(Cell[Cell(WidgetLabel(string(k))),
+                                                                       Cell(WidgetLabel(string(k * k)))])))
+
+"""
     run_display_workload(value; backend = WorkloadBackend(), frames = 1) -> Nothing
 
 Show `value` as a user shows it with [`display_in_editor`](@ref), with `backend`

@@ -50,9 +50,10 @@ Core.eval(@__MODULE__, Expr(:export, filter(!=(:EssentialsModule), names(Essenti
 # so that this image holds the code of its view.
 using PrecompileTools: @setup_workload, @compile_workload
 @setup_workload begin
-    frame = DataFrame(n = 1:20, square = (1:20) .^ 2, ratio = (1:20) ./ 3,
-                      name = string.("row ", 1:20), even = iseven.(1:20),
-                      maybe = [isodd(i) ? i : missing for i in 1:20])
+    # More rows than a window shows, so the rows come from the lazy list.
+    frame = DataFrame(n = 1:200, square = (1:200) .^ 2, ratio = (1:200) ./ 3,
+                      name = string.("row ", 1:200), even = iseven.(1:200),
+                      maybe = [isodd(i) ? i : missing for i in 1:200])
     @compile_workload begin
         ProjecturedPlatform.run_display_workload(frame)
     end

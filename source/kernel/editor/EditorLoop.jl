@@ -196,7 +196,9 @@ function run_editor!(editor::Editor; mcp::Union{Bool,NamedTuple}=false,
             # cooperative tasks of this thread get their turn.
             timeout = editor.wake_pending[] ? 0.0 : compute_wait_timeout(editor)
             if timeout > 0
-                wait_for_input(editor.backend, editor.devices, timeout)
+                # Through `invokelatest`, as every call of the backend protocol: a
+                # backend package adds methods, which would invalidate a resolved call.
+                Base.invokelatest(wait_for_input, editor.backend, editor.devices, timeout)
             else
                 yield()
             end
@@ -247,7 +249,7 @@ function _end_editor_loop!(editor::Editor, server)
     for step in (() -> _answer_waiting_calls!(editor),
                  (() -> stop_step(editor) for stop_step in editor.stop_steps)...,
                  () -> server === nothing || stop_agent_server!(server),
-                 () -> quit_backend!(editor.backend))
+                 () -> Base.invokelatest(quit_backend!, editor.backend))
         try
             step()
         catch exception
@@ -310,12 +312,14 @@ function make_editor(document::Document, projection; backend::Backend,
                      devices::Vector{Device}=_make_default_devices(),
                      feeds::Vector{Feed}=Feed[],
                      fault_policy::FaultPolicy=make_strict_fault_policy())
-    initialize_backend!(backend)
+    # Through `invokelatest`, as every call of the backend protocol: a
+    # backend package adds methods, which would invalidate a resolved call.
+    Base.invokelatest(initialize_backend!, backend)
     try
-        configure_devices!(backend, devices)
+        Base.invokelatest(configure_devices!, backend, devices)
         # A wrapper around the screen, such as the state of a tracker, is not
         # drawn: the backend opens the windows of the screen inside it.
-        open_native_windows!(backend, get_wrapped_document(document))
+        Base.invokelatest(open_native_windows!, backend, get_wrapped_document(document))
         editor = Editor(document, projection; backend = backend, devices = devices,
                         feeds = feeds, fault_policy = fault_policy)
         _run_barrier(editor, :print; origin = typeof(editor.projection)) do
@@ -325,7 +329,7 @@ function make_editor(document::Document, projection; backend::Backend,
     catch
         # The error of the build goes on, so an exception of the quit is dropped.
         try
-            quit_backend!(backend)
+            Base.invokelatest(quit_backend!, backend)
         catch exception
             is_passthrough_exception(exception) && rethrow()
         end

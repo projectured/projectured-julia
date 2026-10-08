@@ -104,7 +104,7 @@ export EditorDisplay, display_in_editor, close_display_editor!, refresh_display_
 using PrecompileTools: @setup_workload, @compile_workload
 @setup_workload begin
     @compile_workload begin
-        run_display_workload(WidgetModule.WidgetLabel("ProjecturEd"))
+        run_display_workload(make_workload_table())
     end
 end
 

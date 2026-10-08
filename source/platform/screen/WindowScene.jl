@@ -208,6 +208,8 @@ is_wrapper_default(::Val{:window}) = true
 # what the editor gives it, and a screen of windows is what an editor gives.
 # Parts that `make_editor_parts` makes with no backend have no window.
 _is_window_backend(::Nothing) = false
+# The call goes through `invokelatest`: each backend package adds a method of
+# `get_backend_output`, which would invalidate a resolved call.
 _is_window_backend(backend::Backend) =
     !hasmethod(get_backend_output, Tuple{Type{typeof(backend)}}) ||
-    get_backend_output(typeof(backend)) === :windows
+    Base.invokelatest(get_backend_output, typeof(backend)) === :windows

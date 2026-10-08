@@ -74,10 +74,15 @@ end
 
 # The one type of `loaded` that draws `output`, or an error that names them.
 function _choose_backend_type(loaded::Vector, output::Symbol)
-    candidates = [type for type in loaded if get_backend_output(type) === output]
+    # Through `invokelatest`: each backend package adds a method, and a call that
+    # inference resolves would be invalidated when such a package loads.
+    candidates = Type[]
+    for type in loaded
+        Base.invokelatest(get_backend_output, type) === output && push!(candidates, type)
+    end
     length(candidates) == 1 && return only(candidates)
     names = isempty(loaded) ? "none" :
-        join(("$(nameof(type)) ($(get_backend_output(type)))" for type in loaded), ", ")
+        join(("$(nameof(type)) ($(Base.invokelatest(get_backend_output, type)))" for type in loaded), ", ")
     if isempty(candidates)
         error("No loaded backend draws $(output). Load a backend package that draws ",
               "$(output), or pass `backend`. The loaded backends: $(names).")

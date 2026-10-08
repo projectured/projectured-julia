@@ -1363,7 +1363,7 @@ function _gl_extents_cell(count_cell, policy_of, content::Vector{Cell},
                           gap::Cell, avail; reads = k -> !_gl_offers(policy_of(k)),
                           extra_gap = c -> 0)
     Cell(Computation(function ()
-        c = count_cell[]
+        c = count_cell[]::Int
         c <= 0 && return Int[]
         c = min(c, length(content))
         mins = Vector{Int}(undef, c); maxs = Vector{Int}(undef, c)
@@ -1507,11 +1507,11 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     function gap_above(r::Int)
         gaps = doc.row_gaps
         gap = gaps isa AbstractVector && 2 <= r <= length(gaps) ? gaps[r] : nothing
-        gap === nothing ? Int(vgap[]) : Int(gap)
+        gap === nothing ? Int(vgap[])::Int : Int(gap)::Int
     end
     row_extents = _gl_extents_cell(row_count_cell, policy_of_row, content_row_h, vgap, avail_h;
                                    reads = k -> !offers_to_row_cells(k),
-                                   extra_gap = c -> sum((gap_above(r) - Int(vgap[]) for r in 2:c); init = 0))
+                                   extra_gap = c -> sum((gap_above(r) - Int(vgap[])::Int for r in 2:c); init = 0))
     col_w = Cell[_gl_extent_cell(col_extents, k) for k in 1:n]
     row_h = Cell[_gl_extent_cell(row_extents, k) for k in 1:n]
 

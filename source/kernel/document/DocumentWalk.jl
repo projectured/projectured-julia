@@ -211,7 +211,7 @@ function _walk_document!(walk, results, reported, obj, predicate, location, encl
     (leaf || depth <= 0) && return
 
     if is_element_collection(obj)
-        for i in 1:length(obj)
+        for i in 1:(length(obj)::Int)
             child = unwrap_cell(obj[i])
             descend(obj, child) || continue
             _walk_document!(walk, results, reported, child, predicate,

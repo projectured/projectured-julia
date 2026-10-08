@@ -151,7 +151,9 @@ function _read_from_devices_guarded(editor::Editor)
     is_editor_degraded(editor, :device_read) && return nothing
     _run_barrier(editor, :device; counter = :device_read,
                  origin = typeof(editor.backend)) do
-        take_from_devices!(editor.backend, editor.devices)
+        # Through `invokelatest`: each backend package adds a method, and a call
+        # that inference resolves would be invalidated when such a package loads.
+        Base.invokelatest(take_from_devices!, editor.backend, editor.devices)
     end
 end
 
