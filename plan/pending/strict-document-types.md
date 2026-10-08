@@ -627,6 +627,12 @@ worktree. The three domains test different parts of the model:
       errors (`ConfigurationTest.jl:525`, `runtests.jl:287`).
     - Each fix works with `main` of projectured-julia too, so the two repositories can take
       them before the branch lands.
+    - **Decided by the owner, 2026-10-08: staging A.** omnet-julia and inet-julia fix these
+      writes on a branch of their own, in a form that works with `main` of projectured-julia
+      too, and land first; then this branch lands with the default `:throw`. Before that
+      landing, `OmnetPresentationTest` runs in the mode `:record`, in parts. The other options
+      were: land this branch with the default `:record` first and turn on `:throw` in a second
+      landing (B), or land all three together (C).
   - [x] **Group 5, a lazy list in a field declared `CellVector`.** `children` of
     `HorizontalLayout`, `VerticalLayout` and `GridLayout`, and the two header strips of
     `WidgetTable`, get a `ListNode`, a lazy list that a viewport reads from the middle. The
