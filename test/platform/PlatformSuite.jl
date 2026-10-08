@@ -179,6 +179,7 @@ function test_platform()
         test_primitive()
         test_primitive_type_in()
         test_object_conversion()
+        test_text_pattern()
         test_pane_surgery()
         test_pane_geometry()
         test_document_duplicate()
@@ -377,7 +378,7 @@ export test_plot_geometry,
        test_word_wrapping, test_text_filtering, test_text_first_line, test_text_line_numbering,
        test_text_highlighting, test_selection_inverting
 export test_reflection_to_widget
-export test_object_field_to_widget, test_object_field_to_syntax, test_object_conversion, test_widget_value_slot
+export test_object_field_to_widget, test_object_field_to_syntax, test_object_conversion, test_widget_value_slot, test_text_pattern
 export test_object_to_widget, test_projection_configuring,
        test_widget_text_editing, test_widget_button_behavior, test_widget_button_labels, test_widget_slider_drag, test_widget_scroll_bar, test_widget_live_values, test_widget_progress, test_size_range_child_rule, test_size_range_cross_axis, test_size_range_composite, test_size_range_one_child, test_size_range_main_axis, test_widget_card_fold, test_widget_selection, test_selection_walking, test_gesture_tracking, test_mouse_target_move, test_widget_gestures,
        test_widget_select_dropdown, test_widget_menu, test_widget_context_menu,

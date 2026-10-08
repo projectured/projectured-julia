@@ -68,6 +68,7 @@ export TextBlockToString, TextStringToString, TextNewlineToString, TextSpacingTo
        TextLineToString, TextToString
 export TextLineNumbering, LineNumbering
 export WordWrapping, WordWrappingIoMap, WrapSegment
+export make_text_pattern
 export TextFiltering, TextFilteringIoMap
 export TextFirstLine, TextFirstLineIoMap
 export TextHighlighting, TextHighlightingIoMap, HighlightSegment
@@ -91,6 +92,7 @@ include("FaultToText.jl")
 include("TextLineNumbering.jl")
 include("TextFolding.jl")
 include("WordWrapping.jl")
+include("TextPattern.jl")
 include("TextFiltering.jl")
 include("TextFirstLine.jl")
 include("TextHighlighting.jl")

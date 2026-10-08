@@ -1,6 +1,8 @@
 # Hoist editable text-projection config into documents
 
-> **Status (2026-10-08): REFRESHED, NOT STARTED.** The plan was written on
+> **Status (2026-10-08): IN PROGRESS** on the branch `text-config-in-documents`,
+> on top of `plain-value-form`, in the worktree `projectured-julia-plain-value-form`.
+> Step 1 is done. **Refreshed 2026-10-08.** The plan was written on
 > 2026-08-12 and refreshed on 2026-10-08 against the code of the branch
 > `plain-value-form`. It builds on part C of
 > [a-form-edits-a-plain-value.md](a-form-edits-a-plain-value.md): a widget slot
@@ -8,8 +10,8 @@
 > `make_object_field_widget_dispatch`. So it is implemented on a branch on top
 > of `plain-value-form`. Step 7 (part D) of that plan waits for this plan,
 > because part D would otherwise have to change `ProjectionConfiguringProjection`.
-> Every question is answered. The plan waits for the word of the owner to start
-> step 1.
+> Every question is answered, and the owner asked for the implementation on
+> 2026-10-08.
 
 ## Goal
 
@@ -213,10 +215,17 @@ space to a hidden child, which a split pane may not.
 Each step is one commit, on a branch on top of `plain-value-form`. Run the test
 of the step, not `test_all()`.
 
-1. ⬜ **The pattern.** The function that makes the pattern from the fields.
+1. ✅ **The pattern.** The function that makes the pattern from the fields.
    Tests: literal text with the characters of a regular expression, a regular
    expression, the flag for case, an empty pattern, and a pattern that does not
    compile.
+
+   **Done 2026-10-08.** `make_text_pattern(pattern, regex, case_insensitive)` in
+   `source/platform/text/TextPattern.jl`, exported from `TextModule`. Literal
+   text gets a backslash before each of `\^$.|?*+()[]{}`. A pattern that does not
+   compile throws an `ErrorException` in `Regex`, and the function answers
+   `nothing` for exactly that exception. `test_text_pattern()` 14 pass, in
+   `test/platform/document/TextPatternTest.jl`.
 2. ⬜ **`HighlightedText` and `HighlightedTextToText`; `TextHighlighting` goes.**
    The code of `TextHighlighting.jl` moves into the new projection, which reads
    its configuration from its input and handles the step `text`.
