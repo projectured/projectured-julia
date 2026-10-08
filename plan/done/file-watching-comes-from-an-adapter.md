@@ -79,3 +79,21 @@ standard library `FileWatching`, for the `FolderMonitor` of the slice
   umbrella of the release copy bounds `AutoIntegration` to `0.1.1`, the version
   that the manifest of main names since 6dfd63695, and the test expects `0.1.0`.
   The branch passes 185 checks there, main 183.
+
+## 6. Taken back, 2026-10-08
+
+The owner asked whether AutoIntegration could load the adapter when both
+`FileWatching` and `Projectured` are loaded. A check showed that `FileWatching`
+is in the system image of Julia 1.13.1, and every process loads it at start:
+`Base.root_module_exists` is true for it before any `using`. Base itself uses it
+to lock the cache files of a precompile. So a dependency of the platform on it
+costs nothing, and a trigger on it is always met. The owner then decided that
+the adapter is not needed and the platform loads `FileWatching` again.
+
+- `ProjecturedPlatform` depends on `FileWatching`; the store starts a
+  `FolderMonitor` for each folder, as in 6dfd63695.
+- `ProjecturedFileWatching`, its test package, `register_folder_watch!`, the
+  adapter document and the rows of the tables are gone. omnet-julia's window
+  binaries no longer name the adapter.
+- Two fixes stay: the stamp of each file from the start of its watch, which the
+  poll compares with, and the wait for the wake in the test of the feed.
