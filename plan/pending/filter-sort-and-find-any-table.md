@@ -332,10 +332,47 @@ Each step ends with its own tests and a commit, in a worktree.
   the removal shows the row as it was. The platform: 102,416 pass, 8 broken
   and 2 fail; the base 102,406, with the same 2 failures of
   `test_interface_api`; the 10 more are the new test.
-- [ ] **2.** The filter and the sort stages: the index vector, the children
+- [x] **2.** The filter and the sort stages: the index vector, the children
   printed with the source index, conditions and keys as paths inside an item,
   and the readers that map back. Tests over a vector of values, a vector of
-  records, a nested collection with a pattern entry, and a table.
+  records, a nested collection with a pattern entry, and a table. Done
+  2026-10-08, with a change of the design (mine):
+  - A stage passes the kept items themselves to the printer of the place, and
+    does not print them: `PickingProjection(compute_rows)`, whose output holds
+    the items at the indices that `compute_rows` answers, and whose maps send
+    `[j]` of the output to `[rows[j]]` of the input. A stage that printed its
+    children through the recursion, as `SortingProjection` does, would hand
+    their printed output to the printer of the place, which prints items.
+  - So the printer of the place numbers the items by their shown place, and
+    the chain of an entry tells the places below it the source index instead:
+    `ArrangedChainingProjection` prints the stages and the printer of the place
+    as a `ChainingProjection` does, and returns its `ChainingIoMap`, so the
+    reader and the maps are those of a chain; but the printer of the place
+    prints with the indices that the stages picked in the context
+    (`:arranged_picks`). `find_arranged_projection` turns the index after each
+    picked place into the source index, the innermost first.
+  - `ArrangementFilter(conditions)` with `ArrangementCondition(key, operator,
+    value)`, the operators `:equal`, `:not_equal`, `:less`, `:greater`,
+    `:at_most`, `:at_least` and `:contains`; `ArrangementSort(keys)` with
+    `ArrangementSortKey(key, direction)`, a stable sort. `get_arrangement_value`
+    reads the value of an item, the `value` of a primitive document, and a
+    domain adds a method. Numbers come before text, text before other values,
+    and a missing value last in either direction.
+  - An entry's place is a path or a pattern of `parse_reference_pattern`,
+    matched with `match_reference_pattern(:at, …)`. A path wins over a pattern,
+    and among entries of one kind the first wins (mine, the open question of
+    §7).
+  - Facts: a pattern needs a name before an index, so `[*].events` does not
+    parse and `runs[*].events` does. A `CellVector` passed to the one
+    `CellVector` field of a `@document` is wrapped once more, so a test builds
+    the record from a plain vector. A copy of a record by `CopyingProjection`
+    keeps the field values of its print, so the test of a nested entry prints
+    the arrangement again for each check; a copy of a vector follows its
+    children. `PickingProjection` takes a `CellVector` and a plain vector; a
+    `ListNode` waits for the widget table of step 5.
+  - `test_arrangement_filter_sort` (15): a vector of values, records with two
+    sort keys, an entry inside a picked item by its source path, a pattern,
+    the rows of a table by a column, and values of different kinds.
 - [ ] **3.** The chips: the drawing of an entry beside a printed collection, in a
   text view and in a widget view, and the commands of §3: "Show only items
   like this", "Hide items like this", "Sort by this", a header, the quick text

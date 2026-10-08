@@ -34,3 +34,51 @@ saved, copied and undone as any document.
     at::Any
     projections::CellVector
 end
+
+"""
+    ArrangementFilter(conditions)
+
+A filter that a person placed at a collection: it keeps the items for which every
+`ArrangementCondition` of `conditions` holds, in their order. Each condition is a
+chip.
+"""
+@document struct ArrangementFilter
+    conditions::CellVector
+end
+
+"""
+    ArrangementCondition(key, operator, value)
+
+A condition on one item: the value at the path `key` inside the item, read with
+[`get_arrangement_value`](@ref), compared with `value` by `operator`, one of
+`:equal`, `:not_equal`, `:less`, `:greater`, `:at_most`, `:at_least` and
+`:contains`. The empty path is the item itself.
+"""
+@document struct ArrangementCondition
+    key::Any
+    operator::Symbol
+    value::Any
+end
+
+"""
+    ArrangementSort(keys)
+
+A sort that a person placed at a collection: the items in the order of the first
+`ArrangementSortKey` of `keys`, then of the next one for items that are equal, and
+in their own order for items that are equal in every key. Each key is a chip.
+"""
+@document struct ArrangementSort
+    keys::CellVector
+end
+
+"""
+    ArrangementSortKey(key, direction)
+
+The value at the path `key` inside an item, read with `get_arrangement_value`, in
+the `direction` `:ascending` or `:descending`. Numbers come before text, text
+before other values, and a missing value last in either direction.
+"""
+@document struct ArrangementSortKey
+    key::Any
+    direction::Symbol
+end

@@ -96,19 +96,65 @@ chain of the projections of the entry of that place, and then `default`, or
 `default` when there is no arrangement, no entry, or an entry with no
 projection. A chain is built once for each entry and each list of projections,
 so the same entry gives the same object and its place does not print again.
+
+The place is found by its path in the document of the arrangement: an index
+after a filtered or sorted place is the index of the item in the source, which
+the picks of the places above give (`ArrangedChainingProjection`). An entry at a
+path wins over an entry at a pattern, and among entries of one kind the first
+wins.
 """
 function find_arranged_projection(reference, context, default)
     arrangement = get_property(context, :arrangement, nothing)
     arrangement === nothing && return default
     relative = _find_relative_reference(arrangement.base, reference)
     relative === nothing && return default
-    for entry in arrangement.arrangement.entries
-        strip_reference_types(entry.at) == relative || continue
-        descriptions = Any[description for description in entry.projections]
-        isempty(descriptions) && return default
-        return _get_entry_chain(arrangement, entry, descriptions, default)
+    relative = _find_source_reference(relative, get_property(context, :arranged_picks, Any[]))
+    entries = arrangement.arrangement.entries
+    entry = something(_find_entry_at(entries, relative, Reference), _find_entry_at(entries, relative, AbstractVector),
+                      Some(nothing))
+    entry === nothing && return default
+    descriptions = Any[description for description in entry.projections]
+    isempty(descriptions) && return default
+    _get_entry_chain(arrangement, entry, descriptions, default)
+end
+
+# The first entry of `entries` whose place, of the kind `kind` (a path or a
+# pattern), is `relative`.
+function _find_entry_at(entries, relative, kind::Type)
+    for entry in entries
+        at = entry.at
+        at isa kind && _is_entry_at(at, relative) && return entry
     end
-    default
+    nothing
+end
+
+_is_entry_at(at::Reference, relative) = strip_reference_types(at) == relative
+_is_entry_at(at::AbstractVector, relative) = match_reference_pattern(:at, at, relative) !== nothing
+
+# `relative`, a path as it prints, with the index after each picked place turned
+# into the index of the item in the source, the innermost place first: the path
+# of a pick is a path as it prints, so an inner one matches before the indices
+# of the outer ones change.
+function _find_source_reference(relative, picks)
+    for pick in Iterators.reverse(picks)
+        rows = pick.rows[]
+        rows === nothing || (relative = _replace_picked_index(relative, pick.place, rows))
+    end
+    relative
+end
+
+function _replace_picked_index(relative, place, rows)
+    steps = get_reference_steps(relative)
+    prefix = get_reference_steps(place)
+    length(steps) > length(prefix) || return relative
+    all(steps[i] == prefix[i] for i in eachindex(prefix)) || return relative
+    step = steps[length(prefix) + 1]
+    (step isa RangeReferenceStep && is_element_reference_step(step)) || return relative
+    j = step.start + 1
+    (1 <= j <= length(rows)) || return relative
+    steps = collect(steps)
+    steps[length(prefix) + 1] = ElementReferenceStep(rows[j])
+    extend_reference(EmptyReference(), steps...)
 end
 
 # The path of `reference` below `base`, without types, or `nothing` when it is
@@ -132,7 +178,68 @@ function _get_entry_chain(arrangement::_Arrangement, entry, descriptions, defaul
        all(cached.descriptions[i] === descriptions[i] for i in eachindex(descriptions))
         return cached.chain
     end
-    chain = ChainingProjection(Any[(make_arrangement_projection(d) for d in descriptions)..., default])
+    chain = ArrangedChainingProjection(ChainingProjection(Any[(make_arrangement_projection(d) for d in descriptions)...,
+                                                              default]))
     arrangement.chains[entry] = (descriptions = descriptions, default = default, chain = chain)
     chain
+end
+
+"""
+    ArrangedChainingProjection(chain)
+
+The projections of one entry and then the printer of its place, `chain`, printed
+as a `ChainingProjection` prints them, but the printer of the place prints with
+the indices that the stages before it picked in the printer context, so that
+the dispatch at a place inside a picked item finds the entry of the item by its
+index in the source. The IO map is the `ChainingIoMap` of `chain`, so the reader
+and the maps are those of a chain.
+"""
+struct ArrangedChainingProjection <: Projection
+    chain::ChainingProjection
+end
+
+function print_document(p::ArrangedChainingProjection, recursion, input, ctx)
+    stages = p.chain.projections
+    step_iomaps = Cell[]
+    previous = Cell(input)
+    for (n, stage) in enumerate(stages)
+        stage_ctx = n == length(stages) ? _with_picked_rows(ctx, copy(step_iomaps)) : ctx
+        iomap_cell, previous = _make_chain_stage(stage, recursion, previous, stage_ctx)
+        push!(step_iomaps, iomap_cell)
+    end
+    foreach(peek, step_iomaps)
+    ChainingIoMap(p.chain, input, step_iomaps, Cell(@computation step_iomaps[end][].output))
+end
+
+# One stage, as a chain prints it: its IO map is printed again only when the
+# output of the stage before it is another object.
+function _make_chain_stage(stage, recursion, previous::Cell, ctx)
+    iomap_cell = make_reconciled_child_iomap_cell(() -> previous[], v -> print_document(stage, recursion, v, ctx))
+    (iomap_cell, Cell(@computation unwrap_cell(iomap_cell[].output)))
+end
+
+# `ctx` with the picks of the stages added to the picks of the places above it:
+# the path of this place below the arrangement, as it prints, and the index in
+# the input of the stages for each index of their output.
+function _with_picked_rows(ctx, stage_cells)
+    arrangement = get_property(ctx, :arrangement, nothing)
+    arrangement === nothing && return ctx
+    place = _find_relative_reference(arrangement.base, ctx.reference)
+    place === nothing && return ctx
+    rows = Cell(@computation _compose_picked_rows(stage_cells))
+    picks = Any[get_property(ctx, :arranged_picks, Any[])..., (place = place, rows = rows)]
+    with_property(ctx, :arranged_picks, picks)
+end
+
+# The index in the input of the first stage for each index of the output of the
+# last stage that picks; `nothing` when no stage picks.
+function _compose_picked_rows(stage_cells)
+    rows = nothing
+    for cell in stage_cells
+        iomap = cell[]
+        iomap isa PickingIoMap || continue
+        picked = iomap.rows
+        rows = rows === nothing ? picked : rows[picked]
+    end
+    rows
 end
