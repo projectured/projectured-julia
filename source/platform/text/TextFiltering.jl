@@ -78,7 +78,10 @@ function print_document(p::TextFiltering, recursion, text::TextBlock, ctx)
     pattern_cell = p.pattern
     ci_cell = p.case_insensitive
     invert_cell = p.invert
-    both = Cell(@computation _filter(text, _effective_pattern(pattern_cell[], ci_cell[]), invert_cell[]))   # (elements, kept)
+    both = Cell(@computation begin
+        pattern = _effective_pattern(pattern_cell[], ci_cell[])
+        _is_block_of_lines(text) ? _filter_lines(text, pattern, invert_cell[]) : _filter(text, pattern, invert_cell[])
+    end)   # (elements, kept)
     elements_cv = CellVector(@computation both[][1])
     kept_cell = Cell(@computation both[][2])
     paths = make_output_path_cells(text, path ->
@@ -127,6 +130,23 @@ function _filter(text::TextBlock, pattern, invert::Bool)
     (out, kept)
 end
 
+# A block of lines: the lines whose text matches, each the same object, and the
+# input index of each. The text of a line is the text of its spans.
+function _filter_lines(text::TextBlock, pattern, invert::Bool)
+    out = TextDocument[]
+    kept = Int[]
+    for (i, line) in enumerate(text.elements)
+        if pattern !== nothing && line isa TextLine
+            keep = occursin(pattern, join(span.content::AbstractString for span in line.elements
+                                          if span isa TextString))
+            keep == invert && continue
+        end
+        push!(out, line)
+        push!(kept, i)
+    end
+    (out, kept)
+end
+
 # ── Selection / reference mapping ───────────────────────────────────────────
 
 # A whole-element selection at this layer is either `∅` (the whole text) or a
@@ -149,6 +169,10 @@ _make_filter_runs(kept::Vector{Int}, input::TextBlock, output::TextBlock) =
 # image in the output). Takes the blocks explicitly so `print_document` can
 # compute the output selection before the `IoMap` exists.
 function _forward_map(kept::Vector{Int}, in_block, out_block, sel)
+    # On a block of lines a dropped line moves the offsets after it, so every
+    # caret, range and box maps over the runs of the kept lines.
+    _is_block_of_lines(in_block) &&
+        return _map_selection_over_runs(_make_filter_runs(kept, in_block, out_block), in_block, sel)
     box = _get_text_box(sel)
     box === nothing || return _map_text_box(_make_filter_runs(kept, in_block, out_block), box)
     _is_structural_ref(sel) && return sel
@@ -169,6 +193,9 @@ map_reference_forward(p::TextFiltering, iomap::TextFilteringIoMap, reference) =
     _forward_map(iomap.kept, iomap.input, iomap.output, reference)
 
 function map_reference_backward(p::TextFiltering, iomap::TextFilteringIoMap, reference)
+    _is_block_of_lines(iomap.input) &&
+        return _map_selection_over_runs(_reverse_flat_runs(_make_filter_runs(iomap.kept, iomap.input, iomap.output)),
+                                        iomap.output, reference)
     box = _get_text_box(reference)
     box === nothing ||
         return _map_text_box(_reverse_flat_runs(_make_filter_runs(iomap.kept, iomap.input, iomap.output)), box)
@@ -195,6 +222,15 @@ end
 # to the input domain: remap the element index via the kept table, keep the
 # character range unchanged.
 function read_intent(p::TextFiltering, iomap::TextFilteringIoMap, op::ReplaceStringRangeOperation)
+    if _is_block_of_lines(iomap.input)
+        parsed = _parse_line_span_path(op.reference)
+        (parsed === nothing || parsed[3] === nothing) && return nothing
+        j, k, (char_start, char_stop) = parsed
+        kept = iomap.kept
+        1 <= j <= length(kept) || return nothing
+        return ReplaceStringRangeOperation(_text_replace_path(Int[kept[j], k], char_start, char_stop),
+                                           op.replacement)
+    end
     parsed = _parse_text_elem_range(op.reference)
     parsed === nothing && return nothing
     out_span, char_start, char_stop = parsed

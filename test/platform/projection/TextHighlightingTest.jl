@@ -132,4 +132,24 @@ end # @testset
 
 end # @testset
 
+
+@testset "TextHighlighting marks the matches of a block of lines" begin
+    lines = TextBlock(TextDocument[TextLine(TextString("sit dolor", _font, color_red)),
+                                   TextLine(TextString("amet", _font, color_red); indentation = 2)])
+    p = TextHighlighting(r"dolor"; color = color_green)
+    iomap = print_document(p, lines)
+    out = iomap.output
+    # The line with the match is split, and the other line is the same object.
+    @test [span.content for span in out.elements[1].elements] == ["sit ", "dolor"]
+    @test out.elements[1].elements[2].fill_color == color_green
+    @test out.elements[2] === lines.elements[2]
+    @test get_flat_string(out) == get_flat_string(lines)
+    caret = make_flat_caret_reference(6)
+    @test map_reference_forward(p, iomap, caret) == caret
+    # An edit of the match maps back to its span, at the offset of the match.
+    edit = ReplaceStringRangeOperation(TextModule._text_replace_path(Int[1, 2], 0, 1), "D")
+    @test strip_reference_types(read_intent(p, iomap, edit).reference) ==
+          TextModule._text_replace_path(Int[1, 1], 4, 5)
+end
+
 end # test_text_highlighting

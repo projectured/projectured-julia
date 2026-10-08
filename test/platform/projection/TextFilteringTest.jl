@@ -161,4 +161,29 @@ end # @testset
 
 end # @testset
 
+
+@testset "TextFiltering keeps the matching lines of a block of lines" begin
+    font = StyleFont("Ubuntu Mono", 20)
+    lines = TextBlock(TextDocument[TextLine(TextString("lorem", font, color_default)),
+                                   TextLine(TextString("dolor", font, color_default); indentation = 2),
+                                   TextLine(TextString("dolor sit", font, color_default))])
+    p = TextFiltering("dolor")
+    iomap = print_document(p, lines)
+    out = iomap.output
+    # The kept lines are the same objects.
+    @test length(out.elements) == 2
+    @test out.elements[1] === lines.elements[2]
+    @test out.elements[2] === lines.elements[3]
+    # The first line is dropped, so a caret in the second line moves back by its
+    # text and its break: "lorem" and a break are six offsets.
+    @test map_reference_forward(p, iomap, make_flat_caret_reference(9)) == make_flat_caret_reference(3)
+    @test map_reference_backward(p, iomap, make_flat_caret_reference(3)) == make_flat_caret_reference(9)
+    # An edit of a kept line maps back to its input line.
+    edit = ReplaceStringRangeOperation(TextModule._text_replace_path(Int[2, 1], 0, 1), "D")
+    @test strip_reference_types(read_intent(p, iomap, edit).reference) ==
+          TextModule._text_replace_path(Int[3, 1], 0, 1)
+    # With no pattern every line stays.
+    @test length(print_document(TextFiltering(), lines).output.elements) == 3
+end
+
 end # test_text_filtering

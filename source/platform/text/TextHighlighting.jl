@@ -63,7 +63,10 @@ end
     projection::Any
     input::TextBlock
     output::TextBlock
-    segs::Cell  # Cell{Vector{HighlightSegment}}
+    # Cell{Vector{HighlightSegment}} for a block of spans; for a block of lines,
+    # Cell{Vector{Pair{Int,Vector{HighlightSegment}}}}, each line that is split =>
+    # the segments of its spans, whose indices count in the line.
+    segs::Cell
 end
 
 # ── Print ───────────────────────────────────────────────────────────────────
@@ -72,10 +75,14 @@ function print_document(p::TextHighlighting, recursion, text::TextBlock, ctx)
     pattern_cell = p.pattern
     ci_cell = p.case_insensitive
     color = p.color
-    both = Cell(@computation _highlight(text, _effective_pattern(pattern_cell[], ci_cell[]), color))   # (elements, segs)
+    both = Cell(@computation begin
+        pattern = _effective_pattern(pattern_cell[], ci_cell[])
+        _is_block_of_lines(text) ? _highlight_lines(text, pattern, color) : _highlight(text, pattern, color)
+    end)
     elements_cv = CellVector(@computation both[][1])
     segs_cell = Cell(@computation both[][2])
-    paths = make_output_path_cells(text, path ->
+    paths = make_output_path_cells(text, path -> _is_block_of_lines(text) ?
+        _map_line_path(segs_cell[], path, true) :
         _forward_map(segs_cell[], text, TextBlock(elements_cv, Cell(nothing)), path))
     output = TextBlock(elements_cv, paths.selection, paths.mouse_target)
     TextHighlightingIoMap(p, text, output, segs_cell)
@@ -104,6 +111,38 @@ function _highlight(text::TextBlock, pattern, color::StyleColor)
             push!(segs, HighlightSegment(length(result), in_span, 0, 1))
         else
             push!(result, elem)
+        end
+    end
+    (result, segs)
+end
+
+# A block of lines: each line with a match gets new spans, and every other line is
+# the same object; the segments of each line that is split. A match lies inside one
+# span, as on a block of spans.
+function _highlight_lines(text::TextBlock, pattern, color::StyleColor)
+    result = TextDocument[]
+    segs = Pair{Int,Vector{HighlightSegment}}[]
+    fill_cell = Cell(color)
+    for (i, line) in enumerate(text.elements)
+        if pattern === nothing || !(line isa TextLine)
+            push!(result, line)
+            continue
+        end
+        spans = TextDocument[]
+        line_segs = HighlightSegment[]
+        for (j, span) in enumerate(line.elements)
+            if span isa TextString
+                _highlight_string!(spans, line_segs, span, j, pattern, fill_cell)
+            else
+                push!(spans, span)
+                span isa TextGraphics && push!(line_segs, HighlightSegment(length(spans), j, 0, 1))
+            end
+        end
+        if length(spans) == length(line.elements) && all(k -> spans[k] === line.elements[k], eachindex(spans))
+            push!(result, line)
+        else
+            push!(result, _make_line_with_spans(line, spans))
+            push!(segs, i => line_segs)
         end
     end
     (result, segs)
@@ -236,9 +275,11 @@ function _forward_flat(segs, in_block, out_block, flat::Int, opens::Bool)
 end
 
 map_reference_forward(p::TextHighlighting, iomap::TextHighlightingIoMap, reference) =
+    _is_block_of_lines(iomap.input) ? _map_line_path(iomap.segs, reference, true) :
     _forward_map(iomap.segs, iomap.input, iomap.output, reference)
 
 function map_reference_backward(p::TextHighlighting, iomap::TextHighlightingIoMap, reference)
+    _is_block_of_lines(iomap.input) && return _map_line_path(iomap.segs, reference, false)
     _is_structural_ref(reference) && return reference
     flat = _text_range_caret(reference)
     flat === nothing && return nothing
@@ -262,6 +303,10 @@ end
 # Translate a `ReplaceStringRangeOperation` from the split output domain back to
 # the unwrapped input domain, shifting the char range by the sub-span's start.
 function read_intent(p::TextHighlighting, iomap::TextHighlightingIoMap, op::ReplaceStringRangeOperation)
+    if _is_block_of_lines(iomap.input)
+        reference = _map_line_path(iomap.segs, op.reference, false)
+        return reference === nothing ? nothing : ReplaceStringRangeOperation(reference, op.replacement)
+    end
     parsed = _parse_text_elem_range(op.reference)
     parsed === nothing && return nothing
     out_span, char_start, char_stop = parsed

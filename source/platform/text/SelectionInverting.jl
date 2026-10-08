@@ -142,57 +142,10 @@ function _invert_lines(p::SelectionInverting, text::TextBlock)
             last_span = findlast(span -> span isa TextString, spans)
             last_span === nothing || push!(spans, _invert_span(p, spans[last_span], " "))
         end
-        push!(result, TextLine(CellVector(Cell[Cell(span) for span in spans]), getfield(line, :indentation),
-                               getfield(line, :gutter), getfield(line, :fold), getfield(line, :soft_breaks),
-                               getfield(line, :selection), getfield(line, :mouse_target)))
+        push!(result, _make_line_with_spans(line, spans))
         push!(segs, i => line_segs)
     end
     (result, segs)
-end
-
-# A path on a block of lines, mapped through the segments of its line: forward from
-# the input to the output, or backward. A caret, a range, a box and `∅` keep their
-# flat offsets, and a path into a line that is not split is the same in both.
-function _map_line_path(segs, reference, forward::Bool)
-    parsed = _parse_line_span_path(reference)
-    parsed === nothing && return reference
-    i, j, tail = parsed
-    k = findfirst(entry -> first(entry) == i, segs)
-    k === nothing && return reference
-    char = tail === nothing ? nothing : tail[1]
-    for seg in last(segs[k])
-        index, start = forward ? (seg.in_span, seg.in_char_start) : (seg.out_index, 0)
-        index == j || continue
-        if forward
-            char === nothing || start <= char <= start + seg.length || continue
-            return _make_line_span_path(i, seg.out_index, char === nothing ? nothing : char - start, tail)
-        end
-        return _make_line_span_path(i, seg.in_span, char === nothing ? nothing : char + seg.in_char_start, tail)
-    end
-    nothing
-end
-
-# `.elements[i].elements[j]` followed by nothing, or by `.content{a:b}`: `(i, j,
-# nothing)` or `(i, j, (a, b))`; `nothing` for any other path.
-function _parse_line_span_path(reference)
-    r = strip_reference_types(reference)
-    steps = r isa ConcreteReference ? collect(get_reference_steps(r)) : Any[]
-    (length(steps) in (4, 6) && steps[1] isa FieldReferenceStep && steps[1].name == "elements" &&
-     steps[2] isa RangeReferenceStep && steps[3] isa FieldReferenceStep &&
-     steps[3].name == "elements" && steps[4] isa RangeReferenceStep) || return nothing
-    i, j = steps[2].stop, steps[4].stop
-    length(steps) == 4 && return (i, j, nothing)
-    (steps[5] isa FieldReferenceStep && steps[5].name == "content" && steps[6] isa RangeReferenceStep) ||
-        return nothing
-    (i, j, (steps[6].start::Int, steps[6].stop::Int))
-end
-
-# The path of span `j` of line `i`, with the characters `a:b` of `tail` moved by
-# `char - a` when `char` is given.
-function _make_line_span_path(i::Int, j::Int, char, tail)
-    tail === nothing && return _elements_prefix(Int[i, j], EmptyReference())
-    a, b = tail
-    _text_replace_path(Int[i, j], char, char + b - a)
 end
 
 # Returns (output_elements::Vector{TextDocument}, segs::Vector{SelectionSegment}).

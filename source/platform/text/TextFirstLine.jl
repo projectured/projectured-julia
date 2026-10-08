@@ -47,7 +47,7 @@ end
 # ── Print ─────────────────────────────────────────────────────────────────────
 
 function print_document(p::TextFirstLine, recursion, text::TextBlock, ctx)
-    both = Cell(@computation _first_line(text))
+    both = Cell(@computation _is_block_of_lines(text) ? _first_line_of_lines(text) : _first_line(text))
     elements_cv = CellVector(@computation both[][1])
     info_cell = Cell(@computation both[][2])
     paths = make_output_path_cells(text, path -> begin
@@ -87,6 +87,24 @@ function _first_line(text::TextBlock)
     (result, (kept = length(result), trunc_span = trunc_span, trunc_len = trunc_len))
 end
 
+# A block of lines: its first line, the same object, or the prefix of its spans
+# before the first `'\n'` that a span holds. `kept` is 1, the one output line.
+function _first_line_of_lines(text::TextBlock)
+    line = text.elements[1]::TextLine
+    spans = TextDocument[]
+    for span in line.elements
+        content = span isa TextString ? span.content::AbstractString : nothing
+        break_at = content === nothing ? nothing : findfirst(==('\n'), content)
+        if break_at === nothing
+            push!(spans, span)
+            continue
+        end
+        push!(spans, _make_span(span, String(content[1:prevind(content, break_at)])))
+        return (TextDocument[_make_line_with_spans(line, spans)], (kept = 1, trunc_span = 0, trunc_len = 0))
+    end
+    (TextDocument[line], (kept = 1, trunc_span = 0, trunc_len = 0))
+end
+
 # ── Selection / reference mapping ─────────────────────────────────────────────
 
 # The runs of flat offsets that the first line keeps: each kept span is one run
@@ -114,6 +132,11 @@ end
 # A range edit on the first line maps back to the identical span/range (indices
 # and char offsets are preserved for the visible prefix).
 function read_intent(p::TextFirstLine, iomap::TextFirstLineIoMap, op::ReplaceStringRangeOperation)
+    # On a block of lines, the one output line is the first input line.
+    if _is_block_of_lines(iomap.input)
+        parsed = _parse_line_span_path(op.reference)
+        return (parsed !== nothing && parsed[1] == 1 && parsed[3] !== nothing) ? op : nothing
+    end
     parsed = _parse_text_elem_range(op.reference)
     parsed === nothing && return nothing
     out_span, char_start, char_stop = parsed
