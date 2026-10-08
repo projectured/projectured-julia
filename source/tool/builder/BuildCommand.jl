@@ -28,7 +28,11 @@ The binaries that the command line builds, as `name => description`.
 """
 const BUILD_BINARIES = ["projectured" =>
     "the application: files in a window, a Files\n" *
-    "pane and an AI assistant"]
+    "pane and an AI assistant",
+    "claude-code-acp" =>
+    "the ACP agent that runs Claude Code, for an\n" *
+    "editor that starts agents as programs; from the\n" *
+    "folder claude-code-acp beside this repository"]
 
 """
     BUILD_OPTIONS
@@ -45,7 +49,7 @@ const BUILD_OPTIONS = [
     ("--backends=", "--backends=<list>",
      "the backends the binary holds, comma-separated\n" *
      "(default: sdl,web). The first one is the default of\n" *
-     "the binary"),
+     "the binary. Only for projectured"),
     ("--no-workload", "--no-workload",
      "compile no start of the application ahead of time.\n" *
      "The build is faster, and the first window of the\n" *
@@ -216,7 +220,14 @@ function run_build_command(arguments)::Cint
         print(stderr, format_build_usage())
         return 1
     end
-    if distribution
+    if binary == "claude-code-acp"
+        if distribution || haskey(keywords, :backends)
+            println(stderr, "build-binary: claude-code-acp takes no ",
+                    distribution ? "--distribution" : "--backends", ".")
+            return 1
+        end
+        println(build_claude_code_acp_executable(; pairs(keywords)...))
+    elseif distribution
         println(build_projectured_distribution(; pairs(keywords)...))
     else
         println(build_projectured_executable(; pairs(keywords)...))

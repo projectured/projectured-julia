@@ -48,12 +48,15 @@ end
 
 Where the package called `name` lives, searched in `context.package_roots` in
 order. This is why a build function names no package's directory itself: it
-names the package as a string, and this resolves it.
+names the package as a string, and this resolves it. A root holds packages in
+folders of their names, or is the folder of one package itself, as the
+repository of a package of another repository is.
 """
 function get_package_directory(context::BuildContext, name::AbstractString)
     for root in context.package_roots
         here = joinpath(root, String(name))
         isdir(here) && return here
+        _is_package_root(root, name) && return root
     end
     error("get_package_directory: no package called $(repr(name)) in " *
           join(context.package_roots, " or "))
@@ -65,7 +68,14 @@ end
 Whether a folder of `context.package_roots` holds the package called `name`.
 """
 has_package_directory(context::BuildContext, name::AbstractString) =
-    any(root -> isfile(joinpath(root, String(name), "Project.toml")), context.package_roots)
+    any(root -> isfile(joinpath(root, String(name), "Project.toml")) || _is_package_root(root, name),
+        context.package_roots)
+
+# Whether `root` is itself the folder of the package called `name`.
+function _is_package_root(root::AbstractString, name::AbstractString)
+    project = joinpath(root, "Project.toml")
+    isfile(project) && get(TOML.parsefile(project), "name", nothing) == name
+end
 
 """
     collect_missing_sources(context, packages) -> Vector{Pair{String,String}}

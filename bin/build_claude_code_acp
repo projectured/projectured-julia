@@ -1,0 +1,29 @@
+#!/bin/sh
+#
+# Build the ACP agent claude-code-acp, the program of the package ClaudeCodeACP,
+# as a native binary.
+#
+#     bin/build_claude_code_acp
+#     bin/build_claude_code_acp --no-workload
+#
+# The package comes from the folder claude-code-acp beside this repository. The
+# bundle goes to `build/claude-code-acp/`, and the executable to
+# `build/claude-code-acp/bin/claude-code-acp`. An editor such as Zed starts that
+# executable as an agent.
+#
+# It is `tool/build-binary.jl claude-code-acp` under a name of its own. `--help`
+# lists every option. A build uses much memory and takes minutes; read
+# `documentation/guide/build-guide.md` before the first one.
+#
+root=$(cd "$(dirname "$0")/.." && pwd)
+# Julia loads the libstdc++ of the machine when it is newer than its own, and the
+# build copies the library that Julia loaded. A copy of the machine's library can
+# need a newer glibc than a user has, so the build loads Julia's own. A binary
+# still loads a newer one of its user's machine when there is one.
+JULIA_PROBE_LIBSTDCXX=0
+export JULIA_PROBE_LIBSTDCXX
+PROJECTURED_BUILD_WHAT="claude-code-acp"
+PROJECTURED_BUILD_COMMAND="bin/build_claude_code_acp"
+export PROJECTURED_BUILD_WHAT PROJECTURED_BUILD_COMMAND
+exec julia --project="$root/environment/build" \
+     "$root/tool/build-binary.jl" "$@"

@@ -56,6 +56,7 @@ export PROJECTURED_BACKENDS, PROJECTURED_STAND_INS, PROJECTURED_SOURCE_OFFERS,
        PROJECTURED_JOINED_PACKAGE_URLS, PROJECTURED_PACKAGE_READMES,
        collect_projectured_release_packages, build_projectured_package_release!,
        check_projectured_copy
+export CLAUDE_CODE_ACP_WORKLOAD, make_claude_code_acp_build_context, build_claude_code_acp_executable
 export get_fixed_build_binary, get_build_invocation, BUILD_BINARIES, BUILD_OPTIONS,
        format_build_usage, parse_build_arguments, run_build_command
 
@@ -69,6 +70,7 @@ include("LicenceTexts.jl")
 include("SourceArchive.jl")
 include("PackageRelease.jl")
 include("ProjecturedProgram.jl")
+include("ClaudeCodeAcpProgram.jl")
 include("BuildCommand.jl")
 
 end # module BuilderModule

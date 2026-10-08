@@ -200,13 +200,33 @@ tree for as long as the version exists.
      package that General already holds merges after 15 minutes; the first
      version of a new package waits 3 days.
 
-## Add a binary
+## Build the agent claude-code-acp
+
+`bin/build_claude_code_acp` builds `claude-code-acp`, the program of the package
+ClaudeCodeACP: the agent of the Agent Client Protocol that runs Claude Code. An
+editor that starts agents as programs, such as Zed, starts it. ProjecturEd
+itself needs no binary of it, because it runs the same agent in its own process.
+The package comes from the folder `claude-code-acp` beside this repository, the
+folder where `environment/all` finds it too.
+
+```sh
+bin/build_claude_code_acp
+build/claude-code-acp/bin/claude-code-acp --help
+```
+
+The bundle goes to `build/claude-code-acp/`. While the image compiles, the
+workload serves a client in the process through `initialize`, so the first
+answer of the binary needs no compilation. The binary runs the `claude` program
+of the machine, which must be signed in. The build takes no `--distribution` and
+no `--backends`.
+
 ## Add a binary
 
-A binary is a function. `source/tool/builder/ProjecturedProgram.jl` holds the ones of
-this repository; write the new one beside them, give the front end a row in its
-`BINARIES` table, and add the two scripts in `bin/`: one that runs the program
-from the checkout, and one that builds it.
+A binary is a function. `source/tool/builder/ProjecturedProgram.jl` and
+`source/tool/builder/ClaudeCodeAcpProgram.jl` hold the ones of this repository;
+write the new one beside them, give the front end a row in its `BUILD_BINARIES`
+table, and add the scripts in `bin/` that build it and, for a program of this
+repository, run it from the checkout.
 
 The function calls `build_executable(context; …)` with:
 
@@ -230,6 +250,7 @@ package. That is what lets another repository use the same builder.
 | --- | --- |
 | [source/tool/builder/](../../source/tool/builder/) | the builder, `BuilderModule`: context, preferences, usage, app package, executable, distribution, release copy, and the command line (`BuildCommand.jl`) |
 | [source/tool/builder/ProjecturedProgram.jl](../../source/tool/builder/ProjecturedProgram.jl) | the binaries of this repository, and what its release copy holds |
+| [source/tool/builder/ClaudeCodeAcpProgram.jl](../../source/tool/builder/ClaudeCodeAcpProgram.jl) | the binary `claude-code-acp` of the package ClaudeCodeACP |
 | [tool/build-binary.jl](../../tool/build-binary.jl) | the shell front end |
 | [bin/](../../bin/) | one script to run a program, one to build it |
 | [package/ProjecturedBuilder/](../../package/ProjecturedBuilder/) | the package that holds them |

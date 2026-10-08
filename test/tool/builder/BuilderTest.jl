@@ -444,6 +444,18 @@ function test_build_executable()
             @test_throws ErrorException get_package_directory(context, "NoSuchPackage")
         end
 
+        @testset "a root can be the folder of one package itself" begin
+            folder = mktempdir()
+            open(joinpath(folder, "Project.toml"), "w") do io
+                ProjecturedBuilder.BuilderModule.TOML.print(io, Dict(
+                    "name" => "Agent", "uuid" => string(Base.UUID(hash("Agent")))))
+            end
+            context = BuildContext(mktempdir(); package_roots = [folder])
+            @test has_package_directory(context, "Agent")
+            @test get_package_directory(context, "Agent") == folder
+            @test !has_package_directory(context, "Other")
+        end
+
         @testset "a local dependency without a path in [sources] is found" begin
             packages = mktempdir()
             write_project(name, deps, sources) = begin
@@ -988,6 +1000,30 @@ function test_build_executable()
                                             compile = false)
         end
 
+        @testset "the claude-code-acp build writes its package and compiles nothing" begin
+            # A small package in place of ClaudeCodeACP, so the test needs no
+            # folder beside the repository.
+            source = mktempdir()
+            mkpath(joinpath(source, "src"))
+            open(joinpath(source, "Project.toml"), "w") do io
+                ProjecturedBuilder.BuilderModule.TOML.print(io, Dict(
+                    "name" => "ClaudeCodeACP", "uuid" => "397ce549-bc36-418a-97e7-6295a63dbdc4"))
+            end
+            write(joinpath(source, "src", "ClaudeCodeACP.jl"), "module ClaudeCodeACP\nmain(arguments) = 0\nend\n")
+            context = make_claude_code_acp_build_context(source; context = _test_context())
+            project = build_claude_code_acp_executable(; source, context, compile = false)
+            @test project == joinpath(context.root, "build", "app", "claude-code-acp")
+            toml = ProjecturedBuilder.BuilderModule.TOML.parsefile(joinpath(project, "Project.toml"))
+            @test Set(keys(toml["deps"])) == Set(["ClaudeCodeACP", "PrecompileTools"])
+            @test normpath(joinpath(project, toml["sources"]["ClaudeCodeACP"]["path"])) == normpath(source)
+            text = read(joinpath(project, "src", "ClaudeCodeAcpApp.jl"), String)
+            @test occursin("ClaudeCodeACP.main(ARGS)", text)
+            @test occursin("ClaudeCodeACP.serve_agent", text)
+            @test_throws ErrorException build_claude_code_acp_executable(; source = mktempdir(),
+                context = make_claude_code_acp_build_context(mktempdir(); context = _test_context()),
+                compile = false)
+        end
+
         @testset "the shell front end" begin
             # The command line of the builder, which `tool/build-binary.jl` runs.
             script = read(joinpath(@__DIR__, "..", "..", "..", "tool", "build-binary.jl"), String)
@@ -998,6 +1034,13 @@ function test_build_executable()
                 @test occursin(label, usage)
             end
             @test occursin("projectured", usage)
+            @test occursin("claude-code-acp", usage)
+            @test parse_arguments(["claude-code-acp", "--no-workload"]) ==
+                  ("claude-code-acp", false, Dict{Symbol,Any}(:workload => false))
+            # The agent has no distribution build and no backends; both refusals
+            # start no build.
+            @test redirect_stderr(() -> run_build_command(["claude-code-acp", "--distribution"]), devnull) == 1
+            @test redirect_stderr(() -> run_build_command(["claude-code-acp", "--backends=web"]), devnull) == 1
 
             binary, distribution, keywords = parse_arguments(String[])
             @test binary === nothing && !distribution && isempty(keywords)
