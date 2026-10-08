@@ -629,7 +629,47 @@ from the command line of the projectured UI.
     as "Context: 36k of 1M tokens", with the cost when the agent gives one.
   - Tests: ACP 100 of 100, the platform conversation suite 164 of 164, the
     application test 357 with 2 known broken, the history sweep 136 of 136.
-- [ ] 2.4 Save, load, resume and delete.
+- [ ] 2.4 Save, load, resume and delete. Split on 2026-10-08 into three parts.
+  Facts found on 2026-10-08:
+  - `ClaudeCodeACP` answers `session/resume` and `session/close`, and not
+    `session/load`, `session/list` or `session/delete`. The schema 1.7.0 marks
+    none of the five as unstable. A resume must give the `cwd` of the session.
+  - In print mode `claude` has no documented way to list or delete a session:
+    `--resume` with no id opens an interactive picker, and `claude rm` deletes
+    only a background session. `--resume <id> --fork-session` forks a session.
+  - Today the close of a tab forgets the session. The undo brings the
+    conversation back, and the next turn opens a new session, so the agent does
+    not have the history that the tab shows. A restart after a failure does the
+    same.
+  - [ ] **2.4a Resume the same session.** My recommendation; open, because the
+    owner did not answer it yet. The assistant keeps `agent_session_id` and
+    `agent_session_directory`, data that a stop keeps and a reset of the
+    conversation and a duplicate clear. `open_agent_session!` takes a keyword
+    `session_id`: with an id, the connection resumes that session when the
+    agent offers `sessionCapabilities.resume`, and else, or when the resume
+    fails, it opens a new session. It answers the id of the session, so a
+    different id tells the turn to add the note that the agent does not have
+    the history above. This uses the function that exists, as `instructions`
+    did, in place of the two new functions of the first proposal.
+  - [ ] **2.4b Save and load in a `.pred` file.** The owner agreed on
+    2026-10-08: for an assistant with an agent session, the file keeps the
+    session id, its folder and the conversation; a load shows the
+    conversation, and the next turn resumes the session. It needs 2.4a.
+    Found on 2026-10-08: no part of an agent turn makes the round trip through
+    a `.pred` file now.
+    - A text part writes, but its read fails: the writer writes the style of a
+      `TextString` as `ACStyleFont(family = …)`, the name of the cell layout of
+      the value document `StyleFont`, and `ACStyleFont` has no keyword
+      constructor. This is a fault on `main` for every `.pred` file with styled
+      text, and no test covers it.
+    - An `EvaluatorForm` can not write its `input::Dict{String,Any}`.
+    - A `ConversationPermissionRequest` can not write its
+      `AgentPermissionOption` values, and its `reply` is a live value.
+    - A tool result is any document, which the notation can refuse.
+  - **2.4c List and delete: later.** The owner agreed on 2026-10-08. The only way
+    for `ClaudeCodeACP` is to read and delete the transcript files of Claude
+    Code under `~/.claude/projects`, which Anthropic does not document.
+    `session/load` has the same problem.
 - [ ] 2.5 Terminal sign-in and logout (R3).
 - [ ] 2.6 Elicitation forms.
 - [ ] 2.7 Request cancel, and the prompt queue. **The request cancel is done:**
