@@ -454,6 +454,15 @@ The repository of AgentClientProtocol, the package of the Agent Client Protocol
 const AGENT_CLIENT_PROTOCOL_URL = "https://github.com/projectured/AgentClientProtocol.jl"
 
 """
+    MODEL_CONTEXT_PROTOCOL_URL
+
+The repository of the fork of ModelContextProtocol that `ProjecturedMCP` depends on:
+the package of the Model Context Protocol (MCP), with the `_meta` of a request for
+a tool handler.
+"""
+const MODEL_CONTEXT_PROTOCOL_URL = "https://github.com/projectured/ModelContextProtocol.jl"
+
+"""
     CLAUDE_CODE_ACP_URL
 
 The repository of ClaudeCodeACP, the ACP agent that runs Claude Code, which
@@ -904,6 +913,7 @@ function _format_projectured_release_overview(context::BuildContext, names)
     | [AutoIntegration.jl]($AUTOINTEGRATION_URL) | The package that loads an installed package when its triggers are loaded. `Projectured` depends on it. |
     | [AgentClientProtocol.jl]($AGENT_CLIENT_PROTOCOL_URL) | The Agent Client Protocol (ACP) in Julia, for a client and for an agent. `ProjecturedACP` depends on it. |
     | [ClaudeCodeACP.jl]($CLAUDE_CODE_ACP_URL) | An ACP agent that runs Claude Code. `ProjecturedACP` runs it as its built-in agent. |
+    | [ModelContextProtocol.jl]($MODEL_CONTEXT_PROTOCOL_URL) | A fork of the Model Context Protocol (MCP) package of JuliaSMLM, which gives a tool handler the `_meta` of its request. `ProjecturedMCP` depends on it. |
 
     ## The packages
 
@@ -1001,9 +1011,10 @@ function _format_projectured_release_workflow(jobs)
               # longer than a key may be.
               include-matrix: false
               cache-name: julia-cache;package=\${{ matrix.package }};julia=\${{ matrix.julia }}
-          # AutoIntegration, AgentClientProtocol and ClaudeCodeACP are packages of
-          # other repositories, which no job develops. They come from
-          # ProjecturedRegistry, which the job adds beside General.
+          # AutoIntegration, AgentClientProtocol, ClaudeCodeACP and the fork of
+          # ModelContextProtocol are packages of other repositories, which no job
+          # develops. They come from ProjecturedRegistry, which the job adds
+          # beside General.
           - name: Add the registries
             run: >-
               julia --project="\$RUNNER_TEMP/environment"

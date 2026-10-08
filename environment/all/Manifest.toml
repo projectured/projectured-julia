@@ -2,7 +2,7 @@
 
 julia_version = "1.13.1"
 manifest_format = "2.1"
-project_hash = "40e79e41b7a8774f509cee9b340f4c7f3b876b3c"
+project_hash = "59ac24bbc5824b7c7bff3e3af3ae4d4c1496b9b5"
 
 [[deps.AMD]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
@@ -494,6 +494,13 @@ version = "1.14.3"
     [deps.JSON3.weakdeps]
     ArrowTypes = "31f734f8-188a-4ce0-8406-c8a06bd891cd"
 
+[[deps.JWTs]]
+deps = ["Downloads", "JSON", "OpenSSL_jll", "SHA"]
+git-tree-sha1 = "4c08f5525d1c33736880b50cd8f9880dda6c51df"
+registries = "General"
+uuid = "d850fbd6-035d-5a70-a269-1ca2e636ac6c"
+version = "1.1.0"
+
 [[deps.JpegTurbo_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl"]
 git-tree-sha1 = "037babc10853eeb8e585418922246cb97b8e5b74"
@@ -763,11 +770,10 @@ uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 version = "1.11.0"
 
 [[deps.ModelContextProtocol]]
-deps = ["Base64", "DataStructures", "Dates", "HTTP", "JSON3", "Logging", "MacroTools", "OrderedCollections", "StructTypes", "URIs", "UUIDs"]
-git-tree-sha1 = "c895fe569de2f0b362c734721239fc1df371b1b4"
-registries = "General"
-uuid = "c58f755f-f2a7-4f48-bf29-4e9659b78499"
-version = "0.4.1"
+deps = ["Base64", "DataStructures", "Dates", "HTTP", "JSON3", "JWTs", "Logging", "MacroTools", "OrderedCollections", "PrecompileTools", "Random", "SHA", "Sockets", "StructTypes", "URIs", "UUIDs"]
+path = "../../../model-context-protocol"
+uuid = "318f8e74-e016-4659-bb5b-d8af92946dd5"
+version = "0.7.1"
 
 [[deps.MozillaCACerts_jll]]
 uuid = "14a3606d-f60d-562e-9121-12d972cd8159"

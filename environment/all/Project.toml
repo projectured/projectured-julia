@@ -4,7 +4,7 @@ AutoIntegration = "40fd747d-4b08-4b8c-98c4-74a2b6295b1b"
 ClaudeCodeACP = "397ce549-bc36-418a-97e7-6295a63dbdc4"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 FFMPEG = "c87230d0-a227-11e9-1b43-d7ebe4e7570a"
-ModelContextProtocol = "c58f755f-f2a7-4f48-bf29-4e9659b78499"
+ModelContextProtocol = "318f8e74-e016-4659-bb5b-d8af92946dd5"
 ODBC = "be6f12e9-ca4f-5eb2-a339-a4f995cc0291"
 Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 ProjecturedAdaptagrams = "c86b9063-147e-43d0-b3a0-65343fae9a66"
@@ -118,6 +118,7 @@ Tulip = "6dd1b50a-3aae-11e9-10b5-ef983d2400fa"
 AgentClientProtocol = {path = "../../../agent-client-protocol"}
 AutoIntegration = {path = "../../../auto-integration"}
 ClaudeCodeACP = {path = "../../../claude-code-acp"}
+ModelContextProtocol = {path = "../../../model-context-protocol"}
 Projectured = {path = "../../package/Projectured"}
 ProjecturedAdaptagrams = {path = "../../package/ProjecturedAdaptagrams"}
 ProjecturedAdaptagramsExample = {path = "../../package/ProjecturedAdaptagramsExample"}

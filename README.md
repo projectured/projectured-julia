@@ -61,10 +61,13 @@ julia> display_in_editor(DataFrame(n = 1:1000, square = (1:1000) .^ 2))
 
 ### The application from the source
 
-Clone the repository, and AutoIntegration beside it: the umbrella names that folder.
+Clone the repository, and four packages of other repositories beside it, because the packages of this repository name their folders: AutoIntegration, AgentClientProtocol, ClaudeCodeACP and the fork of ModelContextProtocol.
 
 ```sh
 git clone https://github.com/projectured/AutoIntegration.jl auto-integration
+git clone https://github.com/projectured/AgentClientProtocol.jl agent-client-protocol
+git clone https://github.com/projectured/ClaudeCodeACP.jl claude-code-acp
+git clone https://github.com/projectured/ModelContextProtocol.jl model-context-protocol
 git clone https://github.com/projectured/projectured-julia
 cd projectured-julia
 bin/projectured
@@ -142,6 +145,9 @@ The [roadmap](documentation/requirement/delivery-roadmap.md) says what comes nex
 | [Projectured.jl](https://github.com/projectured/Projectured.jl) | The released packages, one folder for each, which the release writes from this repository | Pkg, when you add a package; a change belongs here, not there |
 | [ProjecturedRegistry](https://github.com/projectured/ProjecturedRegistry) | The Julia registry that names each version of the released packages | Pkg, after you add the registry once |
 | [AutoIntegration.jl](https://github.com/projectured/AutoIntegration.jl) | The package that loads an installed package when its triggers are loaded; `Projectured` depends on it | Pkg installs it; a clone of this repository needs it beside it, in `auto-integration` |
+| [AgentClientProtocol.jl](https://github.com/projectured/AgentClientProtocol.jl) | The Agent Client Protocol (ACP) in Julia, for a client and for an agent; `ProjecturedACP` depends on it | Pkg installs it; a clone of this repository needs it beside it, in `agent-client-protocol` |
+| [ClaudeCodeACP.jl](https://github.com/projectured/ClaudeCodeACP.jl) | An ACP agent that runs Claude Code; `ProjecturedACP` runs it as its built-in agent | Pkg installs it; a clone of this repository needs it beside it, in `claude-code-acp` |
+| [ModelContextProtocol.jl](https://github.com/projectured/ModelContextProtocol.jl) | A fork of the MCP package of JuliaSMLM, which gives a tool handler the `_meta` of its request; `ProjecturedMCP` depends on it | Pkg installs it; a clone of this repository needs it beside it, in `model-context-protocol` |
 
 ## Repository layout
 

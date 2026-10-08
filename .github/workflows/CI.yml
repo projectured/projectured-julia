@@ -122,6 +122,16 @@ jobs:
       - name: Place ClaudeCodeACP beside the repository
         if: matrix.project == 'environment/all'
         run: mv claude-code-acp ../claude-code-acp
+      # And the fork of ModelContextProtocol, which ProjecturedMCP names by the
+      # folder beside this repository, so the tests of ProjecturedMCP need it too.
+      - uses: actions/checkout@v7
+        if: matrix.project == 'environment/all' || matrix.package == 'ProjecturedMCPTest'
+        with:
+          repository: projectured/ModelContextProtocol.jl
+          path: model-context-protocol
+      - name: Place ModelContextProtocol beside the repository
+        if: matrix.project == 'environment/all' || matrix.package == 'ProjecturedMCPTest'
+        run: mv model-context-protocol ../model-context-protocol
       - uses: julia-actions/setup-julia@v3
         with:
           version: '1'

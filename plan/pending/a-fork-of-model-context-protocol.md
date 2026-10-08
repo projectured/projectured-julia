@@ -67,10 +67,33 @@ pull request alone (option 1 of the answer), so that colleagues can share it.
 - [x] **F.3 The tests of the fork** pass, as its CI runs them: `Pkg.test()` 2016 of
   2016. On the fork, the workflows of the docs deploy, TagBot and CompatHelper
   need secrets of upstream or do not fit; the owner can switch them off.
-- [ ] **F.4 ProjecturedMCP moves to the fork.** The UUID, the compat and a path
+- [x] **F.4 ProjecturedMCP moves to the fork.** The UUID, the compat and a path
   source in the three files; the CI places the fork beside the repository; the
   builder gets its URL for the release workflow. `test_mcp()` and a live check
-  with the built-in agent.
+  with the built-in agent. Done on the branch `mcp-fork`:
+  - The adapter needed no change of code from 0.4.1 to 0.7.1: `test_mcp()` 476
+    of 476, with no warning.
+  - `environment/all` takes the fork by `Pkg.develop` of its folder, because
+    `Pkg.resolve` looks for an unregistered UUID in a registry. `Pkg.develop`
+    sorts some entries again and writes an absolute path, so the
+    `Project.toml` stays as written, and the manifest gets the relative path,
+    as for AgentClientProtocol.
+  - The CI places the fork beside the repository for `environment/all` and for
+    the job of `ProjecturedMCPTest`, whose `ProjecturedMCP` names the folder.
+  - The builder has `MODEL_CONTEXT_PROTOCOL_URL` and a row in the README of the
+    release; the release workflow takes the fork from ProjecturedRegistry.
+  - Found: the application environment of `bin/projectured` follows the path
+    sources of the packages, so a fresh clone needs AgentClientProtocol,
+    ClaudeCodeACP and now the fork beside the repository, but the setup
+    guide, the guide of an own project and the README named only
+    AutoIntegration. They now name all four, and the README lists the three
+    repositories.
+  - Tests: the application 359 with the 2 known broken; the builder 529 with
+    one failure that is on `main` too: a test of the release expects the bound
+    `0.1.0` for AutoIntegration, and the manifest of `main` names 0.1.1 since
+    the release of AutoIntegration 0.1.1 on 2026-10-08. Live with the built-in
+    agent: the documentation tools through the MCP server on the fork gave
+    Markdown pages.
 - [ ] **F.5 The editor ties the document of an evaluation to its call.** A
   proposal, open: the tool handler of the adapter reads
   `request_meta(ctx)["claudecode/toolUseId"]`; the tool set of the kernel keeps

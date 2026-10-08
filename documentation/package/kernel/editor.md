@@ -608,7 +608,8 @@ registers between `make_editor` and `run_editor!`. It launches the server at the
 seam (see
 [source/kernel/agent/AgentInterface.jl](../../../source/kernel/agent/AgentInterface.jl)). The server
 speaks JSON-RPC 2.0 via HTTP+SSE using
-[ModelContextProtocol.jl](https://github.com/JuliaModelContextProtocol/ModelContextProtocol.jl).
+[ModelContextProtocol.jl](https://github.com/projectured/ModelContextProtocol.jl), a fork of the
+package of JuliaSMLM.
 
 Tools exposed by the server include `execute_julia_code` (run arbitrary
 Julia in the editor process with `editor` bound and every loaded ProjecturEd

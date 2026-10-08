@@ -16,12 +16,15 @@ To use the packages in a project of your own, without the source, add them from 
 
 ```sh
 git clone https://github.com/projectured/AutoIntegration.jl auto-integration
+git clone https://github.com/projectured/AgentClientProtocol.jl agent-client-protocol
+git clone https://github.com/projectured/ClaudeCodeACP.jl claude-code-acp
+git clone https://github.com/projectured/ModelContextProtocol.jl model-context-protocol
 git clone https://github.com/projectured/projectured-julia
 cd projectured-julia
 bin/projectured
 ```
 
-The folder `auto-integration` goes beside `projectured-julia`, because the umbrella and `environment/all` name it by that folder.
+The four folders go beside `projectured-julia`, because the packages and `environment/all` name them by those folders: `auto-integration` the umbrella, `agent-client-protocol` and `claude-code-acp` the package `ProjecturedACP`, and `model-context-protocol`, the fork of the MCP package, the package `ProjecturedMCP`.
 
 The window has the Files pane on the left, the open files in the middle, and the assistant on the right. A double click in the Files pane opens a file. Files named on the command line open at once:
 

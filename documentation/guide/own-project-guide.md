@@ -20,10 +20,13 @@ A `using` line reaches only the packages that you added: a package that another 
 
 A contributor reaches the packages by path instead, the way this repository reaches its own packages.
 
-1. Clone ProjecturEd beside your project, and AutoIntegration beside it, because the umbrella names that folder:
+1. Clone ProjecturEd beside your project, and four packages of other repositories beside it, because the packages of ProjecturEd name their folders:
 
    ```sh
    git clone https://github.com/projectured/AutoIntegration.jl auto-integration
+   git clone https://github.com/projectured/AgentClientProtocol.jl agent-client-protocol
+   git clone https://github.com/projectured/ClaudeCodeACP.jl claude-code-acp
+   git clone https://github.com/projectured/ModelContextProtocol.jl model-context-protocol
    git clone https://github.com/projectured/projectured-julia
    ```
 

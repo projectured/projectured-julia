@@ -19,7 +19,7 @@ ProjecturedVideo = "8d225f56-7fda-4c1e-a58b-db6d64f8335c"
 [weakdeps]
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 FFMPEG = "c87230d0-a227-11e9-1b43-d7ebe4e7570a"
-ModelContextProtocol = "c58f755f-f2a7-4f48-bf29-4e9659b78499"
+ModelContextProtocol = "318f8e74-e016-4659-bb5b-d8af92946dd5"
 ODBC = "be6f12e9-ca4f-5eb2-a339-a4f995cc0291"
 SimpleDirectMediaLayer = "98e33af6-2ee5-5afd-9e75-cbc738b767c4"
 Tulip = "6dd1b50a-3aae-11e9-10b5-ef983d2400fa"
