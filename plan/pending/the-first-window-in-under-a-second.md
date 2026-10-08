@@ -74,6 +74,24 @@ The scripts are in `/var/tmp/meas`: `first_frame.jl` (the timing),
   for the workload backend would make it a second backend that draws windows,
   and a session with SDL would then refuse to choose. Outside a scope it holds
   `nothing`, and the choice among the loaded backends is as before.
+- **D7**: a call of a protocol that packages loaded later extend goes through
+  `invokelatest`, because no argument type can keep it valid: the backend
+  protocol of the editor loop (`initialize_backend!`, `configure_devices!`,
+  `open_native_windows!`, `wait_for_input`, `take_from_devices!`,
+  `write_to_devices!`, `quit_backend!`), `get_backend_output` in the window check
+  and the choice of a backend, `apply_settings!` and `find_system_colors` on the
+  backend, and the sort of the kept rows, which runs code of DataFrames.
+- **D8**: an integration loads the packages below it before the package that it
+  joins, as a session of `using Projectured, DataFrames` loads them. Its build
+  then meets the platform code that the joined package invalidates, and its
+  workload compiles that code into its image.
+- **D9**: a value from a cell is `Any`. Where it reaches a function that other
+  packages extend, it gets its concrete type first (`::Int`, `::String`,
+  `::SpanPath`, `::NamedTuple`), or the helper that takes it has an untyped
+  argument: an argument annotation `::Integer` makes Julia infer the body for the
+  abstract type, where `Int(x)` meets the constructors that SentinelArrays adds.
+  A call that gives up during inference returns `Any`, so its result gets a type
+  assertion too.
 
 ## Steps
 
@@ -107,23 +125,36 @@ The scripts are in `/var/tmp/meas`: `first_frame.jl` (the timing),
    workload runs: when an image loads, Julia drops its code that a method of a
    package loaded before it, absent at its build, can match. So the
    invalidations of step 3 hit each image from both sides.
-3. [ ] The invalidations, the largest first, by D3. Done so far:
-   - `hasproperty` → `hasfield(typeof(x), name)` on structs in six files
-     (`c1e9427ca`): invalidated instances 2,816 → 1,667, first frame 5.2 → 4.1 s.
-   - The workload follows the user's path (D6): a data frame goes through
-     `display_in_editor` itself, and `WorkloadBackend` gives the gestures of
-     the README recording (a move, the wheel down and up, a click, Down,
-     Right) after its first output. First frame 4.1 → 3.2 s, 193 statements
-     compiled in the session.
-   - Open, from `precompile_blockers`: `sort!` with keywords in
-     `get_settings_groups`; `apply_settings!` and `find_system_colors` on an
-     abstract `Backend`; the `Integer` constructors of `_sc`, `_round_pixel`,
-     `GraphicsRect`, `tessellate_spline`; `merge(::Any, …)` in
-     `_read_tab_press`/`_read_tab_drag`; `UntrackedCell{NamedTuple}(::Any)`;
-     `length` and `nextind` on `AbstractString`; and `findnext`, `iterate` of a
-     `KeySet`, `clamp`, `reduce_first`, `+`, `cconvert`, `convert(Vector{Int}, …)`.
- After each group, the root
-   report again. Each file is checked against `SEALING.md` before the change.
+3. [x] The invalidations, the largest first, by D3, D7, D8 and D9. Done:
+   `c1e9427ca`, `79e72c26d`, `e42d82be9`, `0a4a054ff`. Each round ran the root
+   report, `precompile_blockers` with the first caller of ours above each
+   blocker, and the first frame cold and warm in one process.
+
+   | After | First frame |
+   | --- | ---: |
+   | the workloads (step 2) | 5.2 s |
+   | `hasproperty` → `hasfield` on structs | 4.1 s |
+   | the workload calls `display_in_editor`, with events (D6) | 3.2 s |
+   | the data frame package loads the platform first (D8) | 2.8 s |
+   | the call sites of the blockers (D9), the settings and the sort (D7) | 1.3 s |
+   | the backend protocol of the loop and the window check (D7) | 1.06 s |
+   | a lazy table in the workloads of the platform and SDL | 0.75 s |
+
+   The `using` line takes 1.68 s, from 1.35 s, because the images are larger.
+   A second first frame in the same process takes 0.15 s. Facts found:
+   - Without the umbrella, the data frame workload left no recompilation; with
+     `using Projectured`, half of its compile time was recompilation, because
+     the umbrella loads the platform before DataFrames. D8 fixed it.
+   - When an image loads, Julia drops its code that a method of a package loaded
+     before it, absent at its build, can match. So the packages of the SDL
+     bindings (CEnum, FixedPointNumbers, OrderedCollections, DataStructures)
+     invalidated the code of the data frame image, and the packages of
+     DataFrames invalidated the code of the SDL image.
+   - The workload backend needed the events of a hand and a table whose rows
+     come from a lazy list: the first frame of SDL reads window and pointer
+     events, and paints list nodes.
+   - One blocker is left: `getindex(::CellVector, ::Integer)`, through
+     `to_index(::Integer)`, from a caller that this round did not find.
 4. [ ] A guard: a test that loads the README packages under
    `@snoop_invalidations` and fails when the invalidated instances of our
    packages pass a ceiling.
