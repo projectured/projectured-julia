@@ -2,8 +2,9 @@
 
 > **Status:** in progress on the branch `value-colors`, in the worktree
 > `projectured-julia-value-colors`. Part A, the values (sections 4 to 8), is
-> decided and goes first. Part B, the names (section 10), is in design. The
-> owner answered the questions on 2026-10-08 (section 9).
+> done on the branch and is not on `main`. Part B, the names (section 10),
+> waits for the answers of section 10.5. The owner answered the questions of
+> Part A on 2026-10-08 (section 9).
 
 ## 1. The request
 
@@ -251,24 +252,43 @@ new roles.
 
 ## 8. Steps
 
-1. ⬜ `ColorTheme`: add the five roles of section 4.2 with their high contrast
-   values, and narrow the docstrings of `string_literal` and `constant`.
-2. ⬜ Section 6.1: each field names the role of its kind.
-3. ⬜ Section 6.2: split the fields of `JuliaTheme`, `JuliaCodePieces` and the
-   `Char` of `SyntaxTheme`.
-4. ⬜ Section 6.3: give `SqlTheme` a field for each kind.
-5. ⬜ Tests:
-   - `ColorThemeTest`: the new roles join `_CONTRAST_RULES`.
-   - `ColorThemeTest`: the string, number, boolean and symbol roles resolve to
-     four different colors in each palette and each variant, with an OKLab
-     distance of at least 0.03 between each pair.
-   - A test in each view asserts the role of each kind, as
-     `PrimitiveToTextTest` and `JuliaCodePiecesTest` do now. These two tests
-     and `JuliaThemeTest` assert `constant` for a number or a boolean now, so
-     they change.
-   - inet-julia `packetdiagram.jl:367` asserts `constant`, which stays.
-6. ⬜ Screenshots of a JSON, a YAML and a Julia document in each palette and
-   mode, for the owner to check the hues.
+Part A is done on the branch `value-colors`. Nothing is on `main`.
+
+1. ✅ `ColorTheme`: the five roles of section 4.2, with their high contrast
+   values (`831f2dfc7`).
+2. ✅ Section 6.1: each field names the role of its kind (`f2606dcfd`). The
+   field `char_text` of `SyntaxTheme` (section 6.2) went into this commit,
+   because it is in the same file as the fields of section 6.1.
+3. ✅ Section 6.2: the fields of `JuliaTheme` and `JuliaCodePieces`
+   (`6f0118e2c`). `<:`, `->` and the `$` of an interpolation take
+   `operator_text`.
+4. ✅ Section 6.3: `SqlTheme` has `bool_text`, `number_text` and `string_text`
+   (`95d2bd7aa`). A `SqlScalarValue` can hold any kind, so the leaf computes
+   its style from the present value, as `RstRoleToStyledLeaf` computes its
+   color, and the style follows an edit that changes the kind.
+5. ✅ Tests, in the commits above:
+   - `ColorThemeTest`: the new roles join `_CONTRAST_RULES`, and a new test
+     asserts an OKLab distance of at least 0.025 between the string, number,
+     boolean and symbol roles in each palette and variant. The bound is 0.025,
+     not the 0.03 of the first draft: a string and a symbol are 0.028 apart in
+     the high contrast light variant of Radix, where a contrast of 7 takes
+     green and teal to dark steps. They are 0.037 apart in the normal variant.
+   - A test of each view asserts the role of each kind: `PrimitiveToTextTest`,
+     `JsonThemeTest`, `YamlThemeTest`, `JuliaThemeTest`,
+     `JuliaCodePiecesTest`, `SqlThemeTest` (with a change of the kind) and
+     `ObjectFieldToSyntaxTest` (the rules of `ObjectToSyntax`).
+   - Results on 2026-10-08: `test_color_theme` 1266 pass;
+     `test_object_field_to_syntax` 19 pass; `test_json` 231 pass;
+     `test_yaml` 58 pass and 2 broken, the two markers of `YamlParserTest`
+     that `main` has too; `test_sql` 665 pass; `test_julia` 540 pass. No
+     failure and no error. `test_syntax` holds only the 10 tests of the
+     reactive syntax, so it does not cover the reflection of an object.
+6. ✅ Screenshots, in `/var/tmp/value-colors/shots` (the JSON, YAML, Julia and
+   SQL examples in each palette in light and dark, and in the high contrast
+   variants of Radix) and `/var/tmp/value-colors/sample` (one line of Julia,
+   SQL and JSON with each kind). Strings are green, numbers orange, booleans
+   and nulls pink, and symbols teal. The weak pair is visible: in the high
+   contrast light variant of Radix, `:name` and `"name"` are near.
 
 ## 9. Decisions
 
@@ -286,5 +306,132 @@ The owner answered the four questions on 2026-10-08:
 
 ## 10. Part B: the names
 
-In design. A search of the names that each view prints, and of what each
-printer knows about the kind of a name, runs now.
+In design. The search of 2026-10-08 found the facts below. The decisions that
+Part B needs are in section 10.5.
+
+### 10.1 What is there now
+
+The name roles of `ColorTheme` are `definition`, `function_name`, `field`,
+`type_name`, `reference`, `link`, `keyword`, `heading` and `markup`. Two of
+them hold many kinds:
+
+- `definition` colors a module, a SQL table, a schema, a database, a state of a
+  machine, an event, a timer, the name of a process, the name of a formula and
+  a directory.
+- `field` colors the field of a struct, a JSON key, a YAML key, an XML
+  attribute, a column of a database, the name of a field of a packet and the
+  name of a step of a reference.
+
+In Julia, every name is a `JuliaIdentifier` with `identifier_text`, the role
+`reference`. Only the module name (`name_text`), the callee of a call and the
+name of a macro (both `callee_text`) differ.
+
+### 10.2 Two ways that a printer knows the kind of a name
+
+1. **By its place in the document.** The printer of a parent knows the slot of
+   a child: the name of a function definition, a parameter of a signature, a
+   type parameter in `where`, the name of a keyword argument, a module name, a
+   field after a dot, a SQL table, a SQL column, an XML tag, an XML attribute,
+   a JSON key, an FSM state, an event and a timer. The Julia call printer
+   already gives its callee a leaf of its own with
+   `project(:callee; as = v -> v isa JuliaIdentifier ? JuliaIdentifierToSyntaxLeaf(style = p.callee) : nothing)`
+   ([JuliaToSyntax.jl:200](../../source/domain/julia/JuliaToSyntax.jl#L200)).
+   The same feature can style each slot, so this way needs no new mechanism.
+2. **By a scope analysis.** A use of a name in a body, such as `x` in
+   `function f(x) x + 1 end`, is a plain `JuliaIdentifier`. Only an analysis
+   that finds the binding of the name can say if it is a parameter, a local
+   variable, a global, a function or a type. No such analysis exists. The only
+   near code is `find_julia_definition`, which finds a top-level definition by
+   its name ([JuliaFile.jl:57](../../source/domain/julia/JuliaFile.jl#L57)).
+   This is a new mechanism.
+
+Some kinds have no document type yet: the names inside a `using` path (one
+string), a SQL function name (raw text), an XML namespace prefix, a YAML
+anchor, alias or tag, and a reference-style Markdown link.
+
+### 10.3 The hues
+
+The value roles of Part A take all the hues that are free: the token roles now
+use violet, blue, green, orange, amber, pink and teal, red is the color of an
+error, and neutral is the text. The Solarized palette has exactly eight
+accents, and each one is a hue of the palette now
+([SolarizedPalette.jl](../../source/platform/style/SolarizedPalette.jl)).
+
+So a new kind of name can have a color of its own only in one of three ways:
+
+- **(a) More hues.** Add hues to `PALETTE_HUES`, for example indigo, cyan,
+  lime, brown and plum. Radix and Tailwind have such scales, and the OKLCH
+  palette can compute any hue. Solarized must give a new hue the ramp of an
+  accent that it has, so two kinds share a color in Solarized.
+- **(b) Another step of a hue.** For example a parameter at blue 12 beside a
+  field at blue 11.
+- **(c) A font, not a color.** A definition is bold, and a parameter is italic.
+  The kinds that share a color fall back to a role.
+
+I measured option (b) on 2026-10-08, as the OKLab distance of the raw steps of
+the ramps. Step 12 of a hue is far from step 11 of the same hue (0.095 to
+0.275), but it is near the plain text, which is neutral 12:
+
+| Palette, mode | blue 12 – text | violet 12 – text | amber 12 – text |
+| --- | --- | --- | --- |
+| oklch light | 0.076 | 0.069 | 0.059 |
+| oklch dark | 0.020 | 0.024 | 0.040 |
+| radix light | 0.105 | 0.115 | 0.125 |
+| radix dark | 0.055 | 0.056 | 0.076 |
+| solarized light | 0.053 | 0.076 | 0.119 |
+| solarized dark | 0.068 | 0.069 | 0.038 |
+| tailwind light | 0.097 | 0.137 | 0.166 |
+| tailwind dark | 0.050 | 0.054 | 0.109 |
+
+So a name at step 12 looks almost like the plain text in a dark theme. Option
+(b) does not give a color that a reader can trust.
+
+### 10.4 The vocabulary
+
+My recommendation, not a decision. It follows the semantic tokens of the
+Language Server Protocol: a token has a **type**, which gives its color, and
+**modifiers**, which give its font. A definition is a modifier, not a kind:
+the name of a function at its definition is a function name in bold.
+
+| Role | Default | Kinds |
+| --- | --- | --- |
+| `module_name` | new, falls back to `type_name` | A Julia module, a SQL schema and database, a directory. |
+| `type_name` | amber 11 (as now) | A type, a struct, an abstract type, a type in an annotation, a SQL table, a data type, a machine and a component of an FSM, the name of a projection in a reference. |
+| `type_parameter` | new, falls back to `type_name` | A variable of `where`, a parameter in braces. |
+| `function_name` | blue 11 (as now) | A function at its definition and at a call, a function of mathematics, a process. |
+| `macro_name` | new, falls back to `function_name` | A Julia macro. |
+| `event` | new, falls back to `function_name` | An event and a timer of an FSM. |
+| `parameter` | new, falls back to `variable` | A parameter of a signature and of a lambda, the name of a keyword argument, the name of an option of an RST directive. |
+| `variable` | the role `reference` with a new name, neutral 12 | A variable, a `for` variable, a variable of mathematics, of an FSM and of a formula, a SQL alias, and a name of a kind that the printer does not know. |
+| `field` | blue 11 (as now) | A field, a field after a dot, a key, an attribute, a column. |
+| `tag` | new, falls back to `keyword` | An XML tag. |
+| `constant` | orange 11 (as now) | A state of an FSM, a member of an enumeration, an RST substitution, a constant of mathematics. |
+
+The modifiers are fonts in the field of the view theme, as `TextRole` already
+allows: a definition has `weight = 700`, and a parameter has `italic = true`.
+
+The role `definition` goes away: each field that names it takes the role of
+its kind, in bold. The role `reference` takes the name `variable`, because
+"reference" is also the name of a kernel concept, `Reference`.
+
+With these defaults, these names change their color on the screen:
+
+- Julia: a type (amber, now neutral), the name of a function at its definition
+  (blue and bold, now neutral), a field after a dot (blue, now neutral), a type
+  parameter (amber, now neutral), a parameter (italic).
+- SQL: a column (blue, now the plain text), a table and a data type (amber,
+  now blue and the plain text), a schema (amber and bold).
+- FSM: a state (orange), an event and a timer (blue).
+
+### 10.5 Questions
+
+- **QB1. The hues.** (c), a font for the modifiers and a fallback for the kinds
+  that share a hue (my recommendation)? Or (a), more hues in the palettes, so
+  that more kinds have a color of their own by default, with the shared colors
+  in Solarized?
+- **QB2. A scope analysis for Julia.** It is a new mechanism: it finds the
+  binding of each use of a name, so a use of a parameter, a local, a global, a
+  function and a type each gets its role. Do it in a plan of its own, after
+  the names that the place gives (my recommendation)? Or in this plan?
+- **QB3. The vocabulary** of section 10.4, with the role `definition` removed
+  and `reference` named `variable`?
