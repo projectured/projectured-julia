@@ -1,6 +1,7 @@
 # Fragment of `SelectionModule` — the defaults of the generics and the path-walk helpers.
 
-get_selection(document::Document) = document.selection
+get_selection(document::Document) =
+    hasfield(typeof(document), :selection) ? document.selection : nothing
 
 # No document keeps a dormant selection unless it says so.
 has_dormant_selection(::Any) = false

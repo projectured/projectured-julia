@@ -136,8 +136,6 @@ struct DataFrameViewColumns <: Document
     view::DataFrameView
 end
 
-get_selection(::DataFrameViewColumns) = nothing
-
 function Base.getindex(rows::DataFrameViewRows, r::Integer)
     view = rows.view
     1 <= r <= nrow(view.frame) || throw(BoundsError(rows, r))

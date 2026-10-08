@@ -17,10 +17,11 @@ reference, which is a path to the place, not the value there.
 See also `set_selection!`, which moves it, and `get_referenced_value`, which
 reads what is there.
 
-The document's current selection — a reference path or `nothing`. Every document
-has one (the [`Document`](@ref) contract requires a `selection` field); the
-default reads that conventional field, so a concrete document gets it for free,
-and one that stores its selection differently overrides this method.
+The document's current selection — a reference path or `nothing`. The default
+reads the conventional `selection` field, so a concrete document gets it for
+free. A document without that field has no selection of its own, and the
+default answers `nothing`, as `set_selection!` passes over it. A document that
+stores its selection differently overrides this method.
 """
 function get_selection end
 

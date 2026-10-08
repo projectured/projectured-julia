@@ -17,8 +17,6 @@ struct DataFrameColumn <: Document
     name::String
 end
 
-get_selection(::DataFrameColumn) = nothing
-
 get_document_title(column::DataFrameColumn) = column.name
 
 # The path of column `name` of the frame of `view`, `columns[c]`, or `nothing`

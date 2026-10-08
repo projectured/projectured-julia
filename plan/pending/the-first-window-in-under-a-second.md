@@ -68,10 +68,16 @@ The scripts are in `/var/tmp/meas`: `first_frame.jl` (the timing),
 
 ## Steps
 
-1. [ ] `get_selection`: `DataFrameColumn` and `DataFrameViewColumns` get the
-   `selection` field that the `Document` contract asks for, always `nothing`, and
-   their two methods of `get_selection` go. Check: the root report has no
-   `get_selection`.
+1. [x] `get_selection`. Done: the default of the kernel answers `nothing` for a
+   document without a `selection` field, `hasfield(typeof(document), :selection)`,
+   and the two methods of ProjecturedDataFrames go. A field that always holds
+   `nothing` was tried first and failed: the walk of `set_selection!` treats a
+   `selection` field as a cell and writes into it, and it passes over a
+   document without the field. So the default now agrees with the walks.
+   `hasfield` and not `hasproperty`, because DataFrames adds a method to
+   `hasproperty`. The docstring of `get_selection` says the same. Tests:
+   `test_selection` 52, and of the data frames the columns 35, the paths 19 and
+   the column edits 27.
 2. [ ] The workloads, with `PrecompileTools`:
    - ProjecturedPlatform: `display_in_editor` of a value of the platform, with a
      backend that declares no output, for a few frames, then
