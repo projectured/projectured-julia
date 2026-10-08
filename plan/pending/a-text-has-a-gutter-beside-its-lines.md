@@ -449,6 +449,23 @@ The order of the work, each step on its own commit, each with its test.
    such as a message or a value of a form, draws as before. The other option was
    (a), every Julia code view, also a snippet of one line; a snippet has no scroll
    pane of its own, and numbers on one or two lines say nothing.
+
+   What was built: `FileToContent(; content)` prints and reads the content of a
+   file with a projection of its own in place of the recursion. The Julia domain
+   defines `make_graphics_projection(::Type{JuliaFile})` (the seam whose rows come
+   before the row of `FileDocument`) as `FileToContent(; content =
+   make_julia_file_code_projection(...))`: `JuliaToSyntax` →
+   `SyntaxToText(text_folds = true)` → `TextLineNumbering` → `TextFolding` →
+   `TextBlockToScrollLayout`, with the theme and the code line spacing of the code
+   view, and a recursion that prints the marks. Test: `test_julia_file_view()`.
+
+   Rendered and checked (2026-10-08): a file in a scroll pane shows the numbers
+   and the open triangles of `module`, of a function and of an `if`. **Known
+   until the plan [a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md)
+   does Julia:** a docstring is a leaf value that holds `'\n'`, so it is one line
+   with rows, and the closing fence `"\n\"\"\"\n"` is a leaf value too, so the
+   line of the function after it joins that line. A file of 16 lines with one
+   docstring shows the numbers 1 to 9.
 7. ✅ **Done (2026-10-07), by the scroll plan. Scroll** (§5.7): steps 1 and 2 of the scroll plan; then a file tab of code
    keeps its gutter at the left edge.
 8. **Markers.** A lane of markers keyed by a line, then marks that a domain

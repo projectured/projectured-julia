@@ -18,11 +18,11 @@ import ..FileFormatModule: make_document_seed
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SerializationModule: emit_text,
                               get_file_domain, make_reference_leaf, find_reference_marker, parse_file_content
-import ..WidgetModule: compute_code_pieces
+import ..WidgetModule: compute_code_pieces, make_graphics_projection
 
 export _julia_operator_string
 export parse_julia, parse_julia_file
-export make_julia_expression
+export make_julia_expression, make_julia_file_code_projection
 export compute_julia_signature
 export JuliaTheme, ScaledJuliaTheme
 export JuliaInsertionToSyntaxLeaf, get_julia_completion, make_julia_scaffold
@@ -65,6 +65,38 @@ include("JuliaFile.jl")
 include("JuliaToSyntax.jl")
 include("JuliaCodePieces.jl")
 
+
+# The code of a Julia file in its tab: its lines numbered and its nodes folded
+# as text, with the numbers and the triangles in a gutter that the scroll pane of
+# the tab keeps at its left edge. A Julia document inside another document draws
+# as code with no gutter, by the row of `:julia_code`.
+make_graphics_projection(::Type{JuliaFile}; measure, appearance) =
+    FileToContent(; content = make_julia_file_code_projection(; measure, appearance))
+
+"""
+    make_julia_file_code_projection(; measure, appearance) -> Projection
+
+The view of the code of a Julia file: `JuliaToSyntax`, `SyntaxToText` with text
+folds, `TextLineNumbering`, `TextFolding` and `TextBlockToScrollLayout`, whose
+`ScrollLayout` the scroll pane of a file tab takes apart. Its recursion prints the
+marks of the gutter.
+"""
+function make_julia_file_code_projection(; measure, appearance)
+    syntax_theme = get_scaled_theme!(appearance, SyntaxTheme)
+    text_theme = get_scaled_theme!(appearance, TextTheme)
+    line_spacing = make_style_field(TextTheme, text_theme, LineSpacing; name = :code_line_spacing)
+    code = ChainingProjection(
+        RecursiveProjection(JuliaToSyntax(; theme = get_scaled_theme!(appearance, JuliaTheme), syntax_theme)),
+        RecursiveProjection(SyntaxToText(; theme = syntax_theme, text_folds = true)),
+        TextLineNumbering(; theme = text_theme),
+        TextFolding(; theme = text_theme),
+        TextBlockToScrollLayout(; measure, theme = text_theme, line_spacing))
+    RecursiveProjection(TypeDispatchingProjection(
+        JuliaDocument => code,
+        TextGutter => TextGutterToGraphics(),
+        TextBlock => TextToGraphics(; measure, theme = text_theme),
+        GraphicsCanvas => GraphicsToGraphics()))
+end
 
 # What this slice registers when it loads: the file extensions it owns, the
 # natural notation it reads and writes, and how its code draws as a whole.
