@@ -1,7 +1,8 @@
 # A text span holds no line break
 
 > **Kind:** plan · **Status:** pending, 2026-10-08. The owner decided the rule
-> (§1) on 2026-10-08. The questions of §7 are open, and no step is started. ·
+> (§1), N1, N1b and N2 with N3 on 2026-10-08; §9 holds the steps, and no step is
+> started. ·
 > **Stands on:** [text.md](../../documentation/package/platform/text/text.md),
 > [syntax.md](../../documentation/package/platform/syntax/syntax.md),
 > [text-domain-kit.md](text-domain-kit.md) (Q5 of step 3 of Phase 3),
@@ -65,9 +66,16 @@ by the index of the line.
 4. The content fields of the syntax (`value`, `open`, `close`, `sep`) take a
    `TextDocument`, and a leaf joins the lines of a block value as a compound joins
    the lines of a child: its first line joins the line of `open`, and `close`
-   goes on its last line.
-5. A delimiter or a separator of many lines is a block of lines, or the chrome
-   puts it on a line of its own (§7, N3).
+   goes on its last line. A constructor converts a string that holds `'\n'`, such
+   as `open = "[\n"`, into such a block (N2).
+5. **A break is text, and `indentation` only indents (N2).** A break of the layout
+   is in the opening delimiter, the separator or the closing delimiter of a
+   compound. A line that a break in the opening delimiter or in a separator starts
+   is inside the node, at the indentation of the line of the node plus
+   `indentation × indent_size`; a line that a break in the closing delimiter
+   starts is at the indentation of the line of the node. These are lines of the
+   chrome, so an ancestor moves them by its own indentation. A node is inline when
+   its texts hold no break; the layout makes no break of its own.
 6. ~~`TextToGraphics` keys the canvas of a line by the line object~~, so an
    inserted line lays out alone and the lines below keep their canvases. **Done
    2026-10-08 on the branch `text-gutter`,** because a structural edit of the lines
@@ -152,20 +160,99 @@ One at a time, with the owner.
   2026-10-08:** no domain holds a text document in a field today, so the row
   waits for the first domain that does; the likely row is a leaf whose value is
   that document itself.
-- **N2 A child on each line.** What replaces `sep = TextString("\n")`: a compound
-  that puts each child on a line of its own with no indentation, through the
-  `indentation` that exists or a new field.
-- **N3 A delimiter of many lines.** A block of lines as the delimiter, or the
-  chrome of the compound puts it on lines.
-- **N4 The edit of a break in a `String`.** Enter in a field that a
-  `StringToTextBlock` prints splits a line of its output; its reader maps that to
-  an insertion of `'\n'` into the string. Backspace at the start of a line is the
-  deletion of that `'\n'`.
+- **N2 and N3 Where a break of the layout is. Decided, the owner, 2026-10-08:** a
+  break is text in the opening delimiter, the separator or the closing delimiter,
+  and `indentation` only indents (rule 5 of §4).
+  - Today the integer `indentation` does two jobs: it puts breaks after the
+    opening delimiter, before each child and before the closing delimiter, and it
+    indents the lines they start. Only zero and its sign count: `2` (the file
+    system) acts as `1`, and `-1` (YAML, the database catalog, SQL, all with no
+    closing delimiter) only drops the line before the closing delimiter, which a
+    node with no closing delimiter shows as an empty last line. No value puts each
+    child on a line with no indentation, so 27 places write `sep = "\n"` and Julia
+    puts `"\n"` into leaf values. NED (in omnet-julia) puts `"\n\n"` at the start
+    of each heading and an empty `close` in each section, and INI joins with
+    `"\n\n"` and `"\n"`, which make the empty lines there.
+  - The decision: the texts hold the breaks, written as strings that the
+    constructors convert (`open = "[\n"`, `sep = ",\n"`, `close = "\n]"`; the owner:
+    "I would allow the "[\n" string as open/etc. and convert it"), and
+    `indentation` is a count of levels, multiplied by `indent_size`, that indents
+    the lines inside a node. The examples:
+
+    | layout | `open` | `sep` | `close` | `indentation` |
+    |---|---|---|---|---|
+    | JSON array | `"[\n"` | `",\n"` | `"\n]"` | 1 |
+    | YAML list | `"\n"` | `"\n"` | nothing | 1 |
+    | Lisp call, head then body | `"("` | `" "` | `")"` | 0, with a body node `"\n"`, `"\n"`, nothing, 1 |
+    | Julia struct body | `"\n"` | `"\n"` | `"\n"` | 1 |
+    | docstring, log | nothing | `"\n"` | nothing | 0 |
+    | INI file | nothing | `"\n\n"` | nothing | 0 |
+
+    The Lisp call keeps `)))))` on its last line because its `close` holds no
+    break, and YAML and NED lose their empty last lines because no text holds the
+    break that made them.
+  - Not taken: a flag "on lines" with a `gap` of empty lines (the owner: `gap = 1`
+    is a separator that is one break); empty leaves as spacers, which break the
+    rule that child `i` is element `i` of a collection; a new wrapper
+    `SyntaxLines`; a flag `keeps_last_line`, which named what `-1` hid.
+  - Later, not in this plan: a soft break that a node takes only when it does not
+    fit the width, as the `line` of a pretty printer of Wadler does, so `[1, 2]`
+    stays on one line.
+- **N4 The edit of a break in a `String`.** Decided by N1b: Enter in a line of a
+  block that `make_text_block` made inside `bound` is the insertion of `'\n'` at
+  that flat offset of the string, and Backspace at the start of a line its
+  deletion.
 - **N5 `TextNewline`.** What a `TextNewline` element means after this plan: the
   prose, the soft break of a wrap (Q4 of `text-domain-kit.md`) and the lazy list
   use it today.
 - **N6 The order of the domains.** Julia first, because the gutter targets the
   Julia view.
+
+## 9. Steps (tentative)
+
+Each step is one commit, on a branch in a worktree, with its tests. Steps 2 to 4
+change how every view of syntax makes its lines, so they land together.
+
+0. **The baseline.** The guards and the suites of the domains that print through
+   `SyntaxToText`, the example sweeps and the console, each part in a process of
+   its own, at main before step 1.
+1. **`make_text_block(content, style)`** in the text domain: a `String` or a
+   thunk of one, to a `TextBlock` of `TextLine`s in the style; a line whose text
+   did not change stays the same object. Tests.
+2. **The syntax reads breaks from texts.** The content fields take a
+   `TextDocument`, and `_text` converts a string, or a constant `TextString`, that
+   holds `'\n'` with `make_text_block`. `SyntaxLeafToText` joins the lines of a
+   block value and names an edit in it by flat offset, `value[s:e]`.
+   `SyntaxCompoundToText` joins the lines of a block delimiter or separator, and
+   indents by rule 5 of §4. Until step 4 a node with an `indentation` that is not
+   0 and whose texts hold no break keeps the breaks of today, so each domain moves
+   in a step of its own; step 4 removes that path.
+3. **The domains state their breaks**, one commit for each, with its suite and
+   the example sweeps: JSON, YAML, XML, SQL, FSM, the collections, the reflection
+   of objects, the file system (its `2` becomes `1` unless the owner wants two
+   levels), the database catalog, Formula, reStructuredText, Markdown, Book, the
+   lists of the platform (the logs, the help, the command palette, the undo
+   buffer, the gesture map, the about page, the fault log), and Julia, with its
+   fences and its `"\n"` leaves.
+4. **`indentation` only indents.** The transition of step 2 and the breaks of
+   the integer go, `-1` goes, and the flat metric (`_syntax_to_flat`,
+   `_subtree_len`) follows. A full sweep against step 0.
+5. **Values of many lines**, Julia first (N6): its docstrings and its strings of
+   many lines, then the code blocks and the texts of Markdown, the paragraphs of
+   Book, the text nodes of XML and the raw texts of SQL, each with
+   `bound(:f, String, make_text_block(...))`. Check: a Julia file with a docstring
+   numbers each of its lines.
+6. **The text domain edits a break as structure** (rule 2 of §4): Enter,
+   Backspace and Delete at a line boundary, and a paste with breaks, on a block of
+   lines; in a block inside `bound`, they are edits of `'\n'` in the string.
+7. **The guard**: a test walks the printer output of every example and rejects a
+   `TextString` that holds `'\n'`. `TextToGraphics` and `TextFirstLine` drop their
+   rule for a `'\n'` inside a span. The producers of a free text (the fault
+   messages, the conversation, `ObjectToSyntax`, `PrimitiveToText`) give lines,
+   with `StringToTextBlock` for a string that no domain decides.
+8. **omnet-julia**: NED and INI state their breaks in their texts, which removes
+   their empty lines. It follows the landing of steps 2 to 4.
+9. **The documents**: `text.md`, `syntax.md` and the guides of the domains.
 
 ## 8. Facts found
 
