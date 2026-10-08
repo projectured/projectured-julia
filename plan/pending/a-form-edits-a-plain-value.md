@@ -1,7 +1,7 @@
 # A form edits a plain value
 
 > **Status (2026-10-08): IN PROGRESS** on the branch `plain-value-form`, in the
-> worktree `projectured-julia-plain-value-form`. Step 1 is done. The owner
+> worktree `projectured-julia-plain-value-form`. Steps 1 and 2 are done. The owner
 > answered the first six questions on 2026-10-06, chose the design of parts C and
 > D on 2026-10-08 (see "Decisions"), and asked for the implementation on
 > 2026-10-08.
@@ -610,11 +610,34 @@ form of part C and not readers that part C removes.
    - `test_operations()` 43 pass; `test_inversion()` 74, `test_rerooting()` 60
      and `test_description()` 27 pass; `test_kernel()` 4258 pass, 2 broken, 0
      fail, which is the baseline of 2 broken in memory.
-2. ⬜ **The two functions of A, in the platform primitive slice.** A new fragment
+2. ✅ **The two functions of A, in the platform primitive slice.** A new fragment
    beside `ObjectField.jl`. Check the file name against the naming rules before
    it is made. Tests: a flat value, a nested value, a vector, a schema that
    shows a part of a value, a schema field that the object does not have, and a
    round trip.
+
+   **Done 2026-10-08.** What the implementation found and decided:
+   - The fragment is `source/platform/primitive/ObjectConversion.jl`. The name
+     carries no `Document`, because only a file that defines a document carries
+     that word by the naming rules.
+   - **The declared type of a schema field comes from the native layout.** The
+     cells of a `@document` value are untyped (`Cell`), so a cell can not tell
+     the declared type. `@document` emits the native layout `M<Name>` by
+     default, and `get_document_native_type(T)` finds it; its field types are
+     the declared types. A schema declared with `[C]` only has no native layout,
+     so its values copy as they are and no nested value converts.
+   - **The way back takes `base`:** `convert_document_to_object(T, document;
+     base = nothing)`. Rule 2 lets a schema show a part of a value, so the way
+     back needs the value that the document was made from, to fill the fields
+     that the schema does not have. With no `base`, such a field is an error.
+   - **A value that does not convert is deep-copied when it can change**, at
+     both ends, so the document and the value share no object that an edit of
+     one would change in the other.
+   - **A vector converts element by element** in both directions, and a
+     collection of elements, such as the `CellVector` that the macro makes from
+     a `Vector` field in the platform, becomes a vector on the way back.
+   - `test_object_conversion()` 24 pass. The naming guard and
+     `test_platform_layering()` pass.
 3. ⬜ **C: a test of the hand-laid form of today, before any change of C.** Send a
    click on the checkbox and a key in a text field through the whole chain of
    `make_object_field_form_projection_example`, in an editor, not to the reader
