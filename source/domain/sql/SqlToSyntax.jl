@@ -36,7 +36,7 @@ _newline_body_compact(f::Function) = SyntaxNode(f; indentation=-1)
 # ── SqlAllColumnsToSyntaxLeaf ─────────────────────────────────────────────────
 
 @projection UntrackedCell struct SqlAllColumnsToSyntaxLeaf
-    style::StyleText = get_sql_style(nothing, :plain_text)
+    style::StyleText = get_sql_style(nothing, :column_text)
 end
 
 # Opaque display leaf (no marker): the rendered text is a pure multi-field
@@ -51,7 +51,7 @@ end
 # ── SqlColumnReferenceToSyntaxLeaf ────────────────────────────────────────────
 
 @projection UntrackedCell struct SqlColumnReferenceToSyntaxLeaf
-    style::StyleText = get_sql_style(nothing, :plain_text)
+    style::StyleText = get_sql_style(nothing, :column_text)
 end
 
 @projection_template SqlColumnReferenceToSyntaxLeaf SqlColumnReference (p, doc) ->
@@ -65,7 +65,7 @@ end
 # Bare column name, used in INSERT column lists and UPDATE assignments.
 
 @projection UntrackedCell struct SqlColumnNameToSyntaxLeaf
-    style::StyleText = get_sql_style(nothing, :plain_text)
+    style::StyleText = get_sql_style(nothing, :column_text)
 end
 
 @projection_template SqlColumnNameToSyntaxLeaf SqlColumnName (p, doc) ->
@@ -75,7 +75,7 @@ end
 # Bare table name (with optional schema), used as the INSERT/UPDATE target.
 
 @projection UntrackedCell struct SqlTableNameToSyntaxLeaf
-    style::StyleText = get_sql_style(nothing, :name_text)
+    style::StyleText = get_sql_style(nothing, :table_text)
 end
 
 @projection_template SqlTableNameToSyntaxLeaf SqlTableName (p, doc) ->
@@ -85,7 +85,7 @@ end
 # ── SqlTableExpressionToSyntaxLeaf ────────────────────────────────────────────
 
 @projection UntrackedCell struct SqlTableExpressionToSyntaxLeaf
-    style::StyleText = get_sql_style(nothing, :name_text)
+    style::StyleText = get_sql_style(nothing, :table_text)
 end
 
 @projection_template SqlTableExpressionToSyntaxLeaf SqlTableExpression (p, doc) ->
@@ -103,6 +103,7 @@ end
     name::StyleFont = _get_sql_font(nothing)
     punctuation::StyleText = get_sql_style(nothing, :punctuation_text)
     plain::StyleText = get_sql_style(nothing, :plain_text)
+    alias::StyleText = get_sql_style(nothing, :alias_text)
 end
 
 function print_document(p::SqlSubqueryFromItemToSyntaxNode, recursion, doc::SqlSubqueryFromItem, ctx)
@@ -126,7 +127,7 @@ function print_document(p::SqlSubqueryFromItemToSyntaxNode, recursion, doc::SqlS
                 push!(docs, _kw("AS", p.keyword))
                 push!(docs, SyntaxLeaf(
                     TextString(() -> doc.alias === nothing ? "" : doc.alias.name,
-                               p.plain.font, p.plain.color)))
+                               p.alias.font, p.alias.color)))
             end
             docs
         end);
@@ -194,6 +195,7 @@ end
     name::StyleFont = _get_sql_font(nothing)
     punctuation::StyleText = get_sql_style(nothing, :punctuation_text)
     plain::StyleText = get_sql_style(nothing, :plain_text)
+    alias::StyleText = get_sql_style(nothing, :alias_text)
 end
 
 function print_document(p::SqlSelectItemToSyntaxNode, recursion, doc::SqlSelectItem, ctx)
@@ -214,7 +216,7 @@ function print_document(p::SqlSelectItemToSyntaxNode, recursion, doc::SqlSelectI
                 push!(docs, _kw("AS", p.keyword))
                 push!(docs, SyntaxLeaf(
                     TextString(() -> doc.column_alias === nothing ? "" : doc.column_alias.name,
-                               p.plain.font, p.plain.color)))
+                               p.alias.font, p.alias.color)))
             end
             docs
         end);
@@ -1575,7 +1577,7 @@ read_intent(::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothin
 # String on the document, so it has no projected child of its own).
 
 @projection UntrackedCell struct SqlColumnDefinitionToSyntaxNode
-    type::StyleText = get_sql_style(nothing, :plain_text)
+    type::StyleText = get_sql_style(nothing, :type_text)
 end
 
 function print_document(p::SqlColumnDefinitionToSyntaxNode, recursion, doc::SqlColumnDefinition, ctx)
@@ -1759,7 +1761,7 @@ read_intent(::SqlCreateTableStatementToSyntaxNode, iomap::ChildrenIoMap, op) = n
     keyword::StyleText = get_sql_style(nothing, :keyword_text)
     name::StyleFont = _get_sql_font(nothing)
     punctuation::StyleText = get_sql_style(nothing, :punctuation_text)
-    name_style::StyleText = get_sql_style(nothing, :name_text)
+    name_style::StyleText = get_sql_style(nothing, :schema_text)
 end
 
 function print_document(p::SqlCreateSchemaStatementToSyntaxNode, recursion, stmt::SqlCreateSchemaStatement, ctx)
@@ -1907,13 +1909,15 @@ read_intent(::SqlStatementListToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 function SqlToSyntax(; theme = nothing, syntax_theme = nothing)
     get_style(name) = get_sql_style(theme, name)
     leaf_plain_style = (style = get_style(:plain_text),)
-    leaf_name_style = (style = get_style(:name_text),)
+    leaf_column_style = (style = get_style(:column_text),)
+    leaf_table_style = (style = get_style(:table_text),)
     keyword_style = (keyword = get_style(:keyword_text),)
     clause_styles = (keyword = get_style(:keyword_text), punctuation = get_style(:punctuation_text))
     clause_plain_styles = (keyword = get_style(:keyword_text), punctuation = get_style(:punctuation_text),
                            plain = get_style(:plain_text))
     item_styles = (keyword = get_style(:keyword_text), name = _get_sql_font(theme),
-                  punctuation = get_style(:punctuation_text), plain = get_style(:plain_text))
+                  punctuation = get_style(:punctuation_text), plain = get_style(:plain_text),
+                  alias = get_style(:alias_text))
     jt = SqlJoinTypeToSyntaxLeaf(; style = get_style(:keyword_text))
     TypeDispatchingProjection(
         SqlInsertion            => SqlInsertionToSyntaxLeaf(; theme = syntax_theme),
@@ -1923,11 +1927,11 @@ function SqlToSyntax(; theme = nothing, syntax_theme = nothing)
         SqlFromClause           => SqlFromClauseToSyntaxNode(; clause_plain_styles...),
         SqlWhereClause          => SqlWhereClauseToSyntaxNode(; clause_styles...),
         SqlSelectItem           => SqlSelectItemToSyntaxNode(; item_styles...),
-        SqlAllColumns           => SqlAllColumnsToSyntaxLeaf(; leaf_plain_style...),
-        SqlColumnReference      => SqlColumnReferenceToSyntaxLeaf(; leaf_plain_style...),
-        SqlColumnName           => SqlColumnNameToSyntaxLeaf(; leaf_plain_style...),
-        SqlTableName            => SqlTableNameToSyntaxLeaf(; leaf_name_style...),
-        SqlTableExpression      => SqlTableExpressionToSyntaxLeaf(; leaf_name_style...),
+        SqlAllColumns           => SqlAllColumnsToSyntaxLeaf(; leaf_column_style...),
+        SqlColumnReference      => SqlColumnReferenceToSyntaxLeaf(; leaf_column_style...),
+        SqlColumnName           => SqlColumnNameToSyntaxLeaf(; leaf_column_style...),
+        SqlTableName            => SqlTableNameToSyntaxLeaf(; leaf_table_style...),
+        SqlTableExpression      => SqlTableExpressionToSyntaxLeaf(; leaf_table_style...),
         SqlSubqueryFromItem     => SqlSubqueryFromItemToSyntaxNode(; item_styles...),
         SqlFromItem             => SqlFromItemToSyntaxNode(; clause_styles...),
         SqlJoinedFromItem       => SqlJoinedFromItemToSyntaxNode(; clause_styles...),
@@ -1951,12 +1955,12 @@ function SqlToSyntax(; theme = nothing, syntax_theme = nothing)
         SqlInsertStatement      => SqlInsertStatementToSyntaxNode(; clause_plain_styles...),
         SqlUpdateAssignment     => SqlUpdateAssignmentToSyntaxNode(; clause_styles...),
         SqlUpdateStatement      => SqlUpdateStatementToSyntaxNode(; clause_plain_styles...),
-        SqlColumnDefinition     => SqlColumnDefinitionToSyntaxNode(; type = get_style(:plain_text)),
+        SqlColumnDefinition     => SqlColumnDefinitionToSyntaxNode(; type = get_style(:type_text)),
         SqlCreateTableStatement => SqlCreateTableStatementToSyntaxNode(; clause_plain_styles...),
         SqlCreateSchemaStatement => SqlCreateSchemaStatementToSyntaxNode(; keyword = get_style(:keyword_text),
                                                                            name = _get_sql_font(theme),
                                                                            punctuation = get_style(:punctuation_text),
-                                                                           name_style = get_style(:name_text)),
+                                                                           name_style = get_style(:schema_text)),
         SqlStatementList        => SqlStatementListToSyntaxNode(; name = _get_sql_font(theme),
                                                                   plain = get_style(:plain_text)),
     )

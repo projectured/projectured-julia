@@ -16,6 +16,14 @@ function test_sql_theme()
     @test is_color_equal(leaf.style.color, get_theme_value(SqlTheme(), :plain_text).color)
     # A projection holds its styles and no theme, and its builder reads a theme
     # that is not scaled as at no scale.
+    # Each kind of name takes the role of its kind.
+    role(name) = resolve_theme_color(ColorRole(name), Appearance())
+    @test is_color_equal(SqlColumnReferenceToSyntaxLeaf().style.color, role(:field))
+    @test is_color_equal(SqlColumnNameToSyntaxLeaf().style.color, role(:field))
+    @test is_color_equal(SqlTableNameToSyntaxLeaf().style.color, role(:type_name))
+    @test is_color_equal(SqlColumnDefinitionToSyntaxNode().type.color, role(:type_name))
+    @test is_color_equal(SqlCreateSchemaStatementToSyntaxNode().name_style.color, role(:module_name))
+    @test is_color_equal(SqlSelectItemToSyntaxNode().alias.color, role(:variable))
     @test !hasfield(SqlColumnReferenceToSyntaxLeaf, :theme)
     built = SqlToSyntax(; theme = SqlTheme())
     @test unwrap_cell(only(rule for rule in built.dispatch if first(rule) === SqlColumnReference)[2].style).font.size == 14
