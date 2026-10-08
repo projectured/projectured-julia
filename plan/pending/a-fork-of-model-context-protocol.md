@@ -51,13 +51,22 @@ pull request alone (option 1 of the answer), so that colleagues can share it.
 
 ## Steps
 
-- [ ] **F.1 The clone.** `/home/projectured/workspace/model-context-protocol`,
+- [x] **F.1 The clone.** `/home/projectured/workspace/model-context-protocol`,
   from upstream `v0.7.0` (`827ae74`), with a new UUID and the version 0.7.1:
-  upstream 0.7.0 and one change.
-- [ ] **F.2 The change.** `RequestContext` gets `meta`, the `_meta` of the params
+  upstream 0.7.0 and one change. The UUID is
+  `318f8e74-e016-4659-bb5b-d8af92946dd5`. Its `main` holds `35ad57e` (the
+  change) and `0d33aeb` (the UUID, the version, the README and the
+  CHANGELOG).
+- [x] **F.2 The change.** `RequestContext` gets `meta`, the `_meta` of the params
   of the request, and `request_meta(ctx)` reads it. A test, and a note in the
-  README that says what the fork adds.
-- [ ] **F.3 The tests of the fork** pass, as its CI runs them.
+  README that says what the fork adds. Done as the conventions of the
+  repository ask: `RequestMeta` keeps the object as `raw` where the parser
+  reads `progressToken`, the three places that make a `RequestContext` pass it
+  on, `RequestContext` stays unexported, and `request_meta` is exported beside
+  `send_progress`. A test group "Request _meta" with 6 assertions.
+- [x] **F.3 The tests of the fork** pass, as its CI runs them: `Pkg.test()` 2016 of
+  2016. On the fork, the workflows of the docs deploy, TagBot and CompatHelper
+  need secrets of upstream or do not fit; the owner can switch them off.
 - [ ] **F.4 ProjecturedMCP moves to the fork.** The UUID, the compat and a path
   source in the three files; the CI places the fork beside the repository; the
   builder gets its URL for the release workflow. `test_mcp()` and a live check
