@@ -1,25 +1,19 @@
-# The form is a two-stage chain. Stage one walks the authored tree and replaces
-# every `ObjectField` with its control, copying everything else; stage two draws
-# the result.
-#
-# `CopyingProjection` is what makes the walk work: it recurses a struct Document
-# field by field through `print_child`, so the dispatch meets each `ObjectField`
-# wherever the author put it, and the labels pass through untouched.
+# The form is one recursion that draws it. The table of
+# `make_object_field_widget_dispatch` holds the row of a bare `ObjectField`, which
+# makes the widget for the type of its value with the field in its value slot,
+# and nests each value widget, so the widget reads the value from the field and
+# asks the field for the operation that stores a new value. The labels and the
+# layout are drawn as they are.
 function make_object_field_form_projection_example(; measure=FontFileMeasure())
     font = StyleFont("Ubuntu Mono", 20)
     w2g  = WidgetToGraphics(font; measure=measure)
-    ChainingProjection(
-        RecursiveProjection(TypeDispatchingProjection(
-            ObjectField => ObjectFieldToWidget(style=StyleText(font, color_default)),
-            Any         => CopyingProjection())),
-        RecursiveProjection(TypeDispatchingProjection(vcat(
-            LayoutToGraphics().dispatch,
-            w2g.dispatch,
-            Pair{Type,Any}[
-                TextBlock => TextToGraphics(measure=measure),
-            ],
-        ))),
-    )
+    RecursiveProjection(TypeDispatchingProjection(vcat(
+        LayoutToGraphics().dispatch,
+        make_object_field_widget_dispatch(w2g.dispatch),
+        Pair{Type,Any}[
+            TextBlock => TextToGraphics(measure=measure),
+        ],
+    )))
 end
 
 # One field to syntax and on to graphics. The `ObjectField` entry stands in front

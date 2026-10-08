@@ -88,20 +88,34 @@ const _VALUE_WIDGET_TYPES = (WidgetCheckbox, WidgetSwitch, WidgetToggle, WidgetS
                              WidgetSpinBox, WidgetRadioGroup, WidgetSelect, WidgetText)
 
 """
-    make_object_field_widget_dispatch(dispatch) -> Vector{Pair{Type,Any}}
+    make_object_field_widget_dispatch(dispatch; make_widget = make_object_field_widget)
+        -> Vector{Pair{Type,Any}}
 
-The rows of `dispatch`, a table of widget projections such as
-`WidgetToGraphics(font).dispatch`, with the row of each value widget nested so
-that a document in its value slot prints through `ObjectFieldToValue`:
+A table for a form whose fields are `ObjectField`s: the row of a bare field,
+`ObjectField => ObjectFieldToWidget(; make_widget)`, then the rows of `dispatch`,
+a table of widget projections such as `WidgetToGraphics(font).dispatch`, with the
+row of each value widget nested so that a document in its value slot prints
+through `ObjectFieldToValue`:
 
     WidgetCheckbox => NestingProjection(WidgetCheckboxToGraphicsCanvas(...), ObjectFieldToValue())
 
 The content of a `WidgetText` can also be a document that it draws, such as a
 `TextBlock`, so its inner element sends any document other than an `ObjectField`
 back into the outer recursion. The rows of the other widgets stay as they are.
+
+The two kinds of row belong together: a bare field makes a widget with the field
+in its slot, and only the nesting keeps that slot from making a widget again.
+
+# Example
+
+    RecursiveProjection(TypeDispatchingProjection(vcat(
+        LayoutToGraphics().dispatch,
+        make_object_field_widget_dispatch(WidgetToGraphics(font).dispatch),
+        Pair{Type,Any}[TextBlock => TextToGraphics()])))
 """
-make_object_field_widget_dispatch(dispatch) =
-    Pair{Type,Any}[type => _nest_value_widget(type, projection) for (type, projection) in dispatch]
+make_object_field_widget_dispatch(dispatch; make_widget = make_object_field_widget) =
+    Pair{Type,Any}[ObjectField => ObjectFieldToWidget(; make_widget),
+                   (type => _nest_value_widget(type, projection) for (type, projection) in dispatch)...]
 
 function _nest_value_widget(type, projection)
     any(value_type -> value_type === type, _VALUE_WIDGET_TYPES) || return projection

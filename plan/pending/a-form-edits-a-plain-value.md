@@ -1,7 +1,7 @@
 # A form edits a plain value
 
 > **Status (2026-10-08): IN PROGRESS** on the branch `plain-value-form`, in the
-> worktree `projectured-julia-plain-value-form`. Steps 1 to 4 are done. The owner
+> worktree `projectured-julia-plain-value-form`. Steps 1 to 5 are done. The owner
 > answered the first six questions on 2026-10-06, chose the design of parts C and
 > D on 2026-10-08 (see "Decisions"), and asked for the implementation on
 > 2026-10-08.
@@ -734,7 +734,7 @@ form of part C and not readers that part C removes.
      branch changes neither the list nor that docstring, so `main` fails the
      same way. One of the 9 broken is the baseline marker of step 3.
 
-5. ⬜ **C: `ObjectFieldToWidget` makes the default widget.** It makes the widget
+5. ✅ **C: `ObjectFieldToWidget` makes the default widget.** It makes the widget
    with the field in its slot and prints it through the recursion. Its readers
    for the checkbox and for the text go away. The seam `make_object_field_widget`
    and the argument `make_widget` take the place of its `controls` table. The
@@ -746,6 +746,42 @@ form of part C and not readers that part C removes.
    of step 3. A bare field inside another domain's document, such as a card,
    becomes a control. Run `test_object_field_to_widget()`,
    `test_object_field_to_syntax()` and `test_example(object_field_form_example)`.
+
+   **Done 2026-10-08.** What the implementation found and decided:
+   - **The table can not loop.** `make_object_field_widget_dispatch(dispatch;
+     make_widget)` puts the row `ObjectField => ObjectFieldToWidget(;
+     make_widget)` first, and nests the value widgets. A table with the one kind
+     of row and not the other is what makes a bare field and a field in a slot
+     make each other without end.
+   - **A value that no control edits gives a `WidgetLabel` whose content is a
+     computed cell** that shows the text of the value. `WidgetLabel(field)` would
+     draw the text of the `ObjectField` itself, because the label draws
+     `string(content)` and recurses nothing; making the label a value widget would
+     change how it draws other documents, such as an image.
+   - **The made widget follows the field.** Its `selection` and `mouse_target`
+     are cells computed from the path that the field keeps, which the defaults of
+     `Projection` make a path that `ObjectFieldToWidget` introduces. No path from
+     the root reaches the made widget, so nothing else writes them.
+   - **An operation is an answer, never a payload for the widget.** The first
+     reader gave every payload to the widget and mapped the answer with the
+     default reader of `Projection`. That default maps each member of a compound
+     through this reader again, so the store and the caret move of a key went to
+     the widget as new payloads and the whole answer was lost. The reader now
+     maps an operation with the default, and gives only a gesture to the widget.
+   - **The exported constructor changed:** `ObjectFieldToWidget(; make_widget)`.
+     The keywords `theme`, `style` and `controls` and the call
+     `print_document(p, field)` with no recursion are gone; nothing outside this
+     repository's tests and examples used them. `ProjecturedPlatform` already
+     takes the version 0.2.0 at its next release (the rename of
+     `WidgetProgress`), and this change falls into that step.
+   - The form example is one recursion. `test_object_field_to_widget()` 40 pass,
+     with the baseline of step 3 now a plain `@test`;
+     `test_widget_value_slot()` 25 and `test_object_field_to_syntax()` 13 pass;
+     `walk_printer_output` and `walk_repl_loop` report no error on the form and
+     on the syntax example; the naming guard and `test_platform_layering()` pass.
+     `test_example` lives in the umbrella test package, which this worktree has
+     not instantiated, so the walkers stand in for it.
+
 6. ⬜ **B in a form: the read of a cell root, in `ObjectField`.**
    [ObjectField.jl](../../source/platform/primitive/ObjectField.jl). Tests,
    through the form of part C in an editor: a nested plain struct in a `Cell`, a

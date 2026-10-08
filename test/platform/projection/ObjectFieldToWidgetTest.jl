@@ -5,177 +5,6 @@ _of_server() = FormServer("gateway", 4, true, Any["alpha", "beta"], nothing)
 _of_tag_path(i) = extend_reference(ConcreteReference(FieldReferenceStep("tags"), EmptyReference()),
                                    ElementReferenceStep(i))
 
-# The reference a checkbox click carries: rooted at the control, naming its own
-# `content` slot.
-_of_content_ref() = ConcreteReference(FieldReferenceStep("content"), EmptyReference())
-
-# The reference a Text-domain edit carries, rooted at the control:
-# `content.elements[0:1].content[cs:ce]`.
-_of_text_ref(cs, ce) = ConcreteReference(FieldReferenceStep("content"),
-    ConcreteReference(FieldReferenceStep("elements"),
-      ConcreteReference(RangeReferenceStep(0, 1),
-        ConcreteReference(FieldReferenceStep("content"),
-          ConcreteReference(RangeReferenceStep(cs, ce), EmptyReference())))))
-
-@testset "ObjectField names one field, and a name is a one-step path" begin
-
-    srv = _of_server()
-    f = ObjectField(srv, "name")
-    @test f.object === srv
-    @test f.path.head == FieldReferenceStep("name")
-    @test f.path.tail isa EmptyReference
-    @test get_object_field_value(f) == "gateway"
-    @test get_object_field_name(f) == "name"
-
-    # An element step names no field, so there is no label to derive from it.
-    element = ObjectField(srv, _of_tag_path(2))
-    @test get_object_field_value(element) == "beta"
-    @test get_object_field_name(element) === nothing
-
-end # @testset
-
-@testset "ObjectFieldToWidget picks the control from the value type" begin
-
-    srv = _of_server()
-    p = ObjectFieldToWidget()
-
-    # The output is the BARE control — no label, no wrapper. A GridLayout takes a
-    # flat child list, so the label has to be a separate child the caller writes.
-    @test print_document(p, ObjectField(srv, "name")).output isa WidgetText
-    @test print_document(p, ObjectField(srv, "capacity")).output isa WidgetText
-    @test print_document(p, ObjectField(srv, "enabled")).output isa WidgetCheckbox
-    @test print_document(p, ObjectField(srv, "name")).output.content isa TextBlock
-
-end # @testset
-
-@testset "a control repaints when the object is written from elsewhere" begin
-
-    srv = _of_server()
-    p = ObjectFieldToWidget()
-    text = print_document(p, ObjectField(srv, "name")).output
-    check = print_document(p, ObjectField(srv, "enabled")).output
-    @test text.content.elements[1].content == "gateway"
-    @test check.content == true
-
-    # The printer reads the value only inside a cell, so a write anywhere else —
-    # another form, a background task — repaints the control.
-    srv.name = "gw2"
-    srv.enabled = false
-    @test text.content.elements[1].content == "gw2"
-    @test check.content == false
-
-end # @testset
-
-@testset "a checkbox click writes the field of the field's own object" begin
-
-    srv = _of_server()
-    p = ObjectFieldToWidget()
-    iomap = print_document(p, ObjectField(srv, "enabled"))
-
-    op = read_intent(p, iomap,
-                     ReplaceReferencedValueOperation(iomap.output, _of_content_ref(), false))
-    @test op isa ReplaceReferencedValueOperation
-    @test op.document === srv
-    @test op.reference.head == FieldReferenceStep("enabled")
-    @test op.value == false
-
-    evaluate_operation(nothing, op)
-    @test srv.enabled == false
-
-end # @testset
-
-@testset "a text edit is coerced to the type the field already holds" begin
-
-    srv = _of_server()
-    p = ObjectFieldToWidget()
-
-    name = print_document(p, ObjectField(srv, "name"))
-    op = read_intent(p, name, ReplaceStringRangeOperation(_of_text_ref(7, 7), "X"))
-    @test op isa ReplaceReferencedValueOperation
-    @test op.document === srv
-    @test op.value == "gatewayX"
-    evaluate_operation(nothing, op)
-    @test srv.name == "gatewayX"
-
-    # An Int field stays an Int: the control delivers "42", the write is 42.
-    cap = print_document(p, ObjectField(srv, "capacity"))
-    op = read_intent(p, cap, ReplaceStringRangeOperation(_of_text_ref(1, 1), "2"))
-    @test op.value === 42
-    evaluate_operation(nothing, op)
-    @test srv.capacity == 42
-
-end # @testset
-
-@testset "a vector element edits, which ObjectToWidget renders read-only" begin
-
-    srv = _of_server()
-
-    # ObjectToWidget registers a control only when it holds the field's backing
-    # Cell, and a vector's elements live inside one cell — so no control of its
-    # form addresses `tags`.
-    reflected = print_document(ObjectToWidget(), srv)
-    @test !any(pth -> get_reference_steps(pth)[1] == FieldReferenceStep("tags"),
-               (pth for (_, pth) in reflected.controls))
-
-    # ObjectField needs no cell. It writes through the path, and
-    # ElementReferenceStep(i) is the RangeReferenceStep the kernel writes as
-    # `parent[i] = value`.
-    p = ObjectFieldToWidget()
-    element = print_document(p, ObjectField(srv, _of_tag_path(2)))
-    @test element.output isa WidgetText
-    @test element.output.content.elements[1].content == "beta"
-
-    op = read_intent(p, element, ReplaceStringRangeOperation(_of_text_ref(4, 4), "!"))
-    @test op isa ReplaceReferencedValueOperation
-    @test op.document === srv
-    @test op.value == "beta!"
-    evaluate_operation(nothing, op)
-    @test srv.tags == Any["alpha", "beta!"]
-
-end # @testset
-
-@testset "a deep path writes the nested field" begin
-
-    app = make_nested_object_to_widget_document_example()
-    p = ObjectFieldToWidget()
-    f = ObjectField(app, Reference(FieldReferenceStep("window"), FieldReferenceStep("title")))
-    @test get_object_field_value(f) == "Main"
-    @test get_object_field_name(f) == "title"
-
-    iomap = print_document(p, f)
-    op = read_intent(p, iomap, ReplaceStringRangeOperation(_of_text_ref(4, 4), "!"))
-    evaluate_operation(nothing, op)
-    @test app.window.title == "Main!"
-
-end # @testset
-
-@testset "one form holds fields of two different objects" begin
-
-    form = make_object_field_form_document_example()
-    fields = [c for c in form.children if c isa ObjectField]
-    @test length(fields) == 5
-
-    # Rows 1 and 2 name the SAME field of DIFFERENT objects. That is what
-    # ObjectToWidget can not express: it takes one root.
-    @test fields[1].object !== fields[2].object
-    @test get_object_field_name(fields[1]) == get_object_field_name(fields[2]) == "name"
-    @test get_object_field_value(fields[1]) == "gateway"
-    @test get_object_field_value(fields[2]) == "laptop"
-
-    # The projection replaces each ObjectField with its control and copies the
-    # labels through untouched.
-    stage = RecursiveProjection(TypeDispatchingProjection(
-        ObjectField => ObjectFieldToWidget(),
-        Any         => CopyingProjection()))
-    out = print_document(stage, stage, form, PrinterContext()).output
-    @test out isa GridLayout
-    @test [typeof(c).name.name for c in out.children] ==
-          [:WidgetLabel, :WidgetText, :WidgetLabel, :WidgetText,
-           :WidgetLabel, :WidgetText, :WidgetLabel, :WidgetCheckbox,
-           :WidgetLabel, :WidgetText]
-
-end # @testset
-
 # The texts that a frame draws, each with the point where it is drawn.
 function _of_drawn(canvas, ox = 0, oy = 0, found = Tuple{String,Int,Int}[])
     x = ox + Int(canvas.x)
@@ -194,42 +23,198 @@ function _of_drawn(canvas, ox = 0, oy = 0, found = Tuple{String,Int,Int}[])
     found
 end
 
+_of_texts(backend) = first.(_of_drawn(last(rendered_output(backend))))
+
 # A press at the first text `text` of the last frame, and the frame after it.
 function _of_click!(editor, backend, text)
-    (_, x, y) = only(entry for entry in _of_drawn(last(rendered_output(backend)))
-                     if entry[1] == text)
+    (_, x, y) = first(entry for entry in _of_drawn(last(rendered_output(backend)))
+                      if entry[1] == text)
     push_event!(backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 0.0))
     run_frame!(editor)
 end
 
-# The hand-laid form of the examples in an editor, through the whole chain, after
-# its first frame.
-function _of_form_editor()
-    form = make_object_field_form_document_example()
+_of_type!(editor, backend, character::Char) =
+    (push_event!(backend, KeyPress(character, string(character), ModifierKeys(); time = 0.0));
+     run_frame!(editor))
+
+# The tick that a checked checkbox draws.
+of_tick = string(Char(0xe06c))
+
+# The projection of the examples, with `make_widget` for a bare field.
+function _of_projection(; make_widget = make_object_field_widget)
+    measure = FontFileMeasure()
+    w2g = WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure)
+    RecursiveProjection(TypeDispatchingProjection(vcat(
+        LayoutToGraphics().dispatch,
+        make_object_field_widget_dispatch(w2g.dispatch; make_widget),
+        Pair{Type,Any}[TextBlock => TextToGraphics(measure = measure)])))
+end
+
+# An editor on `document`, through the whole chain, after its first frame.
+function _of_editor(document; projection = make_object_field_form_projection_example())
     backend = HeadlessBackend()
-    editor = build_editor(form, make_object_field_form_projection_example();
+    editor = build_editor(document, projection;
         backend, devices = ProjecturedKernel.DeviceModule.Device[Keyboard(), Mouse(), Display()],
         window = false, appearance = false, settings = false, tabs = false,
         focus_cycling = false)
     run_frame!(editor)
-    server = first(c for c in form.children if c isa ObjectField).object
-    (editor, backend, server)
+    (editor, backend)
 end
 
-@testset "a press and a key through the whole hand-laid form write the fields" begin
+@testset "ObjectField names one field, and a name is a one-step path" begin
 
-    editor, backend, server = _of_form_editor()
+    srv = _of_server()
+    f = ObjectField(srv, "name")
+    @test f.object === srv
+    @test f.path.head == FieldReferenceStep("name")
+    @test f.path.tail isa EmptyReference
+    @test get_object_field_value(f) == "gateway"
+    @test get_object_field_name(f) == "name"
 
-    # A press on the text and a key write the name of the server.
-    _of_click!(editor, backend, "gateway")
-    push_event!(backend, KeyPress('X', "X", ModifierKeys(); time = 0.0))
+    # An element step names no field, so there is no label to derive from it.
+    element = ObjectField(srv, _of_tag_path(2))
+    @test get_object_field_value(element) == "beta"
+    @test get_object_field_name(element) === nothing
+
+end # @testset
+
+@testset "the seam picks the widget from the value type, with the field in its slot" begin
+
+    srv = _of_server()
+    name = ObjectField(srv, "name")
+    text = make_object_field_widget(name)
+    @test text isa WidgetText
+    @test text.content === name
+    @test make_object_field_widget(ObjectField(srv, "capacity")) isa WidgetText
+    check = make_object_field_widget(ObjectField(srv, "enabled"))
+    @test check isa WidgetCheckbox
+    @test check.content isa ObjectField
+
+    # A value that no control edits is a label of its text.
+    label = make_object_field_widget(ObjectField(srv, "tags"))
+    @test label isa WidgetLabel
+    @test label.content isa AbstractString
+
+end # @testset
+
+@testset "the table puts the row of a bare field before the widgets" begin
+
+    table = make_object_field_widget_dispatch(
+        WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure = FontFileMeasure()).dispatch)
+    @test first(table).first === ObjectField
+    @test first(table).second isa ObjectFieldToWidget
+    rows = Dict(table)
+    @test rows[WidgetCheckbox] isa NestingProjection
+    @test rows[WidgetText] isa NestingProjection
+    @test !(rows[WidgetLabel] isa NestingProjection)
+
+end # @testset
+
+@testset "a function argument chooses another widget, and falls back to the seam" begin
+
+    srv = _of_server()
+    choose(field) = get_object_field_name(field) == "name" ?
+        WidgetSelect(field; options = Any["gateway", "edge"]) : make_object_field_widget(field)
+    projection = _of_projection(; make_widget = choose)
+    name = print_document(projection, projection, ObjectField(srv, "name"), PrinterContext())
+    @test name.widget_iomap.input isa WidgetSelect
+    enabled = print_document(projection, projection, ObjectField(srv, "enabled"), PrinterContext())
+    @test enabled.widget_iomap.input isa WidgetCheckbox
+
+end # @testset
+
+@testset "a control repaints when the object is written from elsewhere" begin
+
+    srv = _of_server()
+    form = FormLayout([(WidgetLabel("Name"), ObjectField(srv, "name")),
+                       (WidgetLabel("Enabled"), ObjectField(srv, "enabled"))])
+    editor, backend = _of_editor(form)
+    @test "gateway" in _of_texts(backend)
+    @test of_tick in _of_texts(backend)
+
+    # The widgets read the value only inside a cell, so a write anywhere else —
+    # another form, a background task — repaints them.
+    srv.name = "gw2"
+    srv.enabled = false
     run_frame!(editor)
-    @test server.name == "Xgateway"
+    @test "gw2" in _of_texts(backend)
+    @test !(of_tick in _of_texts(backend))
 
-    # A press on the tick of the checkbox.
-    _of_click!(editor, backend, string(Char(0xe06c)))
-    # @broken: the press of the checkbox writes the `content` cell of the control and not the field, because its edit names the control and reaches the reader of no `ObjectField`; plan/pending/a-form-edits-a-plain-value.md, part C
-    @test_broken server.enabled == false
+end # @testset
+
+@testset "a press and keys through the whole hand-laid form write the fields" begin
+
+    form = make_object_field_form_document_example()
+    server = first(c for c in form.children if c isa ObjectField).object
+    editor, backend = _of_editor(form)
+
+    # A press on the text and keys write the name of the server, and the caret
+    # moves after each key.
+    _of_click!(editor, backend, "gateway")
+    _of_type!(editor, backend, 'X')
+    _of_type!(editor, backend, 'Y')
+    @test server.name == "XYgateway"
+
+    # A press on the tick of the checkbox writes the field.
+    _of_click!(editor, backend, of_tick)
+    @test server.enabled == false
+
+end # @testset
+
+@testset "a text edit is coerced to the type the field already holds" begin
+
+    srv = _of_server()
+    editor, backend = _of_editor(FormLayout([(WidgetLabel("Capacity"), ObjectField(srv, "capacity"))]))
+    _of_click!(editor, backend, "4")
+    _of_type!(editor, backend, '2')
+    @test srv.capacity isa Int
+    @test srv.capacity in (24, 42)
+
+end # @testset
+
+@testset "a vector element edits through its path" begin
+
+    srv = _of_server()
+    editor, backend = _of_editor(FormLayout([(WidgetLabel("Tag"), ObjectField(srv, _of_tag_path(2)))]))
+    _of_click!(editor, backend, "beta")
+    _of_type!(editor, backend, '!')
+    @test srv.tags[1] == "alpha"
+    @test occursin("!", srv.tags[2])
+
+end # @testset
+
+@testset "a deep path writes the nested field" begin
+
+    app = make_nested_object_to_widget_document_example()
+    f = ObjectField(app, Reference(FieldReferenceStep("window"), FieldReferenceStep("title")))
+    @test get_object_field_value(f) == "Main"
+    @test get_object_field_name(f) == "title"
+
+    editor, backend = _of_editor(FormLayout([(WidgetLabel("Title"), f)]))
+    _of_click!(editor, backend, "Main")
+    _of_type!(editor, backend, '!')
+    @test occursin("!", app.window.title)
+
+end # @testset
+
+@testset "one form holds fields of two different objects" begin
+
+    form = make_object_field_form_document_example()
+    fields = [c for c in form.children if c isa ObjectField]
+    @test length(fields) == 5
+
+    # Rows 1 and 2 name the SAME field of DIFFERENT objects. That is what
+    # ObjectToWidget can not express: it takes one root.
+    @test fields[1].object !== fields[2].object
+    @test get_object_field_name(fields[1]) == get_object_field_name(fields[2]) == "name"
+    @test get_object_field_value(fields[1]) == "gateway"
+    @test get_object_field_value(fields[2]) == "laptop"
+
+    # The form draws the labels and the value of each field.
+    editor, backend = _of_editor(form)
+    texts = _of_texts(backend)
+    @test all(text -> text in texts, ["Server name", "gateway", "Client name", "laptop",
+                                       "Capacity", "4", "Enabled", of_tick, "Second tag", "beta"])
 
 end # @testset
 

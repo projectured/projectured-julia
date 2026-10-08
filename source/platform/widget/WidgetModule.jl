@@ -88,7 +88,7 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
 export ObjectToWidget, ObjectToWidgetIoMap
 export ObjectFieldToWidget, ObjectFieldToWidgetIoMap
 export ObjectFieldToValue, WidgetValueIoMap, make_slot_store_operation,
-       make_object_field_widget_dispatch
+       make_object_field_widget_dispatch, make_object_field_widget
 export CellTableToWidgetTable
 export WidgetTableListIoMap, make_widget_table_row
 export compute_scroll_bar_value, compute_scroll_bar_top_row, read_scroll_bar_drag, make_owned_scroll_bar_drag
