@@ -118,6 +118,40 @@ end
 end # let
 end # @testset "SyntaxToText lines"
 
+@testset "SyntaxToText text folds" begin
+let
+    fold_line_texts(block) = [" " ^ line.indentation * join(span.content for span in line.elements)
+                              for line in block.elements]
+    inner = SyntaxNode(SyntaxDocument[SyntaxLeaf("x"), SyntaxLeaf("y")];
+                       open="[", close="]", sep=",", indentation=1)
+    entry = SyntaxNode(SyntaxDocument[SyntaxLeaf("k"), inner]; sep=": ")
+    outer = SyntaxNode(SyntaxDocument[entry]; open="{", close="}", indentation=1)
+    iomap = print_document(RecursiveProjection(SyntaxToText(text_folds = true)), outer)
+    lines = iomap.output.elements
+    @test fold_line_texts(iomap.output) == ["{", "  k: [", "    x,", "    y", "  ]", "}"]
+    # A node that indents holds the lines after its first; its fold shares its
+    # `collapsed` cell. The inline entry has no fold, so its line holds the fold of
+    # its value.
+    @test lines[1].fold isa TextFold && lines[1].fold.line_count == 5
+    @test getfield(lines[1].fold, :collapsed) === getfield(outer, :collapsed)
+    @test lines[2].fold isa TextFold && lines[2].fold.line_count == 3
+    @test getfield(lines[2].fold, :collapsed) === getfield(inner, :collapsed)
+    @test all(k -> lines[k].fold === nothing, 3:length(lines))
+    # A closed node still prints its children, and its fold is closed.
+    inner.collapsed = true
+    @test length(iomap.output.elements) == 6
+    @test iomap.output.elements[2].fold.collapsed
+    # Through `TextFolding` the closed node shows the ellipsis and its closing
+    # delimiter on its first line.
+    chain = ChainingProjection(RecursiveProjection(SyntaxToText(text_folds = true)), TextFolding())
+    @test fold_line_texts(print_document(chain, outer).output) == ["{", "  k: […]", "}"]
+    inner.collapsed = false
+    # Without text folds a closed node prints no children, as before.
+    outer.collapsed = true
+    @test get_flat_string(print_document(RecursiveProjection(SyntaxToText()), outer).output) == "{…}"
+end # let
+end # @testset "SyntaxToText text folds"
+
 @testset "SyntaxToText flat-position round-trip" begin
 
 # Walk every flat character offset of a hand-built SyntaxNode and verify that

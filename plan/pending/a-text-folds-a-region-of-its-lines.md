@@ -334,11 +334,37 @@ emit lines (D7 of the gutter plan).
    Rendered to a PDF: open, the list closed (the next number is 8), and the
    object closed (`{…}`). Test: `test_text_folding()`, 18 assertions; the
    printer, reader and navigation tests of the example, 2637, 225 and 100.
-3. **The syntax emits regions.** A keyword of `SyntaxCompoundToText` chooses
-   text regions (T4): each collapsible node prints its children and gives its
-   first line a region whose `collapsed` cell is its own and whose placeholder is
-   `…` and its close delimiter. The join keeps the region of the outer node on a
-   line that two nodes start.
+3. ~~**The syntax emits regions.**~~ **Done 2026-10-08, branch `text-gutter`.**
+   A keyword of `SyntaxCompoundToText` chooses text regions (T4): each
+   collapsible node prints its children and gives its first line a region whose
+   `collapsed` cell is its own and whose placeholder is `…` and its close
+   delimiter. The join keeps the region of the outer node on a line that two
+   nodes start.
+
+   What was built: `SyntaxCompoundToText(; text_folds = true)`, and
+   `SyntaxToText(; text_folds)`. A node then prints its children whether it is
+   collapsed or not, in the layout and in every mapper (`_is_folded_by_syntax`).
+   The `TextFold` of a node is made once for each print of the node
+   (`_make_node_fold`): its `collapsed` is the cell of the node, so the toggle of
+   `TextFolding` toggles the node; its `line_count` and its `placeholder` are cells
+   that read the result of the splice. The splice puts it on the first line of the
+   node, in place of a fold of a child that starts there; the join of a child
+   keeps the fold of the open line and takes the fold of the first line of the
+   child when the open line has none (rule 5 of Q2 of `text-domain-kit.md`, for
+   folds; the join of gutters waits for the first producer of a gutter of syntax,
+   step 8 of the gutter plan).
+
+   **A choice made in the work (2026-10-08): only a collapsible node that
+   indents is a region.** An inline node, such as the entry `"lanes": [` of a JSON
+   object, starts on the same line as its value; as the outer node it would win
+   that line, and with no closing delimiter of its own a closed entry would show
+   `"lanes": […` with no `]`. A node that puts its children on lines of their own
+   is a region of lines, so the line holds the fold of the value. Test:
+   `SyntaxToTextTest.jl`, "SyntaxToText text folds".
+
+   **Known:** a closed region hides its last line whole, so a separator that the
+   parent puts after the closing delimiter, such as the `,` of `],`, does not show
+   on the folded line: `"lanes": […]`.
 4. **A view of code with text folds:** `SyntaxCompoundToText` with regions →
    `TextLineNumbering` → `TextFolding` → `TextBlockToScrollLayout` in a
    `WidgetScrollPane`. The testing guide and the text design document say the

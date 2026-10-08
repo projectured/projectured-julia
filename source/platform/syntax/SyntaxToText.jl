@@ -266,6 +266,12 @@ struct SyntaxCompoundToText <: Projection
     # The font of the indentation and the line breaks of a node with no delimiter
     # of its own: a value, or a cell that reads the scaled `SyntaxTheme`.
     decoration_font::Any
+    # The kind of fold of the view. `false`: a collapsed node prints no children and
+    # an ellipsis stands for them. `true`: a node always prints its children, and a
+    # collapsible node that indents and takes more than one line gives its first
+    # line a `TextFold`, which shares the `collapsed` cell of the node, so
+    # `TextFolding` hides its lines and the numbers still count them.
+    text_folds::Bool
 end
 
 SyntaxCompoundToText(; indent_size::Int = 2,
@@ -276,10 +282,16 @@ SyntaxCompoundToText(; indent_size::Int = 2,
                        ellipsis_style = get_syntax_style(theme, :ellipsis_text),
                        delimiter_light_color = get_syntax_style(theme, :lit_delimiter),
                        delimiter_light_levels::Int = 3,
-                       decoration_font = get_syntax_style(theme, :font)) =
+                       decoration_font = get_syntax_style(theme, :font),
+                       text_folds::Bool = false) =
     SyntaxCompoundToText(indent_size, expanded_marker, collapsed_marker, marker_eligible,
                          ellipsis_style, delimiter_light_color, delimiter_light_levels,
-                         decoration_font)
+                         decoration_font, text_folds)
+
+# Whether the syntax folds `node`: it is collapsed and the view has no text folds.
+# Such a node prints no children.
+_is_folded_by_syntax(p::SyntaxCompoundToText, node::SyntaxCompound) =
+    !p.text_folds && is_syntax_collapsed(node)
 
 # One IoMap for every compound, and it must be one: a parent reads the lines of
 # the chrome and the flat list of its child off the child's IoMap
@@ -431,7 +443,7 @@ function map_reference_forward(p::SyntaxCompoundToText, iomap::SyntaxCompoundToT
     # A step into a child — `.children[i]` or `.content`, whichever this compound uses.
     step = peel_child_step(reference)
     if step !== nothing
-        is_syntax_collapsed(node) && return nothing   # a collapsed node lays out no children
+        _is_folded_by_syntax(p, node) && return nothing   # a node that the syntax folds lays out no children
         child_i, ctail = step
         cims = iomap.child_iomaps
         (1 <= child_i <= length(cims)) || return nothing
@@ -569,7 +581,7 @@ function print_document(p::SyntaxCompoundToText, recursion, node::SyntaxCompound
     # projects no children (its reactive subtree is pruned).
     child_cache = IdDict{Any, IoMap}()
     child_iomaps = Cell(@computation begin
-        is_syntax_collapsed(node) && return IoMap[]
+        _is_folded_by_syntax(p, node) && return IoMap[]
         kids = get_syntax_children(node)
         result = IoMap[]
         for (i, child) in enumerate(kids)
@@ -593,14 +605,18 @@ function print_document(p::SyntaxCompoundToText, recursion, node::SyntaxCompound
     # pointer lays out nothing again.
     level = Cell(@computation _compute_delimiter_level(node))
 
+    # With text folds, the fold of a collapsible node, made once: the splice puts it
+    # on the first line, and its count of lines and its placeholder read the splice.
+    fold = Ref{Any}(nothing)
     spans = Cell(@computation begin
         empty!(deco.seen)
-        res = _splice_compound(node, p, deco, child_iomaps[], level)
+        res = _splice_compound(node, p, deco, child_iomaps[], level, fold[])
         for k in collect(keys(deco.spans))
             k in deco.seen || delete!(deco.spans, k)
         end
         res
     end)
+    (p.text_folds && is_syntax_collapsible(node)) && (fold[] = _make_node_fold(p, node, spans))
 
     # The selection cell forward-maps through this projection's own mapper, so it
     # needs the finished IoMap. Build the IoMap after the output but let the
@@ -653,7 +669,11 @@ mutable struct _LineRecord
     spans::Vector{TextDocument}
     indentation::Int
     is_chrome::Bool
+    fold::Any      # the `TextFold` that starts at the line, or `nothing`
 end
+
+_LineRecord(spans::Vector{TextDocument}, indentation::Int, is_chrome::Bool) =
+    _LineRecord(spans, indentation, is_chrome, nothing)
 
 _make_first_line_record() = _LineRecord(TextDocument[], 0, false)
 
@@ -716,7 +736,8 @@ function _compute_output_lines(block::TextBlock, chrome_lines = nothing)
         if element isa TextLine
             k = length(lines) + 1
             is_chrome = chrome_lines !== nothing && k <= length(chrome_lines) && chrome_lines[k]
-            push!(lines, _LineRecord(collect(TextDocument, element.elements), element.indentation, is_chrome))
+            push!(lines, _LineRecord(collect(TextDocument, element.elements), element.indentation, is_chrome,
+                                     element.fold))
             continue
         end
         isempty(lines) && push!(lines, _make_first_line_record())
@@ -761,8 +782,8 @@ end
 # The `TextLine` of `line`, the same object as the last layout when its spans and
 # its indentation are the same.
 function _make_output_line(deco, line::_LineRecord)
-    key = (:line, line.indentation, map(objectid, line.spans)...)
-    _deco_span(deco, key, () -> TextLine(line.spans; indentation = line.indentation))
+    key = (:line, line.indentation, objectid(line.fold), map(objectid, line.spans)...)
+    _deco_span(deco, key, () -> TextLine(line.spans; indentation = line.indentation, fold = line.fold))
 end
 
 # The entry of span `k` of line `i` in the flat list `entries`, or `nothing`.
@@ -916,7 +937,8 @@ _push_line_chrome!(buf::SpliceBuffer, depth::Int) =
 
 # Join one child's lines into this buffer: its first line joins the open line, and
 # each other line follows, widened by one indent level when it is of the chrome and
-# this level indents. Records the entry range the child occupies.
+# this level indents. The open line keeps its fold, and takes the fold of the first
+# line of the child when it has none. Records the entry range the child occupies.
 function _splice_child!(buf::SpliceBuffer, cim, widen::Bool)
     base = buf.count + 1
     for (k, line) in enumerate(_compute_child_lines(cim))
@@ -924,6 +946,8 @@ function _splice_child!(buf::SpliceBuffer, cim, widen::Bool)
             indentation = line.is_chrome && widen ? line.indentation + buf.indent_size : line.indentation
             _start_line!(buf, indentation, line.is_chrome)
         end
+        open_line = buf.lines[end]
+        open_line.fold === nothing && (open_line.fold = line.fold)
         for span in line.spans
             _push_entry_span!(buf, span)
         end
@@ -949,7 +973,7 @@ end
 # delimiter? a separator? indentation? — and emits exactly that. A `SyntaxNode`
 # answers all five; a `SyntaxConcatenation` answers only "children", and so renders
 # as its children, end to end, with no chrome and no caret that is not a child's.
-function _splice_compound(doc::SyntaxCompound, p::SyntaxCompoundToText, deco, cims, level::Cell)
+function _splice_compound(doc::SyntaxCompound, p::SyntaxCompoundToText, deco, cims, level::Cell, fold)
     buf = SpliceBuffer(deco; nid = objectid(doc), deco_font = _deco_font(doc, unwrap_cell(p.decoration_font)),
                        indent_size = p.indent_size)
     indent = get_indentation(doc)
@@ -958,7 +982,7 @@ function _splice_compound(doc::SyntaxCompound, p::SyntaxCompoundToText, deco, ci
     _push_marker!(buf, _active_marker(p, doc))       # collapse marker, before the open delimiter
     _push_delimiter!(buf, _make_lit_delimiter(buf, p, get_opening_delimiter(doc), level))
 
-    if is_syntax_collapsed(doc)
+    if _is_folded_by_syntax(p, doc)
         # A collapsed node projects no children; a single ellipsis stands in for
         # them. A childless node gets none.
         length(get_syntax_children(doc)) > 0 && _push_ellipsis!(buf, unwrap_cell(p.ellipsis_style))
@@ -976,7 +1000,34 @@ function _splice_compound(doc::SyntaxCompound, p::SyntaxCompoundToText, deco, ci
     end
 
     _push_delimiter!(buf, _make_lit_delimiter(buf, p, get_closing_delimiter(doc), level))
+    # The fold of the node on its first line, in place of a fold of a child that
+    # starts there: the region of the outer node wins. Only a node that puts its
+    # children on lines of their own is a region of lines; an inline node, such as
+    # the entry of an object, leaves the line to the fold of its value.
+    (fold !== nothing && length(buf.lines) > 1 && indent != 0 && p.marker_eligible(doc)) &&
+        (buf.lines[1].fold = fold)
     _splice_result(buf)
+end
+
+# The `TextFold` of a collapsible node with text folds: it shares the `collapsed`
+# cell of the node, which a `ToggleCollapseOperation` flips; it holds the lines of
+# the node after the first; and its placeholder is the ellipsis and the closing
+# delimiter of the node, so a closed node shows `{…}` on its first line.
+function _make_node_fold(p::SyntaxCompoundToText, node::SyntaxCompound, spans::Cell)
+    style = unwrap_cell(p.ellipsis_style)
+    size = _deco_font(node, unwrap_cell(p.decoration_font)).size
+    ellipsis = TextString(_ELLIPSIS, with_font_size(style.font, size), style.color)
+    line_count = Cell(@computation length(spans[].elements) - 1)
+    placeholder = Cell(@computation TextBlock(TextDocument[ellipsis, _find_closing_spans(node, spans[])...]))
+    TextFold(line_count, getfield(node, :collapsed), placeholder, Cell(nothing))
+end
+
+# The spans that draw the closing delimiter of `node` in the result of its splice.
+function _find_closing_spans(node::SyntaxCompound, result)
+    closing = get_closing_delimiter(node)
+    closing === nothing && return TextDocument[]
+    TextDocument[result.flat_elements[j] for (j, (field, _)) in result.own_spans
+                 if field === closing.first && result.flat_elements[j] isa TextDocument]
 end
 
 # ── The delimiters around the part under the pointer ─────────────────────────
@@ -1517,18 +1568,21 @@ function SyntaxToText(; indent_size::Int = 2,
                         marker_eligible = _default_marker_eligible,
                         theme = nothing,
                         delimiter_light_color = get_syntax_style(theme, :lit_delimiter),
-                        delimiter_light_levels::Int = 3)
+                        delimiter_light_levels::Int = 3,
+                        text_folds::Bool = false)
     # Every compound is printed by the same projection instance — the configuration
     # is the projection's, the structure is the document's. `theme`, a
     # `SyntaxTheme` scaled or not, gives the colour that lights the delimiters
-    # and the font of the decorations of a node with no delimiter.
+    # and the font of the decorations of a node with no delimiter. `text_folds`
+    # chooses the kind of fold of the view (see `SyntaxCompoundToText`).
     compound = SyntaxCompoundToText(theme=theme,
                                     indent_size=indent_size,
                                     expanded_marker=expanded_marker,
                                     collapsed_marker=collapsed_marker,
                                     marker_eligible=marker_eligible,
                                     delimiter_light_color=delimiter_light_color,
-                                    delimiter_light_levels=delimiter_light_levels)
+                                    delimiter_light_levels=delimiter_light_levels,
+                                    text_folds=text_folds)
     TypeDispatchingProjection(
         SyntaxLeaf          => SyntaxLeafToText(),
         SyntaxNode          => compound,
@@ -1691,7 +1745,7 @@ function _syntax_to_flat(node::SyntaxCompound, path::Reference, p::SyntaxCompoun
             # The separator renders between every pair of children; the cursor is
             # placed at its first occurrence (after child 1, before child 2).
             k = _rr_start(rest.head); k === nothing && return -1
-            is_syntax_collapsed(node) && return -1
+            _is_folded_by_syntax(p, node) && return -1
             length(children) >= 2 || return -1
             char_count = lead
             if indent != 0
@@ -1707,7 +1761,7 @@ function _syntax_to_flat(node::SyntaxCompound, path::Reference, p::SyntaxCompoun
         # no image in the rendered text.
         step = peel_child_step(path)
         step === nothing && return -1
-        is_syntax_collapsed(node) && return -1
+        _is_folded_by_syntax(p, node) && return -1
         child_i, rest2 = step
         (1 <= child_i <= length(children)) || return -1
         sep_len = _own_len(separator)
@@ -1755,7 +1809,7 @@ function _subtree_len(node::SyntaxCompound, p::SyntaxCompoundToText, depth::Int)
     indent   = get_indentation(node)
     sep_len  = _own_len(get_separator(node))
     n = _marker_len(p, node) + _own_len(get_opening_delimiter(node))
-    if is_syntax_collapsed(node)
+    if _is_folded_by_syntax(p, node)
         n += _ellipsis_len(p, node)
     elseif indent != 0
         child_depth = depth + 1
