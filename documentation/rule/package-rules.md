@@ -47,7 +47,9 @@ taste; it is the whole mechanism, and [the next section](#why-the-leaf-matters)
 says why. `test_package_graph()` asserts it, along with two more:
 
 - an example package is a dependency only of a leaf, an example or a test;
-- a `@compile_workload` lives only in a leaf.
+- a `@compile_workload` lives in a leaf, or in the entry file of a package that
+  a user loads and whose first window it compiles (see
+  [the next section](#why-the-leaf-matters)).
 
 ### A package with a third-party dependency is a stem, not a sub-stem
 
@@ -92,9 +94,50 @@ Measured, a first paint of a JSON document in a fresh session:
 | with no workload anywhere | 8.36 s |
 | with a workload in the leaf | **0.66 s** |
 
-That is why `@compile_workload` is asserted to live only in a leaf, and why the
-body it calls — `ProjecturedExample.precompile_workload(level)` — is an ordinary
-function rather than code inside the macro. Both leaves call the same one.
+That is why the workload of the development session lives in a leaf, and why
+the body it calls — `ProjecturedExample.precompile_workload(level)` — is an
+ordinary function rather than code inside the macro. Both leaves call the same
+one.
+
+### A package that a user loads compiles its own first window
+
+A user of the released packages loads no leaf of ours: a session writes `using
+Projectured, DataFrames, SimpleDirectMediaLayer`, and its first window must not
+wait for the compiler. So each package that such a session loads and whose code
+the first window runs holds a `@compile_workload` in its entry file:
+`ProjecturedPlatform`, `ProjecturedDataFrames` and `ProjecturedSDL`. Each calls
+`run_display_workload` of the platform, which runs the first window of
+`display_in_editor`, with a backend that has no device or with an offscreen SDL
+window, and gives it the gestures of a first look.
+
+That code survives only where no package loaded later can invalidate it. Three
+rules keep it valid with any packages that a session loads after it:
+
+1. **A value of unknown type gets its type before a call that other packages
+   extend.** A value from a cell is `Any`. Give it its concrete type with an
+   assertion (`::Int`, `::String`, `::NamedTuple`) before it reaches `Int`,
+   `length`, `merge`, `sort!` or the like, and assert the result of a call that
+   gives up during inference. Do not annotate the argument of such a helper with
+   a narrow abstract type: `size::Integer` makes Julia infer the body for
+   `Integer`, where `Int(size)` meets every constructor that a package adds. Ask
+   `hasfield(typeof(x), name)` of a struct, not `hasproperty`, which DataFrames
+   extends.
+2. **A call of a protocol that packages loaded later extend goes through
+   `invokelatest`.** No argument type can keep such a call valid. The editor loop
+   calls the backend protocol so, and so do the window check and the choice of a
+   backend.
+3. **An integration loads the packages below it before the package that it
+   joins**, as a session does: `ProjecturedDataFrames` loads the platform, then
+   DataFrames. Its build then meets the platform code that the joined package
+   invalidates, and its workload compiles that code into its image.
+
+Measured on the session of the README, the first frame of a data frame of
+100 000 rows (Julia 1.13.1, one thread, the window offscreen):
+
+| | first frame |
+| --- | ---: |
+| with no workload in a package | 48.3 s |
+| with a workload in each package, and the three rules | **0.75 s** |
 
 ## The session
 
@@ -291,5 +334,7 @@ becomes an optional stem like `ProjecturedODBC`, named in the table above.
    domain, [domain-inventory.md](../design/domain-inventory.md) has the rest.
 2. Give it the kinds it needs, with the reserved suffixes.
 3. Name every third-party dependency in the table above, with its reason.
-4. Do not depend on a leaf, and do not put a `@compile_workload` outside one.
+4. Do not depend on a leaf. Put a `@compile_workload` in a leaf, or in a
+   package that a user loads, by the rules of
+   [the section above](#a-package-that-a-user-loads-compiles-its-own-first-window).
 5. Run `test_package_graph()` — it asserts 2 and 4, and it fails loudly.

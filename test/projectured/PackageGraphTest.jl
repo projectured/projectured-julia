@@ -48,7 +48,7 @@ const BELOW_THE_DOMAINS = ["ProjecturedPlatform", "ProjecturedConsole", "Project
 
 
 """
-The leaves: a package nothing may depend on, and the only place a
+The leaves: a package nothing may depend on, and a place where a
 `@compile_workload` may live. `ProjecturedBench` is one because it loads
 `ProjecturedExample` to measure it. `ProjecturedBuilder` is not here: it is a
 tool that drives a build, not a package a session loads. The package that a
@@ -56,6 +56,13 @@ build compiles into a binary is a leaf too, but it lives under `build/app/`,
 outside `package/`.
 """
 const _LEAVES = ("ProjecturedREPL", "ProjecturedBench")
+
+"""
+The packages that a user loads and whose first window their entry file compiles
+in a `@compile_workload`, by the rules of `package-rules.md`. Only the entry file
+holds it, so the rest of the package does not.
+"""
+const _FIRST_WINDOW_PACKAGES = ("ProjecturedPlatform", "ProjecturedDataFrames", "ProjecturedSDL")
 
 """
     _is_main_package(name) -> Bool
@@ -338,7 +345,7 @@ function test_package_graph()
             end
         end
 
-        @testset "a compile workload lives only in a leaf" begin
+        @testset "a compile workload lives in a leaf, or in the entry file of a first window package" begin
             offenders = String[]
             # Both trees: a package is a name and an include list, and the
             # list it names lives under `source/`.
@@ -349,6 +356,8 @@ function test_package_graph()
                 for file in files
                     endswith(file, ".jl") || continue
                     path = joinpath(root, file)
+                    any(name -> path == joinpath(_PACKAGE_ROOT, "package", name, "src", "$name.jl"),
+                        _FIRST_WINDOW_PACKAGES) && continue
                     # A call, not a mention: the macro at the head of a line.
                     # Prose about it, and this test's own message, must not count.
                     occursin(r"(?m)^\s*@compile_workload\b", read(path, String)) &&
@@ -356,7 +365,7 @@ function test_package_graph()
                 end
             end
             isempty(offenders) ||
-                println(stderr, "\n@compile_workload outside a leaf:\n  ",
+                println(stderr, "\n@compile_workload outside a leaf and a first window entry file:\n  ",
                         join(offenders, "\n  "))
             @test isempty(offenders)
         end

@@ -140,6 +140,7 @@ include("SearchCorpusTest.jl")
 include("CallSiteTest.jl")
 include("SearchRankingTest.jl")
 include("PackageGraphTest.jl")
+include("FirstWindowTest.jl")
 include("IntegrationLoadingTest.jl")
 # The tree guard, which lives at the repository root rather than in a package:
 # it reads directories and project files, and it has to run before the packages
@@ -538,6 +539,8 @@ function test_integration()
     # Every gesture that makes a recorded change is taken back, and the document
     # returns to the text it had.
     test_undo_round_trip()
+    # The first window of a data frame compiles little in a fresh process.
+    test_first_window_compiles_little()
     # Every gesture that changes no document leaves the history as it was.
     test_history_sweep()
     test_julia_typein()
@@ -592,6 +595,7 @@ export test_all, test_integration, test_repository, test_umbrella_loads_integrat
        test_package_graph, test_tree, test_naming,
        test_arguments, test_exports, test_documentation, test_style
 export test_kernel, test_platform, test_domain
+export test_first_window_compiles_little
 export test_export_collisions, test_export_collision_checker, export_collisions
 export test_search_scale, test_search_corpus, test_call_site, test_search_ranking
 export test_type_reference, test_gesture_pattern, test_gesture_binding, test_focusing,
