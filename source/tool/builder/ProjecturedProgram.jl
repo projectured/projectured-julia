@@ -462,14 +462,6 @@ The repository of ClaudeCodeACP, the ACP agent that runs Claude Code, which
 const CLAUDE_CODE_ACP_URL = "https://github.com/projectured/ClaudeCodeACP.jl"
 
 """
-    AUTOPRECOMPILE_URL
-
-The repository of AutoPrecompile, the package that builds one package image for
-the packages that a session loads, from recorded precompile statements.
-"""
-const AUTOPRECOMPILE_URL = "https://github.com/projectured/AutoPrecompile.jl"
-
-"""
     GENERAL_REGISTRY_URL
 
 The General registry of Julia, which serves the packages of other authors that
@@ -826,10 +818,10 @@ function _format_projectured_release_overview(context::BuildContext, names)
     julia> display_in_editor(DataFrame(n = 1:100_000, square = (1:100_000) .^ 2))
     ```
 
-    > The first `display_in_editor` of a session can take a long time before the
-    > window opens. Julia compiles the code of the editor the first time that it
-    > runs. The next calls in the same session do not compile it again, so the
-    > window opens fast.
+    > The first `using` after an install compiles the packages, which takes a few
+    > minutes. After that, a session loads them in a second or two, and its first
+    > `display_in_editor` opens the window in about a second: each package holds
+    > the compiled code of its first window.
 
     `using Projectured` loads [the kernel](ProjecturedKernel),
     [the platform](ProjecturedPlatform) and [AutoIntegration]($AUTOINTEGRATION_URL).
@@ -902,28 +894,6 @@ function _format_projectured_release_overview(context::BuildContext, names)
     add. Some users want the integrations to load by themselves, and some users
     name each package. The setting for each package lets you choose.
 
-    ## Faster sessions
-
-    A Julia session compiles the code that it runs, and it keeps that code only
-    until it ends. So each new session that shows a data frame compiles the editor
-    again. [AutoPrecompile]($AUTOPRECOMPILE_URL) keeps that code for the next session:
-
-    ```
-    pkg> add AutoPrecompile
-
-    julia> using AutoPrecompile, Projectured, DataFrames, SimpleDirectMediaLayer
-    julia> display_in_editor(DataFrame(n = 1:100_000, square = (1:100_000) .^ 2))
-    ```
-
-    Each package of ProjecturEd ships the precompile statements that its
-    recordings compiled, in its folder `precompile/`. In the first session,
-    AutoPrecompile builds one package image for the packages that you loaded, in
-    the background, and logs that it does. A later session that loads the same
-    packages loads that image, so it compiles almost nothing of what the
-    recordings hold. The images take at most 2048 MB together; the entry
-    `disk_limit_mb` of the table `[AutoPrecompile]` in `LocalPreferences.toml`
-    sets another limit.
-
     ## Which repository is which
 
     | Repository | What it is |
@@ -934,7 +904,6 @@ function _format_projectured_release_overview(context::BuildContext, names)
     | [AutoIntegration.jl]($AUTOINTEGRATION_URL) | The package that loads an installed package when its triggers are loaded. `Projectured` depends on it. |
     | [AgentClientProtocol.jl]($AGENT_CLIENT_PROTOCOL_URL) | The Agent Client Protocol (ACP) in Julia, for a client and for an agent. `ProjecturedACP` depends on it. |
     | [ClaudeCodeACP.jl]($CLAUDE_CODE_ACP_URL) | An ACP agent that runs Claude Code. `ProjecturedACP` runs it as its built-in agent. |
-    | [AutoPrecompile.jl]($AUTOPRECOMPILE_URL) | The package that builds one package image for the packages that a session loads, from recorded precompile statements. |
 
     ## The packages
 

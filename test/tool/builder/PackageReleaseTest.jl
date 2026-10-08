@@ -564,8 +564,7 @@ function test_package_release()
         @test occursin("| Package | &nbsp;", front)
         # The front page says which repository is which.
         @test occursin("| [projectured-julia]($PROJECTURED_SOURCE) |", front) &&
-              occursin("| [AutoIntegration.jl]($AUTOINTEGRATION_URL) |", front) &&
-              occursin("| [AutoPrecompile.jl]($AUTOPRECOMPILE_URL) |", front)
+              occursin("| [AutoIntegration.jl]($AUTOINTEGRATION_URL) |", front)
         # The registries that it names are links.
         @test occursin("registry [`ProjecturedRegistry`]($PROJECTURED_REGISTRY_URL)", front) &&
               occursin("[General]($GENERAL_REGISTRY_URL)", front)
@@ -576,9 +575,6 @@ function test_package_release()
                        "$PROJECTURED_RELEASE_URL/actions/workflows/ProjecturedJSON.yml/badge.svg)]", front)
         @test all(name -> occursin("| [$name]($name) | ", front), names)
         @test occursin("pkg> registry add General\npkg> registry add $PROJECTURED_REGISTRY_URL\n", front)
-        # It says how to keep the compiled code for the next session.
-        @test occursin("pkg> add AutoPrecompile\n", front)
-        @test occursin("julia> using AutoPrecompile, Projectured, DataFrames", front)
         readme = read(joinpath(output, "ProjecturedJSON", "README.md"), String)
         @test occursin(PROJECTURED_PACKAGE_READMES["ProjecturedJSON"].summary, readme)
         @test occursin("pkg> registry add General\npkg> registry add $PROJECTURED_REGISTRY_URL\n" *
@@ -599,7 +595,7 @@ function test_package_release()
                        "Projectured and SimpleDirectMediaLayer |", front)
         @test count("| [`Projectured", split(front, "### Choose")[1]) == 6
         # The front page says that the first window of a session compiles.
-        @test occursin("> The first `display_in_editor` of a session can take a long time", front)
+        @test occursin("> The first `using` after an install compiles the packages", front)
         rm(dirname(output); recursive = true)
     end
 end

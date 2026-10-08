@@ -142,7 +142,6 @@ The [roadmap](documentation/requirement/delivery-roadmap.md) says what comes nex
 | [Projectured.jl](https://github.com/projectured/Projectured.jl) | The released packages, one folder for each, which the release writes from this repository | Pkg, when you add a package; a change belongs here, not there |
 | [ProjecturedRegistry](https://github.com/projectured/ProjecturedRegistry) | The Julia registry that names each version of the released packages | Pkg, after you add the registry once |
 | [AutoIntegration.jl](https://github.com/projectured/AutoIntegration.jl) | The package that loads an installed package when its triggers are loaded; `Projectured` depends on it | Pkg installs it; a clone of this repository needs it beside it, in `auto-integration` |
-| [AutoPrecompile.jl](https://github.com/projectured/AutoPrecompile.jl) | The package that builds one package image for the packages that a session loads, from recorded precompile statements | a person who wants the next session to show a data frame fast; Pkg installs it when you add it |
 
 ## Repository layout
 
