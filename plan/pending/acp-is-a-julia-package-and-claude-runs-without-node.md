@@ -299,7 +299,12 @@ editor ──ACP──▶ the agent (Julia) ──stream-json──▶ claude -p
   `e4aa4a6`; 138 tests pass in about 14 s. The README examples run against
   each other over a process.
 - [ ] **C.7 The release 0.1.0 in ProjecturedRegistry.** The owner pushes the
-  repository and the registry.
+  repository and the registry. Prepared: the registry branch
+  `agent-client-protocol-0.1.0` holds the commit "New package:
+  AgentClientProtocol v0.1.0" of LocalRegistry, with the tree `8456021c` of the
+  library commit `65060d3`. Waits for the owner: the GitHub repository
+  `projectured/AgentClientProtocol.jl`, the branch `first-release` as its
+  `main`, and the registry branch on the registry `main`.
 - [x] **C.8 `ProjecturedACP` on the library.** The map to the kernel seam
   stays; the transport and the connection come from the library. `test_acp()`
   and the assistant tests pass with no change of behavior. Done on the branch
