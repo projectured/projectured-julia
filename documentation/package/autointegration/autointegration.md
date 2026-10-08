@@ -34,7 +34,7 @@ SimpleDirectMediaLayer = "98e33af6-2ee5-5afd-9e75-cbc738b767c4"
 
 | Packages | Triggers | Default |
 | --- | --- | --- |
-| the 18 domains, `ProjecturedConsole`, `ProjecturedPDF`, `ProjecturedOllama`, `ProjecturedAnthropic`, `ProjecturedOpenRouter`, `ProjecturedFileWatching` | `Projectured` | auto |
+| the 18 domains, `ProjecturedConsole`, `ProjecturedPDF`, `ProjecturedOllama`, `ProjecturedAnthropic`, `ProjecturedOpenRouter` | `Projectured` | auto |
 | `ProjecturedSDL` | `Projectured`, `SimpleDirectMediaLayer` | auto |
 | `ProjecturedDataFrames` | `Projectured`, `DataFrames` | auto |
 | `ProjecturedVideo` | `Projectured`, `FFMPEG` | auto |

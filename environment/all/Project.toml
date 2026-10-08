@@ -39,8 +39,6 @@ ProjecturedExample = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
 ProjecturedFSM = "9482bca5-e1c6-47fd-ab22-f4512ed15b91"
 ProjecturedFSMExample = "b1ba53a3-461e-4ef7-8c9b-f3916bec3479"
 ProjecturedFSMTest = "01095f28-dae7-4131-b352-cd496415c16e"
-ProjecturedFileWatching = "24009341-db0c-4146-9c93-d6004d091689"
-ProjecturedFileWatchingTest = "d9c5415d-156f-495a-be45-b5a39f5bfc73"
 ProjecturedFaultExample = "d499710c-e3ef-422e-9e97-2622a1fb16a4"
 ProjecturedFormula = "5b0a9501-da97-468b-b7ab-96b2aab72c39"
 ProjecturedFormulaExample = "e12fc55c-24d9-46de-99d8-255849114e23"
@@ -153,8 +151,6 @@ ProjecturedExample = {path = "../../package/ProjecturedExample"}
 ProjecturedFSM = {path = "../../package/ProjecturedFSM"}
 ProjecturedFSMExample = {path = "../../package/ProjecturedFSMExample"}
 ProjecturedFSMTest = {path = "../../package/ProjecturedFSMTest"}
-ProjecturedFileWatching = {path = "../../package/ProjecturedFileWatching"}
-ProjecturedFileWatchingTest = {path = "../../package/ProjecturedFileWatchingTest"}
 ProjecturedFaultExample = {path = "../../package/ProjecturedFaultExample"}
 ProjecturedFormula = {path = "../../package/ProjecturedFormula"}
 ProjecturedFormulaExample = {path = "../../package/ProjecturedFormulaExample"}

@@ -282,7 +282,6 @@ embeds. [domain-inventory.md](../design/domain-inventory.md) has the table.
 | `ProjecturedOllama` | Kernel | HTTP, JSON3 |
 | `ProjecturedACP` | Kernel | JSON3 |
 | `ProjecturedOpenRouter` | Kernel | HTTP, JSON3 |
-| `ProjecturedFileWatching` | FileChange | FileWatching |
 | `ProjecturedMCP` | Kernel, McpLog | ModelContextProtocol |
 | `ProjecturedTulip` | Layout | MathOptInterface, Tulip |
 | `ProjecturedVideo` | Graphics, Kernel, Screen, Sdl | FFMPEG |
@@ -313,7 +312,6 @@ embeds. [domain-inventory.md](../design/domain-inventory.md) has the table.
 - **SDL2_jll**, **SimpleDirectMediaLayer** — a window and a pointer have to come
   from somewhere.
 - **Libdl** — loads the Adaptagrams layout shim.
-- **FileWatching** — the notifications of the system for a change of a file.
 - **DBInterface**, **ODBC**, **Tables** — a database driver.
 - **MathOptInterface**, **Tulip** — a linear-programming solver.
 - **FFMPEG** — encodes a recording.

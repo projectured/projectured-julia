@@ -7,6 +7,7 @@ authors = []
 # built on.
 
 [deps]
+FileWatching = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
 PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"

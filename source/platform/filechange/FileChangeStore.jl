@@ -21,15 +21,14 @@ end
 The file documents that watch their files, and the paths that changed since the
 last drain. A watcher task for each folder writes a change into it; a drain, on
 the editor task, brings each change to its document
-([`drain_file_changes!`](@ref)). A folder is polled every `poll_interval`
-seconds, unless the watch that an adapter registers
-([`register_folder_watch!`](@ref)) takes the notifications of the system for it.
+([`drain_file_changes!`](@ref)). A folder where the system gives no
+notification is polled every `poll_interval` seconds.
 """
 mutable struct FileChangeStore
     lock::ReentrantLock
     files::Vector{WatchedFile}
     changed::Set{String}
-    watchers::Dict{String,Any}     # a folder, and the value of its watch or `:poll`
+    watchers::Dict{String,Any}     # a folder, and its `FolderMonitor` or `:poll`
     wakes::Vector{Any}             # the wake functions of the editors that drain it
     poll_interval::Float64
 end
@@ -84,7 +83,7 @@ function unwatch_document_file!(file::FileDocument; store::FileChangeStore = get
         deleteat!(store.files, index)
         any(w -> dirname(w.path) == folder, store.files) && return
         watcher = pop!(store.watchers, folder, nothing)
-        (watcher === nothing || watcher === :poll) || close(watcher)
+        watcher isa FolderMonitor && close(watcher)
     end
     file
 end
@@ -95,39 +94,38 @@ is_document_file_watched(file::FileDocument; store::FileChangeStore = get_sessio
 
 # ── The watchers ─────────────────────────────────────────────────────────────
 
-# The watch of a folder by the system that an adapter registered, or `nothing`.
-const _FOLDER_WATCH = Ref{Any}(nothing)
-
-"""
-    register_folder_watch!(watch) -> watch
-
-Make the store take the notifications of the system for a folder, in place of a
-poll. `watch(folder, record)` starts to watch `folder` and calls `record()` on a
-task of its own at each change. It answers a value that `close` stops when no
-watched file is left in the folder, or `nothing` when the system gives no
-notification for the folder, and the store then polls it.
-
-An adapter registers it when it loads, such as `ProjecturedFileWatching`. With
-none, each folder is polled. A folder that is watched already keeps its watcher.
-"""
-function register_folder_watch!(watch)
-    _FOLDER_WATCH[] = watch
-    watch
-end
-
-# Start the watcher of `folder`, with the lock held: the watch that an adapter
-# registered, or a poll of the files when there is none or it gives no
-# notification for the folder.
+# Start the watcher of `folder`, with the lock held: a monitor of the system, or
+# a poll of the times of the files where the system gives no notification.
 function _start_folder_watch!(store::FileChangeStore, folder::String)
-    watch = _FOLDER_WATCH[]
-    watcher = watch === nothing ? nothing : watch(folder, () -> _record_folder_change!(store, folder))
-    if watcher === nothing
+    monitor = try
+        FolderMonitor(folder)
+    catch error
+        error isa Base.IOError || rethrow()
+        nothing
+    end
+    if monitor === nothing
         store.watchers[folder] = :poll
         errormonitor(Threads.@spawn _poll_folder(store, folder))
     else
-        store.watchers[folder] = watcher
+        store.watchers[folder] = monitor
+        errormonitor(Threads.@spawn _wait_folder(store, folder, monitor))
     end
     nothing
+end
+
+# Wait for each event of the folder until its monitor closes. An event marks
+# every watched file of the folder, because a program that writes a file at
+# once renames another file over it, and the event then names the other file.
+function _wait_folder(store::FileChangeStore, folder::String, monitor::FolderMonitor)
+    while true
+        try
+            wait(monitor)
+        catch error
+            error isa EOFError && return
+            rethrow()
+        end
+        _record_folder_change!(store, folder)
+    end
 end
 
 # Poll the times and the sizes of the watched files of the folder while the

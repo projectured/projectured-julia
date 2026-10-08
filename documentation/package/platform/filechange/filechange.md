@@ -12,13 +12,10 @@ The file-change slice of `ProjecturedPlatform` brings a change of a file on disk
 | `watch_document_file!(file)` | the file document watches its file; `unwatch_document_file!` stops it |
 | `drain_file_changes!(; store, editor)` | brings each stored change to its document, on the task that reads the documents |
 | `FileChangeFeed` | the feed of a window: a watcher wakes the editor, and the drain runs once a frame |
-| `register_folder_watch!(watch)` | an adapter gives the store the watch of a folder by the notifications of the system, in place of the poll |
 
 ### A change is noticed by a watcher of the folder
 
-A watcher task watches each folder that holds a watched file. By default it polls: every `poll_interval` seconds, one second by default, it compares the time and the size of each watched file with what it saw at its last look, or at the start of the watch of the file, so a change before the first look counts too.
-
-An adapter can give the store the watch of the system with `register_folder_watch!(watch)`. `watch(folder, record)` starts to watch the folder, calls `record()` at each change, and answers a value that `close` stops, or `nothing` when the system gives no notification for the folder, such as on some network file systems; that folder is polled. `ProjecturedFileWatching` ([filewatching.md](../../adapter/filewatching/filewatching.md)) registers a `FolderMonitor` of `FileWatching`, which takes the notifications of the system (inotify on Linux), when it loads. An event of the folder marks every watched file of the folder as changed, because a program that writes a file at once writes another file and renames it over the first, and the event then names the other file.
+A watcher task watches each folder that holds a watched file, with a `FolderMonitor` of `FileWatching`, which takes the notifications of the system (inotify on Linux). An event of the folder marks every watched file of the folder as changed, because a program that writes a file at once writes another file and renames it over the first, and the event then names the other file. A folder where the system gives no notification, such as some network file systems, is polled: every `poll_interval` seconds, one second by default, the watcher compares the time and the size of each watched file with what it saw at its last look, or at the start of the watch of the file, so a change before the first look counts too.
 
 A watcher writes only the store, from its own task, and wakes each editor that drains the store. The watcher of a folder stops when the last watched file of the folder stops watching.
 
@@ -39,20 +36,18 @@ A document that keeps its edits keeps them until the person decides: Ctrl+O read
 
 ## How it fits
 
-The code is in `source/platform/filechange/`. The slice depends on the file-format slice for `ReloadFileOperation` and `compute_file_text`, on the serialization slice for `FileDocument`, and on the feed of the kernel. It depends on no package for the notifications of the system: the adapter `ProjecturedFileWatching` brings them. No slice depends on it. A program that watches its files calls `watch_document_file!` for each file document that it opens, and gives its editor the feed with `make_file_change_feeds()`.
+The code is in `source/platform/filechange/`. The slice depends on the file-format slice for `ReloadFileOperation` and `compute_file_text`, on the serialization slice for `FileDocument`, and on the feed of the kernel. No slice depends on it. A program that watches its files calls `watch_document_file!` for each file document that it opens, and gives its editor the feed with `make_file_change_feeds()`.
 
 ## Design decisions
 
 - **The feed is generic.** Any file document can watch its file; the slice names no domain. See [plan/pending/pending-edits-and-file-changes.md](../../../../plan/pending/pending-edits-and-file-changes.md).
 - **A watcher for each folder, not for each file.** A program writes a file at once by a rename, which a watch of the file itself loses, and a session with many files of one folder needs one handle of the system.
-- **The notifications of the system come from an adapter.** The platform takes no new dependency, not even a standard library. The poll works on every file system, and a program that loads `ProjecturedFileWatching` gets the notifications of the system in its place.
 - **The text decides, not the time.** A save of the document changes the time of its file too; the comparison with the text that the document writes separates the save from a change of another program, with no hook in the save.
 - **An edit that is not saved is never lost.** The drain reads a file again only into a document whose text is the text of its last sync.
 
 ## Usage
 
 ```julia
-using ProjecturedFileWatching                  # the notifications of the system, not a poll
 store = get_session_file_change_store()
 tab   = make_file_tab("notes.txt")
 watch_document_file!(tab)                      # the session store
@@ -62,7 +57,7 @@ unwatch_document_file!(tab)
 ```
 
 - Examples: none.
-- Tests: `test_filechange()` in `test/platform/filechange/FileChangeSuite.jl` runs `test_file_change_store()`: a change reaches a document that was not edited, a file written by a rename is seen, a save is no change, an edit that is not saved stays, the feed drains and is woken, a polled folder, and a registered watch in place of the poll. Each holds with the poll, and with the monitor of `ProjecturedFileWatching`, whose own suite is `test_filewatching()`.
+- Tests: `test_filechange()` in `test/platform/filechange/FileChangeSuite.jl` runs `test_file_change_store()`: a change reaches a document that was not edited, a file written by a rename is seen, a save is no change, an edit that is not saved stays, the feed drains and is woken, and a polled folder.
 
 ## Limits
 

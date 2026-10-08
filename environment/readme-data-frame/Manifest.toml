@@ -583,7 +583,7 @@ uuid = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 version = "0.1.0"
 
 [[deps.ProjecturedPlatform]]
-deps = ["PrecompileTools", "Printf", "ProjecturedKernel", "Serialization", "TOML"]
+deps = ["FileWatching", "PrecompileTools", "Printf", "ProjecturedKernel", "Serialization", "TOML"]
 path = "../../package/ProjecturedPlatform"
 uuid = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 version = "0.1.0"
