@@ -223,9 +223,9 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
                            Cell(String(agent_command)), Cell(String(agent_session_meta)),
                            Cell(agent_session), Cell(String(agent_session_id)),
                            Cell(String(agent_session_directory)), Cell(Int(agent_session_turn_count)),
-                           Cell(collect(AgentOption, agent_options)),
+                           Cell(CellVector{AgentOption}(collect(AgentOption, agent_options))),
                            Cell(String(agent_title)), Cell(agent_usage),
-                           Cell(collect(AgentCommand, agent_commands)),
+                           Cell(CellVector{AgentCommand}(collect(AgentCommand, agent_commands))),
                            Cell(nothing))
     # Back-link the draft to its owning assistant so the composer's ENTER can be
     # turned into a submit (push into the conversation + stream a reply).

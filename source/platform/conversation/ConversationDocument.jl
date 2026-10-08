@@ -88,7 +88,7 @@ can answer it after the load.
 end
 
 ConversationPermissionRequest(title::AbstractString, options::AbstractVector; reply = nothing) =
-    ConversationPermissionRequest(Cell(String(title)), Cell(collect(AgentPermissionOption, options)),
+    ConversationPermissionRequest(Cell(String(title)), Cell(CellVector{AgentPermissionOption}(collect(AgentPermissionOption, options))),
                                   Cell(""), Cell(reply), Cell(nothing))
 
 # An option is a group of named values in a file, so the kernel type of an

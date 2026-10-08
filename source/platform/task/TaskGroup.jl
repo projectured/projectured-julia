@@ -981,14 +981,15 @@ end
     make_task_group_shadow(group) -> shadow
 
 The shadow of `group` in the cell layout, which a view reads: its fields and its
-summary as they are now. Make it on the editor task.
+summary as they are now. Its list of runs is empty, because the slot of a task
+reads the run of that task. Make it on the editor task.
 """
 function make_task_group_shadow(group::TaskGroup)
     _refresh_task_group_summary!(group)
     lock(group.runtime.lock) do
         ACTaskGroup(group.tasks, group.name, group.action, group.jobs, group.codes,
                     group.preparation, group.stopping, group.start_time, group.end_time,
-                    nothing, nothing, group.summary, group.counts, nothing)
+                    Union{TaskExecution,Nothing}[], nothing, group.summary, group.counts, nothing)
     end
 end
 
