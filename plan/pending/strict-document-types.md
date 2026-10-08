@@ -704,7 +704,8 @@ worktree. The three domains test different parts of the model:
       places (1275776 pass against 1275519, 1578 broken on both). The other 20 suites of
       projectured-julia and 24 of omnet-julia were equal to `main` before the rebase, and the
       new commits of `main` do not reach their code.
-    - **Open, for the owner: a scratch buffer of an engine in a cell layout.** The other two
+    - **A scratch buffer of an engine in a cell layout. Decided by the owner, 2026-10-08:
+      option A.** The other two
       functions fail on the branch only. `reactive_parallel_simulator` builds the reactive shadow
       of a `ParallelEngine` from the fields of the native engine, and `green_buf` is a
       `Vector{ParallelEvent}(undef, n)`. The constructor wraps it into a
@@ -714,8 +715,8 @@ worktree. The three domains test different parts of the model:
       reactive, such as `green_buf::UntrackedCell{Vector{…}}`, keeps its plain vector in the cell
       layout, and the list applies only to a reactive field; (B) the shadow of an engine gets a
       schema of its own with only the values that a dashboard shows; (C) a list keeps an
-      undefined slot, which a typed list can not mean. My recommendation is A, because the field
-      says what it is where it is declared.
+      undefined slot, which a typed list can not mean. A field says what it is where it is
+      declared.
     - A fact for later: a bounded copy or sync puts an `UnsyncedDocument` where the walk stops,
       and a field that declares a narrow document type would refuse it. No caller does that
       today: the reflection and `SimulationInspection` hold the placeholder in a `ReflectedNode`.
