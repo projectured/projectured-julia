@@ -40,7 +40,7 @@ end
 
 @projection UntrackedCell struct FsmTransitionToSyntaxLabel
     keyword::StyleText = get_fsm_style(nothing, :trigger_text)
-    ref::StyleText     = get_fsm_style(nothing, :reference_text)
+    ref::StyleText     = get_fsm_style(nothing, :event_reference_text)
     chrome::StyleText  = get_fsm_style(nothing, :chrome_text)
 end
 
@@ -84,7 +84,7 @@ function FsmToSyntaxLabel(; theme = nothing, julia_theme = nothing, syntax_theme
     TypeDispatchingProjection(
         FsmState      => FsmStateToSyntaxLabel(; name = get_style(:state_label_text)),
         FsmTransition => FsmTransitionToSyntaxLabel(; keyword = get_style(:trigger_text),
-                                                      ref = get_style(:reference_text),
+                                                      ref = get_style(:event_reference_text),
                                                       chrome = get_style(:chrome_text)),
         Any           => FsmToSyntax(; theme, julia_theme, syntax_theme),
     )

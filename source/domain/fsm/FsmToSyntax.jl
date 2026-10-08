@@ -65,7 +65,7 @@ FsmInsertionToSyntaxLeaf(; theme = nothing) = DomainInsertionToSyntaxLeaf(FsmDoc
 
 @projection UntrackedCell struct FsmTimerToSyntaxLeaf
     keyword::StyleText = get_fsm_style(nothing, :keyword_text)
-    name::StyleText    = get_fsm_style(nothing, :name_text)
+    name::StyleText    = get_fsm_style(nothing, :event_name_text)
 end
 
 @projection_template FsmTimerToSyntaxLeaf FsmTimer (p, doc) ->
@@ -79,7 +79,7 @@ end
 
 @projection UntrackedCell struct FsmEventToSyntaxLeaf
     keyword::StyleText = get_fsm_style(nothing, :keyword_text)
-    name::StyleText    = get_fsm_style(nothing, :name_text)
+    name::StyleText    = get_fsm_style(nothing, :event_name_text)
 end
 
 @projection_template FsmEventToSyntaxLeaf FsmEvent (p, doc) ->
@@ -97,7 +97,7 @@ end
 
 @projection UntrackedCell struct FsmVariableToSyntaxNode
     keyword::StyleText = get_fsm_style(nothing, :keyword_text)
-    name::StyleText    = get_fsm_style(nothing, :name_text)
+    name::StyleText    = get_fsm_style(nothing, :variable_name_text)
     chrome::StyleText  = get_fsm_style(nothing, :chrome_text)
 end
 
@@ -128,9 +128,10 @@ end
 # of this transition.
 
 @projection UntrackedCell struct FsmTransitionToSyntaxNode
-    keyword::StyleText = get_fsm_style(nothing, :keyword_text)
-    ref::StyleText     = get_fsm_style(nothing, :reference_text)
-    chrome::StyleText  = get_fsm_style(nothing, :chrome_text)
+    keyword::StyleText         = get_fsm_style(nothing, :keyword_text)
+    event_reference::StyleText = get_fsm_style(nothing, :event_reference_text)
+    state_reference::StyleText = get_fsm_style(nothing, :state_reference_text)
+    chrome::StyleText          = get_fsm_style(nothing, :chrome_text)
 end
 
 # `on EVENT` / `on timeout(TIMER)`; a condition-only transition has no trigger
@@ -145,7 +146,7 @@ end
     SyntaxConcatenation(() -> begin
         children = Any[]
         doc.trigger === nothing ||
-            push!(children, SyntaxLeaf(TextString(() -> _trigger_text(doc), p.ref)))
+            push!(children, SyntaxLeaf(TextString(() -> _trigger_text(doc), p.event_reference)))
         if doc.guard !== nothing
             push!(children, SyntaxLeaf(TextString(isempty(children) ? "when " : " when ", p.keyword)))
             push!(children, project(:guard))
@@ -153,7 +154,8 @@ end
         ending = doc.target === nothing ?
             (doc.action === nothing ? "ignore" : "stay") :
             "-> " * _referent_name(doc.target)
-        push!(children, SyntaxLeaf(TextString(isempty(children) ? ending : " " * ending, p.ref)))
+        ending_style = doc.target === nothing ? p.keyword : p.state_reference
+        push!(children, SyntaxLeaf(TextString(isempty(children) ? ending : " " * ending, ending_style)))
         if doc.action !== nothing
             push!(children, SyntaxLeaf(TextString(" / ", p.chrome)))
             push!(children, project(:action))
@@ -169,7 +171,7 @@ end
 
 @projection UntrackedCell struct FsmStateToSyntaxNode
     keyword::StyleText = get_fsm_style(nothing, :keyword_text)
-    name::StyleText    = get_fsm_style(nothing, :name_text)
+    name::StyleText    = get_fsm_style(nothing, :state_name_text)
     chrome::StyleText  = get_fsm_style(nothing, :chrome_text)
 end
 
@@ -199,9 +201,9 @@ end
 # ── FsmMachineToSyntaxNode ───────────────────────────────────────────────────
 
 @projection UntrackedCell struct FsmMachineToSyntaxNode
-    keyword::StyleText = get_fsm_style(nothing, :keyword_text)
-    name::StyleText    = get_fsm_style(nothing, :name_text)
-    ref::StyleText     = get_fsm_style(nothing, :reference_text)
+    keyword::StyleText         = get_fsm_style(nothing, :keyword_text)
+    name::StyleText            = get_fsm_style(nothing, :machine_name_text)
+    state_reference::StyleText = get_fsm_style(nothing, :state_reference_text)
 end
 
 @projection_template FsmMachineToSyntaxNode FsmMachine (p, doc) ->
@@ -220,7 +222,7 @@ end
                                                           placeholder = "enter machine name",
                                                           style = p.name));
                                    open=TextString("machine ", p.keyword)),
-                        SyntaxLeaf(TextString(initial_text, p.ref)) ]
+                        SyntaxLeaf(TextString(initial_text, p.state_reference)) ]
         isempty(doc.states) ||
             push!(children, SyntaxNode(collection(:states); indentation=1))
         children
@@ -234,7 +236,7 @@ end
 
 @projection UntrackedCell struct FsmComponentToSyntaxNode
     keyword::StyleText = get_fsm_style(nothing, :keyword_text)
-    name::StyleText    = get_fsm_style(nothing, :name_text)
+    name::StyleText    = get_fsm_style(nothing, :machine_name_text)
 end
 
 @projection_template FsmComponentToSyntaxNode FsmComponent (p, doc) ->
@@ -266,21 +268,21 @@ end
 
 function FsmToSyntax(; theme = nothing, julia_theme = nothing, syntax_theme = nothing)
     get_style(name) = get_fsm_style(theme, name)
-    keyword_name_style = (keyword = get_style(:keyword_text), name = get_style(:name_text))
-    keyword_name_chrome_style = (keyword = get_style(:keyword_text), name = get_style(:name_text),
-                                 chrome = get_style(:chrome_text))
+    keyword = get_style(:keyword_text)
+    chrome = get_style(:chrome_text)
+    event_name = (; keyword, name = get_style(:event_name_text))
+    machine_name = (; keyword, name = get_style(:machine_name_text))
+    state_reference = get_style(:state_reference_text)
     JuliaToSyntax(
-        FsmVariable   => FsmVariableToSyntaxNode(; keyword_name_chrome_style...),
-        FsmTimer      => FsmTimerToSyntaxLeaf(; keyword_name_style...),
-        FsmEvent      => FsmEventToSyntaxLeaf(; keyword_name_style...),
-        FsmTransition => FsmTransitionToSyntaxNode(; keyword = get_style(:keyword_text),
-                                                     ref = get_style(:reference_text),
-                                                     chrome = get_style(:chrome_text)),
-        FsmState      => FsmStateToSyntaxNode(; keyword_name_chrome_style...),
-        FsmMachine    => FsmMachineToSyntaxNode(; keyword = get_style(:keyword_text),
-                                                  name = get_style(:name_text),
-                                                  ref = get_style(:reference_text)),
-        FsmComponent  => FsmComponentToSyntaxNode(; keyword_name_style...),
+        FsmVariable   => FsmVariableToSyntaxNode(; keyword, name = get_style(:variable_name_text), chrome),
+        FsmTimer      => FsmTimerToSyntaxLeaf(; event_name...),
+        FsmEvent      => FsmEventToSyntaxLeaf(; event_name...),
+        FsmTransition => FsmTransitionToSyntaxNode(; keyword,
+                                                     event_reference = get_style(:event_reference_text),
+                                                     state_reference, chrome),
+        FsmState      => FsmStateToSyntaxNode(; keyword, name = get_style(:state_name_text), chrome),
+        FsmMachine    => FsmMachineToSyntaxNode(; machine_name..., state_reference),
+        FsmComponent  => FsmComponentToSyntaxNode(; machine_name...),
         FsmInsertion  => FsmInsertionToSyntaxLeaf(theme = syntax_theme),
         FsmNothing    => InsertionNothingToSyntaxLeaf(theme = syntax_theme);
         theme = julia_theme, syntax_theme)

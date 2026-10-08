@@ -29,6 +29,19 @@ function test_fsm_theme()
     @test is_color_equal(node.keyword.color, get_theme_value(FsmTheme(), :keyword_text).color)
     # A projection holds its styles and no theme, and its builder reads a theme
     # that is not scaled as at no scale.
+    # Each kind of name takes the role of its kind, in bold at its declaration.
+    role(name) = resolve_theme_color(ColorRole(name), Appearance())
+    @test is_color_equal(FsmStateToSyntaxNode().name.color, role(:enum_member))
+    @test FsmStateToSyntaxNode().name.font.weight == 700
+    @test is_color_equal(FsmEventToSyntaxLeaf().name.color, role(:event))
+    @test is_color_equal(FsmTimerToSyntaxLeaf().name.color, role(:event))
+    @test is_color_equal(FsmVariableToSyntaxNode().name.color, role(:variable))
+    @test is_color_equal(FsmMachineToSyntaxNode().name.color, role(:type_name))
+    @test is_color_equal(FsmComponentToSyntaxNode().name.color, role(:type_name))
+    @test is_color_equal(FsmTransitionToSyntaxNode().event_reference.color, role(:event))
+    @test is_color_equal(FsmTransitionToSyntaxNode().state_reference.color, role(:enum_member))
+    @test is_color_equal(FsmMachineToSyntaxNode().state_reference.color, role(:enum_member))
+    @test is_color_equal(FsmStateToSyntaxLabel().name.color, role(:enum_member))
     @test !hasfield(FsmStateToSyntaxNode, :theme)
     @test !hasfield(FsmStateToSyntaxLabel, :theme)
     built = FsmToSyntax(; theme = FsmTheme())
