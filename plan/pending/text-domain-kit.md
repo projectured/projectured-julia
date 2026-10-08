@@ -765,6 +765,18 @@ The design of step 1, found when the work started (2026-10-08):
      natural renders and round trips, Julia and SQL.
    - 4b. `TextHighlighting`, `TextFiltering`, `TextFirstLine` and
      `SelectionInverting` name a span by its path in a line.
+     - ~~`SelectionInverting`~~ **done 2026-10-08.** Step 1 broke the selection
+       of the JSON console view (`ConsoleBackendTest.jl:224,228`): the console
+       suite was in none of the sweeps, and the baseline clone passes it (140). On
+       a block of lines, a line that the selection touches gets new spans and
+       every other line is the same object; no character is inserted, so a caret,
+       a range and a box map to themselves, and a path into a span of a line maps
+       through the segments of its line. A block caret at the end of a line
+       inverts a space after the line. The console suite passes again (140). Later
+       sweeps include `ProjecturedConsoleTest.test_console()`.
+     - `TextHighlighting`, `TextFiltering` and `TextFirstLine` are on blocks of
+       spans in every chain today (the gallery and the examples of plain text), so
+       no view regressed; they wait.
 5. **The sweeps.** Run the guards and the suites of step 0 again, and compare. A
    broken marker that changes gets a reason or a fix.
 6. **The documents.** `text.md` and the syntax document describe the lines of

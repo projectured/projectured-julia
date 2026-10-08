@@ -159,4 +159,39 @@ end # @testset
 
 end # @testset
 
+@testset "SelectionInverting inverts a block of lines and keeps every offset" begin
+
+    line_texts(text) = [[span.content for span in line.elements] for line in text.elements]
+    make_block(selection) = TextBlock(CellVector(Cell[
+        Cell(TextLine(TextString("ab", _font, color_red))),
+        Cell(TextLine(TextString("cd", _font, color_red); indentation = 2))]), Cell(selection))
+    p = SelectionInverting(default_bg = color_white, default_fg = color_black)
+
+    # A caret in the second line inverts the character after it; the first line is
+    # the same object, and every offset stays.
+    input = make_block(make_flat_caret_reference(6))
+    iomap = print_document(p, input)
+    out = iomap.output
+    @test line_texts(out) == [["ab"], ["c", "d"]]
+    @test out.elements[1] === input.elements[1]
+    @test out.elements[2].elements[2].fill_color == color_red
+    @test out.elements[2].indentation == 2
+    @test get_flat_string(out) == get_flat_string(input)
+    caret = make_flat_caret_reference(6)
+    @test map_reference_forward(p, iomap, caret) == caret
+    @test map_reference_backward(p, iomap, caret) == caret
+
+    # An edit of a piece maps back to its span, at the offset of the piece.
+    edit = ReplaceStringRangeOperation(TextModule._text_replace_path(Int[2, 2], 0, 1), "X")
+    back = read_intent(p, iomap, edit)
+    @test back isa ReplaceStringRangeOperation
+    @test strip_reference_types(back.reference) == TextModule._text_replace_path(Int[2, 1], 1, 2)
+
+    # A caret at the end of a line inverts a space after the line.
+    out = print_document(p, make_block(make_flat_caret_reference(2))).output
+    @test line_texts(out) == [["ab", " "], ["cd"]]
+    @test out.elements[1].elements[2].fill_color == color_red
+
+end # @testset
+
 end # test_selection_inverting
