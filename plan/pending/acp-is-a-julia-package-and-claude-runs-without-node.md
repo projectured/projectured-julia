@@ -2,10 +2,8 @@
 
 > **Status (2026-10-08): STARTED.** The owner chose the way and the place, and
 > took the recommendation of each question Q1 to Q6, on 2026-10-08; see
-> "Decisions". Steps C.1 to C.6 and C.8 are done: the library is on the branch
-> `first-release` of `/home/projectured/workspace/agent-client-protocol`, and
-> `ProjecturedACP` uses it on the branch `acp-library` of projectured-julia.
-> C.7 waits for the owner, who pushes. It follows
+> "Decisions". Part C is done: `AgentClientProtocol.jl` 0.1.0 is on GitHub and
+> in ProjecturedRegistry, and `ProjecturedACP` uses it. Part B is next. It follows
 > [the-assistant-talks-to-an-acp-agent.md](the-assistant-talks-to-an-acp-agent.md),
 > whose phase 1 and steps 2.1, 2.2 and 2.3 are on `main`.
 
@@ -298,13 +296,14 @@ editor ──ACP──▶ the agent (Julia) ──stream-json──▶ claude -p
   account data. Done: C.3 to C.5 in `fe95afa`, C.6 in `c06b335` and
   `e4aa4a6`; 138 tests pass in about 14 s. The README examples run against
   each other over a process.
-- [ ] **C.7 The release 0.1.0 in ProjecturedRegistry.** The owner pushes the
-  repository and the registry. Prepared: the registry branch
-  `agent-client-protocol-0.1.0` holds the commit "New package:
-  AgentClientProtocol v0.1.0" of LocalRegistry, with the tree `8456021c` of the
-  library commit `65060d3`. Waits for the owner: the GitHub repository
-  `projectured/AgentClientProtocol.jl`, the branch `first-release` as its
-  `main`, and the registry branch on the registry `main`.
+- [x] **C.7 The release 0.1.0 in ProjecturedRegistry.** The owner pushes the
+  repository and the registry. Done on 2026-10-08: the owner made the public
+  repository `projectured/AgentClientProtocol.jl` and pushed `main` at
+  `65060d3`, whose CI passed on Julia 1.12 and 1. The registry `main` holds
+  "New package: AgentClientProtocol v0.1.0" (`7fb829a`), with the tree
+  `8456021c`. The local registry checkout held an old history of 2026-10-04
+  without a common commit with GitHub, so the entry was made again on the
+  GitHub history.
 - [x] **C.8 `ProjecturedACP` on the library.** The map to the kernel seam
   stays; the transport and the connection come from the library. `test_acp()`
   and the assistant tests pass with no change of behavior. Done on the branch
