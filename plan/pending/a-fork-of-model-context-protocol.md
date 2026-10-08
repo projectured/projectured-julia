@@ -1,0 +1,76 @@
+# A fork of ModelContextProtocol.jl
+
+> **Status (2026-10-08): STARTED.** The owner decided the base, the identity and
+> the repository on 2026-10-08; see "Decisions". It is the first of the three
+> later options of step 2.12 of
+> [the-assistant-talks-to-an-acp-agent.md](the-assistant-talks-to-an-acp-agent.md).
+
+## Goal
+
+In a turn of an agent, the card of an `execute_julia_code` call shows the live
+document that the code returned, as a turn of a model does. For that, the editor
+must tie the value of an evaluation to the call that made it. Claude Code sends
+the id of each call in the `_meta` of an MCP `tools/call`, and ClaudeCodeACP
+gives the ACP tool call the same id. The MCP library of the editor drops that
+`_meta`. The owner wants a fork of the library that colleagues can install.
+
+## Decisions
+
+The owner decided on 2026-10-08:
+
+1. **The base is upstream 0.7.0.** `ProjecturedMCP` moves from 0.4.1 to the fork.
+2. **The same name, a new UUID.** The package keeps the name
+   `ModelContextProtocol`, so every `using` stays, and it gets a UUID of its
+   own, so no version of ProjecturedRegistry can clash with one of General. It
+   is registered in ProjecturedRegistry.
+3. **The repository is `github.com/projectured/ModelContextProtocol.jl`**, a fork
+   of the repository of JuliaSMLM. The owner creates and pushes it.
+
+The owner chose this way over a guess by the code text (option B), and over a
+pull request alone (option 1 of the answer), so that colleagues can share it.
+
+## Facts (2026-10-08)
+
+- A probe with `claude` 2.1.285 and a small MCP server: the params of
+  `tools/call` are `name`, `arguments` and
+  `_meta = {"claudecode/toolUseId": "toolu_…", "progressToken": 2}`.
+- 0.4.1, which the editor uses: `CallToolParams` holds only `name` and
+  `arguments`, and the library calls `tool.handler(args)`.
+- 0.7.0, the newest upstream version: the library calls
+  `tool.handler(args, ctx)` when the handler takes two arguments. `ctx` is a
+  `RequestContext`, which keeps the protocol version and the client
+  capabilities of a `_meta`, but not the `_meta` itself.
+- The adapter uses `HttpTransport`, `MCPTool`, `ToolParameter`, `MCPResource`,
+  `mcp_server`, `TextContent`, `connect`, `close`, `handle_request` and
+  `ServerError`. Each exists in 0.7.0.
+- Three files name the UUID: `package/ProjecturedMCP/Project.toml`,
+  `package/ProjecturedIntegrations/Project.toml` (the weak dependency of the
+  extension that AutoIntegration loads) and `environment/all/Project.toml`. The
+  copies in `Projectured.jl` come from the release build.
+- The licence is MIT, copyright klidke@unm.edu. The licence file stays.
+
+## Steps
+
+- [ ] **F.1 The clone.** `/home/projectured/workspace/model-context-protocol`,
+  from upstream `v0.7.0` (`827ae74`), with a new UUID and the version 0.7.1:
+  upstream 0.7.0 and one change.
+- [ ] **F.2 The change.** `RequestContext` gets `meta`, the `_meta` of the params
+  of the request, and `request_meta(ctx)` reads it. A test, and a note in the
+  README that says what the fork adds.
+- [ ] **F.3 The tests of the fork** pass, as its CI runs them.
+- [ ] **F.4 ProjecturedMCP moves to the fork.** The UUID, the compat and a path
+  source in the three files; the CI places the fork beside the repository; the
+  builder gets its URL for the release workflow. `test_mcp()` and a live check
+  with the built-in agent.
+- [ ] **F.5 The editor ties the document of an evaluation to its call.** A
+  proposal, open: the tool handler of the adapter reads
+  `request_meta(ctx)["claudecode/toolUseId"]`; the tool set of the kernel keeps
+  the document of an evaluation under that id for a short time; the turn of
+  the agent takes it when the result of the call comes.
+- [ ] **F.6 A `.pred` file writes a result that its notation can not write** as
+  the text of the tool, so the save of a conversation of an agent with a live
+  document does not fail.
+- [ ] **F.7 The registration in ProjecturedRegistry**, in a clone, after the owner
+  pushed the fork; the owner pushes the registry branch.
+- [ ] **F.8 Optional: the same change as a pull request** for JuliaSMLM, so the fork
+  can end when upstream has it.
