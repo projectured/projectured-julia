@@ -2,7 +2,8 @@
 
 > **Status (2026-10-08): IN PROGRESS** on the branch `text-config-in-documents`,
 > on top of `plain-value-form`, in the worktree `projectured-julia-plain-value-form`.
-> Steps 1 and 2 are done. **Refreshed 2026-10-08.** The plan was written on
+> Steps 1 to 4 are done.
+> **Refreshed 2026-10-08.** The plan was written on
 > 2026-08-12 and refreshed on 2026-10-08 against the code of the branch
 > `plain-value-form`. It builds on part C of
 > [a-form-edits-a-plain-value.md](a-form-edits-a-plain-value.md): a widget slot
@@ -177,7 +178,7 @@ All three are view state, so a history keeps no step for them, and a hide keeps
 the other two: a bar that shows again is as it was. The projection of the view
 only arranges its two children by `overlaid`. Displaced: the bar above the
 content, in a vertical layout, so the content moves down. Overlay: the content
-laid out as usual, and the bar drawn over it, through `AnchoredLayout`. It maps a
+laid out as usual, and the bar drawn over it, through a `StackLayout` (step 4). It maps a
 path of the arrangement back to the field `bar` or `content` of the view, and
 back again.
 
@@ -206,9 +207,9 @@ of `make_object_field_widget_dispatch`, the row of the view document, and
 The owner chose an authored view on 2026-10-08 (decision 8) and the three states
 with these keys (decision 9).
 
-To check in step 4: `AnchoredLayout` places a child beside a target, and a place
-inside a corner of the content may be missing; and a vertical layout gives no
-space to a hidden child, which a split pane may not.
+Checked in step 4: `AnchoredLayout` places a child only beside its target, so
+the overlay is a `StackLayout`; and the vertical layout leaves a hidden bar out
+of its list, so it takes no space.
 
 ## Steps
 
@@ -303,12 +304,86 @@ of the step, not `test_all()`.
      86, `test_inline_image_caret()` 261, `test_object_to_widget()` passes;
      `walk_printer_output` and `walk_repl_loop` report no error on the examples
      `text_filtering` and `text_highlighting`; the naming guard passes.
-4. ⬜ **The view and the gallery.** The view document, its projection, which
+4. ✅ **The view and the gallery.** The view document, its projection, which
    arranges the bar and the content by `overlaid`, and its `@gestures` table. A
    function of the examples makes the view and its projection, and takes the
    place of `make_text_configuring_projection`.
    The two branches of `Gallery.jl` use it, and `content_unwrap` there learns the
    fields of the view. The exports of `ProjecturedExample` follow.
+
+   **Done 2026-10-08.** What the implementation found and decided. The choices
+   are those of the implementation, except the caret, which decision 11 holds:
+   - **The name is `FindBarView`**, a document of `WidgetDocument.jl` with the
+     fields `bar`, `content` and `overlaid`. Its projection is
+     `FindBarViewToWidget`, and its table and its three operations
+     (`make_find_bar_show_operation`, `make_find_bar_hide_operation`,
+     `make_find_bar_placement_operation`) are in `FindBarViewGestures.jl`.
+   - **The projection follows `NavigatorToWidget`.** It prints no child: its
+     output is a `VerticalLayout` whose list of children it computes from
+     `visible` of the bar and `overlaid` of the view, and the row is
+     `FindBarView => ChainingProjection(FindBarViewToWidget(),
+     VerticalLayoutToGraphicsCanvas())`. A hidden bar is not in the list, so it
+     takes no gap.
+   - **The overlay is a `StackLayout`, not an `AnchoredLayout`.** The check of
+     the design found that `compute_anchored_positions` places a child only
+     beside its target (`:above`, `:below`, `:left`, `:right`), never inside it.
+     A `StackLayout([content, row])` draws the row over the top left corner of
+     the content, and gives a click to the row first.
+   - **The button of the placement is made by the projection of the view**,
+     beside the bar, because `overlaid` is a field of the view, as the chevron
+     of the card is drawn by the card. Its press is a per-instance gesture
+     binding of the `WidgetButton`, which reads `overlaid` when the press comes.
+     Its label says where a press puts the bar: "Over" or "Above".
+   - **The view keeps a dormant selection** (`has_dormant_selection`), so the
+     side that the caret leaves keeps its caret.
+   - **Ctrl+F and Escape are `override` rules.** The reader of the view gives a
+     key that the layout answered to the table as a claimed key, as
+     `NavigatorToWidget` does.
+   - **The caret in a field is a path in the document (decision 11).** Ctrl+F
+     writes `bar.content.children[2].object.pattern{5}`: through the field of
+     the pattern in the bar to the end of the string. The printers map it
+     forward: `ObjectFieldToWidget` puts it under the slot of the widget that it
+     made (`content`), and `ObjectFieldToValue` maps
+     `object.<path of the field>{start:stop}` to the same flat range of the
+     value; the way back takes the same steps. Before, the caret was a path
+     that the two projections introduced, which names their instances, so no
+     table of a document could build it. `make_object_field_range_reference`
+     and `find_object_field_range` in `ObjectField.jl` make and read the path.
+   - **A bare `ObjectField` is a focus stop** (`is_focusable_document`), and a
+     whole selection of the field is a whole selection of its widget. Ctrl+F
+     takes the first stop of the bar and, when it is a field with a text, puts
+     the caret at the end of the text. Tab now reaches the fields of a
+     hand-laid form, which it did not before.
+   - **Escape links back the dormant caret of the content.** The path to the
+     pattern walks through the object of the field, which is the content, and
+     writes the selection of that object; the text block below it keeps the
+     caret of the text as a dormant selection. So the rule takes the dormant
+     selection of the content, or of the first document below it that keeps
+     one (`search_references`), and falls back to the whole content.
+   - Facts: a whole selection of a text box, which Tab gives, takes no key, also
+     for a plain `WidgetText`; the keys of the find bar do not need it.
+   - Checked through an editor (`build_editor`, `HeadlessBackend`): the first
+     Ctrl+F puts the caret at the end of the pattern; keys and Left write the
+     pattern at the caret and the highlight follows; Escape hides the bar and
+     puts the caret back in the text; Ctrl+F puts it back in the field; Tab goes
+     from the pattern to the next field; the button switches to the overlay,
+     and the keys work there. The gallery (`make_example_editor` with
+     `text_highlighting` and with `text_filtering`, in `environment/all`): the
+     bar draws, Ctrl+F, a key and Escape work, and the filter keeps no line for
+     a pattern that matches none.
+   - `test_object_field_to_widget()`, `test_widget_value_slot()`,
+     `test_object_field_to_syntax()`, `test_object_to_widget()`,
+     `test_widget_text_editing()`, `test_widget_button_behavior()`,
+     `test_settings_tab()`, `test_window_wrappers()` and
+     `test_highlighted_text_to_text()` pass; `walk_printer_output` and
+     `walk_repl_loop` report no error on the two examples of the field; the
+     naming guard and `test_platform_layering()` pass.
+   - **Still not green until step 5:** `ProjectionConfiguringTest.jl` uses the
+     removed projections. The tests of the view are step 5.
+   - For step 6: `widget.md` describes the caret of a plain value in a text
+     box, and part C of the form plan has no section yet; the caret of a field
+     goes into the documents with step 9 of
+     [a-form-edits-a-plain-value.md](a-form-edits-a-plain-value.md).
 5. ⬜ **The tests of the view.** `ProjectionConfiguringTest.jl` becomes a test of
    the view, through an editor: typing in the pattern highlights again as a
    person types, the caret stays in the field, undo takes a key back, a press on
@@ -385,6 +460,13 @@ The owner decided these on 2026-10-08:
     6 in `ProjectionConfiguringTest.jl`, which this plan rewrites anyway, and 2
     examples. Rejected: keep them beside the documents (path 1), two ways to do
     one thing, and the question how the two share their code.
+
+11. **The caret in a field is a path in the document, and the printer maps it
+    forward** (asked during step 4). Ctrl+F writes the selection to the pattern,
+    through the field in the bar; the old selection stays dormant where the two
+    paths diverge, and Escape links it back. Rejected: a caret that the
+    projections of the field introduce, which no table of a document can build;
+    a whole selection of a text box that takes a key.
 
 ## Open questions
 

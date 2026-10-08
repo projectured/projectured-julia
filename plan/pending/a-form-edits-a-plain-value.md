@@ -811,6 +811,14 @@ form of part C and not readers that part C removes.
      one shared `Cell`, two edits and two undos, and a mutable value changed in
      place; `test_widget_value_slot()` 25 and `test_object_field_to_syntax()` 13
      pass.
+
+   **Changed 2026-10-08, by step 4 of
+   [text-projection-config-into-document.md](text-projection-config-into-document.md)
+   (its decision 11).** The caret in the widget of a field is a path in the
+   document, `object.<path of the field>{start:stop}`, and no longer a path that
+   `ObjectFieldToWidget` and `ObjectFieldToValue` introduce: the two map it to the
+   caret of the widget and back. A bare `ObjectField` is a focus stop. The
+   documents of step 9 describe this caret.
 7. ⬜ **D: `ObjectToWidget` as a chain.** Waits for the retirement of
    `ProjectionConfiguringProjection` (decision 17). Files: [ObjectToWidget.jl](../../source/platform/widget/ObjectToWidget.jl)
    and a new file for the first stage. Tests: `ObjectToWidgetTest.jl` keeps its

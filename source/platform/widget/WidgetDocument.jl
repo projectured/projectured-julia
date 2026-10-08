@@ -1757,6 +1757,45 @@ WidgetCard(; position::Point2D=Point2D(0, 0), title=nothing, description=nothing
                Cell(collapsible), Cell(margin), Cell(border), Cell(padding), Cell(style),
                Cell(tooltip), Cell(nothing))
 
+# ── FindBarView ─────────────────────────────────────────────────────────────
+
+"""
+    FindBarView(; bar, content, overlaid = false)
+
+A content with the bar that finds in it, above the content or over it.
+
+Use it to give a text a find bar or a filter bar. `content` is the document that
+the bar works on, and `bar` is the bar that the caller builds, such as a
+collapsible `WidgetCard` that holds a form of the fields of the content.
+
+The bar has three states, each on its own, and all three are view state, so
+undo keeps no step for them:
+
+- shown or hidden: `visible` of the bar;
+- expanded or collapsed: `collapsed` of the bar, which its chevron changes;
+- above the content or over it: `overlaid` of the view, which a button beside
+  the bar changes.
+
+Ctrl+F shows and expands the bar and puts the caret in it. Escape, with the
+caret in the bar, hides the bar and puts the caret back in the content. The view
+keeps the caret of the side that the caret leaves, so each key puts the caret
+back where it was.
+
+# Example
+
+    text = HighlightedText(text = block, pattern = "dolor")
+    bar = WidgetCard(; title = WidgetLabel("Find"), collapsible = true,
+                     content = FormLayout([(WidgetLabel("Find"), ObjectField(text, "pattern"))]))
+    FindBarView(; bar, content = text)
+
+See also `FindBarViewToWidget`, which draws it.
+"""
+@document struct FindBarView
+    bar::Any
+    content::Any
+    overlaid::Bool = false
+end
+
 # ── WidgetSwitch ────────────────────────────────────────────────────────────
 
 """
@@ -3333,6 +3372,10 @@ has_dormant_selection(::WidgetTabPage) = true
 # A split pane's selection names which side had the focus, so the same holds for a
 # nested split when the focus comes back from outside it.
 has_dormant_selection(::WidgetSplitPane) = true
+# A find bar view keeps the caret of the bar while the caret is in the content,
+# and the caret of the content while it is in the bar, so its keys put the caret
+# back where it was.
+has_dormant_selection(::FindBarView) = true
 
 # ── Operation evaluation ───────────────────────────────────────────────────
 

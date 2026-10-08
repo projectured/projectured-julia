@@ -7,9 +7,11 @@
 # projection knows nothing about the widget that holds the field.
 #
 # The output is a computed cell, so a reader of it follows a write on the field.
-# A caret in the widget names a position in a rendering of the value, which the
-# object does not have; the defaults of `Projection` map it as a path that this
-# projection introduces, as for `ObjectFieldToWidget`.
+# A caret in the widget is a range in the text of the value, and the same range is
+# a path in the document: `object.<path of the field>{start:stop}`
+# (`make_object_field_range_reference`). The maps turn the one into the other, so
+# a selection that a key or an operation writes into the field shows as the caret
+# of the widget. Any other path goes as the defaults of `Projection` map it.
 
 """
     ObjectFieldToValue()
@@ -41,3 +43,16 @@ function read_intent(::ObjectFieldToValue, iomap::SimpleIoMap,
 end
 
 read_intent(::ObjectFieldToValue, iomap::SimpleIoMap, operation) = operation
+
+function map_reference_forward(p::ObjectFieldToValue, iomap::SimpleIoMap, reference)
+    range = find_object_field_range(iomap.input, reference)
+    range === nothing || return make_flat_range_reference(range...)
+    invoke(map_reference_forward, Tuple{Projection, Any, Any}, p, iomap, reference)
+end
+
+function map_reference_backward(p::ObjectFieldToValue, iomap::SimpleIoMap, reference)
+    flat = strip_reference_types(reference)
+    (flat isa ConcreteReference && flat.head isa TextRangeReferenceStep && flat.tail isa EmptyReference) &&
+        return make_object_field_range_reference(iomap.input, flat.head.start, flat.head.stop)
+    invoke(map_reference_backward, Tuple{Projection, Any, Any}, p, iomap, reference)
+end

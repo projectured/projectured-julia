@@ -94,6 +94,8 @@ export WidgetTableListIoMap, make_widget_table_row
 export compute_scroll_bar_value, compute_scroll_bar_top_row, read_scroll_bar_drag, make_owned_scroll_bar_drag
 export make_embed_card, make_embed_card_path, find_embed_card_path_inside
 export ProjectionConfiguringProjection, ProjectionConfiguringIoMap
+export FindBarViewToWidget, make_find_bar_show_operation, make_find_bar_hide_operation,
+       make_find_bar_placement_operation
 export OpenContextMenuOperation, EditMenuPartOperation, make_context_menu_operation, make_context_menu_binding
 export ContextMenuWindowProjection, ContextMenuWindowIoMap,
        make_context_menu_window_document, make_context_menu_window_projection,
@@ -121,6 +123,8 @@ include("WidgetEmbedCard.jl")
 include("ObjectToWidget.jl")
 include("ObjectFieldToWidget.jl")
 include("ObjectFieldToValue.jl")
+include("FindBarViewGestures.jl")
+include("FindBarViewToWidget.jl")
 include("CellTableToWidgetTable.jl")
 include("ProjectionConfiguring.jl")
 include("ContextMenuOperation.jl")

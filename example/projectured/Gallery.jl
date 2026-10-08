@@ -49,10 +49,11 @@ the example's own projection), the editor's document, and the editor's
 projection (both rendered generically via `ObjectToSyntax`).
 
 When `text_highlighting=true` (or `text_filtering=true`), the example's
-projection is replaced by a `ProjectionConfiguringProjection` that stacks an
-editable control bar for a `TextHighlighting` (resp. `TextFiltering`)
-projection above the projected text. Editing the controls re-highlights /
-re-filters live; `Ctrl+F` toggles the bar, `Escape` hides it. Expects a
+document is wrapped in a `FindBarView`: the text in a `HighlightedText` (or a
+`FilteredText`), under a bar that holds a form of its pattern. Typing in the
+form highlights (or filters) again as a person types; `Ctrl+F` shows the bar
+and puts the caret in the pattern, `Escape` hides it and puts the caret back in
+the text, and a button beside the bar puts it over the text. Expects a
 `TextBlock` document (the text examples). The two flags are mutually exclusive.
 
 When `clipboard=true`, each example is wrapped in a `ClipboardSlice` and the
@@ -255,14 +256,11 @@ function make_example_editor(documents::Vector, projections::Vector, names::Vect
             is_text    = document isa TextBlock
             document   = make_clipboard_document(document; collection=clipboard_collection)
             projection = make_clipboard_projection(projection; collection=clipboard_collection, text=is_text)
-        elseif text_highlighting
-            # Stack a TextHighlighting control bar above the (text) document; the
-            # document's own projection is replaced by the configuring pipeline.
-            # A default pattern makes the highlight (and the case_insensitive
-            # toggle's effect) visible out of the box. Expects a TextBlock document.
-            projection = make_text_configuring_projection(TextHighlighting("dolor"))
-        elseif text_filtering
-            projection = make_text_configuring_projection(TextFiltering("dolor"))
+        elseif text_highlighting || text_filtering
+            # Wrap the (text) document in a find bar view, whose projection takes
+            # the place of the document's own. Expects a TextBlock document.
+            document   = make_find_bar_document(document; filter=text_filtering)
+            projection = make_find_bar_projection()
         end
         # The layered wrappers. Each one composes with the exclusive wrapper above
         # and with the others, in this order, so a projection wrapper that comes
@@ -321,6 +319,7 @@ function make_example_editor(documents::Vector, projections::Vector, names::Vect
     shell     && push!(content_unwrap, :content)
     dragging  && push!(content_unwrap, :content)
     clipboard && push!(content_unwrap, :content)
+    (text_highlighting || text_filtering) && push!(content_unwrap, :content, :text)
     compose = tooltip ? (p, b) -> _multi_window_projection_tooltipped(p) :
                          (p, b) -> _multi_window_projection(p)
     # The recorder sits at the root of whichever composer runs, because the root
@@ -415,7 +414,7 @@ end
 # Prefix `fields` onto `selection`, so a path rooted at the innermost document
 # becomes one rooted at `document`. Each level is built against the document it
 # addresses, which is what folds that node's type into the step. The wrappers are
-# a closed set, so the two field names they introduce are spelled out — a
+# a closed set, so the field names they introduce are spelled out — a
 # `@reference` path names its steps literally.
 function _prefix_content_fields(document, fields, selection)
     isempty(fields) && return selection
@@ -423,6 +422,7 @@ function _prefix_content_fields(document, fields, selection)
     inner = _prefix_content_fields(child, fields[2:end], selection)
     fields[1] === :child   && return @reference(document, child.^(inner))
     fields[1] === :content && return @reference(document, content.^(inner))
+    fields[1] === :text    && return @reference(document, text.^(inner))
     error("_prefix_content_fields: no wrapper introduces the field :$(fields[1])")
 end
 

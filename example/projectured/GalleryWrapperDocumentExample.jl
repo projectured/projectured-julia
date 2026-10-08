@@ -52,3 +52,20 @@ function make_shell_document(document; title="untitled", width=nothing, height=n
                 menu_bar=menu_bar, toolbar=toolbar, status_bar=status_bar,
                 size=size)
 end
+
+# Wrap a text document in a find bar view: the text, highlighted or filtered by
+# a pattern, under a collapsible card that holds a form of the fields of the
+# pattern. Ctrl+F shows the bar and puts the caret in the pattern, and Escape
+# hides it and puts the caret back in the text. The pattern "dolor" makes the
+# highlight visible at once. Pairs with `make_find_bar_projection`.
+function make_find_bar_document(document; filter::Bool = false)
+    text = filter ? FilteredText(; text = document, pattern = "dolor") :
+                    HighlightedText(; text = document, pattern = "dolor")
+    title = filter ? "Filter" : "Find"
+    rows = Any[(WidgetLabel(title), ObjectField(text, "pattern")),
+               (WidgetLabel("Regular expression"), ObjectField(text, "regex")),
+               (WidgetLabel("Ignore case"), ObjectField(text, "case_insensitive"))]
+    filter && push!(rows, (WidgetLabel("Invert"), ObjectField(text, "invert")))
+    bar = WidgetCard(; title = WidgetLabel(title), collapsible = true, content = FormLayout(rows))
+    FindBarView(; bar, content = text)
+end

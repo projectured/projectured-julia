@@ -77,3 +77,43 @@ function get_object_field_name(field::ObjectField)
     last_step isa FieldReferenceStep ? last_step.name : nothing
 end
 
+
+"""
+    make_object_field_range_reference(field::ObjectField, start, stop) -> Reference
+
+The path, from `field`, of the range `start:stop` in the text of the value that
+`field` names: the step `object`, the path of the field, and the range. A caret is
+a range with `start == stop`.
+
+The path is a path in the document: a selection that holds it walks into the
+object when the object is a document, and the printer of the field maps it to the
+caret in the widget that shows the value.
+
+# Example
+
+    field = ObjectField(text, "pattern")
+    make_object_field_range_reference(field, 5, 5)    # .object.pattern{5}
+"""
+make_object_field_range_reference(field::ObjectField, start::Integer, stop::Integer) =
+    ConcreteReference(FieldReferenceStep("object"),
+                      concat_references(strip_reference_types(field.path),
+                                        ConcreteReference(RangeReferenceStep(Int(start), Int(stop)),
+                                                          EmptyReference())))
+
+"""
+    find_object_field_range(field::ObjectField, reference) -> (start, stop) or nothing
+
+The range in the text of the value that `reference` names, when `reference` is a
+path that `make_object_field_range_reference` makes for `field`, and `nothing`
+for any other path. Type checkpoints are stripped first.
+"""
+function find_object_field_range(field::ObjectField, reference)
+    reference isa Reference || return nothing
+    steps = get_reference_steps(strip_reference_types(reference))
+    path = get_reference_steps(strip_reference_types(field.path))
+    length(steps) == length(path) + 2 || return nothing
+    steps[1] == FieldReferenceStep("object") || return nothing
+    all(k -> steps[k + 1] == path[k], eachindex(path)) || return nothing
+    range = steps[end]
+    range isa RangeReferenceStep ? (range.start, range.stop) : nothing
+end
