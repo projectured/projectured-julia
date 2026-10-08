@@ -1,6 +1,8 @@
+# A text whose matches of "dolor" are highlighted. The pattern is a field of the
+# document, so a form of it edits the highlight.
 function make_text_highlighting_document_example()
     newline = TextNewline(font=StyleFont("Ubuntu Mono", 20))
-    TextBlock(
+    block = TextBlock(
         TextString("Lorem ipsum dolor sit amet,", StyleFont("Ubuntu Mono", 20), color_default),
         newline,
         TextString("consectetur adipiscing elit, sed do", StyleFont("Ubuntu Mono", 20), color_default),
@@ -13,4 +15,5 @@ function make_text_highlighting_document_example()
         newline,
         TextString("laboris nisi ut aliquip ex ea commodo.", StyleFont("Ubuntu Mono", 20), color_default),
     )
+    HighlightedText(text = block, pattern = "dolor")
 end

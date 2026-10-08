@@ -2,7 +2,7 @@
 
 > **Status (2026-10-08): IN PROGRESS** on the branch `text-config-in-documents`,
 > on top of `plain-value-form`, in the worktree `projectured-julia-plain-value-form`.
-> Step 1 is done. **Refreshed 2026-10-08.** The plan was written on
+> Steps 1 and 2 are done. **Refreshed 2026-10-08.** The plan was written on
 > 2026-08-12 and refreshed on 2026-10-08 against the code of the branch
 > `plain-value-form`. It builds on part C of
 > [a-form-edits-a-plain-value.md](a-form-edits-a-plain-value.md): a widget slot
@@ -226,7 +226,7 @@ of the step, not `test_all()`.
    compile throws an `ErrorException` in `Regex`, and the function answers
    `nothing` for exactly that exception. `test_text_pattern()` 14 pass, in
    `test/platform/document/TextPatternTest.jl`.
-2. ⬜ **`HighlightedText` and `HighlightedTextToText`; `TextHighlighting` goes.**
+2. ✅ **`HighlightedText` and `HighlightedTextToText`; `TextHighlighting` goes.**
    The code of `TextHighlighting.jl` moves into the new projection, which reads
    its configuration from its input and handles the step `text`.
    `TextHighlightingTest.jl` becomes the test of the new projection (10 call
@@ -237,6 +237,42 @@ of the step, not `test_all()`.
    `TextHighlightingProjectionExample.jl` and its document become a
    `HighlightedText`, and `InlineImageCaretTest.jl` wraps the text in one where
    it chained the projection (2 call sites).
+
+   **Done 2026-10-08.** What the implementation found and decided:
+   - **The recursion of the text is a text stage.** `HighlightedTextToText`
+     prints `text` through the recursion that it gets, and needs a `TextBlock`
+     back. So it sits in a text stage, `RecursiveProjection(TypeDispatching(
+     HighlightedText => HighlightedTextToText(), TextBlock =>
+     IdentityProjection()))`, and a graphics stage follows it. The view of step 4
+     therefore gives the `HighlightedText` the row
+     `ChainingProjection(<text stage>, <renderer>)`.
+   - **The document `HighlightedText` subtypes `Document`, not `TextDocument`**,
+     which is the type of the elements inside a block. It is declared in
+     `TextDocument.jl`.
+   - **Four helpers handle the step `text`** and serve step 3 as they are:
+     `_strip_text_step`, `_forward_map_text`, `_backward_map_text` and
+     `_read_text_operation`. A reader translates an operation across the
+     segments, gives it to the reader of the IO map of the text, and puts the
+     step `text` in front with `reroot_operation`.
+   - `TextHighlighting.jl` moved to `HighlightedTextToText.jl` with `git mv`;
+     its helpers `_highlight`, `_forward_map` and `_forward_flat` did not
+     change. `TextHighlightingTest.jl` became `HighlightedTextToTextTest.jl`, and
+     `test_text_highlighting` became `test_highlighted_text_to_text`, also in the
+     umbrella suite.
+   - `ObjectToWidgetTest.jl` used `TextHighlighting` only as an object with cell
+     fields; it has a test-local struct of that shape now.
+   - `InlineImageCaretTest.jl`: each entry of its two loops says how it wraps a
+     block, and the checks read the block back. An edit of a wrapper names
+     `.text.elements…`, so the check that it is an element write reads it
+     without the step `text`.
+   - **Not green between steps 2 and 5:** `ProjectionConfiguringTest.jl` still
+     uses `TextHighlighting`, and step 5 rewrites it; the gallery branch
+     `text_highlighting = true` fails when it runs, and step 4 replaces it.
+   - `test_highlighted_text_to_text()` 86 pass, `test_inline_image_caret()` 261,
+     `test_object_to_widget()` passes; `walk_printer_output` and
+     `walk_repl_loop` report no error on the example `text_highlighting`; the
+     naming guard passes.
+
 3. ⬜ **`FilteredText` and `FilteredTextToText`; `TextFiltering` goes.** The same,
    with `invert`, `TextFilteringTest.jl` (10 call sites), its example, and the
    other 2 call sites of `InlineImageCaretTest.jl`. And a `FilteredText` around a

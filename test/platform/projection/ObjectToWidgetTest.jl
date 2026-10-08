@@ -1,7 +1,15 @@
+# An object whose parameters are cells, as an object that a person configures
+# has them: a pattern, a flag, and a colour that the form does not show.
+struct _OtwPatternParameters
+    pattern::Cell
+    case_insensitive::Cell
+    color::StyleColor
+end
+
 function test_object_to_widget()
 
 # A renderable string field + a renderable bool field + an opaque (skipped) field.
-_proj() = TextHighlighting("dolor"; case_insensitive=false, color=color_red)
+_proj() = _OtwPatternParameters(Cell("dolor"), Cell(false), color_red)
 
 _content_ref() = ConcreteReference(FieldReferenceStep("content"), EmptyReference())
 

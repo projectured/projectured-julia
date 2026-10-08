@@ -8,7 +8,7 @@
 # renders `TextBlock` straight to the terminal and has no separate cursor/highlight
 # layer the way `TextToGraphics` does.
 #
-# It is the structural twin of `TextHighlighting`: both split `TextString`s at
+# It is the structural twin of `HighlightedTextToText`: both split `TextString`s at
 # boundaries and restyle the resulting sub-spans **without** inserting or removing
 # any character, so the selection/reader mapping is a piecewise offset table
 # (`SelectionSegment`, the same shape as `HighlightSegment`). The only differences are the
@@ -260,7 +260,7 @@ function _invert_span(p::SelectionInverting, original::TextString, content::Abst
 end
 
 # ── Selection / reference mapping ───────────────────────────────────────────
-# Identical to TextHighlighting: the seg table is a piecewise-linear offset map.
+# Identical to HighlightedTextToText: the seg table is a piecewise-linear offset map.
 
 map_reference_forward(p::SelectionInverting, iomap::SelectionInvertingIoMap, reference) =
     _is_block_of_lines(iomap.input) ? _map_line_path(iomap.segs, reference, true) :

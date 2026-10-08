@@ -7,6 +7,34 @@ _run(text) = TextString(text, StyleFont("Ubuntu Mono", 20), color_default)
 const _splice_value! = ProjecturedKernel.OperationModule.splice_value!
 
 # The editor an operation is applied against: the document, and no view.
+# The text stage of a wrapper of a text: a highlight or a filter of a document,
+# and a plain block as it is.
+_ii_text_stage() = RecursiveProjection(TypeDispatchingProjection(
+    HighlightedText => HighlightedTextToText(),
+    TextBlock       => IdentityProjection()))
+
+# The block of a document that is a block or wraps one in its `text`.
+_ii_block_of(document::TextBlock) = document
+_ii_block_of(document) = _ii_block_of(document.text)
+
+# A caret of the block, as a path of the document that wraps it.
+_ii_wrap_caret(document::TextBlock, caret) = caret
+_ii_wrap_caret(document, caret) =
+    ConcreteReference(FieldReferenceStep("text"), _ii_wrap_caret(document.text, caret))
+
+# An operation of a wrapper of a text, with the step `text` taken off what each
+# part names, so a check of an edit of a block reads it as the block's own.
+_ii_strip_text(operation::CompoundOperation) =
+    CompoundOperation(Any[_ii_strip_text(member) for member in operation.operations])
+function _ii_strip_text(operation)
+    reference = operation_reference(operation)
+    reference isa ConcreteReference || return operation
+    stripped = strip_reference_types(reference)
+    head = get_reference_head(stripped)
+    (head isa FieldReferenceStep && head.name == "text") || return operation
+    retarget_operation(operation, get_reference_tail(stripped))
+end
+
 mutable struct _InlineImageEditor
     document::Any
 end
@@ -179,10 +207,10 @@ end
     # Read `event` at `selection` through `projection` and apply the operation
     # with its inverse taken first. Answers the operation and the inverse.
     function edit!(editor, projection, selection, event)
-        block = editor.document
-        clear_selection!(block)
-        set_selection!(block, selection)
-        op = read_intent(projection, print_document(projection, block), event)
+        document = editor.document
+        clear_selection!(document)
+        set_selection!(document, _ii_wrap_caret(document, selection))
+        op = read_intent(projection, print_document(projection, document), event)
         op === nothing && return (nothing, nothing)
         (op, ProjecturedKernel.OperationModule.evaluate_invertible_operation!(editor, op))
     end
@@ -192,40 +220,47 @@ end
 
     # Each decorator declines the edit of its output and lowers the key against
     # its input, so the edit and its undo work through every chain.
-    decorators = (WordWrapping(measure = measure, max_width = 1000), TextHighlighting(r"b"),
+    # A wrapper of a text, such as a highlight, is the document, and its stage
+    # passes the edit to the block in its `text`.
+    decorators = (WordWrapping(measure = measure, max_width = 1000),
                   TextFiltering(r""), TextFirstLine(), TextLineNumbering())
-    for projection in (TextToGraphics(measure = measure),
-                       (ChainingProjection(d, TextToGraphics(measure = measure)) for d in decorators)...)
-        editor(block) = _InlineImageEditor(block)
+    chains = Any[(TextToGraphics(measure = measure), identity),
+                 ((ChainingProjection(d, TextToGraphics(measure = measure)), identity)
+                  for d in decorators)...,
+                 (ChainingProjection(_ii_text_stage(), TextToGraphics(measure = measure)),
+                  block -> HighlightedText(text = block, pattern = "b"))]
+    for (projection, wrap) in chains
+        editor(block) = _InlineImageEditor(wrap(block))
+        block_of(e) = _ii_block_of(e.document)
 
         # A character after an image with no run after it starts a new run, in
         # the style of the run before the image.
         e = editor(TextBlock(TextString("ab", StyleFont("Ubuntu", 20), color_red), _image()))
         op, inverse = edit!(e, projection, at(3), type('x'))
-        @test TextModule.is_text_element_write(op)
-        @test get_flat_string(e.document) == "ab\uFFFCx"
-        @test e.document.elements[3].font == StyleFont("Ubuntu", 20)
-        @test e.document.elements[3].font_color == color_red
-        @test caret_of(e.document) == (4, 4, true)
+        @test TextModule.is_text_element_write(wrap === identity ? op : _ii_strip_text(op))
+        @test get_flat_string(block_of(e)) == "ab\uFFFCx"
+        @test block_of(e).elements[3].font == StyleFont("Ubuntu", 20)
+        @test block_of(e).elements[3].font_color == color_red
+        @test caret_of(block_of(e)) == (4, 4, true)
         undo!(e, inverse)
-        @test get_flat_string(e.document) == "ab\uFFFC"
-        @test length(e.document.elements) == 2
+        @test get_flat_string(block_of(e)) == "ab\uFFFC"
+        @test length(block_of(e).elements) == 2
 
         # Before an image with no run before it, the new run takes the style of
         # the run after the image.
         e = editor(TextBlock(_image(), TextString("ab", StyleFont("Ubuntu", 20), color_red)))
         edit!(e, projection, at(0), type('x'))
-        @test get_flat_string(e.document) == "x\uFFFCab"
-        @test e.document.elements[1].font_color == color_red
-        @test caret_of(e.document) == (1, 1, true)
+        @test get_flat_string(block_of(e)) == "x\uFFFCab"
+        @test block_of(e).elements[1].font_color == color_red
+        @test caret_of(block_of(e)) == (1, 1, true)
 
         # Where a run touches the image, the character goes into that run.
         e = editor(TextBlock(_run("ab"), _image(), _run("cd")))
         edit!(e, projection, at(3), type('x'))
-        @test get_flat_string(e.document) == "ab\uFFFCxcd"
-        @test length(e.document.elements) == 3
+        @test get_flat_string(block_of(e)) == "ab\uFFFCxcd"
+        @test length(block_of(e).elements) == 3
         edit!(e, projection, at(2), type('y'))
-        @test get_flat_string(e.document) == "aby\uFFFCxcd"
+        @test get_flat_string(block_of(e)) == "aby\uFFFCxcd"
 
         # Backspace after an image and Delete before it delete the image; undo
         # puts the same image back.
@@ -233,27 +268,27 @@ end
             image = _image()
             e = editor(TextBlock(_run("ab"), image, _run("cd")))
             op, inverse = edit!(e, projection, at(k), event)
-            @test get_flat_string(e.document) == "abcd"
-            @test caret_of(e.document) == (2, 2, true)
+            @test get_flat_string(block_of(e)) == "abcd"
+            @test caret_of(block_of(e)) == (2, 2, true)
             undo!(e, inverse)
-            @test get_flat_string(e.document) == "ab\uFFFCcd"
-            @test e.document.elements[2] === image
+            @test get_flat_string(block_of(e)) == "ab\uFFFCcd"
+            @test block_of(e).elements[2] === image
         end
         e = editor(TextBlock(_image(), _run("ab")))
         edit!(e, projection, at(1), key(:backspace))
-        @test get_flat_string(e.document) == "ab"
-        @test caret_of(e.document) == (0, 0, true)
+        @test get_flat_string(block_of(e)) == "ab"
+        @test caret_of(block_of(e)) == (0, 0, true)
 
         # A range of text and an image does nothing; a range of only images is
         # deleted, or replaced by a run of the typed text.
         e = editor(TextBlock(_run("ab"), _image(), _run("cd")))
         edit!(e, projection, over(1, 3), key(:backspace))
-        @test get_flat_string(e.document) == "ab\uFFFCcd"
+        @test get_flat_string(block_of(e)) == "ab\uFFFCcd"
         e = editor(TextBlock(_run("ab"), _image(), _image(), _run("cd")))
         edit!(e, projection, over(2, 4), type('x'))
-        @test get_flat_string(e.document) == "abxcd"
-        @test length(e.document.elements) == 3
-        @test caret_of(e.document) == (3, 3, true)
+        @test get_flat_string(block_of(e)) == "abxcd"
+        @test length(block_of(e).elements) == 3
+        @test caret_of(block_of(e)) == (3, 3, true)
     end
 
     # A soft wrap before the image: the edit of the wrapped block names other
@@ -272,7 +307,7 @@ end
 @testset "a caret beside an image passes each decorator" begin
     measure = FixedMeasure(10, 12, 4, 0)
     key(k) = KeyDown(k, ModifierKeys(); time = 0.0)
-    offset(op) = (r = strip_reference_types(op.path); (r.head::TextRangeReferenceStep).start)
+    offset(op) = (last(get_reference_steps(strip_reference_types(op.path)))::TextRangeReferenceStep).start
     caret_rects(canvas, x0 = 0, out = Int[]) = begin
         for element in canvas.elements
             if element isa GraphicsCanvas
@@ -286,24 +321,28 @@ end
     # The block caret of `SelectionInverting` adds an inverted space at the end of
     # the text, and Right there maps past the end, with or without an image; the
     # plain caret keeps that fault out of this test.
-    for decorator in (WordWrapping(measure = measure, max_width = 1000), TextFiltering(r"ab"),
-                      TextFirstLine(), TextLineNumbering(), TextHighlighting(r"b"),
-                      SelectionInverting(block_cursor = false))
-        name = string(nameof(typeof(decorator)))
-        projection = ChainingProjection(decorator, TextToGraphics(measure = measure))
-        block = TextBlock(_image(), _run("ab"), _image())
+    plain(decorator) = (string(nameof(typeof(decorator))),
+                        ChainingProjection(decorator, TextToGraphics(measure = measure)), identity)
+    entries = Any[(plain(d) for d in (WordWrapping(measure = measure, max_width = 1000),
+                                      TextFiltering(r"ab"), TextFirstLine(), TextLineNumbering(),
+                                      SelectionInverting(block_cursor = false)))...,
+                  ("HighlightedTextToText",
+                   ChainingProjection(_ii_text_stage(), TextToGraphics(measure = measure)),
+                   block -> HighlightedText(text = block, pattern = "b"))]
+    for (name, projection, wrap) in entries
+        document = wrap(TextBlock(_image(), _run("ab"), _image()))
         # The flat offset after `event` from caret `k`, back in the document, and
         # the x of the caret drawn at `k`.
         function after(k, event)
-            clear_selection!(block)
-            set_selection!(block, TextModule.make_flat_caret_reference(k))
-            op = read_intent(projection, print_document(projection, block), event)
+            clear_selection!(document)
+            set_selection!(document, _ii_wrap_caret(document, TextModule.make_flat_caret_reference(k)))
+            op = read_intent(projection, print_document(projection, document), event)
             op isa ReplaceSelectionOperation ? offset(op) : nothing
         end
         function drawn(k)
-            clear_selection!(block)
-            set_selection!(block, TextModule.make_flat_caret_reference(k))
-            caret_rects(print_document(projection, block).output)
+            clear_selection!(document)
+            set_selection!(document, _ii_wrap_caret(document, TextModule.make_flat_caret_reference(k)))
+            caret_rects(print_document(projection, document).output)
         end
         @testset "$name" begin
             @test [after(k, key(:right)) for k in 0:4] == [1, 2, 3, 4, 4]

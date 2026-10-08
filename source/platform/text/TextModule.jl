@@ -71,7 +71,7 @@ export WordWrapping, WordWrappingIoMap, WrapSegment
 export make_text_pattern
 export TextFiltering, TextFilteringIoMap
 export TextFirstLine, TextFirstLineIoMap
-export TextHighlighting, TextHighlightingIoMap, HighlightSegment
+export HighlightedText, HighlightedTextToText, HighlightedTextToTextIoMap, HighlightSegment
 export SelectionInverting, SelectionInvertingIoMap, SelectionSegment
 export PrimitiveBoolToText, PrimitiveNumberToText, PrimitiveStringToTextBlock, PrimitiveInsertionToText, PrimitiveToText
 export ReferenceToText, ReferenceToHumanReadableText
@@ -95,7 +95,7 @@ include("WordWrapping.jl")
 include("TextPattern.jl")
 include("TextFiltering.jl")
 include("TextFirstLine.jl")
-include("TextHighlighting.jl")
+include("HighlightedTextToText.jl")
 include("SelectionInverting.jl")
 include("PrimitiveToText.jl")
 include("ReferenceTheme.jl")

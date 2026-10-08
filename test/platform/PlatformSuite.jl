@@ -204,7 +204,7 @@ function test_platform()
         test_text_filtering()
         test_text_first_line()
         test_text_line_numbering()
-        test_text_highlighting()
+        test_highlighted_text_to_text()
         test_selection_inverting()
         # widget projections
         test_object_to_widget()
@@ -376,7 +376,7 @@ export test_projection_template_conditional_children,
 export test_plot_geometry,
        test_syntax_to_text, test_introduced_part_round_trip, test_every_kind_of_path, test_output_paths, test_primitive_to_text, test_text_to_graphics, test_text_line_model, test_inline_image_caret,
        test_word_wrapping, test_text_filtering, test_text_first_line, test_text_line_numbering,
-       test_text_highlighting, test_selection_inverting
+       test_highlighted_text_to_text, test_selection_inverting
 export test_reflection_to_widget
 export test_object_field_to_widget, test_object_field_to_syntax, test_object_conversion, test_widget_value_slot, test_text_pattern
 export test_object_to_widget, test_projection_configuring,

@@ -1,46 +1,56 @@
 # Fragment of `TextModule`.
 #
-# Text → Text projection. The "highlight all" of a search box: keeps every line of
-# a `TextBlock` and paints a background swatch behind the regex matches by setting
-# `fill_color` on the matched sub-spans (rendered as a background `GraphicsRect` by
-# `TextToGraphics`).
+# HighlightedText → Text projection. The "highlight all" of a find bar: it prints
+# the text of a `HighlightedText` through the recursion of its stage, keeps every
+# line of the `TextBlock` that comes back, and paints a background swatch behind
+# the matches of the pattern of the document by setting `fill_color` on the
+# matched sub-spans (rendered as a background `GraphicsRect` by `TextToGraphics`).
+#
+# The pattern comes from the fields of the input, read inside a cell, so a write
+# of a field highlights again (`make_text_pattern`). An empty pattern, and one
+# that does not compile, highlight nothing.
 #
 # It is the structural sibling of `WordWrapping` — both split a `TextString` into
 # adjacent sub-spans and stay invertible through a piecewise offset table. Here the
 # split happens at match boundaries and the matched runs are restyled, but no
 # character is inserted or removed, so `HighlightSegment` is `WrapSegment` and the
 # selection/reader mapping is identical. Matching is per span (the same
-# span-delimited simplification as `TextFiltering`); a `nothing` pattern is a
-# pass-through (no highlights), so the projection can sit idle in a pipeline until
-# a pattern is set on the reactive `pattern` cell.
+# span-delimited simplification as `FilteredTextToText`).
+#
+# A reference of the input starts with the step `text`. On the way forward the
+# step comes off, the rest maps through the IO map of the text, and then across
+# the segments; on the way back the other way, and the step goes on again. So a
+# `HighlightedText` and a `FilteredText` nest, each in the `text` of the other.
 # ── Projection struct ───────────────────────────────────────────────────────
 
 """
-    TextHighlighting(pattern; theme = nothing, color)
-    TextHighlighting(; pattern = nothing, theme = nothing, color)
+    HighlightedTextToText(; theme = nothing, color)
 
-Paint a background swatch behind every match of `pattern` (a `Regex`, a pattern
-string, a `Cell` holding either, or `nothing`).
+The projection of a `HighlightedText`: its text, with a swatch of `color` behind
+each match of the pattern of the document.
 
-`pattern` is held in a reactive `Cell`, so updating it re-highlights live; a
-`nothing` pattern adds no highlights. `color` is the `fill_color` set on matched
-sub-spans (glyph color is left untouched so matched text stays readable); its
-default is the `match_highlight` of the `TextTheme` `theme`. Regex
-flags live in the `Regex` the caller builds.
+Use it in a text stage whose recursion gives a `TextBlock` for the text: a row
+`TextBlock => IdentityProjection()` passes a plain block through, and a nested
+`FilteredText` or `HighlightedText` gives its own block. `color` is the
+`fill_color` set on matched sub-spans (glyph color is left untouched so matched
+text stays readable); its default is the `match_highlight` of the `TextTheme`
+`theme`.
+
+# Example
+
+    RecursiveProjection(TypeDispatchingProjection(
+        HighlightedText => HighlightedTextToText(),
+        TextBlock       => IdentityProjection()))
+
+See also `HighlightedText`, the document it draws.
 """
-struct TextHighlighting <: Projection
-    pattern::Cell          # Cell holding the source String | Regex | nothing — reactive
-    case_insensitive::Cell # Cell{Bool} — reactive; adds the `i` flag when a source String is compiled
+struct HighlightedTextToText <: Projection
     color::StyleColor
 end
 
-TextHighlighting(pattern::Cell; case_insensitive=false, theme = nothing,
-                 color::StyleColor = unwrap_cell(get_text_style(theme, :match_highlight))) =
-    TextHighlighting(pattern, case_insensitive isa Cell ? case_insensitive : Cell(case_insensitive), color)
-TextHighlighting(pattern::Regex; kw...) = TextHighlighting(Cell(pattern); kw...)
-TextHighlighting(pattern::AbstractString; kw...) = TextHighlighting(Cell(String(pattern)); kw...)
-TextHighlighting(; pattern=nothing, kw...) =
-    TextHighlighting(pattern isa Cell ? pattern : Cell(pattern); kw...)
+HighlightedTextToText(; theme = nothing,
+                      color::StyleColor = unwrap_cell(get_text_style(theme, :match_highlight))) =
+    HighlightedTextToText(color)
 
 # ── Mapping table ───────────────────────────────────────────────────────────
 
@@ -48,9 +58,9 @@ TextHighlighting(; pattern=nothing, kw...) =
     HighlightSegment(out_index, in_span, in_char_start, length)
 
 One entry per emitted output `TextString` sub-span. `out_index` is its 1-based
-position in `output.elements`; `in_span` is the 1-based originating input span;
-`in_char_start` is the 0-based char offset of this sub-span within the input
-span; `length` is its character count.
+position in `output.elements`; `in_span` is the 1-based originating span of the
+block of the text; `in_char_start` is the 0-based char offset of this sub-span
+within that span; `length` is its character count.
 """
 struct HighlightSegment
     out_index::Int
@@ -59,10 +69,18 @@ struct HighlightSegment
     length::Int
 end
 
-@iomap struct TextHighlightingIoMap
+"""
+    HighlightedTextToTextIoMap(projection, input, output, text_iomap, segs)
+
+`input` is the `HighlightedText`; `text_iomap` is the IO map of its text, printed
+through the recursion, whose output is the block that is highlighted; `segs` is the
+table of segments from that block to `output`.
+"""
+@iomap struct HighlightedTextToTextIoMap
     projection::Any
-    input::TextBlock
+    input::Any
     output::TextBlock
+    text_iomap::Any
     # Cell{Vector{HighlightSegment}} for a block of spans; for a block of lines,
     # Cell{Vector{Pair{Int,Vector{HighlightSegment}}}}, each line that is split =>
     # the segments of its spans, whose indices count in the line.
@@ -71,21 +89,22 @@ end
 
 # ── Print ───────────────────────────────────────────────────────────────────
 
-function print_document(p::TextHighlighting, recursion, text::TextBlock, ctx)
-    pattern_cell = p.pattern
-    ci_cell = p.case_insensitive
+function print_document(p::HighlightedTextToText, recursion, document::HighlightedText, ctx)
+    text_ctx = ctx === nothing ? nothing : make_child_context(ctx, FieldReferenceStep("text"))
+    text_iomap = make_reconciled_child_iomap_cell(() -> document.text,
+                                                  text -> print_child(recursion, text, text_ctx))
     color = p.color
     both = Cell(@computation begin
-        pattern = _effective_pattern(pattern_cell[], ci_cell[])
-        _is_block_of_lines(text) ? _highlight_lines(text, pattern, color) : _highlight(text, pattern, color)
-    end)
+        block = text_iomap[].output::TextBlock
+        pattern = make_text_pattern(document.pattern, document.regex, document.case_insensitive)
+        _is_block_of_lines(block) ? _highlight_lines(block, pattern, color) : _highlight(block, pattern, color)
+    end)   # (elements, segs)
     elements_cv = CellVector(@computation both[][1])
     segs_cell = Cell(@computation both[][2])
-    paths = make_output_path_cells(text, path -> _is_block_of_lines(text) ?
-        _map_line_path(segs_cell[], path, true) :
-        _forward_map(segs_cell[], text, TextBlock(elements_cv, Cell(nothing)), path))
+    paths = make_output_path_cells(document, path ->
+        _forward_map_text(segs_cell[], text_iomap[], TextBlock(elements_cv, Cell(nothing)), path))
     output = TextBlock(elements_cv, paths.selection, paths.mouse_target)
-    TextHighlightingIoMap(p, text, output, segs_cell)
+    HighlightedTextToTextIoMap(p, document, output, text_iomap, segs_cell)
 end
 
 # Returns (output_elements::Vector{TextDocument}, segs::Vector{HighlightSegment}).
@@ -274,38 +293,94 @@ function _forward_flat(segs, in_block, out_block, flat::Int, opens::Bool)
     convert_element_to_flat_offset(out_block, best.out_index, in_char - best.in_char_start)
 end
 
-map_reference_forward(p::TextHighlighting, iomap::TextHighlightingIoMap, reference) =
-    _is_block_of_lines(iomap.input) ? _map_line_path(iomap.segs, reference, true) :
-    _forward_map(iomap.segs, iomap.input, iomap.output, reference)
+# A block of lines: a path into a span of a line maps through the segments of
+# that line (`_map_line_path`).
+_forward_map(segs::Vector{Pair{Int,Vector{HighlightSegment}}}, in_block, out_block, sel) =
+    _map_line_path(segs, sel, true)
 
-function map_reference_backward(p::TextHighlighting, iomap::TextHighlightingIoMap, reference)
-    _is_block_of_lines(iomap.input) && return _map_line_path(iomap.segs, reference, false)
+# ── The step `text` ─────────────────────────────────────────────────────────
+
+# The rest of a reference of the input after its step `text`, or `nothing`.
+function _strip_text_step(reference)
+    reference isa Reference || return nothing
+    stripped = strip_reference_types(reference)
+    stripped isa ConcreteReference || return nothing
+    head = get_reference_head(stripped)
+    (head isa FieldReferenceStep && head.name == "text") || return nothing
+    get_reference_tail(stripped)
+end
+
+# A reference of the input, forward to the output of a projection whose segments
+# are `segs`: the step `text` comes off, the rest maps through the IO map of the
+# text, and then across the segments.
+function _forward_map_text(segs, text_iomap, out_block, reference)
+    inner = _strip_text_step(reference)
+    inner === nothing && return nothing
+    mapped = map_reference_forward(text_iomap.projection, text_iomap, inner)
+    mapped === nothing && return nothing
+    _forward_map(segs, text_iomap.output, out_block, mapped)
+end
+
+# A reference of the block of the text, back through the IO map of the text, with
+# the step `text` in front.
+function _backward_map_text(text_iomap, reference)
+    reference === nothing && return nothing
+    inner = map_reference_backward(text_iomap.projection, text_iomap, reference)
+    inner === nothing ? nothing : ConcreteReference(FieldReferenceStep("text"), inner)
+end
+
+# An operation of the block of the text, read by the IO map of the text, with the
+# step `text` in front of what it names.
+function _read_text_operation(text_iomap, operation)
+    operation === nothing && return nothing
+    answer = read_intent(text_iomap.projection, text_iomap, operation)
+    answer === nothing ? nothing : reroot_operation(answer, (FieldReferenceStep("text"),))
+end
+
+# ── Selection / reference mapping ───────────────────────────────────────────
+
+map_reference_forward(p::HighlightedTextToText, iomap::HighlightedTextToTextIoMap, reference) =
+    _forward_map_text(iomap.segs, iomap.text_iomap, iomap.output, reference)
+
+map_reference_backward(p::HighlightedTextToText, iomap::HighlightedTextToTextIoMap, reference) =
+    _backward_map_text(iomap.text_iomap,
+                       _backward_map_segments(iomap.segs, iomap.text_iomap.output, iomap.output,
+                                              reference))
+
+# A reference of the output, back across the segments to the block of the text.
+function _backward_map_segments(segs, in_block, out_block, reference)
+    _is_block_of_lines(in_block) && return _map_line_path(segs, reference, false)
     _is_structural_ref(reference) && return reference
     flat = _text_range_caret(reference)
     flat === nothing && return nothing
-    loc = convert_flat_offset_to_element(iomap.output, flat)
+    loc = convert_flat_offset_to_element(out_block, flat)
     loc === nothing && return nothing
     out_span, out_char = loc
-    for seg in iomap.segs
+    for seg in segs
         seg.out_index == out_span || continue
-        f = convert_element_to_flat_offset(iomap.input, seg.in_span, seg.in_char_start + out_char)
+        f = convert_element_to_flat_offset(in_block, seg.in_span, seg.in_char_start + out_char)
         return f === nothing ? nothing : _flat_caret(f)
     end
     nothing
 end
 
-function read_intent(p::TextHighlighting, iomap::TextHighlightingIoMap, op::ReplacePathOperation)
-    input_path = map_reference_backward(p, iomap, op.path)
-    input_path === nothing && return nothing
-    make_path_operation(op, input_path)
+# ── Readers ─────────────────────────────────────────────────────────────────
+
+function read_intent(p::HighlightedTextToText, iomap::HighlightedTextToTextIoMap, op::ReplacePathOperation)
+    inner = _backward_map_segments(iomap.segs, iomap.text_iomap.output, iomap.output,
+                                   get_operation_path(op))
+    inner === nothing && return nothing
+    _read_text_operation(iomap.text_iomap, make_path_operation(op, inner))
 end
 
-# Translate a `ReplaceStringRangeOperation` from the split output domain back to
-# the unwrapped input domain, shifting the char range by the sub-span's start.
-function read_intent(p::TextHighlighting, iomap::TextHighlightingIoMap, op::ReplaceStringRangeOperation)
-    if _is_block_of_lines(iomap.input)
+# Translate a `ReplaceStringRangeOperation` from the split output back to the
+# block of the text, shifting the char range by the sub-span's start, and then
+# through the IO map of the text.
+function read_intent(p::HighlightedTextToText, iomap::HighlightedTextToTextIoMap, op::ReplaceStringRangeOperation)
+    if _is_block_of_lines(iomap.text_iomap.output)
         reference = _map_line_path(iomap.segs, op.reference, false)
-        return reference === nothing ? nothing : ReplaceStringRangeOperation(reference, op.replacement)
+        reference === nothing && return nothing
+        return _read_text_operation(iomap.text_iomap, ReplaceStringRangeOperation(reference, op.replacement))
     end
     parsed = _parse_text_elem_range(op.reference)
     parsed === nothing && return nothing
@@ -319,26 +394,24 @@ function read_intent(p::TextHighlighting, iomap::TextHighlightingIoMap, op::Repl
                           ConcreteReference(FieldReferenceStep("content"),
                               ConcreteReference(RangeReferenceStep(new_start, new_stop),
                                                     EmptyReference()))))
-        return ReplaceStringRangeOperation(new_ref, op.replacement)
+        return _read_text_operation(iomap.text_iomap, ReplaceStringRangeOperation(new_ref, op.replacement))
     end
     nothing
 end
 
-# Forward any Operation (ToggleCollapseOperation, collection ops, etc.) upstream
-# unchanged; a raw gesture (KeyPress/KeyDown/MouseClick) falls through to the
-# base `Projection.read_intent` which delegates via `read_gesture(input, evt)`.
-read_intent(::TextHighlighting, ::TextHighlightingIoMap, op::Operation) = op
+# Forward any other Operation (ToggleCollapseOperation, collection ops, etc.)
+# upstream unchanged.
+read_intent(::HighlightedTextToText, ::HighlightedTextToTextIoMap, op::Operation) = op
 
 # A key reaches this stage only when the stages after it gave no operation, or one
 # this stage declines, such as the edit beside an inline image. Read it against the
-# input and lower it there, as `WordWrapping` does.
-read_intent(::TextHighlighting, iomap::TextHighlightingIoMap, evt::Union{KeyPress, KeyDown}) =
-    _read_lowered_gesture(iomap.input, evt)
+# block of the text and lower it there, as `WordWrapping` does, and then through
+# the IO map of the text.
+read_intent(::HighlightedTextToText, iomap::HighlightedTextToTextIoMap, evt::Union{KeyPress, KeyDown}) =
+    _read_text_operation(iomap.text_iomap, _read_lowered_gesture(iomap.text_iomap.output, evt))
 
 # An element write of the output (the edit beside an inline image) names output
 # element indices, which this stage changes. Decline it: the chain then reads the
 # gesture again against the input of this stage.
-read_intent(::TextHighlighting, ::TextHighlightingIoMap, op::Union{ReplaceReferencedValueOperation, CompoundOperation}) =
+read_intent(::HighlightedTextToText, ::HighlightedTextToTextIoMap, op::Union{ReplaceReferencedValueOperation, CompoundOperation}) =
     is_text_element_write(op) ? nothing : op
-
-# ── Path helpers ────────────────────────────────────────────────────────────

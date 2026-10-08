@@ -367,6 +367,34 @@ end
 # A fold is a part of a line, not a document to insert on its own.
 DomainModule.insertable(::Type{<:TextFold}) = false
 
+# ── HighlightedText ─────────────────────────────────────────────────────────
+
+"""
+    HighlightedText(; text, pattern = "", regex = false, case_insensitive = false)
+
+A text with the matches of a pattern marked: the "highlight all" of a find bar.
+
+Use it to show where a pattern occurs in a text, and to let a person change the
+pattern. `text` is the text: a `TextBlock`, or another document whose projection
+gives one, such as a `FilteredText`. `pattern` is what a person types; `regex`
+says whether it is a regular expression or literal text, and `case_insensitive`
+whether case matters (`make_text_pattern`). The fields are data of the document,
+so a form of them edits the highlight, with a caret, undo and a save like any
+other field. `HighlightedTextToText` draws it.
+
+# Example
+
+    HighlightedText(text = TextBlock(TextString("alpha beta")), pattern = "beta")
+
+See also `make_text_pattern`, which makes the pattern from the fields.
+"""
+@document struct HighlightedText
+    text::Any
+    pattern::String = ""
+    regex::Bool = false
+    case_insensitive::Bool = false
+end
+
 # ── Span coordinates ──────────────────────────────────────────────────────
 #
 # A span's coordinate within a block is an *index path*, not a single index:
@@ -607,7 +635,7 @@ caret a *lowered* `ReplaceStringRangeOperation` leaves behind after a character 
 non-caret shape.
 
 The text→text decorators (`WordWrapping`, `LineNumbering`, `TextFiltering`,
-`TextHighlighting`, `SelectionInverting`) forward-map the cursor through this, so the
+`HighlightedTextToText`, `SelectionInverting`) forward-map the cursor through this, so the
 caret renders no matter which representation the last operation left on the block —
 without it, a structural caret maps to nothing and the cursor disappears after an edit.
 """
@@ -1076,7 +1104,7 @@ end
 
 # ── Decorator flat↔element helpers ─────────────────────────────────────────
 # The text→text decorators (WordWrapping, LineNumbering, TextFiltering,
-# TextHighlighting, SelectionInverting) remap the flat cursor between their input
+# HighlightedTextToText, SelectionInverting) remap the flat cursor between their input
 # and output blocks through a per-span seg table keyed on element index + char.
 # These bridge a flat offset (the break/indentation-aware caret space) and the
 # `(element_index, char)` the seg tables use. The decorator blocks are flat
