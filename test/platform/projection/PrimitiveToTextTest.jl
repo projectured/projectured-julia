@@ -22,7 +22,7 @@ function test_primitive_to_text()
     @test length(out.elements) == 1
     @test out.elements[1].content == "true"
     @test out.elements[1].font == StyleFont("Ubuntu Mono", 14)
-    @test out.elements[1].font_color == resolve_theme_color(ColorRole(:constant), Appearance())
+    @test out.elements[1].font_color == resolve_theme_color(ColorRole(:boolean_literal), Appearance())
 end
 
 @testset "bool reacts to value change" begin
@@ -42,7 +42,7 @@ end
     out = print_document(p, nothing, n, nothing).output
     @test length(out.elements) == 1
     @test out.elements[1].content == "42"
-    @test out.elements[1].font_color == resolve_theme_color(ColorRole(:constant), Appearance())
+    @test out.elements[1].font_color == resolve_theme_color(ColorRole(:number_literal), Appearance())
 end
 
 @testset "number nothing prints empty" begin

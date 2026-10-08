@@ -16,6 +16,12 @@ function test_yaml_theme()
     @test is_color_equal(leaf.style.color, get_theme_value(YamlTheme(), :number_text).color)
     # A projection holds its styles and no theme, and its builder reads a theme
     # that is not scaled as at no scale.
+    # Each kind of value takes the role of its kind.
+    role(name) = resolve_theme_color(ColorRole(name), Appearance())
+    @test is_color_equal(YamlNumberToSyntaxLeaf().style.color, role(:number_literal))
+    @test is_color_equal(YamlBoolToSyntaxLeaf().style.color, role(:boolean_literal))
+    @test is_color_equal(YamlNullToSyntaxLeaf().style.color, role(:null_literal))
+    @test is_color_equal(YamlStringToSyntaxLeaf().style.color, role(:string_literal))
     @test !hasfield(YamlNumberToSyntaxLeaf, :theme)
     built = YamlToSyntax(; theme = YamlTheme())
     @test unwrap_cell(only(rule for rule in built.dispatch if first(rule) === YamlNumber)[2].style).font.size == 14

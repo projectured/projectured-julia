@@ -23,19 +23,21 @@ that prints its own leaves styles them with a theme of its own.
 """
 @theme struct SyntaxTheme
     "A boolean value."
-    bool_text::TextRole = TextRole(:constant)
+    bool_text::TextRole = TextRole(:boolean_literal)
     "A number value."
-    number_text::TextRole = TextRole(:constant)
+    number_text::TextRole = TextRole(:number_literal)
     "A string value."
     string_text::TextRole = TextRole(:string_literal)
+    "A character, in the reflected display of an object."
+    char_text::TextRole = TextRole(:character_literal)
     "The quotes around a string or a character."
     quote_text::TextRole = TextRole(:punctuation)
     "A symbol, in the reflected display of an object."
-    symbol_text::TextRole = TextRole(:constant)
+    symbol_text::TextRole = TextRole(:symbol_literal)
     "The value `nothing`, in the reflected display of an object."
-    nothing_text::TextRole = TextRole(:constant)
+    nothing_text::TextRole = TextRole(:null_literal)
     "A boolean value, in the reflected display of an object."
-    reflected_bool_text::TextRole = TextRole(:constant)
+    reflected_bool_text::TextRole = TextRole(:boolean_literal)
     "The name of the type of an object."
     type_name_text::TextRole = TextRole(:type_name; weight = 700)
     "The name of a field."

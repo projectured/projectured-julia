@@ -32,7 +32,7 @@ of the default theme.
     "The name of a field or of a step."
     name_color::StyleColor = ColorRole(:field)
     "An element index, a position, a range bound, or a point coordinate."
-    index_color::StyleColor = ColorRole(:constant)
+    index_color::StyleColor = ColorRole(:number_literal)
     "The type that a step descends from, or the parent type of a step, when it is known."
     type_color::StyleColor = ColorRole(:type_name)
     "The name of a projection."

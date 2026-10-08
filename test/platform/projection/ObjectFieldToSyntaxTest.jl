@@ -29,6 +29,19 @@ end
 
 end # @testset
 
+@testset "each kind of value in an object takes the role of its kind" begin
+
+    role(name) = resolve_theme_color(ColorRole(name), Appearance())
+    rule(type) = only(rule for rule in ObjectToSyntax().dispatch if first(rule) === type)[2]
+    @test rule(Nothing).style.color == role(:null_literal)
+    @test rule(Bool).style.color == role(:boolean_literal)
+    @test rule(Number).style.color == role(:number_literal)
+    @test rule(Symbol).style.color == role(:symbol_literal)
+    @test rule(AbstractString).value.color == role(:string_literal)
+    @test rule(Char).value.color == role(:character_literal)
+
+end # @testset
+
 @testset "a step that names no field leaves the value alone" begin
 
     srv = _ofs_server()

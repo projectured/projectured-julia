@@ -22,11 +22,11 @@ of the default theme.
     "The font that the texts of this theme follow: its family, its weight and its size."
     font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "A null value."
-    null_text::TextRole      = TextRole(:constant)
+    null_text::TextRole      = TextRole(:null_literal)
     "A boolean value."
-    bool_text::TextRole      = TextRole(:constant)
+    bool_text::TextRole      = TextRole(:boolean_literal)
     "A number value."
-    number_text::TextRole    = TextRole(:constant)
+    number_text::TextRole    = TextRole(:number_literal)
     "A string value."
     string_text::TextRole    = TextRole(:string_literal)
     "The key of a mapping entry."

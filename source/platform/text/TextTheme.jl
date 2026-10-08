@@ -40,9 +40,9 @@ colors and fonts as keywords: no view of the platform builds them.
     "The distance between the lines of prose, as a multiple of the natural line height of its font."
     prose_line_spacing::LineSpacing = MultipleSpacing(1.3)
     "A boolean that a primitive projection prints as text."
-    bool_text::TextRole = TextRole(:constant)
+    bool_text::TextRole = TextRole(:boolean_literal)
     "A number that a primitive projection prints as text."
-    number_text::TextRole = TextRole(:constant)
+    number_text::TextRole = TextRole(:number_literal)
     "A string that a primitive projection prints as text."
     string_text::TextRole = TextRole(:string_literal)
     "The text of a type-in that is no value yet, such as `1e` on the way to a number."
