@@ -1,9 +1,11 @@
 # Pending edits, and the changes of files
 
-> **Status:** design to decide. Nothing of it is built. It comes from step 6.1
-> of the omnet plan `legacy-simulation-catalog-implementation.md`: the owner
-> chose on 2026-10-08 that the pending edits of a store and the feed of the
-> changes of its file are generic concepts of projectured.
+> **Status:** pending edits **deferred** by the owner (2026-10-08); the feed of
+> the changes of files decided (Q4, Q5) and waiting for a go. Nothing of it is
+> built. It comes from step 6.1 of the omnet plan
+> `legacy-simulation-catalog-implementation.md`: the owner chose on 2026-10-08
+> that the pending edits of a store and the feed of the changes of its file are
+> generic concepts of projectured.
 
 ## 1. The goal
 
@@ -159,6 +161,26 @@ file at once, and the feed brings the change to the tab.
 - **Q5, the names.** `PendingEditBuffer`, `PendingEditBufferToAnyProjection`,
   `PendingEdit` for one change, and `FileChangeFeed`, in two new slices of the
   platform, `pendingedit` and `filechange`. These are my recommendations.
+
+## 6a. The owner's answers (2026-10-08)
+
+- Q1: "I'm not sure we want this, we don't do this in any other file. Like in
+  Json, if you remove an element from the JsonArray, it gets removed." A
+  removal removes; no part stays struck through. This replaces the answer
+  "yes" to Q-6.1-2 of the omnet plan for a removed part.
+- Q2: "yes": the pending-edit buffer inside the undo buffer.
+- Q3: "don't overcomplicate this".
+- Q4: (a), the notifications of the system, with a poll where they do not work.
+- Q5: "agreed": the names.
+- And: "not all edits can be shown as an overlay, so this feature is more
+  tricky than it seems. in general the pending edits need to be replayed on a
+  copy of the input document as if the operations were executed. But we should
+  keep this as a pending plan deferred."
+
+So the model of 5.1 and 5.3 is not the decided one: a pending edit is replayed
+on a copy of the input document, as if the operation ran, and a mark is what
+that replay shows, not an overlay. The pending edits wait; this plan keeps them
+as the design to work out later.
 
 ## 7. Steps
 
