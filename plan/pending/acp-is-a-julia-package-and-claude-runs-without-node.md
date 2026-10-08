@@ -336,23 +336,68 @@ editor ──ACP──▶ the agent (Julia) ──stream-json──▶ claude -p
   thinking text with and without a display setting, and the state of `--bare`
   for `-p`. Done on 2026-10-08 with `claude` 2.1.285; the answers are in
   "The answers of B.1" below.
-- [ ] **B.2 The repository** `ClaudeCodeACP.jl` (decision 5), on `AgentClientProtocol.jl`, with
-  ModelContextProtocol.jl and HTTP for the permission tool.
-- [ ] **B.3 The session**: one `claude -p` process for each session, its
-  start, its end, `--resume`.
-- [ ] **B.4 The translation** of the stream events into `session/update`.
-- [ ] **B.5 The questions for the person**, through the permission tool.
-- [ ] **B.6 The options**, the commands, the usage and, when B.1 finds one,
-  the title.
-- [ ] **B.7 The cancel** by SIGINT, and the waiting requests answered as
-  cancelled.
-- [ ] **B.8 The sign-in** as a terminal auth method.
-- [ ] **B.9 The tests**: a fake `claude`, a script that answers from a
-  recorded stream, so no test needs the network or a sign-in.
-- [ ] **B.10 The program**: a Pkg app (`[apps]` in `Project.toml`, Julia 1.12
-  and later), and a compiled program with the builder of ProjecturEd (Q3).
+- [x] **B.2 The repository** `ClaudeCodeACP.jl` (decision 5) in
+  `/home/projectured/workspace/claude-code-acp`, branch `first-release`, on
+  `AgentClientProtocol.jl` from ProjecturedRegistry, with HTTP and JSON. MIT.
+- [x] **B.3 The session**: one `claude -p` process for each session, its
+  start, its end, `--resume`. `session/new` and `session/resume`; `session/close`.
+- [x] **B.4 The translation** of the stream events into `session/update`.
+- [x] **B.5 The questions for the person**, through the permission tool.
+- [x] **B.6 The options**, the commands, the usage and the title (decision 7).
+- [x] **B.7 The cancel** by the interrupt message or SIGINT (decision 6), and
+  the waiting questions withdrawn.
+- [x] **B.8 The sign-in** as a terminal auth method: `claude-code-acp --login`
+  runs `claude auth login`.
+- [x] **B.9 The tests**: a fake `claude` in the test process that plays turns
+  recorded from `claude` 2.1.285 without account data, a client of
+  AgentClientProtocol through ACP, and a shell script as a process. 96 tests,
+  about 12 s.
+- [x] **B.10 The program**: a Pkg app (`[apps]` in `Project.toml`). The
+  compiled program with the builder of ProjecturEd is not made yet.
+  Done in the commits `b35bf25` to `9d570bd` of the agent. Live checks with the
+  real `claude` on 2026-10-08: a prompt with a permission question and a
+  second prompt that remembers the first; a cancel of a long answer, and a
+  cancel while a question waits, each with a next prompt in the same process;
+  and the app as a process: `initialize` after 2.6 s, a first prompt after
+  7.6 s.
 - [ ] **B.11 ProjecturEd uses it**: the default agent command, or the agent
   in the process of the editor, and a live check with the real `claude`.
+
+## Decisions made in the implementation of B
+
+- **The permission server is a small MCP server on HTTP.jl**, not
+  ModelContextProtocol.jl. It serves one tool, `permission`, answers each POST
+  with JSON, and needs no stream; a GET gets 405. The bearer secret of a
+  session also names the session, and the server compares it in constant
+  time. So the agent has fewer dependencies, and it controls the check.
+- **A change of an option restarts `claude` at the next prompt**, with
+  `--resume` and the new flag, for the mode, the model and the effort alike.
+  So the agent uses only documented flags, and no `/model` message whose
+  answer the stream does not document.
+- **The values of the options:** the mode `default`, `acceptEdits`, `plan`,
+  `auto`, `bypassPermissions`; the mode `default` that a person chooses is
+  `--permission-mode manual`, and the first value comes from `permissionMode`
+  of `system/init`. The models are the aliases `default`, `opus`, `sonnet`,
+  `haiku`, `fable`, and the efforts `default`, `low`, `medium`, `high`,
+  `xhigh`, `max`. The value `default` gives no flag.
+- **The sign-in:** `session/new` and `session/resume` run `claude auth status
+  --json` and read only `loggedIn`; `false` answers `AUTHENTICATION_REQUIRED`.
+- **A tool call** names its tool in `name`, which schema 1.7.0 has, and in
+  `_meta.claudeCode.toolName`, which `ProjecturedACP` and other clients of
+  `claude-agent-acp` read. An edit and a write show a diff, and a file tool its
+  location.
+- **The plan comes from the task tools.** `claude` 2.1.285 has `TaskCreate`
+  and `TaskUpdate`, and no `TodoWrite`. The agent keeps the tasks of a session
+  from their results, and sends the whole list after each change.
+- **The commands** of `system/init` are names only, so each one has an empty
+  description.
+- **The environment of `claude`** has no variable that ties a process to a
+  session of Claude Code that runs it, such as `CLAUDECODE` and the messaging
+  socket, because the agent can itself run inside Claude Code.
+- **No `session/load`.** Resume works with `--resume`; a load must also replay
+  the history, which needs the transcript files, and waits for a need.
+- **A prompt takes text, links and embedded text**, and no image, so the agent
+  says `image: false`.
 
 ## The answers of B.1 (2026-10-08, `claude` 2.1.285)
 
