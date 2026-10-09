@@ -399,6 +399,7 @@ for _src in _SOURCES
 end
 
 include("../../../test/platform/conversation/AssistantApiTest.jl")
+include("../../../test/platform/conversation/AssistantOverviewTest.jl")
 include("../../../test/platform/conversation/ConversationThemeTest.jl")
 include("../../../test/platform/conversation/ExternalAgentTurnTest.jl")
 

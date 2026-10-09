@@ -96,6 +96,12 @@ The `Assistant` document gets three fields:
 `pred_arguments` writes the three fields for every backend, because the person
 wrote them and they describe the conversation, not a moment of it.
 
+**As built (step 1):** the file writes each of the three only when it is not the
+default (an empty text, `:pending`), as it does for `workflow`, so the file of
+an assistant that the person did not describe does not change. The values are
+in `ASSISTANT_WORK_STATES`, and the constructor raises an `ArgumentError` for
+another value.
+
 **Recommendation (mine):** a fork copies all three, as it copies the backend and
 the model. The person changes them in the fork.
 
@@ -119,6 +125,11 @@ The overview computes from these times:
 
 A saved conversation gets the two keywords for each turn. A file without them
 loads with `0.0`.
+
+**As built (step 2):** `make_pred_document` of `ConversationTurn` reads a file
+that has no times. A turn of the person and the error of a failed turn are
+made by `_make_instant_turn`, which gives both times the moment of the push. The
+note that the agent opened a new session is no turn of work, so it keeps `0.0`.
 
 ### 3.3 The registry of the session
 
@@ -366,7 +377,7 @@ different set in each of the two collections that exist now.
 
 Each step gets a commit. Each step runs the narrowest test that covers it.
 
-- [ ] **1. The three fields.** Add `description`, `comment` and `work_state` to
+- [x] **1. The three fields.** Add `description`, `comment` and `work_state` to
   `Assistant`. Write them in `pred_arguments`. Copy them in the fork. Test the
   save and the load in `ConversationSerializationTest.jl`, and the fork in
   `AssistantDuplicateTest.jl`.

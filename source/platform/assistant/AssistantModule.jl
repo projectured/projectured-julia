@@ -51,7 +51,7 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 import ..SerializationModule: pred_arguments
 
 export Assistant, ASSISTANT_TITLE, DEFAULT_ASSISTANT_SYSTEM, DEFAULT_AGENT_INSTRUCTIONS, DEFAULT_AGENT_COMMAND,
-       DEFAULT_AGENT_SESSION_META
+       DEFAULT_AGENT_SESSION_META, ASSISTANT_WORK_STATES
 export AssistantToWidgetSplitPane, AssistantToWidgetCard
 export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
        EvaluateDraftTurnOperation,

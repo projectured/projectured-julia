@@ -135,6 +135,13 @@ data either.
 or `nothing`. It is data that the person chose, so a `.pred` file keeps it; the
 platform names no domain, so the field holds any document.
 
+`description` and `comment` are what the person writes about the conversation:
+what it is about, and a note. Each is a `PrimitiveString`, as `input` is, so the
+text-edit projections route keys to it. `work_state` is the state of the work
+that the person sets, one of [`ASSISTANT_WORK_STATES`](@ref); only the person
+changes it. The three are data that the person wrote, so a `.pred` file keeps
+them for every backend, and a fork copies them.
+
 `turn_control` is the live control of the turn that runs, an
 `AssistantTurnControl`, and `nothing` between turns. A stop sets its flag. It is
 no data, like `llm`.
@@ -172,7 +179,19 @@ behaviour pass an explicit `llm` (a `FakeLlm`/`ScriptedLlm` from
     agent_usage::Union{Nothing,AgentUsageUpdate}
     agent_commands::Vector{AgentCommand}
     workflow::Any
+    description::PrimitiveString
+    comment::PrimitiveString
+    work_state::Symbol
 end
+
+"""
+    ASSISTANT_WORK_STATES
+
+The states of the work of a conversation that a person sets on an `Assistant`
+(`work_state`): `:pending`, `:in_progress`, `:complete` and `:abandoned`. A new
+assistant is `:pending`.
+"""
+const ASSISTANT_WORK_STATES = (:pending, :in_progress, :complete, :abandoned)
 
 # The command of the external agent that an assistant starts when nobody names
 # another: empty, which starts the built-in agent of `ProjecturedACP`.
@@ -220,7 +239,12 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
                               agent_title::AbstractString = "",
                               agent_usage::Union{Nothing,AgentUsageUpdate} = nothing,
                               agent_commands::AbstractVector = AgentCommand[],
-                              workflow = nothing)
+                              workflow = nothing,
+                              description::Union{AbstractString,PrimitiveString} = "",
+                              comment::Union{AbstractString,PrimitiveString} = "",
+                              work_state::Symbol = :pending)
+    work_state in ASSISTANT_WORK_STATES ||
+        throw(ArgumentError("the work state of an assistant is one of $(ASSISTANT_WORK_STATES), not $(repr(work_state))"))
     a = Assistant(Cell(conversation), Cell(input), Cell(draft),
                            Cell(backend), Cell(String(model)), Cell(String(system)),
                            Cell(String(api_key)), Cell(Int(context)), Cell(status),
@@ -233,12 +257,17 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
                            Cell(String(agent_title)), Cell(agent_usage),
                            Cell(CellVector{AgentCommand}(collect(AgentCommand, agent_commands))),
                            Cell(workflow),
+                           Cell(_make_primitive_string(description)),
+                           Cell(_make_primitive_string(comment)), Cell(work_state),
                            Cell(nothing))
     # Back-link the draft to its owning assistant so the composer's ENTER can be
     # turned into a submit (push into the conversation + stream a reply).
     draft.assistant = a
     a
 end
+
+_make_primitive_string(text::PrimitiveString) = text
+_make_primitive_string(text::AbstractString) = PrimitiveString(String(text))
 
 set_cell_computation!(a::Assistant, f::Function) = (set_cell_computation!(getfield(a, :conversation), f); a)
 
@@ -269,6 +298,11 @@ function pred_arguments(a::Assistant)
     # The workflow that the conversation records its work in is data that the
     # person chose, so the file keeps the link.
     a.workflow === nothing || push!(keywords, :workflow => a.workflow)
+    # What the person wrote about the conversation is data too, so the file keeps
+    # it for every backend.
+    isempty(a.description.value) || push!(keywords, :description => a.description.value)
+    isempty(a.comment.value) || push!(keywords, :comment => a.comment.value)
+    a.work_state === :pending || push!(keywords, :work_state => a.work_state)
     if a.backend === :acp && !isempty(a.agent_session_id)
         append!(keywords, Pair{Symbol,Any}[
             :conversation             => a.conversation,
