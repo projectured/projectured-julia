@@ -119,7 +119,7 @@ function test_data_frame_columns()
             column = DataFrameColumn(view, "name")
             opened = get_wrapped_operation(read_gesture(column, click))
             @test opened isa OpenContextMenuOperation
-            labels = labels_of(last(only(opened.layers)))
+            labels = labels_of(only(opened.layers)[2])
             @test labels == header_labels
             # The view has no menu while every column shows.
             @test read_gesture(view, click) === nothing

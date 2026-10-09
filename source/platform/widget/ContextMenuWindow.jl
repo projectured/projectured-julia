@@ -2,13 +2,14 @@
 # menu window.
 
 # What the context menu window shows: the first `shown` of `layers`, the
-# `(title, menu)` pairs of an `OpenContextMenuOperation`, the nearest part first.
+# `(title, menu, below)` triples of an `OpenContextMenuOperation`, the nearest
+# part first.
 # One layer is the menu of its part as it is. More layers are one `WidgetMenu`
 # with the items of each layer in their order: a separator stands between two
 # layers, and each layer starts with a mark that names its part, a disabled item
 # with the title.
 function _make_context_menu_content(layers, shown::Int)
-    shown == 1 && return last(first(layers))
+    shown == 1 && return first(layers)[2]
     elements = Any[]
     for index in 1:shown
         title, menu = layers[index]
@@ -26,7 +27,8 @@ end
 The state of the context menu window, around `content`. A view state operation
 writes each field, so a history does not record it:
 
-- `layers` — the `(title, menu)` pairs of the open menu, the nearest part first;
+- `layers` — the `(title, menu, below)` triples of the open menu, the nearest
+  part first;
 - `shown` — how many layers the window shows; `0` when no menu is open;
 - `source` — the path of the part that the menu belongs to, from the state,
   through `content`;
@@ -35,7 +37,7 @@ writes each field, so a history does not record it:
 """
 @document struct ContextMenuWindowState <: Document
     content::Document
-    layers::Any = Tuple{String,Document}[]
+    layers::Any = Tuple{String,Document,Int}[]
     shown::Int = 0
     source::Any = nothing
     window::Any = nothing
@@ -191,11 +193,13 @@ function _lift_menu_part_edits(p::ContextMenuWindowProjection, recursion, iomap:
     CompoundOperation(Any[member for member in members if member !== nothing])
 end
 
-# The edit of the part that the menu belongs to, lifted from the part through the
-# readers of the content, as an operation from the state: from the part outward,
-# the first place from which the readers carry it, as `find_rooted_operation`
-# looks, with the operation rerooted by the steps from that place to the part.
-# `nothing` when no place does, or no menu has a part.
+# The edit of the part that the menu of the item belongs to, lifted from that part
+# through the readers of the content, as an operation from the state: from the
+# part outward, the first place from which the readers carry it, as
+# `find_rooted_operation` looks, with the operation rerooted by the steps from
+# that place to the part. The part is the source without the steps below the part
+# of the layer that holds the item. `nothing` when no place does, or no menu has a
+# part.
 function _lift_menu_part_edit(p::ContextMenuWindowProjection, recursion, iomap::ContextMenuWindowIoMap,
                               edit::EditMenuPartOperation)
     source = iomap.input.source
@@ -203,9 +207,10 @@ function _lift_menu_part_edit(p::ContextMenuWindowProjection, recursion, iomap::
     steps = get_reference_steps(strip_reference_types(source))
     (isempty(steps) || steps[1] != FieldReferenceStep("content")) && return nothing
     steps = steps[2:end]
-    for depth in length(steps):-1:1
+    part = length(steps) - _find_item_layer_below(iomap.input.layers, edit.operation)
+    for depth in part:-1:1
         place = extend_reference(EmptyReference(), steps[1:depth]...)
-        operation = reroot_operation(edit.operation, Tuple(steps[(depth + 1):end]))
+        operation = reroot_operation(edit.operation, Tuple(steps[(depth + 1):part]))
         answer = read_intent(p.inner, recursion, Intent(nothing, operation, edit.description, "", place),
                              iomap.child_iomap)
         lifted = answer isa Intent ? answer.operation : answer
@@ -289,7 +294,7 @@ end
 
 # The window is gone, so the state forgets what it showed.
 _forget_context_menu(state::ContextMenuWindowState) =
-    CompoundOperation(Any[_write_menu_state(state, "layers", Tuple{String,Document}[]),
+    CompoundOperation(Any[_write_menu_state(state, "layers", Tuple{String,Document,Int}[]),
                           _write_menu_state(state, "shown", 0),
                           _write_menu_state(state, "source", nothing),
                           _write_menu_state(state, "window", nothing)])

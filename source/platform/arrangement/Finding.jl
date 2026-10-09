@@ -23,18 +23,18 @@ _compute_description_rows(sort::ArrangementSort, items) = compute_sort_rows(sort
 _compute_description_rows(description, items) = nothing
 
 """
-    make_field_caret_reference(entry, place, i, field, position) -> Reference
+    make_field_caret_reference(entry, place, i, steps, position) -> Reference
 
 The caret at `position` in the text of a field of the bar of `entry`: the
 introduced step of the bar, whose path in the layout of the bar goes through the
-entry to its `i`-th description and then to `field`, such as `"text"` for the
-text of a find. The path is relative to `place`, the collection of `entry`.
+entry to its `i`-th description and then by `steps` to the text, such as
+`(FieldReferenceStep("text"),)` for a find. The path is relative to `place`, the
+collection of `entry`.
 """
-function make_field_caret_reference(entry, place, i::Int, field::String, position::Int)
+function make_field_caret_reference(entry, place, i::Int, steps::Tuple, position::Int)
     output = extend_reference(EmptyReference(), FieldReferenceStep("children"), ElementReferenceStep(1),
                               FieldReferenceStep("entry"), FieldReferenceStep("projections"),
-                              ElementReferenceStep(i), FieldReferenceStep(field),
-                              RangeReferenceStep(position, position))
+                              ElementReferenceStep(i), steps..., RangeReferenceStep(position, position))
     make_introduced_reference(ArrangementBarProjection(entry), place, output)
 end
 
@@ -101,7 +101,7 @@ function make_find_field_selection(arrangement::ArrangementDocument)
     collection === nothing && return nothing
     caret(entry, i, position) =
         ReplaceSelectionOperation(concat_references(_make_document_reference(place.at),
-                                                    make_field_caret_reference(entry, collection, i, "text", position)))
+                                                    make_field_caret_reference(entry, collection, i, _FIND_TEXT, position)))
     entry = place.entry
     if entry === nothing
         entry = ArrangementEntry(place.at, Any[ArrangementFind("")])
@@ -126,7 +126,7 @@ function make_first_find(document, at::Reference)
     entry = ArrangementEntry(strip_reference_types(at), Any[ArrangementFind("")])
     collection = try_evaluate_reference(document, at, nothing)
     (ArrangementDocument(document, [entry]),
-     concat_references(_make_document_reference(at), make_field_caret_reference(entry, collection, 1, "text", 0)))
+     concat_references(_make_document_reference(at), make_field_caret_reference(entry, collection, 1, _FIND_TEXT, 0)))
 end
 
 """
@@ -159,6 +159,9 @@ function make_find_move(arrangement::ArrangementDocument, backward::Bool)
     end
     nothing
 end
+
+# The steps from a find to its text.
+const _FIND_TEXT = (FieldReferenceStep("text"),)
 
 # The path in an arrangement of the path `at` in its document.
 _make_document_reference(at::Reference) =

@@ -53,8 +53,7 @@ function make_arrangement_edits(arrangement::ArrangementDocument, item)
     for (label, key) in _make_item_sort_keys(item)
         push!(edits, (label, _make_sort_edit(arrangement, entry, item.at, key)))
     end
-    _has_quick_text(entry) ||
-        push!(edits, (_QUICK_TEXT_LABEL, _make_condition_edit(arrangement, entry, item.at, _make_quick_text_condition())))
+    _has_quick_text(entry) || push!(edits, (_QUICK_TEXT_LABEL, _make_quick_text_edit(arrangement, entry, item.at)))
     entry === nothing || push!(edits, ("Show all", make_entry_removal_edit(arrangement, entry)))
     edits
 end
@@ -65,7 +64,9 @@ end
 The edits that the menu of a value offers where no arrangement is around
 `document` yet: each makes the first one, an `ArrangementDocument` of `document`
 with one entry at the collection of `item`, and `wrap(arrangement)` is the edit
-that puts it where `document` is, made by the place that shows `document`.
+that puts it where `document` is, made by the place that shows `document`. The
+quick text puts the caret in its field after it: `wrap(arrangement, caret)`, with
+`caret` a path in the arrangement.
 """
 function make_first_arrangement_edits(document, item, wrap::Function)
     edits = Tuple{String,Operation}[]
@@ -76,7 +77,9 @@ function make_first_arrangement_edits(document, item, wrap::Function)
     for (label, key) in _make_item_sort_keys(item)
         push!(edits, (label, wrap(first_entry(ArrangementSort(Any[key])))))
     end
-    push!(edits, (_QUICK_TEXT_LABEL, wrap(first_entry(ArrangementFilter(Any[_make_quick_text_condition()])))))
+    entry = ArrangementEntry(item.at, Any[ArrangementFilter(Any[_make_quick_text_condition()])])
+    caret = _make_quick_text_caret(entry, try_evaluate_reference(document, item.at, nothing), item.at, 1, 1)
+    push!(edits, (_QUICK_TEXT_LABEL, wrap(ArrangementDocument(document, [entry]), caret)))
     edits
 end
 
@@ -84,6 +87,36 @@ const _QUICK_TEXT_LABEL = "Filter by text…"
 
 # A quick text condition with no text yet, which keeps every item.
 _make_quick_text_condition() = ArrangementCondition(nothing, :contains, "")
+
+# The edit that adds a quick text condition to the collection at `at`, to the
+# filter of its entry, to a new filter at the start of its entry, or in a new
+# entry, and the caret in its field after it, as a path in `arrangement`.
+function _make_quick_text_edit(arrangement::ArrangementDocument, entry, at)
+    condition = _make_quick_text_condition()
+    if entry === nothing
+        entry = ArrangementEntry(at, Any[ArrangementFilter(Any[condition])])
+        n = length(arrangement.entries)
+        edit, i, k = _make_splice(arrangement, "entries", n, n, Any[entry]), 1, 1
+    else
+        filter = findfirst(description -> description isa ArrangementFilter, collect(entry.projections))
+        if filter === nothing
+            edit, i, k = _make_splice(entry, "projections", 0, 0, Any[ArrangementFilter(Any[condition])]), 1, 1
+        else
+            n = length(entry.projections[filter].conditions)
+            edit, i, k = _make_splice(entry.projections[filter], "conditions", n, n, Any[condition]), filter, n + 1
+        end
+    end
+    collection = try_evaluate_reference(arrangement.document, at, nothing)
+    CompoundOperation(Any[edit, ReplaceSelectionOperation(_make_quick_text_caret(entry, collection, at, i, k))])
+end
+
+# The caret in the field of the `k`-th condition of the `i`-th description of
+# `entry`, at the collection `at`, as a path in the arrangement.
+_make_quick_text_caret(entry, collection, at, i::Int, k::Int) =
+    concat_references(_make_document_reference(at),
+                      make_field_caret_reference(entry, collection, i,
+                                                 (FieldReferenceStep("conditions"), ElementReferenceStep(k),
+                                                  FieldReferenceStep("value")), 0))
 
 # Whether `entry` has a quick text condition.
 _has_quick_text(entry) =

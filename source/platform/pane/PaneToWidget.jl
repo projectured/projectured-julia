@@ -622,6 +622,12 @@ read_intent(::PaneTreeToWidget, ::PaneTreeToWidgetIoMap,
 function read_intent(p::PaneTreeToWidget, recursion, change::Intent,
                      iomap::PaneTreeToWidgetIoMap)
     tree = iomap.input
+    # An operation that code made at a node of the tree, such as an item of the
+    # menu of a tab: this reader holds the place, so the operation comes back
+    # rerooted by the route, as an operation from the tree.
+    change.route isa ConcreteReference && change.operation !== nothing && change.gesture === nothing &&
+        return Intent(nothing, reroot_operation(change.operation, Tuple(get_reference_steps(change.route))),
+                      change.description, change.domain)
     state = getfield(tree, :drag)[]
     gesture = change.gesture
     state !== nothing && gesture isa Union{DragMove, DragEnd, DragCancel} &&

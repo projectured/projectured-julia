@@ -22,8 +22,14 @@ function _make_first_arrangement_menu(tab::PaneTab)
     rest === nothing && return nothing
     item = find_arranged_item(content, rest)
     item === nothing && return nothing
-    edits = make_first_arrangement_edits(content, item,
-        arrangement -> ReplaceReferencedValueOperation(tab, "content", arrangement))
+    # The edit that puts the arrangement in the place of the content, and then
+    # the caret at a path in the arrangement.
+    function wrap(arrangement, caret = nothing)
+        edit = ReplaceReferencedValueOperation(tab, "content", arrangement)
+        caret === nothing && return edit
+        CompoundOperation(Any[edit, ReplaceSelectionOperation(ConcreteReference(FieldReferenceStep("content"), caret))])
+    end
+    edits = make_first_arrangement_edits(content, item, wrap)
     WidgetMenu(Any[WidgetMenuItem(label; operation) for (label, operation) in edits])
 end
 

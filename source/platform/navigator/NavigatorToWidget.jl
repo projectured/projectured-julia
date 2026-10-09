@@ -261,7 +261,7 @@ function _make_choice_menu_operation(navigator::Navigator, crumb::_AddressCrumb,
     list = NavigatorChoiceList(; row, current, find,
                                choose = step -> make_navigator_choice_operation(navigator, index, step))
     point = gesture isa MouseClick ? (gesture.x, gesture.y) : nothing
-    ReplaceViewStateOperation(OpenContextMenuOperation(Tuple{String,Document}[(crumb.label, list)],
+    ReplaceViewStateOperation(OpenContextMenuOperation(Tuple{String,Document,Int}[(crumb.label, list, 0)],
                                                        annotate_reference_types(navigator, EmptyReference()),
                                                        point))
 end

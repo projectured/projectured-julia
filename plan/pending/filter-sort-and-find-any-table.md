@@ -550,9 +550,31 @@ Each step ends with its own tests and a commit, in a worktree.
       - The menus get "Filter by text…" after the sort items, in the menu of an
         arrangement where the entry has no quick text and in the first
         arrangement of a tab.
-      - Open: the item can not put the caret in the field. The context menu
-        lifts every item from the part under the pointer, and the field is no
-        part below it, so a person presses in the field first.
+      - The item could not put the caret in the field: the context menu
+        lifted every item from the part under the pointer, and the field is no
+        part below it. The owner chose (a), "I agree with (a)" (2026-10-09):
+        each layer of a context menu acts on its own part. Done 2026-10-09:
+        - A layer is `(title, menu, below)`: `below` counts the steps of the
+          source below the part of the layer. The join of two menus computes
+          it from the two sources; the steps below a part stay as they are on
+          the way up, so the count stays right as the source is rerooted and
+          mapped. Where the source of the outer menu does not start the source
+          of the inner one, `below` is `0`, and the item acts on the part
+          under the pointer, as before.
+        - The window finds the layer of a chosen item by the operation that
+          the item holds, and lifts the edit from the part of that layer
+          (`find_menu_item_part`, which a test uses as the window does). An
+          item that names its own document acts the same from any part, so the
+          menus that exist keep working; the rule F2 of
+          `EditMenuPartOperation` now says that the part of an item is the
+          part of its menu.
+        - Fact found: the reader of the pane tree dropped an operation that
+          code routes to a node of the tree, such as an item of the menu of a
+          tab: it mapped the operation as an answer of the widget stage. It now
+          answers it rerooted by its route, as the reader that holds the place.
+        - "Filter by text…" puts the caret in its field after the edit, in the
+          menu of a tab and in the menu of an arrangement.
+        - A test that read the menu of a layer as `last(layer)` reads `layer[2]`.
       - `test_arrangement_quick_text` (19): the condition on any value, and in
         an editor the item of the menu, a press in the field, two typed keys
         (2 of 4), a backspace (3 of 4), the caret after the text, and the × of

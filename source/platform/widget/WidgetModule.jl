@@ -95,7 +95,8 @@ export compute_scroll_bar_value, compute_scroll_bar_top_row, read_scroll_bar_dra
 export make_embed_card, make_embed_card_path, find_embed_card_path_inside
 export FindBarViewToWidget, make_find_bar_show_operation, make_find_bar_hide_operation,
        make_find_bar_placement_operation
-export OpenContextMenuOperation, EditMenuPartOperation, make_context_menu_operation, make_context_menu_binding
+export OpenContextMenuOperation, find_menu_item_part, EditMenuPartOperation, make_context_menu_operation,
+       make_context_menu_binding
 export ContextMenuWindowProjection, ContextMenuWindowIoMap,
        make_context_menu_window_document, make_context_menu_window_projection,
        wrap_context_menu_window

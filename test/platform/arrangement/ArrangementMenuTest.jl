@@ -131,7 +131,8 @@ function test_arrangement_menu()
         tab = only(editor.document.root.tabs)
         @test tab.content === fruits
         # The item `label` of the menu that a right click on the drawn text `text`
-        # opens, chosen as the context menu window chooses it.
+        # opens, chosen as the context menu window chooses it: lifted from the
+        # part of its menu.
         function choose!(text, label)
             (x, y) = _arrangement_place(backend, text)
             _arrangement_press!(editor, backend, MouseMove(x, y; time = 0.0))
@@ -143,7 +144,8 @@ function test_arrangement_menu()
             items = [item for (_, menu) in open.layers for item in menu.elements
                      if item isa WidgetMenuItem && item.action.label == label]
             @test length(items) == 1
-            evaluate_operation(editor, read_rooted_operation(editor, open.source, only(items).operation))
+            part = annotate_reference_types(editor.document, find_menu_item_part(open, only(items).operation))
+            evaluate_operation(editor, read_rooted_operation(editor, part, only(items).operation))
             drain_operations!(editor)
             run_frame!(editor)
         end
