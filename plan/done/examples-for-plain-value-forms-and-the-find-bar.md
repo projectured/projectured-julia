@@ -1,7 +1,7 @@
 # Examples for the plain value forms and the find bar
 
-> **Status (2026-10-09): IN PROGRESS** on the branch `feature-examples`, in the
-> worktree `projectured-julia-feature-examples`. The owner asked for an example of
+> **Status (2026-10-09): DONE** on the branch `feature-examples`, in the
+> worktree `projectured-julia-feature-examples`. Not on main. The owner asked for an example of
 > each feature of the two plans of 2026-10-08 that has none yet:
 > [a-form-edits-a-plain-value.md](../done/a-form-edits-a-plain-value.md) and
 > [text-projection-config-into-document.md](../done/text-projection-config-into-document.md).
@@ -72,8 +72,10 @@ every widget example on main, so its counts are a record and no gate.
    plain record, an edit in place, the checkbox, the radio group and the toggle on
    their fields. `walk_printer_output` and `walk_repl_loop` report no error on the
    thirteen new and changed examples; the guards of `test/suite` pass.
-7. ⬜ Move this plan to `plan/done/`.
+7. ✅ Move this plan to `plan/done/`.
 
 ## Decisions
 
-None yet. A step that makes a choice records it here.
+The choices of the implementation, recorded in the steps: the two functions of
+the find bar move to the platform examples (step 1); steps 4 to 6 share one commit
+(step 6).
