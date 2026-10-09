@@ -763,7 +763,10 @@ from the command line of the projectured UI.
     Code under `~/.claude/projects`, which Anthropic does not document.
     `session/load` has the same problem.
 - [ ] 2.5 Terminal sign-in and logout (R3). The owner chose 2.5 and then 2.6
-  on 2026-10-09. A design waits for the answers of the owner.
+  on 2026-10-09, and answered the questions of the design on 2026-10-09:
+  Q1 a simple terminal domain in the editor, "but don't overdo it. it's worth
+  its own plan"; Q2 yes; Q3 agreed; Q4 yes; Q5 yes. So the terminal of the
+  sign-in is that domain, from its own plan, and 2.5d below does not apply.
 
   **Facts (2026-10-09).**
   - ACP: an agent can advertise a `terminal` auth method with `args` and `env`.
@@ -804,8 +807,8 @@ from the command line of the projectured UI.
     agent with a command, that is its command. For the built-in agent, it is
     the `julia` of this process with the active project, running the program
     of `ClaudeCodeACP` (`ClaudeCodeACP.main`).
-  - 2.5d Platform (new): a function that runs a `Cmd` in a terminal window of
-    the system and gives its exit status. Linux: `$TERMINAL`, else
+  - 2.5d (replaced by the terminal domain, Q1) Platform: a function that runs
+    a `Cmd` in a terminal window of the system and gives its exit status. Linux: `$TERMINAL`, else
     `x-terminal-emulator`, `gnome-terminal`, `konsole`, `kitty`, `xterm`. macOS:
     Terminal through `osascript`. Windows: `cmd` through `start`. Some terminal
     programs return at once, so the window runs a shell that writes the exit
