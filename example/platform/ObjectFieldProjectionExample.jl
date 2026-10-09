@@ -16,6 +16,21 @@ function make_object_field_form_projection_example(; measure=FontFileMeasure())
     )))
 end
 
+# The same form of bare fields, with widgets that the table chooses: the
+# capacity is a spin box and the flag a switch, and every other field takes the
+# default widget of `make_object_field_widget`.
+function make_object_field_form_chosen_widgets_projection_example(; measure=FontFileMeasure())
+    choose(field) = get_object_field_name(field) == "capacity" ? WidgetSpinBox(field; min = 1, max = 16) :
+                    get_object_field_name(field) == "enabled"  ? WidgetSwitch(; checked = field) :
+                    make_object_field_widget(field)
+    w2g = WidgetToGraphics(StyleFont("Ubuntu Mono", 20); measure=measure)
+    RecursiveProjection(TypeDispatchingProjection(vcat(
+        LayoutToGraphics().dispatch,
+        make_object_field_widget_dispatch(w2g.dispatch; make_widget = choose),
+        Pair{Type,Any}[TextBlock => TextToGraphics(measure=measure)],
+    )))
+end
+
 # One field to syntax and on to graphics. The `ObjectField` entry stands in front
 # of `ObjectToSyntax`'s own table, so the field is named rather than reflected:
 # without it the `Any` row would dispatch to `ObjectNodeToSyntaxNode` and dump the

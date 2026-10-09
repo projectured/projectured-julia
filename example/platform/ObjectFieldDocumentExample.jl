@@ -56,11 +56,17 @@ struct PlainServer
     capacity::Int
     enabled::Bool
     window::PlainServerWindow
+    mode::String
+    priority::String
+    load::Float64
+    pinned::Bool
 end
 
-_plain_server() = PlainServer("gateway", 4, true, PlainServerWindow("Main", 800))
+_plain_server() = PlainServer("gateway", 4, true, PlainServerWindow("Main", 800), "safe", "normal", 0.4, false)
 
-# The schema of a copy of a server: the same field names, each in a cell.
+# The schema of a copy of a server: the same field names, each in a cell. A field
+# of the server that the schema does not have is not copied, and the way back
+# takes it from the server that the copy was made from.
 @document struct PlainServerWindowForm
     title::String
     width::Int
@@ -98,12 +104,39 @@ make_plain_server_copy_form_document_example() =
 make_plain_server_cell_form_document_example() = _make_plain_server_form(Cell(_plain_server()))
 
 # A form whose widgets the author chooses: each widget holds a field of the plain
-# server in its value slot, where it would hold a value.
+# server in its value slot, where it would hold a value. The switch and the
+# checkbox hold the same field, so a press on one shows in the other. The select
+# asks the field for the operation of each option when its popup opens. A radio
+# group whose `selected` holds a field stores the option itself, not its index.
 function make_object_field_widget_form_document_example()
     root = Cell(_plain_server())
     FormLayout([
         (WidgetLabel("Name"),     WidgetText(ObjectField(root, "name"))),
         (WidgetLabel("Capacity"), WidgetSpinBox(ObjectField(root, "capacity"); min = 1, max = 16)),
         (WidgetLabel("Enabled"),  WidgetSwitch(; checked = ObjectField(root, "enabled"))),
+        (WidgetLabel("Enabled"),  WidgetCheckbox(ObjectField(root, "enabled"))),
+        (WidgetLabel("Mode"),     WidgetSelect(ObjectField(root, "mode"); options = ["fast", "safe", "off"])),
+        (WidgetLabel("Priority"), WidgetRadioGroup(["low", "normal", "high"];
+                                                   selected = ObjectField(root, "priority"))),
+        (WidgetLabel("Load"),     WidgetSlider(ObjectField(root, "load"))),
+        (WidgetLabel("Pinned"),   WidgetToggle("Pinned"; pressed = ObjectField(root, "pinned"))),
+    ])
+end
+
+# A plain mutable value in a form: an edit changes the server in place, and the
+# cell that holds it is written again with the same server, so the form reads it
+# again.
+mutable struct PlainMutableServer
+    name::String
+    capacity::Int
+    enabled::Bool
+end
+
+function make_plain_server_mutable_form_document_example()
+    root = Cell(PlainMutableServer("gateway", 4, true))
+    FormLayout([
+        (WidgetLabel("Name"),     ObjectField(root, "name")),
+        (WidgetLabel("Capacity"), ObjectField(root, "capacity")),
+        (WidgetLabel("Enabled"),  ObjectField(root, "enabled")),
     ])
 end

@@ -54,6 +54,8 @@ const object_field_syntax_example = Example("object_field_syntax", make_object_f
 const plain_server_copy_form_example = Example("plain_server_copy_form", make_plain_server_copy_form_document_example, make_object_field_form_projection_example)
 const plain_server_cell_form_example = Example("plain_server_cell_form", make_plain_server_cell_form_document_example, make_object_field_form_projection_example)
 const object_field_widget_form_example = Example("object_field_widget_form", make_object_field_widget_form_document_example, make_object_field_form_projection_example)
+const object_field_form_chosen_widgets_example = Example("object_field_form_chosen_widgets", make_object_field_form_document_example, make_object_field_form_chosen_widgets_projection_example)
+const plain_server_mutable_form_example = Example("plain_server_mutable_form", make_plain_server_mutable_form_document_example, make_object_field_form_projection_example)
 const line_numbering_example = Example("line_numbering", make_line_numbering_document_example, make_line_numbering_projection_example)
 const text_gutter_example    = Example("text_gutter",    make_text_gutter_document_example,    make_text_gutter_projection_example)
 const text_folding_example   = Example("text_folding",   make_text_folding_document_example,   make_text_folding_projection_example)
@@ -141,6 +143,8 @@ const platform_examples = Example[
     plain_server_copy_form_example,
     plain_server_cell_form_example,
     object_field_widget_form_example,
+    object_field_form_chosen_widgets_example,
+    plain_server_mutable_form_example,
     line_numbering_example,
     text_gutter_example,
     text_folding_example,
