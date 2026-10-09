@@ -1,6 +1,7 @@
 # Tests of the store of the watched files: a change of a file reaches its
 # document, a save is no change, an edit that is not saved stays, and the feed
-# drains the store and is woken by a change.
+# drains the store and is woken by a change. A file that a person does not edit
+# is read again by the time and the size of its file.
 
 # A text file in a folder of its own, and its tab.
 function _make_watched_text_file(text::AbstractString)
@@ -25,6 +26,21 @@ SerializationModule.parse_file_content(::Type{<:_ShoutedFile}, text::AbstractStr
     PrimitiveString(uppercase(String(text)))
 SerializationModule.emit_text(file::_ShoutedFile) =
     lowercase(something(getfield(get_file_content(file), :value)[], ""))
+
+# A file type that a person does not edit, as a result file of a run is: it reads
+# its file itself and says only its size, and it counts its reads, so a test sees
+# that the feed reads no text of it.
+@document struct _ReadOnlyProbeFile <: FileDocument
+    filename::String
+    content::Any
+end
+const _READ_ONLY_PROBE_READS = Ref(0)
+SerializationModule.get_file_domain(::Type{<:_ReadOnlyProbeFile}) = Document
+SerializationModule.is_editable_file_type(::Type{<:_ReadOnlyProbeFile}) = false
+function SerializationModule.read_file_content(::Type{<:_ReadOnlyProbeFile}, path::AbstractString)
+    _READ_ONLY_PROBE_READS[] += 1
+    PrimitiveString(string(filesize(path), " bytes"))
+end
 
 # Wait until the store holds a change, for at most `seconds`.
 function _wait_for_file_change(store::FileChangeStore; seconds::Real = 10.0)
@@ -127,6 +143,28 @@ function test_file_change_store()
             # Read by its own type, not by the text file that `.txt` names.
             @test get_file_content(file) isa PrimitiveString
             @test getfield(get_file_content(file), :value)[] == "BYE\n"
+            unwatch_document_file!(file; store)
+        end
+
+        @testset "a file that a person does not edit is read again by its stamp" begin
+            store = FileChangeStore()
+            path = joinpath(mktempdir(), "results.vec")
+            write(path, "12345")
+            file = _ReadOnlyProbeFile(path, read_file_content(_ReadOnlyProbeFile, path))
+            watch_document_file!(file; store)
+            reads = _READ_ONLY_PROBE_READS[]
+            write(path, "1234567890")
+            @test _wait_for_file_change(store)
+            @test drain_file_changes!(; store) == 1
+            @test getfield(get_file_content(file), :value)[] == "10 bytes"
+            @test _READ_ONLY_PROBE_READS[] == reads + 1
+            # A drain with no new change reads nothing.
+            lock(() -> push!(store.changed, abspath(path)), store.lock)
+            @test drain_file_changes!(; store) == 0
+            @test _READ_ONLY_PROBE_READS[] == reads + 1
+            # A save writes nothing of it.
+            evaluate_operation(nothing, SaveFileOperation(file))
+            @test read(path, String) == "1234567890"
             unwatch_document_file!(file; store)
         end
 

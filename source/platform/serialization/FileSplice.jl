@@ -33,6 +33,35 @@ make_file(T::Type, filename::AbstractString, text::AbstractString) =
     T(String(filename), parse_file_content(T, text))
 
 """
+    is_editable_file_type(::Type{<:FileDocument}) -> Bool
+
+Whether a person edits a file of this type in the editor. A file that a program
+writes and a person only reads, such as a result file of a simulation, answers
+`false`: the editor saves nothing of it, it is read through
+[`read_file_content`](@ref), and the feed of file changes reads it again when
+the time or the size of its file changes, with no read of its text. `true` by
+default. A method takes `Type{<:T}`, so it answers for each layout of a type.
+"""
+is_editable_file_type(::Type{<:FileDocument}) = true
+
+"""
+    read_file_content(::Type{T}, path) -> content
+
+The content of the file at `path`, as a file of type `T` reads it. A file of a
+type that a person does not edit ([`is_editable_file_type`](@ref)) is read with
+it, so a type whose file is too large to read whole, such as the vector file of
+a simulation, reads only what it needs. The default reads the text through
+[`parse_file_content`](@ref).
+"""
+read_file_content(T::Type{<:FileDocument}, path::AbstractString) = parse_file_content(T, read(path, String))
+
+# One file of a set: a file that a person edits from its text, any other from
+# what its type reads.
+_read_set_file(T::Type, base_dir::AbstractString, name::AbstractString) =
+    is_editable_file_type(T) ? make_file(T, name, read(joinpath(base_dir, name), String)) :
+                               T(String(name), read_file_content(T, joinpath(base_dir, name)))
+
+"""
     load_project(base_dir, filenames; follow = false, tolerant = false) -> FileProject
 
 Parse every file named, in order, then splice each reference leaf into the node
@@ -60,7 +89,7 @@ function load_project(base_dir::AbstractString, filenames::AbstractVector{<:Abst
         normpath(name) in opened && continue
         push!(opened, normpath(name))
         file = try
-            make_file(get_file_document_type(name), name, read(joinpath(base_dir, name), String))
+            _read_set_file(get_file_document_type(name), base_dir, name)
         catch e
             tolerant || rethrow()
             @warn "a file of this set did not open" file = name reason =

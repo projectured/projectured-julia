@@ -5,8 +5,10 @@
 
 # One file document, the absolute path of its file, and what the last sync saw:
 # the hash of the text of the file, and the hash of the text that the document
-# writes. `stamp` is the time and the size of the file at the last look of a
-# poll, or at the start of the watch.
+# writes. For a file that a person does not edit, `file_hash` is the hash of the
+# time and the size of the file at the last sync, and no text is read. `stamp`
+# is the time and the size of the file at the last look of a poll, or at the
+# start of the watch.
 mutable struct WatchedFile
     file::FileDocument
     path::String
@@ -50,7 +52,9 @@ Bring the changes of the file of `file` to it. When another program changes the
 file, a drain of the store reads it again into `file`, as `ReloadFileOperation`
 does, if the document was not edited since its last load or save; a document
 with edits that are not saved keeps them, and the log says that its file
-changed on disk. A save of the document is not a change.
+changed on disk. A save of the document is not a change. A file of a type that a
+person does not edit (`is_editable_file_type`) is read again when the time or the
+size of its file changes, and its text is never read to compare.
 
 Call it on the task that reads the document. A file document with no file name
 has nothing to watch. A document that watches already is left as it is.
@@ -58,8 +62,9 @@ has nothing to watch. A document that watches already is left as it is.
 function watch_document_file!(file::FileDocument; store::FileChangeStore = get_session_file_change_store())
     isempty(get_filename(file)) && return file
     path = abspath(get_filename(file))
-    watched = WatchedFile(file, path, _hash_file(path), _hash_document_text(file),
-                          _get_file_stamp(path))
+    watched = is_editable_file_type(typeof(file)) ?
+        WatchedFile(file, path, _hash_file(path), _hash_document_text(file), _get_file_stamp(path)) :
+        WatchedFile(file, path, hash(_get_file_stamp(path)), hash(nothing), _get_file_stamp(path))
     folder = dirname(path)
     lock(store.lock) do
         any(w -> w.file === file, store.files) && return
@@ -194,6 +199,7 @@ end
 
 function _bring_file_change!(watched::WatchedFile, editor)
     isfile(watched.path) || return false
+    is_editable_file_type(typeof(watched.file)) || return _bring_stamp_change!(watched, editor)
     on_disk = read(watched.path, String)
     hash(on_disk) == watched.file_hash && return false
     watched.file_hash = hash(on_disk)
@@ -211,6 +217,17 @@ function _bring_file_change!(watched::WatchedFile, editor)
     @warn string(basename(watched.path), " changed on disk, and its tab keeps the edits that ",
                  "are not saved. Ctrl+O reads the file again; Ctrl+S writes the tab over it.")
     false
+end
+
+# A file that a person does not edit is read again when its time or its size
+# changed. A program writes it, such as a run that writes its results while it
+# runs, so its text can be large, and the document holds nothing of a person.
+function _bring_stamp_change!(watched::WatchedFile, editor)
+    stamp_hash = hash(_get_file_stamp(watched.path))
+    stamp_hash == watched.file_hash && return false
+    watched.file_hash = stamp_hash
+    evaluate_operation(editor, ReloadFileOperation(watched.file))
+    true
 end
 
 _hash_file(path::String) = isfile(path) ? hash(read(path, String)) : hash(nothing)

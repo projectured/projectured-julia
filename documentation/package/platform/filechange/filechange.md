@@ -32,6 +32,8 @@ The drain reads each changed file and compares three texts: the text of the file
 
 A document that keeps its edits keeps them until the person decides: Ctrl+O reads the file again, Ctrl+S writes the document over it. The log names each change once.
 
+A file of a type that a person does not edit (`is_editable_file_type` answers `false`), such as the result file of a run that writes it while it runs, has no edits to keep and can be too large to read whole. The drain compares only the time and the size of its file with those of the last sync, and when they changed, it reads the file again. The text of such a file is never read to compare.
+
 `drain_file_changes!` answers how many documents read their file again. A caller with no window drains the store itself, on the one task that reads the documents.
 
 ## How it fits

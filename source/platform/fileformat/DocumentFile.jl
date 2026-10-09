@@ -179,6 +179,8 @@ end
 # `FileDocument`.
 function evaluate_operation(editor, op::SaveFileOperation)
     file = op.file
+    # A file that a person does not edit has nothing of a person to write.
+    is_editable_file_type(typeof(file)) || return nothing
     save_file!(_make_plain_file(file), dirname(abspath(get_filename(file))))
 end
 
@@ -249,13 +251,16 @@ function _read_file_again(file::FileDocument)
 end
 
 function _read_own_file(type, path::AbstractString)
-    content = get_file_content(make_file(type, basename(path), read(path, String)))
+    content = is_editable_file_type(type) ? get_file_content(make_file(type, basename(path), read(path, String))) :
+                                            read_file_content(type, path)
     content isa AbstractString ? PrimitiveString(String(content)) : content
 end
 
 # Both commands need a name; decline (no binding fires) when the file has
-# none — a "Save As" path picker for unnamed files is future work.
-_save_file(doc::FileDocument)   = isempty(get_filename(doc)) ? nothing : SaveFileOperation(doc)
+# none — a "Save As" path picker for unnamed files is future work. A save also
+# declines for a file that a person does not edit.
+_save_file(doc::FileDocument)   =
+    (isempty(get_filename(doc)) || !is_editable_file_type(typeof(doc))) ? nothing : SaveFileOperation(doc)
 _reload_file(doc::FileDocument) =
     isempty(get_filename(doc)) ? nothing :
         CompoundOperation(Any[ReloadFileOperation(doc), ReplaceSelectionOperation(EmptyReference())])

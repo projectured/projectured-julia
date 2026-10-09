@@ -68,6 +68,11 @@ Two more have a default that fits most formats:
 | --- | --- | --- |
 | `is_file_domain_node(file, node)` | `node isa get_file_domain(typeof(file))` | the domain of the file is not one type |
 | `is_written_in_file(file, node, name)` | `true` | the notation writes only part of a node, so the save must not walk the other fields |
+| `is_editable_file_type(::Type{T})` | `true` | a program writes the file and a person only reads it, such as a result file of a simulation |
+| `read_file_content(::Type{T}, path)` | the text of the file through `parse_file_content` | the type does not edit, and its file is too large to read whole, so it reads only what it needs |
+
+A file of a type that a person does not edit is read through `read_file_content`
+when it opens and when it is read again, and a save writes nothing of it.
 
 The JSON file type is the smallest full example:
 
