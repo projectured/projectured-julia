@@ -787,6 +787,12 @@ worktree. The three domains test different parts of the model:
       `OmnetPresentationTest` are equal, and the parallel dashboard test, with `-t 4`, has
       10 pass and 5 fail as on `main`. `main` moved by 17 more commits meanwhile, with no
       conflict.
+    - [x] **Landed by the owner's word, 2026-10-09 ("yes, land it"):** projectured-julia
+      `main` at `ccd387767`, rebased on `3ff1cda6b`, not pushed. That commit of `main` added
+      an export guard (`test/suite/exports.jl`); the new export lines of this branch now
+      follow the order of their fragments, so the guard reports for `main` and for the branch
+      differ only in line numbers. The test after the landing, `main` at `ccd387767` beside
+      `3ff1cda6b`, follows. Steps 4 to 8 of the pilot stay open.
     - A fact for later: a bounded copy or sync puts an `UnsyncedDocument` where the walk stops,
       and a field that declares a narrow document type would refuse it. No caller does that
       today: the reflection and `SimulationInspection` hold the placeholder in a `ReflectedNode`.
