@@ -104,7 +104,7 @@ ProcessInsertionToSyntaxLeaf(; theme = nothing) = DomainInsertionToSyntaxLeaf(Pr
 end
 
 @projection_template ProcessSequenceToSyntaxNode ProcessSequence (p, doc) ->
-    SyntaxNode(collection(:steps); indentation=p.indentation)
+    SyntaxNode(collection(:steps); open="\n", sep="\n", close="\n", indentation=p.indentation)
 
 # ── ProcessModelToSyntaxNode ─────────────────────────────────────────────────
 
