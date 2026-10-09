@@ -184,6 +184,39 @@ no window add no row.
 **Not in the first version:** an assistant inside a tab (3.7), and
 `add_assistant!` and `remove_assistant!` for a source that is no tab.
 
+**As built (step 4):**
+
+- `AssistantList` (`source/platform/assistant/AssistantList.jl`) has three
+  fields: `assistants`, a cell that computes from `source`; `selected`; and
+  `source`, the function, set with `set_assistant_list_source!`. The list of the
+  session is made at the first call of `get_session_assistant_list`, as the list
+  of the task groups is, because a computation must not be made when the
+  package loads.
+- Every way to open the list gives the list of the session:
+  `make_insertion_document`, and `make_pred_document` for a file. A file
+  writes no arguments for it, as for `SelectionInspector`. A paste does not
+  replace it, and it has no duplicate.
+- (Mine) The list is opaque to the walk of the documents (`is_walk_opaque`, as
+  the list of choices of the navigator is). Without it, `search_references`
+  could reach an assistant through the list in place of its tab, and the walk
+  would enter the source function and the tree that it holds.
+- The read is `collect_pane_tab_contents(tree, T)` in the pane slice. It looks
+  through each layer with `get_wrapped_document` and `get_edited_field`, at
+  most sixteen layers.
+- `run_application` gives the session list a source over the pane tree of its
+  window. The first version reads that one tree. A window of another binary,
+  such as the IDE of omnet-julia, gives no source yet, so its list is empty.
+- The tests (`test/platform/conversation/AssistantListTest.jl`) run the pane
+  operations against a mock editor: a close and the undo of it, an open, a
+  duplicate, an empty tab that takes an assistant, and the load of a file. The
+  check in a real editor comes with the pane, in step 5.
+- **Found, outside this plan:** with a mock editor, the undo of the close of a
+  tab fails with a `SelectionMismatchException` when the selection is on a
+  later tab of the same group, also with tabs of plain text. The inverse
+  restores the selection on `tabs[2]` while the group has one tab. Reported to
+  the owner; not fixed here. Whether the undo of the window fails in the same
+  way is not checked.
+
 ### 3.4 The values of a row
 
 Functions in the assistant slice compute the values, so the pane, a verb and a
@@ -398,7 +431,7 @@ Each step gets a commit. Each step runs the narrowest test that covers it.
 - [x] **3. The values of a row.** Add the functions of 3.4. Test each one on an
   assistant with a `ScriptedLlm`: before a turn, while a turn runs, while a
   permission request waits, and after a failure.
-- [ ] **4. The registry of the tabs.** Add the read of the tabs to the pane
+- [x] **4. The registry of the tabs.** Add the read of the tabs to the pane
   slice, and `AssistantList` and `get_session_assistant_list` to the assistant
   slice. Let the application give the registry the read of its windows. Test
   the read alone on a pane tree: a split, two groups, a file in a tab, and an

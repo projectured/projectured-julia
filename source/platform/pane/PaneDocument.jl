@@ -299,6 +299,54 @@ end
 get_pane_groups(::Any) = PaneGroup[]
 
 """
+    collect_pane_tab_contents(tree, T) -> Vector
+
+The documents of type `T` that the tabs of `tree` show, in the order of the
+groups and of their tabs. A tab counts when its content is a `T`, or when a
+layer that the content holds is one: a wrapper that `get_wrapped_document` looks
+through, such as a history, or the field that `get_edited_field` names, such as
+the document of a file.
+
+Use it to list the open documents of a kind, such as the assistants of a window.
+Called in a computation, it reads only the structure of the panes and the layers
+of each tab, so an edit inside a document does not run the computation again.
+It reads the live tree: a tab that an undo holds is not in it.
+
+# Example
+
+    collect_pane_tab_contents(tree, Assistant)     # the assistant tabs of the window
+"""
+function collect_pane_tab_contents(tree::PaneTree, T::Type)
+    found = T[]
+    for group in get_pane_groups(tree)
+        for tab in group.tabs
+            document = _find_tab_layer(tab.content, T)
+            document === nothing || push!(found, document)
+        end
+    end
+    found
+end
+
+# The first layer of `content` that is a `T`, through the wrappers and the edited
+# fields; `nothing` when no layer is one. The bound stops a chain that comes back
+# to a layer it passed.
+function _find_tab_layer(content, T::Type)
+    node = content
+    for _ in 1:16
+        node isa T && return node
+        inner = get_wrapped_document(node)
+        if inner !== node
+            node = inner
+            continue
+        end
+        field = get_edited_field(node)
+        field === nothing && return nothing
+        node = getproperty(node, field)
+    end
+    nothing
+end
+
+"""
     get_pane_parent(tree, node) -> (owner, index) | Nothing
 
 The node that holds `node`: `(tree, 0)` for the root, or `(split, k)` for the

@@ -44,11 +44,12 @@ using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_computation!
-import ..DocumentModule: copy_document, get_document_title, has_document_duplicate
-import ..DomainModule: accepts_pasted_document, accepts_opened_file, release_document!
+import ..DocumentModule: copy_document, get_document_title, has_document_duplicate, is_walk_opaque
+import ..DomainModule: accepts_pasted_document, accepts_opened_file, release_document!,
+                       get_insertion_aliases, make_insertion_document
 import ..OperationModule: evaluate_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-import ..SerializationModule: pred_arguments
+import ..SerializationModule: pred_arguments, make_pred_document
 
 export Assistant, ASSISTANT_TITLE, DEFAULT_ASSISTANT_SYSTEM, DEFAULT_AGENT_INSTRUCTIONS, DEFAULT_AGENT_COMMAND,
        DEFAULT_AGENT_SESSION_META, ASSISTANT_WORK_STATES
@@ -66,6 +67,7 @@ export is_assistant_turn_running, make_assistant_stop_button
 export compute_assistant_overview_title, find_first_prompt, find_last_prompt, compute_prompt_count,
        compute_assistant_turn_side, describe_assistant_activity, find_assistant_start_time,
        find_assistant_last_activity_time, compute_assistant_elapsed_time, compute_assistant_busy_time
+export AssistantList, get_session_assistant_list, set_assistant_list_source!
 
 
 include("AssistantDocument.jl")
@@ -73,6 +75,7 @@ include("AssistantToWidget.jl")
 include("AssistantTurn.jl")
 include("ExternalAgentTurn.jl")
 include("AssistantOverview.jl")
+include("AssistantList.jl")
 include("AssistantApi.jl")
 
 end # module

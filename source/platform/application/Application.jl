@@ -495,8 +495,11 @@ function run_application(paths::AbstractString...;
     # The settings carry the fault policy of the command line, and the first print
     # runs under it already.
     policy = make_fault_policy(get_settings_group!(settings, FaultSettings))
-    editor = build_editor(make_application_document(collect(String, paths); root,
-                                                    assistant = chat, settings),
+    document = make_application_document(collect(String, paths); root, assistant = chat, settings)
+    # The Assistants pane lists the assistants of the tabs of this window.
+    set_assistant_list_source!(get_session_assistant_list(),
+                               () -> collect_pane_tab_contents(document, Assistant))
+    editor = build_editor(document,
                           make_application_projection(; measure, appearance);
                           backend, appearance, settings, fault_policy = policy,
                           # The natural projection draws what a tooltip holds. The
