@@ -39,7 +39,7 @@ end
 # The text is entity-escaped on the way out, as an attribute value already is,
 # and the parser unescapes it on the way in: a `<` in a text node round-trips.
 @projection_template XmlTextToSyntaxLeaf XmlText (p, t) ->
-    SyntaxLeaf(bound(:content, String, TextString(() -> _xml_text_escape(t.content), p.style)))
+    SyntaxLeaf(bound(:content, String, make_text_block(() -> _xml_text_escape(t.content), p.style)))
 
 # ── XmlInsertionToSyntaxLeaf ────────────────────────────────────────────────
 #

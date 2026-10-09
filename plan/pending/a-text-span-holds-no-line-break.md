@@ -439,13 +439,17 @@ change how every view of syntax makes its lines, so they land together.
 4. **`indentation` only indents.** The transition of step 2 and the breaks of
    the integer go, `-1` goes, and the flat metric (`_syntax_to_flat`,
    `_subtree_len`) follows. A full sweep against step 0.
-   **Built (2026-10-09); the sweep is pending.** The flat metric went in step 2.
+   ✅ **Done (2026-10-09).** The flat metric went in step 2.
    A child moves by the `indentation × indent_size` of its node (N8). The tests
    and the two syntax examples that relied on the integer write their breaks in
    their texts. With the breaks in texts, delimitation around indentation around
    separation now lays out what the combined node does, which the test of the
    stack said it could not. `test_syntax_to_text` 325, `test_text_folding` 20,
-   and JSON, XML, Julia, YAML and SQL as on main.
+   and JSON, XML, Julia, YAML and SQL as on main. The sweep at `a272befa9`: the
+   failing files of `test_platform` are those of main; the text dump differs from
+   step 3 only in the `syntax` example, whose separator `" "` before a break is
+   now `"\n"` (3 runs; 3 caret places fewer); two typein cases that main marks as
+   broken now pass, so `test_typeins` has 5148 passing and 20 broken.
 5. **Values of many lines**, Julia first (N6): its docstrings and its strings of
    many lines, then the code blocks and the texts of Markdown, the paragraphs of
    Book, the text nodes of XML and the raw texts of SQL, each with
@@ -461,6 +465,14 @@ change how every view of syntax makes its lines, so they land together.
      one; else a blank line opened before the fence. The sample prints 37 lines, a
      line for each line of each docstring, at the indentation of the code.
      `test_julia` 550 of 550.
+   - ✅ XML text nodes (bound) and SQL raw texts (read only) are `make_text_block`
+     with a function. `test_xml` 80, `test_sql` 671, `test_typeins` 5148 and 20
+     broken; the text dump of the examples does not change, because none holds a
+     text node or a raw text of many lines.
+   - Open: Markdown's text and code values show a placeholder while they are
+     empty (`make_hinted_text`), which a text of lines has no twin for; a Book
+     paragraph holds a `TextBlock` in its field and prints it flattened, which is
+     N1c.
 6. **The text domain edits a break as structure** (rule 2 of §4): Enter,
    Backspace and Delete at a line boundary, and a paste with breaks, on a block of
    lines; in a block inside `bound`, they are edits of `'\n'` in the string.

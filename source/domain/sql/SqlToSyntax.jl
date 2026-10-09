@@ -866,7 +866,7 @@ _quote_string_literal(value::AbstractString) = "'" * replace(value, "'" => "''")
 end
 
 @projection_template SqlRawExpressionToSyntaxLeaf SqlRawExpression (p, doc) ->
-    SyntaxLeaf(TextString(() -> doc.text, p.style))
+    SyntaxLeaf(make_text_block(() -> doc.text, p.style))
 
 # ── SqlRawConditionToSyntaxLeaf ──────────────────────────────────────────────
 # The source text of a condition that the model does not have, as it is written.
@@ -876,7 +876,7 @@ end
 end
 
 @projection_template SqlRawConditionToSyntaxLeaf SqlRawCondition (p, doc) ->
-    SyntaxLeaf(TextString(() -> doc.text, p.style))
+    SyntaxLeaf(make_text_block(() -> doc.text, p.style))
 
 # ── SqlComparisonToSyntaxNode ─────────────────────────────────────────────────
 
