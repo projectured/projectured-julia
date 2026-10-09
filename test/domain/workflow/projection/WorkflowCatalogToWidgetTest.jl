@@ -50,7 +50,8 @@ function test_workflow_catalog_to_widget()
             @test _find_workflow_click(editor, opens("b.pred")) !== nothing
             @test _find_workflow_click(editor, opens("d.pred")) === nothing
             write(joinpath(folder, "d.pred"), print_pred_text(WorkflowStep(title = PrimitiveString("New"))))
-            again = _find_workflow_click(editor, operation -> _is_workflow_write(operation, catalog, ".version"))
+            again = _find_workflow_click(editor, operation -> operation isa ReplaceViewStateOperation &&
+                                                              _is_workflow_write(operation.operation, catalog, ".version"))
             @test again !== nothing
             _apply_workflow_operation!(editor, again[3])
             @test catalog.version == 1

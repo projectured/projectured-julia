@@ -304,9 +304,10 @@ turn, and an operation that switches to a workflow.
     compound back as one step (tested through an `UndoBuffer`).
   - The author is an argument of the builder (`:person` for the view, `:assistant`
     for a verb), and the entry stores it.
-  - To choose an option does not change the other options: the person or the
-    assistant rejects or parks each of them, so no state is written that nobody
-    decided.
+  - To choose an option opens an option that was chosen before, because a
+    decision has one chosen option (changed after the review of 2026-10-09; the
+    first version left two options chosen). The other options keep their
+    states: the person or the assistant rejects or parks each of them.
   - The verbs of the assistant (`record_workflow_decision!`,
     `choose_workflow_option!`, `reject_workflow_option!`, `add_workflow_entry!`,
     `add_workflow_step!`, `change_workflow_state!`, `add_workflow_card!`) are in
@@ -416,6 +417,21 @@ turn, and an operation that switches to a workflow.
   No example joins the registries, because a folder is not hermetic. Left for
   later: a button that starts a new workflow, which needs an operation that
   writes a file.
+
+### The review of the branch (2026-10-09)
+
+A review of the diff found no fault in the maps or in the change of the
+`Assistant`. Fixed after it: the journal showed an empty text for an entry whose
+text is a document (it now prints the document as its natural text); a new choice
+left the option chosen before still chosen; each key in a title built the whole
+card again (the text field now reads the value only in its own cell, and a test
+checks that the card stays); a whole child mapped to its row with the remove
+button (it now maps to the child); a remove button pressed after its row was gone
+computed the index 0 (it now does nothing); a reason given as a document did not
+convert, and a missing reason wrote an empty one (`reason = nothing` now keeps
+it); "Read again" went into the undo history (it is now view state); a decision
+given to `change_workflow_state!` raised a `MethodError` (now an
+`ArgumentError`). The suite has 199 tests.
 
 ## 6. The answers of the owner (2026-10-09)
 

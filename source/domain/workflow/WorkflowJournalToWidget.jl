@@ -42,8 +42,7 @@ function _build_journal_view(p::WorkflowJournalToWidget, journal::WorkflowJourna
 end
 
 function _make_journal_row(p::WorkflowJournalToWidget, node, entry::WorkflowEntry)
-    time = find_workflow_time(entry)
-    Any[WidgetLabel(time === nothing ? entry.time : Dates.format(time, "yyyy-mm-dd HH:MM"); text_style = p.muted_text),
+    Any[WidgetLabel(_format_readable_time(entry.time); text_style = p.muted_text),
         WidgetLabel(string(entry.author); text_style = entry.author === :assistant ? p.assistant_text : p.person_text),
         WidgetLabel(string(entry.kind); text_style = p.muted_text),
         WidgetLabel(get_workflow_node_title(node).value),

@@ -116,8 +116,8 @@ end
     slots::Any
 end
 
-_field(name::AbstractString) = FieldReferenceStep(String(name))
-_element(index::Integer) = RangeReferenceStep(index - 1, index)
+_make_field_step(name::AbstractString) = FieldReferenceStep(String(name))
+_make_element_step(index::Integer) = RangeReferenceStep(index - 1, index)
 _make_reference(steps) = foldr((step, tail) -> ConcreteReference(step, tail), steps;
                                init = EmptyReference())
 
@@ -125,7 +125,7 @@ _is_same_step(a::FieldReferenceStep, b::FieldReferenceStep) = a.name == b.name
 _is_same_step(a::RangeReferenceStep, b::RangeReferenceStep) = a.start == b.start && a.stop == b.stop
 _is_same_step(::Any, ::Any) = false
 
-_starts_with(steps, prefix) =
+_has_prefix(steps, prefix) =
     length(steps) >= length(prefix) && all(_is_same_step(steps[i], prefix[i]) for i in eachindex(prefix))
 
 _is_element_step(step) = step isa RangeReferenceStep && step.stop == step.start + 1
@@ -135,9 +135,11 @@ function _map_workflow_forward(slots, reference)
     steps = collect(get_reference_steps(strip_reference_types(reference)))
     isempty(steps) && return EmptyReference()
     for slot in slots
-        _starts_with(steps, slot.input) || continue
+        _has_prefix(steps, slot.input) || continue
         rest = steps[(length(slot.input) + 1):end]
-        if slot.suffix !== nothing && !isempty(rest) && _is_element_step(rest[1]) && length(rest) > 1
+        # An element of a removable row, or a place inside it, is the element in
+        # the row, not the row with its button.
+        if slot.suffix !== nothing && !isempty(rest) && _is_element_step(rest[1])
             return _make_reference(vcat(slot.output, Any[rest[1]], slot.suffix, rest[2:end]))
         end
         return _make_reference(vcat(slot.output, rest))
@@ -150,13 +152,13 @@ end
 function _map_workflow_backward(slots, reference)
     steps = collect(get_reference_steps(strip_reference_types(reference)))
     for slot in slots
-        _starts_with(steps, slot.output) || continue
+        _has_prefix(steps, slot.output) || continue
         rest = steps[(length(slot.output) + 1):end]
         if slot.suffix !== nothing && !isempty(rest) && _is_element_step(rest[1]) && length(rest) > 1
             inner = rest[2:end]
             # A press on the row of an element and not on the element itself, such
             # as the button that removes it, is a part that the view drew.
-            _starts_with(inner, slot.suffix) || return nothing
+            _has_prefix(inner, slot.suffix) || return nothing
             return _make_reference(vcat(slot.input, Any[rest[1]], inner[(length(slot.suffix) + 1):end]))
         end
         return _make_reference(vcat(slot.input, rest))
@@ -196,7 +198,7 @@ function _route_workflow_paths!(p, input, slots, containers)
             r === nothing && return nothing
             steps = collect(get_reference_steps(strip_reference_types(r)))
             isempty(prefix) && return r
-            _starts_with(steps, prefix) || return nothing
+            _has_prefix(steps, prefix) || return nothing
             _make_reference(steps[(length(prefix) + 1):end])
         end; dormant = false)
     end
@@ -218,7 +220,9 @@ end
 # `_push_text_slots!` map to the same range of the value of `text`, so an edit in
 # the field is an edit of `text`.
 function _make_title_text(text::PrimitiveString, placeholder::AbstractString)
-    widget = WidgetText(text.value; placeholder, border = inset_default, margin = inset_default)
+    # The field reads the value in its own cell, so a key that changes the text
+    # draws the field again and does not build the card again.
+    widget = WidgetText(""; placeholder, border = inset_default, margin = inset_default)
     set_cell_computation!(getfield(widget, :content), () -> text.value)
     widget
 end
@@ -227,8 +231,8 @@ end
 # a path into its value is a path into the content of the field, and the whole
 # text is the whole field.
 function _push_text_slots!(slots, field::AbstractString, place)
-    push!(slots, _WorkflowSlot(Any[_field(field), _field("value")], vcat(place, Any[_field("content")]), nothing))
-    push!(slots, _WorkflowSlot(Any[_field(field)], place, nothing))
+    push!(slots, _WorkflowSlot(Any[_make_field_step(field), _make_field_step("value")], vcat(place, Any[_make_field_step("content")]), nothing))
+    push!(slots, _WorkflowSlot(Any[_make_field_step(field)], place, nothing))
 end
 
 # ── Buttons ──────────────────────────────────────────────────────────────
@@ -249,7 +253,7 @@ _make_fold_button(document) =
 # The state of `node` as a badge in the colour of its role, and the button that
 # steps it.
 function _make_state_items(node)
-    badge = WidgetBadge(() -> string(node.state))
+    badge = WidgetBadge(() -> string(node.state); variant = :outline)
     set_cell_computation!(getfield(badge, :role), () -> _get_state_badge_role(node.state))
     step = _make_workflow_button("›", "Step the state",
         () -> make_workflow_state_operation(node, get_next_workflow_state(node)))
@@ -278,11 +282,8 @@ function _make_body_buttons(node, gap::Integer)
 end
 
 # The text of the time of the last entry of `node`, as a person reads it.
-function _format_last_entry_time(node)
-    length(node.journal) == 0 && return ""
-    time = find_workflow_time(node.journal[end])
-    time === nothing ? "" : Dates.format(time, "yyyy-mm-dd HH:MM")
-end
+_format_last_entry_time(node) =
+    length(node.journal) == 0 ? "" : _format_readable_time(node.journal[end].time)
 
 # ── The printer of a node ────────────────────────────────────────────────
 
@@ -296,11 +297,11 @@ print_document(p::WorkflowNodeToWidget, recursion, node::Union{WorkflowStep, Wor
 function _build_node_view(p::WorkflowNodeToWidget, node)
     slots = Any[]
     containers = Any[]
-    card_place = Any[_field("children"), _element(1)]
-    content_place = vcat(card_place, Any[_field("content")])
+    card_place = Any[_make_field_step("children"), _make_element_step(1)]
+    content_place = vcat(card_place, Any[_make_field_step("content")])
     rows = Any[]
     # The place of the row that is pushed next.
-    next_place() = vcat(content_place, Any[_field("children"), _element(length(rows) + 1)])
+    next_place() = vcat(content_place, Any[_make_field_step("children"), _make_element_step(length(rows) + 1)])
 
     title = get_workflow_node_title(node)
     title_field = node isa WorkflowDecision ? "question" : "title"
@@ -310,7 +311,7 @@ function _build_node_view(p::WorkflowNodeToWidget, node)
     title_text = _make_title_text(title, node isa WorkflowDecision ? "Question" : "Title")
     push!(header_items, title_text)
     header_place = next_place()
-    title_place = vcat(header_place, Any[_field("children"), _element(length(header_items))])
+    title_place = vcat(header_place, Any[_make_field_step("children"), _make_element_step(length(header_items))])
     _push_text_slots!(slots, title_field, title_place)
     push!(containers, (title_text, title_place))
     push!(header_items, WidgetLabel(() -> _format_last_entry_time(node); text_style = p.muted_text))
@@ -324,7 +325,7 @@ function _build_node_view(p::WorkflowNodeToWidget, node)
             reason_text = _make_title_text(node.reason, "Reason")
             reason = HorizontalLayout(Any[WidgetLabel("because"; text_style = p.muted_text), reason_text];
                                       gap = p.gap, vertical_align = :center)
-            reason_place = vcat(place, Any[_field("children"), _element(2)])
+            reason_place = vcat(place, Any[_make_field_step("children"), _make_element_step(2)])
             _push_text_slots!(slots, "reason", reason_place)
             push!(containers, (reason_text, reason_place))
             push!(containers, (reason, place))
@@ -339,14 +340,14 @@ function _build_node_view(p::WorkflowNodeToWidget, node)
             items = Any[removable ? _make_removable_row(node, field, element, p.gap) : element
                         for element in elements]
             box = VerticalLayout(items; gap = p.gap, child_width = Fill)
-            suffix = removable ? Any[_field("children"), _element(1), _field("child")] : nothing
-            push!(slots, _WorkflowSlot(Any[_field(field)], vcat(place, Any[_field("children")]), suffix))
+            suffix = removable ? Any[_make_field_step("children"), _make_element_step(1), _make_field_step("child")] : nothing
+            push!(slots, _WorkflowSlot(Any[_make_field_step(field)], vcat(place, Any[_make_field_step("children")]), suffix))
             push!(containers, (box, place))
             if removable
                 for (index, item) in enumerate(items)
-                    item_place = vcat(place, Any[_field("children"), _element(index)])
+                    item_place = vcat(place, Any[_make_field_step("children"), _make_element_step(index)])
                     push!(containers, (item, item_place))
-                    push!(containers, (item.children[1], vcat(item_place, Any[_field("children"), _element(1)])))
+                    push!(containers, (item.children[1], vcat(item_place, Any[_make_field_step("children"), _make_element_step(1)])))
                 end
             end
             push!(rows, box)
@@ -367,18 +368,22 @@ end
 # An element of a collection of `node` with a button that removes it: the element
 # fills the row, and the button sits at its end.
 function _make_removable_row(node, field::AbstractString, element, gap::Integer)
-    remove = _make_workflow_button("×", "Remove",
-        field == "cards" ?
-            () -> make_delete_workflow_card_operation(node, _find_index(node.cards, element)) :
-            () -> make_delete_workflow_node_operation(node,
-                      _find_index(get_workflow_node_children(node), element)))
+    remove = _make_workflow_button("×", "Remove", () -> begin
+        elements = field == "cards" ? node.cards : get_workflow_node_children(node)
+        index = _find_index(elements, element)
+        # A row that an edit already removed, pressed before the next frame.
+        index === nothing && return DoNothingOperation()
+        field == "cards" ? make_delete_workflow_card_operation(node, index) :
+                           make_delete_workflow_node_operation(node, index)
+    end)
     HorizontalLayout(Any[LayoutConstraint(element; width = Fill), remove];
                      gap, vertical_align = :top)
 end
 
 # The index of `element` in `elements` at the time of a press, so a button removes
-# the element that it stands beside after other edits moved it.
-_find_index(elements, element) = something(findfirst(x -> x === element, collect(elements)), 0)
+# the element that it stands beside after other edits moved it; `nothing` when the
+# element is gone.
+_find_index(elements, element) = findfirst(x -> x === element, collect(elements))
 
 # ── The printer of an entry ──────────────────────────────────────────────
 
@@ -386,10 +391,8 @@ print_document(p::WorkflowEntryToWidget, recursion, entry::WorkflowEntry, ctx) =
     _make_workflow_iomap(p, entry, () -> _build_entry_view(p, entry))
 
 function _build_entry_view(p::WorkflowEntryToWidget, entry::WorkflowEntry)
-    time = find_workflow_time(entry)
     line = HorizontalLayout(Any[
-            WidgetLabel(time === nothing ? entry.time : Dates.format(time, "yyyy-mm-dd HH:MM");
-                        text_style = p.muted_text),
+            WidgetLabel(_format_readable_time(entry.time); text_style = p.muted_text),
             WidgetLabel(string(entry.author);
                         text_style = entry.author === :assistant ? p.assistant_text : p.person_text),
             WidgetLabel(string(entry.kind); text_style = p.muted_text)];
@@ -399,14 +402,14 @@ function _build_entry_view(p::WorkflowEntryToWidget, entry::WorkflowEntry)
     text = entry.text isa PrimitiveString ? _make_title_text(entry.text, "Text") : entry.text
     column = VerticalLayout(Any[line, text]; child_width = Fill)
     output = VerticalLayout(Any[column]; child_width = Fill)
-    text_place = Any[_field("children"), _element(1), _field("children"), _element(2)]
+    text_place = Any[_make_field_step("children"), _make_element_step(1), _make_field_step("children"), _make_element_step(2)]
     slots = Any[]
-    containers = Any[(output, Any[]), (column, Any[_field("children"), _element(1)])]
+    containers = Any[(output, Any[]), (column, Any[_make_field_step("children"), _make_element_step(1)])]
     if entry.text isa PrimitiveString
         _push_text_slots!(slots, "text", text_place)
         push!(containers, (text, text_place))
     else
-        push!(slots, _WorkflowSlot(Any[_field("text")], text_place, nothing))
+        push!(slots, _WorkflowSlot(Any[_make_field_step("text")], text_place, nothing))
     end
     _route_workflow_paths!(p, entry, slots, containers)
     (; output, slots)
@@ -425,14 +428,14 @@ function _build_card_view(p::WorkflowCardToWidget, card::WorkflowCard)
     content = VerticalLayout(rows; gap = p.gap, child_width = Fill)
     widget = WidgetCard(; content)
     output = VerticalLayout(Any[widget]; child_width = Fill)
-    content_place = Any[_field("children"), _element(1), _field("content")]
-    header_place = vcat(content_place, Any[_field("children"), _element(1)])
+    content_place = Any[_make_field_step("children"), _make_element_step(1), _make_field_step("content")]
+    header_place = vcat(content_place, Any[_make_field_step("children"), _make_element_step(1)])
     slots = Any[]
-    _push_text_slots!(slots, "title", vcat(header_place, Any[_field("children"), _element(2)]))
+    _push_text_slots!(slots, "title", vcat(header_place, Any[_make_field_step("children"), _make_element_step(2)]))
     length(rows) == 2 &&
-        push!(slots, _WorkflowSlot(Any[_field("content")], vcat(content_place, Any[_field("children"), _element(2)]), nothing))
-    title_place = vcat(header_place, Any[_field("children"), _element(2)])
-    _route_workflow_paths!(p, card, slots, Any[(output, Any[]), (widget, Any[_field("children"), _element(1)]),
+        push!(slots, _WorkflowSlot(Any[_make_field_step("content")], vcat(content_place, Any[_make_field_step("children"), _make_element_step(2)]), nothing))
+    title_place = vcat(header_place, Any[_make_field_step("children"), _make_element_step(2)])
+    _route_workflow_paths!(p, card, slots, Any[(output, Any[]), (widget, Any[_make_field_step("children"), _make_element_step(1)]),
                                                (content, content_place), (header, header_place),
                                                (title_text, title_place)])
     (; output, slots)

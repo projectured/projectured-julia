@@ -59,6 +59,20 @@ function test_workflow_to_widget()
             end
         end
 
+        @testset "a whole child is the child in its row, and an edit of a title keeps the card" begin
+            workflow = make_workflow_document_example()
+            projection = WorkflowNodeToWidget()
+            iomap = print_document(projection, nothing, workflow, nothing)
+            whole = map_reference_forward(projection, iomap,
+                                          Reference(FieldReferenceStep("children"), RangeReferenceStep(0, 1)))
+            @test endswith(string(whole), ".children[1].child")
+            card = iomap.output
+            evaluate_operation(nothing, ReplaceReferencedValueOperation(workflow.title, "value", "Renamed"))
+            @test iomap.output === card
+            evaluate_operation(nothing, make_insert_workflow_node_operation(workflow, 1, WorkflowStep()))
+            @test iomap.output !== card
+        end
+
         @testset "a key types into the title that holds the caret" begin
             workflow = make_workflow_document_example()
             editor = _make_workflow_view_editor(workflow)

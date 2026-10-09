@@ -185,6 +185,13 @@ function find_workflow_time(entry::WorkflowEntry)
     end
 end
 
+# The time of an entry as a person reads it, to the minute: `"2026-10-09 14:02"`. A
+# text that is not a time stays as it is.
+function _format_readable_time(text::AbstractString)
+    time = isempty(text) ? nothing : find_workflow_time(WorkflowEntry(time = String(text)))
+    time === nothing ? String(text) : Dates.format(time, "yyyy-mm-dd HH:MM")
+end
+
 """
     get_workflow_states(node) -> Tuple
 

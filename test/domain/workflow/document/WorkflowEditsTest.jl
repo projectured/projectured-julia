@@ -107,6 +107,24 @@ function test_workflow_edits()
             @test decision.journal[end].text.value == "Chose binary: it is fast"
         end
 
+        @testset "a new choice opens the option chosen before, and no reason keeps the reason" begin
+            decision = make_workflow_decision("Which format", ["binary", "text"]; chosen = 1, reason = "fast")
+            evaluate_operation(nothing, make_choose_workflow_option_operation(decision, 2))
+            @test [option.state for option in decision.options] == [:open, :chosen]
+            @test decision.options[1].reason.value == "fast"
+            @test decision.journal[end].text.value == "Chose text."
+            @test_throws ArgumentError make_workflow_state_operation(decision, :done)
+            editor = _WorkflowTestEditor(decision)
+            reject_workflow_option!(decision, 1; editor)
+            @test decision.options[1].state === :rejected
+            @test decision.options[1].reason.value == "fast"
+        end
+
+        @testset "the text of an entry that is a document is found by its words" begin
+            step = WorkflowStep(journal = [make_workflow_entry(TextBlock(TextString("a rich finding")))])
+            @test length(collect_workflow_entries(step; text = "RICH")) == 1
+        end
+
         @testset "an entry says a string or a document, and checks its author and kind" begin
             entry = make_workflow_entry("a fact"; time = _WORKFLOW_TEST_TIME)
             @test entry.text isa PrimitiveString

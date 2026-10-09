@@ -28,7 +28,8 @@ the outline its styles with `get_workflow_style`, from a theme scaled or not.
 end
 
 # The role of the badge that shows `state`: the colour of a state that is under
-# way, settled well, settled badly or put aside; an open state has none.
+# way, settled well, settled badly or put aside. An open state has none, and its
+# badge draws as an outline.
 _get_state_badge_role(state::Symbol) =
     state === :active ? :accent :
     state in (:done, :chosen) ? :success :

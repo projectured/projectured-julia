@@ -13,7 +13,8 @@ of a row answers `OpenFileOperation` of the file, so the workflow opens in a tab
 and continues there.
 
 The view reads the folder when it is built: a press on "Read again" counts up the
-`version` of the catalog, and the view reads the folder again.
+`version` of the catalog, and the view reads the folder again. The count is the
+state of the view, so a history does not record it.
 """
 @projection UntrackedCell struct WorkflowCatalogToWidget <: Projection
     muted_text::StyleText = get_workflow_style(nothing, :muted_text)
@@ -73,25 +74,23 @@ print_document(p::WorkflowCatalogToWidget, recursion, catalog::WorkflowCatalog, 
 function _build_catalog_view(p::WorkflowCatalogToWidget, catalog::WorkflowCatalog)
     version = catalog.version
     again = _make_workflow_button("Read again", "Read the folder again",
-        () -> ReplaceReferencedValueOperation(catalog, "version", version + 1))
+        () -> ReplaceViewStateOperation(ReplaceReferencedValueOperation(catalog, "version", version + 1)))
     headers = Any[WidgetLabel(text) for text in ("workflow", "state", "active", "last entry",
                                                  "open decisions", "file")]
     rows = Any[_make_catalog_row(p, path, workflow) for (path, workflow) in collect_workflow_files(catalog.folder)]
     isempty(rows) && push!(rows, Any[WidgetLabel("no workflow in " * catalog.folder; text_style = p.muted_text),
                                     WidgetLabel(""), WidgetLabel(""), WidgetLabel(""), WidgetLabel(""), WidgetLabel("")])
-    VerticalLayout(Any[again, WidgetTable(headers, rows)]; gap = p.gap, child_width = Fill)
+    VerticalLayout(Any[HorizontalLayout(Any[again]), WidgetTable(headers, rows)]; gap = p.gap, child_width = Fill)
 end
 
 function _make_catalog_row(p::WorkflowCatalogToWidget, path::AbstractString, workflow::WorkflowStep)
     goal = workflow.title.value
     open = _make_workflow_button(isempty(goal) ? basename(path) : goal, "Open the workflow in a tab",
                                  () -> OpenFileOperation(path))
-    time = _get_last_entry_time(workflow)
-    parsed = isempty(time) ? nothing : find_workflow_time(WorkflowEntry(time = time))
     Any[open,
         WidgetLabel(string(workflow.state)),
         WidgetLabel(join((step.title.value for step in _collect_active_steps(workflow)), ", ")),
-        WidgetLabel(parsed === nothing ? "" : Dates.format(parsed, "yyyy-mm-dd HH:MM"); text_style = p.muted_text),
+        WidgetLabel(_format_readable_time(_get_last_entry_time(workflow)); text_style = p.muted_text),
         WidgetLabel(string(_count_open_decisions(workflow))),
         WidgetLabel(basename(path); text_style = p.muted_text)]
 end

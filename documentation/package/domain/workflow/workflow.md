@@ -39,7 +39,7 @@ Each edit is a builder that answers a `ReplaceReferencedValueOperation` that car
 | `make_delete_workflow_node_operation(parent, index)` | removes a child |
 | `make_add_workflow_entry_operation(node, entry)` | appends an entry to the journal |
 | `make_add_workflow_card_operation(node, card)`, `make_delete_workflow_card_operation(node, index)` | adds and removes a card |
-| `make_choose_workflow_option_operation(decision, index; reason)` | chooses an option and writes a `:decision` entry; the other options keep their states |
+| `make_choose_workflow_option_operation(decision, index; reason)` | chooses an option and writes a `:decision` entry; an option chosen before becomes `:open`, and the others keep their states |
 
 `make_workflow_entry` and `make_workflow_decision` make the documents that the builders insert.
 
@@ -47,7 +47,7 @@ Each edit is a builder that answers a `ReplaceReferencedValueOperation` that car
 
 Three projections draw a workflow as widgets: `WorkflowNodeToWidget` for a step, a decision and an option, `WorkflowEntryToWidget` and `WorkflowCardToWidget`. `make_workflow_graphics_entries` chains each with `VerticalLayoutToGraphicsCanvas`, and the `__init__` of the module registers them as rows of the renderer, so a tab draws a workflow, and a node inside any other document.
 
-A node is a card. Its first row holds a button that folds it, the state as a badge in the colour of its role with a button that steps it, the title and the time of the last entry. Under that row stand the reason of an option, the journal, the cards and the children, then a row of buttons that add a step, a decision, an option, a comment and a card. A card and a child each have a button that removes them.
+A node is a card; an open state draws as an outlined badge. Its first row holds a button that folds it, the state as a badge in the colour of its role with a button that steps it, the title and the time of the last entry. Under that row stand the reason of an option, the journal, the cards and the children, then a row of buttons that add a step, a decision, an option, a comment and a card. A card and a child each have a button that removes them.
 
 The output holds the documents of the input, and the renderer draws each one through the view of its own domain, so text, Markdown, syntax and widgets mix in one outline, and an edit in a card edits its content. The maps translate a path by the places where those documents sit. A title, a question, a reason and the text of an entry that is a `PrimitiveString` show as a `WidgetText` whose content follows the value, so they draw as prose with a placeholder; the maps send `title.value{…}` to `content{…}` of the field.
 

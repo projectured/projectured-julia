@@ -50,6 +50,9 @@ function make_workflow_state_operation(node::Union{WorkflowStep, WorkflowOption}
                           make_add_workflow_entry_operation(node, entry)])
 end
 
+make_workflow_state_operation(::WorkflowDecision, state::Symbol; keywords...) =
+    throw(ArgumentError("A decision has no state; choose, reject or park one of its options."))
+
 """
     get_next_workflow_state(node) -> Symbol
 
@@ -118,7 +121,7 @@ function make_workflow_decision(question, options; chosen::Integer = 0, reason =
     journal = Any[]
     if chosen > 0
         made[chosen].state = :chosen
-        made[chosen].reason = _make_text(reason)
+        made[chosen].reason = _make_reason(reason)
         push!(journal, make_workflow_entry(_describe_choice(made[chosen], reason);
                                            author, kind = :decision, time))
     end
@@ -126,21 +129,30 @@ function make_workflow_decision(question, options; chosen::Integer = 0, reason =
 end
 
 """
-    make_choose_workflow_option_operation(decision, index; reason = "", author = :person,
+    make_choose_workflow_option_operation(decision, index; reason = nothing, author = :person,
                                           time = get_workflow_time()) -> CompoundOperation
 
 Choose the option at the 1-based `index` of `decision`, for `reason`, and write a
-`:decision` entry that names it into the journal of the decision. The other
-options keep their states: a person rejects or parks each of them.
+`:decision` entry that names it into the journal of the decision. An option that
+was chosen before becomes `:open`, because a decision has one chosen option; the
+other options keep their states, and a person rejects or parks each of them.
+`reason = nothing` keeps the reason that the option has.
 """
 function make_choose_workflow_option_operation(decision::WorkflowDecision, index::Integer;
-                                               reason = "", author::Symbol = :person,
+                                               reason = nothing, author::Symbol = :person,
                                                time::AbstractString = get_workflow_time())
     option = decision.options[index]
     entry = make_workflow_entry(_describe_choice(option, reason); author, kind = :decision, time)
-    CompoundOperation(Any[ReplaceReferencedValueOperation(option, "state", :chosen),
-                          ReplaceReferencedValueOperation(option, "reason", _make_text(reason)),
-                          make_add_workflow_entry_operation(decision, entry)])
+    operations = Any[ReplaceReferencedValueOperation(option, "state", :chosen)]
+    reason === nothing || push!(operations, ReplaceReferencedValueOperation(option, "reason", _make_reason(reason)))
+    # A decision has one chosen option: the choice of another one opens the one
+    # that was chosen, and the journal says which option the decision moved to.
+    for other in decision.options
+        other !== option && other.state === :chosen &&
+            push!(operations, ReplaceReferencedValueOperation(other, "state", :open))
+    end
+    push!(operations, make_add_workflow_entry_operation(decision, entry))
+    CompoundOperation(operations)
 end
 
 _describe_choice(option, reason) =
@@ -149,7 +161,14 @@ _describe_choice(option, reason) =
 
 _get_plain_text(text::AbstractString) = String(text)
 _get_plain_text(text::PrimitiveString) = text.value
+# A document of another domain, such as a Markdown page, as its own text, when its
+# domain has a text form.
+_get_plain_text(text::Document) =
+    make_natural_projection(text, :string) === nothing ? "" : print_natural_text(text)
 _get_plain_text(text) = ""
+
+# The reason of an option is a text: a document of another domain gives its text.
+_make_reason(reason) = PrimitiveString(_get_plain_text(reason))
 
 _make_text(text::AbstractString) = PrimitiveString(String(text))
 _make_text(text::Document) = text
@@ -236,13 +255,15 @@ function record_workflow_decision!(node, question, options; chosen::Integer = 0,
 end
 
 """
-    choose_workflow_option!(decision, index; reason = "", editor = get_evaluation_editor())
+    choose_workflow_option!(decision, index; reason = nothing, editor = get_evaluation_editor())
         -> ReferencedDocument
 
 Choose the option at the 1-based `index` of `decision`, for `reason`, and write a
-`:decision` entry by you into the journal of the decision. Answer the decision.
+`:decision` entry by you into the journal of the decision. An option that was
+chosen before becomes `:open`. `reason = nothing` keeps the reason that the option
+has. Answer the decision.
 """
-function choose_workflow_option!(decision, index::Integer; reason = "",
+function choose_workflow_option!(decision, index::Integer; reason = nothing,
                                  editor = get_evaluation_editor())
     _evaluate_workflow_operation!(editor, decision,
         make_choose_workflow_option_operation(get_document(decision), index; reason,
@@ -252,19 +273,19 @@ function choose_workflow_option!(decision, index::Integer; reason = "",
 end
 
 """
-    reject_workflow_option!(decision, index; reason = "", editor = get_evaluation_editor())
+    reject_workflow_option!(decision, index; reason = nothing, editor = get_evaluation_editor())
         -> ReferencedDocument
 
 Reject the option at the 1-based `index` of `decision`, for `reason`. The option
 stays, with its steps and its reason, as the record of a branch that was tried.
-Answer the decision.
+`reason = nothing` keeps the reason that the option has. Answer the decision.
 """
-function reject_workflow_option!(decision, index::Integer; reason = "",
+function reject_workflow_option!(decision, index::Integer; reason = nothing,
                                  editor = get_evaluation_editor())
     option = get_document(decision).options[index]
-    operation = CompoundOperation(Any[
-        make_workflow_state_operation(option, :rejected; author = :assistant),
-        ReplaceReferencedValueOperation(option, "reason", _make_text(reason))])
+    operations = Any[make_workflow_state_operation(option, :rejected; author = :assistant)]
+    reason === nothing || push!(operations, ReplaceReferencedValueOperation(option, "reason", _make_reason(reason)))
+    operation = CompoundOperation(operations)
     _evaluate_workflow_operation!(editor, decision, operation, "Reject an option")
     decision
 end
