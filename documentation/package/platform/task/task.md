@@ -18,8 +18,8 @@ such as the runs and the tests of a simulation, or the builds of a project.
 `get_result_codes(task)`, the family of codes that its results take, and
 `format_task_parameters(task)`, the task in one line.
 
-A kind also says what it adds to the views of tasks, with plain answers and no
-document of its own:
+A kind also says what it adds to the views of tasks. All but the last answer
+are plain values:
 
 - `get_task_columns(task)` names its columns, each the word of its header and
   its share of the width, such as `"directory" => 4`;
@@ -27,7 +27,12 @@ document of its own:
 - `format_task_details(task, result)` gives its facts, one a line, such as the
   command, the exit code and the error line, from what the task ended with;
 - `get_task_actions(task)` gives its buttons, each a label and a function that a
-  press calls with the editor that evaluates the press and the task.
+  press calls with the editor that evaluates the press and the task;
+- `get_task_result_document(task, result)` gives a document that shows the
+  result in more than lines of text, such as the table of the scalars that a
+  statistical test compared. The detail of the task shows it below its facts.
+  It draws by the method of `make_graphics_projection` for its type, as it
+  draws in any document, so the renderer of the views reads that seam too.
 
 The defaults answer nothing, so a task of a kind that adds nothing shows what
 every task has. A run of a simulation, for example, can add its directory, its
@@ -304,8 +309,8 @@ A domain adds a kind of task in five steps. The example is a build that runs
    with `start_process_task!`, and in `finish` makes the result and calls
    `finish_task_execution!` with `on_finish`.
 4. If the views must show more than every task has, answer the functions of the
-   views: `get_task_columns`, `format_task_column`, `format_task_details` and
-   `get_task_actions`.
+   views: `get_task_columns`, `format_task_column`, `format_task_details`,
+   `get_task_actions` and `get_task_result_document`.
 5. Give a model the verbs: the verbs of the domain that start a group, and
    `make_task_api()` for the rest.
 

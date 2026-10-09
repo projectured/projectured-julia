@@ -2,8 +2,9 @@
 # draws the columns that every task has and the columns of its kind, the detail
 # shows the facts and the buttons of the kind, a press of a button of the kind
 # calls it with the task, the tab says how far the group is, and the Tasks pane
-# has a row for each group. The probe task of a kind that adds nothing is the
-# one of `TaskGroupTest.jl`.
+# has a row for each group. The detail draws the document that a kind gives for a
+# result. The probe task of a kind that adds nothing is the one of
+# `TaskGroupTest.jl`.
 
 # A kind of task that adds a column, its facts and a button.
 struct _TaskViewProbeTask <: AbstractTask
@@ -24,6 +25,17 @@ TaskModule.get_task_actions(::_TaskViewProbeTask) =
     ["Note" => (editor, task) -> push!(_TASK_VIEW_PRESSES, task.name)]
 TaskModule.start_task(task::_TaskViewProbeTask; on_finish = nothing) =
     TaskModule.start_task(_TaskGroupProbeTask(task.name, task.script); on_finish)
+
+# The document that the kind gives for a result: one line, drawn by the seam that
+# every renderer reads.
+struct _TaskViewResultDocument <: Document
+    line::String
+end
+WidgetModule.make_graphics_projection(::Type{_TaskViewResultDocument}; measure, appearance) =
+    ProjecturedPlatform.NaturalModule.PhraseToGraphics(document -> document.line,
+        StyleText(StyleFont("Ubuntu", 18), color_black), TextToGraphics(; measure))
+TaskModule.get_task_result_document(task::_TaskViewProbeTask, result) =
+    _TaskViewResultDocument("the result of " * task.name * " is " * result.result)
 
 # Each text of a drawn pane with its place on the canvas.
 function _collect_task_view_texts(node, x = 0, y = 0, found = Tuple{Int,Int,String}[])
@@ -138,6 +150,22 @@ function test_task_views()
             words = _collect_task_view_words(document)
             @test "Earlier executions" in words
             @test any(w -> occursin(r"^1\. started \d\d:\d\d:\d\d — ERROR", w), words)
+        end
+
+        @testset "the detail draws the document that the kind gives for a result" begin
+            document = wrap_task_group_document(
+                TaskGroup([_TaskViewProbeTask("beta", "exit 0")]; name = "result document", jobs = 1))
+            select_task_document!(document, 1)
+            projection, iomap = _print_task_view(document)
+            words() = [t[3] for t in _collect_task_view_texts(iomap.output)]
+            @test !any(startswith("the result of"), words())
+            wait_task_group_document(start_task_group_document!(document))
+            # The drawn pane follows the result, and the line stands between the
+            # buttons and the output.
+            texts = _collect_task_view_texts(iomap.output)
+            line = only(t for t in texts if t[3] == "the result of beta is DONE")
+            @test only(t for t in texts if t[3] == "Run again")[2] < line[2] <
+                  only(t for t in texts if t[3] == "stdout")[2]
         end
 
         @testset "the progress of a task that runs is a ring" begin

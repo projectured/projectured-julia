@@ -416,6 +416,11 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
                       for (label, action) in get_task_actions(task)]
         push!(parts, HorizontalLayout(Any[stop, again, actions...]; vertical_align = :center,
                                       gap = p.inline_gap))
+        # The document that the kind gives for the result, between the facts and
+        # the output; a new result builds the detail again.
+        result = get_task_document_result(document)
+        shown = result === nothing ? nothing : get_task_result_document(task, result)
+        shown === nothing || push!(parts, LayoutConstraint(shown; height = Relative(2), width = Fill))
         push!(parts, _make_label("stdout", p.muted_color))
         push!(parts, _build_output_pane(() -> collect_task_document_lines(document, :output); weight = 2))
         push!(parts, _make_label("stderr", p.muted_color))
@@ -731,9 +736,15 @@ function build_task_graphics_entry(; measure = nothing, appearance::Appearance =
               info_color = get_style(:info_color), warning_color = get_style(:warning_color),
               error_color = get_style(:error_color), running_color = get_style(:running_color),
               muted_color = get_style(:muted_color))
-    widgets() = RecursiveProjection(WidgetToGraphics(; measure = measured,
-        theme = get_scaled_theme!(appearance, WidgetTheme),
-        graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)))
+    # A document that a kind gives for a result draws as it draws in any
+    # document: by the method of `make_graphics_projection` for its type.
+    documents = Pair{Type,Any}[type => make_graphics_projection(type; measure = measured,
+                                                                appearance = appearance)
+                               for type in collect_graphics_projection_types()]
+    widgets() = RecursiveProjection(TypeDispatchingProjection(vcat(
+        WidgetToGraphics(; measure = measured, theme = get_scaled_theme!(appearance, WidgetTheme),
+                         graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)).dispatch,
+        documents)))
     Pair{Type,Any}[
         TaskGroupDocument => ChainingProjection(TaskGroupDocumentToWidgetPane(; styles...), widgets()),
         TaskGroupList => ChainingProjection(TaskGroupListToWidgetPane(; styles...), widgets())]
