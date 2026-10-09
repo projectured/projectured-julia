@@ -488,6 +488,10 @@ Each step ends with its own tests and a commit, in a worktree.
       forward to the field, and a key with that route reaches no field. The
       quick text field and the field of find wait for a decision of how.
 
+    The rule that only the projection algebra holds projections (the owner,
+    2026-10-08) and `ArrangedChainingProjection`, which holds a chain in the
+    slice `arrangement`: the owner, 2026-10-09, "accept where it is now".
+
     Parts:
     - [x] **3d-1.** `ArrangeCollectionOperation` and its two holders: the
       reader of `ArrangingProjection` and the reader of the pane tree. Done
