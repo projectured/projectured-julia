@@ -23,6 +23,16 @@ end
     buffer::MutableCell{Vector{String}}
 end
 
+# A field that names the reactive kind holds a vector that a computation gives whole.
+@document struct WholeVectorHolder
+    offsets::ReactiveCell{Vector{Int}} = Int[]
+end
+
+# A field declared `CollectionDocument` takes a plain vector as the list of it.
+@document struct CollectionHolder
+    elements::CollectionDocument = CellVector()
+end
+
 function test_collection()
 @testset "ReactiveCollection" begin
 
@@ -503,6 +513,24 @@ end # @testset "ReactiveCollection"
         shadow.buffer = ["a"]
         @test shadow.buffer isa Vector{String}
         @test shadow.buffer == ["a"]
+    end
+
+    @testset "a field that names the reactive kind holds a vector as one value" begin
+        holder = WholeVectorHolder()
+        @test holder.offsets == Int[] && holder.offsets isa Vector{Int}
+        holder.offsets = [3, 7]
+        @test holder.offsets isa Vector{Int}
+        width = Cell(2)
+        set_cell_computation!(getfield(holder, :offsets), () -> collect(1:width[]))
+        @test holder.offsets == [1, 2]
+        width[] = 3
+        @test holder.offsets == [1, 2, 3]
+    end
+
+    @testset "a plain vector in a field declared CollectionDocument becomes a list" begin
+        holder = CollectionHolder(; elements = Any["a", "b"])
+        @test holder.elements isa CellVector
+        @test collect(holder.elements) == ["a", "b"]
     end
 
     @testset "a list finds an element by its index" begin

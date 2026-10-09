@@ -294,14 +294,15 @@ the text of its spans, where an image counts one, and a new row of the line
 starts before that character. `WordWrapping` computes them for the width of the
 view, and `TextToGraphics` starts a row at each, at the indentation of the line.
 A soft break is no character: it is not in the caret space and not in the flat
-string, so a wrap moves no offset.
+string, so a wrap moves no offset. The field names its kind, so it holds the vector
+of offsets as one value that a computation gives whole, not as a list.
 """
 @document struct TextLine <: TextDocument
     elements::CollectionDocument = CellVector()
     indentation::Int = 0
     gutter::Union{Document, Nothing} = nothing
     fold::Union{Document, Nothing} = nothing
-    soft_breaks::Vector{Int} = Int[]
+    soft_breaks::ReactiveCell{Vector{Int}} = Int[]
 end
 
 TextLine(spans::Vector{<:TextDocument}; indentation::Integer = 0, gutter = nothing, fold = nothing) =
