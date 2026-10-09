@@ -254,6 +254,7 @@ guard of the platform checks every edge below against the code.
 | `gesturehelp` | Collection, Graphics, Projection, Screen, Style, Syntax, Text | — |
 | `gesturelog` | Collection, Domain, Graphics, Natural, Projection, Serialization, Style, Syntax, Text | — |
 | `mcplog` | Collection, Domain, Layout, Natural, Primitive, Projection, Serialization, Shell, Style, Widget | — |
+| `terminal` | Domain, Layout, Natural, Primitive, Projection, Style, Widget | — |
 | `task` | Collection, Domain, Focus, Graphics, Layout, Natural, Pane, Primitive, Projection, Style, Widget | — |
 | `fileformat` | Collection, Domain, Layout, Natural, Primitive, Projection, Serialization, Style, Syntax, Text, Widget | — |
 | `fault` | Collection, Domain, Graphics, Natural, Projection, Serialization, Style, Syntax, Text, Widget | — |

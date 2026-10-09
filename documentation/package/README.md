@@ -60,6 +60,7 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | `navigator` | [navigator.md](platform/navigator/navigator.md) | one page of a document at a time, with Back, Forward, Parent, an address and links |
 | `log` | [log.md](platform/log/log.md) | the message log of the session |
 | `mcplog` | [mcplog.md](platform/mcplog/mcplog.md) | the calls of the session that a client made over MCP |
+| `terminal` | [terminal.md](platform/terminal/terminal.md) | a program with its output lines and an input line, with no terminal device |
 | `task` | [task.md](platform/task/task.md) | a piece of work that runs as a task and ends with a result, in the words of `opp_repl`: its execution, a group of tasks, their documents and panes, the verbs, and how a domain adds a kind |
 | `statistics` | [statistics.md](platform/statistics/statistics.md) | the frame statistics of the editor loop |
 | `shell` | [shell.md](platform/shell/shell.md) | the wrappers and the chrome of a window |

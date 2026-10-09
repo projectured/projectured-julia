@@ -80,13 +80,31 @@ person as a general tool (see Q3).
 
 ## Steps
 
-- [ ] T.1 + T.2 The document and the process, with tests that run `sh` scripts:
+- [x] T.1 + T.2 The document and the process, with tests that run `sh` scripts:
   a prompt with no line end shows, a line on the standard input reaches the
   program, the standard error has its colour, the exit status arrives.
-- [ ] T.3 + T.4 The input, stop and close, with tests.
-- [ ] T.5 The view, with a test in a real editor (a key types, Enter sends).
+- [x] T.3 + T.4 The input, stop and close, with tests.
+- [x] T.5 The view, with a test in a real editor (a key types, Enter sends).
+  Done on the branch `acp-sign-in`; `test_terminal()` 35 of 35, the platform
+  layering guard 7 of 7, the static guards as on `main`. Facts and decisions:
+  - The input line is the `PrimitiveString` of the document, placed in the
+    output of the view. The natural renderer draws a `PrimitiveDocument` outside
+    a syntax tree as plain text, and the text layer edits it, so typing works
+    with no widget of its own. The conversation composer was the other
+    candidate; it would make the slice depend on the conversation.
+  - An empty `PrimitiveString` draws nothing, so a press could not hit it. The
+    pane of the input line has a fixed height, and the view reads a
+    `MouseClick` that nothing below took: it puts the caret at the end of the
+    input line, as a press in a terminal gives it the keys.
+  - Return is read by the view (`read_intent` for `KeyDown`), not by the text
+    layer, which does not take Return on a string. It answers the send and a
+    caret at the start of the empty line; the containers above map that path.
+  - The reader tasks post with `run_on_editor_task!`; a call with no editor
+    loop runs at once, so the process tests need no editor.
+  - Paste is not tested in the platform test, which has no clipboard; the live
+    check of the application tests it.
 - [ ] T.6 The sign-in card uses it (with step 2.5e).
-- [ ] Guide: `documentation/package/platform/terminal/terminal.md`, the slice
+- [x] Guide: `documentation/package/platform/terminal/terminal.md`, the slice
   table in `documentation/rule/package-rules.md`, and the edge of the slice in
   `PLATFORM_SLICE_EDGES`.
 
