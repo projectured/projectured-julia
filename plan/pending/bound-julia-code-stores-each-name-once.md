@@ -442,8 +442,11 @@ gives before the bind.
   text, which keeps the names, and its binders come back from the names at the
   next load. My recommendation: yes, because a reference into the same file
   needs no other file.
-- **Q5. A rename that captures:** refuse the rename (my recommendation), or
-  allow it and mark each use whose text would bind to another binder?
+- **Q5. A rename that captures:** a rename that gives a binder the name of an
+  inner binder, so that the text of an outer use would bind to the inner one.
+  Until stage 3 a plain `.jl` file can not save such a use, so my
+  recommendation is to refuse the rename then. From stage 3 the use writes a
+  reference (decision Q14), so the rename is allowed.
 - **Q6. A delete of a binder with uses:** the uses become unresolved names (my
   recommendation), or the delete is refused?
 - **Q7. A paste or a move:** the uses bind again by their names (my
