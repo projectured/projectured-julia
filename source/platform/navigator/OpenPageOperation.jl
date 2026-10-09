@@ -42,6 +42,8 @@ struct OpenPageOperation <: Operation
     target::Union{Nothing,String}
 end
 
+# @optional: where the page opens follows what it opens, as a command names it, and
+# most pages open here.
 OpenPageOperation(document, reference::Reference, place::Symbol = :here;
                   target::Union{Nothing,AbstractString} = nothing) =
     OpenPageOperation(document, reference, place, target === nothing ? nothing : String(target))

@@ -1846,6 +1846,8 @@ _make_share_cell(value::Function) = Cell(@computation _convert_share(value()))
 _convert_share(value::Nothing) = nothing
 _convert_share(value::Real) = Float64(value)
 
+# @optional: the value stands first, as the content of a label does, and a bar with
+# no value is a state of its own: it moves a quarter of its track.
 WidgetProgressBar(value::Union{Nothing, Real, Cell, Function} = nothing; position::Point2D=Point2D(0, 0),
                   width::Integer=240, visible::Bool=true,
                   margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
@@ -1883,6 +1885,8 @@ See also `WidgetProgressBar`, which shows the same value as a bar.
     tooltip::Any
 end
 
+# @optional: the value stands first, as the content of a label does, and a ring with
+# no value is a state of its own.
 WidgetProgressRing(value::Union{Nothing, Real, Cell, Function} = nothing; position::Point2D=Point2D(0, 0),
                    visible::Bool=true, margin=nothing, border=nothing, padding=nothing, style=nothing,
                    tooltip=nothing) =
