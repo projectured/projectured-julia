@@ -2,7 +2,7 @@
 
 > **Kind:** plan · **Status:** pending, 2026-10-09. The owner decided the end
 > state on 2026-10-09 (N5 of [a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md)),
-> and that it is a plan of its own, and L1 and L2 on 2026-10-09. The other questions of
+> and that it is a plan of its own, and L1, L2 and L3 on 2026-10-09. The other questions of
 > §6 are open, and no step is started. ·
 > **Stands on:** [text.md](../../documentation/package/platform/text/text.md),
 > [text-domain-kit.md](text-domain-kit.md) (shape A of Phase 3),
@@ -193,15 +193,30 @@ the release plan).
     a typed text and a sixth positional field. A style of a line (alignment,
     spacing, its height) is a paragraph style, a design of its own when a domain
     needs one.
-- **L3 A place in a text of one line.** `PrimitiveToText` maps `value{s}` to a
-  structural `.elements[1].content{s}` position and `value{s:e}` to a flat range.
-  `ObjectToWidget`, `ObjectFieldToWidget`, `WidgetToGraphics` and
-  `ConversationEditor` build or parse the structural path too. With lines, each
-  gets the line step, or each uses the flat caret.
-
-  My proposal, not decided: the flat caret where a place in the text is meant,
-  and a structural path only where a run is meant (a style, an image). Step 0
-  finds why `PrimitiveToText` gives a structural position for an empty range.
+- **L3 A place in a text of one line. Decided, the owner, 2026-10-09: (b), the
+  flat form.** The forward map of a producer of one line gives the flat caret and
+  the flat range. Its backward map reads the flat forms, and the structural forms
+  that an edit and an operation bring, through the readers of the text domain:
+  `get_flat_caret(block, reference)` for a caret, and a new sibling
+  `get_flat_range(block, reference)` for a range, which the owner approved with
+  this answer. So no producer names the line step; only the text domain and the
+  generic edit know the shape of a text.
+  - The structural form stays, with the line step, because an operation names
+    the string it changes: `ReplaceStringRangeOperation` (`PrimitiveDocument.jl`)
+    splices a string at its path and leaves the caret at that path, until the
+    next print makes it flat.
+  - `PrimitiveToText` gives a structural caret and a flat range. The flat range
+    came with the clipboard work (`773dd0f67`, 2026-09-17), which left the caret
+    as it was; neither the commit nor its plan gives a reason for the structural
+    caret.
+  - The producers that build or parse the structural path today: `PrimitiveToText`,
+    `ObjectToWidget._end_cursor`, `ObjectFieldToWidget._caret_in_content`,
+    `WidgetToGraphics._map_plain_text_reference`, and `_body_range_selection`,
+    `_parse_body_span_range`, `_map_body_to_value`, `_body_selection` of
+    `ConversationEditor`.
+  - Not taken: (a) each producer keeps the structural form with the line step,
+    which makes each producer of one line follow every change of the shape of a
+    text.
 - **L4 The placeholder of a fold.** `TextFold.placeholder` is a `TextBlock` that
   `TextFolding` appends to the line of the fold as spans.
   - (a) It stays a block, and `TextFolding` appends the runs of its one line.
@@ -223,8 +238,7 @@ a block of spans still works, so the producers move one at a time.
 
 0. **The baseline.** The text and projection suites of the platform, the
    conversation and widget suites, the example sweeps and the console, each part
-   in a process of its own, at main before step 1. Find the reason for the
-   structural position of `PrimitiveToText` (L3).
+   in a process of its own, at main before step 1.
    **`make_text_block(content, style)`** is step 1 of
    [a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md). The
    plan that starts first makes it.
@@ -233,7 +247,10 @@ a block of spans still works, so the producers move one at a time.
    (one line for each argument), and the tooltip of the gallery. Their
    `WordWrapping` then wraps lines.
 2. **The producers of one run give one line**, by `make_text_block` or
-   `TextBlock(TextLine(run))` (L1), with their paths by L3:
+   `TextBlock(TextLine(run))` (L1). First `get_flat_range(block, reference)` in the
+   text domain, with its tests; its name follows its sibling `get_flat_caret`.
+   Then each producer maps forward to the flat form and backward through
+   `get_flat_caret` and `get_flat_range` (L3):
    `PrimitiveToText`, `FaultToText`, `@insertion TextBlock`, the widgets
    (`ObjectToWidget`, `ObjectFieldToWidget`, `WidgetToGraphics`), the
    conversation and the assistant, Formula, the Julia tooltip, RST, `NaturalProjection`,
