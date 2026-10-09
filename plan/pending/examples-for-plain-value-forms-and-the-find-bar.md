@@ -46,7 +46,10 @@ every widget example on main, so its counts are a record and no gate.
    Done: `FindBarViewDocumentExample.jl` and `FindBarViewProjectionExample.jl` in
    `example/platform/`; the text is `_make_lorem_lines_block()`, which the filter
    example shares.
-2. ⬜ **A filter around a highlight.** Register `highlighted_filtered_text`.
+2. ✅ **A filter around a highlight.** Register `highlighted_filtered_text`.
+
+   Done: the filter keeps the lines with a word that starts with "do" (`\\bdo`,
+   a regular expression), and the highlight marks "DOLOR" with case ignored.
 3. ⬜ **`ObjectToWidget` arguments.** Register `object_to_widget_chosen_widgets`
    (`make_widget`) and `object_to_widget_plain_record` (`is_record`).
 4. ⬜ **A form of bare fields with chosen widgets.** Register

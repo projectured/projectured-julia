@@ -61,6 +61,7 @@ const text_filtering_example = Example("text_filtering", make_text_filtering_doc
 const text_highlighting_example = Example("text_highlighting", make_text_highlighting_document_example, make_text_highlighting_projection_example)
 const find_bar_example = Example("find_bar", make_find_bar_document_example, make_find_bar_projection)
 const filter_bar_example = Example("filter_bar", make_filter_bar_document_example, make_find_bar_projection)
+const highlighted_filtered_text_example = Example("highlighted_filtered_text", make_highlighted_filtered_text_document_example, make_highlighted_filtered_text_projection_example)
 const widget_example         = Example("widget",         make_widget_document_example,         make_widget_projection_example)
 const widget_label_example       = Example("widget_label",       make_widget_label_document_example,       make_widget_projection_example)
 const widget_text_example        = Example("widget_text",        make_widget_text_document_example,        make_widget_text_projection_example)
@@ -145,6 +146,7 @@ const platform_examples = Example[
     text_highlighting_example,
     find_bar_example,
     filter_bar_example,
+    highlighted_filtered_text_example,
     widget_example,
     widget_label_example,
     widget_text_example,

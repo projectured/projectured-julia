@@ -9,3 +9,15 @@ function make_text_filtering_projection_example(; measure=FontFileMeasure())
         TextToGraphics(measure=measure),
     )
 end
+
+# The text stage holds a row for each wrapper, so a filter prints the highlighted
+# text through it and filters the block that the highlight gives.
+function make_highlighted_filtered_text_projection_example(; measure=FontFileMeasure())
+    ChainingProjection(
+        RecursiveProjection(TypeDispatchingProjection(
+            FilteredText    => FilteredTextToText(),
+            HighlightedText => HighlightedTextToText(),
+            TextBlock       => IdentityProjection())),
+        TextToGraphics(measure=measure),
+    )
+end

@@ -21,3 +21,13 @@ function _make_lorem_lines_block()
         TextString("laboris nisi ut aliquip ex ea commodo.", StyleFont("Ubuntu Mono", 20), color_default),
     )
 end
+
+# A filter around a highlight: only the lines with a word that starts with "do"
+# stay, a regular expression, and in them each "dolor" is highlighted, whatever its
+# case. The filter keeps the highlighted lines, and a caret and an edit map back
+# through both to the text.
+function make_highlighted_filtered_text_document_example()
+    highlighted = HighlightedText(text = _make_lorem_lines_block(), pattern = "DOLOR",
+                                  case_insensitive = true)
+    FilteredText(text = highlighted, pattern = raw"\bdo", regex = true)
+end
