@@ -450,12 +450,14 @@ end
 # widget and layout from the root of the pane to the card holds its part of the
 # path. The walk stops at a card that holds a document of a domain: the card
 # follows the paths of its document (`make_embed_card`), and the document holds
-# its own. It leaves out the table, whose rows take no key.
+# its own. It leaves out the table, whose rows take no key. A constraint is on
+# the way: the split and the detail each stand in one.
 _is_embed_card(node) =
     node isa WidgetCard && node.content isa Document &&
     !(node.content isa WidgetDocument || node.content isa LayoutDocument)
 _is_followed_by_selection(node) =
-    (node isa WidgetDocument || node isa LayoutDocument) && !(node isa WidgetTable) && !_is_embed_card(node)
+    (node isa WidgetDocument || node isa LayoutDocument || node isa LayoutConstraint) &&
+    !(node isa WidgetTable) && !_is_embed_card(node)
 
 # A part that the detail builds holds its part of the paths of the detail, so a
 # key reaches the card after the person picks another task: the walk of the pane

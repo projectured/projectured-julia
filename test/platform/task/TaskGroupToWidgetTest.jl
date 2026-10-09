@@ -191,6 +191,15 @@ function test_task_views()
             drawn = map_reference_forward(pane, pane_iomap, inside)
             @test steps_of(drawn) == [card..., FieldReferenceStep("content"), FieldReferenceStep("line")]
             @test steps_of(map_reference_backward(pane, pane_iomap, drawn)) == steps_of(inside)
+            # A selection in the document reaches the card: each container on the
+            # way holds the part of the path below it, so a key goes there.
+            replace_selection!(document, inside)
+            around_card = foldl((node, step) -> ProjecturedKernel.CellModule.unwrap_cell(
+                                    ProjecturedKernel.ReferenceModule.evaluate_reference_step(step, node)),
+                                card[1:(end - 1)]; init = pane_iomap.output)
+            @test around_card isa ProjecturedPlatform.LayoutModule.LayoutConstraint
+            @test steps_of(getfield(around_card, :selection)[]) ==
+                  [FieldReferenceStep("child"), FieldReferenceStep("content"), FieldReferenceStep("line")]
             # The title of the card names the whole document.
             @test steps_of(map_reference_backward(pane, pane_iomap, make_path(card..., FieldReferenceStep("title")))) ==
                   collect(result)
