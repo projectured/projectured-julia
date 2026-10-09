@@ -559,6 +559,56 @@ function test_application()
                 end
             end
 
+            @testset "a key edits the description where the detail of the Assistants pane shows it" begin
+                assistant = Assistant(; llm = FakeLlm("ok"), description = "Fix")
+                assistant.agent_title = "Window assistant"
+                document, projection = make_application_window(paths[1:1]; root = dir, assistant)
+                editor = build_editor(document, projection; backend = HeadlessBackend(),
+                                      tabs = false,
+                                      window = (; title = "ProjecturEd", width = 1600,
+                                                height = 1000,
+                                                opened_window_projections =
+                                                    make_opened_window_projections()))
+                tree = only(search_documents(editor.document, node -> node isa PaneTree;
+                                             descend = is_pane_search_step))
+                list = get_session_assistant_list()
+                link_assistant_list!(list, tree)
+                fire!(event) = _app_apply!(editor, _app_fire(editor.projection, editor.iomap, event))
+                press!(x, y) = fire!(MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 0.0))
+                drawn() = (run_frame!(editor);
+                           _app_drawn_at(get_iomap_output(editor.iomap).windows[1].content))
+                try
+                    toolbar = only(search_documents(editor.document, node -> node isa WidgetToolbar))
+                    button = only(item for item in toolbar.elements
+                                  if string(item.action.label) == "Assistants")
+                    _app_apply!(editor, InvokeActionOperation(button.action))
+                    # The › of the row of the assistant of the window picks it.
+                    texts = drawn()
+                    rows = [item[3] for item in texts if item[1] == "Window assistant"]
+                    (_, x, y) = only(item for item in texts
+                                     if item[1] == "›" && any(row -> abs(item[3] - row) <= 10, rows))
+                    press!(x, y)
+                    @test list.selected === assistant
+                    # A key in the card of the description edits the description.
+                    (_, x, y) = only(item for item in drawn() if item[1] == "Fix")
+                    press!(x, y)
+                    fire!(KeyPress('X', "X", ModifierKeys(); time = 0.0))
+                    @test occursin("X", assistant.description.value)
+                    @test occursin("Fix", assistant.description.value)
+                    # Ctrl+Z takes the key back.
+                    fire!(KeyDown(:z, ModifierKeys(ctrl = true); time = 0.0))
+                    @test assistant.description.value == "Fix"
+                    # A press on a toggle sets the state of the work.
+                    (_, x, y) = only(item for item in drawn() if item[1] == "complete")
+                    press!(x, y)
+                    @test assistant.work_state === :complete
+                finally
+                    select_assistant!(list, nothing)
+                    set_assistant_list_source!(list, nothing)
+                    set_assistant_list_opener!(list, nothing)
+                end
+            end
+
             @testset "the settings come from the defaults, the file, the environment and the command line" begin
                 folder = mktempdir()
                 path = joinpath(folder, "settings.toml")

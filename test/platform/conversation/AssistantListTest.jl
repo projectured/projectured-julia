@@ -3,7 +3,8 @@
 
 The list of the open assistants: the read of the tabs of a pane tree, the rows
 that follow the tabs and not the edits inside them, each way a tab comes and
-goes, and the one list of the session.
+goes, the one list of the session, the pane that draws it, and the detail of
+the assistant that a person picks.
 """
 function test_assistant_list()
     @testset "the list of the open assistants" begin
@@ -128,6 +129,50 @@ function test_assistant_list()
             operation.action.callback(nothing)
             @test length(shown) == 1 && only(shown) === first_assistant
         end
+
+        @testset "the detail of an assistant" begin
+            list = AssistantList()
+            first_assistant = Assistant(; description = "Fix the table", comment = "Ask about the colors.")
+            second_assistant = Assistant()
+            tree = PaneTree(PaneGroup([PaneTab("A", first_assistant), PaneTab("B", second_assistant)]))
+            set_assistant_list_source!(list, () -> collect_pane_tab_contents(tree, Assistant))
+            projection, iomap = _print_assistant_list(list)
+            @test "Press › on a row to see its conversation here." in _collect_assistant_list_words(iomap)
+            # The › of the first row picks its assistant, and the detail shows it.
+            texts = _collect_assistant_list_texts(iomap.output)
+            pick = first(sort([t for t in texts if t[3] == "›"]; by = t -> t[2]))
+            operation = read_intent(projection, iomap,
+                MouseClick(:left, pick[1] + 2, pick[2] + 2, ModifierKeys(); time = 0.0))
+            @test operation isa InvokeActionOperation
+            operation.action.callback(nothing)
+            @test list.selected === first_assistant
+            words = _collect_assistant_list_words(iomap)
+            @test all(in(words), ("Description", "Comment", "Fix the table", "Ask about the colors.",
+                                  "complete", "abandoned", "First prompt: none", "Last prompt: none"))
+            # A press on a toggle writes the state of the work.
+            texts = _collect_assistant_list_texts(iomap.output)
+            complete = only(t for t in texts if t[3] == "complete")
+            operation = read_intent(projection, iomap,
+                MouseClick(:left, complete[1] + 2, complete[2] + 2, ModifierKeys(); time = 0.0))
+            evaluate_operation(nothing, operation)
+            @test first_assistant.work_state === :complete
+            # A path into the description goes to its card in the detail, and back.
+            pane = AssistantListToWidgetPane()
+            pane_iomap = print_document(pane, nothing, list, PrinterContext())
+            path = ConcreteReference(FieldReferenceStep("selected"),
+                                     ConcreteReference(FieldReferenceStep("description"),
+                                                       ConcreteReference(FieldReferenceStep("value"), EmptyReference())))
+            forward = map_reference_forward(pane, pane_iomap, path)
+            @test repr(strip_reference_types(forward)) ==
+                  ".children[2].child.elements[2].child.children[3].child.content.value"
+            @test evaluate_reference(get_iomap_output(pane_iomap), forward) == "Fix the table"
+            back = map_reference_backward(pane, pane_iomap, strip_reference_types(forward))
+            @test repr(strip_reference_types(back)) == repr(strip_reference_types(path))
+            # A closed assistant shows no detail.
+            close_group = tree.root
+            deleteat!(close_group.tabs, 1)
+            @test "Press › on a row to see its conversation here." in _collect_assistant_list_words(iomap)
+        end
     end
 end
 
@@ -139,16 +184,10 @@ end
 _is_same_list(found, expected) =
     length(found) == length(expected) && all(map(===, collect(found), expected))
 
-# The pane with the theme that the slice registers it with, and its widgets drawn
-# on a canvas at the size of a window.
+# The pane as a tab draws it: the natural renderer, which draws the list with the
+# row that the slice registers, at the size of a window.
 function _print_assistant_list(list; width = 1400, height = 600)
-    appearance = Appearance()
-    measure = FixedMeasure(10, 18, 6, 0)
-    pane = AssistantListToWidgetPane(get_scaled_theme!(appearance, ConversationTheme))
-    widgets = RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(; measure, theme = get_scaled_theme!(appearance, WidgetTheme),
-                         graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)).dispatch))
-    projection = ChainingProjection(pane, widgets)
+    projection = NaturalToGraphics(measure = FixedMeasure(10, 18, 6, 0), appearance = Appearance())
     context = with_exact_size(PrinterContext(); width = Cell(Int32(width)), height = Cell(Int32(height)))
     (projection, print_document(projection, nothing, list, context))
 end

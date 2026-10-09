@@ -27,6 +27,7 @@ using ..DocumentModule
 using ..EventModule
 using ..EventModule
 using ..FaultModule
+using ..FocusModule
 using ..GestureBindingModule
 using ..IoMapModule
 using ..LayoutModule

@@ -279,6 +279,43 @@ the pane, as in the detail of a task.
 Show must find the tab whose content is the assistant, not the tab with the
 same title. Step 5 changes or adds a method of `show_document!` for that.
 
+**As built (step 6), the detail:**
+
+- The `›` and Show stand together in the first column of a row. A last column
+  can be cut off in a narrow pane.
+- The `›` writes `selected` of the list (`select_assistant!`). The detail shows
+  the picked assistant while it is open, else a hint.
+- The detail holds, in this order: the title, a line of facts (the backend and
+  the model, the start, the elapsed and the busy time, the last activity), the
+  card of the description, the card of the comment, a row of toggles for the
+  work state, the first and the last prompt, and the session of an agent.
+- The two cards are cards of embedded documents (`make_embed_card`), as in the
+  detail of a task. The pane maps `selected.description + rest` to its card and
+  back, and `selected.comment` likewise; every other path takes the defaults.
+  A key edits the document there, and Ctrl+Z of the window takes it back.
+- (Mine) A text widget bound to an `ObjectField` would be simpler, but the
+  renderer of the application does not nest `ObjectFieldToValue`, so the detail
+  embeds the `PrimitiveString` documents themselves.
+- The toggles are a `WidgetToggleGroup` with the assistant as `target` and
+  `work_state` as `field`, as the MCP log sets its filter.
+- **A new edge:** the assistant slice uses the focus slice
+  (`follow_output_selection!`, `follow_output_mouse_target!`), as the task
+  slice does, so a key passes through the layouts to a card and the button
+  under the pointer lights. The table of slice edges names it. The focus slice
+  depends only on the collection slice, so the edge makes no cycle.
+- The small helpers for the paths of the detail (`_find_path_below` and two
+  others) are a copy of those of the task pane. A shared place for them is
+  left for later.
+- Tests: `AssistantListTest.jl` picks a row, reads the detail, presses a
+  toggle, and maps a path into the description and back; it draws through the
+  natural renderer. `ApplicationTest.jl` picks a row in a window, types a key
+  into the description, takes it back with Ctrl+Z, and presses a toggle.
+- **Found, not from this branch:** in a process that also loaded the umbrella
+  test package, the MCP package is loaded, and a turn of an external agent then
+  starts an MCP server that reads `editor.tools`. The platform tests give an
+  editor with only `document`, so 39 of their assertions fail there. In the
+  environment of the platform test package they pass.
+
 ### 3.6 How a person opens the pane
 
 **As built (step 5):** a button of the toolbar, "Assistants", with the icon
@@ -478,7 +515,7 @@ Each step gets a commit. Each step runs the narrowest test that covers it.
   palette command and `show_assistant_list!`. Make Show find the tab by its
   content. Test the rows in a real editor: a label changes when a turn starts
   and ends.
-- [ ] **6. The detail.** Add the split and the detail. Test in a real editor that
+- [x] **6. The detail.** Add the split and the detail. Test in a real editor that
   a key edits the description and the comment, and that the select sets
   `work_state`.
 - [ ] ~~**7. Stage 2, the facts.**~~ *Deferred (3.7).* Count the IO maps that hold children and have

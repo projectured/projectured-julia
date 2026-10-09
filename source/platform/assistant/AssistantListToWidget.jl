@@ -1,18 +1,29 @@
 # Fragment of `AssistantModule` — the Assistants pane: a table of the open
-# assistants, one row each, which follows each assistant while it works.
+# assistants, one row each, which follows each assistant while it works, above
+# the detail of the assistant that a person picked.
 
 """
     AssistantListToWidgetPane(theme)
 
 Draw an [`AssistantList`](@ref) as the Assistants pane: a heading that counts the
-conversations and the turns that run, and a table with one row for each open
-assistant. A row has a button that shows the tab of the assistant, and its
+conversations and the turns that run, a table with one row for each open
+assistant, and below it, in a split that a person can drag, the detail of the
+assistant that the person picked with the `›` of its row.
+
+A row has the `›` and a button that shows the tab of the assistant, then its
 title, the state of its work, whose turn it is, what its turn does now, how many
 prompts it has, how much of its context it uses, when it started and how long it
-runs. Each value is a label that reads the cells of the assistant, so a row
-follows its assistant while a turn streams. The elapsed time of a turn that runs
-reads the clock of the editor, so it moves while the turn runs, and an idle
-table asks for no frame. With no theme it takes the values of the default theme.
+runs.
+Each value is a label that reads the cells of the assistant, so a row follows
+its assistant while a turn streams. The elapsed time of a turn that runs reads
+the clock of the editor, so it moves while the turn runs, and an idle table asks
+for no frame.
+
+The detail says the title and the facts of the assistant, holds its description
+and its comment in the cards of embedded documents, where a key edits them,
+offers the states of its work as a row of toggles, and shows its first and its
+last prompt and its session. With no theme it takes the values of the default
+theme.
 """
 @projection UntrackedCell struct AssistantListToWidgetPane
     stack_gap::Int = get_conversation_style(nothing, :section_gap)
@@ -70,12 +81,13 @@ function _format_elapsed_time(a::Assistant, clock)
 end
 
 function _build_assistant_row(list::AssistantList, a::Assistant, clock)
+    pick = WidgetButton("›"; action = _ -> select_assistant!(list, a))
     show = WidgetButton("Show"; action = editor -> open_assistant_tab(editor, list, a))
     work = WidgetBadge(() -> _format_work_state(a.work_state))
     set_cell_computation!(getfield(work, :role), () -> _get_work_state_role(a.work_state))
     turn = WidgetBadge(() -> compute_assistant_turn_side(a) === :assistant ? "assistant" : "you")
     set_cell_computation!(getfield(turn, :role), () -> compute_assistant_turn_side(a) === :assistant ? :accent : nothing)
-    Any[show,
+    Any[HorizontalLayout(Any[pick, show]; vertical_align = :center),
         WidgetLabel(() -> compute_assistant_overview_title(a)),
         work,
         turn,
@@ -86,14 +98,7 @@ function _build_assistant_row(list::AssistantList, a::Assistant, clock)
         WidgetLabel(() -> _format_elapsed_time(a, clock))]
 end
 
-function print_document(p::AssistantListToWidgetPane, recursion, list::AssistantList, ctx)
-    clock = ctx === nothing ? nothing : ctx.clock
-    heading = WidgetLabel(() -> begin
-        assistants = list.assistants
-        running = count(is_assistant_turn_running, assistants)
-        string(length(assistants), length(assistants) == 1 ? " conversation" : " conversations",
-               " · ", running, " running")
-    end)
+function _build_assistant_table(p, list::AssistantList, clock)
     body = VerticalLayout(Any[]; child_width = Fill)
     set_cell_computation!(getfield(body.children, :elements), () -> begin
         assistants = list.assistants
@@ -102,7 +107,182 @@ function print_document(p::AssistantListToWidgetPane, recursion, list::Assistant
         rows = Any[_build_assistant_row(list, a, clock) for a in assistants]
         Cell[Cell(WidgetTable(collect(Any, _ASSISTANT_LIST_COLUMNS), rows))]
     end)
-    root = VerticalLayout(Any[heading, LayoutConstraint(WidgetScrollPane(body); width = Fill, height = Fill)];
-                          horizontal_align = :left, gap = p.stack_gap)
-    ChildrenIoMap(p, list, root, Cell(Any[]))
+    body
+end
+
+# ── The detail of one assistant ──────────────────────────────────────────────
+#
+# The detail draws the description and the comment of the assistant that a
+# person picked in the cards of embedded documents (`make_embed_card`). A path
+# from the list reaches each document, `selected.description + rest`, so the pane
+# maps that path to its card, `content + rest`, and back, as the detail of a task
+# maps the document of a result. Every other path takes the defaults of
+# `Projection`.
+
+# The steps from the root of the pane to the detail: the split is the second
+# child of the root, in a constraint, and the detail is the second pane of the
+# split, in a constraint too.
+const _ASSISTANT_DETAIL_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1, 2),
+                                 FieldReferenceStep("child"), FieldReferenceStep("elements"),
+                                 RangeReferenceStep(1, 2), FieldReferenceStep("child"))
+
+# The documents of an assistant that the detail edits, each with the place of its
+# card among the parts of the detail, counted from 0: after the title and the
+# facts.
+const _ASSISTANT_DETAIL_CARDS = ((:description, "Description", 2), (:comment, "Comment", 3))
+
+# The steps from the root of the pane to the card at `place` among the parts of
+# the detail, which stands in a constraint.
+_get_assistant_card_steps(place::Int) =
+    (_ASSISTANT_DETAIL_STEPS..., FieldReferenceStep("children"), RangeReferenceStep(place, place + 1),
+     FieldReferenceStep("child"))
+
+# The steps from the list to the document `field` of the assistant it picked.
+_get_assistant_document_steps(field::Symbol) = (FieldReferenceStep("selected"), FieldReferenceStep(String(field)))
+
+# The assistant whose detail the pane shows: the picked one while it is open.
+function _find_shown_assistant(list::AssistantList)
+    a = list.selected
+    a !== nothing && any(open -> open === a, list.assistants) ? a : nothing
+end
+
+# What a step names, so a step that a reader answers and a step written here
+# compare by what they select.
+_get_step_key(step::FieldReferenceStep) = (:field, step.name)
+_get_step_key(step::RangeReferenceStep) = (:range, step.start, step.stop)
+_get_step_key(step) = (:other, step)
+
+_make_steps_reference(steps) =
+    foldr((step, rest) -> ConcreteReference(step, rest), steps; init = EmptyReference())
+
+# The part of `path` below `head`, or `nothing` when `path` does not begin with it.
+function _find_path_below(path, head)
+    path isa ConcreteReference || return nothing
+    steps = get_reference_steps(strip_reference_types(path))
+    length(steps) >= length(head) || return nothing
+    all(_get_step_key(steps[k]) == _get_step_key(head[k]) for k in eachindex(head)) || return nothing
+    _make_steps_reference(steps[(length(head) + 1):end])
+end
+
+function map_reference_forward(p::AssistantListToWidgetPane, iomap, reference)
+    if reference isa ConcreteReference && _find_shown_assistant(iomap.input) !== nothing
+        for (field, _, place) in _ASSISTANT_DETAIL_CARDS
+            inside = _find_path_below(reference, _get_assistant_document_steps(field))
+            inside === nothing && continue
+            return annotate_reference_types(iomap.output,
+                concat_references(_make_steps_reference(_get_assistant_card_steps(place)),
+                                  make_embed_card_path(inside)))
+        end
+    end
+    invoke(map_reference_forward, Tuple{Projection,Any,Any}, p, iomap, reference)
+end
+
+function map_reference_backward(p::AssistantListToWidgetPane, iomap, reference)
+    if reference isa ConcreteReference && _find_shown_assistant(iomap.input) !== nothing
+        for (field, _, place) in _ASSISTANT_DETAIL_CARDS
+            below = _find_path_below(reference, _get_assistant_card_steps(place))
+            inside = below === nothing ? nothing : find_embed_card_path_inside(below)
+            inside === nothing && continue
+            return annotate_reference_types(iomap.input,
+                concat_references(_make_steps_reference(_get_assistant_document_steps(field)), inside))
+        end
+    end
+    invoke(map_reference_backward, Tuple{Projection,Any,Any}, p, iomap, reference)
+end
+
+# A key goes to the child that the selection of each container names, so each
+# widget and layout from the root of the pane to a card holds its part of the
+# path. The walk stops at a card that holds a document: the card follows the
+# paths of its document (`make_embed_card`). It leaves out the table, whose rows
+# take no key.
+_is_assistant_embed_card(node) =
+    node isa WidgetCard && node.content isa Document &&
+    !(node.content isa WidgetDocument || node.content isa LayoutDocument)
+_is_followed_by_assistant_selection(node) =
+    (node isa WidgetDocument || node isa LayoutDocument || node isa LayoutConstraint) &&
+    !(node isa WidgetTable) && !_is_assistant_embed_card(node)
+
+# A part that the detail builds holds its part of the paths of the detail, so a
+# key reaches a card after the person picks another assistant: the walk of the
+# pane reaches only the parts that were there when the pane was drawn.
+function _follow_assistant_detail_part!(detail, part, place::Int)
+    steps = (FieldReferenceStep("children"), RangeReferenceStep(place, place + 1))
+    below(field) = () -> _find_path_below(getfield(detail, field)[], steps)
+    follow_output_selection!(part, below(:selection); forward_mouse_target = below(:mouse_target),
+                             is_followed = _is_followed_by_assistant_selection)
+end
+
+# The states of the work as a row of toggles; a press writes `work_state`.
+function _make_work_state_choice(a::Assistant)
+    choice = WidgetToggleGroup(Any[_format_work_state(state) for state in ASSISTANT_WORK_STATES];
+                               values = Any[ASSISTANT_WORK_STATES...], target = a, field = "work_state")
+    set_cell_computation!(getfield(choice, :selected),
+                          () -> something(findfirst(==(a.work_state), ASSISTANT_WORK_STATES), 1))
+    choice
+end
+
+# The facts of an assistant in a line: its backend and model, and its times.
+function _format_assistant_facts(a::Assistant)
+    facts = String[isempty(a.model) ? String(a.backend) : string(a.backend, " ", a.model)]
+    start = find_assistant_start_time(a)
+    start === nothing || push!(facts, "started " * format_assistant_start_time(start))
+    elapsed = compute_assistant_elapsed_time(a)
+    elapsed === nothing || push!(facts, "elapsed " * format_assistant_duration(elapsed))
+    busy = compute_assistant_busy_time(a)
+    busy > 0 && push!(facts, "busy " * format_assistant_duration(busy))
+    last_activity = find_assistant_last_activity_time(a)
+    last_activity === nothing || push!(facts, "last activity " * format_assistant_start_time(last_activity))
+    join(facts, " · ")
+end
+
+_format_prompt_line(label, prompt) = prompt === nothing ? label * ": none" : label * ": " * prompt
+
+function _build_assistant_detail(p, list::AssistantList)
+    detail = VerticalLayout(Any[]; gap = p.stack_gap, child_width = Fill)
+    set_cell_computation!(getfield(detail.children, :elements), () -> begin
+        a = _find_shown_assistant(list)
+        a === nothing && return Cell[Cell(WidgetLabel("Press › on a row to see its conversation here.";
+                                                      text_style = p.muted_color))]
+        parts = Any[WidgetLabel(() -> compute_assistant_overview_title(a)),
+                    WidgetLabel(() -> _format_assistant_facts(a))]
+        for (field, title, place) in _ASSISTANT_DETAIL_CARDS
+            length(parts) == place || error("the card of the ", field, " is not where the maps of the pane find it")
+            card = make_embed_card(getproperty(a, field), title)
+            push!(parts, _follow_assistant_detail_part!(detail, LayoutConstraint(card; width = Fill), place))
+        end
+        push!(parts, _make_work_state_choice(a))
+        push!(parts, WidgetLabel(() -> _format_prompt_line("First prompt", find_first_prompt(a))))
+        push!(parts, WidgetLabel(() -> _format_prompt_line("Last prompt", find_last_prompt(a))))
+        push!(parts, WidgetLabel(() -> isempty(a.agent_session_id) ? "" :
+                                       "Session " * a.agent_session_id * " in " * a.agent_session_directory))
+        Cell[Cell(x) for x in parts]
+    end)
+    detail
+end
+
+# ── The pane ─────────────────────────────────────────────────────────────────
+
+function print_document(p::AssistantListToWidgetPane, recursion, list::AssistantList, ctx)
+    clock = ctx === nothing ? nothing : ctx.clock
+    heading = WidgetLabel(() -> begin
+        assistants = list.assistants
+        running = count(is_assistant_turn_running, assistants)
+        string(length(assistants), length(assistants) == 1 ? " conversation" : " conversations",
+               " · ", running, " running")
+    end)
+    table = LayoutConstraint(WidgetScrollPane(_build_assistant_table(p, list, clock)); width = Fill, height = Fill)
+    detail = LayoutConstraint(_build_assistant_detail(p, list); width = Fill, height = Fill)
+    split = LayoutConstraint(WidgetSplitPane(:vertical, Any[table, detail]); width = Fill, height = Fill)
+    root = VerticalLayout(Any[heading, split]; horizontal_align = :left, gap = p.stack_gap)
+    iomap = ChildrenIoMap(p, list, root, Cell(Any[]))
+    # The part under the pointer, so a button lights and takes a press.
+    follow_output_mouse_target!(root, () ->
+        map_mouse_target_forward(list, path -> map_reference_forward(p, iomap, path));
+        is_followed = !_is_assistant_embed_card)
+    # The caret, so a key reaches the description or the comment in the detail.
+    follow_output_selection!(root, () -> begin
+        path = getfield(list, :selection)[]
+        path === nothing ? nothing : map_reference_forward(p, iomap, path)
+    end; is_followed = _is_followed_by_assistant_selection)
+    iomap
 end
