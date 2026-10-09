@@ -13,6 +13,7 @@ using ProjecturedXMLExample
 using ProjecturedMarkdownExample
 using ProjecturedRSTExample
 using ProjecturedBookExample
+using ProjecturedWorkflowExample
 using ProjecturedMathExample
 using ProjecturedJuliaExample
 using ProjecturedSQLExample
@@ -37,7 +38,7 @@ import ProjecturedPlatformExample: print_example, write_example_pdf
 for _src in (ProjecturedKernelExample, ProjecturedPlatformExample,
              ProjecturedJSONExample, ProjecturedYAMLExample, ProjecturedXMLExample, ProjecturedMarkdownExample, ProjecturedRSTExample, ProjecturedBookExample,
              ProjecturedMathExample, ProjecturedJuliaExample, ProjecturedSQLExample, ProjecturedDatabaseExample, ProjecturedPlatformExample, ProjecturedGraphExample, ProjecturedChartExample,
-             ProjecturedSequenceChartExample, ProjecturedDBCatalogExample, ProjecturedFormulaExample, ProjecturedFSMExample, ProjecturedProcessExample, ProjecturedPivotExample, ProjecturedConversationExample)
+             ProjecturedSequenceChartExample, ProjecturedDBCatalogExample, ProjecturedFormulaExample, ProjecturedFSMExample, ProjecturedProcessExample, ProjecturedPivotExample, ProjecturedConversationExample, ProjecturedWorkflowExample)
     _srcname = nameof(_src)
     for _n in names(_src)
         _n === _srcname && continue

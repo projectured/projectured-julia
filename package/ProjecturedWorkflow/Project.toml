@@ -1,0 +1,23 @@
+name = "ProjecturedWorkflow"
+uuid = "d5e7b94b-cbe5-4b5c-9879-deb21bd10ab4"
+version = "0.1.0"
+authors = []
+
+# The workflow domain.
+
+[deps]
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
+
+[sources]
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedPlatform = {path = "../ProjecturedPlatform"}
+
+# AutoIntegration loads this package when Projectured is loaded, unless the
+# environment of the user sets it to "manual".
+[auto-integration]
+default = "auto"
+
+[auto-integration.triggers]
+Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"

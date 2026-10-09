@@ -73,6 +73,7 @@ jobs:
           - {package: ProjecturedFormulaTest, run: test_formula}
           - {package: ProjecturedFSMTest, run: test_fsm}
           - {package: ProjecturedProcessTest, run: test_process}
+          - {package: ProjecturedWorkflowTest, run: test_workflow}
           - {package: ProjecturedAnthropicTest, run: test_anthropic}
           - {package: ProjecturedOllamaTest, run: test_ollama}
           - {package: ProjecturedOpenRouterTest, run: test_openrouter}

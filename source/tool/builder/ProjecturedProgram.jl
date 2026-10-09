@@ -281,7 +281,8 @@ const PROJECTURED_APPLICATION_IMPORTS = ["ProjecturedConsole", "ProjecturedPDF",
     "ProjecturedRST", "ProjecturedBook", "ProjecturedMath", "ProjecturedJulia",
     "ProjecturedSQL", "ProjecturedDatabase", "ProjecturedGraph", "ProjecturedChart",
     "ProjecturedSequenceChart", "ProjecturedDBCatalog", "ProjecturedFormula",
-    "ProjecturedFSM", "ProjecturedProcess", "ProjecturedPivot"]
+    "ProjecturedFSM", "ProjecturedProcess", "ProjecturedPivot",
+    "ProjecturedWorkflow"]
 
 """
     build_projectured_executable(; name = "projectured", backends = (:sdl, :web),
@@ -612,6 +613,9 @@ const PROJECTURED_PACKAGE_READMES = Dict(
     "ProjecturedWeb" =>
         (summary = "Shows the editor in a web browser, through an HTTP and WebSocket server.",
          document = "documentation/package/backend/web/web.md"),
+    "ProjecturedWorkflow" =>
+        (summary = "The record of a piece of work: steps, decisions and their options, a dated journal on each, and cards that show documents of any kind.",
+         document = "documentation/package/domain/workflow/workflow.md"),
     "ProjecturedXML" =>
         (summary = "An XML document as a tree of elements, text nodes and attributes.",
          document = "documentation/package/domain/xml/xml.md"),

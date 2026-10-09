@@ -103,6 +103,9 @@ ProjecturedVideo = "8d225f56-7fda-4c1e-a58b-db6d64f8335c"
 ProjecturedVideoTest = "fbb35dcc-61b4-4d33-836d-9545da8fa976"
 ProjecturedWeb = "893c803c-8c7c-42c1-85f1-cc97ca81befb"
 ProjecturedWebTest = "63227355-0b2b-40e1-bdff-9ca7f4e6ad34"
+ProjecturedWorkflow = "d5e7b94b-cbe5-4b5c-9879-deb21bd10ab4"
+ProjecturedWorkflowExample = "71334292-a0e7-448b-926e-a104a2d28203"
+ProjecturedWorkflowTest = "d76d7962-22cb-410b-9735-0fe94aef2231"
 ProjecturedXML = "6f8deb26-6771-4202-9df0-376c19aef1c5"
 ProjecturedXMLExample = "903c9982-1817-4ad4-896f-97194f4d58e8"
 ProjecturedXMLTest = "e1c62fea-11da-4947-a567-721c2ab4f06a"
@@ -216,6 +219,9 @@ ProjecturedVideo = {path = "../../package/ProjecturedVideo"}
 ProjecturedVideoTest = {path = "../../package/ProjecturedVideoTest"}
 ProjecturedWeb = {path = "../../package/ProjecturedWeb"}
 ProjecturedWebTest = {path = "../../package/ProjecturedWebTest"}
+ProjecturedWorkflow = {path = "../../package/ProjecturedWorkflow"}
+ProjecturedWorkflowExample = {path = "../../package/ProjecturedWorkflowExample"}
+ProjecturedWorkflowTest = {path = "../../package/ProjecturedWorkflowTest"}
 ProjecturedXML = {path = "../../package/ProjecturedXML"}
 ProjecturedXMLExample = {path = "../../package/ProjecturedXMLExample"}
 ProjecturedXMLTest = {path = "../../package/ProjecturedXMLTest"}

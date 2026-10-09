@@ -1,0 +1,22 @@
+name = "ProjecturedWorkflowExample"
+uuid = "71334292-a0e7-448b-926e-a104a2d28203"
+version = "0.1.0"
+authors = []
+
+# The Workflow tier of the example-package DAG: the document and projection
+# factories for this domain. The registry that names them, and the gallery
+# that runs them, live in the ProjecturedExample umbrella.
+
+[deps]
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
+ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
+ProjecturedPlatformExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
+ProjecturedWorkflow = "d5e7b94b-cbe5-4b5c-9879-deb21bd10ab4"
+
+[sources]
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedKernelExample = {path = "../ProjecturedKernelExample"}
+ProjecturedPlatform = {path = "../ProjecturedPlatform"}
+ProjecturedPlatformExample = {path = "../ProjecturedPlatformExample"}
+ProjecturedWorkflow = {path = "../ProjecturedWorkflow"}

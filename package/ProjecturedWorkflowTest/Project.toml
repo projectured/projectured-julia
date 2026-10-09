@@ -1,0 +1,29 @@
+name = "ProjecturedWorkflowTest"
+uuid = "d76d7962-22cb-410b-9735-0fe94aef2231"
+version = "0.1.0"
+authors = []
+
+# The Workflow tier of the test-package DAG. Cross-domain suites live in
+# ProjecturedTest, which is where a fixture that names several domains belongs.
+
+[deps]
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
+ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
+ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
+ProjecturedPlatformExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
+ProjecturedPlatformTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
+ProjecturedWorkflow = "d5e7b94b-cbe5-4b5c-9879-deb21bd10ab4"
+ProjecturedWorkflowExample = "71334292-a0e7-448b-926e-a104a2d28203"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedKernelExample = {path = "../ProjecturedKernelExample"}
+ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}
+ProjecturedPlatform = {path = "../ProjecturedPlatform"}
+ProjecturedPlatformExample = {path = "../ProjecturedPlatformExample"}
+ProjecturedPlatformTest = {path = "../ProjecturedPlatformTest"}
+ProjecturedWorkflow = {path = "../ProjecturedWorkflow"}
+ProjecturedWorkflowExample = {path = "../ProjecturedWorkflowExample"}

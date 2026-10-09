@@ -1,7 +1,7 @@
 # A workflow records steps, decisions and dates
 
-> **Status:** pending. Written 2026-10-09. An exploration with the answers of the
-> owner. No step is done.
+> **Status:** in progress on branch `workflow` (worktree
+> `projectured-julia-workflow`). Written 2026-10-09. Step 1 is done.
 
 ## 1. The request
 
@@ -109,7 +109,7 @@ end
 end
 
 @document struct WorkflowEntry <: WorkflowDocument
-    time::DateTime
+    time::String                        # "yyyy-mm-ddTHH:MM:SS", local time
     author::Symbol                      # :person or :assistant
     kind::Symbol                        # :comment, :decision, :state, :link
     text::Any                           # a PrimitiveString, a Markdown node, or any document
@@ -138,9 +138,8 @@ file, a definition in a Julia file. A card that holds a document that no other
 file owns is written inside the `.pred` file. The project of a workflow is a
 `FileProject`: the `.pred` file and the files that its markers name.
 
-`DateTime` is not a document. The seam `is_pred_constructible` lets a file build
-it; step 2 finds how the writer writes it, as a call on one line such as
-`DateTime("2026-10-09T14:02:00")`.
+The time of an entry is a text, `"2026-10-09T14:02:00"`, so the `.pred` file
+writes it as a string and needs no method for a type of `Dates` (see step 1).
 
 ### 4.3 A conversation and a workflow link either way
 
@@ -253,10 +252,26 @@ turn, and an operation that switches to a workflow.
 
 ## 5. Steps
 
-- [ ] **1. The package triad and the documents.** `ProjecturedWorkflow`,
+- [x] **1. The package triad and the documents.** `ProjecturedWorkflow`,
   `…Example`, `…Test`; the five types of 4.1; the lists of the full set, as
   [domain-inventory.md](../../documentation/design/domain-inventory.md) says.
   Test: `test_workflow_document()`, the layering guard and the naming guard.
+  **Done (2026-10-09, branch `workflow`).** 42 tests pass. What was decided:
+  - The `time` of an entry is a `String`, `"yyyy-mm-ddTHH:MM:SS"` in local
+    time, not a `DateTime`. A `DateTime` in a `.pred` file needs a method of
+    `is_pred_constructible` for a type of `Dates` in the domain, which is type
+    piracy: two packages that add it collide at precompile. The text sorts in the
+    order of time, and `find_workflow_time` reads it back as a `DateTime`.
+  - The domain declares its root by hand (`abstract type WorkflowDocument`), as
+    Book does, and not with `@domain`: the insertion kit of `@domain` serves a
+    syntax view, and the outline is a widget view.
+  - `collapsed` is a field of each node and of a card, as in Book, so a fold
+    survives a print and a save.
+  - Beside the lists of the guide, the registration also needed the CI matrix
+    (`.github/workflows/CI.yml`), `DOMAIN_EDGES` of
+    `test/projectured/PackageGraphTest.jl`, `test_workflow()` in
+    `test/projectured/ProjecturedSuite.jl`, and the summary in
+    `PROJECTURED_PACKAGES` of the builder.
 - [ ] **2. The `.pred` save.** `pred_arguments` and `make_pred_document` where
   the default does not fit; `DateTime` through `is_pred_constructible`. Test: a
   `FileProject` with a workflow `.pred`, a Markdown page and a JSON file saves,

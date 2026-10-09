@@ -51,6 +51,7 @@ ProjecturedVideo = "8d225f56-7fda-4c1e-a58b-db6d64f8335c"
 ProjecturedVideoTest = "fbb35dcc-61b4-4d33-836d-9545da8fa976"
 ProjecturedWeb = "893c803c-8c7c-42c1-85f1-cc97ca81befb"
 ProjecturedWebTest = "63227355-0b2b-40e1-bdff-9ca7f4e6ad34"
+ProjecturedWorkflowTest = "d76d7962-22cb-410b-9735-0fe94aef2231"
 ProjecturedXML = "6f8deb26-6771-4202-9df0-376c19aef1c5"
 ProjecturedXMLTest = "e1c62fea-11da-4947-a567-721c2ab4f06a"
 ProjecturedYAML = "a9f201ce-8e0a-436b-92f0-224b8478d5cb"
@@ -98,6 +99,7 @@ ProjecturedSequenceChartTest = {path = "../ProjecturedSequenceChartTest"}
 ProjecturedTulipTest = {path = "../ProjecturedTulipTest"}
 ProjecturedVideoTest = {path = "../ProjecturedVideoTest"}
 ProjecturedWebTest = {path = "../ProjecturedWebTest"}
+ProjecturedWorkflowTest = {path = "../ProjecturedWorkflowTest"}
 ProjecturedXML = {path = "../ProjecturedXML"}
 ProjecturedXMLTest = {path = "../ProjecturedXMLTest"}
 ProjecturedYAML = {path = "../ProjecturedYAML"}

@@ -2,7 +2,7 @@
 
 > **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](system-anatomy.md), [package-rules.md](../rule/package-rules.md), [domain-anatomy.md](domain-anatomy.md)
 
-This document lists the eighteen packages that hold the source domains of ProjecturEd, says how they depend on each other, and where the document of each one is. [domain-anatomy.md](domain-anatomy.md) describes the parts that every domain has, and [new-domain-guide.md](../guide/new-domain-guide.md) is the procedure to add one.
+This document lists the nineteen packages that hold the source domains of ProjecturEd, says how they depend on each other, and where the document of each one is. [domain-anatomy.md](domain-anatomy.md) describes the parts that every domain has, and [new-domain-guide.md](../guide/new-domain-guide.md) is the procedure to add one.
 
 ## The domain documents
 
@@ -16,6 +16,7 @@ Each domain has one design document in the folder of its slice. Read [domain-ana
 | Markdown | [markdown.md](../package/domain/markdown/markdown.md) |
 | reStructuredText | [rst.md](../package/domain/rst/rst.md) |
 | Book | [book.md](../package/domain/book/book.md) |
+| Workflow | [workflow.md](../package/domain/workflow/workflow.md) |
 | Math notation | [math.md](../package/domain/math/math.md) |
 | Julia code | [julia.md](../package/domain/julia/julia.md) |
 | Formula | [formula.md](../package/domain/formula/formula.md) |
@@ -44,7 +45,7 @@ Each domain is a triad of sibling packages: `package/Projectured<Name>/`, `packa
 
 ## The dependency table
 
-Thirteen domains depend on no other domain. Five build on one layer of domains.
+Fourteen domains depend on no other domain. Five build on one layer of domains.
 
 | Package | Code | Depends on |
 | --- | --- | --- |
@@ -54,6 +55,7 @@ Thirteen domains depend on no other domain. Five build on one layer of domains.
 | `ProjecturedMarkdown` | `source/domain/markdown/` | — |
 | `ProjecturedRST` | `source/domain/rst/` | — |
 | `ProjecturedBook` | `source/domain/book/` | — |
+| `ProjecturedWorkflow` | `source/domain/workflow/` | — |
 | `ProjecturedMath` | `source/domain/math/` | — |
 | `ProjecturedJulia` | `source/domain/julia/` | — |
 | `ProjecturedSQL` | `source/domain/sql/` | — |

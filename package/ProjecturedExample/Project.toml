@@ -29,6 +29,7 @@ ProjecturedProcessExample = "957f07f7-0fb6-4a12-814a-3f612419e6b7"
 ProjecturedRSTExample = "653aef14-a50f-441b-8c17-330b3d4bb59b"
 ProjecturedSQLExample = "6f92ce12-1ac0-47da-9eed-863a565badaf"
 ProjecturedSequenceChartExample = "5b64cb16-3395-4b64-9318-fc74b96892aa"
+ProjecturedWorkflowExample = "71334292-a0e7-448b-926e-a104a2d28203"
 ProjecturedXMLExample = "903c9982-1817-4ad4-896f-97194f4d58e8"
 ProjecturedYAMLExample = "fed55f08-0afa-4f03-a954-955ab0bee64d"
 
@@ -56,5 +57,6 @@ ProjecturedProcessExample = {path = "../ProjecturedProcessExample"}
 ProjecturedRSTExample = {path = "../ProjecturedRSTExample"}
 ProjecturedSQLExample = {path = "../ProjecturedSQLExample"}
 ProjecturedSequenceChartExample = {path = "../ProjecturedSequenceChartExample"}
+ProjecturedWorkflowExample = {path = "../ProjecturedWorkflowExample"}
 ProjecturedXMLExample = {path = "../ProjecturedXMLExample"}
 ProjecturedYAMLExample = {path = "../ProjecturedYAMLExample"}
