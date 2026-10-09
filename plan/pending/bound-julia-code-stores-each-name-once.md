@@ -508,3 +508,41 @@ The owner answered on 2026-10-09:
   more hues.
 - **Q11. The binder:** "yes": our own bind over our tree, compared with
   `JuliaLowering` in a test.
+
+## 15. The principles of the owner
+
+The owner wrote on 2026-10-09, before answering Q8, Q15 and Q16:
+
+> Just like accepting a binding is a user operation. on the long terms bindings
+> are not be accepted and broken only by the user. Of course if we don't save
+> the files with bindings then we loose that information which should be
+> rebound and it may not be accurate. Also, representing incorrectly bound
+> programs is fine, it should be apparent on the screen.
+>
+> Just to understand where I'm coming from, here is my long term vision called
+> immutable code. On the long term, the bound version of Julia programs could
+> be done where no code can ever be changed. All code that is
+> saved/committed/published is carved into stone and whenever such code is
+> edited, the new code is a new instance which may have the same name but it's
+> a different version. Callers, users, etc. need to be rebound by the user
+> explicitly asking for it. This may of course be done automatically to a large
+> extent, potentially completely, but has to be asked for. The reason is that
+> the caller is also version bumped potentially resulting in a chain of callers
+> being version bumped. The effect of all of this is like function level fine
+> grained automatic package manager. We don't need to do this, so we can stop
+> on the way towards this at any sensible place.
+>
+> let's figure this out
+
+So:
+
+- **A binding is accepted and broken only by the person.** A tool can propose
+  bindings, and it can do much of the work when the person asks for it.
+- **A plain `.jl` file loses the bindings,** and the load binds again by the
+  names, which can be wrong.
+- **Wrong bindings may exist,** and the screen shows them.
+- **The direction is immutable code.** Saved code is not changed; an edit makes
+  a new version, and the person rebinds the users of the old version, which
+  makes new versions of them in turn. Each stage on the way must be useful on
+  its own, because the work can stop at any sensible place.
+
