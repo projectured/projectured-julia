@@ -90,13 +90,14 @@ end
     separator_style::StyleText = get_yaml_style(nothing, :separator_text)
     key_style::StyleText = get_yaml_style(nothing, :key_text)
     colon_style::StyleText = get_yaml_style(nothing, :separator_text)
-    open::String = ""      # "{" flow, "" block
-    close::String = ""     # "}" flow, "" block
-    sep::String = ""       # ", " flow, "" block (indentation provides the newline)
-    # +1 (flow) keeps a trailing newline so the close brace lands on its own line;
-    # -1 (block) is block layout WITHOUT that trailing newline, so nested blocks
-    # don't leave a blank line before the next sibling.
-    indent::Int = -1
+    # The texts hold the breaks: a block mapping puts each entry on a line of its
+    # own one level in and has no closing delimiter, so a nested block leaves no
+    # blank line before the next sibling; a flow mapping is `{`, one entry on each
+    # line, and `}` on a line of its own.
+    open::String = "\n"    # "{\n" flow
+    close::String = ""     # "\n}" flow
+    sep::String = "\n"     # ",\n" flow
+    indent::Int = 1
 end
 
 @projection_template YamlMappingToSyntaxNode YamlMapping (prj, doc) ->
@@ -125,9 +126,9 @@ end
 
 @projection_template YamlSequenceToSyntaxNode YamlSequence (prj, doc) ->
     SyntaxNode(collection(:elements);
-               open=TextString("[", prj.delimiter_style),
-               close=TextString("]", prj.delimiter_style),
-               sep=TextString(", ", prj.separator_style),
+               open=make_text_block("[\n", prj.delimiter_style),
+               close=make_text_block("\n]", prj.delimiter_style),
+               sep=make_text_block(",\n", prj.separator_style),
                indentation=1)
 
 # ── YamlSequenceToBlockSyntaxNode (hand-written; block style `- item`) ────────
@@ -136,7 +137,7 @@ end
 # projects the bare element with no per-item open), so the block sequence is
 # hand-written like `FileSystemDirectoryToSyntaxNode`. Output shape:
 #
-#   SyntaxNode(indentation=1):                 ← one item per indented line
+#   SyntaxNode(open="\n", sep="\n", indentation=1):  ← one item per indented line
 #     children[i] = SyntaxDelimitation(          ← the "- " marker
 #                     opening_delimiter="- ", content = <projected element i>)
 #
@@ -164,9 +165,9 @@ function print_document(p::YamlSequenceToBlockSyntaxNode, recursion, seq::YamlSe
         im === nothing ? nothing : map_reference_forward(p, im, path)
     end)
 
-    # indentation=-1: block layout (one item per indented line) without the
-    # trailing newline, so a nested sequence leaves no blank line after its items.
-    node = SyntaxNode(items; indentation=-1, paths...)
+    # One item on each line, one level in, and no closing delimiter, so a nested
+    # sequence leaves no blank line after its items.
+    node = SyntaxNode(items; open="\n", sep="\n", indentation=1, paths...)
     iomap = ChildrenIoMap(p, seq, node, child_iomaps)
     iomap_cell[] = iomap
     return iomap
@@ -267,7 +268,7 @@ function YamlToSyntax(; style::Symbol = :block, theme = nothing, syntax_theme = 
                       separator_style = get_style(:separator_text),
                       key_style = get_style(:key_text), colon_style = get_style(:separator_text))
     mapping  = style === :flow ?
-        YamlMappingToSyntaxNode(; open="{", close="}", sep=", ", indent=1, mapping_styles...) :
+        YamlMappingToSyntaxNode(; open="{\n", close="\n}", sep=",\n", indent=1, mapping_styles...) :
         YamlMappingToSyntaxNode(; mapping_styles...)
     TypeDispatchingProjection(
         YamlNull         => YamlNullToSyntaxLeaf(; style = get_style(:null_text)),
