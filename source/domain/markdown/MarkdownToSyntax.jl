@@ -142,7 +142,7 @@ end
 @projection_template MarkdownListItemToSyntaxNode MarkdownListItem (prj, doc) ->
     SyntaxNode(collection(:elements);
                open=TextString(prj.bullet, prj.bullet_style),
-               sep=TextString("\n  "),
+               sep="\n  ",
                indentation=0)
 
 # ── MarkdownListToSyntaxNode / MarkdownRootToSyntaxNode (shared) ───────────────
@@ -150,7 +150,7 @@ end
 @projection struct MarkdownListToSyntaxNode end
 
 @projection_template MarkdownListToSyntaxNode MarkdownList (prj, doc) ->
-    SyntaxNode(collection(:items); sep=TextString("\n"), indentation=0)
+    SyntaxNode(collection(:items); sep="\n", indentation=0)
 
 # ── MarkdownTableRowToSyntaxNode / MarkdownTableToSyntaxNode (shared) ──────────
 # A row is its entries between pipes. A table is its header over its body rows,
@@ -180,11 +180,10 @@ _make_delimiter_row(alignments) =
 end
 
 @projection_template MarkdownTableToSyntaxNode MarkdownTable (prj, doc) ->
-    SyntaxNode(TextString("", prj.pipe_style), TextString("", prj.pipe_style),
-               TextString(() -> "\n" * _make_delimiter_row(doc.alignments) * "\n", prj.pipe_style),
-               [ project(:header),
-                 SyntaxNode(collection(:rows); sep=TextString("\n"), indentation=0) ],
-               0, false, nothing)
+    SyntaxNode([ project(:header),
+                 SyntaxNode(collection(:rows); sep="\n", indentation=0) ];
+               open=TextString("", prj.pipe_style), close=TextString("", prj.pipe_style),
+               sep=make_text_block(() -> "\n" * _make_delimiter_row(doc.alignments) * "\n", prj.pipe_style))
 
 @projection UntrackedCell struct MarkdownRootToSyntaxNode
     style::StyleText = get_markdown_style(nothing, :source_text)
@@ -249,7 +248,7 @@ end
 end
 
 @projection_template MarkdownCodeBlockToSyntaxNode MarkdownCodeBlock (prj, doc) ->
-    SyntaxNode(TextString(prj.open_fence, prj.fence_style), TextString(prj.close_fence, prj.fence_style), nothing,
+    SyntaxNode(
         [ SyntaxLeaf(bound(:language, String,
                            make_hinted_text(() -> doc.language;
                                             empty_thunk = () -> isempty(doc.language),
@@ -260,8 +259,8 @@ end
                                             empty_thunk = () -> isempty(doc.code),
                                             placeholder = "code",
                                             style = prj.code_style));
-                     open=TextString("\n", prj.fence_style)) ],
-        0, false, nothing)
+                     open=TextString("\n", prj.fence_style)) ];
+        open=TextString(prj.open_fence, prj.fence_style), close=TextString(prj.close_fence, prj.fence_style))
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Rendered view (style = :rendered) — cascading inline styles via ambient context
