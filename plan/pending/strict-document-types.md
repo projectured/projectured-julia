@@ -745,6 +745,11 @@ worktree. The three domains test different parts of the model:
       and `seal_batch`. The dashboard reads only `frontier_time` of the shadow. After this,
       `test_simulator` (6950) and all 74 functions of `OmnetPresentationTest` have the same
       counts on the branch and on `main`.
+    - [x] **Landed by the owner's word, 2026-10-09 ("land first and test later"):** omnet-julia
+      `main` at `01512123` (5 commits, rebased on `203ea3c5`), inet-julia `main` at `736aa58`.
+      Not pushed. The test of the landed code against the newest `main` of projectured-julia
+      follows. This branch lands next, after one more rebase: its merge with `main`
+      conflicts in `AssistantDocument.jl`.
     - A fact for later: a bounded copy or sync puts an `UnsyncedDocument` where the walk stops,
       and a field that declares a narrow document type would refuse it. No caller does that
       today: the reflection and `SimulationInspection` hold the placeholder in a `ReflectedNode`.
