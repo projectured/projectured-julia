@@ -875,14 +875,35 @@ worktree. The three domains test different parts of the model:
 - [ ] **Step 5: the insertion follows its place.** The typed child contexts, the filter of the
   candidates (§3.5), and the widening key (§3.6), in the three domains. The example of §3.6, an
   XML element typed into a `JsonArray`, is the test of acceptance.
-- [ ] **Step 6: fix the callers** that the inventory of Step 0 found, one by one.
-- [ ] **Step 7: test and measure.** Run `test_julia()`, `test_json()`, `test_xml()`,
+- [x] **Step 6: fix the callers** that the inventory of Step 0 found, one by one.
+  *Done (2026-10-09):* every refusal that the inventories found is fixed: the 23 suites of
+  projectured-julia (groups 1 to 8 above), the 29 suites and `OmnetPresentationTest` of
+  omnet-julia, the 5 suites of inet-julia, and the new code of `main` that each rebase brought
+  (the ACP lists, the task group shadow, `TextLine.soft_breaks`, the `.pred` reader).
+- [x] **Step 7: test and measure.** Run `test_julia()`, `test_json()`, `test_xml()`,
   `test_fsm()`, `test_process()`, `test_formula()`, `test_conversation()`, `test_platform()` for
   `FaultPartTest.jl`, the umbrella test file `test/projectured/serializer/FileProjectTest.jl`,
   `test_example(mixed_example)`, and the omnet-julia suite. omnet-julia is in the list because its
   IDE edits Julia code, and `MiniProjectRoundTripTest.jl` puts documents of other domains into a
   `JsonObject`. Report the count of changed callers, the new refusals that a person meets, and
   the cost of the check per write.
+  *The report (2026-10-09):*
+  - **Runs.** All 24 suites of projectured-julia, `test_acp`, the omnet-julia suites and
+    `test_inet` have the failures of `main` in the mode `:throw`, before and after the landing
+    (see above). The 24 suites hold every test of the list: `test_conversation()` is part of
+    `test_platform()`, and `test_integration()` holds the umbrella file and prints every
+    example with `test_printers()`. No example named `mixed_example` exists.
+  - **Changed code.** The landing changed 84 files under `source/` of projectured-julia (1561
+    lines in, 688 out: 7 in the kernel, 44 in the platform, 31 in the domains, 2 in the
+    adapters) and 8 test files; 7 files of omnet-julia and 2 of inet-julia. Most are
+    declarations: 147 optional fields, 155 theme colours, 205 role fields.
+  - **Refusals that a person meets.** None in the runs. The edits that the declared types turn
+    away by design make no edit and no error: a `JsonBool` takes no text, and a number takes no
+    letter. A text that a number can not show yet becomes the insertion of its domain.
+  - **Cost per write.** A setter write allocates 0 bytes with the check and without it;
+    `JsonNumber(42)` allocates 144 bytes and `StyleFont(…)` 0 bytes, the same with the check
+    and without it. The constructor checks each field with its type known, so a typed cell
+    costs nothing.
 - [ ] **Step 8: the owner decides** whether the other domains follow, and in which order.
 
 The laws change only when the pilot lands (§6).
@@ -898,6 +919,16 @@ The laws change only when the pilot lands (§6).
 - **PAR-DOMAIN-OWNS-EDITS** names the insertion type and the nothing type of each domain.
 - **PAR-DOMAINS-INDEPENDENT** does not change. A field that admits other domains declares
   `Document`, so a domain names no other domain.
+
+*Changed (2026-10-09), after the landing:* `documentation/rule/architecture-invariants.md` gives
+the four laws their strict text: PAR-WIDE-FIELD-TYPES has the four forms and law 1,
+PAR-NO-NESTED-CELL has law 2 and the two values outside the check (a computed cell, which must
+give the declared type itself, and a cell that a constructor gets), PAR-DOMAIN-OWNS-EDITS names
+the nothing type, and PAR-DOMAINS-INDEPENDENT gains its one sentence. The guide of `@document`
+(`macros.md`) describes the declared type of each field of the cell layout, the rules, the
+modes and the list protocol; `collection.md`, `style.md`, `json.md` and the new-domain guide
+follow. The filter of the insertion candidates, the widening key and the lenient load are not
+built, so no law describes them.
 
 ## 7. Questions for the owner before the pilot
 
