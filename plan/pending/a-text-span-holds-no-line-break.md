@@ -393,6 +393,22 @@ change how every view of syntax makes its lines, so they land together.
      prints 29 lines at main, 37 after step 2 and 35 now: each fence and each
      subject is a line the numbers count. The text of a docstring is still one run
      with rows, at column 0; step 5 makes it lines. `test_julia` 550 of 550.
+   - ✅ Markdown, reStructuredText, Book and Formula (2026-10-09). Their constant
+     texts with a break were turned into lines by step 2 already. What still made a
+     run with a `'\n'` were the texts that a positional constructor took, which
+     `_text` does not see (Markdown's code block and table, Book's picture), and the
+     computed texts (Markdown's table separator, 29 of reStructuredText). The first
+     are keyword-built now; the second are `make_text_block` with a function. An
+     empty computed delimiter then offers no caret, as other chrome that draws no
+     character. `test_markdown` 262, `test_rst` 111, `test_book` 33,
+     `test_click_roundtrips` 42, each as on main; the text dump of the examples
+     does not change.
+   ✅ **Step 3 done (2026-10-09).** The sweep at `e787b29fb` against step 0: the
+   failing files of `test_platform` are those of main; more assertions pass where
+   there are more lines (`test_printers`, `test_domain_examples`, `test_platform`);
+   `test_position_navigations` enumerates 63 fewer caret places, the space that
+   ended a line of JSON (`", "`) and of an object (`" "`). The text dump differs
+   from main only in those spaces.
 
 4. **`indentation` only indents.** The transition of step 2 and the breaks of
    the integer go, `-1` goes, and the flat metric (`_syntax_to_flat`,
