@@ -595,12 +595,12 @@ end
 # the fixed-node KeySlot mapping keys on the field name only, so it is agnostic to
 # whether the rendered value is a `TextString` or a `TextGraphics`.
 @projection_template BookPictureToSyntaxLeaf BookPicture (prj, doc) ->
-    SyntaxNode(nothing, nothing, TextString("\n", prj.placeholder),
+    SyntaxNode(
         [ SyntaxLeaf(bound(:title, String,
                            TextString(() -> isempty(doc.title) ? "untitled" : doc.title, prj.style))),
           SyntaxLeaf(bound(:content, String,
-                           _picture_leaf_value(doc.content, prj.placeholder))) ],
-        0, false, nothing)
+                           _picture_leaf_value(doc.content, prj.placeholder))) ];
+        sep=TextString("\n", prj.placeholder))
 
 # The newline `sep` between caption and figure is a projection-introduced position
 # with no input pre-image. The generic template `ReplaceSelectionOperation`
