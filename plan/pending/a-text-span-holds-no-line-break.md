@@ -1,8 +1,9 @@
 # A text span holds no line break
 
 > **Kind:** plan · **Status:** pending, 2026-10-09. The owner decided the rule
-> (§1), N1, N1b and N2 with N3 on 2026-10-08, and N5 on 2026-10-09; §9 holds the
-> steps, and no step is started. ·
+> (§1), N1, N1b and N2 with N3 on 2026-10-08, and N5 and N6 on 2026-10-09; only
+> N1c is open, until a domain needs it; §9 holds the steps, and no step is
+> started. ·
 > **Stands on:** [text.md](../../documentation/package/platform/text/text.md),
 > [syntax.md](../../documentation/package/platform/syntax/syntax.md),
 > [text-domain-kit.md](text-domain-kit.md) (Q5 of step 3 of Phase 3),
@@ -228,8 +229,24 @@ One at a time, with the owner.
   - **N5b When. Decided, the owner, 2026-10-09:** a plan of its own,
     [a-text-block-holds-only-lines.md](a-text-block-holds-only-lines.md), which
     holds the steps, the inventory and the height of an empty line (its L2).
-- **N6 The order of the domains.** Julia first, because the gutter targets the
-  Julia view.
+- **N6 The order of the domains. Decided, the owner, 2026-10-09: JSON first in
+  step 3, Julia first in step 5.** Step 2 keeps the breaks of the integer for a
+  node whose texts hold no break, so the domains do not depend on each other, and
+  the order only decides where a fault of the new rule shows first.
+  - Step 3: JSON proves the rule. It is the smallest domain (2 places with an
+    `indentation` that is not 0, 1 break literal), it has the most tests, and it
+    uses all three texts (`"[\n"`, `",\n"`, `"\n]"`). Then YAML (the `-1` and
+    the empty last line), the lists of the platform (only `sep "\n"`), Julia (its
+    fence `"\n\"\"\"\n"` and its `"\n"` leaves, the most complex breaks), and the
+    rest.
+  - Step 5: Julia first, because a docstring of many lines that the Julia file
+    view numbers as one line is the visible goal; step 3 does not change that.
+  - Not taken: Julia first in step 3, which tests the new rule first where the
+    breaks are the most complex.
+  - Counts of 2026-10-09 (`indentation` not 0; break literals in the syntax code):
+    JSON 2, 1; YAML 4, 0; XML 2, 0; FSM 4, 0; SQL 4, 4; the database catalog 3, 0;
+    the file system 3, 0; Julia 1, 9; Formula 0, 1; Book 0, 3; Markdown 0, 12;
+    reStructuredText 0, 61; each list of the platform 0, 1 or 2.
 
 ## 8. Facts found
 
@@ -263,12 +280,12 @@ change how every view of syntax makes its lines, so they land together.
    0 and whose texts hold no break keeps the breaks of today, so each domain moves
    in a step of its own; step 4 removes that path.
 3. **The domains state their breaks**, one commit for each, with its suite and
-   the example sweeps: JSON, YAML, XML, SQL, FSM, the collections, the reflection
-   of objects, the file system (its `2` becomes `1` unless the owner wants two
-   levels), the database catalog, Formula, reStructuredText, Markdown, Book, the
-   lists of the platform (the logs, the help, the command palette, the undo
-   buffer, the gesture map, the about page, the fault log), and Julia, with its
-   fences and its `"\n"` leaves.
+   the example sweeps, in this order (N6): JSON, YAML, the lists of the platform
+   (the logs, the help, the command palette, the undo buffer, the gesture map,
+   the about page, the fault log), Julia with its fences and its `"\n"` leaves,
+   then XML, FSM, SQL, the collections, the reflection of objects, the file
+   system (its `2` becomes `1` unless the owner wants two levels), the database
+   catalog, Formula, Book, Markdown and reStructuredText.
 4. **`indentation` only indents.** The transition of step 2 and the breaks of
    the integer go, `-1` goes, and the flat metric (`_syntax_to_flat`,
    `_subtree_len`) follows. A full sweep against step 0.
