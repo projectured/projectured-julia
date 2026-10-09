@@ -10,12 +10,18 @@ The collection slice of `ProjecturedPlatform` holds four generic containers for 
 
 | Document | Field | Shape |
 | --- | --- | --- |
-| `CellVector` | `elements`, a `Vector{Cell}` | a growable sequence, addressed `[i]` |
+| `CellVector{T}` | `elements`, a `Vector{Cell}` | a growable sequence of elements of type `T`, addressed `[i]` |
 | `CellMatrix` | `elements`, a `Matrix{Cell}` | a fixed rectangle, addressed `[r, c]` |
 | `CellTable` | `rows`, a `CellVector` of `CellVector` rows | a grid that grows a row at a time |
 | `ListNode` | `value`, `prev`, `next` | a chain that is read from the node you hold |
 
-`CollectionDocument` is the union of the four. Each is an `@document` struct, so each also has a `selection` field, and `CellVector()`, `CellMatrix()` and `CellTable()` make an empty one.
+`CollectionDocument` is the union of the four. Each is an `@document` struct, so each also has a `selection` field, and `CellVector()`, `CellMatrix()` and `CellTable()` make an empty one. `ListDocument` is the abstract type of `CellVector` and `ListNode`, and a field that holds a list or a lazy list declares it. A plain vector that a write gives a field declared `ListDocument` or `CollectionDocument` becomes a `CellVector`.
+
+### The element type
+
+**A `CellVector{T}` keeps the type of its elements and checks each element that a write puts in it.** A field declared `Vector{T}` holds a `CellVector{T}` in the reactive layout. `CellVector{T}(items)` checks each item, and `setindex!`, `push!` and `insert!` check the new element, by rules 1 and 2 of the check of declared types: a value of type `T` passes, a value that converts to `T` with no loss is converted, and any other value throws `DeclaredTypeMismatchException`. `CellVector(items)` and `CellVector()` make a `CellVector{Any}`, which takes every value. `find_declared_element_type(list)` returns `T`, and a copy of a list keeps it. [macros.md](../../kernel/macros.md) gives the rules and the modes of the check.
+
+A list reads as a vector where code uses it as one: `eltype` is `T`, `collect` gives a `Vector{T}`, a list `==` a vector with equal elements and hashes as that vector, and `vcat`, `filter`, `getindex` with a vector of indices, `keys` and `convert` to a vector type give or read a plain vector. A method whose argument is declared `Vector` or `AbstractVector` does not take a list: call it with `collect(list)`.
 
 ### A cell for each element
 
@@ -80,7 +86,9 @@ The kernel names no collection type. This package adds methods to kernel generic
 | --- | --- |
 | `is_element_collection(::CellVector)` | a reflection walk makes `[i]` paths and does not descend into `.elements` |
 | `is_collection_field_type(::Val{:CellVector})` | `Foo([a, b])` wraps the vector for a `CellVector` field |
-| `get_cell_layout_field_type(::Val{:Vector})` | a field declared `Vector{T}` is a `CellVector` in the reactive layout and a plain `Vector` in the native one |
+| `get_cell_layout_field_type(::Val{:Vector})` | a field declared `Vector{T}` is a `CellVector{T}` in the reactive layout and a plain `Vector{T}` in the native one |
+| `is_collection_field_type(::Val{:ListDocument})` | a plain vector for a field declared `ListDocument` becomes a `CellVector` |
+| `find_declared_element_type(::CellVector{T})` | the check of declared types reads `T` for an element write |
 | `child_reference_steps(::CellVector)` | the walk that finds the next insertion reaches each element as `RangeReferenceStep(i - 1, i)` |
 | `get_slot_at(::CellVector, i)` | an inverse operation puts back the same cell |
 | `make_children_container`, `get_children_container_type` | `@projection_template` builds children as a `CellVector` |
