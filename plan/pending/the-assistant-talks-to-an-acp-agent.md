@@ -869,7 +869,7 @@ from the command line of the projectured UI.
   later options, the media type of a resource block and `Read` of a `.md` or
   `.jl` file as a document, are step 2.13.
 
-- [ ] 2.13 The file that an agent read is a document of its format (the owner
+- [x] 2.13 The file that an agent read is a document of its format (the owner
   combined the second and the third later option of 2.12 on 2026-10-09, and
   said "yes, do it now"). The owner asked how the parse of Markdown and Julia
   can go in `ClaudeCodeACP`; the answer: it can not, because that package has
@@ -904,7 +904,7 @@ from the command line of the projectured UI.
     The editor has parsers for `jl`, `json`, `md`, `rst`, `sql`, `xml` and
     `yaml`. `ClaudeCodeACP` gives no media type for `.sql` and `.rst`, so the
     extension of the uri finds them.
-  - [ ] A release `0.1.3` of `ClaudeCodeACP` (the owner pushes). The owner
+  - [x] A release `0.1.3` of `ClaudeCodeACP`, pushed on 2026-10-09. The owner
     said yes on 2026-10-09 to the fix of the title of a resumed session in this
     release. ClaudeCodeACP `main` = `7fd9e35`: `6c53237` makes a title only from
     the first prompt of a session (`!session.has_history`), so a resumed
@@ -914,9 +914,10 @@ from the command line of the projectured UI.
     clone of ProjecturedRegistry, with the tree of `7fd9e35`. The manifest of
     `environment/all` names 0.1.3. Live with the built-in agent: after a stop
     and a resume, the agent answered from the history of the session, and the
-    title stayed the one from the first prompt. Until the push, the released
-    `0.1.2` sends the text of `Read` with line numbers and no resource, and the
-    editor shows it as text, as before.
+    title stayed the one from the first prompt. The CI of ClaudeCodeACP passed
+    on Julia 1.12 and 1. An environment that has the released 0.1.2 sends the
+    text of `Read` with line numbers and no resource, and the editor shows it
+    as text.
 
 ### Phase 3: the agent sees what projectured sees
 
