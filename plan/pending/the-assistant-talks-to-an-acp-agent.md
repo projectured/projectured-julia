@@ -766,7 +766,15 @@ from the command line of the projectured UI.
   on 2026-10-09, and answered the questions of the design on 2026-10-09:
   Q1 a simple terminal domain in the editor, "but don't overdo it. it's worth
   its own plan"; Q2 yes; Q3 agreed; Q4 yes; Q5 yes. So the terminal of the
-  sign-in is that domain, from its own plan, and 2.5d below does not apply.
+  sign-in is that domain, from its own plan
+  [a-terminal-runs-a-program-in-the-editor.md](a-terminal-runs-a-program-in-the-editor.md),
+  and 2.5d below does not apply.
+  - [x] 2.5a done on the `ClaudeCodeACP` branch `sign-in`, commit `e9dd893`,
+    not released: `claude-login` only for a client that sends
+    `auth.terminal = true`; `auth.logout`, answered by `claude auth logout`
+    (`run_claude_sign_out`, a setting `run_sign_out` for a fake); a sign-out
+    marks each session for a restart, and a restart checks the sign-in (0.09 s),
+    so the next prompt fails with `AUTHENTICATION_REQUIRED`. 143 tests pass.
 
   **Facts (2026-10-09).**
   - ACP: an agent can advertise a `terminal` auth method with `args` and `env`.
