@@ -400,7 +400,7 @@ samples per span. Fewer than two points returns the points unchanged. This is
 the single tessellation path every backend (SDL/Web/PDF) uses, so curve quality
 is controlled in one place.
 """
-function tessellate_spline(points::AbstractVector, kind::Symbol, segments)
+function tessellate_spline(points, kind::Symbol, segments)
     n = length(points)
     n < 2 && return [(Float64(p[1]), Float64(p[2])) for p in points]
     seg = max(1, Int(segments))
