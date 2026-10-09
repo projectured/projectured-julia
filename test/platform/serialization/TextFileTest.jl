@@ -11,9 +11,8 @@ using ProjecturedPlatform.UndoModule: UndoBuffer
 using ProjecturedKernel.DocumentModule: @document, get_document_title
 
 """
-A file whose whole node is its content: its title and its body are the file,
-the way a `NedFile`'s children and version are the file. It says so with
-`is_own_content`, reads itself with `make_file`, and prints itself.
+A file whose whole node is its content: its title and its body are the file. It
+says so with `is_own_content`, reads itself with `make_file`, and prints itself.
 """
 @document struct NoteFile <: FileDocument
     filename::String

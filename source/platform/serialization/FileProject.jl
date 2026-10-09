@@ -91,9 +91,8 @@ layer that shows a file, such as the scroll pane of a file tab, it answers the
 content of that file.
 
 Default reads through the `content` field: the save copies it, and the load
-fills it. A file whose whole node is its content — a `NedFile`, whose children
-and version are the file — answers with the node itself and says so with
-[`is_own_content`](@ref).
+fills it. A file whose whole node is its content answers with the node itself and
+says so with [`is_own_content`](@ref).
 """
 function get_file_content(f)
     is_file_document(f) && return unwrap_cell(getfield(f, :content))
@@ -108,7 +107,7 @@ get_file_content(file::ReferencedDocument) = get_file_content(get_document(file)
     is_own_content(file) -> Bool
 
 Whether the file node is itself the root of its content. A `JsonFile` holds its
-tree in a `content` field and answers `false`; a `NedFile` IS the tree and
+tree in a `content` field and answers `false`; a file whose node is the tree
 answers `true`, so the save rebuilds that node instead of cutting it, and the
 load takes what the parser built rather than wrapping it.
 

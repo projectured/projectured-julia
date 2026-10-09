@@ -118,8 +118,8 @@ and `ReloadFileOperation` read the file back through, and what
 the working directory still saves and reloads through the file it was opened
 from.
 
-A file that is its own content ([`is_own_content`](@ref)), such as a `NedFile`,
-holds no content apart from itself. The tab then holds the file that
+A file that is its own content ([`is_own_content`](@ref)) holds no content apart
+from itself. The tab then holds the file that
 [`make_file`](@ref) builds from the text under the absolute path.
 
 `wrap` is applied to the content before the file holds it. It is how an
