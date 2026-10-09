@@ -257,10 +257,12 @@ end
 #     \"\"\"
 #     <subject>
 # The opening fence is the `open` of the text leaf, and the closing fence is in
-# the separator, so the breaks are text: the line after the opening fence is the
-# text, at column 0 as the user wrote it, and the closing fence and the subject
-# are lines of the chrome, which an enclosing body indents. A separation can not
-# collapse, so a fold key inside a docstring folds the code around it.
+# the separator, so the breaks are text. The text is lines, and each line of the
+# docstring follows the indentation of the code around it. A text that ends in a
+# break, as `\"\"\"\n…\n\"\"\"` gives it, puts the closing fence on a line of its
+# own already; the separator breaks before the fence only when the text does not.
+# A separation can not collapse, so a fold key inside a docstring folds the code
+# around it.
 
 @projection UntrackedCell struct JuliaDocstringToSyntaxNode
     doc_style::StyleText   = get_julia_style(nothing, :string_text)
@@ -269,10 +271,10 @@ end
 
 @projection_template JuliaDocstringToSyntaxNode JuliaDocstring (p, d) ->
     SyntaxSeparation([
-        SyntaxLeaf(TextString(() -> d.text, p.doc_style);
+        SyntaxLeaf(make_text_block(() -> d.text, p.doc_style);
                    open=TextString("\"\"\"\n", p.fence_style)),
         project(:subject),
-    ]; separator=TextString("\n\"\"\"\n", p.fence_style))
+    ]; separator=make_text_block(() -> (endswith(d.text, '\n') ? "" : "\n") * "\"\"\"\n", p.fence_style))
 
 # ── JuliaAbstractTypeToSyntaxNode ──────────────────────────────────────────
 

@@ -276,6 +276,18 @@ One at a time, with the owner.
     whose child starts on a line its own break did not make.
   - Not taken: removing `SyntaxIndentation`; keeping its line before and after
     its content, which is a break the layout makes by itself.
+- **N9 The indentation of a value of many lines. Decided, the owner, 2026-10-09:
+  (a), it follows the code around it.** Every line of a leaf after its first is a
+  line of the chrome, which an ancestor moves as it moves the lines of its texts.
+  The text stays the user's text, and its place in the code gives its indentation.
+  - Julia's parser removes the common indentation of a triple-quoted string, so a
+    docstring holds no indentation of its place, only its own (the four spaces
+    before a signature). After step 3 its fences stood at the indentation of the
+    body and its text at column 0.
+  - reStructuredText and Markdown write their indentation into their texts and
+    give their nodes `indentation` 0, so they get no second indentation.
+  - Not taken: (b) the lines at column 0, as the rows of a run drew them, with a
+    domain that wants indentation writing it into the text.
 
 ## 8. Facts found
 
@@ -439,6 +451,16 @@ change how every view of syntax makes its lines, so they land together.
    Book, the text nodes of XML and the raw texts of SQL, each with
    `bound(:f, String, make_text_block(...))`. Check: a Julia file with a docstring
    numbers each of its lines.
+   - ✅ Each line of a leaf after its first is a line of the chrome (N9), so the
+     parent moves it by its indentation. `test_syntax_to_text` 327 of 327.
+   - ✅ Julia (2026-10-09): only docstrings hold many lines, because Julia escapes a
+     break in a string and prints no comment. The text of a docstring is
+     `make_text_block` with a function. A text that ends in a break, as a
+     docstring of three lines does, puts its closing fence on a line of its own,
+     so the separator breaks before the fence only when the text does not end in
+     one; else a blank line opened before the fence. The sample prints 37 lines, a
+     line for each line of each docstring, at the indentation of the code.
+     `test_julia` 550 of 550.
 6. **The text domain edits a break as structure** (rule 2 of §4): Enter,
    Backspace and Delete at a line boundary, and a paste with breaks, on a block of
    lines; in a block inside `bound`, they are edits of `'\n'` in the string.
