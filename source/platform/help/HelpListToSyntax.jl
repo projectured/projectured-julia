@@ -83,7 +83,7 @@ function print_document(p::HelpListToSyntax, recursion,
                          SyntaxLeaf(TextString("    no description", p.muted)) :
                          SyntaxLeaf(TextString("    " * entry.summary, p.description)))
     end
-    SimpleIoMap(p, list, SyntaxNode(lines; sep = TextString("\n")))
+    SimpleIoMap(p, list, SyntaxNode(lines; sep = "\n"))
 end
 
 # "JsonString   ProjecturedJSON   type: json string, string"

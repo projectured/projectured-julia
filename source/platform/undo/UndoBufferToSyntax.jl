@@ -75,7 +75,7 @@ function print_document(p::UndoBufferToSyntax, recursion, buffer::UndoBuffer, ct
             push!(lines, SyntaxLeaf(TextString("nothing to take back yet", p.empty_text)))
         lines
     end))
-    SimpleIoMap(p, buffer, SyntaxNode(children; sep = TextString("\n")))
+    SimpleIoMap(p, buffer, SyntaxNode(children; sep = "\n"))
 end
 
 # One line: `undo    2  set .entries[1].value = "b"`. A barrier says so, and says

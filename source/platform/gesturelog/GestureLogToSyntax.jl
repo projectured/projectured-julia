@@ -67,7 +67,7 @@ function print_document(p::GestureLogToSyntax, recursion, log::GestureLog, ctx::
         end
         lines
     end))
-    SimpleIoMap(p, log, SyntaxNode(children; sep=TextString("\n")))
+    SimpleIoMap(p, log, SyntaxNode(children; sep = "\n"))
 end
 
 # One line: "  12  Ctrl+C            set .entries[1].value = 1".

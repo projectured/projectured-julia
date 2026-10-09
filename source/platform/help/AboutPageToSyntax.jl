@@ -29,7 +29,7 @@ function make_about_page_projection(; theme = nothing)
 end
 
 function print_document(p::AboutPageToSyntax, recursion, page::AboutPage, ctx::PrinterContext)
-    SimpleIoMap(p, page, SyntaxNode(() -> _make_about_lines(p, page); sep = TextString("\n")))
+    SimpleIoMap(p, page, SyntaxNode(() -> _make_about_lines(p, page); sep = "\n"))
 end
 
 function _make_about_lines(p::AboutPageToSyntax, page::AboutPage)

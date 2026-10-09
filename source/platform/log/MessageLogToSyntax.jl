@@ -63,7 +63,7 @@ function print_document(p::MessageLogToSyntax, recursion, log::MessageLog, ctx::
         end
         lines
     end))
-    SimpleIoMap(p, log, SyntaxNode(children; sep=TextString("\n")))
+    SimpleIoMap(p, log, SyntaxNode(children; sep = "\n"))
 end
 
 # The style of a level: an error, a warning and a message for debugging each have

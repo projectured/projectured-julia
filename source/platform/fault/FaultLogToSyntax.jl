@@ -66,7 +66,7 @@ function print_document(p::FaultLogToSyntax, recursion, log::FaultLog,
         end
         lines
     end))
-    SimpleIoMap(p, log, SyntaxNode(children; sep = TextString("\n")))
+    SimpleIoMap(p, log, SyntaxNode(children; sep = "\n"))
 end
 
 # One line: "  3000  print    SyntaxToText  BoundsError: …".

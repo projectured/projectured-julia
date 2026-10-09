@@ -85,5 +85,5 @@ function print_document(p::CommandPaletteToSyntax, recursion, doc::CommandPalett
         end
         lines
     end
-    SimpleIoMap(p, doc, SyntaxNode(children; sep=TextString("\n")))
+    SimpleIoMap(p, doc, SyntaxNode(children; sep = "\n"))
 end

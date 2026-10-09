@@ -56,6 +56,6 @@ function print_document(p::GestureMapToSyntax, recursion, doc::GestureMap, ctx::
                       " — ", row.description, suffix)
         push!(children, SyntaxLeaf(TextString(text, desc_style)))
     end
-    out = SyntaxNode(children; sep=TextString("\n"))
+    out = SyntaxNode(children; sep = "\n")
     return SimpleIoMap(p, doc, out)
 end
