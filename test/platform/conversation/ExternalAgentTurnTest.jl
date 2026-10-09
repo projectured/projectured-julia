@@ -415,6 +415,37 @@ function test_external_agent_turn()
             @test connection.sessions[3].directory == pwd()
         end
 
+        @testset "the document of an evaluation through the MCP server of the editor is the live result" begin
+            tools = ToolSet()
+            made = TextBlock(TextString("made"))
+            connection = ScriptedAgentConnection([Any[
+                AgentToolCallUpdate("t1"; name = "mcp__projectured__execute_julia_code", status = :pending,
+                                    input = Dict{String,Any}("code" => "make()")),
+                # The MCP server of the editor keeps the document under the id of the call.
+                (connection, on_event) -> keep_tool_call_value!(tools, "t1", made),
+                AgentToolCallUpdate("t1"; status = :completed, output = "made"),
+                AgentToolCallUpdate("t1"; status = :completed, output = "made"),
+                AgentToolCallUpdate("t2"; name = "mcp__projectured__execute_julia_code", status = :pending,
+                                    input = Dict{String,Any}("code" => "1")),
+                AgentToolCallUpdate("t2"; status = :completed, output = "1")]])
+            a = _make_agent_assistant(connection)
+            a.input.value = "Go"
+            evaluate_operation((document = a, tools = tools), SubmitProseOperation(a))
+            _wait_for_idle(a)
+            live, plain = [part.content for turn in collect(a.conversation.turns) for part in collect(turn.parts)
+                           if part.content isa EvaluatorForm]
+            # The repeated output keeps the live result, and the text stays beside it.
+            @test live.result === made && live.output == "made"
+            @test plain.result isa TextBlock && plain.result !== made
+            @test isempty(tools.call_values)
+            # A save writes a result that its notation can not write as the text of the tool.
+            form = EvaluatorForm(TextBlock(TextString("make()")); result = AgentTurnLiveResult(() -> 1),
+                                 output = "made by the code", tool_name = "execute_julia_code")
+            written = print_pred_text(form)
+            @test occursin("made by the code", written)
+            @test parse_pred_text(written).result isa TextBlock
+        end
+
         @testset "the backend :acp without its package says so" begin
             a = Assistant(; backend = :acp)
             _submit_to_agent!(a, "Hello")
@@ -473,6 +504,12 @@ function test_external_agent_turn()
             @test connection.prompts[end] == [LlmText("Again")]
         end
     end
+end
+
+# A result that the notation of a file can not write, as a live document of a
+# session can be: a document that holds a function.
+@document struct AgentTurnLiveResult
+    run::Any
 end
 
 _make_agent_assistant(connection) =

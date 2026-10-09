@@ -85,7 +85,7 @@ With `backend = :acp` the task of the turn runs `_run_external_agent_turn!` in p
 | --- | --- |
 | `LlmTextStart`…`LlmTextStop` | a prose part |
 | `LlmThinkingStart`…`LlmThinkingStop` | a `ConversationThinking` part |
-| `AgentToolCallUpdate` | one `EvaluatorForm` for each call `id`; later updates fill its input, its output and its failure; the prefix `mcp__projectured__` of a tool name is removed. The result of a tool of this editor is made as in a turn of a model, from the media type of the tool, so a documentation tool gives a Markdown page; the result of another tool, and an error, is its text |
+| `AgentToolCallUpdate` | one `EvaluatorForm` for each call `id`; later updates fill its input, its output and its failure; the prefix `mcp__projectured__` of a tool name is removed. The result of a tool of this editor is made as in a turn of a model: the document that an `execute_julia_code` call returned, which the MCP server kept under the id of the call, is the live result, and else the media type of the tool decides, so a documentation tool gives a Markdown page; the result of another tool, and an error, is its text. A `.pred` file writes a result that its notation can not write as the text of the tool |
 | `AgentPlanUpdate` | one prose part with a checklist, which each update replaces |
 | `AgentPermissionRequest` | a `ConversationPermissionRequest` |
 

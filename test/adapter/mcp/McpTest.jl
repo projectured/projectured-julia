@@ -785,6 +785,31 @@ function test_mcp_tool_runs_on_editor_task()
     end
 end
 
+# A client that names its call in the `_meta` of the request, as Claude Code does,
+# gets the document that an evaluation returns kept under that name, so the turn
+# of an agent can show it live. A call with no name keeps nothing.
+function test_mcp_keeps_evaluated_document()
+    @testset "the document of an evaluation is kept under the id of its call" begin
+        editor = _mcp_editor()
+        register_default_tools!(editor.tools)
+        tools = Dict(t.name => t for t in render_mcp_tools(editor, list_tools(editor.tools)))
+        evaluate = tools["execute_julia_code"].handler
+        library = ProjecturedMCP.McpModule.ModelContextProtocol
+        server = library.mcp_server(name = "test", version = "0.0.1")
+        context(meta) = library.RequestContext(server = server, meta = meta)
+        evaluate(Dict{String,Any}("code" => "JsonString(\"made\")"),
+                 context(Dict{String,Any}("claudecode/toolUseId" => "toolu_1")))
+        @test take_tool_call_value!(editor.tools, "toolu_1") isa JsonString
+        @test take_tool_call_value!(editor.tools, "toolu_1") === nothing
+        # A value that is no document, a call with no id, and a context with no
+        # `_meta` keep nothing.
+        evaluate(Dict{String,Any}("code" => "1 + 1"), context(Dict{String,Any}("claudecode/toolUseId" => "toolu_2")))
+        evaluate(Dict{String,Any}("code" => "JsonString(\"again\")"))
+        evaluate(Dict{String,Any}("code" => "JsonString(\"again\")"), context(nothing))
+        @test isempty(editor.tools.call_values)
+    end
+end
+
 # The MCP log holds each call that a client makes, in order: a read of a
 # resource, a call of code that answers, and a call of code that throws, which is
 # a fault. The client posts real requests to the server of a running loop.
@@ -860,6 +885,7 @@ function test_mcp_tools()
         test_search_object()
         test_mcp_server()
         test_mcp_tool_runs_on_editor_task()
+        test_mcp_keeps_evaluated_document()
         test_mcp_log()
     end
 end

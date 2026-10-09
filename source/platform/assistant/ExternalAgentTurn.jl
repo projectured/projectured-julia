@@ -87,7 +87,7 @@ function _run_external_agent_turn!(editor, a::Assistant; control::AssistantTurnC
     state = Dict{Symbol,Any}(:current_block => nothing, :current_thinking => nothing,
                              :tool_forms => Dict{String,EvaluatorForm}(), :plan_part => nothing,
                              :permission_requests => ConversationPermissionRequest[],
-                             :tools => _find_editor_tool_set(editor))
+                             :tools => _find_editor_tool_set(editor), :live_results => Set{String}())
     stop_reason = try
         _start_external_agent_session!(editor, a, session)
         prompt, turn_count = run_on_editor_task!(editor) do
@@ -391,7 +391,8 @@ function _apply_tool_call_update!(turn::ConversationTurn, state, update::AgentTo
         output = something(update.output, "")
         form = EvaluatorForm(_eval_form_doc(LlmToolUse(update.id, name, input));
                              source = name == "execute_julia_code" ? string(get(input, "code", "")) : "",
-                             result = _make_agent_tool_result(state, name, output, update.status === :failed),
+                             result = _make_agent_tool_result(state, update.id, name, output,
+                                                              update.status === :failed),
                              output,
                              is_error = update.status === :failed,
                              tool_use_id = update.id, tool_name = name, input)
@@ -418,19 +419,31 @@ function _apply_tool_call_update!(turn::ConversationTurn, state, update::AgentTo
     end
     if update.output !== nothing
         form.output = update.output
-        form.result = _make_agent_tool_result(state, form.tool_name, update.output,
-                                              update.status === :failed || form.is_error)
+        # A live result stays when a later update repeats the output.
+        update.id in state[:live_results] ||
+            (form.result = _make_agent_tool_result(state, update.id, form.tool_name, update.output,
+                                                   update.status === :failed || form.is_error))
     end
     update.status === :failed && (form.is_error = true)
     nothing
 end
 
-# The result of a tool. A tool of this editor, which the agent reaches through the
-# MCP server of the editor, gets the document that a turn of a model makes of its
-# text, from the media type that the tool declares: a Markdown page for a
+# The result of a tool. The document that an evaluation of this editor returned,
+# which the MCP server kept under the id of the call, is the live result, as in a
+# turn of a model. A tool of this editor, which the agent reaches through the MCP
+# server of the editor, otherwise gets the document that a turn of a model makes
+# of its text, from the media type that the tool declares: a Markdown page for a
 # documentation tool. Another tool, and an error, keep their text.
-function _make_agent_tool_result(state, name::AbstractString, output::AbstractString, is_error::Bool)
+function _make_agent_tool_result(state, id::AbstractString, name::AbstractString, output::AbstractString,
+                                 is_error::Bool)
     tools = state[:tools]
+    if tools !== nothing && !is_error && name == "execute_julia_code"
+        value = take_tool_call_value!(tools, id)
+        if value !== nothing
+            push!(state[:live_results], String(id))
+            return value
+        end
+    end
     _make_tool_result_document(tools === nothing ? nothing : find_tool(tools, name), output, is_error)
 end
 

@@ -76,7 +76,7 @@ EvaluatorForm(form::Document;
 # an input can be any text, so a mapping of names can not hold it.
 pred_arguments(f::EvaluatorForm) = (), Pair{Symbol,Any}[
     :form             => f.form,
-    :result           => f.result,
+    :result           => _make_file_result(f),
     :is_error         => f.is_error,
     :tool_use_id      => f.tool_use_id,
     :tool_name        => f.tool_name,
@@ -86,6 +86,20 @@ pred_arguments(f::EvaluatorForm) = (), Pair{Symbol,Any}[
     :form_collapsed   => f.form_collapsed,
     :result_collapsed => f.result_collapsed,
 ]
+
+# The result as a file writes it. A result that the notation of a file can not
+# write, such as a live document of the session that an evaluation returned, is
+# written as the text of the tool.
+function _make_file_result(f::EvaluatorForm)
+    result = f.result
+    try
+        print_pred_text(result)
+        result
+    catch exception
+        exception isa FileCutException || rethrow()
+        make_evaluator_result_text(f.output)
+    end
+end
 
 function make_pred_document(::Type{<:EvaluatorForm}, positional, keywords)
     values = Dict{Symbol,Any}(keywords)

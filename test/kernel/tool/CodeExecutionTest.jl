@@ -233,6 +233,21 @@ function test_code_execution()
         @test_throws quit execute_julia_expression!(set, nothing, :(throw($quit())))
     end
 
+    @testset "a value kept under the id of a call is taken once" begin
+        kept = ToolSet()
+        @test keep_tool_call_value!(kept, "a", 1) == 1
+        keep_tool_call_value!(kept, "a", 2)
+        @test take_tool_call_value!(kept, "a") == 2
+        @test take_tool_call_value!(kept, "a") === nothing
+        # The oldest goes when the set keeps as many as it can.
+        capacity = ProjecturedKernel.ToolModule.TOOL_CALL_VALUE_CAPACITY
+        for index in 1:(capacity + 1)
+            keep_tool_call_value!(kept, string(index), index)
+        end
+        @test take_tool_call_value!(kept, "1") === nothing
+        @test take_tool_call_value!(kept, string(capacity + 1)) == capacity + 1
+    end
+
     @testset "an observer that is interrupted stops the call" begin
         watched = ToolSet()
         observe_evaluations!(_ -> throw(InterruptException()), watched)

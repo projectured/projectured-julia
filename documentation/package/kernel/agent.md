@@ -59,6 +59,15 @@ module `execute_julia_code!` evaluates into, and its last result live on the
 `ToolSet`. Two editors in one process therefore cannot see each other's tools or
 evaluate code into each other's namespace.
 
+**A value under the id of a call.** `keep_tool_call_value!(set, call_id, value)`
+keeps the value of a call until `take_tool_call_value!(set, call_id)` takes it,
+once. It ties the caller that runs a tool to the caller that draws its result,
+when the two are not the same: the MCP server keeps the document that an
+evaluation returned under the id that Claude Code gives the call, and the turn
+of the agent takes it when the result of that call comes. The set keeps at most
+`TOOL_CALL_VALUE_CAPACITY` values, 32, and the oldest goes first, so a value
+that nobody takes does not stay.
+
 A few values of the layer are process-global, each for a reason:
 
 - The guide index, the API index and the index of each declared API are caches

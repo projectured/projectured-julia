@@ -184,6 +184,40 @@ its text repr.
 """
 get_last_evaluated_value(set::ToolSet) = set.last_value
 
+# How many values of calls `set` keeps; the oldest goes first.
+const TOOL_CALL_VALUE_CAPACITY = 32
+
+"""
+    keep_tool_call_value!(set, call_id, value) -> value
+
+Keep `value`, the value of the call that has the id `call_id`, in `set` until a
+caller takes it with [`take_tool_call_value!`](@ref). A value kept again under
+the same id replaces the first. When `TOOL_CALL_VALUE_CAPACITY` values wait, the
+oldest goes, so a value that nobody takes does not stay.
+
+Use it when the caller that runs a tool and the caller that shows its result are
+not the same, such as the MCP server that runs a tool for an agent and the turn
+of the agent that draws the call: the id of the call ties the two.
+"""
+function keep_tool_call_value!(set::ToolSet, call_id::AbstractString, value)
+    filter!(pair -> first(pair) != call_id, set.call_values)
+    push!(set.call_values, String(call_id) => value)
+    length(set.call_values) > TOOL_CALL_VALUE_CAPACITY && popfirst!(set.call_values)
+    value
+end
+
+"""
+    take_tool_call_value!(set, call_id) -> value or nothing
+
+The value that [`keep_tool_call_value!`](@ref) kept under `call_id`, which then
+leaves `set`; `nothing` when none waits.
+"""
+function take_tool_call_value!(set::ToolSet, call_id::AbstractString)
+    index = findfirst(pair -> first(pair) == call_id, set.call_values)
+    index === nothing && return nothing
+    last(popat!(set.call_values, index))
+end
+
 """
     get_last_evaluation_exception(set) -> exception or nothing
 

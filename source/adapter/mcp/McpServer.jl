@@ -214,6 +214,11 @@ A handler runs its tool through `run_on_editor_task!`, so the tool runs on the
 task of the editor's loop and the server task waits for its answer. Each call
 goes to the store of the MCP log of the session, with its arguments, its answer,
 the time it held the editor and whether it was a fault.
+
+When the client names its call in the `_meta` of the request, as Claude Code does
+with `claudecode/toolUseId`, the document that an `execute_julia_code` call
+returns is kept in the tool set under that id with `keep_tool_call_value!`, so
+the turn of an agent can show it live.
 """
 function render_mcp_tools(editor, tools::AbstractVector{Tool})
     out = MCPTool[]
@@ -228,8 +233,11 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool})
         ]
         # Capture t and editor in a closure
         let tool = t
-            handler = params_dict -> begin
+            # The library gives the context of the request as the second argument.
+            handler = (params_dict, context = nothing) -> begin
                 args = Dict{String,Any}(string(k) => v for (k, v) in pairs(params_dict))
+                call_id = context === nothing ? nothing :
+                          _find_tool_call_id(ModelContextProtocol.request_meta(context))
                 # The handler runs on the server task, and a tool may write what
                 # the editor shows, so the call runs on the editor's task, in the
                 # drain of its next frame, which then paints the change.
@@ -249,7 +257,9 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool})
                     # person reading the editor's log sees what a client ran
                     # into.
                     try
-                        tool.handler(editor, args)
+                        text = tool.handler(editor, args)
+                        call_id === nothing || _keep_evaluated_document!(editor.tools, tool.name, call_id)
+                        text
                     catch exception
                         is_passthrough_exception(exception) && rethrow()
                         fault[] = true
@@ -282,6 +292,26 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool})
         end
     end
     out
+end
+
+# The id that the client gives the call of its model, or `nothing`. Claude Code
+# sends it in the `_meta` of the request as `claudecode/toolUseId`, and an agent
+# of ACP that runs Claude Code gives its tool call the same id.
+function _find_tool_call_id(meta)
+    meta === nothing && return nothing
+    id = get(meta, "claudecode/toolUseId", nothing)
+    id isa AbstractString && !isempty(id) ? String(id) : nothing
+end
+
+# The document that an evaluation returned, kept under the id of its call, so the
+# turn of an agent that draws the call can show it live. It runs on the editor
+# task right after the tool, so the last value of the tool set is the value of
+# this call.
+function _keep_evaluated_document!(set, name::AbstractString, call_id::String)
+    name == "execute_julia_code" || return nothing
+    value = get_last_evaluated_value(set)
+    value isa Document && keep_tool_call_value!(set, call_id, value)
+    nothing
 end
 
 # The arguments of a call as the MCP log shows them: the code alone when the call

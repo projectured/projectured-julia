@@ -94,14 +94,35 @@ pull request alone (option 1 of the answer), so that colleagues can share it.
     the release of AutoIntegration 0.1.1 on 2026-10-08. Live with the built-in
     agent: the documentation tools through the MCP server on the fork gave
     Markdown pages.
-- [ ] **F.5 The editor ties the document of an evaluation to its call.** A
-  proposal, open: the tool handler of the adapter reads
-  `request_meta(ctx)["claudecode/toolUseId"]`; the tool set of the kernel keeps
-  the document of an evaluation under that id for a short time; the turn of
-  the agent takes it when the result of the call comes.
-- [ ] **F.6 A `.pred` file writes a result that its notation can not write** as
+- [x] **F.5 The editor ties the document of an evaluation to its call.** The
+  owner agreed on 2026-10-09 with the design: the tool handler of the adapter
+  reads `request_meta(ctx)["claudecode/toolUseId"]`; the tool set of the kernel
+  keeps the document of an evaluation under that id for a short time; the turn
+  of the agent takes it when the result of the call comes. Done on the branch
+  `tool-call-values`. Decisions made in the implementation:
+  - No scoped value and no change of `call_tool`: the MCP handler runs the tool
+    on the editor task, so right after the tool, in the same function,
+    `get_last_evaluated_value` is the value of exactly that call.
+  - `ToolSet` gets the field `call_values`, and the tool layer gets
+    `keep_tool_call_value!` and `take_tool_call_value!`, with
+    `TOOL_CALL_VALUE_CAPACITY` 32; the oldest goes first.
+  - The handler takes the context as an optional second argument, so a call
+    with one argument, as a test makes it, keeps nothing.
+  - The turn keeps the ids that got a live result, so an update that repeats
+    the output does not turn the result back into text. The card keeps the
+    text of the tool in `output` beside the live result.
+  - Tests: `test_code_execution()` 71 of 71, the turn of an external agent 186
+    of 186, `test_mcp()` 479 of 479, `test_kernel()` 4223 with the 2 known
+    broken, the conversation suite 244 of 244, `test_assistant_mvp()` 155 with
+    its 4 known broken, the application 359 with the 2 known broken; the
+    static guards as on `main`. Live with the built-in agent: the code
+    `WidgetLabel("a live label")` through the MCP server gave the card a live
+    `WidgetLabel`, and the conversation saved (20781 characters).
+- [x] **F.6 A `.pred` file writes a result that its notation can not write** as
   the text of the tool, so the save of a conversation of an agent with a live
-  document does not fail.
+  document does not fail. The file form of `EvaluatorForm` tries
+  `print_pred_text` of the result, and a `FileCutException` gives the text of
+  `output`.
 - [x] **F.7 The registration in ProjecturedRegistry**, in a clone, after the owner
   pushed the fork; the owner pushes the registry branch. The owner made the
   fork with the account `projectured` on 2026-10-09 (a first fork under a
