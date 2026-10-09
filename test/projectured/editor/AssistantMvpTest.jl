@@ -458,16 +458,20 @@ plus the reactive-thunk probe. No SDL, no network.
 # The transcript of the assistant is a pane in the output of the view, and its bar
 # is a part that the view drew. A press on the thumb starts a drag that names the
 # pane through the view, and the drag comes back along that path and scrolls the
-# transcript.
+# transcript. The application draws the assistant inside a fault barrier, so the
+# view itself maps the part that it drew forward, and the case reads both chains.
 function _mvp_test_transcript_bar_drag()
-    @testset "a drag of the thumb of the transcript scrolls it" begin
+    application = only(row.second for row in make_application_content_projections(; measure = _mvp_measure)
+                       if row.first === Assistant)
+    chains = (("the example", make_assistant_projection_example(; measure = _mvp_measure)),
+              ("the application", application))
+    @testset "a drag of the thumb of the transcript scrolls it, in $name" for (name, chain) in chains
         turns = [ConversationTurn(:user, [ConversationPart("line $i")]) for i in 1:40]
         a = Assistant(; conversation = ConversationConversation(turns), llm = FakeLlm("ok"))
-        chain = make_assistant_projection_example(; measure = _mvp_measure)
         offer = ProjectionModule.with_exact_size(ProjectionModule.PrinterContext();
                                                  width = Cell(Int32(600)), height = Cell(Int32(400)))
         iomap = print_document(chain, nothing, a, offer)
-        pane = iomap.step_iomaps[1][].output.elements[1].child
+        pane = get_content_iomap(iomap.step_iomaps[1][]).output.elements[1].child
         @test pane isa WidgetModule.WidgetScrollPane
         plain = ModifierKeys()
         read(gesture, route = nothing) =
@@ -494,10 +498,15 @@ function _mvp_test_transcript_bar_drag()
         end
         apply!(press)
         @test pane.follow_end
-        # Up from the end: the transcript leaves its end and scrolls up.
-        apply!(read(DragMove(x, y - 60, plain; time = 0.0), start.path))
+        # Up from the end: the transcript leaves its end and scrolls up, and the
+        # view goes on up with the thumb.
+        apply!(read(DragMove(x, y - 20, plain; time = 0.0), start.path))
         @test !pane.follow_end
-        apply!(read(DragEnd(x, y - 60, plain; time = 0.0), start.path))
+        offset = Int(pane.scroll_position.y[])
+        @test offset > 0
+        apply!(read(DragMove(x, y - 40, plain; time = 0.0), start.path))
+        @test 0 <= Int(pane.scroll_position.y[]) < offset
+        apply!(read(DragEnd(x, y - 40, plain; time = 0.0), start.path))
     end
 end
 

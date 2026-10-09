@@ -180,7 +180,11 @@ _CARD_PANE_PREFIX(i) = Any[FieldReferenceStep("children"), RangeReferenceStep(0,
                            FieldReferenceStep("content")]
 
 # `conversation.<rest>` / `draft.<rest>` → the pane that holds it, plus `<rest>`.
-function map_reference_forward(::AssistantToWidgetCard, iomap::SimpleIoMap, reference)
+# A part that the view drew is the path in the card that its introduced reference
+# holds.
+function map_reference_forward(p::AssistantToWidgetCard, iomap::SimpleIoMap, reference)
+    introduced = find_introduced_path(p, reference)
+    introduced === nothing || return introduced
     reference isa ConcreteReference || return nothing
     head = reference.head
     head isa FieldReferenceStep || return nothing
@@ -218,7 +222,12 @@ function read_intent(p::AssistantToWidgetCard, iomap::SimpleIoMap,
 end
 
 # Assistant → vertical WidgetSplitPane(conversation | input), each a scroll pane.
-function map_reference_forward(::AssistantToWidgetSplitPane, iomap, reference)
+# A part that the view drew, such as a pane with its bar, is the path in the split
+# pane that its introduced reference holds, so the drag of a thumb comes back to
+# the pane, also through a view that wraps this one.
+function map_reference_forward(p::AssistantToWidgetSplitPane, iomap, reference)
+    introduced = find_introduced_path(p, reference)
+    introduced === nothing || return introduced
     @reference_case reference begin
         ::Assistant.conversation.rest... => @reference ::WidgetSplitPane.elements::CellVector[1]::LayoutConstraint.child::WidgetScrollPane.content.^(rest)
         ::Assistant.draft.rest...        => @reference ::WidgetSplitPane.elements::CellVector[2]::LayoutConstraint.child::WidgetScrollPane.content.^(rest)
