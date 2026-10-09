@@ -313,7 +313,14 @@ change how every view of syntax makes its lines, so they land together.
      offset; just after a break, the caret stands after the indentation of the line.
    - A lit delimiter of lines lights each run. The font of the chrome of a node is
      the font of the first run of its first text.
-   - `test_syntax_to_text` 314 of 314, `test_text` 99 of 99.
+   - *Found by the sweep:* an empty run of a text of a compound made a caret place
+     on chrome that maps to no place in the document, so a click on the blank line
+     that Markdown's `sep = "\n\n"` makes put the caret on the first line
+     (`test_click_roundtrips`, 2 failures). A compound now pushes no empty run, as
+     the cut of a run pushes no empty piece. A leaf keeps its empty runs: each is a
+     place in its value.
+   - `test_syntax_to_text` 314 of 314, `test_text` 99 of 99, `test_click_roundtrips`
+     42 of 42, `test_markdown` 262 of 262.
 
 3. **The domains state their breaks**, one commit for each, with its suite and
    the example sweeps, in this order (N6): JSON, YAML, the lists of the platform

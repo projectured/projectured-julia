@@ -739,6 +739,8 @@ _span_len(indentation::_LineIndentation) = indentation.width
 
 _is_split_span(span) = span isa TextString && occursin('\n', span.content::AbstractString)
 
+_is_empty_run(run) = run isa TextString && isempty(run.content::AbstractString)
+
 # The parts of `span` on lines, each `(k, offset)`: `k > 0` is piece `k` of its text
 # and `k == 0` a break, and `offset` is the place of the first character of the
 # part in the span. A span that holds no `'\n'` is one part, itself. A split span
@@ -926,9 +928,10 @@ end
 # flat text, a run or a break. A block appends its lines: the runs of its first line
 # join the open line, and each break starts a line of the chrome at
 # `break_indentation`. A run that still holds a `'\n'` is cut there, and each piece
-# after a cut starts a line at indentation 0 that is no line of the chrome. An
-# absent text appends nothing and has no entry, so it carries no cursor position
-# either.
+# after a cut starts a line at indentation 0 that is no line of the chrome. An empty
+# run is not appended, as an empty piece is not: chrome that draws no character
+# offers no caret of its own. An absent text appends nothing and has no entry, so it
+# carries no cursor position either.
 function _push_span!(buf::SpliceBuffer, span, break_indentation::Int = 0)
     span === nothing && return Pair{Int,Int}[]
     places = Pair{Int,Int}[]
@@ -940,7 +943,7 @@ function _push_span!(buf::SpliceBuffer, span, break_indentation::Int = 0)
                 offset += 1
             end
             for run in runs
-                push!(places, _push_entry_span!(buf, run) => offset)
+                _is_empty_run(run) || push!(places, _push_entry_span!(buf, run) => offset)
                 offset += get_flat_length(run)
             end
         end
