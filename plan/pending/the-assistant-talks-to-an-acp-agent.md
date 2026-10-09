@@ -696,7 +696,8 @@ from the command line of the projectured UI.
     Open: `ClaudeCodeACP` makes the title of a resumed session again from the
     first prompt after the resume, so the tab takes a new name then. A fix
     there needs a release 0.1.3: a resumed session makes no title. The owner
-    said on 2026-10-08: no release yet.
+    said on 2026-10-08: no release yet. On 2026-10-09 the owner said yes to the
+    fix in the release 0.1.3 of step 2.13, where it is done.
   - [x] **2.4b Save and load in a `.pred` file.** The owner agreed on
     2026-10-08: for an assistant with an agent session, the file keeps the
     session id, its folder and the conversation; a load shows the
@@ -903,9 +904,19 @@ from the command line of the projectured UI.
     The editor has parsers for `jl`, `json`, `md`, `rst`, `sql`, `xml` and
     `yaml`. `ClaudeCodeACP` gives no media type for `.sql` and `.rst`, so the
     extension of the uri finds them.
-  - [ ] A release `0.1.3` of `ClaudeCodeACP` (the owner pushes). Until then the
-    released `0.1.2` sends the text of `Read` with line numbers and no
-    resource, and the editor shows it as text, as before.
+  - [ ] A release `0.1.3` of `ClaudeCodeACP` (the owner pushes). The owner
+    said yes on 2026-10-09 to the fix of the title of a resumed session in this
+    release. ClaudeCodeACP `main` = `7fd9e35`: `6c53237` makes a title only from
+    the first prompt of a session (`!session.has_history`), so a resumed
+    session sends no title and the editor keeps the title that it saved; then
+    the version 0.1.3. 133 tests pass; the new test fails without the fix. The
+    registry commit `8b9ddcf` is on the branch `claude-code-acp-0.1.3` of the
+    clone of ProjecturedRegistry, with the tree of `7fd9e35`. The manifest of
+    `environment/all` names 0.1.3. Live with the built-in agent: after a stop
+    and a resume, the agent answered from the history of the session, and the
+    title stayed the one from the first prompt. Until the push, the released
+    `0.1.2` sends the text of `Read` with line numbers and no resource, and the
+    editor shows it as text, as before.
 
 ### Phase 3: the agent sees what projectured sees
 
