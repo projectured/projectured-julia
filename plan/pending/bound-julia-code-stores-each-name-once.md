@@ -91,7 +91,7 @@ Fifteen new `@document` types, under the root `JuliaDocument`:
 | `JuliaExternalBinding` | `module_path`, `name`, `kind` | A name from another module, such as `Base.println`. `kind` comes from reflection when the code binds (section 7.3). |
 | `JuliaClosure` | `arguments`, `locals`, `body`, `form` | An anonymous function: `x -> …` and a `do` block. |
 | `JuliaImport` | `keyword`, `module`, `bindings` | A `using` or an `import`, with a use of each external binding that it brings. |
-| `JuliaBindingUse` | `binding` | A use of a binding: it holds the binder by identity. |
+| `JuliaBindingUse` | `binding`, `accepted` | A use of a binding. It contains its binder: a call contains the function that it calls, and a use of a variable contains the declaration of the variable. `accepted` says if the person accepted the binding (section 16.1). |
 | `JuliaUnresolvedName` | `name` | A name that no binder binds yet: a typed name, or a name of a file that the code does not define and that no module gives. |
 
 ### 4.2 Types of the tree that stay
@@ -275,42 +275,48 @@ a variable keeps the variable.
 | Edit | What happens |
 | --- | --- |
 | a person types in the name of a binder | the binder takes the new name, and every use prints it (a rename) |
-| a person deletes the definition of a binder that has uses | the binder stays, because its uses hold it; the text shows a declaration of it, so that a save and a load keep the binding (section 8.1) |
-| a person moves code, by a cut and a paste or by a drag | each use keeps its binder (decision Q7); a use whose binder is not visible at the new place is section 8.2 |
+| a person deletes the definition of a binder that has uses | the binder stays, because each use contains it (decision Q16); the check marks the uses as having no definition (section 8.1) |
+| a person moves code, by a cut and a paste or by a drag | each use keeps its binder (decision Q7); the check marks a use whose binder is not visible at the new place (section 8.2, decision Q15) |
 | a person copies code and pastes the copy | a binder inside the copy is copied, and a use inside the copy holds the copy of its binder; a use of a binder outside the copy holds that same binder |
 | a person pastes text, such as code from another program | the bind binds the text at the place of the paste, because text has only names |
 | a person commits typed code | `parse_julia` gives a tree, and the bind binds it at the place of the insertion; a new assignment adds a local to the method |
 | a person types a name in place of a use | an operation of the person: the use binds to the binder that Julia gives that name there, or becomes a `JuliaUnresolvedName` |
 | a person unbinds a use, by a command | an operation of the person: the use becomes a `JuliaUnresolvedName` with the name of its binder |
 | a person binds an unresolved name again, by a command | an operation of the person: the bind binds the name at its place |
-| a rename makes a name that an inner binder already has | refused until stage 3; from stage 3 the captured use writes a reference (decision Q5) |
+| a rename makes a name that an inner binder already has | allowed. A use that is bound keeps its binder, and the check marks it when its text would bind to the inner binder; only a use that is not bound yet can take the binder of the new name, as a proposal (decision Q5) |
 
 The rename is the gain: one edit, and every use follows.
 
 ### 8.1 A binder with no definition
 
-When the definition of a binder goes and its uses stay, the text still needs a
-place that defines the name, or the load of a plain `.jl` file would not bind
-the uses back. So the binder prints a declaration where its definition was, as
-Julia allows one:
+A use contains its binder, so a binder lives as long as a use holds it. A delete
+of the definition of a function removes the method from the code, and the
+function binder stays in each call (decision Q16).
 
-- a function: `function area end`;
-- a global: `global x`;
-- a local: `local x`, at the start of its method.
+A plain `.jl` file writes nothing for such a binder. The load then finds no
+definition for the name, so the uses do not bind back: they become unresolved
+names, or proposals for another binder of the same name. The owner accepts this
+loss for a plain file (section 15); stage 3 keeps the binding with a reference.
 
-This is my proposal (question Q16). A binder with no definition and no use goes
-away, because nothing holds it.
+The check marks each use whose binder has no definition, so the screen shows
+it.
 
 ### 8.2 A use whose binder is not visible
 
 A move can take a use away from the place where its binder is visible, for
 example a statement that uses a parameter, moved out of its method. The use
-keeps its binder, so the bound code is still exact, but its name would not bind
-back at the load of a plain `.jl` file: Julia would give that name another
-binding or none. From stage 3 such a use writes a reference (decision Q14).
-Until stage 3, my proposal is to allow the move and to mark the use on the
-screen as out of scope, as a fault, and the save of a plain `.jl` file refuses
-while such a mark exists and names the uses (question Q15).
+keeps its binder, so the bound code is still exact. The check marks the use on
+the screen as out of scope (decision Q15). A plain `.jl` file writes its name,
+so the load binds it by the name, which can give another binder or none. From
+stage 3 such a use writes a reference (decision Q14).
+
+### 8.3 The check
+
+The check shows wrong bindings and never changes one. For each use it compares
+the binder with the binder that its name would get at its place, by the rules
+of section 7.2, and it marks each difference: a binder that is not visible
+there, a binder that an inner binder of the same name hides, and a binder with
+no definition. A mark is computed, not stored, as a compiler gives a warning.
 
 ## 9. Storage
 
@@ -460,14 +466,15 @@ gives before the bind.
 
 ## 13. Questions
 
-- **Q8. The module of the reflection:** `Main`, or the module where the
+- **Q17. The acceptance** (section 16.1): the commit of typed code accepts its
+  bindings, and a loaded file and pasted text wait for an accept command?
+- **Q18. The type binder** (section 16.3): split `JuliaTypeBinding` into the
+  name and a definition now?
+- **Q19. Typing in the name of a use** (section 16.2): it renames the binder,
+  because the use contains the binder; a replacement of the whole use, or a
+  choice of the completion, binds the use to another binder?
+- **Q8 (the owner does not know yet). The module of the reflection:** `Main`, or the module where the
   evaluator of the editor runs the code?
-- **Q15. A move before stage 3** (section 8.2): allow the move, mark the use as
-  out of scope, and refuse the save of a plain `.jl` file while the mark exists
-  (my proposal)? Or refuse the move?
-- **Q16. A binder with no definition** (section 8.1): its text shows a
-  declaration, such as `function area end` (my proposal)?
-
 ## 14. Decisions
 
 The owner answered on 2026-10-09:
@@ -545,4 +552,65 @@ So:
   a new version, and the person rebinds the users of the old version, which
   makes new versions of them in turn. Each stage on the way must be useful on
   its own, because the work can stop at any sensible place.
+- **Q5. A rename that captures:** "captured use only if the use is not bound
+  yet". Read as: the rename is allowed; a bound use keeps its binder; only a use
+  that is not bound yet can take the binder of the new name, as a proposal
+  (section 8).
+- **Q15. A move before stage 3:** "yes": the move is allowed, and the check
+  marks the use (section 8.2).
+- **Q16. A binder with no definition:** "write nothing, but just by deleting a
+  function will not delete the object because the binding directly contains
+  it, it's not going to be garbage collected. A function call actually contains
+  the function that is called. A variable use actually contains the variable
+  declaration that is being used, etc." (section 8.1).
+- **Q8. The module of the reflection:** "don't know yet". Stage 1 needs one
+  module, so it reads it from one place, and a later answer changes one line;
+  until then the code uses `Main`.
+
+## 16. The first stage, toward immutable code
+
+The owner on 2026-10-09: "we don't have to fully plan this immutable code
+thing, but we should keep in mind when designing the intermediate step for the
+julia domain now." Most of the plan already fits it: a use contains its binder,
+the name is stored only in the binder, and nothing binds again by itself. Three
+choices of the first stage keep the way open. They are my proposals (questions
+Q17 to Q19).
+
+### 16.1 A binding is proposed or accepted
+
+The bind proposes bindings, because it guesses from names. A use holds
+`accepted`:
+
+- The commit of typed code accepts its bindings, because the completion shows
+  the binding before the commit.
+- A load of a plain `.jl` file and a paste of text give proposals, and the
+  person accepts them with a command, for one use or for the whole file.
+- The screen marks the file whose bindings wait, and each doubtful proposal: a
+  name with several candidates, a name that only reflection found, a name in a
+  macro call. A mark on every name of a loaded file would be noise.
+- Later, a commit carves only accepted bindings.
+
+### 16.2 Typing in the name of a use
+
+A use contains its binder, so typing in the name at a use renames the binder,
+and every use follows. A replacement of the whole use, or a choice of another
+binder in the completion, binds the use to another binder.
+
+### 16.3 A binder keeps its name apart from its content
+
+A later edit makes a new version of a definition, while its name and its
+identity stay. The content can then be a field that a `VersionedObject` wraps.
+`JuliaFunctionBinding`, which holds only the name, and `JuliaMethod`, which holds
+the content, are apart already. `JuliaTypeBinding` holds both, so it would split
+into the name and a definition with the parameters, the supertype and the
+fields.
+
+### 16.4 Facts for later, with no work now
+
+- An external binding names a module. A later stage can add the version of its
+  package from the manifest. One Julia process loads one version of a package,
+  so a pin at the level of one function works only for the code of the project.
+- Two versions of one definition can run together only when the code that runs
+  gives them two names. A method of a function of another module, such as
+  `Base.show`, has one live version for each signature in a process.
 
