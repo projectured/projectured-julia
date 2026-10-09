@@ -446,6 +446,8 @@ so it does not serve a text with a gutter.
   (one empty span, caret at `{0}` — Phase 1's `@insertion`) is exactly this shape. Fixing it means
   emitting a zero-width segment, which shifts `coord_map` indices and so the rasterized-image click
   path; do it deliberately, with `_translate_click` in hand.
+  **Fixed later:** the test "TextToGraphics draws a caret in an empty span, one line
+  high" covers it.
 - `TextSpacing` is never rendered by `TextToGraphics` (the span loop skips it) though it counts 1 in
   `text_flat_length`.
 

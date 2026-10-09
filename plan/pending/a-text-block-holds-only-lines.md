@@ -179,9 +179,11 @@ the release plan).
   carries the font of an empty line today, and an empty `TextLine` takes the
   first font of its block, so an empty line after a heading has the height of the
   heading.
-  - (a) An empty line holds one empty run in its style. This needs the fix of the
-    caret in an empty `TextString`, which is not drawn (found in Phase 3 of
-    `text-domain-kit.md`).
+  - (a) An empty line holds one empty run in its style, and the layout sizes the
+    line by the font of that run. A caret in an empty run is drawn, one line high
+    (the test "TextToGraphics draws a caret in an empty span, one line high"), but
+    `_line_height_font` takes the first font of the block for a line, not the font
+    of its run.
   - (b) `TextLine` gets a font.
 
   My proposal, not decided: (a), because a run is where a style is now, and the
