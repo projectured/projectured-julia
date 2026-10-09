@@ -71,7 +71,6 @@ using ..ReferenceModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-import ..ArrangementModule: get_arranged_wrap_steps
 import ..GestureBindingModule: get_document_gesture_bindings_own
 import ..EditorModule: make_document_projection
 
@@ -83,7 +82,7 @@ export register_natural_domain!, register_natural_notation!, register_natural_fo
        print_natural_text
 export register_natural_syntax!, register_natural_graphics!, register_natural_fallback!,
        get_natural_syntax_entries, get_natural_graphics_entries, get_natural_fallback_entries
-export ArrangementBarProjection, ArrangementBarIoMap, ArrangementChipsToGraphics, ArrangementChipsToGraphicsIoMap
+export ArrangementChipsToGraphics, ArrangementChipsToGraphicsIoMap
 export NaturalToGraphics,
        register_natural_syntax!, register_natural_graphics!, register_natural_fallback!
 export TooltipContentToVerticalLayout, make_natural_tooltip_row

@@ -5,7 +5,7 @@ What a person arranges in how a document shows, apart from the document: the
 `ArrangementDocument` that holds a document and the projections that a person
 placed at its parts, such as a filter or a sort of a collection, the projection
 that prints it, the dispatch that puts those projections at their places in a
-recursion, and the filter and the sort.
+recursion, the filter and the sort, and the bar that shows the chips of a place.
 """
 module ArrangementModule
 
@@ -14,6 +14,7 @@ using ..CollectionModule
 using ..DocumentModule
 using ..IntentModule
 using ..IoMapModule
+using ..LayoutModule
 using ..OperationModule
 using ..PrimitiveModule
 using ..ProjectionModule
@@ -27,18 +28,20 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 import ..OperationModule: operation_reference, retarget_operation
 
 export ArrangementDocument, ArrangementEntry, ArrangementChips, ArrangementFilter, ArrangementCondition,
-       ArrangementSort, ArrangementSortKey
+       is_quick_text_condition, ArrangementSort, ArrangementSortKey
 export ArrangeCollectionOperation, make_arrangement_change_edit, make_first_arrangement, make_entry_removal_edit
 export make_arrangement_projection, ArrangingProjection, ArrangingIoMap, make_arranged_dispatch,
        find_arranged_projection, ArrangedChainingProjection, get_arranged_wrap_steps
 export PickingProjection, PickingIoMap, get_arrangement_value, compute_filter_rows, is_condition_holding,
        compute_sort_rows, compare_arrangement_values
+export ArrangementBarProjection, ArrangementBarIoMap
 export find_arranged_item, make_arrangement_edits, make_first_arrangement_edits
 
 include("ArrangementDocument.jl")
 include("ArrangeCollectionOperation.jl")
 include("Arranging.jl")
 include("Picking.jl")
+include("ArrangementBar.jl")
 include("ArrangementMenu.jl")
 
 end # module

@@ -40,9 +40,9 @@ _is_arrangeable_collection(value) = is_element_collection(value) || (value isa A
 The edits that the menu of a value offers, for `item` from
 [`find_arranged_item`](@ref) inside the document of `arrangement`: show only the
 items like it, hide them, sort by it either way, for a number keep the greater or
-the smaller ones, and Show all where the collection has an entry. Each edit names
-its own document, as an item of a menu of a part around the part under the
-pointer must.
+the smaller ones, a quick text field where the collection has none, and Show all
+where the collection has an entry. Each edit names its own document, as an item
+of a menu of a part around the part under the pointer must.
 """
 function make_arrangement_edits(arrangement::ArrangementDocument, item)
     entry = _find_entry_at(arrangement.entries, item.at, Reference)
@@ -53,6 +53,8 @@ function make_arrangement_edits(arrangement::ArrangementDocument, item)
     for (label, key) in _make_item_sort_keys(item)
         push!(edits, (label, _make_sort_edit(arrangement, entry, item.at, key)))
     end
+    _has_quick_text(entry) ||
+        push!(edits, (_QUICK_TEXT_LABEL, _make_condition_edit(arrangement, entry, item.at, _make_quick_text_condition())))
     entry === nothing || push!(edits, ("Show all", make_entry_removal_edit(arrangement, entry)))
     edits
 end
@@ -74,8 +76,20 @@ function make_first_arrangement_edits(document, item, wrap::Function)
     for (label, key) in _make_item_sort_keys(item)
         push!(edits, (label, wrap(first_entry(ArrangementSort(Any[key])))))
     end
+    push!(edits, (_QUICK_TEXT_LABEL, wrap(first_entry(ArrangementFilter(Any[_make_quick_text_condition()])))))
     edits
 end
+
+const _QUICK_TEXT_LABEL = "Filter by text…"
+
+# A quick text condition with no text yet, which keeps every item.
+_make_quick_text_condition() = ArrangementCondition(nothing, :contains, "")
+
+# Whether `entry` has a quick text condition.
+_has_quick_text(entry) =
+    entry !== nothing && any(description -> description isa ArrangementFilter &&
+                                            any(is_quick_text_condition, description.conditions),
+                             entry.projections)
 
 function _make_item_conditions(item)
     conditions = Tuple{String,Any}[

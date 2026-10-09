@@ -51,7 +51,7 @@ function _map_picked_forward(rows, path)
 end
 
 function map_reference_forward(p::PickingProjection, iomap::PickingIoMap, reference)
-    iomap.rows === nothing && return reference
+    (iomap.rows === nothing || _is_later_introduced(p, reference)) && return reference
     @reference_case reference begin
         [i].rest... => begin
             j = findfirst(==(i), iomap.rows)
@@ -63,7 +63,7 @@ function map_reference_forward(p::PickingProjection, iomap::PickingIoMap, refere
 end
 
 function map_reference_backward(p::PickingProjection, iomap::PickingIoMap, reference)
-    iomap.rows === nothing && return reference
+    (iomap.rows === nothing || _is_later_introduced(p, reference)) && return reference
     @reference_case reference begin
         [j].rest... => begin
             rows = iomap.rows
@@ -73,6 +73,12 @@ function map_reference_backward(p::PickingProjection, iomap::PickingIoMap, refer
         __ => @invoke map_reference_backward(p::Projection, iomap, reference)
     end
 end
+
+# Whether `reference` names a part that a later stage of the chain drew, such as
+# the chips of the bar: the step stands at the place, which is the input and the
+# output of this stage alike, so the path passes through.
+_is_later_introduced(p::PickingProjection, reference) =
+    is_introduced_reference(reference) && !is_introduced_reference(reference, p)
 
 make_arrangement_projection(filter::ArrangementFilter) =
     PickingProjection(items -> compute_filter_rows(filter, items))
@@ -108,12 +114,23 @@ end
     is_condition_holding(condition, item) -> Bool
 
 Whether the value at the key of `condition` inside `item` compares with the value
-of `condition` by its operator.
+of `condition` by its operator. A key that is `nothing` stands for any value
+inside `item`, at any depth: the condition holds when one of them holds it, as
+the quick text field of a bar keeps the items where any value contains its text.
+An empty text is contained in every item.
 """
 function is_condition_holding(condition::ArrangementCondition, item)
-    actual = _find_key_value(item, condition.key)
-    expected = condition.value
     operator = condition.operator
+    expected = condition.value
+    if condition.key === nothing
+        operator === :contains && isempty(string(expected)) && return true
+        return _is_any_value_holding(operator, expected, item, IdSet{Any}(), 0)
+    end
+    _is_value_holding(operator, _find_key_value(item, condition.key), expected)
+end
+
+# Whether `actual` compares with `expected` by `operator`.
+function _is_value_holding(operator::Symbol, actual, expected)
     operator === :equal && return isequal(actual, expected)
     operator === :not_equal && return !isequal(actual, expected)
     operator === :contains &&
@@ -125,6 +142,29 @@ function is_condition_holding(condition::ArrangementCondition, item)
     operator === :at_least && return order >= 0
     error("ArrangementCondition: no operator ", repr(operator))
 end
+
+# Whether any value inside `node` compares with `expected` by `operator`: the value
+# of `node` itself when it is a leaf, and else the values of its elements and of
+# the fields of a document that are no view state. `seen` keeps a value that two
+# places share from a second walk, and the depth ends a walk of a deep structure.
+function _is_any_value_holding(operator, expected, node, seen, depth::Int)
+    depth > 32 && return false
+    value = unwrap_cell(get_arrangement_value(node))
+    _is_leaf_value(value) && return _is_value_holding(operator, value, expected)
+    (value === nothing || value in seen) && return false
+    push!(seen, value)
+    if value isa AbstractVector || value isa Tuple || value isa NamedTuple
+        return any(element -> _is_any_value_holding(operator, expected, element, seen, depth + 1), value)
+    end
+    value isa Document || return false
+    for name in fieldnames(typeof(value))
+        is_view_state_field(name) && continue
+        _is_any_value_holding(operator, expected, getfield(value, name), seen, depth + 1) && return true
+    end
+    false
+end
+
+_is_leaf_value(value) = value isa Union{AbstractString, Number, Symbol, AbstractChar}
 
 """
     compute_sort_rows(sort, items) -> Vector{Int}

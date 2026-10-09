@@ -518,6 +518,47 @@ Each step ends with its own tests and a commit, in a worktree.
         arrangement, the first arrangement, and in an editor an operation
         lifted from the content of a tab, then from inside the arranged
         content, and then `nothing`, which gives the plain document back.
+    - The owner (2026-10-09) on the text of a field in the bar: "no new step
+      if possible, that must be absolutely justified … why not projection
+      induced step?", and then "agreed" to the projection-introduced step and
+      to the move of the bar into the slice `arrangement`.
+    - [x] **3d-3.** The quick text field. Done 2026-10-09:
+      - The caret in a field is a path with the introduced step of the bar
+        at the place: `‹ArrangementBarProjection(entry): .children[1].entry.projections[i].conditions[k].value{a:b}›`.
+        Below `children[1]` the path goes through the entry itself, so the
+        field edits a document. `ArrangementBarProjection` moved from the
+        natural slice to `ArrangementBar.jl` of the slice `arrangement`, which
+        is included after `layout` now and has the edge to it, so every slice
+        that names an entry can name its bar.
+      - `PickingProjection` passes an introduced step of a later stage
+        through, forward and back. The bar maps `children[1]…` back to its
+        introduced step and takes the step off forward, and it computes the
+        selection and the part under the pointer of the chips as it does for
+        the layout.
+      - `ArrangementChipsToGraphics` draws a quick text condition
+        (`is_quick_text_condition`: key `nothing`, `:contains`) as a
+        `WidgetText` and a × at the end of the row. Its maps send the value of
+        the condition to the field and back; its reader turns a text edit of
+        the field into the write of the value, which names the condition, and
+        the caret after it.
+      - Fact found: a key has no route; each container sends it to the child
+        that its own selection names. So the row of the chips gets the
+        selection of the field that holds the caret, as the data frame view
+        does for the layout around a field.
+      - A condition whose key is `nothing` holds when any value inside the item
+        holds it, at any depth; an empty text is in every item.
+      - The menus get "Filter by text…" after the sort items, in the menu of an
+        arrangement where the entry has no quick text and in the first
+        arrangement of a tab.
+      - Open: the item can not put the caret in the field. The context menu
+        lifts every item from the part under the pointer, and the field is no
+        part below it, so a person presses in the field first.
+      - `test_arrangement_quick_text` (19): the condition on any value, and in
+        an editor the item of the menu, a press in the field, two typed keys
+        (2 of 4), a backspace (3 of 4), the caret after the text, and the × of
+        the field, which gives the plain document back.
+      - Still to write: the design document of the slice `arrangement` in
+        `documentation/package/`.
 - [ ] **4.** The verbs of the assistant, as edits of the view document, and the
   read of an entry.
 - [ ] **5.** The widget table takes any table, with the lazy rows from an anchor

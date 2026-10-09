@@ -70,7 +70,7 @@ function test_arrangement_menu()
         on_status = find_arranged_item(study, path(runs, ElementReferenceStep(2), status))
         edits = make_arrangement_edits(arranged, on_status)
         @test labels(edits) == ["Show only items like this", "Hide items like this",
-                                "Sort by this, ascending", "Sort by this, descending"]
+                                "Sort by this, ascending", "Sort by this, descending", "Filter by text…"]
         evaluate_operation(nothing, edit_of(edits, "Hide items like this"))
         entry = only(arranged.entries)
         @test entry.at == path(runs)
@@ -102,7 +102,8 @@ function test_arrangement_menu()
         open = get_wrapped_operation(read_gesture(arranged, right_click))
         @test open isa OpenContextMenuOperation
         @test menu_labels(only(open.layers)[2]) == ["Show only items like this", "Hide items like this",
-                                                   "Sort by this, ascending", "Sort by this, descending"]
+                                                   "Sort by this, ascending", "Sort by this, descending",
+                                                   "Filter by text…"]
     end
 
     @testset "the menu of a tab puts the first arrangement around its content" begin

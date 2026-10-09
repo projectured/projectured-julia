@@ -69,13 +69,24 @@ end
 A condition on one item: the value at the path `key` inside the item, read with
 [`get_arrangement_value`](@ref), compared with `value` by `operator`, one of
 `:equal`, `:not_equal`, `:less`, `:greater`, `:at_most`, `:at_least` and
-`:contains`. The empty path is the item itself.
+`:contains`. The empty path is the item itself, and a `key` that is `nothing`
+stands for any value inside the item.
 """
 @document struct ArrangementCondition
     key::Any
     operator::Symbol
     value::Any
 end
+
+"""
+    is_quick_text_condition(condition) -> Bool
+
+Whether `condition` is the condition of a quick text field: any value inside an
+item contains its text, a key that is `nothing` and the operator `:contains`. A
+bar shows it as a field at its end, not as a chip.
+"""
+is_quick_text_condition(condition) =
+    condition isa ArrangementCondition && condition.key === nothing && condition.operator === :contains
 
 """
     ArrangementSort(keys)
