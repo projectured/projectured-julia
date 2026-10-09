@@ -9,8 +9,8 @@ using Test
 using ProjecturedKernel.GestureModule: MouseClick
 using ProjecturedPlatform.TextModule: TextGutter, TextGutterToGraphics, TextBlockToScrollLayout,
     TextBlock, TextLine, TextString, TextToGraphics, TextRangeReferenceStep, PrimitiveNumberToText,
-    TextDocument, TextLineNumbering, WordWrapping, TextHighlighting, TextFiltering,
-    SelectionInverting, TextFirstLine
+    TextDocument, TextLineNumbering, WordWrapping, HighlightedText, HighlightedTextToText,
+    FilteredText, FilteredTextToText, SelectionInverting, TextFirstLine
 using ProjecturedPlatform.LayoutModule: ScrollLayout
 using ProjecturedPlatform.WidgetModule: WidgetScrollPane, Point2D, WidgetToGraphics
 using ProjecturedPlatform.GraphicsModule: GraphicsCanvas, GraphicsRect, GraphicsViewport,
@@ -18,7 +18,7 @@ using ProjecturedPlatform.GraphicsModule: GraphicsCanvas, GraphicsRect, Graphics
 using ProjecturedPlatform.StyleModule: StyleFont, FontMetrics, color_black, color_default
 using ProjecturedPlatform.PrimitiveModule: PrimitiveNumber
 using ProjecturedPlatform.ProjectionAlgebraModule: RecursiveProjection, TypeDispatchingProjection,
-    ChainingProjection
+    ChainingProjection, IdentityProjection
 
 const _GT_SMALL = StyleFont("Ubuntu Mono", 14)
 const _GT_LARGE = StyleFont("Ubuntu Mono", 28)
@@ -214,15 +214,21 @@ function test_text_gutter()
     end
 
     @testset "a decorator keeps the gutter of a line" begin
-        # Each one passes a line through with its gutter. None of them knows lines
-        # yet, which is the work of text-domain-kit: a pattern of `TextFiltering`
-        # matches no line of a block of lines, so the filter here is idle.
+        # Each one passes a line through with its gutter. A highlight and a filter
+        # are documents around the block, printed through a text stage; a filter
+        # with no pattern keeps every line.
         block = _gt_block()
         gutters = [line.gutter for line in block.elements]
-        for decorator in (WordWrapping(; max_width = 30, measure = _gt_measure()),
-                          TextHighlighting("a"), TextFiltering(), SelectionInverting(),
-                          TextFirstLine())
-            output = print_document(decorator, block).output
+        stage = RecursiveProjection(TypeDispatchingProjection(
+            HighlightedText => HighlightedTextToText(), FilteredText => FilteredTextToText(),
+            TextBlock => IdentityProjection()))
+        outputs = Any[print_document(decorator, block).output
+                      for decorator in (WordWrapping(; max_width = 30, measure = _gt_measure()),
+                                        SelectionInverting(), TextFirstLine())]
+        for document in (HighlightedText(text = block, pattern = "a"), FilteredText(text = block))
+            push!(outputs, print_document(stage, document).output)
+        end
+        for output in outputs
             kept = [element.gutter for element in output.elements if element isa TextLine]
             @test !isempty(kept)
             @test all(any(g === gutter for gutter in gutters) for g in kept)
