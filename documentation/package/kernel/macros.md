@@ -588,7 +588,7 @@ document (see "The declared type of a field" above). So the rule is:
   stores `nothing` in a field as an empty sentinel, such as a number whose text is
   deleted, the annotation must include it (`::Union{Real, Nothing}`). A
   declaration that is too narrow throws `DeclaredTypeMismatchException` at the
-  first write that it refuses (PAR-WIDE-FIELD-TYPES).
+  first write of a value that it does not admit (PAR-WIDE-FIELD-TYPES).
 - The macro handles the Cell wrapping for the runtime struct.
 
 The only time you would annotate `::Cell` directly is when the field really

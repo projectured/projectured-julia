@@ -356,7 +356,8 @@ rename as an API migration, not a local refactor.
 layout checks a write against the declared type: the reactive layout at each write
 through the document (PAR-NO-NESTED-CELL), and the kind layouts (`ICFoo`, `MCFoo`)
 in their typed cells. So a declaration that is too narrow throws
-`DeclaredTypeMismatchException` at the first write that it refuses. If a field
+`DeclaredTypeMismatchException` at the first write of a value that it does not
+admit. If a field
 can hold `nothing` as an empty sentinel, declare it `Union{…, Nothing}`.
 
 A field chooses one of four forms:
@@ -365,7 +366,7 @@ A field chooses one of four forms:
 | --- | --- | --- |
 | `Any` | every value | a generic container, such as the tabs, the clipboard or the messages of a conversation |
 | `Document` | every document | a place where documents of several domains combine |
-| the root type of a domain, such as `JuliaDocument` | the documents of that domain | a place that refuses other domains |
+| the root type of a domain, such as `JuliaDocument` | the documents of that domain | a place that admits no other domain |
 | a narrow type, such as `Bool`, `String` or `Vector{JsonObjectEntry}` | that type only | a place with one kind of value |
 
 **Each place that a person can edit admits the intermediate states of its
@@ -461,7 +462,7 @@ PR-INTERMEDIATE-STATES). As the user builds toward a well-formed value, the
 content can pass through states that are ill-formed in the domain's own terms.
 The insertion holds such a state, and each place that a person edits declares a
 type that admits it (PAR-WIDE-FIELD-TYPES). An operation that writes a text into a
-field whose declared type refuses the text, and admits the insertion of the domain
+field whose declared type does not admit the text, but admits the insertion of the domain
 of the field's owner, writes that insertion with the text. In a domain that gives
 the method `make_incomplete_number_document`, such as JSON, a number whose text
 does not parse yet, such as `-` or `1e`, becomes the insertion of the domain, which
