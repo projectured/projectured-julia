@@ -74,7 +74,7 @@ export Inset, Point2D, inset_default,
 export ImageDocument, set_cell_computation!
 export StyleStroke, make_style_stroke
 export StyleText, make_style_text
-export FontRole, TextRole, ThemeText, ThemeFont, apply_font_role, get_role_base
+export FontRole, TextRole, apply_font_role, get_role_base, ThemeText, ThemeFont
 export Theme, ScaledTheme, ThemeLength, Spacing, Radius, LineWidth, ControlSize, IconSize,
        scale_length, convert_theme_value, @theme, make_scaled_theme, get_theme_field_names,
        get_theme_type, get_theme_presets, find_theme_field_text, get_theme_field_texts,

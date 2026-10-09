@@ -44,12 +44,12 @@ export Document, copy_document, get_wrapped_document, replace_wrapped_document!,
        get_cell_layout_field_type, search_documents,
        @document, @document_preset,
        @forward_protocol, @forward_vector_protocol, @adapt_map_protocol
-export DeclaredTypeMismatchException, DeclaredTypeMismatchRecord, PendingValue,
-       set_declared_type_check_mode!, get_declared_type_check_mode,
+export DeclaredTypeMismatchException, PendingValue,
+       set_declared_type_check_mode!, get_declared_type_check_mode, DeclaredTypeMismatchRecord,
        collect_declared_type_mismatches, clear_declared_type_mismatches!,
        find_declared_field_type, find_declared_element_type,
-       convert_to_declared_type, convert_written_value, convert_assigned_value,
-       is_admitted_by_declared_type
+       convert_to_declared_type, convert_written_value, is_admitted_by_declared_type,
+       convert_assigned_value
 export SelectionDocument, unwrap_selection
 export DocumentWalk, walk_document, make_string_predicate
 # how deep `show` descends before it elides
