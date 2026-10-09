@@ -1,6 +1,8 @@
 # A table shows every assistant conversation
 
-> **Status:** pending. Written 2026-10-09. No step is done.
+> **Status:** pending. Written 2026-10-09. No step is done. How a collection is
+> filled is not decided (3.8), so 3.3, 3.7 and the steps 4, 7 and 8 wait for
+> that decision.
 
 ## 1. The request
 
@@ -120,6 +122,9 @@ loads with `0.0`.
 
 ### 3.3 The registry of the session
 
+> **Not decided.** This section is one option of 3.8: the universe U1 with the
+> way N1.
+
 `AssistantList` is the one registry of the open assistants of the session, a
 document in the assistant slice. The owner asked for it (2026-10-09): "perhaps
 we need a central registry which assistants could be added by some means and
@@ -220,6 +225,11 @@ same title. Step 5 changes or adds a method of `show_document!` for that.
 
 ### 3.7 Stage 2: an assistant inside a tab
 
+> **Not decided.** The owner chose 2B, "walk the editor.document", and then
+> stopped (2026-10-09): "wait, I'm not sure we should walk, this is a generic
+> problem which needs a solution". The three ways below are the ways N3, N2 and
+> N4 of 3.8.
+
 The owner asked for every open assistant (2026-10-09): "ultimately, I would like
 to have all assistants which are open", and then: "you can do both stage 1 and
 stage 2". An assistant inside a layout of a tab is open, but it is not the
@@ -269,6 +279,79 @@ on the largest example. **The owner chooses the way after step 7, before step
 one: a walk of the print tree that the registry runs, a walk of the documents
 with its signal, or a release.
 
+### 3.8 How a collection is filled
+
+> **Not decided.** This section records the options, so that the decision can
+> say which ones are supported and which ones are not.
+
+The owner (2026-10-09): "this is a generic problem which needs a solution,
+there can be any number of things which can sand on their own and which can
+also be presented as a collection. For example, you can have any number of
+JSON files open, and you can have a table of json files open. Another example,
+you can have all lines charts (which may or may not come from files) etc."
+
+Then the model: "each domain can have it's own collections like the assistant
+list or the task list, that's just the collection which holds the assistants or
+the tasks. They can be presented by a projection, even controlled to some
+degree, etc. How they get filled is another thing, that's the question. An
+instance of those collections can be universal, which means "all tasks" or "all
+assistants", but some may be not, like "all tasks which run fingerprint tests",
+"all assistants which work on a certain topic", etc."
+
+And the rule of the decision: "all of what you write could be done, it's just
+the cost which decides which one will be supported and which one will not."
+
+So a collection is three things:
+
+1. a document of the domain that holds the items, such as `AssistantList` or
+   `TaskGroupList`;
+2. a projection that shows it, and through which the person controls it to
+   some degree;
+3. a way to fill it, which is the open question.
+
+#### Three ways to fill a collection
+
+| Way | Example | Cost | Decision |
+| --- | --- | --- | --- |
+| **F1. Its maker fills it.** | A run fills its `TaskGroup`. A person drags an item into a list. | The code of the maker. Nothing generic. | not decided |
+| **F2. A filter of another collection.** The owner (2026-10-05): "A filter is a filter, any collection can be filtered and you can get a similar kind of collection." | "All assistants that work on a topic" from "all assistants". | The predicate for each item. It runs again when a cell that it reads changes. The filter plan, [filter-sort-and-find-any-table.md](filter-sort-and-find-any-table.md), builds it as a projection. | not decided |
+| **F3. A universe fills it.** | "All assistants", "all tasks". | See the universes and the ways to notice below. | not decided |
+
+"All tasks that run fingerprint tests" can be F1, the group of one fingerprint
+run, or F2, a filter over all tasks by the kind of the task.
+
+#### The universe of "all"
+
+Each collection of the kind F3 must name its universe, because "all" means a
+different set in each of the two collections that exist now.
+
+| Universe | Example | Today | Decision |
+| --- | --- | --- | --- |
+| **U1. Open in the window** | The assistant tabs, the open JSON files, the line charts in tabs | The assistant table of this plan | not decided |
+| **U2. Made or started in this session** | The task groups, also after their pane closes | `TaskGroupList` | not decided |
+| **U3. Saved in a folder** | All JSON files of a folder | None | not decided |
+| **U4. Outside the editor** | The Claude Code sessions in `~/.claude/projects/` | None. The owner: not in this plan. | not decided |
+
+#### What notices that an item comes or goes
+
+| Way | Universe | Cost | Decision |
+| --- | --- | --- | --- |
+| **N1. The places of the window.** Each container names the places that it holds. Each layer already names its edited field with [`get_edited_field`](../../source/kernel/document/DocumentInterface.jl#L438). | U1 | One method for each container type: the pane tree, a split, a group, the windows of the screen, and a layout if a layout has places. The read depends only on the places: it runs again when a tab opens, closes or moves, never after an edit inside a document. It does not find an item inside the data of a document. | not decided |
+| **N2. A walk of `editor.document`** with `search_documents`. | U1 | The cost grows with all the data. A reactive walk runs again after each key press. A walk that is not reactive needs a signal to run. The walk must skip the undo history: an undone step keeps its nodes in `redo_entries`, so a closed tab is found as open. | not decided |
+| **N3. A walk of the print tree** with `get_child_iomaps`. | U1 | The cost grows with what the window prints. About 25 IO map types have the method. Each other IO map that holds children needs one, or the walk stops there. It does not find a part that is not printed. | not decided |
+| **N4. A release of an IO map.** | U1 | A new mechanism of the kernel. Each projection that drops a child IO map without the reconciler must call it. One missed call leaves an item that is gone. | not decided |
+| **N5. A hook when a document enters the window**, the counterpart of `release_document!`. | U1 | At least seven paths must call it: the start of the application, `open_pane!`, the load of a pane file, the insertion into an empty tab, a paste, the duplicate of a tab, the undo of a close. One missed path leaves an item out. | not decided |
+| **N6. The item adds itself at an event of its life**, as a task group does at its start. | U2 | One call at the event, on the editor task. Not at the construction: a precompile builds documents into constants, and a test or a fork that no window shows also adds one. The collection keeps each item alive until it is taken out. | not decided |
+| **N7. A listing of a folder.** The `filechange` slice already watches folders and drains the changes on the editor task. | U3 | A read of the folder after each change, and a read of each file for the values of its columns. | not decided |
+| **N8. A reader of an outside source**: the listing and the parse of the transcripts. | U4 | A read after each change, or a poll. The items are read-only. | not decided |
+
+#### Two more questions
+
+| Question | Options | Decision |
+| --- | --- | --- |
+| **Does the collection keep its items alive?** | Yes, until the person takes an item out, as `TaskGroupList` does. Or no: it only refers to its items, as a collection of the open assistants does. | not decided |
+| **What does a change through the collection mean?** | An add to a filtered collection (F2) writes the field that the predicate reads, for example the topic of an assistant, or it is refused. A remove from a collection of open items (U1) closes the item, or it is refused. | not decided |
+
 ## 4. Steps
 
 Each step gets a commit. Each step runs the narrowest test that covers it.
@@ -284,7 +367,7 @@ Each step gets a commit. Each step runs the narrowest test that covers it.
 - [ ] **3. The values of a row.** Add the functions of 3.4. Test each one on an
   assistant with a `ScriptedLlm`: before a turn, while a turn runs, while a
   permission request waits, and after a failure.
-- [ ] **4. The registry, stage 1.** Add `AssistantList`,
+- [ ] **4. The registry, stage 1.** *Waits for 3.8.* Add `AssistantList`,
   `get_session_assistant_list`, `add_assistant!` and `remove_assistant!`, and
   the link from the application to the pane tree. Test in a real editor that an
   empty assistant tab gets a row, that each path of 3.3 adds the row, that a
@@ -297,10 +380,10 @@ Each step gets a commit. Each step runs the narrowest test that covers it.
 - [ ] **6. The detail.** Add the split and the detail. Test in a real editor that
   a key edits the description and the comment, and that the select sets
   `work_state`.
-- [ ] **7. Stage 2, the facts.** Count the IO maps that hold children and have
+- [ ] **7. Stage 2, the facts.** *Waits for 3.8.* Count the IO maps that hold children and have
   no method of `get_child_iomaps`. Measure the walk of 2A on the largest
   example. Write the numbers in 3.7, and ask the owner to choose 2A, 2B or 2C.
-- [ ] **8. Stage 2, the way that the owner chose.** Test in a real editor that
+- [ ] **8. Stage 2, the way that the owner chose.** *Waits for 3.8.* Test in a real editor that
   an assistant inside a layout of a tab gets a row, and that the row goes when
   the layout loses the assistant.
 - [ ] **9. The guide.** Update
@@ -318,8 +401,11 @@ The owner answered the six questions on 2026-10-09.
    open, but we can defer this if this is difficult or expensive", and "perhaps
    we need a central registry which assistants could be added by some means and
    removed". When I proposed the tabs as stage 1 and an assistant inside a tab
-   as stage 2: "you can do both stage 1 and stage 2". The design is in 3.3 and
-   3.7.
+   as stage 2: "you can do both stage 1 and stage 2". For stage 2 the owner
+   chose 2B, "walk the editor.document", and then stopped: "wait, I'm not sure
+   we should walk, this is a generic problem which needs a solution". I then
+   proposed N1 of 3.8 for every kind of document. The owner: "no, don't rush
+   it", and gave the model of 3.8. The fill is not decided.
 2. **A native assistant that loads.** Keep the description, the comment and the
    work state. The owner: "yes, eventually the conversation should also load".
    The load of the conversation of a native assistant is a later plan.
@@ -355,11 +441,12 @@ The owner answered the six questions on 2026-10-09.
 
 ## 6. Open questions
 
-1. **A row leaves when its assistant closes.** The design in 3.3 takes the row
-   out when the assistant is no longer open, because the owner asked for the
-   open assistants. The table has no Close button for that reason. The owner
-   did not answer this point. Recommendation (mine): keep it so.
-2. **The way of stage 2.** The owner chooses 2A, 2B or 2C after step 7 (3.7).
-   Recommendation (mine): 2A.
+1. **How a collection is filled.** Which rows of 3.8 are supported and which
+   are not. The owner: "it's just the cost which decides". The steps 4, 7 and
+   8 wait for this decision.
+2. **A row leaves when its assistant closes.** The design in 3.3 takes the row
+   out when the assistant is no longer open, so the table has no Close button.
+   The owner did not answer this point. It is the question "does the collection
+   keep its items alive?" of 3.8.
 
 Step 5 asks again if it finds no document that every tab is inside.
