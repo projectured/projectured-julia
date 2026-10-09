@@ -34,6 +34,7 @@ export WorkflowTheme, ScaledWorkflowTheme
 export WorkflowNodeToWidget, WorkflowEntryToWidget, WorkflowCardToWidget, WorkflowJournalToWidget,
        WorkflowToWidgetIoMap,
        make_workflow_projections, make_workflow_graphics_entries
+export WORKFLOW_ASSISTANT_API
 export record_workflow_decision!, choose_workflow_option!, reject_workflow_option!,
        add_workflow_entry!, add_workflow_step!, change_workflow_state!, add_workflow_card!
 
@@ -47,6 +48,11 @@ function __init__()
     # The rows that let the renderer draw a workflow, and a node, an entry or a
     # card of one inside any other document.
     register_natural_graphics!(:workflow, make_workflow_graphics_entries)
+
+    # What the model of an assistant may write about a workflow: the documents,
+    # the verbs that record the work as the assistant, and the read of a journal.
+    # Each verb is an edit of the editor, which a person takes back with Ctrl+Z.
+    register_assistant_api!(WorkflowModule => WORKFLOW_ASSISTANT_API)
 end
 
 end # module

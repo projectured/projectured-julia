@@ -178,6 +178,18 @@ function _check_child(parent::Union{WorkflowStep, WorkflowOption}, child)
 end
 
 # ── The verbs of the assistant ───────────────────────────────────────────
+
+"""
+The names that the workflow domain offers to the model of an assistant: the
+documents of a workflow, the verbs that record the work as the assistant, and
+the read of the journal of a tree.
+"""
+const WORKFLOW_ASSISTANT_API = (
+    :WorkflowStep, :WorkflowDecision, :WorkflowOption, :WorkflowEntry, :WorkflowCard, :WorkflowJournal,
+    :record_workflow_decision!, :choose_workflow_option!, :reject_workflow_option!,
+    :add_workflow_entry!, :add_workflow_step!, :change_workflow_state!, :add_workflow_card!,
+    :collect_workflow_entries,
+)
 #
 # Each verb takes a node as a `ReferencedDocument`, makes the operation above, and
 # lets the readers of the editor carry it from the node to the root, so the

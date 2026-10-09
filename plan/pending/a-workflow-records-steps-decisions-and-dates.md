@@ -1,7 +1,7 @@
 # A workflow records steps, decisions and dates
 
 > **Status:** in progress on branch `workflow` (worktree
-> `projectured-julia-workflow`). Written 2026-10-09. Steps 1 to 5 are done.
+> `projectured-julia-workflow`). Written 2026-10-09. Steps 1 to 6 are done.
 
 ## 1. The request
 
@@ -363,9 +363,25 @@ turn, and an operation that switches to a workflow.
   general filter of any table is a pending plan of its own
   (`filter-sort-and-find-any-table.md`), so the journal has the choice of the kind
   only.
-- [ ] **6. The assistant tools.** The tool descriptions say which points are
+- [x] **6. The assistant tools.** The tool descriptions say which points are
   important enough to record. Test: a `ScriptedLlm` turn that records a
   decision, then an undo.
+  **Done (2026-10-09), as verbs of the API and not as tools.** The domain calls
+  `register_assistant_api!(WorkflowModule => WORKFLOW_ASSISTANT_API)` in its
+  `__init__`, as JSON does: the six document types, the seven verbs of 4.4 and
+  `collect_workflow_entries`. Reason: a domain has no seam to add a tool to the
+  tool set of an editor (the application registers its tools in
+  `start_application!`), and the application declares that what the assistant
+  may write is verbs that a model finds with `search_api` and calls through
+  `execute_julia_code`, so their descriptions cost nothing until it asks. A new
+  registry of domain tools would be a new mechanism. The docstring of each verb
+  says when to use it: at an important point, never every turn.
+  `test_workflow_assistant_api()`, 14 tests: the offered names, a search that
+  finds a verb, and the code that a model writes, run by `execute_julia_code!`
+  in an editor whose root is an `UndoBuffer`, which records a decision and
+  rejects an option; two undos take both back. The test runs the code of the
+  tool directly and not a turn of a `ScriptedLlm`: the turn adds the loop of the
+  model and nothing of the domain.
 - [ ] **7. The link to a conversation.** The field of the `Assistant`; its
   `pred_arguments`. Test: a saved assistant and a saved workflow load with the
   link in each direction.
