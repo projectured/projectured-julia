@@ -117,6 +117,13 @@ entry of the tree of `workflow`, the newest first.
     kind::Symbol = :all
 end
 
+# The name of a tab that shows a node of a workflow, or its journal: the text that
+# names the node.
+get_document_title(node::Union{WorkflowStep, WorkflowDecision, WorkflowOption}) =
+    get_workflow_node_title(node).value
+get_document_title(journal::WorkflowJournal) =
+    journal.workflow === nothing ? "Journal" : "Journal of " * get_document_title(journal.workflow)
+
 # ── The values of the fields ─────────────────────────────────────────────
 
 "The states of a `WorkflowStep`, in the order that a press steps through them."

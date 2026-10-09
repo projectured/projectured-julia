@@ -20,23 +20,23 @@ using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
+import ..DocumentModule: get_document_title
 
-export WorkflowDocument, WorkflowStep, WorkflowDecision, WorkflowOption, WorkflowEntry, WorkflowCard, WorkflowJournal
-export WORKFLOW_STEP_STATES, WORKFLOW_OPTION_STATES, WORKFLOW_ENTRY_KINDS, WORKFLOW_ENTRY_AUTHORS
-export format_workflow_time, get_workflow_time, find_workflow_time, get_workflow_states,
-       is_workflow_node, get_workflow_node_title, get_workflow_node_children
-export make_workflow_entry, make_workflow_decision, get_next_workflow_state,
-       make_add_workflow_entry_operation, make_workflow_state_operation,
-       make_insert_workflow_node_operation, make_delete_workflow_node_operation,
-       make_add_workflow_card_operation, make_delete_workflow_card_operation,
-       make_choose_workflow_option_operation, collect_workflow_entries
+export WorkflowDocument, WorkflowStep, WorkflowDecision, WorkflowOption, WorkflowEntry, WorkflowCard,
+       WorkflowJournal, WORKFLOW_STEP_STATES, WORKFLOW_OPTION_STATES,
+       WORKFLOW_ENTRY_KINDS, WORKFLOW_ENTRY_AUTHORS, format_workflow_time, get_workflow_time,
+       find_workflow_time, get_workflow_states, is_workflow_node, get_workflow_node_title,
+       get_workflow_node_children
+export make_add_workflow_entry_operation, make_workflow_entry, make_workflow_state_operation,
+       get_next_workflow_state, make_insert_workflow_node_operation, make_delete_workflow_node_operation,
+       make_add_workflow_card_operation, make_delete_workflow_card_operation, make_workflow_decision,
+       make_choose_workflow_option_operation, WORKFLOW_ASSISTANT_API, record_workflow_decision!,
+       choose_workflow_option!, reject_workflow_option!, add_workflow_entry!, add_workflow_step!,
+       change_workflow_state!, add_workflow_card!, collect_workflow_entries
 export WorkflowTheme, ScaledWorkflowTheme
-export WorkflowNodeToWidget, WorkflowEntryToWidget, WorkflowCardToWidget, WorkflowJournalToWidget,
-       WorkflowToWidgetIoMap,
-       make_workflow_projections, make_workflow_graphics_entries
-export WORKFLOW_ASSISTANT_API
-export record_workflow_decision!, choose_workflow_option!, reject_workflow_option!,
-       add_workflow_entry!, add_workflow_step!, change_workflow_state!, add_workflow_card!
+export WorkflowNodeToWidget, WorkflowEntryToWidget, WorkflowCardToWidget, make_workflow_projections,
+       make_workflow_graphics_entries, WorkflowToWidgetIoMap
+export WorkflowJournalToWidget
 
 include("WorkflowDocument.jl")
 include("WorkflowEdits.jl")

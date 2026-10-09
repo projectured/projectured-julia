@@ -1,7 +1,7 @@
 # A workflow records steps, decisions and dates
 
 > **Status:** in progress on branch `workflow` (worktree
-> `projectured-julia-workflow`). Written 2026-10-09. Steps 1 to 6 are done.
+> `projectured-julia-workflow`). Written 2026-10-09. Steps 1 to 7 are done.
 
 ## 1. The request
 
@@ -382,9 +382,27 @@ turn, and an operation that switches to a workflow.
   rejects an option; two undos take both back. The test runs the code of the
   tool directly and not a turn of a `ScriptedLlm`: the turn adds the loop of the
   model and nothing of the domain.
-- [ ] **7. The link to a conversation.** The field of the `Assistant`; its
+- [x] **7. The link to a conversation.** The field of the `Assistant`; its
   `pred_arguments`. Test: a saved assistant and a saved workflow load with the
   link in each direction.
+  **Done (2026-10-09).** `test_workflow_conversation()`, 14 tests. The `source` of
+  an entry and the `content` of a card hold any document, so a turn of a
+  conversation needs nothing new: in a project a turn is written inside the
+  workflow file and loads as a `ConversationTurn`. The `Assistant` has the field
+  `workflow` (any document, default `nothing`), and its `pred_arguments` write it
+  when it holds one; in a project the file of the assistant writes
+  `file("work.pred")`, and the load gives the same object. A tab of a workflow is
+  named by its goal (`get_document_title`). **Not built:** "the workflow tools act
+  on that node when a call names no other node". A verb runs in the code that
+  `execute_julia_code` evaluates, and it does not know which assistant calls it;
+  to know it would need a new mechanism, so it waits for the owner. Checks of the
+  changed `Assistant` in the umbrella: `test_conversation_serialization`,
+  `test_assistant_duplicate`, `test_user_interface_file`, `test_assistant_mvp`,
+  `test_repository` and `test_documentation` pass. `test_external_agent_turn`
+  passes alone (186 tests); in one process with the ACP package it fails, as the
+  memory of the ACP plan records for main. The export block of the module
+  follows the export guard: one statement for each fragment, in the order of the
+  includes.
 - [ ] **8. The catalog.** Test: a folder of three workflows gives three rows; to
   open a row opens its tab.
 

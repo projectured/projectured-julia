@@ -28,8 +28,10 @@ function test_workflow()
         test_workflow_to_widget()
         test_workflow_journal_to_widget, test_workflow_assistant_api()
         test_workflow_assistant_api()
+        test_workflow_conversation()
     end
 end
 
 export test_workflow, test_workflow_layering, test_workflow_document, test_workflow_edits, test_workflow_to_widget,
-       test_workflow_journal_to_widget, test_workflow_assistant_api
+       test_workflow_journal_to_widget, test_workflow_assistant_api,
+       test_workflow_conversation

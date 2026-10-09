@@ -131,6 +131,10 @@ session uses, an `AgentUsageUpdate`, or `nothing`. `agent_commands` are the
 commands that the agent offers, as `/name` at the start of a prompt. They are no
 data either.
 
+`workflow` is the node of a workflow that the conversation records its work in,
+or `nothing`. It is data that the person chose, so a `.pred` file keeps it; the
+platform names no domain, so the field holds any document.
+
 `turn_control` is the live control of the turn that runs, an
 `AssistantTurnControl`, and `nothing` between turns. A stop sets its flag. It is
 no data, like `llm`.
@@ -167,6 +171,7 @@ behaviour pass an explicit `llm` (a `FakeLlm`/`ScriptedLlm` from
     agent_title::String
     agent_usage::Union{Nothing,AgentUsageUpdate}
     agent_commands::Vector{AgentCommand}
+    workflow::Any
 end
 
 # The command of the external agent that an assistant starts when nobody names
@@ -214,7 +219,8 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
                               agent_options::AbstractVector = AgentOption[],
                               agent_title::AbstractString = "",
                               agent_usage::Union{Nothing,AgentUsageUpdate} = nothing,
-                              agent_commands::AbstractVector = AgentCommand[])
+                              agent_commands::AbstractVector = AgentCommand[],
+                              workflow = nothing)
     a = Assistant(Cell(conversation), Cell(input), Cell(draft),
                            Cell(backend), Cell(String(model)), Cell(String(system)),
                            Cell(String(api_key)), Cell(Int(context)), Cell(status),
@@ -226,6 +232,7 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
                            Cell(CellVector{AgentOption}(collect(AgentOption, agent_options))),
                            Cell(String(agent_title)), Cell(agent_usage),
                            Cell(CellVector{AgentCommand}(collect(AgentCommand, agent_commands))),
+                           Cell(workflow),
                            Cell(nothing))
     # Back-link the draft to its owning assistant so the composer's ENTER can be
     # turned into a submit (push into the conversation + stream a reply).
@@ -259,6 +266,9 @@ function pred_arguments(a::Assistant)
         :context           => a.context,
         :collapse_thinking => a.collapse_thinking,
     ]
+    # The workflow that the conversation records its work in is data that the
+    # person chose, so the file keeps the link.
+    a.workflow === nothing || push!(keywords, :workflow => a.workflow)
     if a.backend === :acp && !isempty(a.agent_session_id)
         append!(keywords, Pair{Symbol,Any}[
             :conversation             => a.conversation,
