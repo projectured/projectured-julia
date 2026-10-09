@@ -331,6 +331,11 @@ therefore handle *both* shapes — a flat span list and a line-nested one.
 Rejected: **A** (`elements` holds only `TextLine`s) — cleanest model, but every reference path in the
 text layer changes at once and an unstructured span sequence becomes unrepresentable.
 
+**2026-10-09: A is the end state** (the owner, N5 of
+[a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md)): a text is a
+list of lines, and `TextNewline` goes. B stays the way there; §9 of that plan holds the
+steps to A.
+
 Kept in reserve: **C** — a `TextLineFlattening` (Text→Text) projection that expands `TextLine`s back
 into spans + `TextNewline` for consumers that have not learned lines yet. It is a proper projection,
 so its reference maps keep carets consistent through it for free. Use it as the **escape hatch** for

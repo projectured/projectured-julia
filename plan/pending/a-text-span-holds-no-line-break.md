@@ -1,8 +1,8 @@
 # A text span holds no line break
 
-> **Kind:** plan · **Status:** pending, 2026-10-08. The owner decided the rule
-> (§1), N1, N1b and N2 with N3 on 2026-10-08; §9 holds the steps, and no step is
-> started. ·
+> **Kind:** plan · **Status:** pending, 2026-10-09. The owner decided the rule
+> (§1), N1, N1b and N2 with N3 on 2026-10-08, and N5 on 2026-10-09; §9 holds the
+> steps, and no step is started. ·
 > **Stands on:** [text.md](../../documentation/package/platform/text/text.md),
 > [syntax.md](../../documentation/package/platform/syntax/syntax.md),
 > [text-domain-kit.md](text-domain-kit.md) (Q5 of step 3 of Phase 3),
@@ -202,9 +202,37 @@ One at a time, with the owner.
   block that `make_text_block` made inside `bound` is the insertion of `'\n'` at
   that flat offset of the string, and Backspace at the start of a line its
   deletion.
-- **N5 `TextNewline`.** What a `TextNewline` element means after this plan: the
-  prose, the soft break of a wrap (Q4 of `text-domain-kit.md`) and the lazy list
-  use it today.
+- **N5 What a `TextNewline` means. Decided, the owner, 2026-10-09: lines only.**
+  The end state is shape A of `text-domain-kit.md`: a `TextBlock` holds only
+  `TextLine`s, a line holds runs and no break, and the type `TextNewline` goes. A
+  break has one spelling at the input, `"\n"` in a string that `_text` or
+  `make_text_block` converts, and one form in an output, the break before a
+  `TextLine`.
+  - Why: one edit model, where Enter splits a line and Backspace joins two; one
+    path in each consumer; the properties of a line (indentation, gutter, fold,
+    soft breaks, markers) for every text; no search for the end of a paragraph in
+    a lazy list; and the flat caret keeps its values, because both forms of a
+    break count one flat offset. Real editors keep a list of lines, or a buffer
+    with an index of its lines.
+  - Today the producers of a `TextNewline` are `ReferenceInspectorToText`,
+    `ReferenceToText`, `WordWrapping` on a block of spans, the gallery and 7
+    example documents. The consumers are `TextToGraphics` (its groups and its
+    lazy list of spans), `TextLineNumbering`, `TextFiltering`, `TextFirstLine`,
+    `TextToString`, `ConsoleBackend`, the flat helpers of `TextDocument.jl` and
+    `_compute_output_lines` of `SyntaxToText`.
+  - Not taken: (a) both forms, a `TextNewline` in a block of spans and the break
+    before a `TextLine`, which keeps two paths in each consumer and a rule of no
+    mix that nothing enforces; (c) `TextNewline` only as a spelling that `_text`
+    converts, a type that no output can hold, which the type check accepts in an
+    output and only the guard finds.
+  - **N5a The height of an empty line. Open.** A `TextNewline` carries the font
+    of an empty line today, and an empty `TextLine` takes the first font of its
+    block, so an empty line after a heading has the height of the heading. My
+    proposal, not decided: an empty line holds one empty run in its style, which
+    needs the fix of the caret in an empty `TextString` that is not drawn. The
+    other answer: a font on `TextLine`.
+  - **N5b When. Open.** Steps 9 to 11 of §9 in this plan, or a plan of its own
+    after this one.
 - **N6 The order of the domains.** Julia first, because the gutter targets the
   Julia view.
 
@@ -262,4 +290,17 @@ change how every view of syntax makes its lines, so they land together.
    with `StringToTextBlock` for a string that no domain decides.
 8. **omnet-julia**: NED and INI state their breaks in their texts, which removes
    their empty lines. It follows the landing of steps 2 to 4.
-9. **The documents**: `text.md`, `syntax.md` and the guides of the domains.
+9. **Lines only in the producers (N5).** `ReferenceInspectorToText`,
+   `ReferenceToText`, the gallery and the examples give lines. `WordWrapping`
+   wraps only a block of lines, and its path for spans goes (`WrapSegment`, the
+   soft `TextNewline`).
+10. **Lines only in the consumers (N5).** N5a is decided first. `TextToGraphics`
+    loses its groups of spans and its lazy list of spans. `TextLineNumbering`,
+    `TextFiltering`, `TextFirstLine`, `TextToString`, `ConsoleBackend`, the flat
+    helpers and `_compute_output_lines` lose their path for a `TextNewline`.
+11. **A `TextBlock` holds only `TextLine`s, and `TextNewline` goes (N5).** A
+    structural path into a block gets the step of its line,
+    `.elements[i].elements[j].content{k}`, and the tests that assert such a path
+    follow. The guard of step 7 also rejects an element of a block that is not a
+    line. A full sweep against the baseline before step 9.
+12. **The documents**: `text.md`, `syntax.md` and the guides of the domains.
