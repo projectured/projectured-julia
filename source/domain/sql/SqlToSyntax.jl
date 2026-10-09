@@ -23,15 +23,17 @@ _space_node(f::Function) = SyntaxSeparation(f; separator=" ")
 _comma_node(f::Function, style::StyleText) = SyntaxSeparation(f; separator=TextString(", ", style))
 
 # These three lay each child out on its own indented line, which is *per-child*
-# indentation — the separator and the line chrome interleaved by one node. A
-# `SyntaxIndentation` has a single child and indents that one thing, so it cannot
-# express this and these stay `SyntaxNode`s. That is the combined type earning its
+# indentation — the breaks of the delimiters and the separator interleaved by one
+# node; the compact one has no closing break. A `SyntaxIndentation` has a single
+# child and indents that one thing, so it cannot express this and these stay
+# `SyntaxNode`s. That is the combined type earning its
 # keep, not a gap (see plan/pending/simplest-syntax-document.md).
-_comma_body(f::Function, style::StyleText) = SyntaxNode(f; sep=TextString(",", style), indentation=1)
+_comma_body(f::Function, style::StyleText) =
+    SyntaxNode(f; open="\n", sep=make_text_block(",\n", style), close="\n", indentation=1)
 
-_newline_body(f::Function) = SyntaxNode(f; indentation=1)
+_newline_body(f::Function) = SyntaxNode(f; open="\n", sep="\n", close="\n", indentation=1)
 
-_newline_body_compact(f::Function) = SyntaxNode(f; indentation=-1)
+_newline_body_compact(f::Function) = SyntaxNode(f; open="\n", sep="\n", indentation=1)
 
 # ── SqlAllColumnsToSyntaxLeaf ─────────────────────────────────────────────────
 
@@ -1670,8 +1672,8 @@ function print_document(p::SqlCreateTableStatementToSyntaxNode, recursion, stmt:
     columns_body = SyntaxNode(() -> begin
         _, col_ims = projected[]
         SyntaxDocument[c.output for c in col_ims]
-    end; open = TextString("(", p.plain), close = TextString(")", p.plain), sep = TextString(",", p.plain),
-       indentation = 1)
+    end; open = make_text_block("(\n", p.plain), close = make_text_block("\n)", p.plain),
+       sep = make_text_block(",\n", p.plain), indentation = 1)
 
     iomap_cell = Cell(nothing)
     paths = make_output_path_cells(stmt, path -> begin
