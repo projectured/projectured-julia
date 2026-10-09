@@ -11,12 +11,12 @@
 #
 # Each non-leaf entity node is collapsible and contains a single keyword child,
 # whose own children are the projected items:
-#   entity_node  (ind=-1, open=" name"):    collapsible, marker-eligible
-#     keyword_node (ind=-1, open=" Keyword"): collapsible, marker-eligible;
+#   entity_node  (open=" name\n", sep="\n"):    collapsible, marker-eligible
+#     keyword_node (open=" Keyword\n", sep="\n"): collapsible, marker-eligible;
 #       children = projected items
 #
-# Using `indentation = -1` avoids trailing newlines that create blank lines,
-# while still rendering children with `\\n + indent`.
+# Each item is on a line of its own one level in, and a node has no closing
+# delimiter, so no trailing break makes a blank line.
 #
 # Selection mapping (School A — delegate child tails through stored child IO maps):
 #   Input:  <field>[i].rest        (e.g. databases[2].child_path)
@@ -192,8 +192,9 @@ function _catalog_syntax_node(p, recursion, ctx, input_doc,
     # collapsible unit. Collapsed until its child collection is materialized.
     keyword_node = SyntaxNode(
         CellVector(@computation SyntaxDocument[im.output for im in child_iomaps[]]);
-        open=TextString(" " * keyword, keyword_style),
-        indentation=-1,
+        open=make_text_block(" " * keyword * "\n", keyword_style),
+        sep="\n",
+        indentation=1,
         collapsed=Cell(!_children_realized(children)))
 
     iomap_cell = Cell(nothing)
@@ -205,8 +206,9 @@ function _catalog_syntax_node(p, recursion, ctx, input_doc,
     # The entity groups its keyword(s); it stays expanded (foldable by the user).
     entity_node = SyntaxNode(
         CellVector(Cell[Cell(keyword_node)]);
-        open=TextString(label, name_style),
-        indentation=-1,
+        open=make_text_block(label isa Function ? (() -> label() * "\n") : label * "\n", name_style),
+        sep="\n",
+        indentation=1,
         paths...)
 
     entity_node, child_iomaps, iomap_cell
