@@ -757,6 +757,22 @@ worktree. The three domains test different parts of the model:
       `-t 4`, as omnet-julia asks for its engine tests, it ends in 6 s with 10 pass and 5
       fail, as on `main`. This branch rebased on `3d9187549` (`383aeee6a`); the rebase
       resolved the theme files, whose roles `main` renamed, and `AssistantDocument.jl`.
+    - *The new code of `main` after that rebase (2026-10-09).* The run of the 24 suites failed
+      widely, nearly all from one field that `main` added: `TextLine.soft_breaks::Vector{Int}`,
+      a vector of offsets that a computation of `WordWrapping` gives whole and `TextToGraphics`
+      reads as `soft_breaks[]::Vector{Int}`. The constructors of `TextLine` give it
+      `Cell(Int[])`, and the list substitution made the check refuse that. A list is wrong
+      for this field, and it is reactive, so option A, which covers a kind that is not
+      reactive, did not reach it. **My refinement of A, for the owner to confirm:** only a
+      field that names no kind holds a list; a field that names a kind, reactive or not,
+      holds its declared value as one value. `soft_breaks` declares
+      `ReactiveCell{Vector{Int}}` (`f38aa57ae`). The other option was to declare it a union
+      with `Nothing`, which no reader needs. A second gap: the reader of a `.pred` file builds
+      a `TextBlock` from its fields and gives `elements`, declared `CollectionDocument`, a
+      plain vector. `CollectionDocument` is a union, so no list wraps it; a declaration of
+      `ListDocument` would add the element constructor of the collection sugar, which can
+      collide with `TextBlock(spans::TextDocument...)`. So a plain vector converts to a
+      `CellVector` for that union, by rule 2 (`f38aa57ae`).
     - A fact for later: a bounded copy or sync puts an `UnsyncedDocument` where the walk stops,
       and a field that declares a narrow document type would refuse it. No caller does that
       today: the reflection and `SimulationInspection` hold the placeholder in a `ReflectedNode`.
