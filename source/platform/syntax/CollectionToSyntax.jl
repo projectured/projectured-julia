@@ -69,9 +69,9 @@ function print_document(p::CollectionCellVectorToSyntax, recursion, cv::CellVect
     end)
     node = SyntaxNode(
         CellVector(@computation SyntaxDocument[im.output for im in child_iomaps[]]);
-        open=TextString("[", p.delim),
-        close=TextString("]", p.delim),
-        sep=TextString(", ", p.sep),
+        open=make_text_block("[\n", p.delim),
+        close=make_text_block("\n]", p.delim),
+        sep=make_text_block(",\n", p.sep),
         indentation=1,
         paths...)
     iomap = ChildrenIoMap(p, cv, node, child_iomaps)

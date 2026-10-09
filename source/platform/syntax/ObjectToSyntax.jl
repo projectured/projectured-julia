@@ -187,6 +187,13 @@ end
 _object_delimiter(p::ObjectNodeToSyntaxNode, text::AbstractString) =
     isempty(text) ? text : TextString(text, p.delimiter)
 
+# The texts of a node of `levels`: with levels, each child is on a line of its own,
+# so the opening delimiter ends in a break, the separator is a break, and the
+# closing delimiter starts with one; with none, the node is inline.
+_make_open_text(text::AbstractString, levels::Int) = levels == 0 ? text : text * "\n"
+_make_sep_text(text::AbstractString, levels::Int) = levels == 0 ? text : rstrip(text) * "\n"
+_make_close_text(text::AbstractString, levels::Int) = levels == 0 ? text : "\n" * text
+
 # Unwrap a Cell for predicate/filter testing; pass non-cells through.
 _unwrap_cell(x) = x isa Cell ? x[] : x
 
@@ -267,8 +274,9 @@ function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
             () -> _visible_elements(p, obj),
             (i, x) -> print_child(recursion, x, make_child_context(ctx, ElementReferenceStep(i))))
         output = Cell(@computation(SyntaxNode(SyntaxDocument[im.output for im in elem_ims[]];
-            open = _object_delimiter(p, p.open_delimiter), close = _object_delimiter(p, p.close_delimiter),
-            sep = _object_delimiter(p, " "), indentation = ind)))
+            open = _object_delimiter(p, _make_open_text(p.open_delimiter, ind)),
+            close = _object_delimiter(p, _make_close_text(p.close_delimiter, ind)),
+            sep = _object_delimiter(p, _make_sep_text(" ", ind)), indentation = ind)))
         return SimpleIoMap(p, _get_object_input(obj), output)
     end
 
@@ -289,9 +297,9 @@ function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
         field_nodes = SyntaxDocument[
             SyntaxNode(SyntaxDocument[nl, _field_value(p, fim)]; sep = _object_delimiter(p, " "))
             for (nl, fim) in entries]
-        fields_block = SyntaxNode(field_nodes; open = _object_delimiter(p, p.open_delimiter),
-            close = _object_delimiter(p, p.close_delimiter), sep = _object_delimiter(p, " "),
-            indentation = ind)
+        fields_block = SyntaxNode(field_nodes; open = _object_delimiter(p, _make_open_text(p.open_delimiter, ind)),
+            close = _object_delimiter(p, _make_close_text(p.close_delimiter, ind)),
+            sep = _object_delimiter(p, _make_sep_text(" ", ind)), indentation = ind)
         SyntaxNode(SyntaxDocument[type_leaf, fields_block]; sep = _object_delimiter(p, " "))
     end)
     SimpleIoMap(p, _get_object_input(obj), output)
