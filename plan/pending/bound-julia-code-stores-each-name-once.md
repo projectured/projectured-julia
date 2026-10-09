@@ -303,8 +303,8 @@ version of the program.
 
 ### 9.1 The stages
 
-The first stage is the plain `.jl` file (decision Q4). My proposal for the
-order of the others (question Q13):
+The first stage is the plain `.jl` file (decision Q4), and the others follow
+in this order (decision Q13):
 
 | Stage | Form | What it adds |
 | --- | --- | --- |
@@ -334,10 +334,11 @@ has a binder to name.
   reference today, because it was made for a reference into another file. A
   reference into the same file needs no other file, so the save of one file
   must write it.
-- **Which uses write a reference.** Every use, or only a use whose name would
-  not bind back to the same binder: a use that an inner binder of the same name
-  captures, a use of a binder of another file that the module does not
-  `include`, and a use of a binder of another domain (question Q14).
+- **Which uses write a reference** (decision Q14): only a use whose name would
+  not bind back to the same binder at the load. Such a use is one that an inner
+  binder of the same name captures, a use of a binder of a file that the module
+  does not `include`, and a use of a binder of another domain. Every other use
+  writes its name, so a file with no such use is plain Julia.
 
 ## 10. Where bound code is used
 
@@ -453,10 +454,6 @@ gives before the bind.
   color that warns?
 - **Q10. The hues:** fonts first and screenshots, then a decision on more hues
   (my recommendation)?
-- **Q13. The stages of the storage** (section 9.1): plain `.jl` of one file,
-  then of the files of one module, then `.jl` with references, then `.pred`?
-- **Q14. The uses that write a reference** (section 9.2): every use, or only a
-  use whose name would not bind back to the same binder?
 - **Q11. The binder:** our own bind over our tree, compared with
   `JuliaLowering` in a test (my recommendation), or `JuliaLowering` itself?
 
@@ -478,3 +475,8 @@ The owner answered on 2026-10-09:
   The owner added that a `.jl` file can hold references too, internal and to
   other files, and that each form of section 9 is to be supported; the order of
   the stages is open (section 9.1).
+- **Q13. The stages of the storage:** "yes": plain `.jl` of one file, then of
+  the files of one module, then `.jl` with references, then `.pred`
+  (section 9.1).
+- **Q14. The uses that write a reference:** "only references which would not
+  bind back in the binder" (section 9.2).
