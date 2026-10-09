@@ -25,6 +25,18 @@ end
 get_document_title(arrangement::ArrangementDocument) =
     something(get_document_title(arrangement.document), "Arrangement")
 
+# An arrangement is transparent on the screen, and a real node in the tree.
+# Anything that reads the tree rather than the picture, as a save of a file does,
+# asks for the document that it stands for and gets what it holds. A person edits
+# that document, and a document read again goes into the arrangement, which keeps
+# its entries.
+get_wrapped_document(arrangement::ArrangementDocument) = get_wrapped_document(arrangement.document)
+get_edited_field(::ArrangementDocument) = :document
+function replace_wrapped_document!(arrangement::ArrangementDocument, document)
+    arrangement.document = replace_wrapped_document!(arrangement.document, document)
+    arrangement
+end
+
 """
     ArrangementEntry(at, projections)
 

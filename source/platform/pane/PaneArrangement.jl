@@ -65,3 +65,8 @@ function _make_first_find(tree::PaneTree)
                           ReplaceSelectionOperation(concat_references(place,
                               ConcreteReference(FieldReferenceStep("content"), caret)))])
 end
+
+# An arranged document says what it holds, and then how each collection that it
+# arranges shows, as the bar of the collection says it.
+describe_document(arrangement::ArrangementDocument) =
+    string(describe_document(arrangement.document), "; ", describe_arrangement(arrangement))

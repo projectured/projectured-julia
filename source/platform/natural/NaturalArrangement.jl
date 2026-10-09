@@ -154,7 +154,7 @@ function _make_chips_row(chips::ArrangementChips, edits::IdDict, fields::Dict, a
     quick = Any[]
     finds = Any[]
     for (i, description) in enumerate(entry.projections)
-        for (k, part) in enumerate(_get_chip_parts(description))
+        for (k, part) in enumerate(get_arrangement_parts(description))
             removal = _make_chip_removal(arrangement, entry, i, description, k)
             if is_quick_text_condition(part)
                 push!(quick, (prefix = _make_entry_reference(FieldReferenceStep("projections"), ElementReferenceStep(i),
@@ -166,7 +166,7 @@ function _make_chips_row(chips::ArrangementChips, edits::IdDict, fields::Dict, a
                                                              FieldReferenceStep("text")),
                               target = part, field = "text", placeholder = "Find (F3)", removal = removal))
             else
-                action = Action(string(_describe_chip(part), " ×"))
+                action = Action(string(describe_arrangement_part(part), " ×"))
                 edits[action] = removal
                 push!(widgets, WidgetButton(action))
             end
@@ -219,44 +219,11 @@ function _find_row_caret(selection, fields::Dict)
     nothing
 end
 
-_get_chip_parts(filter::ArrangementFilter) = Any[condition for condition in filter.conditions]
-_get_chip_parts(sort::ArrangementSort) = Any[key for key in sort.keys]
-_get_chip_parts(find::ArrangementFind) = Any[find]
-_get_chip_parts(description) = Any[]
-
-const _CHIP_OPERATORS = Dict(:equal => "=", :not_equal => "≠", :less => "<", :greater => ">",
-                             :at_most => "≤", :at_least => "≥", :contains => "contains")
-
-_describe_chip(condition::ArrangementCondition) =
-    string(_describe_key(condition.key), " ", get(_CHIP_OPERATORS, condition.operator, string(condition.operator)),
-           " ", condition.value isa AbstractString ? repr(condition.value) : string(condition.value))
-_describe_chip(find::ArrangementFind) = string("find ", repr(string(find.text)))
-_describe_chip(key::ArrangementSortKey) =
-    string(key.direction === :descending ? "↓ " : "↑ ", _describe_key(key.key))
-
-# The path of a key as a person reads it: the names of its fields and the
-# numbers of its items, "value" for the item itself, or "any value" for the key
-# of a quick text condition.
-function _describe_key(key)
-    key === nothing && return "any value"
-    key isa EmptyReference && return "value"
-    key isa Reference || return string(key)
-    parts = String[]
-    for step in get_reference_steps(strip_reference_types(key))
-        if step isa FieldReferenceStep
-            push!(parts, step.name)
-        elseif step isa RangeReferenceStep
-            push!(parts, string("[", step.start + 1, "]"))
-        end
-    end
-    replace(join(parts, "."), ".[" => "[")
-end
-
 # The edit that takes part `k` of `description`, the `i`-th projection of
 # `entry`, away: the part alone, or the projection when it is its last part,
 # or the entry when that is its last projection.
 function _make_chip_removal(arrangement, entry, i::Int, description, k::Int)
-    parts = _get_chip_parts(description)
+    parts = get_arrangement_parts(description)
     if length(parts) > 1
         field = description isa ArrangementFilter ? "conditions" : "keys"
         return ReplaceReferencedValueOperation(description,

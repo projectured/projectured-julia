@@ -19,6 +19,7 @@ module ApplicationModule
 
 using ..GraphicsModule
 using ..KernelModule
+using ..ArrangementModule
 using ..AssistantModule
 using ..CollectionModule
 using ..ConversationModule

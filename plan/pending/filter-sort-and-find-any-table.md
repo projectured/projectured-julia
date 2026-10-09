@@ -589,8 +589,45 @@ Each step ends with its own tests and a commit, in a worktree.
     - Open in step 3: a collection that prints as syntax, through the data
       stage of the syntax fabric, is filtered and sorted but shows no bar,
       because only the graphics recursion of `NaturalToGraphics` has one.
-- [ ] **4.** The verbs of the assistant, as edits of the view document, and the
-  read of an entry.
+- [x] **4.** The verbs of the assistant, as edits of the view document, and the
+  read of an entry. Done 2026-10-09:
+  - The names: the owner asked "why not filter_collection! or sort_collection!
+    etc. you don't know whether they are shown or not", and said "yes" to
+    `filter_collection!(collection, conditions...)` and
+    `sort_collection!(collection, keys...)`, where a call with no condition or
+    no key takes the filter or the sort away, so no verb for Show all, and
+    find stays out of the verbs.
+  - A condition is `key => comparison`, with `==`, `!=`, `<`, `>`, `<=`, `>=`
+    and `contains` of one value, or a comparison alone for the item itself; a
+    key is a path of field names with dots, `""` for the item, `nothing` for
+    any value; a sort key is a key or `key => :descending`. A second call
+    replaces the conditions or the keys of the first, as
+    `ArrangeCollectionOperation` replaces a description of its kind.
+  - Each verb lifts an `ArrangeCollectionOperation` from the collection, or
+    from the deepest place above it that a reader follows a route into
+    (`find_rooted_operation`), evaluates it, and answers `Text` of how the
+    collection shows (`describe_arranged_collection`), such as `2 of 3 items:
+    status ≠ "failed", ↓ delay`. `make_filter_collection_operation` and
+    `make_sort_collection_operation` read the edit and evaluate nothing.
+  - Fact found: the first call puts an arrangement around the content, so a
+    reference from before it, such as `.content`, misses the step `document`.
+    The verbs put that step in where a path leaves it out, so the same
+    reference works for every call.
+  - Fact found: `ArrangementDocument` was a transparent wrapper that did not
+    say so: `get_wrapped_document` answered the arrangement itself, so code
+    that reads the tree, as a save of a file does, met the arrangement and
+    not the document. It now has `get_wrapped_document`, `get_edited_field`
+    and `replace_wrapped_document!`, as the undo buffer has.
+  - The read: `describe_document` of an arrangement, which `show_layout`
+    writes beside a pane, adds `describe_arrangement`, the path and the words
+    of each entry. The chips and the read share `get_arrangement_parts` and
+    `describe_arrangement_part`, which moved to the slice `arrangement`.
+  - `make_application_api` declares the two verbs, and the slice
+    `application` has the edge to `arrangement`. The system text of the tools
+    names only the verbs that change data, so it does not name these.
+  - `test_arrangement_program` (13): a filter, a sort with the same reference,
+    a second filter, the read of the pane, two wrong calls, the empty calls
+    that give the plain document back, and the wrapper.
 - [ ] **5.** The widget table takes any table, with the lazy rows from an anchor
   and the scroll bar.
 - [ ] **6.** The data frame view onto the view document and the chain, with its
