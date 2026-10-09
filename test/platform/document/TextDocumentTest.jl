@@ -146,6 +146,55 @@ flat = set_selection!(TextBlock(TextString("ab"),
 
 end # @testset "TextLine: line-structured blocks"
 
+@testset "make_text_block gives a line for each line of a string" begin
+
+style = StyleText(StyleFont("Ubuntu Mono", 20), color_red)
+runs(block) = [[span.content for span in line.elements] for line in block.elements]
+objects(block) = [line for line in block.elements]
+
+# Each line holds one run in the style, an empty line an empty run, and the flat
+# string is the string.
+for content in ("ab\n\ncd", "", "a\n", "\nb", "one")
+    block = make_text_block(content, style)
+    @test all(line -> line isa TextLine, block.elements)
+    @test runs(block) == [[String(text)] for text in split(content, '\n')]
+    @test get_flat_string(block) == content
+    @test get_flat_length(block) == length(content)
+end
+block = make_text_block("ab\ncd", style)
+@test block.elements[2].elements[1].font == style.font
+@test block.elements[2].elements[1].font_color == style.color
+
+# From a function, a line whose text did not change keeps its object: the head and
+# the tail; the lines between are new.
+source = Cell("one\ntwo\nthree")
+block = make_text_block(() -> source[], style)
+before = objects(block)
+source[] = "one\nTWO\nthree"
+after = objects(block)
+@test runs(block) == [["one"], ["TWO"], ["three"]]
+@test after[1] === before[1] && after[3] === before[3]
+@test after[2] !== before[2]
+
+source[] = "one\nTWO\nnew\nthree"
+inserted = objects(block)
+@test runs(block) == [["one"], ["TWO"], ["new"], ["three"]]
+@test inserted[1] === after[1] && inserted[2] === after[2] && inserted[4] === after[3]
+
+source[] = "one\nthree"
+removed = objects(block)
+@test runs(block) == [["one"], ["three"]]
+@test removed[1] === inserted[1] && removed[2] === inserted[4]
+@test get_flat_string(block) == "one\nthree"
+
+# Equal texts: a shorter text keeps the lines of its head.
+source[] = "x\nx\nx"
+three = objects(block)
+source[] = "x\nx"
+@test all(map(===, objects(block), three[1:2]))
+
+end # @testset "make_text_block gives a line for each line of a string"
+
 @testset "Shift and a motion key select a range" begin
     shift = ModifierKeys(; shift = true)
     ctrl_shift = ModifierKeys(; ctrl = true, shift = true)

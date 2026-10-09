@@ -266,11 +266,21 @@ change how every view of syntax makes its lines, so they land together.
 0. **The baseline.** The guards and the suites of the domains that print through
    `SyntaxToText`, the example sweeps and the console, each part in a process of
    its own, at main before step 1.
+   ✅ **Done (2026-10-09, at main `8763909b7`).** 28 parts in two lanes
+   (`/var/tmp/text-breaks/baseline/run.sh`): every part passes but `test_platform`,
+   whose 42 failures and 25 errors are in `ExternalAgentTurnTest.jl` (63),
+   `InterfaceApiTest.jl` (2), `McpLogTest.jl` (1) and `CheckLayering.jl` (1).
 1. **`make_text_block(content, style)`** in the text domain: a `String` or a
    thunk of one, to a `TextBlock` of `TextLine`s in the style; a line whose text
    did not change stays the same object. Tests. Step 2 of
    [a-text-block-holds-only-lines.md](a-text-block-holds-only-lines.md) needs it
    too, so the plan that starts first makes it.
+   ✅ **Done (2026-10-09, branch `text-breaks`).** A line holds one run in the
+   style, an empty line an empty run. From a function, the lines of the common
+   head and of the common tail keep their objects. *Found:* `get_flat_length` of a
+   `TextBlock` fell to the method of a `TextDocument` and gave 0; it now gives the
+   flat length of the block, breaks included, which a field of lines needs.
+   `test_text` 99 of 99.
 2. **The syntax reads breaks from texts.** The content fields take a
    `TextDocument`, and `_text` converts a string, or a constant `TextString`, that
    holds `'\n'` with `make_text_block`. `SyntaxLeafToText` joins the lines of a

@@ -324,6 +324,57 @@ TextLine(f::Function; indentation::Integer = 0, gutter = nothing, fold = nothing
 # start with it. Opt out, as `@domain` does for its own placeholder.
 DomainModule.insertable(::Type{<:TextLine}) = false
 
+# ── make_text_block ────────────────────────────────────────────────────
+
+"""
+    make_text_block(content, style::StyleText) -> TextBlock
+
+A text of lines in `style` from a string, or from a function that gives one: a
+`TextLine` for each line of the string, with one run, and an empty run on an empty
+line. The flat string of the block is the string, because the break before a line
+counts one character as the `'\\n'` does, so a flat offset is an offset into the
+string.
+
+When the string of the function changes, a line whose text did not change keeps
+its object: the lines of the common head and of the common tail. So a layout that
+keys a line by its object lays out the changed lines only.
+"""
+make_text_block(content::AbstractString, style::StyleText) =
+    TextBlock(TextDocument[_make_text_block_line(text, style) for text in split(content, '\n')])
+
+function make_text_block(content::Function, style::StyleText)
+    previous = Ref(Pair{String, TextLine}[])
+    TextBlock(() -> _compute_text_block_lines!(previous, content(), style))
+end
+
+_make_text_block_line(text::AbstractString, style::StyleText) = TextLine(TextString(String(text), style))
+
+# The lines of `content`, each with its text: the object of a line of `previous`
+# for each line of the common head and of the common tail, and a new line for the
+# lines between. `previous` takes the result.
+function _compute_text_block_lines!(previous::Ref{Vector{Pair{String, TextLine}}},
+                                    content::AbstractString, style::StyleText)
+    old = previous[]
+    texts = split(content, '\n')
+    count, old_count = length(texts), length(old)
+    head = 0
+    while head < min(count, old_count) && first(old[head + 1]) == texts[head + 1]
+        head += 1
+    end
+    tail = 0
+    while tail < min(count, old_count) - head && first(old[old_count - tail]) == texts[count - tail]
+        tail += 1
+    end
+    lines = Vector{Pair{String, TextLine}}(undef, count)
+    for k in 1:count
+        lines[k] = k <= head ? old[k] :
+                   k > count - tail ? old[old_count - (count - k)] :
+                   (String(texts[k]) => _make_text_block_line(texts[k], style))
+    end
+    previous[] = lines
+    TextDocument[last(line) for line in lines]
+end
+
 # ── TextGutter ─────────────────────────────────────────────────────────
 
 """
@@ -1068,12 +1119,16 @@ set_cell_computation!(st::TextBlock, f::Function) = (set_cell_computation!(getfi
 # lengths — but *not* the break it implies: that sits between elements, so the
 # container adds it (see `get_flat_offsets`) and a line-structured block gets
 # `n-1` breaks for `n` lines rather than a phantom trailing one.
+#
+# A `TextBlock` contributes its whole flat length, breaks included: a block that a
+# document holds in a field, such as the value of a syntax leaf.
 get_flat_length(span::TextString) = length(span.content::AbstractString)
 get_flat_length(::TextNewline) = 1
 get_flat_length(::TextSpacing) = 1
 get_flat_length(::TextGraphics) = 1
 get_flat_length(line::TextLine) =
     line.indentation + sum(get_flat_length(s) for s in line.elements; init = 0)
+get_flat_length(text::TextBlock) = _text_flat_total(text)
 get_flat_length(::TextDocument) = 0
 
 """
