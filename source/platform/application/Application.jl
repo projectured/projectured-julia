@@ -247,6 +247,7 @@ make_application_wrappers(; root::AbstractString = pwd(), assistant = nothing,
     (; undo = true,
        shell = (; assistant = _make_assistant_factory(assistant),
                   explorer = _ -> _make_application_workspace(root),
+                  tools = Any[_make_assistant_list_tool()],
                   status_bar, measure, appearance),
        clipboard = true,
        gesture_help = (; measure),
@@ -282,6 +283,25 @@ function make_application_window(paths::AbstractVector;
                                                           appearance)...)
     (parts.document, parts.projection)
 end
+
+"""
+    link_assistant_list!(list, tree) -> list
+
+Make the Assistants pane of `list` show the assistants of the tabs of `tree`, and
+make its Show focus the tab of an assistant, or open it again. The window of
+[`run_application`](@ref) links the list of the session to its pane tree.
+"""
+function link_assistant_list!(list::AssistantList, tree::PaneTree)
+    set_assistant_list_source!(list, () -> collect_pane_tab_contents(tree, Assistant))
+    set_assistant_list_opener!(list, (editor, assistant) ->
+        show_document!(assistant; title = get_document_title(assistant), editor))
+end
+
+# The button of the toolbar that opens the Assistants pane, or gives the focus to
+# its tab.
+_make_assistant_list_tool() =
+    make_window_tool_command("Assistants", AssistantList; icon = :chats,
+                             tooltip = "Assistants: every assistant conversation of this window")
 
 _make_assistant_factory(::Nothing) = nothing
 _make_assistant_factory(assistant::Assistant) =
@@ -496,9 +516,7 @@ function run_application(paths::AbstractString...;
     # runs under it already.
     policy = make_fault_policy(get_settings_group!(settings, FaultSettings))
     document = make_application_document(collect(String, paths); root, assistant = chat, settings)
-    # The Assistants pane lists the assistants of the tabs of this window.
-    set_assistant_list_source!(get_session_assistant_list(),
-                               () -> collect_pane_tab_contents(document, Assistant))
+    link_assistant_list!(get_session_assistant_list(), document)
     editor = build_editor(document,
                           make_application_projection(; measure, appearance);
                           backend, appearance, settings, fault_policy = policy,

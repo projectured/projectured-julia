@@ -281,9 +281,44 @@ same title. Step 5 changes or adds a method of `show_document!` for that.
 
 ### 3.6 How a person opens the pane
 
-- A palette command "Show the assistants", with `@gestures`, as "Show the
-  settings".
-- A verb `show_assistant_list!()` for the REPL and for a model.
+**As built (step 5):** a button of the toolbar, "Assistants", with the icon
+`:chats` (the Lucide glyph `messages-square`, `0xe40d`, added to the icon
+table). The application adds it with the `tools` of the `shell` wrapper, as a
+host adds the button of the MCP log. A press reaches the tab of the list, or
+opens the list of the session in a new tab (`make_window_tool_command`). The
+toolbar is part of the shell, which is around every tab, so the button works
+from every tab. (Mine) No palette command and no verb `show_assistant_list!`
+were built: the toolbar button is the command of the window, as for the other
+tools. A name typed into an empty tab ("assistants") opens the list too.
+
+**As built (step 5), the rest of the pane:**
+
+- `AssistantListToWidgetPane` (`source/platform/assistant/AssistantListToWidget.jl`)
+  draws the heading and the table. `build_assistant_graphics_entry` registers
+  it chained with `VerticalLayoutToGraphicsCanvas`, as the MCP log is: the
+  natural renderer alone printed the list to widgets and drew nothing.
+- Show calls the opener of the list (`set_assistant_list_opener!`).
+  `link_assistant_list!(list, tree)` of the application sets the source and the
+  opener; `run_application` calls it. The opener calls `show_document!`.
+- `show_document!` on a pane tree found a tab by its title, and `find_pane`
+  throws when two tabs have the same title, as two assistant tabs do. It now
+  finds the tab whose content, or a layer of it, is the document
+  (`find_pane_tab_layer` of the pane slice).
+- (Mine) The elapsed time reads the clock of the editor (`ctx.clock`), which
+  the frame loop writes, and only while a turn runs. `start_wall_clock!` is for
+  a clock that no frame loop writes, as its own documentation says. The editor
+  draws frames only while its clock has readers, so an idle table asks for
+  none.
+- The assistant slice may not use the focus slice, so the pane of step 5 does
+  not light the button under the pointer. Step 6 adds the edge.
+- Tests: `test/platform/conversation/AssistantListTest.jl` draws the pane and
+  presses Show; `test/platform/projection/TabsWrapperTest.jl` shows a document
+  in one of two tabs with the same title; `test/projectured/editor/ApplicationTest.jl`
+  presses the toolbar button in a window, opens an empty assistant, and presses
+  Show on a row. The test of the toolbar list names the new button.
+  `CatalogCoverageTest.jl` lists `AssistantList` among the types without an
+  atom, beside `Assistant` and `McpLog`. That test still fails on `main` with 14
+  other names.
 
 ### 3.7 Stage 2: an assistant inside a tab
 
@@ -439,7 +474,7 @@ Each step gets a commit. Each step runs the narrowest test that covers it.
   that each path of 3.3 adds the row, that a close takes it out, and that the
   undo of the close brings it back. Test that an edit inside a tab does not
   run the read again.
-- [ ] **5. The pane.** Add `AssistantListToWidgetPane` with the table, the
+- [x] **5. The pane.** Add `AssistantListToWidgetPane` with the table, the
   palette command and `show_assistant_list!`. Make Show find the tab by its
   content. Test the rows in a real editor: a label changes when a turn starts
   and ends.

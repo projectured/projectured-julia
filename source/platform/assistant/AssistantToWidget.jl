@@ -333,10 +333,25 @@ end
 # assistant reached as a pane tab's own content needs its own chained instance
 # rather than this bare row — see the caveat on `PaneToWidget`.
 
+"""
+    build_assistant_graphics_entry(; measure = nothing, appearance) -> Vector{Pair{Type,Any}}
+
+The rows of the natural renderer that draw an assistant and the Assistants pane
+([`AssistantListToWidgetPane`](@ref)), each with the scaled `ConversationTheme`
+of `appearance`, the `Appearance` of the window. `measure` is what the registry
+gives every row; these rows draw widgets, which the renderer measures.
+"""
+function build_assistant_graphics_entry(; measure = nothing, appearance)
+    theme = get_scaled_theme!(appearance, ConversationTheme)
+    # The pane is a vertical layout of widgets: its own canvas draws it, and the
+    # renderer draws the widgets inside, as for the MCP log.
+    Pair{Type,Any}[Assistant => AssistantToWidgetSplitPane(theme),
+                   AssistantList => ChainingProjection(AssistantListToWidgetPane(theme),
+                                                       VerticalLayoutToGraphicsCanvas())]
+end
+
 function __init__()
-    register_natural_graphics!(:assistant,
-        (; measure, appearance) -> Pair{Type,Any}[Assistant =>
-            AssistantToWidgetSplitPane(get_scaled_theme!(appearance, ConversationTheme))])
+    register_natural_graphics!(:assistant, build_assistant_graphics_entry)
 end
 
 # ── The options of an external agent ───────────────────────────────────────

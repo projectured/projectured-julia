@@ -506,6 +506,59 @@ function test_application()
                                                       node.content === settings)) == 1
             end
 
+            @testset "the Assistants button lists the assistants of the tabs, and Show reaches a tab" begin
+                assistant = Assistant(; llm = FakeLlm("ok"))
+                assistant.agent_title = "Window assistant"
+                document, projection = make_application_window(paths[1:1]; root = dir, assistant)
+                editor = build_editor(document, projection; backend = HeadlessBackend(),
+                                      tabs = false,
+                                      window = (; title = "ProjecturEd", width = 1600,
+                                                height = 1000,
+                                                opened_window_projections =
+                                                    make_opened_window_projections()))
+                tree = only(search_documents(editor.document, node -> node isa PaneTree;
+                                             descend = is_pane_search_step))
+                list = get_session_assistant_list()
+                link_assistant_list!(list, tree)
+                try
+                    toolbar = only(search_documents(editor.document, node -> node isa WidgetToolbar))
+                    button = only(item for item in toolbar.elements
+                                  if string(item.action.label) == "Assistants")
+                    _app_apply!(editor, InvokeActionOperation(button.action))
+                    @test length(search_documents(editor.document,
+                                                  node -> node isa PaneTab && node.content === list)) == 1
+                    run_frame!(editor)
+                    drawn = _app_drawn_strings(get_iomap_output(editor.iomap).windows[1].content)
+                    @test "1 conversation · 0 running" in drawn
+                    @test "Window assistant" in drawn && "pending" in drawn && "you" in drawn
+                    # An empty assistant in a new tab gets a row at once.
+                    second = Assistant()
+                    open_pane!(second; title = "Second", editor)
+                    _app_apply!(editor, InvokeActionOperation(button.action))
+                    run_frame!(editor)
+                    drawn = _app_drawn_at(get_iomap_output(editor.iomap).windows[1].content)
+                    @test any(item -> item[1] == "2 conversations · 0 running", drawn)
+                    # Show on the row of the assistant of the window focuses its tab,
+                    # though two tabs are called "Assistant", and opens no tab.
+                    count_tabs() = _app_count_tabs(tree)
+                    before = count_tabs()
+                    # The title is on the tab of the assistant too, which has no Show.
+                    rows = [item[3] for item in drawn if item[1] == "Window assistant"]
+                    (_, x, y) = only(item for item in drawn
+                                     if item[1] == "Show" && any(row -> abs(item[3] - row) <= 10, rows))
+                    pressed = _app_fire(editor.projection, editor.iomap,
+                                        MouseClick(:left, x + 4, y + 4, 1, ModifierKeys(); time = 0.0))
+                    @test _app_plain(pressed) isa InvokeActionOperation
+                    _app_apply!(editor, pressed)
+                    group, index = get_pane_focus(tree)
+                    @test group.tabs[index].content === assistant
+                    @test count_tabs() == before
+                finally
+                    set_assistant_list_source!(list, nothing)
+                    set_assistant_list_opener!(list, nothing)
+                end
+            end
+
             @testset "the settings come from the defaults, the file, the environment and the command line" begin
                 folder = mktempdir()
                 path = joinpath(folder, "settings.toml")
@@ -874,7 +927,7 @@ function test_application()
                 # A window opened with no assistant has no assistant button.
                 @test [string(item.action.label) for item in toolbar.elements] ==
                       ["Explorer", "Evaluator", "Message log", "Gesture log", "Fault log",
-                       "Statistics", "Frame times", "Selection", "Appearance", "Settings"]
+                       "Statistics", "Frame times", "Selection", "Appearance", "Settings", "Assistants"]
                 drawn = _app_drawn_strings(print_document(composed, scene).output.windows[1].content)
                 for word in ("New tab", "Evaluator", "Message log", "Fault log", "Statistics", "Frame times",
                              "Appearance")

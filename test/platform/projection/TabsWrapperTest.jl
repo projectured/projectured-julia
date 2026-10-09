@@ -89,6 +89,21 @@ function test_tabs_wrapper()
         @test _count_tabs(editor) == 2
     end
 
+    @testset "show_document! finds the tab by what it shows, not by its title" begin
+        editor = build_editor(WidgetLabel("hi"), TabsCountingProjection();
+                              backend = TabsProbeBackend(), devices = Device[])
+        second, third = WidgetLabel("second"), WidgetLabel("third")
+        show_document!(second; title = "same", editor)
+        show_document!(third; title = "same", editor)
+        @test _count_tabs(editor) == 3
+        # Two tabs are called "same", and the show reaches the one that shows `second`.
+        show_document!(second; title = "same", editor)
+        @test _count_tabs(editor) == 3
+        tree = get_wrapped_document(editor.document).windows[1].content
+        group, index = get_pane_focus(tree)
+        @test group.tabs[index].content === second
+    end
+
     @testset "with no tabs, show_document! opens a window of its own" begin
         editor = build_editor(WidgetLabel("hi"), TabsCountingProjection();
                               backend = TabsProbeBackend(), devices = Device[], tabs = false)

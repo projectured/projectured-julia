@@ -320,20 +320,26 @@ function collect_pane_tab_contents(tree::PaneTree, T::Type)
     found = T[]
     for group in get_pane_groups(tree)
         for tab in group.tabs
-            document = _find_tab_layer(tab.content, T)
+            document = find_pane_tab_layer(tab, layer -> layer isa T)
             document === nothing || push!(found, document)
         end
     end
     found
 end
 
-# The first layer of `content` that is a `T`, through the wrappers and the edited
-# fields; `nothing` when no layer is one. The bound stops a chain that comes back
-# to a layer it passed.
-function _find_tab_layer(content, T::Type)
-    node = content
+"""
+    find_pane_tab_layer(tab, matches) -> document or nothing
+
+The first layer of what `tab` shows for which `matches(layer)` is true: its
+content, then each layer that the content holds, through the wrappers that
+`get_wrapped_document` looks through and the fields that `get_edited_field`
+names. `nothing` when no layer matches. The search stops after sixteen layers,
+so a chain that comes back to a layer it passed ends.
+"""
+function find_pane_tab_layer(tab::PaneTab, matches)
+    node = tab.content
     for _ in 1:16
-        node isa T && return node
+        matches(node) && return node
         inner = get_wrapped_document(node)
         if inner !== node
             node = inner

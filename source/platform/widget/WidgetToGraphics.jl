@@ -8629,6 +8629,7 @@ const LUCIDE_ICON_GLYPHS = (
     :circle         => 0xe076,  # circle
     # The tools of a window
     :chat           => 0xe117,  # message-square
+    :chats          => 0xe40d,  # messages-square
     :terminal       => 0xe20a,  # square-terminal
     :list           => 0xe5f4,  # logs
     :keyboard       => 0xe284,  # keyboard

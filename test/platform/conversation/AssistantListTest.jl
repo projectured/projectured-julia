@@ -87,6 +87,47 @@ function test_assistant_list()
             @test length(found) == 1
             @test evaluate_reference(tree, only(found)) === one
         end
+
+        @testset "the Assistants pane" begin
+            list = AssistantList()
+            projection, iomap = _print_assistant_list(list)
+            @test "No assistant is open in this window." in _collect_assistant_list_words(iomap)
+            first_assistant = Assistant(; llm = FakeLlm("ok"), work_state = :in_progress)
+            second_assistant = Assistant()
+            tree = PaneTree(PaneGroup([PaneTab("A", first_assistant), PaneTab("B", second_assistant)]))
+            shown = Any[]
+            set_assistant_list_source!(list, () -> collect_pane_tab_contents(tree, Assistant))
+            set_assistant_list_opener!(list, (editor, assistant) -> push!(shown, assistant))
+            first_assistant.input.value = "Fix the table"
+            evaluate_operation((document = first_assistant, tools = register_default_tools!(ToolSet())),
+                               SubmitProseOperation(first_assistant))
+            @test timedwait(() -> first_assistant.status !== :streaming, 10.0; pollint = 0.01) === :ok
+            # The drawn pane follows the list and each assistant.
+            words = _collect_assistant_list_words(iomap)
+            @test "2 conversations · 0 running" in words
+            @test all(in(words), ("title", "work", "turn", "activity", "prompts", "context", "started", "elapsed"))
+            @test "Fix the table" in words && "Assistant" in words
+            @test "in progress" in words && "pending" in words
+            @test count(==("you"), words) == 2
+            @test count(==("Show"), words) == 2
+            # A turn that runs: the row says whose turn it is and what the turn does.
+            second_assistant.status = :streaming
+            push!(second_assistant.conversation.turns, ConversationTurn(:assistant; start_time = time()))
+            words = _collect_assistant_list_words(iomap)
+            @test "2 conversations · 1 running" in words
+            @test "assistant" in words && "starts" in words
+            second_assistant.status = :idle
+            words = _collect_assistant_list_words(iomap)
+            @test count(==("you"), words) == 2 && !("starts" in words)
+            # Show gives the opener the assistant of its row.
+            texts = _collect_assistant_list_texts(iomap.output)
+            show = first(sort([t for t in texts if t[3] == "Show"]; by = t -> t[2]))
+            operation = read_intent(projection, iomap,
+                MouseClick(:left, show[1] + 2, show[2] + 2, ModifierKeys(); time = 0.0))
+            @test operation isa InvokeActionOperation
+            operation.action.callback(nothing)
+            @test length(shown) == 1 && only(shown) === first_assistant
+        end
     end
 end
 
@@ -97,3 +138,42 @@ end
 
 _is_same_list(found, expected) =
     length(found) == length(expected) && all(map(===, collect(found), expected))
+
+# The pane with the theme that the slice registers it with, and its widgets drawn
+# on a canvas at the size of a window.
+function _print_assistant_list(list; width = 1400, height = 600)
+    appearance = Appearance()
+    measure = FixedMeasure(10, 18, 6, 0)
+    pane = AssistantListToWidgetPane(get_scaled_theme!(appearance, ConversationTheme))
+    widgets = RecursiveProjection(TypeDispatchingProjection(
+        WidgetToGraphics(; measure, theme = get_scaled_theme!(appearance, WidgetTheme),
+                         graphics_theme = get_scaled_theme!(appearance, GraphicsTheme)).dispatch))
+    projection = ChainingProjection(pane, widgets)
+    context = with_exact_size(PrinterContext(); width = Cell(Int32(width)), height = Cell(Int32(height)))
+    (projection, print_document(projection, nothing, list, context))
+end
+
+# Each text of a drawn pane with its place on the canvas.
+function _collect_assistant_list_texts(node, x = 0, y = 0, found = Tuple{Int,Int,String}[])
+    if node isa GraphicsCanvas
+        elements = node.elements
+        if elements isa ListNode
+            link = elements
+            while link !== nothing
+                _collect_assistant_list_texts(link.value, x + Int(node.x), y + Int(node.y), found)
+                link = link.next
+            end
+        else
+            for element in elements
+                _collect_assistant_list_texts(element, x + Int(node.x), y + Int(node.y), found)
+            end
+        end
+    elseif node isa GraphicsViewport
+        _collect_assistant_list_texts(node.content, x + Int(node.x), y + Int(node.y), found)
+    elseif node isa GraphicsText
+        push!(found, (x + Int(node.x), y + Int(node.y), String(node.text)))
+    end
+    found
+end
+
+_collect_assistant_list_words(iomap) = [text for (_, _, text) in _collect_assistant_list_texts(iomap.output)]

@@ -71,7 +71,7 @@ export PaneDocument, PaneTree, PaneSplit, PaneGroup, PaneTab, PaneTabTitle,
        make_pane_tab_title, get_pane_tab_title_string, default_new_pane_tab,
        get_opposite_pane_orientation, get_pane_split_axis,
        get_pane_weight, get_pane_weights, get_pane_normalized_weights,
-       get_pane_groups, get_pane_parent, collect_pane_tab_contents
+       get_pane_groups, get_pane_parent, collect_pane_tab_contents, find_pane_tab_layer
 export get_pane_path, get_pane_collection_path,
        get_pane_focus, get_pane_focus_title, find_pane_content_selection, get_pane_focused_group,
        get_pane_focused_tab_index,
