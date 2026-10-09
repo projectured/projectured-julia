@@ -225,14 +225,9 @@ One at a time, with the owner.
     mix that nothing enforces; (c) `TextNewline` only as a spelling that `_text`
     converts, a type that no output can hold, which the type check accepts in an
     output and only the guard finds.
-  - **N5a The height of an empty line. Open.** A `TextNewline` carries the font
-    of an empty line today, and an empty `TextLine` takes the first font of its
-    block, so an empty line after a heading has the height of the heading. My
-    proposal, not decided: an empty line holds one empty run in its style, which
-    needs the fix of the caret in an empty `TextString` that is not drawn. The
-    other answer: a font on `TextLine`.
-  - **N5b When. Open.** Steps 9 to 11 of §9 in this plan, or a plan of its own
-    after this one.
+  - **N5b When. Decided, the owner, 2026-10-09:** a plan of its own,
+    [a-text-block-holds-only-lines.md](a-text-block-holds-only-lines.md), which
+    holds the steps, the inventory and the height of an empty line (its L2).
 - **N6 The order of the domains.** Julia first, because the gutter targets the
   Julia view.
 
@@ -290,17 +285,4 @@ change how every view of syntax makes its lines, so they land together.
    with `StringToTextBlock` for a string that no domain decides.
 8. **omnet-julia**: NED and INI state their breaks in their texts, which removes
    their empty lines. It follows the landing of steps 2 to 4.
-9. **Lines only in the producers (N5).** `ReferenceInspectorToText`,
-   `ReferenceToText`, the gallery and the examples give lines. `WordWrapping`
-   wraps only a block of lines, and its path for spans goes (`WrapSegment`, the
-   soft `TextNewline`).
-10. **Lines only in the consumers (N5).** N5a is decided first. `TextToGraphics`
-    loses its groups of spans and its lazy list of spans. `TextLineNumbering`,
-    `TextFiltering`, `TextFirstLine`, `TextToString`, `ConsoleBackend`, the flat
-    helpers and `_compute_output_lines` lose their path for a `TextNewline`.
-11. **A `TextBlock` holds only `TextLine`s, and `TextNewline` goes (N5).** A
-    structural path into a block gets the step of its line,
-    `.elements[i].elements[j].content{k}`, and the tests that assert such a path
-    follow. The guard of step 7 also rejects an element of a block that is not a
-    line. A full sweep against the baseline before step 9.
-12. **The documents**: `text.md`, `syntax.md` and the guides of the domains.
+9. **The documents**: `text.md`, `syntax.md` and the guides of the domains.
