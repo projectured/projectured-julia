@@ -856,7 +856,11 @@ from the command line of the projectured UI.
   in its state, and a tool of the editor, found by its name without the prefix
   `mcp__projectured__`, gets `_make_tool_result_document` as in a turn of a
   model. A tool of the agent, such as `Read` of Claude Code, and an error keep
-  their text. Tests: `test_assistant_mvp()` 155 with its 4 known broken, the
+  their text. The first later option, the live document of `execute_julia_code`
+  through MCP, is done by
+  [a-fork-of-model-context-protocol.md](../done/a-fork-of-model-context-protocol.md):
+  a fork of ModelContextProtocol.jl gives a tool handler the `_meta` of its
+  request, where Claude Code names its call. Tests: `test_assistant_mvp()` 155 with its 4 known broken, the
   turn of an external agent 180 of 180, the conversation suite 238 of 238,
   the application 359 with the 2 known broken. Live with the built-in agent:
   `list_resources`, `read_function_documentation` and `search_api` gave

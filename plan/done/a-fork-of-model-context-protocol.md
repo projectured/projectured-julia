@@ -1,9 +1,11 @@
 # A fork of ModelContextProtocol.jl
 
-> **Status (2026-10-08): STARTED.** The owner decided the base, the identity and
+> **Status (2026-10-09): DONE.** The owner decided the base, the identity and
 > the repository on 2026-10-08; see "Decisions". It is the first of the three
 > later options of step 2.12 of
-> [the-assistant-talks-to-an-acp-agent.md](the-assistant-talks-to-an-acp-agent.md).
+> [the-assistant-talks-to-an-acp-agent.md](../pending/the-assistant-talks-to-an-acp-agent.md).
+> F.1 to F.7 are done; the owner deferred F.8, the pull request for upstream, on
+> 2026-10-09.
 
 ## Goal
 
@@ -133,4 +135,4 @@ pull request alone (option 1 of the answer), so that colleagues can share it.
   `main` of ProjecturedRegistry on 2026-10-09, and started the CI of the fork
   by hand, because its workflows were switched on only after the push.
 - [ ] **F.8 Optional: the same change as a pull request** for JuliaSMLM, so the fork
-  can end when upstream has it.
+  can end when upstream has it. Deferred by the owner on 2026-10-09.
