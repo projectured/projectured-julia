@@ -79,12 +79,12 @@ requirement; the rule is its own lead sentence.
 | --- | --- |
 | [PAR-FIELDS-ARE-CELLS](#par-fields-are-cells) | Every document field is a `Cell`, accessed transparently |
 | [PAR-FIELD-NAMES-ARE-API](#par-field-names-are-api) | A document's struct field names are its public reference vocabulary |
-| [PAR-WIDE-FIELD-TYPES](#par-wide-field-types) | A field's declared type must admit every value the field can hold |
-| [PAR-NO-NESTED-CELL](#par-no-nested-cell) | A macro-wrapped field may never hold a `Cell` or a `Function` as its logical value |
+| [PAR-WIDE-FIELD-TYPES](#par-wide-field-types) | A field's declared type must admit every value the field can hold, and a place that a person edits admits the intermediate states of its domain |
+| [PAR-NO-NESTED-CELL](#par-no-nested-cell) | A macro-wrapped field may never hold a `Cell` or a `Computation` as its logical value, and each write through a document meets the check of the declared type |
 | [PAR-DOCUMENT-IDENTITY](#par-document-identity) | Do not assume two documents with equal fields are `==` |
 | [PAR-NO-EDITOR-IN-DOCUMENT](#par-no-editor-in-document) | No document stores the editor, not even in a closure or a `Ref` that a field holds |
 | [PAR-DOMAINS-INDEPENDENT](#par-domains-independent) | Domains are independent; a document owns no cross-domain edge |
-| [PAR-DOMAIN-OWNS-EDITS](#par-domain-owns-edits) | Every domain defines its own structural operations and its own insertion type |
+| [PAR-DOMAIN-OWNS-EDITS](#par-domain-owns-edits) | Every domain defines its own structural operations, its own insertion type and its own nothing type |
 | [PAR-WIDGETS-ARE-PRESENTATION](#par-widgets-are-presentation) | Keep the edited document in its semantic domain; widgets are presentation only |
 | [PAR-SEARCH-DONT-WALK](#par-search-dont-walk) | Prefer `search_references` / `search_documents` over hand-walking the tree, and scope by domain node type |
 
@@ -352,17 +352,31 @@ rename as an API migration, not a local refactor.
 
 ### PAR-WIDE-FIELD-TYPES
 
-**A field's declared type must admit every value the field can hold.** The
-annotation is preserved verbatim into the generated immutable snapshot
-(`ICFoo`), where it becomes enforced. If a field can ever hold `nothing` as an
-empty sentinel, annotate it `Union{…, Nothing}`; a dishonest annotation stays
-silent until the first `snapshot`/`ICFoo(foo)` throws. Type honestly for
-*representability*, not just for the well-formed case: a field that is too
-tight silently forecloses an *intermediate* state the user's mental model
-passes through on the way between two valid ones (product requirement
-PR-INTERMEDIATE-STATES). Widen the annotation to admit the transient value —
-including one that is ill-formed in the domain's own terms — rather than
-assuming only fully-formed values ever occur (see PAR-DOMAIN-OWNS-EDITS).
+**A field's declared type must admit every value the field can hold.** Every
+layout checks a write against the declared type: the reactive layout at each write
+through the document (PAR-NO-NESTED-CELL), and the kind layouts (`ICFoo`, `MCFoo`)
+in their typed cells. So a declaration that is too narrow throws
+`DeclaredTypeMismatchException` at the first write that it refuses. If a field
+can hold `nothing` as an empty sentinel, declare it `Union{…, Nothing}`.
+
+A field chooses one of four forms:
+
+| Form | Admits | Use it for |
+| --- | --- | --- |
+| `Any` | every value | a generic container, such as the tabs, the clipboard or the messages of a conversation |
+| `Document` | every document | a place where documents of several domains combine |
+| the root type of a domain, such as `JuliaDocument` | the documents of that domain | a place that refuses other domains |
+| a narrow type, such as `Bool`, `String` or `Vector{JsonObjectEntry}` | that type only | a place with one kind of value |
+
+**Each place that a person can edit admits the intermediate states of its
+domain**: the insertion and the nothing of the domain (product requirement
+PR-INTERMEDIATE-STATES, and PAR-DOMAIN-OWNS-EDITS). Otherwise a person can not type
+there. A field declared `Document`, or the root type of its domain, admits them
+with no change. A narrow field that a person edits admits them in its declaration,
+for example `Vector{Union{JsonObjectEntry, JsonInsertion, JsonNothing}}`. A narrow
+field that a person changes only through the gestures of its domain needs no
+intermediate state: a `JsonBool` takes no text, and a key changes it to `true` or
+`false`.
 
 ### PAR-NO-NESTED-CELL
 
@@ -371,14 +385,24 @@ value.** Both are cell vocabulary, and the auto-wrapping constructor consumes
 them rather than storing them. A cell that a constructor gets becomes the cell of
 the field, whatever type of value it holds, and a `Computation` becomes the
 field's *derivation*, making it a computed cell. The declared type of a field is
-the type that the field holds at rest. The reactive layout does not enforce it,
-because an edit passes through intermediate values, such as a text to parse or a
-document of another domain that a projection gives meaning to. The kind layouts
-(`ImmutableCell`, `MutableCell`) check a raw value and a write against the
-declared type. To hold either as
-data, box it (a one-element tuple or wrapper struct) or use a plain hand-rolled
-`struct` (as `SyntaxCompoundToText` does). Any convenience constructor must be
-an *outer* constructor — the macro emits the only inner one.
+the type that the field holds. The reactive layout stores every field in a
+`ReactiveCell{Any}`, and it checks each write through the document against the
+declared type: the constructor, the setter, an operation, and an element write of
+a `CellVector`. The kind layouts (`ImmutableCell`, `MutableCell`) check a raw value
+and a write against the declared type in their typed cells.
+
+Two values are outside the check of the reactive layout. A computed cell has its
+value only after the computation, so a computation must give a value of the
+declared type itself: for a field declared `Vector{T}`, a `CellVector{T}`. A cell
+that a constructor gets is checked for the value that it holds then, and a later
+write into that cell from another place is not checked. [macros.md](../package/kernel/macros.md)
+gives the declared type of each field of the reactive layout, the modes of the
+check and its conversions.
+
+To hold a `Cell` or a `Computation` as data, box it (a one-element tuple or
+wrapper struct) or use a plain hand-rolled `struct` (as `SyntaxCompoundToText`
+does). Any convenience constructor must be an *outer* constructor — the macro
+emits the only inner one.
 
 A `Function`, by contrast, is an ordinary value and needs no ceremony: a field
 may hold a callback, predicate, or factory, and `field` reads it back
@@ -418,25 +442,31 @@ imports only its own slice and packages below it. All cross-domain coupling
 lives in projections (the edges), never in documents (the nodes) — this is what
 makes the domain package sliceable. Anything two slices both need is a
 framework and sinks to the platform slice that owns the concept, not into either
-slice.
+slice. A field that admits documents of other domains declares `Document`, so the
+declaration of a domain names no other domain.
 
 ### PAR-DOMAIN-OWNS-EDITS
 
-**Every domain defines its own structural operations and its own insertion
-type.** A domain's edits are expressed structurally in its own terms ("insert
+**Every domain defines its own structural operations, its own insertion type
+and its own nothing type.** A domain's edits are expressed structurally in its own terms ("insert
 element at index 3", not "delete the `[` at line 12"), and its type-in entry
 point is a per-domain `…Insertion` document whose reader interprets typed text
-in that domain's vocabulary. Generate the whole insertion kit with one `@domain
-X` line rather than re-implementing the root/placeholder/insertion/
-gesture/traits per domain. The per-domain `…Insertion` document is also what
-makes *every intermediate state representable* (product requirement
-PR-INTERMEDIATE-STATES): as the user builds toward a well-formed value the
-content may pass through states that are ill-formed in the domain's own terms,
-and the insertion document — together with permissive field typing
-(PAR-WIDE-FIELD-TYPES) — is the sanctioned place to hold such a transient state
-rather than forbidding it. Do not constrain a domain's structural operations or
-types so tightly that a reachable intermediate the user pictures has nowhere to
-live; the architecture must permit that state to exist, one way or another.
+in that domain's vocabulary. Its empty place is a per-domain `…Nothing` document.
+Generate the whole insertion kit with one `@domain X` line rather than
+re-implementing the root/placeholder/insertion/gesture/traits per domain.
+
+The insertion and the nothing of a domain are its **intermediate states**, and
+they make *every intermediate state representable* (product requirement
+PR-INTERMEDIATE-STATES). As the user builds toward a well-formed value, the
+content can pass through states that are ill-formed in the domain's own terms.
+The insertion holds such a state, and each place that a person edits declares a
+type that admits it (PAR-WIDE-FIELD-TYPES). An operation that writes a text into a
+field whose declared type refuses the text, and admits the insertion of the domain
+of the field's owner, writes that insertion with the text. In a domain that gives
+the method `make_incomplete_number_document`, such as JSON, a number whose text
+does not parse yet, such as `-` or `1e`, becomes the insertion of the domain, which
+holds the text. Do not constrain a domain's structural operations or types so tightly that a
+reachable intermediate the user pictures has nowhere to live.
 
 ### PAR-WIDGETS-ARE-PRESENTATION
 
