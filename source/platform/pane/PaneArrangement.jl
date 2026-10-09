@@ -1,6 +1,6 @@
 # Fragment of `PaneModule` — the first arrangement of the content of a tab: the
-# menu of a value in a content that nobody arranged, and the operation that
-# arranges a collection in such a content.
+# menu of a value in a content that nobody arranged, the operation that arranges
+# a collection in such a content, and the first find in it.
 
 # The menu of the value under the pointer in a tab whose content nobody
 # arranged: the edits that filter or sort the collection that holds the value,
@@ -40,4 +40,28 @@ function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap, operatio
     at = extend_reference(EmptyReference(), collect(get_reference_steps(path))[length(steps) + 1:end]...)
     arrangement = make_first_arrangement(tab.content, ArrangeCollectionOperation(at, operation.description))
     arrangement === nothing ? nothing : ReplaceReferencedValueOperation(tab, "content", arrangement)
+end
+
+# Ctrl+F in the content of the focused tab, which nobody arranged: the first
+# arrangement of the content, with an empty find at the collection that holds the
+# selection, and the caret in the field of the find. An arranged content answers
+# the key in the table of its arrangement.
+function _make_first_find(tree::PaneTree)
+    focus = get_pane_focus(tree)
+    focus === nothing && return nothing
+    (group, index) = focus
+    index == 0 && return nothing
+    tab = group.tabs[index]
+    content = tab.content
+    content isa ArrangementDocument && return nothing
+    selection = find_pane_content_selection(tree)
+    selection isa Reference || return nothing
+    item = find_arranged_item(content, selection)
+    item === nothing && return nothing
+    place = get_pane_tab_reference(tree, group, index)
+    place === nothing && return nothing
+    (arrangement, caret) = make_first_find(content, item.at)
+    CompoundOperation(Any[ReplaceReferencedValueOperation(tab, "content", arrangement),
+                          ReplaceSelectionOperation(concat_references(place,
+                              ConcreteReference(FieldReferenceStep("content"), caret)))])
 end

@@ -168,6 +168,7 @@ end
         "Walk from a whole tab to its neighbour or into its content" =>
             _walk_tab(doc, k)
     KeyDown(:f2;) => "Put the caret in the tab name" => _rename(doc)
+    KeyDown(:f; ctrl) => "Find in the collection that holds the selection" => _make_first_find(doc)
     # The four rules of a rename. Each answers `nothing` unless the caret is in a
     # name, so a key that means something else keeps meaning it — the rule body
     # is the guard, because a `when(…)` guard sees only the event's own fields.

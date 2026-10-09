@@ -110,3 +110,15 @@ before other values, and a missing value last in either direction.
     key::Any
     direction::Symbol
 end
+
+"""
+    ArrangementFind(text)
+
+What a person finds in a collection: the items where any value contains `text`.
+It hides no item and changes no order. The bar shows `text` in a field, and a
+command moves the selection to the next or the previous item that holds it, in
+the order in which the items show (`make_find_move`).
+"""
+@document struct ArrangementFind
+    text::Any
+end

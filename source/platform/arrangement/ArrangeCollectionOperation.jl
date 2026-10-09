@@ -99,10 +99,12 @@ _is_empty_description(sort::ArrangementSort) = isempty(sort.keys)
 _is_empty_description(description) = false
 
 # The edit that makes `old`, the `d`-th description of `entry`, say what `new`
-# says: the conditions or the keys of `new` in `old`, or `new` in the place of
-# `old` for a kind that has no such method.
+# says: the conditions, the keys or the text of `new` in `old`, or `new` in the
+# place of `old` for a kind that has no such method.
 _make_description_change(entry, d, old::ArrangementFilter, new::ArrangementFilter) =
     _make_splice(old, "conditions", 0, length(old.conditions), Any[condition for condition in new.conditions])
 _make_description_change(entry, d, old::ArrangementSort, new::ArrangementSort) =
     _make_splice(old, "keys", 0, length(old.keys), Any[key for key in new.keys])
+_make_description_change(entry, d, old::ArrangementFind, new::ArrangementFind) =
+    ReplaceReferencedValueOperation(old, "text", string(new.text))
 _make_description_change(entry, d, old, new) = _make_splice(entry, "projections", d - 1, d, Any[new])

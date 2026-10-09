@@ -559,6 +559,36 @@ Each step ends with its own tests and a commit, in a worktree.
         the field, which gives the plain document back.
       - Still to write: the design document of the slice `arrangement` in
         `documentation/package/`.
+    - [x] **3d-4.** Find. Done 2026-10-09:
+      - `ArrangementFind(text)` is a description in the entry, so it is saved
+        and undone with the entry and shows in the bar (mine). Its stage is
+        `IdentityProjection`: it hides no item and changes no order, and its
+        maps pass the introduced step of the bar. The bar shows its text as a
+        field after the quick text field, with a ×.
+      - The commands in the table of `ArrangementDocument`: Ctrl+F puts the
+        caret at the end of the field of the find of the collection that holds
+        the selection, after the edit that adds the find, or the entry, when
+        there is none (`make_find_field_selection`); F3 and Shift+F3, and
+        Return or Shift+Return in the field, select the next or the previous
+        item where any value contains the text, in the order in which the
+        items show (`compute_shown_rows`), round the end (`make_find_move`). As
+        in the data frame view, a move marks nothing.
+      - Fact found: a key reached the tables only through a route, and a key
+        has none, so the reader of `ArrangingProjection` reads a key that its
+        document does not answer with the table of the arrangement.
+      - Ctrl+F in a content that nobody arranged is in the table of
+        `PaneTree`, which reads the keys that its content does not answer: the
+        first arrangement with an empty find (`make_first_find`) in the place
+        of the content of the focused tab, and the caret in the field. A key
+        table answers relative to its own document, so this caret needs no
+        change of the context menu.
+      - `test_arrangement_find` (16): the order in which the items show, and in
+        an editor Ctrl+F in a content that nobody arranged, two typed keys that
+        hide nothing, Return, F3 and Shift+F3 round the end, F3 in the order of
+        a sort, the × of the field, and Ctrl+F in an entry with no find.
+    - Open in step 3: a collection that prints as syntax, through the data
+      stage of the syntax fabric, is filtered and sorted but shows no bar,
+      because only the graphics recursion of `NaturalToGraphics` has one.
 - [ ] **4.** The verbs of the assistant, as edits of the view document, and the
   read of an entry.
 - [ ] **5.** The widget table takes any table, with the lazy rows from an anchor

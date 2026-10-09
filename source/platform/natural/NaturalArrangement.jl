@@ -7,15 +7,16 @@
 
 Draws an `ArrangementChips` as a row of widgets: the count of the items, a chip
 for each condition of a filter and each key of a sort, a text field for each
-quick text condition (`is_quick_text_condition`) at the end, and Show all. A
-press on the × of a chip answers the edit that takes its condition or its key
-away, a press on Show all the edit that takes the entry away; each names its own
-document, so a history records it as an edit of the person.
+quick text condition (`is_quick_text_condition`) and for a find at the end, and
+Show all. A press on the × of a chip or of a field answers the edit that takes
+its part away, a press on Show all the edit that takes the entry away; each
+names its own document, so a history records it as an edit of the person.
 
-The text of a field is the value of its condition, at the path
-`.entry.projections[i].conditions[k].value` of the chips, which the maps send to
-the field and back. An edit of the field is a write of that value, which names
-the condition, and the caret after it.
+The text of a field is a text in the entry: the value of a condition, at
+`.entry.projections[i].conditions[k].value` of the chips, or the text of a find,
+at `.entry.projections[i].text`. The maps send that path to the field and back,
+and an edit of the field is a write of that text, which names its document, and
+the caret after it.
 """
 struct ArrangementChipsToGraphics <: Projection end
 
@@ -25,7 +26,7 @@ struct ArrangementChipsToGraphics <: Projection end
     output::Any
     inner_iomap::Any
     edits::Any          # the edit of each action of the row
-    fields::Any         # the place `(i, k, condition)` of the condition of each field, by its index in the row
+    fields::Any         # the place of the text of each field, by its index in the row
 end
 
 function print_document(p::ArrangementChipsToGraphics, recursion, chips::ArrangementChips, ctx)
@@ -40,7 +41,7 @@ end
 
 # A key with a route goes to the field that the route names. The answer of the
 # row becomes an answer of the chips: the edit of an action, the write of the
-# value of a field, or a path of a field as a path in the chips.
+# text of a field, or a path of a field as a path in the chips.
 function read_intent(p::ArrangementChipsToGraphics, recursion, change::Intent,
                      iomap::ArrangementChipsToGraphicsIoMap)
     inner = iomap.inner_iomap
@@ -72,8 +73,8 @@ function _read_chips_operation(iomap::ArrangementChipsToGraphicsIoMap, operation
     operation
 end
 
-# The write of the value of the condition of a field that an edit of the text of
-# the field makes, and the caret after the text that it puts in.
+# The write of the text of a field that an edit of the field makes, and the caret
+# after the text that it puts in.
 function _make_field_edit(iomap::ArrangementChipsToGraphicsIoMap, operation::ReplaceStringRangeOperation)
     found = @reference_case strip_reference_types(operation.reference) begin
         children[f].content{a:b} => (f, a, b)
@@ -83,46 +84,50 @@ function _make_field_edit(iomap::ArrangementChipsToGraphicsIoMap, operation::Rep
     (f, a, b) = found
     place = get(iomap.fields, f, nothing)
     place === nothing && return nothing
-    old = string(place.condition.value)
+    old = string(getproperty(place.target, Symbol(place.field)))
     new = string(first(old, a), operation.replacement, chop(old; head = b, tail = 0))
     caret = a + length(operation.replacement)
-    CompoundOperation(Any[ReplaceReferencedValueOperation(place.condition, "value", new),
-                          ReplaceSelectionOperation(_make_field_value_path(place, RangeReferenceStep(caret, caret)))])
+    CompoundOperation(Any[ReplaceReferencedValueOperation(place.target, place.field, new),
+                          ReplaceSelectionOperation(extend_reference(place.prefix, RangeReferenceStep(caret, caret)))])
 end
 
-# The path in the chips of the value of the condition of a field, then `rest`.
-_make_field_value_path(place, rest...) =
-    extend_reference(EmptyReference(), FieldReferenceStep("entry"), FieldReferenceStep("projections"),
-                     ElementReferenceStep(place.i), FieldReferenceStep("conditions"), ElementReferenceStep(place.k),
-                     FieldReferenceStep("value"), rest...)
-
-# The path in the row of a path in the chips: the text of a field for the value
-# of its condition, and `nothing` for any other path.
+# The path in the row of a path in the chips: the text of a field for the text in
+# the entry that it shows, and `nothing` for any other path.
 function _map_chips_to_row(iomap::ArrangementChipsToGraphicsIoMap, reference)
     reference isa Reference || return nothing
-    inner = iomap.inner_iomap
-    @reference_case strip_reference_types(reference) begin
-        entry.projections[i].conditions[k].value.rest... => begin
-            f = findfirst(place -> place.i == i && place.k == k, iomap.fields)
-            f === nothing ? nothing :
-                concat_references(extend_reference(EmptyReference(), FieldReferenceStep("children"),
-                                                   ElementReferenceStep(f), FieldReferenceStep("content")), rest)
-        end
-        __ => nothing
+    # The row is built when the inner IO map is read, and the build fills `fields`.
+    iomap.inner_iomap
+    for (f, place) in iomap.fields
+        rest = _find_rest_after(place.prefix, reference)
+        rest === nothing && continue
+        return concat_references(extend_reference(EmptyReference(), FieldReferenceStep("children"),
+                                                  ElementReferenceStep(f), FieldReferenceStep("content")), rest)
     end
+    nothing
 end
 
-# The path in the chips of a path in the row: the value of the condition of a
-# field for its text, and `nothing` for any other path.
+# The path in the chips of a path in the row: the text in the entry that a field
+# shows for the text of the field, and `nothing` for any other path.
 function _map_row_to_chips(iomap::ArrangementChipsToGraphicsIoMap, reference)
     reference isa Reference || return nothing
     @reference_case strip_reference_types(reference) begin
         children[f].content.rest... => begin
             place = get(iomap.fields, f, nothing)
-            place === nothing ? nothing : concat_references(_make_field_value_path(place), rest)
+            place === nothing ? nothing : concat_references(place.prefix, rest)
         end
         __ => nothing
     end
+end
+
+# The rest of `reference` after the steps of `prefix`, or `nothing` when it does
+# not start with them.
+function _find_rest_after(prefix::Reference, reference)
+    reference isa Reference || return nothing
+    head = get_reference_steps(prefix)
+    steps = get_reference_steps(strip_reference_types(reference))
+    length(steps) >= length(head) || return nothing
+    all(steps[i] == head[i] for i in eachindex(head)) || return nothing
+    extend_reference(EmptyReference(), steps[length(head) + 1:end]...)
 end
 
 function map_reference_forward(::ArrangementChipsToGraphics, iomap::ArrangementChipsToGraphicsIoMap, reference)
@@ -139,29 +144,37 @@ function map_reference_backward(::ArrangementChipsToGraphics, iomap::Arrangement
 end
 
 # The row of `chips`: in `edits` the edit of each of its actions, and in `fields`
-# the place of the condition of each text field. The fields come after the
-# chips, so the quick text is at the end of the bar.
+# the place of the text of each text field. The fields come after the chips, the
+# quick text first and then the find, so they are at the end of the bar.
 function _make_chips_row(chips::ArrangementChips, edits::IdDict, fields::Dict, arrangement)
     empty!(edits)
     empty!(fields)
     entry = chips.entry
     widgets = Any[WidgetLabel(string(chips.shown, " of ", chips.total))]
     quick = Any[]
+    finds = Any[]
     for (i, description) in enumerate(entry.projections)
         for (k, part) in enumerate(_get_chip_parts(description))
             removal = _make_chip_removal(arrangement, entry, i, description, k)
             if is_quick_text_condition(part)
-                push!(quick, (i = i, k = k, condition = part, removal = removal))
-                continue
+                push!(quick, (prefix = _make_entry_reference(FieldReferenceStep("projections"), ElementReferenceStep(i),
+                                                             FieldReferenceStep("conditions"), ElementReferenceStep(k),
+                                                             FieldReferenceStep("value")),
+                              target = part, field = "value", placeholder = "Filter by text", removal = removal))
+            elseif part isa ArrangementFind
+                push!(finds, (prefix = _make_entry_reference(FieldReferenceStep("projections"), ElementReferenceStep(i),
+                                                             FieldReferenceStep("text")),
+                              target = part, field = "text", placeholder = "Find (F3)", removal = removal))
+            else
+                action = Action(string(_describe_chip(part), " ×"))
+                edits[action] = removal
+                push!(widgets, WidgetButton(action))
             end
-            action = Action(string(_describe_chip(part), " ×"))
-            edits[action] = removal
-            push!(widgets, WidgetButton(action))
         end
     end
-    for place in quick
-        push!(widgets, _make_quick_text_field(chips, place))
-        fields[length(widgets)] = (i = place.i, k = place.k, condition = place.condition)
+    for place in Iterators.flatten((quick, finds))
+        push!(widgets, _make_text_field(chips, place))
+        fields[length(widgets)] = place
         action = Action("×")
         edits[action] = place.removal
         push!(widgets, WidgetButton(action))
@@ -175,9 +188,28 @@ function _make_chips_row(chips::ArrangementChips, edits::IdDict, fields::Dict, a
     row
 end
 
-# The selection of the row for the selection of the chips: the field whose
-# condition holds the caret, then the caret in it; `nothing` when the caret is in
-# no field.
+# The path in the chips of the entry, then `steps`.
+_make_entry_reference(steps...) = extend_reference(EmptyReference(), FieldReferenceStep("entry"), steps...)
+
+# The text field of a place of text in the entry: its text is that text, and its
+# caret the selection of the chips in it.
+function _make_text_field(chips::ArrangementChips, place)
+    field = WidgetText(""; width = 16, placeholder = place.placeholder)
+    set_cell_computation!(getfield(field, :content), () -> string(getproperty(place.target, Symbol(place.field))))
+    set_cell_computation!(getfield(field, :selection), () -> _find_field_caret(chips.selection, place))
+    field
+end
+
+# The caret of the field of `place` for the selection of the chips: `.content`
+# and the rest of the selection below the text of the place, or `nothing` when
+# the selection is elsewhere.
+function _find_field_caret(selection, place)
+    rest = _find_rest_after(place.prefix, selection)
+    rest === nothing ? nothing : ConcreteReference(FieldReferenceStep("content"), rest)
+end
+
+# The selection of the row for the selection of the chips: the field that holds
+# the caret, then the caret in it; `nothing` when the caret is in no field.
 function _find_row_caret(selection, fields::Dict)
     for (f, place) in fields
         caret = _find_field_caret(selection, place)
@@ -187,29 +219,9 @@ function _find_row_caret(selection, fields::Dict)
     nothing
 end
 
-# The text field of a quick text condition: its text is the value of the
-# condition, and its caret the selection of the chips in that value.
-function _make_quick_text_field(chips::ArrangementChips, place)
-    field = WidgetText(""; width = 16, placeholder = "Filter by text")
-    set_cell_computation!(getfield(field, :content), () -> string(place.condition.value))
-    set_cell_computation!(getfield(field, :selection), () -> _find_field_caret(chips.selection, place))
-    field
-end
-
-# The caret of the field of the condition at `place` for the selection of the
-# chips: `.content` and the rest of the selection below the value of the
-# condition, or `nothing` when the selection is elsewhere.
-function _find_field_caret(selection, place)
-    selection isa Reference || return nothing
-    @reference_case strip_reference_types(selection) begin
-        entry.projections[i].conditions[k].value.rest... =>
-            (i == place.i && k == place.k) ? ConcreteReference(FieldReferenceStep("content"), rest) : nothing
-        __ => nothing
-    end
-end
-
 _get_chip_parts(filter::ArrangementFilter) = Any[condition for condition in filter.conditions]
 _get_chip_parts(sort::ArrangementSort) = Any[key for key in sort.keys]
+_get_chip_parts(find::ArrangementFind) = Any[find]
 _get_chip_parts(description) = Any[]
 
 const _CHIP_OPERATORS = Dict(:equal => "=", :not_equal => "≠", :less => "<", :greater => ">",
@@ -218,6 +230,7 @@ const _CHIP_OPERATORS = Dict(:equal => "=", :not_equal => "≠", :less => "<", :
 _describe_chip(condition::ArrangementCondition) =
     string(_describe_key(condition.key), " ", get(_CHIP_OPERATORS, condition.operator, string(condition.operator)),
            " ", condition.value isa AbstractString ? repr(condition.value) : string(condition.value))
+_describe_chip(find::ArrangementFind) = string("find ", repr(string(find.text)))
 _describe_chip(key::ArrangementSortKey) =
     string(key.direction === :descending ? "↓ " : "↑ ", _describe_key(key.key))
 
@@ -260,11 +273,6 @@ end
 _make_entry_removal(arrangement, entry) =
     arrangement === nothing ? nothing : make_entry_removal_edit(arrangement, entry)
 
-# The menu of an arranged document on a right click: the edits of the value under
-# the pointer, which filter or sort the collection that holds it.
-get_document_gesture_bindings_own(::Type{<:ArrangementDocument}) =
-    GestureBinding[make_context_menu_binding(_make_arrangement_menu; description = "Show the arrangement menu")]
-
 function _make_arrangement_menu(arranged::ArrangementDocument)
     path = get_mouse_target(arranged)
     path isa Reference || return nothing
@@ -276,4 +284,23 @@ function _make_arrangement_menu(arranged::ArrangementDocument)
     item = find_arranged_item(arranged.document, rest)
     item === nothing && return nothing
     WidgetMenu(Any[WidgetMenuItem(label; operation) for (label, operation) in make_arrangement_edits(arranged, item)])
+end
+
+# The menu of an arranged document on a right click: the edits of the value under
+# the pointer, which filter or sort the collection that holds it.
+const _ARRANGEMENT_MENU =
+    GestureBinding[make_context_menu_binding(_make_arrangement_menu; description = "Show the arrangement menu")]
+
+# The keys of find in an arranged document, and the menu of a value. The keys
+# reach this table when the document does not answer them; Return moves only
+# from the field of a find.
+@gestures ArrangementDocument begin
+    KeyDown(:f; ctrl) => "Find in the collection" => make_find_field_selection(doc)
+    KeyDown(:f3; shift) => "Find the previous item" => make_find_move(doc, true)
+    KeyDown(:f3) => "Find the next item" => make_find_move(doc, false)
+    KeyDown(:return; shift) => "Find the previous item from the find field" =>
+        is_in_find_field(doc) ? make_find_move(doc, true) : nothing
+    KeyDown(:return) => "Find the next item from the find field" =>
+        is_in_find_field(doc) ? make_find_move(doc, false) : nothing
+    splice(_ARRANGEMENT_MENU)
 end

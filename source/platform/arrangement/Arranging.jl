@@ -49,7 +49,8 @@ get_child_iomaps(iomap::ArrangingIoMap) = Any[iomap.inner_iomap]
 # Everything goes on to the document, and the answer is rooted under the field
 # `document`, so its reference is valid against the arrangement. A gesture with a
 # route goes the way of every container, so the gesture table of the
-# arrangement reads it too, as the context menu of a value needs. An
+# arrangement reads it too, as the context menu of a value needs; so does a key
+# that the document does not answer. An
 # `ArrangeCollectionOperation` from inside the document becomes the edit of the
 # arrangement, and an edit that leaves the arrangement with no entry takes the
 # arrangement away.
@@ -61,6 +62,10 @@ function read_intent(p::ArrangingProjection, recursion, change::Intent, iomap::A
         inner = iomap.inner_iomap
         answer = read_intent(get_iomap_projection(inner), recursion, change, inner)
         operation = reroot_operation(answer isa Intent ? answer.operation : answer, (FieldReferenceStep("document"),))
+        # A key that the document does not answer goes to the gesture table of
+        # the arrangement, as the keys of find do.
+        operation === nothing && change.operation === nothing && change.gesture isa Union{KeyDown, KeyPress} &&
+            (operation = read_gesture(iomap.input, change.gesture))
     end
     operation = _make_arranged_change(iomap.input, operation)
     Intent(change.gesture, _take_away_when_empty(iomap.input, operation))

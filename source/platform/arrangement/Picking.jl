@@ -84,6 +84,9 @@ make_arrangement_projection(filter::ArrangementFilter) =
     PickingProjection(items -> compute_filter_rows(filter, items))
 make_arrangement_projection(sort::ArrangementSort) =
     PickingProjection(items -> compute_sort_rows(sort, items))
+# A find picks nothing: its stage passes the items as they are, and the bar shows
+# its field.
+make_arrangement_projection(::ArrangementFind) = IdentityProjection()
 
 """
     get_arrangement_value(value) -> Any
