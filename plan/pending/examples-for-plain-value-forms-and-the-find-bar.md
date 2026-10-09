@@ -50,8 +50,12 @@ every widget example on main, so its counts are a record and no gate.
 
    Done: the filter keeps the lines with a word that starts with "do" (`\\bdo`,
    a regular expression), and the highlight marks "DOLOR" with case ignored.
-3. ⬜ **`ObjectToWidget` arguments.** Register `object_to_widget_chosen_widgets`
+3. ✅ **`ObjectToWidget` arguments.** Register `object_to_widget_chosen_widgets`
    (`make_widget`) and `object_to_widget_plain_record` (`is_record`).
+
+   Done: the chosen widgets are a switch, two spin boxes and a toggle on the nested
+   settings; the plain record is a `PlainResolution` in a `ProjectorSettings`. The
+   three chains of `ObjectToWidget` share `_make_object_form_chain`.
 4. ⬜ **A form of bare fields with chosen widgets.** Register
    `object_field_form_chosen_widgets`.
 5. ⬜ **A plain mutable value in place.** Register `plain_server_mutable_form`.

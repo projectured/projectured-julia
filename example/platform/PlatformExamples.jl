@@ -47,6 +47,8 @@ const text_spacing_examples = Example[text_spacing_single_example, text_spacing_
 const object_example         = Example("object",         make_object_document_example,         make_object_projection_example)
 const object_to_widget_example = Example("object_to_widget", make_object_to_widget_document_example, make_object_to_widget_projection_example)
 const nested_object_to_widget_example = Example("nested_object_to_widget", make_nested_object_to_widget_document_example, make_object_to_widget_projection_example)
+const object_to_widget_chosen_widgets_example = Example("object_to_widget_chosen_widgets", make_nested_object_to_widget_document_example, make_object_to_widget_chosen_widgets_projection_example)
+const object_to_widget_plain_record_example = Example("object_to_widget_plain_record", make_object_to_widget_plain_record_document_example, make_object_to_widget_plain_record_projection_example)
 const object_field_form_example = Example("object_field_form", make_object_field_form_document_example, make_object_field_form_projection_example)
 const object_field_syntax_example = Example("object_field_syntax", make_object_field_document_example, make_object_field_syntax_projection_example)
 const plain_server_copy_form_example = Example("plain_server_copy_form", make_plain_server_copy_form_document_example, make_object_field_form_projection_example)
@@ -132,6 +134,8 @@ const platform_examples = Example[
     object_example,
     object_to_widget_example,
     nested_object_to_widget_example,
+    object_to_widget_chosen_widgets_example,
+    object_to_widget_plain_record_example,
     object_field_form_example,
     object_field_syntax_example,
     plain_server_copy_form_example,

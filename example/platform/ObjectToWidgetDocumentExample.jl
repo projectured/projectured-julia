@@ -39,3 +39,19 @@ function make_nested_object_to_widget_document_example()
                 WindowSettings("Main", 800, 600, true, nothing),
                 Any["alpha", "beta"], nothing)
 end
+
+# A plain value inside a document: the resolution of a projector is a plain struct
+# with no cell, so `ObjectToWidget` opens it only when `is_record` says so. An edit
+# of its width writes a copy of it into the field of the document.
+struct PlainResolution
+    width::Int
+    height::Int
+end
+
+@document struct ProjectorSettings
+    name::String
+    resolution::Any
+end
+
+make_object_to_widget_plain_record_document_example() =
+    ProjectorSettings("Projector", PlainResolution(1920, 1080), nothing)
