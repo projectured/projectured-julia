@@ -352,6 +352,16 @@ change how every view of syntax makes its lines, so they land together.
    then XML, FSM, SQL, the collections, the reflection of objects, the file
    system (its `2` becomes `1` unless the owner wants two levels), the database
    catalog, Formula, Book, Markdown and reStructuredText.
+   - ✅ The lists of the platform (2026-10-09): each writes `sep = "\n"`, which
+     step 2 turns into a text of two lines, where it wrote `TextString("\n")`, a
+     run with a break. Their output does not change.
+   - ✅ JSON (2026-10-09): `open = "[\n"` and `"{\n"`, `sep = ",\n"`, `close =
+     "\n]"` and `"\n}"`, each a `make_text_block` in the style of its role; a line
+     no longer ends in the space of `", "`. *Found:* `render` of a syntax tree
+     joins the texts and lays out no indentation, so it now shows the breaks of the
+     texts; the test of JSON states it, and a test of the printed text checks the
+     layout. `test_json` 242 of 242, `test_fault_part` 26 of 26.
+
 4. **`indentation` only indents.** The transition of step 2 and the breaks of
    the integer go, `-1` goes, and the flat metric (`_syntax_to_flat`,
    `_subtree_len`) follows. A full sweep against step 0.

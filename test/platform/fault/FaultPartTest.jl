@@ -76,7 +76,7 @@ function _paint_healthy(document)
     _get_last_paint(backend)
 end
 
-const _HEALTHY_ARRAY = "[\n  \"first\", \n  \"repaired\", \n  \"third\"\n]"
+const _HEALTHY_ARRAY = "[\n  \"first\",\n  \"repaired\",\n  \"third\"\n]"
 
 function test_fault_part()
 @testset "a fault goes to the barrier of the part that built the bad cell" begin
@@ -194,8 +194,8 @@ function test_fault_part()
         @test get_consecutive_fault_count(editor.faults, :device_write) == 0
         painted = _get_last_paint(backend)
         @test painted !== nothing
-        @test startswith(painted, "[\n  \"first\", \n  ⚠")
-        @test endswith(painted, ", \n  \"third\"\n]")
+        @test startswith(painted, "[\n  \"first\",\n  ⚠")
+        @test endswith(painted, ",\n  \"third\"\n]")
     end
 
     @testset "a click on the mark tries the part again" begin

@@ -101,9 +101,9 @@ end
 
 @projection_template JsonArrayToSyntaxNode JsonArray (prj, doc) ->
     SyntaxNode(collection(:elements);
-               open=TextString("[", prj.delimiter_style),
-               close=TextString("]", prj.delimiter_style),
-               sep=TextString(", ", prj.separator_style),
+               open=make_text_block("[\n", prj.delimiter_style),
+               close=make_text_block("\n]", prj.delimiter_style),
+               sep=make_text_block(",\n", prj.separator_style),
                indentation=1)
 
 # One `"key": value` member. The object delegates each entry here rather than
@@ -134,9 +134,9 @@ end
 
 @projection_template JsonObjectToSyntaxNode JsonObject (prj, doc) ->
     SyntaxNode(collection(:entries);
-               open=TextString("{", prj.delimiter_style),
-               close=TextString("}", prj.delimiter_style),
-               sep=TextString(", ", prj.separator_style),
+               open=make_text_block("{\n", prj.delimiter_style),
+               close=make_text_block("\n}", prj.delimiter_style),
+               sep=make_text_block(",\n", prj.separator_style),
                indentation=1)
 
 # The projection of the whole domain: one rule per document type. The builder

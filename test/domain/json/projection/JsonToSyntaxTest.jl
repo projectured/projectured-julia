@@ -9,9 +9,17 @@ j2s = RecursiveProjection(JsonToSyntax())
 @test render(print_document(j2s, JsonString("hi")).output) == "\"hi\""
 @test render(print_document(j2s, JsonString("a\"b")).output) == "\"a\\\"b\""
 
-# array
+# array: its texts hold its breaks, which `render` joins with no indentation
 ja = JsonArray([JsonNumber(1), JsonNumber(2)])
-@test render(print_document(j2s, ja).output) == "[1, 2]"
+@test render(print_document(j2s, ja).output) == "[\n1,\n2\n]"
+
+# The text of an array: each element on a line one level in, the `]` at the level
+# of the array, and an empty array on one line.
+_json_text(doc) = get_flat_string(print_document(RecursiveProjection(SyntaxToText()),
+                                                 print_document(j2s, doc).output).output)
+@test _json_text(ja) == "[\n  1,\n  2\n]"
+@test _json_text(JsonArray()) == "[]"
+@test _json_text(JsonArray([JsonObject("a" => JsonNumber(1))])) == "[\n  {\n    \"a\": 1\n  }\n]"
 
 # The part under the pointer reaches the syntax node of each array through the
 # forward map of the rule template: the pointer on the `2` of `[1, [2, 3]]`.
