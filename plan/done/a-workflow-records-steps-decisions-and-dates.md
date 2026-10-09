@@ -1,7 +1,8 @@
 # A workflow records steps, decisions and dates
 
-> **Status:** in progress on branch `workflow` (worktree
-> `projectured-julia-workflow`). Written 2026-10-09. Steps 1 to 8 are done.
+> **Status:** done on branch `workflow` (worktree `projectured-julia-workflow`),
+> not landed on main. Written and built 2026-10-09. Steps 1 to 8 are done; the
+> questions of section 7 wait for the owner.
 
 ## 1. The request
 
@@ -453,6 +454,21 @@ given to `change_workflow_state!` raised a `MethodError` (now an
 7. **No switch operation:** "no, there's no need to switch to a workflow
    operation, the user can have multiple workflows open at a time".
 
-## 7. Open questions
+## 7. Open questions for a later plan
 
-None now.
+- **Q2. How does the model learn that a workflow exists?** The verbs are in the
+  API, and a model finds them with `search_api` when it searches for a decision
+  or a workflow. The system text of the application is static and names only
+  modules of the platform, and no domain can add a sentence to it. Two ways, each
+  a new mechanism: a registry through which a loaded domain adds one sentence to
+  the system text, or a note in a turn when the `Assistant` holds a workflow (the
+  owner rejected a summary in each turn).
+- **Q3. Must a verb act on the workflow of the calling assistant when a call
+  names no node?** A verb does not know which assistant calls it. The native
+  turn knows its assistant where it runs `execute_julia_code!`, so it could bind
+  it in the namespace of the code; an external agent reaches the editor through
+  MCP and has no assistant there. This is a new mechanism too.
+- Left for later, as section 4.6 says: the dashboard page, the exploration
+  graph, due dates, templates; and from the steps: a lighter row of add buttons,
+  the caret in an added node, a button that starts a new workflow file, and the
+  general filter of the journal.
