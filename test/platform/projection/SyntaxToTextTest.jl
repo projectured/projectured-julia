@@ -68,13 +68,13 @@ end
     @test _line_texts(print_document(pipe, outer).output) == ["[", "  (", "    x", "  )", "]"]
 end
 
-@testset "a value with a break is lines, which no ancestor widens" begin
+@testset "a value with a break is lines, which follow the code around them" begin
     leaf = SyntaxLeaf("one\ntwo"; open="<", close=">")
     @test leaf.value isa TextBlock
     node = SyntaxNode(SyntaxDocument[leaf]; open="[\n", close="\n]", indentation=1)
     iomap = print_document(pipe, node)
-    @test _line_texts(iomap.output) == ["[", "  <one", "two>", "]"]
-    @test get_flat_string(iomap.output) == "[\n  <one\ntwo>\n]"
+    @test _line_texts(iomap.output) == ["[", "  <one", "  two>", "]"]
+    @test get_flat_string(iomap.output) == "[\n  <one\n  two>\n]"
     for k in 0:get_flat_length(iomap.output)
         @test _selection_to_pos(iomap, _pos_to_selection(iomap, k)) == k
     end

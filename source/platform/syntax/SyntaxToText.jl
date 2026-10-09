@@ -16,9 +16,10 @@
 #
 # A `TextString` is one run, so the leaf never reads its content to find a break,
 # and an edit of the run leaves the line valid. A `TextBlock` is lines: its first
-# line joins the line before it, and each other line starts a line of the output at
-# indentation 0, which no ancestor widens. A `'\n'` that a run still holds is a row
-# inside the line, as `TextToGraphics` draws it.
+# line joins the line before it, and each other line starts a line of the output,
+# a line of the chrome, so a value of many lines follows the indentation of the code
+# around it. A `'\n'` that a run still holds is a row inside the line, as
+# `TextToGraphics` draws it.
 #
 # The mappers count in the flat text of the fields, open ++ value ++ close, whose
 # offsets are the flat offsets of the output: the break between two lines of a
@@ -712,10 +713,10 @@ end
 # one run, and a `'\n'` in it is a row inside a line.
 
 # One line under construction: its spans, its indentation, and whether the
-# indentation is of the chrome of a compound. A compound widens such a line of a
-# child by its own `indentation × indent_size`. A line that a break in a leaf or in a
-# run starts has indentation 0 and keeps it, because that text is the user's text
-# and its spaces are its own.
+# indentation is of the chrome. A compound widens such a line of a child by its own
+# `indentation × indent_size`. Each line of a leaf after its first is of the chrome,
+# so a value of many lines follows the code around it; a line that a break inside a
+# run starts has indentation 0 and keeps it.
 mutable struct _LineRecord
     spans::Vector{TextDocument}
     indentation::Int
@@ -825,12 +826,17 @@ function _compute_flat_entries(iomap)
     _build_flat_entries(_compute_output_lines(iomap.output))
 end
 
-# The lines of the output of a child, with the lines of the chrome marked.
+# The lines of the output of a child, with the lines of the chrome marked: those
+# that a compound recorded, or each line of a leaf after its first.
 function _compute_child_lines(iomap)
     content = get_content_iomap(iomap)
-    chrome_lines = content isa SyntaxCompoundToTextIoMap ? content.chrome_lines : nothing
+    chrome_lines = content isa SyntaxCompoundToTextIoMap ? content.chrome_lines :
+                   content.projection isa SyntaxLeafToText ? _make_leaf_chrome_lines(iomap.output) :
+                   nothing
     _compute_output_lines(iomap.output, chrome_lines)
 end
+
+_make_leaf_chrome_lines(output::TextBlock) = Bool[k > 1 for k in eachindex(output.elements)]
 
 # The `TextLine` of `line`, the same object as the last layout when its spans and
 # its indentation are the same.
