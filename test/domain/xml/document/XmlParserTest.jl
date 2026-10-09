@@ -37,7 +37,7 @@ function test_xml_parser()
         @test parse_xml("<p>&#99999999999;</p>").children[1].content == "&#99999999999;"
         # A save writes the character, not the escaped reference.
         x2s = RecursiveProjection(XmlToSyntax())
-        @test render(print_document(x2s, parse_xml("<p>&#65;</p>")).output) == "<p>A</p>"
+        @test render(print_document(x2s, parse_xml("<p>&#65;</p>")).output) == "<p>\nA\n</p>"
 
         # Mismatched close tag errors.
         @test_throws Exception parse_xml("<a></b>")

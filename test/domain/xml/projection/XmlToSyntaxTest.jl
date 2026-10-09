@@ -5,9 +5,10 @@ x2s = RecursiveProjection(XmlToSyntax())
 @test render(print_document(x2s, XmlText("hi")).output) == "hi"
 @test render(print_document(x2s, XmlElement("br")).output) == "<br></br>"
 
-# element with an attribute and a text child
+# element with an attribute and a text child: the body puts each child on a line
+# of its own, and `render` joins the texts with their breaks
 el = XmlElement("a", [XmlAttribute("href", "x")], XmlDocument[XmlText("hi")])
-@test render(print_document(x2s, el).output) == "<a href=\"x\">hi</a>"
+@test render(print_document(x2s, el).output) == "<a href=\"x\">\nhi\n</a>"
 
 # attribute values are XML-escaped
 @test render(print_document(x2s, XmlElement("x", [XmlAttribute("k", "a\"b")])).output) ==

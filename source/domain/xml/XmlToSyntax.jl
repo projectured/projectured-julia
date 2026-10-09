@@ -18,7 +18,8 @@
 #           SyntaxLeaf(bound(:name)),
 #           SyntaxLeaf(open='"', close='"', bound(:value)),
 #         ]) end),
-#       SyntaxNode(collection(:children); indentation=1),  ← recursive child body
+#       SyntaxNode(collection(:children); open="\n", sep="\n", close="\n",
+#                  indentation=1),                      ← recursive child body
 #       SyntaxLeaf(open="</", close=">", value=tag),        ← closing-tag leaf (display-only)
 #     ])
 #
@@ -91,7 +92,7 @@ end
                             close=TextString(">", p.delim),
                             sep=TextString(" ", p.delim.font))
 
-    body_node = SyntaxNode(collection(:children); indentation=1)
+    body_node = SyntaxNode(collection(:children); open="\n", sep="\n", close="\n", indentation=1)
 
     close_leaf = SyntaxLeaf(TextString(() -> e.tag, p.tag);
                             open=TextString("</", p.delim),
