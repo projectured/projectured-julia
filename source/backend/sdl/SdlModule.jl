@@ -26,7 +26,7 @@ import ..SettingsModule: apply_settings!, read_settings!
 # it: `BackendModule.render_canvas`, `decode_image` and `get_display_size` are
 # how a caller reaches this backend. The offscreen renderer is public as well,
 # because `ProjecturedVideo` records its frames with it.
-export SdlBackend, open_offscreen_renderer, close_offscreen_renderer, with_offscreen_zoom,
+export SdlBackend, open_offscreen_renderer, with_offscreen_zoom, close_offscreen_renderer,
        GraphicsCanvasToImageFile, write_offscreen_frames!, make_offscreen_paint_state,
        render_offscreen_changes!, write_offscreen_frame_with_overlay!,
        write_offscreen_picture_with_overlay!

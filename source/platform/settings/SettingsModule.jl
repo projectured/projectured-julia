@@ -33,18 +33,17 @@ import ..OperationModule: evaluate_operation, describe_operation, make_inverse_o
                           is_self_contained_operation, get_wrapped_operation,
                           rewrap_operation
 
-export SettingsGroup, SettingDescription, @settings, get_setting_descriptions,
-       get_settings_name, get_settings_group_type, find_setting_description,
-       convert_setting_value
+export SettingsGroup, SettingDescription, get_setting_descriptions, get_settings_name,
+       get_settings_group_type, find_setting_description, convert_setting_value, @settings
 export Settings, compute_loaded_settings_types, make_settings, get_settings_group!,
        set_settings_group!, get_settings_groups, is_settings_group, get_setting_cell
-export ApplySettingOperation, apply_settings!, is_settings_target,
-       apply_settings_to_editor!, is_setting_write, read_settings!, is_settings_group_used,
-       is_settings_group_applied, is_settings_group_read_at_start,
-       read_settings_from_editor!
+export apply_settings!, is_settings_target, is_settings_group_applied,
+       is_settings_group_read_at_start, is_settings_group_used, read_settings!,
+       read_settings_from_editor!, apply_settings_to_editor!, ApplySettingOperation,
+       is_setting_write
 export get_setting_environment_names, read_settings_environment!
-export get_configuration_folder, get_settings_file, write_settings_file!, read_settings_file!,
-       SaveSettingsOperation, LoadSettingsOperation
+export get_configuration_folder, get_settings_file, write_settings_file!,
+       read_settings_file!, SaveSettingsOperation, LoadSettingsOperation
 
 include("SettingsGroup.jl")
 include("Settings.jl")

@@ -45,19 +45,18 @@ import ..SerializationModule: pred_arguments, make_pred_document
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..OperationModule: evaluate_operation
 
-export Navigator, NavigatorVisit, NavigatorAddress, NavigatorChoiceList, ReferenceInsertion
-export get_navigator_page_address, get_navigator_page, get_navigator_address_steps,
-       find_navigator_parent_address,
-       find_navigator_selected_address, is_navigator_stop
-export make_navigator_open_operation, make_navigator_back_operation,
+export NavigatorVisit, ReferenceInsertion, NavigatorAddress, NavigatorChoiceList, Navigator
+export get_navigator_page_address, get_navigator_address_steps, get_navigator_page,
+       find_navigator_parent_address, is_navigator_stop, find_navigator_selected_address,
+       make_navigator_open_operation, make_navigator_back_operation,
        make_navigator_forward_operation, make_navigator_parent_operation
 export find_navigator_choices, make_navigator_choice_operation
 export make_navigator_address_edit_operation, make_navigator_address_commit_operation,
        make_navigator_address_reset_operation, is_navigator_address_selected
+export OpenPageOperation, find_navigator_target
+export make_navigator_address_projection, ReferenceStepToSyntaxLeaf
 export NavigatorToWidget, make_navigator_projection
 export NavigatorChoiceListToWidget, make_navigator_choice_list_projection
-export ReferenceStepToSyntaxLeaf, make_navigator_address_projection
-export OpenPageOperation, find_navigator_target
 
 include("NavigatorDocument.jl")
 include("NavigatorVisits.jl")

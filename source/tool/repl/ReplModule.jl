@@ -24,9 +24,10 @@ build writing into another package's image.
 """
 module StatementScope end
 
-export WORKLOAD, set_workload!, get_workload, PRECOMPILE_STATEMENTS,
-       replay_precompile_statements, record_precompile_statements,
-       PRECOMPILE_RECORDINGS, split_precompile_statements, write_precompile_statement_files
+export PRECOMPILE_RECORDINGS, split_precompile_statements,
+       write_precompile_statement_files, PRECOMPILE_STATEMENTS
+export WORKLOAD, set_workload!, get_workload, replay_precompile_statements,
+       record_precompile_statements
 
 include("ReplStatementFiles.jl")
 include("ReplWorkload.jl")

@@ -31,12 +31,14 @@ import ..CollectionModule: is_table, get_table_row_count, get_table_column_names
                            get_table_value, find_table_column, make_table_part, make_table_document
 
 export DataFrameColumnFilter, DataFrameSortKey, DataFrameQuery
-export DataFrameView, jump_to_row, make_data_frame_cell
-export DataFrameViewRows, DataFrameViewRow, DataFrameViewColumns, DataFrameColumn
-export RefreshDataFrameViewOperation, SetDataFrameValueOperation, DataFrameCellEdit,
-       OpenDataFrameCellOperation, CloseDataFrameCellOperation,
-       InsertDataFrameRowOperation, DeleteDataFrameRowOperation,
-       InsertDataFrameColumnOperation, DeleteDataFrameColumnOperation, MoveDataFrameColumnOperation
+export DataFrameView, DataFrameCellEdit, DataFrameViewRows, DataFrameViewRow,
+       DataFrameViewColumns, jump_to_row, make_data_frame_cell
+export DataFrameColumn
+export SetDataFrameValueOperation, OpenDataFrameCellOperation, CloseDataFrameCellOperation
+export InsertDataFrameRowOperation, DeleteDataFrameRowOperation
+export InsertDataFrameColumnOperation, DeleteDataFrameColumnOperation,
+       MoveDataFrameColumnOperation
+export RefreshDataFrameViewOperation
 export DataFrameTheme, ScaledDataFrameTheme
 export DataFrameViewToWidget, make_data_frame_view_projection
 export DataFrameViewRowToWidget, make_data_frame_row_projection

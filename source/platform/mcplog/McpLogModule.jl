@@ -40,9 +40,11 @@ import ..ProjectionModule: print_document
 import ..SerializationModule: pred_arguments
 import ..EditorModule: wrap_editor!, get_wrapper_layers
 
-export McpCallEntry, McpLog, get_session_mcp_log, record_mcp_call!
-export McpLogStore, get_session_mcp_log_store, take_mcp_calls!, McpLogFeed, make_mcp_log_tool
-export McpLogTheme, ScaledMcpLogTheme, McpLogToWidget, make_mcp_log_projection
+export McpCallEntry, McpLog, record_mcp_call!, get_session_mcp_log
+export McpLogStore, take_mcp_calls!, get_session_mcp_log_store
+export McpLogFeed, make_mcp_log_tool
+export McpLogTheme, ScaledMcpLogTheme
+export McpLogToWidget, make_mcp_log_projection
 
 include("McpLogDocument.jl")
 include("McpLogStore.jl")

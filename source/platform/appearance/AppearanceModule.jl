@@ -63,7 +63,7 @@ export AppearanceDocument, make_appearance_document, find_editor_appearance
 export APPEARANCE_SCALES, AdjustZoomOperation, AdjustScaleOperation, copy_zoom_to_display!,
        ReplaceThemeValueOperation, SaveAppearanceOperation, LoadAppearanceOperation
 export AppearanceManagingProjection, AppearanceManagingIoMap, is_appearance_change
-export follow_window_backgrounds!, copy_system_colors!
+export copy_system_colors!, follow_window_backgrounds!
 export AppearanceToWidget, AppearanceToWidgetIoMap
 
 include("AppearanceDocument.jl")

@@ -1240,13 +1240,30 @@ registration.
       name it (`5a63c873f`). `visit` in `example/kernel/CallSite.jl` names its
       index and caller (`c4a82279b`).
 
-      Open: the other five argument violations are the open questions of the
-      kernel audit plan: POLICY-3 with L18-3 (`Tool`) and L22-1
-      (`insert_elements!`, `delete_elements!`), and N-3 (`start_application!`,
-      `FixedMeasure`), which asks the same question. The owner, on
-      2026-09-30: they are settled and made in the kernel audit plan, not here.
-      Until that lands, the guard job of CI fails on these five; the umbrella
-      job does not run the guards.
+      The other five argument violations were open questions of the kernel
+      audit plan: POLICY-3 with L18-3 (`Tool`) and L22-1 (`insert_elements!`,
+      `delete_elements!`), and N-3 (`start_application!`, `FixedMeasure`). On
+      `main` of 2026-10-09 the guard does not report them; `6603e0d6d` marks
+      the definitions that keep an optional positional argument.
+
+      **The guards (2026-10-09).** The owner chose to fix the guard violations
+      here, and the kernel audit plan skips them. On `main` the argument guard
+      found three new definitions, and the export guard found 44 violations in
+      13 module files. The fixes:
+
+      - `ed7bb9b5c`: `# @optional:` markers above `OpenPageOperation`,
+        `WidgetProgressBar` and `WidgetProgressRing`, with the reason.
+      - `b3296a626`: `EssentialsModule.jl` includes no fragment. It re-exports
+        the modules below it, so it has no fragment to name. The export guard
+        has the list `EXPORT_REEXPORTING` for such a module, and fails if a
+        module on it includes a fragment.
+      - The export blocks of the other 12 module files: one statement for each
+        fragment, in include order, the names in definition order. No name is
+        added or lost, except five names of `TaskModule.jl` that a macro of the
+        module exports too: `ATaskExecution`, `ACTaskExecution`, `ATaskGroup`,
+        `ACTaskGroup` (from `@document`) and `get_task_style` (from `@theme`).
+
+      All six guards pass, as the guard job of CI runs them.
 
       The markers (`561eb023f`, `5c3436089`), each with a `# @broken:` reason
       and only on the failing examples: the anchor point and the split pane
