@@ -18,6 +18,7 @@ const xml_example            = Example("xml",            make_xml_document_examp
 const mixed_example          = Example("mixed",          make_mixed_document_example,          make_mixed_projection_example)
 const natural_example        = Example("natural",        make_natural_document_example,        make_natural_projection_example)
 const book_example           = Example("book",           make_book_document_example,           make_book_projection_example)
+const workflow_example       = Example("workflow",       make_workflow_document_example,       make_workflow_projection_example)
 const markdown_example       = Example("markdown",       make_markdown_document_example,       make_markdown_projection_example)
 const markdown_rendered_example = Example("markdown_rendered", make_markdown_document_example,   make_markdown_rendered_projection_example)
 const rst_example            = Example("rst",            make_rst_document_example,            make_rst_projection_example)
@@ -144,6 +145,7 @@ const domain_examples = Example[
     mixed_example,
     natural_example,
     book_example,
+    workflow_example,
     markdown_example,
     markdown_rendered_example,
     rst_example,

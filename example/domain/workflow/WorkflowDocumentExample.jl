@@ -47,3 +47,11 @@ make_workflow_document_example() =
         ],
         journal = [WorkflowEntry(time = "2026-10-09T13:00:00", author = :person, kind = :state,
                                  text = PrimitiveString("active"))])
+
+"""
+    make_workflow_projection_example(; measure = FontFileMeasure()) -> Projection
+
+The renderer that draws any document, which draws a workflow as its outline: the
+rows that the workflow domain registers.
+"""
+make_workflow_projection_example(; measure = FontFileMeasure()) = NaturalToGraphics(; measure)

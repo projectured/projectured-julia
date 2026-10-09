@@ -1,7 +1,7 @@
 # A workflow records steps, decisions and dates
 
 > **Status:** in progress on branch `workflow` (worktree
-> `projectured-julia-workflow`). Written 2026-10-09. Steps 1 to 3 are done.
+> `projectured-julia-workflow`). Written 2026-10-09. Steps 1 to 4 are done.
 
 ## 1. The request
 
@@ -314,10 +314,41 @@ turn, and an operation that switches to a workflow.
     `find_rooted_operation` carry the operation from the node to the root, so the
     history of the tab records it. `collect_workflow_entries` reads the journal of
     a whole tree.
-- [ ] **4. The outline view.** `WorkflowToWidget`; a title, an entry and a card
+- [x] **4. The outline view.** `WorkflowToWidget`; a title, an entry and a card
   show through the view of their own domain inside a widget row. Test: the
   printer and the reader on an example that holds a Markdown card and a JSON
   card.
+  **Done (2026-10-09).** `test_workflow_to_widget()`, 36 tests through a headless
+  editor that keeps its IO map; the printer, reader and REPL drivers pass on
+  `workflow_example` (19722, 225 and 225 checks). What was decided and found:
+  - Three projections, `WorkflowNodeToWidget` (a step, a decision, an option),
+    `WorkflowEntryToWidget` and `WorkflowCardToWidget`, each chained with
+    `VerticalLayoutToGraphicsCanvas` and registered as rows of the renderer
+    (`register_natural_graphics!(:workflow, …)`). The output holds the documents
+    of the input, and the renderer draws each one through the view of its own
+    domain, so any domain mixes into the outline. The maps translate a path by
+    the places of those documents (`_WorkflowSlot`).
+  - One computation builds the output and its slots, and the IO map holds both
+    as computed cells, as the row view of the data frames does: a change of the
+    children, the journal, the cards or the fold builds a new card, and the chain
+    prints it again. A layout prints its children once, so a static build showed
+    a stale outline after "+ step" (found by the headless editor test).
+  - The header row is the first row of the content of the card, not its title:
+    `WidgetCard` gives a key only to its content, so a key never reached a title
+    in the title slot.
+  - A title, a question, a reason and a text entry show as a `WidgetText` whose
+    content follows the value of the `PrimitiveString`; the slots map
+    `title.value{…}` to `content{…}`, so an edit in the field is an edit of the
+    title. It gives prose and a placeholder, so an empty title can be clicked.
+  - The state is a `WidgetBadge` in the colour of its role, with a "›" button; a
+    press answers `make_workflow_state_operation`. Each button answers its
+    operation through a click gesture of its own, as the settings tab does.
+  - The example is `workflow_example` in both registries. The navigation sweep
+    skips it, for the reason that it skips the table and the pane examples: a
+    widget view can not seed a caret with Ctrl+Home.
+  - Limits, left for later: the row of add buttons under every node is heavy;
+    an added node does not take the caret; a card whose content is a primitive
+    draws it in the plain style of the renderer.
 - [ ] **5. The journal table.** Test: the rows, the order and the decision
   filter.
 - [ ] **6. The assistant tools.** The tool descriptions say which points are

@@ -25,7 +25,8 @@ function test_workflow()
         test_workflow_layering()
         test_workflow_document()
         test_workflow_edits()
+        test_workflow_to_widget()
     end
 end
 
-export test_workflow, test_workflow_layering, test_workflow_document, test_workflow_edits
+export test_workflow, test_workflow_layering, test_workflow_document, test_workflow_edits, test_workflow_to_widget

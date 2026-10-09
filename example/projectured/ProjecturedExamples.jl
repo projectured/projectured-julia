@@ -32,6 +32,7 @@ const examples = [
     sequencechart_inspector_example, sequencechart_pair_example,
     fsm_example, fsm_toggle_example, fsm_diagram_example,
     pivot_example,
+    workflow_example,
     math_example,
     julia_example,
     formula_example,

@@ -167,6 +167,9 @@ function test_position_navigations()
                              # `pivot` is a bar of widgets above a WidgetTable,
                              # here for the widget-container reason as well.
                              "pivot",
+                             # `workflow` is a card of widgets for each node, here
+                             # for the widget-container reason as well.
+                             "workflow",
                              "assistant",
                              # `fsm` is the twelve-state TCP machine. It
                              # navigates correctly — it is simply far too big
