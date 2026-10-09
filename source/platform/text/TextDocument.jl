@@ -294,27 +294,26 @@ the text of its spans, where an image counts one, and a new row of the line
 starts before that character. `WordWrapping` computes them for the width of the
 view, and `TextToGraphics` starts a row at each, at the indentation of the line.
 A soft break is no character: it is not in the caret space and not in the flat
-string, so a wrap moves no offset. The field names its kind, so it holds the vector
-of offsets as one value that a computation gives whole, not as a list.
+string, so a wrap moves no offset.
 """
 @document struct TextLine <: TextDocument
     elements::CollectionDocument = CellVector()
     indentation::Int = 0
     gutter::Union{Document, Nothing} = nothing
     fold::Union{Document, Nothing} = nothing
-    soft_breaks::ReactiveCell{Vector{Int}} = Int[]
+    soft_breaks::Vector{Int} = Int[]
 end
 
 TextLine(spans::Vector{<:TextDocument}; indentation::Integer = 0, gutter = nothing, fold = nothing) =
     TextLine(CellVector(Cell[Cell(s) for s in spans]), Cell(Int(indentation)), Cell(gutter),
-             Cell(fold), Cell(Int[]), Cell(nothing))
+             Cell(fold), Cell(CellVector{Int}()), Cell(nothing))
 
 TextLine(spans::TextDocument...; indentation::Integer = 0, gutter = nothing, fold = nothing) =
     TextLine(collect(TextDocument, spans); indentation, gutter, fold)
 
 TextLine(f::Function; indentation::Integer = 0, gutter = nothing, fold = nothing) =
     TextLine(CellVector(Computation(f)), Cell(Int(indentation)), Cell(gutter), Cell(fold),
-             Cell(Int[]), Cell(nothing))
+             Cell(CellVector{Int}()), Cell(nothing))
 
 # A lone line is not a document — it is a part of a block. Both of its fields are
 # defaulted, so unlike the span types (each has a required field, and so no

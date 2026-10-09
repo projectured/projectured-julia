@@ -117,7 +117,7 @@ end
 # The output line of `line`: its spans and every other field, and the soft breaks
 # for the width that `wrap_w_cell` holds.
 function _make_wrapped_line(line::TextLine, wrap_w_cell::Cell, measure_fn::TextMeasure)
-    soft_breaks = Cell(@computation _compute_soft_breaks(line, Int(wrap_w_cell[]), measure_fn))
+    soft_breaks = Cell(@computation CellVector{Int}(_compute_soft_breaks(line, Int(wrap_w_cell[]), measure_fn)))
     TextLine(getfield(line, :elements), getfield(line, :indentation), getfield(line, :gutter),
              getfield(line, :fold), soft_breaks, getfield(line, :selection),
              getfield(line, :mouse_target))

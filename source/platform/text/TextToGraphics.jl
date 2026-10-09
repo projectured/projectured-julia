@@ -843,7 +843,7 @@ function _layout_group(p::TextToGraphics, group, y0::Int, cursor_pos,
     last_font = nothing        # the font of the last text span: it sizes an empty last line
     is_caret_at(path, k) = cursor_pos !== nothing && g.cursor === nothing && g.caret === nothing &&
                            cursor_pos.span == path && cursor_pos.char == k
-    soft_breaks = group.soft_breaks === nothing ? Int[] : group.soft_breaks[]::Vector{Int}
+    soft_breaks = group.soft_breaks === nothing ? Int[] : collect(Int, group.soft_breaks[])
     line_offset = 0            # the offset in the text of the spans of the group
     pending_caret = nothing    # the font of a caret that waits for the next row
     # Close the open row at a soft break and start the next at the indentation,

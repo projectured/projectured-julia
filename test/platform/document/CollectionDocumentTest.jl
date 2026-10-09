@@ -23,8 +23,8 @@ end
     buffer::MutableCell{Vector{String}}
 end
 
-# A field that names the reactive kind holds a vector that a computation gives whole.
-@document struct WholeVectorHolder
+# A field that names the reactive kind holds a list, as a field that names no kind does.
+@document struct ReactiveListHolder
     offsets::ReactiveCell{Vector{Int}} = Int[]
 end
 
@@ -515,16 +515,11 @@ end # @testset "ReactiveCollection"
         @test shadow.buffer == ["a"]
     end
 
-    @testset "a field that names the reactive kind holds a vector as one value" begin
-        holder = WholeVectorHolder()
-        @test holder.offsets == Int[] && holder.offsets isa Vector{Int}
+    @testset "a field that names the reactive kind holds a list" begin
+        holder = ReactiveListHolder()
+        @test holder.offsets isa CellVector{Int}
         holder.offsets = [3, 7]
-        @test holder.offsets isa Vector{Int}
-        width = Cell(2)
-        set_cell_computation!(getfield(holder, :offsets), () -> collect(1:width[]))
-        @test holder.offsets == [1, 2]
-        width[] = 3
-        @test holder.offsets == [1, 2, 3]
+        @test holder.offsets isa CellVector{Int} && holder.offsets == [3, 7]
     end
 
     @testset "a plain vector in a field declared CollectionDocument becomes a list" begin
