@@ -118,21 +118,47 @@ The overview computes from these times:
 A saved conversation gets the two keywords for each turn. A file without them
 loads with `0.0`.
 
-### 3.3 The list of the session
+### 3.3 The registry of the session
 
-`AssistantList` is a document in the assistant slice, a copy of the design of
-`TaskGroupList`:
+`AssistantList` is the one registry of the open assistants of the session, a
+document in the assistant slice. The owner asked for it (2026-10-09): "perhaps
+we need a central registry which assistants could be added by some means and
+removed". It holds:
 
-- `assistants::CellVector` — newest first.
-- `selected::Int` — the row that the detail shows, `-1` for none.
+- `assistants` — the open assistants, computed from the sources below. The
+  order is the order in which the registry first saw each assistant, newest
+  first.
+- `added::CellVector` — the assistants that a caller added with
+  `add_assistant!` and did not take out with `remove_assistant!`.
+- `selected` — the assistant that the detail shows, or `nothing`. It is an
+  assistant, not an index, so a row that comes or goes does not move the
+  detail to another assistant.
 - `get_session_assistant_list()` makes it at the first call.
-- `add_assistant!(list, assistant)` and `remove_assistant!(list, assistant)`.
 
-An assistant adds itself at its first submit, in the operation, on the editor
-task. A document that a precompile or a test builds and never submits does not
-enter the list. A row stays after its tab closes. Close takes the row out and
-leaves the conversation as it is. The list holds each assistant until the
-person closes its row, so the memory stays bounded by the person.
+The registry gets the open assistants from three sources:
+
+1. **Stage 1: the tabs of each window.** The application builds the pane tree,
+   so the application links the registry to the tree once. The link is no
+   document field, because the tree holds the Assistants pane, and a field
+   would make a cycle. The application sets it, as a window sets the `opener`
+   of `TaskGroupList`. The registry reads `PaneTree.root`, then
+   `PaneSplit.elements`, then `PaneGroup.tabs`, then `PaneTab.content`. All
+   of them are cells, so the read runs again only when a tab opens, closes or
+   moves, and never after an edit inside a tab. Every path that puts a document
+   into a tab is covered with no hook: the start of the application,
+   `open_pane!`, the load of a pane file, the insertion into an empty tab, a
+   paste, the duplicate of a tab, and the undo of a close. An empty assistant
+   tab gets a row.
+2. **Stage 2: an assistant inside a tab**, for example in a layout or in a card.
+   See 3.7.
+3. **`add_assistant!` and `remove_assistant!`**, for a source that is no tab,
+   for example an assistant that an MCP client starts.
+
+A row leaves the table when its assistant is no longer open. The undo of the
+close of a tab brings the row back. The description, the comment and the work
+state stay in the `Assistant` document, so nothing that the person wrote is
+lost. A precompile and a test that build an assistant and show it in no window
+add no row.
 
 ### 3.4 The values of a row
 
@@ -169,7 +195,6 @@ assistant:
 | Context | `used / size`, and the cost when the agent gives it |
 | Started | the start time |
 | Elapsed | the elapsed time |
-| (button) | Close the row |
 
 A click on a row selects it. The detail below the table, in a split that the
 person can drag, shows:
@@ -193,6 +218,57 @@ same title. Step 5 changes or adds a method of `show_document!` for that.
   settings".
 - A verb `show_assistant_list!()` for the REPL and for a model.
 
+### 3.7 Stage 2: an assistant inside a tab
+
+The owner asked for every open assistant (2026-10-09): "ultimately, I would like
+to have all assistants which are open", and then: "you can do both stage 1 and
+stage 2". An assistant inside a layout of a tab is open, but it is not the
+content of a tab, so stage 1 does not find it.
+
+The facts:
+
+- A `PaneGroup` prints the content of each of its tabs, also of a tab that is
+  not active
+  ([PaneToWidget.jl:342](../../source/platform/pane/PaneToWidget.jl#L342)).
+  So each open assistant has an IO map in the print tree of the window.
+- No IO map is released. The reconciler
+  ([IoMapReconcile.jl](../../source/kernel/iomap/IoMapReconcile.jl)) drops the
+  IO map of a child that is gone, and the garbage collector frees it. No hook
+  runs.
+- `get_child_iomaps`
+  ([ProjectionInterface.jl:410](../../source/kernel/projection/ProjectionInterface.jl#L410))
+  gives the child IO maps of a container. About 25 methods exist. Each other IO
+  map answers `nothing`, so a walk of the print tree stops there.
+- `search_documents` walks every document from a root.
+
+Three ways:
+
+- **2A. Walk the print tree.** On the editor task, the registry walks the IO
+  maps of the window with `get_child_iomaps` and takes each IO map whose input
+  is an `Assistant`. The cost grows with the printed nodes, not with the data.
+  The walk misses a part under an IO map that holds children but has no method
+  of `get_child_iomaps`. So each such IO map needs a method. The readers use
+  the same methods ([`read_routed_child`](../../source/kernel/projection/ProjectionInterface.jl)),
+  so the methods help them too.
+- **2B. Walk the documents.** `search_documents(root, x -> x isa Assistant)`.
+  A reactive walk depends on every cell and runs again after each key press.
+  A walk that is not reactive needs a signal to run. The cost grows with the
+  data, and a large data frame makes it slow.
+- **2C. Release an IO map.** The reconciler and each projection that drops a
+  child IO map call a release function, and the IO map of an assistant takes
+  the assistant out of the registry. It is exact and cheap at each change, but
+  it is a new mechanism of the kernel, and each projection that drops an IO map
+  without the reconciler must call it. One missed call leaves a row of a closed
+  assistant.
+
+Recommendation (mine): 2A. Open means that the window shows it, and the print
+tree is the record of what the window shows. Step 7 first counts the IO maps
+that hold children without a method of `get_child_iomaps`, and measures the walk
+on the largest example. **The owner chooses the way after step 7, before step
+8.** A new mechanism needs the word of the owner. Each of the three ways adds
+one: a walk of the print tree that the registry runs, a walk of the documents
+with its signal, or a release.
+
 ## 4. Steps
 
 Each step gets a commit. Each step runs the narrowest test that covers it.
@@ -208,9 +284,12 @@ Each step gets a commit. Each step runs the narrowest test that covers it.
 - [ ] **3. The values of a row.** Add the functions of 3.4. Test each one on an
   assistant with a `ScriptedLlm`: before a turn, while a turn runs, while a
   permission request waits, and after a failure.
-- [ ] **4. The list.** Add `AssistantList`, `get_session_assistant_list`,
-  `add_assistant!` and `remove_assistant!`. Add the assistant at the first
-  submit. Test that a submit adds it once, and that Close takes only the row.
+- [ ] **4. The registry, stage 1.** Add `AssistantList`,
+  `get_session_assistant_list`, `add_assistant!` and `remove_assistant!`, and
+  the link from the application to the pane tree. Test in a real editor that an
+  empty assistant tab gets a row, that each path of 3.3 adds the row, that a
+  close takes it out, and that the undo of the close brings it back. Test that
+  an edit inside a tab does not run the read again.
 - [ ] **5. The pane.** Add `AssistantListToWidgetPane` with the table, the
   palette command and `show_assistant_list!`. Make Show find the tab by its
   content. Test the rows in a real editor: a label changes when a turn starts
@@ -218,7 +297,13 @@ Each step gets a commit. Each step runs the narrowest test that covers it.
 - [ ] **6. The detail.** Add the split and the detail. Test in a real editor that
   a key edits the description and the comment, and that the select sets
   `work_state`.
-- [ ] **7. The guide.** Update
+- [ ] **7. Stage 2, the facts.** Count the IO maps that hold children and have
+  no method of `get_child_iomaps`. Measure the walk of 2A on the largest
+  example. Write the numbers in 3.7, and ask the owner to choose 2A, 2B or 2C.
+- [ ] **8. Stage 2, the way that the owner chose.** Test in a real editor that
+  an assistant inside a layout of a tab gets a row, and that the row goes when
+  the layout loses the assistant.
+- [ ] **9. The guide.** Update
   [assistant.md](../../documentation/package/platform/assistant/assistant.md).
   Move this plan to `plan/done/`.
 
@@ -226,9 +311,15 @@ Each step gets a commit. Each step runs the narrowest test that covers it.
 
 The owner answered the six questions on 2026-10-09.
 
-1. **An assistant with no prompt.** No row. The row comes at the first submit,
-   as a task group comes at its start. The owner agreed with this
-   recommendation.
+1. **An assistant with no prompt.** It gets a row. The owner first agreed that
+   the row comes at the first submit, then changed the answer (2026-10-09): "an
+   empty assistant tab should also show up in the table, otherwise it could be
+   surprising". Then: "ultimately, I would like to have all assistants which are
+   open, but we can defer this if this is difficult or expensive", and "perhaps
+   we need a central registry which assistants could be added by some means and
+   removed". When I proposed the tabs as stage 1 and an assistant inside a tab
+   as stage 2: "you can do both stage 1 and stage 2". The design is in 3.3 and
+   3.7.
 2. **A native assistant that loads.** Keep the description, the comment and the
    work state. The owner: "yes, eventually the conversation should also load".
    The load of the conversation of a native assistant is a later plan.
@@ -264,4 +355,11 @@ The owner answered the six questions on 2026-10-09.
 
 ## 6. Open questions
 
-None. Step 5 asks again if it finds no document that every tab is inside.
+1. **A row leaves when its assistant closes.** The design in 3.3 takes the row
+   out when the assistant is no longer open, because the owner asked for the
+   open assistants. The table has no Close button for that reason. The owner
+   did not answer this point. Recommendation (mine): keep it so.
+2. **The way of stage 2.** The owner chooses 2A, 2B or 2C after step 7 (3.7).
+   Recommendation (mine): 2A.
+
+Step 5 asks again if it finds no document that every tab is inside.
