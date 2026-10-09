@@ -38,6 +38,7 @@ using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
 using ..SelectionModule
+using ..SerializationModule
 using ..StyleModule
 using ..TextModule
 using ..ToolModule
@@ -52,7 +53,6 @@ import ..FocusModule: is_selection_walk_stop
 import ..SelectionModule: has_dormant_selection
 import ..OperationModule: evaluate_operation
 import ..SerializationModule: pred_arguments, make_pred_document
-using ..SerializationModule: print_pred_text, FileCutException
 import ..ProjectionModule: get_projection_gesture_bindings
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 
