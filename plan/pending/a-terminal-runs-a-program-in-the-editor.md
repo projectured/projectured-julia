@@ -1,6 +1,6 @@
 # A terminal runs a program in the editor
 
-> **Status:** PROPOSED, waits for the answers of the owner. **Asked by:** the owner
+> **Status:** APPROVED 2026-10-09, in progress on the branch `acp-sign-in`. **Asked by:** the owner
 > on 2026-10-09, for step 2.5 of
 > [the-assistant-talks-to-an-acp-agent.md](the-assistant-talks-to-an-acp-agent.md):
 > "a simple terminal domain would be good in general but don't overdo it. it's
@@ -91,6 +91,10 @@ person as a general tool (see Q3).
   `PLATFORM_SLICE_EDGES`.
 
 ## Questions for the owner
+
+The owner agreed to the three recommendations on 2026-10-09: a slice `terminal`
+of the platform, the terminal of a sign-in inside the sign-in card, and no
+shell of the person now.
 
 - **Q1.** A slice `terminal` of the platform (recommended: the package rules put
   a process with the task and the assistant, not with a domain of content), or

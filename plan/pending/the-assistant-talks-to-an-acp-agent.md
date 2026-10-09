@@ -798,7 +798,8 @@ from the command line of the projectured UI.
     `claude` command and the environment of its settings); the editor runs that
     command. It works from the checkout and in the compiled program, and the
     editor does not name Claude Code. (b) The `julia` of this process, as
-    agreed in Q3: no compiled program. Recommended: (a).
+    agreed in Q3: no compiled program. Recommended: (a). The owner agreed to (a)
+    on 2026-10-09, and to the recommendations Q1 to Q3 of the terminal plan.
 
   **Facts (2026-10-09).**
   - ACP: an agent can advertise a `terminal` auth method with `args` and `env`.
