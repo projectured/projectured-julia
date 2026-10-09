@@ -382,6 +382,17 @@ change how every view of syntax makes its lines, so they land together.
      their texts by their levels, so `newlines = false` stays inline. Their suites
      pass with the counts of main, and XML's `render` tests show the breaks of a
      body.
+   - ✅ Julia (2026-10-09). A block states its breaks in its texts. The struct
+     drops its `"\n"` leaf after the header: step 2 made that leaf a real empty
+     line, where a `'\n'` at the end of a run draws no row. A docstring is a
+     separation: the opening fence is the `open` of its text leaf and the closing
+     fence is in the separator, so the fences and the subject are lines of the
+     chrome that a body indents, where they drew at column 0, and a fold key in a
+     docstring still folds the code around it. A sample file with a module, two
+     structs, docstrings, `if`, `for` and `while` (`/var/tmp/text-breaks/juliadump.jl`)
+     prints 29 lines at main, 37 after step 2 and 35 now: each fence and each
+     subject is a line the numbers count. The text of a docstring is still one run
+     with rows, at column 0; step 5 makes it lines. `test_julia` 550 of 550.
 
 4. **`indentation` only indents.** The transition of step 2 and the breaks of
    the integer go, `-1` goes, and the flat metric (`_syntax_to_flat`,

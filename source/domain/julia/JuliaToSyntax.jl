@@ -256,8 +256,11 @@ end
 #     <text>
 #     \"\"\"
 #     <subject>
-# The `SyntaxToText` stage carries per-leaf line breaks through, so the
-# triple-quote fences and the subject land on their own lines.
+# The opening fence is the `open` of the text leaf, and the closing fence is in
+# the separator, so the breaks are text: the line after the opening fence is the
+# text, at column 0 as the user wrote it, and the closing fence and the subject
+# are lines of the chrome, which an enclosing body indents. A separation can not
+# collapse, so a fold key inside a docstring folds the code around it.
 
 @projection UntrackedCell struct JuliaDocstringToSyntaxNode
     doc_style::StyleText   = get_julia_style(nothing, :string_text)
@@ -265,12 +268,11 @@ end
 end
 
 @projection_template JuliaDocstringToSyntaxNode JuliaDocstring (p, d) ->
-    SyntaxConcatenation([
-        SyntaxLeaf(TextString("\"\"\"\n", p.fence_style)),
-        SyntaxLeaf(TextString(() -> d.text, p.doc_style)),
-        SyntaxLeaf(TextString("\n\"\"\"\n", p.fence_style)),
+    SyntaxSeparation([
+        SyntaxLeaf(TextString(() -> d.text, p.doc_style);
+                   open=TextString("\"\"\"\n", p.fence_style)),
         project(:subject),
-    ])
+    ]; separator=TextString("\n\"\"\"\n", p.fence_style))
 
 # ── JuliaAbstractTypeToSyntaxNode ──────────────────────────────────────────
 
@@ -303,19 +305,17 @@ end
     SyntaxConcatenation([
         SyntaxLeaf(TextString(() -> s.mutable ? "mutable struct " : "struct ", p.keyword_style)),
         project(:header; as = _style_type_header(p)),
-        SyntaxLeaf(TextString("\n", p.sep_style)),
+        # `body` is a `JuliaBlock`, whose texts put each field on a line of its
+        # own and `end` on the line after the last one.
         project(:body),
-        # `body` is a `JuliaBlock` whose own trailing chrome already
-        # emits a "\n" after the last field; no leading "\n" here or
-        # a blank line opens up before `end`.
         SyntaxLeaf(TextString("end", p.keyword_style)),
     ])
 
 # ── JuliaModuleDefinitionToSyntaxNode ─────────────────────────────────────────────
 #
-# The body is a `JuliaBlock`, so it indents and supplies its own surrounding
-# newlines — the same shape `JuliaStructToSyntaxNode` relies on, and the reason
-# neither node writes a newline before `end`.
+# The body is a `JuliaBlock`, so its texts hold the breaks around its statements —
+# the same shape `JuliaStructToSyntaxNode` relies on, and the reason neither node
+# writes a break before `end`.
 
 @projection UntrackedCell struct JuliaModuleDefinitionToSyntaxNode
     keyword_style::StyleText = get_julia_style(nothing, :keyword_text)
@@ -767,7 +767,7 @@ end
 end
 
 @projection_template JuliaBlockToSyntaxNode JuliaBlock (p, b) ->
-    SyntaxNode(collection(:statements); indentation=p.indentation)
+    SyntaxNode(collection(:statements); open="\n", sep="\n", close="\n", indentation=p.indentation)
 
 # ── JuliaToplevelToSyntaxNode ───────────────────────────────────────────────
 
@@ -803,18 +803,17 @@ end
         SyntaxLeaf(TextString(() -> _if_end_line(m.else_branch), p.keyword)),
     ])
 
-# The keyword that leads the else-branch. `JuliaBlock` already emits
-# both a leading AND a trailing "\n" (line-chrome around every
-# statement plus one before the close). So the prefix is a plain
-# `else` — the block on either side supplies the newlines, and any
-# extra "\n" here would double-space.
+# The keyword that leads the else-branch. The texts of `JuliaBlock`
+# hold a break before each statement and one after the last. So the
+# prefix is a plain `else` — the block on either side supplies the
+# breaks, and any extra "\n" here would double-space.
 #   empty   → ""     (no else clause)
 #   JuliaIf → "else" (nested child prints its own `if` → `elseif`)
 #   other   → "else"
 _if_else_prefix(else_branch) = _is_empty_else(else_branch) ? "" : "else"
 
-# The closing `end` line. The then/else block's own trailing chrome
-# supplies the leading newline. Nested JuliaIf else-branches print
+# The closing `end` line. The closing break of the then/else block
+# puts it on a line of its own. Nested JuliaIf else-branches print
 # their own `end`, so suppress ours.
 _if_end_line(else_branch) = else_branch isa JuliaIf ? "" : "end"
 
