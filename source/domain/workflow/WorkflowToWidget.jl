@@ -56,8 +56,9 @@ end
 """
     make_workflow_projections(; theme = nothing) -> NamedTuple
 
-The projections of a workflow, `node`, `entry` and `card` of the outline and
-`journal` of the table of its entries, with the styles
+The projections of a workflow, `node`, `entry` and `card` of the outline,
+`journal` of the table of its entries and `catalog` of the workflows of a folder,
+with the styles
 of `theme`: a `WorkflowTheme`, scaled or not, or the default styles for
 `nothing`. Each one makes widgets; a renderer chains it with
 `VerticalLayoutToGraphicsCanvas`, as `make_workflow_graphics_entries` does.
@@ -73,7 +74,8 @@ function make_workflow_projections(; theme = nothing)
     journal = WorkflowJournalToWidget(; muted_text = get_style(:muted_text),
                                       assistant_text = get_style(:assistant_text),
                                       person_text = get_style(:person_text), gap = get_style(:gap))
-    (; node, entry, card, journal)
+    catalog = WorkflowCatalogToWidget(; muted_text = get_style(:muted_text), gap = get_style(:gap))
+    (; node, entry, card, journal, catalog)
 end
 
 """
@@ -90,7 +92,8 @@ function make_workflow_graphics_entries(; measure, appearance)
     Pair{Type,Any}[WorkflowStep => node, WorkflowDecision => node, WorkflowOption => node,
                    WorkflowEntry => ChainingProjection(projections.entry, VerticalLayoutToGraphicsCanvas()),
                    WorkflowCard => ChainingProjection(projections.card, VerticalLayoutToGraphicsCanvas()),
-                   WorkflowJournal => ChainingProjection(projections.journal, VerticalLayoutToGraphicsCanvas())]
+                   WorkflowJournal => ChainingProjection(projections.journal, VerticalLayoutToGraphicsCanvas()),
+                   WorkflowCatalog => ChainingProjection(projections.catalog, VerticalLayoutToGraphicsCanvas())]
 end
 
 # ── The IO map ───────────────────────────────────────────────────────────

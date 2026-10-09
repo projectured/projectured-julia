@@ -9,7 +9,8 @@ cards that show documents of any domain.
 The domain includes:
 - **The tree**: `WorkflowStep`, `WorkflowDecision`, `WorkflowOption`
 - **The record**: `WorkflowEntry`, `WorkflowCard`
-- **A view**: `WorkflowJournal`, the entries of a whole tree as a table
+- **The views**: `WorkflowJournal`, the entries of a whole tree as a table, and
+  `WorkflowCatalog`, the workflows of a folder
 """
 module WorkflowModule
 
@@ -23,7 +24,7 @@ import ..ProjectionModule: print_document, map_reference_forward, map_reference_
 import ..DocumentModule: get_document_title
 
 export WorkflowDocument, WorkflowStep, WorkflowDecision, WorkflowOption, WorkflowEntry, WorkflowCard,
-       WorkflowJournal, WORKFLOW_STEP_STATES, WORKFLOW_OPTION_STATES,
+       WorkflowJournal, WorkflowCatalog, WORKFLOW_STEP_STATES, WORKFLOW_OPTION_STATES,
        WORKFLOW_ENTRY_KINDS, WORKFLOW_ENTRY_AUTHORS, format_workflow_time, get_workflow_time,
        find_workflow_time, get_workflow_states, is_workflow_node, get_workflow_node_title,
        get_workflow_node_children
@@ -37,12 +38,14 @@ export WorkflowTheme, ScaledWorkflowTheme
 export WorkflowNodeToWidget, WorkflowEntryToWidget, WorkflowCardToWidget, make_workflow_projections,
        make_workflow_graphics_entries, WorkflowToWidgetIoMap
 export WorkflowJournalToWidget
+export WorkflowCatalogToWidget, collect_workflow_files
 
 include("WorkflowDocument.jl")
 include("WorkflowEdits.jl")
 include("WorkflowTheme.jl")
 include("WorkflowToWidget.jl")
 include("WorkflowJournalToWidget.jl")
+include("WorkflowCatalogToWidget.jl")
 
 function __init__()
     # The rows that let the renderer draw a workflow, and a node, an entry or a

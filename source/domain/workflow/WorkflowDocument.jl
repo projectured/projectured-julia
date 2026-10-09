@@ -117,12 +117,26 @@ entry of the tree of `workflow`, the newest first.
     kind::Symbol = :all
 end
 
-# The name of a tab that shows a node of a workflow, or its journal: the text that
-# names the node.
+"""
+The workflows of a folder as a document of its own: a view that lists the `.pred`
+files of `folder` that hold a workflow.
+
+- `folder` — the path of the folder.
+- `version` — a count that a press on "Read again" raises, so the view reads the
+  folder again.
+"""
+@document struct WorkflowCatalog <: WorkflowDocument
+    folder::String = ""
+    version::Int = 0
+end
+
+# The name of a tab that shows a node of a workflow, its journal or a catalog: the
+# text that names the node, or the folder.
 get_document_title(node::Union{WorkflowStep, WorkflowDecision, WorkflowOption}) =
     get_workflow_node_title(node).value
 get_document_title(journal::WorkflowJournal) =
     journal.workflow === nothing ? "Journal" : "Journal of " * get_document_title(journal.workflow)
+get_document_title(catalog::WorkflowCatalog) = "Workflows in " * basename(catalog.folder)
 
 # ── The values of the fields ─────────────────────────────────────────────
 

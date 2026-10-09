@@ -45,6 +45,7 @@ include("../../../test/domain/workflow/document/WorkflowDocumentTest.jl")
 include("../../../test/domain/workflow/document/WorkflowEditsTest.jl")
 include("../../../test/domain/workflow/projection/WorkflowToWidgetTest.jl")
 include("../../../test/domain/workflow/projection/WorkflowJournalToWidgetTest.jl")
+include("../../../test/domain/workflow/projection/WorkflowCatalogToWidgetTest.jl")
 include("../../../test/domain/workflow/assistant/WorkflowAssistantApiTest.jl")
 include("../../../test/domain/workflow/assistant/WorkflowConversationTest.jl")
 

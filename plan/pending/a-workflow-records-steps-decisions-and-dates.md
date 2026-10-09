@@ -1,7 +1,7 @@
 # A workflow records steps, decisions and dates
 
 > **Status:** in progress on branch `workflow` (worktree
-> `projectured-julia-workflow`). Written 2026-10-09. Steps 1 to 7 are done.
+> `projectured-julia-workflow`). Written 2026-10-09. Steps 1 to 8 are done.
 
 ## 1. The request
 
@@ -403,8 +403,19 @@ turn, and an operation that switches to a workflow.
   memory of the ACP plan records for main. The export block of the module
   follows the export guard: one statement for each fragment, in the order of the
   includes.
-- [ ] **8. The catalog.** Test: a folder of three workflows gives three rows; to
+- [x] **8. The catalog.** Test: a folder of three workflows gives three rows; to
   open a row opens its tab.
+  **Done (2026-10-09).** `test_workflow_catalog_to_widget()`, 13 tests.
+  `WorkflowCatalog(folder, version)` and `WorkflowCatalogToWidget`: a "Read again"
+  button and a table with one row for each `.pred` file of the folder that holds a
+  `WorkflowStep`, the latest entry first: the goal, the state, the active steps,
+  the last entry, the count of the open decisions and the file. A press on the
+  goal answers `OpenFileOperation(path)`, which the pane slice evaluates as the
+  Files pane does, so the workflow opens in a tab of its own: no new operation.
+  The view reads the folder when it is built, and "Read again" raises `version`.
+  No example joins the registries, because a folder is not hermetic. Left for
+  later: a button that starts a new workflow, which needs an operation that
+  writes a file.
 
 ## 6. The answers of the owner (2026-10-09)
 
