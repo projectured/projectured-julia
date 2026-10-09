@@ -282,18 +282,62 @@ is the walk of 7.2 along the path from the method to the place.
 
 ## 9. Storage
 
-- **A `.jl` file** stays the text of record, because other tools read it. The
-  save prints the bound code; a use writes the name of its binder, so the cut
-  of the save must not follow the field `binding` of a use
-  (`is_written_in_file` answers `false` for it). The load parses the text and
-  binds it. The identity of a binder comes back from its name.
-- **A `.pred` file** stores the bound code as constructor calls. Each binder is
-  written once, and each use writes a reference to its binder, so the identity
-  stays. A project save does this today. A single-file save refuses a node that
-  the file reaches twice, so it needs a change to write an in-file reference
-  (question Q4).
-- **The binary snapshot**, `save_document`, keeps every identity, for one
-  version of the program.
+Bound code can be saved in three forms, and each one is supported in the end
+(the owner, 2026-10-09):
+
+1. **A plain `.jl` file.** A use writes the name of its binder, and the file is
+   normal Julia that other tools read. The load parses the text and binds it,
+   so the binders come back from the names. The cut of the save must not follow
+   the field `binding` of a use: `is_written_in_file` answers `false` for it.
+2. **A `.jl` file with references.** A use writes a reference to its binder,
+   in the notation that a `.jl` file already has for a node of another file:
+   the call `pred_ref("<<marker>>")`. A reference to a binder of the same file
+   is a special case of a reference to another file. The load resolves the
+   references, so the binders keep their identity across a save, and a use can
+   hold a binder of another file or of another domain.
+3. **A `.pred` file**, which writes the bound code as constructor calls, each
+   binder once and each other place as a reference.
+
+The binary snapshot, `save_document`, also keeps every identity, for one
+version of the program.
+
+### 9.1 The stages
+
+The first stage is the plain `.jl` file (decision Q4). My proposal for the
+order of the others (question Q13):
+
+| Stage | Form | What it adds |
+| --- | --- | --- |
+| 1 | plain `.jl`, one file | bound code by default; the load binds by the names |
+| 2 | plain `.jl`, the files of one module | the files that a module `include`s bind together, so a function of one file has one binder for the uses of every file |
+| 3 | `.jl` with references | the identity of a binder on disk, and a use where a name can not carry the binding |
+| 4 | `.pred` | the bound code as data, in the format of any document |
+
+Stage 2 comes before stage 3, because a real package spreads one module over
+many files, and its files must bind together before a reference between them
+has a binder to name.
+
+### 9.2 What stage 3 must solve
+
+- **Where a reference may stand.** `pred_ref("…")` is a call, and Julia allows
+  a call only where an expression stands. A use in an expression, such as an
+  argument, an operand or a callee, can be a reference. A use in a place that
+  defines, such as the name of a method, of an argument, or the target of the
+  assignment that makes a local, must stay a name, because a call is no valid
+  Julia there. That place is where the text shows the binder, and the
+  references point to it.
+- **The load.** The project load replaces each reference with the node that its
+  marker names: a node of the tree at a place that defines. The bind then makes
+  the binder at that place, and turns each reference to the place into a use of
+  the binder.
+- **One file alone.** The save of one file alone, `save_file!`, refuses every
+  reference today, because it was made for a reference into another file. A
+  reference into the same file needs no other file, so the save of one file
+  must write it.
+- **Which uses write a reference.** Every use, or only a use whose name would
+  not bind back to the same binder: a use that an inner binder of the same name
+  captures, a use of a binder of another file that the module does not
+  `include`, and a use of a binder of another domain (question Q14).
 
 ## 10. Where bound code is used
 
@@ -373,7 +417,9 @@ gives before the bind.
 7. ⬜ The host domains bind their Julia code against their own binders, with
    `get_binding_name` and `get_binding_kind`: the state machine, the process
    and the formula.
-8. ⬜ The `.pred` file of bound code, by the answer to Q4.
+8. ⬜ The later stages of the storage, by section 9.1: the files of one module
+   (stage 2), the `.jl` file with references (stage 3), the `.pred` file
+   (stage 4). Each stage is a plan of its own when it starts.
 9. ⬜ Screenshots in each palette and mode, and the decision on the hues.
 10. ⬜ [julia.md](../../documentation/package/domain/julia/julia.md) describes
     bound code.
@@ -383,7 +429,7 @@ gives before the bind.
 
 - **Q3. A macro:** the name of a macro call becomes a use of its binding (my
   recommendation)?
-- **Q4. The `.pred` file of bound code alone.** In bound code one node sits at
+- **Q4 (answered, section 14). The `.pred` file of bound code alone.** In bound code one node sits at
   several places: the binder `r` is in the `locals` of its method, and each
   use of `r` holds the same binder. A file can write an object only once, so
   the writer writes it at its first place and writes a reference, such as "the
@@ -407,6 +453,10 @@ gives before the bind.
   color that warns?
 - **Q10. The hues:** fonts first and screenshots, then a decision on more hues
   (my recommendation)?
+- **Q13. The stages of the storage** (section 9.1): plain `.jl` of one file,
+  then of the files of one module, then `.jl` with references, then `.pred`?
+- **Q14. The uses that write a reference** (section 9.2): every use, or only a
+  use whose name would not bind back to the same binder?
 - **Q11. The binder:** our own bind over our tree, compared with
   `JuliaLowering` in a test (my recommendation), or `JuliaLowering` itself?
 
@@ -424,3 +474,7 @@ The owner answered on 2026-10-09:
 - **Q12. The default:** "bound by default as much as possible": a `.jl` file,
   typed code and the Julia code of the other domains bind by default
   (section 10).
+- **Q4. The storage:** "Just save as .jl for now, .pred files can come later."
+  The owner added that a `.jl` file can hold references too, internal and to
+  other files, and that each form of section 9 is to be supported; the order of
+  the stages is open (section 9.1).
