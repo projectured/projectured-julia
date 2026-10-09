@@ -373,6 +373,15 @@ change how every view of syntax makes its lines, so they land together.
      joins the texts and lays out no indentation, so it now shows the breaks of the
      texts; the test of JSON states it, and a test of the printed text checks the
      layout. `test_json` 242 of 242, `test_fault_part` 26 of 26.
+   - ✅ YAML, XML, FSM, SQL, the collections and the objects, the file system,
+     the database catalog, Process and Book lists (2026-10-09), one commit each.
+     A node with only an integer moves to texts with the same output: a positive
+     integer to `open*"\n"`, `sep*"\n"` and `"\n"*close` with one level, `-1` to
+     `open*"\n"` and `sep*"\n"` with one level and no closing break; the `2` of the
+     file system and of Book lists acted as one level and is 1. The objects choose
+     their texts by their levels, so `newlines = false` stays inline. Their suites
+     pass with the counts of main, and XML's `render` tests show the breaks of a
+     body.
 
 4. **`indentation` only indents.** The transition of step 2 and the breaks of
    the integer go, `-1` goes, and the flat metric (`_syntax_to_flat`,
