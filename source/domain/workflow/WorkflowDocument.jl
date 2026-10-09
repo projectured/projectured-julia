@@ -102,6 +102,21 @@ domain, shown through the view of its own domain.
     collapsed::Bool = false
 end
 
+# ── The views ────────────────────────────────────────────────────────────
+
+"""
+The journal of a whole workflow as a document of its own: a view that shows every
+entry of the tree of `workflow`, the newest first.
+
+- `workflow` — the root of the workflow, which the view reads and does not copy.
+- `kind` — `:all`, or the kind of the entries that the view shows, such as
+  `:decision` for the log of the decisions.
+"""
+@document struct WorkflowJournal <: WorkflowDocument
+    workflow::Any = nothing
+    kind::Symbol = :all
+end
+
 # ── The values of the fields ─────────────────────────────────────────────
 
 "The states of a `WorkflowStep`, in the order that a press steps through them."

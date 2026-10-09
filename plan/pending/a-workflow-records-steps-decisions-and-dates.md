@@ -1,7 +1,7 @@
 # A workflow records steps, decisions and dates
 
 > **Status:** in progress on branch `workflow` (worktree
-> `projectured-julia-workflow`). Written 2026-10-09. Steps 1 to 4 are done.
+> `projectured-julia-workflow`). Written 2026-10-09. Steps 1 to 5 are done.
 
 ## 1. The request
 
@@ -349,8 +349,20 @@ turn, and an operation that switches to a workflow.
   - Limits, left for later: the row of add buttons under every node is heavy;
     an added node does not take the caret; a card whose content is a primitive
     draws it in the plain style of the renderer.
-- [ ] **5. The journal table.** Test: the rows, the order and the decision
+- [x] **5. The journal table.** Test: the rows, the order and the decision
   filter.
+  **Done (2026-10-09).** `test_workflow_journal_to_widget()`, 11 tests; the
+  printer, reader and REPL drivers pass on `workflow_journal_example`. A second
+  view of a workflow is a document that holds it, as the data frame view holds a
+  frame: `WorkflowJournal(workflow, kind)`, drawn by `WorkflowJournalToWidget` as
+  a choice of the kind above a `WidgetTable` of time, author, kind, node and
+  text, the newest first. The choice writes `kind` of the journal; `:decision` is
+  the decision log. The output is a computed cell, so a new entry anywhere in the
+  tree shows at the top. The table is read only: an entry is edited in the
+  outline. The plan named "the filter, the sort and the find of the table"; the
+  general filter of any table is a pending plan of its own
+  (`filter-sort-and-find-any-table.md`), so the journal has the choice of the kind
+  only.
 - [ ] **6. The assistant tools.** The tool descriptions say which points are
   important enough to record. Test: a `ScriptedLlm` turn that records a
   decision, then an undo.

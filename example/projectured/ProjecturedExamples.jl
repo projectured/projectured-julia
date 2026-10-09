@@ -33,6 +33,7 @@ const examples = [
     fsm_example, fsm_toggle_example, fsm_diagram_example,
     pivot_example,
     workflow_example,
+    workflow_journal_example,
     math_example,
     julia_example,
     formula_example,

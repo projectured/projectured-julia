@@ -55,3 +55,11 @@ The renderer that draws any document, which draws a workflow as its outline: the
 rows that the workflow domain registers.
 """
 make_workflow_projection_example(; measure = FontFileMeasure()) = NaturalToGraphics(; measure)
+
+"""
+    make_workflow_journal_document_example() -> WorkflowJournal
+
+The journal of the workflow of `make_workflow_document_example`: every entry of
+its tree as a table.
+"""
+make_workflow_journal_document_example() = WorkflowJournal(workflow = make_workflow_document_example())
