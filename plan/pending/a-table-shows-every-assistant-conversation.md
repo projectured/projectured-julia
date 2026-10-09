@@ -1,8 +1,8 @@
 # A table shows every assistant conversation
 
-> **Status:** pending. Written 2026-10-09. No step is done. How a collection is
-> filled is not decided (3.8), so 3.3, 3.7 and the steps 4, 7 and 8 wait for
-> that decision.
+> **Status:** pending. Written 2026-10-09. No step is done. The fill of the
+> first version is decided (3.8, 2026-10-09): the assistants in the tabs of the
+> window. An assistant inside a tab (3.7) is deferred.
 
 ## 1. The request
 
@@ -122,48 +122,56 @@ loads with `0.0`.
 
 ### 3.3 The registry of the session
 
-> **Not decided.** This section is one option of 3.8: the universe U1 with the
-> way N1.
+> **Decided (2026-10-09):** F3 with U1, and N1 only for the pane documents
+> (3.8). The owner agreed to the simplest start: "yes, I agree with this".
 
-`AssistantList` is the one registry of the open assistants of the session, a
+`AssistantList` is the registry of the open assistants of the session, a
 document in the assistant slice. The owner asked for it (2026-10-09): "perhaps
 we need a central registry which assistants could be added by some means and
-removed". It holds:
+removed". In the first version, the tabs of the window are its only source. It
+holds:
 
-- `assistants` — the open assistants, computed from the sources below. The
-  order is the order in which the registry first saw each assistant, newest
-  first.
-- `added::CellVector` — the assistants that a caller added with
-  `add_assistant!` and did not take out with `remove_assistant!`.
+- `assistants` — the assistants that are the content of a tab, computed. The
+  order is the order of the tabs in the window. A sort can come later from the
+  filter plan. (Mine: the simplest order.)
 - `selected` — the assistant that the detail shows, or `nothing`. It is an
   assistant, not an index, so a row that comes or goes does not move the
   detail to another assistant.
 - `get_session_assistant_list()` makes it at the first call.
 
-The registry gets the open assistants from three sources:
+**The read of the tabs.** A function of the pane slice gives the contents of
+all tabs of a pane tree that have a type `T`, for example
+`collect_pane_tab_contents(tree, T)`. Step 4 checks the name against the naming
+rules. It reads `PaneTree.root`, then `PaneSplit.elements`, then
+`PaneGroup.tabs`, then `PaneTab.content`, and it looks through a file and its
+history with `get_edited_field`, so that a JSON file in a tab is found by
+`JsonFile`. (Mine: a tab can hold a file or a history around the document,
+so the read matches `T` at each layer of the chain.) All of them are cells, so the read runs again only when a tab
+opens, closes or moves, and never after an edit inside a tab. The function
+knows no assistant, so "all JSON files in tabs" and "all charts in tabs" use it
+with another type.
 
-1. **Stage 1: the tabs of each window.** The application builds the pane tree,
-   so the application links the registry to the tree once. The link is no
-   document field, because the tree holds the Assistants pane, and a field
-   would make a cycle. The application sets it, as a window sets the `opener`
-   of `TaskGroupList`. The registry reads `PaneTree.root`, then
-   `PaneSplit.elements`, then `PaneGroup.tabs`, then `PaneTab.content`. All
-   of them are cells, so the read runs again only when a tab opens, closes or
-   moves, and never after an edit inside a tab. Every path that puts a document
-   into a tab is covered with no hook: the start of the application,
-   `open_pane!`, the load of a pane file, the insertion into an empty tab, a
-   paste, the duplicate of a tab, and the undo of a close. An empty assistant
-   tab gets a row.
-2. **Stage 2: an assistant inside a tab**, for example in a layout or in a card.
-   See 3.7.
-3. **`add_assistant!` and `remove_assistant!`**, for a source that is no tab,
-   for example an assistant that an MCP client starts.
+**The link.** The application builds the screen and its pane trees, so the
+application gives the registry a function that answers the open assistants:
+the read of the tabs of each window of the screen. It is no document field,
+because the tree holds the Assistants pane and a field would make a cycle. The
+application sets it, as a window sets the `opener` of `TaskGroupList`. So the
+assistant slice does not depend on the pane slice.
 
-A row leaves the table when its assistant is no longer open. The undo of the
-close of a tab brings the row back. The description, the comment and the work
-state stay in the `Assistant` document, so nothing that the person wrote is
-lost. A precompile and a test that build an assistant and show it in no window
-add no row.
+**What it covers.** Every path that puts a document into a tab, with no hook:
+the start of the application, `open_pane!`, the load of a pane file, the
+insertion into an empty tab, a paste, the duplicate of a tab, and the undo of
+a close. An empty assistant tab gets a row. The read follows the live tree, not
+the undo history, so an undone tab is not found.
+
+**A row leaves the table when its tab closes.** The undo of the close brings
+the row back. The table has no Close button. The description, the comment and
+the work state stay in the `Assistant` document, so nothing that the person
+wrote is lost. A precompile and a test that build an assistant and show it in
+no window add no row.
+
+**Not in the first version:** an assistant inside a tab (3.7), and
+`add_assistant!` and `remove_assistant!` for a source that is no tab.
 
 ### 3.4 The values of a row
 
@@ -225,10 +233,11 @@ same title. Step 5 changes or adds a method of `show_document!` for that.
 
 ### 3.7 Stage 2: an assistant inside a tab
 
-> **Not decided.** The owner chose 2B, "walk the editor.document", and then
-> stopped (2026-10-09): "wait, I'm not sure we should walk, this is a generic
-> problem which needs a solution". The three ways below are the ways N3, N2 and
-> N4 of 3.8.
+> **Deferred (2026-10-09).** Not in the first version. The owner allowed it:
+> "we can defer this if this is difficult or expensive". The owner chose 2B,
+> "walk the editor.document", and then stopped: "wait, I'm not sure we should
+> walk, this is a generic problem which needs a solution". The three ways below
+> are the ways N3, N2 and N4 of 3.8.
 
 The owner asked for every open assistant (2026-10-09): "ultimately, I would like
 to have all assistants which are open", and then: "you can do both stage 1 and
@@ -281,8 +290,9 @@ with its signal, or a release.
 
 ### 3.8 How a collection is filled
 
-> **Not decided.** This section records the options, so that the decision can
-> say which ones are supported and which ones are not.
+> **Decided for the first version (2026-10-09).** The Decision column says
+> which options are supported and which ones are not. "Not supported now"
+> means that a later plan can take it, at its cost.
 
 The owner (2026-10-09): "this is a generic problem which needs a solution,
 there can be any number of things which can sand on their own and which can
@@ -313,9 +323,9 @@ So a collection is three things:
 
 | Way | Example | Cost | Decision |
 | --- | --- | --- | --- |
-| **F1. Its maker fills it.** | A run fills its `TaskGroup`. A person drags an item into a list. | The code of the maker. Nothing generic. | not decided |
-| **F2. A filter of another collection.** The owner (2026-10-05): "A filter is a filter, any collection can be filtered and you can get a similar kind of collection." | "All assistants that work on a topic" from "all assistants". | The predicate for each item. It runs again when a cell that it reads changes. The filter plan, [filter-sort-and-find-any-table.md](filter-sort-and-find-any-table.md), builds it as a projection. | not decided |
-| **F3. A universe fills it.** | "All assistants", "all tasks". | See the universes and the ways to notice below. | not decided |
+| **F1. Its maker fills it.** | A run fills its `TaskGroup`. A person drags an item into a list. | The code of the maker. Nothing generic. | not in this plan; `TaskGroup` uses it |
+| **F2. A filter of another collection.** The owner (2026-10-05): "A filter is a filter, any collection can be filtered and you can get a similar kind of collection." | "All assistants that work on a topic" from "all assistants". | The predicate for each item. It runs again when a cell that it reads changes. The filter plan, [filter-sort-and-find-any-table.md](filter-sort-and-find-any-table.md), builds it as a projection. | not in this plan; the filter plan builds it |
+| **F3. A universe fills it.** | "All assistants", "all tasks". | See the universes and the ways to notice below. | **supported** (the first version) |
 
 "All tasks that run fingerprint tests" can be F1, the group of one fingerprint
 run, or F2, a filter over all tasks by the kind of the task.
@@ -327,30 +337,30 @@ different set in each of the two collections that exist now.
 
 | Universe | Example | Today | Decision |
 | --- | --- | --- | --- |
-| **U1. Open in the window** | The assistant tabs, the open JSON files, the line charts in tabs | The assistant table of this plan | not decided |
-| **U2. Made or started in this session** | The task groups, also after their pane closes | `TaskGroupList` | not decided |
-| **U3. Saved in a folder** | All JSON files of a folder | None | not decided |
-| **U4. Outside the editor** | The Claude Code sessions in `~/.claude/projects/` | None. The owner: not in this plan. | not decided |
+| **U1. Open in the window** | The assistant tabs, the open JSON files, the line charts in tabs | The assistant table of this plan | **supported**, the tabs only |
+| **U2. Made or started in this session** | The task groups, also after their pane closes | `TaskGroupList` | not for assistants; `TaskGroupList` uses it |
+| **U3. Saved in a folder** | All JSON files of a folder | None | not supported now |
+| **U4. Outside the editor** | The Claude Code sessions in `~/.claude/projects/` | None. The owner: not in this plan. | not supported now |
 
 #### What notices that an item comes or goes
 
 | Way | Universe | Cost | Decision |
 | --- | --- | --- | --- |
-| **N1. The places of the window.** Each container names the places that it holds. Each layer already names its edited field with [`get_edited_field`](../../source/kernel/document/DocumentInterface.jl#L438). | U1 | One method for each container type: the pane tree, a split, a group, the windows of the screen, and a layout if a layout has places. The read depends only on the places: it runs again when a tab opens, closes or moves, never after an edit inside a document. It does not find an item inside the data of a document. | not decided |
-| **N2. A walk of `editor.document`** with `search_documents`. | U1 | The cost grows with all the data. A reactive walk runs again after each key press. A walk that is not reactive needs a signal to run. The walk must skip the undo history: an undone step keeps its nodes in `redo_entries`, so a closed tab is found as open. | not decided |
-| **N3. A walk of the print tree** with `get_child_iomaps`. | U1 | The cost grows with what the window prints. About 25 IO map types have the method. Each other IO map that holds children needs one, or the walk stops there. It does not find a part that is not printed. | not decided |
-| **N4. A release of an IO map.** | U1 | A new mechanism of the kernel. Each projection that drops a child IO map without the reconciler must call it. One missed call leaves an item that is gone. | not decided |
-| **N5. A hook when a document enters the window**, the counterpart of `release_document!`. | U1 | At least seven paths must call it: the start of the application, `open_pane!`, the load of a pane file, the insertion into an empty tab, a paste, the duplicate of a tab, the undo of a close. One missed path leaves an item out. | not decided |
-| **N6. The item adds itself at an event of its life**, as a task group does at its start. | U2 | One call at the event, on the editor task. Not at the construction: a precompile builds documents into constants, and a test or a fork that no window shows also adds one. The collection keeps each item alive until it is taken out. | not decided |
-| **N7. A listing of a folder.** The `filechange` slice already watches folders and drains the changes on the editor task. | U3 | A read of the folder after each change, and a read of each file for the values of its columns. | not decided |
-| **N8. A reader of an outside source**: the listing and the parse of the transcripts. | U4 | A read after each change, or a poll. The items are read-only. | not decided |
+| **N1. The places of the window.** Each container names the places that it holds. Each layer already names its edited field with [`get_edited_field`](../../source/kernel/document/DocumentInterface.jl#L438). | U1 | One method for each container type: the pane tree, a split, a group, the windows of the screen, and a layout if a layout has places. The read depends only on the places: it runs again when a tab opens, closes or moves, never after an edit inside a document. It does not find an item inside the data of a document. | **supported** for the pane documents only; the places of other containers are not supported now |
+| **N2. A walk of `editor.document`** with `search_documents`. | U1 | The cost grows with all the data. A reactive walk runs again after each key press. A walk that is not reactive needs a signal to run. The walk must skip the undo history: an undone step keeps its nodes in `redo_entries`, so a closed tab is found as open. | not supported now |
+| **N3. A walk of the print tree** with `get_child_iomaps`. | U1 | The cost grows with what the window prints. About 25 IO map types have the method. Each other IO map that holds children needs one, or the walk stops there. It does not find a part that is not printed. | not supported now |
+| **N4. A release of an IO map.** | U1 | A new mechanism of the kernel. Each projection that drops a child IO map without the reconciler must call it. One missed call leaves an item that is gone. | not supported now |
+| **N5. A hook when a document enters the window**, the counterpart of `release_document!`. | U1 | At least seven paths must call it: the start of the application, `open_pane!`, the load of a pane file, the insertion into an empty tab, a paste, the duplicate of a tab, the undo of a close. One missed path leaves an item out. | not supported now |
+| **N6. The item adds itself at an event of its life**, as a task group does at its start. | U2 | One call at the event, on the editor task. Not at the construction: a precompile builds documents into constants, and a test or a fork that no window shows also adds one. The collection keeps each item alive until it is taken out. | not for assistants; task groups use it |
+| **N7. A listing of a folder.** The `filechange` slice already watches folders and drains the changes on the editor task. | U3 | A read of the folder after each change, and a read of each file for the values of its columns. | not supported now |
+| **N8. A reader of an outside source**: the listing and the parse of the transcripts. | U4 | A read after each change, or a poll. The items are read-only. | not supported now |
 
 #### Two more questions
 
 | Question | Options | Decision |
 | --- | --- | --- |
-| **Does the collection keep its items alive?** | Yes, until the person takes an item out, as `TaskGroupList` does. Or no: it only refers to its items, as a collection of the open assistants does. | not decided |
-| **What does a change through the collection mean?** | An add to a filtered collection (F2) writes the field that the predicate reads, for example the topic of an assistant, or it is refused. A remove from a collection of open items (U1) closes the item, or it is refused. | not decided |
+| **Does the collection keep its items alive?** | Yes, until the person takes an item out, as `TaskGroupList` does. Or no: it only refers to its items, as a collection of the open assistants does. | **no** for the assistant table: it refers to the open assistants, and a row leaves when its tab closes |
+| **What does a change through the collection mean?** | An add to a filtered collection (F2) writes the field that the predicate reads, for example the topic of an assistant, or it is refused. A remove from a collection of open items (U1) closes the item, or it is refused. | not supported now: the assistant table has no add and no remove |
 
 ## 4. Steps
 
@@ -367,12 +377,14 @@ Each step gets a commit. Each step runs the narrowest test that covers it.
 - [ ] **3. The values of a row.** Add the functions of 3.4. Test each one on an
   assistant with a `ScriptedLlm`: before a turn, while a turn runs, while a
   permission request waits, and after a failure.
-- [ ] **4. The registry, stage 1.** *Waits for 3.8.* Add `AssistantList`,
-  `get_session_assistant_list`, `add_assistant!` and `remove_assistant!`, and
-  the link from the application to the pane tree. Test in a real editor that an
-  empty assistant tab gets a row, that each path of 3.3 adds the row, that a
-  close takes it out, and that the undo of the close brings it back. Test that
-  an edit inside a tab does not run the read again.
+- [ ] **4. The registry of the tabs.** Add the read of the tabs to the pane
+  slice, and `AssistantList` and `get_session_assistant_list` to the assistant
+  slice. Let the application give the registry the read of its windows. Test
+  the read alone on a pane tree: a split, two groups, a file in a tab, and an
+  undone close. Test in a real editor that an empty assistant tab gets a row,
+  that each path of 3.3 adds the row, that a close takes it out, and that the
+  undo of the close brings it back. Test that an edit inside a tab does not
+  run the read again.
 - [ ] **5. The pane.** Add `AssistantListToWidgetPane` with the table, the
   palette command and `show_assistant_list!`. Make Show find the tab by its
   content. Test the rows in a real editor: a label changes when a turn starts
@@ -380,10 +392,10 @@ Each step gets a commit. Each step runs the narrowest test that covers it.
 - [ ] **6. The detail.** Add the split and the detail. Test in a real editor that
   a key edits the description and the comment, and that the select sets
   `work_state`.
-- [ ] **7. Stage 2, the facts.** *Waits for 3.8.* Count the IO maps that hold children and have
+- [ ] ~~**7. Stage 2, the facts.**~~ *Deferred (3.7).* Count the IO maps that hold children and have
   no method of `get_child_iomaps`. Measure the walk of 2A on the largest
   example. Write the numbers in 3.7, and ask the owner to choose 2A, 2B or 2C.
-- [ ] **8. Stage 2, the way that the owner chose.** *Waits for 3.8.* Test in a real editor that
+- [ ] ~~**8. Stage 2, the way that the owner chose.**~~ *Deferred (3.7).* Test in a real editor that
   an assistant inside a layout of a tab gets a row, and that the row goes when
   the layout loses the assistant.
 - [ ] **9. The guide.** Update
@@ -405,7 +417,9 @@ The owner answered the six questions on 2026-10-09.
    chose 2B, "walk the editor.document", and then stopped: "wait, I'm not sure
    we should walk, this is a generic problem which needs a solution". I then
    proposed N1 of 3.8 for every kind of document. The owner: "no, don't rush
-   it", and gave the model of 3.8. The fill is not decided.
+   it", and gave the model of 3.8. The owner then asked for the simplest start,
+   and agreed to the tabs only: "yes, I agree with this". The decisions are in
+   the tables of 3.8.
 2. **A native assistant that loads.** Keep the description, the comment and the
    work state. The owner: "yes, eventually the conversation should also load".
    The load of the conversation of a native assistant is a later plan.
@@ -441,12 +455,4 @@ The owner answered the six questions on 2026-10-09.
 
 ## 6. Open questions
 
-1. **How a collection is filled.** Which rows of 3.8 are supported and which
-   are not. The owner: "it's just the cost which decides". The steps 4, 7 and
-   8 wait for this decision.
-2. **A row leaves when its assistant closes.** The design in 3.3 takes the row
-   out when the assistant is no longer open, so the table has no Close button.
-   The owner did not answer this point. It is the question "does the collection
-   keep its items alive?" of 3.8.
-
-Step 5 asks again if it finds no document that every tab is inside.
+None. Step 5 asks again if it finds no document that every tab is inside.
