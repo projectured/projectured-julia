@@ -30,9 +30,14 @@ are plain values:
   press calls with the editor that evaluates the press and the task;
 - `get_task_result_document(task, result)` gives a document that shows the
   result in more than lines of text, such as the table of the scalars that a
-  statistical test compared. The detail of the task shows it below its facts.
-  It draws by the method of `make_graphics_projection` for its type, as it
-  draws in any document, so the renderer of the views reads that seam too.
+  statistical test compared. The task document holds it in `result_document`,
+  made when a view first reads it after the result came, and the same document
+  until the result changes. The detail of the task shows it below its facts, in
+  the card of an embedded document. It draws by the method of
+  `make_graphics_projection` for its type, as it draws in any document, so the
+  renderer of the views reads that seam too. A path reaches it,
+  `tasks[i].result_document`, and the pane maps that path to the card and back,
+  as a page maps an embedded file: a person edits the document where it shows.
 
 The defaults answer nothing, so a task of a kind that adds nothing shows what
 every task has. A run of a simulation, for example, can add its directory, its

@@ -34,7 +34,7 @@ import ..DocumentModule: copy_document, has_document_duplicate, get_document_tit
 import ..DomainModule: accepts_pasted_document
 import ..FeedModule: drain_changes!, compute_wake_deadline
 import ..PaneModule: make_pane_tab_title
-import ..ProjectionModule: print_document
+import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
 
 export AbstractTask, TaskResult, ResultCodes, RUN_RESULT_CODES, TEST_RESULT_CODES,
        UPDATE_RESULT_CODES, get_result_codes, get_result_role, is_expected,

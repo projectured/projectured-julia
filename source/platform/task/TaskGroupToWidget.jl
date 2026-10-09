@@ -368,6 +368,105 @@ end
 
 # ── The detail of one task ───────────────────────────────────────────────────
 
+# ── The document of a result, edited where it shows ─────────────────────────
+#
+# The detail of a task draws the document of its result in the card of an
+# embedded document (`make_embed_card`). A path from the group reaches the
+# document, `tasks[i].result_document + rest`, so the pane maps that path to the
+# card, `content + rest`, and back, as a page maps an embedded file. Every other
+# path takes the defaults of `Projection`.
+
+# The steps from the root of the pane to the detail: the split is the second
+# child of the root, in a constraint, and the detail is the second pane of the
+# split, in a constraint too (`_build_group_parts`).
+const _DETAIL_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1, 2), FieldReferenceStep("child"),
+                       FieldReferenceStep("elements"), RangeReferenceStep(1, 2), FieldReferenceStep("child"))
+
+# The parts of the detail of a task before the card of its result: its state, its
+# facts, its process, its result, its earlier executions and its buttons.
+const _PARTS_BEFORE_RESULT_DOCUMENT = 6
+
+# The task whose result the detail of the pane shows in a card, and the steps from
+# the root of the pane to that card; `nothing` when the detail shows no such
+# card. A task of an inner group shows in the detail of that group, which no path
+# from this group reaches.
+function _find_result_card_place(doc::TaskGroupDocument)
+    index = getfield(doc, :selected)[]
+    documents = getfield(doc, :tasks)[]
+    (1 <= index <= length(documents)) || return nothing
+    find_task_group_document(doc, index) === nothing || return nothing
+    getfield(documents[index], :result_document)[] === nothing && return nothing
+    (index, (_DETAIL_STEPS..., FieldReferenceStep("children"),
+             RangeReferenceStep(_PARTS_BEFORE_RESULT_DOCUMENT, _PARTS_BEFORE_RESULT_DOCUMENT + 1),
+             FieldReferenceStep("child")))
+end
+
+# The steps from the group to the document of the result of task `index`.
+_get_result_document_steps(index::Int) =
+    (FieldReferenceStep("tasks"), RangeReferenceStep(index - 1, index), FieldReferenceStep("result_document"))
+
+# What a step names, so a step that a reader answers and a step written here
+# compare by what they select.
+_get_step_key(step::FieldReferenceStep) = (:field, step.name)
+_get_step_key(step::RangeReferenceStep) = (:range, step.start, step.stop)
+_get_step_key(step) = (:other, step)
+
+_make_steps_reference(steps) =
+    foldr((step, rest) -> ConcreteReference(step, rest), steps; init = EmptyReference())
+
+# The part of `path` below `head`, or `nothing` when `path` does not begin with it.
+function _find_path_below(path, head)
+    path isa ConcreteReference || return nothing
+    steps = get_reference_steps(strip_reference_types(path))
+    length(steps) >= length(head) || return nothing
+    all(_get_step_key(steps[k]) == _get_step_key(head[k]) for k in eachindex(head)) || return nothing
+    _make_steps_reference(steps[(length(head) + 1):end])
+end
+
+function map_reference_forward(p::TaskGroupDocumentToWidgetPane, iomap, reference)
+    place = reference isa ConcreteReference ? _find_result_card_place(iomap.input) : nothing
+    if place !== nothing
+        (index, steps) = place
+        inside = _find_path_below(reference, _get_result_document_steps(index))
+        inside === nothing || return annotate_reference_types(iomap.output,
+            concat_references(_make_steps_reference(steps), make_embed_card_path(inside)))
+    end
+    invoke(map_reference_forward, Tuple{Projection,Any,Any}, p, iomap, reference)
+end
+
+function map_reference_backward(p::TaskGroupDocumentToWidgetPane, iomap, reference)
+    place = reference isa ConcreteReference ? _find_result_card_place(iomap.input) : nothing
+    if place !== nothing
+        (index, steps) = place
+        below = _find_path_below(reference, steps)
+        inside = below === nothing ? nothing : find_embed_card_path_inside(below)
+        inside === nothing || return annotate_reference_types(iomap.input,
+            concat_references(_make_steps_reference(_get_result_document_steps(index)), inside))
+    end
+    invoke(map_reference_backward, Tuple{Projection,Any,Any}, p, iomap, reference)
+end
+
+# A key goes to the child that the selection of each container names, so each
+# widget and layout from the root of the pane to the card holds its part of the
+# path. The walk stops at a card that holds a document of a domain: the card
+# follows the paths of its document (`make_embed_card`), and the document holds
+# its own. It leaves out the table, whose rows take no key.
+_is_embed_card(node) =
+    node isa WidgetCard && node.content isa Document &&
+    !(node.content isa WidgetDocument || node.content isa LayoutDocument)
+_is_followed_by_selection(node) =
+    (node isa WidgetDocument || node isa LayoutDocument) && !(node isa WidgetTable) && !_is_embed_card(node)
+
+# A part that the detail builds holds its part of the paths of the detail, so a
+# key reaches the card after the person picks another task: the walk of the pane
+# reaches only the parts that were there when the pane was drawn.
+function _follow_detail_part!(detail, part, position::Int)
+    steps = (FieldReferenceStep("children"), RangeReferenceStep(position, position + 1))
+    below(field) = () -> _find_path_below(getfield(detail, field)[], steps)
+    follow_output_selection!(part, below(:selection); forward_mouse_target = below(:mouse_target),
+                             is_followed = _is_followed_by_selection)
+end
+
 function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
     group = get_task_group(doc)
     detail = VerticalLayout(Any[]; gap = p.stack_gap, child_width = Fill)
@@ -416,11 +515,17 @@ function _build_detail(p, doc::TaskGroupDocument, bounded::Bool)
                       for (label, action) in get_task_actions(task)]
         push!(parts, HorizontalLayout(Any[stop, again, actions...]; vertical_align = :center,
                                       gap = p.inline_gap))
-        # The document that the kind gives for the result, between the facts and
-        # the output; a new result builds the detail again.
-        result = get_task_document_result(document)
-        shown = result === nothing ? nothing : get_task_result_document(task, result)
-        shown === nothing || push!(parts, LayoutConstraint(shown; height = Relative(2), width = Fill))
+        # The document that the kind gives for the result, in the card of an
+        # embedded document, between the facts and the output. The maps of the
+        # pane find the card by its place.
+        shown = getfield(document, :result_document)[]
+        if shown !== nothing
+            length(parts) == _PARTS_BEFORE_RESULT_DOCUMENT ||
+                error("the card of the result is not where the maps of the pane find it")
+            card = make_embed_card(shown, something(get_document_title(shown), "Result"))
+            push!(parts, _follow_detail_part!(detail, LayoutConstraint(card; height = Relative(2), width = Fill),
+                                              length(parts)))
+        end
         push!(parts, _make_label("stdout", p.muted_color))
         push!(parts, _build_output_pane(() -> collect_task_document_lines(document, :output); weight = 2))
         push!(parts, _make_label("stderr", p.muted_color))
@@ -617,7 +722,13 @@ function print_document(p::TaskGroupDocumentToWidgetPane, recursion, doc::TaskGr
     iomap = ChildrenIoMap(p, doc, root, Cell(Any[]))
     # The part under the pointer, so a button lights and takes a press.
     follow_output_mouse_target!(root, () ->
-        map_mouse_target_forward(doc, path -> map_reference_forward(p, iomap, path)))
+        map_mouse_target_forward(doc, path -> map_reference_forward(p, iomap, path));
+        is_followed = !_is_embed_card)
+    # The caret, so a key reaches the document of a result in the detail.
+    follow_output_selection!(root, () -> begin
+        path = getfield(doc, :selection)[]
+        path === nothing ? nothing : map_reference_forward(p, iomap, path)
+    end; is_followed = _is_followed_by_selection)
     iomap
 end
 

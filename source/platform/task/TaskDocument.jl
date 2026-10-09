@@ -28,6 +28,12 @@ and runs no process, for an example or a picture of a task.
 - `executions` — the shadow of every execution of the task, the newest last. A
   view reads them; the feed of the session syncs each one while its execution
   runs. A start again adds one and replaces none ([`add_task_execution!`](@ref)).
+- `result_document` — the document that the kind of the task gives for the
+  result of the current execution ([`get_task_result_document`](@ref)), or
+  `nothing`. It computes when a view reads it, on the editor task, and stays the
+  same document until the result changes, so an edit of it stays while the
+  person looks at another task. A path reaches it, so a key edits it where the
+  detail of the task shows it.
 
 While the document has a current execution, its shadow is the last of
 `executions` ([`get_current_task_execution`](@ref)).
@@ -36,10 +42,12 @@ While the document has a current execution, its shadow is the last of
     task::Any
     running::Any
     executions::Any
+    result_document::Any
 end
 
 function TaskDocument(task; status::Symbol = :pending, progress = nothing)
-    document = TaskDocument(Cell(task), Cell(nothing), Cell(Any[]), Cell(nothing))
+    document = _follow_result_document!(TaskDocument(Cell(task), Cell(nothing), Cell(Any[]),
+                                                     Cell(nothing), Cell(nothing)))
     status === :pending && return document
     execution = TaskExecution(task)
     execution.status = status
@@ -53,7 +61,17 @@ end
 accepts_pasted_document(::TaskDocument) = false
 has_document_duplicate(::TaskDocument) = true
 copy_document(policy::DuplicatePolicy, document::TaskDocument) =
-    copy_document_fields(policy, document; running = nothing, executions = Any[])
+    _follow_result_document!(copy_document_fields(policy, document; running = nothing,
+                                                  executions = Any[], result_document = nothing))
+
+# The document of the result follows the result of the current execution.
+function _follow_result_document!(document::TaskDocument)
+    set_cell_computation!(getfield(document, :result_document), () -> begin
+        result = get_task_document_result(document)
+        result === nothing ? nothing : get_task_result_document(getfield(document, :task)[], result)
+    end)
+    document
+end
 
 """
     get_current_task_execution(document) -> shadow or nothing
