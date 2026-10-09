@@ -222,24 +222,46 @@ Each step gets a commit. Each step runs the narrowest test that covers it.
   [assistant.md](../../documentation/package/platform/assistant/assistant.md).
   Move this plan to `plan/done/`.
 
-## 5. Open questions
+## 5. The answers of the owner
 
-1. **An assistant with no prompt.** Does a new tab with no prompt need a row?
-   Recommendation (mine): no. The row comes at the first submit, as a task group
-   comes at its start.
-2. **A native assistant that loads.** Its conversation loads empty, but its
-   description, comment and work state stay. Recommendation (mine): keep them.
-   They are what the person wrote.
-3. **The title of a native assistant tab.** Must the tab also take the first
-   line of the first prompt as its title? Recommendation (mine): not in this
-   plan. It changes the tab of every native assistant.
-4. **The elapsed time while a turn runs.** A label of the elapsed time must draw
-   again each second. The candidate is the kernel `Clock` with
-   `start_wall_clock!`, which runs only while a turn runs. This step must not
-   add a new mechanism without the word of the owner.
-5. **The place of the palette command.** "Show the settings" lives on
-   `SettingsDocument`. The command "Show the assistants" needs a document that
-   every tab is inside. Step 5 finds it, or asks.
-6. **The context of a native backend.** The native backends give `input_tokens`
-   in `LlmTurnEnd`. A later step can keep it, so the Context column also shows a
-   native assistant. Not in this plan.
+The owner answered the six questions on 2026-10-09.
+
+1. **An assistant with no prompt.** No row. The row comes at the first submit,
+   as a task group comes at its start. The owner agreed with this
+   recommendation.
+2. **A native assistant that loads.** Keep the description, the comment and the
+   work state. The owner: "yes, eventually the conversation should also load".
+   The load of the conversation of a native assistant is a later plan.
+3. **The title of a native assistant tab.** No change. The owner: "not needed".
+4. **The elapsed time while a turn runs.** Use the kernel `Clock` with
+   `start_wall_clock!`. The owner: "yes".
+5. **The place of the palette command.** Step 5 finds the document that every
+   tab is inside, or asks. The owner: "yes, we need assistant settings anyway
+   for at least what part of the conversation starts expanded/collapsed, there
+   are many parts".
+   - The facts now: no `AssistantSettings` group exists. The groups are
+     `HistorySettings`, `FaultSettings`, `PointerSettings`, `RenderSettings` and
+     `StartSettings`, each declared with `@settings` in its own slice.
+     `StartSettings` holds the backend, the model and the agent command of the
+     assistant, and the application reads them only at its start.
+   - Which part starts collapsed is now decided in code: `collapse_thinking` on
+     each `Assistant`, and `_collapse_tool_default`
+     ([AssistantTurn.jl:675](../../source/platform/assistant/AssistantTurn.jl#L675)),
+     which collapses a tool call that reads a resource.
+   - `AssistantModule` does not use `SettingsModule` now. An `AssistantSettings`
+     group in the assistant slice adds that dependency. Check it against the
+     package rules first.
+   - A settings group is not on the path from the root to a tab, so a gesture of
+     the group does not work from every tab. "Show the settings" works from
+     every tab because `SettingsDocument` wraps the content.
+   - **The owner (2026-10-09): `AssistantSettings` and the defaults of which
+     parts start collapsed are a separate plan.** This plan does not add the
+     group. Step 5 puts the command on a document that every tab is inside, so
+     that the separate plan can move it to the group later. If step 5 finds no
+     such document, it asks.
+6. **The context of a native backend.** A later plan keeps `input_tokens`. The
+   owner: "agreed".
+
+## 6. Open questions
+
+None. Step 5 asks again if it finds no document that every tab is inside.
