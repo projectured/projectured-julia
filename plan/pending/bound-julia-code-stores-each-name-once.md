@@ -128,7 +128,7 @@ they are syntax and no function: `&&` and `||`, and the `=` of an assignment.
 An update such as `x += 1` holds a use of `+`, and the printer writes `+=`. The
 printer reads the spelling and the precedence of an operator from the name of
 its binder. A macro is a binding too, so `JuliaMacroCall.name` takes a use as
-well if the owner agrees (question Q3).
+well (decision Q3).
 
 ### 4.4 An example
 
@@ -202,12 +202,12 @@ The rule of a `JuliaBindingUse` takes the style of the type of its binder:
 | `JuliaFieldBinding` | `field` | |
 | `JuliaModuleBinding` | `module_name` | |
 | `JuliaExternalBinding` | the role of its `kind` | |
-| `JuliaUnresolvedName` | `variable` (question Q9) | |
+| `JuliaUnresolvedName` | `variable` (decision Q9) | |
 
 The name of a binder takes the same role in bold. The roles exist since B1;
 `JuliaTheme` gets a field for each row that it has no field for. Whether a
 local, a global and a parameter need hues of their own is the question of
-section 10.3 of the plan of B1, and it waits for screenshots (question Q10).
+section 10.3 of the plan of B1, and it waits for screenshots (decision Q10).
 
 ## 7. The bind
 
@@ -263,22 +263,54 @@ Julia has a binder of its own: `JuliaLowering` gives each name a binding id. It
 works on the syntax trees of `JuliaSyntax`, while `parse_julia` converts the
 `Expr` of `Meta.parseall`. My recommendation is a bind of our own over our tree,
 with a test that compares it with `JuliaLowering` on a corpus when the package
-is there (question Q11).
+is there (decision Q11).
 
 ## 8. Editing
+
+**A binding breaks only by an operation of the person, never as a side effect
+of another edit** (the owner, 2026-10-09). A use holds its binder as firmly as
+the definition does: the call of a function keeps the function, and the use of
+a variable keeps the variable.
 
 | Edit | What happens |
 | --- | --- |
 | a person types in the name of a binder | the binder takes the new name, and every use prints it (a rename) |
-| a person types a name in place of a use | the reader binds the text at that place: a use of the binder that Julia gives that name there, or a `JuliaUnresolvedName` |
+| a person deletes the definition of a binder that has uses | the binder stays, because its uses hold it; the text shows a declaration of it, so that a save and a load keep the binding (section 8.1) |
+| a person moves code, by a cut and a paste or by a drag | each use keeps its binder (decision Q7); a use whose binder is not visible at the new place is section 8.2 |
+| a person copies code and pastes the copy | a binder inside the copy is copied, and a use inside the copy holds the copy of its binder; a use of a binder outside the copy holds that same binder |
+| a person pastes text, such as code from another program | the bind binds the text at the place of the paste, because text has only names |
 | a person commits typed code | `parse_julia` gives a tree, and the bind binds it at the place of the insertion; a new assignment adds a local to the method |
-| a person deletes a binder that has uses | each use becomes a `JuliaUnresolvedName` with the old name (question Q6) |
-| a person pastes or moves code | each use binds again by its name at the new place, as the text means (question Q7) |
-| a rename makes a name that an inner binder already has | the text of an outer use would bind to the inner binder (question Q5) |
+| a person types a name in place of a use | an operation of the person: the use binds to the binder that Julia gives that name there, or becomes a `JuliaUnresolvedName` |
+| a person unbinds a use, by a command | an operation of the person: the use becomes a `JuliaUnresolvedName` with the name of its binder |
+| a person binds an unresolved name again, by a command | an operation of the person: the bind binds the name at its place |
+| a rename makes a name that an inner binder already has | refused until stage 3; from stage 3 the captured use writes a reference (decision Q5) |
 
-The rename is the gain: one edit, and every use follows. The bind at a typed
-name is the cost: it must find the binders that are visible at one place, which
-is the walk of 7.2 along the path from the method to the place.
+The rename is the gain: one edit, and every use follows.
+
+### 8.1 A binder with no definition
+
+When the definition of a binder goes and its uses stay, the text still needs a
+place that defines the name, or the load of a plain `.jl` file would not bind
+the uses back. So the binder prints a declaration where its definition was, as
+Julia allows one:
+
+- a function: `function area end`;
+- a global: `global x`;
+- a local: `local x`, at the start of its method.
+
+This is my proposal (question Q16). A binder with no definition and no use goes
+away, because nothing holds it.
+
+### 8.2 A use whose binder is not visible
+
+A move can take a use away from the place where its binder is visible, for
+example a statement that uses a parameter, moved out of its method. The use
+keeps its binder, so the bound code is still exact, but its name would not bind
+back at the load of a plain `.jl` file: Julia would give that name another
+binding or none. From stage 3 such a use writes a reference (decision Q14).
+Until stage 3, my proposal is to allow the move and to mark the use on the
+screen as out of scope, as a fault, and the save of a plain `.jl` file refuses
+while such a mark exists and names the uses (question Q15).
 
 ## 9. Storage
 
@@ -428,37 +460,13 @@ gives before the bind.
 
 ## 13. Questions
 
-- **Q3. A macro:** the name of a macro call becomes a use of its binding (my
-  recommendation)?
-- **Q4 (answered, section 14). The `.pred` file of bound code alone.** In bound code one node sits at
-  several places: the binder `r` is in the `locals` of its method, and each
-  use of `r` holds the same binder. A file can write an object only once, so
-  the writer writes it at its first place and writes a reference, such as "the
-  node at `locals[1]`", at each other place. The save of a project of several
-  files does this today. The save of one file alone, `save_file!`, refuses any
-  reference, because it was made for a reference into another file, which a
-  file alone can not reach. May the save of one file alone write a reference to
-  a place in the same file? Without it, bound code is saved alone as a `.jl`
-  text, which keeps the names, and its binders come back from the names at the
-  next load. My recommendation: yes, because a reference into the same file
-  needs no other file.
-- **Q5. A rename that captures:** a rename that gives a binder the name of an
-  inner binder, so that the text of an outer use would bind to the inner one.
-  Until stage 3 a plain `.jl` file can not save such a use, so my
-  recommendation is to refuse the rename then. From stage 3 the use writes a
-  reference (decision Q14), so the rename is allowed.
-- **Q6. A delete of a binder with uses:** the uses become unresolved names (my
-  recommendation), or the delete is refused?
-- **Q7. A paste or a move:** the uses bind again by their names (my
-  recommendation, because the text means that), or they keep their binders?
 - **Q8. The module of the reflection:** `Main`, or the module where the
   evaluator of the editor runs the code?
-- **Q9. An unresolved name:** the color of `variable` (my recommendation), or a
-  color that warns?
-- **Q10. The hues:** fonts first and screenshots, then a decision on more hues
-  (my recommendation)?
-- **Q11. The binder:** our own bind over our tree, compared with
-  `JuliaLowering` in a test (my recommendation), or `JuliaLowering` itself?
+- **Q15. A move before stage 3** (section 8.2): allow the move, mark the use as
+  out of scope, and refuse the save of a plain `.jl` file while the mark exists
+  (my proposal)? Or refuse the move?
+- **Q16. A binder with no definition** (section 8.1): its text shows a
+  declaration, such as `function area end` (my proposal)?
 
 ## 14. Decisions
 
@@ -483,3 +491,20 @@ The owner answered on 2026-10-09:
   (section 9.1).
 - **Q14. The uses that write a reference:** "only references which would not
   bind back in the binder" (section 9.2).
+- **Q3. A macro:** "yes, maro should be bound": the name of a macro call is a
+  use of its binding.
+- **Q5. A rename that captures:** "yes": refused until stage 3, allowed from
+  stage 3, where the captured use writes a reference.
+- **Q6. A delete:** "what do you mean deleted? a bound function is kept by the
+  call site just as well as the definition side". The binder stays while a use
+  holds it (section 8).
+- **Q7. A move:** "if a code is moved it just binds to the new place, no?" and
+  then: "so basically what I mean is breaking a binding is a user operation not
+  something that is done automatically". I read this as: moved code keeps its
+  binders, and it does not bind again by name (section 8). Section 8.2 asks
+  what a move does before stage 3.
+- **Q9. An unresolved name:** "yes": the color of `variable`.
+- **Q10. The hues:** "yes": fonts first and screenshots, then a decision on
+  more hues.
+- **Q11. The binder:** "yes": our own bind over our tree, compared with
+  `JuliaLowering` in a test.
