@@ -66,6 +66,7 @@ include("../../../example/platform/SyntaxFoldingDocumentExample.jl")
 include("../../../example/platform/TextToStringDocumentExample.jl")
 include("../../../example/platform/WordWrappingDocumentExample.jl")
 include("../../../example/platform/TextFilteringDocumentExample.jl")
+include("../../../example/platform/FindBarViewDocumentExample.jl")
 include("../../../example/platform/TextHighlightingDocumentExample.jl")
 include("../../../example/platform/WidgetDocumentExample.jl")
 include("../../../example/platform/LayoutDocumentExample.jl")
@@ -90,6 +91,7 @@ include("../../../example/platform/SyntaxFoldingProjectionExample.jl")
 include("../../../example/platform/TextToStringProjectionExample.jl")
 include("../../../example/platform/WordWrappingProjectionExample.jl")
 include("../../../example/platform/TextFilteringProjectionExample.jl")
+include("../../../example/platform/FindBarViewProjectionExample.jl")
 include("../../../example/platform/TextHighlightingProjectionExample.jl")
 include("../../../example/platform/WidgetProjectionExample.jl")
 include("../../../example/platform/LayoutProjectionExample.jl")
@@ -142,6 +144,8 @@ export make_sorting_projection_example, make_stack_layout_document_example
 export make_syntax_document_example, make_syntax_leaf_document_example
 export make_syntax_projection_example, make_text_document_example
 export make_text_filtering_document_example, make_text_filtering_projection_example
+export make_find_bar_document, make_find_bar_projection, make_find_bar_document_example,
+       make_filter_bar_document_example
 export make_text_highlighting_document_example, make_text_highlighting_projection_example
 export make_text_line_atom_document_example, make_text_newline_atom_document_example
 export make_text_projection_example, make_text_string_atom_document_example
@@ -196,6 +200,7 @@ export plain_server_copy_form_example, plain_server_cell_form_example, object_fi
 export plain_text_example, print_example, reversing_example, rotating_vector_example
 export searching_example, sieve, sieve_bidirectional, sieve_prev, sorting_example
 export syntax_example, text_example, text_filtering_example, text_highlighting_example
+export find_bar_example, filter_bar_example
 export text_with_image_example, widget_accordion_example, widget_alert_example
 export widget_avatar_example, widget_badge_example, widget_button_action_example
 export widget_button_example, widget_button_image_example, widget_card_example, widget_collapsible_card_example

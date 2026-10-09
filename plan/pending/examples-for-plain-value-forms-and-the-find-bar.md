@@ -38,10 +38,14 @@ Each step is one commit. Check each new example with `walk_printer_output` and
 `walk_repl_loop`, which must report no error. `test_example` fails the type-ins of
 every widget example on main, so its counts are a record and no gate.
 
-1. ⬜ **The find bar.** `make_find_bar_document` and `make_find_bar_projection` move
+1. ✅ **The find bar.** `make_find_bar_document` and `make_find_bar_projection` move
    from the gallery examples to the platform examples, so one function builds the
    bar for the gallery and for the new examples. Register `find_bar` and
    `filter_bar`.
+
+   Done: `FindBarViewDocumentExample.jl` and `FindBarViewProjectionExample.jl` in
+   `example/platform/`; the text is `_make_lorem_lines_block()`, which the filter
+   example shares.
 2. ⬜ **A filter around a highlight.** Register `highlighted_filtered_text`.
 3. ⬜ **`ObjectToWidget` arguments.** Register `object_to_widget_chosen_widgets`
    (`make_widget`) and `object_to_widget_plain_record` (`is_record`).

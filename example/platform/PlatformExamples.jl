@@ -59,6 +59,8 @@ const syntax_folding_example = Example("syntax_folding", make_syntax_folding_doc
 const word_wrapping_example  = Example("word_wrapping",  make_word_wrapping_document_example,  make_word_wrapping_projection_example)
 const text_filtering_example = Example("text_filtering", make_text_filtering_document_example, make_text_filtering_projection_example)
 const text_highlighting_example = Example("text_highlighting", make_text_highlighting_document_example, make_text_highlighting_projection_example)
+const find_bar_example = Example("find_bar", make_find_bar_document_example, make_find_bar_projection)
+const filter_bar_example = Example("filter_bar", make_filter_bar_document_example, make_find_bar_projection)
 const widget_example         = Example("widget",         make_widget_document_example,         make_widget_projection_example)
 const widget_label_example       = Example("widget_label",       make_widget_label_document_example,       make_widget_projection_example)
 const widget_text_example        = Example("widget_text",        make_widget_text_document_example,        make_widget_text_projection_example)
@@ -141,6 +143,8 @@ const platform_examples = Example[
     word_wrapping_example,
     text_filtering_example,
     text_highlighting_example,
+    find_bar_example,
+    filter_bar_example,
     widget_example,
     widget_label_example,
     widget_text_example,
