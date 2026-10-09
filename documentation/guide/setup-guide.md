@@ -26,6 +26,14 @@ bin/projectured
 
 The four folders go beside `projectured-julia`, because the packages and `environment/all` name them by those folders: `auto-integration` the umbrella, `agent-client-protocol` and `claude-code-acp` the package `ProjecturedACP`, and `model-context-protocol`, the fork of the MCP package, the package `ProjecturedMCP`.
 
+A worktree of this repository beside it, such as `../projectured-julia-<name>`, reaches the same folders. A worktree in `.claude/worktrees/<name>/` does not: its relative paths end in `.claude/worktrees/`, so it needs a link of the same name there for each folder, which git ignores:
+
+```sh
+for folder in auto-integration agent-client-protocol claude-code-acp model-context-protocol; do
+    ln -s "$(realpath ..)/$folder" .claude/worktrees/$folder
+done
+```
+
 The window has the Files pane on the left, the open files in the middle, and the assistant on the right. A double click in the Files pane opens a file. Files named on the command line open at once:
 
 ```sh
