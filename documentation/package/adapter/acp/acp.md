@@ -78,7 +78,9 @@ A worked example: the agent asks to run `execute_julia_code` with the options `a
 
 ### A sign-in that is missing
 
-`session/new` can answer the error code `-32000`. The package then throws an error with the title of the agent and the way to sign in that the agent gave in `initialize`, for example "Run `claude /login` in the terminal". The package starts no sign-in itself.
+`session/new`, `session/resume` and `session/prompt` can answer the error code `-32000`. The package then throws an `AgentSignInException` with the title of the agent, the way to sign in that the agent gave in `initialize` as a sentence, for example "Run `claude /login` in the terminal", and one `AgentSignInMethod` for each method of the type `terminal`. The command of a method is the command of the agent with the `args` of the method added and its `env` over the environment of the agent, in the folder of the agent. The built-in agent runs in this process and has no command, so it gives no method. The client says in `initialize` that it runs a sign-in in a terminal (`clientCapabilities.auth.terminal`). The package starts no sign-in itself.
+
+`has_agent_sign_out` answers whether the agent advertises `agentCapabilities.auth.logout`, and `sign_out_agent!` then sends `logout`.
 
 ## How it fits
 

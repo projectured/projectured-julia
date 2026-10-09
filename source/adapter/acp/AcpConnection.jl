@@ -97,7 +97,7 @@ function start_agent_connection!(connection::AcpConnection)
             protocol_version = ACP.PROTOCOL_VERSION,
             client_capabilities = ACP.ClientCapabilities(
                 fs = ACP.FileSystemCapabilities(read_text_file = false, write_text_file = false),
-                terminal = false),
+                terminal = false, auth = ACP.AuthCapabilities(terminal = true)),
             client_info = ACP.Implementation(
                 name = "projectured", title = "ProjecturEd",
                 version = string(something(pkgversion(Base.moduleroot(@__MODULE__)), v"0.0.0"))));
@@ -196,16 +196,18 @@ function open_agent_session!(connection::AcpConnection; directory::AbstractStrin
 end
 
 # A request that opens or resumes a session. An agent that needs a sign-in
-# answers an error whose message says how to sign in.
+# answers `AUTHENTICATION_REQUIRED`, which becomes an `AgentSignInException`.
 function _send_session_request!(connection::AcpConnection, transport, request)
     try
         ACP.send_request!(transport, request; timeout = 120)
     catch exception
-        exception isa ACP.ProtocolException && exception.code == ACP.AUTHENTICATION_REQUIRED &&
-            error(_format_sign_in_message(connection))
+        _is_sign_in_error(exception) && throw(_make_sign_in_exception(connection))
         rethrow()
     end
 end
+
+_is_sign_in_error(exception) =
+    exception isa ACP.ProtocolException && exception.code == ACP.AUTHENTICATION_REQUIRED
 
 # Whether the answer to `initialize` has the session method `name` in its
 # `sessionCapabilities`, such as `"resume"` or `"close"`.
@@ -253,11 +255,51 @@ _make_mcp_server(server) = ACP.McpServerHttp(
     headers = [ACP.HttpHeader(name = String(first(header)), value = String(last(header)))
                for header in server.headers])
 
-# What the agent said about its sign-in, as a sentence for a person. The
-# client starts no sign-in itself: the person signs in with the flow of the agent.
-function _format_sign_in_message(connection::AcpConnection)
+# What the agent said about its sign-in: its title, the ways that this editor can
+# run, and a sentence for a person. The person signs in with the flow of the
+# agent, in a terminal; this editor shows no sign-in form of its own.
+function _make_sign_in_exception(connection::AcpConnection)
+    methods = AgentSignInMethod[]
+    for method in connection.auth_methods
+        sign_in = _make_sign_in_method(connection, method)
+        sign_in === nothing || push!(methods, sign_in)
+    end
+    AgentSignInException(_get_agent_title(connection), methods, _format_sign_in_message(connection))
+end
+
+function _get_agent_title(connection::AcpConnection)
     info = connection.agent_info === nothing ? Dict{String,Any}() : ACP.get_json(connection.agent_info)
-    title = string(get(info, "title", get(info, "name", "The agent")))
+    string(get(info, "title", get(info, "name", "The agent")))
+end
+
+# A method of the type `terminal` as a command: the invocation of the agent with
+# the `args` and the `env` of the method. A method of another type, `nothing`.
+function _make_sign_in_method(connection::AcpConnection, method)
+    json = ACP.get_json(method)
+    get(json, "type", nothing) == "terminal" || return nothing
+    arguments = get(json, "args", Any[])
+    environment = get(json, "env", Dict{String,Any}())
+    arguments isa AbstractVector && environment isa AbstractDict || return nothing
+    command = _make_agent_invocation(connection, String[string(argument) for argument in arguments],
+                                     Dict{String,String}(string(key) => string(value) for (key, value) in environment))
+    command === nothing && return nothing
+    description = get(json, "description", nothing)
+    AgentSignInMethod(string(get(json, "id", "")), string(get(json, "name", get(json, "id", ""))),
+                      description isa AbstractString ? String(description) : "", command)
+end
+
+# The command of the agent with `arguments` added and `environment` over its
+# own, in its folder. The built-in agent runs in this process and has no command.
+function _make_agent_invocation(connection::AcpConnection, arguments::Vector{String},
+                                environment::Dict{String,String})
+    isempty(connection.command) && return nothing
+    addenv(Cmd(Cmd([connection.command..., arguments...]); dir = connection.directory),
+           merge(connection.environment, environment))
+end
+
+# What the agent said about its sign-in, as a sentence for a person.
+function _format_sign_in_message(connection::AcpConnection)
+    title = _get_agent_title(connection)
     ways = String[]
     for method in connection.auth_methods
         json = ACP.get_json(method)
@@ -283,7 +325,12 @@ function send_agent_prompt!(connection::AcpConnection, session_id::AbstractStrin
         waiting === nothing || foreach(on_event, values(waiting))
     end
     try
-        result = ACP.send_request!(transport, request)
+        result = try
+            ACP.send_request!(transport, request)
+        catch exception
+            _is_sign_in_error(exception) && throw(_make_sign_in_exception(connection))
+            rethrow()
+        end
         Symbol(string(get(ACP.get_json(result), "stopReason", "end_turn")))
     finally
         lock(() -> delete!(connection.turns, session_id), connection.turns_lock)
@@ -327,6 +374,18 @@ function stop_agent_connection!(connection::AcpConnection)
     connection.transport = nothing
     transport === nothing || ACP.close_connection!(transport)
     nothing
+end
+
+function has_agent_sign_out(connection::AcpConnection)
+    connection.transport === nothing && return false
+    auth = get(ACP.get_json(connection.agent_capabilities), "auth", nothing)
+    auth isa AbstractDict && get(auth, "logout", nothing) isa AbstractDict
+end
+
+function sign_out_agent!(connection::AcpConnection)
+    has_agent_sign_out(connection) || return false
+    ACP.send_request!(_get_started_transport(connection), ACP.LogoutRequest(); timeout = 60)
+    true
 end
 
 function _get_started_transport(connection::AcpConnection)

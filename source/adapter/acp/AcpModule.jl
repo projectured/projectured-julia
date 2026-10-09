@@ -41,7 +41,8 @@ import ClaudeCodeACP
 # Imported to extend: this module adds a method to each of these.
 import ..AgentModule: make_agent_connection, start_agent_connection!, open_agent_session!,
                       set_agent_option!, send_agent_prompt!, cancel_agent_prompt!,
-                      close_agent_session!, stop_agent_connection!
+                      close_agent_session!, stop_agent_connection!, has_agent_sign_out,
+                      sign_out_agent!
 
 export AcpConnection
 

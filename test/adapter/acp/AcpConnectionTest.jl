@@ -124,7 +124,7 @@ function test_acp_connection()
             signed_out = _make_fake_agent(Dict{String,Function}(
                 "session/resume" => (agent, params) -> throw(ProtocolException(-32000, "Authentication required"))))
             connection = make_fake_connection(signed_out)
-            @test_throws ErrorException open_agent_session!(connection; session_id = "session-9")
+            @test_throws AgentSignInException open_agent_session!(connection; session_id = "session-9")
             @test isempty(get_received(signed_out, "session/new"))
             stop_agent_connection!(connection)
         end
@@ -206,15 +206,51 @@ function test_acp_connection()
 
         @testset "an agent that needs a sign-in says how" begin
             agent = _make_fake_agent(Dict{String,Function}(
-                "session/new" => (agent, params) -> throw(ProtocolException(-32000, "Authentication required"))))
-            connection = make_fake_connection(agent)
-            message = try
+                "session/new" => (agent, params) -> throw(ProtocolException(-32000, "Authentication required")),
+                "session/prompt" => (agent, params) -> throw(ProtocolException(-32000, "Authentication required"))))
+            directory = mktempdir()
+            connection = make_fake_connection(agent; command = ["fake-agent", "--stdio"],
+                                              environment = Dict("FAKE_HOME" => "/h"), directory)
+            # The client says that it runs a sign-in in a terminal.
+            capabilities = only(get_received(agent, "initialize"))["params"]["clientCapabilities"]
+            @test capabilities["auth"]["terminal"] === true
+            failure = try
                 open_agent_session!(connection)
-                ""
             catch exception
-                sprint(showerror, exception)
+                exception
             end
-            @test occursin("Fake Agent needs a sign-in. Run `fake /login` in the terminal.", message)
+            @test failure isa AgentSignInException
+            @test occursin("Fake Agent needs a sign-in. Run `fake /login` in the terminal.", sprint(showerror, failure))
+            @test failure.agent_title == "Fake Agent"
+            # The method runs the command of the agent with its arguments, in its folder.
+            method = only(failure.methods)
+            @test (method.id, method.name) == ("fake-login", "Log in")
+            @test method.command.exec == ["fake-agent", "--stdio", "--cli"]
+            @test method.command.dir == directory
+            @test "FAKE_HOME=/h" in method.command.env
+            # A prompt that the agent refuses for a sign-in throws the same.
+            @test_throws AgentSignInException send_agent_prompt!(connection, "session-1", [LlmText("Hi")];
+                                                                 on_event = event -> nothing)
+            stop_agent_connection!(connection)
+        end
+
+        @testset "an agent signs out when it says that it can" begin
+            agent = _make_fake_agent(Dict{String,Function}(
+                "initialize" => (agent, params) -> merge(FAKE_INITIALIZE_RESULT, Dict("agentCapabilities" => Dict(
+                    "auth" => Dict("logout" => Dict())))),
+                "logout" => (agent, params) -> Dict()))
+            connection = make_fake_connection(agent)
+            @test has_agent_sign_out(connection)
+            @test sign_out_agent!(connection)
+            @test length(get_received(agent, "logout")) == 1
+            stop_agent_connection!(connection)
+            @test !has_agent_sign_out(connection)
+            # An agent that does not say so gets no request.
+            plain = _make_fake_agent()
+            connection = make_fake_connection(plain)
+            @test !has_agent_sign_out(connection)
+            @test !sign_out_agent!(connection)
+            @test isempty(get_received(plain, "logout"))
             stop_agent_connection!(connection)
         end
 
