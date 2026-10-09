@@ -298,7 +298,7 @@ end
 # indented run with nothing to introduce it, and that re-reads as a block quote.
 # A standalone `::` is the expanded form RST allows for exactly this.
 @rst_indented RstLiteralBlockToSyntaxLeaf RstLiteralBlock (prj, doc, outer, inner) ->
-    SyntaxLeaf(TextString(() -> "::\n\n" * _indent_body(doc.content, inner), prj.style);
+    SyntaxLeaf(make_text_block(() -> "::\n\n" * _indent_body(doc.content, inner), prj.style);
                open=TextString("", prj.style))
 
 @projection UntrackedCell struct RstLineBlockToSyntaxNode
@@ -349,7 +349,7 @@ end
 @rst_flat RstBulletListToSyntaxNode RstBulletList (prj, doc, indent) ->
     SyntaxNode(collection(:items);
                open=TextString(() -> _bullet_marker(prj, doc), prj.marker_style),
-               sep=TextString(() -> "\n" * indent * _bullet_marker(prj, doc), prj.marker_style),
+               sep=make_text_block(() -> "\n" * indent * _bullet_marker(prj, doc), prj.marker_style),
                indentation=0)
 
 @projection UntrackedCell struct RstEnumeratedListToSyntaxNode
@@ -359,7 +359,7 @@ end
 @rst_flat RstEnumeratedListToSyntaxNode RstEnumeratedList (prj, doc, indent) ->
     SyntaxNode(collection(:items);
                open=TextString(() -> _enum_marker(doc), prj.marker_style),
-               sep=TextString(() -> "\n" * indent * _enum_marker(doc), prj.marker_style),
+               sep=make_text_block(() -> "\n" * indent * _enum_marker(doc), prj.marker_style),
                indentation=0)
 
 @projection UntrackedCell struct RstDefinitionItemToSyntaxNode
@@ -369,7 +369,7 @@ end
 @rst_indented RstDefinitionItemToSyntaxNode RstDefinitionItem (prj, doc, outer, inner) ->
     SyntaxConcatenation([ SyntaxNode(collection(:term); indentation=0),
                           SyntaxNode(collection(:elements);
-                                     open=TextString(() -> isempty(doc.elements) ? "" : "\n" * inner, prj.marker_style),
+                                     open=make_text_block(() -> isempty(doc.elements) ? "" : "\n" * inner, prj.marker_style),
                                      sep=TextString("\n\n" * inner, prj.marker_style),
                                      indentation=0) ])
 
@@ -406,7 +406,7 @@ end
     SyntaxNode(collection(:elements);
                open=TextString(_IND, prj.marker_style),
                sep=TextString("\n\n" * inner, prj.marker_style),
-               close=TextString(() -> isempty(doc.attribution) ? "" :
+               close=make_text_block(() -> isempty(doc.attribution) ? "" :
                                       "\n\n" * inner * "-- " * doc.attribution,
                                 prj.marker_style),
                indentation=0)
@@ -428,7 +428,7 @@ end
 # The body is opaque multi-line text: the first line rides the `.. ` marker and
 # every later line is indented under it.
 @rst_indented RstCommentToSyntaxLeaf RstComment (prj, doc, outer, inner) ->
-    SyntaxLeaf(TextString(() -> begin
+    SyntaxLeaf(make_text_block(() -> begin
                               lines = split(doc.content, '\n')
                               head = isempty(lines) ? "" : String(lines[1])
                               rest = length(lines) <= 1 ? "" :
@@ -537,7 +537,7 @@ end
 end
 
 @rst_flat RstGridTableToSyntaxNode RstGridTable (prj, doc, indent) ->
-    SyntaxLeaf(TextString(() -> _indent_body(_grid_table_text(doc), indent)[length(indent) + 1:end],
+    SyntaxLeaf(make_text_block(() -> _indent_body(_grid_table_text(doc), indent)[length(indent) + 1:end],
                           prj.style))
 
 # ── Directives ────────────────────────────────────────────────────────────────
@@ -564,7 +564,7 @@ end
 # body. A named option prints nothing at all when its field is empty, so the
 # emitted file carries only the options the source had.
 _option_open(prj, value_getter, name, indent) =
-    TextString(() -> isempty(value_getter()) ? "" : "\n" * indent * ":" * name * ": ", prj.marker_style)
+    make_text_block(() -> isempty(value_getter()) ? "" : "\n" * indent * ":" * name * ": ", prj.marker_style)
 
 @projection UntrackedCell struct RstLiteralIncludeToSyntaxNode
     marker_style::StyleText = get_rst_style(nothing, :marker_text)
@@ -591,7 +591,7 @@ end
         SyntaxLeaf(bound(:end_before, String, TextString(() -> doc.end_before, prj.value_style));
                    open=_option_open(prj, () -> doc.end_before, "end-before", inner)),
         SyntaxNode(collection(:extra);
-                   open=TextString(() -> isempty(doc.extra) ? "" : "\n" * inner, prj.marker_style),
+                   open=make_text_block(() -> isempty(doc.extra) ? "" : "\n" * inner, prj.marker_style),
                    sep=TextString("\n" * inner, prj.marker_style), indentation=0) ])
 
 @projection UntrackedCell struct RstFigureToSyntaxNode
@@ -613,10 +613,10 @@ end
         SyntaxLeaf(bound(:width, String, TextString(() -> doc.width, prj.value_style));
                    open=_option_open(prj, () -> doc.width, "width", inner)),
         SyntaxNode(collection(:extra);
-                   open=TextString(() -> isempty(doc.extra) ? "" : "\n" * inner, prj.marker_style),
+                   open=make_text_block(() -> isempty(doc.extra) ? "" : "\n" * inner, prj.marker_style),
                    sep=TextString("\n" * inner, prj.marker_style), indentation=0),
         SyntaxNode(collection(:caption);
-                   open=TextString(() -> isempty(doc.caption) ? "" : "\n\n" * inner, prj.marker_style),
+                   open=make_text_block(() -> isempty(doc.caption) ? "" : "\n\n" * inner, prj.marker_style),
                    sep=TextString("\n\n" * inner, prj.marker_style), indentation=0) ])
 
 @projection UntrackedCell struct RstCodeBlockToSyntaxNode
@@ -635,9 +635,9 @@ end
                          TextString(() -> prj.show_language ? doc.language : "", prj.lang_style));
                    open=TextString(prj.header, prj.marker_style)),
         SyntaxNode(collection(:extra);
-                   open=TextString(() -> !prj.show_language || isempty(doc.extra) ? "" : "\n" * inner, prj.marker_style),
+                   open=make_text_block(() -> !prj.show_language || isempty(doc.extra) ? "" : "\n" * inner, prj.marker_style),
                    sep=TextString("\n" * inner, prj.marker_style), indentation=0),
-        SyntaxLeaf(TextString(() -> isempty(doc.code) ? "" :
+        SyntaxLeaf(make_text_block(() -> isempty(doc.code) ? "" :
                                     (prj.show_language ? "\n\n" : "") * _indent_body(doc.code, inner),
                               prj.code_style)) ])
 
@@ -662,7 +662,7 @@ end
         SyntaxLeaf(bound(:alt, String, TextString(() -> doc.alt, prj.value_style));
                    open=_option_open(prj, () -> doc.alt, "alt", inner)),
         SyntaxNode(collection(:extra);
-                   open=TextString(() -> isempty(doc.extra) ? "" : "\n" * inner, prj.marker_style),
+                   open=make_text_block(() -> isempty(doc.extra) ? "" : "\n" * inner, prj.marker_style),
                    sep=TextString("\n" * inner, prj.marker_style), indentation=0) ])
 
 @projection UntrackedCell struct RstVideoToSyntaxNode
@@ -684,7 +684,7 @@ end
         SyntaxLeaf(bound(:height, String, TextString(() -> doc.height, prj.value_style));
                    open=_option_open(prj, () -> doc.height, "height", inner)),
         SyntaxNode(collection(:extra);
-                   open=TextString(() -> isempty(doc.extra) ? "" : "\n" * inner, prj.marker_style),
+                   open=make_text_block(() -> isempty(doc.extra) ? "" : "\n" * inner, prj.marker_style),
                    sep=TextString("\n" * inner, prj.marker_style), indentation=0) ])
 
 @projection UntrackedCell struct RstAudioToSyntaxNode
@@ -701,7 +701,7 @@ end
                                           style = prj.path_style));
                    open=TextString(prj.header, prj.marker_style)),
         SyntaxNode(collection(:extra);
-                   open=TextString(() -> isempty(doc.extra) ? "" : "\n" * inner, prj.marker_style),
+                   open=make_text_block(() -> isempty(doc.extra) ? "" : "\n" * inner, prj.marker_style),
                    sep=TextString("\n" * inner, prj.marker_style), indentation=0) ])
 
 @projection UntrackedCell struct RstAdmonitionToSyntaxNode
@@ -713,7 +713,7 @@ end
 
 @rst_indented RstAdmonitionToSyntaxNode RstAdmonition (prj, doc, outer, inner) ->
     SyntaxNode(collection(:elements);
-               open=TextString(() -> (prj.show_marker ? ".. " * doc.kind * "::" :
+               open=make_text_block(() -> (prj.show_marker ? ".. " * doc.kind * "::" :
                                                         uppercasefirst(doc.kind)) * "\n\n" * inner,
                                prj.marker_style),
                sep=TextString("\n\n" * inner, prj.marker_style),
@@ -731,7 +731,7 @@ end
 
 @rst_indented RstToctreeToSyntaxNode RstToctree (prj, doc, outer, inner) ->
     SyntaxConcatenation([
-        SyntaxLeaf(TextString(() -> prj.show_marker ?
+        SyntaxLeaf(make_text_block(() -> prj.show_marker ?
                                     ".. toctree::" *
                                     (doc.maxdepth == 0 ? "" : "\n" * inner * ":maxdepth: " * string(doc.maxdepth)) *
                                     (doc.titlesonly ? "\n" * inner * ":titlesonly:" : "") *
@@ -739,10 +739,10 @@ end
                                     prj.heading,
                               prj.marker_style)),
         SyntaxNode(collection(:extra);
-                   open=TextString(() -> !prj.show_marker || isempty(doc.extra) ? "" : "\n" * inner, prj.marker_style),
+                   open=make_text_block(() -> !prj.show_marker || isempty(doc.extra) ? "" : "\n" * inner, prj.marker_style),
                    sep=TextString("\n" * inner, prj.marker_style), indentation=0),
         SyntaxNode(collection(:entries);
-                   open=TextString(() -> isempty(doc.entries) ? "" : "\n\n" * inner, prj.entry_style),
+                   open=make_text_block(() -> isempty(doc.entries) ? "" : "\n\n" * inner, prj.entry_style),
                    sep=TextString("\n" * inner, prj.entry_style), indentation=0) ])
 
 @projection UntrackedCell struct RstMathBlockToSyntaxLeaf
@@ -752,7 +752,7 @@ end
 end
 
 @rst_indented RstMathBlockToSyntaxLeaf RstMathBlock (prj, doc, outer, inner) ->
-    SyntaxLeaf(TextString(() -> (prj.show_marker ? ".. math::\n\n" : "") * _indent_body(doc.content, inner),
+    SyntaxLeaf(make_text_block(() -> (prj.show_marker ? ".. math::\n\n" : "") * _indent_body(doc.content, inner),
                           prj.style))
 
 @projection UntrackedCell struct RstRawBlockToSyntaxLeaf
@@ -761,7 +761,7 @@ end
 end
 
 @rst_indented RstRawBlockToSyntaxLeaf RstRawBlock (prj, doc, outer, inner) ->
-    SyntaxLeaf(TextString(() -> ".. raw:: " * doc.format * "\n\n" * _indent_body(doc.content, inner),
+    SyntaxLeaf(make_text_block(() -> ".. raw:: " * doc.format * "\n\n" * _indent_body(doc.content, inner),
                           prj.style))
 
 @projection UntrackedCell struct RstRoleDefinitionToSyntaxNode
@@ -778,7 +778,7 @@ end
                    open=TextString(".. role:: ", prj.marker_style),
                    close=TextString(() -> isempty(doc.base) ? "" : "(" * doc.base * ")", prj.marker_style)),
         SyntaxNode(collection(:extra);
-                   open=TextString(() -> isempty(doc.extra) ? "" : "\n" * inner, prj.marker_style),
+                   open=make_text_block(() -> isempty(doc.extra) ? "" : "\n" * inner, prj.marker_style),
                    sep=TextString("\n" * inner, prj.marker_style), indentation=0) ])
 
 @projection UntrackedCell struct RstDirectiveToSyntaxNode
@@ -797,10 +797,10 @@ end
                    close=TextString(":: ", prj.marker_style)),
         SyntaxLeaf(bound(:argument, String, TextString(() -> doc.argument, prj.arg_style))),
         SyntaxNode(collection(:options);
-                   open=TextString(() -> isempty(doc.options) ? "" : "\n" * inner, prj.marker_style),
+                   open=make_text_block(() -> isempty(doc.options) ? "" : "\n" * inner, prj.marker_style),
                    sep=TextString("\n" * inner, prj.marker_style), indentation=0),
         SyntaxNode(collection(:elements);
-                   open=TextString(() -> isempty(doc.elements) ? "" : "\n\n" * inner, prj.marker_style),
+                   open=make_text_block(() -> isempty(doc.elements) ? "" : "\n\n" * inner, prj.marker_style),
                    sep=TextString("\n\n" * inner, prj.marker_style), indentation=0) ])
 
 # ── Section and root ──────────────────────────────────────────────────────────
@@ -813,12 +813,12 @@ end
 @rst_flat RstSectionToSyntaxNode RstSection (prj, doc, indent) ->
     SyntaxConcatenation([
         SyntaxNode(collection(:title);
-                   open=TextString(() -> doc.overline ? _adornment_line(doc) * "\n" : "",
+                   open=make_text_block(() -> doc.overline ? _adornment_line(doc) * "\n" : "",
                                    prj.adornment_style),
-                   close=TextString(() -> "\n" * _adornment_line(doc), prj.adornment_style),
+                   close=make_text_block(() -> "\n" * _adornment_line(doc), prj.adornment_style),
                    indentation=0),
         SyntaxNode(collection(:elements);
-                   open=TextString(() -> isempty(doc.elements) ? "" : "\n\n" * indent, prj.adornment_style),
+                   open=make_text_block(() -> isempty(doc.elements) ? "" : "\n\n" * indent, prj.adornment_style),
                    sep=TextString("\n\n" * indent, prj.adornment_style), indentation=0) ])
 
 @projection UntrackedCell struct RstRootToSyntaxNode
@@ -1253,7 +1253,7 @@ end
     SyntaxConcatenation([
         SyntaxLeaf(_rst_picture(doc.path, prj.placeholder)),
         SyntaxNode(collection(:caption);
-                   open=TextString(() -> isempty(doc.caption) ? "" : "\n" * indent, prj.caption_style),
+                   open=make_text_block(() -> isempty(doc.caption) ? "" : "\n" * indent, prj.caption_style),
                    sep=TextString("\n" * indent, prj.caption_style),
                    indentation=0) ])
 
