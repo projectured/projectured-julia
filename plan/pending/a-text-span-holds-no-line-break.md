@@ -251,7 +251,9 @@ change how every view of syntax makes its lines, so they land together.
    its own, at main before step 1.
 1. **`make_text_block(content, style)`** in the text domain: a `String` or a
    thunk of one, to a `TextBlock` of `TextLine`s in the style; a line whose text
-   did not change stays the same object. Tests.
+   did not change stays the same object. Tests. Step 2 of
+   [a-text-block-holds-only-lines.md](a-text-block-holds-only-lines.md) needs it
+   too, so the plan that starts first makes it.
 2. **The syntax reads breaks from texts.** The content fields take a
    `TextDocument`, and `_text` converts a string, or a constant `TextString`, that
    holds `'\n'` with `make_text_block`. `SyntaxLeafToText` joins the lines of a

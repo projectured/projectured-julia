@@ -2,8 +2,8 @@
 
 > **Kind:** plan · **Status:** pending, 2026-10-09. The owner decided the end
 > state on 2026-10-09 (N5 of [a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md)),
-> and that it is a plan of its own. The questions of §6 are open, and no step is
-> started. ·
+> and that it is a plan of its own, and L1 on 2026-10-09. The other questions of
+> §6 are open, and no step is started. ·
 > **Stands on:** [text.md](../../documentation/package/platform/text/text.md),
 > [text-domain-kit.md](text-domain-kit.md) (shape A of Phase 3),
 > [a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md) (N5)
@@ -160,16 +160,21 @@ the release plan).
 
 ## 6. Open questions
 
-- **L1 The constructor of a block of spans.** What `TextBlock(spans...)` and
-  `TextBlock(::Vector)` give.
-  - (a) A block of one line. A producer of one run stays as it is, and so do the
-    7 sites in omnet-julia and most of the 128 blocks in the tests; only its paths
-    change.
-  - (b) The constructors go, and each producer writes
-    `TextBlock(TextLine(...))`.
-
-  My proposal, not decided: (a), because the rule then sits in one place.
-  `TextBlock(f::Function)` takes a thunk of lines in both answers.
+- **L1 The constructor of a block of spans. Decided, the owner, 2026-10-09: (b),
+  the arguments of a `TextBlock` are always its lines**, in each constructor: the
+  arguments, a vector, a thunk and the raw form. A producer of one run writes
+  `TextBlock(TextLine(run))`, or calls `make_text_block(content, style)` when it
+  turns a string in a style into text.
+  - The elements of the raw form and of a thunk are a computation, which a
+    constructor can not read when it runs, so these two take lines in every
+    answer. Only the constructor of arguments and of a vector was open.
+  - A block of zero lines stays valid, because a filter with no match gives one.
+    The insertion of an empty text gives one empty line.
+  - Not taken: (a) arguments that are runs give one line, which gives one name two
+    meanings (`TextBlock(a, b)` is two lines or two runs by the types of `a` and
+    `b`) and makes `TextBlock(spans...)` and `TextBlock(() -> spans)` disagree; a
+    `TextLine` alone as a text at the top of a chain, which gives each consumer
+    its second path back.
 - **L2 The height of an empty line** (N5a of the other plan). A `TextNewline`
   carries the font of an empty line today, and an empty `TextLine` takes the
   first font of its block, so an empty line after a heading has the height of the
@@ -213,11 +218,15 @@ a block of spans still works, so the producers move one at a time.
    conversation and widget suites, the example sweeps and the console, each part
    in a process of its own, at main before step 1. Find the reason for the
    structural position of `PrimitiveToText` (L3).
+   **`make_text_block(content, style)`** is step 1 of
+   [a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md). The
+   plan that starts first makes it.
 1. **The producers of many lines give lines**: `ReferenceInspectorToText`,
    `SelectionInspectorToText`, `ReferenceToText`, `make_evaluator_arguments_text`
    (one line for each argument), and the tooltip of the gallery. Their
    `WordWrapping` then wraps lines.
-2. **The producers of one run give one line**, by L1, with their paths by L3:
+2. **The producers of one run give one line**, by `make_text_block` or
+   `TextBlock(TextLine(run))` (L1), with their paths by L3:
    `PrimitiveToText`, `FaultToText`, `@insertion TextBlock`, the widgets
    (`ObjectToWidget`, `ObjectFieldToWidget`, `WidgetToGraphics`), the
    conversation and the assistant, Formula, the Julia tooltip, RST, `NaturalProjection`,
@@ -232,13 +241,14 @@ a block of spans still works, so the producers move one at a time.
 5. **The consumers lose their span path**, after L2: the list of §3.2, and
    `_is_block_of_lines`. `WordWrapping` keeps only `soft_breaks`, and its maps are
    the identity.
-6. **`TextNewline` and `TextNewlineToString` go**, with their exports, and the
-   constructors follow L1. A guard test walks the printer output of every example
+6. **`TextNewline` and `TextNewlineToString` go**, with their exports, and every
+   constructor of `TextBlock` takes lines (L1); the tests and the examples that
+   still pass runs follow, about 130 sites. A guard test walks the printer output of every example
    and rejects an element of a block that is not a `TextLine`.
 7. **A full sweep** against step 0.
 8. **The other repositories**, after the landing: inet-julia's
    `PacketDiagramToText` gives a line for each row and loses its stale comment;
-   omnet-julia's 7 blocks follow L1. Both make their precompile statements again.
+   omnet-julia's 7 blocks of one run give one line (L1). Both make their precompile statements again.
 9. **The documents**: `text.md` (the shape, the paths, the flat caret), the
    guides that show a block of spans, and a note in `text-domain-kit.md` that
    shape A is reached.
