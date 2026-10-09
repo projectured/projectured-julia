@@ -195,6 +195,7 @@ include("projection/TableNavigationTest.jl")
 include("projection/TableSelectionTest.jl")
 include("projection/TableCellEditingTest.jl")
 include("serializer/FileProjectTest.jl")
+include("serializer/WorkflowFileTest.jl")
 include("serializer/MarkerVocabularyTest.jl")
 include("serializer/SerializationTest.jl")
 include("editor/ExampleTest.jl")
@@ -218,6 +219,7 @@ function test_documents()
     @testset "Documents" begin
         test_constraint_solver()     # Tulip-backed LP constraint layout
         test_serialization()         # round-trips the ProjecturedExample fixtures
+        test_workflow_file()         # a workflow in a .pred file, with markers into other files
         test_pivot_data_frame()      # a pivot of a data frame, against DataFrames
     end
 end
@@ -650,5 +652,5 @@ export test_pane_tab_b1, test_print_object_options, test_search_object
 export test_execute_julia_code, test_assistant_editor_reference, test_function_availability
 export test_base_extensions, test_mcp_resources, test_mcp_tools
 export test_command_palette, test_command_palette_decorator, test_document_insertion
-export test_gesture_log, test_file_project
+export test_gesture_log, test_file_project, test_workflow_file
 export test_marker_vocabulary
