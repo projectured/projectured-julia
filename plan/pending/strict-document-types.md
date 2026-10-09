@@ -761,18 +761,22 @@ worktree. The three domains test different parts of the model:
       widely, nearly all from one field that `main` added: `TextLine.soft_breaks::Vector{Int}`,
       a vector of offsets that a computation of `WordWrapping` gives whole and `TextToGraphics`
       reads as `soft_breaks[]::Vector{Int}`. The constructors of `TextLine` give it
-      `Cell(Int[])`, and the list substitution made the check refuse that. A list is wrong
-      for this field, and it is reactive, so option A, which covers a kind that is not
-      reactive, did not reach it. **My refinement of A, for the owner to confirm:** only a
-      field that names no kind holds a list; a field that names a kind, reactive or not,
-      holds its declared value as one value. `soft_breaks` declares
-      `ReactiveCell{Vector{Int}}` (`f38aa57ae`). The other option was to declare it a union
-      with `Nothing`, which no reader needs. A second gap: the reader of a `.pred` file builds
+      `Cell(Int[])`, and the list substitution made the check refuse that. I proposed a
+      refinement of A: a field that names any kind, also the reactive one, holds its value
+      as one value, and `soft_breaks` declares `ReactiveCell{Vector{Int}}`. **Decided by the
+      owner, 2026-10-09: A unchanged.** Only a field that names a kind that is not reactive
+      holds one value; every other `Vector{T}` field, also one that names `ReactiveCell`,
+      holds a `CellVector{T}`. So `soft_breaks` is a `CellVector{Int}` (`a1e9c145d`): the
+      constructors of `TextLine` give `Cell(CellVector{Int}())`, the computation of
+      `WordWrapping` gives `CellVector{Int}(offsets)`, and `TextToGraphics` reads
+      `collect(Int, …)`. The rule that this case shows: a computation that fills a list field
+      must give a `CellVector`, because the check does not look at a computed cell and would
+      let a plain vector stand there. A second gap: the reader of a `.pred` file builds
       a `TextBlock` from its fields and gives `elements`, declared `CollectionDocument`, a
       plain vector. `CollectionDocument` is a union, so no list wraps it; a declaration of
       `ListDocument` would add the element constructor of the collection sugar, which can
       collide with `TextBlock(spans::TextDocument...)`. So a plain vector converts to a
-      `CellVector` for that union, by rule 2 (`f38aa57ae`).
+      `CellVector` for that union, by rule 2 (`f38aa57ae`, kept).
     - A fact for later: a bounded copy or sync puts an `UnsyncedDocument` where the walk stops,
       and a field that declares a narrow document type would refuse it. No caller does that
       today: the reflection and `SimulationInspection` hold the placeholder in a `ReflectedNode`.
