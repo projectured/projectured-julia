@@ -1,10 +1,12 @@
 # A value takes the color of its kind
 
-> **Status:** in progress on the branch `value-colors`, in the worktree
-> `projectured-julia-value-colors`. Part A, the values (sections 4 to 8), is
-> done on the branch and is not on `main`. Part B, the names (section 10), is
-> split: B1 is in progress, and B2 is deferred (section 10.6). The owner answered the questions of
-> Part A on 2026-10-08 (section 9).
+> **Status:** Part A, the values (sections 4 to 8), and Part B1, the names
+> that the place gives (sections 10.6 to 10.10), landed on `main` by a
+> fast-forward of the branch `value-colors` on 2026-10-09, on the owner's
+> "land it". Nothing is pushed. Open: QB4, an `as` on `collection` (section
+> 10.5), and B2, the scope analysis of Julia and more hues, which the owner
+> deferred (section 10.6). The plan stays in `plan/pending/` until they are
+> decided.
 
 ## 1. The request
 
