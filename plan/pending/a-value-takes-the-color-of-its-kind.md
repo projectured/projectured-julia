@@ -6,8 +6,8 @@
 > "land it". Nothing is pushed. Open: QB4, an `as` on `collection` (section
 > 10.5), and B2, the scope analysis of Julia and more hues, which the owner
 > deferred (section 10.6). B2 has a plan of its own since 2026-10-09:
-> [a-julia-name-takes-the-color-of-its-binding.md](a-julia-name-takes-the-color-of-its-binding.md),
-> whose analysis also covers the names of QB4. This plan stays in
+> [bound-julia-code-stores-each-name-once.md](bound-julia-code-stores-each-name-once.md),
+> whose bound code also covers the names of QB4. This plan stays in
 > `plan/pending/` until QB4 is decided.
 
 ## 1. The request
