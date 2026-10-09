@@ -747,9 +747,16 @@ worktree. The three domains test different parts of the model:
       counts on the branch and on `main`.
     - [x] **Landed by the owner's word, 2026-10-09 ("land first and test later"):** omnet-julia
       `main` at `01512123` (5 commits, rebased on `203ea3c5`), inet-julia `main` at `736aa58`.
-      Not pushed. The test of the landed code against the newest `main` of projectured-julia
-      follows. This branch lands next, after one more rebase: its merge with `main`
-      conflicts in `AssistantDocument.jl`.
+      Not pushed. *Tested after the landing* against `main` of projectured-julia at
+      `3d9187549`: `test_ned` (79), `test_simulator` (6950), `test_campaign_ui` (258 pass, 1
+      fail), `test_legacy` (1572 pass, 9 fail, 63 errors), `test_inet` (532, 9, 3) and the 74
+      functions of `OmnetPresentationTest` have the failures of the earlier runs on `main`;
+      the new passes come from the new tests of omnet-julia `main`.
+      `test_parallel_sim_dashboard_panel` hung once with `-t 2`: the spinning workers of a
+      parallel engine can hold both default threads, so the colorizer never runs. With
+      `-t 4`, as omnet-julia asks for its engine tests, it ends in 6 s with 10 pass and 5
+      fail, as on `main`. This branch rebased on `3d9187549` (`383aeee6a`); the rebase
+      resolved the theme files, whose roles `main` renamed, and `AssistantDocument.jl`.
     - A fact for later: a bounded copy or sync puts an `UnsyncedDocument` where the walk stops,
       and a field that declares a narrow document type would refuse it. No caller does that
       today: the reflection and `SimulationInspection` hold the placeholder in a `ReflectedNode`.
