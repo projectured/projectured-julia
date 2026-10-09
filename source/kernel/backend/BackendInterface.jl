@@ -101,8 +101,8 @@ function wake_backend! end
 """
     get_pointer_position(::Backend) -> (x, y)
 
-The current global mouse pointer position in screen pixels, or `(-1, -1)` when
-the backend cannot find it. `(-1, -1)` is a legal answer, and the default gives
+The current global mouse pointer position in the logical pixels of the screen,
+the space of the place of a window, or `(-1, -1)` when the backend cannot find it. `(-1, -1)` is a legal answer, and the default gives
 it for a backend that adds no method of its own.
 """
 function get_pointer_position end

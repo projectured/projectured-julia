@@ -40,8 +40,8 @@ projected.
 - `id::Symbol` — stable identity used by the backend to track this
   window across frames. Must be unique within its `ScreenDocument`.
 - `title::String` — window title.
-- `x::Int`, `y::Int` — screen position; -1 = backend chooses.
-- `width::Int`, `height::Int` — initial size in pixels; 0 = auto-size.
+- `x::Int`, `y::Int` — screen position in logical pixels; -1 = backend chooses.
+- `width::Int`, `height::Int` — initial size in logical pixels; 0 = auto-size.
 - `minimum_size::NTuple{2,Int}`, `maximum_size::NTuple{2,Int}` — the bounds of a
   window that fits its content. A `maximum_size` of `(0, 0)`, the default, is a
   window of a fixed size: it keeps `width` and `height`. A window with a maximum

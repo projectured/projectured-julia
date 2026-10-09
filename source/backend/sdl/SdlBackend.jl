@@ -133,9 +133,9 @@ mutable struct SdlWindowResources
     id::Symbol           # WindowDocument.id this resource mirrors
     sdl_id::UInt32       # SDL_GetWindowID(win), cached for the reverse map
     title::String        # last applied title — used to skip redundant SDL calls
-    width::Int           # last applied size
+    width::Int           # last applied size, in logical pixels
     height::Int
-    x::Int               # last applied position (-1 = not yet positioned)
+    x::Int               # last applied position, in logical pixels (-1 = not yet positioned)
     y::Int
     style::Symbol        # last applied style
     bg::NTuple{4,UInt8}  # last applied background
@@ -604,11 +604,11 @@ _hidden_window_flags(style::Symbol) =
 # Open one native SDL window for a WindowDocument and return the resource record.
 # The window is drawn at the device pixel ratio of the `Display` of `backend`.
 function _open_native_window!(backend::SdlBackend, w::WindowDocument; hidden::Bool = false)
-    px = w.x < 0 ? SDL_WINDOWPOS_CENTERED : Int32(w.x)
-    py = w.y < 0 ? SDL_WINDOWPOS_CENTERED : Int32(w.y)
-    flags = hidden ? _hidden_window_flags(w.style) : UInt32(_window_flags(w.style))
     ratio = get_device_pixel_ratio(backend.display)
-    # WindowDocument sizes are logical; the native window is device pixels.
+    # WindowDocument places and sizes are logical; the native window is device pixels.
+    px = w.x < 0 ? SDL_WINDOWPOS_CENTERED : Int32(_to_device(w.x, ratio))
+    py = w.y < 0 ? SDL_WINDOWPOS_CENTERED : Int32(_to_device(w.y, ratio))
+    flags = hidden ? _hidden_window_flags(w.style) : UInt32(_window_flags(w.style))
     win = SDL_CreateWindow(w.title, px, py,
         Int32(max(_to_device(w.width, ratio), 1)),
         Int32(max(_to_device(w.height, ratio), 1)), flags)
@@ -703,9 +703,10 @@ end
 #
 # Layout, documents and events are all in *logical* pixels; the window's
 # backbuffer and the OS are in *device* pixels. `ratio` is the number of device
-# pixels in one logical pixel. `_to_device` sizes native windows / SSAA targets;
-# `_to_logical` maps incoming device-space input (mouse, resize) back to the
-# logical space everything else lives in.
+# pixels in one logical pixel. `_to_device` sizes and places native windows and
+# sizes SSAA targets; `_to_logical` maps incoming device-space input (mouse,
+# resize, the place of a window, the global pointer) back to the logical space
+# everything else lives in.
 _to_device(px, ratio::Float64) = round(Int, px * ratio)
 _to_logical(px, ratio::Float64) = round(Int, px / ratio)
 
@@ -718,15 +719,15 @@ const _HOVER_MOTION_INTERVAL = 0.03   # seconds (~33 Hz)
 """
     get_pointer_position(::SdlBackend) -> (x, y)
 
-Current global mouse position in screen pixels (the same coordinate space as
-`SDL_SetWindowPosition`, so the result can place a window directly). Not run
-through `_to_logical`: window positions and global mouse coordinates are both
-in SDL screen coordinates.
+Current global mouse position in the logical pixels of the screen, the space of
+the `x` and the `y` of a `WindowDocument`, so the result can place a window
+directly.
 """
-function BackendModule.get_pointer_position(::SdlBackend)
+function BackendModule.get_pointer_position(backend::SdlBackend)
     x_ref, y_ref = Ref{Cint}(0), Ref{Cint}(0)
     SDL_GetGlobalMouseState(x_ref, y_ref)
-    (Int(x_ref[]), Int(y_ref[]))
+    ratio = get_device_pixel_ratio(backend.display)
+    (_to_logical(Int(x_ref[]), ratio), _to_logical(Int(y_ref[]), ratio))
 end
 
 # Find the density of the display: the number of device pixels in one logical
@@ -4195,7 +4196,7 @@ here, and at each motion in `take_from_devices!`. It makes the cursor of each sh
 once, and sets it only when the shape changes.
 """
 function BackendModule.write_to_devices!(backend::SdlBackend, devices::Vector{Device}, screen::ScreenDocument)
-    _keep_device_size_at_new_zoom!(backend, screen)
+    _keep_device_geometry_at_new_zoom!(backend, screen)
     ratio = get_device_pixel_ratio(backend.display)
     desired_ids = Set{Symbol}()
     for w in screen.windows
@@ -4235,7 +4236,7 @@ function BackendModule.write_to_devices!(backend::SdlBackend, devices::Vector{De
             backend.window_ids[res.sdl_id] = res.id
             _show_painted_window!(backend, res, w)
         else
-            _adopt_native_position!(res, w)
+            _adopt_native_position!(res, w, ratio)
             _update_window_geometry!(res, w, ratio)
         end
         if _render_window!(backend, res, canvas)
@@ -4427,17 +4428,19 @@ choose.
 A window of a fixed size is left alone, and so is one that asks the backend to
 place it (`x` or `y` below zero).
 
-The work area is the size that `backend.display` holds. This function runs at
+The work area is the size that `backend.display` holds. That size is in pixels at
+the zoom 1, and the place and the size of a window are in logical pixels at the
+zoom of the display, so the area is divided by the zoom. This function runs at
 each frame, so it asks SDL and `xrandr` nothing.
 """
 function _place_fitted_window!(backend::SdlBackend, w::WindowDocument)
     maximum_size = w.maximum_size
     (maximum_size[1] <= 0 && maximum_size[2] <= 0) && return w
     (w.x < 0 || w.y < 0) && return w
-    area = (backend.display.width, backend.display.height)
+    zoom = backend.display.zoom
     (x, y) = compute_window_place(Int(w.x), Int(w.y), Int(w.width), Int(w.height);
-                                  area_width = Int(area[1]),
-                                  area_height = Int(area[2]),
+                                  area_width = round(Int, backend.display.width / zoom),
+                                  area_height = round(Int, backend.display.height / zoom),
                                   pointer = w.style === :tooltip ?
                                             get_pointer_position(backend) : nothing)
     (w.x == x && w.y == y) && return w
@@ -4449,11 +4452,12 @@ end
 # The place of a window that the window manager chose. It can put a window
 # elsewhere than asked, at the first frame or when a person moves it. The document
 # takes that place when it asks for no place of its own, so a popup opens at the
-# window and not where the window was first asked to be.
-function _adopt_native_position!(res::SdlWindowResources, w::WindowDocument)
+# window and not where the window was first asked to be. SDL gives the place in
+# device pixels, and `ratio` is the device pixel ratio of this frame.
+function _adopt_native_position!(res::SdlWindowResources, w::WindowDocument, ratio::Float64)
     x_ref, y_ref = Ref{Cint}(0), Ref{Cint}(0)
     SDL_GetWindowPosition(res.win, x_ref, y_ref)
-    x, y = Int(x_ref[]), Int(y_ref[])
+    x, y = _to_logical(Int(x_ref[]), ratio), _to_logical(Int(y_ref[]), ratio)
     (x == res.x && y == res.y) && return w
     if w.x == res.x && w.y == res.y
         w.x = x
@@ -4532,8 +4536,8 @@ function _update_window_geometry!(res::SdlWindowResources, w::WindowDocument,
         res.ratio = ratio
     end
     if (w.x >= 0 && w.x != res.x) || (w.y >= 0 && w.y != res.y)
-        px = w.x < 0 ? SDL_WINDOWPOS_CENTERED : Int32(w.x)
-        py = w.y < 0 ? SDL_WINDOWPOS_CENTERED : Int32(w.y)
+        px = w.x < 0 ? SDL_WINDOWPOS_CENTERED : Int32(_to_device(w.x, ratio))
+        py = w.y < 0 ? SDL_WINDOWPOS_CENTERED : Int32(_to_device(w.y, ratio))
         SDL_SetWindowPosition(res.win, px, py)
         res.x = Int(w.x)
         res.y = Int(w.y)
@@ -4555,13 +4559,15 @@ end
 # is the density of the display times its zoom, so a new zoom magnifies every
 # pixel. The drawing finds the new zoom.
 
-# Keep the device size of each window when the zoom changed since the last
-# frame: its logical width and height change by the old zoom over the new one,
-# so the operating system does not resize the window, and the content lays out
-# for the new logical size, as after a resize by the person. Every window then
-# repaints in full, because every pixel moves. A change of the density, such as
-# the probe that the first window runs, changes no logical size.
-function _keep_device_size_at_new_zoom!(backend::SdlBackend, screen::ScreenDocument)
+# Keep the device size and the device place of each window when the zoom changed
+# since the last frame: its logical width, height, `x` and `y` change by the old
+# zoom over the new one, so the operating system does not resize or move the
+# window, and the content lays out for the new logical size, as after a resize by
+# the person. The place that the backend last applied changes with it, so no
+# window is moved again. Every window then repaints in full, because every pixel
+# moves. A change of the density, such as the probe that the first window runs,
+# changes no logical size; the next frame takes the place of each window again.
+function _keep_device_geometry_at_new_zoom!(backend::SdlBackend, screen::ScreenDocument)
     previous = backend.drawn_zoom
     zoom = Float64(backend.display.zoom)
     backend.drawn_zoom = zoom
@@ -4571,12 +4577,20 @@ function _keep_device_size_at_new_zoom!(backend::SdlBackend, screen::ScreenDocum
         w isa WindowDocument || continue
         w.width  = max(1, round(Int, Int(w.width)  * factor))
         w.height = max(1, round(Int, Int(w.height) * factor))
+        w.x >= 0 && (w.x = _scale_place(Int(w.x), factor))
+        w.y >= 0 && (w.y = _scale_place(Int(w.y), factor))
     end
     for res in values(backend.windows)
+        res.x = _scale_place(res.x, factor)
+        res.y = _scale_place(res.y, factor)
         res.first_paint = true
     end
     nothing
 end
+
+# A place on the screen at a new zoom; a place below zero asks the backend to
+# choose, and stays.
+_scale_place(place::Int, factor::Float64) = place < 0 ? place : round(Int, place * factor)
 
 # ════════════════════════════════════════════════════════════════════════
 # Image decoding (IMG_Load)

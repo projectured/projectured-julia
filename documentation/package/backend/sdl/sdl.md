@@ -10,7 +10,7 @@
 
 The backend has no call that opens or closes a window. `write_to_devices!(backend, devices, screen::ScreenDocument)` compares the native windows with the `WindowDocument`s of the screen. It closes a window whose id is gone, opens one for a new id, and updates the title, the size and the position of the others. Then it paints the `content` of each, which must be a `GraphicsCanvas`. `windows` maps an id to its `SdlWindowResources`, and `window_ids` maps the SDL window number back to the id, so each event carries the id of its window. The resources keep the last values applied, so an unchanged title or size makes no SDL call. [screen.md](../../platform/screen/screen.md) describes the document side.
 
-**A window that says a `maximum_size` fits what it holds.** Before it makes or resizes the native window, the reconciler reads the `w` and the `h` of the printed canvas, clamps them between the `minimum_size` and the `maximum_size` of the window, and writes them into the `WindowDocument`. It also keeps such a window inside the work area, which is the size that the `Display` of the backend holds: `initialize_backend!` and `configure_devices!` read it, and an SDL display event reads it again, so a frame asks SDL nothing. A tooltip also goes beside the pointer rather than under it: a tooltip under the pointer covers the thing it is about, and the next move of the pointer closes it. A popup stays under the pointer, because the pointer goes into it to choose. A window whose maximum is `(0, 0)` keeps the size it asks for, and that includes the first window.
+**A window that says a `maximum_size` fits what it holds.** Before it makes or resizes the native window, the reconciler reads the `w` and the `h` of the printed canvas, clamps them between the `minimum_size` and the `maximum_size` of the window, and writes them into the `WindowDocument`. It also keeps such a window inside the work area, which is the size that the `Display` of the backend holds, divided by the zoom: `initialize_backend!` and `configure_devices!` read it, and an SDL display event reads it again, so a frame asks SDL nothing. A tooltip also goes beside the pointer rather than under it: a tooltip under the pointer covers the thing it is about, and the next move of the pointer closes it. A popup stays under the pointer, because the pointer goes into it to choose. A window whose maximum is `(0, 0)` keeps the size it asks for, and that includes the first window.
 
 **A window that the reconciler opens is painted before it is shown.** It is made with `SDL_WINDOW_HIDDEN`, painted, and then shown. A window shown before its first frame holds an undefined back buffer, which the compositor draws black, so a tooltip flashed black and filled in after. The paint that follows the show covers the whole window, because a driver is free to drop a present made while the window is hidden. `open_native_windows!` still opens the first window shown, because a hidden window gets no answer from the window manager about its size.
 
@@ -97,10 +97,10 @@ built with no `Appearance` has no zoom keys. [style.md](../../platform/style/sty
 describes the two kinds of change they reach.
 
 - `AdjustZoomOperation` steps the `zoom` of the `Appearance` and copies it into
-  the `zoom` of the `Display` of the backend, which scales the logical size of
-  each window the other way. The native window keeps its device size, and the
-  content lays out again through the exact range that the window gives it, as
-  on a resize.
+  the `zoom` of the `Display` of the backend, which scales the logical size and
+  place of each window the other way. The native window keeps its device size
+  and place, and the content lays out again through the exact range that the
+  window gives it, as on a resize.
 - `AdjustScaleOperation` steps one of the six scales, such as the font scale. A
   scale reaches no cell of the view, so `AppearanceManagingProjection` sets
   `editor.iomap` to `nothing` through `InvalidateProjectionOperation`, and the

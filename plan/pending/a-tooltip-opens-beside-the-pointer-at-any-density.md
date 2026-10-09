@@ -47,23 +47,28 @@ The ratio is `get_device_pixel_ratio(backend.display)`, the density times the
 zoom.
 
 1. ✅ Write this plan.
-2. ⬜ Convert in the SDL backend, and test it:
+2. ✅ Convert in the SDL backend, and test it:
    - `_open_native_window!`: the position to device pixels;
    - `_update_window_geometry!`: the position for `SDL_SetWindowPosition` to
      device pixels;
    - `_adopt_native_position!`: the result of `SDL_GetWindowPosition` to logical
-     pixels, at the ratio of this frame;
+     pixels, at the ratio of this frame (a new `ratio` argument);
    - `get_pointer_position`: to logical pixels;
    - `_place_fitted_window!`: the work area at the ratio, that is the size of the
      `Display` over the zoom;
-   - `_keep_device_size_at_new_zoom!`: scale the position by the old zoom over
-     the new one too, as it scales the size, so a window does not move at a new
-     zoom.
+   - `_keep_device_size_at_new_zoom!`, renamed `_keep_device_geometry_at_new_zoom!`
+     with `julia-rename.jl`: it scales `x` and `y` by the old zoom over the new
+     one too, as it scales the size, and the place cached in each
+     `SdlWindowResources`, so a window does not move at a new zoom. A place below
+     zero stays (`_scale_place`).
    - Docstrings: the `x` and `y` of `WindowDocument`, and `get_pointer_position`
-     in `BackendInterface.jl`, say "logical pixels of the screen".
-   - Tests: `test_native_window` and `test_device_config` read the native
-     position in the new unit; a new test checks the round trip of a position at
-     a ratio that is not 1.
+     in `BackendInterface.jl`, say "logical pixels of the screen". The guides
+     `devices-and-backends.md` and `sdl.md` say it too.
+   - Tests: `test_device_config` checks that a new zoom keeps the device place;
+     `test_native_window` runs the adoption of a native place at the zoom 1 and 2,
+     and places a popup in the work area at the zoom 2.
+   - Result: `test_device_config`, `test_native_window` and `test_sdl_layering`
+     pass, 111 of 111; the naming guard passes.
 3. ⬜ A live check at the density 2: a dwell on a button of the toolbar opens a
    tooltip whose native rectangle does not hold the point of the dwell.
 4. ⬜ The owner hovers the toolbar with the real pointer.
@@ -73,9 +78,18 @@ zoom.
 - **The unit of a window position is the logical pixel of the screen.** The
   `Display` docstring and the comment of `_to_device` already say that documents
   and events are in logical pixels and that only the native side is in device
-  pixels. The web backend works in CSS pixels, which are logical. So the SDL
-  backend is the one place that breaks the rule, and the fix goes there, not in
-  the screen or the tooltip.
+  pixels. The SDL backend is the one place that breaks the rule, and the fix goes
+  there, not in the screen or the tooltip.
 - **`Display.width` keeps its meaning** (pixels at the zoom 1). `get_display_size`
   gives the same value, and `WindowScene` sizes a main window with it, so the
   placement code converts it, and the field stays.
+- **The fixtures of `test_native_window` give a `PrimitiveString`.** On main the
+  suite has 8 errors: eight fixtures give `content = "content"`, a `String`, and
+  the strict check of a declared type throws (`DeclaredTypeMismatchException`).
+  A baseline run on a clean checkout of main (`42963d117`) showed the same 8
+  errors. The fixtures now give `PrimitiveString("content")`, a document that is
+  not a canvas, as before the first projection.
+- **The test "a tooltip goes beside the pointer" never ran its assertions at the
+  density 2.** It placed its window from the real pointer, in device pixels, and
+  clamped it into the work area, in logical pixels, so its condition was false
+  and it had 0 tests on main. With one unit it runs.

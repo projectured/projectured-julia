@@ -45,8 +45,12 @@ are in `event/KeyboardEvent.jl`, and the `Mouse*` events are in
 `get_device_pixel_ratio(display)` is `display.density * display.zoom`: the number
 of device pixels that a backend draws for one logical pixel. Layout and events
 work in logical pixels. The SDL backend keeps the `Display` that
-`configure_devices!` gives it. It sizes its windows, rasterizes its text and
-converts its input coordinates with the ratio of that `Display`. The zoom of an
+`configure_devices!` gives it. It sizes and places its windows, rasterizes its
+text, and converts its input coordinates, the place of each window and the
+global pointer with the ratio of that `Display`. So the `x` and the `y` of a
+`WindowDocument` and the answer of `get_pointer_position` are in logical pixels
+of the screen, and a point in a window plus the place of the window is a point
+on the screen. The zoom of an
 editor is in its `Appearance`, and the `appearance` wrapper copies it into the
 `Display` of the editor, so Ctrl+= and Ctrl+- change the zoom of one editor. The
 web backend sends the `zoom` of its `Display` to the browser, which draws with it.
