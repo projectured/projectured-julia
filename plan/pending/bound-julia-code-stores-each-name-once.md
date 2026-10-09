@@ -1,7 +1,8 @@
 # Bound Julia code stores each name once
 
-> **Status:** proposal, not started. Nothing is implemented. The questions are
-> in section 13. This plan is part B2 of
+> **Status:** proposal, not started. Nothing is implemented. The owner decided
+> Q1, Q2 and Q12 on 2026-10-09 (section 14); the other questions are in
+> section 13. This plan is part B2 of
 > [a-value-takes-the-color-of-its-kind.md](a-value-takes-the-color-of-its-kind.md),
 > whose parts A and B1 landed on `main` at `ee32195c6` on 2026-10-09.
 
@@ -118,10 +119,16 @@ name becomes a use) and the others. The fields of these types hold any
 | `JuliaUsing` | `JuliaImport` |
 | `JuliaConst` | a `JuliaAssignment` to a `JuliaGlobalBinding` with `constant = true` |
 
-Two fields of the tree hold a name as a string or a symbol and not as a
-document: `JuliaBinaryOperation.operator` and `JuliaMacroCall.name`. An operator
-and a macro are bindings too, so the bound code needs a document in their place
-(questions Q2 and Q3).
+Four fields of the tree hold a name as a string or a symbol and not as a
+document: `JuliaBinaryOperation.operator`, `JuliaUnaryOperation.operator`,
+`JuliaAssignment.operator` and `JuliaMacroCall.name`. An operator is a binding
+too, such as `Base.:+` (decision Q2), so each `operator` field takes a document:
+a `JuliaBindingUse` in bound code. Two kinds of operator stay symbols, because
+they are syntax and no function: `&&` and `||`, and the `=` of an assignment.
+An update such as `x += 1` holds a use of `+`, and the printer writes `+=`. The
+printer reads the spelling and the precedence of an operator from the name of
+its binder. A macro is a binding too, so `JuliaMacroCall.name` takes a use as
+well if the owner agrees (question Q3).
 
 ### 4.4 An example
 
@@ -158,7 +165,7 @@ Julia finds the field at run time.
 
 ## 5. A separate step from the bound code to the tree?
 
-My recommendation: **no separate step** (question Q1).
+**No separate step** (decision Q1).
 
 - **The printer can print the bound code directly.** The bound code reuses the
   types of the tree, so `JuliaToSyntax` already prints every node that holds no
@@ -290,15 +297,42 @@ is the walk of 7.2 along the path from the method to the place.
 
 ## 10. Where bound code is used
 
-Bound code is a possibility, not a replacement: the tree stays the form of
-plain Julia code (question Q12).
+**Julia code is bound code by default, as far as it can be** (decision Q12).
+The tree stays the output of the parser, which the bind takes as its input, and
+the form of a name that Julia resolves at run time.
 
-- A `.jl` file opens as a tree today. A command, or a setting of the file, opens
-  it as bound code.
-- The Julia code inside other domains, such as the guard of a state machine, a
-  process step and a formula, stays a tree in this plan. A later plan can bind
-  it against the names of its host.
-- The tree keeps the colours of B1, by the place of a name.
+- **A `.jl` file** opens as bound code.
+- **Typed code** binds when the person commits it: a hole of a Julia document,
+  a field of code of a form, a cell of the evaluator.
+- **The Julia code inside another domain** binds against the binders of its
+  host. A use may hold a binder of another domain, such as an `FsmVariable` of
+  a state machine, so the name stays in one place across the two domains. Each
+  type that is a binder answers two functions: `get_binding_name(binder)` and
+  `get_binding_kind(binder)`. The Julia binders answer them, and a host domain
+  adds methods for its own binders.
+- **What stays a tree:** text that does not parse yet stays in its hole, and a
+  name that nothing binds is a `JuliaUnresolvedName` in bound code.
+
+These parts of the program read or make Julia documents, and each must take
+bound code:
+
+| Part | What it does with Julia code |
+| --- | --- |
+| `JuliaFile` | opens and saves a `.jl` file |
+| `@gestures JuliaInsertion` | commits typed code with `parse_julia` |
+| `make_julia_expression` | prints the code and parses it to run it |
+| `find_julia_definition` | finds a top-level definition by its name, for the `definition` verb of the marker language |
+| the tooltip of a `JuliaFunction` | gives its signature |
+| `JuliaCodePieces` | colors a field of code token by token, from its text |
+| the formula (`FormulaDocument.jl`, `MathToJulia.jl`) | holds and makes Julia code |
+| the state machine (`FsmDocument.jl`, `FsmToJuliaCode.jl`) | holds guards and actions, and makes Julia code from a machine |
+| the process (`ProcessDocument.jl`, `ProcessToJuliaCode.jl`) | holds steps, and makes Julia code from a process |
+| the conversation (`Evaluator.jl`, `ConversationEditor.jl`) | evaluates code, and shows a `nothing` result as Julia |
+| the examples and the atomic catalog | one document of each type; `CatalogCoverageTest` lists a type with no entry |
+| inet-julia `generate_mac_fsm.jl`, `generate_plca_control_fsm.jl` | make state machines with Julia code |
+
+The colours of B1 by the place of a name stay for a tree, which the parser
+gives before the bind.
 
 ## 11. Tests
 
@@ -334,24 +368,33 @@ plain Julia code (question Q12).
 4. ⬜ A `.jl` file as bound code: the open, the save, and `is_written_in_file`.
 5. ⬜ The edits of section 8: the rename, the typed name, the commit of typed
    code, the delete, the paste.
-6. ⬜ The `.pred` file of bound code, by the answer to Q4.
-7. ⬜ Screenshots in each palette and mode, and the decision on the hues.
-8. ⬜ [julia.md](../../documentation/package/domain/julia/julia.md) describes
-   bound code.
-9. ⬜ The measure of the cost on a large file.
+6. ⬜ The parts of section 10 take bound code; a `.jl` file, typed code and the
+   code of a form bind by default.
+7. ⬜ The host domains bind their Julia code against their own binders, with
+   `get_binding_name` and `get_binding_kind`: the state machine, the process
+   and the formula.
+8. ⬜ The `.pred` file of bound code, by the answer to Q4.
+9. ⬜ Screenshots in each palette and mode, and the decision on the hues.
+10. ⬜ [julia.md](../../documentation/package/domain/julia/julia.md) describes
+    bound code.
+11. ⬜ The measure of the cost on a large file.
 
 ## 13. Questions
 
-- **Q1. The step** (section 5): the printer prints bound code directly (my
-  recommendation), or a step `BoundJuliaToJulia` gives the plain tree first?
-- **Q2. An operator:** `+` is a binding of `Base` too. A use of a
-  `JuliaExternalBinding` in place of the symbol, so that a method of `Base.:+`
-  in the file binds to it (my recommendation)? Or does an operator stay a
-  symbol?
 - **Q3. A macro:** the name of a macro call becomes a use of its binding (my
   recommendation)?
-- **Q4. The `.pred` file:** may a single-file save write an in-file reference to
-  a node that the file reaches twice?
+- **Q4. The `.pred` file of bound code alone.** In bound code one node sits at
+  several places: the binder `r` is in the `locals` of its method, and each
+  use of `r` holds the same binder. A file can write an object only once, so
+  the writer writes it at its first place and writes a reference, such as "the
+  node at `locals[1]`", at each other place. The save of a project of several
+  files does this today. The save of one file alone, `save_file!`, refuses any
+  reference, because it was made for a reference into another file, which a
+  file alone can not reach. May the save of one file alone write a reference to
+  a place in the same file? Without it, bound code is saved alone as a `.jl`
+  text, which keeps the names, and its binders come back from the names at the
+  next load. My recommendation: yes, because a reference into the same file
+  needs no other file.
 - **Q5. A rename that captures:** refuse the rename (my recommendation), or
   allow it and mark each use whose text would bind to another binder?
 - **Q6. A delete of a binder with uses:** the uses become unresolved names (my
@@ -366,5 +409,18 @@ plain Julia code (question Q12).
   (my recommendation)?
 - **Q11. The binder:** our own bind over our tree, compared with
   `JuliaLowering` in a test (my recommendation), or `JuliaLowering` itself?
-- **Q12. The default:** a `.jl` file opens as a tree, and bound code is a
-  choice (my recommendation), or a `.jl` file opens as bound code?
+
+## 14. Decisions
+
+The owner answered on 2026-10-09:
+
+- **Q1. The step:** "agreed": no step `BoundJuliaToJulia`; the printer prints
+  bound code directly (section 5).
+- **Q2. An operator:** "yes": an operator is a use of its binding, such as
+  `Base.:+`; `&&`, `||` and the `=` of an assignment stay symbols
+  (section 4.3).
+- **Q4.** "I don't understand this question": section 13 says it again in
+  other words.
+- **Q12. The default:** "bound by default as much as possible": a `.jl` file,
+  typed code and the Julia code of the other domains bind by default
+  (section 10).
