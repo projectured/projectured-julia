@@ -244,6 +244,77 @@ The uniformity matters:
 3. One printer/reader body serves every kind, because access goes through the
    same `getproperty` for all of them.
 
+### The declared type of a field
+
+The reactive layout stores every field in a `ReactiveCell{Any}`, and a check
+compares each write through the document with the **declared type** of the field
+([DeclaredType.jl](../../../source/kernel/document/DeclaredType.jl)). The macro
+computes the declared type of each field of the cell layout when it defines the
+schema, and `find_declared_field_type(T, name)` returns it.
+
+```julia
+@document struct Playlist
+    title::String
+    tracks::Vector{Track}                       # a CellVector{Track} in the cell layout
+    scratch::MutableCell{Vector{Int}} = Int[]   # one plain vector
+end
+```
+
+| The field declares | The cell layout declares |
+| --- | --- |
+| `Vector{X}`, also as `ReactiveCell{Vector{X}}` | `CellVector{X}`, a list that keeps each element in a cell of its own |
+| a kind that is not reactive, such as `MutableCell{Vector{X}}` | `Vector{X}`, as one value |
+| a list type, such as `CellVector{X}` or `ListDocument` | the same list type |
+| the native layout of an `[M, C]` schema, such as the bare `Foo` | the family of the schema, `AFoo` |
+| a union | the union, with the family in place of each native layout among its members; a `Vector` in a union stays a `Vector` |
+| any other type | the same type |
+
+A field that names the native layout of another schema gets its family, because a
+kinded copy puts the cell layout of the child there, and the family admits every
+layout. Declare a vector of working state that other threads change while a
+shadow of it is synced as `MutableCell{Vector{X}}`. A sync then replaces it as one
+value, and does not read it element by element.
+
+Each write converts the value by the rules below, in this order:
+
+1. A value of the declared type passes.
+2. A Julia `convert` to the declared type that loses nothing converts the value:
+   a `SubString` to a `String`, an `Int` to a `Spacing`, a plain vector to a
+   `CollectionDocument`. A number converts only when the result `isequal` the number.
+3. In an operation, a text becomes the insertion of the domain of the field's
+   owner, when the declared type admits that insertion.
+4. The write throws `DeclaredTypeMismatchException`, which names the field, the
+   declared type and the value.
+
+| Write | What it does before the rules |
+| --- | --- |
+| a constructor, with a raw value | wraps a plain vector for a list field into the list of the field |
+| a constructor, with a cell | nothing; a cell whose type is a subtype of the declared type costs nothing |
+| the setter, `doc.field = value` | wraps a plain vector for a list field |
+| an operation, such as `ReplaceReferencedValueOperation` | nothing; rule 3 applies only here |
+| an element write of a `CellVector{X}` | checks the element against `X` |
+| a kinded copy, `copy_document(K, doc)` | gives a list field the list of the field, in cells of the kind `K` |
+
+**The mode.** `set_declared_type_check_mode!(mode)` sets what a refusal does:
+`:throw`, the default, throws; `:record` lets the write pass and records it;
+`:off` checks nothing. `collect_declared_type_mismatches()` returns the records,
+with the code that made each write, and `clear_declared_type_mismatches!()`
+empties them. Run a suite in `:record` to find the writes that a narrower
+declaration would refuse.
+
+**Outside the check.** The check does not read a computed cell, because its value
+exists only after the computation, and it lets a `PendingValue` pass, the
+stand-in that a template rule builds for a value. So a computation that fills a
+field must give the declared type: a `CellVector{X}` for a field declared
+`Vector{X}`. A cell that a constructor gets is checked for the value that it holds
+at that time.
+
+**A list reads as a vector.** A `CellVector{X}` gives `eltype`, `collect`, `==` and
+`hash` with a vector, `vcat`, `filter`, `getindex` with a vector of indices, `keys`,
+and `convert` to a vector type, which a constructor of the native layout uses.
+A method whose argument is declared `Vector` or `AbstractVector` does not take a
+list; call it with `collect(list)`, or let it take any collection.
+
 ### Escape hatch
 
 When you genuinely need the raw cell (for example to share it between two
@@ -507,20 +578,17 @@ struct body, is spelled out in [plan/done/macro-default-field-values.md](../../.
 ## When to declare a field as `::Cell` vs. let the macro wrap it
 
 The macros wrap *every* declared field in a `Cell` regardless of the type
-annotation. The annotation is what the **typed spellings** enforce: `ICFoo` / `MCFoo`
-build their cells from it (`ImmutableCell{String}`, …), while the bare reactive
-kind stores every field as `Any`. So the rule is:
+annotation. The annotation is the declared type that every layout checks:
+`ICFoo` / `MCFoo` build typed cells from it (`ImmutableCell{String}`, …), and the
+bare reactive kind stores every field as `Any` and checks each write through the
+document (see "The declared type of a field" above). So the rule is:
 
 - Declare the field with its logical type (`::String`, `::Reference`, `::Int`),
-  **but the annotation must admit every value the field can actually hold.** If
-  the domain ever stores `nothing` in a field as an empty sentinel — e.g. a
-  number whose text has been fully deleted — the annotation must include it
-  (`::Union{Real, Nothing}`). A dishonest annotation stays silent under the bare
-  name and then causes two separate failures: `ICFoo(…)` / `MCFoo(…)` **throw** on
-  a value the annotation rejects (`ImmutableCell{Real}(nothing)` has no method), and
-  `copy_document(ImmutableCell, doc)` does *not* throw. It falls back to the
-  value's own type, so the copy quietly lands **off** the alias and
-  `copy isa ICFoo` is `false`.
+  **and the annotation must admit every value the field can hold.** If the domain
+  stores `nothing` in a field as an empty sentinel, such as a number whose text is
+  deleted, the annotation must include it (`::Union{Real, Nothing}`). A
+  declaration that is too narrow throws `DeclaredTypeMismatchException` at the
+  first write that it refuses (PAR-WIDE-FIELD-TYPES).
 - The macro handles the Cell wrapping for the runtime struct.
 
 The only time you would annotate `::Cell` directly is when the field really
