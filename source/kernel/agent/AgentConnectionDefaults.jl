@@ -13,6 +13,10 @@ function make_agent_connection(::Val{K}; kwargs...) where {K}
           "Load the opt-in package that provides :$(K).")
 end
 
+# A connection that does not say how to sign out can not.
+has_agent_sign_out(connection) = false
+sign_out_agent!(connection) = false
+
 """
     get_agent_connection_names() -> Vector{Symbol}
 

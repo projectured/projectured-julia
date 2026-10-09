@@ -54,7 +54,7 @@ the session that comes between two prompts — its options, its usage, its
 title, its commands — waits, and the next prompt gets the latest of each kind
 first.
 
-Throws when the agent needs a sign-in, with a message that says how to sign in.
+Throws an [`AgentSignInException`](@ref) when the agent needs a sign-in.
 """
 function open_agent_session! end
 
@@ -80,7 +80,8 @@ its commands.
 It is called on a task that is not the editor's.
 
 Answers why the turn ended: `:end_turn`, `:max_tokens`, `:max_turn_requests`,
-`:refusal` or `:cancelled`.
+`:refusal` or `:cancelled`. Throws an [`AgentSignInException`](@ref) when the
+agent needs a sign-in, as after [`sign_out_agent!`](@ref).
 """
 function send_agent_prompt! end
 
@@ -106,3 +107,20 @@ function close_agent_session! end
 Stop the agent of `connection`, with every session in it.
 """
 function stop_agent_connection! end
+
+"""
+    has_agent_sign_out(connection) -> Bool
+
+Whether the agent of `connection` signs out when asked. A connection that has
+not started answers `false`.
+"""
+function has_agent_sign_out end
+
+"""
+    sign_out_agent!(connection) -> Bool
+
+Sign the agent of `connection` out. It forgets the sign-in of the person, and
+its next session or prompt throws an [`AgentSignInException`](@ref). Answers
+`false`, and does nothing, when the agent can not sign out.
+"""
+function sign_out_agent! end

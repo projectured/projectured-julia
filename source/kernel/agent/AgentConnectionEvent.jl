@@ -1,6 +1,7 @@
 # Fragment of `AgentModule` — the events an external agent reports in a turn,
-# beside the text and the reasoning that arrive as `LlmEvent`s. A connection
-# translates its protocol into these, so a caller never sees the protocol.
+# beside the text and the reasoning that arrive as `LlmEvent`s, and the sign-in
+# that an agent can ask for. A connection translates its protocol into these, so
+# a caller never sees the protocol.
 
 """
     AgentToolCallUpdate(id; name, title, kind, status, input, output, output_mime_type, output_uri)
@@ -177,3 +178,33 @@ replaces the commands before it.
 struct AgentCommandsUpdate <: AgentEvent
     commands::Vector{AgentCommand}
 end
+
+"""
+    AgentSignInMethod(id, name, description, command)
+
+A way to sign in to an external agent: the agent runs its own sign-in in a
+terminal. `command` is the program of the sign-in, with its arguments, its
+environment and its folder. A person answers it in a terminal, and it ends with
+the status 0 when the sign-in worked.
+"""
+struct AgentSignInMethod
+    id::String
+    name::String
+    description::String
+    command::Cmd
+end
+
+"""
+    AgentSignInException(agent_title, methods, message)
+
+Thrown when an external agent needs a sign-in before it opens a session or runs
+a prompt. `methods` are the ways to sign in that this editor can run, and can be
+empty. `message` says how to sign in, in words for a person.
+"""
+struct AgentSignInException <: Exception
+    agent_title::String
+    methods::Vector{AgentSignInMethod}
+    message::String
+end
+
+Base.showerror(io::IO, exception::AgentSignInException) = print(io, exception.message)

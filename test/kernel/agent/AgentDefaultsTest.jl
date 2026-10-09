@@ -61,5 +61,17 @@ function test_agent_defaults()
         @test update.title === nothing && update.input === nothing && update.output === nothing
     end
 
+    @testset "a connection that does not say how to sign out can not" begin
+        @test !has_agent_sign_out(make_agent_connection(:toy))
+        @test !sign_out_agent!(make_agent_connection(:toy))
+    end
+
+    @testset "a sign-in exception shows its message" begin
+        method = AgentSignInMethod("login", "Log in", "Run the login.", `agent --login`)
+        exception = AgentSignInException("Toy Agent", [method], "Toy Agent needs a sign-in.")
+        @test sprint(showerror, exception) == "Toy Agent needs a sign-in."
+        @test only(exception.methods).command == `agent --login`
+    end
+
 end
 end # test_agent_defaults
