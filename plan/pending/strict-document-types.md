@@ -777,6 +777,16 @@ worktree. The three domains test different parts of the model:
       `ListDocument` would add the element constructor of the collection sugar, which can
       collide with `TextBlock(spans::TextDocument...)`. So a plain vector converts to a
       `CellVector` for that union, by rule 2 (`f38aa57ae`, kept).
+    - *The final check (2026-10-09), the branch at `a1e9c145d` in the mode `:throw` against
+      `main` at `3d9187549`:* all 24 suites of projectured-julia and `test_acp` have the
+      failures, errors and broken tests of `main`, with more passes from the new tests
+      (`test_platform` 115651 against 114620, 3 failures on both; `test_integration` 1419900
+      against 1382050, 4 failures on both). Against the landed omnet-julia and inet-julia:
+      `test_ned`, `test_simulator`, `test_campaign_ui`, `test_legacy` (1568 pass against
+      1572, the variance of that suite) and `test_inet` are equal, 73 functions of
+      `OmnetPresentationTest` are equal, and the parallel dashboard test, with `-t 4`, has
+      10 pass and 5 fail as on `main`. `main` moved by 17 more commits meanwhile, with no
+      conflict.
     - A fact for later: a bounded copy or sync puts an `UnsyncedDocument` where the walk stops,
       and a field that declares a narrow document type would refuse it. No caller does that
       today: the reflection and `SimulationInspection` hold the placeholder in a `ReflectedNode`.
