@@ -53,6 +53,23 @@ function test_terminal()
     @test _terminal_texts(small) == ["b", "c"]
 end
 
+@testset "a carriage return and an escape sequence at the end of a read wait for the next" begin
+    split = TerminalModule._split_unfinished_text
+    @test split("abc\r") == ("abc", "\r")
+    @test split("x\e[1;3") == ("x", "\e[1;3")
+    @test split("\e[1;32mgreen") == ("\e[1;32mgreen", "")
+    @test split("plain") == ("plain", "")
+    # The pieces of two reads give what one read gives.
+    terminal = TerminalDocument(`true`)
+    text, held = split("abc\r")
+    add_terminal_text!(terminal, :output, text)
+    add_terminal_text!(terminal, :output, held * "\ndef\n")
+    @test _terminal_texts(terminal) == ["abc", "def"]
+    # A change of the character set is no text either.
+    add_terminal_text!(terminal, :output, "\e(Bplain\n")
+    @test last(_terminal_texts(terminal)) == "plain"
+end
+
 @testset "a character that a read cuts in two waits for its bytes" begin
     bytes = Vector{UInt8}("aé")
     head = bytes[1:2]
@@ -84,6 +101,18 @@ end
     @test !send_terminal_input!(terminal, "late")
 end
 
+@testset "a child that the program leaves running does not hold the end" begin
+    started = time()
+    terminal = TerminalDocument(`sh -c "sleep 6 & echo started; sleep 0.3"`)
+    start_terminal!(:editor, terminal)
+    @test _wait_for_terminal(() -> terminal.status isa Int)
+    @test terminal.status == 0
+    @test time() - started < 5
+    @test "started" in _terminal_texts(terminal)
+    # The child ended with its group.
+    @test ccall(:kill, Cint, (Cint, Cint), -terminal.control.group_id, 0) != 0
+end
+
 @testset "a stop sends SIGINT to the group, and a program that can not start says so" begin
     terminal = TerminalDocument(`sh -c "sleep 30"`)
     start_terminal!(:editor, terminal)
@@ -94,6 +123,24 @@ end
     start_terminal!(:editor, missing)
     @test missing.status === :failed
     @test startswith(only(_terminal_texts(missing)), "The program can not start: ")
+end
+
+@testset "an undo of a send gives the line back, and a bar beside the input line is no caret" begin
+    terminal = TerminalDocument(`true`)
+    terminal.input.value = "code"
+    inverse = make_inverse_operation(nothing, SendTerminalInputOperation(terminal))
+    @test inverse isa ReplaceReferencedValueOperation
+    projection = TerminalToWidget()
+    iomap = print_document(projection, nothing, terminal, PrinterContext())
+    pane(steps...) = Reference(FieldReferenceStep("children"), RangeReferenceStep(2, 3), steps...)
+    caret = Reference(FieldReferenceStep("input"), FieldReferenceStep("value"), RangeReferenceStep(4, 4))
+    @test map_reference_backward(projection, iomap, pane()) == caret
+    @test map_reference_backward(projection, iomap, pane(FieldReferenceStep("content"))) == caret
+    @test map_reference_backward(projection, iomap,
+                                 pane(FieldReferenceStep("content"), FieldReferenceStep("value"),
+                                      RangeReferenceStep(1, 1))) ==
+          Reference(FieldReferenceStep("input"), FieldReferenceStep("value"), RangeReferenceStep(1, 1))
+    @test map_reference_backward(projection, iomap, pane(FieldReferenceStep("horizontal_scroll_bar"))) != caret
 end
 
 @testset "in an editor, a click on the input line, keys and Return send a line" begin

@@ -82,17 +82,11 @@ function print_document(p::TerminalToWidget, recursion, terminal::TerminalDocume
         reference = image(path)
         reference === nothing && return nothing
         steps = get_reference_steps(reference)
-        length(steps) > 2 ? _make_step_reference(steps[3:end]) : nothing
+        length(steps) > 2 && steps[1:2] == _TERMINAL_INPUT_PREFIX[1:2] || return nothing
+        Reference(steps[3:end]...)
     end; dormant = false)
     iomap
 end
-
-_make_step_reference(steps) =
-    foldr((step, tail) -> ConcreteReference(step, tail), steps; init = EmptyReference())
-
-_is_same_step(a::FieldReferenceStep, b::FieldReferenceStep) = a.name == b.name
-_is_same_step(a::RangeReferenceStep, b::RangeReferenceStep) = a.start == b.start && a.stop == b.stop
-_is_same_step(::Any, ::Any) = false
 
 # `input.<rest>` → the pane of the input line, and `<rest>` in it. A part that the
 # view drew is the path that its introduced reference holds.
@@ -102,21 +96,21 @@ function map_reference_forward(p::TerminalToWidget, iomap::SimpleIoMap, referenc
     reference isa ConcreteReference || return nothing
     head = reference.head
     head isa FieldReferenceStep && head.name == "input" || return nothing
-    _make_step_reference(vcat(_TERMINAL_INPUT_PREFIX, get_reference_steps(reference.tail)))
+    Reference(_TERMINAL_INPUT_PREFIX..., get_reference_steps(reference.tail)...)
 end
 
 # And back: a click in the input line is a click in the `PrimitiveString`, so the
-# caret lands where it was aimed. A click on the pane of the input line beside
-# its text puts the caret at the end of the line. Any other part is a part that
-# the view drew.
+# caret lands where it was aimed. A click on the pane of the input line beside its
+# text, or on the string as a whole, puts the caret at the end of the line. Any
+# other part, such as a bar of a pane, is a part that the view drew.
 function map_reference_backward(p::TerminalToWidget, iomap::SimpleIoMap, reference)
     reference isa Reference || return nothing
     steps = get_reference_steps(reference)
     prefix = _TERMINAL_INPUT_PREFIX
-    count = length(prefix)
-    if length(steps) >= count - 1 && all(_is_same_step(steps[i], prefix[i]) for i in 1:(count - 1))
-        length(steps) <= count && return _make_terminal_input_caret(iomap.input)
-        return _make_step_reference(vcat(Any[FieldReferenceStep("input")], steps[(count + 1):end]))
+    if length(steps) >= 2 && steps[1:2] == prefix[1:2]
+        (length(steps) == 2 || (length(steps) == 3 && steps[3] == prefix[3])) &&
+            return _make_terminal_input_caret(iomap.input)
+        steps[3] == prefix[3] && return Reference(FieldReferenceStep("input"), steps[4:end]...)
     end
     invoke(map_reference_backward, Tuple{Projection,Any,Any}, p, iomap, reference)
 end
@@ -164,12 +158,16 @@ end
 """
     SendTerminalInputOperation(terminal)
 
-Send the input line of `terminal` to its program, and empty the line. It writes
-to a running program, so an undo does not take it back.
+Send the input line of `terminal` to its program, and empty the line. An undo
+puts the line back in the input line; it does not take it back from the
+program, which read it already, and a redo empties the line and sends nothing.
 """
 struct SendTerminalInputOperation <: Operation
     terminal::TerminalDocument
 end
+
+make_inverse_operation(document, operation::SendTerminalInputOperation) =
+    ReplaceReferencedValueOperation(operation.terminal.input, "value", operation.terminal.input.value)
 
 function evaluate_operation(editor, operation::SendTerminalInputOperation)
     terminal = operation.terminal
@@ -180,8 +178,11 @@ end
 # ── Natural-projection registration ─────────────────────────────────────────
 # The row that lets a tab, or a card that embeds a terminal, draw it.
 
+# The exit of the process ends the groups of the programs that still run.
+
 function __init__()
     register_natural_graphics!(:terminal, (; measure, appearance) -> Pair{Type,Any}[
         TerminalDocument => ChainingProjection(make_terminal_projection(; theme = get_scaled_theme!(appearance, TerminalTheme)),
                                                VerticalLayoutToGraphicsCanvas())])
+    atexit(_end_running_groups!)
 end

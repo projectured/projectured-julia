@@ -103,6 +103,20 @@ person as a general tool (see Q3).
     loop runs at once, so the process tests need no editor.
   - Paste is not tested in the platform test, which has no clipboard; the live
     check of the application tests it.
+  - A review of the slice found, and the commit after it fixed: a child that
+    the program leaves in the background held the streams open, so the end
+    never came and the id of the ended leader could not be read for a stop.
+    The start now reads the id of the group at once, and the end of the
+    program ends its group (SIGTERM, then SIGKILL after two seconds). Also: a
+    send was an undo barrier (now its inverse puts the line back); the path
+    maps checked too little (a bar of the input pane became a caret); a
+    carriage return or an escape sequence that a read cut lost text; a program
+    outlived the editor (the module keeps the groups that run, and the exit of
+    the process ends them); a failed start left a pipe open. `TERM=dumb` keeps
+    colours away. `test_terminal()` 51 of 51.
+  - Left as it is: `_signal_process_group!` repeats the signal helper of the
+    task slice. A shared helper needs a place that both slices may use; the
+    reviewer passed it to the code quality steward.
 - [ ] T.6 The sign-in card uses it (with step 2.5e).
 - [x] Guide: `documentation/package/platform/terminal/terminal.md`, the slice
   table in `documentation/rule/package-rules.md`, and the edge of the slice in

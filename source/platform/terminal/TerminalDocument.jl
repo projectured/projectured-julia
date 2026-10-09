@@ -17,11 +17,14 @@ end
 """
     TerminalControl
 
-What a terminal holds while its program runs: the process, and whether a stop
-was asked. The document holds it, and no path reaches into it.
+What a terminal holds of its program: the process, the id of its process group,
+which the start reads at once because the id of an ended leader can not be read,
+and whether a stop was asked. The document holds it from the start on, and no
+path reaches into it.
 """
 mutable struct TerminalControl
     process::Base.Process
+    group_id::Union{Nothing,Int}
     is_stopping::Bool
 end
 
@@ -37,10 +40,11 @@ A terminal that runs `command`, a `Cmd`, with pipes and no terminal device.
 - `input` — the line that the person types, a `PrimitiveString`; Return sends it.
 - `status` — `:new` before the start, `:running`, the exit status of the program
   when it ended, or `:failed` when it could not start.
-- `control` — the [`TerminalControl`](@ref) while the program runs, else
+- `control` — the [`TerminalControl`](@ref) of the program once it started, else
   `nothing`.
-- `on_exit` — `nothing`, or a function that the terminal calls on the editor
-  task with the editor and the exit status when the program ends.
+- `on_exit` — `nothing`, or a function that the terminal calls with the editor
+  and the exit status when the program ends, through `run_on_editor_task!`: on
+  the editor task while the editor runs its loop.
 
 [`start_terminal!`](@ref) starts the program, [`send_terminal_input!`](@ref)
 sends a line, [`stop_terminal!`](@ref) stops it, and the close of its tab ends
@@ -74,11 +78,12 @@ format_terminal_command(command::Cmd) = join(command.exec, ' ')
 
 Whether the program of `terminal` runs.
 """
-is_terminal_running(terminal::TerminalDocument) = terminal.control !== nothing
+is_terminal_running(terminal::TerminalDocument) = terminal.status === :running
 
-# The escape sequences of colour and cursor (CSI) and of the title (OSC), which a
-# terminal with no screen does not draw.
-const _ESCAPE_SEQUENCE = r"\e\[[0-?]*[ -/]*[@-~]|\e\][^\a\e]*(?:\a|\e\\)|\e[@-Z\\-_]"
+# The escape sequences of colour and cursor (CSI), of the title (OSC), of a
+# character set, and of one character, which a terminal with no screen does not
+# draw.
+const _ESCAPE_SEQUENCE = r"\e\[[0-?]*[ -/]*[@-~]|\e\][^\a\e]*(?:\a|\e\\)|\e[()*+][0-9A-Za-z@]|\e[@-Z\\-_]"
 
 """
     add_terminal_text!(terminal, kind, text) -> TerminalDocument

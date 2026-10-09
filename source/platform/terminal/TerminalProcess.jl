@@ -1,16 +1,18 @@
 # Fragment of `TerminalModule` — the program of a terminal: its start with pipes
 # in a process group of its own, the readers of its two output streams, the line
-# that the person sends, its stop, and its end.
+# that the person sends, its stop, its end, and the end of the groups that still
+# run when the editor process ends.
 
 """
     start_terminal!(editor, terminal) -> TerminalDocument
 
 Start the program of `terminal` with pipes for its standard input, output and
-error, in a process group of its own. Two reader tasks read what the program
-writes, as soon as it writes it and not line by line, and post it to the
-editor; the end of the program posts its exit status and calls `on_exit`. A
-terminal whose program runs stays as it is. A program that can not start gives
-a status line and the status `:failed`.
+error, in a process group of its own, with `TERM=dumb` so that it writes no
+colours. Two reader tasks read what the program writes, as soon as it writes it
+and not line by line, and post it to the editor. When the program ends, its
+group ends too, the last text arrives, and the terminal posts the exit status
+and calls `on_exit`. A terminal whose program runs stays as it is. A program
+that can not start gives a status line and the status `:failed`.
 
 It runs on the editor task, as an operation or an action does. The reader tasks
 keep `editor` to post their writes; the document does not keep it.
@@ -18,23 +20,34 @@ keep `editor` to post their writes; the document does not keep it.
 function start_terminal!(editor, terminal::TerminalDocument)
     is_terminal_running(terminal) && return terminal
     errors = Pipe()
+    command = addenv(Cmd(terminal.command; detach = true), "TERM" => "dumb")
     process = try
-        open(pipeline(Cmd(terminal.command; detach = true); stderr = errors), "r+")
+        open(pipeline(command; stderr = errors), "r+")
     catch exception
         exception isa Base.IOError || rethrow()
+        close(errors)
         add_terminal_line!(terminal, :status, "The program can not start: " * _format_start_error(exception))
         terminal.status = :failed
         return terminal
     end
+    # The id of the group, read before the first yield: the leader can end and be
+    # reaped at any yield, and then its id can not be read.
+    group_id = try
+        Int(getpid(process))
+    catch
+        nothing
+    end
     close(errors.in)
-    terminal.control = TerminalControl(process, false)
+    control = TerminalControl(process, group_id, false)
+    terminal.control = control
     terminal.status = :running
+    _add_running_group!(group_id)
     post(write) = run_on_editor_task!(write, editor; wait = false)
     errormonitor(@async begin
         error_reader = @async _read_terminal_stream(errors, text -> post(() -> add_terminal_text!(terminal, :error, text)))
-        _read_terminal_stream(process.out, text -> post(() -> add_terminal_text!(terminal, :output, text)))
-        wait(error_reader)
+        output_reader = @async _read_terminal_stream(process.out, text -> post(() -> add_terminal_text!(terminal, :output, text)))
         wait(process)
+        _end_terminal_group!(control, (output_reader, error_reader), errors)
         post(() -> _finish_terminal!(editor, terminal, process))
     end)
     terminal
@@ -45,21 +58,59 @@ end
 _format_start_error(exception::Base.IOError) =
     exception.code < 0 ? Libc.strerror(-exception.code) : "error $(exception.code)"
 
+# The program ended. A child that it left in its group can hold the streams open,
+# so the group gets SIGTERM, and SIGKILL when the text has not ended two seconds
+# later; then the streams close, and the readers end.
+function _end_terminal_group!(control::TerminalControl, readers::Tuple, errors::Pipe)
+    is_read() = all(istaskdone, readers)
+    if !is_read()
+        _signal_process_group!(control, Base.SIGTERM)
+        if timedwait(is_read, 2.0) !== :ok
+            _signal_process_group!(control, Base.SIGKILL)
+            close(control.process.out)
+            close(errors)
+        end
+    end
+    foreach(wait, readers)
+    _remove_running_group!(control.group_id)
+    nothing
+end
+
 # Read `stream` until it ends, and give each piece of text to `add`. A character
-# that a read cuts in two waits for the rest of its bytes.
+# that a read cuts in two waits for the rest of its bytes. A carriage return at
+# the end, which the next read can follow with a line end, and an escape sequence
+# that has not ended wait for the next read too.
 function _read_terminal_stream(stream, add::Function)
-    pending = UInt8[]
+    bytes = UInt8[]
+    held = ""
     try
         while !eof(stream)
-            append!(pending, readavailable(stream))
-            text = _take_whole_characters!(pending)
+            append!(bytes, readavailable(stream))
+            text, held = _split_unfinished_text(held * _take_whole_characters!(bytes))
             isempty(text) || add(text)
         end
     catch exception
         exception isa Union{Base.IOError,EOFError} || rethrow()
     end
-    isempty(pending) || add(String(pending))
+    rest = held * String(bytes)
+    isempty(rest) || add(rest)
     nothing
+end
+
+# An escape sequence at the start of a text, as a whole.
+const _ESCAPE_SEQUENCE_AT_START = Regex("^(?:" * _ESCAPE_SEQUENCE.pattern * ")")
+
+# `text` as the part that is whole and the end that the next read can change: an
+# escape sequence that has not ended, at most 64 characters long, or a carriage
+# return.
+function _split_unfinished_text(text::AbstractString)
+    index = findlast('\e', text)
+    if index !== nothing && length(text, index, lastindex(text)) <= 64 &&
+       match(_ESCAPE_SEQUENCE_AT_START, SubString(text, index)) === nothing
+        return String(SubString(text, 1, prevind(text, index))), String(SubString(text, index))
+    end
+    endswith(text, '\r') && return String(chop(text)), "\r"
+    String(text), ""
 end
 
 # The text of `bytes` up to the last whole UTF-8 character; the bytes of a cut
@@ -86,7 +137,6 @@ end
 # says it.
 function _finish_terminal!(editor, terminal::TerminalDocument, process::Base.Process)
     status = process.termsignal > 0 ? 128 + process.termsignal : process.exitcode
-    terminal.control = nothing
     terminal.status = status
     add_terminal_line!(terminal, :status, "The program ended with the status $(status).")
     on_exit = terminal.on_exit
@@ -102,10 +152,9 @@ as a line of the kind `:input`, because a program with no terminal device does
 not echo it. Answers `false` when no program runs.
 """
 function send_terminal_input!(terminal::TerminalDocument, text::AbstractString)
-    control = terminal.control
-    control === nothing && return false
+    is_terminal_running(terminal) || return false
     try
-        write(control.process, text, '\n')
+        write(terminal.control.process, text, '\n')
     catch exception
         exception isa Base.IOError || rethrow()
         return false
@@ -122,33 +171,54 @@ in a terminal does, and a second stop sends SIGKILL. On Windows, which has no
 such group, a stop ends the process.
 """
 function stop_terminal!(terminal::TerminalDocument)
+    is_terminal_running(terminal) || return terminal
     control = terminal.control
-    control === nothing && return terminal
     signal = control.is_stopping ? Base.SIGKILL : Base.SIGINT
     control.is_stopping = true
-    _signal_process_group(control.process, signal)
+    _signal_process_group!(control, signal)
     terminal
 end
 
-function _signal_process_group(process::Base.Process, signal::Integer)
-    if Sys.isunix()
-        process_id = try
-            Int(getpid(process))
-        catch
-            nothing
-        end
-        process_id === nothing || ccall(:kill, Cint, (Cint, Cint), -process_id, signal) == 0 ||
-            kill(process, signal)
-    else
-        kill(process)
+# Send `signal` to the process group of the program, or end the process where no
+# group is known.
+function _signal_process_group!(control::TerminalControl, signal::Integer)
+    if Sys.isunix() && control.group_id !== nothing
+        ccall(:kill, Cint, (Cint, Cint), -control.group_id, signal)
+    elseif process_running(control.process)
+        kill(control.process)
     end
     nothing
 end
 
-# The tab of a terminal closes: its program ends. An undo of the close brings
-# the document back with the program ended; a person starts it again.
+# The tab of a terminal closes: its program ends, with SIGTERM, and SIGKILL three
+# seconds later when it still runs. An undo of the close brings the document back
+# with the program ended.
 function release_document!(editor, terminal::TerminalDocument)
+    is_terminal_running(terminal) || return nothing
     control = terminal.control
-    control === nothing || _signal_process_group(control.process, Base.SIGTERM)
+    _signal_process_group!(control, Base.SIGTERM)
+    Timer(_ -> is_terminal_running(terminal) && _signal_process_group!(control, Base.SIGKILL), 3.0)
+    nothing
+end
+
+# ── The groups that run ─────────────────────────────────────────────────────
+# A program runs in a session of its own, so it does not end with the editor
+# process. The ids of the groups that run are kept until their end, and the exit
+# of the process sends SIGKILL to each.
+
+const _RUNNING_GROUPS = Set{Int}()
+const _RUNNING_GROUPS_LOCK = ReentrantLock()
+
+_add_running_group!(group_id) =
+    group_id === nothing || lock(() -> push!(_RUNNING_GROUPS, group_id), _RUNNING_GROUPS_LOCK)
+
+_remove_running_group!(group_id) =
+    group_id === nothing || lock(() -> delete!(_RUNNING_GROUPS, group_id), _RUNNING_GROUPS_LOCK)
+
+function _end_running_groups!()
+    Sys.isunix() || return nothing
+    for group_id in lock(() -> collect(_RUNNING_GROUPS), _RUNNING_GROUPS_LOCK)
+        ccall(:kill, Cint, (Cint, Cint), -group_id, Base.SIGKILL)
+    end
     nothing
 end
