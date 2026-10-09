@@ -2,7 +2,7 @@
 
 > **Kind:** plan · **Status:** pending, 2026-10-09. The owner decided the end
 > state on 2026-10-09 (N5 of [a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md)),
-> and that it is a plan of its own, and L1 on 2026-10-09. The other questions of
+> and that it is a plan of its own, and L1 and L2 on 2026-10-09. The other questions of
 > §6 are open, and no step is started. ·
 > **Stands on:** [text.md](../../documentation/package/platform/text/text.md),
 > [text-domain-kit.md](text-domain-kit.md) (shape A of Phase 3),
@@ -175,19 +175,24 @@ the release plan).
     `b`) and makes `TextBlock(spans...)` and `TextBlock(() -> spans)` disagree; a
     `TextLine` alone as a text at the top of a chain, which gives each consumer
     its second path back.
-- **L2 The height of an empty line** (N5a of the other plan). A `TextNewline`
-  carries the font of an empty line today, and an empty `TextLine` takes the
-  first font of its block, so an empty line after a heading has the height of the
-  heading.
-  - (a) An empty line holds one empty run in its style, and the layout sizes the
-    line by the font of that run. A caret in an empty run is drawn, one line high
-    (the test "TextToGraphics draws a caret in an empty span, one line high"), but
-    `_line_height_font` takes the first font of the block for a line, not the font
-    of its run.
-  - (b) `TextLine` gets a font.
-
-  My proposal, not decided: (a), because a run is where a style is now, and the
-  caret of an empty line then stands in that run.
+- **L2 The height of an empty line. Decided, the owner, 2026-10-09: (a), an empty
+  line holds one empty run in its style**, and the layout sizes the line by the
+  font of that run. Text typed into the line goes into the run and takes its font
+  and its colour (the owner: "it also allows type-in in that style font/color").
+  - Today a `TextNewline` carries the font of an empty line, and an empty
+    `TextLine` takes the first font of its block (`_line_height_font`), also when
+    it holds an empty run in another font. So an empty line after a heading has
+    the height of the heading, and the caret in it the height of its run.
+  - A caret in an empty run is drawn, one line high (the test "TextToGraphics
+    draws a caret in an empty span, one line high"). The syntax gives an empty run
+    already: it splits `"a\n\nb"` into three runs, and the middle one is `""` in
+    the style of its span. `make_text_block` does the same.
+  - A line with no run stays valid and takes the first font of its block. It has
+    no style, so it is not a second form of an empty line.
+  - Not taken: (b) a font on `TextLine`, which is a second place for the style of
+    a typed text and a sixth positional field. A style of a line (alignment,
+    spacing, its height) is a paragraph style, a design of its own when a domain
+    needs one.
 - **L3 A place in a text of one line.** `PrimitiveToText` maps `value{s}` to a
   structural `.elements[1].content{s}` position and `value{s:e}` to a flat range.
   `ObjectToWidget`, `ObjectFieldToWidget`, `WidgetToGraphics` and
@@ -240,8 +245,9 @@ a block of spans still works, so the producers move one at a time.
    `TextNewline`s in `WordWrappingTest`, `TextToGraphicsTest`, `TextLineModelTest`,
    `InlineImageCaretTest`, `TextDocumentTest` and the decorators. The 5 lazy lists
    of spans become lazy lists of lines.
-5. **The consumers lose their span path**, after L2: the list of §3.2, and
-   `_is_block_of_lines`. `WordWrapping` keeps only `soft_breaks`, and its maps are
+5. **The consumers lose their span path**: the list of §3.2, and
+   `_is_block_of_lines`. `_line_height_font` sizes an empty line by the font of its
+   empty run (L2), with a test of an empty line after a heading. `WordWrapping` keeps only `soft_breaks`, and its maps are
    the identity.
 6. **`TextNewline` and `TextNewlineToString` go**, with their exports, and every
    constructor of `TextBlock` takes lines (L1); the tests and the examples that
