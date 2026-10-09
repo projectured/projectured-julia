@@ -21,6 +21,8 @@ The assistant slice of `ProjecturedPlatform` puts a chat with a model beside the
 | `status` | `:idle`, `:streaming` or `:error` |
 | `collapse_thinking` | whether a thinking part starts folded |
 | `input` | a `PrimitiveString` that no printer shows; see Limits |
+| `description`, `comment` | what the person writes about the conversation, each a `PrimitiveString` that the detail of the Assistants pane edits |
+| `work_state` | the state of the work that the person sets: `:pending` (the default), `:in_progress`, `:complete` or `:abandoned` (`ASSISTANT_WORK_STATES`) |
 
 `backend` is `:ollama` by default, `:anthropic`, `:acp` for an external agent, or `:none`. An empty `model` and a `context` of `0` mean the default of the backend. The constructor sets `draft.assistant` to the new assistant, so Return and Alt+Return in the composer become operations of this assistant.
 
@@ -72,6 +74,63 @@ Under the composer, a row of the height `option_bar_height` holds the Stop butto
 
 `AssistantToWidgetCard(; title, transcript_height, cell_height)` shows the same two panes in a card of a fixed height, for a page that holds an assistant. Each half scrolls, so a new turn does not make the page longer. Each container of the card carries the selection down with its own prefix removed. While the selection is in the draft, the reader of the card gives a key that nothing below took to the table of the composer.
 
+### The Assistants pane
+
+`AssistantList` is the list of the open assistants of a session, and
+`get_session_assistant_list()` answers it. Its `assistants` compute from a
+source that the application gives with `set_assistant_list_source!`: a function
+that answers the open assistants. `link_assistant_list!(list, tree)` of the
+[application slice](../application/application.md) gives a source that reads
+the tabs of the pane tree with `collect_pane_tab_contents(tree, Assistant)`, and
+`run_application` links the list of the session to its window. The read depends
+only on the structure of the panes, so a tab that opens, closes or comes back
+with an undo changes the rows, an empty assistant tab gets a row, and an edit
+inside an assistant computes nothing again. A row leaves when its tab closes.
+The list is opaque to the walk of the documents, so a search reaches an
+assistant through its tab and not through the list. A file writes no arguments
+for the list, and its load, a name typed into an empty tab and the toolbar all
+give the list of the session.
+
+The values of a row come from `source/platform/assistant/AssistantOverview.jl`:
+`compute_assistant_overview_title` (the title of the session of the agent, else
+the first line of the first prompt), `find_first_prompt`, `find_last_prompt`,
+`compute_prompt_count`, `compute_assistant_turn_side` (`:assistant` while a turn
+runs and no question of the agent waits, else `:person`),
+`describe_assistant_activity` ("thinks", "writes", "runs <tool>", the question
+of the agent, or "failed"), and the times: `find_assistant_start_time`,
+`find_assistant_last_activity_time`, `compute_assistant_elapsed_time` and
+`compute_assistant_busy_time`. The times come from the `start_time` and the
+`finish_time` of each `ConversationTurn`; a submit gives a turn of the person
+both, and a turn of the assistant gets its start when it is pushed and its end
+in `_finish_turn!`.
+
+`AssistantListToWidgetPane` draws the list: a heading, a table of one row for
+each assistant, and below it, in a split that the person can drag, the detail of
+the assistant that the person picked with `›`. A row has `›` and Show, then the
+title, the work state, whose turn it is, the activity, the count of prompts, the
+usage of the context (`format_agent_usage`), the start time and the elapsed time.
+Each value is a label that reads cells, so a row follows its assistant while a
+turn streams. While a turn runs, the elapsed time reads the clock of the editor
+(`ctx.clock`), which the frame loop writes. Between turns no label reads the
+clock, so the editor draws no frame for the table. Show calls the opener of the list, which the application
+sets to `show_document!`; that focuses the tab that shows the assistant, whatever
+its title, or opens it again.
+
+The detail holds the title, a line of facts, the description and the comment in
+the cards of embedded documents (`make_embed_card`), a row of toggles for the
+work state, the first and the last prompt, and the session of an agent. The pane
+maps `assistants[i].description` and `assistants[i].comment`, for the row `i`
+of the picked assistant, to their cards and back, as the detail of a task maps
+the document of a result. A key edits the document there, and Ctrl+Z of the
+window takes the edit back. A pick of another row takes a caret in a card out
+of the detail. The toggles write `work_state` of the assistant.
+
+`run_application` calls `unlink_assistant_list!` when its loop ends, so the list
+of the session holds no document of a closed window.
+
+The application puts an "Assistants" button with the icon `:chats` on the
+toolbar, with the `tools` of the shell wrapper.
+
 ### The turn of an external agent
 
 With `backend = :acp` the task of the turn runs `_run_external_agent_turn!` in place of `_run_agent_loop!`. The agent runs its own loop and its own tools, so the assistant builds no `Llm` and runs no `run_turn!`. [acp.md](../../adapter/acp/acp.md) describes the connection.
@@ -115,15 +174,15 @@ A text or thinking block closes before a part of another kind comes, and text af
 
 ### A copy and a save
 
-A copy of an assistant is a fork: it has the conversation so far and a draft of its own, and it starts idle. A reply that streams stays with the original. `pred_arguments` saves only `backend`, `model`, `system`, `context` and `collapse_thinking`. A key is never written to a file. A command is never written either: a file that named the program of an external agent, or the options of its sessions, would start it at the next message, and a `.pred` file runs no code. So `agent_command` and `agent_session_meta` come from `StartSettings` of the application, and a loaded assistant starts with an empty conversation. An assistant with `backend = :acp` that keeps a session is the exception, because the agent holds the history of its conversation: its file also keeps the conversation, `agent_session_id`, `agent_session_directory`, `agent_session_turn_count` and `agent_title`, so the tab shows the conversation and its title after a load, and the next turn resumes the session. An id is no command and no credential, and the agent still comes from the settings. `accepts_pasted_document` and `accepts_opened_file` return `false`, so a paste or an opened file does not replace the assistant.
+A copy of an assistant is a fork: it has the conversation so far and a draft of its own, and it starts idle. A reply that streams stays with the original. `pred_arguments` saves only `backend`, `model`, `system`, `context` and `collapse_thinking`, and the `description`, the `comment` and the `work_state` that the person wrote, for every backend and only when they are not the defaults. A fork copies these three. A key is never written to a file. A command is never written either: a file that named the program of an external agent, or the options of its sessions, would start it at the next message, and a `.pred` file runs no code. So `agent_command` and `agent_session_meta` come from `StartSettings` of the application, and a loaded assistant starts with an empty conversation. An assistant with `backend = :acp` that keeps a session is the exception, because the agent holds the history of its conversation: its file also keeps the conversation, `agent_session_id`, `agent_session_directory`, `agent_session_turn_count` and `agent_title`, so the tab shows the conversation and its title after a load, and the next turn resumes the session. An id is no command and no credential, and the agent still comes from the settings. `accepts_pasted_document` and `accepts_opened_file` return `false`, so a paste or an opened file does not replace the assistant.
 
 ## How it fits
 
-The assistant slice depends on the kernel and on the conversation, collection, domain, natural, layout, primitive, projection, serialization, style, text and widget slices of `ProjecturedPlatform`. From the kernel it takes the `tool`, `llm` and `agent` layers, which [agent.md](../../kernel/agent.md) describes, and the `fault` layer. It does not depend on a backend package: a session loads `ProjecturedOllama` or `ProjecturedAnthropic`, which [ollama.md](../../adapter/ollama/ollama.md) and [anthropic.md](../../adapter/anthropic/anthropic.md) describe.
+The assistant slice depends on the kernel and on the conversation, collection, domain, focus, natural, layout, primitive, projection, serialization, style, text and widget slices of `ProjecturedPlatform`. The focus slice carries the selection of the Assistants pane down to a card of its detail. From the kernel it takes the `tool`, `llm` and `agent` layers, which [agent.md](../../kernel/agent.md) describes, and the `fault` layer. It does not depend on a backend package: a session loads `ProjecturedOllama` or `ProjecturedAnthropic`, which [ollama.md](../../adapter/ollama/ollama.md) and [anthropic.md](../../adapter/anthropic/anthropic.md) describe.
 
 The shell slice puts an Assistant button on the toolbar, and the host gives the function that makes the assistant, with its backend and its greeting; see [shell.md](../shell/shell.md). The [application slice](../application/application.md) puts the explorer, the files and the assistant in one pane tree.
 
-The package registers the natural row `:assistant`, `Assistant => AssistantToWidgetSplitPane()`. It adds the methods `make_submit_operation(::Assistant)` and `make_evaluate_operation(::Assistant)` to the conversation package.
+The package registers the natural row `:assistant` with `build_assistant_graphics_entry`: `Assistant => AssistantToWidgetSplitPane()`, and `AssistantList => AssistantListToWidgetPane()` chained with `VerticalLayoutToGraphicsCanvas`, as the MCP log is. It adds the methods `make_submit_operation(::Assistant)` and `make_evaluate_operation(::Assistant)` to the conversation package.
 
 ## Design decisions
 
@@ -152,10 +211,13 @@ run_assistant_example(; backend = :ollama)                   # the example with 
 
 - **A tool call holds the frame.** A tool call of the model runs on the editor task, and the editor draws no frame until it returns. The first search by description of a build can wait up to 30 seconds for the vectors of the meaning model.
 - **A part that fails to apply does not end the turn.** A streamed part is posted and not waited for, so an exception while the drain applies it goes to the fault log of the editor, and the turn goes on.
-- No view draws `status`, except the Stop button, which is enabled only while a turn runs. A person sees a running turn by that button and by the parts that arrive.
+- The view of an assistant draws `status` only through the Stop button, which is enabled only while a turn runs. The Assistants pane says whose turn it is and what the turn does.
+- **The Assistants pane lists the assistants of the tabs of one window.** An assistant inside a layout or a card of a tab gets no row, and a window of another binary, which links no list, shows an empty list. [plan/done/a-table-shows-every-assistant-conversation.md](../../../../plan/done/a-table-shows-every-assistant-conversation.md) records the ways to fill a list that are not supported now.
+- A turn of a file written before the turns had times has a start and an end of `0.0`, so the pane shows no times for it.
 - **A stop of a turn of a model waits for the next event.** A model that reads a long prompt sends no event for a while, and the stop takes effect only at its first event. A tool call that runs is not stopped, and the turn ends after it.
 - `input`, `SubmitProseOperation`, `SubmitJuliaOperation`, `ClearInputOperation` and `ResetConversationOperation` are exported, but no printer shows `input` and no reader makes these operations. Only the tests call two of them. `SubmitProseOperation` does nothing while a turn streams, as Return does.
 - The natural row gives a pane tab a widget and not graphics. A host that shows an assistant in a tab chains `AssistantToWidgetSplitPane` to `NaturalToGraphics` with the rows of the conversation, as `make_application_content_projections` of the [application slice](../application/application.md) does.
 - The draft has no frame, no focus ring and no hint line. Stage 4 of [plan/pending/conversation-flat-transcript.md](../../../../plan/pending/conversation-flat-transcript.md) puts them on this pane, and they are not done.
 - `DEFAULT_ASSISTANT_SYSTEM` is written for Claude and is long. A small local model can follow it less well, and [plan/done/ollama-backend.md](../../../../plan/done/ollama-backend.md) keeps this as an open question.
+- Tests of the Assistants pane: `test_assistant_overview()` and `test_assistant_list()` in `test/platform/conversation/`, and two cases of `test_application()` in `test/projectured/editor/ApplicationTest.jl`, which press the toolbar button, Show, `›`, a key in the description and a toggle in a window.
 - No test is marked `@test_broken`.

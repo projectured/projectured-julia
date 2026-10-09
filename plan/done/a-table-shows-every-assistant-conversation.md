@@ -1,8 +1,9 @@
 # A table shows every assistant conversation
 
-> **Status:** pending. Written 2026-10-09. No step is done. The fill of the
-> first version is decided (3.8, 2026-10-09): the assistants in the tabs of the
-> window. An assistant inside a tab (3.7) is deferred.
+> **Status:** done, 2026-10-10, on the branch `assistant-table`; not landed on
+> `main`. Steps 1–6 and 9 are built; steps 7 and 8, an assistant inside a tab
+> (3.7), are deferred. The fill of the first version is decided (3.8): the
+> assistants in the tabs of the window.
 
 ## 1. The request
 
@@ -248,7 +249,8 @@ answer `nothing` is `find_`.
 ### 3.5 The Assistants pane
 
 `AssistantListToWidgetPane` draws the list. The heading says the count of
-conversations and how many wait for the person. The table has one row for each
+conversations and how many turns run (as built; the plan first said how many wait
+for the person). The table has one row for each
 assistant:
 
 | Column | Value |
@@ -290,8 +292,10 @@ same title. Step 5 changes or adds a method of `show_document!` for that.
   card of the description, the card of the comment, a row of toggles for the
   work state, the first and the last prompt, and the session of an agent.
 - The two cards are cards of embedded documents (`make_embed_card`), as in the
-  detail of a task. The pane maps `selected.description + rest` to its card and
-  back, and `selected.comment` likewise; every other path takes the defaults.
+  detail of a task. The pane maps `assistants[i].description + rest`, for the
+  row `i` of the picked assistant, to its card and back, and the comment
+  likewise; every other path takes the defaults. (First built through
+  `selected`; the review changed it, see step 9.)
   A key edits the document there, and Ctrl+Z of the window takes it back.
 - (Mine) A text widget bound to an `ObjectField` would be simpler, but the
   renderer of the application does not nest `ObjectFieldToValue`, so the detail
@@ -344,8 +348,8 @@ tools. A name typed into an empty tab ("assistants") opens the list too.
 - (Mine) The elapsed time reads the clock of the editor (`ctx.clock`), which
   the frame loop writes, and only while a turn runs. `start_wall_clock!` is for
   a clock that no frame loop writes, as its own documentation says. The editor
-  draws frames only while its clock has readers, so an idle table asks for
-  none.
+  draws frames only while its clock has readers, so between turns it draws
+  none for the table.
 - The assistant slice may not use the focus slice, so the pane of step 5 does
   not light the button under the pointer. Step 6 adds the edge.
 - Tests: `test/platform/conversation/AssistantListTest.jl` draws the pane and
@@ -524,9 +528,43 @@ Each step gets a commit. Each step runs the narrowest test that covers it.
 - [ ] ~~**8. Stage 2, the way that the owner chose.**~~ *Deferred (3.7).* Test in a real editor that
   an assistant inside a layout of a tab gets a row, and that the row goes when
   the layout loses the assistant.
-- [ ] **9. The guide.** Update
+- [x] **9. The guide.** Update
   [assistant.md](../../documentation/package/platform/assistant/assistant.md).
-  Move this plan to `plan/done/`.
+  Move this plan to `plan/done/`. The guides of the conversation slice (the
+  times of a turn) and of the pane slice (`show_document!` by content,
+  `collect_pane_tab_contents`) changed too.
+
+**The review of the branch (2026-10-10)** found no exception and no data loss.
+What changed after it:
+
+- A caret in a card of the detail moved into the card of the next assistant
+  that the person picked, because the path went through `selected`. The path
+  now goes through the row, `assistants[i].description`, as the detail of a
+  task goes through `tasks[i]`; a pick of another row takes the caret out.
+  For this, `assistants` computes a `CellVector`, as `tasks` is one: the walk
+  that sets the selection goes down only through documents, and a plain
+  `Vector` stopped the caret at the list, so a key did not reach the card.
+- The line of facts in the detail did not move while a turn ran. It reads the
+  clock of the editor now, as the elapsed time of a row does.
+- The title looked only at the first prompt. It takes the first prompt that
+  holds text, as its documentation said.
+- The list of the session kept the documents of a closed window until the next
+  `run_application`. `run_application` calls `unlink_assistant_list!` when its
+  loop ends.
+- `find_pane_tab_layer` jumped over the wrappers between the content and the
+  innermost document. It goes one layer at a time now: the edited field first,
+  then a wrapper.
+- `open_assistant_tab` mutates the document of the editor, so it is
+  `open_assistant_tab!`. The names with no caller outside their module
+  (`open_assistant_tab!`, `build_assistant_graphics_entry`,
+  `find_pane_tab_layer`, and the two formatters of the pane, now private) are
+  no longer exported.
+- Not changed: the detail builds again when any tab opens, closes or moves,
+  because `_find_shown_assistant` reads `assistants`. The cost is small, and the
+  reactive engine has no short-circuit for an equal value.
+- Left for the code-quality steward: six helpers of the detail are a copy of
+  those of the task pane, and the formatter of a duration is the third of its
+  form (the task slice and the MCP log have one each).
 
 ## 5. The answers of the owner
 

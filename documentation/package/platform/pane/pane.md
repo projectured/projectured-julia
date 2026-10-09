@@ -216,7 +216,7 @@ The wrapper `tabs` of `build_editor` puts the root document in the one tab of a 
 
 `make_tabs_projection(projection)` draws the tree. `PaneToWidget` makes the widgets and leaves the content of each tab as it is. The stage after it draws every widget and layout with the widget renderer, and every other document with `projection`. So the tabs work with a projection that draws no widget, and a content that is itself a widget draws as a widget. A content can not be told by its place, because the widget printers hand their own context to a child.
 
-`show_document!(document; title)` of the screen package shows a later document. For a window whose content is a `PaneTree`, this package's method opens a tab named `title`, or focuses the tab that shows `document` already.
+`show_document!(document; title)` of the screen package shows a later document. For a window whose content is a `PaneTree`, this package's method opens a tab named `title`, or focuses the tab that shows `document` already. It finds that tab by what it shows, with `find_pane_tab_layer`, and not by its title, so two tabs of the same title are no problem. `collect_pane_tab_contents(tree, T)` answers the documents of type `T` that the tabs of a tree show, through the same layers; in a computation it depends only on the structure of the panes.
 
 ### Save and load of the whole editor
 
