@@ -77,10 +77,11 @@ field says which scale applies to it:
 | `IconSize` | icon scale |
 
 The five types of length wrap a number, an `Inset` or a `Point2D` in logical pixels.
-Any other value, such as a color, takes no scale. A field of a document is a plain
-cell whose declared type is not checked, so the declared type decides the kind:
-a bare number in a field declared `Radius` scales as a radius
-(`convert_theme_value`). `scale_length` multiplies a length
+Any other value, such as a color, takes no scale. The declared type decides the
+kind: a write of a bare number into a field declared `Radius` converts it to a
+`Radius`, by the conversion of the check of declared types, and
+`convert_theme_value` gives the kind to a bare number that a field holds with the
+check off, so it scales as a radius. `scale_length` multiplies a length
 and keeps a length above 0 at least 1, so a line or a gap never disappears.
 
 **Base fonts and roles.** A theme holds its fonts as base fonts and roles. A base
@@ -95,9 +96,9 @@ relative to the base. A `TextRole` is a font role and a color.
     "The font that the texts of this theme follow: its family, its weight and its size."
     font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The key of an object member, with its quotes."
-    key_text::TextRole = TextRole(:field)
+    key_text::ThemeText = TextRole(:field)
     "The brackets of an array and the braces of an object."
-    delimiter_text::TextRole = TextRole(:punctuation; weight = 700)
+    delimiter_text::ThemeText = TextRole(:punctuation; weight = 700)
 end
 ```
 
@@ -107,8 +108,12 @@ The scaled theme holds the `StyleFont` or the `StyleText` that each role gives:
 `apply_font_role(role, base)`, then the font scale. Its cell reads the base font,
 so a person who changes the family or the size of the base changes every role of
 the theme, and a heading of `relative_size = 1.8` stays 1.8 times the body. A
-role field can also hold a `StyleFont` or a `StyleText` as it is, which scales as
-before; the appearance tab and an appearance file accept both forms.
+role field can also hold a `StyleFont` or a `StyleText` as it is, which takes the
+font scale; the appearance tab and an appearance file accept both forms. So a
+field that holds a text role declares the union `ThemeText`, a `StyleText` or a
+`TextRole`, a field that holds a font role declares `ThemeFont`, a `StyleFont` or a
+`FontRole`, and a colour field declares `ThemeColor`. The check of declared types
+then admits both forms.
 
 A string before a field is the docstring of the field, as in a plain struct, and
 it says what the value draws. `@theme` keeps the docstrings in
@@ -258,7 +263,7 @@ hues: `macro_name` and `event` take the colour of `function_name`,
 Almost every field holds a `PaletteColor`; a few hold a fixed colour instead,
 such as `text_on_accent = color_white` and the overlays `shadow` and `scrim`.
 A field of every theme other than `ColorTheme` names a role with a `ColorRole`,
-so it follows the colour settings: `key_text::TextRole = TextRole(:field)` of
+so it follows the colour settings: `key_text::ThemeText = TextRole(:field)` of
 `JsonTheme` draws with the colour that the role `field` gives,
 `PaletteColor(:blue, 11; minimum_contrast = 4.5)` by default, which resolves to
 step 11 of the blue ramp of the palette of the appearance, in its mode — Radix

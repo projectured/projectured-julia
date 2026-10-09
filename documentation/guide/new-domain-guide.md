@@ -202,9 +202,9 @@ The colors and the fonts of a list of bookmarks: a title and an address.
     "The font that the texts of this theme follow: its family, its weight and its size."
     font::StyleFont = StyleFont("Ubuntu Mono", 14)
     "The title of a bookmark."
-    title_text::TextRole = TextRole(:definition; weight = 700)
+    title_text::ThemeText = TextRole(:definition; weight = 700)
     "The address of a bookmark."
-    url_text::TextRole = TextRole(:link)
+    url_text::ThemeText = TextRole(:link)
 end
 ```
 
