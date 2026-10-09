@@ -1,9 +1,9 @@
 # A text span holds no line break
 
 > **Kind:** plan · **Status:** pending, 2026-10-09. The owner decided the rule
-> (§1), N1, N1b and N2 with N3 on 2026-10-08, and N5 and N6 on 2026-10-09; only
-> N1c is open, until a domain needs it; §9 holds the steps, and no step is
-> started. ·
+> (§1), N1, N1b and N2 with N3 on 2026-10-08, and N5, N6 and N7 on 2026-10-09;
+> only N1c is open, until a domain needs it. §9 holds the steps: steps 0 to 2 are
+> built on the branch `text-breaks`. ·
 > **Stands on:** [text.md](../../documentation/package/platform/text/text.md),
 > [syntax.md](../../documentation/package/platform/syntax/syntax.md),
 > [text-domain-kit.md](text-domain-kit.md) (Q5 of step 3 of Phase 3),
@@ -247,6 +247,21 @@ One at a time, with the owner.
     JSON 2, 1; YAML 4, 0; XML 2, 0; FSM 4, 0; SQL 4, 4; the database catalog 3, 0;
     the file system 3, 0; Julia 1, 9; Formula 0, 1; Book 0, 3; Markdown 0, 12;
     reStructuredText 0, 61; each list of the platform 0, 1 or 2.
+- **N7 A node that shows no child. Decided, the owner, 2026-10-09: (a), the
+  first line of the opening delimiter and the last line of the closing
+  delimiter.** The breaks of `open` and `close` frame the children, so a node that
+  shows no child, because it is empty or the syntax folds it, prints only the
+  first line of `open` and the last line of `close`: `[]` and `[…]`, on one line.
+  The rule removes breaks and never adds one. An empty node with an integer
+  `indentation` follows it too, so it prints `[]` and no longer `[` and `]` on two
+  lines.
+  - Found in step 3 for JSON: with `open = "[\n"` and `close = "\n]"` an empty
+    array printed `[`, an empty line and `]`, and a folded one `[`, `  …` and `]`,
+    where today a folded array reads `[…]`, and real formatters print `[]`.
+  - Not taken: (b) the breaks as written, three lines; (c) texts of a domain that
+    depend on the state through `make_text_block` with a function, which works for
+    an empty node but not for a folded one, because a domain can not see the fold
+    of the syntax node.
 
 ## 8. Facts found
 
@@ -289,8 +304,11 @@ change how every view of syntax makes its lines, so they land together.
    indents by rule 5 of §4. Until step 4 a node with an `indentation` that is not
    0 and whose texts hold no break keeps the breaks of today, so each domain moves
    in a step of its own; step 4 removes that path.
-   **Built (2026-10-09, branch `text-breaks`); the sweep against step 0 is
-   pending.** What the implementation decided:
+   ✅ **Done (2026-10-09, branch `text-breaks`).** The sweep at `e513cc4cf`
+   against step 0: every part as at main, but for more passing assertions in
+   `test_domain_examples` (+3528) and `test_printers` (+1242), which count lines,
+   and in `test_platform` (+86, the new tests), whose failing files are those of
+   main. What the implementation decided:
    - The fields `open`, `close`, `sep`, `opening_delimiter`, `closing_delimiter`
      and `separator` take `Union{TextString, TextBlock, Nothing}`, and `value`
      takes a `TextBlock` too. `_text` converts a string with a `'\n'`, and a
@@ -321,6 +339,11 @@ change how every view of syntax makes its lines, so they land together.
      place in its value.
    - `test_syntax_to_text` 314 of 314, `test_text` 99 of 99, `test_click_roundtrips`
      42 of 42, `test_markdown` 262 of 262.
+   - N7, after the sweep: a node that shows no child pushes only the first line
+     of its opening delimiter and the last line of its closing delimiter, and the
+     integer adds no line before the closing delimiter of an empty node. The
+     forward map of an offset in a line that is not printed stands at the nearest
+     end of the entry. `test_syntax_to_text` 326 of 326.
 
 3. **The domains state their breaks**, one commit for each, with its suite and
    the example sweeps, in this order (N6): JSON, YAML, the lists of the platform

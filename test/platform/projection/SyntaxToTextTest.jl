@@ -142,6 +142,30 @@ end
     @test _line_texts(print_document(pipe, deeper).output) == ["[", "    a,", "    b", "]"]
 end
 
+@testset "a node that shows no child prints its delimiters on one line" begin
+    texts = (open="[\n", sep=",\n", close="\n]", indentation=1)
+    empty_node = SyntaxNode(SyntaxDocument[]; texts...)
+    iomap = print_document(pipe, empty_node)
+    @test _line_texts(iomap.output) == ["[]"]
+    for k in 0:get_flat_length(iomap.output)
+        @test _selection_to_pos(iomap, _pos_to_selection(iomap, k)) == k
+    end
+    # An offset in a line that the node does not print stands at the nearest end.
+    @test _selection_to_pos(iomap, @reference(empty_node, open{2})) == 1
+    @test _selection_to_pos(iomap, @reference(empty_node, close{0})) == 1
+    # A node that the syntax folds.
+    folded = SyntaxNode(SyntaxDocument[SyntaxLeaf("a")]; texts...)
+    folded.collapsed = true
+    iomap = print_document(pipe, folded)
+    @test _line_texts(iomap.output) == ["[…]"]
+    for k in 0:get_flat_length(iomap.output)
+        @test _selection_to_pos(iomap, _pos_to_selection(iomap, k)) == k
+    end
+    # The integer: an empty node is on one line too.
+    integer_node = SyntaxNode(SyntaxDocument[]; open="[", close="]", indentation=1)
+    @test _line_texts(print_document(pipe, integer_node).output) == ["[]"]
+end
+
 @testset "a child is widened by the line it starts on" begin
     inner = SyntaxNode(SyntaxDocument[SyntaxLeaf("x")]; open="(\n", close="\n)", indentation=1)
     outer = SyntaxNode(SyntaxDocument[SyntaxLeaf("y"), inner]; open="[\n", sep=",\n", close="\n]",

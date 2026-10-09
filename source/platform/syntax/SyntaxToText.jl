@@ -446,7 +446,9 @@ function _anchor_text_offset(elements, places, k::Int)
         entry_offset <= k || break
         j, offset = entry, entry_offset
     end
-    char = k - offset
+    # An offset in a line that the node does not print stands at the nearest end of
+    # the entry.
+    char = clamp(k - offset, 0, _span_len(elements[j]))
     flat = _text_elem_path_to_flat(elements, j, char)
     flat < 0 && return nothing
     (elements[j] isa _LineBreak && char >= 1 && j < length(elements) &&
@@ -932,37 +934,53 @@ end
 # run is not appended, as an empty piece is not: chrome that draws no character
 # offers no caret of its own. An absent text appends nothing and has no entry, so it
 # carries no cursor position either.
-function _push_span!(buf::SpliceBuffer, span, break_indentation::Int = 0)
+#
+# `part` is `:all`, or `:first` or `:last` for only the runs of the first or of the
+# last line of the text, with no break.
+function _push_span!(buf::SpliceBuffer, span, break_indentation::Int = 0, part::Symbol = :all)
     span === nothing && return Pair{Int,Int}[]
     places = Pair{Int,Int}[]
     if span isa TextBlock
+        lines = _text_lines(span)
         offset = 0
-        for (n, runs) in enumerate(_text_lines(span))
+        for (n, runs) in enumerate(lines)
             if n > 1
-                push!(places, _start_line!(buf, break_indentation, true) => offset)
+                part === :all && push!(places, _start_line!(buf, break_indentation, true) => offset)
                 offset += 1
             end
+            shown = _is_line_shown(part, n, length(lines))
             for run in runs
-                _is_empty_run(run) || push!(places, _push_entry_span!(buf, run) => offset)
+                (shown && !_is_empty_run(run)) && push!(places, _push_entry_span!(buf, run) => offset)
                 offset += get_flat_length(run)
             end
         end
         return places
     end
-    for (k, offset) in _compute_span_parts(span)
-        j = k == 0 ? _start_line!(buf, 0, false) : _push_entry_span!(buf, _make_span_part(span, k))
-        push!(places, j => offset)
+    parts = _compute_span_parts(span)
+    line_count = count(entry -> first(entry) == 0, parts) + 1
+    line = 1
+    for (k, offset) in parts
+        if k == 0
+            line += 1
+            part === :all && push!(places, _start_line!(buf, 0, false) => offset)
+        elseif _is_line_shown(part, line, line_count)
+            push!(places, _push_entry_span!(buf, _make_span_part(span, k)) => offset)
+        end
     end
     places
 end
+
+# Whether line `n` of a text of `count` lines is in `part`.
+_is_line_shown(part::Symbol, n::Int, count::Int) =
+    part === :all || (part === :first && n == 1) || (part === :last && n == count)
 
 # A delimiter, given as the `field => span` pair the compound answered. Recorded
 # against its DOCUMENT FIELD, not its position, so the mappers can hand a caret in
 # it straight back as `.<field>{k}` without knowing what this compound calls its
 # delimiters. A compound with no such delimiter answers `nothing` and emits nothing.
-_push_delimiter!(::SpliceBuffer, ::Nothing, ::Int) = nothing
-function _push_delimiter!(buf::SpliceBuffer, pair::Pair{Symbol,<:Any}, break_indentation::Int)
-    for (j, offset) in _push_span!(buf, pair.second, break_indentation)
+_push_delimiter!(::SpliceBuffer, ::Nothing, ::Int, ::Symbol) = nothing
+function _push_delimiter!(buf::SpliceBuffer, pair::Pair{Symbol,<:Any}, break_indentation::Int, part::Symbol)
+    for (j, offset) in _push_span!(buf, pair.second, break_indentation, part)
         push!(buf.own_spans, j => (pair.first, offset))
     end
 end
@@ -1050,6 +1068,10 @@ end
 # keeps the breaks of the integer: a line of the chrome one level in before each
 # child, and one at the line of the node before the closing delimiter when the
 # integer is positive.
+#
+# The breaks frame the children. A node that shows no child, because it has none or
+# the syntax folds it, prints only the first line of its opening delimiter and the
+# last line of its closing delimiter, so it reads `[]` or `[…]` on one line.
 function _splice_compound(doc::SyntaxCompound, p::SyntaxCompoundToText, deco, cims, level::Cell, fold)
     buf = SpliceBuffer(deco; nid = objectid(doc), deco_font = _deco_font(doc, unwrap_cell(p.decoration_font)),
                        indent_size = p.indent_size)
@@ -1058,9 +1080,11 @@ function _splice_compound(doc::SyntaxCompound, p::SyntaxCompoundToText, deco, ci
     text_breaks = _has_text_breaks(doc)
     inside = indent * buf.indent_size
     integer_breaks = !text_breaks && indent != 0
+    shows_child = !isempty(cims)
 
     _push_marker!(buf, _active_marker(p, doc))       # collapse marker, before the open delimiter
-    _push_delimiter!(buf, _make_lit_delimiter(buf, p, get_opening_delimiter(doc), level), inside)
+    _push_delimiter!(buf, _make_lit_delimiter(buf, p, get_opening_delimiter(doc), level), inside,
+                     shows_child ? :all : :first)
 
     if _is_folded_by_syntax(p, doc)
         # A collapsed node projects no children; a single ellipsis stands in for
@@ -1077,10 +1101,11 @@ function _splice_compound(doc::SyntaxCompound, p::SyntaxCompoundToText, deco, ci
         end
         # The line of the close delimiter of the integer, at the line of the node: a
         # line of the chrome, so that ancestors widen it.
-        integer_breaks && indent > 0 && _push_line_chrome!(buf, 0)
+        integer_breaks && indent > 0 && shows_child && _push_line_chrome!(buf, 0)
     end
 
-    _push_delimiter!(buf, _make_lit_delimiter(buf, p, get_closing_delimiter(doc), level), 0)
+    _push_delimiter!(buf, _make_lit_delimiter(buf, p, get_closing_delimiter(doc), level), 0,
+                     shows_child ? :all : :last)
     # The fold of the node on its first line, in place of a fold of a child that
     # starts there: the region of the outer node wins. Only a node that puts its
     # children on lines of their own is a region of lines; an inline node, such as
