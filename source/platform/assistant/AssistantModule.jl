@@ -63,12 +63,16 @@ export ExternalAgentSession, is_external_agent_turn_running, CancelAssistantTurn
        stop_external_agent!, StartExternalAgentOperation, SetAgentOptionOperation,
        make_agent_option_bar, format_agent_usage, describe_agent_usage
 export is_assistant_turn_running, make_assistant_stop_button
+export compute_assistant_overview_title, find_first_prompt, find_last_prompt, compute_prompt_count,
+       compute_assistant_turn_side, describe_assistant_activity, find_assistant_start_time,
+       find_assistant_last_activity_time, compute_assistant_elapsed_time, compute_assistant_busy_time
 
 
 include("AssistantDocument.jl")
 include("AssistantToWidget.jl")
 include("AssistantTurn.jl")
 include("ExternalAgentTurn.jl")
+include("AssistantOverview.jl")
 include("AssistantApi.jl")
 
 end # module

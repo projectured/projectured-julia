@@ -2,7 +2,7 @@
     test_assistant_overview()
 
 What the table of the assistants reads from one assistant: what the person
-writes about the conversation, and the times of its turns.
+writes about the conversation, the times of its turns, and the values of its row.
 """
 function test_assistant_overview()
     @testset "the overview of an assistant" begin
@@ -70,6 +70,94 @@ function test_assistant_overview()
                                                           :stop_reason => :complete, :collapsed => false])
                 @test (old.start_time, old.finish_time) == (0.0, 0.0)
                 @test (old.role, length(collect(old.parts))) == (:user, 1)
+            end
+        end
+
+        @testset "the values of a row" begin
+            @testset "before the first prompt" begin
+                a = Assistant()
+                @test compute_assistant_overview_title(a) == "Assistant"
+                @test find_first_prompt(a) === nothing
+                @test find_last_prompt(a) === nothing
+                @test compute_prompt_count(a) == 0
+                @test compute_assistant_turn_side(a) === :person
+                @test describe_assistant_activity(a) == ""
+                @test find_assistant_start_time(a) === nothing
+                @test find_assistant_last_activity_time(a) === nothing
+                @test compute_assistant_elapsed_time(a) === nothing
+                @test compute_assistant_busy_time(a) == 0.0
+            end
+
+            @testset "after two prompts" begin
+                a = Assistant(; llm = FakeLlm("ok"))
+                editor = (document = a, tools = register_default_tools!(ToolSet()))
+                for prompt in ("\nFix the table\nwith the colors", "Second")
+                    a.input.value = prompt
+                    evaluate_operation(editor, SubmitProseOperation(a))
+                    @test timedwait(() -> a.status !== :streaming, 10.0; pollint = 0.01) === :ok
+                end
+                # The title is the first line of the first prompt that holds text.
+                @test compute_assistant_overview_title(a) == "Fix the table"
+                @test find_first_prompt(a) == "\nFix the table\nwith the colors"
+                @test find_last_prompt(a) == "Second"
+                @test compute_prompt_count(a) == 2
+                @test compute_assistant_turn_side(a) === :person
+                @test describe_assistant_activity(a) == ""
+                turns = collect(a.conversation.turns)
+                @test find_assistant_start_time(a) == first(turns).start_time
+                @test find_assistant_last_activity_time(a) == last(turns).finish_time
+                @test compute_assistant_elapsed_time(a) == last(turns).finish_time - first(turns).start_time
+                # The title that the agent gave its session wins.
+                a.agent_title = "Colors of the table"
+                @test compute_assistant_overview_title(a) == "Colors of the table"
+            end
+
+            @testset "the times, with a turn that runs" begin
+                a = Assistant(; conversation = ConversationConversation([
+                    ConversationTurn(:user, [ConversationPart("One")]; start_time = 10.0, finish_time = 10.0),
+                    ConversationTurn(:assistant, [ConversationPart("Done.")]; start_time = 11.0, finish_time = 20.0),
+                    ConversationTurn(:user, [ConversationPart("Two")]; start_time = 30.0, finish_time = 30.0),
+                    ConversationTurn(:assistant; start_time = 31.0)]))
+                @test compute_assistant_elapsed_time(a; now = 40.0) == 20.0
+                @test compute_assistant_busy_time(a; now = 40.0) == 9.0
+                a.status = :streaming
+                @test compute_assistant_elapsed_time(a; now = 40.0) == 30.0
+                @test compute_assistant_busy_time(a; now = 40.0) == 18.0
+                @test find_assistant_last_activity_time(a) == 30.0
+            end
+
+            @testset "what the turn that runs does" begin
+                turn = ConversationTurn(:assistant; start_time = 1.0)
+                a = Assistant(; conversation = ConversationConversation([
+                    ConversationTurn(:user, [ConversationPart("Go")]; start_time = 1.0, finish_time = 1.0), turn]))
+                a.status = :streaming
+                @test compute_assistant_turn_side(a) === :assistant
+                @test describe_assistant_activity(a) == "starts"
+                push!(turn.parts, Cell(make_conversation_thinking_part("I look.")))
+                @test describe_assistant_activity(a) == "thinks"
+                push!(turn.parts, Cell(ConversationPart(EvaluatorForm(PrimitiveString("1"); tool_name = "search_api"))))
+                @test describe_assistant_activity(a) == "runs search_api"
+                push!(turn.parts, Cell(ConversationPart("It is there.")))
+                @test describe_assistant_activity(a) == "writes"
+                a.status = :error
+                @test describe_assistant_activity(a) == "failed"
+                @test compute_assistant_turn_side(a) === :person
+            end
+
+            @testset "a question of the agent is the turn of the person" begin
+                connection = ScriptedAgentConnection([Any[
+                    make_scripted_permission_step(AgentToolCallUpdate("t1"; title = "Bash"),
+                        [AgentPermissionOption("allow", "Allow", :allow_once)]),
+                    LlmTextStart(), LlmTextDelta("Done."), LlmTextStop()]])
+                a = _make_agent_assistant(connection)
+                _submit_to_agent!(a, "List the files"; wait = false)
+                request = _wait_for_permission_request(a)
+                @test compute_assistant_turn_side(a) === :person
+                @test describe_assistant_activity(a) == request.title
+                answer_permission_request!(request, "allow")
+                _wait_for_idle(a)
+                @test compute_assistant_turn_side(a) === :person
+                @test describe_assistant_activity(a) == ""
             end
         end
     end

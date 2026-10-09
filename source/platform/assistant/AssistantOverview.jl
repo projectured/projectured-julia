@@ -1,0 +1,153 @@
+# Fragment of `AssistantModule` — what the table of the assistants reads from one
+# assistant: its title, its first and its last prompt, how many prompts it has,
+# whose turn it is, what the turn that runs does, and the times of its turns.
+# Each read goes through cells, so a view that calls one draws again when the
+# assistant changes.
+
+"""
+    compute_assistant_overview_title(assistant) -> String
+
+The title of `assistant` in the table of the assistants: the title that its
+agent gave the session, else the first line of the first prompt that holds
+text, else "Assistant".
+"""
+function compute_assistant_overview_title(a::Assistant)
+    isempty(a.agent_title) || return a.agent_title
+    prompt = find_first_prompt(a)
+    prompt === nothing && return ASSISTANT_TITLE
+    for line in eachsplit(prompt, '\n')
+        text = strip(line)
+        isempty(text) || return String(text)
+    end
+    ASSISTANT_TITLE
+end
+
+"""
+    find_first_prompt(assistant) -> String or nothing
+    find_last_prompt(assistant) -> String or nothing
+
+The text of the first and of the last turn of the person in the conversation of
+`assistant`, or `nothing` before the first prompt.
+"""
+find_first_prompt(a::Assistant) = _find_prompt(a, findfirst)
+find_last_prompt(a::Assistant) = _find_prompt(a, findlast)
+
+function _find_prompt(a::Assistant, find::Function)
+    turns = collect(a.conversation.turns)
+    index = find(turn -> turn.role === :user, turns)
+    index === nothing ? nothing : join((_part_text(part) for part in turns[index].parts), "\n\n")
+end
+
+"""
+    compute_prompt_count(assistant) -> Int
+
+How many prompts the person gave `assistant`: the count of the turns of the
+person in its conversation.
+"""
+compute_prompt_count(a::Assistant) = count(turn -> turn.role === :user, collect(a.conversation.turns))
+
+"""
+    compute_assistant_turn_side(assistant) -> Symbol
+
+Whose turn it is in the conversation of `assistant`: `:assistant` while a turn
+runs, else `:person`. A question of the agent that waits for an answer is the
+turn of the person, also while the turn of the agent runs.
+"""
+function compute_assistant_turn_side(a::Assistant)
+    is_assistant_turn_running(a) || return :person
+    _find_open_permission_request(a) === nothing ? :assistant : :person
+end
+
+"""
+    describe_assistant_activity(assistant) -> String
+
+What the turn of `assistant` that runs does now, in a few words: "starts",
+"thinks", "writes", "runs <tool>", or the question of the agent that waits for
+the person. "failed" after a turn that failed, and empty between turns.
+"""
+function describe_assistant_activity(a::Assistant)
+    a.status === :error && return "failed"
+    is_assistant_turn_running(a) || return ""
+    request = _find_open_permission_request(a)
+    request === nothing || return request.title
+    turns = collect(a.conversation.turns)
+    (isempty(turns) || last(turns).role !== :assistant) && return "starts"
+    parts = collect(last(turns).parts)
+    isempty(parts) && return "starts"
+    content = last(parts).content
+    content isa ConversationThinking && return "thinks"
+    content isa EvaluatorForm && return "runs " * content.tool_name
+    "writes"
+end
+
+# The question of the agent in the last turn that waits for the person.
+function _find_open_permission_request(a::Assistant)
+    turns = collect(a.conversation.turns)
+    isempty(turns) && return nothing
+    for part in collect(last(turns).parts)
+        content = part.content
+        content isa ConversationPermissionRequest && is_permission_request_open(content) && return content
+    end
+    nothing
+end
+
+"""
+    find_assistant_start_time(assistant) -> Float64 or nothing
+
+When the conversation of `assistant` started: the start of its first turn whose
+time is known, in seconds of `time()`, or `nothing`.
+"""
+function find_assistant_start_time(a::Assistant)
+    for turn in collect(a.conversation.turns)
+        turn.start_time > 0 && return turn.start_time
+    end
+    nothing
+end
+
+"""
+    find_assistant_last_activity_time(assistant) -> Float64 or nothing
+
+The time of the last activity in the conversation of `assistant`: the latest
+end of a turn, in seconds of `time()`, or `nothing`.
+"""
+function find_assistant_last_activity_time(a::Assistant)
+    times = [turn.finish_time for turn in collect(a.conversation.turns) if turn.finish_time > 0]
+    isempty(times) ? nothing : maximum(times)
+end
+
+"""
+    compute_assistant_elapsed_time(assistant; now = time()) -> Float64 or nothing
+
+How long the conversation of `assistant` runs, in seconds: from its start to
+`now` while a turn runs, else to its last activity. `nothing` before the first
+turn whose time is known.
+"""
+function compute_assistant_elapsed_time(a::Assistant; now::Real = time())
+    start = find_assistant_start_time(a)
+    start === nothing && return nothing
+    is_assistant_turn_running(a) && return now - start
+    finish = find_assistant_last_activity_time(a)
+    finish === nothing ? 0.0 : finish - start
+end
+
+"""
+    compute_assistant_busy_time(assistant; now = time()) -> Float64
+
+How long `assistant` worked, in seconds: the sum of the durations of its turns,
+with the last turn counted up to `now` while it runs. A turn whose end is not
+known and that does not run counts nothing.
+"""
+function compute_assistant_busy_time(a::Assistant; now::Real = time())
+    turns = collect(a.conversation.turns)
+    is_running = is_assistant_turn_running(a)
+    total = 0.0
+    for (index, turn) in enumerate(turns)
+        (turn.role === :assistant && turn.start_time > 0) || continue
+        if turn.finish_time > 0
+            total += turn.finish_time - turn.start_time
+        elseif is_running && index == length(turns)
+            total += now - turn.start_time
+        end
+    end
+    total
+end

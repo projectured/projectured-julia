@@ -187,20 +187,30 @@ no window add no row.
 ### 3.4 The values of a row
 
 Functions in the assistant slice compute the values, so the pane, a verb and a
-test read the same values:
+test read the same values. **As built (step 3)**, in
+`source/platform/assistant/AssistantOverview.jl`. The verbs follow the naming
+rules: a function that loops over the turns is `compute_`, and one that can
+answer `nothing` is `find_`.
 
-- `get_assistant_overview_title(a)` — `agent_title`, else the first line of the
-  first prompt, else "Assistant".
+- `compute_assistant_overview_title(a)` — `agent_title`, else the first line of
+  the first prompt that holds text, else "Assistant".
 - `find_first_prompt(a)` and `find_last_prompt(a)` — the text of the first and
   the last user turn, or `nothing`.
-- `get_prompt_count(a)` — the count of user turns. One turn of the overview is
-  one prompt and its answer.
-- `get_assistant_turn_side(a)` — `:assistant` while a turn runs, `:permission`
-  while a permission request waits, `:error` after a failure, else `:person`.
-- `describe_assistant_activity(a)` — for the turn that runs: "thinks",
-  "writes", "runs <tool>", or "asks to run: <tool>". Empty between turns.
-- `get_assistant_context_usage(a)` — `used` and `size` of `agent_usage`, or
-  `nothing`.
+- `compute_prompt_count(a)` — the count of user turns. One turn of the overview
+  is one prompt and its answer.
+- `compute_assistant_turn_side(a)` — `:assistant` while a turn runs, else
+  `:person`. A question of the agent that waits for an answer is the turn of
+  the person. (Mine: two values, not the four of the first plan. The activity
+  column says the rest: the question, or "failed".)
+- `describe_assistant_activity(a)` — for the turn that runs: "starts",
+  "thinks", "writes", "runs <tool>", or the title of the question of the agent
+  ("The agent asks to run: <tool>"). "failed" after a failed turn, and empty
+  between turns.
+- `find_assistant_start_time(a)`, `find_assistant_last_activity_time(a)`,
+  `compute_assistant_elapsed_time(a; now)` and `compute_assistant_busy_time(a;
+  now)` — the times of 3.2. `now` is a keyword, so a test gives a fixed time.
+- The context column uses `format_agent_usage(a.agent_usage)`, which exists, so
+  no function of its own is needed.
 
 ### 3.5 The Assistants pane
 
@@ -211,12 +221,12 @@ assistant:
 | Column | Value |
 | --- | --- |
 | (button) | Show: focus the tab of the assistant, or open it again |
-| Title | `get_assistant_overview_title` |
+| Title | `compute_assistant_overview_title` |
 | Work | `work_state`, as a badge |
-| Turn | `get_assistant_turn_side`, as a badge |
+| Turn | `compute_assistant_turn_side`, as a badge |
 | Activity | `describe_assistant_activity` |
-| Prompts | `get_prompt_count` |
-| Context | `used / size`, and the cost when the agent gives it |
+| Prompts | `compute_prompt_count` |
+| Context | `format_agent_usage`: `used / size`, and the cost when the agent gives it |
 | Started | the start time |
 | Elapsed | the elapsed time |
 
@@ -385,7 +395,7 @@ Each step gets a commit. Each step runs the narrowest test that covers it.
   `ConversationTurn`. Write them in the submit and at the end of the native turn
   and of the ACP turn. Test with a `FakeLlm` that the times are in order, and
   that an old file loads with `0.0`.
-- [ ] **3. The values of a row.** Add the functions of 3.4. Test each one on an
+- [x] **3. The values of a row.** Add the functions of 3.4. Test each one on an
   assistant with a `ScriptedLlm`: before a turn, while a turn runs, while a
   permission request waits, and after a failure.
 - [ ] **4. The registry of the tabs.** Add the read of the tabs to the pane
