@@ -308,6 +308,9 @@ emit lines (D7 of the gutter plan).
    *What the implementation found:* the region is the document `TextFold`
    (`line_count`, `collapsed`, `placeholder`), and `TextLine.fold` holds it. A
    fold is no candidate of the insertion, as a line and a gutter are not.
+   The name `TextFold` was chosen here without a question to the owner; the
+   owner accepted it on 2026-10-09. Its `placeholder` becomes a list of runs by
+   L4 of [a-text-block-holds-only-lines.md](../pending/a-text-block-holds-only-lines.md).
 2. ✅ **Done (2026-10-07, branch `text-gutter`). `TextFolding`.** It drops the lines that a closed region hides, with a table
    of the input index of each output element, and maps a reference through it
    (T2). Its reader steps the caret over a closed region with all four arrows. It

@@ -2,8 +2,8 @@
 
 > **Kind:** plan · **Status:** pending, 2026-10-09. The owner decided the end
 > state on 2026-10-09 (N5 of [a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md)),
-> and that it is a plan of its own, and L1, L2 and L3 on 2026-10-09. The other questions of
-> §6 are open, and no step is started. ·
+> and that it is a plan of its own, and L1 to L4 on 2026-10-09. No question is
+> open, and no step is started. ·
 > **Stands on:** [text.md](../../documentation/package/platform/text/text.md),
 > [text-domain-kit.md](text-domain-kit.md) (shape A of Phase 3),
 > [a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md) (N5)
@@ -158,7 +158,7 @@ that lands second follows the other.
 removal is a removed export, which takes a minor version step after 0.1.0 (R36 of
 the release plan).
 
-## 6. Open questions
+## 6. Questions
 
 - **L1 The constructor of a block of spans. Decided, the owner, 2026-10-09: (b),
   the arguments of a `TextBlock` are always its lines**, in each constructor: the
@@ -217,12 +217,21 @@ the release plan).
   - Not taken: (a) each producer keeps the structural form with the line step,
     which makes each producer of one line follow every change of the shape of a
     text.
-- **L4 The placeholder of a fold.** `TextFold.placeholder` is a `TextBlock` that
-  `TextFolding` appends to the line of the fold as spans.
-  - (a) It stays a block, and `TextFolding` appends the runs of its one line.
-  - (b) It becomes a `TextLine`, because it is a part of a line.
-
-  My proposal, not decided: (b).
+- **L4 The placeholder of a fold. Decided, the owner, 2026-10-09: nothing or a
+  list of runs.** The owner: "nothing or a TextString is usually enough, but a
+  list of runs is also fine". So `TextFold.placeholder` holds the runs that
+  `TextFolding` appends to the first line of a closed region, as
+  `TextLine.elements` does, or `nothing` for `…`. One run is a list of one run.
+  - Today the field is `Union{Document, Nothing}`, and `_make_fold_placeholder`
+    reads a `TextBlock` as spans, one span, or `nothing`. `SyntaxToText` gives the
+    ellipsis and the closing spans of the node (`…}`), so it needs a list, and the
+    folding example gives one run.
+  - A single `TextString` is not kept as a second form, for the reason of L1.
+  - Not taken: a `TextBlock` of one line, which only a check at run time keeps to
+    one line; a `TextLine`, whose indentation, gutter, fold and soft breaks a
+    placeholder must ignore.
+  - The name `TextFold`, which step 1 of the fold plan chose without a question,
+    is accepted (the owner, 2026-10-09: "the name is fine").
 
 ## 7. Facts found
 
@@ -254,7 +263,7 @@ a block of spans still works, so the producers move one at a time.
    `PrimitiveToText`, `FaultToText`, `@insertion TextBlock`, the widgets
    (`ObjectToWidget`, `ObjectFieldToWidget`, `WidgetToGraphics`), the
    conversation and the assistant, Formula, the Julia tooltip, RST, `NaturalProjection`,
-   the gutter marks, and the fold placeholder by L4. One commit for each package
+   the gutter marks, and the fold placeholder as a list of runs (L4). One commit for each package
    slice, with the tests that assert its paths.
 3. **The examples**: the documents of the text examples give lines, and the two
    examples of `TextNewline` leave the catalog. `ExampleSweeps.jl` follows.
