@@ -762,7 +762,81 @@ from the command line of the projectured UI.
     for `ClaudeCodeACP` is to read and delete the transcript files of Claude
     Code under `~/.claude/projects`, which Anthropic does not document.
     `session/load` has the same problem.
-- [ ] 2.5 Terminal sign-in and logout (R3).
+- [ ] 2.5 Terminal sign-in and logout (R3). The owner chose 2.5 and then 2.6
+  on 2026-10-09. A design waits for the answers of the owner.
+
+  **Facts (2026-10-09).**
+  - ACP: an agent can advertise a `terminal` auth method with `args` and `env`.
+    The client runs "the configured agent invocation" with them in an
+    interactive terminal; an exit status of 0 is success. The client must not
+    send that method to `authenticate`. An agent advertises it only when the
+    client sends `clientCapabilities.auth.terminal = true`. `logout` is a
+    request that the agent advertises with `agentCapabilities.auth.logout`.
+  - `ClaudeCodeACP` 0.1.3 advertises the method `claude-login` with the
+    argument `--login` always, also to a client that did not ask for it. Its
+    program runs `claude auth login` for `--login`. It has no `logout`.
+  - `claude auth login` opens the sign-in page of Anthropic in a browser. When
+    the browser can not report back, it asks for a code in the terminal. So the
+    sign-in needs an interactive terminal. `claude auth logout` needs no input.
+  - The editor sends no `auth` capability. `_send_session_request!` turns
+    `AUTHENTICATION_REQUIRED` into the error text "<agent> needs a sign-in.
+    <description of the method>", and the assistant shows it as "Error: …" in
+    the conversation. The editor has no terminal, and no code that starts an
+    external program in a window or opens a URL.
+  - The environment of `claude` passes through `ClaudeCodeACP`. So a test can
+    use an empty `CLAUDE_CONFIG_DIR`, where `claude auth status` says "not
+    signed in", and the account of the person does not change. **A test must
+    never run `claude auth logout` with the real configuration: it signs out
+    every Claude Code session of the person.**
+
+  **Design (a proposal; the parts marked "new" need the word of the owner).**
+  - 2.5a `ClaudeCodeACP` 0.1.4: advertise `claude-login` only when the client
+    sends `auth.terminal = true`; advertise `auth.logout` and answer `logout`
+    with `claude auth logout`.
+  - 2.5b Kernel, agent layer (new): `AgentSignInException(agent_title, methods)`
+    with one `AgentSignInMethod(id, name, description, command::Cmd)` for each
+    terminal method. `open_agent_session!` throws it in place of the plain error,
+    with the same message, so a caller that shows only text does not change.
+    `sign_out_agent!(connection) -> Bool` sends `logout` when the agent
+    advertises it, and `has_agent_sign_out(connection)` says whether it does.
+  - 2.5c ACP adapter: send `auth.terminal = true`. The command of a method is
+    the invocation of the agent with `args` added and `env` merged. For an
+    agent with a command, that is its command. For the built-in agent, it is
+    the `julia` of this process with the active project, running the program
+    of `ClaudeCodeACP` (`ClaudeCodeACP.main`).
+  - 2.5d Platform (new): a function that runs a `Cmd` in a terminal window of
+    the system and gives its exit status. Linux: `$TERMINAL`, else
+    `x-terminal-emulator`, `gnome-terminal`, `konsole`, `kitty`, `xterm`. macOS:
+    Terminal through `osascript`. Windows: `cmd` through `start`. Some terminal
+    programs return at once, so the window runs a shell that writes the exit
+    status of the command into a file, and the editor waits for that file, with
+    a time limit.
+  - 2.5e Assistant (new): a conversation part `ConversationSignInRequest`, a
+    card like the permission card. It shows "<agent> needs a sign-in", one
+    button for each method, and "Try again". A method button opens the terminal;
+    on exit status 0 the assistant starts the agent again by itself. "Try again"
+    covers a terminal that gives no status. A "Sign out" item in the option bar
+    of the agent appears when the agent advertises `logout`.
+  - Tests: `ClaudeCodeACP` with the fake `claude`; the card with a scripted
+    connection that throws `AgentSignInException`; the terminal function with a
+    fake terminal program through `TERMINAL`. Live: the built-in agent with an
+    empty `CLAUDE_CONFIG_DIR` shows the card, and the button opens a terminal
+    window with `claude auth login`; the owner finishes or closes it.
+
+  **Questions for the owner.**
+  - Q1. The terminal: a terminal program of the system (recommended), or a
+    terminal inside the editor (a new domain with a pseudo terminal and an
+    emulator, much larger work)?
+  - Q2. The new kernel names and mechanism of 2.5b: `AgentSignInException`,
+    `AgentSignInMethod`, `sign_out_agent!`, `has_agent_sign_out`.
+  - Q3. The invocation of the built-in agent: the program of `ClaudeCodeACP`
+    through the `julia` of this process (recommended, it follows the protocol
+    for every agent), or `claude auth login` directly (simpler, but the editor
+    then names Claude Code)?
+  - Q4. After the terminal: wait for the exit status and start again on 0, with
+    "Try again" for the other cases?
+  - Q5. The place of "Sign out": an item in the option bar of the agent, beside
+    "Commands"?
 - [ ] 2.6 Elicitation forms.
 - [ ] 2.7 Request cancel, and the prompt queue. **The request cancel is done:**
   the agent withdraws a permission request with `$/cancel_request` and its
