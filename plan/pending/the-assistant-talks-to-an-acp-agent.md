@@ -775,6 +775,30 @@ from the command line of the projectured UI.
     (`run_claude_sign_out`, a setting `run_sign_out` for a fake); a sign-out
     marks each session for a restart, and a restart checks the sign-in (0.09 s),
     so the next prompt fails with `AUTHENTICATION_REQUIRED`. 143 tests pass.
+  - [x] 2.5b done on the branch `acp-sign-in`, commit `589e6a7b3`:
+    `AgentSignInException(agent_title, methods, message)`,
+    `AgentSignInMethod(id, name, description, command::Cmd)`, and the generics
+    `has_agent_sign_out` and `sign_out_agent!` (defaults `false`). The types
+    are in `AgentConnectionEvent.jl`, not in a new file, so the inventory of
+    `SEALING.md` does not change. Kernel guard 10 of 10, agent defaults 16 of 16.
+  - [x] 2.5c done on the branch `acp-sign-in`, commit `83971bed7`, except the
+    command of the built-in agent: the client sends `auth.terminal = true`;
+    `-32000` from `session/new`, `session/resume` and `session/prompt` throws
+    the exception; the command of a method is the command of the agent with its
+    `args` and `env`, in its folder; `sign_out_agent!` sends `logout`.
+    `test_acp()` 141 of 141, the turn of an external agent 186 of 186.
+    **Found while writing it:** `bin/build_projectured` compiles the program
+    with PackageCompiler (`create_app`), and a compiled program has no `julia`
+    that can run other code. So Q3, the program of `ClaudeCodeACP` through the
+    `julia` of this process, works from the checkout but not in the compiled
+    program. The built-in agent gives no method until the owner answers Q6.
+  - **Q6 (2026-10-09).** The command of the sign-in of the built-in agent.
+    (a) `ClaudeCodeACP` gives the command of its own sign-in as a value, a new
+    function that its `--login` uses too (`claude auth login` with the
+    `claude` command and the environment of its settings); the editor runs that
+    command. It works from the checkout and in the compiled program, and the
+    editor does not name Claude Code. (b) The `julia` of this process, as
+    agreed in Q3: no compiled program. Recommended: (a).
 
   **Facts (2026-10-09).**
   - ACP: an agent can advertise a `terminal` auth method with `args` and `env`.
