@@ -69,8 +69,18 @@ zoom.
      and places a popup in the work area at the zoom 2.
    - Result: `test_device_config`, `test_native_window` and `test_sdl_layering`
      pass, 111 of 111; the naming guard passes.
-3. ⬜ A live check at the density 2: a dwell on a button of the toolbar opens a
+3. ✅ A live check at the density 2: a dwell on a button of the toolbar opens a
    tooltip whose native rectangle does not hold the point of the dwell.
+   - The script builds the editor of `run_application` on an `SdlBackend`, runs
+     `run_frame!` on the main task, pushes an `SDL_MOUSEMOTION` to each of the 10
+     icons of the toolbar, waits for the `:tooltip` window, reads its native
+     rectangle, and closes it with a pushed `SDL_WINDOWEVENT_LEAVE`.
+   - Branch: 10 tooltips opened, 0 covered the point, and each native corner is
+     the point plus `(16, 20)` times the ratio. The main window has the document
+     place `(100, 137)` and the native place `(200, 274)`.
+   - Clean main (`42963d117`), the same script: 9 of 10 tooltips covered the point.
+     Each one opened at the window place plus the logical point, above and to the
+     left of the pointer.
 4. ⬜ The owner hovers the toolbar with the real pointer.
 
 ## Decisions
