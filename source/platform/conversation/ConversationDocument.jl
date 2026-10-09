@@ -138,25 +138,44 @@ end
 # ── ConversationTurn ──────────────────────────────────────────────────────────
 
 """
-    ConversationTurn(role; parts = [], stop_reason = :complete, collapsed = false)
+    ConversationTurn(role; parts = [], stop_reason = :complete, collapsed = false,
+                     start_time = 0.0, finish_time = 0.0)
 
 One chat message: a `role` (`:user` / `:assistant`), an ordered list of parts,
-a streaming `stop_reason`, and a `collapsed` flag.
+a streaming `stop_reason`, a `collapsed` flag, and the times at which the turn
+started and finished, in seconds of `time()`. A time of `0.0` is not known: a
+turn of a file that kept no times, a turn of a test, or a turn that runs and
+has not finished.
 """
 @document struct ConversationTurn <: ConversationDocument
     role::Symbol
     parts::CellVector
     stop_reason::Symbol
     collapsed::Bool
+    start_time::Float64
+    finish_time::Float64
 end
 
 ConversationTurn(role::Symbol;
                  parts::Vector = ConversationPart[],
                  stop_reason::Symbol = :complete,
-                 collapsed::Bool = false) =
+                 collapsed::Bool = false,
+                 start_time::Real = 0.0,
+                 finish_time::Real = 0.0) =
     ConversationTurn(Cell(role),
                      CellVector(Cell[Cell(p) for p in parts]),
-                     Cell(stop_reason), Cell(collapsed), Cell(nothing))
+                     Cell(stop_reason), Cell(collapsed),
+                     Cell(Float64(start_time)), Cell(Float64(finish_time)), Cell(nothing))
+
+# A file that kept no times builds a turn whose times are not known.
+function make_pred_document(::Type{<:ConversationTurn}, positional, keywords)
+    values = Dict{Symbol,Any}(keywords)
+    ConversationTurn(values[:role]; parts = collect(values[:parts]),
+                     stop_reason = get(values, :stop_reason, :complete),
+                     collapsed = get(values, :collapsed, false),
+                     start_time = get(values, :start_time, 0.0),
+                     finish_time = get(values, :finish_time, 0.0))
+end
 
 ConversationTurn(role::Symbol, parts::Vector; kwargs...) =
     ConversationTurn(role; parts = parts, kwargs...)

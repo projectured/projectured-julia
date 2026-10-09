@@ -381,7 +381,7 @@ Each step gets a commit. Each step runs the narrowest test that covers it.
   `Assistant`. Write them in `pred_arguments`. Copy them in the fork. Test the
   save and the load in `ConversationSerializationTest.jl`, and the fork in
   `AssistantDuplicateTest.jl`.
-- [ ] **2. The time of a turn.** Add `start_time` and `finish_time` to
+- [x] **2. The time of a turn.** Add `start_time` and `finish_time` to
   `ConversationTurn`. Write them in the submit and at the end of the native turn
   and of the ACP turn. Test with a `FakeLlm` that the times are in order, and
   that an old file loads with `0.0`.

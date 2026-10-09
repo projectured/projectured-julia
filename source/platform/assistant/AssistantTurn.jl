@@ -265,7 +265,7 @@ function evaluate_operation(editor, op::SubmitJuliaOperation)
     val = get_last_evaluated_value(set)
     result = val isa Document ? val : make_evaluator_result_text(output)
     push!(a.conversation.turns,
-          ConversationTurn(:user, [ConversationPart(
+          _make_instant_turn(:user, [ConversationPart(
               EvaluatorForm(_eval_form_doc(code);
                             source = code, result = result, is_error = is_error))]))
 
@@ -299,7 +299,7 @@ function _launch_agent_turn!(editor, a::Assistant)
             run_on_editor_task!(editor; wait = false) do
                 a.status = :error
                 push!(a.conversation.turns,
-                      ConversationTurn(:assistant, [ConversationPart("Error: " * err)]))
+                      _make_instant_turn(:assistant, [ConversationPart("Error: " * err)]))
             end
         finally
             run_on_editor_task!(editor; wait = false) do
@@ -328,7 +328,7 @@ function evaluate_operation(editor, op::SubmitProseOperation)
     text = _text_to_string(a.input)
     isempty(strip(text)) && return nothing
 
-    push!(a.conversation.turns, ConversationTurn(:user, [ConversationPart(text)]))
+    push!(a.conversation.turns, _make_instant_turn(:user, [ConversationPart(text)]))
     _set_input!(a, "")
     _launch_agent_turn!(editor, a)
 end
@@ -353,7 +353,7 @@ function evaluate_operation(editor, op::SubmitDraftTurnOperation)
     a.status === :streaming && return nothing
     draft = a.draft
     finalize_draft!(draft) || return nothing          # nothing to submit
-    push!(a.conversation.turns, ConversationTurn(:user, collect(draft.parts)))
+    push!(a.conversation.turns, _make_instant_turn(:user, collect(draft.parts)))
     reset_draft!(draft)
     sync_draft_selection!(editor, draft)
     _launch_agent_turn!(editor, a)
@@ -402,7 +402,7 @@ function evaluate_operation(editor, op::EvaluateDraftTurnOperation)
     # `EvaluatorForm` — the form and its result as one part.
     evaluate_operation(editor, ComposerEvaluateOperation(draft))
     finalize_draft!(draft) || return nothing
-    push!(a.conversation.turns, ConversationTurn(:user, collect(draft.parts)))
+    push!(a.conversation.turns, _make_instant_turn(:user, collect(draft.parts)))
     reset_draft!(draft)
     sync_draft_selection!(editor, draft)
 end
@@ -751,7 +751,7 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
     # below — so the conversation stays strictly alternating user/assistant, with
     # this single turn holding every part in order. `build_messages` re-expands it
     # into the tool_use/tool_result message shape.
-    turn = ConversationTurn(:assistant)
+    turn = ConversationTurn(:assistant; start_time = time())
     run_on_editor_task!(() -> push!(a.conversation.turns, turn), editor; wait = false)
 
     # The blocks currently being streamed into (one text part, one thinking part).
@@ -804,11 +804,12 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
     nothing
 end
 
-# A turn ends with its stop reason. A turn that produced nothing (an immediate
-# stop, or an error before any content) is dropped, so it does not render as a
-# bare "assistant:" line.
+# A turn ends with its stop reason and the time of its end. A turn that produced
+# nothing (an immediate stop, or an error before any content) is dropped, so it
+# does not render as a bare "assistant:" line.
 function _finish_turn!(a::Assistant, turn::ConversationTurn, stop_reason::Symbol)
     turn.stop_reason = stop_reason
+    turn.finish_time = time()
     if isempty(turn.parts)
         elems = getfield(a.conversation.turns, :elements)[]
         if !isempty(elems) && elems[end][] === turn
@@ -816,6 +817,13 @@ function _finish_turn!(a::Assistant, turn::ConversationTurn, stop_reason::Symbol
         end
     end
     nothing
+end
+
+# A turn that starts and finishes at once: a turn of the person, and the error of
+# a turn that failed.
+function _make_instant_turn(role::Symbol, parts::Vector)
+    now = time()
+    ConversationTurn(role, parts; start_time = now, finish_time = now)
 end
 
 # The natural format of the media type of a result, the extension that the

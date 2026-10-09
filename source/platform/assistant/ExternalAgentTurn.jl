@@ -83,7 +83,7 @@ end
 function _run_external_agent_turn!(editor, a::Assistant; control::AssistantTurnControl = AssistantTurnControl())
     session = _make_external_agent_session!(editor, a)
     conversation = run_on_editor_task!(() -> a.conversation, editor)
-    turn = ConversationTurn(:assistant)
+    turn = ConversationTurn(:assistant; start_time = time())
     state = Dict{Symbol,Any}(:current_block => nothing, :current_thinking => nothing,
                              :tool_forms => Dict{String,EvaluatorForm}(), :plan_part => nothing,
                              :permission_requests => ConversationPermissionRequest[],
@@ -243,7 +243,7 @@ function evaluate_operation(editor, operation::StartExternalAgentOperation)
         a.agent_session isa ExternalAgentSession && _close_external_agent_session!(a.agent_session)
         message = sprint(showerror, exception)
         run_on_editor_task!(editor; wait = false) do
-            push!(a.conversation.turns, ConversationTurn(:assistant, [ConversationPart("Error: " * message)]))
+            push!(a.conversation.turns, _make_instant_turn(:assistant, [ConversationPart("Error: " * message)]))
         end
     end)
     nothing
