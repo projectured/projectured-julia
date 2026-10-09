@@ -102,13 +102,14 @@ pull request alone (option 1 of the answer), so that colleagues can share it.
 - [ ] **F.6 A `.pred` file writes a result that its notation can not write** as
   the text of the tool, so the save of a conversation of an agent with a live
   document does not fail.
-- [ ] **F.7 The registration in ProjecturedRegistry**, in a clone, after the owner
+- [x] **F.7 The registration in ProjecturedRegistry**, in a clone, after the owner
   pushed the fork; the owner pushes the registry branch. The owner made the
   fork with the account `projectured` on 2026-10-09 (a first fork under a
   personal account was not the place) and pushed `main` (`0d33aeb`). The
   registration is done in a clone: "New package: ModelContextProtocol
   v0.7.1" (`a8cf3ee`, tree `0f74c0ed`, the tree of `0d33aeb`), on the branch
-  `model-context-protocol-0.7.1` of the local registry; it waits for the push
-  of the owner.
+  `model-context-protocol-0.7.1` of the local registry. The owner pushed it to
+  `main` of ProjecturedRegistry on 2026-10-09, and started the CI of the fork
+  by hand, because its workflows were switched on only after the push.
 - [ ] **F.8 Optional: the same change as a pull request** for JuliaSMLM, so the fork
   can end when upstream has it.
