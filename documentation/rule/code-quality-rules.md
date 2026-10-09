@@ -43,7 +43,9 @@ that it declares, also when a sibling file holds the body. A fragment that
 defines no public name has no statement. Do not put a comment inside the block:
 the docstring of the module says what each fragment holds.
 [CellModule.jl](../../source/kernel/cell/CellModule.jl) shows the shape, and
-`test_exports()` checks it.
+`test_exports()` checks it. A module whose purpose is to export again what other
+modules define, such as `EssentialsModule`, includes no fragment, so the rule does
+not apply to it; the guard names such modules in `EXPORT_REEXPORTING`.
 
 **A fragment file opens with a one-line comment**, not a docstring:
 

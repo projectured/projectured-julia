@@ -22,6 +22,14 @@
 "The folders the rule covers."
 const EXPORT_ROOTS = ["source"]
 
+# The module files whose purpose is to export again what other modules define, such
+# as the names that most users call. Such a file includes no fragment and defines
+# nothing, so the rule does not apply to it. A file here that includes a fragment
+# is reported.
+const EXPORT_REEXPORTING = Set(String[
+    "source/platform/essentials/EssentialsModule.jl",
+])
+
 # The module files that do not follow the rule yet. The migration of
 # `plan/pending/export-block-rule.md` empties this list. A file here that
 # follows the rule is reported, so the list can not go stale.
@@ -256,7 +264,8 @@ end
 
 Every place where a module file breaks the rule of the export block, as
 `file:line: what`. A module in `EXPORT_UNMIGRATED` is excused, and reported when
-it follows the rule.
+it follows the rule. A module in `EXPORT_REEXPORTING` exports what other modules
+define, and is reported when it includes a fragment.
 """
 function export_violations(root::AbstractString)
     violations = String[]
@@ -265,6 +274,11 @@ function export_violations(root::AbstractString)
             endswith(name, "Module.jl") || continue
             file = joinpath(directory, name)
             relative = relpath(file, root)
+            if relative in EXPORT_REEXPORTING
+                isempty(read_module_header(file).includes) || push!(violations,
+                    "$relative: includes a fragment; remove it from EXPORT_REEXPORTING")
+                continue
+            end
             found = check_export_block(file)
             if relative in EXPORT_UNMIGRATED
                 isempty(found) && push!(violations,
