@@ -191,10 +191,11 @@ end
             push!(children, SyntaxNode([ SyntaxConcatenation(
                                              [ SyntaxLeaf(TextString("entry / ", p.keyword)),
                                                project(:entry) ]) ];
-                                       indentation=1))
+                                       open="\n", close="\n", indentation=1))
         end
         isempty(doc.transitions) ||
-            push!(children, SyntaxNode(collection(:transitions); indentation=1))
+            push!(children, SyntaxNode(collection(:transitions); open="\n", sep="\n", close="\n",
+                                       indentation=1))
         children
     end)
 
@@ -224,7 +225,8 @@ end
                                    open=TextString("machine ", p.keyword)),
                         SyntaxLeaf(TextString(initial_text, p.state_reference)) ]
         isempty(doc.states) ||
-            push!(children, SyntaxNode(collection(:states); indentation=1))
+            push!(children, SyntaxNode(collection(:states); open="\n", sep="\n", close="\n",
+                                       indentation=1))
         children
     end)
 
@@ -252,7 +254,8 @@ end
         # section a component does not use.
         for field in (:usings, :variables, :timers, :events, :machines, :helpers)
             isempty(getproperty(doc, field)) ||
-                push!(children, SyntaxNode(collection(field); indentation=1))
+                push!(children, SyntaxNode(collection(field); open="\n", sep="\n", close="\n",
+                                           indentation=1))
         end
         children
     end)
