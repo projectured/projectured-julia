@@ -554,8 +554,7 @@ function test_application()
                     @test group.tabs[index].content === assistant
                     @test count_tabs() == before
                 finally
-                    set_assistant_list_source!(list, nothing)
-                    set_assistant_list_opener!(list, nothing)
+                    unlink_assistant_list!(list)
                 end
             end
 
@@ -603,9 +602,8 @@ function test_application()
                     press!(x, y)
                     @test assistant.work_state === :complete
                 finally
-                    select_assistant!(list, nothing)
-                    set_assistant_list_source!(list, nothing)
-                    set_assistant_list_opener!(list, nothing)
+                    unlink_assistant_list!(list)
+                    @test list.selected === nothing && isempty(list.assistants)
                 end
             end
 
@@ -974,7 +972,8 @@ function test_application()
             @testset "the toolbar holds the tools, and draws no word" begin
                 document, scene, composed, _ = _app_make_scene(paths[1:1], dir)
                 toolbar = only(search_documents(document, node -> node isa WidgetToolbar))
-                # A window opened with no assistant has no assistant button.
+                # A window opened with no assistant has no Assistant button. The
+                # Assistants button lists the assistant tabs, so every window has it.
                 @test [string(item.action.label) for item in toolbar.elements] ==
                       ["Explorer", "Evaluator", "Message log", "Gesture log", "Fault log",
                        "Statistics", "Frame times", "Selection", "Appearance", "Settings", "Assistants"]

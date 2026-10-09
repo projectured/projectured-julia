@@ -156,18 +156,27 @@ function test_assistant_list()
                 MouseClick(:left, complete[1] + 2, complete[2] + 2, ModifierKeys(); time = 0.0))
             evaluate_operation(nothing, operation)
             @test first_assistant.work_state === :complete
-            # A path into the description goes to its card in the detail, and back.
+            # A path into the description of the shown row goes to its card in the
+            # detail, and back.
             pane = AssistantListToWidgetPane()
             pane_iomap = print_document(pane, nothing, list, PrinterContext())
-            path = ConcreteReference(FieldReferenceStep("selected"),
-                                     ConcreteReference(FieldReferenceStep("description"),
-                                                       ConcreteReference(FieldReferenceStep("value"), EmptyReference())))
+            path = ConcreteReference(FieldReferenceStep("assistants"),
+                                     ConcreteReference(RangeReferenceStep(0, 1),
+                                                       ConcreteReference(FieldReferenceStep("description"),
+                                                                         ConcreteReference(FieldReferenceStep("value"),
+                                                                                           EmptyReference()))))
             forward = map_reference_forward(pane, pane_iomap, path)
-            @test repr(strip_reference_types(forward)) ==
-                  ".children[2].child.elements[2].child.children[3].child.content.value"
+            card_path = ".children[2].child.elements[2].child.children[3].child.content.value"
+            @test repr(strip_reference_types(forward)) == card_path
             @test evaluate_reference(get_iomap_output(pane_iomap), forward) == "Fix the table"
             back = map_reference_backward(pane, pane_iomap, strip_reference_types(forward))
             @test repr(strip_reference_types(back)) == repr(strip_reference_types(path))
+            # A pick of another row takes a caret in the card out of the detail: it
+            # does not move into the card of the next assistant.
+            select_assistant!(list, second_assistant)
+            moved = map_reference_forward(pane, pane_iomap, path)
+            @test moved === nothing || repr(strip_reference_types(moved)) != card_path
+            select_assistant!(list, first_assistant)
             # A closed assistant shows no detail.
             close_group = tree.root
             deleteat!(close_group.tabs, 1)

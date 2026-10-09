@@ -331,23 +331,24 @@ end
     find_pane_tab_layer(tab, matches) -> document or nothing
 
 The first layer of what `tab` shows for which `matches(layer)` is true: its
-content, then each layer that the content holds, through the wrappers that
-`get_wrapped_document` looks through and the fields that `get_edited_field`
-names. `nothing` when no layer matches. The search stops after sixteen layers,
-so a chain that comes back to a layer it passed ends.
+content, then each layer that the content holds. A layer goes one step down
+through the field that `get_edited_field` names, such as the document of a file
+or of a history, and else through `get_wrapped_document`. `nothing` when no
+layer matches. The search stops after sixteen layers, so a chain that comes
+back to a layer it passed ends.
 """
 function find_pane_tab_layer(tab::PaneTab, matches)
     node = tab.content
     for _ in 1:16
         matches(node) && return node
-        inner = get_wrapped_document(node)
-        if inner !== node
-            node = inner
+        field = get_edited_field(node)
+        if field !== nothing
+            node = getproperty(node, field)
             continue
         end
-        field = get_edited_field(node)
-        field === nothing && return nothing
-        node = getproperty(node, field)
+        inner = get_wrapped_document(node)
+        inner === node && return nothing
+        node = inner
     end
     nothing
 end

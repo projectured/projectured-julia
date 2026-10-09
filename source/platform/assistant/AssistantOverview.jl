@@ -13,11 +13,12 @@ text, else "Assistant".
 """
 function compute_assistant_overview_title(a::Assistant)
     isempty(a.agent_title) || return a.agent_title
-    prompt = find_first_prompt(a)
-    prompt === nothing && return ASSISTANT_TITLE
-    for line in eachsplit(prompt, '\n')
-        text = strip(line)
-        isempty(text) || return String(text)
+    for turn in collect(a.conversation.turns)
+        turn.role === :user || continue
+        for part in turn.parts, line in eachsplit(_part_text(part), '\n')
+            text = strip(line)
+            isempty(text) || return String(text)
+        end
     end
     ASSISTANT_TITLE
 end

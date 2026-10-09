@@ -297,6 +297,18 @@ function link_assistant_list!(list::AssistantList, tree::PaneTree)
         show_document!(assistant; title = get_document_title(assistant), editor))
 end
 
+"""
+    unlink_assistant_list!(list) -> list
+
+Undo [`link_assistant_list!`](@ref): the list reads no tabs, its Show does
+nothing, and it shows no detail, so it holds no document of a closed window.
+"""
+function unlink_assistant_list!(list::AssistantList)
+    set_assistant_list_source!(list, nothing)
+    set_assistant_list_opener!(list, nothing)
+    select_assistant!(list, nothing)
+end
+
 # The button of the toolbar that opens the Assistants pane, or gives the focus to
 # its tab.
 _make_assistant_list_tool() =
@@ -529,7 +541,12 @@ function run_application(paths::AbstractString...;
                                         make_application_content_projections(; measure, appearance))),
                           make_application_wrappers(; root, assistant = chat, measure, appearance)...)
     start_application!(editor; mcp, assistant, model)
-    run_editor!(editor; mcp = mcp ? (; host = mcp_host, port = mcp_port) : false)
+    try
+        run_editor!(editor; mcp = mcp ? (; host = mcp_host, port = mcp_port) : false)
+    finally
+        # The window is closed: the list of the session lets its documents go.
+        unlink_assistant_list!(get_session_assistant_list())
+    end
 end
 
 # ── The command line ─────────────────────────────────────────────────────────

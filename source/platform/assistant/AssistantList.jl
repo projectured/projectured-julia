@@ -35,11 +35,14 @@ opener are functions, which are no documents.
     opener::Any
 end
 
+# The rows are a `CellVector`, a document, so the selection of the list goes down
+# through a row into the description or the comment of its assistant.
 function AssistantList()
-    list = AssistantList(Cell(Assistant[]), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+    list = AssistantList(Cell(CellVector{Assistant}(Assistant[])), Cell(nothing), Cell(nothing),
+                         Cell(nothing), Cell(nothing))
     set_cell_computation!(getfield(list, :assistants), () -> begin
         source = getfield(list, :source)[]
-        source === nothing ? Assistant[] : collect(Assistant, source())
+        CellVector{Assistant}(source === nothing ? Assistant[] : collect(Assistant, source()))
     end)
     list
 end
@@ -100,12 +103,12 @@ function set_assistant_list_opener!(list::AssistantList, action)
 end
 
 """
-    open_assistant_tab(editor, list, assistant)
+    open_assistant_tab!(editor, list, assistant)
 
 Put the tab of `assistant` on the screen of `editor`, as the application said;
 `nothing` when no application gave an opener.
 """
-function open_assistant_tab(editor, list::AssistantList, assistant::Assistant)
+function open_assistant_tab!(editor, list::AssistantList, assistant::Assistant)
     action = list.opener
     action === nothing ? nothing : action(editor, assistant)
 end

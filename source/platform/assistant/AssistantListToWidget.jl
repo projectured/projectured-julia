@@ -16,8 +16,8 @@ prompts it has, how much of its context it uses, when it started and how long it
 runs.
 Each value is a label that reads the cells of the assistant, so a row follows
 its assistant while a turn streams. The elapsed time of a turn that runs reads
-the clock of the editor, so it moves while the turn runs, and an idle table asks
-for no frame.
+the clock of the editor, so it moves while the turn runs. Between turns no label
+reads the clock, so the editor draws no frame for the table.
 
 The detail says the title and the facts of the assistant, holds its description
 and its comment in the cards of embedded documents, where a key edits them,
@@ -42,13 +42,9 @@ _format_work_state(state::Symbol) = replace(String(state), "_" => " ")
 _get_work_state_role(state::Symbol) =
     state === :in_progress ? :accent : state === :abandoned ? :warning : nothing
 
-"""
-    format_assistant_duration(seconds) -> String
-
-A duration as the table of the assistants writes it: `42 s` under a minute, then
-`12:05` and `1:02:05`.
-"""
-function format_assistant_duration(seconds::Real)
+# A duration as the table writes it: `42 s` under a minute, then `12:05` and
+# `1:02:05`.
+function _format_assistant_duration(seconds::Real)
     total = max(0, floor(Int, seconds))
     total < 60 && return string(total, " s")
     hours, rest = divrem(total, 3600)
@@ -57,14 +53,9 @@ function format_assistant_duration(seconds::Real)
                  string(hours, ":", lpad(minutes, 2, '0'), ":", lpad(seconds, 2, '0'))
 end
 
-"""
-    format_assistant_start_time(time) -> String
-
-When a conversation started, as the table of the assistants writes it: the hour
-and the minute of a time of today, and the date before them for an earlier day.
-Empty for `nothing`.
-"""
-function format_assistant_start_time(time)
+# A time as the table writes it: the hour and the minute of a time of today, and
+# the date before them for an earlier day. Empty for `nothing`.
+function _format_assistant_time(time)
     time === nothing && return ""
     clock = Libc.strftime("%H:%M", time)
     Libc.strftime("%Y-%m-%d", time) == Libc.strftime("%Y-%m-%d", Base.time()) ? clock :
@@ -72,17 +63,17 @@ function format_assistant_start_time(time)
 end
 
 # The elapsed time of a conversation. While a turn runs the label reads the clock
-# of the editor, so it computes again on each frame; between turns it reads no
-# clock, so it asks for no frame.
+# of the editor, so it computes again on each frame. Between turns it reads no
+# clock, so the editor draws no frame for it.
 function _format_elapsed_time(a::Assistant, clock)
     is_assistant_turn_running(a) && clock !== nothing && get_reactive_clock_time(clock)
     elapsed = compute_assistant_elapsed_time(a)
-    elapsed === nothing ? "" : format_assistant_duration(elapsed)
+    elapsed === nothing ? "" : _format_assistant_duration(elapsed)
 end
 
 function _build_assistant_row(list::AssistantList, a::Assistant, clock)
     pick = WidgetButton("›"; action = _ -> select_assistant!(list, a))
-    show = WidgetButton("Show"; action = editor -> open_assistant_tab(editor, list, a))
+    show = WidgetButton("Show"; action = editor -> open_assistant_tab!(editor, list, a))
     work = WidgetBadge(() -> _format_work_state(a.work_state))
     set_cell_computation!(getfield(work, :role), () -> _get_work_state_role(a.work_state))
     turn = WidgetBadge(() -> compute_assistant_turn_side(a) === :assistant ? "assistant" : "you")
@@ -94,7 +85,7 @@ function _build_assistant_row(list::AssistantList, a::Assistant, clock)
         WidgetLabel(() -> describe_assistant_activity(a)),
         WidgetLabel(() -> string(compute_prompt_count(a))),
         WidgetLabel(() -> format_agent_usage(a.agent_usage)),
-        WidgetLabel(() -> format_assistant_start_time(find_assistant_start_time(a))),
+        WidgetLabel(() -> _format_assistant_time(find_assistant_start_time(a))),
         WidgetLabel(() -> _format_elapsed_time(a, clock))]
 end
 
@@ -114,10 +105,12 @@ end
 #
 # The detail draws the description and the comment of the assistant that a
 # person picked in the cards of embedded documents (`make_embed_card`). A path
-# from the list reaches each document, `selected.description + rest`, so the pane
-# maps that path to its card, `content + rest`, and back, as the detail of a task
-# maps the document of a result. Every other path takes the defaults of
-# `Projection`.
+# from the list reaches each document through the row of that assistant,
+# `assistants[i].description + rest`, so the pane maps that path to its card,
+# `content + rest`, and back, as the detail of a task maps the document of a
+# result. A pick of another row changes `i`, so a caret in the card of the
+# assistant before leaves the detail and does not move into the next one. Every
+# other path takes the defaults of `Projection`.
 
 # The steps from the root of the pane to the detail: the split is the second
 # child of the root, in a constraint, and the detail is the second pane of the
@@ -137,13 +130,17 @@ _get_assistant_card_steps(place::Int) =
     (_ASSISTANT_DETAIL_STEPS..., FieldReferenceStep("children"), RangeReferenceStep(place, place + 1),
      FieldReferenceStep("child"))
 
-# The steps from the list to the document `field` of the assistant it picked.
-_get_assistant_document_steps(field::Symbol) = (FieldReferenceStep("selected"), FieldReferenceStep(String(field)))
+# The steps from the list to the document `field` of the assistant of row `index`.
+_get_assistant_document_steps(field::Symbol, index::Int) =
+    (FieldReferenceStep("assistants"), RangeReferenceStep(index - 1, index), FieldReferenceStep(String(field)))
 
-# The assistant whose detail the pane shows: the picked one while it is open.
+# The row of the assistant whose detail the pane shows, the picked one while it
+# is open, and the assistant; `nothing` when the pane shows none.
 function _find_shown_assistant(list::AssistantList)
     a = list.selected
-    a !== nothing && any(open -> open === a, list.assistants) ? a : nothing
+    a === nothing && return nothing
+    index = findfirst(open -> open === a, collect(list.assistants))
+    index === nothing ? nothing : (index, a)
 end
 
 # What a step names, so a step that a reader answers and a step written here
@@ -165,9 +162,10 @@ function _find_path_below(path, head)
 end
 
 function map_reference_forward(p::AssistantListToWidgetPane, iomap, reference)
-    if reference isa ConcreteReference && _find_shown_assistant(iomap.input) !== nothing
+    shown = reference isa ConcreteReference ? _find_shown_assistant(iomap.input) : nothing
+    if shown !== nothing
         for (field, _, place) in _ASSISTANT_DETAIL_CARDS
-            inside = _find_path_below(reference, _get_assistant_document_steps(field))
+            inside = _find_path_below(reference, _get_assistant_document_steps(field, first(shown)))
             inside === nothing && continue
             return annotate_reference_types(iomap.output,
                 concat_references(_make_steps_reference(_get_assistant_card_steps(place)),
@@ -178,13 +176,15 @@ function map_reference_forward(p::AssistantListToWidgetPane, iomap, reference)
 end
 
 function map_reference_backward(p::AssistantListToWidgetPane, iomap, reference)
-    if reference isa ConcreteReference && _find_shown_assistant(iomap.input) !== nothing
+    shown = reference isa ConcreteReference ? _find_shown_assistant(iomap.input) : nothing
+    if shown !== nothing
         for (field, _, place) in _ASSISTANT_DETAIL_CARDS
             below = _find_path_below(reference, _get_assistant_card_steps(place))
             inside = below === nothing ? nothing : find_embed_card_path_inside(below)
             inside === nothing && continue
             return annotate_reference_types(iomap.input,
-                concat_references(_make_steps_reference(_get_assistant_document_steps(field)), inside))
+                concat_references(_make_steps_reference(_get_assistant_document_steps(field, first(shown))),
+                                  inside))
         end
     end
     invoke(map_reference_backward, Tuple{Projection,Any,Any}, p, iomap, reference)
@@ -222,29 +222,33 @@ function _make_work_state_choice(a::Assistant)
 end
 
 # The facts of an assistant in a line: its backend and model, and its times.
-function _format_assistant_facts(a::Assistant)
+# While a turn runs the line reads the clock of the editor, as the elapsed time
+# of a row does.
+function _format_assistant_facts(a::Assistant, clock)
+    is_assistant_turn_running(a) && clock !== nothing && get_reactive_clock_time(clock)
     facts = String[isempty(a.model) ? String(a.backend) : string(a.backend, " ", a.model)]
     start = find_assistant_start_time(a)
-    start === nothing || push!(facts, "started " * format_assistant_start_time(start))
+    start === nothing || push!(facts, "started " * _format_assistant_time(start))
     elapsed = compute_assistant_elapsed_time(a)
-    elapsed === nothing || push!(facts, "elapsed " * format_assistant_duration(elapsed))
+    elapsed === nothing || push!(facts, "elapsed " * _format_assistant_duration(elapsed))
     busy = compute_assistant_busy_time(a)
-    busy > 0 && push!(facts, "busy " * format_assistant_duration(busy))
+    busy > 0 && push!(facts, "busy " * _format_assistant_duration(busy))
     last_activity = find_assistant_last_activity_time(a)
-    last_activity === nothing || push!(facts, "last activity " * format_assistant_start_time(last_activity))
+    last_activity === nothing || push!(facts, "last activity " * _format_assistant_time(last_activity))
     join(facts, " · ")
 end
 
 _format_prompt_line(label, prompt) = prompt === nothing ? label * ": none" : label * ": " * prompt
 
-function _build_assistant_detail(p, list::AssistantList)
+function _build_assistant_detail(p, list::AssistantList, clock)
     detail = VerticalLayout(Any[]; gap = p.stack_gap, child_width = Fill)
     set_cell_computation!(getfield(detail.children, :elements), () -> begin
-        a = _find_shown_assistant(list)
-        a === nothing && return Cell[Cell(WidgetLabel("Press › on a row to see its conversation here.";
+        shown = _find_shown_assistant(list)
+        shown === nothing && return Cell[Cell(WidgetLabel("Press › on a row to see its conversation here.";
                                                       text_style = p.muted_color))]
+        a = last(shown)
         parts = Any[WidgetLabel(() -> compute_assistant_overview_title(a)),
-                    WidgetLabel(() -> _format_assistant_facts(a))]
+                    WidgetLabel(() -> _format_assistant_facts(a, clock))]
         for (field, title, place) in _ASSISTANT_DETAIL_CARDS
             length(parts) == place || error("the card of the ", field, " is not where the maps of the pane find it")
             card = make_embed_card(getproperty(a, field), title)
@@ -271,7 +275,7 @@ function print_document(p::AssistantListToWidgetPane, recursion, list::Assistant
                " · ", running, " running")
     end)
     table = LayoutConstraint(WidgetScrollPane(_build_assistant_table(p, list, clock)); width = Fill, height = Fill)
-    detail = LayoutConstraint(_build_assistant_detail(p, list); width = Fill, height = Fill)
+    detail = LayoutConstraint(_build_assistant_detail(p, list, clock); width = Fill, height = Fill)
     split = LayoutConstraint(WidgetSplitPane(:vertical, Any[table, detail]); width = Fill, height = Fill)
     root = VerticalLayout(Any[heading, split]; horizontal_align = :left, gap = p.stack_gap)
     iomap = ChildrenIoMap(p, list, root, Cell(Any[]))

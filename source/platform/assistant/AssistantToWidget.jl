@@ -325,9 +325,10 @@ end
 
 # ── Natural-projection registration ──────────────────────────────────────────
 #
-# The row that lets a tab draw an assistant. Without it a person who opens one
-# sees its field names, because the render-anything projection falls through to
-# the reflection tail for a document no row claims.
+# The rows that let a tab draw an assistant and the list of the assistants.
+# Without them a person who opens one sees its field names, because the
+# render-anything projection falls through to the reflection tail for a document
+# no row claims.
 #
 # The factory form, so every renderer builds its own projection instance. An
 # assistant reached as a pane tab's own content needs its own chained instance

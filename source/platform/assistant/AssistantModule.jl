@@ -55,7 +55,7 @@ import ..SerializationModule: pred_arguments, make_pred_document
 
 export Assistant, ASSISTANT_TITLE, DEFAULT_ASSISTANT_SYSTEM, DEFAULT_AGENT_INSTRUCTIONS, DEFAULT_AGENT_COMMAND,
        DEFAULT_AGENT_SESSION_META, ASSISTANT_WORK_STATES
-export AssistantToWidgetSplitPane, AssistantToWidgetCard, build_assistant_graphics_entry
+export AssistantToWidgetSplitPane, AssistantToWidgetCard
 export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
        EvaluateDraftTurnOperation,
        ClearInputOperation, ResetConversationOperation,
@@ -70,8 +70,8 @@ export compute_assistant_overview_title, find_first_prompt, find_last_prompt, co
        compute_assistant_turn_side, describe_assistant_activity, find_assistant_start_time,
        find_assistant_last_activity_time, compute_assistant_elapsed_time, compute_assistant_busy_time
 export AssistantList, get_session_assistant_list, set_assistant_list_source!,
-       set_assistant_list_opener!, open_assistant_tab, select_assistant!
-export AssistantListToWidgetPane, format_assistant_duration, format_assistant_start_time
+       set_assistant_list_opener!, select_assistant!
+export AssistantListToWidgetPane
 
 
 include("AssistantDocument.jl")

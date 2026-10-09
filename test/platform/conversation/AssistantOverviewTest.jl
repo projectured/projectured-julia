@@ -112,6 +112,13 @@ function test_assistant_overview()
                 @test compute_assistant_overview_title(a) == "Colors of the table"
             end
 
+            @testset "the title comes from the first prompt that holds text" begin
+                a = Assistant(; conversation = ConversationConversation([
+                    ConversationTurn(:user, [ConversationPart("  ")]),
+                    ConversationTurn(:user, [ConversationPart("\nFix the table")])]))
+                @test compute_assistant_overview_title(a) == "Fix the table"
+            end
+
             @testset "the times, with a turn that runs" begin
                 a = Assistant(; conversation = ConversationConversation([
                     ConversationTurn(:user, [ConversationPart("One")]; start_time = 10.0, finish_time = 10.0),
