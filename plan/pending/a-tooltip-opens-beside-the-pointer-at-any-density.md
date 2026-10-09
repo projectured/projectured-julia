@@ -1,8 +1,10 @@
 # A tooltip opens beside the pointer at any density
 
-> **Status (2026-10-09): in progress.** The owner reported the fault and asked for
-> the fix on 2026-10-09. Branch `tooltip-place`, worktree
-> `projectured-julia-tooltip-place`. Not on main and not pushed.
+> **Status (2026-10-09): on main, not pushed.** The owner reported the fault and
+> asked for the fix on 2026-10-09, and asked to land it the same day. Steps 1 to
+> 3 are done. Step 4, the owner's own hover with the real pointer, is open, so
+> the plan stays in `plan/pending/`. Built on the branch `tooltip-place`, in the
+> worktree `projectured-julia-tooltip-place`.
 
 ## The fault
 
