@@ -55,7 +55,7 @@ role, so a field follows a change of the colour settings and a fine-tune of the
 role. `alpha` multiplies the alpha of the role.
 
 A field of a theme of a domain holds one, for example
-`key_text::TextRole = TextRole(:field)`.
+`key_text::ThemeText = TextRole(:field)`.
 """
 struct ColorRole
     role::Symbol
