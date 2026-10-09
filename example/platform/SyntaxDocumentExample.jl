@@ -20,7 +20,7 @@ function make_syntax_document_example()
                 ]; open="(", close=")", sep=" "),
             ]; open="(", close=")", sep=" "),
         ]; open="(", close=")", sep=" "),
-    ]; open="(", close=")", sep=" ", indentation=1)
+    ]; open="(\n", close="\n)", sep="\n", indentation=1)
 end
 
 # A bare leaf, standing alone rather than nested inside the tree above: an

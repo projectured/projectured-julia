@@ -189,13 +189,14 @@ get_closing_delimiter(d::SyntaxDelimitation) =
 """
     SyntaxIndentation
 
-Wraps a document with a specific indentation level. Used to control
-pretty-printing indentation for structured documents.
+Wraps a document and moves each line that a break inside it starts by
+`indentation` levels, as the `nest` of a pretty printer does. It makes no break of
+its own: the line its content starts on stays where the break before it put it.
 
 # Fields
 
 - `content` — the wrapped document
-- `indentation::Int` — the indentation level (number of spaces/tabs)
+- `indentation::Int` — the levels, each `indent_size` wide
 
 # Constructor
 
@@ -492,11 +493,11 @@ layout / selection field is an optional keyword:
     `nothing` for a node that has no such delimiter/separator; default `nothing`.
     Each is independently optional. A break is text: a string with a `'\n'`, such
     as `open = "[\n"`, becomes a `TextBlock` of lines.
-  - `indentation::Int` — the levels, each `indent_size` wide, of the lines that a
-    break in `open` or `sep` starts; a break in `close` starts a line at the level
-    of the node. A node whose texts hold no break puts each child on a line one
-    level in when it is not 0, and the closing delimiter on a line of its own
-    when it is positive. Default `0`.
+  - `indentation::Int` — the levels, each `indent_size` wide, by which the node
+    moves the lines that a break inside it starts: a break in `open` or `sep`
+    starts a line that many levels in, and a line that a break in a child starts
+    moves as much; a break in `close` starts a line at the level of the node.
+    Default `0`.
   - `collapsed::Bool` — collapsed state; default `false`.
   - `selection` — a `Reference`/`Cell`/`nothing`; default `nothing`.
 

@@ -262,6 +262,20 @@ One at a time, with the owner.
     depend on the state through `make_text_block` with a function, which works for
     an empty node but not for a folded one, because a domain can not see the fold
     of the syntax node.
+- **N8 What `indentation` does with no break of its own. Decided, the owner,
+  2026-10-09: it moves the lines inside, as `nest` does.** Rule 5 says an
+  ancestor moves the lines of the chrome "by its own indentation", so a node moves
+  every line that a break inside it starts — in its texts or in a child — by
+  `indentation × indent_size`, and the line it starts on stays where the break
+  before it put it. `SyntaxIndentation` keeps that meaning (the owner: "I thought
+  it still increases the indentation"): it indents the lines inside its content
+  and makes no break of its own.
+  - It corrects step 2, which moved a child by the indentation of the line the
+    child starts on. The two agree for every domain, whose nodes with an
+    indentation have a break in their opening delimiter; they differ for a node
+    whose child starts on a line its own break did not make.
+  - Not taken: removing `SyntaxIndentation`; keeping its line before and after
+    its content, which is a break the layout makes by itself.
 
 ## 8. Facts found
 
@@ -413,6 +427,13 @@ change how every view of syntax makes its lines, so they land together.
 4. **`indentation` only indents.** The transition of step 2 and the breaks of
    the integer go, `-1` goes, and the flat metric (`_syntax_to_flat`,
    `_subtree_len`) follows. A full sweep against step 0.
+   **Built (2026-10-09); the sweep is pending.** The flat metric went in step 2.
+   A child moves by the `indentation × indent_size` of its node (N8). The tests
+   and the two syntax examples that relied on the integer write their breaks in
+   their texts. With the breaks in texts, delimitation around indentation around
+   separation now lays out what the combined node does, which the test of the
+   stack said it could not. `test_syntax_to_text` 325, `test_text_folding` 20,
+   and JSON, XML, Julia, YAML and SQL as on main.
 5. **Values of many lines**, Julia first (N6): its docstrings and its strings of
    many lines, then the code blocks and the texts of Markdown, the paragraphs of
    Book, the text nodes of XML and the raw texts of SQL, each with

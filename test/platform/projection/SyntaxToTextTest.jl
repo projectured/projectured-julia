@@ -55,7 +55,7 @@ _line_texts(block) = [" " ^ line.indentation * join(span.content for span in lin
 
 @testset "a node that indents puts each child on a line of its own" begin
     node = SyntaxNode(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b")];
-                      open="[", close="]", sep=",", indentation=1)
+                      open="[\n", close="\n]", sep=",\n", indentation=1)
     output = print_document(pipe, node).output
     @test all(element -> element isa TextLine, output.elements)
     @test _line_texts(output) == ["[", "  a,", "  b", "]"]
@@ -63,15 +63,15 @@ _line_texts(block) = [" " ^ line.indentation * join(span.content for span in lin
 end
 
 @testset "an ancestor widens the lines of the chrome of its children" begin
-    inner = SyntaxNode(SyntaxDocument[SyntaxLeaf("x")]; open="(", close=")", indentation=1)
-    outer = SyntaxNode(SyntaxDocument[inner]; open="[", close="]", indentation=1)
+    inner = SyntaxNode(SyntaxDocument[SyntaxLeaf("x")]; open="(\n", close="\n)", indentation=1)
+    outer = SyntaxNode(SyntaxDocument[inner]; open="[\n", close="\n]", indentation=1)
     @test _line_texts(print_document(pipe, outer).output) == ["[", "  (", "    x", "  )", "]"]
 end
 
 @testset "a value with a break is lines, which no ancestor widens" begin
     leaf = SyntaxLeaf("one\ntwo"; open="<", close=">")
     @test leaf.value isa TextBlock
-    node = SyntaxNode(SyntaxDocument[leaf]; open="[", close="]", indentation=1)
+    node = SyntaxNode(SyntaxDocument[leaf]; open="[\n", close="\n]", indentation=1)
     iomap = print_document(pipe, node)
     @test _line_texts(iomap.output) == ["[", "  <one", "two>", "]"]
     @test get_flat_string(iomap.output) == "[\n  <one\ntwo>\n]"
@@ -161,9 +161,6 @@ end
     for k in 0:get_flat_length(iomap.output)
         @test _selection_to_pos(iomap, _pos_to_selection(iomap, k)) == k
     end
-    # The integer: an empty node is on one line too.
-    integer_node = SyntaxNode(SyntaxDocument[]; open="[", close="]", indentation=1)
-    @test _line_texts(print_document(pipe, integer_node).output) == ["[]"]
 end
 
 @testset "a child is widened by the line it starts on" begin
@@ -193,7 +190,7 @@ end
 @testset "a structural edit keeps the lines that it does not change" begin
     src = Cell(2)
     leaves = SyntaxDocument[SyntaxLeaf(string(i)) for i in 1:3]
-    node = SyntaxNode(() -> leaves[1:src[]]; open="[", close="]", sep=",", indentation=1)
+    node = SyntaxNode(() -> leaves[1:src[]]; open="[\n", close="\n]", sep=",\n", indentation=1)
     output = print_document(pipe, node).output
     before = collect(output.elements)
     src[] = 3
@@ -210,9 +207,9 @@ let
     fold_line_texts(block) = [" " ^ line.indentation * join(span.content for span in line.elements)
                               for line in block.elements]
     inner = SyntaxNode(SyntaxDocument[SyntaxLeaf("x"), SyntaxLeaf("y")];
-                       open="[", close="]", sep=",", indentation=1)
+                       open="[\n", close="\n]", sep=",\n", indentation=1)
     entry = SyntaxNode(SyntaxDocument[SyntaxLeaf("k"), inner]; sep=": ")
-    outer = SyntaxNode(SyntaxDocument[entry]; open="{", close="}", indentation=1)
+    outer = SyntaxNode(SyntaxDocument[entry]; open="{\n", close="\n}", indentation=1)
     iomap = print_document(RecursiveProjection(SyntaxToText(text_folds = true)), outer)
     lines = iomap.output.elements
     @test fold_line_texts(iomap.output) == ["{", "  k: [", "    x,", "    y", "  ]", "}"]
@@ -269,7 +266,7 @@ node = SyntaxNode(
     SyntaxDocument[
         SyntaxLeaf("hello"; open="\"", close="\""),
         SyntaxLeaf("world"; open="\"", close="\""),
-    ]; open="[", close="]", sep=", ", indentation=1)
+    ]; open="[\n", close="\n]", sep=",\n", indentation=1)
 _check_roundtrip("indented array", node, _S2T.SyntaxCompoundToText())
 
 # An inline (non-indented) node: child₁ sep child₂.
@@ -280,7 +277,7 @@ _check_roundtrip("inline node", inline_node, _S2T.SyntaxCompoundToText())
 inner_pair = SyntaxNode(
     SyntaxDocument[SyntaxLeaf("key"; open="\"", close="\""),
                     SyntaxLeaf("value"; open="\"", close="\"")]; sep=": ")
-outer = SyntaxNode(SyntaxDocument[inner_pair]; open="{", close="}", sep=", ", indentation=1)
+outer = SyntaxNode(SyntaxDocument[inner_pair]; open="{\n", close="\n}", sep=",\n", indentation=1)
 _check_roundtrip("nested key/value", outer, _S2T.SyntaxCompoundToText())
 end # let
 
@@ -423,7 +420,7 @@ node = SyntaxNode(
     SyntaxDocument[
         SyntaxLeaf("hello"; open="\"", close="\""),
         SyntaxLeaf("world"; open="\"", close="\""),
-    ]; open="[", close="]", sep=", ", indentation=1)
+    ]; open="[\n", close="\n]", sep=",\n", indentation=1)
 
 # Drive the SyntaxCompoundToText reader with `sel` as the current selection.
 read_key(sel, key, mods=ModifierKeys()) = begin
@@ -581,13 +578,13 @@ end
     # off the child's IoMap. A concatenation in between must still report them, or
     # everything beneath it silently stops being re-indented on splice.
     leaf   = SyntaxLeaf("k")
-    inner  = SyntaxNode(SyntaxDocument[leaf]; open="[", close="]", indentation=1)
+    inner  = SyntaxNode(SyntaxDocument[leaf]; open="[\n", close="\n]", indentation=1)
     outer  = SyntaxNode(SyntaxDocument[SyntaxConcatenation(SyntaxDocument[inner])];
-                        open="{", close="}", indentation=1)
+                        open="{\n", close="\n}", indentation=1)
     through = get_flat_string(print_document(s2st, outer).output)
     # The same tree with the concatenation removed must render identically —
     # a concatenation contributes no characters of its own.
-    direct = SyntaxNode(SyntaxDocument[inner]; open="{", close="}", indentation=1)
+    direct = SyntaxNode(SyntaxDocument[inner]; open="{\n", close="\n}", indentation=1)
     @test through == get_flat_string(print_document(s2st, direct).output)
     @test occursin("\n    k", through)   # k is indented twice: once per indenting node
 end
@@ -693,7 +690,7 @@ end
 @testset "separation inside an indentation-bearing node" begin
     # SQL's `_comma_body` shape: a separated list laid out on indented lines.
     body = SyntaxSeparation(SyntaxDocument[SyntaxLeaf("1"), SyntaxLeaf("2")]; separator=",")
-    node = SyntaxNode(SyntaxDocument[body]; open="[", close="]", indentation=1)
+    node = SyntaxNode(SyntaxDocument[body]; open="[\n", close="\n]", indentation=1)
     @test occursin("\n  1,2", get_flat_string(print_document(s2st, node).output))
 end
 
@@ -748,9 +745,12 @@ end
     bare = print_document(s2st, SyntaxDelimitation(leaf)).output
     @test _s2t_span_texts(bare) == ["x"]
 
-    # The indentation wrapper puts its child on its own indented line.
-    ind = print_document(s2st, SyntaxIndentation(leaf; indentation=1)).output
-    @test occursin("\n  x", get_flat_string(ind))
+    # The indentation wrapper moves the lines that a break inside it starts, and
+    # makes no break of its own.
+    @test get_flat_string(print_document(s2st, SyntaxIndentation(leaf; indentation=1)).output) == "x"
+    lines = SyntaxSeparation(SyntaxDocument[SyntaxLeaf("x"), SyntaxLeaf("y")]; separator="\n")
+    ind = print_document(s2st, SyntaxIndentation(lines; indentation=1)).output
+    @test get_flat_string(ind) == "x\n  y"
 end
 
 @testset "only a collapsible wrapper can collapse" begin
@@ -788,37 +788,29 @@ end
     text(d) = get_flat_string(print_document(s2st, d).output)
     kids() = SyntaxDocument[SyntaxLeaf("1"), SyntaxLeaf("2")]
 
-    # A delimited, indented, separated list, stacked out of three wrappers.
-    stacked = SyntaxDelimitation(
+    # A delimited, indented, separated list, stacked out of wrappers. The breaks
+    # are text, and the indentation moves the lines that the breaks inside it
+    # start, so the break after `[` is inside the indentation.
+    stacked(separator) = SyntaxDelimitation(
                   SyntaxIndentation(
-                      SyntaxSeparation(kids(); separator=","),
+                      SyntaxDelimitation(SyntaxSeparation(kids(); separator); opening_delimiter = "\n"),
                       indentation = 1);
-                  opening_delimiter = "[", closing_delimiter = "]")
-    @test text(stacked) == "[\n  1,2\n]"
+                  opening_delimiter = "[", closing_delimiter = "\n]")
+    @test text(stacked(",")) == "[\n  1,2\n]"
 
-    # ── The stack is NOT a decomposition of the combined node ────────────────────
-    #
-    # `SyntaxNode`'s indentation puts EACH CHILD on its own indented line, emitting
-    # `sep, newline, indent, child` — separator and line chrome interleaved, by one
-    # node. `SyntaxIndentation` has exactly one child and indents THAT ONE THING.
-    # Split across two nodes the two spans cannot interleave: whichever wrapper is
-    # outer emits its spans outside the other's. So neither stacking order reproduces
-    # it, and that is inherent, not a bug.
-    #
-    # Which is the whole point of keeping the combined type: a per-child indented,
-    # separated list IS the combination fitting, and `SyntaxNode` is the right tool
-    # for it. The wrappers are for where it does not fit.
-    combined = SyntaxNode(kids(); open="[", close="]", sep=",", indentation=1)
+    # With a break in the separator, the stack lays out what the combined node does.
+    combined = SyntaxNode(kids(); open="[\n", close="\n]", sep=",\n", indentation=1)
     @test text(combined) == "[\n  1,\n  2\n]"
-    @test text(stacked) != text(combined)
+    @test text(stacked(",\n")) == text(combined)
 
-    # The other stacking order puts the separator on a line of its own — also not it.
+    # An indentation around each child indents nothing: each child starts on the
+    # line that the break before it made, and holds no break of its own.
     other = SyntaxDelimitation(
                 SyntaxSeparation(SyntaxDocument[SyntaxIndentation(SyntaxLeaf("1"); indentation=1),
                                                 SyntaxIndentation(SyntaxLeaf("2"); indentation=1)];
                                  separator=",");
                 opening_delimiter="[", closing_delimiter="]")
-    @test text(other) == "[\n  1\n,\n  2\n]"
+    @test text(other) == "[1,2]"
 end
 
 @testset "tree navigation walks into and out of a wrapper" begin

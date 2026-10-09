@@ -100,7 +100,7 @@ function test_text_folding()
     end
     @testset "a click on the triangle of a syntax node toggles the node" begin
         body = SyntaxNode(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b")];
-                          open = "(", close = ")", sep = " ", indentation = 1)
+                          open = "(\n", close = "\n)", sep = "\n", indentation = 1)
         syntax_chain = ChainingProjection(RecursiveProjection(SyntaxToText(text_folds = true)),
                                           TextLineNumbering(), TextFolding(),
                                           TextBlockToScrollLayout(; measure = _ft_measure()))

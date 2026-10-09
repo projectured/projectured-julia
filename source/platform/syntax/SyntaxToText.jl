@@ -257,9 +257,8 @@ end
 # A node renders `open child₁ sep child₂ … close`. A break is in the texts: with
 # `open = "[\n"`, `sep = ",\n"`, `close = "\n]"` and `indentation = 1`, each child is
 # on a line of its own one level in, and the `]` is on a line at the level of the
-# node. A node whose texts hold no break is inline, unless its `indentation` is not
-# 0: then the integer puts each child on a line one level in, and, when it is
-# positive, the closing delimiter on a line at the level of the node.
+# node. A node whose texts hold no break is inline; its `indentation` still moves
+# the lines that breaks inside its children start.
 # Each child is projected one level down via `print_child(recursion, child, …)`
 # and its output lines are joined in — this node never walks the subtree by
 # type (School A). Reading node.children registers it as a dependency of the
@@ -613,8 +612,8 @@ function _backward_zone(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMa
                ConcreteReference(Position, PositionReferenceStep(flat), EmptyReference(Position)))
 end
 
-# Renders `marker? open`, children interleaved with `sep` (each on a line of its
-# own when `indentation != 0`), then `close`, joining the lines of each child. The
+# Renders `marker? open`, children interleaved with `sep`, then `close`, joining
+# the lines of each child; the breaks are in the texts. The
 # output selection is composed by `_compose_node_selection` (forward-mapping
 # node.selection, then a first-descendant-cursor fallback). See those functions.
 function print_document(p::SyntaxCompoundToText, recursion, node::SyntaxCompound, ctx)
@@ -713,8 +712,8 @@ end
 # one run, and a `'\n'` in it is a row inside a line.
 
 # One line under construction: its spans, its indentation, and whether the
-# indentation is of the chrome of a compound. A compound widens such a line by the
-# indentation of the line its child starts on. A line that a break in a leaf or in a
+# indentation is of the chrome of a compound. A compound widens such a line of a
+# child by its own `indentation × indent_size`. A line that a break in a leaf or in a
 # run starts has indentation 0 and keeps it, because that text is the user's text
 # and its spaces are its own.
 mutable struct _LineRecord
@@ -879,9 +878,9 @@ end
 # Own chrome (marker, open, sep, line breaks and indentation, ellipsis, close) is
 # emitted at **relative depth 0**; the lines of each child are joined in: the first
 # line of the child joins the open line, the last line of the child is the open
-# line after it, and an `indentation != 0` parent widens every line of the chrome
-# of the child by one indent level. Summed over ancestors this reproduces a
-# `depth * indent_size` indentation.
+# line after it, and a parent widens every line of the chrome of the child by its
+# `indentation × indent_size`. Summed over ancestors this gives each line the
+# indentation of the nodes around it.
 #
 # A compound lays out up to five separable things at once: a collapse marker, a
 # pair of delimiters, a separator between children, lines and indentation, and the
@@ -1019,11 +1018,6 @@ function _push_ellipsis!(buf::SpliceBuffer, style::StyleText)
     buf.ellipsis_index = first(places[1])
 end
 
-# One child's line chrome of the integer: a new line with an indentation of
-# `depth * indent_size`, which an `indentation != 0` ancestor widens.
-_push_line_chrome!(buf::SpliceBuffer, depth::Int) =
-    _start_line!(buf, depth * buf.indent_size, true)
-
 # Join one child's lines into this buffer: its first line joins the open line, and
 # each other line follows, widened by `widen` when it is of the chrome. The open line
 # keeps its fold, and takes the fold of the first line of the child when it has
@@ -1067,11 +1061,11 @@ end
 # lines. A line that a break in the opening delimiter or in the separator starts is
 # inside the node, at `indentation × indent_size` from the line of the node; a line
 # that a break in the closing delimiter starts is at the line of the node. These are
-# lines of the chrome, and each child is widened by the indentation of the line it
-# starts on. A node whose texts hold no break and whose `indentation` is not 0
-# keeps the breaks of the integer: a line of the chrome one level in before each
-# child, and one at the line of the node before the closing delimiter when the
-# integer is positive.
+# lines of the chrome, and the node moves each line of the chrome that a break
+# inside a child starts by `indentation × indent_size` too, as the `nest` of a
+# pretty printer does. The line a child starts on stays where the break before it
+# put it, so a node with no break of its own, such as `SyntaxIndentation`, indents
+# only the lines inside its content.
 #
 # The breaks frame the children. A node that shows no child, because it has none or
 # the syntax folds it, prints only the first line of its opening delimiter and the
@@ -1081,9 +1075,7 @@ function _splice_compound(doc::SyntaxCompound, p::SyntaxCompoundToText, deco, ci
                        indent_size = p.indent_size)
     indent = get_indentation(doc)
     separator = get_separator(doc)
-    text_breaks = _has_text_breaks(doc)
     inside = indent * buf.indent_size
-    integer_breaks = !text_breaks && indent != 0
     shows_child = !isempty(cims)
 
     _push_marker!(buf, _active_marker(p, doc))       # collapse marker, before the open delimiter
@@ -1097,15 +1089,8 @@ function _splice_compound(doc::SyntaxCompound, p::SyntaxCompoundToText, deco, ci
     else
         for (i, cim) in enumerate(cims)
             i > 1 && _push_separator!(buf, separator, inside)
-            # The line of the chrome of the integer, one level in (ancestors widen
-            # it further).
-            integer_breaks && _push_line_chrome!(buf, 1)
-            widen = text_breaks ? buf.lines[end].indentation : (indent != 0 ? buf.indent_size : 0)
-            _splice_child!(buf, cim, widen)
+            _splice_child!(buf, cim, inside)
         end
-        # The line of the close delimiter of the integer, at the line of the node: a
-        # line of the chrome, so that ancestors widen it.
-        integer_breaks && indent > 0 && shows_child && _push_line_chrome!(buf, 0)
     end
 
     _push_delimiter!(buf, _make_lit_delimiter(buf, p, get_closing_delimiter(doc), level), 0,
@@ -1118,19 +1103,6 @@ function _splice_compound(doc::SyntaxCompound, p::SyntaxCompoundToText, deco, ci
         (buf.lines[1].fold = fold)
     _splice_result(buf)
 end
-
-# Whether a text of `node` holds a break: a delimiter or the separator that is a
-# block of more than one line.
-function _has_text_breaks(node::SyntaxCompound)
-    for pair in (get_opening_delimiter(node), get_separator(node), get_closing_delimiter(node))
-        pair === nothing && continue
-        _has_line_break(pair.second) && return true
-    end
-    false
-end
-
-_has_line_break(text::TextBlock) = length(text.elements) > 1
-_has_line_break(text) = false
 
 # The `TextFold` of a collapsible node with text folds: it shares the `collapsed`
 # cell of the node, which a `ToggleCollapseOperation` flips; it holds the lines of

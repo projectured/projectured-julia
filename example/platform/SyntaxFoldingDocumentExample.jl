@@ -7,9 +7,9 @@ function make_syntax_folding_document_example()
         leaf("cond"),
         call(call(leaf("<="), leaf("n"), leaf("1")), leaf("1")),
         call(leaf("t"), call(leaf("*"), leaf("n"), call(leaf("factorial"), call(leaf("-"), leaf("n"), leaf("1"))))),
-    ]; open = "(", close = ")", sep = " ", indentation = 1)
+    ]; open = "(\n", close = "\n)", sep = "\n", indentation = 1)
     body = SyntaxNode(SyntaxDocument[
         leaf("defun"), leaf("factorial"), call(leaf("n")), clauses,
-    ]; open = "(", close = ")", sep = " ", indentation = 1)
+    ]; open = "(\n", close = "\n)", sep = "\n", indentation = 1)
     WidgetScrollPane(body; size = Point2D(420, 220))
 end
