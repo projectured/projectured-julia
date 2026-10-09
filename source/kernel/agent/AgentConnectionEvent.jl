@@ -3,7 +3,7 @@
 # translates its protocol into these, so a caller never sees the protocol.
 
 """
-    AgentToolCallUpdate(id; name, title, kind, status, input, output)
+    AgentToolCallUpdate(id; name, title, kind, status, input, output, output_mime_type, output_uri)
 
 A tool call of an external agent, new or changed. The agent runs the tool
 itself, and the event only reports it. `id` names the call across its updates,
@@ -17,6 +17,12 @@ and a field that is `nothing` keeps the value of the last update of the same
 - `status` — `:pending`, `:in_progress`, `:completed` or `:failed`.
 - `input`  — the input of the tool, as the agent gives it.
 - `output` — the text of what the tool answered.
+- `output_mime_type` — the media type of `output`, such as `"text/markdown"`, when
+  the agent says it, as it does for the text of a file that the tool read.
+- `output_uri` — the uri of what `output` holds, such as `file:///a.md`, when the
+  agent says it.
+
+`output_mime_type` and `output_uri` go with the `output` of the same update.
 """
 struct AgentToolCallUpdate <: AgentEvent
     id::String
@@ -26,11 +32,14 @@ struct AgentToolCallUpdate <: AgentEvent
     status::Union{Nothing,Symbol}
     input::Union{Nothing,Dict{String,Any}}
     output::Union{Nothing,String}
+    output_mime_type::Union{Nothing,String}
+    output_uri::Union{Nothing,String}
 end
 
 AgentToolCallUpdate(id::AbstractString; name = nothing, title = nothing, kind = nothing,
-                    status = nothing, input = nothing, output = nothing) =
-    AgentToolCallUpdate(String(id), name, title, kind, status, input, output)
+                    status = nothing, input = nothing, output = nothing, output_mime_type = nothing,
+                    output_uri = nothing) =
+    AgentToolCallUpdate(String(id), name, title, kind, status, input, output, output_mime_type, output_uri)
 
 """
     AgentPlanEntry(content, priority, status)

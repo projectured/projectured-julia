@@ -864,11 +864,48 @@ from the command line of the projectured UI.
   turn of an external agent 180 of 180, the conversation suite 238 of 238,
   the application 359 with the 2 known broken. Live with the built-in agent:
   `list_resources`, `read_function_documentation` and `search_api` gave
-  Markdown pages, and `ToolSearch` of Claude Code gave text. Open, later: the
-  live document that `execute_julia_code`
-  returns through MCP, the media type of a resource block (a field of the
-  kernel event), and `Read` of a `.md` or `.jl` file as a document (a release
-  of `ClaudeCodeACP`).
+  Markdown pages, and `ToolSearch` of Claude Code gave text. The two other
+  later options, the media type of a resource block and `Read` of a `.md` or
+  `.jl` file as a document, are step 2.13.
+
+- [ ] 2.13 The file that an agent read is a document of its format (the owner
+  combined the second and the third later option of 2.12 on 2026-10-09, and
+  said "yes, do it now"). The owner asked how the parse of Markdown and Julia
+  can go in `ClaudeCodeACP`; the answer: it can not, because that package has
+  no parsers. The work divides at the protocol:
+  - [x] `ClaudeCodeACP`, branch `read-resource`, commit `8f63b24`: the result
+    of `Read` is one resource block. Its `text` is the clean content of the
+    file from `tool_use_result.file.content` (the text for the model has line
+    numbers), its `uri` is `file://` and the path, and its `mimeType` comes
+    from the extension (`find_media_type`, a table of twelve extensions; an
+    unknown extension gives no media type). An image and an error keep their
+    text. 130 tests pass.
+  - [x] The kernel event `AgentToolCallUpdate` gets `output_mime_type` and
+    `output_uri`, both `nothing` by default. The ACP adapter fills them when
+    the content of the update is exactly one `resource` block
+    (`_find_content_resource`); with more blocks, the output is text as before.
+  - [x] The turn of an agent decides the result in this order: the live value
+    that the MCP server kept for the call; then a document of the format of the
+    resource, from the media type (`_find_result_format`, a table of seven
+    media types in `AssistantTurn.jl`) or else from the extension of the uri,
+    when `has_natural_parser` says yes; then `_make_tool_result_document` as
+    before. An error and a parse that fails give text. This works for every
+    ACP agent that sends a resource block, not only for `ClaudeCodeACP`.
+  - [x] Tests, on the branch `agent-resource`: `test_acp()` 126 of 126 (a
+    resource block gives its text, its media type and its uri; text alone gives
+    neither), the turn of an external agent 186 of 186, `test_assistant_mvp()`
+    170 with its 4 known broken (a Markdown file by its media type is a
+    `MarkdownRoot` with its table, a Julia file by its uri alone is Julia code,
+    `text/plain` stays a `TextBlock`); the static guards as on `main`. Live
+    with the built-in agent from the branch `read-resource`: `Read` of a `.md`
+    file gave a `MarkdownRoot` with a heading and a table, and `Read` of a
+    `.jl` file gave a `JuliaAssignment`, from the text with no line numbers.
+    The editor has parsers for `jl`, `json`, `md`, `rst`, `sql`, `xml` and
+    `yaml`. `ClaudeCodeACP` gives no media type for `.sql` and `.rst`, so the
+    extension of the uri finds them.
+  - [ ] A release `0.1.3` of `ClaudeCodeACP` (the owner pushes). Until then the
+    released `0.1.2` sends the text of `Read` with line numbers and no
+    resource, and the editor shows it as text, as before.
 
 ### Phase 3: the agent sees what projectured sees
 

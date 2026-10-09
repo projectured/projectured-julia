@@ -60,7 +60,7 @@ ACP sends text with no frame around it, and the events of the kernel frame a blo
 
 **The options of a session.** The connection reads the `configOptions` of `session/new`, of the answer to `session/set_config_option` and of a `config_option_update`, and keeps the last ones of each session, also outside a prompt. A group of values shows as values. A `current_mode_update` names only the new mode, so the connection answers it as the kept options with the option of the category `mode` set to it. Each of these updates reaches the prompt that runs as an `AgentOptionsUpdate`. The connection keeps no `on_event` of `open_agent_session!` or `set_agent_option!` after the call.
 
-An `AgentToolCallUpdate` takes its `name` from the field `name`, or else from `_meta.claudeCode.toolName`, where `claude-agent-acp` puts it. The `output` is the text of the content of the call. A diff becomes its path and its lines marked `-` and `+`.
+An `AgentToolCallUpdate` takes its `name` from the field `name`, or else from `_meta.claudeCode.toolName`, where `claude-agent-acp` puts it. The `output` is the text of the content of the call. A diff becomes its path and its lines marked `-` and `+`. When the content is one `resource` block, the `output` is its `text`, and `output_mime_type` and `output_uri` are its `mimeType` and its `uri`. `claude-code-acp` gives the clean text of a file that `Read` read so, with the media type of its extension.
 
 ### The permission request
 

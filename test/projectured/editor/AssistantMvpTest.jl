@@ -530,6 +530,7 @@ function test_assistant_mvp()
         _mvp_test_turn_writes_on_editor_task()
         _mvp_test_markdown_tool_result()
         _mvp_test_agent_markdown_tool_result()
+        _mvp_test_agent_resource_result()
         _mvp_test_markdown_result_table()
     end
 end
@@ -571,6 +572,41 @@ function _mvp_test_agent_markdown_tool_result()
         @test resource.output == written
         @test read.result isa TextBlock
         @test failed.is_error && failed.result isa TextBlock
+        stop_external_agent!(a)
+    end
+end
+
+# In a turn of an agent, a result that the agent gives with a media type or the uri
+# of a file, as the text of a file that a tool read, is a document of that format.
+function _mvp_test_agent_resource_result()
+    @testset "a file that an agent read is a document of its format" begin
+        markdown = "# Read\n\n| a | b |\n|---|---|\n| 1 | 2 |\n"
+        connection = ScriptedAgentConnection([Any[
+            AgentToolCallUpdate("t1"; name = "Read", status = :pending,
+                                input = Dict{String,Any}("file_path" => "/r.md")),
+            AgentToolCallUpdate("t1"; status = :completed, output = markdown,
+                                output_mime_type = "text/markdown", output_uri = "file:///r.md"),
+            AgentToolCallUpdate("t2"; name = "Read", status = :pending,
+                                input = Dict{String,Any}("file_path" => "/r.jl")),
+            AgentToolCallUpdate("t2"; status = :completed, output = "f(x) = x + 1",
+                                output_uri = "file:///r.jl"),
+            AgentToolCallUpdate("t3"; name = "Read", status = :pending,
+                                input = Dict{String,Any}("file_path" => "/r.txt")),
+            AgentToolCallUpdate("t3"; status = :completed, output = "# not a page",
+                                output_mime_type = "text/plain", output_uri = "file:///r.txt"),
+            LlmTextStart(), LlmTextDelta("Done."), LlmTextStop()]])
+        a = Assistant(; backend = :acp, agent_session = ExternalAgentSession(connection))
+        editor = _mvp_editor(a)
+        a.input.value = "Read them"
+        evaluate_operation(editor, SubmitProseOperation(a))
+        @test _mvp_wait_idle!(a; timeout_seconds = 10.0) === :idle
+        page, code, plain = [part.content for turn in a.conversation.turns for part in turn.parts
+                             if part.content isa EvaluatorForm]
+        @test page.result isa MarkdownRoot
+        @test any(block -> block isa MarkdownTable, page.result.elements)
+        @test page.output == markdown
+        @test code.result isa JuliaDocument
+        @test plain.result isa TextBlock
         stop_external_agent!(a)
     end
 end

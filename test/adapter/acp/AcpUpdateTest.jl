@@ -57,6 +57,18 @@ function test_acp_update()
             @test update.title === nothing && update.kind === nothing && update.input === nothing
         end
 
+        @testset "a resource gives its text, its media type and its uri" begin
+            resource = Dict{String,Any}("type" => "resource", "resource" => Dict{String,Any}(
+                "uri" => "file:///c.md", "mimeType" => "text/markdown", "text" => "# Title\n"))
+            update = only(_translate_session_update!(AcpTurn(identity), _update("tool_call_update"; toolCallId = "t1",
+                status = "completed", content = Any[Dict{String,Any}("type" => "content", "content" => resource)])))
+            @test (update.output, update.output_mime_type, update.output_uri) == ("# Title\n", "text/markdown", "file:///c.md")
+            # Text alone has no media type.
+            plain = only(_translate_session_update!(AcpTurn(identity), _update("tool_call_update"; toolCallId = "t2",
+                status = "completed", content = Any[Dict{String,Any}("type" => "content", "content" => _text("x"))])))
+            @test plain.output_mime_type === nothing && plain.output_uri === nothing
+        end
+
         @testset "a diff shows its path and its lines" begin
             text = _format_tool_content(Any[Dict{String,Any}(
                 "type" => "diff", "path" => "/a.jl", "oldText" => "x = 1", "newText" => "x = 2\ny = 3")])

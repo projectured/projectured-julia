@@ -392,7 +392,9 @@ function _apply_tool_call_update!(turn::ConversationTurn, state, update::AgentTo
         form = EvaluatorForm(_eval_form_doc(LlmToolUse(update.id, name, input));
                              source = name == "execute_julia_code" ? string(get(input, "code", "")) : "",
                              result = _make_agent_tool_result(state, update.id, name, output,
-                                                              update.status === :failed),
+                                                              update.status === :failed;
+                                                              mime_type = update.output_mime_type,
+                                                              uri = update.output_uri),
                              output,
                              is_error = update.status === :failed,
                              tool_use_id = update.id, tool_name = name, input)
@@ -422,7 +424,9 @@ function _apply_tool_call_update!(turn::ConversationTurn, state, update::AgentTo
         # A live result stays when a later update repeats the output.
         update.id in state[:live_results] ||
             (form.result = _make_agent_tool_result(state, update.id, form.tool_name, update.output,
-                                                   update.status === :failed || form.is_error))
+                                                   update.status === :failed || form.is_error;
+                                                   mime_type = update.output_mime_type,
+                                                   uri = update.output_uri))
     end
     update.status === :failed && (form.is_error = true)
     nothing
@@ -430,12 +434,14 @@ end
 
 # The result of a tool. The document that an evaluation of this editor returned,
 # which the MCP server kept under the id of the call, is the live result, as in a
-# turn of a model. A tool of this editor, which the agent reaches through the MCP
-# server of the editor, otherwise gets the document that a turn of a model makes
-# of its text, from the media type that the tool declares: a Markdown page for a
+# turn of a model. A result that the agent gives with a media type or a uri, as
+# the text of a file that a tool read, is a document of the format that they
+# name. A tool of this editor, which the agent reaches through the MCP server of
+# the editor, otherwise gets the document that a turn of a model makes of its
+# text, from the media type that the tool declares: a Markdown page for a
 # documentation tool. Another tool, and an error, keep their text.
 function _make_agent_tool_result(state, id::AbstractString, name::AbstractString, output::AbstractString,
-                                 is_error::Bool)
+                                 is_error::Bool; mime_type = nothing, uri = nothing)
     tools = state[:tools]
     if tools !== nothing && !is_error && name == "execute_julia_code"
         value = take_tool_call_value!(tools, id)
@@ -444,7 +450,33 @@ function _make_agent_tool_result(state, id::AbstractString, name::AbstractString
             return value
         end
     end
+    if !is_error
+        document = _make_resource_document(output, mime_type, uri)
+        document === nothing || return document
+    end
     _make_tool_result_document(tools === nothing ? nothing : find_tool(tools, name), output, is_error)
+end
+
+# The document of a text that the agent gave with its media type or its uri: a
+# document of the natural format that the media type names, or else the
+# extension of the uri. `nothing` when no parser of the session reads that
+# format, or the text does not parse, so the text stays text.
+function _make_resource_document(text::AbstractString, mime_type, uri)
+    format = mime_type === nothing ? nothing : _find_result_format(mime_type)
+    format === nothing && mime_type === nothing && uri !== nothing && (format = _find_uri_format(uri))
+    (format !== nothing && has_natural_parser(format)) || return nothing
+    try
+        parse_natural_text(format, text)
+    catch exception
+        is_passthrough_exception(exception) && rethrow()
+        nothing
+    end
+end
+
+# The natural format that the extension of a uri names, or `nothing`.
+function _find_uri_format(uri::AbstractString)
+    extension = lowercase(lstrip(last(splitext(uri)), '.'))
+    isempty(extension) ? nothing : Symbol(extension)
 end
 
 # The tool set of the editor, or `nothing` for an editor that has none.

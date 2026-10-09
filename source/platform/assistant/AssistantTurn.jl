@@ -818,9 +818,13 @@ function _finish_turn!(a::Assistant, turn::ConversationTurn, stop_reason::Symbol
     nothing
 end
 
-# The natural format of the media type a tool declares for its result, or
-# `nothing` for a text that is only text.
-_find_result_format(mime_type::AbstractString) = mime_type == "text/markdown" ? :md : nothing
+# The natural format of the media type of a result, the extension that the
+# parsers of the session are keyed by, or `nothing` for a text that is only text.
+const _RESULT_FORMATS = Dict(
+    "text/markdown" => :md, "text/x-julia" => :jl, "application/json" => :json,
+    "application/xml" => :xml, "text/xml" => :xml, "application/yaml" => :yaml, "text/yaml" => :yaml)
+
+_find_result_format(mime_type::AbstractString) = get(_RESULT_FORMATS, lowercase(mime_type), nothing)
 
 # The document a tool's text becomes: a document of the format the tool declares,
 # when the session can read that format, and else the text. An error is a stack

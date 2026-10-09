@@ -90,12 +90,15 @@ function _read_tool_call(update::Dict{String,Any})
     output = content isa Vector{Any} && !isempty(content) ? _format_tool_content(content) :
              raw_output isa AbstractString ? String(raw_output) :
              raw_output === nothing ? nothing : ACP.write_json(raw_output)
+    resource = _find_content_resource(content)
     AgentToolCallUpdate(string(get(update, "toolCallId", ""));
                         name, title = _find_string(update, "title"),
                         kind = _find_symbol(update, "kind"),
                         status = _find_symbol(update, "status"),
                         input = input isa Dict{String,Any} ? input : nothing,
-                        output)
+                        output,
+                        output_mime_type = resource === nothing ? nothing : _find_string(resource, "mimeType"),
+                        output_uri = resource === nothing ? nothing : _find_string(resource, "uri"))
 end
 
 _read_plan_entry(entry::Dict{String,Any}) =
@@ -124,6 +127,18 @@ function _format_tool_content(content::Vector{Any})
         end
     end
     join(pieces, '\n')
+end
+
+# The resource of a tool's content when the content is that one resource and
+# nothing else, as the text of a file that the tool read; `nothing` else.
+function _find_content_resource(content)
+    content isa Vector{Any} && length(content) == 1 || return nothing
+    item = only(content)
+    item isa Dict{String,Any} && get(item, "type", "") == "content" || return nothing
+    block = get(item, "content", nothing)
+    block isa Dict{String,Any} && get(block, "type", "") == "resource" || return nothing
+    resource = get(block, "resource", nothing)
+    resource isa Dict{String,Any} ? resource : nothing
 end
 
 # The text of one content block: the text of a text block, the text or the uri

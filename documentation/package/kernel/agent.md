@@ -544,7 +544,7 @@ The eight generics are `make_agent_connection(kind; kwargs...)`, `start_agent_co
 `send_agent_prompt!` takes a prompt, a vector of `LlmContent`, and waits until the turn of the agent ends. It answers why the turn ended: `:end_turn`, `:max_tokens`, `:max_turn_requests`, `:refusal` or `:cancelled`. It calls `on_event` on a task that is not the editor task, so the caller posts its writes through `run_on_editor_task!`. `on_event` gets these events:
 
 - `LlmTextStart`, `LlmTextDelta` and `LlmTextStop` for the text of the answer, and the three `LlmThinking…` events for its reasoning. They are the events that `stream_turn` sends, so the code that draws a model answer draws an agent answer.
-- `AgentToolCallUpdate` for a tool call that the agent runs itself. The event reports the call. The editor does not run it. A field that is `nothing` keeps the value of the last update with the same `id`.
+- `AgentToolCallUpdate` for a tool call that the agent runs itself. The event reports the call. The editor does not run it. A field that is `nothing` keeps the value of the last update with the same `id`. When the agent gives the output as the content of a file, such as a file that a tool read, `output_mime_type` is its media type and `output_uri` is the uri of the file.
 - `AgentPlanUpdate` for the plan of the agent. Each one replaces the plan before it.
 - `AgentOptionsUpdate` for all the options of the session, when the agent changes one during the prompt, such as its mode.
 - `AgentUsageUpdate` for how much of its context window the session uses (`used` of `size` tokens), and its `cost` and `currency` when the agent says.
