@@ -228,6 +228,22 @@ function test_acp_connection()
             @test method.command.exec == ["fake-agent", "--stdio", "--cli"]
             @test method.command.dir == directory
             @test "FAKE_HOME=/h" in method.command.env
+            # The built-in agent has no command line: its method `--login` runs the
+            # sign-in command that its program runs.
+            builtin = _make_fake_agent(Dict{String,Function}(
+                "initialize" => (agent, params) -> merge(FAKE_INITIALIZE_RESULT, Dict("authMethods" => [Dict(
+                    "id" => "claude-login", "name" => "Sign in", "type" => "terminal", "args" => ["--login"])])),
+                "session/new" => (agent, params) -> throw(ProtocolException(-32000, "Authentication required"))))
+            builtin_connection = make_fake_connection(builtin; directory)
+            builtin_failure = try
+                open_agent_session!(builtin_connection)
+            catch exception
+                exception
+            end
+            builtin_method = only(builtin_failure.methods)
+            @test builtin_method.command.exec == ["claude", "auth", "login"]
+            @test builtin_method.command.dir == directory
+            stop_agent_connection!(builtin_connection)
             # A prompt that the agent refuses for a sign-in throws the same.
             @test_throws AgentSignInException send_agent_prompt!(connection, "session-1", [LlmText("Hi")];
                                                                  on_event = event -> nothing)

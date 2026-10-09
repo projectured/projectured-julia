@@ -289,10 +289,15 @@ function _make_sign_in_method(connection::AcpConnection, method)
 end
 
 # The command of the agent with `arguments` added and `environment` over its
-# own, in its folder. The built-in agent runs in this process and has no command.
+# own, in its folder. The built-in agent runs in this process and has no command
+# line. Its program answers `--login` with the command of `make_login_command`,
+# so that command stands for it.
 function _make_agent_invocation(connection::AcpConnection, arguments::Vector{String},
                                 environment::Dict{String,String})
-    isempty(connection.command) && return nothing
+    if isempty(connection.command)
+        arguments == ["--login"] || return nothing
+        return addenv(Cmd(ClaudeCodeACP.make_login_command(); dir = connection.directory), environment)
+    end
     addenv(Cmd(Cmd([connection.command..., arguments...]); dir = connection.directory),
            merge(connection.environment, environment))
 end
