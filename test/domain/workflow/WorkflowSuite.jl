@@ -24,7 +24,8 @@ function test_workflow()
     @testset "ProjecturedWorkflow" begin
         test_workflow_layering()
         test_workflow_document()
+        test_workflow_edits()
     end
 end
 
-export test_workflow, test_workflow_layering, test_workflow_document
+export test_workflow, test_workflow_layering, test_workflow_document, test_workflow_edits

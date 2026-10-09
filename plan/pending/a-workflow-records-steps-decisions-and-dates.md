@@ -1,7 +1,7 @@
 # A workflow records steps, decisions and dates
 
 > **Status:** in progress on branch `workflow` (worktree
-> `projectured-julia-workflow`). Written 2026-10-09. Step 1 is done.
+> `projectured-julia-workflow`). Written 2026-10-09. Steps 1 and 3 are done.
 
 ## 1. The request
 
@@ -277,9 +277,31 @@ turn, and an operation that switches to a workflow.
   `FileProject` with a workflow `.pred`, a Markdown page and a JSON file saves,
   loads, and gives the same graph; a card into the Markdown section is the same
   object after the load.
-- [ ] **3. The operations.** Add and delete a step, a decision, an option, an
+- [x] **3. The operations.** Add and delete a step, a decision, an option, an
   entry and a card; change a state, which adds a `:state` entry; each operation
   carries its author. Test: each operation and its undo.
+  **Done (2026-10-09), before step 2.** `test_workflow_edits()`, 69 tests. What
+  was decided:
+  - No new operation type. Each edit is a builder (`make_workflow_state_operation`,
+    `make_insert_workflow_node_operation`, `make_add_workflow_entry_operation`,
+    `make_add_workflow_card_operation`, `make_choose_workflow_option_operation`, …)
+    that answers a `ReplaceReferencedValueOperation` carrying the node, or a
+    `CompoundOperation` of them, as
+    [operation.md](../../documentation/package/kernel/operation.md) asks. A carried
+    node passes unchanged through every reader above it, and a history takes the
+    compound back as one step (tested through an `UndoBuffer`).
+  - The author is an argument of the builder (`:person` for the view, `:assistant`
+    for a verb), and the entry stores it.
+  - To choose an option does not change the other options: the person or the
+    assistant rejects or parks each of them, so no state is written that nobody
+    decided.
+  - The verbs of the assistant (`record_workflow_decision!`,
+    `choose_workflow_option!`, `reject_workflow_option!`, `add_workflow_entry!`,
+    `add_workflow_step!`, `change_workflow_state!`, `add_workflow_card!`) are in
+    the same file. Each takes a node, or a `ReferencedDocument` of it, and lets
+    `find_rooted_operation` carry the operation from the node to the root, so the
+    history of the tab records it. `collect_workflow_entries` reads the journal of
+    a whole tree.
 - [ ] **4. The outline view.** `WorkflowToWidget`; a title, an entry and a card
   show through the view of their own domain inside a widget row. Test: the
   printer and the reader on an example that holds a Markdown card and a JSON

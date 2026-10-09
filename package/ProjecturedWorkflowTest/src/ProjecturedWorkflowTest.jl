@@ -42,6 +42,7 @@ end
 
 
 include("../../../test/domain/workflow/document/WorkflowDocumentTest.jl")
+include("../../../test/domain/workflow/document/WorkflowEditsTest.jl")
 
 include("../../../test/domain/workflow/WorkflowSuite.jl")
 
