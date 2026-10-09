@@ -47,6 +47,9 @@ pipe = RecursiveProjection(SyntaxToText())
 p = _S2T.SyntaxCompoundToText()
 _pos_to_selection(iomap, k::Int) = map_reference_backward(iomap.projection, iomap,
     ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))
+# The flat offset that the forward map of the IO map gives `selection`.
+_selection_to_pos(iomap, selection) =
+    _S2T._text_side_flat(map_reference_forward(iomap.projection, iomap, selection))
 _line_texts(block) = [" " ^ line.indentation * join(span.content for span in line.elements)
                       for line in block.elements]
 
@@ -65,14 +68,15 @@ end
     @test _line_texts(print_document(pipe, outer).output) == ["[", "  (", "    x", "  )", "]"]
 end
 
-@testset "a value with a break is one run, a row inside its line" begin
+@testset "a value with a break is lines, which no ancestor widens" begin
     leaf = SyntaxLeaf("one\ntwo"; open="<", close=">")
+    @test leaf.value isa TextBlock
     node = SyntaxNode(SyntaxDocument[leaf]; open="[", close="]", indentation=1)
     iomap = print_document(pipe, node)
-    @test _line_texts(iomap.output) == ["[", "  <one\ntwo>", "]"]
+    @test _line_texts(iomap.output) == ["[", "  <one", "two>", "]"]
     @test get_flat_string(iomap.output) == "[\n  <one\ntwo>\n]"
-    for k in 0:_S2T._subtree_len(node, p, 0)
-        @test _S2T._syntax_to_flat(node, _pos_to_selection(iomap, k), p, 0) == k
+    for k in 0:get_flat_length(iomap.output)
+        @test _selection_to_pos(iomap, _pos_to_selection(iomap, k)) == k
     end
     # The caret before the break is the caret before the '\n' of the value.
     @test strip_reference_types(_pos_to_selection(iomap, 8)) ==
@@ -84,12 +88,14 @@ end
     iomap = print_document(pipe, leaf)
     value_range(start, stop) = ConcreteReference(FieldReferenceStep("value"),
         ConcreteReference(RangeReferenceStep(start, stop), EmptyReference()))
-    edit = ReplaceStringRangeOperation(_S2T._make_span_range_path([1, 2], 5, 6), "W")
+    # The run "two" is on line 2, at offset 4 of the value.
+    edit = ReplaceStringRangeOperation(_S2T._make_span_range_path([2, 1], 1, 2), "W")
     result = read_intent(iomap.projection, iomap, edit)
     @test result isa ReplaceStringRangeOperation
     @test strip_reference_types(result.reference) == value_range(5, 6)
-    # The end of the value is the value, not the close delimiter.
-    edit = ReplaceStringRangeOperation(_S2T._make_span_range_path([1, 2], 7, 7), "!")
+    @test result.reference.tail.head isa RangeReferenceStep
+    @test result.reference.tail.type === TextBlock
+    edit = ReplaceStringRangeOperation(_S2T._make_span_range_path([2, 1], 3, 3), "!")
     result = read_intent(iomap.projection, iomap, edit)
     @test strip_reference_types(result.reference) == value_range(7, 7)
 end
@@ -98,9 +104,66 @@ end
     node = SyntaxNode(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b")]; sep=";\n")
     iomap = print_document(pipe, node)
     @test _line_texts(iomap.output) == ["a;", "b"]
-    for k in 0:_S2T._subtree_len(node, p, 0)
-        @test _S2T._syntax_to_flat(node, _pos_to_selection(iomap, k), p, 0) == k
+    for k in 0:get_flat_length(iomap.output)
+        @test _selection_to_pos(iomap, _pos_to_selection(iomap, k)) == k
     end
+end
+
+@testset "a string with a break is a text of lines" begin
+    node = SyntaxNode(SyntaxDocument[SyntaxLeaf("a")]; open="[\n", sep=",", close="\n]")
+    @test node.open isa TextBlock && node.close isa TextBlock && node.sep isa TextString
+    @test get_flat_string(node.open) == "[\n"
+    style = StyleText(StyleFont("Ubuntu Mono", 20), color_red)
+    leaf = SyntaxLeaf(TextString("x\ny", style); open=TextString("<\n", style))
+    @test leaf.value isa TextBlock && leaf.open isa TextBlock
+    @test leaf.value.elements[2].elements[1].font_color == color_red
+    # A computed content is kept: only its value now could be read.
+    computed = SyntaxLeaf(TextString(() -> "p\nq", style))
+    @test computed.value isa TextString
+end
+
+@testset "a break in a text starts a line of the chrome" begin
+    leaves() = SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b")]
+    node = SyntaxNode(leaves(); open="[\n", sep=",\n", close="\n]", indentation=1)
+    iomap = print_document(pipe, node)
+    @test _line_texts(iomap.output) == ["[", "  a,", "  b", "]"]
+    @test get_flat_string(iomap.output) == "[\n  a,\n  b\n]"
+    for k in 0:get_flat_length(iomap.output)
+        @test _selection_to_pos(iomap, _pos_to_selection(iomap, k)) == k
+    end
+    # Just after a break, a caret stands after the indentation of the line.
+    @test _selection_to_pos(iomap, @reference(node, open{1})) == 1
+    @test _selection_to_pos(iomap, @reference(node, open{2})) == 4
+    @test _selection_to_pos(iomap, @reference(node, sep{2})) == 9
+    @test _selection_to_pos(iomap, @reference(node, close{0})) == 10
+    @test _selection_to_pos(iomap, @reference(node, close{2})) == 12
+    # `indentation` counts levels.
+    deeper = SyntaxNode(leaves(); open="[\n", sep=",\n", close="\n]", indentation=2)
+    @test _line_texts(print_document(pipe, deeper).output) == ["[", "    a,", "    b", "]"]
+end
+
+@testset "a child is widened by the line it starts on" begin
+    inner = SyntaxNode(SyntaxDocument[SyntaxLeaf("x")]; open="(\n", close="\n)", indentation=1)
+    outer = SyntaxNode(SyntaxDocument[SyntaxLeaf("y"), inner]; open="[\n", sep=",\n", close="\n]",
+                       indentation=1)
+    iomap = print_document(pipe, outer)
+    @test _line_texts(iomap.output) == ["[", "  y,", "  (", "    x", "  )", "]"]
+    for k in 0:get_flat_length(iomap.output)
+        @test _selection_to_pos(iomap, _pos_to_selection(iomap, k)) == k
+    end
+end
+
+@testset "a node with no break in its closing delimiter keeps it on its last line" begin
+    # A Lisp call: the head inline, the body one level in, and the `)` after the
+    # last form.
+    body = SyntaxNode(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b")]; open="\n", sep="\n", indentation=1)
+    call = SyntaxNode(SyntaxDocument[SyntaxLeaf("defun"), body]; open="(", sep=" ", close=")")
+    @test _line_texts(print_document(pipe, call).output) == ["(defun ", "  a", "  b)"]
+    # A YAML mapping under a key: no empty last line.
+    mapping = SyntaxNode(SyntaxDocument[SyntaxLeaf("x: 1"), SyntaxLeaf("y: 2")]; open="\n", sep="\n",
+                         indentation=1)
+    entry = SyntaxNode(SyntaxDocument[SyntaxLeaf("a:"), mapping])
+    @test _line_texts(print_document(pipe, entry).output) == ["a:", "  x: 1", "  y: 2"]
 end
 
 @testset "a structural edit keeps the lines that it does not change" begin
@@ -156,12 +219,9 @@ end # @testset "SyntaxToText text folds"
 
 # Walk every flat character offset of a hand-built SyntaxNode and verify that
 # mapping the corresponding text-domain flat reference back through
-# `map_reference_backward` yields a selection whose forward map (`_syntax_to_flat`)
-# lands back on the same character. This guarantees that clicking on any
-# character of the rendered text resolves to a selection whose forward map
-# lands back on the same character. (The delegation refactor removed the
-# self-contained `_pos_to_selection` helper; its job now lives inside
-# `map_reference_backward`, which reads flat positions as a bare `{k}` ref.)
+# `map_reference_backward` yields a selection whose forward map lands back on the
+# same character. This guarantees that clicking on any character of the rendered
+# text resolves to a selection whose forward map lands back on the same character.
 let
 _S2T = SyntaxModule
 
@@ -170,11 +230,10 @@ _pos_to_selection(iomap, k::Int) = map_reference_backward(iomap.projection, ioma
 
 _check_roundtrip = function (label, node, p)
     iomap = print_document(RecursiveProjection(SyntaxToText()), node)
-    flat_len = _S2T._subtree_len(node, p, 0)
     @testset "$label" begin
-        for k in 0:flat_len
+        for k in 0:get_flat_length(iomap.output)
             sel = _pos_to_selection(iomap, k)
-            flat_back = _S2T._syntax_to_flat(node, sel, p, 0)
+            flat_back = _S2T._text_side_flat(map_reference_forward(iomap.projection, iomap, sel))
             @test flat_back == k
         end
     end
@@ -250,9 +309,10 @@ iomap_e = print_document(pipe_on, empty_node)
 @test iomap_e.marker_index == 0
 
 # Offset shift: the marker adds exactly its length to the subtree, the marker
-# range maps to a projection-introduced position, and the round-trip identity
-# `map_reference_backward ∘ _syntax_to_flat` still holds with the marker on.
-@test _S2T._subtree_len(node, p_on, 0) == _S2T._subtree_len(node, p_off, 0) + 1
+# range maps to a projection-introduced position, and the round trip of the
+# backward and the forward map still holds with the marker on.
+@test get_flat_length(print_document(pipe_on, node).output) ==
+      get_flat_length(print_document(pipe_off, node).output) + 1
 
 _pos_to_selection(iomap, k::Int) = map_reference_backward(iomap.projection, iomap,
     ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))
@@ -266,10 +326,9 @@ sel0 = _pos_to_selection(iomap_pon, 0)
 sel1 = _pos_to_selection(iomap_pon, 1)
 @test sel1.head isa FieldReferenceStep && sel1.head.name == "open"
 
-flat_len = _S2T._subtree_len(node, p_on, 0)
-for k in 0:flat_len
+for k in 0:get_flat_length(iomap_pon.output)
     sel = _pos_to_selection(iomap_pon, k)
-    @test _S2T._syntax_to_flat(node, sel, p_on, 0) == k
+    @test _S2T._text_side_flat(map_reference_forward(iomap_pon.projection, iomap_pon, sel)) == k
 end
 end # let
 
@@ -302,15 +361,14 @@ _pos_to_selection(iomap, k::Int) = map_reference_backward(iomap.projection, ioma
     ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))
 
 iomap_c = print_document(pipe, node)   # node.collapsed = true above
-flat_len = _S2T._subtree_len(node, p, 0)
-for k in 0:flat_len
+for k in 0:get_flat_length(iomap_c.output)
     sel = _pos_to_selection(iomap_c, k)
-    @test _S2T._syntax_to_flat(node, sel, p, 0) == k
+    @test _S2T._text_side_flat(map_reference_forward(iomap_c.projection, iomap_c, sel)) == k
 end
 # The ellipsis (position after the open delimiter) has no source coordinate.
 @test _pos_to_selection(iomap_c, 1).head isa ProjectionReferenceStep
 # `.children[i]…` input references have no image while collapsed.
-@test _S2T._syntax_to_flat(node, (@reference(node, children[1].value{0})), p, 0) == -1
+@test map_reference_forward(iomap_c.projection, iomap_c, @reference(node, children[1].value{0})) === nothing
 
 # Toggling back restores the expanded output byte-for-byte.
 node.collapsed = false
@@ -487,10 +545,10 @@ end
     p = _S2T.SyntaxCompoundToText()
     iomap = print_document(s2st, node)
     @test get_flat_string(iomap.output) == "(x,ab)"
-    for k in 0:_S2T._subtree_len(node, p, 0)
+    for k in 0:get_flat_length(iomap.output)
         sel = map_reference_backward(iomap.projection, iomap,
                   ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))
-        @test _S2T._syntax_to_flat(node, sel, p, 0) == k
+        @test _S2T._text_side_flat(map_reference_forward(iomap.projection, iomap, sel)) == k
     end
 end
 
@@ -601,10 +659,10 @@ end
     p = _S2T.SyntaxCompoundToText()
     iomap = print_document(s2st, node)
     @test get_flat_string(iomap.output) == "(x,a|b)"
-    for k in 0:_S2T._subtree_len(node, p, 0)
+    for k in 0:get_flat_length(iomap.output)
         sel = map_reference_backward(iomap.projection, iomap,
                   ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))
-        @test _S2T._syntax_to_flat(node, sel, p, 0) == k
+        @test _S2T._text_side_flat(map_reference_forward(iomap.projection, iomap, sel)) == k
     end
 end
 
@@ -695,10 +753,10 @@ end
     p = _S2T.SyntaxCompoundToText()
     iomap = print_document(s2st, node)
     @test get_flat_string(iomap.output) == "[x,(ab)]"
-    for k in 0:_S2T._subtree_len(node, p, 0)
+    for k in 0:get_flat_length(iomap.output)
         sel = map_reference_backward(iomap.projection, iomap,
                   ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))
-        @test _S2T._syntax_to_flat(node, sel, p, 0) == k
+        @test _S2T._text_side_flat(map_reference_forward(iomap.projection, iomap, sel)) == k
     end
 end
 

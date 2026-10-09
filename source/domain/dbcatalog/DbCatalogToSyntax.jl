@@ -323,7 +323,7 @@ is_dbcatalog_marker_eligible(::SyntaxLeaf) = false
 # length can't be read without forcing the database query, which would defeat
 # lazy expansion.
 is_dbcatalog_marker_eligible(node::SyntaxNode) =
-    node.open !== nothing && !isempty(node.open.content::AbstractString)
+    node.open !== nothing && get_flat_length(node.open) > 0
 
 # ── Compound constructor ──────────────────────────────────────────────────────
 

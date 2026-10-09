@@ -289,6 +289,32 @@ change how every view of syntax makes its lines, so they land together.
    indents by rule 5 of §4. Until step 4 a node with an `indentation` that is not
    0 and whose texts hold no break keeps the breaks of today, so each domain moves
    in a step of its own; step 4 removes that path.
+   **Built (2026-10-09, branch `text-breaks`); the sweep against step 0 is
+   pending.** What the implementation decided:
+   - The fields `open`, `close`, `sep`, `opening_delimiter`, `closing_delimiter`
+     and `separator` take `Union{TextString, TextBlock, Nothing}`, and `value`
+     takes a `TextBlock` too. `_text` converts a string with a `'\n'`, and a
+     `TextString` whose content is a constant with one, keeping its font and its
+     colour. A `TextString` with a computed content is kept, because only its
+     value now could be read; the cut of such a run at a `'\n'` stays until
+     step 7.
+   - A leaf joins the lines of its texts. A line that a break in a leaf starts is
+     at indentation 0 and no ancestor widens it, as the row of a `'\n'` in a run
+     starts at column 0 today; step 5 decides this again for values of many lines.
+   - A compound whose texts hold a break follows rule 5, and widens each child by
+     the indentation of the line the child starts on. A compound with no break in
+     its texts keeps the breaks of its integer and the widening of today.
+   - The flat metric of a subtree (`_syntax_to_flat`, `_subtree_len`) is gone. It
+     was a second copy of the break rules, and its one caller, the choice of the
+     field of an empty edit, now asks the forward map of the same IO map. The
+     tests that compared the two now check the round trip of the backward and the
+     forward map.
+   - The forward map of a delimiter or the separator takes the entry that holds the
+     offset; just after a break, the caret stands after the indentation of the line.
+   - A lit delimiter of lines lights each run. The font of the chrome of a node is
+     the font of the first run of its first text.
+   - `test_syntax_to_text` 314 of 314, `test_text` 99 of 99.
+
 3. **The domains state their breaks**, one commit for each, with its suite and
    the example sweeps, in this order (N6): JSON, YAML, the lists of the platform
    (the logs, the help, the command palette, the undo buffer, the gesture map,
