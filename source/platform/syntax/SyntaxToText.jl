@@ -447,8 +447,12 @@ function _anchor_text_offset(elements, places, k::Int)
         j, offset = entry, entry_offset
     end
     # An offset in a line that the node does not print stands at the nearest end of
-    # the entry.
-    char = clamp(k - offset, 0, _span_len(elements[j]))
+    # the entry. Past the end of the output an offset is kept, as the backward map
+    # gives it there.
+    char = max(k - offset, 0)
+    length_of_entry = _span_len(elements[j])
+    (char > length_of_entry && any(n -> _span_len(elements[n]) > 0, (j + 1):length(elements))) &&
+        (char = length_of_entry)
     flat = _text_elem_path_to_flat(elements, j, char)
     flat < 0 && return nothing
     (elements[j] isa _LineBreak && char >= 1 && j < length(elements) &&
@@ -1238,11 +1242,12 @@ function _deco_font(node::SyntaxCompound, fallback::StyleFont)
     fallback
 end
 
-# The font of a text: of a run, or of the first run of a block, or `nothing`.
+# The font of a text: of a run, or of the first run of a block that draws a
+# character, or `nothing`. A break alone gives no font.
 _find_text_font(text::TextString) = text.font
 function _find_text_font(text::TextBlock)
     for runs in _text_lines(text), run in runs
-        run isa TextString && return run.font
+        (run isa TextString && !_is_empty_run(run)) && return run.font
     end
     nothing
 end

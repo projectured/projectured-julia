@@ -590,11 +590,16 @@ end
 _span_of(::Nothing) = nothing
 _span_of(pair::Pair) = pair.second
 
+# The breaks of the delimiters frame the children: a node with no child renders
+# only the first line of its opening delimiter and the last line of its closing
+# delimiter.
 function render(c::SyntaxCompound)
-    parts = [render(child) for child in get_syntax_children(c)]
-    string(_delimiter_content(_span_of(get_opening_delimiter(c))),
-           join(parts, _delimiter_content(_span_of(get_separator(c)))),
-           _delimiter_content(_span_of(get_closing_delimiter(c))))
+    children = get_syntax_children(c)
+    opening = _delimiter_content(_span_of(get_opening_delimiter(c)))
+    closing = _delimiter_content(_span_of(get_closing_delimiter(c)))
+    isempty(children) && return string(first(split(opening, '\n')), last(split(closing, '\n')))
+    string(opening, join([render(child) for child in children], _delimiter_content(_span_of(get_separator(c)))),
+           closing)
 end
 
 # ── set_cell_computation! delegation ────────────────────────────────────────────────

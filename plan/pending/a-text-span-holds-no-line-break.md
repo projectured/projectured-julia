@@ -344,6 +344,18 @@ change how every view of syntax makes its lines, so they land together.
      integer adds no line before the closing delimiter of an empty node. The
      forward map of an offset in a line that is not printed stands at the nearest
      end of the entry. `test_syntax_to_text` 326 of 326.
+   - *Found by the sweep at the JSON commit:* that clamp also moved a caret past
+     the end of the output, which the backward map gives as an offset past the
+     last entry, so 169 round trips of `test_introduced_part_round_trip` failed.
+     Past the end of the output the offset is kept now; 407 of 407.
+   - `render` of a syntax tree joins the texts and lays out no indentation; it
+     follows N7, so a node with no child renders the first line of its opening
+     delimiter and the last line of its closing delimiter. A text that is only a
+     break gives no font to the chrome of its node.
+   - The text dump of every example (`/var/tmp/text-breaks/textdump.jl`: each
+     `GraphicsText` at its place, ordered) at the JSON commit differs from main
+     only where JSON's `", "` is now `","`, on 72 lines; `test_position_navigations`
+     enumerates 57 fewer caret places for the same reason.
 
 3. **The domains state their breaks**, one commit for each, with its suite and
    the example sweeps, in this order (N6): JSON, YAML, the lists of the platform
