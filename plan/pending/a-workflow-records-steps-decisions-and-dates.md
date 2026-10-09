@@ -1,7 +1,7 @@
 # A workflow records steps, decisions and dates
 
 > **Status:** in progress on branch `workflow` (worktree
-> `projectured-julia-workflow`). Written 2026-10-09. Steps 1 and 3 are done.
+> `projectured-julia-workflow`). Written 2026-10-09. Steps 1 to 3 are done.
 
 ## 1. The request
 
@@ -134,9 +134,12 @@ end
 
 A workflow saves as one `.pred` file. A card that holds a node of another file
 saves as a marker into that file: a section of a Markdown page, a node of a JSON
-file, a definition in a Julia file. A card that holds a document that no other
-file owns is written inside the `.pred` file. The project of a workflow is a
-`FileProject`: the `.pred` file and the files that its markers name.
+file, a definition in a Julia file. A card that holds a document with no file
+format of its own, such as a primitive or a widget, is written inside the `.pred`
+file. A document of a domain with a file format, such as a JSON object, must be in
+a file of that format: the save refuses it and names it (found in step 2). The
+project of a workflow is a `FileProject`: the `.pred` file and the files that its
+markers name.
 
 The time of an entry is a text, `"2026-10-09T14:02:00"`, so the `.pred` file
 writes it as a string and needs no method for a type of `Dates` (see step 1).
@@ -272,11 +275,20 @@ turn, and an operation that switches to a workflow.
     `test/projectured/PackageGraphTest.jl`, `test_workflow()` in
     `test/projectured/ProjecturedSuite.jl`, and the summary in
     `PROJECTURED_PACKAGES` of the builder.
-- [ ] **2. The `.pred` save.** `pred_arguments` and `make_pred_document` where
-  the default does not fit; `DateTime` through `is_pred_constructible`. Test: a
-  `FileProject` with a workflow `.pred`, a Markdown page and a JSON file saves,
-  loads, and gives the same graph; a card into the Markdown section is the same
-  object after the load.
+- [x] **2. The `.pred` save.** `pred_arguments` and `make_pred_document` where
+  the default does not fit. Test: a `FileProject` with a workflow `.pred`, a
+  Markdown page and a JSON file saves, loads, and gives the same graph; a card
+  into the Markdown section is the same object after the load.
+  **Done (2026-10-09).** `test_workflow_file()` in
+  `test/projectured/serializer/WorkflowFileTest.jl`, in `test_documents()` of the
+  umbrella, 24 tests. The defaults fit every type, so the domain adds no method:
+  each node writes its fields as keywords and reads back through its keyword
+  constructor. A card into a paragraph of a page writes
+  `<<node(file("page.md"), …)>>`, a card into a record of a JSON file writes
+  `<<node(file("data.json"), …)>>`, the load gives the same objects, and a second
+  save writes nothing. A card that holds a JSON object that no JSON file holds is
+  refused with the reason, as the save refuses any node of a format domain that no
+  file of its domain writes.
 - [x] **3. The operations.** Add and delete a step, a decision, an option, an
   entry and a card; change a state, which adds a `:state` entry; each operation
   carries its author. Test: each operation and its undo.
