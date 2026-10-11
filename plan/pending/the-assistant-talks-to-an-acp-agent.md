@@ -762,7 +762,7 @@ from the command line of the projectured UI.
     for `ClaudeCodeACP` is to read and delete the transcript files of Claude
     Code under `~/.claude/projects`, which Anthropic does not document.
     `session/load` has the same problem.
-- [ ] 2.5 Terminal sign-in and logout (R3). The owner chose 2.5 and then 2.6
+- [x] 2.5 Terminal sign-in and logout (R3). The owner chose 2.5 and then 2.6
   on 2026-10-09, and answered the questions of the design on 2026-10-09:
   Q1 a simple terminal domain in the editor, "but don't overdo it. it's worth
   its own plan"; Q2 yes; Q3 agreed; Q4 yes; Q5 yes. So the terminal of the
@@ -830,7 +830,7 @@ from the command line of the projectured UI.
     terminal showed the URL and "Paste code here if prompted >", a wrong code
     gave "Invalid code" on the standard error, and the stop gave "The sign-in
     was stopped."
-  - [ ] 2.5f The release: `ClaudeCodeACP` 0.1.4 (`fee4813` on its branch
+  - [x] 2.5f The release: `ClaudeCodeACP` 0.1.4 (`fee4813` on its branch
     `sign-in`, with `e9dd893` and `a965bcd`), registered on the branch
     `claude-code-acp-0.1.4` of the clone of ProjecturedRegistry (`668dd5b`,
     with the tree of `fee4813`). `ProjecturedACP` needs 0.1.4 (`9aa731ec8`),
@@ -842,7 +842,9 @@ from the command line of the projectured UI.
     143, the composer panel 76, `test_assistant_mvp()` 170 with its 4 known
     broken, the application 372 with its 2 known broken, the builder 529 with
     its known failure (the compat of AutoIntegration); the static guards as on
-    `main`. Waits for the word of the owner to land and push.
+    `main`. The owner said yes on 2026-10-11: `ClaudeCodeACP` `main` and the
+    registry were pushed first, then the branch landed on `main` and was
+    pushed.
 
   **Facts (2026-10-09).**
   - ACP: an agent can advertise a `terminal` auth method with `args` and `env`.
