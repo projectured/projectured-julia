@@ -20,6 +20,7 @@ function test_acp_connection()
             @test initialize["clientCapabilities"]["fs"] ==
                   Dict{String,Any}("readTextFile" => false, "writeTextFile" => false)
             @test initialize["clientCapabilities"]["terminal"] == false
+            @test initialize["clientCapabilities"]["elicitation"]["form"] == Dict{String,Any}()
             @test initialize["clientInfo"]["name"] == "projectured"
             @test connection.agent_info.title == "Fake Agent"
             @test connection.agent_capabilities.session_capabilities.close !== nothing
@@ -378,6 +379,64 @@ function test_acp_connection()
             @test fetch(task) === :cancelled
             @test outcome[] == Dict{String,Any}("outcome" => "cancelled")
             @test only(get_received(agent, "session/cancel"))["params"]["sessionId"] == session_id
+            stop_agent_connection!(connection)
+        end
+
+        @testset "a person answers, declines, or a cancel ends a question form" begin
+            schema = Dict(
+                "type" => "object", "required" => ["question_1"],
+                "properties" => Dict(
+                    "question_2" => Dict("type" => "array", "title" => "Parts",
+                                         "items" => Dict("anyOf" => [Dict("const" => "a", "title" => "A"),
+                                                                     Dict("const" => "b", "title" => "B")])),
+                    "question_1" => Dict("type" => "string", "title" => "Colour", "description" => "Which colour?",
+                                         "oneOf" => [Dict("const" => "Red", "title" => "Red", "description" => "warm"),
+                                                     Dict("const" => "Blue", "title" => "Blue")]),
+                    "question_1_other" => Dict("type" => "string", "title" => "Other"),
+                    "size" => Dict("type" => "integer"),
+                    "plain" => Dict("type" => "string", "enum" => ["x", "y"]),
+                    "odd" => Dict("type" => "object")))
+            answers = Any[]
+            agent = _make_fake_agent(Dict{String,Function}(
+                "session/prompt" => function (agent, params)
+                    answer = ask_fake_client(agent, "elicitation/create", Dict(
+                        "sessionId" => params["sessionId"], "mode" => "form",
+                        "message" => "Answer, please.", "requestedSchema" => schema))
+                    push!(answers, answer["result"])
+                    Dict("stopReason" => "end_turn")
+                end))
+            connection = make_fake_connection(agent)
+            session_id = open_agent_session!(connection)
+            requests = AgentQuestionRequest[]
+            choose(values) = event -> event isa AgentQuestionRequest &&
+                                      (push!(requests, event); @async event.reply(values))
+            values = Dict{String,Any}("question_1" => "Red", "question_2" => ["a", "b"], "unknown" => 1)
+            @test send_agent_prompt!(connection, session_id, [LlmText("Ask")]; on_event = choose(values)) === :end_turn
+            request = only(requests)
+            @test request.message == "Answer, please."
+            # The fields in the order of their names, each of the kind that its schema says.
+            @test [(field.name, field.kind) for field in request.fields] ==
+                  [("odd", :text), ("plain", :choice), ("question_1", :choice), ("question_1_other", :text),
+                   ("question_2", :choices), ("size", :integer)]
+            colour = request.fields[3]
+            @test (colour.title, colour.description, colour.is_required) == ("Colour", "Which colour?", true)
+            @test [(option.value, option.name, option.description) for option in colour.options] ==
+                  [("Red", "Red", "warm"), ("Blue", "Blue", "")]
+            @test [option.value for option in request.fields[2].options] == ["x", "y"]
+            @test only(answers) == Dict{String,Any}("action" => "accept",
+                "content" => Dict{String,Any}("question_1" => "Red", "question_2" => ["a", "b"]))
+            @test request.reply(Dict{String,Any}()) == false
+            # A decline.
+            @test send_agent_prompt!(connection, session_id, [LlmText("Ask")]; on_event = choose(nothing)) === :end_turn
+            @test answers[2] == Dict{String,Any}("action" => "decline")
+            # A cancel of the turn cancels the form that waits.
+            asked = Threads.Event()
+            task = @async send_agent_prompt!(connection, session_id, [LlmText("Ask")];
+                                             on_event = event -> event isa AgentQuestionRequest && notify(asked))
+            wait(asked)
+            cancel_agent_prompt!(connection, session_id)
+            @test _wait_until(() -> istaskdone(task))
+            @test answers[3] == Dict{String,Any}("action" => "cancel")
             stop_agent_connection!(connection)
         end
 

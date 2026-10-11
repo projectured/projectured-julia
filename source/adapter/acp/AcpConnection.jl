@@ -97,7 +97,8 @@ function start_agent_connection!(connection::AcpConnection)
             protocol_version = ACP.PROTOCOL_VERSION,
             client_capabilities = ACP.ClientCapabilities(
                 fs = ACP.FileSystemCapabilities(read_text_file = false, write_text_file = false),
-                terminal = false, auth = ACP.AuthCapabilities(terminal = true)),
+                terminal = false, auth = ACP.AuthCapabilities(terminal = true),
+                elicitation = ACP.ElicitationCapabilities(form = ACP.ElicitationFormCapabilities())),
             client_info = ACP.Implementation(
                 name = "projectured", title = "ProjecturEd",
                 version = string(something(pkgversion(Base.moduleroot(@__MODULE__)), v"0.0.0"))));
@@ -483,6 +484,87 @@ function ACP.answer_request(handler::AcpClientHandler, request::ACP.RequestPermi
 end
 
 _make_cancelled_answer() = ACP.RequestPermissionResponse(outcome = ACP.RequestPermissionOutcomeCancelled())
+
+# A question of the agent goes to the person as an `AgentQuestionRequest`, and
+# the task of the request waits for the reply: values accept the form, `nothing`
+# declines it, and a cancel of the turn or of the request cancels it. A form
+# outside a prompt, and a request that is no form, such as a URL, are cancelled,
+# because the client offers forms only.
+function ACP.answer_request(handler::AcpClientHandler, request::ACP.CreateElicitationRequest, context)
+    connection = handler.connection
+    json = ACP.get_json(request)
+    session_id = get(json, "sessionId", nothing)
+    turn = session_id isa AbstractString ?
+           lock(() -> get(connection.turns, session_id, nothing), connection.turns_lock) : nothing
+    (turn === nothing || get(json, "mode", nothing) != "form") && return ACP.CreateElicitationResponseCancel()
+    fields = _read_question_fields(get(json, "requestedSchema", nothing))
+    answer = Channel{Any}(1)
+    is_answered = Threads.Atomic{Bool}(false)
+    deliver(value) = (Threads.atomic_xchg!(is_answered, true) && return false; put!(answer, value); true)
+    cancel = _ -> deliver(:cancel)
+    lock(() -> push!(turn.waiting_replies, cancel), connection.turns_lock)
+    ACP.add_cancel_callback!(() -> deliver(:cancel), context)
+    isready(answer) || turn.on_event(AgentQuestionRequest(string(get(json, "message", "")), fields,
+                                                          values -> deliver(values === nothing ? :decline : values)))
+    value = take!(answer)
+    lock(() -> filter!(waiting -> waiting !== cancel, turn.waiting_replies), connection.turns_lock)
+    value === :cancel && return ACP.CreateElicitationResponseCancel()
+    value === :decline && return ACP.CreateElicitationResponseDecline()
+    ACP.CreateElicitationResponseAccept(content = Dict{String,Any}(
+        name => answered for (name, answered) in value if any(field -> field.name == name, fields)))
+end
+
+# The fields of a form, one for each property of its schema. The protocol library
+# reads a JSON object into a `Dict`, which keeps no order, so the fields come in
+# the order of their names; an agent that names them `question_1`, `question_2`
+# gets its order.
+function _read_question_fields(schema)
+    schema isa AbstractDict || return AgentQuestionField[]
+    properties = get(schema, "properties", nothing)
+    properties isa AbstractDict || return AgentQuestionField[]
+    required = get(schema, "required", Any[])
+    AgentQuestionField[_read_question_field(String(name), properties[name],
+                                            required isa AbstractVector && name in required)
+                       for name in sort!(collect(keys(properties)))]
+end
+
+# One property as a field. A string with options is a choice and an array of
+# them is a choice of several; a number, an integer and a boolean are what they
+# say; any other property is a text.
+function _read_question_field(name::String, property, is_required::Bool)
+    property isa Dict{String,Any} || return AgentQuestionField(name, name, "", :text, AgentOptionValue[], is_required)
+    title = something(_find_string(property, "title"), name)
+    description = something(_find_string(property, "description"), "")
+    type = get(property, "type", "string")
+    kind, options = if type == "string"
+        options = _read_question_options(property)
+        (isempty(options) ? :text : :choice), options
+    elseif type == "array"
+        items = get(property, "items", nothing)
+        :choices, items isa Dict{String,Any} ? _read_question_options(items) : AgentOptionValue[]
+    elseif type in ("number", "integer", "boolean")
+        Symbol(type), AgentOptionValue[]
+    else
+        :text, AgentOptionValue[]
+    end
+    AgentQuestionField(name, title, description, kind, options, is_required)
+end
+
+# The options of an enum: `oneOf` or `anyOf`, each with a `const`, a `title` and
+# a `description`, or else `enum`, whose values are their own titles.
+function _read_question_options(schema::Dict{String,Any})
+    for key in ("oneOf", "anyOf")
+        list = get(schema, key, nothing)
+        list isa AbstractVector || continue
+        return AgentOptionValue[AgentOptionValue(string(get(option, "const", "")),
+                                                 string(get(option, "title", get(option, "const", ""))),
+                                                 something(_find_string(option, "description"), ""))
+                                for option in list if option isa Dict{String,Any}]
+    end
+    values = get(schema, "enum", nothing)
+    values isa AbstractVector || return AgentOptionValue[]
+    AgentOptionValue[AgentOptionValue(string(value), string(value), "") for value in values]
+end
 
 function _cancel_waiting_replies!(turn::AcpTurn)
     for reply in copy(turn.waiting_replies)
