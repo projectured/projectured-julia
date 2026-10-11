@@ -1034,8 +1034,11 @@ from the command line of the projectured UI.
     with `AskUserQuestion`, the form came with Red, Blue and "Other", the
     script chose Blue, the tool answered `"Which colour do you prefer?"="Blue"`,
     and the answer of Claude named Blue. No permission card came for the tool.
-  - [ ] Landing: the owner pushes `ClaudeCodeACP` and the registry; then the
-    manifest of `environment/all` names 0.1.5, and the branch lands.
+  - [x] Landing: the owner said "land and continue" on 2026-10-11. The clone
+    of `ClaudeCodeACP` moved to 0.1.5 on its `main`, the manifest of
+    `environment/all` names 0.1.5, and the branch landed on `main`. Not
+    pushed: `ClaudeCodeACP`, the registry branch and `main` wait for the word
+    of the owner, in that order.
 - [ ] 2.7 Request cancel, and the prompt queue. **The request cancel is done:**
   the agent withdraws a permission request with `$/cancel_request` and its
   JSON-RPC id, the connection replies `nothing`, and the agent gets the valid
