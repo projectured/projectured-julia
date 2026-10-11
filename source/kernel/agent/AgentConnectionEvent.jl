@@ -92,6 +92,7 @@ struct AgentPermissionRequest <: AgentEvent
     reply::Function
 end
 
+
 """
     AgentOptionValue(value, name, description)
 
@@ -102,6 +103,43 @@ struct AgentOptionValue
     value::String
     name::String
     description::String
+end
+
+"""
+    AgentQuestionField(name, title, description, kind, options, is_required)
+
+One field of a question that an external agent asks a person. `name` is the key
+of its value in the answer, and `title` and `description` are what a person
+reads. `kind` is `:choice` (one of `options`), `:choices` (any of `options`),
+`:text`, `:number`, `:integer` or `:boolean`. `options` are the values of a
+choice, each an `AgentOptionValue` with the `value` that the answer holds and
+the `name` and `description` that a person reads; they are empty for another
+kind.
+"""
+struct AgentQuestionField
+    name::String
+    title::String
+    description::String
+    kind::Symbol
+    options::Vector{AgentOptionValue}
+    is_required::Bool
+end
+
+"""
+    AgentQuestionRequest(message, fields, reply)
+
+An external agent asks a person a question, and waits for the answer. `message`
+says what the agent asks, and `fields` are what the person fills in. `reply`
+takes a `Dict{String,Any}` from the `name` of each field that the person filled
+to its value: a `String` for a choice or a text, a `Vector{String}` for
+choices, a number, or a `Bool`; or `nothing` when the person declined. The
+first call answers the agent and answers `true`; a later call does nothing and
+answers `false`. A cancel of the turn answers the request as cancelled.
+"""
+struct AgentQuestionRequest <: AgentEvent
+    message::String
+    fields::Vector{AgentQuestionField}
+    reply::Function
 end
 
 """

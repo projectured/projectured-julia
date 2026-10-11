@@ -27,7 +27,8 @@ Seven fragments share this namespace:
   behaviours for that contract.
 - [`AgentConnectionEvent.jl`](AgentConnectionEvent.jl) — the events an external
   agent reports: `AgentToolCallUpdate`, `AgentPlanUpdate`,
-  `AgentPermissionRequest`, `AgentOptionsUpdate`, `AgentUsageUpdate`,
+  `AgentPermissionRequest`, `AgentQuestionRequest` with its
+  `AgentQuestionField`s, `AgentOptionsUpdate`, `AgentUsageUpdate`,
   `AgentSessionInfoUpdate` and `AgentCommandsUpdate`; and the sign-in that an
   agent asks for: `AgentSignInException` with its `AgentSignInMethod`s.
 
@@ -65,7 +66,7 @@ export make_agent_connection, start_agent_connection!, open_agent_session!,
        set_agent_option!, send_agent_prompt!, cancel_agent_prompt!, close_agent_session!,
        stop_agent_connection!, get_agent_connection_names, has_agent_sign_out, sign_out_agent!
 export AgentToolCallUpdate, AgentPlanEntry, AgentPlanUpdate,
-       AgentPermissionOption, AgentPermissionRequest,
+       AgentPermissionOption, AgentPermissionRequest, AgentQuestionField, AgentQuestionRequest,
        AgentOptionValue, AgentOption, AgentOptionsUpdate, AgentUsageUpdate,
        AgentSessionInfoUpdate, AgentCommand, AgentCommandsUpdate,
        AgentSignInMethod, AgentSignInException
