@@ -34,7 +34,9 @@ The reference maps work one level at a time. Each level removes the steps that i
 
 `_follow_selection!` makes the `selection` cell of each container a computed cell: the selection of the node, mapped forward, less the steps that lead to the container. The layout and the card draw their ring from that cell. So a selected message, part, form or result has a ring, and no printer runs again when the selection changes.
 
-The transcript is read, not written. Its reader returns `nothing` for `ReplaceReferencedValueOperation`, `ReplaceStringRangeOperation` and `ReplaceNumberRangeOperation`, and passes every other operation on.
+The transcript is read, not written. Its reader returns `nothing` for `ReplaceReferencedValueOperation`, `ReplaceStringRangeOperation` and `ReplaceNumberRangeOperation`, and passes every other operation on. The exception is the live field of a part: `_find_live_field(content)` names the field of a request part in which a person works, `"terminal"` for a `ConversationSignInRequest` and `nothing` for every other content. At each of the three levels, an edit whose path, mapped back, goes into a live field takes the default reader and goes on, and the cut of a click to its part keeps a path that goes into a live field. The part maps `content.terminal.<rest>` to the fourth child of the body of its card and back, and the card and its body follow the selection of the part, so a key reaches the terminal.
+
+**The sign-in card.** A `ConversationSignInRequest` holds the message of an agent that needs a sign-in, its methods (`AgentSignInMethod`), the `state` of the last sign-in, `is_signing_in`, the `terminal` of the sign-in that runs, and two live functions: `start(editor, method_id)` and `retry(editor)`. The card shows the message, a button for each method, which waits while a sign-in runs, a "Try again" button, the state, and the terminal below them once one started. A `.pred` file keeps the message and the state; the duplicate of a request has no live function and no terminal.
 
 ### The composer
 

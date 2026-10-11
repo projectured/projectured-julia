@@ -810,6 +810,26 @@ from the command line of the projectured UI.
     anyway, so there will be exceptions either way". So the exception is
     general: a request part names its live field, and presses, keys and edits
     inside that field go through; the elicitation forms of 2.6 use the same.
+  - [x] 2.5e done on the branch `acp-sign-in` (`34cf84b91`, `20f64db73`): a
+    `ConversationSignInRequest` in place of the error, with a button for each
+    method, "Try again", a state line, and the terminal of the sign-in in the
+    card as the live field of the part (`_find_live_field`); the three levels
+    of the transcript let an edit into a live field go on, and the cut of a
+    click to its part keeps such a path. On the status 0 the assistant starts
+    the agent again. A "Sign out" item in the option bar, and
+    `SignOutAgentOperation`. A sign-in that a prompt of a resumed session needs
+    keeps the session. **Found in the live check:** `claude auth login` ends
+    with the status 0 at Ctrl+C, so a stopped sign-in looked like one that
+    worked; `is_terminal_stopped` now says that a person stopped it, and the
+    assistant starts no agent then. Tests: the terminal 53 of 53, the turn of
+    an external agent 207 of 207, the conversation 265 of 265, the composer
+    panel 76 of 76 (a press, the keys and Return in the terminal of a sign-in
+    in the transcript). Live with the built-in agent and an empty
+    `CLAUDE_CONFIG_DIR`, no display and `BROWSER=/bin/true`: the card came with
+    "Claude Code needs a sign-in", the method ran `claude auth login`, the
+    terminal showed the URL and "Paste code here if prompted >", a wrong code
+    gave "Invalid code" on the standard error, and the stop gave "The sign-in
+    was stopped."
 
   **Facts (2026-10-09).**
   - ACP: an agent can advertise a `terminal` auth method with `args` and `env`.

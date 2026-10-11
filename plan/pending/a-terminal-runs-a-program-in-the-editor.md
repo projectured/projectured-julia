@@ -117,7 +117,9 @@ person as a general tool (see Q3).
   - Left as it is: `_signal_process_group!` repeats the signal helper of the
     task slice. A shared helper needs a place that both slices may use; the
     reviewer passed it to the code quality steward.
-- [ ] T.6 The sign-in card uses it (with step 2.5e).
+- [x] T.6 The sign-in card uses it (with step 2.5e): the terminal is the live
+  field of the sign-in part in the transcript (the owner chose that exception,
+  Q10 of the ACP plan). `is_terminal_stopped` came from the live check.
 - [x] Guide: `documentation/package/platform/terminal/terminal.md`, the slice
   table in `documentation/rule/package-rules.md`, and the edge of the slice in
   `PLATFORM_SLICE_EDGES`.

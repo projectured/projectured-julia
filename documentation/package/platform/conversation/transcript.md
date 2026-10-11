@@ -10,6 +10,12 @@ names the object under the pointer, and an edit that reaches it is declined. In
 a window that wraps its content in a clipboard, `Ctrl+C` and `Ctrl+N` copy and
 note the selected object, and a paste over the transcript is refused.
 
+One exception: the live field of a part, a place where a person works inside
+the transcript. A request part names it; the terminal of a
+`ConversationSignInRequest` is one. A click in a live field keeps its place, as
+a caret, and an edit inside it goes on, so a person types the code of a sign-in
+there. The rest of the part, and the rest of the transcript, stay read.
+
 ## What a turn draws
 
 A turn is a `WidgetCard` that fills the width it is offered. The user's turn is
