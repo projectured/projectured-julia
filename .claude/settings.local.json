@@ -10,7 +10,8 @@
       "Bash(julia --project=. -e 'include\\(\"example/src/ProjecturedExample.jl\"\\); println\\(\"ProjecturedExample loaded OK\"\\)')",
       "Bash(julia --project=. -e 'include\\(\"test/src/ProjecturedTest.jl\"\\); println\\(\"ProjecturedTest loaded OK\"\\)')",
       "Bash(git status:*)",
-      "Bash(julia --project=program session/analyze-session.jl --latest)"
+      "Bash(julia --project=program session/analyze-session.jl --latest)",
+      "mcp__projectured__execute_julia_code"
     ]
   },
   "devin.acp.enabledAgents": {
