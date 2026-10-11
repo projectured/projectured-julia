@@ -37,6 +37,53 @@ function test_printers()
     end
 end
 
+# ── a text run holds no break ────────────────────────────────────────────────
+
+const _RUN_WALK_MAX_NODES = 200_000
+const _RUN_WALK_MAX_DEPTH = 300
+
+# Each `TextString` that holds a `'\n'` in what `value` reaches — the documents, the
+# output of each stage and the IO maps between them — as the head of its text. The
+# walk stops at a node it saw and at a cap of nodes and of depth.
+function _find_runs_with_break!(value, visited::Set{UInt64}, found::Vector{String}, depth::Int)
+    (depth > _RUN_WALK_MAX_DEPTH || length(visited) >= _RUN_WALK_MAX_NODES) && return
+    value isa Union{Number, Symbol, AbstractString, Nothing, Function, Module, DataType, Char} && return
+    id = objectid(value)
+    id in visited && return
+    push!(visited, id)
+    if value isa TextString
+        content = value.content
+        (content isa AbstractString && occursin('\n', content)) && push!(found, first(content, 60))
+    elseif value isa Cell || value isa UntrackedCell
+        _find_runs_with_break!(value[], visited, found, depth + 1)
+    elseif value isa AbstractVector
+        for i in eachindex(value)
+            isassigned(value, i) && _find_runs_with_break!(value[i], visited, found, depth + 1)
+        end
+    else
+        for name in fieldnames(typeof(value))
+            isdefined(value, name) || continue
+            _find_runs_with_break!(getfield(value, name), visited, found, depth + 1)
+        end
+    end
+end
+
+# A text run holds no break, rule 1 of the text domain: a break is the start of a
+# line. The walk covers the document of every example and the output of every
+# stage that prints it.
+function test_text_runs_hold_no_break()
+    @testset "A text run holds no break" begin
+        for example in examples
+            @testset "$(example.name)" begin
+                found = String[]
+                iomap = print_document(example.projection, example.document)
+                _find_runs_with_break!(iomap, Set{UInt64}(), found, 0)
+                @test isempty(found)
+            end
+        end
+    end
+end
+
 # ── reader ───────────────────────────────────────────────────────────────────
 
 # @broken registry for the reader sweep. `reader_broken(name)` returns a

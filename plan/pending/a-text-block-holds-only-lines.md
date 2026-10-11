@@ -272,7 +272,11 @@ a block of spans still works, so the producers move one at a time.
    `InlineImageCaretTest`, `TextDocumentTest` and the decorators. The 5 lazy lists
    of spans become lazy lists of lines.
 5. **The consumers lose their span path**: the list of §3.2, and
-   `_is_block_of_lines`. `_line_height_font` sizes an empty line by the font of its
+   `_is_block_of_lines`. With them go the row that `TextToGraphics` draws for a
+   `'\n'` in a run, the cut of `TextFirstLine` there, and the cut of a run in
+   `SyntaxToText` (N11 of [a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md)):
+   step 2 has moved the producers of a free text, so no run holds a break, which
+   the guard `test_text_runs_hold_no_break` checks. `_line_height_font` sizes an empty line by the font of its
    empty run (L2), with a test of an empty line after a heading. `WordWrapping` keeps only `soft_breaks`, and its maps are
    the identity.
 6. **`TextNewline` and `TextNewlineToString` go**, with their exports, and every

@@ -301,6 +301,18 @@ One at a time, with the owner.
     Backspace at the start of a line does nothing.
   - Not taken: (b) a split and a join as two new operations, which every reader
     would have to learn.
+- **N11 How much free text step 7 moves. Decided, the owner, 2026-10-09: (a), the
+  guard and the cases it finds.** Step 7 builds the guard as a test over every
+  example and fixes the runs with a break that it finds. The other producers of a
+  free text, about 40 (the streamed text of the assistant, the parts of a
+  conversation, the evaluator, fault messages, the inspectors, the plain text view
+  of a widget, primitive strings), give lines in
+  [a-text-block-holds-only-lines.md](a-text-block-holds-only-lines.md), with their
+  paths (its L1 and L3); dropping the row of a `'\n'` in a run from
+  `TextToGraphics` and `TextFirstLine`, and the cut of a run from `SyntaxToText`,
+  follows there, when no producer is left. Until then the row stays as a net.
+  - Not taken: (b) all of it here, which is most of step 2 of that plan without its
+    baseline and its order.
 
 ## 8. Facts found
 
@@ -541,6 +553,22 @@ change how every view of syntax makes its lines, so they land together.
    rule for a `'\n'` inside a span. The producers of a free text (the fault
    messages, the conversation, `ObjectToSyntax`, `PrimitiveToText`) give lines,
    with `StringToTextBlock` for a string that no domain decides.
+   ✅ **Done (2026-10-09), by N11.** `test_text_runs_hold_no_break` walks the
+   document of each example, the output of each stage and the IO maps between
+   them, and rejects a `TextString` that holds a `'\n'`; it runs after
+   `test_printers` in the umbrella suite. It found three: the example of a text
+   area, whose view is now `make_text_block`, and the arguments and the results of
+   the evaluator, which are now lines. 109 examples pass.
+   - A text area turns Return into a typed `'\n'`. Its view of a plain string is
+     lines now, so the edit stays flat, and the text widget maps it to a range of
+     the string (`_retarget_op`), where it returned a flat edit unchanged.
+   - Enter of the text domain binds in a block of lines only. In a block of runs
+     the key goes on to the bindings around the text, as before step 6: a type-in
+     makes its value, and a text area types its `'\n'` into the run of a text
+     document of runs. This replaces the decline of a break into a run.
+   - `test_widget_text_editing` 64, `test_primitive_type_in` 115,
+     `test_conversation_transcript` 121.
+
 8. **omnet-julia**: NED and INI state their breaks in their texts, which removes
    their empty lines. It follows the landing of steps 2 to 4.
 9. **The documents**: `text.md`, `syntax.md` and the guides of the domains.

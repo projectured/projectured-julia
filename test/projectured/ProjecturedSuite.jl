@@ -524,6 +524,7 @@ function test_integration()
     test_natural_notation()
     test_natural_registry()
     test_printers()
+    test_text_runs_hold_no_break()
     test_readers()
     test_position_navigations()
     test_position_navigations_complete()
@@ -611,7 +612,7 @@ export test_table, test_table_selection, test_table_navigation, test_table_cell_
 export test_pivot_data_frame
 export test_graph_projection, test_conversation_transcript, test_assistant_conversation_video
 export test_examples, test_position_navigations, test_position_navigations_complete
-export test_printer, test_printers, test_example, test_position_navigation
+export test_printer, test_printers, test_text_runs_hold_no_break, test_example, test_position_navigation
 export measure_printer_locality, explore_selection_locality, test_selection_locality, test_selection_localities, LocalityReport, LocalityCell, is_selection_cell
 export explore_structural_locality, report_structural_locality, test_template_structural_locality, test_graphics_structural_locality
 export explore_value_locality, test_value_locality, test_value_localities
