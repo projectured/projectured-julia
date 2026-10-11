@@ -193,6 +193,21 @@ three = objects(block)
 source[] = "x\nx"
 @test all(map(===, objects(block), three[1:2]))
 
+# With a placeholder: one muted line while the text is empty, the same object each
+# time, and the lines of the text otherwise.
+code = Cell("")
+block = make_text_block(() -> code[], style; placeholder = "code", empty_thunk = () -> isempty(code[]))
+@test runs(block) == [["code"]]
+hint = block.elements[1]
+@test hint.elements[1].font_color == color_solarized_gray
+@test hint.elements[1].font == style.font
+code[] = "a\nb"
+@test runs(block) == [["a"], ["b"]]
+@test block.elements[1].elements[1].font_color == style.color
+code[] = ""
+@test runs(block) == [["code"]]
+@test block.elements[1] === hint
+
 end # @testset "make_text_block gives a line for each line of a string"
 
 @testset "Shift and a motion key select a range" begin

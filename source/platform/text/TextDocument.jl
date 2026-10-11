@@ -328,6 +328,7 @@ DomainModule.insertable(::Type{<:TextLine}) = false
 
 """
     make_text_block(content, style::StyleText) -> TextBlock
+    make_text_block(content::Function, style::StyleText; placeholder, empty_thunk) -> TextBlock
 
 A text of lines in `style` from a string, or from a function that gives one: a
 `TextLine` for each line of the string, with one run, and an empty run on an empty
@@ -338,13 +339,26 @@ string.
 When the string of the function changes, a line whose text did not change keeps
 its object: the lines of the common head and of the common tail. So a layout that
 keys a line by its object lays out the changed lines only.
+
+With a `placeholder` and an `empty_thunk`, the block is one line that shows the
+placeholder in a muted colour while `empty_thunk()` is true, as
+[`make_hinted_text`](@ref) does for one run; the line is the same object each time.
 """
 make_text_block(content::AbstractString, style::StyleText) =
     TextBlock(TextDocument[_make_text_block_line(text, style) for text in split(content, '\n')])
 
-function make_text_block(content::Function, style::StyleText)
+function make_text_block(content::Function, style::StyleText;
+                         placeholder::Union{Nothing,AbstractString} = nothing, empty_thunk = nothing)
     previous = Ref(Pair{String, TextLine}[])
-    TextBlock(() -> _compute_text_block_lines!(previous, content(), style))
+    hint = Ref{Union{Nothing,TextLine}}(nothing)
+    TextBlock(function ()
+        if placeholder !== nothing && empty_thunk !== nothing && empty_thunk()
+            hint[] === nothing &&
+                (hint[] = TextLine(TextString(String(placeholder), style.font, color_solarized_gray)))
+            return TextDocument[hint[]]
+        end
+        _compute_text_block_lines!(previous, content(), style)
+    end)
 end
 
 _make_text_block_line(text::AbstractString, style::StyleText) = TextLine(TextString(String(text), style))
