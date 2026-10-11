@@ -97,6 +97,7 @@ end
     @test last(texts) == "The program ended with the status 3."
     @test only(line.kind for line in terminal.lines if line.text == "oops") === :error
     @test exits == [(:editor, 3)]
+    @test !is_terminal_stopped(terminal)
     # No program runs, so nothing is sent.
     @test !send_terminal_input!(terminal, "late")
 end
@@ -119,6 +120,7 @@ end
     stop_terminal!(terminal)
     @test _wait_for_terminal(() -> terminal.status isa Int)
     @test terminal.status == 128 + Int(Base.SIGINT)
+    @test is_terminal_stopped(terminal)
     missing = TerminalDocument(`projectured-no-such-program-x`)
     start_terminal!(:editor, missing)
     @test missing.status === :failed

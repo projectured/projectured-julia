@@ -80,6 +80,16 @@ Whether the program of `terminal` runs.
 """
 is_terminal_running(terminal::TerminalDocument) = terminal.status === :running
 
+"""
+    is_terminal_stopped(terminal) -> Bool
+
+Whether a person stopped the program of `terminal`, with [`stop_terminal!`](@ref)
+or the close of its tab. A program that a person stopped did not finish its
+work, whatever its exit status says.
+"""
+is_terminal_stopped(terminal::TerminalDocument) =
+    (control = terminal.control; control !== nothing && control.is_stopping)
+
 # The escape sequences of colour and cursor (CSI), of the title (OSC), of a
 # character set, and of one character, which a terminal with no screen does not
 # draw.

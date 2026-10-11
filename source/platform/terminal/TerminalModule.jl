@@ -36,6 +36,7 @@ import ..OperationModule: evaluate_operation, make_inverse_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 
 export TerminalLine, TerminalControl, TerminalDocument, format_terminal_command, is_terminal_running,
+       is_terminal_stopped,
        add_terminal_text!, add_terminal_line!
 export start_terminal!, send_terminal_input!, stop_terminal!
 export TerminalTheme, ScaledTerminalTheme

@@ -96,6 +96,17 @@ function test_external_agent_turn()
             @test send_terminal_input!(terminal, "right")
             @test timedwait(() -> length(connection.sessions) == 1, 10.0; pollint = 0.01) === :ok
             @test request.state == "Signed in." && !request.is_signing_in
+            # A sign-in that a person stopped is no sign-in, even with the status 0.
+            trap = AgentSignInMethod("trap", "Sign in and stop", "",
+                                     `sh -c "trap 'exit 0' INT; printf 'Code > '; read code"`)
+            push!(request.methods, trap)
+            request.start((document = a,), "trap")
+            stopped = request.terminal
+            @test timedwait(() -> "Code > " in [line.text for line in stopped.lines], 10.0; pollint = 0.01) === :ok
+            stop_terminal!(stopped)
+            @test timedwait(() -> !request.is_signing_in, 10.0; pollint = 0.01) === :ok
+            @test stopped.status == 0 && request.state == "The sign-in was stopped."
+            @test length(connection.sessions) == 1
             # A retry when the session is open does nothing more.
             request.retry((document = a,))
             @test length(connection.sessions) == 1

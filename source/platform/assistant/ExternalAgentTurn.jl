@@ -268,15 +268,19 @@ function _add_agent_sign_in_request!(a::Assistant, exception::AgentSignInExcepti
 end
 
 # Run the sign-in of the method `method_id` in a terminal. When it ends with the
-# status 0, the agent starts again; the line of the request says how it went.
+# status 0, the agent starts again; the line of the request says how it went. A
+# sign-in that a person stopped did not sign in, whatever its status: a program
+# such as `claude auth login` ends with 0 at Ctrl+C.
 function _start_agent_sign_in!(editor, a::Assistant, request::ConversationSignInRequest,
                                method_id::AbstractString)
     index = findfirst(method -> method.id == method_id, request.methods)
     index === nothing && return nothing
     terminal = TerminalDocument(request.methods[index].command; on_exit = (editor, status) -> begin
         request.is_signing_in = false
-        request.state = status == 0 ? "Signed in." : "The sign-in ended with the status $(status)."
-        status == 0 && evaluate_operation(editor, StartExternalAgentOperation(a))
+        is_stopped = is_terminal_stopped(terminal)
+        request.state = is_stopped ? "The sign-in was stopped." :
+                        status == 0 ? "Signed in." : "The sign-in ended with the status $(status)."
+        status == 0 && !is_stopped && evaluate_operation(editor, StartExternalAgentOperation(a))
     end)
     request.terminal = terminal
     request.is_signing_in = true

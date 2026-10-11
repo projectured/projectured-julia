@@ -196,6 +196,7 @@ end
 function release_document!(editor, terminal::TerminalDocument)
     is_terminal_running(terminal) || return nothing
     control = terminal.control
+    control.is_stopping = true
     _signal_process_group!(control, Base.SIGTERM)
     Timer(_ -> is_terminal_running(terminal) && _signal_process_group!(control, Base.SIGKILL), 3.0)
     nothing
