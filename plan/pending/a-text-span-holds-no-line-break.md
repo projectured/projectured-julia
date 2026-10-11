@@ -572,3 +572,10 @@ change how every view of syntax makes its lines, so they land together.
 8. **omnet-julia**: NED and INI state their breaks in their texts, which removes
    their empty lines. It follows the landing of steps 2 to 4.
 9. **The documents**: `text.md`, `syntax.md` and the guides of the domains.
+   ✅ **Done (2026-10-09).** `syntax.md`: a break is text, the rules of the lines
+   of a compound and of a leaf, `indentation` as `nest`, N7, the edit of a break,
+   and two limits that no longer hold (the positional form of a template node with
+   fixed children, which the engine walks in either form, and "no `TextLine`").
+   `text.md`: the rule of a run, `make_text_block` with its placeholder, Enter and
+   the join of lines, the flat edit of a break and its split and join. The guides
+   of JSON, Julia and reStructuredText, and the guard in `testing-guide.md`.

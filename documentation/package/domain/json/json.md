@@ -33,7 +33,7 @@ person["age"]             # ERROR: KeyError: key "age" not found
 
 `JsonToSyntax()` has one `@projection_template` rule for each document type. A scalar becomes a `SyntaxLeaf` whose text is `bound` to the `value` field. An empty value shows a muted hint: "enter json string", "enter json number", "enter json bool" or "enter key". The number leaf has `retype = ReplaceNumberRangeOperation`, so a typed digit edits the number as a number. The leaf retypes the edit also when an array or an object holds it: the reader of a container finds the leaf that the edit enters with `find_template_value_retype`, so a digit typed into a cleared number in an array makes a number. A key that can not be part of a number, such as a letter, leaves the number as it is. The string leaf escapes its text with `json_escape` and has the two quotes as `open` and `close`.
 
-An array and an object become a `SyntaxNode` with brackets, the separator `", "` and `indentation = 1`. An object entry has its own rule: a `SyntaxNode` with no brackets, the separator `": "`, a key leaf in quotes, and `project(:value)` for the value. So a bare `JsonObjectEntry` also prints alone, and the atomic catalog has an example of it.
+An array and an object become a `SyntaxNode` whose texts hold the breaks: `open = "[\n"`, `sep = ",\n"`, `close = "\n]"` (and `{`, `}` for an object) and `indentation = 1`. So each element is on a line of its own one level in, the bracket that closes is on a line of its own, and an empty array prints `[]`. An object entry has its own rule: a `SyntaxNode` with no brackets, the separator `": "`, a key leaf in quotes, and `project(:value)` for the value. So a bare `JsonObjectEntry` also prints alone, and the atomic catalog has an example of it.
 
 ### The gestures
 
