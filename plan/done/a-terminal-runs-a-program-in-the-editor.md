@@ -1,6 +1,6 @@
 # A terminal runs a program in the editor
 
-> **Status:** APPROVED 2026-10-09, in progress on the branch `acp-sign-in`. **Asked by:** the owner
+> **Status:** DONE 2026-10-11, landed with the branch `acp-sign-in`. **Asked by:** the owner
 > on 2026-10-09, for step 2.5 of
 > [the-assistant-talks-to-an-acp-agent.md](the-assistant-talks-to-an-acp-agent.md):
 > "a simple terminal domain would be good in general but don't overdo it. it's

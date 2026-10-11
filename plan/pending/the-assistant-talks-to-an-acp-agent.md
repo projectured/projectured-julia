@@ -767,7 +767,7 @@ from the command line of the projectured UI.
   Q1 a simple terminal domain in the editor, "but don't overdo it. it's worth
   its own plan"; Q2 yes; Q3 agreed; Q4 yes; Q5 yes. So the terminal of the
   sign-in is that domain, from its own plan
-  [a-terminal-runs-a-program-in-the-editor.md](a-terminal-runs-a-program-in-the-editor.md),
+  [a-terminal-runs-a-program-in-the-editor.md](../done/a-terminal-runs-a-program-in-the-editor.md),
   and 2.5d below does not apply.
   - [x] 2.5a done on the `ClaudeCodeACP` branch `sign-in`, commit `e9dd893`,
     not released: `claude-login` only for a client that sends
