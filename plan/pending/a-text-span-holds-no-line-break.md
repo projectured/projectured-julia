@@ -485,7 +485,9 @@ change how every view of syntax makes its lines, so they land together.
      typed Enter puts one there (step 6).
    - Book needs nothing: a paragraph holds a `TextBlock` of one run in its field,
      prose that a word wrap lays out, with no break. N1c stays open.
-   ✅ **Step 5 done (2026-10-09).**
+   ✅ **Step 5 done (2026-10-09).** The sweep at `3aad292e5`: as at step 4, the
+   failing files of `test_platform` those of main, and the text dump of the
+   examples as at step 4.
 6. **The text domain edits a break as structure** (rule 2 of §4): Enter,
    Backspace and Delete at a line boundary, and a paste with breaks, on a block of
    lines; in a block inside `bound`, they are edits of `'\n'` in the string.
