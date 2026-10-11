@@ -26,10 +26,14 @@ end
 # one more query after it, because the running query can have read the settings
 # before they changed. A different answer waits in `system_colors_change` for
 # `take_from_devices!`, and a wake ends the wait of the editor for it.
-# `read_colors` gives the settings of the system, or `nothing`.
+# `read_colors` gives the settings of the system, or `nothing`. No query starts
+# while a package precompiles: a workload has no use for the colours of the
+# system, and the timer of a query that outlives the workload holds the precompile
+# process until the query ends.
 function _start_system_colors_query!(backend::SdlBackend,
                                      read_colors::Function =
                                          () -> _read_system_colors(_SYSTEM_COLORS_QUERY_LIMIT))
+    ccall(:jl_generating_output, Cint, ()) == 0 || return nothing
     task = backend.system_colors_task
     if task !== nothing && !istaskdone(task)
         backend.is_system_colors_query_pending = true
