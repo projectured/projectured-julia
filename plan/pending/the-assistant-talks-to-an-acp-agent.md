@@ -995,6 +995,47 @@ from the command line of the projectured UI.
   names `AgentQuestionRequest`, `AgentQuestionField` and
   `ConversationQuestionRequest`; an "Other" text field for each question; and
   no `AskUserQuestion` for an editor that can not show a form.
+
+  **Done on the branches `acp-questions` (projectured) and `questions`
+  (`ClaudeCodeACP`), 2026-10-11:**
+  - [x] 2.6b `cbd4a9d75`: `AgentQuestionRequest(message, fields, reply)` and
+    `AgentQuestionField(name, title, description, kind, options, is_required)`.
+    The options of a choice are `AgentOptionValue`s, the type of the values of
+    a session option (value, name, description), so no third type came.
+  - [x] 2.6c `33f7acd75`: the client advertises `elicitation.form`; a form of
+    the session of a prompt becomes the event; values accept, `nothing`
+    declines, a cancel cancels. **Found:** the protocol library reads a JSON
+    object into a `Dict`, which keeps no order, so the fields come in the order
+    of their names; `ClaudeCodeACP` names them `question_1`,
+    `question_1_other`, … so that order is the order of the questions.
+    `test_acp()` 156 of 156.
+  - [x] 2.6d `a26d74876`: `ConversationQuestionRequest` with a
+    `ConversationQuestionForm` of one `PrimitiveString` for each value; the
+    card has a toggle group for one choice and yes or no, a button for each
+    option of several (`✓` before a chosen one), a text field for a text and a
+    number, "Send", "Decline", and a line that says what the form still needs.
+    The form is the live field of the part; the transcript also passes a write
+    that names a document inside a live field, which a toggle group makes.
+    **Found:** a `WidgetText` whose content is a document draws no placeholder,
+    so the field shows as an empty box. Tests: the turn of an external agent
+    223 of 223, the conversation 393 of 393, the composer panel 84 of 84 (a
+    press on an option, a press on a choice, a number typed, Send).
+  - [x] 2.6a `ClaudeCodeACP` `0f15686`: `AskUserQuestion` goes to an editor
+    with forms as one `elicitation/create` form (a choice or several for each
+    question, and an "Other" text field); the values come back as the
+    `answers` (the text of the person, else the label, else the labels joined
+    with ", "); a decline or a cancel is a deny with a message; an editor
+    without forms gets `--disallowedTools=AskUserQuestion`. 155 tests pass.
+    Version 0.1.5 (`12da337`), registered on the branch
+    `claude-code-acp-0.1.5` of the registry clone (`1ed3f8f`).
+  - Live with the built-in agent from the branch `questions` (the worktree
+    environment pointed to it; the clone stayed on `main`, because a Revise
+    session of the owner loads it and a struct of it changed): Claude asked
+    with `AskUserQuestion`, the form came with Red, Blue and "Other", the
+    script chose Blue, the tool answered `"Which colour do you prefer?"="Blue"`,
+    and the answer of Claude named Blue. No permission card came for the tool.
+  - [ ] Landing: the owner pushes `ClaudeCodeACP` and the registry; then the
+    manifest of `environment/all` names 0.1.5, and the branch lands.
 - [ ] 2.7 Request cancel, and the prompt queue. **The request cancel is done:**
   the agent withdraws a permission request with `$/cancel_request` and its
   JSON-RPC id, the connection replies `nothing`, and the agent gets the valid
