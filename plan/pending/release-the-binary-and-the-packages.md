@@ -1226,8 +1226,9 @@ registration.
     of Julia. The umbrella is split if one job takes too long (P2 gives the
     times).
   - Coverage: `--code-coverage=@.` for the code of this repository only,
-    `julia-actions/julia-processcoverage`, and an upload to Codecov that does
-    not fail the job while no token exists.
+    `julia-actions/julia-processcoverage`, and an upload to Codecov through
+    OIDC (`use_oidc: true`), which needs no token. The upload does not fail
+    the job (`fail_ci_if_error: false`).
 
 ### Step P4: CI passes
 
@@ -1305,8 +1306,10 @@ registration.
 
 ### Step P5: the owner's steps
 
-- [ ] Sign in to Codecov with GitHub, turn on the repository, and add the
-      token as the secret `CODECOV_TOKEN`.
+- [x] Sign in to Codecov with GitHub, and install the Codecov app on the
+      organization `projectured` for `projectured-julia` and `Projectured.jl`.
+      Both workflows upload through OIDC, so no secret `CODECOV_TOKEN` is
+      needed. Done by the owner on 2026-10-11.
 - [ ] Land and push; read the first run.
 
 ### Open
