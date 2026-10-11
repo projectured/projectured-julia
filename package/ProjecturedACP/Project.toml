@@ -18,4 +18,4 @@ ProjecturedKernel = {path = "../ProjecturedKernel"}
 
 [compat]
 AgentClientProtocol = "0.1"
-ClaudeCodeACP = "0.1"
+ClaudeCodeACP = "0.1.4"
