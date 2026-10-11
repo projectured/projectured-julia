@@ -978,6 +978,32 @@ from the command line of the projectured UI.
     this editor (Anthropic, Ollama), through a tool of the editor that asks the
     person.
 
+  **2.6e design (2026-10-11, a proposal; waits for the owner).**
+  - Facts: `run_turn!` runs each tool call through `run_on_editor_task!`, and a
+    handler answers its text at once. A handler that waited for a person would
+    hold every frame of the editor. The parameters of a tool are flat (`name`,
+    `type`, `description`, `required`), and the adapters write them as an
+    object of plain properties. The MCP server serves every tool of the tool
+    set of the editor.
+  - Kernel (new): a handler can answer a `Task` in place of its text. The loop
+    then waits for the task on its own task, not on the editor task, and the
+    value of the task is the text of the tool. So a tool that waits for a
+    person holds no frame.
+  - Assistant: the tool set of a native turn is the tool set of the editor with
+    one more tool, `ask_person`, so an ACP agent, which has its own question
+    tool, and an MCP client do not see it. Its parameters: `question` (a
+    string, required), `options` (a string, one option a line, optional), and
+    `multiple` (a boolean: the person can choose several). Its handler adds a
+    `ConversationQuestionRequest` to the turn, with a choice (or a choice of
+    several) of the options and an "Other" text field, or only a text field
+    when there are no options, and answers a task that waits for the reply.
+    The text for the model: "The person answered: …", or "The person declined
+    to answer.". A stop of the turn declines an open question.
+  - Questions: Q15, the new kernel mechanism (a handler answers a `Task`)?
+    Q16, the name `ask_person`, and one question for each call (several
+    questions in one call need array parameters, which the tool layer does not
+    describe)? Recommended: yes to both.
+
   **Questions for the owner.**
   - Q11. The scope: 2.6a to 2.6d now, and 2.6e (a tool for the models of this
     editor) as the next step? Recommended: yes.
