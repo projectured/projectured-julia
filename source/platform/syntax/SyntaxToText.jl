@@ -233,13 +233,41 @@ function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceStringR
     ReplaceStringRangeOperation(new_ref, op.replacement)
 end
 
-# Flat text edit in a `TextToGraphics`-less pipeline (the console): normally
-# `TextToGraphics` lowers the flat `ReplaceTextRangeOperation` to the structural
-# span form before it reaches here, but the console pipeline has no such stage, so
-# lower it against this leaf's own output block and re-dispatch.
+# A flat text edit: an edit of a break, which a text stage leaves flat, or any edit
+# in a pipeline with no `TextToGraphics` (the console). Its range in the flat text of
+# the fields, whose offsets are those of the output, names the field that holds it:
+# the value first at a seam, as the redirect above does. A field that holds an
+# image takes no string edit, and a field of one run takes no break (rule 1 of the
+# text domain), so Enter there falls to the key bindings around the text.
 function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceTextRangeOperation)
-    lowered = _lower_text_range(iomap.output, op)
-    (lowered === nothing || is_text_element_write(lowered)) ? nothing : read_intent(p, iomap, lowered)
+    r = strip_reference_types(op.reference)
+    (r isa ConcreteReference && r.head isa TextRangeReferenceStep && r.tail isa EmptyReference) ||
+        return nothing
+    leaf = iomap.input
+    place = _find_leaf_field_range(leaf, r.head.start::Int, r.head.stop::Int)
+    place === nothing && return nothing
+    field, start, stop = place
+    value = getproperty(leaf, field)
+    value isa TextGraphics && return nothing
+    (value isa TextString && occursin('\n', op.replacement)) && return nothing
+    ReplaceStringRangeOperation(
+        ConcreteReference(SyntaxLeaf, FieldReferenceStep(String(field)),
+            ConcreteReference(_get_text_type(value), RangeReferenceStep(start, stop), EmptyReference(Position))),
+        op.replacement)
+end
+
+# The field of `leaf` whose flat text holds the range `start:stop` of the flat text
+# of the fields, with the range in it, the value first at a seam; or `nothing`.
+function _find_leaf_field_range(leaf::SyntaxLeaf, start::Int, stop::Int)
+    places = Tuple{Symbol,Int,Int}[]
+    base = 0
+    for (field, text) in zip(_leaf_fields(leaf), _leaf_spans(leaf))
+        len = _span_len(text)
+        (base <= start && stop <= base + len) && push!(places, (field, start - base, stop - base))
+        base += len
+    end
+    isempty(places) && return nothing
+    places[something(findfirst(place -> place[1] === :value, places), 1)]
 end
 
 # A KeyDown on a leaf first offers itself to the Syntax domain's reified leaf gesture
@@ -1490,8 +1518,49 @@ end
 # span the range lands in). In the SDL pipeline `TextToGraphics` lowers it first, so
 # this method is reached only by the console path.
 function read_intent(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, op::ReplaceTextRangeOperation)
-    lowered = _lower_text_range(iomap.output, op)
-    (lowered === nothing || is_text_element_write(lowered)) ? nothing : read_intent(p, iomap, lowered)
+    r = strip_reference_types(op.reference)
+    (r isa ConcreteReference && r.head isa TextRangeReferenceStep && r.tail isa EmptyReference) ||
+        return nothing
+    # An edit with no break lowers to one run.
+    if !occursin('\n', op.replacement)
+        lowered = _lower_text_range(iomap.output, op)
+        lowered !== nothing && return is_text_element_write(lowered) ? nothing : read_intent(p, iomap, lowered)
+    end
+    # An edit of a break goes to the child that holds its whole range, in the flat
+    # offsets of the output of the child. Chrome takes no edit.
+    for i in eachindex(iomap.child_elem_ranges)
+        start = _find_child_flat(iomap, i, r.head.start::Int)
+        stop = _find_child_flat(iomap, i, r.head.stop::Int)
+        (start === nothing || stop === nothing) && continue
+        cim = iomap.child_iomaps[i]
+        result = read_intent(cim.projection, cim,
+                             ReplaceTextRangeOperation(make_flat_range_reference(start, stop), op.replacement))
+        result isa Union{ReplaceStringRangeOperation, ReplaceTextRangeOperation} || return nothing
+        return retarget_operation(result, _prepend_child(iomap.input, i, operation_reference(result)))
+    end
+    nothing
+end
+
+# The flat offset in the output of child `i` of the flat offset `flat` of this
+# output, or `nothing` when `flat` is not in the entries of the child. An offset in
+# an indentation that this node widened stands at most at the end of the narrower
+# indentation of the child.
+function _find_child_flat(iomap::SyntaxCompoundToTextIoMap, i::Int, flat::Int)
+    elements = iomap.flat_elements
+    range = iomap.child_elem_ranges[i]
+    isempty(range) && return nothing
+    child_elements = _compute_flat_entries(iomap.child_iomaps[i])
+    offset = _text_elem_path_to_flat(elements, range.start, 0)
+    flat < offset && return nothing
+    for j in range
+        len = _span_len(elements[j])
+        if flat <= offset + len
+            local_j = j - range.start + 1
+            return _text_elem_path_to_flat(child_elements, local_j, min(flat - offset, _span_len(child_elements[local_j])))
+        end
+        offset += len
+    end
+    nothing
 end
 
 # True iff `path` ends in `.<field>[range]` — the shape a

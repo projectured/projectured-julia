@@ -288,6 +288,19 @@ One at a time, with the owner.
     give their nodes `indentation` 0, so they get no second indentation.
   - Not taken: (b) the lines at column 0, as the rows of a run drew them, with a
     domain that wants indentation writing it into the text.
+- **N10 How an edit of a break travels. Decided, the owner, 2026-10-09: (a), a
+  flat edit that holds a break.** Enter is `ReplaceTextRangeOperation({k:k},
+  "\n")`, and Backspace at the start of a line or Delete at its end is a flat edit
+  that covers the break. Such an edit is not lowered to a run: each stage maps its
+  flat offsets, a leaf maps it to the flat range of its field, which is the range
+  of the string, and a text document applies it to its lines, a `'\n'` in the
+  replacement splitting a line and a removed break joining two. A paste with
+  breaks is the same edit.
+  - Today the text domain binds no Enter key, and a flat edit is lowered at once
+    to the one run it falls in; an edit across two runs is declined, so
+    Backspace at the start of a line does nothing.
+  - Not taken: (b) a split and a join as two new operations, which every reader
+    would have to learn.
 
 ## 8. Facts found
 
@@ -491,6 +504,32 @@ change how every view of syntax makes its lines, so they land together.
 6. **The text domain edits a break as structure** (rule 2 of §4): Enter,
    Backspace and Delete at a line boundary, and a paste with breaks, on a block of
    lines; in a block inside `bound`, they are edits of `'\n'` in the string.
+   **Built (2026-10-09, N10); the sweep is pending.**
+   - Enter is `ReplaceTextRangeOperation({k:k}, "\n")`. Backspace at the start of
+     the text of a line and Delete at its end cover the break and the indentation
+     of the lower line, which no edit owns, so the two lines join.
+   - A flat edit of the lines of a block of lines stays flat: one whose
+     replacement holds a `'\n'` or whose range covers a break. A block of spans
+     keeps the old path, where a key that one stage can not lower falls to the
+     next: there a word wrap makes soft `TextNewline`s that are no break of the
+     text. A paste goes the same way (`make_text_insert_operation`).
+   - `SyntaxCompoundToText` gives such an edit to the child that holds its whole
+     range, in the flat offsets of the child; an offset in an indentation that the
+     node widened maps to the narrower one of the child. `SyntaxLeafToText` maps a
+     flat edit to the flat range of the field that holds it, the value first at a
+     seam, and a field of one run takes no break, so Enter in a one-line value
+     falls to the keys around it: it still commits a JSON insertion.
+   - A text document of lines splits and joins its lines (`_splice_lines!`): the
+     first line keeps its object, its gutter and its fold; a new line takes its
+     indentation; a cut run becomes two runs in its style; an empty line holds an
+     empty run.
+   - Tests: Enter and Backspace in a text of lines (`test_text` 113), and Enter,
+     Backspace and Delete in a Markdown code block through its projection
+     (`test_markdown` 268). `test_typeins` 5148 and 20 broken, `test_clipboard`
+     207, `test_json` 242, the console 140.
+   - Found: the clipboard keeps the text it copies as one `TextString`, which holds
+     a break when the copy covers one; step 7 decides it.
+
 7. **The guard**: a test walks the printer output of every example and rejects a
    `TextString` that holds `'\n'`. `TextToGraphics` and `TextFirstLine` drop their
    rule for a `'\n'` inside a span. The producers of a free text (the fault
