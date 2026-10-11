@@ -479,11 +479,13 @@ change how every view of syntax makes its lines, so they land together.
      inline marks (code, literal, role, reference, url, alt, names) are one line,
      and stay runs. `test_markdown` 262, `test_rst` 111, `test_click_roundtrips`
      42, `test_typeins` 5148 and 20 broken; the text dump does not change.
-   - Open: the rendered views of Markdown and of reStructuredText print a text
-     as one run that takes the ambient style and the pointer of a link; a soft
-     break in it is a row today, and how a rendered paragraph shows it is a
-     question of those domains. A Book paragraph holds a `TextBlock` in its field
-     and prints it flattened, which is N1c.
+   - The rendered views of Markdown and of reStructuredText print a text as one
+     run, which takes the ambient style and the pointer of a link. Both parsers
+     join the lines of a paragraph with a space, so a text holds no break unless a
+     typed Enter puts one there (step 6).
+   - Book needs nothing: a paragraph holds a `TextBlock` of one run in its field,
+     prose that a word wrap lays out, with no break. N1c stays open.
+   ✅ **Step 5 done (2026-10-09).**
 6. **The text domain edits a break as structure** (rule 2 of §4): Enter,
    Backspace and Delete at a line boundary, and a paste with breaks, on a block of
    lines; in a block inside `bound`, they are edits of `'\n'` in the string.
