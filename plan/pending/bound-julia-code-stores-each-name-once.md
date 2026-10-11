@@ -3,7 +3,7 @@
 > **Status:** proposal, not started. Nothing is implemented. The owner decided
 > Q1, Q2 and Q12 on 2026-10-09 (section 14); the other questions are in
 > section 13. This plan is part B2 of
-> [a-value-takes-the-color-of-its-kind.md](a-value-takes-the-color-of-its-kind.md),
+> [a-value-takes-the-color-of-its-kind.md](../done/a-value-takes-the-color-of-its-kind.md),
 > whose parts A and B1 landed on `main` at `ee32195c6` on 2026-10-09.
 
 ## 1. The request

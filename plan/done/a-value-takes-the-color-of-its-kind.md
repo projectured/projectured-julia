@@ -1,14 +1,13 @@
 # A value takes the color of its kind
 
-> **Status:** Part A, the values (sections 4 to 8), and Part B1, the names
-> that the place gives (sections 10.6 to 10.10), landed on `main` by a
-> fast-forward of the branch `value-colors` on 2026-10-09, on the owner's
-> "land it". Nothing is pushed. Open: QB4, an `as` on `collection` (section
-> 10.5), and B2, the scope analysis of Julia and more hues, which the owner
-> deferred (section 10.6). B2 has a plan of its own since 2026-10-09:
-> [bound-julia-code-stores-each-name-once.md](bound-julia-code-stores-each-name-once.md),
-> whose bound code also covers the names of QB4. This plan stays in
-> `plan/pending/` until QB4 is decided.
+> **Status:** done. Part A, the values (sections 4 to 8), and Part B1, the
+> names that the place gives (sections 10.6 to 10.10), landed on `main` by a
+> fast-forward of the branch `value-colors` to `ee32195c6` on 2026-10-09, on
+> the owner's "land it", and are pushed. B2 has a plan of its own:
+> [bound-julia-code-stores-each-name-once.md](../pending/bound-julia-code-stores-each-name-once.md).
+> Its bound code also covers the names of QB4, so QB4 needs no `as` on
+> `collection`. The owner moved this plan to `plan/done/` on 2026-10-11. One
+> known risk is open (section 17).
 
 ## 1. The request
 
@@ -590,3 +589,20 @@ The first three need an `as` on `collection(:f)` in
 This is a change of the kernel, so it waits for the owner (question QB4). The
 last two need a place two levels down, such as a statement in the block of a
 struct. The analysis of B2 can give them.
+
+## 17. A known risk: an old appearance file
+
+`save_appearance!` writes every field of each view theme
+([Appearance.jl:256](../../source/platform/style/Appearance.jl#L256)). A file
+that an earlier version wrote can name the roles `definition` or `reference`
+in a field that still exists, such as `JuliaTheme.identifier_text`,
+`FileSystemTheme.directory_text` or `DbCatalogTheme.table_text`. The decoder
+accepts any role name, and `resolve_theme_color` then throws "the colour theme
+has no role". A person with such a file sees an error where the colour of that
+field is drawn.
+
+The fix: `_decode_theme_color` answers `nothing` for a role that `ColorTheme`
+does not have, so the field keeps its default, and a test loads a file that
+names a removed role. The owner chose on 2026-10-11 to record the risk and fix
+it later.
+
