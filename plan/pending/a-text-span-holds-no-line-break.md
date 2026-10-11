@@ -568,6 +568,10 @@ change how every view of syntax makes its lines, so they land together.
      document of runs. This replaces the decline of a break into a run.
    - `test_widget_text_editing` 64, `test_primitive_type_in` 115,
      `test_conversation_transcript` 121.
+   - The sweep at `bc76d1373`: the failing files of `test_platform` are those of
+     main, the guard passes 109 examples, and the text dump is that of step 6. It
+     found one more reader of the runs of an evaluator result, a helper of
+     `ConversationEditorTest`, which now reads the flat string; `test_julia` 550.
 
 8. **omnet-julia**: NED and INI state their breaks in their texts, which removes
    their empty lines. It follows the landing of steps 2 to 4.

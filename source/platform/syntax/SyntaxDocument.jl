@@ -394,8 +394,8 @@ _make_text_lines(t::TextString) =
 
 # The value of a leaf: a `TextString` whose content is a constant with a break
 # becomes its lines; any other value, such as a `bound(…)` marker, is kept.
-_value_text(t::TextString) = _has_constant_break(t) ? _make_text_lines(t) : t
-_value_text(value) = value
+_make_value_text(t::TextString) = _has_constant_break(t) ? _make_text_lines(t) : t
+_make_value_text(value) = value
 
 # Normalize the `children` argument of `SyntaxNode` to the `CellVector` the inner
 # constructor stores. A `@projection_template` marker (e.g. `collection(:field)`)
@@ -470,7 +470,7 @@ end
 # `@document` keyword constructor, so every default is declared once — on the
 # field — and never restated here.
 SyntaxLeaf(value; open=nothing, close=nothing, kwargs...) =
-    SyntaxLeaf(; open=_text(open), close=_text(close), value=_value_text(value), kwargs...)
+    SyntaxLeaf(; open=_text(open), close=_text(close), value=_make_value_text(value), kwargs...)
 
 # Bare-string / function content ergonomics route through the keyword form so
 # they inherit the same defaults.

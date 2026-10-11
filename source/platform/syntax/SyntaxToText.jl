@@ -107,7 +107,7 @@ end
 function _make_leaf_lines(leaf::SyntaxLeaf)
     lines = [TextDocument[]]
     for text in _leaf_spans(leaf)
-        for (k, runs) in enumerate(_text_lines(text))
+        for (k, runs) in enumerate(_get_text_lines(text))
             k > 1 && push!(lines, TextDocument[])
             append!(lines[end], runs)
         end
@@ -121,7 +121,7 @@ function _find_leaf_piece(leaf::SyntaxLeaf, i::Int, k::Int)
     line, position = 1, 0
     for (field, text) in zip(_leaf_fields(leaf), _leaf_spans(leaf))
         offset = 0
-        for (n, runs) in enumerate(_text_lines(text))
+        for (n, runs) in enumerate(_get_text_lines(text))
             if n > 1
                 line += 1
                 position = 0
@@ -978,7 +978,7 @@ function _push_span!(buf::SpliceBuffer, span, break_indentation::Int = 0, part::
     span === nothing && return Pair{Int,Int}[]
     places = Pair{Int,Int}[]
     if span isa TextBlock
-        lines = _text_lines(span)
+        lines = _get_text_lines(span)
         offset = 0
         for (n, runs) in enumerate(lines)
             if n > 1
@@ -1227,7 +1227,7 @@ _make_lit_text(p::SyntaxCompoundToText, span::TextString, level::Cell) =
                getfield(span, :padding), getfield(span, :pointer_shape), Cell(nothing))
 _make_lit_text(p::SyntaxCompoundToText, text::TextBlock, level::Cell) =
     TextBlock(TextDocument[TextLine(TextDocument[_make_lit_text(p, run, level) for run in runs])
-                           for runs in _text_lines(text)])
+                           for runs in _get_text_lines(text)])
 _make_lit_text(::SyntaxCompoundToText, run, ::Cell) = run
 
 # Whitespace decorations track the content's font, because TextToGraphics measures
@@ -1252,7 +1252,7 @@ end
 # character, or `nothing`. A break alone gives no font.
 _find_text_font(text::TextString) = text.font
 function _find_text_font(text::TextBlock)
-    for runs in _text_lines(text), run in runs
+    for runs in _get_text_lines(text), run in runs
         (run isa TextString && !_is_empty_run(run)) && return run.font
     end
     nothing
@@ -1888,8 +1888,8 @@ _span_len(text::TextBlock) = get_flat_length(text)
 # The lines of a text of a field, each the runs of one line: a run is one line, and
 # a block gives the runs of each of its lines. The indentation of a line of a block
 # is not read: a text in a field is lines of runs.
-_text_lines(text::TextBlock) = [collect(TextDocument, line.elements) for line in text.elements]
-_text_lines(text) = [TextDocument[text]]
+_get_text_lines(text::TextBlock) = [collect(TextDocument, line.elements) for line in text.elements]
+_get_text_lines(text) = [TextDocument[text]]
 
 
 # ── Collapse resolution ───────────────────────────────────────────────────────

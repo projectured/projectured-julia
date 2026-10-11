@@ -6,13 +6,7 @@ using ProjecturedKernel.ToolModule: ToolSet
 
 
 # Flatten a TextBlock to its rendered string.
-function _ce_flatten(t::TextBlock)
-    io = IOBuffer()
-    for span in t.elements
-        hasproperty(span, :content) && print(io, span.content)
-    end
-    String(take!(io))
-end
+_ce_flatten(t::TextBlock) = get_flat_string(t)
 # A committed paragraph is a markdown document when the markdown parser is
 # loaded and a text block when it is not; either way its words are its source.
 _ce_flatten(d::Document) = String(strip(print_natural_text(d)))
