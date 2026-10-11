@@ -317,6 +317,17 @@ that no document keeps is lost then, as it is at any print (the owner).
 
 Each step ends with its own tests and a commit, in a worktree.
 
+**Where to resume (2026-10-11).** Steps 1 to 4 are done, with the change of the
+context menu that "Filter by text…" needed, and they landed on main together.
+Open, in this order:
+- Step 3: a bar for a collection that prints as syntax, and the design
+  document of the slice `arrangement` in `documentation/package/`.
+- Step 5: the printer of any table, with the lazy rows, the scroll bar and the
+  sort glyph of a header (decided: answer 1 of 3d).
+- Step 6: the data frame view onto the arrangement.
+- Step 7: a collection that its parent prints inside its own print, such as a
+  JSON array or the `children` of a layout, through a stage at the parent.
+
 - [x] **1.** The view document of a pane, and the dispatch on it: the entries,
   the descriptions and their methods, and the IO map whose inner IO map is a
   computation. A test places a projection at a path and removes it, and only
