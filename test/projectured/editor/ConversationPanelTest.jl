@@ -214,5 +214,48 @@ function test_assistant_composer_panel()
             @test "right" in [line.text for line in request.terminal.lines]
             @test frames_until(() -> length(connection.sessions) == 1)
         end
+
+        # The form of a question is a place where a person works too: a press on
+        # an option, a press on a choice, the keys in a number field, and Send.
+        @testset "a person answers a question of the agent in its form in the transcript" begin
+            fields = [AgentQuestionField("question_1", "Colour", "Which colour?", :choice,
+                                         [AgentOptionValue("Red", "Red", "warm"), AgentOptionValue("Blue", "Blue", "")], true),
+                      AgentQuestionField("parts", "Parts", "", :choices,
+                                         [AgentOptionValue("a", "Apple", ""), AgentOptionValue("b", "Banana", "")], false),
+                      AgentQuestionField("size", "Size", "", :integer, AgentOptionValue[], false)]
+            connection = ScriptedAgentConnection([Any[make_scripted_question_step("Answer, please.", fields),
+                                                      LlmTextStart(), LlmTextDelta("Thanks."), LlmTextStop()]])
+            a = Assistant(; backend = :acp, agent_session = ExternalAgentSession(connection))
+            (editor, backend) = _tr_editor(a, _make_panel_card_projection())
+            press(event) = _tr_press!(editor, backend, event)
+            none = ModifierKeys()
+            frames_until(condition) =
+                timedwait(() -> (run_frame!(editor); condition()), 10.0; pollint = 0.02) === :ok
+            requests() = [part.content for turn in collect(a.conversation.turns) for part in collect(turn.parts)
+                          if part.content isa ConversationQuestionRequest]
+            drawn() = _panel_texts(_tr_window(backend))
+            find_drawn(text) = (found = [entry for entry in drawn() if entry[3] == text]; isempty(found) ? nothing : last(found))
+            click(text) = ((x, y, _) = find_drawn(text); press(MouseClick(:left, x + 4, y + 6, none; time = 0.0)))
+            a.input.value = "Ask me"
+            evaluate_operation(editor, SubmitProseOperation(a))
+            @test frames_until(() -> length(requests()) == 1 && find_drawn("Red") !== nothing)
+            request = only(requests())
+            values = collect(request.form.values)
+            click("Red")
+            @test values[1].value == "Red"
+            click("Apple")
+            @test values[2].value == "a"
+            @test frames_until(() -> find_drawn("✓ Apple") !== nothing)
+            # The number field is below its title; a press there puts the caret in it.
+            (x, y, _) = find_drawn("Size")
+            press(MouseClick(:left, x + 10, y + 28, none; time = 0.0))
+            press(KeyPress('3'; time = 0.0))
+            @test values[3].value == "3"
+            click("Send")
+            @test frames_until(() -> length(connection.answers) == 1)
+            @test only(connection.answers) == Dict{String,Any}("question_1" => "Red", "parts" => ["a"], "size" => 3)
+            @test frames_until(() -> request.answer == "Answered: Colour: Red; Parts: Apple; Size: 3")
+            _panel_wait_idle!(a)
+        end
     end
 end

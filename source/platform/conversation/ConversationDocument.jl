@@ -183,6 +183,142 @@ function make_pred_document(::Type{<:ConversationSignInRequest}, positional, key
     request
 end
 
+# ── ConversationQuestionRequest ───────────────────────────────────────────────
+
+"""
+    ConversationQuestionForm(values)
+
+The values of a question form, one `PrimitiveString` for each field, in the
+order of the fields: the value of the chosen option, the values of the chosen
+options one a line, or the text that a person typed.
+"""
+@document struct ConversationQuestionForm <: ConversationDocument
+    values::CellVector
+end
+
+"""
+    ConversationQuestionRequest(message, fields; reply = nothing)
+
+A question of an external agent that a person answers in a form. `message` says
+what the agent asks, `fields` are the `AgentQuestionField`s, and `form` holds
+the values that the person fills in; it is the live field of the part, where a
+person works inside a transcript that is otherwise read. `answer` says what the
+person answered, and is empty while the agent waits. `reply` sends the values
+to the agent; it is a live function and no data, so the duplicate of a request
+has none. [`answer_question_request!`](@ref) answers a request.
+
+A `.pred` file keeps the message, the fields and the answer, and no `reply`: a
+request that waits when it is saved reads back as `"Cancelled"`.
+"""
+@document struct ConversationQuestionRequest <: ConversationDocument
+    message::String
+    fields::Vector{AgentQuestionField}
+    form::ConversationQuestionForm
+    answer::String
+    reply::Any
+end
+
+function ConversationQuestionRequest(message::AbstractString, fields::AbstractVector; reply = nothing)
+    form = ConversationQuestionForm(Cell(CellVector(Cell[Cell(PrimitiveString("")) for _ in fields])), Cell(nothing))
+    ConversationQuestionRequest(Cell(String(message)), Cell(CellVector{AgentQuestionField}(collect(AgentQuestionField, fields))),
+                                Cell(form), Cell(""), Cell(reply), Cell(nothing))
+end
+
+# A field is a group of named values in a file, as an option of a permission is.
+pred_arguments(request::ConversationQuestionRequest) = (), Pair{Symbol,Any}[
+    :message => request.message,
+    :fields  => [(name = field.name, title = field.title, description = field.description, kind = field.kind,
+                  options = [(value = option.value, name = option.name, description = option.description)
+                             for option in field.options],
+                  is_required = field.is_required) for field in request.fields],
+    :answer  => isempty(request.answer) ? "Cancelled" : request.answer,
+]
+
+function make_pred_document(::Type{<:ConversationQuestionRequest}, positional, keywords)
+    values = Dict{Symbol,Any}(keywords)
+    fields = AgentQuestionField[
+        AgentQuestionField(String(field.name), String(field.title), String(field.description), field.kind,
+                           AgentOptionValue[AgentOptionValue(String(option.value), String(option.name),
+                                                             String(option.description)) for option in field.options],
+                           field.is_required) for field in values[:fields]]
+    request = ConversationQuestionRequest(values[:message], fields)
+    request.answer = String(get(values, :answer, "Cancelled"))
+    request
+end
+
+"""
+    is_question_request_open(request) -> Bool
+
+Whether the agent still waits for the answer of a person to `request`.
+"""
+is_question_request_open(request::ConversationQuestionRequest) =
+    isempty(request.answer) && request.reply !== nothing
+
+"""
+    find_question_values(request) -> Union{Dict{String,Any},String}
+
+The values of the form of `request`, as the reply takes them: a `String` for a
+choice or a text, a `Vector{String}` for choices, a number, or a `Bool`, for
+each field that has a value. A `String` in place of the values says what the
+form still needs, such as a required field or a number.
+"""
+function find_question_values(request::ConversationQuestionRequest)
+    values = Dict{String,Any}()
+    for (field, text) in zip(request.fields, (value.value for value in request.form.values))
+        text = strip(something(text, ""))
+        if isempty(text)
+            field.is_required && return "Fill in: " * field.title
+            continue
+        end
+        value = field.kind === :choices ? String[String(line) for line in split(text, '\n') if !isempty(line)] :
+                field.kind === :number ? tryparse(Float64, text) :
+                field.kind === :integer ? tryparse(Int, text) :
+                field.kind === :boolean ? text == "true" : String(text)
+        value === nothing && return field.title * " needs " * (field.kind === :integer ? "a whole number" : "a number")
+        values[field.name] = value
+    end
+    values
+end
+
+"""
+    answer_question_request!(request, values)
+
+Answer `request` with `values`, the values of its form, or as declined with
+`nothing`. The first answer goes to the agent, and a later one does nothing. A
+`reply` that answers `false` says that the agent had its answer already, from a
+cancel of the turn, and the request then shows `"Cancelled"`.
+"""
+function answer_question_request!(request::ConversationQuestionRequest, values::Union{Nothing,AbstractDict})
+    is_question_request_open(request) || return nothing
+    reply = request.reply
+    request.reply = nothing
+    is_delivered = reply(values) !== false
+    request.answer = !is_delivered ? "Cancelled" : values === nothing ? "Declined" :
+                     _format_question_answer(request, values)
+    nothing
+end
+
+# The answer as a person reads it: each answered field with the names of its
+# options or its text.
+function _format_question_answer(request::ConversationQuestionRequest, values::AbstractDict)
+    parts = String[]
+    for field in request.fields
+        haskey(values, field.name) || continue
+        value = values[field.name]
+        text = value isa AbstractVector ? join((_find_option_name(field, String(item)) for item in value), ", ") :
+               value isa Bool ? (value ? "yes" : "no") :
+               value isa AbstractString ? _find_option_name(field, String(value)) : string(value)
+        push!(parts, field.title * ": " * text)
+    end
+    isempty(parts) ? "Answered" : "Answered: " * join(parts, "; ")
+end
+
+# The name of the option of `field` whose value is `value`, or `value` itself.
+function _find_option_name(field::AgentQuestionField, value::String)
+    index = findfirst(option -> option.value == value, field.options)
+    index === nothing ? value : field.options[index].name
+end
+
 # ── ConversationTurn ──────────────────────────────────────────────────────────
 
 """
@@ -277,6 +413,10 @@ has_document_duplicate(::ConversationDocument) = true
 
 # The reply of a request goes to the agent that asked, and a copy did not ask.
 copy_document(policy::DuplicatePolicy, request::ConversationPermissionRequest) =
+    copy_document_fields(policy, request; reply = nothing)
+
+# The reply of a question goes to the agent that asked, and a copy did not ask.
+copy_document(policy::DuplicatePolicy, request::ConversationQuestionRequest) =
     copy_document_fields(policy, request; reply = nothing)
 
 # A sign-in goes to the agent of the assistant that needed it, which a copy has

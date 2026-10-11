@@ -11,10 +11,11 @@ a window that wraps its content in a clipboard, `Ctrl+C` and `Ctrl+N` copy and
 note the selected object, and a paste over the transcript is refused.
 
 One exception: the live field of a part, a place where a person works inside
-the transcript. A request part names it; the terminal of a
-`ConversationSignInRequest` is one. A click in a live field keeps its place, as
-a caret, and an edit inside it goes on, so a person types the code of a sign-in
-there. The rest of the part, and the rest of the transcript, stay read.
+the transcript. A request part names it: the terminal of a
+`ConversationSignInRequest`, and the form of a `ConversationQuestionRequest`. A
+click in a live field keeps its place, as a caret, and an edit inside it goes
+on, so a person types the code of a sign-in, or picks and types the answer to
+a question of the agent, there. The rest of the part, and the rest of the transcript, stay read.
 
 ## What a turn draws
 

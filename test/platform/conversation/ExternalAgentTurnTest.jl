@@ -121,6 +121,55 @@ function test_external_agent_turn()
                                       collect(last(collect(a.conversation.turns)).parts)), 10.0; pollint = 0.01) === :ok
         end
 
+        @testset "a question of the agent is a form, and its values go back" begin
+            fields = [AgentQuestionField("question_1", "Colour", "Which colour?", :choice,
+                                         [AgentOptionValue("Red", "Red", "warm"), AgentOptionValue("Blue", "Blue", "")], true),
+                      AgentQuestionField("question_1_other", "Other", "", :text, AgentOptionValue[], false),
+                      AgentQuestionField("parts", "Parts", "", :choices,
+                                         [AgentOptionValue("a", "A", ""), AgentOptionValue("b", "B", "")], false),
+                      AgentQuestionField("size", "Size", "", :integer, AgentOptionValue[], false)]
+            connection = ScriptedAgentConnection([
+                Any[make_scripted_question_step("Answer, please.", fields), LlmTextStart(), LlmTextDelta("Thanks."), LlmTextStop()],
+                Any[make_scripted_question_step("Once more?", fields[1:1])]])
+            a = _make_agent_assistant(connection)
+            requests() = [part.content for turn in collect(a.conversation.turns) for part in collect(turn.parts)
+                          if part.content isa ConversationQuestionRequest]
+            _submit_to_agent!(a, "Ask me"; wait = false)
+            @test timedwait(() -> length(requests()) == 1, 10.0; pollint = 0.01) === :ok
+            request = only(requests())
+            @test request.message == "Answer, please." && is_question_request_open(request)
+            # The form says what it still needs.
+            @test find_question_values(request) == "Fill in: Colour"
+            values = collect(request.form.values)
+            values[1].value = "Red"
+            values[3].value = "a\nb"
+            values[4].value = "many"
+            @test find_question_values(request) == "Size needs a whole number"
+            values[4].value = "3"
+            answer_question_request!(request, find_question_values(request))
+            _wait_for_idle(a)
+            @test only(connection.answers) == Dict{String,Any}("question_1" => "Red", "parts" => ["a", "b"], "size" => 3)
+            @test request.answer == "Answered: Colour: Red; Parts: A, B; Size: 3"
+            @test !is_question_request_open(request)
+            # A second answer does nothing.
+            answer_question_request!(request, nothing)
+            @test length(connection.answers) == 1
+            # A decline.
+            _submit_to_agent!(a, "Again"; wait = false)
+            @test timedwait(() -> length(requests()) == 2, 10.0; pollint = 0.01) === :ok
+            answer_question_request!(requests()[2], nothing)
+            _wait_for_idle(a)
+            @test connection.answers[2] === nothing && requests()[2].answer == "Declined"
+            # A file keeps the message, the fields and the answer, and no reply.
+            _, keywords = pred_arguments(request)
+            read_back = make_pred_document(ConversationQuestionRequest, (), keywords)
+            @test read_back.message == request.message && read_back.answer == request.answer
+            @test [(field.name, field.kind, length(field.options)) for field in read_back.fields] ==
+                  [(field.name, field.kind, length(field.options)) for field in fields]
+            @test read_back.reply === nothing
+            @test copy_document(DuplicatePolicy(), request).reply === nothing
+        end
+
         @testset "a turn that the person cancelled is not sent again" begin
             connection = ScriptedAgentConnection([
                 Any[(connection, on_event) -> timedwait(() -> connection.is_cancelled, 10.0; pollint = 0.01)],

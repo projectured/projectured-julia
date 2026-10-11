@@ -162,3 +162,25 @@ function make_scripted_permission_step(tool_call::AgentToolCallUpdate,
         nothing
     end
 end
+
+"""
+    make_scripted_question_step(message, fields) -> Function
+
+A step that asks a person a question in a form, an `AgentQuestionRequest` with
+`message` and `fields`, a vector of `AgentQuestionField`. The step waits at most
+ten seconds for the reply, and pushes the values, or `nothing`, to the
+`answers` of the connection.
+"""
+function make_scripted_question_step(message::AbstractString, fields::AbstractVector{AgentQuestionField})
+    function (connection::ScriptedAgentConnection, on_event::Function)
+        answer = Channel{Any}(1)
+        is_answered = Threads.Atomic{Bool}(false)
+        reply = values -> (Threads.atomic_xchg!(is_answered, true) ? false : (put!(answer, values); true))
+        push!(connection.waiting_replies, reply)
+        on_event(AgentQuestionRequest(String(message), collect(fields), reply))
+        values = timedwait(() -> isready(answer), 10.0; pollint = 0.01) === :ok ? take!(answer) : nothing
+        filter!(waiting -> waiting !== reply, connection.waiting_replies)
+        push!(connection.answers, values)
+        nothing
+    end
+end

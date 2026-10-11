@@ -82,6 +82,10 @@ A worked example: the agent asks to run `execute_julia_code` with the options `a
 
 `has_agent_sign_out` answers whether the agent advertises `agentCapabilities.auth.logout`, and `sign_out_agent!` then sends `logout`.
 
+### A question in a form
+
+The client advertises `clientCapabilities.elicitation.form`. An `elicitation/create` of the mode `form`, in the session of a prompt that runs, becomes an `AgentQuestionRequest`. Its fields come from the properties of the schema: a string with `oneOf`, `anyOf` or `enum` is a choice, an array of such items a choice of several, a number, an integer and a boolean are what they say, and any other property is a text. The library reads a JSON object into a `Dict`, which keeps no order, so the fields come in the order of their names. Values accept the form, `nothing` declines it, and a cancel of the turn or of the request cancels it. A form outside a prompt, and a request of the mode `url`, which the client does not offer, are cancelled.
+
 ## How it fits
 
 The package depends on the kernel and on `AgentClientProtocol`, a package of its own repository in ProjecturedRegistry. It does not depend on `ProjecturedPlatform`: it translates to the events of the kernel, and the assistant draws them. The third-party dependency is the reason that it is an opt-in package; see [package-rules.md](../../../rule/package-rules.md). Its `Project.toml` has no `[auto-integration]` section, so the umbrella never loads it. A person loads it with `using ProjecturedACP`.

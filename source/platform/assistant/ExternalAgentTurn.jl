@@ -87,6 +87,7 @@ function _run_external_agent_turn!(editor, a::Assistant; control::AssistantTurnC
     state = Dict{Symbol,Any}(:current_block => nothing, :current_thinking => nothing,
                              :tool_forms => Dict{String,EvaluatorForm}(), :plan_part => nothing,
                              :permission_requests => ConversationPermissionRequest[],
+                             :question_requests => ConversationQuestionRequest[],
                              :tools => _find_editor_tool_set(editor), :live_results => Set{String}())
     stop_reason = try
         _start_external_agent_session!(editor, a, session)
@@ -123,6 +124,7 @@ function _run_external_agent_turn!(editor, a::Assistant; control::AssistantTurnC
         # A question that the person did not answer before the end is cancelled.
         run_on_editor_task!(editor; wait = false) do
             foreach(request -> answer_permission_request!(request, nothing), state[:permission_requests])
+            foreach(request -> answer_question_request!(request, nothing), state[:question_requests])
         end
     end
     run_on_editor_task!(() -> _finish_turn!(a, turn, stop_reason), editor; wait = false)
@@ -461,6 +463,10 @@ function _handle_external_agent_event!(event, a::Assistant, turn::ConversationTu
         request = ConversationPermissionRequest("The agent asks to run: " * title, event.options;
                                                 reply = event.reply)
         push!(state[:permission_requests], request)
+        push!(turn.parts, Cell(ConversationPart(request)))
+    elseif event isa AgentQuestionRequest
+        request = ConversationQuestionRequest(event.message, event.fields; reply = event.reply)
+        push!(state[:question_requests], request)
         push!(turn.parts, Cell(ConversationPart(request)))
     end
     nothing

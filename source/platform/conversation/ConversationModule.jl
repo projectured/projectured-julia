@@ -64,6 +64,8 @@ export EvaluatorDocument, make_evaluator_result_text, get_evaluation_kind_label,
 export ConversationDocument, make_conversation_thinking_part
 export ConversationPermissionRequest, is_permission_request_open, answer_permission_request!
 export ConversationSignInRequest
+export ConversationQuestionForm, ConversationQuestionRequest, is_question_request_open, find_question_values,
+       answer_question_request!
 export ConversationTheme, ScaledConversationTheme
 export ConversationConversationToWidgetComposite,
        ConversationTurnToWidgetComposite,

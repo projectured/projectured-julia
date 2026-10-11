@@ -248,11 +248,13 @@ function print_document(projection::ConversationPartToWidget,
              content isa ConversationThinking ? _thinking_card(projection, content, part)    :
              content isa ConversationPermissionRequest ? _permission_card(projection, content, part) :
              content isa ConversationSignInRequest ? _sign_in_card(projection, content, part) :
+             content isa ConversationQuestionRequest ? _question_card(projection, content, part) :
              _is_code(content)                ? _code_card(projection, content, part)        :
              content
     iomap = ConversationPartToWidgetIoMap(projection, part, output, folds)
     content isa EvaluatorForm && _follow_section_selection!(output, part, projection, iomap)
     content isa ConversationSignInRequest && _follow_sign_in_selection!(output, part, projection, iomap)
+    content isa ConversationQuestionRequest && _follow_question_selection!(output, part, projection, iomap)
     iomap
 end
 
@@ -350,6 +352,124 @@ function _sign_in_card(p, request::ConversationSignInRequest, part::Conversation
     _part_card(p, "sign-in", body, part)
 end
 
+# A question is its message, then a block for each field with its title, its
+# description and its control, then the Send and Decline buttons and the line
+# that says the answer, or what the form still needs. The form is the live field
+# of the part, where a person picks and types. The controls work while the agent
+# waits.
+function _question_card(p, request::ConversationQuestionRequest, part::ConversationPart)
+    is_open() = is_question_request_open(request)
+    children = Any[WidgetLabel(request.message)]
+    for (index, field) in enumerate(request.fields)
+        block = Any[WidgetLabel(field.title * (field.is_required ? " *" : ""))]
+        isempty(field.description) || push!(block, WidgetLabel(field.description; text_style = p.section_text))
+        push!(block, _make_question_control(p, field, request.form.values[index], is_open))
+        push!(children, VerticalLayout(block; gap = p.section_gap, child_width = Fill))
+    end
+    send = WidgetButton("Send"; action = _ -> (values = find_question_values(request);
+                                               values isa AbstractDict && answer_question_request!(request, values)))
+    set_cell_computation!(getfield(send, :enabled), () -> is_open() && find_question_values(request) isa AbstractDict)
+    decline = WidgetButton("Decline"; action = _ -> answer_question_request!(request, nothing))
+    set_cell_computation!(getfield(decline, :enabled), is_open)
+    status = WidgetLabel(""; text_style = p.section_text)
+    set_cell_computation!(getfield(status, :content), () -> !isempty(request.answer) ? request.answer :
+                          (values = find_question_values(request); values isa AbstractString ? values : ""))
+    push!(children, HorizontalLayout(Any[send, decline]; gap = p.section_gap), status)
+    _part_card(p, "question", VerticalLayout(children; gap = p.section_gap, child_width = Fill), part)
+end
+
+# The control of one field, which writes the `PrimitiveString` of its value: a
+# toggle group for one choice and for yes or no, a button for each option of a
+# choice of several, which adds or removes the option, and a text field for a
+# text and a number.
+function _make_question_control(p, field::AgentQuestionField, value::PrimitiveString, is_open::Function)
+    if field.kind in (:choice, :boolean)
+        options = field.kind === :boolean ? AgentOptionValue[AgentOptionValue("true", "Yes", ""),
+                                                             AgentOptionValue("false", "No", "")] : field.options
+        described = [option.name * ": " * option.description for option in options if !isempty(option.description)]
+        group = WidgetToggleGroup(Any[option.name for option in options]; values = Any[option.value for option in options],
+                                  target = value, field = "value",
+                                  tooltip = isempty(described) ? nothing : join(described, "\n"))
+        set_cell_computation!(getfield(group, :selected),
+                              () -> something(findfirst(option -> option.value == value.value, options), 0))
+        set_cell_computation!(getfield(group, :enabled), is_open)
+        return group
+    elseif field.kind === :choices
+        buttons = Any[]
+        for option in field.options
+            is_chosen() = option.value in split(something(value.value, ""), '\n')
+            button = WidgetButton(option.name; tooltip = isempty(option.description) ? nothing : option.description,
+                                  action = _ -> (value.value = _toggle_question_choice(something(value.value, ""), option.value)))
+            set_cell_computation!(button, () -> (is_chosen() ? "✓ " : "") * option.name)
+            set_cell_computation!(getfield(button, :enabled), is_open)
+            push!(buttons, button)
+        end
+        return HorizontalLayout(buttons; gap = p.section_gap)
+    end
+    text = WidgetText(value)
+    set_cell_computation!(getfield(text, :enabled), is_open)
+    text
+end
+
+# The chosen values, one a line, with `choice` added or removed.
+function _toggle_question_choice(text::AbstractString, choice::AbstractString)
+    chosen = [String(line) for line in split(text, '\n') if !isempty(line)]
+    join(choice in chosen ? filter(!=(choice), chosen) : vcat(chosen, String(choice)), '\n')
+end
+
+# The steps from the card of a question to the text field of the field `index`,
+# and the field whose text field a path names; `nothing` for a field with no text
+# field. The body holds the message, then a block for each field, whose control
+# follows its title and its description, when it has one.
+function _get_question_text_steps(request::ConversationQuestionRequest, index::Int)
+    field = request.fields[index]
+    field.kind in (:text, :number, :integer) || return nothing
+    control = isempty(field.description) ? 2 : 3
+    Any[FieldReferenceStep("content"), FieldReferenceStep("children"), RangeReferenceStep(index, index + 1),
+        FieldReferenceStep("children"), RangeReferenceStep(control - 1, control), FieldReferenceStep("content")]
+end
+
+function _map_question_forward(request::ConversationQuestionRequest, reference)
+    steps = _steps(reference)
+    (steps !== nothing && length(steps) >= 4 && _is_field_step(steps[1], "content") &&
+     _is_field_step(steps[2], "form") && _is_field_step(steps[3], "values") && steps[4] isa RangeReferenceStep) ||
+        return EmptyReference()
+    index = steps[4].stop
+    1 <= index <= length(request.fields) || return EmptyReference()
+    prefix = _get_question_text_steps(request, index)
+    prefix === nothing ? EmptyReference() : _from_steps(vcat(prefix, steps[5:end]))
+end
+
+function _map_question_backward(request::ConversationQuestionRequest, reference)
+    steps = _steps(reference)
+    steps === nothing && return EmptyReference()
+    for index in eachindex(request.fields)
+        prefix = _get_question_text_steps(request, index)
+        prefix === nothing && continue
+        length(steps) >= length(prefix) && steps[1:length(prefix)] == prefix || continue
+        return _from_steps(vcat(Any[FieldReferenceStep("content"), FieldReferenceStep("form"),
+                                    FieldReferenceStep("values"), RangeReferenceStep(index - 1, index)],
+                                steps[(length(prefix) + 1):end]))
+    end
+    EmptyReference()
+end
+
+# The card of a question, its body, and the block and the text field of each
+# field follow the part's selection, so a key that a person types reaches the
+# text field.
+function _follow_question_selection!(card, part, projection, iomap)
+    _follow_selection!(card, part, projection, iomap, Any[])
+    _follow_selection!(card.content, part, projection, iomap, Any[FieldReferenceStep("content")])
+    request = part.content
+    for index in eachindex(request.fields)
+        prefix = _get_question_text_steps(request, index)
+        prefix === nothing && continue
+        block = card.content.children[index + 1]
+        _follow_selection!(block, part, projection, iomap, prefix[1:3])
+        _follow_selection!(block.children[prefix[5].stop], part, projection, iomap, prefix[1:5])
+    end
+end
+
 # Where the terminal of a sign-in sits in the card of its part: the fourth child
 # of the body.
 const _SIGN_IN_TERMINAL_PREFIX = Any[FieldReferenceStep("content"), FieldReferenceStep("children"),
@@ -360,6 +480,22 @@ const _SIGN_IN_TERMINAL_PREFIX = Any[FieldReferenceStep("content"), FieldReferen
 # that has none.
 _find_live_field(content) = nothing
 _find_live_field(::ConversationSignInRequest) = "terminal"
+_find_live_field(::ConversationQuestionRequest) = "form"
+
+# Whether `document` is, or is inside, the live field of the content of a part
+# under `node`, a conversation, a turn or a part.
+function _is_live_document(node, document)
+    parts = node isa ConversationConversation ? (part for turn in node.turns for part in turn.parts) :
+            node isa ConversationTurn ? node.parts : node isa ConversationPart ? (node,) : ()
+    for part in parts
+        field = _find_live_field(part.content)
+        field === nothing && continue
+        live = getproperty(part.content, Symbol(field))
+        live === document && return true
+        live isa Document && !isempty(search_references(live, found -> found === document)) && return true
+    end
+    false
+end
 
 # Whether `steps`, from `node` (a conversation, a turn or a part), go into the
 # live field of the content of a part.
@@ -379,8 +515,11 @@ function _is_live_path(node, steps)
 end
 
 # Whether the operation `op`, which reached the IO map `iomap` of `p`, goes into
-# the live field of a part.
+# the live field of a part: by its path, or by the document that it names, such
+# as the value that a toggle group of a question form writes.
 function _is_live_operation(p, iomap, op)
+    op isa ReplaceReferencedValueOperation && op.document !== nothing &&
+        return _is_live_document(iomap.input, op.document)
     reference = operation_reference(op)
     reference isa Reference || return false
     mapped = map_reference_backward(p, iomap, reference)
@@ -558,6 +697,7 @@ _is_field_step(step, name::AbstractString) = step isa FieldReferenceStep && step
 
 function map_reference_backward(::ConversationPartToWidget, iomap, reference)
     iomap.input.content isa ConversationSignInRequest && return _map_sign_in_backward(reference)
+    iomap.input.content isa ConversationQuestionRequest && return _map_question_backward(iomap.input.content, reference)
     iomap.input.content isa EvaluatorForm || return EmptyReference()
     steps = _steps(reference)
     (steps !== nothing && length(steps) >= 4 && _is_field_step(steps[1], "content") &&
@@ -576,6 +716,7 @@ end
 # add.
 function map_reference_forward(::ConversationPartToWidget, iomap, reference)
     iomap.input.content isa ConversationSignInRequest && return _map_sign_in_forward(reference)
+    iomap.input.content isa ConversationQuestionRequest && return _map_question_forward(iomap.input.content, reference)
     iomap.input.content isa EvaluatorForm || return EmptyReference()
     steps = _steps(reference)
     (steps !== nothing && length(steps) >= 2 && _is_field_step(steps[1], "content")) ||

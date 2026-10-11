@@ -148,6 +148,7 @@ With `backend = :acp` the task of the turn runs `_run_external_agent_turn!` in p
 | `AgentPlanUpdate` | one prose part with a checklist, which each update replaces |
 | `AgentPermissionRequest` | a `ConversationPermissionRequest` |
 | `AgentSignInException` (thrown by the start of the session or by the prompt) | a `ConversationSignInRequest` in a turn of its own, in place of an error |
+| `AgentQuestionRequest` | a `ConversationQuestionRequest`, a form in the turn; a question that nobody answered when the turn ends shows `"Cancelled"` |
 
 A text or thinking block closes before a part of another kind comes, and text after it opens a new block.
 
