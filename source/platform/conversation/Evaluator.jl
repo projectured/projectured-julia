@@ -201,10 +201,15 @@ The form of a tool call that is not an evaluation: one `key: value` line per
 argument, in key order.
 """
 make_evaluator_arguments_text(input::AbstractDict) =
-    TextBlock(TextString(join(["$(key): $(value)" for (key, value) in sort(collect(input); by = first)], "\n")))
+    make_text_block(join(["$(key): $(value)" for (key, value) in sort(collect(input); by = first)], "\n"),
+                    _EVALUATOR_TEXT_STYLE)
 
-# Convenience: build a result document from a plain output string.
-make_evaluator_result_text(s::AbstractString) = TextBlock(TextString(String(s)))
+# Convenience: build a result document from a plain output string, a line for each
+# of its lines.
+make_evaluator_result_text(s::AbstractString) = make_text_block(String(s), _EVALUATOR_TEXT_STYLE)
+
+# The style of the text of an evaluator: that of a bare `TextString`.
+const _EVALUATOR_TEXT_STYLE = StyleText(UNSTYLED_TEXT_FONT, color_default)
 
 # ── ToggleEvaluatorSectionOperation ─────────────────────────────────────────
 

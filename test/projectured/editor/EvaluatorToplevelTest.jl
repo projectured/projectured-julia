@@ -12,13 +12,7 @@ mutable struct _EvaluatorToplevelMockEditor; document::Any; tools::ToolSet; end
 
 # Flatten a result document (a `TextBlock`, or another document's own printed
 # text) to a plain string.
-function _et_flatten(t::TextBlock)
-    io = IOBuffer()
-    for span in t.elements
-        hasproperty(span, :content) && print(io, span.content)
-    end
-    String(take!(io))
-end
+_et_flatten(t::TextBlock) = get_flat_string(t)
 _et_flatten(d) = String(strip(print_natural_text(d)))
 
 function test_evaluator_toplevel()

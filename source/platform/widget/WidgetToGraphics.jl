@@ -1469,6 +1469,14 @@ function _retarget_op(p, iomap, op)
     elseif op isa ReplaceNumberRangeOperation
         new_ref = map_reference_backward(p, iomap, op.reference)
         return new_ref === nothing ? nothing : ReplaceNumberRangeOperation(new_ref, op.replacement)
+    elseif op isa ReplaceTextRangeOperation
+        # A flat edit of the lines of a text: under a document it stays flat; in the
+        # text of a plain value it is a range of that string.
+        new_ref = map_reference_backward(p, iomap, op.reference)
+        new_ref === nothing && return nothing
+        last(get_reference_steps(strip_reference_types(new_ref))) isa TextRangeReferenceStep &&
+            return ReplaceTextRangeOperation(new_ref, op.replacement)
+        return ReplaceStringRangeOperation(new_ref, op.replacement)
     elseif op isa ReplaceReferencedValueOperation
         # `editor.document`-rooted (document === nothing) ⇒ reroot the reference;
         # a self-contained one (carried root) passes through unchanged.
@@ -1701,9 +1709,9 @@ end
 # a `String`, is edited as a text too. The printer makes one `TextBlock` whose
 # text is the string of the value and whose caret is the range of `content` that
 # the widget holds, and draws it with a `TextToGraphics` of its own, so a chain
-# with no rule for a `TextBlock` draws it too. The block is one span, or, for a
-# field of code, a span for each piece that `compute_code_pieces` gives, in its
-# color. The reader maps what the text domain answers back to a range of the
+# with no rule for a `TextBlock` draws it too. The block is the lines of the string,
+# or, for a field of code, a span for each piece that `compute_code_pieces` gives,
+# in its color. The reader maps what the text domain answers back to a range of the
 # `content` field. So a string edit writes the field itself, and the caret after
 # the edit is again a range of the field.
 
@@ -1733,7 +1741,7 @@ end
 function _make_plain_text_view(w, style::StyleText, appearance; value_slot = nothing)
     text = value_slot === nothing ? () -> string(w.content) : () -> string(value_slot[].output)
     language = hasfield(typeof(w), :language) ? w.language : nothing
-    view = language === nothing ? TextBlock(TextString(text, style)) :
+    view = language === nothing ? make_text_block(text, style) :
                                   TextBlock(() -> _make_code_spans(w, style, appearance; text = text()))
     set_cell_computation!(getfield(view, :selection),
                           () -> _get_text_view_caret(w.selection, value_slot))
@@ -1808,6 +1816,16 @@ function _map_plain_text_reference(w, reference; text = string(w.content))
         # pieces need no appearance.
         before = sum((first(piece) for piece in _get_plain_text_pieces(w, text, nothing)[1:steps[2].start]);
                      init = 0)
+        return _make_content_range_reference(before + range.start, before + range.stop)
+    end
+    if length(steps) == 6 && range isa RangeReferenceStep &&
+       steps[1] isa FieldReferenceStep && steps[1].name == "elements" && steps[2] isa RangeReferenceStep &&
+       steps[3] isa FieldReferenceStep && steps[3].name == "elements" &&
+       steps[5] isa FieldReferenceStep && steps[5].name == "content"
+        # A range in the run of a line of a text of lines, one run on each line of
+        # the string, is that range moved by the characters and the breaks of the
+        # lines before it.
+        before = sum((length(line) + 1 for line in split(text, '\n')[1:steps[2].start]); init = 0)
         return _make_content_range_reference(before + range.start, before + range.stop)
     end
     nothing

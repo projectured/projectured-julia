@@ -186,9 +186,9 @@ function test_conversation_transcript()
         @test endswith(get_evaluation_title(long), "…\"") && length(get_evaluation_title(long)) < 90
         @test get_evaluation_title(EvaluatorForm(JuliaIdentifier("1"))) == "eval"
         # The arguments of a call draw one line each, in key order.
-        lines = [span.content for span in make_evaluator_arguments_text(Dict("uri" => "u", "depth" => 2)).elements
-                 if hasproperty(span, :content)]
-        @test join(lines) == "depth: 2\nuri: u"
+        arguments = make_evaluator_arguments_text(Dict("uri" => "u", "depth" => 2))
+        @test length(arguments.elements) == 2
+        @test get_flat_string(arguments) == "depth: 2\nuri: u"
     end
 
     @testset "a click names the part it landed in" begin
