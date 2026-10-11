@@ -289,6 +289,11 @@ function _launch_agent_turn!(editor, a::Assistant)
         try
             a.backend === :acp ? _run_external_agent_turn!(editor, a; control) : _run_agent_loop!(editor, a; control)
         catch e
+            # An agent that needs a sign-in is no fault: the person signs in.
+            if e isa AgentSignInException
+                run_on_editor_task!(() -> _add_agent_sign_in_request!(a, e), editor; wait = false)
+                return
+            end
             traceback = catch_backtrace()
             err = sprint(showerror, e, traceback)
             # The turn is told to the person in the chat, and the fault is told

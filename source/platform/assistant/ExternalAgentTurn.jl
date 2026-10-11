@@ -108,10 +108,11 @@ function _run_external_agent_turn!(editor, a::Assistant; control::AssistantTurnC
         session.has_answered = true
         run_on_editor_task!(() -> _keep_agent_session!(a, conversation, session), editor; wait = false)
         reason
-    catch
+    catch exception
         # A resumed session whose first prompt fails is no session that the
-        # agent has, as for a session in which the agent never answered.
-        session.is_resumed && !session.has_answered &&
+        # agent has, as for a session in which the agent never answered. A
+        # sign-in that the prompt needs says nothing about the session.
+        session.is_resumed && !session.has_answered && !(exception isa AgentSignInException) &&
             run_on_editor_task!(() -> _drop_agent_session_folder!(a, conversation), editor; wait = false)
         _close_external_agent_session!(session)
         rethrow()
@@ -241,9 +242,90 @@ function evaluate_operation(editor, operation::StartExternalAgentOperation)
         _start_external_agent_session!(editor, a, _make_external_agent_session!(editor, a))
     catch exception
         a.agent_session isa ExternalAgentSession && _close_external_agent_session!(a.agent_session)
-        message = sprint(showerror, exception)
+        if exception isa AgentSignInException
+            run_on_editor_task!(() -> _add_agent_sign_in_request!(a, exception), editor; wait = false)
+        else
+            message = sprint(showerror, exception)
+            run_on_editor_task!(editor; wait = false) do
+                push!(a.conversation.turns, _make_instant_turn(:assistant, [ConversationPart("Error: " * message)]))
+            end
+        end
+    end)
+    nothing
+end
+
+# ── The sign-in of the agent ─────────────────────────────────────────────────
+
+# The part that a sign-in needs, at the end of the conversation: the message and
+# the methods of the agent, a start that runs a method, and a retry that starts
+# the agent again.
+function _add_agent_sign_in_request!(a::Assistant, exception::AgentSignInException)
+    request = ConversationSignInRequest(exception.message, exception.methods)
+    request.start = (editor, method_id) -> _start_agent_sign_in!(editor, a, request, method_id)
+    request.retry = editor -> evaluate_operation(editor, StartExternalAgentOperation(a))
+    push!(a.conversation.turns, _make_instant_turn(:assistant, [ConversationPart(request)]))
+    nothing
+end
+
+# Run the sign-in of the method `method_id` in a terminal. When it ends with the
+# status 0, the agent starts again; the line of the request says how it went.
+function _start_agent_sign_in!(editor, a::Assistant, request::ConversationSignInRequest,
+                               method_id::AbstractString)
+    index = findfirst(method -> method.id == method_id, request.methods)
+    index === nothing && return nothing
+    terminal = TerminalDocument(request.methods[index].command; on_exit = (editor, status) -> begin
+        request.is_signing_in = false
+        request.state = status == 0 ? "Signed in." : "The sign-in ended with the status $(status)."
+        status == 0 && evaluate_operation(editor, StartExternalAgentOperation(a))
+    end)
+    request.terminal = terminal
+    request.is_signing_in = true
+    request.state = "The sign-in runs below. Click in it to type, such as a code to paste."
+    start_terminal!(editor, terminal)
+    terminal.status === :failed && (request.is_signing_in = false; request.state = "The sign-in could not start.")
+    nothing
+end
+
+# The sign-ins that run in the conversation of `a` end with it.
+function _release_agent_sign_ins!(editor, a::Assistant)
+    for turn in collect(a.conversation.turns), part in collect(turn.parts)
+        content = part.content
+        content isa ConversationSignInRequest && content.terminal isa TerminalDocument &&
+            release_document!(editor, content.terminal)
+    end
+    nothing
+end
+
+# Whether the agent of `a` signs out when asked.
+_has_agent_sign_out(a::Assistant) =
+    (session = a.agent_session; session isa ExternalAgentSession &&
+                                Base.invokelatest(has_agent_sign_out, session.connection))
+
+"""
+    SignOutAgentOperation(assistant)
+
+Sign the external agent of `assistant` out. The agent forgets the sign-in of the
+person, and its next prompt gives a sign-in request. A note in the conversation
+says how it went. The request to the agent runs on a task of its own, so the
+editor does not wait for it.
+"""
+struct SignOutAgentOperation <: Operation
+    assistant::Assistant
+end
+
+function evaluate_operation(editor, operation::SignOutAgentOperation)
+    a = operation.assistant
+    session = a.agent_session
+    session isa ExternalAgentSession || return nothing
+    errormonitor(@async begin
+        note = try
+            Base.invokelatest(sign_out_agent!, session.connection) ?
+                "Signed out. The next message needs a sign-in." : "The agent can not sign out."
+        catch exception
+            "The sign-out failed: " * sprint(showerror, exception)
+        end
         run_on_editor_task!(editor; wait = false) do
-            push!(a.conversation.turns, _make_instant_turn(:assistant, [ConversationPart("Error: " * message)]))
+            push!(a.conversation.turns, _make_instant_turn(:assistant, [ConversationPart(note)]))
         end
     end)
     nothing
@@ -312,10 +394,10 @@ function stop_external_agent!(a::Assistant)
     nothing
 end
 
-# An assistant whose tab closes stops its external agent, so no agent and no MCP
-# server outlive the tab. An undo of the close brings the assistant back, and
+# An assistant whose tab closes stops its external agent and its sign-ins, so no
+# agent, no MCP server and no program of a sign-in outlive the tab. An undo of the close brings the assistant back, and
 # its next turn starts the agent again and resumes the session.
-release_document!(editor, a::Assistant) = stop_external_agent!(a)
+release_document!(editor, a::Assistant) = (_release_agent_sign_ins!(editor, a); stop_external_agent!(a))
 
 # The MCP server through which the agent reaches the tools of this editor: on a
 # free port, with a secret that only this agent gets. With no MCP package loaded

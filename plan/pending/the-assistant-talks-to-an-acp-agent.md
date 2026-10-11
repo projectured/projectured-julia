@@ -800,6 +800,16 @@ from the command line of the projectured UI.
     editor does not name Claude Code. (b) The `julia` of this process, as
     agreed in Q3: no compiled program. Recommended: (a). The owner agreed to (a)
     on 2026-10-09, and to the recommendations Q1 to Q3 of the terminal plan.
+  - **Q10 (2026-10-09).** Found while 2.5e was built: the transcript is read
+    only by design (`ConversationToWidget.jl` declines every edit, and a plain
+    press selects at most a part), so a person can not type into a terminal in
+    a card. (A) an exception in the transcript for a live document in a part;
+    (B) the composer sends to the sign-in program while it runs; (C) the
+    terminal in a tab of its own (recommended then). The owner chose (A) on
+    2026-10-11: "The AI should be able to bring up UI for asking a question
+    anyway, so there will be exceptions either way". So the exception is
+    general: a request part names its live field, and presses, keys and edits
+    inside that field go through; the elicitation forms of 2.6 use the same.
 
   **Facts (2026-10-09).**
   - ACP: an agent can advertise a `terminal` auth method with `args` and `env`.

@@ -6,7 +6,8 @@
 
 """
     ScriptedAgentConnection(turns; failing_opens = 0, on_start = nothing, options = AgentOption[],
-                            can_resume = false)
+                            can_resume = false, is_signed_in = true, sign_in_methods = AgentSignInMethod[],
+                            can_sign_out = false)
 
 An external agent that plays `turns`, one for each prompt. A turn is a vector of
 steps. A step that is an event goes to `on_event` as it is. A step that is a
@@ -20,9 +21,12 @@ an asked session and answers its id; another one opens a new session. A
 cancel answers each request that waits as cancelled, and the turn then answers
 `:cancelled`. A turn with no script answers `:end_turn` at once.
 
-The first `failing_opens` sessions fail to open, as for an agent that needs a
-sign-in. `on_start`, when given, gets the connection at each start, for a start
-that takes its time. `options` are the options of each session: an open and a
+The first `failing_opens` sessions fail to open with a plain error. While
+`is_signed_in` is `false`, an open and a prompt throw an `AgentSignInException`
+with `sign_in_methods`; a test sets it to `true` for a sign-in that worked. A
+connection that `can_sign_out` signs out when asked, and is then not signed in.
+`on_start`, when given, gets the connection at each start, for a start that
+takes its time. `options` are the options of each session: an open and a
 set give them to their `on_event`, and `option_sets` records each set as
 `option_id => value`.
 """
@@ -40,13 +44,24 @@ mutable struct ScriptedAgentConnection
     options::Vector{AgentOption}
     option_sets::Vector{Pair{String,String}}
     can_resume::Bool
+    is_signed_in::Bool
+    sign_in_methods::Vector{AgentSignInMethod}
+    can_sign_out::Bool
 end
 
 ScriptedAgentConnection(turns::AbstractVector; failing_opens::Integer = 0, on_start = nothing,
-                        options::AbstractVector = AgentOption[], can_resume::Bool = false) =
+                        options::AbstractVector = AgentOption[], can_resume::Bool = false,
+                        is_signed_in::Bool = true, sign_in_methods::AbstractVector = AgentSignInMethod[],
+                        can_sign_out::Bool = false) =
     ScriptedAgentConnection([collect(Any, turn) for turn in turns], 0, false, false,
                             Any[], Vector{Any}[], Function[], Any[], Int(failing_opens), on_start,
-                            collect(AgentOption, options), Pair{String,String}[], can_resume)
+                            collect(AgentOption, options), Pair{String,String}[], can_resume,
+                            is_signed_in, collect(AgentSignInMethod, sign_in_methods), can_sign_out)
+
+# What a scripted agent that is not signed in throws.
+_make_scripted_sign_in_exception(connection::ScriptedAgentConnection) =
+    AgentSignInException("The scripted agent", copy(connection.sign_in_methods),
+                         "The scripted agent needs a sign-in.")
 
 function AgentModule.start_agent_connection!(connection::ScriptedAgentConnection)
     connection.on_start === nothing || connection.on_start(connection)
@@ -58,9 +73,10 @@ function AgentModule.open_agent_session!(connection::ScriptedAgentConnection;
                                          directory::AbstractString = pwd(),
                                          mcp_servers::AbstractVector = Any[], instructions::AbstractString = "",
                                          session_id::AbstractString = "", on_event = nothing)
+    connection.is_signed_in || throw(_make_scripted_sign_in_exception(connection))
     if connection.failing_opens > 0
         connection.failing_opens -= 1
-        error("The scripted agent needs a sign-in.")
+        error("The scripted agent fails to open a session.")
     end
     push!(connection.sessions, (directory = String(directory), mcp_servers = collect(mcp_servers),
                                 instructions = String(instructions), session_id = String(session_id)))
@@ -95,6 +111,7 @@ make_scripted_agent_options() = AgentOption[
 
 function AgentModule.send_agent_prompt!(connection::ScriptedAgentConnection, session_id::AbstractString,
                                         prompt::AbstractVector; on_event::Function)
+    connection.is_signed_in || throw(_make_scripted_sign_in_exception(connection))
     connection.is_cancelled = false
     push!(connection.prompts, collect(Any, prompt))
     connection.cursor += 1
@@ -114,6 +131,14 @@ end
 
 AgentModule.close_agent_session!(connection::ScriptedAgentConnection, session_id::AbstractString) = nothing
 AgentModule.stop_agent_connection!(connection::ScriptedAgentConnection) = nothing
+
+AgentModule.has_agent_sign_out(connection::ScriptedAgentConnection) = connection.can_sign_out && connection.is_started
+
+function AgentModule.sign_out_agent!(connection::ScriptedAgentConnection)
+    AgentModule.has_agent_sign_out(connection) || return false
+    connection.is_signed_in = false
+    true
+end
 
 """
     make_scripted_permission_step(tool_call, options) -> Function

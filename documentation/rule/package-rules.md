@@ -266,7 +266,7 @@ This is not every slice of the platform: `gesturetracking`, `dragtracking`,
 `assistant`, `appearance`, `settings`, `settingsmanaging` and `application` are
 the rest, and `PLATFORM_SLICE_EDGES` in
 [PlatformSuite.jl](../../test/platform/PlatformSuite.jl) has every one of the
-forty-two. `ProjecturedConsole` and `ProjecturedPDF` are backend packages,
+forty-eight. `ProjecturedConsole` and `ProjecturedPDF` are backend packages,
 not slices of the platform, even though neither carries a third-party
 dependency.
 

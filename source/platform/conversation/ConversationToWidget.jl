@@ -247,10 +247,12 @@ function print_document(projection::ConversationPartToWidget,
     output = content isa EvaluatorForm        ? _eval_card(projection, content, part, folds) :
              content isa ConversationThinking ? _thinking_card(projection, content, part)    :
              content isa ConversationPermissionRequest ? _permission_card(projection, content, part) :
+             content isa ConversationSignInRequest ? _sign_in_card(projection, content, part) :
              _is_code(content)                ? _code_card(projection, content, part)        :
              content
     iomap = ConversationPartToWidgetIoMap(projection, part, output, folds)
     content isa EvaluatorForm && _follow_section_selection!(output, part, projection, iomap)
+    content isa ConversationSignInRequest && _follow_sign_in_selection!(output, part, projection, iomap)
     iomap
 end
 
@@ -267,6 +269,13 @@ function _follow_section_selection!(card, part, projection, iomap)
                            Any[FieldReferenceStep("content"), FieldReferenceStep("children"),
                                RangeReferenceStep(index - 1, index)])
     end
+end
+
+# The card of a sign-in and its body follow the part's selection, so a key that
+# a person types in the terminal of the sign-in reaches it.
+function _follow_sign_in_selection!(card, part, projection, iomap)
+    _follow_selection!(card, part, projection, iomap, Any[])
+    _follow_selection!(card.content, part, projection, iomap, Any[FieldReferenceStep("content")])
 end
 
 # A part's panel is MUTED and a turn's band is TINTED, because a part sits inside
@@ -311,6 +320,72 @@ function _permission_card(p, request::ConversationPermissionRequest, part::Conve
     body = VerticalLayout(Any[WidgetLabel(request.title), HorizontalLayout(buttons; gap = p.section_gap), status];
                           gap = p.section_gap)
     _part_card(p, "permission", body, part)
+end
+
+# A sign-in request is the message over one button for each way to sign in and a
+# button that tries again, the line that says how the last sign-in went, and the
+# terminal of the sign-in once one started. The buttons work while the request
+# has its live functions, which a request that a file read back has not; a
+# method waits while a sign-in runs.
+function _sign_in_card(p, request::ConversationSignInRequest, part::ConversationPart)
+    buttons = Any[]
+    for method in request.methods
+        button = WidgetButton(method.name; tooltip = isempty(method.description) ? nothing : method.description,
+                              action = editor -> (start = request.start; start === nothing || start(editor, method.id)))
+        set_cell_computation!(getfield(button, :enabled), () -> request.start !== nothing && !request.is_signing_in)
+        push!(buttons, button)
+    end
+    retry = WidgetButton("Try again"; tooltip = "Start the agent again",
+                         action = editor -> (try_again = request.retry; try_again === nothing || try_again(editor)))
+    set_cell_computation!(getfield(retry, :enabled), () -> request.retry !== nothing)
+    push!(buttons, retry)
+    status = WidgetLabel(""; text_style = p.section_text)
+    set_cell_computation!(getfield(status, :content), () -> request.state)
+    fixed = Any[WidgetLabel(request.message), HorizontalLayout(buttons; gap = p.section_gap), status]
+    body = VerticalLayout(copy(fixed); gap = p.section_gap, child_width = Fill)
+    set_cell_computation!(getfield(body.children, :elements), () -> begin
+        terminal = request.terminal
+        Cell[Cell(child) for child in (terminal === nothing ? fixed : vcat(fixed, Any[terminal]))]
+    end)
+    _part_card(p, "sign-in", body, part)
+end
+
+# Where the terminal of a sign-in sits in the card of its part: the fourth child
+# of the body.
+const _SIGN_IN_TERMINAL_PREFIX = Any[FieldReferenceStep("content"), FieldReferenceStep("children"),
+                                     RangeReferenceStep(3, 4)]
+
+# The field of the content of a part in which a person works, inside a transcript
+# that is otherwise read: the terminal of a sign-in. `nothing` for a content
+# that has none.
+_find_live_field(content) = nothing
+_find_live_field(::ConversationSignInRequest) = "terminal"
+
+# Whether `steps`, from `node` (a conversation, a turn or a part), go into the
+# live field of the content of a part.
+function _is_live_path(node, steps)
+    length(steps) >= 2 || return false
+    if node isa Union{ConversationConversation,ConversationTurn}
+        name = node isa ConversationConversation ? "turns" : "parts"
+        children = getproperty(node, Symbol(name))
+        (_is_field_step(steps[1], name) && steps[2] isa RangeReferenceStep &&
+         1 <= steps[2].stop <= length(children)) || return false
+        return _is_live_path(children[steps[2].stop], steps[3:end])
+    elseif node isa ConversationPart
+        field = _find_live_field(node.content)
+        return field !== nothing && _is_field_step(steps[1], "content") && _is_field_step(steps[2], field)
+    end
+    false
+end
+
+# Whether the operation `op`, which reached the IO map `iomap` of `p`, goes into
+# the live field of a part.
+function _is_live_operation(p, iomap, op)
+    reference = operation_reference(op)
+    reference isa Reference || return false
+    mapped = map_reference_backward(p, iomap, reference)
+    steps = mapped isa Reference ? _steps(strip_reference_types(mapped)) : nothing
+    steps !== nothing && _is_live_path(iomap.input, steps)
 end
 
 # An evaluation is its header over its two sections. The header names the tool
@@ -482,6 +557,7 @@ const _PART_SECTIONS = (("form", 1), ("result", 2))
 _is_field_step(step, name::AbstractString) = step isa FieldReferenceStep && step.name == name
 
 function map_reference_backward(::ConversationPartToWidget, iomap, reference)
+    iomap.input.content isa ConversationSignInRequest && return _map_sign_in_backward(reference)
     iomap.input.content isa EvaluatorForm || return EmptyReference()
     steps = _steps(reference)
     (steps !== nothing && length(steps) >= 4 && _is_field_step(steps[1], "content") &&
@@ -499,6 +575,7 @@ end
 # chrome prints its content directly, so there is no step of this level's own to
 # add.
 function map_reference_forward(::ConversationPartToWidget, iomap, reference)
+    iomap.input.content isa ConversationSignInRequest && return _map_sign_in_forward(reference)
     iomap.input.content isa EvaluatorForm || return EmptyReference()
     steps = _steps(reference)
     (steps !== nothing && length(steps) >= 2 && _is_field_step(steps[1], "content")) ||
@@ -509,6 +586,25 @@ function map_reference_forward(::ConversationPartToWidget, iomap, reference)
                                    RangeReferenceStep(index - 1, index), FieldReferenceStep("content")])
     end
     EmptyReference()
+end
+
+# The terminal of a sign-in and back: `content.terminal.<rest>` is the fourth
+# child of the body of the card, and `<rest>` in it. Any other place in the card
+# is the part.
+function _map_sign_in_forward(reference)
+    steps = _steps(reference)
+    (steps !== nothing && length(steps) >= 2 && _is_field_step(steps[1], "content") &&
+     _is_field_step(steps[2], "terminal")) || return EmptyReference()
+    _from_steps(vcat(_SIGN_IN_TERMINAL_PREFIX, steps[3:end]))
+end
+
+function _map_sign_in_backward(reference)
+    steps = _steps(reference)
+    prefix = _SIGN_IN_TERMINAL_PREFIX
+    (steps !== nothing && length(steps) >= length(prefix) && steps[1:length(prefix)] == prefix) ||
+        return EmptyReference()
+    _from_steps(vcat(Any[FieldReferenceStep("content"), FieldReferenceStep("terminal")],
+                     steps[(length(prefix) + 1):end]))
 end
 
 for P in (ConversationConversationToWidgetComposite,
@@ -525,10 +621,13 @@ for P in (ConversationConversationToWidgetComposite,
         make_path_operation(op, inner === nothing ? EmptyReference() : inner)
     end
     # A transcript is READ. An edit that reaches it is declined by its exact
-    # type, so an operation this file does not know about still travels.
+    # type, so an operation this file does not know about still travels. An edit
+    # in the live field of a part, such as the terminal of a sign-in, is the work
+    # of a person there, and goes on.
     for O in (:ReplaceReferencedValueOperation, :ReplaceStringRangeOperation,
               :ReplaceNumberRangeOperation)
-        @eval read_intent(::$P, iomap, op::$O) = nothing
+        @eval read_intent(p::$P, iomap, op::$O) =
+            _is_live_operation(p, iomap, op) ? invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, op) : nothing
     end
     # A compound says each of its parts onward, and a path in it says which part
     # it named, as a path alone does; so the start of a drag in a compound names
@@ -599,7 +698,11 @@ function read_intent(p::ConversationConversationToWidgetComposite, recursion,
     answer = read_intent(p, iomap, payload)
     if answer isa ReplaceSelectionOperation && gesture isa MouseClick &&
        !is_whole_selection_press(gesture)
-        answer = ReplaceSelectionOperation(_get_part_prefix(answer.path))
+        steps = _steps(strip_reference_types(answer.path))
+        # A press in the live field of a part keeps its place, as the caret of
+        # a person who types there.
+        (steps !== nothing && _is_live_path(iomap.input, steps)) ||
+            (answer = ReplaceSelectionOperation(_get_part_prefix(answer.path)))
     end
     Intent(gesture, answer)
 end

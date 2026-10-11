@@ -67,6 +67,49 @@ function test_external_agent_turn()
             @test only(connection.prompts) == Any[LlmText("Explain X"), LlmText("Try again")]
         end
 
+        @testset "an agent that needs a sign-in gives a request, and a retry starts it" begin
+            method = AgentSignInMethod("login", "Sign in", "Run the sign-in.", `true`)
+            connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("Hi."), LlmTextStop()]];
+                                                 is_signed_in = false, sign_in_methods = [method],
+                                                 can_sign_out = true)
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "Hello")
+            # A sign-in is no fault: the turn ends, and a request says how to sign in.
+            @test a.status === :idle
+            request = only(part.content for turn in collect(a.conversation.turns) for part in collect(turn.parts)
+                           if part.content isa ConversationSignInRequest)
+            @test request.message == "The scripted agent needs a sign-in."
+            @test [m.id for m in request.methods] == ["login"]
+            @test request.start !== nothing && request.retry !== nothing
+            @test !any(part -> part.content isa AbstractString && startswith(part.content, "Error"),
+                       part for turn in collect(a.conversation.turns) for part in collect(turn.parts))
+            # A sign-in that ends with 0 starts the agent again. Its program reads
+            # a code and ends with 0 for the right one.
+            signer = AgentSignInMethod("code", "Sign in with a code", "",
+                                       `sh -c "printf 'Code > '; read code; test \"\$code\" = right"`)
+            push!(request.methods, signer)
+            request.start((document = a,), "code")
+            terminal = request.terminal
+            @test terminal isa TerminalDocument && request.is_signing_in
+            @test timedwait(() -> "Code > " in [line.text for line in terminal.lines], 10.0; pollint = 0.01) === :ok
+            connection.is_signed_in = true
+            @test send_terminal_input!(terminal, "right")
+            @test timedwait(() -> length(connection.sessions) == 1, 10.0; pollint = 0.01) === :ok
+            @test request.state == "Signed in." && !request.is_signing_in
+            # A retry when the session is open does nothing more.
+            request.retry((document = a,))
+            @test length(connection.sessions) == 1
+            # A copy of the request has no live function.
+            copied = copy_document(DuplicatePolicy(), request)
+            @test copied.start === nothing && copied.retry === nothing && copied.terminal === nothing
+            # The agent signs out on request, and a note says so.
+            @test AssistantModule._has_agent_sign_out(a)
+            evaluate_operation((document = a,), SignOutAgentOperation(a))
+            @test timedwait(() -> !connection.is_signed_in, 10.0; pollint = 0.01) === :ok
+            @test timedwait(() -> any(part -> AssistantModule._part_text(part) == "Signed out. The next message needs a sign-in.",
+                                      collect(last(collect(a.conversation.turns)).parts)), 10.0; pollint = 0.01) === :ok
+        end
+
         @testset "a turn that the person cancelled is not sent again" begin
             connection = ScriptedAgentConnection([
                 Any[(connection, on_event) -> timedwait(() -> connection.is_cancelled, 10.0; pollint = 0.01)],
@@ -199,8 +242,11 @@ function test_external_agent_turn()
                 options = make_scripted_agent_options())
             a = _make_agent_assistant(connection)
             bar = make_agent_option_bar(a)
-            commands = collect(bar.elements)[end]
+            # The menu of the commands, before the sign-out, which an agent that
+            # can not sign out does not show.
+            commands, sign_out = collect(bar.elements)[(end - 1):end]
             @test string(commands.action.label) == "Commands"
+            @test string(sign_out.action.label) == "Sign out" && !sign_out.visible
             @test !commands.visible && commands.submenu === nothing
             _submit_to_agent!(a, "Hello")
             @test [command.name for command in a.agent_commands] == ["review", "compact"]
@@ -218,7 +264,8 @@ function test_external_agent_turn()
             connection = ScriptedAgentConnection(Any[]; options = make_scripted_agent_options())
             a = _make_agent_assistant(connection)
             bar = make_agent_option_bar(a)
-            # The three option menus; the menu of the commands is the last item.
+            # The three option menus; the menu of the commands and the sign-out
+            # are the last items.
             items = collect(bar.elements)[1:3]
             label(item) = string(item.action.label)
             @test label(items[1]) == "Start the agent"

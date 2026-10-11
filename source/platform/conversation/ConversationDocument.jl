@@ -135,6 +135,54 @@ function answer_permission_request!(request::ConversationPermissionRequest,
     nothing
 end
 
+# ── ConversationSignInRequest ─────────────────────────────────────────────────
+
+"""
+    ConversationSignInRequest(message, methods; start = nothing, retry = nothing)
+
+A part that says that an external agent needs a sign-in. `message` says how to
+sign in, in words for a person. `methods` are the ways to sign in that this
+editor can run, each an `AgentSignInMethod` with the command of a sign-in in a
+terminal. The card shows a button for each method and a button that tries again.
+
+`start` and `retry` are live functions and no data: `start(editor, method_id)`
+runs the sign-in of a method, and `retry(editor)` starts the agent again.
+`terminal` is the document in which the sign-in runs, `nothing` before one
+started; the card shows it below its buttons, and it is the live field of the
+part: a person types in it inside a transcript that is otherwise read.
+`is_signing_in` says that a sign-in runs, and `state` says how the last one
+went, in words for a person; the assistant writes both.
+
+A `.pred` file keeps the message and the state, and no method, no live function
+and no terminal: after a load, the next prompt gives a new request when the
+agent still needs a sign-in.
+"""
+@document struct ConversationSignInRequest <: ConversationDocument
+    message::String
+    methods::Vector{AgentSignInMethod}
+    state::String
+    is_signing_in::Bool
+    terminal::Any
+    start::Any
+    retry::Any
+end
+
+ConversationSignInRequest(message::AbstractString, methods::AbstractVector; start = nothing, retry = nothing) =
+    ConversationSignInRequest(Cell(String(message)), Cell(CellVector{AgentSignInMethod}(collect(AgentSignInMethod, methods))),
+                              Cell(""), Cell(false), Cell(nothing), Cell(start), Cell(retry), Cell(nothing))
+
+pred_arguments(request::ConversationSignInRequest) = (), Pair{Symbol,Any}[
+    :message => request.message,
+    :state   => request.state,
+]
+
+function make_pred_document(::Type{<:ConversationSignInRequest}, positional, keywords)
+    values = Dict{Symbol,Any}(keywords)
+    request = ConversationSignInRequest(values[:message], AgentSignInMethod[])
+    request.state = String(get(values, :state, ""))
+    request
+end
+
 # ── ConversationTurn ──────────────────────────────────────────────────────────
 
 """
@@ -230,6 +278,12 @@ has_document_duplicate(::ConversationDocument) = true
 # The reply of a request goes to the agent that asked, and a copy did not ask.
 copy_document(policy::DuplicatePolicy, request::ConversationPermissionRequest) =
     copy_document_fields(policy, request; reply = nothing)
+
+# A sign-in goes to the agent of the assistant that needed it, which a copy has
+# not, and its program runs once.
+copy_document(policy::DuplicatePolicy, request::ConversationSignInRequest) =
+    copy_document_fields(policy, request; is_signing_in = false, terminal = nothing, start = nothing,
+                         retry = nothing)
 
 # The assistant a draft links back to is not the draft's own, so the duplicate of
 # a draft keeps the link. The duplicate of an assistant puts its own link there.

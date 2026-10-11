@@ -40,6 +40,7 @@ using ..ProjectionModule
 using ..ReferenceModule
 using ..SerializationModule
 using ..StyleModule
+using ..TerminalModule
 using ..TextModule
 using ..ToolModule
 using ..WidgetModule
@@ -63,7 +64,7 @@ export SubmitProseOperation, SubmitJuliaOperation, SubmitDraftTurnOperation,
        parse_markdown_blocks
 export register_assistant_api!, get_registered_assistant_api
 export ExternalAgentSession, is_external_agent_turn_running, CancelAssistantTurnOperation,
-       stop_external_agent!, StartExternalAgentOperation, SetAgentOptionOperation,
+       stop_external_agent!, StartExternalAgentOperation, SetAgentOptionOperation, SignOutAgentOperation,
        make_agent_option_bar, format_agent_usage, describe_agent_usage
 export is_assistant_turn_running, make_assistant_stop_button
 export compute_assistant_overview_title, find_first_prompt, find_last_prompt, compute_prompt_count,

@@ -406,6 +406,10 @@ function make_agent_option_bar(a::Assistant)
     set_cell_computation!(getfield(commands, :visible), () -> !isempty(a.agent_commands))
     set_cell_computation!(getfield(commands, :submenu), () -> _make_agent_command_menu(a))
     push!(items, commands)
+    sign_out = WidgetMenuItem("Sign out"; tooltip = "Sign the agent out",
+                              action = editor -> evaluate_operation(editor, SignOutAgentOperation(a)))
+    set_cell_computation!(getfield(sign_out, :visible), () -> !isempty(a.agent_options) && _has_agent_sign_out(a))
+    push!(items, sign_out)
     WidgetMenu(items; orientation = :horizontal)
 end
 
