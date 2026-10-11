@@ -321,7 +321,7 @@ function evaluate_operation(editor, operation::CancelAssistantTurnOperation)
     is_assistant_turn_running(a) || return nothing
     control = a.turn_control
     control isa AssistantTurnControl && (control.is_cancelled = true)
-    a.backend === :acp && _cancel_external_agent_turn!(a)
+    a.backend === :acp ? _cancel_external_agent_turn!(a) : _decline_open_questions!(a)
     nothing
 end
 
@@ -599,6 +599,9 @@ function _emit_assistant_turn!(out, parts)
     prev_was_eval = false
     for part in parts
         c = part.content
+        # A request for the person is no content of the model: the answer to a
+        # question reaches the model in the result of its tool.
+        c isa Union{ConversationQuestionRequest,ConversationPermissionRequest,ConversationSignInRequest} && continue
         if c isa EvaluatorForm
             push!(evals, c)
             prev_was_eval = true
@@ -777,7 +780,7 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
     # frames. The posts of this task keep their order.
     agent = Agent(llm, set; system = a.system, thinking = true)
     stop_reason = try
-        run_turn!(agent, editor;
+        run_turn!(agent, editor; tools = Tool[_make_ask_person_tool(a, turn)],
             messages = () -> begin
                 control.is_cancelled && throw(TurnCancelledException())
                 run_on_editor_task!(() -> build_messages(a.conversation), editor)
@@ -806,6 +809,69 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
     @info "[assistant] turn done" elapsed_s=round(time() - turn_t0; digits=2)
 
     run_on_editor_task!(() -> _finish_turn!(a, turn, stop_reason), editor; wait = false)
+    nothing
+end
+
+# The tool of a native turn that asks the person a question: it adds a question
+# card to the turn, and answers a task that waits for the answer, so no frame of
+# the editor waits with it. Only this turn has it; an ACP agent and an MCP client
+# have their own way to ask.
+function _make_ask_person_tool(a::Assistant, turn::ConversationTurn)
+    Tool("ask_person";
+         description = "Ask the person a question, and wait for the answer. Give the options one a line " *
+                       "when the person chooses, and set multiple to let the person choose several; the " *
+                       "person can also answer in their own words. Leave the options empty for an answer " *
+                       "in words.",
+         parameters = NamedTuple[
+             (name = "question", type = "string", description = "The question.", required = true),
+             (name = "options", type = "string", description = "The options, one a line.", required = false),
+             (name = "multiple", type = "boolean", description = "Whether the person can choose several options.",
+              required = false)],
+         handler = (target, args) -> begin
+             options = [String(strip(line)) for line in split(string(get(args, "options", "")), '\n')
+                        if !isempty(strip(line))]
+             fields = _make_ask_person_fields(options, get(args, "multiple", false) === true)
+             answer = Channel{Any}(1)
+             is_answered = Threads.Atomic{Bool}(false)
+             reply = values -> (Threads.atomic_xchg!(is_answered, true) ? false : (put!(answer, values); true))
+             request = ConversationQuestionRequest(string(get(args, "question", "")), fields; reply)
+             push!(turn.parts, Cell(ConversationPart(request)))
+             @async _format_ask_person_answer(take!(answer))
+         end)
+end
+
+# The fields of a question of a model: a choice of the options, or of several of
+# them, and a text field for an answer in words; only the text field when the
+# question has no options.
+function _make_ask_person_fields(options::Vector{String}, is_multiple::Bool)
+    isempty(options) &&
+        return AgentQuestionField[AgentQuestionField("answer", "Answer", "", :text, AgentOptionValue[], true)]
+    AgentQuestionField[
+        AgentQuestionField("choice", "Choice", "", is_multiple ? :choices : :choice,
+                           AgentOptionValue[AgentOptionValue(option, option, "") for option in options], false),
+        AgentQuestionField("other", "Other", "An answer in your own words", :text, AgentOptionValue[], false)]
+end
+
+# The answer as the model reads it.
+function _format_ask_person_answer(values)
+    values === nothing && return "The person declined to answer."
+    own = strip(string(get(values, "other", get(values, "answer", ""))))
+    isempty(own) || return "The person answered: " * own
+    chosen = get(values, "choice", nothing)
+    chosen isa AbstractVector && !isempty(chosen) && return "The person chose: " * join(chosen, ", ")
+    chosen isa AbstractString && !isempty(chosen) && return "The person chose: " * chosen
+    "The person answered nothing."
+end
+
+# A stop of a native turn declines the question that waits, so the loop that
+# waits for its answer goes on to the stop.
+function _decline_open_questions!(a::Assistant)
+    turns = collect(a.conversation.turns)
+    isempty(turns) && return nothing
+    for part in collect(last(turns).parts)
+        content = part.content
+        content isa ConversationQuestionRequest && answer_question_request!(content, nothing)
+    end
     nothing
 end
 

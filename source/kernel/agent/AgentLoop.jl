@@ -9,7 +9,7 @@ _is_error_output(output::AbstractString) =
     occursin("ERROR", output) || occursin("Error", output)
 
 """
-    run_turn!(agent, target; messages, on_event) -> stop_reason
+    run_turn!(agent, target; messages, on_event, tools = Tool[]) -> stop_reason
 
 Run one turn: stream a round from the model, run any tools it asked for, and go
 again until it stops asking. Returns the stop reason of the final round
@@ -26,6 +26,14 @@ and the loop runs none of its tool calls.
                drift from the caller's.
 - `on_event` — called with every `LlmEvent` as it streams, and with an
                `AgentToolResult` for each tool that runs.
+- `tools`    — tools of this turn beside the tool set of `agent`, such as a tool
+               that asks the person of the caller, which no other client of the
+               tool set may see.
+
+A handler can answer a `Task` in place of its text, as a tool that waits for a
+person does. The loop then waits for the task on its own task, not on the task
+of the editor, so no frame waits with it, and the value of the task is the text
+of the tool.
 
 A tool that throws gives an `AgentToolResult` with `is_error = true`, and the
 fault goes into the fault store of `target`. An exception that
@@ -41,9 +49,10 @@ The loop holds the *control flow* of a turn, and only that. It builds no message
 and renders no answer: the loop streams, runs the tools, and stops when the model
 asks for no tool.
 """
-function run_turn!(agent::Agent, target; messages, on_event)
+function run_turn!(agent::Agent, target; messages, on_event, tools::AbstractVector{Tool} = Tool[])
     register_default_tools!(agent.tools)
-    tools = list_tools(agent.tools)
+    turn_tools = collect(Tool, tools)
+    listed = vcat(list_tools(agent.tools), turn_tools)
 
     stop  = :end_turn
     round = 0
@@ -64,7 +73,7 @@ function run_turn!(agent::Agent, target; messages, on_event)
         stream_turn(agent.llm,
                     LlmRequest(system   = agent.system,
                                messages = messages(),
-                               tools    = tools,
+                               tools    = listed,
                                thinking = agent.thinking);
                     on_event = ev -> begin
                         ev isa LlmToolUseStop && push!(pending, ev.tool_use)
@@ -86,8 +95,10 @@ function run_turn!(agent::Agent, target; messages, on_event)
             # editor shows, so the call runs on the editor's task.
             output, is_error = run_on_editor_task!(target) do
                 try
-                    text = call_tool(agent.tools, call.name; args = call.input, target)
-                    (text, _is_error_output(text))
+                    turn_tool = findfirst(tool -> tool.name == call.name, turn_tools)
+                    text = turn_tool === nothing ? call_tool(agent.tools, call.name; args = call.input, target) :
+                           turn_tools[turn_tool].handler(target, call.input)
+                    text isa Task ? (text, false) : (text, _is_error_output(text))
                 catch e
                     is_passthrough_exception(e) && rethrow()
                     # A tool that throws is not a broken turn: the model gets the
@@ -107,8 +118,24 @@ function run_turn!(agent::Agent, target; messages, on_event)
                     (text, true)
                 end
             end
+            output isa Task && ((output, is_error) = _wait_for_tool_task(output))
             on_event(AgentToolResult(call, output, is_error))
         end
     end
     stop
+end
+
+# A tool that answered a `Task` answers when the task ends, here on the task of
+# the loop. The value of the task is the text of the tool, and a task that throws
+# gives the text of its error, as a handler that throws does.
+function _wait_for_tool_task(task::Task)
+    text = try
+        string(fetch(task))
+    catch exception
+        exception isa TaskFailedException || rethrow()
+        failure = exception.task.exception
+        is_passthrough_exception(failure) && throw(failure)
+        return (sprint(showerror, failure), true)
+    end
+    (text, _is_error_output(text))
 end

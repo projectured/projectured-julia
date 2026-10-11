@@ -1003,6 +1003,23 @@ from the command line of the projectured UI.
     Q16, the name `ask_person`, and one question for each call (several
     questions in one call need array parameters, which the tool layer does not
     describe)? Recommended: yes to both.
+  - The owner agreed to Q15 and Q16 on 2026-10-11.
+  - [x] 2.6e done on the branch `assistant-questions`: `run_turn!` takes
+    `tools`, the tools of a turn beside the tool set, and waits for a `Task`
+    that a handler answers on the task of the loop (`_wait_for_tool_task`).
+    **Found:** a tool set for the turn as a copy of the tool set of the
+    editor does not work, because `run_turn!` registers the default tools
+    again on the set that it gets, and their handlers keep the state of
+    evaluation in the set that their closures capture; so the tool of the turn
+    is a keyword of `run_turn!` (part of the kernel change of Q15).
+    `ask_person` is made for each native turn by `_make_ask_person_tool`; a
+    stop declines the open question (`_decline_open_questions!`), and
+    `build_messages` skips the request parts of an assistant turn. Tests: the
+    agent loop 44 of 44 (a task that the loop waits for, a task that throws),
+    `test_assistant_mvp()` 183 with its 4 known broken (a question, its answer
+    as the result of the tool, the card not in the messages, a stop that
+    declines). No live check with a model of this editor: no Anthropic key is
+    set, and a local Ollama model needs more memory than the machine has free.
 
   **Questions for the owner.**
   - Q11. The scope: 2.6a to 2.6d now, and 2.6e (a tool for the models of this

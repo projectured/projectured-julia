@@ -42,7 +42,9 @@ DefaultTools.jl   register_default_tools!, which puts the above into a ToolSet
 A `Tool` is a name, a description, abstractly-described parameters, and a handler
 `(target, args) -> String`. It carries **no wire format**: rendering it into
 Anthropic's `input_schema` is `ProjecturedAnthropic`'s job, rendering it into MCP's
-parameter list is `ProjecturedMCP`'s, and neither is the tool's business.
+parameter list is `ProjecturedMCP`'s, and neither is the tool's business. The
+handler of a tool of a turn can answer a `Task` whose value is the text, as the
+loop below describes.
 
 A `Tool` also names the media type of the text its handler returns,
 `result_mime_type`, as a `Resource` names its own with `mime_type`. It is
@@ -498,7 +500,7 @@ package whose types cannot be referenced at load time.
 **Outbound** is this editor driving a model:
 
 ```julia
-run_turn!(agent, target; messages, on_event) -> stop_reason
+run_turn!(agent, target; messages, on_event, tools = Tool[]) -> stop_reason
 ```
 
 The loop owns a turn's **control flow** and nothing else: stream a round, collect the
@@ -522,6 +524,14 @@ A round whose stream ends with no `LlmTurnEnd` and no `LlmFailure` ends the turn
 with `:error`, and its tool calls do not run. A tool that throws gives an
 `AgentToolResult` with `is_error = true`. An exception that
 `is_passthrough_exception` names goes through the loop, and `run_turn!` throws it.
+
+`tools` are tools of this turn beside the `ToolSet` of the agent, such as a tool that
+asks the person of the caller, which no other client of the tool set, such as the MCP
+server, may see. Each tool call runs on the task of the editor. A handler can answer
+a `Task` in place of its text, as a tool that waits for a person does: the loop then
+waits for the task on its own task, so no frame of the editor waits with it, and the
+value of the task is the text of the tool; a task that throws gives the text of its
+error.
 
 **External** is this editor driving an agent that runs its own loop in another process. The agent owns its model, its tools and its history. The editor sends it a prompt, shows what it reports, and answers what it asks. It is not an `Llm`: `run_turn!` would run the tool calls of the agent a second time. [acp.md](../adapter/acp/acp.md) describes the one package that implements it.
 

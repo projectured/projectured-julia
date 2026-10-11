@@ -97,6 +97,32 @@ function test_agent_loop()
         @test occursin("agent_loop_missing", result.output)
     end
 
+    @testset "a tool of the turn answers later, with a task that the loop waits for" begin
+        answer = Channel{String}(1)
+        waiting = Tool("probe"; description = "a tool of the turn", parameters = NamedTuple[],
+                       handler = (target, arguments) -> @async take!(answer))
+        llm = ScriptedLlm([_make_agent_loop_call_round(), _make_agent_loop_answer_round("Done.")])
+        events = Any[]
+        turn = @async run_turn!(Agent(llm, ToolSet()), (name = :target,); messages = () -> LlmMessage[],
+                                on_event = event -> push!(events, event), tools = Tool[waiting])
+        # The loop waits for the task, and sends no result before its value.
+        sleep(0.2)
+        @test !istaskdone(turn) && isempty(_get_agent_tool_results(events))
+        put!(answer, "later")
+        @test fetch(turn) === :end_turn
+        result = only(_get_agent_tool_results(events))
+        @test (result.output, result.is_error) == ("later", false)
+        # A task that throws gives the text of its error.
+        failing = Tool("probe"; description = "a tool of the turn", parameters = NamedTuple[],
+                       handler = (target, arguments) -> @async error("no answer came"))
+        llm = ScriptedLlm([_make_agent_loop_call_round(), _make_agent_loop_answer_round("Done.")])
+        events = Any[]
+        run_turn!(Agent(llm, ToolSet()), (name = :target,); messages = () -> LlmMessage[],
+                  on_event = event -> push!(events, event), tools = Tool[failing])
+        result = only(_get_agent_tool_results(events))
+        @test result.is_error && occursin("no answer came", result.output)
+    end
+
     @testset "a tool that answers gives a result not marked as an error" begin
         tools = _make_agent_loop_tools((target, arguments) -> "three words")
         llm = ScriptedLlm([_make_agent_loop_call_round(),

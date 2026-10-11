@@ -12,9 +12,12 @@ take a name at the call, as the parts of a `Resource` do.
   (Anthropic's `input_schema`, MCP's parameter list) is the *adapter's* job, so no
   wire format appears here.
 - `handler(target, args::Dict) -> String` performs the work and returns a textual
-  result. `args` keys are strings matching the parameter names; `target` is
-  whatever the caller is acting on (the `Editor`, in practice) and is passed
-  through untouched.
+  result. A handler of a tool that waits, such as for a person, can return a
+  `Task` whose value is that text; the loop of a turn waits for it off the task
+  of the editor. Such a tool is a tool of a turn (`run_turn!(…; tools)`), not of
+  a `ToolSet`, whose other clients take the text at once. `args` keys are
+  strings matching the parameter names; `target` is whatever the caller is
+  acting on (the `Editor`, in practice) and is passed through untouched.
 - `result_mime_type` is the media type of the text the handler returns, as a
   `Resource` names its own: `"text/markdown"` for a page of documentation. A
   front end that shows a result reads it to choose how to draw the text; the

@@ -531,6 +531,7 @@ function test_assistant_mvp()
         _mvp_test_markdown_tool_result()
         _mvp_test_agent_markdown_tool_result()
         _mvp_test_agent_resource_result()
+        _mvp_test_ask_person()
         _mvp_test_markdown_result_table()
     end
 end
@@ -578,6 +579,55 @@ end
 
 # In a turn of an agent, a result that the agent gives with a media type or the uri
 # of a file, as the text of a file that a tool read, is a document of that format.
+# A model of this editor asks the person with its tool `ask_person`: a question
+# card in the turn while the loop waits off the editor task, and the answer is
+# the result of the tool, which the model reads in place of the card.
+function _mvp_test_ask_person()
+    requests(a) = [part.content for turn in collect(a.conversation.turns) for part in collect(turn.parts)
+                   if part.content isa ConversationQuestionRequest]
+    @testset "a model of this editor asks the person, and the answer is the result of its tool" begin
+        llm = ScriptedLlm([_tool_use_script("tu_1", "ask_person",
+                                            Dict{String,Any}("question" => "Which colour?", "options" => "Red\nBlue")),
+                           _final_text_script("Blue it is.")])
+        a = Assistant(; llm)
+        editor = _mvp_editor(a)
+        a.input.value = "Ask me"
+        evaluate_operation(editor, SubmitProseOperation(a))
+        @test timedwait(() -> length(requests(a)) == 1, 10.0; pollint = 0.01) === :ok
+        request = only(requests(a))
+        @test request.message == "Which colour?"
+        @test [field.kind for field in request.fields] == [:choice, :text]
+        @test [option.value for option in request.fields[1].options] == ["Red", "Blue"]
+        # The turn waits for the person.
+        @test a.status === :streaming
+        collect(request.form.values)[1].value = "Blue"
+        answer_question_request!(request, find_question_values(request))
+        @test _mvp_wait_idle!(a; timeout_seconds = 10.0) === :idle
+        @test request.answer == "Answered: Choice: Blue"
+        results = [content for message in build_messages(a.conversation) for content in message.content
+                   if content isa LlmToolResult]
+        @test only(results).content == "The person chose: Blue"
+        # The card is for the person: the model reads no text of it.
+        @test !any(content -> content isa LlmText && occursin("Which colour?", content.text),
+                   [content for message in build_messages(a.conversation) if message.role === :assistant
+                    for content in message.content])
+    end
+    @testset "a stop declines the question that waits" begin
+        llm = ScriptedLlm([_tool_use_script("tu_1", "ask_person", Dict{String,Any}("question" => "Your name?")),
+                           _final_text_script("Thanks.")])
+        a = Assistant(; llm)
+        editor = _mvp_editor(a)
+        a.input.value = "Ask me"
+        evaluate_operation(editor, SubmitProseOperation(a))
+        @test timedwait(() -> length(requests(a)) == 1, 10.0; pollint = 0.01) === :ok
+        request = only(requests(a))
+        @test [field.kind for field in request.fields] == [:text]
+        evaluate_operation(editor, CancelAssistantTurnOperation(a))
+        @test _mvp_wait_idle!(a; timeout_seconds = 10.0) === :idle
+        @test request.answer == "Declined"
+    end
+end
+
 function _mvp_test_agent_resource_result()
     @testset "a file that an agent read is a document of its format" begin
         markdown = "# Read\n\n| a | b |\n|---|---|\n| 1 | 2 |\n"
