@@ -1661,11 +1661,14 @@ function _read_lowered_gesture(block::TextBlock, evt)
 end
 
 # A flat edit lowered to the run it falls in, or kept flat when it is an edit of
-# the lines of `block`.
+# the lines of `block`. A break into a block that is no block of lines declines,
+# because a run holds no break, so Enter falls to the keys around the text, such as
+# the one that makes the value of a type-in.
 function _lower_unless_line_edit(block::TextBlock, op::ReplaceTextRangeOperation)
     r = strip_reference_types(op.reference)
     (r isa ConcreteReference && r.head isa TextRangeReferenceStep &&
      _is_line_edit(block, r.head.start::Int, r.head.stop::Int, op.replacement)) && return op
+    occursin('\n', op.replacement) && return nothing
     _lower_text_range(block, op)
 end
 

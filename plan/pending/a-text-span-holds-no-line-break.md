@@ -529,6 +529,12 @@ change how every view of syntax makes its lines, so they land together.
      207, `test_json` 242, the console 140.
    - Found: the clipboard keeps the text it copies as one `TextString`, which holds
      a break when the copy covers one; step 7 decides it.
+   - *Found by the sweep at `f3bf59889`:* Enter in the type-in of a primitive, a
+     block of one run, was lowered into the run as a `'\n'`, so it no longer made
+     the value (`PrimitiveTypeInTest`, 3 failures; `TextLineNumberingTest`, 1). A
+     break into a block that is no block of lines now declines, because a run
+     holds no break, and the key falls to the bindings around the text as before.
+     `test_primitive_type_in` 115, `test_text_line_numbering` 21.
 
 7. **The guard**: a test walks the printer output of every example and rejects a
    `TextString` that holds `'\n'`. `TextToGraphics` and `TextFirstLine` drop their
