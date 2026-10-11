@@ -918,7 +918,76 @@ from the command line of the projectured UI.
     "Try again" for the other cases?
   - Q5. The place of "Sign out": an item in the option bar of the agent, beside
     "Commands"?
-- [ ] 2.6 Elicitation forms.
+- [ ] 2.6 Elicitation forms: a question of the agent as a form in the
+  conversation. The owner chose this step after 2.5 on 2026-10-09, and said on
+  2026-10-11: "The AI should be able to bring up UI for asking a question
+  anyway". A design waits for the answers of the owner.
+
+  **Facts (2026-10-11).**
+  - Live with the built-in agent: Claude Code in print mode sends its tool
+    `AskUserQuestion` through the permission tool. `ClaudeCodeACP` showed the
+    card "The agent asks to run: AskUserQuestion"; after "Allow" the tool
+    answered "The user did not answer the questions." The input was
+    `questions`: each a `question`, a `header` (at most 12 characters),
+    `options` (2 to 4, each a `label` and a `description`) and `multiSelect`;
+    1 to 4 questions in a call.
+  - The Agent SDK documentation (code.claude.com, "Handle approvals and user
+    input"): the host answers the permission request with `behavior: "allow"`
+    and `updatedInput` = the `questions` and `answers`, an object from the text
+    of each question to the label of the chosen option; for several options an
+    array of labels or the labels joined with ", "; a text of the person, such
+    as an "Other" choice, as it is. A `deny` with a message tells Claude why.
+  - ACP: `elicitation/create` with the mode `form` sends a message and a JSON
+    schema (string with `enum` or `oneOf` titles, number, integer, boolean, an
+    array of enum values for several choices). The client answers `accept` with
+    the values, `decline` or `cancel`. The client advertises
+    `clientCapabilities.elicitation.form`. Not marked unstable in schema 1.7.0.
+  - The editor: the toggle group writes the chosen value into a field of a
+    target document (`target`, `field`), and a `PrimitiveString` in the output
+    of a view is a text field, as in the terminal. Such a write names a
+    document and not a path, so the live-field rule of the transcript must
+    also pass a write to a document inside a live field.
+
+  **Design (a proposal; "new" parts need the word of the owner).**
+  - 2.6a `ClaudeCodeACP`: for `AskUserQuestion`, when the editor advertises
+    `elicitation.form`, send `elicitation/create` with one field for each
+    question (one choice: a string with the labels as `oneOf`; several: an
+    array of them) and one optional text field for each question, "Other";
+    `accept` gives `allow` with `updatedInput` = `questions` and `answers`
+    (the text of "Other" when it is not empty, else the label or labels);
+    `decline` or `cancel` gives `deny` with "The person declined to answer.".
+    An editor without the capability gets no `AskUserQuestion`
+    (`--disallowedTools`), so Claude asks in its text, as `claude-agent-acp`
+    does.
+  - 2.6b Kernel (new): an event `AgentQuestionRequest(message, fields, reply)`,
+    like `AgentPermissionRequest`, with `AgentQuestionField(name, title,
+    description, kind, options, is_required)`, where `kind` is `:choice`,
+    `:choices`, `:text`, `:number`, `:integer` or `:boolean`. `reply(values)`
+    answers with a `Dict` of the values, or `nothing` for a decline.
+  - 2.6c ACP adapter: advertise `elicitation.form`; read a form request into
+    the event, and the reply into `accept`, `decline` or `cancel`. A schema
+    part that it can not read becomes a text field.
+  - 2.6d Conversation (new): a part `ConversationQuestionRequest` with the
+    message, the fields, a form document of the values, and the reply; the
+    card shows one control for each field (a toggle group for one choice,
+    toggles for several, a text field, a check box), a "Send" and a "Decline"
+    button, and the answer after it. The form is the live field of the part;
+    the transcript rule also passes a write that names a document inside a
+    live field. A cancel of the turn answers an open form with `nothing`.
+  - 2.6e Later, a second step: the same card for a question of the models of
+    this editor (Anthropic, Ollama), through a tool of the editor that asks the
+    person.
+
+  **Questions for the owner.**
+  - Q11. The scope: 2.6a to 2.6d now, and 2.6e (a tool for the models of this
+    editor) as the next step? Recommended: yes.
+  - Q12. The new names: `AgentQuestionRequest`, `AgentQuestionField`,
+    `ConversationQuestionRequest` ("question", which a person sees, not
+    "elicitation", the word of the protocol)?
+  - Q13. An "Other" text field for each question, as the SDK documentation
+    recommends? Recommended: yes.
+  - Q14. An editor without forms: `ClaudeCodeACP` turns `AskUserQuestion` off,
+    so Claude asks in its text? Recommended: yes.
 - [ ] 2.7 Request cancel, and the prompt queue. **The request cancel is done:**
   the agent withdraws a permission request with `$/cancel_request` and its
   JSON-RPC id, the connection replies `nothing`, and the agent gets the valid
