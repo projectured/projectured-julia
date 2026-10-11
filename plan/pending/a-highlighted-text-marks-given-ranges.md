@@ -3,7 +3,8 @@
 > **Kind:** plan · **Status:** pending, design, 2026-10-09. The owner chose to
 > extend `HighlightedText` itself (Q-7.2-5 of the omnet plan
 > `legacy-simulation-catalog-implementation.md`), and answered Q1 to Q3 on
-> 2026-10-11 (section 6). No step is started.
+> 2026-10-11 (section 6). **Deferred** by the owner on 2026-10-11: "not needed
+> right now". No step is started.
 
 ## 1. The goal
 
