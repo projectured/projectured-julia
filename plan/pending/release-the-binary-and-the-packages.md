@@ -888,6 +888,13 @@ Step A6 do.
       how to make a package release: generate, commit, register, push. Done on
       2026-09-29 (commit `abe2c9557`), with the release copy in
       [builder.md](../../documentation/package/builder/builder.md).
+      On 2026-10-11 the section became a guide of its own,
+      [release-guide.md](../../documentation/guide/release-guide.md), because
+      a release is more than a build. It adds what the releases of 2026-10-06
+      and 2026-10-08 did beside the build: the checks before, a clean clone,
+      the packages of the other repositories first, the scratch registry, the
+      test as a new user, the push of the registry after the workflows pass,
+      and the minor step of B7.
 
 ### Step B6: publish the packages (the owner only)
 

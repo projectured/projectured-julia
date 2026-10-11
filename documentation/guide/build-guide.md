@@ -143,62 +143,8 @@ target machine still needs.
 
 ## Release the packages
 
-The packages reach a Julia programmer through a registry. They live in one
-release repository, `projectured/Projectured.jl`, with one folder for each
-package, `<Name>/`, and the licence files at its root. Each package folder holds
-everything the package reads, because Pkg installs only the folder of a
-package, and its tests: `Pkg.test` runs the suite of its test package on the
-installed package. The release repository tests each package on every push, in
-the workflow `.github/workflows/CI.yml` that the build writes.
-[builder.md](../package/tool/builder/builder.md) says how the copy is made.
-
-**Warning: do not rewrite the history of the release repository.** The registry
-names each version by the git tree of the package folder, and Pkg must find that
-tree for as long as the version exists.
-
-1. Clone the release repository beside this checkout, as `../Projectured.jl`.
-   Make sure that it has no uncommitted change; the build refuses one.
-2. Write the release into it:
-
-   ```julia
-   using ProjecturedBuilder                    # julia --project=environment/build
-   results = build_projectured_package_release!("../Projectured.jl")
-   ```
-
-   The build checks General. For a local registry, give its name or its folder
-   as `registry`, for example `registry = "ProjecturedRegistry"`. The build stops when a version of the last release is not in
-   that registry yet, because a registry refuses a version that skips the one
-   before it. A package whose content did not change keeps its folder as it is.
-   A changed package gets the next patch version. A new package gets a new
-   folder. `results` lists each package with its status and its version,
-   dependencies first.
-3. Commit the release repository, and push it. The push starts the workflow: a
-   job for each package with tests, on Julia 1.12, the oldest version that the
-   packages name.
-   Wait until it passes before you register. A job sends its coverage to
-   Codecov; the upload needs the Codecov app on `projectured/Projectured.jl`,
-   and a job does not fail without it.
-4. Register the new and the changed packages in the order of `results`:
-
-   - In a local registry, with `LocalRegistry`, for each package:
-
-     ```julia
-     using LocalRegistry
-     register("../Projectured.jl/<Name>"; registry = "ProjecturedRegistry")
-     ```
-
-     LocalRegistry finds the folder of the package in the repository, and the
-     registry records it.
-   - In General, with a comment on the release commit, for each package:
-
-     ```
-     @JuliaRegistrator register subdir=<Name>
-     ```
-
-     A package goes into General only after the packages it depends on,
-     because General installs each new version to test it. A new version of a
-     package that General already holds merges after 15 minutes; the first
-     version of a new package waits 3 days.
+The packages reach a Julia programmer through a registry, not as a binary.
+[release-guide.md](release-guide.md) says how to make a release of them.
 
 ## Build the agent claude-code-acp
 
