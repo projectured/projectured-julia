@@ -125,14 +125,26 @@ evaluate_operation((document = b,), op)
 @test b.elements[2].elements[1].content == "second!"
 @test get_flat_selection(b) == (21, 21, true)
 
-# Backspace at the start of a line now produces a flat op targeting the position
-# before it (the indentation gap); the standalone evaluate still declines a gap /
-# cross-span delete (v1), leaving the line unchanged.
+# Backspace at the start of the text of a line removes the break and the
+# indentation before it, so the two lines join, and the caret stands at the seam.
 bb  = caret(fb(Int[2, 1], 0))
 bop = read_bound_gesture(bb, KeyDown(:backspace, ModifierKeys(); time = 0.0))
 @test bop isa ReplaceTextRangeOperation
+@test strip_reference_types(bop.reference).head == TextRangeReferenceStep(11, 14)
 evaluate_operation((document = bb,), bop)
-@test bb.elements[2].elements[1].content == "second"
+@test length(bb.elements) == 1
+@test get_flat_string(bb) == "hello worldsecond"
+@test get_flat_selection(bb) == (11, 11, true)
+
+# Enter splits the line at the caret; the new line takes the indentation of the
+# line, and the text after the caret.
+be  = caret(fb(Int[1, 1], 3))
+eop = read_bound_gesture(be, KeyDown(:return, ModifierKeys(); time = 0.0))
+@test eop isa ReplaceTextRangeOperation && eop.replacement == "\n"
+evaluate_operation((document = be,), eop)
+@test [get_flat_length(line) for line in be.elements] == [3, 8, 8]
+@test get_flat_string(be) == "hel\nlo world\n  second"
+@test get_flat_selection(be) == (4, 4, true)
 
 # A flat block: single-index spans, the newline counted as one flat char.
 flat = set_selection!(TextBlock(TextString("ab"),

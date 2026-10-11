@@ -324,6 +324,110 @@ TextLine(f::Function; indentation::Integer = 0, gutter = nothing, fold = nothing
 # start with it. Opt out, as `@domain` does for its own placeholder.
 DomainModule.insertable(::Type{<:TextLine}) = false
 
+# ── An edit of the lines of a block ────────────────────────────────────
+
+# Whether a flat edit of `block` is an edit of its lines: the block is lines, and the
+# replacement holds a `'\n'` or the range covers a break.
+function _is_line_edit(block::TextBlock, start::Int, stop::Int, replacement::AbstractString)
+    block.elements isa ListNode && return false
+    lines = collect(block.elements)
+    (!isempty(lines) && all(line -> line isa TextLine, lines)) || return false
+    occursin('\n', replacement) || (start < stop && any(==('\n'), view(_flat_chars(block), (start + 1):stop)))
+end
+
+# Replace the flat range `start:stop` of a block of lines with `replacement`: the
+# lines that the range covers join, and each `'\n'` of the replacement starts a line.
+# The first line keeps its object, its gutter and its fold; a new line takes its
+# indentation and no gutter. A run that the range cuts becomes two runs in its
+# style, and the text inserted takes the style of the run before it. An empty line
+# holds an empty run, so it has a height and a style for what is typed there.
+# Returns the flat offset after the inserted text.
+function _splice_lines!(block::TextBlock, start::Int, stop::Int, replacement::AbstractString)
+    lines = collect(block.elements)
+    offsets = get_flat_offsets(block)
+    a, start_in_line = _find_text_line_offset(lines, offsets, start)
+    b, stop_in_line = _find_text_line_offset(lines, offsets, stop)
+    head, style = _split_line_runs(lines[a], start_in_line, :head)
+    tail, tail_style = _split_line_runs(lines[b], stop_in_line, :tail)
+    style = something(style, tail_style, Some(nothing))
+    make(text) = style === nothing ? TextString(String(text)) : _make_run_like(style, text)
+    pieces = split(replacement, '\n')
+    runs = [TextDocument[] for _ in pieces]
+    append!(runs[1], head)
+    for (k, piece) in enumerate(pieces)
+        isempty(piece) || push!(runs[k], make(piece))
+    end
+    append!(runs[end], tail)
+    for line_runs in runs
+        isempty(line_runs) && push!(line_runs, make(""))
+    end
+    first_line = lines[a]
+    _replace_line_runs!(first_line, runs[1])
+    b > a && deleteat!(block.elements, (a + 1):b)
+    indentation = first_line.indentation
+    for k in 2:length(runs)
+        insert!(block.elements, a + k - 1, TextLine(runs[k]; indentation))
+    end
+    last = a + length(runs) - 1
+    at = length(runs) > 1 ? length(pieces[end]) : start_in_line + length(pieces[1])
+    get_flat_offsets(block)[last] + block.elements[last].indentation + at
+end
+
+# The line of a block of lines that holds the flat offset `flat`, and the offset in
+# the text of that line, after its indentation; an offset in the indentation stands
+# at the start of the text.
+function _find_text_line_offset(lines, offsets, flat::Int)
+    for k in length(lines):-1:1
+        flat >= offsets[k] || continue
+        line = lines[k]
+        length_of_text = get_flat_length(line) - line.indentation
+        return (k, clamp(flat - offsets[k] - line.indentation, 0, length_of_text))
+    end
+    (1, 0)
+end
+
+# The runs of `line` before the offset `at` of its text (`:head`) or after it
+# (`:tail`), a run that the offset cuts made anew for its part, and the run whose
+# style the text at the offset takes: the run before it, else the run after it.
+function _split_line_runs(line::TextLine, at::Int, part::Symbol)
+    runs = TextDocument[]
+    style = nothing
+    position = 0
+    for run in line.elements
+        length_of_run = get_flat_length(run)
+        if position + length_of_run <= at
+            part === :head && push!(runs, run)
+            run isa TextString && (style = run)
+        elseif position >= at
+            part === :tail && push!(runs, run)
+            (style === nothing && run isa TextString) && (style = run)
+        else
+            characters = collect(run.content::AbstractString)
+            cut = at - position
+            part === :head ? push!(runs, _make_run_like(run, String(characters[1:cut]))) :
+                             push!(runs, _make_run_like(run, String(characters[(cut + 1):end])))
+            style = run
+        end
+        position += length_of_run
+    end
+    filter!(run -> !(run isa TextString && isempty(run.content::AbstractString)), runs)
+    (runs, style)
+end
+
+# A run with the text `text` in the style of `run`.
+_make_run_like(run::TextString, text::AbstractString) =
+    TextString(Cell(String(text)), getfield(run, :font), getfield(run, :font_color), Cell(run.fill_color),
+               Cell(run.line_color), Cell(run.padding), Cell(run.pointer_shape), Cell(nothing))
+
+# Make `runs` the runs of `line`.
+function _replace_line_runs!(line::TextLine, runs::Vector{TextDocument})
+    elements = line.elements
+    deleteat!(elements, 1:length(elements))
+    for run in runs
+        push!(elements, run)
+    end
+end
+
 # ── make_text_block ────────────────────────────────────────────────────
 
 """
@@ -537,6 +641,7 @@ splice_value!(owner, field::Symbol, span::TextString, s::Int, e::Int, replacemen
 # grows a fresh span. Ranges that straddle two spans are left for a later
 # multi-span editing pass.
 function splice_value!(owner, field::Symbol, text::TextBlock, s::Int, e::Int, replacement::AbstractString)
+    _is_line_edit(text, s, e, replacement) && (_splice_lines!(text, s, e, replacement); return text)
     infos = _text_span_infos(text)
     for (path, len) in infos
         base = get_flat_base(text, path)
@@ -602,6 +707,7 @@ _span_at(text::TextBlock, path::SpanPath) =
 # every tested/real input and lets the absence of a binding be the decline.
 @gestures TextBlock begin
     KeyPress(_, t)         => "Insert character"     => _text_insert(doc, t)
+    KeyDown(:return;)      => "Break the line"       => _text_insert(doc, "\n")
     KeyDown(:period; ctrl) => "Toggle collapse"      => ToggleCollapseOperation()
     KeyDown(:backspace;)   => "Delete backward"      => _text_delete(doc, :backspace)
     KeyDown(:delete;)      => "Delete forward"       => _text_delete(doc, :delete)
@@ -849,23 +955,42 @@ end
 
 # Backspace / Delete: the flat range to remove. A non-empty selection is deleted;
 # a caret removes the char before it (backspace) / after it (delete), clamped at
-# the ends. Whether a range that crosses a span/break boundary actually applies is
-# decided when the op is lowered (v1: a cross-span range declines).
+# the ends. At the start of the text of a line (backspace) or at its end (delete) it
+# removes the break and the indentation of the lower line, so the two lines join.
 function _text_delete(text::TextBlock, key::Symbol)
     sel = _text_flat_selection(text)
     sel === nothing && return nothing
     s, e = sel
-    if s != e
-        rng = (s, e)
-    elseif key === :backspace
-        s > 0 || return nothing
-        rng = (s - 1, s)
-    else  # :delete
-        n = _text_flat_total(text)
-        s < n || return nothing
-        rng = (s, s + 1)
-    end
+    rng = s != e ? (s, e) :
+          something(_find_line_join_range(text, s, key), _find_char_range(text, s, key), Some(nothing))
+    rng === nothing && return nothing
     ReplaceTextRangeOperation(make_flat_range_reference(rng[1], rng[2]), "")
+end
+
+# The character before the caret `c` (`:backspace`) or after it (`:delete`), or
+# `nothing` at the end of the text in that direction.
+_find_char_range(text::TextBlock, c::Int, key::Symbol) =
+    key === :backspace ? (c > 0 ? (c - 1, c) : nothing) :
+                         (c < _text_flat_total(text) ? (c, c + 1) : nothing)
+
+# The flat range that joins two lines when the caret `c` stands at the start of the
+# text of a line (`:backspace`) or at its end (`:delete`): the break between them
+# and the indentation of the lower line, which no edit owns. `nothing` when the
+# caret stands elsewhere.
+function _find_line_join_range(text::TextBlock, c::Int, key::Symbol)
+    elements = collect(text.elements)
+    offsets = get_flat_offsets(text)
+    for (k, line) in enumerate(elements)
+        line isa TextLine || continue
+        start = offsets[k]
+        if key === :backspace && k > 1 && elements[k - 1] isa TextLine && c == start + line.indentation
+            return (start - 1, c)
+        elseif key === :delete && k < length(elements) && elements[k + 1] isa TextLine &&
+               c == start + get_flat_length(line)
+            return (c, offsets[k + 1] + elements[k + 1].indentation)
+        end
+    end
+    nothing
 end
 
 # Ctrl+Home / Ctrl+End: caret to flat offset 0 / the total flat length.
@@ -1097,7 +1222,7 @@ lowered to the structural single-span form here so the clipboard stays unchanged
 """
 function make_text_insert_operation(text::TextBlock, str::AbstractString)
     op = _text_insert(text, str)
-    op === nothing ? nothing : _lower_text_range(text, op)
+    op === nothing ? nothing : _lower_unless_line_edit(text, op)
 end
 
 # A whole-element selection projects to `∅` (the root element), a
@@ -1433,6 +1558,13 @@ function evaluate_operation(editor, op::ReplaceTextRangeOperation)
         return
     end
     block isa TextBlock || return
+    if _is_line_edit(block, start, stop, op.replacement)
+        newpos = _splice_lines!(block, start, stop, op.replacement)
+        steps = get_reference_steps(strip_reference_types(op.reference))
+        clear_selection!(document)
+        set_selection!(document, Reference(steps[1:end-1]..., TextRangeReferenceStep(newpos, newpos)))
+        return
+    end
     image_edit = _make_image_edit(block, start, stop, op.replacement)
     if image_edit !== nothing
         evaluate_operation(editor, reroot_operation(image_edit, Tuple(get_reference_steps(block_path))))
@@ -1518,10 +1650,23 @@ end
 # A block whose elements are a list has no flat caret stream: the list can be
 # endless, so it has no end to go to, and a flat offset would walk it. Such a
 # block reads no key.
+#
+# An edit of the lines of a block of lines stays flat: one whose replacement holds a
+# `'\n'`, or whose range covers a break. Each stage maps its flat offsets, and the
+# stage that owns the text splits or joins its lines.
 function _read_lowered_gesture(block::TextBlock, evt)
     block.elements isa ListNode && return nothing
     op = read_gesture(block, evt)
-    op isa ReplaceTextRangeOperation ? _lower_text_range(block, op) : op
+    op isa ReplaceTextRangeOperation ? _lower_unless_line_edit(block, op) : op
+end
+
+# A flat edit lowered to the run it falls in, or kept flat when it is an edit of
+# the lines of `block`.
+function _lower_unless_line_edit(block::TextBlock, op::ReplaceTextRangeOperation)
+    r = strip_reference_types(op.reference)
+    (r isa ConcreteReference && r.head isa TextRangeReferenceStep &&
+     _is_line_edit(block, r.head.start::Int, r.head.stop::Int, op.replacement)) && return op
+    _lower_text_range(block, op)
 end
 
 function _lower_text_range(block::TextBlock, op::ReplaceTextRangeOperation)
