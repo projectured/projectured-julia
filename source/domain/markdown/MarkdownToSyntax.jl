@@ -44,10 +44,8 @@ end
 
 @projection_template MarkdownTextToSyntaxLeaf MarkdownText (prj, doc) ->
     SyntaxLeaf(bound(:content, String,
-                     make_hinted_text(() -> doc.content;
-                                      empty_thunk = () -> isempty(doc.content),
-                                      placeholder = "text",
-                                      style = prj.style)))
+                     make_text_block(() -> doc.content, prj.style;
+                                     placeholder = "text", empty_thunk = () -> isempty(doc.content))))
 
 # ── MarkdownCodeToSyntaxLeaf ──────────────────────────────────────────────────
 # `tick` is the delimiter shown around the code (`` ` `` in source, "" rendered).
@@ -255,10 +253,8 @@ end
                                             placeholder = "lang",
                                             style = prj.lang_style))),
           SyntaxLeaf(bound(:code, String,
-                           make_hinted_text(() -> doc.code;
-                                            empty_thunk = () -> isempty(doc.code),
-                                            placeholder = "code",
-                                            style = prj.code_style));
+                           make_text_block(() -> doc.code, prj.code_style;
+                                           placeholder = "code", empty_thunk = () -> isempty(doc.code)));
                      open=TextString("\n", prj.fence_style)) ];
         open=TextString(prj.open_fence, prj.fence_style), close=TextString(prj.close_fence, prj.fence_style))
 

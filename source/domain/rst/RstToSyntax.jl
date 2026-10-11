@@ -156,10 +156,8 @@ end
 
 @projection_template RstTextToSyntaxLeaf RstText (prj, doc) ->
     SyntaxLeaf(bound(:content, String,
-                     make_hinted_text(() -> doc.content;
-                                      empty_thunk = () -> isempty(doc.content),
-                                      placeholder = "text",
-                                      style = prj.style)))
+                     make_text_block(() -> doc.content, prj.style;
+                                     placeholder = "text", empty_thunk = () -> isempty(doc.content))))
 
 @projection UntrackedCell struct RstLiteralToSyntaxLeaf
     value_style::StyleText = get_rst_style(nothing, :literal_text)

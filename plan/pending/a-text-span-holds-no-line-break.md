@@ -469,10 +469,21 @@ change how every view of syntax makes its lines, so they land together.
      with a function. `test_xml` 80, `test_sql` 671, `test_typeins` 5148 and 20
      broken; the text dump of the examples does not change, because none holds a
      text node or a raw text of many lines.
-   - Open: Markdown's text and code values show a placeholder while they are
-     empty (`make_hinted_text`), which a text of lines has no twin for; a Book
-     paragraph holds a `TextBlock` in its field and prints it flattened, which is
-     N1c.
+   - ✅ A placeholder for a text of lines (decided by the owner, 2026-10-09: an
+     option of `make_text_block`, not a twin of `make_hinted_text`):
+     `make_text_block(content, style; placeholder, empty_thunk)` is one line with
+     the placeholder in a muted colour while the text is empty, the same object
+     each time. `test_text` 106 of 106.
+   - ✅ Markdown's paragraph text and the code of a code block, and
+     reStructuredText's source text, are lines with their placeholder. The
+     inline marks (code, literal, role, reference, url, alt, names) are one line,
+     and stay runs. `test_markdown` 262, `test_rst` 111, `test_click_roundtrips`
+     42, `test_typeins` 5148 and 20 broken; the text dump does not change.
+   - Open: the rendered views of Markdown and of reStructuredText print a text
+     as one run that takes the ambient style and the pointer of a link; a soft
+     break in it is a row today, and how a rendered paragraph shows it is a
+     question of those domains. A Book paragraph holds a `TextBlock` in its field
+     and prints it flattened, which is N1c.
 6. **The text domain edits a break as structure** (rule 2 of §4): Enter,
    Backspace and Delete at a line boundary, and a paste with breaks, on a block of
    lines; in a block inside `bound`, they are edits of `'\n'` in the string.
