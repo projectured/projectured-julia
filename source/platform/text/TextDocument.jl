@@ -329,11 +329,10 @@ DomainModule.insertable(::Type{<:TextLine}) = false
 # Whether a flat edit of `block` is an edit of its lines: the block is lines, and the
 # replacement holds a `'\n'` or the range covers a break.
 function _is_line_edit(block::TextBlock, start::Int, stop::Int, replacement::AbstractString)
-    block.elements isa ListNode && return false
-    lines = collect(block.elements)
-    (!isempty(lines) && all(line -> line isa TextLine, lines)) || return false
+    _is_block_of_lines(block) || return false
     occursin('\n', replacement) || (start < stop && any(==('\n'), view(_flat_chars(block), (start + 1):stop)))
 end
+
 
 # Replace the flat range `start:stop` of a block of lines with `replacement`: the
 # lines that the range covers join, and each `'\n'` of the replacement starts a line.
@@ -707,7 +706,7 @@ _span_at(text::TextBlock, path::SpanPath) =
 # every tested/real input and lets the absence of a binding be the decline.
 @gestures TextBlock begin
     KeyPress(_, t)         => "Insert character"     => _text_insert(doc, t)
-    KeyDown(:return;)      => "Break the line"       => _text_insert(doc, "\n")
+    KeyDown(:return;)      => "Break the line"       => _text_break(doc)
     KeyDown(:period; ctrl) => "Toggle collapse"      => ToggleCollapseOperation()
     KeyDown(:backspace;)   => "Delete backward"      => _text_delete(doc, :backspace)
     KeyDown(:delete;)      => "Delete forward"       => _text_delete(doc, :delete)
@@ -952,6 +951,11 @@ function _text_insert(text::TextBlock, str::AbstractString)
     sel === nothing && return nothing
     ReplaceTextRangeOperation(make_flat_range_reference(sel[1], sel[2]), str)
 end
+
+# Enter: a break at the cursor, in a text of lines. A text of runs is one line, so
+# the key goes on to the bindings around the text, such as the one that makes the
+# value of a type-in.
+_text_break(text::TextBlock) = _is_block_of_lines(text) ? _text_insert(text, "\n") : nothing
 
 # Backspace / Delete: the flat range to remove. A non-empty selection is deleted;
 # a caret removes the char before it (backspace) / after it (delete), clamped at
@@ -1661,14 +1665,11 @@ function _read_lowered_gesture(block::TextBlock, evt)
 end
 
 # A flat edit lowered to the run it falls in, or kept flat when it is an edit of
-# the lines of `block`. A break into a block that is no block of lines declines,
-# because a run holds no break, so Enter falls to the keys around the text, such as
-# the one that makes the value of a type-in.
+# the lines of `block`.
 function _lower_unless_line_edit(block::TextBlock, op::ReplaceTextRangeOperation)
     r = strip_reference_types(op.reference)
     (r isa ConcreteReference && r.head isa TextRangeReferenceStep &&
      _is_line_edit(block, r.head.start::Int, r.head.stop::Int, op.replacement)) && return op
-    occursin('\n', op.replacement) && return nothing
     _lower_text_range(block, op)
 end
 
