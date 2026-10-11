@@ -830,6 +830,19 @@ from the command line of the projectured UI.
     terminal showed the URL and "Paste code here if prompted >", a wrong code
     gave "Invalid code" on the standard error, and the stop gave "The sign-in
     was stopped."
+  - [ ] 2.5f The release: `ClaudeCodeACP` 0.1.4 (`fee4813` on its branch
+    `sign-in`, with `e9dd893` and `a965bcd`), registered on the branch
+    `claude-code-acp-0.1.4` of the clone of ProjecturedRegistry (`668dd5b`,
+    with the tree of `fee4813`). `ProjecturedACP` needs 0.1.4 (`9aa731ec8`),
+    because the editor calls `make_login_command`. The branch `acp-sign-in`,
+    rebased onto `main` `5fb39c8b0` (two conflicts: the edges of the assistant
+    slice, and `_make_instant_turn` of main for the new turns), passes: the
+    kernel guard 10, the agent defaults 16, the platform guard 7, the terminal
+    53, the turn of an external agent 207, the conversation 377, `test_acp()`
+    143, the composer panel 76, `test_assistant_mvp()` 170 with its 4 known
+    broken, the application 372 with its 2 known broken, the builder 529 with
+    its known failure (the compat of AutoIntegration); the static guards as on
+    `main`. Waits for the word of the owner to land and push.
 
   **Facts (2026-10-09).**
   - ACP: an agent can advertise a `terminal` auth method with `args` and `env`.
