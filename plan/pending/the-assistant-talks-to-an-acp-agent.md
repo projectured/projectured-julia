@@ -921,7 +921,7 @@ from the command line of the projectured UI.
 - [ ] 2.6 Elicitation forms: a question of the agent as a form in the
   conversation. The owner chose this step after 2.5 on 2026-10-09, and said on
   2026-10-11: "The AI should be able to bring up UI for asking a question
-  anyway". A design waits for the answers of the owner.
+  anyway". The owner answered the questions of the design on 2026-10-11.
 
   **Facts (2026-10-11).**
   - Live with the built-in agent: Claude Code in print mode sends its tool
@@ -988,6 +988,13 @@ from the command line of the projectured UI.
     recommends? Recommended: yes.
   - Q14. An editor without forms: `ClaudeCodeACP` turns `AskUserQuestion` off,
     so Claude asks in its text? Recommended: yes.
+
+  The owner asked what "forms" means in Q14 (the ACP capability
+  `elicitation.form` of an editor), and then agreed to the recommendations of
+  Q11 to Q14 on 2026-10-11: 2.6a to 2.6d now and 2.6e as the next step; the
+  names `AgentQuestionRequest`, `AgentQuestionField` and
+  `ConversationQuestionRequest`; an "Other" text field for each question; and
+  no `AskUserQuestion` for an editor that can not show a form.
 - [ ] 2.7 Request cancel, and the prompt queue. **The request cancel is done:**
   the agent withdraws a permission request with `$/cancel_request` and its
   JSON-RPC id, the connection replies `nothing`, and the agent gets the valid
