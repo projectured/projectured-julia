@@ -106,29 +106,36 @@ Because of these bounds, a user updates all packages of ProjecturEd together.
 Do this before the publication. The check compiles every package for some
 minutes, so give each Julia process a memory cap and a timeout.
 
-1. Copy the registry clone to a scratch registry.
+1. Copy the clone of the registry, with its `.git` folder, to a scratch
+   registry, for example `/var/tmp/release/scratch-registry`.
 2. Register each changed package in the scratch registry, with
    `repo = "file://…"` and `push = false`. First register the packages of the
    other repositories, then the folders of `order`.
-3. Start each way of the front page of the release repository in a new
-   environment, as a new user types it:
-   - a new `HOME` with no git credentials, and an empty depot in
-     `JULIA_DEPOT_PATH`;
-   - the registries General and the scratch registry;
-   - `SDL_VIDEODRIVER=offscreen`, so that the window does not open on the
-     screen.
+3. Run each way of the front page of the release repository, as a new user
+   types it:
 
-   Each way adds its packages, loads them, and shows a data frame with
-   `display_in_editor`. The ways are:
+   ```sh
+   julia tool/check-release-as-new-user.jl /var/tmp/release/new-user /var/tmp/release/scratch-registry
+   ```
+
+   The script starts Julia again with a new `HOME` in the work folder, so the
+   depot is empty and has no git credentials. It adds General and the
+   registry, and runs each way in a new environment, with the window
+   offscreen. Each way adds its packages, loads them, and shows a data frame
+   with `display_in_editor`:
    - `using Projectured, DataFrames, SimpleDirectMediaLayer`, which loads the
      integrations;
    - each package by name: `using DataFrames, ProjecturedSDL,
      ProjecturedDataFrames`;
-   - the setting `"manual"` of AutoIntegration, which keeps
+   - the setting `"manual"` of AutoIntegration, which must keep
      `ProjecturedDataFrames` out of the session;
    - `using ProjecturedIntegrations, DataFrames, SimpleDirectMediaLayer`.
-4. Do step 3 on the oldest Julia that the packages name, and on the newest.
-   After the compile, the first frame of the data frame takes about a second.
+
+   The last line, `RESULT`, gives each way `pass` or `FAIL`. Each display
+   prints `FIRST FRAME`: after the compile, the first frame of the data frame
+   takes about a second.
+4. Do step 3 on the oldest Julia that the packages name, for example with
+   `julia +1.12`, and on the newest. Use a new work folder for each run.
 
 ## Publish the release
 
@@ -167,7 +174,11 @@ and the fix gets the next version. The registry then holds both versions, and
 ## After the release
 
 1. Do the check of "Test the release as a new user" again, with the published
-   registry: `pkg"registry add https://github.com/projectured/ProjecturedRegistry"`.
+   registry. Without a registry argument, the script adds the published one:
+
+   ```sh
+   julia tool/check-release-as-new-user.jl /var/tmp/release/new-user-published
+   ```
 2. If the install lines changed, change them where they are written:
    - [README.md](../../README.md) of this repository;
    - [setup-guide.md](setup-guide.md) and
@@ -200,4 +211,5 @@ package waits 3 days.
 | [source/tool/builder/PackageRelease.jl](../../source/tool/builder/PackageRelease.jl) | `build_package_release!`: the release copy, the versions, the scan of the paths |
 | [source/tool/builder/ProjecturedProgram.jl](../../source/tool/builder/ProjecturedProgram.jl) | `build_projectured_package_release!`: which packages the release holds, their READMEs, the front page, the workflows and the Julia bound |
 | [environment/build/](../../environment/build/) | the environment of the build |
+| [tool/check-release-as-new-user.jl](../../tool/check-release-as-new-user.jl) | the check of a release as a new user, way by way |
 | [test/tool/builder/PackageReleaseTest.jl](../../test/tool/builder/PackageReleaseTest.jl) | `test_package_release()`: the copy, the versions, the bounds and the scan |
