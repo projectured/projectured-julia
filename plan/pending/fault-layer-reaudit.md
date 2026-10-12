@@ -152,8 +152,17 @@ The decisions are C for L01-1, A for L01-2, A for L01-12, and A for A-4.
 ## Steps
 
 - [ ] 1. The fixes that need no decision: A-2, A-3, A-5, A-6, A-7, A-8, E-2.
+  - [x] A-5, A-6, A-7, A-8 and E-2 (ee69d5133). The new example of
+    `make_strict_fault_policy` is a barrier around a parse, so it names no editor.
 - [ ] 2. The tests T-1 … T-12, and the walkthrough `print_fault_example` (E-1).
 - [ ] 3. The three decisions.
+  - [x] L01-1 C. The field `dropped` is gone: the overflow record holds that
+    count. The overflow record has the site `:store`, the origin `:FaultStore`,
+    the exception type `:Nothing` and a fixed message. It does not count against
+    the capacity, and the store never forgets it, so its count is every fault
+    that did not fit. The store forgets the oldest key in the order of first
+    occurrence that does not wait for the drain. The tests of the capacity cover
+    T-6.
 - [ ] 4. The fault tests, the cell example test, and the guards. Then the audit of
   the changed files again, and the seal on the owner's word.
 

@@ -38,7 +38,6 @@ function test_fault_store()
         @test records[1].count == 3000
         @test records[1].origin === :SyntaxToText
         @test records[1].exception_type === :BoundsError
-        @test store.dropped == 0
     end
 
     @testset "a different exception in the same place is a different fault" begin
@@ -59,14 +58,38 @@ function test_fault_store()
         @test length(get_fault_records(store)) == 2
     end
 
-    @testset "the store is bounded and says what it dropped" begin
+    @testset "a full store counts the faults that do not fit into one record" begin
+        @test FaultStore().capacity == 64
         store = FaultStore(capacity = 3)
-        for index in 1:10
-            record_fault!(store, :print; origin = Symbol("P", index),
-                          exception = ErrorException("e"))
-        end
-        @test length(get_fault_records(store)) == 3
-        @test store.dropped == 7
+        answers = [record_fault!(store, :print; origin = Symbol("P", index),
+                                 exception = ErrorException("e")) for index in 1:10]
+        # Every key waits for the drain, so no key can make room.
+        @test [record.origin for record in get_fault_records(store)] ==
+              [:P1, :P2, :P3, :FaultStore]
+        @test (answers[10].site, answers[10].origin, answers[10].count) ==
+              (:store, :FaultStore, 7)
+        @test record_fault!(store, :print; origin = :P1,
+                            exception = ErrorException("e")).count == 2
+    end
+
+    @testset "a full store forgets the oldest record that the drain handed over" begin
+        quiet = FaultPolicy(is_console_enabled = false, is_sound_enabled = false)
+        store = FaultStore(capacity = 2)
+        fail!(origin) = record_fault!(store, :print; origin, exception = ErrorException("e"))
+        fail!(:A); fail!(:B)
+        drain_faults!(store; policy = quiet)
+        fail!(:C)
+        @test [record.origin for record in get_fault_records(store)] == [:B, :C]
+        fail!(:D)
+        @test [record.origin for record in get_fault_records(store)] == [:C, :D]
+        # C and D wait for the drain, so E counts into the overflow record.
+        @test (fail!(:E).origin, fail!(:F).count) == (:FaultStore, 2)
+        @test [record.origin for record in drain_faults!(store; policy = quiet)] ==
+              [:C, :D, :FaultStore]
+        # A key that comes back after the store forgot it starts a new count.
+        @test fail!(:A).count == 1
+        @test [record.origin for record in get_fault_records(store)] ==
+              [:D, :FaultStore, :A]
     end
 
     @testset "a store holds at least one fault" begin

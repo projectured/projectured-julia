@@ -30,8 +30,11 @@ editor task. A task that the editor task starts with `@async` runs on that
 thread.
 
 `capacity` bounds the number of distinct keys, and it must be at least 1. A new
-key that does not fit is counted in `dropped` rather than kept: the first faults
-are the ones that name the cause, so the store keeps those.
+key that does not fit takes the place of the oldest key that the drain already
+handed over, so each fault reaches the targets at least once. A key that comes
+back after the store forgot it starts a new count. When every key still waits for
+the drain, the new fault counts into the overflow record: one record beside the
+capacity, whose count says how many faults did not fit.
 
 # Example
 
@@ -52,7 +55,6 @@ mutable struct FaultStore
     targets::Vector{Any}
     consecutive::Dict{Symbol, Int}
     capacity::Int
-    dropped::Int
     depth::Int
     # The wake of the editor this store belongs to, or `nothing`. Called the
     # moment a record is queued for the drain, so a sleeping editor runs the
@@ -65,8 +67,17 @@ function FaultStore(; capacity::Integer = 64)
     capacity >= 1 || throw(ArgumentError("a fault store holds at least one fault"))
     FaultStore(Dict{UInt64, FaultRecord}(), UInt64[], UInt64[],
                Dict{UInt64, Int}(), Any[], Dict{Symbol, Int}(),
-               Int(capacity), 0, 0, nothing)
+               Int(capacity), 0, nothing)
 end
+
+# The overflow record counts each new fault that found every key of the store
+# waiting for the drain. Its exception type is `Nothing`, because it stands for
+# many exceptions and holds none.
+const _OVERFLOW_SITE = :store
+const _OVERFLOW_ORIGIN = :FaultStore
+const _OVERFLOW_KEY = _compute_fault_key(_OVERFLOW_SITE, _OVERFLOW_ORIGIN, :Nothing)
+const _OVERFLOW_MESSAGE =
+    "a new fault did not fit: the store was full, and every record waited for the drain"
 
 """
     get_fault_records(store) -> Vector{FaultRecord}
@@ -137,8 +148,9 @@ It is safe to call from inside a reactive computation, which is the whole reason
 the store exists. It is also safe to call with `nothing` as the store, so a
 projection that was given none still runs.
 
-Answers `nothing` when there is no store, or when the store is full and the key
-is new.
+Answers `nothing` when there is no store. A new fault that finds the store full
+belongs to the overflow record when no key can make room (see [`FaultStore`](@ref)),
+and the answer is that record.
 
 # Example
 
@@ -152,29 +164,38 @@ function record_fault!(store::FaultStore, site::Symbol; origin, reference = noth
     key = _compute_fault_key(site, _get_fault_origin_name(origin),
                              _get_fault_exception_name(exception))
     known = get(store.records, key, nothing)
-    if known !== nothing
-        grown = FaultRecord(known.key, known.site, known.origin, known.exception_type,
-                            known.message, known.traceback, known.first_reference,
-                            known.first_time, known.count + 1)
-        store.records[key] = grown
-        # Compare against the count that was last queued, not the one that was
-        # last drained. Comparing against the drained count re-queues the key on
-        # every occurrence above the first bucket, which is the busy loop this
-        # rule exists to stop. A key that waits for the drain already has its
-        # latest count in `records`, so it waits there one time.
-        queued = get(store.queued_counts, key, 0)
-        if _get_fault_count_bucket(grown.count) != _get_fault_count_bucket(queued)
-            store.queued_counts[key] = grown.count
-            key in store.undrained || push!(store.undrained, key)
-            _notify_fault_wake!(store)
-        end
-        return grown
+    known === nothing || return _count_known_fault!(store, known)
+    if _count_fault_keys(store) >= store.capacity && !_forget_drained_fault!(store)
+        return _count_overflow_fault!(store)
     end
-    if length(store.order) >= store.capacity
-        store.dropped += 1
-        return nothing
+    _add_fault_record!(store, make_fault_record(site; origin, reference, exception,
+                                                traceback))
+end
+
+record_fault!(::Nothing, site::Symbol; origin, reference = nothing, exception,
+              traceback = nothing) = nothing
+
+# One more occurrence of a key that the store holds.
+function _count_known_fault!(store::FaultStore, known::FaultRecord)
+    grown = FaultRecord(known.key, known.site, known.origin, known.exception_type,
+                        known.message, known.traceback, known.first_reference,
+                        known.first_time, known.count + 1)
+    store.records[known.key] = grown
+    # Compare against the count that was last queued, not the one that was last
+    # drained. Comparing against the drained count re-queues the key on every
+    # occurrence above the first bucket, which is the busy loop this rule exists
+    # to stop. A key that waits for the drain already has its latest count in
+    # `records`, so it waits there one time.
+    queued = get(store.queued_counts, known.key, 0)
+    if _get_fault_count_bucket(grown.count) != _get_fault_count_bucket(queued)
+        store.queued_counts[known.key] = grown.count
+        known.key in store.undrained || push!(store.undrained, known.key)
+        _notify_fault_wake!(store)
     end
-    record = make_fault_record(site; origin, reference, exception, traceback)
+    grown
+end
+
+function _add_fault_record!(store::FaultStore, record::FaultRecord)
     store.records[record.key] = record
     store.queued_counts[record.key] = record.count
     push!(store.order, record.key)
@@ -183,8 +204,30 @@ function record_fault!(store::FaultStore, site::Symbol; origin, reference = noth
     record
 end
 
-record_fault!(::Nothing, site::Symbol; origin, reference = nothing, exception,
-              traceback = nothing) = nothing
+# The keys that count against the capacity: every key but the overflow record.
+_count_fault_keys(store::FaultStore) =
+    length(store.order) - haskey(store.records, _OVERFLOW_KEY)
+
+# Forget the oldest key that the drain already handed over, and answer whether
+# there was one.
+function _forget_drained_fault!(store::FaultStore)
+    index = findfirst(key -> key != _OVERFLOW_KEY && !(key in store.undrained),
+                      store.order)
+    index === nothing && return false
+    key = store.order[index]
+    deleteat!(store.order, index)
+    delete!(store.records, key)
+    delete!(store.queued_counts, key)
+    true
+end
+
+function _count_overflow_fault!(store::FaultStore)
+    known = get(store.records, _OVERFLOW_KEY, nothing)
+    known === nothing || return _count_known_fault!(store, known)
+    _add_fault_record!(store, FaultRecord(_OVERFLOW_KEY, _OVERFLOW_SITE, _OVERFLOW_ORIGIN,
+                                          :Nothing, _OVERFLOW_MESSAGE, "", nothing,
+                                          time(), 1))
+end
 
 """
     drain_faults!(store; policy = FaultPolicy()) -> Vector{FaultRecord}
