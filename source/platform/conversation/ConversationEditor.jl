@@ -575,8 +575,9 @@ const _PLACEHOLDER = "type here…"
 const _INS_PREFIX = "Insert a new "
 const _INS_SUFFIX = " here"
 
-# Which run of the one line of the rendered body carries the editable value, and
-# the flat offset where the value starts: after the prefix of a kind chooser.
+# Which run of the first line of the rendered body starts the editable value, and
+# the flat offset where the value starts: after the prefix of a kind chooser, and
+# at the start of a plain value, which fills every line of the body.
 _value_span(::DocumentInsertion) = 2
 _value_span(::Any) = 1
 _value_offset(::DocumentInsertion) = length(_INS_PREFIX)
@@ -604,15 +605,17 @@ function _editable_body(p, c::DocumentInsertion)
     ]))
 end
 
-# Plain editable text (a `PrimitiveString` or a domain's insertion): one line of one
-# run, and a pale placeholder while empty.
+# Plain editable text (a `PrimitiveString` or a domain's insertion): a line of one
+# run for each line of the value, and one pale placeholder line while it is empty.
+# The break before a line counts one flat offset, as the `'\n'` of the value does,
+# so a flat offset of the body is an offset of the value.
 function _editable_body(p, c)
-    show() = (v = _value(c); isempty(v) ? _PLACEHOLDER : v)
-    # reactive font_color (set below); font stays immutable.
-    ts = TextString(Cell(Computation(show)), p.code_font, Cell(p.plain_color), nothing, nothing, nothing, nothing)
-    set_cell_computation!(getfield(ts, :font_color),
-           () -> isempty(_value(c)) ? p.placeholder_color : p.plain_color)
-    TextBlock(TextLine(ts))
+    hint = TextLine(TextString(_PLACEHOLDER, p.code_font, p.placeholder_color))
+    TextBlock(function ()
+        v = _value(c)
+        isempty(v) && return TextDocument[hint]
+        TextDocument[TextLine(TextString(String(line), p.code_font, p.plain_color)) for line in split(v, '\n')]
+    end)
 end
 
 # The body's selection for the value range `s..e` of the active part `c`: a flat
@@ -798,8 +801,9 @@ end
 # The value range of the active part `c` that a place in its `body` names:
 # `(start, stop)`, `nothing` for a range that leaves the value, or `:other` for a
 # reference that names no place in the text. The value is a run of the one line of
-# the body; `get_flat_range` reads a place in either form that a text takes. A
-# caret before the value is at its start, and one after it at its end.
+# a kind chooser, or every line of a plain value; `get_flat_range` reads a place in
+# either form that a text takes. A caret before the value is at its start, and one
+# after it at its end.
 function _map_body_to_value(c, body::TextBlock, reference)
     range = get_flat_range(body, reference)
     range === nothing && return :other
@@ -807,7 +811,7 @@ function _map_body_to_value(c, body::TextBlock, reference)
     n = length(_value(c))
     base = get_flat_base(body, Int[1, span])
     base === nothing && return :other
-    shown = length(body.elements[1].elements[span].content::AbstractString)
+    shown = _shown_length(c, body)
     inside(f) = base <= f <= base + shown
     place(f) = f < base ? 0 : f > base + shown ? n : clamp(f - base, 0, n)
     s, e = range
@@ -815,6 +819,12 @@ function _map_body_to_value(c, body::TextBlock, reference)
     (inside(s) && inside(e)) || return nothing
     (clamp(s - base, 0, n), clamp(e - base, 0, n))
 end
+
+# How many flat offsets of the rendered body show the value, or the placeholder
+# while it is empty: the value run of a kind chooser, or the whole body.
+_shown_length(c::DocumentInsertion, body::TextBlock) =
+    length(body.elements[1].elements[_value_span(c)].content::AbstractString)
+_shown_length(::Any, body::TextBlock) = length(get_flat_string(body))
 
 # ═══════════════════════════════════════════════════════════════════════
 # Reader: gesture → composer operation, dispatched on the active part's state
