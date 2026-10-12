@@ -42,12 +42,17 @@ end
 const _RUN_WALK_MAX_NODES = 200_000
 const _RUN_WALK_MAX_DEPTH = 300
 
+# A value that holds no text run, and so ends the walk.
+const _RunWalkScalar = Union{Number, Symbol, AbstractString, Nothing, Function, Module, DataType, Char}
+
 # Each `TextString` that holds a `'\n'` in what `value` reaches — the documents, the
 # output of each stage and the IO maps between them — as the head of its text. The
-# walk stops at a node it saw and at a cap of nodes and of depth.
+# walk stops at a node it saw and at a cap of nodes and of depth. A vector of
+# scalars, such as a range, holds no run, and its length can be any.
 function _find_runs_with_break!(value, visited::Set{UInt64}, found::Vector{String}, depth::Int)
     (depth > _RUN_WALK_MAX_DEPTH || length(visited) >= _RUN_WALK_MAX_NODES) && return
-    value isa Union{Number, Symbol, AbstractString, Nothing, Function, Module, DataType, Char} && return
+    value isa _RunWalkScalar && return
+    value isa AbstractVector && eltype(value) <: _RunWalkScalar && return
     id = objectid(value)
     id in visited && return
     push!(visited, id)
