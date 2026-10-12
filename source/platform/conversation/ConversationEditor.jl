@@ -983,6 +983,13 @@ end
 read_intent(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyPress) =
     read_composer_gesture(iomap.input, evt)
 
+# The composer owns Return: a plain Return submits the draft, and Shift+Return
+# breaks the line of its value (`_composer_bindings`). The text under a card reads
+# Return as a break of its line; the composer declines that edit, so the key goes
+# on to its own bindings.
+read_intent(p::ConversationComposerToWidget, iomap::SimpleIoMap, op::ReplaceRangeOperation) =
+    occursin('\n', op.replacement) ? nothing : invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, op)
+
 read_intent(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyDown) =
     (d = iomap.input; resolve_composer_host_operation(d.assistant, read_composer_gesture(d, evt)))
 
