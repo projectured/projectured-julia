@@ -1,22 +1,25 @@
 # Reactive cells
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+> **Kind:** reference · **Status:** current · **Stands on:** [architecture.md](architecture.md)
 
 This guide says what a reactive cell holds, how a read records a dependency and a
 write invalidates the readers, and which invariants the engine relies on. It then
 describes the modules of the cell layer and of the struct layer above it. The
-engine is in [CellModule.jl](../../../source/kernel/cell/CellModule.jl).
+engine is in [ReactiveCell.jl](../../../source/kernel/cell/ReactiveCell.jl).
 
 The cell layer is the base of the incremental work of ProjecturEd. It is a
 pull-based reactive engine, and it takes the place of `hu.dwim.computed-class` in
-the original Common Lisp ProjecturEd. It is a layer of the kernel. It imports only
-the performance layer, which counts its reads and writes (see the
-[performance guide](performance.md)), and every layer above it builds on it.
+the original Common Lisp ProjecturEd. It is a layer of the kernel. It imports the
+performance layer, which counts its reads and writes (see the
+[performance guide](performance.md)), and the fault layer, whose
+`is_fault_exception` a computation in a fault scope calls (see the
+[fault guide](fault.md)). Every layer above it builds on it.
 
 ## Cell
 
-A `Cell` is the only reactive primitive. A cell holds a *value* or a
-*computation*: a function with no argument that computes its value.
+`ReactiveCell`, with its alias `Cell` for any value type, is the only reactive
+kind. A cell holds a *value* or a *computation*: a function with no argument that
+computes its value.
 
 ```julia
 c = Cell(42)                                # holds a value
@@ -26,7 +29,8 @@ c = ReactiveCell{Int}(@computation 2 * n[])  # a typed cell that holds a computa
 ```
 
 The *spelling* of the argument sets which of the two a cell holds, and the value
-does not. A `Computation` is the only thing that makes a cell compute:
+does not. A `Computation` is the only argument of a constructor or of `c[] =` that
+makes a cell compute, and `set_cell_computation!` takes a plain function:
 `@computation expr` makes one for an expression, and `Computation(f)` makes one
 for a function `f` that exists already. A cell stores every other argument, a
 function too, so a cell can hold a callback or a predicate as data. A
@@ -40,13 +44,16 @@ after it. Where an argument follows, write `@computation(expr)`, as in
 `pair(@computation(a[] + 1), b)`. `@computation f` computes the function `f` as
 a value, and does not call it; write `Computation(f)` for that.
 
-The struct also holds `valid`, the set of cells that it reads (`dependencies`),
-and the set of cells that read it (`dependents`).
+The struct also holds its `state`, the cells that it reads (`dependencies`), and
+the cells that read it (`dependents`), through a `WeakRef`, so a cell does not keep
+its readers alive. Both edge fields are `nothing` until the first edge. The state is
+*up to date*, *out of date*, *failed* or *computing*; the sections below say when
+each one holds.
 
 ### Read and write
 
 ```julia
-c[]                           # read: compute first if invalid, and return the value
+c[]                           # read: compute first if not up to date, and return the value
 c[] = v                       # write a value, and invalidate the dependents
 c[] = @computation expr       # write a computation, and invalidate the dependents
 set_cell_value!(c, v)         # the same as c[] = v
@@ -71,7 +78,7 @@ evaluation on one task never records a reader for an evaluation on another task:
 2. Each `c[]` during the computation records an edge `observer ← c`. The computed
    cell that reads becomes a downstream dependent of `c`.
 3. When the computation returns, the cell pops off the stack, and the engine marks
-   it valid.
+   it up to date, or out of date when a write reached it while it computed.
 
 So no code declares a dependency. A read records it.
 
@@ -80,10 +87,11 @@ So no code declares a dependency. A read records it.
 The engine invalidates at once, and it computes only on a read:
 
 - `c[] = v` or `set_cell_computation!(c, f)` walks the dependents of `c`, and
-  their dependents, and marks each one invalid (`valid = false`). No computation
-  runs.
-- The next `c[]` of an invalid cell calls `_recompute!(c)`. It removes the old
-  upstream edges, runs the computation with tracking, and stores the new value.
+  their dependents, and marks each one out of date. No computation runs. A
+  computing dependent is marked, so it ends out of date.
+- The next `c[]` of a cell that is not up to date calls `_recompute!(c)`. It
+  removes the old upstream edges, runs the computation with tracking, and stores
+  the new value.
 
 This is the pull-based, lazy strategy. The projection printer depends on it to
 stay incremental: a part of the output that nothing reads does not compute again,
@@ -91,41 +99,64 @@ also when its inputs change.
 
 ## A computation that throws
 
-A computation that throws leaves its cell invalid, so the next read runs it
-again, and the exception goes up the stack of the reads. The engine keeps no
-exception.
+A computation that throws makes its cell *failed*. The next read runs it again,
+and the exception goes up the stack of the reads; the engine keeps no exception. A
+reader can catch the exception and answer something else. That reader is then up
+to date while the cell that it read is not, so a failed cell passes the walk of a
+later write on to its readers, and the reader computes again.
 
 A computation also keeps its **fault scope**: the scope that held when its
-`Computation` was made, or when `set_cell_computation!` gave it to a cell. A fault
+`Computation` was made, or when `set_cell_computation!` gave it to a cell. A
+computation made while a computation in a scope runs takes that scope too. A fault
 barrier prints its part inside `run_in_fault_scope`. When a computation in a scope
-throws, it calls `record_computation_fault!` with the scope, and then throws a
-`RecordedFaultException`, which a computation above passes on unchanged. A
-computation made outside every scope keeps a bare function, so a cell outside
-every barrier runs as before. The barrier and its scope are in
+throws a fault, it calls `record_computation_fault!` with the scope. When the scope
+takes the fault, it answers `true`, and the computation throws a
+`RecordedFaultException`, which a computation above passes on unchanged. When it
+answers `false`, as a scope with no method does, the exception goes on as it is. An
+exception that is not a fault, and a `MethodError` in an older world, go on with no
+call. `get_fault_scope(f)` answers the scope that the computation `f` keeps, and
+`find_fault_scope()` answers the scope that a computation made now keeps: a barrier
+calls it to find the scope that encloses it. A computation made outside every scope
+keeps a bare function, so a cell outside every barrier runs with no scope. The barrier and its scope are in
 [fault.md](../platform/fault/fault.md).
+
+## A cycle
+
+A computation that reads its own cell, directly or through other cells, is a
+cycle. The read finds the cell *computing*, on the stack of its own task, and
+throws a `CellCycleException`, an ordinary exception: a barrier records it, and the
+editor goes on. Each cell of the cycle is failed, and a write that breaks the cycle
+reaches their readers.
+
+```julia
+a = Cell(0); b = Cell(@computation a[] + 1)
+a[] = @computation b[] + 1
+a[]                     # throws a CellCycleException
+a[] = 5; b[]            # 6
+```
 
 ## Invariants the engine relies on
 
-The code keeps these invariants, but nothing checks them. When code breaks one,
-the result is a hang, a stale value or a stack overflow, and not an error.
+The engine keeps these invariants. When code above breaks one, the result is a
+stale value or a stack overflow, and not an error.
 
-- **The dependency graph must be acyclic.** `_recompute!` runs a computation
-  while its cell is on the computing stack. When the computation reads its own
-  cell, directly or through other cells, the read starts the computation again,
-  and the recursion does not end. The engine records no edge for a direct
-  self-read (`observer !== c`), but that read also computes the cell again. The
-  engine detects no cycle, so a computed cell must never read itself, directly
-  or through any chain.
-- **Invalidation is monotone: when a cell is invalid, all its transitive
-  dependents are invalid too.** `_invalidate_dependents!` stops at a dependent
-  that is invalid already, because that cell invalidated its own dependents when
-  it became invalid. This holds only because each write walks the *full*
-  transitive closure, and only `_recompute!` makes a cell valid again. Never set
-  `valid` by hand, and never invalidate only a part of the dependents. Both break
-  the early stop and leave cells stale for good.
+- **The dependency graph must stay acyclic.** The engine finds a cycle and throws
+  a `CellCycleException`, but the cells of the cycle have no value until a write
+  breaks it. So a computed cell must never read itself, directly or through any
+  chain.
+- **Invalidation is monotone: when a cell is out of date, all its transitive
+  dependents are out of date too.** `_invalidate_dependents!` stops at a dependent
+  that is out of date already, because that cell made its own dependents out of
+  date when it became so. This holds only because each write walks the *full*
+  transitive closure, and only `_recompute!` makes a cell up to date. Two states
+  keep it where a computation ends early or late: a failed cell passes the walk on,
+  and a computing cell that a write reaches ends out of date. Never set the state
+  by hand, and never invalidate only a part of the dependents. Both break the early
+  stop and leave cells stale for good.
 - **Propagation follows the writes, not the values.** A write to a cell always
   invalidates its dependents, with **no equality check**. A write of the value
-  that the cell holds already still computes everything downstream again. A
+  that the cell holds already still makes everything downstream out of date, and
+  each cell computes again at its next read. A
   computation that returns an unchanged value does *not* stop the propagation. So
   `c[] = c[]` has a cost: a printer that writes `selection` in each frame pays for
   the whole subtree that it feeds. See
@@ -187,11 +218,12 @@ the field wrapping are in [the macros guide](macros.md).
 ## Layer structure
 
 The layer is the folder [source/kernel/cell/](../../../source/kernel/cell/), and
-`CellModule` is its one module. One layer sits on each side of it: the
-performance layer below, whose `@count_performance` the engine counts with, and
-the struct layer above, whose `@cell_struct` builds structs of cells. This guide
-describes the struct layer too; the [performance guide](performance.md) describes
-the performance layer.
+`CellModule` is its one module. Two layers sit below it: the fault layer, whose
+`is_fault_exception` a fault scope calls, and the performance layer, whose
+`@count_performance` the engine counts with. The struct layer above builds structs of
+cells with `@cell_struct`. This guide describes the struct layer too; the
+[fault guide](fault.md) and the [performance guide](performance.md) describe the
+layers below.
 
 ```
 performance/PerformanceModule.jl  (PerformanceModule): the counters
@@ -203,6 +235,7 @@ cell/CellModule.jl                (CellModule): the cell kinds, one file each
         ├─ CellFaultScope.jl  : the fault scope that a computation keeps, and where its fault goes
         ├─ MutableCell.jl     : a plain mutable box, with no reactive bookkeeping
         ├─ ImmutableCell.jl   : a read-only box
+        ├─ UntrackedCell.jl   : a cell that computes at each read and records no reader
         └─ CellDefaults.jl    : the bodies of the other generics, one method for each kind
         │  Cell and AbstractCell, used by ↓
 struct/CellStructModule.jl        (CellStructModule): the struct of cells
@@ -241,18 +274,20 @@ that never changes.
 computation with `run_untracked`, so the cell records no reader, and no read
 inside the computation records one. A change of what the computation reads
 reaches no computation that read the cell: some other part must make the readers
-compute again. A style field of a projection that reads its theme is the use it
-was made for, where one wrapper makes the whole view print again after a change
-of the theme. A plain value makes a constant, and a write is a `MethodError`.
+compute again. A style field of a projection that reads its theme is the main
+use, where one wrapper makes the whole view print again after a change of the
+theme. A plain value makes a constant, and a write is a `MethodError`.
 The kind is an immutable struct with one pointer, so a struct of cells holds it
 inline, and two structs can share its function.
 
 Public surface: `AbstractCell`, `is_cell_up_to_date`, `unwrap_cell`,
 `get_cell_value_type`, `make_similar_cell`, `is_computed_cell`,
 `get_cell_computation`, `has_dependent_cells`, `run_untracked`, `Computation`,
-`@computation`, `ReactiveCell`, `Cell`, `set_cell_value!`, `set_cell_computation!`,
-`MutableCell`, `ImmutableCell` and `UntrackedCell`. `peek` is an untracked read, a
-method of `Base.peek`.
+`@computation`, `ReactiveCell`, `Cell`, `CellCycleException`, `set_cell_value!`,
+`set_cell_computation!`, `run_in_fault_scope`, `record_computation_fault!`,
+`RecordedFaultException`, `get_fault_scope`, `find_fault_scope`, `MutableCell`,
+`ImmutableCell` and `UntrackedCell`. `peek` is an untracked read, a method of
+`Base.peek`.
 
 `get_cell_computation(c)` answers the computation of a reactive cell, or `nothing`.
 A caller puts a computation around it with `set_cell_computation!`, so it acts on
@@ -260,6 +295,19 @@ each value that the cell makes: the walk of the part under the pointer follows
 each node of a lazy list when the list builds it. That walk reads the node inside
 the computation of the link, so it reads it with `run_untracked`: the link must
 not compute again when a part of the node changes.
+
+## Try it
+
+`print_cell_example()` in `ProjecturedKernelExample` prints a REPL session with the
+layer: a value, a computation, a write that makes the readers out of date, `peek`, a
+chain, the other cell kinds, `run_untracked` and a fault scope. Each line runs as it
+prints. Type the lines yourself after `using ProjecturedKernel.CellModule`, and change
+them.
+
+```julia
+using ProjecturedKernelExample
+print_cell_example()
+```
 
 ## CellStructModule: the struct of cells
 

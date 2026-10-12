@@ -46,10 +46,24 @@ reader; and the guide `kernel/cell`.
     set_cell_value!(c, value)       # the same as `c[] = value`
     set_cell_computation!(c, f)     # the same as `c[] = Computation(f)`
 """
+# The state of a reactive cell. A cell that is not up to date computes at its next
+# read. A failed cell is one whose last computation threw: it computes at its next read,
+# and the walk of a write goes on through it, because a reader that caught its exception
+# can be up to date. A computing cell is on the stack of a computation; a write that
+# reaches it marks it, so it ends out of date, and a read of it from inside its own
+# computation is a cycle.
+@enum _CellState::UInt8 begin
+    _UP_TO_DATE
+    _OUT_OF_DATE
+    _FAILED
+    _COMPUTING
+    _COMPUTING_OUT_OF_DATE
+end
+
 mutable struct ReactiveCell{T} <: AbstractCell{T}
     value::T
     computation::Union{Nothing, Function}
-    valid::Bool
+    state::_CellState
     # The cells that the last computation read. The edges are strong, so a cell
     # keeps alive the cells that it computes from.
     dependencies::Union{Nothing, Set{ReactiveCell}}
@@ -58,16 +72,16 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
     dependents::Union{Nothing, Vector{WeakRef}}
 
     ReactiveCell{T}(value) where {T} =
-        new{T}(value, nothing, true, nothing, nothing)
+        new{T}(value, nothing, _UP_TO_DATE, nothing, nothing)
     # With a `Computation`, `value` holds `nothing` when `T` admits it, as after
     # `set_cell_computation!`. For another `T`, `value` stays undefined, because the
-    # field can not hold a placeholder. `valid = false` makes `_recompute!` assign
+    # field can not hold a placeholder. A cell out of date makes `_recompute!` assign
     # it before any read returns.
     function ReactiveCell{T}(marker::Computation) where {T}
         c = new{T}()
         nothing isa T && (c.value = nothing)
         c.computation = marker.computation
-        c.valid = false
+        c.state = _OUT_OF_DATE
         c.dependencies = nothing
         c.dependents = nothing
         return c
@@ -153,6 +167,36 @@ function run_untracked(f)
     end
 end
 
+# ── a cycle ──────────────────────────────────────────────────────────────────
+
+"""
+    CellCycleException(cell)
+
+The exception of a reactive cell whose computation read the cell itself, directly or
+through other cells.
+
+It is an ordinary exception, so a barrier records it as a fault and the editor goes
+on. Each cell of the cycle is failed, and computes again at its next read; a write
+that breaks the cycle reaches the readers of the cycle.
+
+# Example
+
+    a = Cell(0); b = Cell(@computation a[] + 1)
+    a[] = @computation b[] + 1
+    a[]                             # throws a CellCycleException
+
+See also `ReactiveCell`.
+"""
+struct CellCycleException <: Exception
+    cell::ReactiveCell
+end
+
+function Base.showerror(io::IO, exception::CellCycleException)
+    T = get_cell_value_type(exception.cell)
+    kind = T === Any ? "Cell" : "ReactiveCell{$(T)}"
+    print(io, "a ", kind, " read itself while it computed")
+end
+
 # ── read ─────────────────────────────────────────────────────────────────────
 
 function Base.getindex(c::ReactiveCell)
@@ -165,9 +209,7 @@ function Base.getindex(c::ReactiveCell)
             push!(_get_dependencies!(observer), c)
         end
     end
-    if !c.valid
-        _recompute!(c)
-    end
+    c.state === _UP_TO_DATE || _recompute!(c)
     return c.value
 end
 
@@ -189,26 +231,38 @@ end
 
 function _recompute!(c::ReactiveCell)
     if c.computation === nothing
-        c.valid = true
+        c.state = _UP_TO_DATE
         return
     end
-    _detach_upstream!(c)
     stack = _get_computing_stack()
+    _is_computing(c) && any(cell -> cell === c, stack) && throw(CellCycleException(c))
+    _detach_upstream!(c)
     @count_performance :computes
     push!(stack, c)
+    c.state = _COMPUTING
     try
         c.value = _run_computation(c.computation)
+    catch
+        # The exception goes on to the reader. The failed cell lets the walk of a
+        # later write reach the readers that caught it.
+        c.state = _FAILED
+        rethrow()
     finally
         pop!(stack)
     end
-    c.valid = true
+    c.state = c.state === _COMPUTING_OUT_OF_DATE ? _OUT_OF_DATE : _UP_TO_DATE
 end
+
+_is_computing(c::ReactiveCell) =
+    c.state === _COMPUTING || c.state === _COMPUTING_OUT_OF_DATE
 
 # ── invalidation ─────────────────────────────────────────────────────────────
 
-# Mark every valid reader of `c` invalid, then the readers of each, and so on. A
-# reader that is invalid already stops the walk: its own readers became invalid
-# with it.
+# Mark every reader of `c` out of date, then the readers of each, and so on. A reader
+# that is out of date already stops the walk: its own readers became out of date with
+# it. A failed reader does not stop it, because a reader of the failed cell that
+# caught its exception can be up to date. A computing reader is marked, so it ends
+# out of date.
 function _invalidate_dependents!(c::ReactiveCell)
     ds = c.dependents
     ds === nothing && return
@@ -216,11 +270,16 @@ function _invalidate_dependents!(c::ReactiveCell)
         d = ds[i].value
         d === nothing && continue      # the reader was collected
         dd = d::ReactiveCell
-        if dd.valid
-            dd.valid = false
-            @count_performance :invalidations
-            _invalidate_dependents!(dd)
+        state = dd.state
+        if state === _UP_TO_DATE || state === _FAILED
+            dd.state = _OUT_OF_DATE
+        elseif state === _COMPUTING
+            dd.state = _COMPUTING_OUT_OF_DATE
+        else
+            continue
         end
+        @count_performance :invalidations
+        _invalidate_dependents!(dd)
     end
 end
 
@@ -239,7 +298,7 @@ function Base.setindex!(c::ReactiveCell{T}, value) where {T}
     _detach_upstream!(c)
     c.computation = nothing
     c.value = converted
-    c.valid = true
+    c.state = _UP_TO_DATE
     _invalidate_dependents!(c)
     return value
 end
@@ -292,7 +351,7 @@ function set_cell_computation!(c::ReactiveCell{T}, computation::Function) where 
     _detach_upstream!(c)
     c.computation = _capture_fault_scope(computation)
     nothing isa T && (c.value = nothing)
-    c.valid = false
+    c.state = _OUT_OF_DATE
     _invalidate_dependents!(c)
     return c
 end
@@ -309,7 +368,7 @@ function Base.setindex!(c::ReactiveCell, marker::Computation)
     return marker
 end
 
-is_cell_up_to_date(c::ReactiveCell) = c.valid
+is_cell_up_to_date(c::ReactiveCell) = c.state === _UP_TO_DATE
 
 # ── untracked read ───────────────────────────────────────────────────────────
 
@@ -332,7 +391,7 @@ the computation depend on the cell; this one does not.
 See also `Cell` and the guide `kernel/cell`.
 """
 function Base.peek(c::ReactiveCell)
-    c.valid || _recompute!(c)
+    c.state === _UP_TO_DATE || _recompute!(c)
     return c.value
 end
 
@@ -418,6 +477,6 @@ function Base.show(io::IO, c::ReactiveCell{T}) where {T}
     # The value is shown into the same `io`, not through `repr`, which makes a new
     # buffer. So the depth and limit keys that a caller set on `io` still hold
     # inside a value in a cell.
-    c.valid ? show(io, c.value) : print(io, "<invalid>")
+    c.state === _UP_TO_DATE ? show(io, c.value) : print(io, "<invalid>")
     print(io, ")")
 end

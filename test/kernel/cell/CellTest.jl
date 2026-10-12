@@ -395,10 +395,9 @@ end
     c = Cell(@computation try b[] catch; -1 end)
     @test c[] == -1
     a[] = 2
-    # A failed computation leaves its cell invalid, so the walk of the write stops
-    # there.
-    # @broken: a failed computation stops the walk of a later write (L03-1)
-    @test_broken c[] == 5
+    # The failed cell passes the walk of the write on to the reader that caught it.
+    @test !is_cell_up_to_date(c)
+    @test c[] == 5
 end
 
 @testset "a write while a reader computes reaches the reader" begin
@@ -412,11 +411,27 @@ end
         value
     end)
     @test p[] == 2
+    # The write marked `p` while it computed, so `p` ended out of date.
+    @test !is_cell_up_to_date(p)
     t[] = 20
-    # The walk of the first write stopped at `p`, which computed, and `q` stays
-    # invalid.
-    # @broken: a write while a reader computes leaves the reader stale (L03-2)
-    @test_broken p[] == 21
+    @test p[] == 21
+end
+
+@testset "a cell that reads itself throws a CellCycleException" begin
+    c = Cell(0)
+    c[] = @computation c[] + 1
+    @test_throws CellCycleException c[]
+    @test !is_cell_up_to_date(c)
+    a = Cell(0)
+    b = Cell(@computation a[] + 1)
+    a[] = @computation b[] + 1
+    exception = try a[] catch caught; caught end
+    @test exception isa CellCycleException
+    @test exception.cell === a
+    @test sprint(showerror, exception) == "a Cell read itself while it computed"
+    # A write that breaks the cycle reaches the readers of the cycle.
+    a[] = 5
+    @test b[] == 6
 end
 
 @testset "a MethodError in a chain of ten computed cells" begin

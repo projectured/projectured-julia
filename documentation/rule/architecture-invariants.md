@@ -277,19 +277,25 @@ once, with backpressure.
 ### PAR-ACYCLIC-CELLS
 
 **The cell dependency graph must stay acyclic.** `_recompute!` evaluates a computation
-while its cell is on the computing stack; a cell that transitively reads
-itself recurses forever. The engine records no edge for a *direct* self-read,
-but that read recurses too, and the engine detects no cycle, so a computed cell
-must never read itself, directly or through any chain.
+while its cell is on the computing stack, in the state *computing*. A read of a
+computing cell from inside its own computation, directly or through any chain, is a
+cycle: the engine throws a `CellCycleException`, an ordinary exception that a
+barrier records, and each cell of the cycle is failed. So a cycle costs one fault and
+not the editor, but a computed cell must still never read itself: its value is
+missing until a write breaks the cycle.
 
 ### PAR-MONOTONE-INVALIDATION
 
-**Never hand-set `valid` and never partially invalidate.** Invalidation is
-monotone (an invalid cell implies all its transitive dependents are already
-invalid), and the engine's early-stop walk relies on it. `_recompute!` is the
-only thing that re-validates a cell. Setting `valid` by hand, or invalidating
-only a subset of dependents, breaks the early-stop and leaves cells stale
-forever.
+**Never hand-set the state of a cell and never partially invalidate.** A reactive
+cell is *up to date*, *out of date*, *failed* or *computing*. Invalidation is
+monotone: a cell that is out of date implies that all its transitive readers are
+out of date already, and the early-stop walk of a write relies on it. Two states
+keep the walk right where a computation ends early or late. A *failed* cell, whose
+computation threw, can have up-to-date readers, which caught its exception, so the
+walk goes on through it. A *computing* cell that a write reaches is marked, and it
+ends out of date. `_recompute!` is the only thing that makes a cell up to date.
+Setting the state by hand, or invalidating only a subset of readers, breaks the
+early stop and leaves cells stale forever.
 
 ### PAR-WRITE-DRIVEN-PROPAGATION
 

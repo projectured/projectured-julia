@@ -149,4 +149,15 @@ L03-9 B.
 - [ ] 1. The fixes that need no decision: A-1 … A-10, T-1 … T-13, E-1 (with the module
   bound under its own name in a walkthrough), G-1 … G-12.
 - [ ] 2. The decisions.
+  - [x] Decision 1, the states of a cell. `valid::Bool` is `state::_CellState`, an
+    `@enum` of `UInt8`, so a cell grows by nothing. It has five values: the four
+    states, and *computing* split in two, because a write that reaches a computing
+    cell marks it (`_COMPUTING_OUT_OF_DATE`). `_recompute!` sets *failed* in a `catch`
+    that rethrows, and the walk goes on through a failed cell. A read finds a cycle
+    when the cell is computing and is on the stack of its own task, so a read from
+    another task does not take it for a cycle. `CellCycleException` holds the cell,
+    and its message names the cell as its `show` does. The two broken tests pass, and
+    a new test covers a direct and an indirect cycle. The law
+    (PAR-MONOTONE-INVALIDATION, PAR-ACYCLIC-CELLS) and `cell.md` say so. The kernel
+    suite passes, 4384 of 4384, with no broken test left.
 - [ ] 3. The tests, the guards, a second audit, and the seal on the owner's word.

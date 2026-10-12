@@ -198,7 +198,7 @@ function measure_printer_locality(document, projection, mutate!)
             push!(errors, "mutate! threw: $e")
         end
 
-        # Eager invalidation has run; read `.valid` only (is_cell_up_to_date is pure) so we
+        # Eager invalidation has run; ask only whether each cell is up to date (it is pure) so we
         # do not recompute anything before observing the footprint.
         inv = LocalityCell[lc for lc in cells if !is_cell_up_to_date(lc.cell)]
 
