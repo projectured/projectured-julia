@@ -19,6 +19,28 @@ struct InsertionReflectionProbe <: Document
 end
 InsertionReflectionProbe() = InsertionReflectionProbe(nothing)
 
+# A place narrower than the JSON domain, as no domain has one yet: a JSON string or
+# number, and the intermediate states.
+@document struct _JsonNarrowPlace <: Document
+    value::Union{JsonString, JsonNumber, JsonInsertion, JsonNothing} = JsonNothing()
+end
+
+# An editor that draws a document through the natural syntax table, which holds every
+# loaded domain and the insertion of every domain.
+function _make_natural_insertion_editor(document)
+    table = RecursiveProjection(TypeDispatchingProjection(
+        make_natural_to_syntax_dispatch(; appearance = Appearance())...))
+    projection = ChainingProjection(table, RecursiveProjection(SyntaxToText()),
+                                    TextToGraphics(measure = FixedMeasure(8, 12, 4, 0)))
+    backend = HeadlessBackend()
+    editor = build_editor(document, projection; backend,
+                          devices = Device[Keyboard(), Mouse(), Display()],
+                          window = false, tabs = false, appearance = false, settings = false)
+    run_frame!(editor)
+    press!(event) = (push_event!(backend, event); run_frame!(editor))
+    (editor, press!)
+end
+
 
 # The colour of a role of the colour theme in the default appearance: the colour
 # of the typed text of an insertion while it names nothing (`text`), one thing
@@ -376,6 +398,59 @@ function test_document_insertion()
             empty_si.selection = _ins_vpath(0)
             esiom = print_document(sproj, sproj, empty_si, nothing)
             @test read_intent(sproj, esiom, KeyPress('\n'; time = 0.0)) === nothing
+        end
+
+        @testset "an insertion offers only what the declared type of its place admits" begin
+            narrow = Union{JsonString, JsonNumber, JsonInsertion, JsonNothing}
+            holder = _JsonNarrowPlace(; value = JsonInsertion("n"))
+            # The place of a field, and of an element of a list.
+            @test find_declared_place_type(@reference(holder, value)) == narrow
+            array = JsonArray(Document[JsonNumber(1)])
+            @test find_declared_place_type(@reference(array, elements[1])) == Document
+            call = parse_julia("f(x)")
+            @test find_declared_place_type(@reference(call, arguments[1])) == JuliaDocument
+            @test find_declared_place_type(_ins_vpath(0)) === nothing
+            # `n` names a JSON number and null; the narrow place admits the number only.
+            @test complete_insertion(JsonDocument, "n").state === :ambiguous
+            @test complete_insertion(JsonDocument, "n"; place = narrow).state === :unambiguous
+            @test resolve_insertion(JsonDocument, "n"; place = narrow) === JsonNumber
+            # The printed insertion reads its place from the reference of its context.
+            leaf = JsonInsertionToSyntaxLeaf()
+            ins = holder.value
+            ins.selection = _ins_vpath(1)
+            context = PrinterContext(@reference(holder, value), Cell(800), Cell(600), Dict{Symbol,Any}())
+            iomap = print_document(leaf, nothing, ins, context)
+            @test iomap.projection.place == narrow
+            @test iomap.output.content.close.content == "umber"
+            @test _written_doc(read_intent(leaf, iomap, KeyPress('\n'; time = 0.0))) isa JsonNumber
+            # The place admits no `DocumentInsertion`, so Insert is not offered.
+            @test read_intent(leaf, iomap, KeyDown(:insert, ModifierKeys(); time = 0.0)) === nothing
+        end
+
+        @testset "Insert widens an insertion, and an XML element goes into a JSON array" begin
+            array = JsonArray(Document[JsonNumber(1)])
+            editor, press! = _make_natural_insertion_editor(array)
+            set_selection!(array, @reference(array, elements[1]))
+            run_frame!(editor)
+            press!(KeyPress(','; time = 0.0))
+            @test array.elements[2] isa JsonInsertion
+            press!(KeyDown(:insert, ModifierKeys(); time = 0.0))
+            @test array.elements[2] isa DocumentInsertion
+            foreach(c -> press!(KeyPress(c; time = 0.0)), "xml element")
+            @test array.elements[2].value == "xml element"
+            press!(KeyPress('\n'; time = 0.0))
+            @test array.elements[2] isa XmlElement
+            @test array.elements[1] isa JsonNumber
+        end
+
+        @testset "Insert does not widen a hole of Julia code" begin
+            call = parse_julia("f(x)")
+            call.arguments[1] = JuliaInsertion("y")
+            editor, press! = _make_natural_insertion_editor(call)
+            set_selection!(call, @reference(call, arguments[1].value{1}))
+            run_frame!(editor)
+            press!(KeyDown(:insert, ModifierKeys(); time = 0.0))
+            @test call.arguments[1] isa JuliaInsertion
         end
     end
 end

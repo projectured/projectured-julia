@@ -387,6 +387,14 @@ field that a person changes only through the gestures of its domain needs no
 intermediate state: a `JsonBool` takes no text, and a key changes it to `true` or
 `false`.
 
+**An insertion offers only what its place admits.** The candidates that an
+insertion completes and commits are the ones that the declared type of its place
+admits; the insertion finds that type from the reference of its context, which
+each container types against itself. Insert widens the insertion of a domain to
+the insertion of every domain where the place admits a `DocumentInsertion` as it
+is, so a person can type a document of another domain only into a place that
+admits one.
+
 ### PAR-NO-NESTED-CELL
 
 **A macro-wrapped field may never hold a `Cell` or a `Computation` as its logical

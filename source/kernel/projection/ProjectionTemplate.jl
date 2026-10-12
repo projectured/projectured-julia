@@ -75,6 +75,20 @@ tokens(thunk) = Tokens(thunk)                   # tokens(() -> [leaf, bound-leaf
 # the per-section wrapper node. Empty sections are skipped; index is dynamic.
 sections(specs) = Sections(Any[specs...])
 
+# The context of a child of `doc`: its reference ends in the steps to the child, and
+# the first of them records the type of `doc`, so the reference names the type of the
+# place that the child fills.
+# The type comes from `doc` itself and no field is read, so the print of the child
+# depends on no more cells than before. An input that is no document gives untyped
+# steps.
+function _make_template_child_context(context, doc::Document, first::ReferenceStep,
+                                      rest::ReferenceStep...)
+    relative = ConcreteReference(typeof(doc), first, Reference(rest...))
+    make_child_context(context, concat_references(context.reference, relative))
+end
+_make_template_child_context(context, doc, steps::ReferenceStep...) =
+    make_child_context(context, steps...)
+
 # Resolve a `project(:f; as=…)` override for a concrete child value.
 _override(as, v) = as === nothing ? nothing : (as isa Function ? as(v) : as)
 
@@ -83,7 +97,7 @@ _override(as, v) = as === nothing ? nothing : (as isa Function ? as(v) : as)
 _project_child_cell(doc, prj::Project; recursion, context) =
     make_reconciled_child_iomap_cell(() -> getproperty(doc, prj.input),
         v -> begin
-            cctx = make_child_context(context, FieldReferenceStep(String(prj.input)))
+            cctx = _make_template_child_context(context, doc, FieldReferenceStep(String(prj.input)))
             ov = _override(prj.override, v)
             ov === nothing ? print_child(recursion, v, cctx) :
                              ProjectionModule.print_document(ov, recursion, v, cctx)
@@ -505,7 +519,7 @@ _project_output_cell(child_cell) = Cell(@computation child_cell[].output)
 # projection. An element that stays at its index keeps its IoMap across an edit.
 _reconcile_element_iomaps(doc, field::Symbol; recursion, context) =
     make_reconciled_child_iomaps_cell(() -> getproperty(doc, field), (i, x) ->
-        print_child(recursion, x, make_child_context(context,
+        print_child(recursion, x, _make_template_child_context(context, doc,
             FieldReferenceStep(String(field)), ElementReferenceStep(i))))
 
 # A node-shaped output: recurse over `doc.<input>` (School A), reconstruct the
@@ -521,7 +535,7 @@ function _node_print(p, doc, out; recursion, context, children_field, collection
         # templated: build a fixed-children node per element via the element builder
         make_reconciled_child_iomaps_cell(elements_fn, (i, x) ->
             _fixed_print(p, x, collection.element(x); recursion,
-                context = make_child_context(context,
+                context = _make_template_child_context(context, doc,
                     FieldReferenceStep(String(input_field)), ElementReferenceStep(i))))
     end
     iomap_cell = Cell(nothing)

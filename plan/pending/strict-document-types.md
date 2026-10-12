@@ -900,9 +900,78 @@ worktree. The three domains test different parts of the model:
     forms of the evaluator keep the paste. This narrows the decision "no foreign type" of §3 for
     Julia: the node lets a value stand as itself, not the code of another domain. `test_fsm()`
     and `test_process()` pass with the narrow fields.
-- [ ] **Step 5: the insertion follows its place.** The typed child contexts, the filter of the
+- [x] **Step 5: the insertion follows its place.** The typed child contexts, the filter of the
   candidates (§3.5), and the widening key (§3.6), in the three domains. The example of §3.6, an
   XML element typed into a `JsonArray`, is the test of acceptance.
+  *The facts before the work (2026-10-12):*
+  - The candidates of an insertion depend on the root of its domain and the typed text only
+    (`get_insertion_candidates(root)`, `resolve_insertion(root, text)` in `Domain.jl`). No
+    printer of an insertion reads `ctx.reference`, a parent or a declared type. The Julia
+    insertion completes only its keyword scaffolds and parses the rest.
+  - The template builders make each child context with untyped steps, the two-argument
+    `make_child_context(ctx, steps...)`, at three places of `ProjectionTemplate.jl`
+    (`project`, and the two forms of `collection`). The typed form
+    `make_child_context(ctx, parent, steps...)` exists and the hand-written containers use it.
+  - In the three pilot domains every place declares `Document` or the root of its domain
+    (`JsonArray.elements`, `JsonObject.entries`, `JsonObjectEntry.value`, `XmlElement.attrs`
+    and `.children` are `Document`; every Julia place is `JuliaDocument`). So the filter of
+    §3.5 changes no list of candidates there today; it matters for the first narrower place.
+  - No widening key exists. On an insertion, Return, Escape, Tab, Backspace, Delete and every
+    typed character are bound. Ctrl+Space is bound by the syntax views ("Toggle structural /
+    text cursor") and reaches them first. Insert is free on an insertion; on a nothing of a
+    domain it makes the insertion of that domain.
+  **Decided by the owner, 2026-10-12:** the widening key is **Insert** (not Ctrl+Space, which
+  the syntax views take, and not a typed prefix); and it works **only where the place admits a
+  `DocumentInsertion` as it is** (option (a)), so it is not offered in Julia code, where the
+  conversion to a `JuliaObject` would admit one.
+  *The design (mine, 2026-10-12):*
+  - 5.1 The three places of `ProjectionTemplate.jl` pass the parent, so the context of each
+    child ends in a typed step. A baseline diff of the example sweeps against `main` shows that
+    nothing else changes.
+  - 5.2 The place of an insertion: the declared type of the field or the element that its
+    context names (`find_declared_field_type`, `find_declared_element_type`). The completion
+    and the commit of an insertion keep only a candidate that the place admits, and so does
+    the commit of a `DocumentInsertion`. A test uses a narrow place made for it.
+  - 5.3 The widening key: on an insertion whose place admits a `DocumentInsertion`, it turns the
+    insertion into a `DocumentInsertion` with the same text. The gesture help shows it only
+    there.
+  - 5.4 The acceptance test of §3.6: in a `JsonArray`, `,` appends a `JsonInsertion`, the
+    widening key makes it a `DocumentInsertion`, and `xml element` makes an `XmlElement`.
+  - 5.5 The guides and the laws: §6 names the filter and the key.
+  *Done (2026-10-13).* What is built, and what differs from the design:
+  - 5.1 The template builders give each child a context whose first step records the type of
+    the parent, `typeof(doc)`, from the parent itself (`_make_template_child_context`). The
+    first form, `make_child_context(ctx, doc, steps...)`, typed every step by reading the
+    fields of the parent inside the print of the child; the type of the parent is all the
+    place needs, and it reads no cell. An input that is no document keeps untyped steps.
+  - 5.2 `find_declared_place_type(reference)` (`Domain.jl`) gives the declared type of the
+    field that the last step names, or the element type of the list. `complete_insertion`,
+    `resolve_insertion` and `default_factory` take `place`, and `name_completion` takes it
+    as a second argument; only a candidate `T <: place` counts. `InsertionToSyntaxLeaf` has
+    a field `place`: the rule of a table holds `nothing`, and its print finds the place in
+    `ctx.reference` and prints with a copy that holds it, so the reader gets it through the
+    iomap (a dispatch table passes the rule of the table). A commit takes `place` as a third
+    argument and a completion as a second, both with the default `Any`; a parsing policy
+    (SQL, a primitive value, a number in JSON) takes it and ignores it.
+  - 5.3 Insert widens an insertion to a `DocumentInsertion` with the same text and the caret at
+    its end, offered only where `DocumentInsertion <: place`. A Julia hole has its own leaf and
+    no Insert binding.
+  - 5.4 `test/projectured/projection/DocumentInsertionTest.jl`: the place of a field and of an
+    element, the filter on a narrow place made for the test (`_JsonNarrowPlace`: `n` names a
+    number and null, and the place admits the number), the printed insertion reading its place,
+    the refusal of Insert on that place, the acceptance test of §3.6 (`,` in a `JsonArray`,
+    Insert, `xml element`, Return gives an `XmlElement`), and a Julia hole that Insert leaves.
+    `test_document_insertion()` passes, 140 of 140.
+  - Runs: `test_kernel()` 4417, `test_json()` 242, `test_xml()` 80, `test_yaml()` 58 and 2
+    broken, all pass. The other suites wait: on `main` the walks of position navigation became
+    very slow before this step. The formula example takes 358 s for 3 states on the base of
+    this branch (`0f2def55f`) with no change of this step, and took 10.8 s for 329 states at
+    `ff11295db`; between the two, only the cell commits `773f1cfc2` and `1dc777a7b` change
+    source. With this step, the untyped and the typed child context take the same time
+    (356 s and 354 s for 3 states).
+  - Landed on 2026-10-13 on the owner's word, rebased over "Return and Tab give a KeyPress"
+    (the two new test lines send Return as `KeyPress('\n')`), with no test run after the
+    rebase: the owner chose to run the suites when the slow walks of `main` are fixed.
 - [x] **Step 6: fix the callers** that the inventory of Step 0 found, one by one.
   *Done (2026-10-09):* every refusal that the inventories found is fixed: the 23 suites of
   projectured-julia (groups 1 to 8 above), the 29 suites and `OmnetPresentationTest` of
@@ -957,6 +1026,8 @@ the nothing type, and PAR-DOMAINS-INDEPENDENT gains its one sentence. The guide 
 modes and the list protocol; `collection.md`, `style.md`, `json.md` and the new-domain guide
 follow. The filter of the insertion candidates, the widening key and the lenient load are not
 built, so no law describes them.
+*Changed (2026-10-12), with Step 5:* PAR-WIDE-FIELD-TYPES gains the filter of the candidates
+and the widening key. The lenient load is not built.
 
 ## 7. Questions for the owner before the pilot
 

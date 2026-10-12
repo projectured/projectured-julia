@@ -188,7 +188,9 @@ PrimitiveInsertionToSyntaxLeaf(; theme = nothing) =
                           cancel = ins -> make_empty_primitive_document(first(ins.allowed_types)),
                           placeholder = get_type_in_placeholder, theme)
 
-function _commit_primitive_text(ins, text)
+# A primitive value is parsed from its text and names no candidate, so the place does
+# not narrow it; the allowed types of the insertion do.
+function _commit_primitive_text(ins, text, place::Type = Any)
     document = find_primitive_document(ins.allowed_types, text)
     document === nothing ? nothing : with_value_caret(document, length(get_primitive_text(document)))
 end
@@ -198,7 +200,7 @@ function _commit_exact_primitive_text(ins, text, caret)
     document === nothing ? nothing : with_value_caret(document, caret)
 end
 
-function _get_primitive_completion(ins)
+function _get_primitive_completion(ins, place::Type = Any)
     text = something(ins.value, "")
     isempty(text) && return (state = :empty, hint = "", extension = "")
     found = find_primitive_document(ins.allowed_types, text) !== nothing

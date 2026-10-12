@@ -22,8 +22,9 @@ function make_navigator_address_projection(navigator::Navigator; syntax_theme = 
         NavigatorAddress => NavigatorAddressToSyntaxNode(),
         FieldReferenceStep => ReferenceStepToSyntaxLeaf(; style = get_syntax_style(syntax_theme, :typed_text)),
         RangeReferenceStep => ReferenceStepToSyntaxLeaf(; style = get_syntax_style(syntax_theme, :typed_text)),
-        ReferenceInsertion => InsertionToSyntaxLeaf((insertion, text) -> nothing;
-                                                    completion = insertion -> _complete_step(navigator, insertion),
+        ReferenceInsertion => InsertionToSyntaxLeaf((insertion, text, place::Type = Any) -> nothing;
+                                                    completion = (insertion, place::Type = Any) ->
+                                                        _complete_step(navigator, insertion),
                                                     cancel = insertion -> insertion,
                                                     placeholder = "type a path, such as .name or [2]",
                                                     theme = syntax_theme),

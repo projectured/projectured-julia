@@ -34,7 +34,7 @@ export compute_loaded_subtypes, var"@domain", var"@insertion",
        get_insertion_root, get_nothing_document, get_insertion_document, get_domain_prefix,
        get_domain_insertion, insertable, get_insertion_aliases, make_insertion_document,
        get_insertion_names, get_insertion_candidates, compute_concrete_subtypes,
-       complete_insertion, name_completion, resolve_insertion,
+       complete_insertion, name_completion, resolve_insertion, find_declared_place_type,
        insert_document_operation, append_insertion_operation, move_to_field,
        replace_selected_document
 export DocumentNothing, DocumentInsertion

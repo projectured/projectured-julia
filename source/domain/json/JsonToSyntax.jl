@@ -29,11 +29,12 @@ function _parse_json_number(text::AbstractString)
 end
 
 # Enter: the JSON type that the text names, or the number that it parses as.
-function _commit_json_insertion(ins, text)
-    T = resolve_insertion(JsonDocument, text)
+function _commit_json_insertion(ins, text, place::Type = Any)
+    T = resolve_insertion(JsonDocument, text; place)
     T === nothing || return make_insertion_document(T)
     number = _parse_json_number(text)
-    number === nothing ? nothing : with_value_caret(JsonNumber(number), length(string(number)))
+    (number === nothing || !(JsonNumber <: place)) && return nothing
+    with_value_caret(JsonNumber(number), length(string(number)))
 end
 
 # A key: the number that shows the text exactly, with the caret where the key left it.
@@ -44,8 +45,8 @@ function _commit_json_number_at_key(ins, text, caret)
 end
 
 # A text that parses as a number commits, so it shows as one that does.
-_complete_json_insertion(ins) =
-    _parse_json_number(something(ins.value, "")) === nothing ? name_completion(ins) :
+_complete_json_insertion(ins, place::Type = Any) =
+    _parse_json_number(something(ins.value, "")) === nothing ? name_completion(ins, place) :
         (state = :unambiguous, hint = "", extension = "")
 
 JsonInsertionToSyntaxLeaf(; theme = nothing) =
