@@ -35,7 +35,7 @@ using ..ReferenceModule
 using ..SelectionModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..CellModule: record_computation_fault!
+import ..CellModule: record_cell_fault!
 import ..OperationModule: evaluate_operation
 import ..ProjectionModule: get_projection_gesture_bindings
 import ..ProjectionModule: get_content_iomap, show_barrier_mark!, retry_barrier_print!

@@ -25,7 +25,7 @@ The cell keeps the function and not the marker. Only a `ReactiveCell` and an
 
 A marker made inside a fault scope keeps the scope with its function, so the
 function that the cell keeps hands its fault to that scope; see
-`run_in_fault_scope`.
+`run_in_cell_fault_scope`.
 
 See also `@computation`, and `set_cell_computation!`, which gives a computation
 to a cell that exists.

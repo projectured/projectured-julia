@@ -1,6 +1,6 @@
 # Fragment of `CellModule` — the bodies of `unwrap_cell`, `get_cell_value_type`,
 # `make_similar_cell`, `is_computed_cell`, `get_cell_computation`,
-# `has_dependent_cells` and `record_computation_fault!`, which `CellInterface.jl`
+# `has_dependent_cells` and `record_cell_fault!`, which `CellInterface.jl`
 # declares. The methods of each generic stand side by side, one for each kind. The
 # file also keeps a `Computation` out of the two kinds that can not compute.
 
@@ -28,7 +28,7 @@ function has_dependent_cells(c::ReactiveCell)
     any(reference -> reference.value !== nothing, ds)
 end
 
-record_computation_fault!(scope, computation, exception; traceback) = false
+record_cell_fault!(scope, computation, exception; traceback) = false
 
 # Only the reactive kind and the untracked kind can compute. A stored kind that
 # kept the marker as its value would read back the `Computation` itself and never

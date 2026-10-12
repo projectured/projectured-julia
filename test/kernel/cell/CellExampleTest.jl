@@ -72,8 +72,8 @@ julia> theme = Cell(:light); background = UntrackedCell{Symbol}(@computation the
 julia> theme[] = :dark; styled[], background[]
 ("light", :dark)
 
-# run_untracked runs a function so that no read inside it records a reader.
-julia> snapshot = Cell(@computation run_untracked(() -> price[] + 1)); snapshot[]
+# run_without_cell_tracking runs a function so that no read inside it records a reader.
+julia> snapshot = Cell(@computation run_without_cell_tracking(() -> price[] + 1)); snapshot[]
 9
 
 julia> price[] = 2; is_cell_up_to_date(snapshot)
@@ -83,16 +83,16 @@ true
 julia> loop = Cell(0); loop[] = @computation loop[] + 1; try loop[] catch exception; sprint(showerror, exception) end
 "a Cell read itself while it computed"
 
-# A computation made inside run_in_fault_scope keeps the scope. The code that owns the scope takes the faults of its cells.
+# A computation made inside run_in_cell_fault_scope keeps the scope. The code that owns the scope takes the faults of its cells.
 julia> struct PartScope; faults::Vector{Any}; end
 
-julia> CellModule.record_computation_fault!(scope::PartScope, computation, exception; traceback) = (push!(scope.faults, exception); true); nothing
+julia> CellModule.record_cell_fault!(scope::PartScope, computation, exception; traceback) = (push!(scope.faults, exception); true); nothing
 
-julia> scope = PartScope([]); part = run_in_fault_scope(() -> Cell(@computation error("no value")), scope); get_fault_scope(get_cell_computation(part)) === scope
+julia> scope = PartScope([]); part = run_in_cell_fault_scope(() -> Cell(@computation error("no value")), scope); get_cell_fault_scope(part) === scope
 true
 
 julia> try part[] catch exception; typeof(exception) end
-RecordedFaultException
+RecordedCellFaultException
 
 julia> scope.faults
 1-element Vector{Any}:

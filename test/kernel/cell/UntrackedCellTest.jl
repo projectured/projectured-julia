@@ -1,5 +1,5 @@
 """
-`UntrackedCell` and `run_untracked`: a cell that computes at each read and records
+`UntrackedCell` and `run_without_cell_tracking`: a cell that computes at each read and records
 no reader, and a struct of cells of that kind. The tests need only the cell layer
 and the struct layer.
 """
@@ -95,9 +95,9 @@ end
     @test reader[] == 2
 end
 
-@testset "run_untracked outside a computation" begin
+@testset "run_without_cell_tracking outside a computation" begin
     source = Cell(3)
-    @test CellModule.run_untracked(() -> source[] + 1) == 4
+    @test CellModule.run_without_cell_tracking(() -> source[] + 1) == 4
     @test !has_dependent_cells(source)
 end
 

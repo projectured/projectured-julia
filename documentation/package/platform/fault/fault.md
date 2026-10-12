@@ -18,7 +18,7 @@ The kernel's `FaultModule` holds the record, the store, the policy, the barrier 
 | `source/kernel/fault/FaultBarrier.jl` | `run_fault_barrier!`, the catch of the editor loop |
 | `source/kernel/fault/FaultCascade.jl` | `report_fault!` and its tiers |
 | `source/kernel/fault/FaultInterface.jl` | the seams: `append_fault!`, `play_fault_sound!`, `get_fault_store`, `is_fault_exception` |
-| `source/kernel/cell/CellFaultScope.jl` | `run_in_fault_scope`, `record_computation_fault!`, `RecordedFaultException`, `find_fault_scope` |
+| `source/kernel/cell/CellFaultScope.jl` | `run_in_cell_fault_scope`, `record_cell_fault!`, `RecordedCellFaultException`, `find_cell_fault_scope` |
 | `source/kernel/projection/ProjectionInterface.jl` | the seams of a barrier: `show_barrier_mark!`, `retry_barrier_print!`, `get_content_iomap` |
 | `source/kernel/editor/FaultBarriers.jl` | the barriers of the editor, the drain that draws the marks, the retry after an operation, and `record_paint_fault!` for a renderer |
 | `source/kernel/editor/SafeMode.jl` | the safe mode, and its seam `make_safe_mode_projection` |
@@ -82,13 +82,13 @@ A printer does not throw when `print_document` runs. It builds a graph of comput
 
 So the relation is kept from the moment a cell is built:
 
-1. Each call of `print_document` of a barrier makes the IoMap of one part, and prints the part inside `run_in_fault_scope`, with that IoMap as the scope.
+1. Each call of `print_document` of a barrier makes the IoMap of one part, and prints the part inside `run_in_cell_fault_scope`, with that IoMap as the scope.
 2. A `Computation` made in the scope keeps it, and so does a computation that `set_cell_computation!` gives a cell. A computation made inside another computation takes the scope of that computation.
-3. The innermost computation in a scope that throws calls `record_computation_fault!` with its scope. The barrier records the fault in the store and puts itself on the list of the editor. The computation then throws a `RecordedFaultException`, which no barrier above records again. A `MethodError` in an older world passes, so the cell runs the computation again in the newest world.
-4. The SDL renderer reads each element of the output inside a catch, and calls `record_paint_fault!` when the read throws. While an editor with its barriers on paints, the call records a fault that no barrier took, and the renderer skips that element and draws the rest. So the first frame shows the window with a hole where the part failed. A read outside an element, such as the read of the root output, loses the frame: the device barrier skips the paint for a `RecordedFaultException` and counts no device fault, so the screen keeps the frame before it.
+3. The innermost computation in a scope that throws calls `record_cell_fault!` with its scope. The barrier records the fault in the store and puts itself on the list of the editor. The computation then throws a `RecordedCellFaultException`, which no barrier above records again. A `MethodError` in an older world passes, so the cell runs the computation again in the newest world.
+4. The SDL renderer reads each element of the output inside a catch, and calls `record_paint_fault!` when the read throws. While an editor with its barriers on paints, the call records a fault that no barrier took, and the renderer skips that element and draws the rest. So the first frame shows the window with a hole where the part failed. A read outside an element, such as the read of the root output, loses the frame: the device barrier skips the paint for a `RecordedCellFaultException` and counts no device fault, so the screen keeps the frame before it.
 5. Between two frames, `report_frame_faults!` calls `show_barrier_mark!` for each barrier on the list. The barrier writes its output cell with the mark, outside every computation, so the parent reads the mark and nothing reads the cells that failed.
 
-A barrier that can not draw its mark, because its substitute throws, records that fault, and its later faults go to the barrier that held the scope when it printed: `find_fault_scope()` answers that one. So the fault follows the nesting of the barriers, and the mark stands in a larger place.
+A barrier that can not draw its mark, because its substitute throws, records that fault, and its later faults go to the barrier that held the scope when it printed: `find_cell_fault_scope()` answers that one. So the fault follows the nesting of the barriers, and the mark stands in a larger place.
 
 The mark stays until the part is tried again, in three ways. After the operations of a frame, the editor calls `retry_barrier_print!` for each barrier that draws a mark. A plain click on the mark tries its part at once, and so does "Try again" in the menu of the mark. A retry runs the function of the computation that failed again, or prints the part again when the print failed; a retry that fails records nothing and keeps the mark. A parent that prints the part again, from a new object, makes a new barrier, which tries by itself.
 

@@ -55,7 +55,7 @@ the rest.
 A renderer calls it inside its catch around one element, with the type of the
 element as `origin`. While an editor with its barriers on paints, the answer is
 `true`: the editor records the fault as a fault of a printer, unless it is a
-`RecordedFaultException`, which a fault barrier recorded already and whose mark
+`RecordedCellFaultException`, which a fault barrier recorded already and whose mark
 the next frame draws. Outside a paint of an editor, under the strict policy and
 for an exception that is not a fault (`is_fault_exception`), the answer is
 `false`, and the renderer throws the exception again.
@@ -73,7 +73,7 @@ function record_paint_fault!(exception; origin)
     editor === nothing && return false
     editor.fault_policy.is_barrier_enabled || return false
     is_fault_exception(exception) || return false
-    exception isa RecordedFaultException && return true
+    exception isa RecordedCellFaultException && return true
     record_fault!(editor.faults, :print; origin, exception, traceback = catch_backtrace())
     true
 end

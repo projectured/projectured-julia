@@ -395,6 +395,14 @@ read of external state takes none, so `read_os_clipboard` has no `!`.
   which carry `"pred-ref"`, `"pred:ref"` and `"pred_ref"` for Markdown, XML and
   Julia. This is the same exemption a Base generic gets: a name that comes from
   outside keeps its spelling.
+- **An exported name usually carries the noun of its layer or slice**, so a reader
+  can tell at the call site where the name comes from, and a search finds it there:
+  `is_cell_up_to_date`, `record_cell_fault!`, `is_fault_exception`. This is advice,
+  not a strict rule. A word that is the vocabulary of the layer, and that appears
+  almost only beside a name of the layer, can go without it: `Computation` and
+  `@computation` stand in `Cell(@computation x)`. A name whose words point to
+  another layer needs the noun most: in the cell layer, `get_fault_scope` reads as
+  a name of the fault layer, so it is `get_cell_fault_scope`.
 - This convention governs exported names. Local and argument names are
   outside its scope, though full words are encouraged there too
   (`context` over `ctx`).

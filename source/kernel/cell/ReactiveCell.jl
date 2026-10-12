@@ -143,7 +143,7 @@ _get_computing_stack() =
          :projectured_reactive_computing)::Vector{ReactiveCell}
 
 """
-    run_untracked(f)
+    run_without_cell_tracking(f)
 
 Run `f` so that no read inside it records a reader. A cell that computes inside
 `f` puts itself on the stack, so it still records its own dependencies.
@@ -157,11 +157,11 @@ runs, and puts the stack back after `f` returns or throws.
 
 # Example
 
-    label = Cell(@computation title[] * run_untracked(() -> " (" * string(count[]) * ")"))
+    label = Cell(@computation title[] * run_without_cell_tracking(() -> " (" * string(count[]) * ")"))
 
 See also `peek`, the untracked read of one cell, and `UntrackedCell`.
 """
-function run_untracked(f)
+function run_without_cell_tracking(f)
     stack = _get_computing_stack()
     isempty(stack) && return f()                 # no reader: nothing to stop
     storage = task_local_storage()
@@ -176,7 +176,7 @@ function run_untracked(f)
     end
 end
 
-# The stacks that `run_untracked` set aside on this task, the innermost last. A cycle
+# The stacks that `run_without_cell_tracking` set aside on this task, the innermost last. A cycle
 # can pass through them, so the check of a cycle searches them too.
 _get_set_aside_stacks() =
     get!(() -> Vector{ReactiveCell}[], task_local_storage(),
@@ -193,7 +193,7 @@ through other cells.
 It is an ordinary exception, so a barrier records it as a fault and the editor goes
 on. Each cell of the cycle is failed, and computes again at its next read; a write
 that breaks the cycle reaches the readers of the cycle. The check finds a cycle also
-through `run_untracked` and an `UntrackedCell`.
+through `run_without_cell_tracking` and an `UntrackedCell`.
 
 Use it to tell a cycle from another fault in a catch, or in a test of a computation
 that could read itself.
@@ -286,7 +286,7 @@ end
 _is_computing(c::ReactiveCell) =
     c.state === _COMPUTING || c.state === _COMPUTING_OUT_OF_DATE
 
-# Whether `c` computes on this task: on its stack, or on a stack that `run_untracked`
+# Whether `c` computes on this task: on its stack, or on a stack that `run_without_cell_tracking`
 # set aside. A cell that computes on another task is no cycle.
 _is_computing_on_this_task(c::ReactiveCell, stack) =
     any(cell -> cell === c, stack) ||

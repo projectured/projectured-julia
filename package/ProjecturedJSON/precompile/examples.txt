@@ -217,7 +217,7 @@ Tuple{typeof(Core.kwcall), NamedTuple{(:steps, :with_part), Tuple{Array{Projectu
 Tuple{typeof(Core.kwcall), NamedTuple{(:theme, :syntax_theme), Tuple{ProjecturedJSON.JsonModule.ScaledJsonTheme, ProjecturedPlatform.SyntaxModule.ScaledSyntaxTheme}}, typeof(ProjecturedJSON.JsonModule.JsonToSyntax)}
 Tuple{typeof(ProjecturedJSON.JsonModule.json_escape), String}
 Tuple{typeof(ProjecturedJSON.JsonModule.parse_json), String}
-Tuple{typeof(ProjecturedKernel.CellModule.run_untracked), ProjecturedPlatform.StyleModule.var"#make_theme_cell##0#make_theme_cell##1"{ProjecturedJSON.JsonModule.ScaledJsonTheme, ProjecturedPlatform.StyleModule.var"#35#36"{Symbol}}}
+Tuple{typeof(ProjecturedKernel.CellModule.run_without_cell_tracking), ProjecturedPlatform.StyleModule.var"#make_theme_cell##0#make_theme_cell##1"{ProjecturedJSON.JsonModule.ScaledJsonTheme, ProjecturedPlatform.StyleModule.var"#35#36"{Symbol}}}
 Tuple{typeof(ProjecturedKernel.CellModule.unwrap_cell), ProjecturedJSON.JsonModule.JsonArray{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
 Tuple{typeof(ProjecturedKernel.CellModule.unwrap_cell), ProjecturedJSON.JsonModule.JsonNumber{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
 Tuple{typeof(ProjecturedKernel.CellModule.unwrap_cell), ProjecturedJSON.JsonModule.JsonObjectEntry{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}

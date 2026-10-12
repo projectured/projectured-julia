@@ -100,7 +100,7 @@ function _read_with_marks(read, context)
         try
             return read()
         catch exception
-            exception isa RecordedFaultException || rethrow()
+            exception isa RecordedCellFaultException || rethrow()
             foreach(show_barrier_mark!, noted)
             empty!(noted)
         end
@@ -338,7 +338,7 @@ function test_fault_catching()
         tolerant.fault_policy = FaultPolicy(is_console_enabled = false,
                                             is_sound_enabled = false)
         run_print_stage!(tolerant)
-        @test_throws RecordedFaultException _drawn_children(tolerant.iomap.output)
+        @test_throws RecordedCellFaultException _drawn_children(tolerant.iomap.output)
         # The frame shows the mark of the barrier that took the fault.
         report_frame_faults!(tolerant)
         @test length(_drawn_children(tolerant.iomap.output)) == 2

@@ -189,6 +189,28 @@ L03-9 B.
   - [x] The second audit (below), and its fixes.
   - [ ] The seal, when the owner says so.
 
+## The names of the layer
+
+The owner, 2026-10-12: "there are several symbols exported which do not have cell in
+their name, maybe that is not good". The lead found eight such exports and proposed
+renames for six. **The owner, 2026-10-13: "1: yes / 2: yes / 3: keep Computation and
+@computation"**, and on a rule: "for most symbols yes, but it's not a strict rule".
+
+- [x] `run_in_fault_scope` → `run_in_cell_fault_scope`, `find_fault_scope` →
+  `find_cell_fault_scope`, `record_computation_fault!` → `record_cell_fault!`,
+  `RecordedFaultException` → `RecordedCellFaultException`, `run_untracked` →
+  `run_without_cell_tracking`, with `julia-rename.jl`, and a second pass on prose,
+  strings, a module-qualified definition and the recorded precompile files.
+- [x] `get_fault_scope(computation)` → `get_cell_fault_scope(cell)`, which takes the
+  cell; the test helper that did the same is gone.
+- [x] `Computation` and `@computation` stay.
+- [x] The naming rules say, as advice and not as a strict rule, that an exported name
+  usually carries the noun of its layer, with `Computation` as an exception.
+
+Checked: the kernel suite 4430 of 4430, the platform fault suite 115 of 115, the
+walkthrough test, the guards; the survey finds no gap. omnet-julia and inet-julia
+used none of the old names.
+
 ## The second audit
 
 A second auditor read the layer on a263eb855. It found every finding of the first

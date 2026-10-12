@@ -64,7 +64,7 @@ is_cell_up_to_date(c)         # can the next read return the value with no compu
 `peek(c)` is an **untracked** read. It returns the value and records no
 dependency, as `untrack` of the Solid library does. The animation clock uses it
 to *sample* the time, so that the sample does not depend on the clock.
-`run_untracked(f)` does the same for every read inside `f`: it runs `f` with an
+`run_without_cell_tracking(f)` does the same for every read inside `f`: it runs `f` with an
 empty computing stack, so no read finds a reader, and puts the stack back after.
 A cell that computes inside `f` puts itself on the new stack and still records its
 own dependencies.
@@ -108,15 +108,15 @@ later write on to its readers, and the reader computes again.
 A computation also keeps its **fault scope**: the scope that held when its
 `Computation` was made, or when `set_cell_computation!` gave it to a cell. A
 computation made while a computation in a scope runs takes that scope too. A fault
-barrier prints its part inside `run_in_fault_scope`. When a computation in a scope
-throws a fault, it calls `record_computation_fault!` with the scope. When the scope
+barrier prints its part inside `run_in_cell_fault_scope`. When a computation in a scope
+throws a fault, it calls `record_cell_fault!` with the scope. When the scope
 takes the fault, it answers `true`, and the computation throws a
-`RecordedFaultException`, which a computation above passes on unchanged. When it
+`RecordedCellFaultException`, which a computation above passes on unchanged. When it
 answers `false`, as a scope with no method does, the exception goes on as it is. An
 exception that is not a fault, and a `MethodError` in an older world, go on with no
-call. `get_fault_scope(f)` answers the scope that the computation `f` keeps, and
-`find_fault_scope()` answers the scope that a computation made now keeps: a barrier
-calls it to find the scope that encloses it. A computation made outside every scope
+call. `get_cell_fault_scope(cell)` answers the scope that the computation of `cell`
+keeps, and `find_cell_fault_scope()` answers the scope that a computation made now
+keeps: a barrier calls it to find the scope that encloses it. A computation made outside every scope
 keeps a bare function, so a cell outside every barrier runs with no scope. The barrier and its scope are in
 [fault.md](../platform/fault/fault.md).
 
@@ -124,7 +124,7 @@ keeps a bare function, so a cell outside every barrier runs with no scope. The b
 
 A computation that reads its own cell, directly or through other cells, is a
 cycle. The read finds the cell *computing*, on the stack of its own task or on a
-stack that `run_untracked` set aside, and throws a `CellCycleException`, an
+stack that `run_without_cell_tracking` set aside, and throws a `CellCycleException`, an
 ordinary exception: a barrier records it, and the editor goes on. A read of a
 computing cell from another task is no cycle: that task computes the cell too, and
 only a run that still finds the cell computing stores its value. Each cell of the cycle is failed, and a write that breaks the cycle
@@ -254,7 +254,7 @@ contract and nothing else. The read `c[]`, the untracked read `peek` and
 `is_cell_up_to_date` have their bodies in the file of each kind. The bodies of
 `unwrap_cell`, `get_cell_value_type`, `make_similar_cell`, `is_computed_cell`,
 `get_cell_computation`, `has_dependent_cells` and the fallback of
-`record_computation_fault!` are in the sibling `CellDefaults.jl`.
+`record_cell_fault!` are in the sibling `CellDefaults.jl`.
 
 The animation clock is a `@cell_struct` that uses the engine, and it is not a
 part of the engine. It is its own layer, `clock/ClockModule.jl`, above the struct
@@ -279,7 +279,7 @@ mutable box holds state that changes often, and a read-only box holds a value
 that never changes.
 
 `UntrackedCell{T}` holds a computation and keeps no value. Each read runs the
-computation with `run_untracked`, so the cell records no reader, and no read
+computation with `run_without_cell_tracking`, so the cell records no reader, and no read
 inside the computation records one. A change of what the computation reads
 reaches no computation that read the cell: some other part must make the readers
 compute again. A style field of a projection that reads its theme is the main
@@ -290,25 +290,25 @@ inline, and two structs can share its function.
 
 Public surface: `AbstractCell`, `is_cell_up_to_date`, `unwrap_cell`,
 `get_cell_value_type`, `make_similar_cell`, `is_computed_cell`,
-`get_cell_computation`, `has_dependent_cells`, `run_untracked`, `Computation`,
+`get_cell_computation`, `has_dependent_cells`, `run_without_cell_tracking`, `Computation`,
 `@computation`, `ReactiveCell`, `Cell`, `CellCycleException`, `set_cell_value!`,
-`set_cell_computation!`, `run_in_fault_scope`, `record_computation_fault!`,
-`RecordedFaultException`, `get_fault_scope`, `find_fault_scope`, `MutableCell`,
-`ImmutableCell` and `UntrackedCell`. `peek` is an untracked read, a method of
+`set_cell_computation!`, `run_in_cell_fault_scope`, `record_cell_fault!`,
+`RecordedCellFaultException`, `get_cell_fault_scope`, `find_cell_fault_scope`,
+`MutableCell`, `ImmutableCell` and `UntrackedCell`. `peek` is an untracked read, a method of
 `Base.peek`.
 
 `get_cell_computation(c)` answers the computation of a reactive cell, or `nothing`.
 A caller puts a computation around it with `set_cell_computation!`, so it acts on
 each value that the cell makes: the walk of the part under the pointer follows
 each node of a lazy list when the list builds it. That walk reads the node inside
-the computation of the link, so it reads it with `run_untracked`: the link must
+the computation of the link, so it reads it with `run_without_cell_tracking`: the link must
 not compute again when a part of the node changes.
 
 ## Try it
 
 `print_cell_example()` in `ProjecturedKernelExample` prints a REPL session with the
 layer: a value, a computation, a write that makes the readers out of date, `peek`, a
-chain, the other cell kinds, `run_untracked` and a fault scope. Each line runs as it
+chain, the other cell kinds, `run_without_cell_tracking` and a fault scope. Each line runs as it
 prints. Type the lines yourself after `using ProjecturedKernel.CellModule`, and change
 them.
 

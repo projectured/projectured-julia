@@ -182,7 +182,7 @@ See also `is_cell_up_to_date`, and `peek`, a read that records no reader.
 function has_dependent_cells end
 
 """
-    record_computation_fault!(scope, computation, exception; traceback) -> Bool
+    record_cell_fault!(scope, computation, exception; traceback) -> Bool
 
 Hand the fault of a computation to the scope that the computation belongs to, and
 answer whether the scope took it.
@@ -196,18 +196,18 @@ no argument and computes the value again, the exception and its traceback. It ru
 inside a computation, so a method must not write a cell. It can write a collector
 that no cell depends on and that no computation reads. A scope that takes the fault
 answers `true`, and the computation then throws a
-[`RecordedFaultException`](@ref), so no scope above records the fault again. A
+[`RecordedCellFaultException`](@ref), so no scope above records the fault again. A
 scope that can not show the fault answers `false`, and the exception goes on as it
 is, to the next scope up.
 
 # Example
 
-    function CellModule.record_computation_fault!(scope::PartScope, computation,
+    function CellModule.record_cell_fault!(scope::PartScope, computation,
                                                   exception; traceback)
         push!(scope.faults, exception)
         true
     end
 
-See also [`run_in_fault_scope`](@ref).
+See also [`run_in_cell_fault_scope`](@ref).
 """
-function record_computation_fault! end
+function record_cell_fault! end

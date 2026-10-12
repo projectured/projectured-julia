@@ -206,7 +206,7 @@ function _write_output_to_devices!(editor::Editor)
                               editor.iomap.output)
         end
     catch exception
-        (exception isa RecordedFaultException && !isempty(editor.noted_barriers)) ||
+        (exception isa RecordedCellFaultException && !isempty(editor.noted_barriers)) ||
             rethrow()
         nothing
     end

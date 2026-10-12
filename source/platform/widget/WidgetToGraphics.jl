@@ -1905,7 +1905,7 @@ end
 # Whether the child of a document in `content` gives a value and not graphics.
 _is_value_child(document_iomap::Nothing) = false
 _is_value_child(document_iomap) =
-    !(run_untracked(() -> document_iomap[].output) isa GraphicsCanvas)
+    !(run_without_cell_tracking(() -> document_iomap[].output) isa GraphicsCanvas)
 
 map_reference_forward(::WidgetTextToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 

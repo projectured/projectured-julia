@@ -187,7 +187,7 @@ function _follow_built_list_nodes!(cell::AbstractCell, follow_node)
     build === nothing && return nothing
     set_cell_computation!(cell, () -> begin
         built = build()
-        built isa ListNode && run_untracked(() -> _follow_list_chain!(built, follow_node))
+        built isa ListNode && run_without_cell_tracking(() -> _follow_list_chain!(built, follow_node))
         built
     end)
     nothing

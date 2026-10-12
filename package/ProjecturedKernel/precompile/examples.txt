@@ -259,11 +259,11 @@ Tuple{typeof(Core.kwcall), NamedTuple{(:width, :height), Tuple{Int64, Int64}}, t
 Tuple{typeof(Core.kwcall), NamedTuple{(:width, :height), Tuple{Int64, ProjecturedKernel.CellModule.ReactiveCell{Any}}}, typeof(ProjecturedKernel.ProjectionModule.with_inner_size), ProjecturedKernel.ProjectionModule.PrinterContext}
 Tuple{typeof(Core.kwcall), NamedTuple{(:width,), Tuple{Int64}}, typeof(ProjecturedKernel.ProjectionModule.with_inner_size), ProjecturedKernel.ProjectionModule.PrinterContext}
 Tuple{typeof(ProjecturedKernel.CellModule.is_cell_up_to_date), ProjecturedKernel.CellModule.ReactiveCell{Any}}
-Tuple{typeof(ProjecturedKernel.CellModule.run_untracked), Base.Returns{Bool}}
-Tuple{typeof(ProjecturedKernel.CellModule.run_untracked), Base.Returns{Int64}}
-Tuple{typeof(ProjecturedKernel.CellModule.run_untracked), Base.Returns{Nothing}}
-Tuple{typeof(ProjecturedKernel.CellModule.run_untracked), Base.Returns{String}}
-Tuple{typeof(ProjecturedKernel.CellModule.run_untracked), Base.Returns{Symbol}}
+Tuple{typeof(ProjecturedKernel.CellModule.run_without_cell_tracking), Base.Returns{Bool}}
+Tuple{typeof(ProjecturedKernel.CellModule.run_without_cell_tracking), Base.Returns{Int64}}
+Tuple{typeof(ProjecturedKernel.CellModule.run_without_cell_tracking), Base.Returns{Nothing}}
+Tuple{typeof(ProjecturedKernel.CellModule.run_without_cell_tracking), Base.Returns{String}}
+Tuple{typeof(ProjecturedKernel.CellModule.run_without_cell_tracking), Base.Returns{Symbol}}
 Tuple{typeof(ProjecturedKernel.CellModule.set_cell_computation!), ProjecturedKernel.CellModule.ReactiveCell{Any}, Function}
 Tuple{typeof(ProjecturedKernel.CellModule.unwrap_cell), Array{Any, 1}}
 Tuple{typeof(ProjecturedKernel.CellModule.unwrap_cell), Int64}

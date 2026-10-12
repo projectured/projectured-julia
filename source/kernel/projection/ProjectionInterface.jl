@@ -437,7 +437,7 @@ Make a fault barrier that took a fault show its mark in place of the output of
 its part.
 
 The editor calls it between two frames, outside every computation, for each
-barrier that took a fault in the frame before; see `record_computation_fault!`.
+barrier that took a fault in the frame before; see `record_cell_fault!`.
 The barrier writes its output cell, so the parent reads the mark and nothing
 reads the cells that failed. A barrier that shows its mark already does nothing.
 

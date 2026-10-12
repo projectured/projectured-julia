@@ -28,15 +28,15 @@ const _CELL_WALKTHROUGH = [
     "# An UntrackedCell computes at each read and records no reader, so its reader keeps its value.",
     "theme = Cell(:light); background = UntrackedCell{Symbol}(@computation theme[]); styled = Cell(@computation string(background[])); styled[]",
     "theme[] = :dark; styled[], background[]",
-    "# run_untracked runs a function so that no read inside it records a reader.",
-    "snapshot = Cell(@computation run_untracked(() -> price[] + 1)); snapshot[]",
+    "# run_without_cell_tracking runs a function so that no read inside it records a reader.",
+    "snapshot = Cell(@computation run_without_cell_tracking(() -> price[] + 1)); snapshot[]",
     "price[] = 2; is_cell_up_to_date(snapshot)",
     "# A computation that reads its own cell is a cycle. The read throws an ordinary exception, so the editor goes on.",
     "loop = Cell(0); loop[] = @computation loop[] + 1; try loop[] catch exception; sprint(showerror, exception) end",
-    "# A computation made inside run_in_fault_scope keeps the scope. The code that owns the scope takes the faults of its cells.",
+    "# A computation made inside run_in_cell_fault_scope keeps the scope. The code that owns the scope takes the faults of its cells.",
     "struct PartScope; faults::Vector{Any}; end",
-    "CellModule.record_computation_fault!(scope::PartScope, computation, exception; traceback) = (push!(scope.faults, exception); true); nothing",
-    "scope = PartScope([]); part = run_in_fault_scope(() -> Cell(@computation error(\"no value\")), scope); get_fault_scope(get_cell_computation(part)) === scope",
+    "CellModule.record_cell_fault!(scope::PartScope, computation, exception; traceback) = (push!(scope.faults, exception); true); nothing",
+    "scope = PartScope([]); part = run_in_cell_fault_scope(() -> Cell(@computation error(\"no value\")), scope); get_cell_fault_scope(part) === scope",
     "try part[] catch exception; typeof(exception) end",
     "scope.faults",
 ]
@@ -47,10 +47,10 @@ const _CELL_WALKTHROUGH = [
 Print a REPL session that shows the cell layer: a cell that holds a value, a
 computation that reads cells, a write that makes the readers out of date, a read
 with `peek` that records no dependency, a chain of computations, a new computation
-of a cell, the other cell kinds, `run_untracked`, a cycle, and a fault scope.
+of a cell, the other cell kinds, `run_without_cell_tracking`, a cycle, and a fault scope.
 
 Each line runs as it prints, so the value under a line is the value that the line
-gives. Each call adds one method of `record_computation_fault!`, for the scope type
+gives. Each call adds one method of `record_cell_fault!`, for the scope type
 of its own session, and the method stays while the process runs. To try the lines,
 type them in a REPL after `using ProjecturedKernel.CellModule`.
 

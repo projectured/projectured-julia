@@ -240,9 +240,9 @@ end
     @test_throws ArgumentError ImmutableCell{Int}(Computation(identity))
 end
 
-@testset "run_untracked inside a computation records no reader" begin
+@testset "run_without_cell_tracking inside a computation records no reader" begin
     a = Cell(1)
-    r = Cell(@computation run_untracked(() -> a[]) + 1)
+    r = Cell(@computation run_without_cell_tracking(() -> a[]) + 1)
     @test r[] == 2
     @test !has_dependent_cells(a)
 end
@@ -487,10 +487,10 @@ end
     @test b[] == 6
 end
 
-@testset "a cycle through run_untracked or an UntrackedCell throws" begin
+@testset "a cycle through run_without_cell_tracking or an UntrackedCell throws" begin
     a = Cell(0)
     b = Cell(@computation a[] + 1)
-    a[] = @computation run_untracked(() -> b[]) + 1
+    a[] = @computation run_without_cell_tracking(() -> b[]) + 1
     @test_throws CellCycleException a[]
     p = Cell(0)
     u = UntrackedCell{Int}(@computation p[] + 1)
