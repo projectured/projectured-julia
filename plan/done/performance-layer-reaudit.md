@@ -126,13 +126,13 @@ and L02-8 stay fixed; L02-4 is A-2; L02-7 is A-5; L02-1 is open.
   `PERFORMANCE_COUNTERS_ENABLED` in the one line that shows it, so it passes in both
   builds. Checked in both: the default build (15, 55, 2, 3) and a copy of
   `environment/all` with the preference on (23, 55, 2, 5).
-- [ ] 3. The guide `documentation/package/kernel/performance.md` (G-1 … G-3), with its
+- [x] 3. The guide `documentation/package/kernel/performance.md` (G-1 … G-3), with its
   guide check by an independent auditor.
   - [x] The guide, on the model of the fault guide. The section of `cell.md` moved to
     it, and `cell.md`, `architecture.md` and the package index point to it. The
     survey finds no export that the guide does not name. The words "refuses" and
     "knows" left the guide and the layer.
-- [ ] 4. L02-1 as decided.
+- [x] 4. L02-1 as decided.
   - [x] **The owner, 2026-10-12: "use Preferences.jl and fix it with that"** (A), after
     the lead counted its users: 263 packages of General depend on it directly, and
     every process that loads the platform loads it through PrecompileTools. The
@@ -148,9 +148,10 @@ and L02-8 stay fixed; L02-4 is A-2; L02-7 is A-5; L02-1 is open.
     reads `false`, and the package graph test passes 398 of 398; a copy of
     `environment/all` with the preference on reads `true`, and the counted tests pass
     (`test_performance_counter` 17, `test_editor_frame_performance` 5).
-- [ ] 5. The tests, the guards, a second audit, and the seal on the owner's word.
+- [x] 5. The tests, the guards, a second audit, and the seal on the owner's word.
   - [x] The second audit (below), and its fixes.
-  - [ ] The seal, when the owner says so. Its commit names the accepted gap T-6.
+  - [x] The seal. The owner, 2026-10-12: "I reviewed, seal it". The seal commit names
+    the accepted gap T-6.
 
 ## The second audit
 
@@ -175,7 +176,7 @@ S-3 in the code.
   `ArgumentError` that names the preference.
 - [x] **S-5 (Low)** — two comments said that the kernel has no dependencies; they say
   that it has no JSON parser.
-- [ ] **S-6 (Low)** — omnet-julia `tool/trim-routing/Manifest.toml` lists the kernel
+- **S-6 (Low), left open** — omnet-julia `tool/trim-routing/Manifest.toml` lists the kernel
   without Preferences. It does not resolve, because it names `ProjecturedDomain`, a
   package that no longer exists; it was broken before this change. Left as it is.
 - [x] **S-7 … S-13 (Low)** — the accuracy of the guide (only a reactive cell counts; a
