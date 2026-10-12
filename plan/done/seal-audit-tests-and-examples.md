@@ -17,6 +17,11 @@ repl".
    runnable docstring examples. The owner: "for 2, agreed".
 3. The two new checks apply to projectured-julia only. omnet-julia and inet-julia
    keep the architecture check alone. The owner: "for 3, only projectured".
+4. Every kernel file is unsealed, and each one goes through the audit with its
+   three checks. The owner: "for 1, unseal all files in the kernel, we will go
+   through them with the new audit process".
+5. The paths in omnet-team that name no file are repaired. The owner: "for 2,
+   fix them".
 
 ## Steps
 
@@ -28,6 +33,7 @@ repl".
   `print_cell_example()`, the walkthrough of the cell layer, with
   `test/kernel/cell/CellExampleTest.jl`, and a paragraph in
   `documentation/guide/examples-tour.md`.
+- [x] `SEALING.md`: the 15 sealed kernel files are unsealed.
 - [x] omnet-team, `role/requirements-seal-auditor.md`: the agent follows the
   protocol of `SEALING.md`, does the two new checks in projectured-julia, and
   reads the law at `documentation/rule/architecture-invariants.md`. The rule 2 of
@@ -62,5 +68,5 @@ repl".
 - The lead roles of omnet-team name more paths that do not exist, for example
   `documentation/architecture-rules.md` and `documentation/design-decisions.md` in
   `role/editor-lead.md`, and the law paths of `role/network-model-lead.md` and
-  `role/simulator-lead.md`. This change repairs only the two lines of the seal law
-  in `role/editor-lead.md`.
+  `role/simulator-lead.md`. A scan found 47 such lines in about 20 files of
+  omnet-team, and decision 5 repairs them.
