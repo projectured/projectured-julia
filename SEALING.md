@@ -104,9 +104,9 @@ The layer *numbers* below live only in this list and in `ProjecturedKernel.jl`'s
 include order — the source files state their dependencies, never their index.
 
 - **Layer 1 — fault** (`fault/`)
-  - 🔒 `fault/FaultModule.jl`
-  - 🔒 `fault/FaultInterface.jl`
-  - 🔒 `fault/FaultDefaults.jl`
+  - ⬜ `fault/FaultModule.jl`
+  - ⬜ `fault/FaultInterface.jl`
+  - ⬜ `fault/FaultDefaults.jl`
   - ⬜ `fault/FaultRecord.jl`
   - ⬜ `fault/FaultStore.jl`
   - ⬜ `fault/FaultPolicy.jl`
@@ -115,14 +115,14 @@ include order — the source files state their dependencies, never their index.
 - **Layer 2 — performance** (`performance/`)
   - ⬜ `performance/PerformanceModule.jl`
   - ⬜ `performance/PerformanceCounter.jl`
-  - 🔒 `performance/FrameMeasurement.jl`
+  - ⬜ `performance/FrameMeasurement.jl`
 - **Layer 3 — cell** (`cell/`)
   - ⬜ `cell/CellModule.jl`
   - ⬜ `cell/CellInterface.jl`
   - ⬜ `cell/CellComputation.jl`
   - ⬜ `cell/ReactiveCell.jl`
-  - 🔒 `cell/MutableCell.jl`
-  - 🔒 `cell/ImmutableCell.jl`
+  - ⬜ `cell/MutableCell.jl`
+  - ⬜ `cell/ImmutableCell.jl`
   - ⬜ `cell/UntrackedCell.jl`
   - ⬜ `cell/CellDefaults.jl`
 - **Layer 4 — struct** (`struct/`)
@@ -130,12 +130,12 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `struct/CellStructPlan.jl`
   - ⬜ `struct/CellStruct.jl`
 - **Layer 5 — clock** (`clock/`)
-  - 🔒 `clock/ClockModule.jl`
-  - 🔒 `clock/Clock.jl`
+  - ⬜ `clock/ClockModule.jl`
+  - ⬜ `clock/Clock.jl`
 - **Layer 6 — event** (`event/`)
   - ⬜ `event/EventModule.jl`
   - ⬜ `event/EventInterface.jl`
-  - 🔒 `event/ModifierKeys.jl`
+  - ⬜ `event/ModifierKeys.jl`
   - ⬜ `event/KeyboardEvent.jl`
   - ⬜ `event/MouseEvent.jl`
   - ⬜ `event/WindowEvent.jl`
@@ -146,9 +146,9 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `event/EventDefaults.jl`
 - **Layer 7 — device** (`device/`)
   - ⬜ `device/DeviceModule.jl`
-  - 🔒 `device/DeviceInterface.jl`
-  - 🔒 `device/Keyboard.jl`
-  - 🔒 `device/Mouse.jl`
+  - ⬜ `device/DeviceInterface.jl`
+  - ⬜ `device/Keyboard.jl`
+  - ⬜ `device/Mouse.jl`
   - ⬜ `device/Display.jl`
 - **Layer 8 — gesture** (`gesture/`)
   - ⬜ `gesture/GestureModule.jl`
@@ -169,8 +169,8 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `document/DocumentMacro.jl`
   - ⬜ `document/SelectionDocument.jl`
   - ⬜ `document/DocumentWalk.jl`
-  - 🔒 `document/DocumentSearch.jl`
-  - 🔒 `document/ForwardProtocol.jl`
+  - ⬜ `document/DocumentSearch.jl`
+  - ⬜ `document/ForwardProtocol.jl`
 - **Layer 11 — reference** (`reference/`)
   - ⬜ `reference/ReferenceModule.jl`
   - ⬜ `reference/ReferenceInterface.jl`
@@ -207,7 +207,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `binding/Gestures.jl`
 - **Layer 16 — iomap** (`iomap/`)
   - ⬜ `iomap/IoMapModule.jl`
-  - 🔒 `iomap/IoMapInterface.jl`
+  - ⬜ `iomap/IoMapInterface.jl`
   - ⬜ `iomap/IoMapDefaults.jl`
   - ⬜ `iomap/IoMapReconcile.jl`
 - **Layer 17 — projection** (`projection/`)
