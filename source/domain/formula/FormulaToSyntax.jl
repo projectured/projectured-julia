@@ -1,11 +1,8 @@
 # Fragment of `FormulaModule`.
 #
 # Formula → Syntax projection, composed with the Julia projection so a formula
-# body (a mix of `JuliaDocument` nodes and `FormulaReference`s) renders through one
-# shared `recursion`:
+# and the Julia nodes of its body render through one shared `recursion`:
 #
-# - `FormulaReference` → `SyntaxLeaf` whose value is `() -> reference.target.name`,
-#   coloured as a link. Reactive, so it tracks renames.
 # - `FormulaFormula` → `SyntaxNode` with three layouts selected by the formula's
 #   `display_mode` cell (`:code` / `:result` / `:both`).
 # - `FormulaEnvironment` → `SyntaxNode`, one formula per line.
@@ -47,25 +44,6 @@ print_document(p::FormulaInsertionToSyntaxLeaf, recursion, b::FormulaInsertion, 
     _make_forward_path_leaf(p, b,
         paths -> SyntaxLeaf(TextString("insert formula", p.style); paths...))
 
-# ── FormulaReferenceToSyntaxLeaf ───────────────────────────────────────────────
-#
-# Renders the referenced formula's *current* name, read reactively so a rename of
-# the target updates every reference. The displayed name is derived from the
-# target, not editable here, so the leaf has no input value mapping (the cursor
-# selects the whole reference).
-
-@projection UntrackedCell struct FormulaReferenceToSyntaxLeaf
-    style::StyleText = get_formula_style(nothing, :reference_text)
-end
-
-print_document(p::FormulaReferenceToSyntaxLeaf, recursion, r::FormulaReference, ctx) =
-    _make_forward_path_leaf(p, r, paths -> SyntaxLeaf(
-        TextString(() -> begin
-            t = r.target
-            t isa FormulaFormula ? t.name : "#REF!"
-        end, p.style);
-        paths...))
-
 # ── FormulaFormulaToSyntaxNode ─────────────────────────────────────────────────
 #
 # Three layouts selected by the formula's `display_mode` cell:
@@ -73,8 +51,7 @@ print_document(p::FormulaReferenceToSyntaxLeaf, recursion, r::FormulaReference, 
 #   :result → recurse into `result`                       → children [result]
 #   :both   → name " = " code " ⇒ " result                → children [code, result]
 #
-# The `code` child is recursed through the shared `recursion` (it is a mix of
-# Julia nodes and FormulaReferences); the `result` is a computed `TextBlock`, so it
+# The `code` child is recursed through the shared `recursion`; the `result` is a computed `TextBlock`, so it
 # is flattened into a self-contained result leaf rather than recursed (mirrors how
 # EvaluatorForm renders its result). Only `code` therefore needs School-A
 # delegation; its output child index depends on the mode.
@@ -251,7 +228,6 @@ function FormulaToSyntax(; theme = nothing, julia_theme = nothing, syntax_theme 
     get_style(name) = get_formula_style(theme, name)
     JuliaToSyntax(
         FormulaInsertion   => FormulaInsertionToSyntaxLeaf(; style = get_style(:insertion_text)),
-        FormulaReference   => FormulaReferenceToSyntaxLeaf(; style = get_style(:reference_text)),
         FormulaFormula     => FormulaFormulaToSyntaxNode(; name = get_style(:name_text),
                                                             op = get_style(:operator_text),
                                                             result = get_style(:result_text)),

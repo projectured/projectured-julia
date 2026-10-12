@@ -38,7 +38,7 @@
 # `trigger`, `target` and `initial` are held by identity and point at documents
 # that live *elsewhere in the same component* (an event of the component, a state
 # of the machine). They are rendered as **name leaves read reactively from the
-# referent** — the `FormulaReferenceToSyntaxLeaf` pattern — never recursed into:
+# referent**, never recursed into:
 # projecting a transition's target would inline the whole target state, which for
 # a self-loop does not terminate. A rename of the referent updates every mention.
 #

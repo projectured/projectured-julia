@@ -22,15 +22,15 @@ function test_formula_theme()
     @test !isempty(plain)
     @test draw(Appearance(font_scale = 1.5)) == round.(Int, plain .* 1.5)
 
-    @test FormulaReferenceToSyntaxLeaf().style.font.size == 14
+    @test FormulaInsertionToSyntaxLeaf().style.font.size == 14
     theme = get_scaled_theme!(Appearance(font_scale = 1.5), FormulaTheme)
-    leaf = FormulaReferenceToSyntaxLeaf(; style = get_formula_style(theme, :reference_text))
+    leaf = FormulaInsertionToSyntaxLeaf(; style = get_formula_style(theme, :insertion_text))
     @test leaf.style.font.size == 21
-    @test is_color_equal(leaf.style.color, get_theme_value(FormulaTheme(), :reference_text).color)
+    @test is_color_equal(leaf.style.color, get_theme_value(FormulaTheme(), :insertion_text).color)
     # A projection holds its styles and no theme, and its builder reads a theme
     # that is not scaled as at no scale.
-    @test !hasfield(FormulaReferenceToSyntaxLeaf, :theme)
+    @test !hasfield(FormulaInsertionToSyntaxLeaf, :theme)
     built = FormulaToSyntax(; theme = FormulaTheme())
-    @test unwrap_cell(only(rule for rule in built.dispatch if first(rule) === FormulaReference)[2].style).font.size == 14
+    @test unwrap_cell(only(rule for rule in built.dispatch if first(rule) === FormulaInsertion)[2].style).font.size == 14
 end
 end

@@ -15,23 +15,16 @@ reader parses `value` into a `FormulaFormula` yet
 end
 
 """
-A citation of another formula, held *by identity*. The projection renders
-`target.name` reactively, so renames track without a rewrite pass.
-"""
-@document struct FormulaReference <: FormulaDocument
-    target::Document
-end
-
-"""
 A named formula: `name` (display name — a `String` or a derived thunk `Cell`),
-`code` (a `JuliaDocument` that may contain `FormulaReference`s), `result` (the
-computed result document), `display_mode` (`:code`/`:result`/`:both`).
+`code` (a `JuliaDocument`, a `MathDocument`, or a bare number), `result` (the
+computed result document), `display_mode` (`:code`/`:result`/`:both`). The code
+refers to another formula by its name.
 `result` is wired to `Cell(@computation evaluate_formula(self, env))` once placed
 in an environment; see [`wire_result!`](@ref).
 """
 @document struct FormulaFormula <: FormulaDocument
     name::String
-    code::Document
+    code::Union{JuliaDocument, MathDocument, PrimitiveNumber}
     result::Document
     display_mode::Symbol = :both
 end
@@ -58,12 +51,12 @@ Named-formula scope: an ordered set of `FormulaFormula`s (a spreadsheet
 against this environment.
 """
 @document struct FormulaEnvironment <: FormulaDocument
-    formulas::CellVector = CellVector()
+    formulas::CellVector{FormulaFormula} = CellVector{FormulaFormula}()
 end
 function FormulaEnvironment(formulas::Vector)
-    env = FormulaEnvironment(CellVector(Cell[Cell(f) for f in formulas]), Cell(nothing))
+    env = FormulaEnvironment(CellVector{FormulaFormula}(formulas), Cell(nothing))
     for f in formulas
-        f isa FormulaFormula && wire_result!(f, env)
+        wire_result!(f, env)
     end
     env
 end
@@ -81,7 +74,6 @@ Reads `env.formulas` and each `f.name` reactively.
 function resolve(env::FormulaEnvironment, name::AbstractString)
     key = get_formula_key(name)
     for f in env.formulas
-        f isa FormulaFormula || continue
         get_formula_key(f.name) == key && return f
     end
     return nothing
@@ -133,67 +125,15 @@ The A1-style name for a cell at 1-based `(col, row)`: `cell_name(1, 1) == "A1"`,
 get_cell_name(col::Integer, row::Integer) = get_column_letter(col) * string(row)
 
 """
-    get_formula_references(code) -> Vector{FormulaReference}
-
-Walk the Julia body `code`, collecting every `FormulaReference` leaf.
-"""
-function get_formula_references(code)
-    refs = FormulaReference[]
-    _collect_references!(refs, code)
-    refs
-end
-
-function _collect_references!(refs::Vector{FormulaReference}, node)
-    node isa FormulaReference && (push!(refs, node); return)
-    node isa Document || return
-    for fname in fieldnames(typeof(node))
-        is_view_state_field(fname) && continue
-        child = getfield(node, fname)[]   # read the Cell value
-        _collect_child!(refs, child)
-    end
-    return
-end
-
-function _collect_child!(refs, child)
-    if child isa CellVector
-        for c in child
-            _collect_child!(refs, c)
-        end
-    elseif child isa Document
-        _collect_references!(refs, child)
-    end
-    return
-end
-
-"""
-    get_formula_dependencies(formula) -> Vector{FormulaFormula}
-
-The distinct target formulas referenced (directly) by `formula.code`.
-"""
-function get_formula_dependencies(formula::FormulaFormula)
-    deps = FormulaFormula[]
-    for r in get_formula_references(formula.code)
-        t = r.target
-        if t isa FormulaFormula && !(t in deps)
-            push!(deps, t)
-        end
-    end
-    deps
-end
-
-"""
     get_formula_dependencies(formula, env) -> Vector{FormulaFormula}
 
-The formulas `formula` depends on in `env`: the targets of its references, and
-every formula of the sheet that a plain name in its code resolves to.
-
-A name binds because a file holds names and not identities. A sheet read from a
-`.pred` file says `code = "(1 - rho) * rho^n"`, and `rho` is the formula of
-that name in the same sheet. A reference by identity keeps what it has: a
-rename tracks it, and a name written in the code does not.
+The formulas `formula` depends on in `env`: each formula of the sheet that a
+free name of its code resolves to. A formula refers to another by name, so a
+sheet read from a `.pred` file, `code = "(1 - rho) * rho^n"`, refers to the
+formula `rho` of the same sheet.
 """
 function get_formula_dependencies(formula::FormulaFormula, env::FormulaEnvironment)
-    deps = get_formula_dependencies(formula)
+    deps = FormulaFormula[]
     for name in get_formula_names(formula.code)
         target = resolve(env, name)
         target === nothing && continue
@@ -245,9 +185,6 @@ function _collect_names!(names::Vector{String}, node::JuliaIdentifier, bound::Se
     node.name in bound || node.name in names || push!(names, node.name)
     return
 end
-
-# A reference holds its target, and names nothing.
-_collect_names!(names::Vector{String}, node::FormulaReference, bound::Set{String}) = nothing
 
 _collect_names!(names::Vector{String}, node::JuliaFieldAccess, bound::Set{String}) =
     _collect_names!(names, node.object, bound)
@@ -461,7 +398,7 @@ function compute_topological_order(env::FormulaEnvironment)
         push!(order, n)
     end
     for f in env.formulas
-        f isa FormulaFormula && visit(f)
+        visit(f)
     end
     order
 end
@@ -491,9 +428,8 @@ const _EVALUATING = Set{FormulaFormula}()
     convert_formula_to_expr(code, env) -> Expr | literal
 
 Walk the Julia body `code` to a native Julia `Expr` (the inverse of
-`parse_julia`), mapping each `FormulaReference` to a `Symbol` bound to its
-target's name. The result is evaluated inside a `let` that binds those names to
-the targets' values.
+`parse_julia`). The result is evaluated inside a `let` that binds the names of
+its dependencies to their values.
 """
 convert_formula_to_expr(code, env::FormulaEnvironment) = _to_expr(code)
 # A math tree evaluates through its Julia reading, and a bare number is its value.
@@ -502,11 +438,7 @@ convert_formula_to_expr(code::MathDocument, env::FormulaEnvironment) =
 convert_formula_to_expr(code::PrimitiveNumber, env::FormulaEnvironment) = code.value
 
 function _to_expr(node)
-    if node isa FormulaReference
-        t = node.target
-        t isa FormulaFormula || error("FormulaReference target is not a formula")
-        return Symbol(get_formula_key(t.name))
-    elseif node isa JuliaInteger
+    if node isa JuliaInteger
         return node.value
     elseif node isa JuliaFloat
         return node.value

@@ -47,6 +47,6 @@ include("../../../example/domain/formula/FormulaDocumentExample.jl")
 include("../../../example/domain/formula/FormulaProjectionExample.jl")
 
 export make_formula_document_example, make_formula_formula_document_example, make_formula_environment_document_example
-export make_formula_insertion_document_example, make_formula_reference_document_example, make_formula_projection_example
+export make_formula_insertion_document_example, make_formula_projection_example
 
 end # module ProjecturedFormulaExample

@@ -10,16 +10,13 @@ The Formula domain, `ProjecturedFormula`, holds named formulas that refer to eac
 
 | Type | Fields that matter |
 | --- | --- |
-| `FormulaFormula` | `name`, `code` (a `JuliaDocument` or a `MathDocument`), `result` (computed), `display_mode` (`:code`, `:result` or `:both`) |
-| `FormulaReference` | `target`, the formula it cites |
-| `FormulaEnvironment` | `formulas`, the scope in which names resolve: one sheet |
+| `FormulaFormula` | `name`, `code` (a `JuliaDocument`, a `MathDocument` or a bare `PrimitiveNumber`), `result` (computed), `display_mode` (`:code`, `:result` or `:both`) |
+| `FormulaEnvironment` | `formulas`, a `CellVector{FormulaFormula}`: the scope in which names resolve, one sheet |
 | `FormulaInsertion` | the placeholder |
 
 ### References and names
 
-A `FormulaReference` holds its target formula, not the name of the target. The view shows `target.name` through a cell, so a rename of the target changes every reference at once and no rewrite pass exists.
-
-A formula loaded from a file has no `FormulaReference` objects. Its code is text such as `(1 - rho) * rho^n`, and `rho` is a plain identifier. So `get_formula_dependencies` also resolves each plain name that the code reads against the names of the environment. `get_formula_key` reads a name as a one-line math expression, so `ρ` and `rho` are the same key and `p_{block}` becomes `p_block`.
+A formula refers to another by its name. `C = A + B` holds two identifiers, and `get_formula_dependencies(formula, environment)` resolves each free name of the code in the environment. The code holds no node of the formula domain, so a formula that a file holds, `(1 - rho) * rho^n`, and a formula that a person types refer in the same way. `get_formula_key` reads a name as a one-line math expression, so `ρ` and `rho` are the same key and `p_{block}` becomes `p_block`.
 
 `get_formula_names` gives the free names of the code. A name that the code binds itself is local, and refers to no formula: a parameter of a lambda, a function or a `do` block, a variable of a `let`, a `for` loop or a comprehension, and the target of an `=` in the statements after it. In `sum(x -> x * A, 1:3)`, only `sum` and `A` are free. A callee is a name like any other, because the value of a formula can be a function: `G = F(3)` depends on `F`. A free name that the environment does not hold, such as `sum`, stays for Julia.
 
@@ -35,7 +32,7 @@ When the code is a `MathDocument`, `convert_math_to_julia` reads it into Julia n
 
 ### Views
 
-`FormulaToSyntax()` takes the dispatch table of `JuliaToSyntax()` and adds the four formula rules. One recursion then prints a tree that mixes Julia nodes and formula nodes, and a reference can stand inside Julia code. The rule for `FormulaFormula` has three layouts, one for each `display_mode`.
+`FormulaToSyntax()` takes the dispatch table of `JuliaToSyntax()` and adds the four formula rules. One recursion then prints a formula and the Julia nodes of its code. The rule for `FormulaFormula` has three layouts, one for each `display_mode`.
 
 The graphics rows draw a formula with math code as a `MathAssignment` of the math domain, followed by `= value`. A formula with Julia code is one line: `name = code = value`. These rows print only; they have no reader.
 
@@ -65,8 +62,8 @@ Its `__init__` registers the graphics rows with `register_natural_graphics!(:for
 
 The decisions are in [plan/pending/excel-julia-formulas.md](../../../../plan/pending/excel-julia-formulas.md), whose first phases are done.
 
-- **The code language is Julia.** The domain reuses the parser, the printer and the editing of the Julia domain. The only new leaf is the reference.
-- **A reference points by identity and shows by name.** A rename needs no pass over the other formulas.
+- **The code language is Julia.** The domain reuses the parser, the printer and the editing of the Julia domain, and adds no node to the code.
+- **A reference is a name.** [plan/pending/formula-references-by-name.md](../../../../plan/pending/formula-references-by-name.md) holds the decisions. The code of a formula is plain Julia or plain math, and a file holds the same names that the view shows.
 - **The scope is a document.** A `FormulaEnvironment` is a value, not a global registry. So two sheets can exist at the same time, and a sheet has a view. The link design of [plan/pending/document-link-feature.md](../../../../plan/pending/document-link-feature.md) uses a global registry; the formula design does not.
 - **An error is a value.** A spreadsheet shows `#ERROR!` in the cell. A reactive cell that raises would stop every view that reads it.
 - **Math notation is a second way to write code.** [plan/pending/formula-with-math-code.md](../../../../plan/pending/formula-with-math-code.md) holds its design. The list of math nodes with no value is a fixed limit, not a gap.

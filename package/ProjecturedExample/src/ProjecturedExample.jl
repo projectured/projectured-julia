@@ -161,7 +161,7 @@ export make_filesystem_projection_example, make_filesystem_widget_projection_exa
 export make_focusing_document_example, make_focusing_projection_example
 export make_formula_document_example, make_formula_projection_example
 export make_formula_environment_document_example, make_formula_formula_document_example
-export make_formula_insertion_document_example, make_formula_reference_document_example
+export make_formula_insertion_document_example
 export make_chart_document_example, make_chart_projection_example,
        make_chart_pipeline_example,
        make_chart_line_document_example, make_chart_line_projection_example,

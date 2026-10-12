@@ -437,7 +437,6 @@ const domain_atomic_documents = AtomicDocument[
     AtomicDocument(:formula, "environment", make_formula_environment_document_example),
     AtomicDocument(:formula, "formula",     make_formula_formula_document_example),
     AtomicDocument(:formula, "insertion",   make_formula_insertion_document_example),
-    AtomicDocument(:formula, "reference",   make_formula_reference_document_example),
     AtomicDocument(:graph, "graph",  make_graph_graph_document_example),
     AtomicDocument(:graph, "layout", make_graph_layout_document_example),
     AtomicDocument(:chart, "plot",        make_chart_plot_document_example),

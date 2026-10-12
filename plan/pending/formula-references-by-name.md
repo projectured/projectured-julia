@@ -2,8 +2,9 @@
 
 **Status (2026-10-12): IN PROGRESS.** The owner and I worked out the model of §3 in a
 discussion on 2026-10-12, and the owner decided each point of §4. The owner asked to implement it
-on 2026-10-12. Step 1 is done. Step 4 of [strict-document-types.md](strict-document-types.md) waits for this plan,
-because a formula reference inside a Julia tree keeps 37 Julia fields at `Document`.
+on 2026-10-12. Steps 1 and 2 are done. Step 4 of
+[strict-document-types.md](strict-document-types.md) waits for this plan, because a formula
+reference inside a Julia tree kept 37 Julia fields at `Document`.
 
 **Goal:** a formula is a named computation in an explicit scope. Its definition is written in the
 math notation or in Julia, and a reference to another formula is a name in that notation, which
@@ -153,11 +154,31 @@ formula named `pi` would make every other `pi` of the sheet mean it.
   - `test_example(formula_example)` gives 2901 passes and 72 failures, the same as `main`. The 72
     failures are type-ins into the name and the result of a formula ("no cursor in Graphics
     image"), and `main` has them too.
-- [ ] **Step 2: no reference node.** `FormulaReference` goes out of the code of a formula:
+- [x] **Step 2: no reference node.** `FormulaReference` goes out of the code of a formula:
   `get_formula_dependencies` resolves names only, `_to_expr` maps no reference node, and the
   example and the tests write identifiers. `FormulaFormula.code` declares
   `Union{JuliaDocument, MathDocument, PrimitiveNumber}`, and `FormulaEnvironment.formulas`
   declares `Vector{FormulaFormula}`.
+  *Done (2026-10-12).* What is built, and what differs:
+  - `FormulaReference`, `FormulaReferenceToSyntaxLeaf`, `get_formula_references` and the
+    method `get_formula_dependencies(formula)` with no environment are gone. The theme keeps
+    `reference_text` for the view of Step 4.
+  - `FormulaEnvironment.formulas` declares `CellVector{FormulaFormula}`, the form that a list
+    of documents takes (as `JsonArray.elements`), and not `Vector{FormulaFormula}`.
+  - The gallery sheet is `A = 42`, `B = 13`, `C = A + B`, and the catalog has no `reference`
+    entry. The theme test checks the insertion leaf in place of the reference leaf.
+  - `ProjecturedFormula` and `ProjecturedFormulaExample` lose exported names, so each takes a
+    minor step at the next release. The generator of the release finds a removed export by
+    itself (R36, B7), so the release plan needs no new item.
+  - omnet-julia makes no reference node. Its sheets, `FormulaEnvironment(Any[])` and a push of
+    a `Cell` of a formula, fit the typed list.
+  - `test_formula()` passes, 140 of 140: the 3 assertions of the test of the reference leaf are
+    gone. `test_example(formula_example)` gives 2191 passes and 57 failures. 45 failures are
+    the type-ins into a name and a result that `main` has too. 12 are type-ins into the
+    identifiers `A` and `B` of `C`: an identifier leaf of Julia code shows no caret, a gap of the
+    Julia domain that `julia_example` has too (0 of 28 positions). The old example had
+    reference nodes there, which the type-in walk does not try. `test_catalog_coverage()` has
+    the failure of `main`: a list of types with no catalog entry, and no formula type in it.
 - [ ] **Step 3: the evaluation by name only.** `wire_result!` binds the names of the scope last
   (D7), and the `result` holds the value (D4). `FormulaFormula.result` declares `Any`.
 

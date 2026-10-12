@@ -18,21 +18,6 @@ function test_formula_to_syntax()
     @test get_cell_name(27, 3) == "AA3"
 end
 
-@testset "FormulaReference renders target name, tracks renames" begin
-    target = FormulaFormula("A1", parse_julia("10"); display_mode=:code)
-    ref = FormulaReference(target)
-    f2s = RecursiveProjection(FormulaToSyntax())
-
-    out = print_document(f2s, ref).output
-    rendered = Cell(@computation render(out))
-    @test rendered[] == "A1"
-
-    # Renaming the target updates every reference reactively (no rewrite).
-    target.name = "B7"
-    @test !is_cell_up_to_date(rendered)
-    @test rendered[] == "B7"
-end
-
 @testset "FormulaFormula view modes (code / result / both)" begin
     f2s = RecursiveProjection(FormulaToSyntax())
     env = FormulaEnvironment([FormulaFormula("A1", parse_julia("2 + 3"))])
@@ -57,7 +42,7 @@ end
     b1code = parse_julia("5")
     a1 = FormulaFormula("A1", a1code)
     b1 = FormulaFormula("B1", b1code)
-    a2 = FormulaFormula("A2", JuliaBinaryOperation(:+, FormulaReference(a1), FormulaReference(b1)))
+    a2 = FormulaFormula("A2", parse_julia("A1 + B1"))
     env = FormulaEnvironment([a1, b1, a2])
 
     @test _formula_result_string(a1.result) == "10"
@@ -73,10 +58,10 @@ end
 
 @testset "cycle detection: would_create_cycle rejects A1 -> A2 -> A1" begin
     a1 = FormulaFormula("A1", JuliaInteger(1))
-    a2 = FormulaFormula("A2", FormulaReference(a1))   # A2 -> A1
+    a2 = FormulaFormula("A2", parse_julia("A1"))   # A2 -> A1
     env = FormulaEnvironment([a1, a2])
 
-    @test get_formula_dependencies(a2) == FormulaFormula[a1]
+    @test get_formula_dependencies(a2, env) == FormulaFormula[a1]
     # Adding A1 -> A2 would close the cycle A1 -> A2 -> A1.
     @test would_create_cycle(env, a1, a2) == true
     # A self-reference is also a cycle.
@@ -88,12 +73,12 @@ end
 end
 
 @testset "cycle safety net: evaluator returns an error result, no hang" begin
-    # Force a genuine cycle past the static check by wiring references directly,
+    # Force a genuine cycle past the static check by writing the names directly,
     # then assert the re-entry guard yields a marker rather than looping.
     a1 = FormulaFormula("A1", JuliaInteger(0))
     a2 = FormulaFormula("A2", JuliaInteger(0))
-    a1.code = FormulaReference(a2)   # A1 -> A2
-    a2.code = FormulaReference(a1)   # A2 -> A1  (cycle)
+    a1.code = parse_julia("A2")   # A1 -> A2
+    a2.code = parse_julia("A1")   # A2 -> A1  (cycle)
     env = FormulaEnvironment([a1, a2])
     s = _formula_result_string(a1.result)
     @test occursin("#CYCLE!", s) || occursin("#ERROR!", s)
@@ -113,8 +98,8 @@ end
 
 @testset "compute_topological_order: dependencies before dependents" begin
     a1 = FormulaFormula("A1", JuliaInteger(1))
-    a2 = FormulaFormula("A2", FormulaReference(a1))
-    a3 = FormulaFormula("A3", FormulaReference(a2))
+    a2 = FormulaFormula("A2", parse_julia("A1"))
+    a3 = FormulaFormula("A3", parse_julia("A2"))
     env = FormulaEnvironment([a3, a2, a1])
     order = compute_topological_order(env)
     @test findfirst(==(a1), order) < findfirst(==(a2), order)
