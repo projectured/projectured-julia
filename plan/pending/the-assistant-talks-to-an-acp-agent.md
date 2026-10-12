@@ -1446,7 +1446,21 @@ from the command line of the projectured UI.
     registers it beside the undo tools. The MCP server answers a picture as an
     `ImageContent`, and its log says "A picture of N bytes". The loop of a turn
     gives the model of the editor a line of text in place of a picture.
-  - [ ] 3.1e A paste of a document into the draft waits for Q26.
+  - [x] 3.1e A paste of a document into the draft (Q26, agreed by the owner on
+    2026-10-12). `make_pasted_document_operation(document, path, value)` of the
+    domain slice, `nothing` by default. The clipboard asks it in `_clipboard_paste`
+    and `_clipboard_paste_copy`, before the text paste, when the stored document
+    is no plain text (`_slice_text`) and the selection is a writable text target:
+    each document on the path, from the deepest. The draft answers
+    `InsertDraftDocumentOperation(draft, document)` for a document with no text
+    form (`has_text_form`, which moved from the assistant to the conversation
+    slice), and `nothing` for one with a text form, which goes into the text as
+    before. The "Picture" button uses the same operation. A check in the window
+    of the application: a click on the composer, Ctrl+V of a chart, the draft is
+    `[Chart, PrimitiveString]`, the caret stays in the text, a typed "h" goes
+    there, and the chart becomes a picture at the submit. A limit: a stored
+    document with no text wins over newer text of the system clipboard at a
+    caret in the draft, because the clipboard does not know which came last.
 
   **Checks (2026-10-12).** A script without a window, on the SDL backend, built
   the window of the application with an assistant: the window picture is the
@@ -1467,7 +1481,7 @@ from the command line of the projectured UI.
   submit, so that should also be possible to turn into an image if there's no
   text representation for it (e.g. a plot)".
 
-  **Q26 (open).** A paste into the draft does not work for a document: the caret
+  **Q26 (agreed).** A paste into the draft did not work for a document: the caret
   of the draft is a text target, so the clipboard pastes text (the text of the
   operating system first, then the text of the copied document), and a plot has
   no text. The proposal: one new generic of the domain slice,
