@@ -575,6 +575,24 @@ change how every view of syntax makes its lines, so they land together.
 
 8. **omnet-julia**: NED and INI state their breaks in their texts, which removes
    their empty lines. It follows the landing of steps 2 to 4.
+   **Built (2026-10-12)** on the branch `text-breaks` of omnet-julia (`7e12926b`),
+   to land together with this branch (the owner: "together").
+   - NED: a module heading and a section label end with `"\n"`, a section puts
+     its entries one on each line one level in, and the closing `"\n}"` starts a
+     line at the level of the module. A section has no empty last line.
+   - A module `open` can not start with a break: a collapsed node prints the
+     first line of its `open`, and text after a break in `open` stands one level
+     in. So the empty line before a module moves to the root.
+   - **The NED root, decided, the owner, 2026-10-12:** its separator is
+     `"\n\n"`, as in INI and the test file, so each declaration has an empty line
+     before it, also each import. The saved file is this text too
+     (`emit_text` of a `NedFile` is `print_natural_text`). Not taken: a
+     separator `"\n"` with no empty lines; an outer node with `open = "\n"`
+     around each module, which keeps the imports together but adds a level to
+     the syntax tree.
+   - INI: the separator of a section is lines. The result view: a run and a
+     module are one level in, one item on each line. The test file: a
+     description and an expected body are lines.
 9. **The documents**: `text.md`, `syntax.md` and the guides of the domains.
    ✅ **Done (2026-10-09).** `syntax.md`: a break is text, the rules of the lines
    of a compound and of a leaf, `indentation` as `nest`, N7, the edit of a break,
