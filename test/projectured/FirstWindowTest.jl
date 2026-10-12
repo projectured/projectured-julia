@@ -35,16 +35,41 @@ end
 println("FIRST WINDOW COMPILED ", compute_first_window_compile_seconds())
 """
 
+# The project of the README session in `folder`: the packages that the README
+# tells a user to add, from `environment/readme-data-frame`, and the manifest of the
+# active environment with each package path made absolute, so the session loads
+# the images that the active environment compiled. AutoIntegration loads the
+# integrations of the packages that the project lists, so an integration that the
+# active environment holds and the README does not stays out of the session.
+function _make_readme_session_project(folder::String)
+    readme = TOML.parsefile(joinpath(@__DIR__, "..", "..", "environment", "readme-data-frame",
+                                     "Project.toml"))
+    open(io -> TOML.print(io, Dict("deps" => readme["deps"])), joinpath(folder, "Project.toml"), "w")
+    manifest = Base.project_file_manifest_path(Base.active_project())
+    root = dirname(manifest)
+    text = replace(read(manifest, String),
+                   r"(?m)^path = \"(.*)\"$" => line -> _make_absolute_path_line(line, root))
+    write(joinpath(folder, "Manifest.toml"), text)
+    folder
+end
+
+# The line `path = "…"` of a manifest in `root`, with the path made absolute.
+_make_absolute_path_line(line, root) =
+    "path = \"" * normpath(joinpath(root, match(r"^path = \"(.*)\"$", line)[1])) * "\""
+
 function test_first_window_compiles_little()
     @testset "the first window of a data frame compiles little" begin
         # The binary alone, with the flags of a user's session: a test runs with
         # bounds checks and often with coverage, and under those flags Julia
         # compiles the packages again instead of using their images.
         julia = first(Base.julia_cmd().exec)
-        command = addenv(`$julia --startup-file=no --project=$(Base.active_project())
-                          -e $_FIRST_WINDOW_SESSION`, "SDL_VIDEODRIVER" => "offscreen")
         output, errors = IOBuffer(), IOBuffer()
-        run(pipeline(ignorestatus(command); stdout = output, stderr = errors))
+        mktempdir() do folder
+            project = _make_readme_session_project(folder)
+            command = addenv(`$julia --startup-file=no --project=$project -e $_FIRST_WINDOW_SESSION`,
+                             "SDL_VIDEODRIVER" => "offscreen")
+            run(pipeline(ignorestatus(command); stdout = output, stderr = errors))
+        end
         found = match(r"FIRST WINDOW COMPILED ([0-9.e+-]+)", String(take!(output)))
         found === nothing &&
             println(stderr, "\nthe session of the first window printed no result:\n",
