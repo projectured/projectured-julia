@@ -12,15 +12,8 @@ _inspector_text(ref, target) =
     print_document(ReferenceInspectorToText(),
                      ReferenceInspector(reference = ref, target = target)).output
 
-# Concatenate the plain content of every TextString span (skips newlines).
-function _flatten_text(tt::TextBlock)
-    io = IOBuffer()
-    for i in 1:length(tt.elements)
-        s = tt.elements[i]
-        s isa TextString && print(io, s.content)
-    end
-    String(take!(io))
-end
+# The text of the block with no breaks between its lines.
+_flatten_text(tt::TextBlock) = replace(get_flat_string(tt), "\n" => "")
 
 """
     test_reference_inspector_text()

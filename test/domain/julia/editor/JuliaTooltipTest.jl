@@ -11,7 +11,7 @@ end
 function test_julia_tooltip()
 @testset "a Julia definition says what it is" begin
 
-_text(document) = join((document.elements[i].content for i in 1:length(document.elements)), "\n")
+_text(document) = get_flat_string(document)
 _function() = parse_julia("function add(a::Int, b)::Int\n    a + b\nend")
 
 @testset "a function answers its signature" begin

@@ -641,7 +641,7 @@ _julia_documentation_text(docstring::JuliaDocstring) =
         docstring.text
 
 # A tooltip is a document, and this slice reaches the text one. A line of the
-# answer becomes a span, so a blank line between the signature and the prose
-# stays a blank line.
+# answer becomes a line of the text, so a blank line between the signature and the
+# prose stays a blank line.
 _julia_tooltip_text(text::AbstractString) =
-    TextBlock(TextDocument[TextString(line) for line in split(text, "\n")])
+    TextBlock(TextDocument[TextLine(TextString(line)) for line in split(text, "\n")])

@@ -158,7 +158,7 @@ function _short_text(p::ReferenceToText, ref)
     else
         _emit_path_short!(spans, t, font, ref)
     end
-    TextBlock(spans...)
+    TextBlock(TextLine(spans))
 end
 
 print_document(p::ReferenceToText, recursion, ::Nothing, ctx) =
@@ -316,29 +316,24 @@ function _long_text(p::ReferenceToHumanReadableText, ref)
     t = unwrap_cell(p.style)
     font = p.font
     if ref === nothing
-        return TextBlock(_tok("no selection", font, t.punctuation_color))
+        return TextBlock(TextLine(_tok("no selection", font, t.punctuation_color)))
     elseif ref isa EmptyReference
         type_name = p.document === nothing ? "document" : _short_type(typeof(p.document))
         type_color = p.document === nothing ? t.punctuation_color : t.type_color
-        return TextBlock(
+        return TextBlock(TextLine(
             _tok("the whole ", font, t.punctuation_color),
             _tok(type_name, font, type_color),
-        )
+        ))
     end
     lines = Vector{Vector{TextDocument}}()
     _walk_long!(lines, t, font, ref, p.document, EmptyReference(), nothing)
     reverse!(lines)
-    spans = TextDocument[]
-    for (i, line) in enumerate(lines)
-        append!(spans, line)
-        if i < length(lines)
-            # "which is" connects each node to its role in its parent (the line
-            # below it), so the rows read as one sentence.
-            push!(spans, _tok(" which is", t.aside_font, t.punctuation_color))
-            push!(spans, TextNewline(font=font))
-        end
-    end
-    TextBlock(spans...)
+    # "which is" connects each node to its role in its parent (the line below
+    # it), so the rows read as one sentence.
+    TextBlock(TextDocument[TextLine(i < length(lines) ?
+                                    vcat(line, TextDocument[_tok(" which is", t.aside_font, t.punctuation_color)]) :
+                                    line)
+                           for (i, line) in enumerate(lines)])
 end
 
 print_document(p::ReferenceToHumanReadableText, recursion, ::Nothing, ctx) =

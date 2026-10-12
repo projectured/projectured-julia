@@ -534,7 +534,7 @@ _make_opened_window_dispatch(measure) =
 #
 # Wrap a domain document in a `TooltipSource` whose `content` is a
 # *reactive* `TextBlock`: the elements thunk re-reads `doc.selection`
-# every frame and rebuilds the colored spans via `ReferenceToText`. The
+# every frame and rebuilds the colored lines via `ReferenceToText`. The
 # `TooltipDecoratorProjection` reader watches the wrapped document and
 # emits `OpenWindowOperation` / `CloseWindowOperation` as the selection
 # arrives / clears; the `WindowManagingProjection` applies those to the
@@ -548,16 +548,11 @@ function _make_tooltip_source(doc; id::Symbol)
         ctx = PrinterContext()
         short = print_document(short_proj, nothing, sel, ctx).output
         long  = print_document(long_proj,  nothing, sel, ctx).output
-        spans = TextDocument[]
-        for i in 1:length(short.elements)
-            push!(spans, short.elements[i])
-        end
-        push!(spans, TextNewline(font=short_proj.font))
-        push!(spans, TextNewline(font=short_proj.font))
-        for i in 1:length(long.elements)
-            push!(spans, long.elements[i])
-        end
-        spans
+        # The lines of the two forms, with an empty line between them.
+        lines = TextDocument[short.elements[i] for i in 1:length(short.elements)]
+        push!(lines, TextLine(TextString("", short_proj.font)))
+        append!(lines, TextDocument[long.elements[i] for i in 1:length(long.elements)])
+        lines
     end)
     TooltipSource(child = doc, content = content, style = :tooltip, id = id)
 end

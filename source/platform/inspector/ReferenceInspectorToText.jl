@@ -59,12 +59,12 @@ make_reference_inspector_projection(; theme = nothing, reference_theme = nothing
 _header(text::AbstractString, p::ReferenceInspectorToText) =
     TextString(text, p.header_font, p.header_color)
 
-# Copy the spans of `tt` (a TextBlock) onto `spans`.
-function _append_spans!(spans::Vector{TextDocument}, tt::TextBlock)
+# Copy the lines of `tt` (a TextBlock) onto `lines`.
+function _append_lines!(lines::Vector{TextDocument}, tt::TextBlock)
     for i in 1:length(tt.elements)
-        push!(spans, tt.elements[i])
+        push!(lines, tt.elements[i])
     end
-    spans
+    lines
 end
 
 function print_document(p::ReferenceInspectorToText, recursion, input::ReferenceInspector, ctx)
@@ -84,16 +84,13 @@ function print_document(p::ReferenceInspectorToText, recursion, input::Reference
         short = print_document(short_proj, nothing, canonical, ictx).output
         long  = print_document(long_proj,  nothing, canonical, ictx).output
 
-        spans = TextDocument[]
-        push!(spans, _header("Compact", p))
-        push!(spans, TextNewline(font = p.header_font))
-        _append_spans!(spans, short)
-        push!(spans, TextNewline(font = p.font))
-        push!(spans, TextNewline(font = p.font))
-        push!(spans, _header("Human-readable", p))
-        push!(spans, TextNewline(font = p.header_font))
-        _append_spans!(spans, long)
-        spans
+        # Each form under its header, with an empty line between the two.
+        lines = TextDocument[TextLine(_header("Compact", p))]
+        _append_lines!(lines, short)
+        push!(lines, TextLine(TextString("", p.font)))
+        push!(lines, TextLine(_header("Human-readable", p)))
+        _append_lines!(lines, long)
+        lines
     end)
     SimpleIoMap(p, input, out)
 end
