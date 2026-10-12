@@ -46,9 +46,9 @@ read, and again on the first read after a cell that it read was written.
 
 Use it to state a derived value where it belongs, beside the thing that has it,
 instead of computing it again at every place that needs it. It goes into a
-reactive cell: a new cell, a typed cell, a write into a cell, or a reactive field
-of a struct of cells. A `MutableCell` or an `ImmutableCell` throws an
-`ArgumentError` for it.
+reactive cell or an untracked cell: a new cell, a typed cell, or a write into a
+reactive cell. A `MutableCell` or an `ImmutableCell` throws an `ArgumentError` for
+it.
 
 # Example
 

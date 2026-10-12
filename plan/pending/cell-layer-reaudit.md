@@ -148,6 +148,14 @@ L03-9 B.
 
 - [ ] 1. The fixes that need no decision: A-1 … A-10, T-1 … T-13, E-1 (with the module
   bound under its own name in a walkthrough), G-1 … G-12.
+  - [x] A-2 … A-10. `record_computation_fault!` is declared in the interface file and
+    exported there; its fallback and the two bodies of the untracked kind are in
+    `CellDefaults.jl`. `is_cell_up_to_date` of an `UntrackedCell` keeps its answer
+    `true`, and its docstring says so, because the walks that read it rely on that
+    answer. `find_fault_scope` has the body, and the private copy is gone.
+  - [x] T-1 … T-13. Checked: `test_cell` 191, `test_untracked_cell` 48,
+    `test_cell_fault_scope` 34, the walkthrough 2, the layering guard 10.
+  - [x] G-1 … G-12, with the four states and a section on a cycle.
 - [ ] 2. The decisions.
   - [x] Decision 1, the states of a cell. `valid::Bool` is `state::_CellState`, an
     `@enum` of `UInt8`, so a cell grows by nothing. It has five values: the four

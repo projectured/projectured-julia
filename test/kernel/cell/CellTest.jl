@@ -206,7 +206,60 @@ end
     @test is_cell_up_to_date(i)
     @test peek(i) == "abc"
     @test_throws MethodError i[] = "xyz"  # read-only is the contract
-    @test isbitstype(typeof(ImmutableCell(1)).types[1]) # zero-cost wrapper: field inlines
+    @test isbitstype(ImmutableCell{Int})  # zero-cost wrapper: the field inlines
+end
+
+@testset "get_cell_computation answers the computation, and a caller can wrap it" begin
+    f = () -> 1
+    @test get_cell_computation(Cell(Computation(f))) === f
+    @test get_cell_computation(Cell(1)) === nothing
+    @test get_cell_computation(MutableCell(1)) === nothing
+    @test get_cell_computation(UntrackedCell{Int}(@computation 1)) === nothing
+    c = Cell(@computation 2)
+    inner = get_cell_computation(c)
+    set_cell_computation!(c, () -> inner() + 1)
+    @test c[] == 3
+end
+
+@testset "a new computation makes a reader that is up to date out of date" begin
+    s = Cell(1)
+    r = Cell(@computation s[] + 1)
+    @test r[] == 2
+    @test set_cell_computation!(s, () -> 10) === s
+    @test getfield(s, :value) === nothing
+    @test !is_cell_up_to_date(r)
+    @test r[] == 11
+    s[] = @computation 20
+    @test !is_cell_up_to_date(r)
+    @test r[] == 21
+end
+
+@testset "a Computation shows its function, and the stored kinds refuse it" begin
+    @test repr(Computation(identity)) == "Computation(identity)"
+    @test_throws ArgumentError MutableCell{Int}(Computation(identity))
+    @test_throws ArgumentError ImmutableCell{Int}(Computation(identity))
+end
+
+@testset "run_untracked inside a computation records no reader" begin
+    a = Cell(1)
+    r = Cell(@computation run_untracked(() -> a[]) + 1)
+    @test r[] == 2
+    @test !has_dependent_cells(a)
+end
+
+@testset "an equal write still makes the readers out of date" begin
+    x = Cell(1)
+    y = Cell(@computation x[] + 1)
+    @test y[] == 2
+    x[] = 1
+    @test !is_cell_up_to_date(y)
+end
+
+@testset "a read on another task records no reader" begin
+    t = Cell(1)
+    s = Cell(@computation fetch(Threads.@spawn t[]))
+    @test s[] == 1
+    @test !has_dependent_cells(t)
 end
 
 @testset "get_cell_value_type" begin

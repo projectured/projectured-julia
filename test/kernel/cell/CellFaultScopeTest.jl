@@ -144,5 +144,23 @@ function test_cell_fault_scope()
         is_broken[] = false
         @test cell[] == 7
     end
+
+    @testset "find_fault_scope answers the scope of a computation made now" begin
+        @test find_fault_scope() === nothing
+        @test run_in_fault_scope(find_fault_scope, :part) === :part
+        made = run_in_fault_scope(() -> Cell(@computation find_fault_scope()), :part)
+        @test run_in_fault_scope(() -> made[], :other) === :part
+    end
+
+    @testset "a scope with no method takes no fault" begin
+        plain = run_in_fault_scope(() -> Cell(@computation error("x")), :plain)
+        @test_throws ErrorException plain[]
+        @test get_fault_scope(nothing) === nothing
+    end
+
+    @testset "a recorded fault shows the exception that it holds" begin
+        @test sprint(showerror, RecordedFaultException(ErrorException("x"), nothing)) ==
+              "a fault that a barrier recorded: x"
+    end
 end
 end

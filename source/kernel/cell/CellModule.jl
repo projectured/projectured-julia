@@ -33,16 +33,16 @@ The module lives in eight fragments that share this namespace:
 module CellModule
 
 using Base.ScopedValues: ScopedValue, with
-using ..PerformanceModule
 using ..FaultModule
+using ..PerformanceModule
 
 export AbstractCell, is_cell_up_to_date, unwrap_cell, get_cell_value_type,
-       make_similar_cell, is_computed_cell, get_cell_computation, has_dependent_cells
+       make_similar_cell, is_computed_cell, get_cell_computation, has_dependent_cells,
+       record_computation_fault!
 export Computation, @computation
 export ReactiveCell, Cell, run_untracked, CellCycleException, set_cell_value!,
        set_cell_computation!
-export run_in_fault_scope, record_computation_fault!, RecordedFaultException,
-       get_fault_scope, find_fault_scope
+export run_in_fault_scope, RecordedFaultException, get_fault_scope, find_fault_scope
 export MutableCell
 export ImmutableCell
 export UntrackedCell

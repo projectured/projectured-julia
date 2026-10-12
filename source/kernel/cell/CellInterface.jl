@@ -43,7 +43,9 @@ reached the cells that depend on it.
     total[]
     is_cell_up_to_date(total)       # true
 
-A kind that holds its value, and not a computation, is always up to date.
+A kind that holds its value, and not a computation, is always up to date. An
+`UntrackedCell` answers `true` too, although each read of a computed one runs its
+computation.
 
 See also `set_cell_computation!` and `ReactiveCell`.
 """
@@ -94,8 +96,8 @@ function get_cell_value_type end
 Make a new cell like this one, holding another value.
 
 Use it to copy a struct of cells: each field keeps the kind of cell it had, so a
-reactive field stays reactive and a stored field stays stored, and the copy does
-not have to know which was which.
+reactive field stays reactive and a stored field stays stored, and the code that
+copies does not test which was which.
 
 # Example
 
@@ -137,9 +139,13 @@ The computation that `cell` computes its value with, or `nothing` when it holds
 a value.
 
 Use it to put a computation around the one that a cell has, so a caller acts on
-each value that the cell makes: the walk of the part under the pointer follows
-each node of a lazy list when the list builds it. The caller gives the new
-computation with `set_cell_computation!`.
+each value that the cell makes. The caller gives the new computation with
+`set_cell_computation!`.
+
+# Example
+
+    inner = get_cell_computation(cell)
+    set_cell_computation!(cell, () -> inspect(inner()))
 
 Only the reactive kind keeps a computation that a caller can put another one
 around, so the other kinds always return `nothing`.
@@ -174,3 +180,34 @@ needs. Only the reactive kind records readers, so the other kinds always return
 See also `is_cell_up_to_date`, and `peek`, a read that records no reader.
 """
 function has_dependent_cells end
+
+"""
+    record_computation_fault!(scope, computation, exception; traceback) -> Bool
+
+Hand the fault of a computation to the scope that the computation belongs to, and
+answer whether the scope took it.
+
+Use it as the seam of a scope: the code that owns a scope adds a method for the type
+of its scope, which keeps the fault and shows it later. The fallback takes nothing
+and answers `false`.
+
+The computation calls it once, inside its catch, with its own function, which takes
+no argument and computes the value again, the exception and its traceback. It runs
+inside a computation, so a method must not write a cell. It can write a collector
+that no cell depends on and that no computation reads. A scope that takes the fault
+answers `true`, and the computation then throws a
+[`RecordedFaultException`](@ref), so no scope above records the fault again. A
+scope that can not show the fault answers `false`, and the exception goes on as it
+is, to the next scope up.
+
+# Example
+
+    function CellModule.record_computation_fault!(scope::PartScope, computation,
+                                                  exception; traceback)
+        push!(scope.faults, exception)
+        true
+    end
+
+See also [`run_in_fault_scope`](@ref).
+"""
+function record_computation_fault! end

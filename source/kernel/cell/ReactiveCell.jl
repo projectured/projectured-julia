@@ -154,6 +154,12 @@ Use it to read cells from inside a computation that must not depend on them, whe
 
 The function puts an empty stack in place of the stack of the task while `f`
 runs, and puts the stack back after `f` returns or throws.
+
+# Example
+
+    label = Cell(@computation title[] * run_untracked(() -> " (" * string(count[]) * ")"))
+
+See also `peek`, the untracked read of one cell, and `UntrackedCell`.
 """
 function run_untracked(f)
     stack = _get_computing_stack()

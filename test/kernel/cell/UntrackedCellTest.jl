@@ -120,5 +120,14 @@ end
     @test other.a == 8
 end
 
+@testset "an untracked cell shows its kind, and its answers" begin
+    @test repr(UntrackedCell{Int}(3)) == "UntrackedCell{$(Int)}(3)"
+    @test repr(UntrackedCell{Int}(@computation 3)) == "UntrackedCell{$(Int)}(computation)"
+    @test is_cell_up_to_date(UntrackedCell{Int}(@computation 3))
+    @test UntrackedCell(@computation 1) isa UntrackedCell{Any}
+    @test UntrackedCell{Float64}(1)[] === 1.0
+    @test !has_dependent_cells(UntrackedCell{Int}(3))
+end
+
 end
 end
