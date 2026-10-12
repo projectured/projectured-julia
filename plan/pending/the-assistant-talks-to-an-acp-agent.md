@@ -1329,6 +1329,61 @@ from the command line of the projectured UI.
 ### Phase 3: the agent sees what projectured sees
 
 - [ ] 3.1 A view as an image in the prompt (important, the owner 2026-10-12).
+
+  **Facts (2026-10-12).**
+  - `write_image(canvas, filename; width, height, supersample, density)` of the
+    SDL backend renders a `GraphicsCanvas` with a software renderer, with no
+    window and no display, to a PNG file; `write_image(document, projection,
+    filename)` prints a document first. Nothing reads the pixels of the window
+    on the screen back, so a picture of what a person sees is a second render of
+    the canvas that the editor drew for the window.
+  - The platform has `ImageFile(filename)`, an `ImageDocument`, which a
+    conversation part and a draft part can hold.
+  - The kernel has no image content: `LlmContent` is text, thinking, a tool
+    use and a tool result, and a tool result is a `String`. The Anthropic and
+    Ollama adapters write no image; the ACP adapter converts text only.
+  - ACP has `ImageContent(data, mime_type)` (base64); an agent advertises
+    `promptCapabilities.image`. `ClaudeCodeACP` advertises `image = false`, and
+    refuses an image block. Claude takes an image as
+    `{"type": "image", "source": {"type": "base64", ...}}` in a user message.
+  - The fork of ModelContextProtocol.jl answers an image in a tool result
+    (`ImageContent`); the MCP server of the editor answers text only.
+  - A user turn becomes one text (`_make_user_turn_text`) in three places:
+    `build_messages`, the prompt of an external agent, and steering.
+
+  **Design (a proposal; waits for the owner).**
+  - 3.1a Kernel (new): `LlmImage(media_type, data)`, a kind of `LlmContent`
+    with the bytes of a PNG. The Anthropic and Ollama adapters write it, and the
+    ACP adapter writes it as `ImageContent` when the agent advertises
+    `promptCapabilities.image`; else the image is left out, and a line in the
+    prompt says so.
+  - 3.1b Assistant: a user turn becomes text and images
+    (`_make_user_turn_content`), in the three places above. A command
+    "Picture" in the option bar of the assistant renders the window, the
+    canvas that the editor drew, to a PNG and adds it to the draft as an
+    `ImageFile` part, which shows as a small image; the person sends it with
+    the message.
+  - 3.1c `ClaudeCodeACP` 0.1.7: `promptCapabilities.image = true`, and an
+    `ImageContent` becomes an image of the user message for Claude.
+  - 3.1d (a question) A tool for the agent: `take_picture` of the MCP server of
+    the editor answers the picture of the window as an image, so an ACP agent
+    looks when it wants; Claude Code asks the person before it calls a tool of
+    an MCP server that no setting allows. A model of this editor gets such a
+    tool later, because the result of a tool of the kernel is text.
+
+  **Questions for the owner.**
+  - Q20. Who takes the picture: the person with the command (3.1b), and also
+    the agent with the tool (3.1d)? Recommended: both.
+  - Q21. What the picture shows: the whole window, exactly the canvas that the
+    person sees; or one tab, rendered again on its own? Recommended: the whole
+    window first.
+  - Q22. The kernel type `LlmImage(media_type, data)`, and `ClaudeCodeACP` 0.1.7
+    with images?
+  - Q23. The command "Picture" in the option bar of the assistant, which adds
+    the picture to the draft?
+  - The picture holds all that the window shows, files included, and goes to
+    the provider of the model; only the person or a call that the person allows
+    takes it.
 - [ ] 3.2 File access through the editor, if an agent calls `fs/*`. Deferred by
   the owner on 2026-10-12.
 
