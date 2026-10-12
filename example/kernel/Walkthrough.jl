@@ -27,8 +27,10 @@ function _print_walkthrough(io::IO, layer::Module, lines::AbstractVector{<:Abstr
         value = Core.eval(session, Meta.parse(line))
         if value !== nothing
             # The line can define a name that the value shows, and this function
-            # runs in the world from before the line ran.
-            Base.invokelatest(show, IOContext(io, :limit => true), MIME"text/plain"(), value)
+            # runs in the world from before the line ran. The session is the module
+            # that names its types, as `Main` is in a REPL.
+            Base.invokelatest(show, IOContext(io, :limit => true, :module => session),
+                              MIME"text/plain"(), value)
             println(io)
         end
         println(io)

@@ -157,10 +157,16 @@ The decisions are C for L01-1, A for L01-2, A for L01-12, and A for A-4.
   - [x] A-3: one export statement for each fragment, in the order of the
     definitions, and `FaultModule.jl` is off the list `EXPORT_UNMIGRATED`.
   - [x] A-2 came with A-4 (b91683206).
-- [ ] 2. The tests T-1 … T-12, and the walkthrough `print_fault_example` (E-1).
+- [x] 2. The tests T-1 … T-12, and the walkthrough `print_fault_example` (E-1).
   - [x] T-1 … T-12. T-2, T-3, T-6 and T-11 came with the decisions; the others
     are in one commit. T-9 names `String`, not `Int`: `Int` is a name of `Int64`,
     so the record says `:Int64`. The five fault suites pass: 9, 13, 60, 24 and 28.
+  - [x] E-1: `print_fault_example` in `example/kernel/FaultExample.jl`, with a test
+    of its full text in `test/kernel/fault/FaultExampleTest.jl`. Its policy closes
+    the console and the sound, which write to the global logger and to the
+    terminal. `_print_walkthrough` now shows a value with the session as the
+    module of its `IOContext`, so a type prints as a REPL prints it
+    (`FaultRecord[]`, not `ProjecturedKernel.FaultModule.FaultRecord[]`).
 - [x] 3. The three decisions.
   - [x] L01-1 C. The field `dropped` is gone: the overflow record holds that
     count. The overflow record has the site `:store`, the origin `:FaultStore`,

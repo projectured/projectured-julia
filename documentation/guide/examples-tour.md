@@ -42,7 +42,7 @@ write_example_pdf("json", "/tmp/snapshot.pdf")
 
 **The assistant.** `assistant`, `conversation_widget`, `conversation_editor`. The conversation as a document. The example answers from a canned transcript, so a test needs no model; [assistant-guide.md](assistant-guide.md) says how to talk to a real one.
 
-**The kernel, one layer at a time.** A kernel layer has no document to open, so it has a walkthrough: a REPL session that runs the lines that try the layer and prints each line with the value that it gives. `using ProjecturedKernelExample; print_cell_example()` shows the cell layer: a value, a computation, a write that makes the readers out of date, and `peek`. Type the lines yourself after `using ProjecturedKernel.CellModule` and change them.
+**The kernel, one layer at a time.** A kernel layer has no document to open, so it has a walkthrough: a REPL session that runs the lines that try the layer and prints each line with the value that it gives. `using ProjecturedKernelExample; print_cell_example()` shows the cell layer: a value, a computation, a write that makes the readers out of date, and `peek`. `print_fault_example()` shows the fault layer: a barrier, the store that counts one fault, the drain, and a full store. Type the lines yourself after `using ProjecturedKernel.CellModule` or `using ProjecturedKernel.FaultModule`, and change them.
 
 The seven examples below are the ones to read in order.
 
