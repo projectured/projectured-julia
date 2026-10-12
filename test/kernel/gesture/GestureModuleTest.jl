@@ -77,6 +77,9 @@ function test_gesture_module()
         @test describe_gesture_pattern(KeyPressPattern('a')) == "a"
         @test describe_gesture_pattern(KeyPressPattern('a'; modifiers = [:ctrl])) == "Ctrl+a"
         @test describe_gesture_pattern(KeyPressPattern(nothing)) == "character"
+        @test describe_gesture_pattern(KeyPressPattern('\n'; modifiers = [:shift])) == "Shift+Return"
+        @test describe_gesture_pattern(KeyPressPattern('\t')) == "Tab"
+        @test describe_gesture_pattern(KeyPressPattern(' ')) == "Space"
         @test describe_gesture_pattern(KeyDownPattern(:tab)) == "Tab"
         @test describe_gesture_pattern(KeyDownPattern(:home; modifiers = [:ctrl, :alt])) ==
               "Ctrl+Alt+Home"

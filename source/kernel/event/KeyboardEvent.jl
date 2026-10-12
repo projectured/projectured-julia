@@ -26,6 +26,11 @@ A key went down.
 `repeat` is `true` for an event that the operating system repeats while the key is
 held. The short form takes `repeat` as a keyword, and its default is `false`. `time`
 is the time of the input (see `Event`).
+
+A key that types a character also gives a `KeyPress` after its `KeyDown`, and the
+meaning of the key reads the `KeyPress`: Space, Return and Tab are such keys. A
+`KeyDown` gives a meaning only to a key that types nothing, such as an arrow, or to
+a chord, such as Ctrl+S.
 """
 struct KeyDown <: Event
     key::Symbol
@@ -60,6 +65,12 @@ A character was typed. The input method of the operating system gives the
 composed Unicode character, after a dead key or an input method for another script.
 `char` holds the character, and `text` holds the full string, for an input of more
 than one code point.
+
+A `KeyPress` comes at the down of the key, after its `KeyDown`, and again for each
+repeat while the key is held. Return types `'\\n'` and Tab types `'\\t'`, with the
+modifiers that are held; the backend makes these two, as an input method gives no
+character for them. A rule that inserts any typed text takes printable text only,
+so `'\\n'` and `'\\t'` reach only a rule that names them.
 
 `KeyPress(char; time)` has no modifiers, and `KeyPress(char, modifiers; time)`
 takes them. Both set `text` to the character.
