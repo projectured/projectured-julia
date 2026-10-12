@@ -1,11 +1,9 @@
 # Sealed files — audit state and rules
 
-This file is the authoritative sealing state of the repository: which files are
-audited against
-[documentation/rule/architecture-invariants.md](documentation/rule/architecture-invariants.md)
-and locked, and the order in which the rest follow. The inventory covers the
-kernel's source folder (`source/kernel/`), in the order the files load. The
-files are reviewed and sealed one at a time.
+This file is the authoritative sealing state of the repository: which files
+passed the audit below and are locked, and the order in which the rest follow.
+The inventory covers the kernel's source folder (`source/kernel/`), in the order
+the files load. The files are reviewed and sealed one at a time.
 
 ## 🔒 What sealed means — DO NOT MODIFY
 
@@ -19,14 +17,67 @@ sealed and ask for explicit permission before proceeding.
 
 ## The audit protocol
 
-**Audit a file against
-[documentation/rule/architecture-invariants.md](documentation/rule/architecture-invariants.md)
-the moment you introduce it as the next file — before inviting review and before
-offering to seal.** Present the audit result first; never say "seal as-is" or ask
-whether to seal until the audit has been reported. A file is sealed only once it
-complies (or a specific non-compliance is explicitly accepted by the user in the
-conversation). If a violation is found in an already-sealed file, report it and
-ask permission before fixing (the seal still holds until permission is given).
+**Audit a file the moment you introduce it as the next file — before inviting
+review and before offering to seal.** An audit has three checks. Report the result
+of all three first. Never say "seal as-is", and never ask whether to seal, until
+the audit has been reported.
+
+A file is sealed only when it passes the three checks, or when the user accepts a
+specific gap explicitly in the conversation. If a violation is found in an
+already-sealed file, report it and ask permission before fixing (the seal still
+holds until permission is given).
+
+### 1. The architecture check
+
+Check the file against
+[documentation/rule/architecture-invariants.md](documentation/rule/architecture-invariants.md).
+Give a verdict for each requirement that applies to the file. For each fail, give
+the smallest change that fixes it.
+
+### 2. The test check
+
+Every public name that the file defines must have a test that calls it and asserts
+what it gives. A public name is a name that the module of the file exports, or a
+method that the file adds to a public function of another module, for example a
+method of `Base.peek`.
+
+- **Assert the answer.** A test asserts the value that the call gives, the state
+  that it changes, or the exception that it throws. A call that only does not
+  throw is not a test of the name.
+- **Test each promise.** Each case that the docstring of the name promises has a
+  test: each branch, each exception that it names, and each edge that it names
+  (an empty collection, `nothing`, the first and the last index).
+- **Report the coverage.** The audit lists each public name with the test file
+  and the line that covers it. Then it lists the gaps.
+
+To find the exported names that no test names, run
+`julia tool/survey-interface-tests.jl <ModuleName>`. For a domain, name its module
+under `source/domain/`, for example `JsonModule`. A name in the list has no test.
+A name that is not in the list can still have a weak test, so read the tests that
+name it. The survey reads exports only, so find the tests of the methods by hand.
+
+### 3. The example check
+
+Do this check once for each kernel layer and once for each domain, at the audit
+of the last file of the layer or the domain in the audit order.
+
+- **A domain** has examples in its example package, `Projectured<Name>Example`.
+  The examples together show each document type and each projection of the
+  domain.
+  - A person can run each example from the REPL. An example in the `examples`
+    registry runs with `run_example("<name>")`, and `print_example("<name>")`
+    prints its view as text. An example outside the registry runs with
+    `run_example(<name>_example)`, and a comment beside it says why it is outside.
+  - Each example has a test. `test_domain_examples()` sweeps `domain_examples`,
+    `test_printers()` sweeps `examples`, and an example outside both has a test
+    of its own.
+- **A kernel layer** has a walkthrough in `ProjecturedKernelExample` if a REPL
+  session can show the layer. A walkthrough is a function that runs the lines that
+  a person types to try the layer, and prints each line with the value that it
+  gives. `print_cell_example()` is the walkthrough of the cell layer. A test
+  asserts the full text that the walkthrough prints. If a REPL session can not
+  show the layer, the audit gives the reason. For example, the only interface of
+  the layer is a seam that a backend fills.
 
 ## List conventions
 
