@@ -53,6 +53,8 @@ A part with an `ImageFile` shows as a muted card with the tag `picture`, in the 
 | the insertion of a Julia document | parse it into a `JuliaDocument` | Alt+Return: evaluate it into an `EvaluatorForm`. Shift+Return: a new line. Escape. |
 | the insertion of another domain | parse it into a document of that domain | Shift+Return: a new line. Escape. |
 
+A draft takes a pasted document that has no text form, such as a plot, as a part of its own: `make_pasted_document_operation` of the draft answers `InsertDraftDocumentOperation(draft, document)`, which puts the document before the last part and keeps the caret in that text. `has_text_form(content)` says whether a model reads a part as text: text, a form, a thought, or a document with a `:string` natural projection, such as code or JSON. A document with a text form goes into the text as text.
+
 After a code part or an evaluation, the composer appends a new line of text, so a draft always ends in one. The chooser reads its name with `resolve_insertion`, and `_composer_kind` keeps a type only when it is the insertion of a domain whose text has a parser. So `julia` makes a `JuliaInsertion`, and Return on a kind that the session can not parse does nothing.
 
 The text keys belong to the text layer of the active part: typing, Backspace, Delete, the arrows and their Shift variants. Their edits come back through the reference maps of the composer as edits of `parts[n].content.value{s:e}`. The table of the composer holds only Return, Shift+Return, Alt+Return, Tab, Insert and Escape. It is a list of `GestureBinding`s, and `get_projection_gesture_bindings` returns the same list, so the gesture help shows the keys that the reader fires.

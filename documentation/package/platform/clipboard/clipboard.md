@@ -41,6 +41,8 @@ A paste replaces a whole document. Three checks decide whether the selection can
 
 A selection that ends in a character range of a text or number field is different. Copy, cut and paste then act on the characters of that field with `ReplaceStringRangeOperation` and `ReplaceNumberRangeOperation`. This is how Ctrl+C and Ctrl+V work in a text field of a form.
 
+A stored document that is no plain text, pasted at such a text cursor, goes first to the documents on the path of the cursor: each one, from the deepest, can take it with `make_pasted_document_operation(document, path, value)` of `ProjecturedDomain`. The draft of a conversation takes a plot this way, as a part before the text that the person types. Paste-copy gives the document a fresh copy. When no document takes it, the paste puts text into the field, as above.
+
 `find_clipboard_document(document)` returns the document that a selection copies. The default is the document itself. The pane slice adds a method, so the selection of a tab copies the content of the tab and not the frame around it.
 
 ### The reference
