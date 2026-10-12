@@ -15,10 +15,26 @@ machine had a load of 50 to 60.
 
 ## Steps
 
-- [ ] 1. A precompile workload covers the path of the first turn of an agent, so
-  that it does not compile on the thread of the editor.
+- ~~1. A precompile workload covers the path of the first turn of an agent.~~
+  Dropped: the cause was not the compilation (see below).
 - [x] 2. ClaudeCodeACP 0.1.8 starts `claude` with `MCP_TIMEOUT=120000` unless the
   environment sets it (branch `mcp-timeout`, 290f793; 165 tests pass).
+- [ ] 4. The tasks of the thread of the editor get their share while the loop
+  animates (the owner: option 1, "sounds good", 2026-10-12), and an animation
+  draws at most 30 frames a second ("can we aim for 30 frame per second at most
+  for animation and react to events as fast as today?"):
+  - `FRAME_INTERVAL` is 1/30 s.
+  - A wait of at most 0.1 s (an animation, or a feed or a timer due soon) waits
+    in Julia: it checks the queue of SDL without blocking, and sleeps 1 ms
+    (`STEP`) between the checks, so the tasks and their I/O run in the gap; the
+    first step comes also when the frame took longer than its interval, so the
+    tasks get at least 1 ms after each frame. An input event ends the wait within
+    1 ms.
+  - A longer wait (idle) blocks in SDL as before, in slices of 10 ms with any
+    number of threads (was 100 ms with more than one thread), so an input event
+    wakes it at once.
+  - A wake from a task (timeout 0) sleeps 1 ms in place of the bare `yield()`.
+  - Input that the backend owes still skips the wait.
 - [x] 3. The transcript says "Starting Claude Code…" while the session opens
   (a48fafca1): the turn shows at once with that part, leaves the conversation
   when the session is open, and comes back after the prompt, so a message that
@@ -38,9 +54,10 @@ the editor) get only the gaps between those frames. More threads do not help:
 with more than one thread the SDL backend waits in 100 ms slices, and the start
 took 80 s instead of 37 s.
 
-So step 1 aims at a cause that the evidence does not support. Question to the
-owner: replace step 1 by a clock of whole seconds for a label such as the
-elapsed time, which wakes the loop once a second and not on every frame?
+So step 1 aims at a cause that the evidence does not support. A clock of whole
+seconds for a label is wrong (the owner): any document can depend on the clock,
+such as a progress bar with no count, which animates. The loop must give the
+tasks of its thread their share while it animates: step 4.
 
 ## Not in this plan
 
