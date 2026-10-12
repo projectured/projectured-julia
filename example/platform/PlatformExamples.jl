@@ -232,7 +232,6 @@ const platform_atomic_documents = AtomicDocument[
     # TextToGraphics, the default text projection). Each is a minimal `TextBlock`
     # exercising one span/structure type.
     AtomicDocument(:text, "string",   make_text_string_document_example),
-    AtomicDocument(:text, "newline",  make_text_newline_document_example),
     AtomicDocument(:text, "spacing",  make_text_spacing_document_example),
     AtomicDocument(:text, "graphics", make_text_graphics_document_example),
     AtomicDocument(:text, "line",     make_text_line_document_example),
@@ -242,7 +241,6 @@ const platform_atomic_documents = AtomicDocument[
     # what the catalog filters on and what the known-broken registries match by
     # prefix, so two atoms answering to one name would make both ambiguous.
     AtomicDocument(:text, "bare_string",  make_text_string_atom_document_example),
-    AtomicDocument(:text, "bare_newline", make_text_newline_atom_document_example),
     AtomicDocument(:text, "bare_line",    make_text_line_atom_document_example),
     # Widget atoms: one bare instance per widget type with a printer and no
     # atom above. Reuses whichever `make_widget_*_document_example` already

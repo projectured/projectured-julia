@@ -205,8 +205,6 @@ Tuple{typeof(ProjecturedPlatformExample.make_syntax_leaf_document_example)}
 Tuple{typeof(ProjecturedPlatformExample.make_text_graphics_document_example)}
 Tuple{typeof(ProjecturedPlatformExample.make_text_line_atom_document_example)}
 Tuple{typeof(ProjecturedPlatformExample.make_text_line_document_example)}
-Tuple{typeof(ProjecturedPlatformExample.make_text_newline_atom_document_example)}
-Tuple{typeof(ProjecturedPlatformExample.make_text_newline_document_example)}
 Tuple{typeof(ProjecturedPlatformExample.make_text_spacing_document_example)}
 Tuple{typeof(ProjecturedPlatformExample.make_text_string_atom_document_example)}
 Tuple{typeof(ProjecturedPlatformExample.make_text_string_document_example)}

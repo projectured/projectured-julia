@@ -105,12 +105,12 @@ get_catalog_coverage_gap() =
 # ── Atoms the natural renderer cannot take ─────────────────────────────────
 # `NaturalToGraphics` sends text through `WordWrapping → TextToGraphics`, and
 # wrapping is a block-level operation: `WordWrapping` has a method for a
-# `TextBlock` and none for a bare span. These three atoms are the span itself,
+# `TextBlock` and none for a bare span. These two atoms are the span itself,
 # which is exactly what makes them worth having — `TextStringToString` and its
 # siblings print a span directly — so they are rendered by their own printer in
 # the catalog and skipped here rather than being called a defect.
 const _NO_NATURAL_RENDER = Set{String}([
-    "text/bare_string", "text/bare_newline", "text/bare_line",
+    "text/bare_string", "text/bare_line",
 ])
 
 """

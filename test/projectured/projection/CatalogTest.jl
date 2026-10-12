@@ -52,8 +52,8 @@ const _CATALOG_EDIT_BROKEN = (
     #   are fine — which is exactly why a bare atom was worth adding.
     "layout/", "widget/composite/", "widget/reference_inspector/", "graph/layout/",
     # @catalog-broken bare text spans: `WordWrapping` is block-level and has no
-    #   method for a lone `TextString`/`TextNewline`/`TextLine`.
-    "text/bare_string/", "text/bare_newline/", "text/bare_line/",
+    #   method for a lone `TextString`/`TextLine`.
+    "text/bare_string/", "text/bare_line/",
 )
 _catalog_edit_broken(name) =
     any(p -> occursin(p, name), _CATALOG_EDIT_BROKEN) ?
@@ -80,8 +80,7 @@ const _CATALOG_NAV_BROKEN = ("yaml/sequence/", "filesystem/directory/",
                              "julia/empty/",
                              "layout/", "widget/composite/",
                              "widget/reference_inspector/", "graph/layout/",
-                             "text/bare_string/", "text/bare_newline/",
-                             "text/bare_line/")
+                             "text/bare_string/", "text/bare_line/")
 # Entries whose PRINTER cannot force its own output. Distinct from the edit set:
 # these fail before any gesture, when the walk reads the cells the printer built.
 # @catalog-broken layouts / widget composite / graph layout: no `recursion` in a
@@ -91,8 +90,7 @@ const _CATALOG_NAV_BROKEN = ("yaml/sequence/", "filesystem/directory/",
 #   variant — the one these atoms exist for — prints fine.
 const _CATALOG_PRINT_BROKEN = ("layout/", "widget/composite/",
                                "widget/reference_inspector/", "graph/layout/",
-                               "text/bare_string/", "text/bare_newline/",
-                               "text/bare_line/")
+                               "text/bare_string/", "text/bare_line/")
 _catalog_print_broken(name) =
     any(p -> occursin(p, name), _CATALOG_PRINT_BROKEN) ?
         (msg -> occursin("MethodError", msg) || occursin("FieldError", msg) ||

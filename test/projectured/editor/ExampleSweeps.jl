@@ -268,11 +268,11 @@ const _position_navigation_complete_examples = ["text", "json"]
 # placeholder insertion slot). `text` is the one exception: its default
 # projection routes the block's content through `WordWrapping` — the same
 # wrap/reorder the exclusion note above already flags — and the BFS never
-# canonicalizes a reached state to the ground truth's raw `.elements[1].content{…}`
-# path, so every position enumerated in that field comes back unreached. Cause
-# not investigated further.
+# canonicalizes a reached state to the ground truth's raw
+# `.elements[1].elements[1].content{…}` path, so every position enumerated in that
+# field comes back unreached. Cause not investigated further.
 _complete_unreached_broken(name) =
-    name == "text" ? (s -> startswith(s, ".elements[1].content{")) : nothing
+    name == "text" ? (s -> startswith(s, ".elements[1].elements[1].content{")) : nothing
 
 function test_position_navigations_complete()
     @testset "PositionNavigationComplete" begin
