@@ -79,7 +79,7 @@ function _make_open_file_bindings(pathname, open_file)
     make_operation = (node, event) -> open_file(pathname)
     is_applicable = (node, selection) -> true
     GestureBinding[
-        GestureBinding(KeyDownPattern(:return), make_operation;
+        GestureBinding(KeyPressPattern('\n'), make_operation;
                        applicable = is_applicable, description = "Open the file",
                        domain = "file system"),
         GestureBinding(MouseClickPattern(:left; guard = event -> event.count == 2, label = "double click"),

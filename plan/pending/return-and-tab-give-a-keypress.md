@@ -78,11 +78,46 @@ take the break or decline it.
    umbrella tests that send Return or Tab, `test_console`, the web and SDL
    backend tests, and the omnet and inet tests in §3.
 1. **The kernel:** the docstrings and the help text of a `KeyPress` pattern.
+   *Built (2026-10-12), `78dc30100`.* The help names `'\n'` "Return", `'\t'`
+   "Tab" and `' '` "Space", so `KeyPressPattern('\n'; modifiers = [:shift])`
+   reads "Shift+Return".
 2. **The backends:** SDL, web and console give the `KeyPress` of Return and Tab.
+   *Built (2026-10-12), `08965e959`.* The kernel holds the rule once:
+   `find_typed_character(key)` gives `'\n'` for `:return`, `'\t'` for `:tab`, and
+   `nothing` for any other key (a new export of `EventModule`). SDL keeps the owed
+   events in a queue, `pending_inputs`, which replaces the one owed event; an
+   event behind a held motion goes before the `KeyPress` that its poll queued.
+   Keypad Enter is `:return` now. The web backend makes the `KeyPress` in Julia,
+   after the `KeyDown`, since the client prevents Enter and Tab. The console gives
+   the `KeyPress` alone, as it gives a letter, also for Shift+Tab (`ESC [ Z`).
 3. **The meanings** of Return, Tab and a plain Space read the `KeyPress`, with
    the same modifier pattern as before.
 4. **The rules that insert typed text** take printable text only; a block of
    lines names `'\n'` as "Break the line".
+   *Steps 3 and 4 built together (2026-10-12)*, file by file, since a table that
+   moves Return to a `KeyPress` also guards its insert rule. Decisions:
+   - The guard is `!any(iscntrl, t)`, in a `when` of the rule, or the `guard` of a
+     `KeyPressPattern`: `TextBlock`, `PrimitiveString`, `PrimitiveInsertion`,
+     `JuliaInsertion`, the type-in of `InsertionToSyntaxLeaf` and the tab name.
+     The readers of any `KeyPress` that test `isprint` already (the palette, the
+     navigator address, the choice list, an open table cell) keep that test.
+   - Widgets: `_is_plain_typed(evt, chars...)` beside `_is_plain_key`; Return
+     and Space activate a button, a checkbox, a switch, a radio and a list by
+     `_is_plain_typed(evt, '\n', ' ')`. The text area needs no rewrite of
+     Return into `'\n'` any more.
+   - Tables: Return navigates by a `KeyPress` method of `_wt_key_navigate` and of
+     `_read_table_parts_key`, and an open cell reads its exit (`:return`, `:tab`,
+     `:backtab`, `:escape`) by `_find_open_cell_exit`. The plain `read_intent` of
+     both tables sends a `KeyPress` to the reader of the table, as a `KeyDown`.
+   - The choice list of the navigator does nothing for a `KeyPress` of a control
+     character without Ctrl, Alt or Meta, as it did for the `KeyDown` of Tab.
+   - XML: Space inserts an attribute by `override(KeyPress(' '))`: a space typed
+     in the tag name reaches the name first, and the action answers only in the
+     tag or the attributes, so in a child text the space goes into the text.
+   - `TextToGraphics` declines the `KeyDown` of Tab and Return before its
+     geometry arms, since the text no longer takes the `KeyDown` of Return.
+   - Shift+Space and Ctrl+Space in a table stay `KeyDown` rules: Ctrl+Space types
+     nothing, and the two select the row and the column as a pair.
 5. **The tests**, the scripted events and the example harness send what a
    backend sends.
 6. **omnet-julia and inet-julia**, on branches of the same name, to land with

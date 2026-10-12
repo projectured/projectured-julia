@@ -321,16 +321,18 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     op === nothing || return op
 
     # `read_gesture` returned nothing: either it *declined* a tree gesture
-    # (Alt+arrow, plain arrow while structural, Tab) so an outer syntax layer can
-    # own it, or it is a key this layer must resolve with pixel geometry (plain
+    # (Alt+arrow, plain arrow while structural) so an outer syntax layer can own
+    # it, or it is a key this layer must resolve with pixel geometry (plain
     # up/down, plain Home/End). Re-apply the decline guards so the geometry arms
-    # below never mis-handle a declined tree gesture as line motion. (`Ctrl+.` is
-    # already consumed by `read_gesture`, so it cannot reach here.)
+    # below never mis-handle a declined tree gesture as line motion. The `KeyDown`
+    # of Tab and Return is declined too: those keys give their meaning by their
+    # `KeyPress`. (`Ctrl+.` is already consumed by `read_gesture`, so it cannot
+    # reach here.)
     declined = @gesture_case evt begin
         when(KeyDown(k), evt.modifiers.alt && k in (:up, :down, :left, :right, :home)) => :decline
         when(KeyDown(k), k in (:up, :down, :left, :right) &&
                          is_structural_selection(iomap.input.selection)) => :decline
-        KeyDown(:tab) => :decline
+        when(KeyDown(k), k === :tab || k === :return) => :decline
     end
     declined === nothing || return nothing
 

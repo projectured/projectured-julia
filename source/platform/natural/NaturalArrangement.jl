@@ -265,9 +265,9 @@ const _ARRANGEMENT_MENU =
     KeyDown(:f; ctrl) => "Find in the collection" => make_find_field_selection(doc)
     KeyDown(:f3; shift) => "Find the previous item" => make_find_move(doc, true)
     KeyDown(:f3) => "Find the next item" => make_find_move(doc, false)
-    KeyDown(:return; shift) => "Find the previous item from the find field" =>
+    KeyPress('\n'; shift) => "Find the previous item from the find field" =>
         is_in_find_field(doc) ? make_find_move(doc, true) : nothing
-    KeyDown(:return) => "Find the next item from the find field" =>
+    KeyPress('\n') => "Find the next item from the find field" =>
         is_in_find_field(doc) ? make_find_move(doc, false) : nothing
     splice(_ARRANGEMENT_MENU)
 end

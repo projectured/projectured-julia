@@ -144,10 +144,10 @@ _is_terminal_input_selected(terminal::TerminalDocument) =
 # Return with no modifier sends the input line while the caret is in it and the
 # program runs, and puts the caret at the start of the empty line. Every other
 # key goes on.
-function read_intent(::TerminalToWidget, iomap::SimpleIoMap, key::KeyDown)
+function read_intent(::TerminalToWidget, iomap::SimpleIoMap, key::KeyPress)
     terminal = iomap.input
     terminal isa TerminalDocument || return nothing
-    key.key === :return || return nothing
+    key.char == '\n' || return nothing
     modifiers = key.modifiers
     (modifiers.ctrl || modifiers.alt || modifiers.meta || modifiers.shift) && return nothing
     _is_terminal_input_selected(terminal) && is_terminal_running(terminal) || return nothing

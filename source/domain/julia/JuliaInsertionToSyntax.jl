@@ -211,12 +211,13 @@ end
 
 # All `JuliaInsertion` editing, reified. Char insert / Backspace / Delete reuse the
 # shared `insertion_*` helpers (they decline with `nothing` off a `value[range]`
-# cursor, so the gesture keeps propagating); Enter commits in place; Tab commits and
-# jumps to the next hole.
+# cursor, so the gesture keeps propagating); Return commits in place; Tab commits and
+# jumps to the next hole. A hole holds one line of text, so the insert takes
+# printable text only.
 @gestures JuliaInsertion begin
-    KeyPress(_, t)       => "Insert character"  => insert_insertion_text_operation(doc, t)
+    when(KeyPress(_, t), !any(iscntrl, t)) => "Insert character" => insert_insertion_text_operation(doc, t)
     KeyDown(:backspace;) => "Delete backward"   => delete_insertion_text_operation(doc, :backspace)
     KeyDown(:delete;)    => "Delete forward"    => delete_insertion_text_operation(doc, :delete)
-    KeyDown(:return;)    => "Commit hole"       => _julia_ins_commit(doc)
-    KeyDown(:tab;)       => "Commit + next hole" => _julia_ins_tab(doc)
+    KeyPress('\n';)      => "Commit hole"       => _julia_ins_commit(doc)
+    KeyPress('\t';)      => "Commit + next hole" => _julia_ins_tab(doc)
 end

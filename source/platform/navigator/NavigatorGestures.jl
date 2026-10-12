@@ -27,7 +27,7 @@ const _NAVIGATOR_POINTER_BINDINGS = GestureBinding[
     override(KeyDown(:left_bracket; ctrl)) => "Go back" => make_navigator_back_operation(doc)
     override(KeyDown(:right_bracket; ctrl)) => "Go forward" => make_navigator_forward_operation(doc)
     override(KeyDown(:up; ctrl)) => "Go to the parent page" => make_navigator_parent_operation(doc)
-    override(KeyDown(:return; ctrl)) => "Open as a page" => _open_selected_page(doc)
+    override(KeyPress('\n'; ctrl)) => "Open as a page" => _open_selected_page(doc)
     override(KeyDown(:l; ctrl)) => "Edit the address" => make_navigator_address_edit_operation(doc)
     splice(_NAVIGATOR_POINTER_BINDINGS)
 end

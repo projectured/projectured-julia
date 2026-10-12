@@ -666,25 +666,23 @@ _span_at(text::TextBlock, path::SpanPath) =
 
 # ── read_gesture via reified @gestures: geometry-free text editing ───────
 #
-# The projection-independent half of the Text domain's reader, now a reified
-# `@gestures` table on `TextBlock` (was a `read_gesture(::TextBlock)` method); the
-# generic `read_bound_gesture` interpreter fires it, so the table that fires is
-# the one gesture-help enumerates. It reads only the span structure
-# (`text.elements`) and the flat-character `text.selection` — never pixel geometry.
-# The geometry-DEPENDENT gestures (visual up/down, plain Home/End, mouse clicks)
-# stay in `TextToGraphics`, which needs the laid-out coordinate map.
+# The projection-independent half of the reader of the Text domain: a `@gestures`
+# table on `TextBlock`, which the generic `read_bound_gesture` interpreter fires,
+# so the table that fires is the one that the gesture help lists. It reads only the
+# lines (`text.elements`) and the flat `text.selection`, never pixel geometry. The
+# gestures that need the layout (visual up/down, plain Home/End, mouse clicks) are
+# in `TextToGraphics`.
 #
-# Gestures match modifiers *exactly* (`KeyDown(:left;)` — note the `;`: no
-# modifiers — is the plain-Left gesture; `Ctrl+Left` and `Alt+Left` are distinct).
-# This is why the old reader's explicit "decline" arms vanish: `Alt+arrow` (a tree
-# gesture) and `Tab` simply have no binding here and so propagate inward; a plain
-# arrow while a *whole element* is selected is declined inside the char-motion
-# operation (which reads `text.selection`). The old reader matched these arrows
-# loosely and filtered the declines out by hand; exact matching is equivalent for
-# every tested/real input and lets the absence of a binding be the decline.
+# Gestures match modifiers exactly: `KeyDown(:left;)`, with the `;` and no flag, is
+# a plain Left, and Ctrl+Left and Alt+Left are other gestures. A gesture with no
+# binding here propagates: Alt+arrow (a tree gesture), and Tab, whose `'\t'` the
+# rule of typed text does not take. The rule of typed text takes printable text
+# only, so Ctrl+Return, which types `'\n'` with Ctrl, also propagates. A plain arrow
+# while a whole element is selected is declined inside the motion of the caret,
+# which reads `text.selection`.
 @gestures TextBlock begin
-    KeyPress(_, t)         => "Insert character"     => _text_insert(doc, t)
-    KeyDown(:return;)      => "Break the line"       => _text_break(doc)
+    when(KeyPress(_, t), !any(iscntrl, t)) => "Insert character" => _text_insert(doc, t)
+    KeyPress('\n';)        => "Break the line"       => _text_break(doc)
     KeyDown(:period; ctrl) => "Toggle collapse"      => ToggleCollapseOperation()
     KeyDown(:backspace;)   => "Delete backward"      => _text_delete(doc, :backspace)
     KeyDown(:delete;)      => "Delete forward"       => _text_delete(doc, :delete)

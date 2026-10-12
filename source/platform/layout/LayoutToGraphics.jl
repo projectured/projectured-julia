@@ -411,7 +411,7 @@ function _route_layout_event(iomap::_LayoutChildrenIoMap, evt)
     # chooser with one. Offering it to the selected child first costs a declined
     # read and is what lets a Tab reach a field at all; a child that declines
     # leaves the traversal exactly as it was.
-    if evt isa KeyDown && evt.key === :tab
+    if evt isa KeyPress && evt.char == '\t'
         slot = _selected_layout_slot(iomap.input, length(entries))
         if slot != 0
             taken = _forward_layout_event_slot(entries, evt, slot)
@@ -1934,7 +1934,7 @@ function _route_stack_event(iomap::ChildrenIoMap, evt)
     entries = getfield(iomap, :child_iomaps)[]::Vector
     # Tab traversal: distributed focus advance, handled before the selection-only
     # coordless routing (same as the other layout readers).
-    if evt isa KeyDown && evt.key === :tab
+    if evt isa KeyPress && evt.char == '\t'
         return _layout_tab(iomap.input, entries, evt)
     end
     evt isa MouseMove &&

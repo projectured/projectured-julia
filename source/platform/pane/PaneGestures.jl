@@ -160,8 +160,8 @@ end
     when(KeyDown(k; ctrl, alt), k in (:left, :right, :up, :down)) =>
         "Move the focus to the group in that direction" =>
             _move_focus(doc, k)
-    override(KeyDown(:tab; ctrl)) => "Focus the next group" => _traverse(doc, false)
-    override(KeyDown(:tab; ctrl, shift)) => "Focus the previous group" => _traverse(doc, true)
+    override(KeyPress('\t'; ctrl)) => "Focus the next group" => _traverse(doc, false)
+    override(KeyPress('\t'; ctrl, shift)) => "Focus the previous group" => _traverse(doc, true)
     KeyDown(:page_down; ctrl) => "Focus the next tab" => _sibling_tab(doc, 1)
     KeyDown(:page_up; ctrl) => "Focus the previous tab" => _sibling_tab(doc, -1)
     when(KeyDown(k; alt), k in (:left, :right, :up, :down)) =>
@@ -171,10 +171,11 @@ end
     KeyDown(:f; ctrl) => "Find in the collection that holds the selection" => _make_first_find(doc)
     # The four rules of a rename. Each answers `nothing` unless the caret is in a
     # name, so a key that means something else keeps meaning it — the rule body
-    # is the guard, because a `when(…)` guard sees only the event's own fields.
+    # is the guard, because a `when(…)` guard sees only the event's own fields. A
+    # name is one line, so it takes printable text only.
     KeyDown(:escape;) => "Leave the tab name" => _leave_title(doc)
-    KeyPress(c, t) => "Type in the tab name" => _title_edit(doc, KeyPress(c, t, _NO_MODIFIERS;
-                                                                          time = time()))
+    when(KeyPress(c, t), !any(iscntrl, t)) =>
+        "Type in the tab name" => _title_edit(doc, KeyPress(c, t, _NO_MODIFIERS; time = time()))
     KeyDown(:backspace;) =>
         "Delete backward in the tab name" => _title_edit(doc, KeyDown(:backspace, _NO_MODIFIERS;
                                                                       time = time()))

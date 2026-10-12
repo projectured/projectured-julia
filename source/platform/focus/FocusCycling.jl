@@ -39,7 +39,7 @@ function read_intent(p::FocusCyclingProjection, recursion, change::Intent,
     child = iomap.child_iomap
     answer = read_intent(child.projection, recursion, change, child)
     event = change.gesture
-    (event isa KeyDown && event.key === :tab) || return answer
+    (event isa KeyPress && event.char == '\t') || return answer
     operation = answer isa Intent ? answer.operation : answer
     operation === nothing || return answer
     document = iomap.input

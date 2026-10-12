@@ -264,13 +264,13 @@ end
 # shows. Value char-editing (insert / Backspace / Delete) mirrors PrimitiveString;
 # Commit / Cancel are projection-specific (they call `p.commit` / abort to a
 # `DocumentNothing`), which is why this stays a projection table rather than a
-# document-level `@gestures`. ModifierKeys are matched loosely (`mods=nothing`) to
-# preserve the old bare `@gesture_case` patterns exactly. Operations capture `p`/`ins`
-# and return `nothing` to decline (no value cursor / commit refused).
+# document-level `@gestures`. ModifierKeys are matched loosely (`mods=nothing`).
+# Operations capture `p`/`ins` and return `nothing` to decline (no value cursor /
+# commit refused).
 function get_projection_gesture_bindings(p::InsertionToSyntaxLeaf, iomap)
     ins = iomap.input
     GestureBinding[
-        GestureBinding(KeyDownPattern(:return),
+        GestureBinding(KeyPressPattern('\n'),
                        (doc, event) -> _insertion_commit(p, ins);
                        description = "Commit insertion", domain = "insertion"),
         # Escape aborts to the domain's own placeholder (`get_nothing_document`, a
@@ -282,7 +282,7 @@ function get_projection_gesture_bindings(p::InsertionToSyntaxLeaf, iomap)
         # Tab accepts the completion: the full remainder when unambiguous, the
         # longest-common-prefix *partial* completion when ambiguous; declines
         # (keeps propagating) when there is nothing to extend.
-        GestureBinding(KeyDownPattern(:tab),
+        GestureBinding(KeyPressPattern('\t'),
                        (doc, event) -> _insertion_tab(p, ins);
                        description = "Accept completion", domain = "insertion"),
         GestureBinding(KeyDownPattern(:backspace),
@@ -293,7 +293,8 @@ function get_projection_gesture_bindings(p::InsertionToSyntaxLeaf, iomap)
                        (doc, event) -> _make_insertion_key_operation(p, ins,
                                            delete_insertion_text_operation(ins, :delete));
                        description = "Delete forward", domain = "insertion"),
-        GestureBinding(KeyPressPattern(nothing),
+        # A type-in holds one line, so it takes printable text only.
+        GestureBinding(KeyPressPattern(nothing; guard = event -> !any(iscntrl, event.text)),
                        (doc, event) -> _make_insertion_key_operation(p, ins,
                                            insert_insertion_text_operation(ins, event.text));
                        description = "Insert character", domain = "insertion"),

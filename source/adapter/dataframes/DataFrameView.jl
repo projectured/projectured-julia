@@ -265,9 +265,9 @@ const _DATA_FRAME_VIEW_MENU =
     # matches it.
     KeyDown(:f3; shift) => "Find the previous match" => _make_find_operation(doc, true)
     KeyDown(:f3) => "Find the next match" => _make_find_operation(doc, false)
-    KeyDown(:return; shift) => "Find the previous match from the find field" =>
+    KeyPress('\n'; shift) => "Find the previous match from the find field" =>
         _find_find_range(doc) === nothing ? nothing : _make_find_operation(doc, true)
-    KeyDown(:return) => "Find the next match from the find field" =>
+    KeyPress('\n') => "Find the next match from the find field" =>
         _find_find_range(doc) === nothing ? nothing : _make_find_operation(doc, false)
     splice(_DATA_FRAME_VIEW_MENU)
 end

@@ -188,7 +188,7 @@ end
     KeyDown(:up; alt) => "Move the field to the row above" => _make_pivot_item_zone_move(doc, -1)
     KeyDown(:down; alt) => "Move the field to the row below" => _make_pivot_item_zone_move(doc, 1)
     KeyDown(:delete) => "Take the field out of its row" => _make_pivot_item_removal(doc)
-    KeyDown(:return) => "Open or close the run of rows" => _make_pivot_run_toggle(doc)
+    KeyPress('\n') => "Open or close the run of rows" => _make_pivot_run_toggle(doc)
     splice(_PIVOT_MENU)
 end
 

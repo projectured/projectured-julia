@@ -140,7 +140,7 @@ _json_entry_sort_key(entry) = entry isa JsonObjectEntry ? (0, entry.key) : (1, "
     KeyPress(',') => "Insert a new entry" =>
         is_on_closing_delimiter(get_selection(doc)) ? nothing :
         append_insertion_operation(doc, :entries, JsonObjectEntry)
-    KeyDown(:tab) => "Move from key to value" => move_to_field(doc; from = :key, to = :value)
+    KeyPress('\t') => "Move from key to value" => move_to_field(doc; from = :key, to = :value)
     # The way back has no key of its own. A rule with no gesture reaches the user by
     # name instead, through the command palette. The sort rule spends no key either.
     nothing       => "Move from value to key" => move_to_field(doc; from = :value, to = :key)

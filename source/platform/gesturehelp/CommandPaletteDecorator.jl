@@ -229,12 +229,12 @@ function _read_open(p::CommandPaletteDecoratorProjection, iomap::CommandPaletteD
     is_command_palette_gesture(event) && (_close!(p); return DoNothingOperation())
     if event isa KeyDown
         event.key === :escape && (_close!(p); return DoNothingOperation())
-        event.key === :return && return _run(p)
         event.key === :up && return _step!(palette, -1)
         event.key === :down && return _step!(palette, 1)
         event.key === :backspace && return _type!(palette, chop(palette.query))
-    elseif event isa KeyPress && isprint(event.char)
-        return _type!(palette, string(palette.query, event.char))
+    elseif event isa KeyPress
+        event.char == '\n' && return _run(p)
+        isprint(event.char) && return _type!(palette, string(palette.query, event.char))
     end
     return DoNothingOperation()
 end

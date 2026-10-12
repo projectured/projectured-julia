@@ -1019,8 +1019,8 @@ function make_column_chooser_widget(; columns, is_shown, choose, theme = nothing
                                        domain = "widget")
         WidgetCheckbox(is_shown(name); label,
                        gestures = GestureBinding[bind(MouseClickPattern(:left; modifiers = Symbol[])),
-                                                 bind(KeyDownPattern(:space; modifiers = Symbol[])),
-                                                 bind(KeyDownPattern(:return; modifiers = Symbol[]))])
+                                                 bind(KeyPressPattern(' '; modifiers = Symbol[])),
+                                                 bind(KeyPressPattern('\n'; modifiers = Symbol[]))])
     end
     bar = HorizontalLayout(Any[]; gap = _get_bar_item_gap(theme))
     set_cell_computation!(getfield(bar, :children), () -> Any[

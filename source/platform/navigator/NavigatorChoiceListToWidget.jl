@@ -60,13 +60,12 @@ function read_intent(p::NavigatorChoiceListToWidget, recursion, change::Intent, 
     invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
 end
 
-# Return, Up, Down and Backspace with no modifier but Shift. Any other key with no
-# modifier but Shift does nothing, so a letter does not edit the page under the
-# list; a key with Ctrl, Alt or Meta goes on.
+# Up, Down and Backspace with no modifier but Shift, and Return, a typed `'\n'`.
+# Any other key with no modifier but Shift does nothing, so a letter does not edit
+# the page under the list; a key with Ctrl, Alt or Meta goes on.
 function _read_choice_key(list::NavigatorChoiceList, key::KeyDown)
     modifiers = key.modifiers
     (modifiers.ctrl || modifiers.alt || modifiers.meta) && return nothing
-    key.key === :return && return _choose_choice_row(list)
     key.key === :up && return _write_choice_list(list; row = max(1, list.row - 1))
     key.key === :down &&
         return _write_choice_list(list; row = max(1, min(length(list.find(list.query)), list.row + 1)))
@@ -75,7 +74,11 @@ function _read_choice_key(list::NavigatorChoiceList, key::KeyDown)
 end
 
 function _read_choice_key(list::NavigatorChoiceList, key::KeyPress)
-    isprint(key.char) || return nothing
+    if !isprint(key.char)
+        modifiers = key.modifiers
+        (modifiers.ctrl || modifiers.alt || modifiers.meta) && return nothing
+        return key.char == '\n' ? _choose_choice_row(list) : DoNothingOperation()
+    end
     _write_choice_list(list; query = list.query * key.char, row = 1)
 end
 

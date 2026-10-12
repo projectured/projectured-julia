@@ -1628,6 +1628,11 @@ end
 _is_plain_key(evt, keys::Symbol...) =
     evt isa KeyDown && evt.key in keys && evt.modifiers == ModifierKeys()
 
+# A character typed with no modifier: Return is `'\n'` and Space is `' '`. A key
+# that types a character gives its meaning by its `KeyPress`.
+_is_plain_typed(evt, chars::Char...) =
+    evt isa KeyPress && evt.char in chars && evt.modifiers == ModifierKeys()
+
 # The row that holds `y`, from `(top, bottom)` bounds in the frame of the widget,
 # or `nothing` between and past the rows.
 function _find_row_index(bounds, y::Real)
@@ -1956,7 +1961,7 @@ read_intent(::WidgetTextToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
 function read_intent(p::WidgetTextToGraphicsCanvas, iomap::WidgetTextToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     iomap.input.enabled === false && return nothing   # a disabled text widget accepts no edits
-    _is_plain_key(evt, :return) && return nothing
+    _is_plain_typed(evt, '\n') && return nothing
     operation = _validate_text_edit(iomap.input,
         _read_text_content_intent(p, iomap, evt, _content_offset(p, iomap.input)...))
     child = iomap.value_iomap
@@ -2129,7 +2134,7 @@ function read_intent(::WidgetCheckboxToGraphicsCanvas, iomap::WidgetValueIoMap, 
     w = iomap.input
     w.enabled === false && return nothing
     op = read_bound_gesture(w, evt); op === nothing || return op   # per-instance gestures win
-    _is_plain_key(evt, :return, :space) || return nothing
+    _is_plain_typed(evt, '\n', ' ') || return nothing
     _checkbox_toggle(iomap)
 end
 
@@ -2257,10 +2262,10 @@ function read_intent(::WidgetButtonToGraphicsCanvas, iomap::SimpleIoMap, evt)
         MouseClick(button, x, y) => button === :left ? _button_primary_op(w) : nothing
         MouseDown(button, x, y)  => button === :left ? _write_view_state(w, "pressed", true) : nothing
         MouseUp(button, x, y)    => button === :left ? _write_view_state(w, "pressed", false) : nothing
-        # Enter / Space with no modifier activate the focused button (key reaches
-        # it via selection routing). `:tab` is intentionally not matched, so it
-        # falls through to `nothing` and focus traversal can claim it.
-        when(KeyDown(k), _is_plain_key(evt, :return, :space)) => _button_primary_op(w)
+        # Return / Space with no modifier activate the focused button (key reaches
+        # it via selection routing). Tab is not matched, so it falls through to
+        # `nothing` and focus traversal can claim it.
+        when(KeyPress(c), _is_plain_typed(evt, '\n', ' ')) => _button_primary_op(w)
         _ => nothing
     end
 end
@@ -3219,7 +3224,7 @@ function read_intent(p::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, e
     # Tab traversal (Stage 2): distributed focus advance. Handle before the generic
     # selection-only routing so a Tab the selected child declines can advance my
     # own selection to the next focusable sibling.
-    if iomap.input isa WidgetComposite && evt isa KeyDown && evt.key === :tab
+    if iomap.input isa WidgetComposite && evt isa KeyPress && evt.char == '\t'
         return _composite_tab(iomap.input, child_iomaps, evt)
     end
     res = @gesture_case evt begin
@@ -4264,7 +4269,7 @@ function read_intent(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, e
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
     # Tab traversal (Stage 2): distributed focus advance, handled before the
     # selection-only coordless routing.
-    if w isa WidgetSplitPane && evt isa KeyDown && evt.key === :tab
+    if w isa WidgetSplitPane && evt isa KeyPress && evt.char == '\t'
         return _split_tab(w, child_iomaps, evt)
     end
     res = @gesture_case evt begin
@@ -7709,7 +7714,7 @@ function read_intent(::WidgetSwitchToGraphicsCanvas, iomap::WidgetValueIoMap, ev
     w = iomap.input
     w.enabled === false && return nothing
     op = read_bound_gesture(w, evt); op === nothing || return op   # per-instance gestures win
-    _is_plain_key(evt, :return, :space) || return nothing
+    _is_plain_typed(evt, '\n', ' ') || return nothing
     _switch_toggle(iomap)
 end
 
@@ -8236,7 +8241,7 @@ function read_intent(::WidgetRadioGroupToGraphicsCanvas,
         _step_radio_option(selected, count, 1)
     elseif _is_plain_key(evt, :up, :left)
         _step_radio_option(selected, count, -1)
-    elseif _is_plain_key(evt, :return, :space)
+    elseif _is_plain_typed(evt, '\n', ' ')
         1 <= selected <= count ? nothing : 1
     else
         nothing
@@ -8775,7 +8780,7 @@ function read_intent(::WidgetToggleToGraphicsCanvas, iomap::WidgetValueIoMap, ev
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     (w.visible === false || w.enabled === false) && return nothing
-    activated = evt isa MouseClick ? evt.button === :left : _is_plain_key(evt, :return, :space)
+    activated = evt isa MouseClick ? evt.button === :left : _is_plain_typed(evt, '\n', ' ')
     activated || return nothing
     make_slot_store_operation(iomap, :pressed,
         !(_get_slot_value(w, :pressed, iomap.value_iomap) === true))
@@ -8982,7 +8987,7 @@ function _read_toggle_group_step(w::WidgetToggleGroup, evt)
     count = length(w.options)
     count < 2 && return nothing
     step = evt isa MouseClick && evt.button === :left ? (evt.modifiers.shift ? -1 : 1) :
-           _is_plain_key(evt, :return, :space) ? 1 : 0
+           _is_plain_typed(evt, '\n', ' ') ? 1 : 0
     step == 0 && return nothing
     document, field, value = resolve_toggle_group_write(w, mod1(Int(w.selected) + step, count))
     ReplaceReferencedValueOperation(document, field, value)
@@ -9773,14 +9778,12 @@ end
 # Invisible text area (the printer returned a bare empty canvas): inert.
 read_intent(::WidgetTextareaToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
 
-# The Text domain edits the content, as it edits the content of a `WidgetText`.
-# Return has no meaning there, so here it types a line break.
+# The Text domain edits the content, as it edits the content of a `WidgetText`;
+# a plain Return breaks the line there.
 function read_intent(p::WidgetTextareaToGraphicsCanvas, iomap::WidgetTextareaToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     iomap.input.enabled === false && return nothing
-    typed = _is_plain_key(evt, :return) ?
-            KeyPress('\n', "\n", ModifierKeys(); time = evt.time) : evt
-    _read_text_content_intent(p, iomap, typed, _content_offset(p, iomap.input)...)
+    _read_text_content_intent(p, iomap, evt, _content_offset(p, iomap.input)...)
 end
 
 # ── WidgetAccordion ─────────────────────────────────────────────────────────
@@ -10920,7 +10923,7 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, 
         return Intent(g, _read_cells_wheel(iomap.output, iomap.parts.cells_pane,
                                            content_x + region_x, content_y + region_y, g))
     end
-    if g isa KeyDown
+    if g isa KeyDown || g isa KeyPress
         op = _read_open_cell_key(iomap.input, g)
         op === nothing || return Intent(g, op)
         op = _wt_key_navigate(iomap, g, iomap.geometry)
@@ -11035,6 +11038,21 @@ function _wt_route_cell_click(iomap::WidgetTableToGraphicsCanvasIoMap, r::Int, c
     reroot_operation(op, _wt_get_cell_steps(iomap.input, r, c))
 end
 
+# Return on a selected row or column selects its first cell, and on a cell enters
+# its content; any other typed character is no navigation.
+function _wt_key_navigate(iomap::WidgetTableToGraphicsCanvasIoMap, evt::KeyPress, geom::WTGeometry)
+    evt.char == '\n' || return nothing
+    (geom.nrows == 0 || geom.ncols == 0) && return nothing
+    sel = iomap.input.selection
+    shape = _wt_selection_shape(iomap.input, sel, geom)
+    cell_rc = _wt_cell_terminal(iomap.input, sel)
+    shape !== nothing && shape[1] === :row &&
+        return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, shape[2], 1))
+    shape !== nothing && shape[1] === :col &&
+        return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, 1, shape[2]))
+    cell_rc === nothing ? nothing : _wt_enter_cell_content(iomap, cell_rc[1], cell_rc[2])
+end
+
 # Keyboard grid navigation, addressed via cells[r][c].
 function _wt_key_navigate(iomap::WidgetTableToGraphicsCanvasIoMap, evt::KeyDown, geom::WTGeometry)
     nrows, ncols = geom.nrows, geom.ncols
@@ -11047,17 +11065,6 @@ function _wt_key_navigate(iomap::WidgetTableToGraphicsCanvasIoMap, evt::KeyDown,
 
     shape = _wt_selection_shape(iomap.input, sel, geom)
     cell_rc = _wt_cell_terminal(iomap.input, sel)
-
-    if evt.key === :return
-        if shape !== nothing && shape[1] === :row
-            return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, shape[2], 1))
-        elseif shape !== nothing && shape[1] === :col
-            return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, 1, shape[2]))
-        elseif cell_rc !== nothing
-            return _wt_enter_cell_content(iomap, cell_rc[1], cell_rc[2])
-        end
-        return nothing
-    end
 
     shape !== nothing && shape[1] in (:column_header, :row_header) &&
         return _wt_read_header_key(iomap.input, shape, evt, nrows, ncols)
@@ -11157,19 +11164,27 @@ function _find_open_cell(w::WidgetTable, k::Int, c::Int)
     nothing
 end
 
-# Enter, Tab, Shift+Tab and Escape in the open cell that the selection is in,
+# Return, Tab, Shift+Tab and Escape in the open cell that the selection is in,
 # before the cell reads them: the commit or the drop of the cell, which the owner
 # of the table converts; `nothing` for another key or another place.
-function _read_open_cell_key(w::WidgetTable, g::KeyDown)
-    g.key in (:return, :tab, :escape) || return nothing
+function _read_open_cell_key(w::WidgetTable, g)
+    exit = _find_open_cell_exit(g)
+    exit === nothing && return nothing
     isempty(something(w.open_cells, ())) && return nothing
     prefix = _wt_cell_prefix(w, w.selection)
     prefix === nothing && return nothing
     k, c = prefix
     _find_open_cell(w, k, c) === nothing && return nothing
-    g.key === :escape && return DropTableCellOperation(w, k, c)
-    CommitTableCellOperation(w, k, c, g.key === :return ? :return : g.modifiers.shift ? :backtab : :tab)
+    exit === :escape && return DropTableCellOperation(w, k, c)
+    CommitTableCellOperation(w, k, c, exit)
 end
+
+# How a key leaves an open cell: `:return`, `:tab`, `:backtab` or `:escape`, or
+# `nothing` for a key that does not leave it.
+_find_open_cell_exit(g::KeyPress) =
+    g.char == '\n' ? :return : g.char == '\t' ? (g.modifiers.shift ? :backtab : :tab) : nothing
+_find_open_cell_exit(g::KeyDown) = g.key === :escape ? :escape : nothing
+_find_open_cell_exit(g) = nothing
 
 # F2 or a typed character on the whole cell that the selection names, which the
 # cell took no key for, and which is not open: the opening of the cell, which the
@@ -11246,7 +11261,7 @@ function read_intent(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphic
     _is_table_bar_event(iomap.parts.cells_pane, place, event) &&
         return _read_table_bar_event(iomap.parts.cells_pane, place, event)
     _outside_widget(iomap, event) && return nothing
-    if event isa MouseClick || event isa KeyDown || event isa MouseScroll ||
+    if event isa MouseClick || event isa KeyDown || event isa KeyPress || event isa MouseScroll ||
        event isa MouseMove
         return read_intent(p, nothing, Intent(event, nothing), iomap).operation
     end

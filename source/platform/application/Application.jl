@@ -764,7 +764,7 @@ function warm_application()
         events = Any[KeyDown(:down, ModifierKeys(); time = time()),
                      KeyPress('x'; time = time()),
                      press...,
-                     KeyDown(:return, ModifierKeys(); time = time()),
+                     KeyPress('\n'; time = time()),
                      KeyDown(:s, ModifierKeys(ctrl = true); time = time()),
                      # Ctrl+T opens a tab on an empty placeholder, Insert turns
                      # the placeholder into the name buffer, and Enter commits
@@ -776,7 +776,7 @@ function warm_application()
                      KeyDown(:backspace, ModifierKeys(); time = time()),
                      KeyDown(:left, ModifierKeys(); time = time()),
                      KeyDown(:delete, ModifierKeys(); time = time()),
-                     KeyDown(:return, ModifierKeys(); time = time())]
+                     KeyPress('\n'; time = time())]
         for event in events
             change = read_intent(composed, nothing,
                                  Intent(WindowInput(:ProjecturEd, event)), editor.iomap)

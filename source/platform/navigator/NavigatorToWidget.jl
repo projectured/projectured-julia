@@ -297,11 +297,12 @@ function read_intent(p::NavigatorToWidget, recursion, change::Intent, iomap::Nav
     gesture = change.gesture
     # While a person edits the address, Return opens the path and Escape ends the
     # edit, whatever the part of the path view answered.
-    if change.route === nothing && gesture isa KeyDown && is_navigator_address_selected(navigator) &&
+    if change.route === nothing && gesture isa Union{KeyDown, KeyPress} &&
+       is_navigator_address_selected(navigator) &&
        !(gesture.modifiers.ctrl || gesture.modifiers.alt || gesture.modifiers.meta || gesture.modifiers.shift)
-        gesture.key === :return &&
+        gesture isa KeyPress && gesture.char == '\n' &&
             return Intent(gesture, something(make_navigator_address_commit_operation(navigator), DoNothingOperation()))
-        gesture.key === :escape &&
+        gesture isa KeyDown && gesture.key === :escape &&
             return Intent(gesture, something(make_navigator_address_reset_operation(navigator), DoNothingOperation()))
     end
     # An answer of the path view is read by the projection of the address, as an

@@ -759,8 +759,8 @@ function _make_down_operation(t::EvaluatorToplevel)
 end
 
 @gestures EvaluatorToplevel begin
-    override(KeyDown(:return;)) => "Evaluate" => _make_evaluate_operation(doc)
-    KeyDown(:return; shift) => "Insert a line break" => _make_form_newline_operation(doc)
+    override(KeyPress('\n';)) => "Evaluate" => _make_evaluate_operation(doc)
+    KeyPress('\n'; shift) => "Insert a line break" => _make_form_newline_operation(doc)
     KeyDown(:up;) => "Recall an older form, or go to the form above" => _make_up_operation(doc)
     KeyDown(:down;) => "Recall a newer form, or go to the form below" => _make_down_operation(doc)
     nothing => "Parse evaluated forms" =>

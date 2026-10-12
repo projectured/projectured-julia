@@ -1865,9 +1865,9 @@ function _read_key(iomap::MathIoMap, event)
     end
     if !_is_selected(iomap.input)
         # Nothing here is selected: a parent is offering the box a selection —
-        # a table cell asks its content to take one on Enter. Take the whole
+        # a table cell asks its content to take one on Return. Take the whole
         # formula, which is the only kind of selection this projection has.
-        (event isa KeyDown && (event.key === :return || event.key === :down)) || return nothing
+        (_is_math_return(event) || (event isa KeyDown && event.key === :down)) || return nothing
         return ReplaceSelectionOperation(EmptyReference())
     end
     _act_on_selection(iomap, event)
@@ -1888,12 +1888,16 @@ function _move_from(iomap::MathIoMap, index::Int, event)
     nothing
 end
 
+# Return, which types `'\n'`.
+_is_math_return(event) = event isa KeyPress && event.char == '\n'
+
 # This node is the selection: go in, or build something around it.
 function _act_on_selection(iomap::MathIoMap, event)
     doc = iomap.input
     children = _math_children(iomap)
+    _is_math_return(event) && !isempty(children) && return _select_child(iomap, children[1])
     if event isa KeyDown
-        (event.key === :down || event.key === :return) && !isempty(children) &&
+        event.key === :down && !isempty(children) &&
             return _select_child(iomap, children[1])
         event.key === :backspace && !(doc isa MathInsertion) &&
             return make_replace_document_operation(EmptyReference(), MathInsertion())

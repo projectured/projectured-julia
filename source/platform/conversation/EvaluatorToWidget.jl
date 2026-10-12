@@ -206,8 +206,8 @@ function _make_option_checkbox(t::EvaluatorToplevel, option::Symbol, label::Abst
     bind(pattern) = GestureBinding(pattern, toggle; description = "Turn the option on or off",
                                    domain = "evaluator")
     gestures = GestureBinding[bind(MouseClickPattern(:left; modifiers = Symbol[])),
-                              bind(KeyDownPattern(:space; modifiers = Symbol[])),
-                              bind(KeyDownPattern(:return; modifiers = Symbol[]))]
+                              bind(KeyPressPattern(' '; modifiers = Symbol[])),
+                              bind(KeyPressPattern('\n'; modifiers = Symbol[]))]
     box = WidgetCheckbox(getproperty(t, option) === true; label, gestures)
     set_cell_computation!(box, () -> getproperty(t, option) === true)
 end

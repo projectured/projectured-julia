@@ -272,10 +272,11 @@ _string_value_path(range::RangeReferenceStep) =
 # fallback (a leaf projection with no bespoke event reader delegates raw input
 # gestures to `read_gesture(iomap.input, …)`). The `when` precondition gates the
 # whole table on there being a `value[range]` cursor — a non-editing selection
-# (or none) declines, exactly as the old `range === nothing && return nothing`.
+# (or none) declines. A string is drawn on one line, so it takes printable text
+# only: Return and Tab, which type `'\n'` and `'\t'`, propagate.
 @gestures PrimitiveString begin
     when(_string_value_range(doc) !== nothing)
-    KeyPress(_, t)       => "Insert character" =>
+    when(KeyPress(_, t), !any(iscntrl, t)) => "Insert character" =>
         ReplaceStringRangeOperation(_string_value_path(_string_value_range(doc)), t)
     KeyDown(:backspace;) => "Delete backward"  => _string_delete(doc, :backspace)
     KeyDown(:delete;)    => "Delete forward"   => _string_delete(doc, :delete)
@@ -294,14 +295,14 @@ end
 
 # The keys of a type-in, as `@gestures PrimitiveString` gives a string its keys:
 # a key edits the text, or makes the value that the new text shows exactly;
-# Enter makes the value that the text parses as, and Escape drops the text. The
+# Return makes the value that the text parses as, and Escape drops the text. The
 # syntax leaf of a type-in reads the same keys in its own table first.
 @gestures PrimitiveInsertion begin
     when(find_value_range(doc) !== nothing)
-    KeyPress(_, t)        => "Insert character" => make_type_in_edit_operation(doc, find_value_range(doc), t)
+    when(KeyPress(_, t), !any(iscntrl, t)) => "Insert character" => make_type_in_edit_operation(doc, find_value_range(doc), t)
     KeyDown(:backspace;)  => "Delete backward"  => _make_type_in_deletion(doc, :backspace)
     KeyDown(:delete;)     => "Delete forward"   => _make_type_in_deletion(doc, :delete)
-    KeyDown(:return;)     => "Make the value"   => make_type_in_commit_operation(doc)
+    KeyPress('\n';)       => "Make the value"   => make_type_in_commit_operation(doc)
     KeyDown(:escape;)     => "Drop the text"    => make_type_in_cancel_operation(doc)
 end
 

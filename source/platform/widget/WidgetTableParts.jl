@@ -1737,6 +1737,22 @@ end
 # cell, from a column to its cell in the row at the top, and from a cell into
 # its content; Shift+Space and Ctrl+Space select in the row and the column
 # direction.
+# Return on a selected column selects its top cell, on a row its first cell, and
+# on a cell enters the cell; any other typed character is no navigation.
+function _read_table_parts_key(iomap::WidgetTableListIoMap, evt::KeyPress)
+    evt.char == '\n' || return nothing
+    st = iomap.state
+    st.columns == 0 && !st.column_list && return nothing
+    named = _find_named_part(iomap.input, iomap.input.selection)
+    named === nothing && return nothing
+    shape, k, c = named
+    shape === :column &&
+        return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, iomap.input.top_row, c))
+    shape in (:column_header, :row_header, :table, :header_row, :header_column) && return nothing
+    c == 0 && return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, k, 1))
+    _enter_table_cell(iomap.input, st, k, c)
+end
+
 function _read_table_parts_key(iomap::WidgetTableListIoMap, evt::KeyDown)
     st = iomap.state
     st.columns == 0 && !st.column_list && return nothing
@@ -1770,17 +1786,12 @@ function _read_table_parts_key(iomap::WidgetTableListIoMap, evt::KeyDown)
     shape in (:table, :header_row, :header_column) && return nothing
     if shape === :column
         top = iomap.input.top_row
-        evt.key === :return && return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, top, c))
         evt.key === :down && return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, top, c))
         evt.key === :left && return ReplaceSelectionOperation(_wt_col_ref(step_column(c, -1)))
         evt.key === :right && return ReplaceSelectionOperation(_wt_col_ref(step_column(c, 1)))
         return nothing
     end
     c == 0 && (c = nothing)
-    if evt.key === :return
-        c === nothing && return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, k, 1))
-        return _enter_table_cell(iomap.input, st, k, c)
-    end
     if line_key
         c === nothing && return nothing
         return ReplaceSelectionOperation(row_direction ? _wt_row_ref(k) : _wt_col_ref(c))
@@ -2009,7 +2020,7 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent,
         # is the backward map of the point. A dwell goes to the cell under it.
         g isa MouseMove && return Intent(g, nothing)
         g isa MouseScroll && return Intent(g, _read_table_parts_wheel(p, iomap, g))
-        if g isa KeyDown
+        if g isa KeyDown || g isa KeyPress
             op = _read_open_cell_key(iomap.input, g)
             op === nothing || return Intent(g, op)
             op = _read_table_parts_key(iomap, g)
@@ -2042,7 +2053,7 @@ function read_intent(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap
         op = _read_table_mark_dwell(p, iomap, event)
         op === nothing || return op
     end
-    if event isa MouseClick || event isa KeyDown || event isa MouseScroll ||
+    if event isa MouseClick || event isa KeyDown || event isa KeyPress || event isa MouseScroll ||
        event isa MouseMove
         return read_intent(p, nothing, Intent(event, nothing), iomap).operation
     end

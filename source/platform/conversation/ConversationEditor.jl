@@ -835,11 +835,12 @@ _shown_length(::Any, body::TextBlock) = length(get_flat_string(body))
 # with the assistant card) is the set the gesture-help window shows
 # (`get_projection_gesture_bindings`) — fire == show. The text keys are the text
 # layer's; the Return / Shift+Return / Alt+Return / Tab / Esc meaning is
-# mode-specific. ModifierKeys are matched as the old `@gesture_case` did: `[:shift]`/`[:alt]`
-# are exact, a bare key (`mods=nothing`) matches any modifiers, and the exact-modifier
-# rows precede the bare one so Shift/Alt+Return win over plain Return (first match).
+# mode-specific, and Return and Tab are the `KeyPress` of `'\n'` and `'\t'`.
+# ModifierKeys: `[:shift]`/`[:alt]` are exact, a bare key (`mods=nothing`) matches any
+# modifiers, and the exact-modifier rows precede the bare one so Shift/Alt+Return win
+# over plain Return (first match).
 function _composer_bindings(draft::ConversationDraft)
-    newline = GestureBinding(KeyDownPattern(:return; modifiers = [:shift]),
+    newline = GestureBinding(KeyPressPattern('\n'; modifiers = [:shift]),
                              (d, e) -> _make_newline_operation(d);
                              description = "New line", domain = "composer")
     revert = GestureBinding(KeyDownPattern(:escape),
@@ -849,10 +850,10 @@ function _composer_bindings(draft::ConversationDraft)
     if c isa PrimitiveString
         GestureBinding[
             newline,
-            GestureBinding(KeyDownPattern(:return),
+            GestureBinding(KeyPressPattern('\n'),
                            (d, e) -> ComposerSubmitOperation(d); description = "Submit",
                            domain = "composer"),
-            GestureBinding(KeyDownPattern(:tab),
+            GestureBinding(KeyPressPattern('\t'),
                            (d, e) -> ComposerInsertPartOperation(d);
                            description = "Add a structured part", domain = "composer"),
             GestureBinding(KeyDownPattern(:insert),
@@ -861,7 +862,7 @@ function _composer_bindings(draft::ConversationDraft)
         ]
     elseif c isa DocumentInsertion
         GestureBinding[
-            GestureBinding(KeyDownPattern(:return),
+            GestureBinding(KeyPressPattern('\n'),
                            (d, e) -> ComposerCommitChooserOperation(d);
                            description = "Choose insertion kind", domain = "composer"),
             revert,
@@ -870,11 +871,11 @@ function _composer_bindings(draft::ConversationDraft)
         # Julia source: ENTER commits it, and ALT+ENTER runs it. Running is
         # Julia's alone, which is why this arm names the format.
         GestureBinding[
-            GestureBinding(KeyDownPattern(:return; modifiers = [:alt]),
+            GestureBinding(KeyPressPattern('\n'; modifiers = [:alt]),
                            (d, e) -> ComposerEvaluateOperation(d);
                            description = "Evaluate", domain = "composer"),
             newline,
-            GestureBinding(KeyDownPattern(:return),
+            GestureBinding(KeyPressPattern('\n'),
                            (d, e) -> ComposerCommitSourceOperation(d);
                            description = "Commit source", domain = "composer"),
             revert,
@@ -885,7 +886,7 @@ function _composer_bindings(draft::ConversationDraft)
         # key-driven insertion (`[` → JsonArray, …) is still future work.
         GestureBinding[
             newline,
-            GestureBinding(KeyDownPattern(:return),
+            GestureBinding(KeyPressPattern('\n'),
                            (d, e) -> ComposerCommitSourceOperation(d);
                            description = "Commit source", domain = "composer"),
             revert,
