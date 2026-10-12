@@ -18,8 +18,7 @@
 # and an edit of the run leaves the line valid. A `TextBlock` is lines: its first
 # line joins the line before it, and each other line starts a line of the output,
 # a line of the chrome, so a value of many lines follows the indentation of the code
-# around it. A `'\n'` that a run still holds is a row inside the line, as
-# `TextToGraphics` draws it.
+# around it.
 #
 # The mappers count in the flat text of the fields, open ++ value ++ close, whose
 # offsets are the flat offsets of the output: the break between two lines of a
@@ -734,17 +733,14 @@ end
 # ── Lines ─────────────────────────────────────────────────────────────────────
 #
 # Syntax text is a block of `TextLine`s. A text of a field that is a block of lines
-# gives its lines. A run of a compound that still holds a `'\n'`, which only a
-# computed content can, is cut there into pieces on separate lines. The break before
-# a line counts one flat offset, as the `'\n'` does, so the flat offsets of the
-# lines are the offsets of the flat text of the fields. A run of another producer is
-# one run, and a `'\n'` in it is a row inside a line.
+# gives its lines, and a run is one run: no run holds a break. The break before a
+# line counts one flat offset, as the `'\n'` does, so the flat offsets of the lines
+# are the offsets of the flat text of the fields.
 
 # One line under construction: its spans, its indentation, and whether the
 # indentation is of the chrome. A compound widens such a line of a child by its own
 # `indentation × indent_size`. Each line of a leaf after its first is of the chrome,
-# so a value of many lines follows the code around it; a line that a break inside a
-# run starts has indentation 0 and keeps it.
+# so a value of many lines follows the code around it.
 mutable struct _LineRecord
     spans::Vector{TextDocument}
     indentation::Int
@@ -771,43 +767,7 @@ const _LINE_BREAK = _LineBreak()
 _span_len(::_LineBreak) = 1
 _span_len(indentation::_LineIndentation) = indentation.width
 
-_is_split_span(span) = span isa TextString && occursin('\n', span.content::AbstractString)
-
 _is_empty_run(run) = run isa TextString && isempty(run.content::AbstractString)
-
-# The parts of `span` on lines, each `(k, offset)`: `k > 0` is piece `k` of its text
-# and `k == 0` a break, and `offset` is the place of the first character of the
-# part in the span. A span that holds no `'\n'` is one part, itself. A split span
-# has a part for each `'\n'` and for each non-empty run of characters between two.
-function _compute_span_parts(span)
-    _is_split_span(span) || return ((1, 0),)
-    parts = Tuple{Int,Int}[]
-    offset = 0
-    for (k, piece) in enumerate(split(span.content::AbstractString, '\n'))
-        k > 1 && push!(parts, (0, offset - 1))
-        isempty(piece) || push!(parts, (k, offset))
-        offset += length(piece) + 1
-    end
-    parts
-end
-
-# The text of piece `k` of `content`, or `""` when it has no such piece.
-function _compute_line_piece(content::AbstractString, k::Int)
-    pieces = split(content, '\n')
-    k <= length(pieces) ? String(pieces[k]) : ""
-end
-
-# Piece `k` of the split span `span`: a span in its style that shows that part of
-# its text, and follows an edit of it.
-function _make_line_piece(span::TextString, k::Int)
-    content = getfield(span, :content)
-    TextString(Cell(@computation _compute_line_piece(content[], k)), getfield(span, :font),
-               getfield(span, :font_color), getfield(span, :fill_color), getfield(span, :line_color),
-               getfield(span, :padding), getfield(span, :pointer_shape), Cell(nothing))
-end
-
-# The object of part `k` of `span`: the span itself when it holds no `'\n'`.
-_make_span_part(span, k::Int) = _is_split_span(span) ? _make_line_piece(span::TextString, k) : span
 
 # The lines of an output, one record for each `TextLine`. `chrome_lines`, when
 # given, tells which lines are of the chrome.
@@ -954,10 +914,8 @@ end
 # Append a text, and return each of its entries with the offset of the entry in the
 # flat text, a run or a break. A block appends its lines: the runs of its first line
 # join the open line, and each break starts a line of the chrome at
-# `break_indentation`. A run that still holds a `'\n'` is cut there, and each piece
-# after a cut starts a line at indentation 0 that is no line of the chrome. An empty
-# run is not appended, as an empty piece is not: chrome that draws no character
-# offers no caret of its own. An absent text appends nothing and has no entry, so it
+# `break_indentation`. An empty run of a block is not appended: chrome that draws
+# no character offers no caret of its own. An absent text appends nothing and has no entry, so it
 # carries no cursor position either.
 #
 # `part` is `:all`, or `:first` or `:last` for only the runs of the first or of the
@@ -981,17 +939,8 @@ function _push_span!(buf::SpliceBuffer, span, break_indentation::Int = 0, part::
         end
         return places
     end
-    parts = _compute_span_parts(span)
-    line_count = count(entry -> first(entry) == 0, parts) + 1
-    line = 1
-    for (k, offset) in parts
-        if k == 0
-            line += 1
-            part === :all && push!(places, _start_line!(buf, 0, false) => offset)
-        elseif _is_line_shown(part, line, line_count)
-            push!(places, _push_entry_span!(buf, _make_span_part(span, k)) => offset)
-        end
-    end
+    # A run is one entry on the open line.
+    push!(places, _push_entry_span!(buf, span) => 0)
     places
 end
 
