@@ -1088,7 +1088,8 @@ from the command line of the projectured UI.
   the agent withdraws a permission request with `$/cancel_request` and its
   JSON-RPC id, the connection replies `nothing`, and the agent gets the valid
   answer `cancelled`. The transport gives the handler the id of each request.
-  The prompt queue is open.
+  The prompt queue is open. The owner said on 2026-10-12 that 2.7 and 3.1 are
+  important and the rest can be deferred: 2.4c, 2.8 and 3.2 wait.
 - [ ] 2.8 The ACP Registry as a source for the list of agents.
 - [x] 2.9 A hook for the close of a document, so the close of a tab stops its
   agent and its MCP server (review #3). Done on 2026-10-08, as the owner
@@ -1241,8 +1242,9 @@ from the command line of the projectured UI.
 
 ### Phase 3: the agent sees what projectured sees
 
-- [ ] 3.1 A view as an image in the prompt.
-- [ ] 3.2 File access through the editor, if an agent calls `fs/*`.
+- [ ] 3.1 A view as an image in the prompt (important, the owner 2026-10-12).
+- [ ] 3.2 File access through the editor, if an agent calls `fs/*`. Deferred by
+  the owner on 2026-10-12.
 
 ## The questions and their answers
 
