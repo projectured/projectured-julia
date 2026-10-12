@@ -1135,6 +1135,45 @@ from the command line of the projectured UI.
     going on below it)? Q19, the kernel names `has_agent_steering` and
     `steer_agent_prompt!`? Recommended: yes to all three. The owner agreed on
     2026-10-12.
+
+  **Done on the branches `acp-queue` (projectured) and `steering`
+  (`ClaudeCodeACP`), 2026-10-12:**
+  - [x] 2.7a `7235f6f75`: `has_agent_steering` and `steer_agent_prompt!`, with
+    defaults that answer `false`.
+  - [x] 2.7b `e89dc016e`: the ACP connection reads `_meta.steering.supported`
+    and sends `_session/steering`. **Found:** `ACP.get_json` of a content block
+    has no `type`, which the library writes only in a field of the abstract
+    type; the params of `_session/steering` have the shape of a
+    `session/prompt`, so a `PromptRequest` writes them. `test_acp()` 165 of 165.
+  - [x] 2.7d `8faf60358`: Return and the prose submit send a message while a
+    turn runs; it shows at once. A steered message: the session counts it as
+    seen (`steered_turn_count`), and the answer goes on in a new assistant turn
+    below it (`AssistantTurnControl.is_split_asked`, `_split_steered_turn!`;
+    an empty turn above goes, and the counts move down). A waiting message:
+    `AssistantTurnControl.seen_turn_count` counts the turns that the running
+    turn read; when the turn ends idle and not stopped, a turn of its own starts.
+    A native turn reads the conversation up to itself
+    (`build_messages(conversation; until = turn)`). **Found:** a message that
+    comes before the turn has pushed its answer turn sits above it, and the
+    turn reads it; a check of "the last turn is a user turn" alone would start
+    turns without end after an empty answer, because an empty answer turn is
+    removed. Alt+Return keeps its guard. Tests: the turn of an external agent
+    241 of 241, the conversation 411 of 411, `test_assistant_mvp()` 186 with its
+    4 known broken (two old tests now check the new behaviour), the composer
+    panel 84 of 84, the application 372 with its 2 known broken.
+  - [x] 2.7c `ClaudeCodeACP` `59c7b5e`: `_meta.steering.supported`,
+    `--replay-user-messages`, `_session/steering`, and a prompt that ends only
+    after the `result` that follows the echo of every message that went into
+    it; the check for a message and the end of the prompt share one lock. 162
+    tests pass. Version 0.1.6 (`dc137b3`), registered on the branch
+    `claude-code-acp-0.1.6` of the registry clone (`aee6169`).
+  - Live with the built-in agent from the branch `steering` (the worktree
+    environment pointed to it for the check): during `sleep 6` the message
+    "Also, at the very end, say the word PELICAN." went in; the conversation
+    shows the turn with the shell call, the message, and a new turn "DONE
+    PELICAN"; the session counts the message as seen; no extra turn started.
+  - [ ] Landing: the owner pushes `ClaudeCodeACP` and the registry; then the
+    manifest of `environment/all` names 0.1.6, and the branch lands.
 - [ ] 2.8 The ACP Registry as a source for the list of agents.
 - [x] 2.9 A hook for the close of a document, so the close of a tab stops its
   agent and its MCP server (review #3). Done on 2026-10-08, as the owner
