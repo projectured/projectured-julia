@@ -160,10 +160,11 @@ function find_tool(set::ToolSet, name::AbstractString)
 end
 
 """
-    call_tool(set, name; args, target) -> String
+    call_tool(set, name; args, target)
 
-Invoke a registered tool against `target`. Throws `KeyError` if `set` has no tool
-of that name.
+Invoke a registered tool against `target`, and answer what its handler answers:
+its text, or a picture (`Tool`). Throws `KeyError` if `set` has no tool of that
+name.
 """
 function call_tool(set::ToolSet, name::AbstractString; args, target)
     t = find_tool(set, name)

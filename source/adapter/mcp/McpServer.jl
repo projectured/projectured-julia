@@ -278,10 +278,13 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool})
                             (fault[] = true)
                     end
                 end
+                # A picture goes to the client as an image, and to the log as a line.
+                is_picture = text isa LlmImage
                 record_mcp_call!(get_session_mcp_log_store(); method = "tools/call",
                                  name = tool.name, arguments = _format_mcp_arguments(args),
-                                 answer = string(text), duration = held[], fault = fault[])
-                TextContent(text = text)
+                                 answer = is_picture ? "A picture of $(length(text.data)) bytes." : string(text),
+                                 duration = held[], fault = fault[])
+                is_picture ? ImageContent(data = text.data, mime_type = text.media_type) : TextContent(text = text)
             end
             push!(out, MCPTool(
                 name        = tool.name,

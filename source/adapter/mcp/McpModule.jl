@@ -23,7 +23,7 @@ using ..KernelModule
 # The protocol has a `Tool` and a `Resource` of its own, so this module names
 # what it takes from the protocol, and `Tool` and `Resource` are the kernel's.
 import ModelContextProtocol
-using ModelContextProtocol: HttpTransport, MCPResource, MCPTool, Server, ServerConfig,
+using ModelContextProtocol: HttpTransport, ImageContent, MCPResource, MCPTool, Server, ServerConfig,
                             TextContent, TextResourceContents, ToolParameter, mcp_server,
                             register!, start!, stop!
 

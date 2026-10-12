@@ -4,7 +4,7 @@
 using Test
 import ProjecturedKernel.AgentModule: Agent, run_turn!, AgentToolResult
 import ProjecturedKernel.FaultModule: FaultStore, get_fault_records
-import ProjecturedKernel.LlmModule: LlmMessage, LlmFailure, LlmTextStart, LlmTurnEnd
+import ProjecturedKernel.LlmModule: LlmMessage, LlmFailure, LlmTextStart, LlmTurnEnd, LlmImage
 import ProjecturedKernel.ToolModule: Tool, ToolSet, register_tool!
 using ProjecturedKernelExample: ScriptedLlm, make_scripted_turn, make_scripted_run,
                                 make_scripted_say
@@ -132,6 +132,16 @@ function test_agent_loop()
         @test stop === :end_turn
         @test !result.is_error
         @test result.output == "three words"
+    end
+
+    @testset "a tool that answers a picture gives the model a line of text" begin
+        tools = _make_agent_loop_tools((target, arguments) -> LlmImage("image/png", UInt8[1, 2, 3]))
+        llm = ScriptedLlm([_make_agent_loop_call_round(),
+                           _make_agent_loop_answer_round("Done.")])
+        stop, events = _run_agent_loop_turn(Agent(llm, tools))
+        result = only(_get_agent_tool_results(events))
+        @test !result.is_error
+        @test occursin("gets no picture from a tool", result.output)
     end
 
     @testset "a stream with no terminal event ends the turn with :error" begin

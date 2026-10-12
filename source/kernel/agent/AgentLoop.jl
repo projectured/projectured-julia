@@ -98,6 +98,7 @@ function run_turn!(agent::Agent, target; messages, on_event, tools::AbstractVect
                     turn_tool = findfirst(tool -> tool.name == call.name, turn_tools)
                     text = turn_tool === nothing ? call_tool(agent.tools, call.name; args = call.input, target) :
                            turn_tools[turn_tool].handler(target, call.input)
+                    text isa LlmImage && (text = _PICTURE_RESULT_TEXT)
                     text isa Task ? (text, false) : (text, _is_error_output(text))
                 catch e
                     is_passthrough_exception(e) && rethrow()
@@ -124,6 +125,10 @@ function run_turn!(agent::Agent, target; messages, on_event, tools::AbstractVect
     end
     stop
 end
+
+# The text in place of a picture that a tool answered: the result of a tool for a
+# model is text.
+const _PICTURE_RESULT_TEXT = "The tool answered a picture, and a model of this editor gets no picture from a tool."
 
 # A tool that answered a `Task` answers when the task ends, here on the task of
 # the loop. The value of the task is the text of the tool, and a task that throws

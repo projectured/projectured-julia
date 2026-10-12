@@ -15,7 +15,10 @@ take a name at the call, as the parts of a `Resource` do.
   result. A handler of a tool that waits, such as for a person, can return a
   `Task` whose value is that text; the loop of a turn waits for it off the task
   of the editor. Such a tool is a tool of a turn (`run_turn!(…; tools)`), not of
-  a `ToolSet`, whose other clients take the text at once. `args` keys are
+  a `ToolSet`, whose other clients take the text at once. A handler can also
+  return an `LlmImage`, a picture: the MCP server gives it to its client as an
+  image, and the loop of a turn gives the model a line of text in its place,
+  because the result of a tool for a model is text. `args` keys are
   strings matching the parameter names; `target` is whatever the caller is
   acting on (the `Editor`, in practice) and is passed through untouched.
 - `result_mime_type` is the media type of the text the handler returns, as a

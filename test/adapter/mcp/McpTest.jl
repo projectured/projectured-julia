@@ -782,6 +782,12 @@ function test_mcp_tool_runs_on_editor_task()
         editor.loop_task = nothing
         @test handlers["probe_task"](Dict{String,Any}()).text == "done"
         @test ran_on == [current_task(), current_task()]
+        # A tool that answers a picture gives the client an image.
+        picture = Tool("probe_picture"; description = "Answers a picture.", parameters = NamedTuple[],
+                       handler = (target, args) -> LlmImage("image/png", UInt8[1, 2, 3]))
+        image = only(render_mcp_tools(editor, [picture])).handler(Dict{String,Any}())
+        @test image.type == "image"
+        @test (image.data, image.mime_type) == (UInt8[1, 2, 3], "image/png")
     end
 end
 
