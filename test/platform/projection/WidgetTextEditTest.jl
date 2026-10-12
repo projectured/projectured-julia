@@ -63,21 +63,32 @@ end
     @test doc.content.elements[1].content == "ediXt me"
 end
 
-@testset "a field of code draws a span for each piece, and its edits stay ranges of its content" begin
+@testset "a field of code draws a run for each piece on its lines, and its edits stay ranges of its content" begin
     doc = WidgetText("abc"; language = :widget_text_test_code)
     set_selection!(doc, ConcreteReference(FieldReferenceStep("content"),
                                           ConcreteReference(RangeReferenceStep(2, 2), EmptyReference())))
     iomap = print_document(_proj(), nothing, doc, PrinterContext())
-    spans = collect(iomap.content_iomap.input.elements)
-    @test [span.content for span in spans] == ["a", "bc"]
-    @test spans[1].font_color == color_red
+    runs = collect(only(iomap.content_iomap.input.elements).elements)
+    @test [run.content for run in runs] == ["a", "bc"]
+    @test runs[1].font_color == color_red
     op = read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys(); time = 0.0))
     @test op isa ReplaceStringRangeOperation
     @test strip_reference_types(op.reference) == ConcreteReference(FieldReferenceStep("content"),
         ConcreteReference(RangeReferenceStep(2, 2), EmptyReference()))
-    # An empty field of code is one empty span.
+    # A piece that holds a break ends a line: "a" and "b" on the first line, "cd" on
+    # the second, and a key on the second line edits the range of the content.
+    lines_doc = WidgetText("ab\ncd"; language = :widget_text_test_code)
+    set_selection!(lines_doc, ConcreteReference(FieldReferenceStep("content"),
+                                                ConcreteReference(RangeReferenceStep(4, 4), EmptyReference())))
+    lines_iomap = print_document(_proj(), nothing, lines_doc, PrinterContext())
+    @test [[run.content for run in line.elements] for line in lines_iomap.content_iomap.input.elements] ==
+          [["a", "b"], ["cd"]]
+    typed = read_intent(_proj(), lines_iomap, KeyPress('X', "X", ModifierKeys(); time = 0.0))
+    @test strip_reference_types(typed.reference) == ConcreteReference(FieldReferenceStep("content"),
+        ConcreteReference(RangeReferenceStep(4, 4), EmptyReference()))
+    # An empty field of code is one line with one empty run.
     empty = print_document(_proj(), nothing, WidgetText(""; language = :widget_text_test_code), PrinterContext())
-    @test [span.content for span in empty.content_iomap.input.elements] == [""]
+    @test [run.content for run in only(empty.content_iomap.input.elements).elements] == [""]
 end
 
 @testset "an empty field shows its placeholder below its caret, and a press puts the caret at its start" begin

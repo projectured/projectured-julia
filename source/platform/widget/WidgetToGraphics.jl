@@ -1711,24 +1711,36 @@ end
 # a `String`, is edited as a text too. The printer makes one `TextBlock` whose
 # text is the string of the value and whose caret is the range of `content` that
 # the widget holds, and draws it with a `TextToGraphics` of its own, so a chain
-# with no rule for a `TextBlock` draws it too. The block is the lines of the string,
-# or, for a field of code, a span for each piece that `compute_code_pieces` gives,
-# in its color. The reader maps what the text domain answers back to a range of the
-# `content` field. So a string edit writes the field itself, and the caret after
+# with no rule for a `TextBlock` draws it too. The block is the lines of the string;
+# in a field of code, each line holds a run for each piece that `compute_code_pieces`
+# gives, in its color. The reader maps what the text domain answers back to a range
+# of the `content` field. So a string edit writes the field itself, and the caret after
 # the edit is again a range of the field.
 
-# The spans of a field of code: a span for each piece of its text, in the color
-# of the piece, or of the field. `appearance` gives the colors of the language.
-function _make_code_spans(w, style::StyleText, appearance; text = string(w.content))
-    spans = Any[]
+# The lines of a field of code: a line for each line of its text, which holds a
+# run for each piece of that line, in the color of the piece, or of the field. A
+# piece that holds a break ends one line and starts the next. An empty line holds
+# one empty run in the style of the field. `appearance` gives the colors of the
+# language.
+function _make_code_lines(w, style::StyleText, appearance; text = string(w.content))
+    lines = TextDocument[]
+    runs = TextDocument[]
     start = 1
     for (count, color) in _get_plain_text_pieces(w, text, appearance)
         stop = count == 0 ? start - 1 : nextind(text, start, count) - 1
-        push!(spans, TextString(text[start:min(stop, lastindex(text))],
-                                color === nothing ? style : StyleText(style.font, color)))
+        piece_style = color === nothing ? style : StyleText(style.font, color)
+        parts = split(text[start:min(stop, lastindex(text))], '\n')
+        for (k, part) in enumerate(parts)
+            if k > 1
+                push!(lines, TextLine(isempty(runs) ? TextDocument[TextString("", style)] : runs))
+                runs = TextDocument[]
+            end
+            isempty(part) || push!(runs, TextString(String(part), piece_style))
+        end
         start = stop + 1
     end
-    spans
+    push!(lines, TextLine(isempty(runs) ? TextDocument[TextString("", style)] : runs))
+    lines
 end
 
 # The pieces of the text of `w`: one, or the pieces of the code of its language.
@@ -1744,7 +1756,7 @@ function _make_plain_text_view(w, style::StyleText, appearance; value_slot = not
     text = value_slot === nothing ? () -> string(w.content) : () -> string(value_slot[].output)
     language = hasfield(typeof(w), :language) ? w.language : nothing
     view = language === nothing ? make_text_block(text, style) :
-                                  TextBlock(() -> _make_code_spans(w, style, appearance; text = text()))
+                                  TextBlock(() -> _make_code_lines(w, style, appearance; text = text()))
     set_cell_computation!(getfield(view, :selection),
                           () -> _get_text_view_caret(w.selection, value_slot))
     set_cell_computation!(getfield(view, :mouse_target),
@@ -1795,43 +1807,24 @@ _make_content_range_reference(start::Int, stop::Int) =
                       ConcreteReference(RangeReferenceStep(start, stop), EmptyReference()))
 
 # A reference of the view, mapped to a range of the `content` field. The text
-# domain answers a caret or a selection as a flat range, and an edit of the one
-# span as `elements[1].content[start:stop]`. The whole view, which a press on an
-# empty string answers, is the caret at the end of the string.
-function _map_plain_text_reference(w, reference; text = string(w.content))
+# domain answers a place in the view in either form that a text takes, and
+# `get_flat_range` reads both. A flat offset of the view is an offset of the
+# string, because the lines of the view are the lines of the string, with one
+# break between two and no indentation. The whole view, which a press on an empty
+# string answers, is the caret at the end of the string.
+function _map_plain_text_reference(view::TextBlock, reference)
     reference === nothing && return nothing
-    steps = get_reference_steps(strip_reference_types(reference))
-    if isempty(steps)
-        n = length(text)
+    if isempty(get_reference_steps(strip_reference_types(reference)))
+        n = get_flat_length(view)
         return _make_content_range_reference(n, n)
     end
-    range = steps[end]
-    if length(steps) == 1 && range isa TextRangeReferenceStep
-        return _make_content_range_reference(range.start, range.stop)
-    end
-    if length(steps) == 4 && range isa RangeReferenceStep &&
-       steps[1] isa FieldReferenceStep && steps[1].name == "elements" &&
-       steps[2] isa RangeReferenceStep &&
-       steps[3] isa FieldReferenceStep && steps[3].name == "content"
-        # A range in span `k` of the pieces is that range moved by the length of
-        # the spans before it. The lengths do not depend on the colors, so the
-        # pieces need no appearance.
-        before = sum((first(piece) for piece in _get_plain_text_pieces(w, text, nothing)[1:steps[2].start]);
-                     init = 0)
-        return _make_content_range_reference(before + range.start, before + range.stop)
-    end
-    if length(steps) == 6 && range isa RangeReferenceStep &&
-       steps[1] isa FieldReferenceStep && steps[1].name == "elements" && steps[2] isa RangeReferenceStep &&
-       steps[3] isa FieldReferenceStep && steps[3].name == "elements" &&
-       steps[5] isa FieldReferenceStep && steps[5].name == "content"
-        # A range in the run of a line of a text of lines, one run on each line of
-        # the string, is that range moved by the characters and the breaks of the
-        # lines before it.
-        before = sum((length(line) + 1 for line in split(text, '\n')[1:steps[2].start]); init = 0)
-        return _make_content_range_reference(before + range.start, before + range.stop)
-    end
-    nothing
+    range = get_flat_range(view, reference)
+    range === nothing ? nothing : _make_content_range_reference(range...)
 end
+
+# The view of a plain value, which the text domain prints: the input of the IO map
+# of the content of a text widget.
+_get_plain_text_view(iomap) = iomap.content_iomap.input
 
 # The range of the content of a widget that draws its box around it: the range of
 # the widget less its insets, in the same state, so a slot stays a slot and an edge
@@ -1931,16 +1924,16 @@ function map_reference_backward(::WidgetTextToGraphicsCanvas, iomap::WidgetTextT
     point === nothing || return _map_text_point(point)
     w = iomap.input
     child = iomap.value_iomap
-    child === nothing || return _map_value_text_reference(w, child, reference)
-    w.content isa Document || return _map_plain_text_reference(w, reference)
+    child === nothing || return _map_value_text_reference(_get_plain_text_view(iomap), child, reference)
+    w.content isa Document || return _map_plain_text_reference(_get_plain_text_view(iomap), reference)
     ConcreteReference(FieldReferenceStep("content"), reference)
 end
 
 # A reference of the text view of the value that the child of `content` gives,
 # mapped back through the child: the range of the view, as a flat range, is a path
 # that the child introduces, under `content`.
-function _map_value_text_reference(w, child, reference)
-    range = _map_plain_text_reference(w, reference; text = string(child.output))
+function _map_value_text_reference(view::TextBlock, child, reference)
+    range = _map_plain_text_reference(view, reference)
     range === nothing && return nothing
     step = get_reference_steps(range)[end]
     inner = map_reference_backward(child.projection, child,
@@ -4588,7 +4581,7 @@ function _print_tab_name_view(p, recursion, w::WidgetTabbedPane, caret::Cell, ct
         (found === nothing || !(1 <= found[1] <= length(pairs))) ? "" :
             _get_tab_selector_text(pairs[found[1]].selector)
     end, _get_state_text(p, w, :tab; state = :selected))
-    view = TextBlock(span)
+    view = TextBlock(TextLine(span))
     set_cell_computation!(getfield(view, :selection), () -> begin
         found = caret[]
         found === nothing ? nothing : make_flat_range_reference(found[2], found[2])
@@ -9773,7 +9766,7 @@ function map_reference_backward(::WidgetTextareaToGraphicsCanvas, iomap::WidgetT
     point = find_reference_point(reference)
     point === nothing || return _map_text_point(point)
     w = iomap.input
-    w.content isa Document || return _map_plain_text_reference(w, reference)
+    w.content isa Document || return _map_plain_text_reference(_get_plain_text_view(iomap), reference)
     ConcreteReference(FieldReferenceStep("content"), reference)
 end
 
