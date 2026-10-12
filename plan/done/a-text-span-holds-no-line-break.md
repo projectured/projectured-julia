@@ -6,7 +6,7 @@
 > on main on 2026-10-12, with step 8 in omnet-julia at the same time. ·
 > **Stands on:** [text.md](../../documentation/package/platform/text/text.md),
 > [syntax.md](../../documentation/package/platform/syntax/syntax.md),
-> [text-domain-kit.md](text-domain-kit.md) (Q5 of step 3 of Phase 3),
+> [text-domain-kit.md](../pending/text-domain-kit.md) (Q5 of step 3 of Phase 3),
 > [cell.md](../../documentation/package/kernel/cell.md)
 
 ## 1. The goal and the rule

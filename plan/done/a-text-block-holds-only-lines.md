@@ -1,13 +1,14 @@
 # A text block holds only lines
 
-> **Kind:** plan · **Status:** in progress, 2026-10-12, on the branch `text-lines`
-> (worktree `projectured-julia-text-lines`). The owner decided the end
-> state on 2026-10-09 (N5 of [a-text-span-holds-no-line-break.md](../done/a-text-span-holds-no-line-break.md)),
+> **Kind:** plan · **Status:** done, 2026-10-12. The owner decided the end
+> state on 2026-10-09 (N5 of [a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md)),
 > and that it is a plan of its own, and L1 to L4 on 2026-10-09. The owner asked for
-> the implementation on 2026-10-12 ("continue with plan 2"). No question is open. ·
+> the implementation on 2026-10-12 ("continue with plan 2"). No question is open.
+> §8 holds the steps: all of them landed on main on 2026-10-12, with step 8 in
+> omnet-julia and inet-julia at the same time. ·
 > **Stands on:** [text.md](../../documentation/package/platform/text/text.md),
-> [text-domain-kit.md](text-domain-kit.md) (shape A of Phase 3),
-> [a-text-span-holds-no-line-break.md](../done/a-text-span-holds-no-line-break.md) (N5)
+> [text-domain-kit.md](../pending/text-domain-kit.md) (shape A of Phase 3),
+> [a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md) (N5)
 
 ## 1. The goal
 
@@ -145,7 +146,7 @@ of spans), `ObjectToWidget.jl` (`_end_cursor`), `ObjectFieldToWidget.jl`
 
 - The flat caret space and its values.
 - A `'\n'` inside a `TextString`. Step 7 of
-  [a-text-span-holds-no-line-break.md](../done/a-text-span-holds-no-line-break.md) removes
+  [a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md) removes
   it; this plan keeps the paths that read it.
 - The syntax, which gives lines already.
 
@@ -264,7 +265,7 @@ of spans used. No caller in the three repositories passes or names them.
   block. A paste of text with breaks into a primitive is declined too; on main the
   value took the breaks, which its one run then held.
 
-## 8. Steps (tentative)
+## 8. Steps
 
 Each step is one commit, on a branch in a worktree, with its tests. Until step 5,
 a block of spans still works, so the producers move one at a time.
@@ -277,7 +278,7 @@ a block of spans still works, so the producers move one at a time.
    in one process), and the catalog, its coverage, the insertion, the assistant
    MVP and the tool views.
    **`make_text_block(content, style)`** is step 1 of
-   [a-text-span-holds-no-line-break.md](../done/a-text-span-holds-no-line-break.md). The
+   [a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md). The
    plan that starts first makes it.
 1. **The producers of many lines give lines**: `ReferenceInspectorToText`,
    `SelectionInspectorToText`, `ReferenceToText`, `make_evaluator_arguments_text`
@@ -330,7 +331,7 @@ a block of spans still works, so the producers move one at a time.
 5. **The consumers lose their span path**: the list of §3.2, and
    `_is_block_of_lines`. With them go the row that `TextToGraphics` draws for a
    `'\n'` in a run, the cut of `TextFirstLine` there, and the cut of a run in
-   `SyntaxToText` (N11 of [a-text-span-holds-no-line-break.md](../done/a-text-span-holds-no-line-break.md)):
+   `SyntaxToText` (N11 of [a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md)):
    step 2 has moved the producers of a free text, so no run holds a break, which
    the guard `test_text_runs_hold_no_break` checks. `_line_height_font` sizes an empty line by the font of its
    empty run (L2), with a test of an empty line after a heading. `WordWrapping` keeps only `soft_breaks`, and its maps are
@@ -394,6 +395,25 @@ a block of spans still works, so the producers move one at a time.
    (`SimulationTest.jl` 248 and 307). The six tests of the workbench error on main
    too (`Projectured` is not defined in `OmnetPresentation`), so they do not check
    the source view.
+   *Landed (2026-10-12)* with this branch (the owner: "land it and test if needed
+   after"): projectured `c7533cd61`, omnet-julia `c1b82b45`, inet-julia `3db493c`.
+   The recordings of precompile statements of omnet-julia (`3586dc3e`) and
+   inet-julia (`65ba615`) lose the 19 and 20 entries that name a removed type or
+   function, as both repositories do for a rename. A new recording drives the
+   demo catalog in a real window and records much more than this change; it is
+   not made here. The replay skips an entry that names nothing, so the build does
+   not depend on it.
+   Tested after the landing, because main's 41 new commits change 8 files of this
+   branch: `test_platform` at `c7533cd61` fails on the lines of main (53 fail,
+   30 error, 7 broken; the lines of `ExternalAgentTurnTest.jl` moved with main's
+   new tests). `test_assistant_composer_panel`, which no step ran before, found
+   that Shift+Return drew the draft "hel\no" as one run: the body of a draft was
+   one run of the value, which `TextToGraphics` no longer cuts at a break. The
+   body is now a line for each line of the value, with the placeholder line in
+   the colour of the theme (`15babdff8`); the composer panel passes 84 of 84, and
+   the conversation, its editor, transcript and serialization, and
+   `test_assistant_mvp` pass as on main.
 9. **The documents**: `text.md` (the shape, the paths, the flat caret), the
    guides that show a block of spans, and a note in `text-domain-kit.md` that
    shape A is reached.
+   *Built (2026-10-12), `e3a7c014c`.*
