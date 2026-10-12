@@ -1090,6 +1090,50 @@ from the command line of the projectured UI.
   answer `cancelled`. The transport gives the handler the id of each request.
   The prompt queue is open. The owner said on 2026-10-12 that 2.7 and 3.1 are
   important and the rest can be deferred: 2.4c, 2.8 and 3.2 wait.
+
+  **Facts (2026-10-12).**
+  - Claude Code in print mode with `--input-format stream-json` takes a user
+    message that comes while a turn runs into that turn, at its next call of
+    the model: a message sent during a tool call gave one `result`, whose text
+    answered both messages. A message that comes after the last call of the
+    model of a turn starts a new turn after the `result`: a second
+    `system/init`, the message, and a second `result`. With
+    `--replay-user-messages`, Claude Code echoes each user message when it
+    takes it, as a `user` event with `"isReplay": true`, so an agent can count
+    which messages a turn took.
+  - `claude-agent-acp` and `codex-acp` have the extension method
+    `_session/steering` with `{sessionId, prompt}` and the result `{outcome}`:
+    `injected` (the prompt went into the running turn) or `startedNewTurn`
+    (that turn had ended, and a new one began); any other outcome is a failure,
+    and the client falls back. They advertise it as `_meta.steering.supported`
+    in the answer to `initialize`. (Source: the pull request block/buzz#3007.)
+  - `AgentClientProtocol.jl` answers an extension method
+    (`answer_request(handler, method, params, context)`) and sends one
+    (`start_request!(connection, method, params)`).
+  - Now: Return while a turn runs does nothing, and the draft keeps its text.
+
+  **Design (a proposal; waits for the owner).**
+  - The person: Return while a turn runs sends the message. It shows at once
+    as a user turn below the answer that streams, and the answer goes on in a
+    new assistant turn below it, as in a chat.
+  - An ACP agent that advertises `_meta.steering.supported` gets the message
+    in the running turn, through `_session/steering`. Another agent, a failed
+    steering, and a model of this editor get it as a queue: the message waits
+    in the conversation, and the next turn starts with it when the running
+    turn ends. Several waiting messages go in that one next turn. A stop does
+    not start the next turn; the waiting messages go with the next Return.
+  - Kernel (new): `has_agent_steering(connection) -> Bool` and
+    `steer_agent_prompt!(connection, session_id, prompt) -> Bool`, `false`
+    when the agent did not take the prompt.
+  - `ClaudeCodeACP` 0.1.6: advertise `_meta.steering.supported`, start `claude`
+    with `--replay-user-messages`, answer `_session/steering` by writing the
+    message to `claude` (`injected`, or `failed` when no prompt runs), and end
+    a prompt only after the `result` that follows the echo of every message
+    that went into it.
+  - Questions: Q17, the behaviour above (steer when the agent can, else a
+    queue)? Q18, the chat order (the message below the answer, the answer
+    going on below it)? Q19, the kernel names `has_agent_steering` and
+    `steer_agent_prompt!`? Recommended: yes to all three.
 - [ ] 2.8 The ACP Registry as a source for the list of agents.
 - [x] 2.9 A hook for the close of a document, so the close of a tab stops its
   agent and its MCP server (review #3). Done on 2026-10-08, as the owner
