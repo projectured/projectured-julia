@@ -552,7 +552,7 @@ function build_messages(conversation::ConversationConversation; until = nothing)
     while i <= length(turns)
         t = turns[i]
         if t.role === :user
-            push!(out, LlmMessage(:user, LlmContent[LlmText(_make_user_turn_text(t))]))
+            push!(out, LlmMessage(:user, _make_user_turn_content(t)))
             i += 1
         elseif t.role === :assistant
             # Coalesce consecutive assistant turns into one logical turn before
@@ -573,17 +573,31 @@ function build_messages(conversation::ConversationConversation; until = nothing)
     out
 end
 
-# The text of one user turn: its parts in one block, blank-line separated so a
-# heading or a prose part never runs straight into the next fenced source
-# (adjacent text blocks of an API concatenate with no separator). An empty turn
+# The content of one user turn: the text of its parts in one block, blank-line
+# separated so a heading or a prose part never runs straight into the next fenced
+# source (adjacent text blocks of an API concatenate with no separator), and each
+# picture as an image where it stands, between the blocks of text. An empty turn
 # still needs a non-empty block. A user turn never legitimately holds thinking,
 # so a thinking part is dropped.
-function _make_user_turn_text(t::ConversationTurn)
+function _make_user_turn_content(t::ConversationTurn)
+    content = LlmContent[]
     texts = String[]
+    function add_texts!()
+        isempty(texts) || push!(content, LlmText(join(texts, "\n\n")))
+        empty!(texts)
+    end
     for part in t.parts
         c = part.content
         if c isa ConversationThinking
             continue
+        elseif c isa ImageFile
+            image = _read_picture(c)
+            if image === nothing
+                push!(texts, "(A picture is left out: its file can not be read.)")
+            else
+                add_texts!()
+                push!(content, image)
+            end
         elseif c isa EvaluatorForm
             push!(texts, "I ran the following Julia code:\n```julia\n" * _eval_code(c) *
                          "\n```\nResult:\n```\n" * _eval_result(c) * "\n```")
@@ -591,7 +605,21 @@ function _make_user_turn_text(t::ConversationTurn)
             push!(texts, _block_text(c))
         end
     end
-    isempty(texts) ? " " : join(texts, "\n\n")
+    add_texts!()
+    isempty(content) ? LlmContent[LlmText(" ")] : content
+end
+
+# The types of a picture that a model reads, by the extension of its file.
+const _PICTURE_TYPES = Dict(".png" => "image/png", ".jpg" => "image/jpeg", ".jpeg" => "image/jpeg",
+                            ".gif" => "image/gif", ".webp" => "image/webp")
+
+# The bytes of the file of a picture, or `nothing` when the file is gone or is of
+# a type that a model does not read.
+function _read_picture(image::ImageFile)
+    filename = image.filename
+    media_type = get(_PICTURE_TYPES, lowercase(splitext(filename)[2]), nothing)
+    (media_type === nothing || !isfile(filename)) && return nothing
+    LlmImage(media_type, read(filename))
 end
 
 # Serialize one :assistant turn — an ordered mix of thinking / text / eval parts —

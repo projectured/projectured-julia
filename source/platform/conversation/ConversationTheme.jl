@@ -64,6 +64,8 @@ with no styles holds the plain values of the default theme.
     completion_hint_color::ThemeColor = ColorRole(:text_faint)
     "The gap between the parts of one turn, and between the cards of the composer."
     part_gap::Spacing = Spacing(8)
+    "The height of a picture in a part, at most; its width follows the shape of the picture."
+    picture_height::Int = 160
     "The gap between the turns of a transcript."
     turn_gap::Spacing = Spacing(8)
     "The gap between the icon and the label of a turn's role."

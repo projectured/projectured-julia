@@ -67,6 +67,41 @@ function test_external_agent_turn()
             @test only(connection.prompts) == Any[LlmText("Explain X"), LlmText("Try again")]
         end
 
+        @testset "a picture of a user turn goes as an image between its texts" begin
+            file = joinpath(mktempdir(), "picture.png")
+            write(file, UInt8[1, 2, 3])
+            conversation = ConversationConversation([ConversationTurn(:user, [
+                ConversationPart("See"), ConversationPart(ImageFile(file)), ConversationPart("and this")])])
+            prompt, count = AssistantModule._make_external_agent_prompt(conversation, 0)
+            @test count == 1
+            @test length(prompt) == 3
+            @test prompt[1] == LlmText("See") && prompt[3] == LlmText("and this")
+            @test prompt[2] isa LlmImage
+            @test (prompt[2].media_type, prompt[2].data) == ("image/png", UInt8[1, 2, 3])
+            # A model gets the same content in its user message.
+            message = only(build_messages(conversation))
+            @test message.role === :user && length(message.content) == 3 && message.content[2] isa LlmImage
+            # A picture whose file is gone is a line of the text.
+            rm(file)
+            prompt, _ = AssistantModule._make_external_agent_prompt(conversation, 0)
+            @test length(prompt) == 1
+            @test occursin("See\n\n(A picture is left out", only(prompt).text)
+        end
+
+        @testset "a picture is a card with its image, at most as high as the theme says" begin
+            part = ConversationPart(ImageFile(joinpath(mktempdir(), "gone.png")))
+            card = print_document(ConversationPartToWidget(), nothing, part, nothing).output
+            @test card isa WidgetCard
+            @test card.title.content == "picture"
+            constraint = only(card.content.children)
+            label = constraint.child
+            @test label isa WidgetLabel && label.content isa ImageFile
+            height = ConversationPartToWidget().picture_height
+            @test constraint.max_height == height
+            # A file that can not be decoded keeps the box of a picture of 4:3.
+            @test constraint.max_width == 4 * height ÷ 3
+        end
+
         @testset "an agent that needs a sign-in gives a request, and a retry starts it" begin
             method = AgentSignInMethod("login", "Sign in", "Run the sign-in.", `true`)
             connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("Hi."), LlmTextStop()]];

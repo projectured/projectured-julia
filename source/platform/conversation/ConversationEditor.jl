@@ -498,6 +498,7 @@ as the root projection, chained through the widget→graphics pipeline (wrap in
 """
 @projection UntrackedCell struct ConversationComposerToWidget
     part_gap::Int = get_conversation_style(nothing, :part_gap)
+    picture_height::Int = get_conversation_style(nothing, :picture_height)
     code_font::StyleFont = get_conversation_style(nothing, :code_font)
     kind_text::StyleText = get_conversation_style(nothing, :kind_text)
     section_text::StyleText = get_conversation_style(nothing, :section_text)
@@ -619,6 +620,7 @@ end
 # dispatch, so committed code renders as a parsed Julia document, prose as text,
 # and an evaluation as its form stacked over its result.
 _committed_body(p, c::EvaluatorForm) = _eval_sections(p, c, nothing)
+_committed_body(p, c::ImageFile) = _make_picture_body(c, p.picture_height)
 _committed_body(p, c) = c
 
 # The composer draws the chrome the transcript draws, for the same reason: the
@@ -632,6 +634,7 @@ _committed_body(p, c) = c
 # not a card would drop that step and the maps below would stop finding it.
 _part_chrome(content) =
     content isa EvaluatorForm ? (:muted, get_evaluation_kind_label(content)) :
+    content isa ImageFile     ? (:muted, "picture")                 :
     _is_code(content)         ? (:muted, _kind_label(content))     :
     (:plain, nothing)
 

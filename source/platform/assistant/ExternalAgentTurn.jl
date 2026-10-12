@@ -271,7 +271,7 @@ function _steer_external_agent!(editor, a::Assistant, turn::ConversationTurn)
     (session isa ExternalAgentSession && !isempty(session.session_id) && control isa AssistantTurnControl) ||
         return nothing
     index = something(findfirst(candidate -> candidate === turn, collect(a.conversation.turns)), 0)
-    prompt = LlmContent[LlmText(_make_user_turn_text(turn))]
+    prompt = _make_user_turn_content(turn)
     errormonitor(@async begin
         is_taken = try
             Base.invokelatest(has_agent_steering, session.connection) &&
@@ -475,15 +475,17 @@ function _start_agent_tool_server!(editor, session::ExternalAgentSession)
     session.tool_server = server
 end
 
-# What the person said since the agent last saw the conversation: the text of
-# each user turn after the first `sent_turn_count` turns, one block for each,
-# and the count of the turns now. The agent holds the history before them, so
-# nothing is sent twice.
+# What the person said since the agent last saw the conversation: the content of
+# each user turn after the first `sent_turn_count` turns, a block of text for
+# each and its pictures, and the count of the turns now. The agent holds the
+# history before them, so nothing is sent twice.
 function _make_external_agent_prompt(conversation::ConversationConversation, sent_turn_count::Integer)
     turns = collect(conversation.turns)
     first_new = max(sent_turn_count, 0) + 1
-    prompt = LlmContent[LlmText(_make_user_turn_text(turn))
-                        for turn in turns[min(first_new, length(turns) + 1):end] if turn.role === :user]
+    prompt = LlmContent[]
+    for turn in turns[min(first_new, length(turns) + 1):end]
+        turn.role === :user && append!(prompt, _make_user_turn_content(turn))
+    end
     prompt, length(turns)
 end
 

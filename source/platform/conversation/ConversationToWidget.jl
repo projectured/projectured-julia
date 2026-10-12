@@ -56,6 +56,7 @@ end
 
 @projection UntrackedCell struct ConversationPartToWidget
     kind_text::StyleText = get_conversation_style(nothing, :kind_text)
+    picture_height::Int = get_conversation_style(nothing, :picture_height)
     section_text::StyleText = get_conversation_style(nothing, :section_text)
     error_text::StyleText = get_conversation_style(nothing, :error_text)
     section_gap::Int = get_conversation_style(nothing, :section_gap)
@@ -249,6 +250,7 @@ function print_document(projection::ConversationPartToWidget,
              content isa ConversationPermissionRequest ? _permission_card(projection, content, part) :
              content isa ConversationSignInRequest ? _sign_in_card(projection, content, part) :
              content isa ConversationQuestionRequest ? _question_card(projection, content, part) :
+             content isa ImageFile            ? _picture_card(projection, content, part)     :
              _is_code(content)                ? _code_card(projection, content, part)        :
              content
     iomap = ConversationPartToWidgetIoMap(projection, part, output, folds)
@@ -300,6 +302,32 @@ _part_card(p, tag::AbstractString, body, part::ConversationPart) =
 # panel cannot say which language it holds.
 _code_card(p, content, part::ConversationPart) =
     _part_card(p, _kind_label(content), content, part)
+
+# A picture, under the tag "picture".
+_picture_card(p, image::ImageFile, part::ConversationPart) =
+    _part_card(p, "picture", _make_picture_body(image, p.picture_height), part)
+
+# The image of a picture, at most `height` high, in the shape of the picture. The
+# view decodes the file for itself, so the part keeps only the name of the file,
+# and a file that is gone, or a process with no backend to decode it, shows an
+# empty box.
+function _make_picture_body(image::ImageFile, height::Int)
+    filename = image.filename
+    raw = try
+        decode_image(filename)
+    catch exception
+        is_passthrough_exception(exception) && rethrow()
+        nothing
+    end
+    natural_width, natural_height = raw isa Tuple && length(raw) == 3 ?
+        (max(1, Int(raw[2])), max(1, Int(raw[3]))) : (4 * height ÷ 3, height)
+    shown_height = min(height, natural_height)
+    shown_width = max(1, round(Int, natural_width * shown_height / natural_height))
+    label = WidgetLabel(ImageFile(Cell(filename), Cell(raw)))
+    HorizontalLayout(Any[LayoutConstraint(label; min_width = shown_width, preferred_width = shown_width,
+                                          max_width = shown_width, min_height = shown_height,
+                                          preferred_height = shown_height, max_height = shown_height)])
+end
 
 # Reasoning is secondary, so it starts folded, and folded it is the bare word.
 # The tag is a word like every other tag.

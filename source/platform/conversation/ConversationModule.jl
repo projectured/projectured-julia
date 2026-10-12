@@ -19,12 +19,14 @@ a fold of its own.
 module ConversationModule
 
 using ..AgentModule
+using ..BackendModule
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
 using ..DomainModule
 using ..EventModule
 using ..EventModule
+using ..FaultModule
 using ..FocusModule
 using ..GestureBindingModule
 using ..GestureModule
