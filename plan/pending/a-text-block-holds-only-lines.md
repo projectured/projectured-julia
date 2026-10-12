@@ -357,6 +357,28 @@ a block of spans still works, so the producers move one at a time.
    arguments are lines. The recorded precompile statements that name a removed type
    go; a statement of a removed private function is skipped when it is replayed.
 7. **A full sweep** against step 0.
+   *Done (2026-10-12)* at `75fbd38d2` against main `8cd3db4e6`, in
+   `/var/tmp/text-lines/branch-5bb137d54` and `/var/tmp/text-lines/baseline`.
+   - 25 of 34 parts give the counts of main; `test_printers` and
+     `test_domain_examples` count more checks of the lines; the guard of lines
+     passes 111 examples; the catalog keeps its two failures and loses the checks
+     of the two removed examples of `TextNewline`.
+   - `test_platform` had 4 failures and 4 errors more than main, in the tests that
+     step 4 converted: a test called `get_flat_string` on a line, which now has
+     that method; a test of the cut of a run, which goes with the cut; the text
+     area of a plain string answers Return with a string edit, as on main; the
+     identity map of the wrap keeps the node types; and a caret on a line that the
+     filter drops goes to the next kept line, as on main, where the line path of
+     the filter used the same map (`206eaf8ee`).
+   - Two examples, "text" and "text_with_image", now walk the same carets left
+     and right: their broken marks are tests (`26d978140`).
+   - `test_assistant_mvp`: Return in the draft typed a break, since the body of a
+     draft is a line. The composer owns Return (plain submits, Shift breaks the
+     line), so it declines an edit of the text under a card that holds a break
+     (`4576c2461`). It passes as on main.
+   - At `4576c2461` the fixed tests, the invariants (391 pass, 6 broken), the
+     conversation (the failing lines of main and no other), the conversation
+     editor and `test_text_to_graphics` pass.
 8. **The other repositories**, after the landing: inet-julia's
    `PacketDiagramToText` gives a line for each row and loses its stale comment;
    omnet-julia's 7 blocks of one run give one line (L1). Both make their precompile statements again.
@@ -365,6 +387,13 @@ a block of spans still works, so the producers move one at a time.
    of a trailing break) and of omnet-julia (`c1b82b45`: the source view of the
    workbench is `make_text_block`, as a source has many lines, and the other six
    sites are one line), to land with this branch, as the first plan did.
+   Checked (2026-10-12) in scratch environments against this branch: inet-julia's
+   test of the packet diagram passes 128 of 128, the figure character for
+   character; omnet-julia's legacy examples hold only lines and no run with a
+   break (11 of 11), and its tests of the result views fail only where main does
+   (`SimulationTest.jl` 248 and 307). The six tests of the workbench error on main
+   too (`Projectured` is not defined in `OmnetPresentation`), so they do not check
+   the source view.
 9. **The documents**: `text.md` (the shape, the paths, the flat caret), the
    guides that show a block of spans, and a note in `text-domain-kit.md` that
    shape A is reached.
