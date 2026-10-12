@@ -410,7 +410,7 @@ a block of spans still works, so the producers move one at a time.
    that Shift+Return drew the draft "hel\no" as one run: the body of a draft was
    one run of the value, which `TextToGraphics` no longer cuts at a break. The
    body is now a line for each line of the value, with the placeholder line in
-   the colour of the theme (`15babdff8`); the composer panel passes 84 of 84, and
+   the colour of the theme (`a0c206c48`); the composer panel passes 84 of 84, and
    the conversation, its editor, transcript and serialization, and
    `test_assistant_mvp` pass as on main.
 9. **The documents**: `text.md` (the shape, the paths, the flat caret), the
