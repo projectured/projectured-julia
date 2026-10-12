@@ -19,7 +19,28 @@ machine had a load of 50 to 60.
   that it does not compile on the thread of the editor.
 - [x] 2. ClaudeCodeACP 0.1.8 starts `claude` with `MCP_TIMEOUT=120000` unless the
   environment sets it (branch `mcp-timeout`, 290f793; 165 tests pass).
-- [ ] 3. The transcript says "Starting Claude Code…" while the session opens.
+- [x] 3. The transcript says "Starting Claude Code…" while the session opens
+  (a48fafca1): the turn shows at once with that part, leaves the conversation
+  when the session is open, and comes back after the prompt, so a message that
+  the person sends meanwhile stays above the answer; a start that fails leaves
+  no turn. `test_external_agent_turn` 269 of 269.
+
+## The cause, found 2026-10-12
+
+The owner's second try took four minutes to start `claude`, with the machine
+idle, and became fast at once when the owner closed the Assistants tab. The
+elapsed column of that table reads the frame clock of the editor while a turn
+runs, and `compute_wait_timeout` answers `FRAME_INTERVAL` (0.01 s) while any
+cell depends on that clock, so the window redraws without a pause for the whole
+turn. The tasks of the agent (the ACP connection, the readers of `claude`, and
+the HTTP servers, which HTTP.jl starts in the interactive pool, the thread of
+the editor) get only the gaps between those frames. More threads do not help:
+with more than one thread the SDL backend waits in 100 ms slices, and the start
+took 80 s instead of 37 s.
+
+So step 1 aims at a cause that the evidence does not support. Question to the
+owner: replace step 1 by a clock of whole seconds for a label such as the
+elapsed time, which wakes the loop once a second and not on every frame?
 
 ## Not in this plan
 
