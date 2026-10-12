@@ -1,6 +1,6 @@
 # The first turn of an agent starts fast, and says that it starts
 
-> **Status:** in progress (the owner asked for 1, 2 and 3 on 2026-10-12)
+> **Status:** done (landed 2026-10-12, the owner: "works well, land it"); ClaudeCodeACP 0.1.8 is landed in its clone and waits for its push and its registration
 
 ## Goal
 
@@ -18,7 +18,7 @@ machine had a load of 50 to 60.
 - ~~1. A precompile workload covers the path of the first turn of an agent.~~
   Dropped: the cause was not the compilation (see below).
 - [x] 2. ClaudeCodeACP 0.1.8 starts `claude` with `MCP_TIMEOUT=120000` unless the
-  environment sets it (branch `mcp-timeout`, 290f793; 165 tests pass).
+  environment sets it (290f793; 165 tests pass), landed in the clone, not pushed.
 - [x] 4. The tasks of the thread of the editor get their share while the loop
   animates (the owner: option 1, "sounds good", 2026-10-12), and an animation
   draws at most 30 frames a second ("can we aim for 30 frame per second at most
