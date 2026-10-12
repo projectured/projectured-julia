@@ -31,6 +31,29 @@ answers the same two generics as an event, `get_event_time` and
 `get_modifier_keys`, so a reader that takes `Union{Event,Gesture}` treats both
 alike.
 
+### A key that types a character
+
+A key that types a character gives a `KeyPress` after its `KeyDown`, at the down
+of the key and again for each repeat while the key is held. Space types `' '`,
+Return types `'\n'` and Tab types `'\t'`. An input method gives no character for
+Return and Tab, so a backend makes their `KeyPress` itself with
+`find_typed_character`, with the modifiers of the key.
+
+The meaning of such a key reads its `KeyPress`: a rule names `KeyPress('\n')` for
+Return, never `KeyDown(:return)`. The `KeyDown` stays the fact that the key went
+down, and no rule gives it a meaning. A key that types nothing, such as an arrow,
+and a chord, such as Ctrl+S or Ctrl+Space, give their meaning by their `KeyDown`.
+
+No state waits for a `KeyUp`. A rule that took the `KeyDown` and stopped the
+`KeyPress` of the same press would have to remember the press until its up, and
+an up that never arrives, as when the focus goes to another window, would leave
+that state.
+
+A rule that inserts any typed text takes printable text only:
+`when(KeyPress(_, t), !any(iscntrl, t))`. So `'\n'` and `'\t'` reach only a rule
+that names them, and Ctrl+Return, which types `'\n'` with Ctrl, breaks no line
+where only a plain Return does.
+
 ### The three recognitions
 
 `GestureRecognition` is the supertype of a recognition: a pure rule that holds

@@ -63,6 +63,7 @@ Each client message holds `t`: the time of its browser event in milliseconds sin
 | `mousemove` | `MouseMove`: with a button held at once, with no button held at most once per animation frame |
 | `scroll` | `MouseScroll` |
 | `keydown`, `keyup` | `KeyDown`, `KeyUp`, through `convert_web_key_to_symbol` |
+| `keydown` of Enter, Tab | also the `KeyPress` of `'\n'` or `'\t'` after the `KeyDown`; the page prevents both keys, so the browser sends no `keypress` for them |
 | `keypress` | `KeyPress` |
 | `resize`, `close`, `blur` | `WindowResize`, `WindowClose`, `WindowDefocus` |
 | `leave` (the `mouseleave` of a canvas) | `WindowLeave` |

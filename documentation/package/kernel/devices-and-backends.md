@@ -63,7 +63,7 @@ Projection readers only see these events, never SDL-specific structs:
 ```julia
 KeyPress('a'; time = t)                           # character input
 KeyDown(:left, ModifierKeys(); time = t)          # arrow key, no modifiers
-KeyDown(:return, ModifierKeys(ctrl=true); time = t) # Ctrl-Enter
+KeyPress('\n', ModifierKeys(ctrl=true); time = t) # Ctrl+Return: Return types '\n'
 MouseClick(:left, 132, 47; time = t)              # left button at pixel (132, 47)
 MouseMove(120, 90; time = t)                      # cursor moved to (120, 90)
 MouseScroll(0, 1, 200, 300; time = t)             # wheel scrolled (dx, dy) at (200, 300)
@@ -168,7 +168,9 @@ all of the above with SDL2 + SDL_ttf; [sdl.md](../backend/sdl/sdl.md) is its des
 
 - A font measurement cache shared across all windows.
 - `sdl_to_keydown` maps an SDL keysym and the modifier bits to a `KeyDown`, and
-  `sdl_to_keypress` makes a `KeyPress` from an `SDL_TEXTINPUT` event.
+  `sdl_to_keypress` makes a `KeyPress` from an `SDL_TEXTINPUT` event. SDL gives no
+  text input for Return and Tab, so the backend owes their `KeyPress` of `'\n'`
+  and `'\t'` after the `KeyDown`, at each down and each repeat.
 - Mouse events are mapped inline in `take_from_devices!` (there is no
   `sdl_to_mouse` function) to the `Mouse*` structs.
 - The painter walks a `GraphicsCanvas` (and its nested
@@ -731,8 +733,8 @@ Write it in the pattern slot of the rule form that already exists:
 
 ```julia
 @gestures JsonObject begin
-    KeyDown(:tab) => "Move from key to value" => move_to_field(doc; from = :key, to = :value)
-    nothing       => "Move from value to key" => move_to_field(doc; from = :value, to = :key)
+    KeyPress('\t') => "Move from key to value" => move_to_field(doc; from = :key, to = :value)
+    nothing         => "Move from value to key" => move_to_field(doc; from = :value, to = :key)
 end
 ```
 

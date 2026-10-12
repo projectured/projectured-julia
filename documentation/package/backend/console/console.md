@@ -47,13 +47,13 @@ The backend has no text measure: a console pipeline ends in `TextBlock` and neve
 | `ESC [ 2 ~`, `3 ~`, `5 ~`, `6 ~` | `KeyDown` of `:insert`, `:delete`, `:page_up`, `:page_down` |
 | `ESC [ P` to `S`, `ESC [ 11 ~` to `ESC [ 24 ~` | `KeyDown` of `:f1` to `:f12` |
 | `ESC O` and a letter of the rows above | the same key as `ESC [` and that letter |
-| `ESC [ Z` | `KeyDown(:tab)` with Shift |
+| `ESC [ Z` | `KeyPress('\t')` with Shift |
 | `ESC [ 1 ; m X`, `ESC [ n ; m ~` | the key of `X` or of `n`, with the modifiers of `m` |
 | a lone ESC | `KeyDown(:escape)` |
 | ESC and another key | that key with Alt |
-| CR, LF | `KeyDown(:return)` |
+| CR, LF | `KeyPress('\n')` |
 | DEL, BS | `KeyDown(:backspace)` |
-| TAB | `KeyDown(:tab)` |
+| TAB | `KeyPress('\t')` |
 | NUL | `KeyDown(:space)` with Ctrl |
 | Ctrl+C | `WindowQuit()` |
 | another byte of Ctrl+A to Ctrl+Z, 0x01 to 0x1A | `KeyDown` of `:a` to `:z` with Ctrl |

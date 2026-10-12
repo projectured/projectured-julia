@@ -63,6 +63,7 @@ Each shape of `POINTER_SHAPES` but the open hand and the closed hand has a curso
 | SDL event | Event |
 | --- | --- |
 | `SDL_KEYDOWN`, `SDL_KEYUP` | `KeyDown`, `KeyUp`, through `sdl_keysym_to_symbol` |
+| `SDL_KEYDOWN` of Return, keypad Enter, Tab | also the `KeyPress` of `'\n'` or `'\t'` after the `KeyDown`, owed in `pending_inputs` |
 | `SDL_TEXTINPUT` | `KeyPress`, through `sdl_to_keypress` |
 | mouse button down, up | `MouseDown`, `MouseUp` |
 | mouse motion | `MouseMove`, coalesced |
