@@ -3757,6 +3757,10 @@ const _JULIA_WAIT_LIMIT_SECONDS = 0.1
 # ends the wait within one step.
 const _JULIA_WAIT_STEP_SECONDS = 0.001
 
+# The longest wait before the read that a frame which changed the display owes:
+# one frame of an animation, 30 frames a second.
+const _DISPLAY_UPDATE_WAIT_SECONDS = 1 / 30
+
 # Block until the SDL queue holds an event or `milliseconds` pass, without
 # removing anything: the NULL event pointer is SDL's look-only form, so
 # everything stays queued for `run_read_stage!`. Must run on the thread that
@@ -3782,7 +3786,8 @@ _has_queued_event() = (@ccall LibSDL2.libsdl2.SDL_PollEvent(C_NULL::Ptr{Cvoid}):
 Block until the SDL queue holds an event, [`wake_backend!`](@ref) pushes the
 wake event, or `timeout_seconds` passes. The queue is only looked at, never
 read: everything stays for `run_read_stage!`. An event this backend already owes
-(`pending_input`) ends the wait before it starts, and a held motion sample
+(`pending_input`) ends the wait before it starts, the read that a changed display
+owes (`display_updates`) comes within 1/30 s, and a held motion sample
 caps the timeout at the rest of its rate-limit interval, so the last sample
 of a pointer that stopped is delivered on time.
 
@@ -3795,9 +3800,13 @@ ends it at once.
 """
 function BackendModule.wait_for_input(backend::SdlBackend, devices, timeout_seconds)
     backend.pending_input === nothing || return nothing
-    isempty(backend.display_updates) || return nothing
     backend.system_colors_change === nothing || return nothing
     timeout = Float64(timeout_seconds)
+    # The read that a changed display owes comes within one frame of an
+    # animation, and not at once: an animation changes the display in each
+    # frame, and a read at once would draw the frames back to back, with no
+    # turn for the tasks of this thread.
+    isempty(backend.display_updates) || (timeout = min(timeout, _DISPLAY_UPDATE_WAIT_SECONDS))
     if backend.pending_motion !== nothing
         remaining = _HOVER_MOTION_INTERVAL - (time() - backend.last_hover_motion)
         remaining <= 0 && return nothing
