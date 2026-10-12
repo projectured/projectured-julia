@@ -1,9 +1,9 @@
 # Return and Tab give a KeyPress
 
-> **Kind:** plan · **Status:** built, 2026-10-12, on the branch
-> `return-keypress` (worktree `projectured-julia-return-keypress`); the landing
-> waits for the owner. The owner
-> decided the rule on 2026-10-12 (§1). No question is open. ·
+> **Kind:** plan · **Status:** done, 2026-10-13. The owner decided the rule on
+> 2026-10-12 (§1) and approved the landing on 2026-10-13 ("land them"). §5 holds the
+> steps: all of them landed on main on 2026-10-13, with step 6 in omnet-julia and
+> inet-julia at the same time. No question is open. ·
 > **Stands on:** [gesture.md](../../documentation/package/kernel/gesture.md),
 > [devices-and-backends.md](../../documentation/package/kernel/devices-and-backends.md),
 > [a-text-block-holds-only-lines.md](../done/a-text-block-holds-only-lines.md)
