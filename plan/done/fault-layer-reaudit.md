@@ -194,7 +194,7 @@ The decisions are C for L01-1, A for L01-2, A for L01-12, and A for A-4.
     log in the seam: `FaultSafeModeProjection` answers `append_fault!` by putting
     the record in its log. The test of the seam default moved to
     `test_editor_fault_barriers`. T-2 came with it.
-- [ ] 4. The fault tests, the cell example test, and the guards. Then the audit of
+- [x] 4. The fault tests, the cell example test, and the guards. Then the audit of
   the changed files again, and the seal on the owner's word.
   - [x] The tests and the guards pass on the branch rebased on main 42e600339:
     the fault suites 9, 13, 67, 24 and 28, the two walkthroughs, the editor
@@ -211,8 +211,9 @@ The decisions are C for L01-1, A for L01-2, A for L01-12, and A for A-4.
     the docstring of `report_fault!`: a `policy` that is not a `FaultPolicy`
     throws a `TypeError` at the call. The survey finds no export without a test
     and none that the guide does not name.
-  - [ ] The seal, when the owner says so. Its commit names the accepted gaps: the
-    seven keywords of `run_fault_barrier!` (2026-09-24) and B-6.
+  - [x] The seal. The owner, 2026-10-12: "I reviewed it, you can seal it". The seal
+    commit names the accepted gaps: the seven keywords of `run_fault_barrier!`
+    (2026-09-24) and B-6.
 
 ## The second audit
 
