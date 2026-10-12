@@ -3,6 +3,14 @@
 # F3 and Shift+F3 in the order of a sort, the × of the field, and Ctrl+F in an
 # entry that has no find.
 
+# The event that a key gives its meaning by: the KeyPress of the character it
+# types, or its KeyDown.
+function _arrangement_key_event(key, modifiers)
+    character = find_typed_character(key)
+    character === nothing ? KeyDown(key, modifiers; time = 0.0) :
+                            KeyPress(character, modifiers; time = 0.0)
+end
+
 function test_arrangement_find()
 @testset "find moves the selection to the next item that holds its text" begin
     names = ["pear", "apple", "fig", "grape", "papaya"]
@@ -26,7 +34,8 @@ function test_arrangement_find()
         tab = only(editor.document.root.tabs)
         frame!() = (drain_operations!(editor); run_frame!(editor))
         key!(key; ctrl = false, shift = false) =
-            (_arrangement_press!(editor, backend, (character = find_typed_character(key)) === nothing ? KeyDown(key, ModifierKeys(; ctrl, shift); time = 0.0) : KeyPress(character, ModifierKeys(; ctrl, shift); time = 0.0)); frame!())
+            (_arrangement_press!(editor, backend,
+                                 _arrangement_key_event(key, ModifierKeys(; ctrl, shift))); frame!())
         # The item that the selection names, by its index in the source.
         function selected()
             steps = get_reference_steps(strip_reference_types(editor.document.selection))

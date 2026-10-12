@@ -5,6 +5,14 @@
 
 import ProjecturedKernel.EditorModule: read_rooted_operation, drain_operations!
 
+# The event that a key gives its meaning by: the KeyPress of the character it
+# types, or its KeyDown.
+function _dfrw_key_event(key, modifiers)
+    character = find_typed_character(key)
+    character === nothing ? KeyDown(key, modifiers; time = 0.0) :
+                            KeyPress(character, modifiers; time = 0.0)
+end
+
 function test_data_frame_row_page()
 @testset "the page of a row" begin
     make_frame() = DataFrame(id = [101, 102, 103], name = ["a", "b", "c"])
@@ -27,7 +35,7 @@ function test_data_frame_row_page()
     shows(editor, text) = any(t -> t[3] == text, texts(editor))
     input(editor, event) = WindowInput(window(editor).id, event)
     press!(editor, backend, event) = (push!(backend.events, input(editor, event)); run_frame!(editor))
-    key(k; ctrl = false) = (character = find_typed_character(k)) === nothing ? KeyDown(k, ModifierKeys(; ctrl); time = 0.0) : KeyPress(character, ModifierKeys(; ctrl); time = 0.0)
+    key(k; ctrl = false) = _dfrw_key_event(k, ModifierKeys(; ctrl))
     # The header of row `r`: the lowest drawn text `string(r)`, below the corner.
     function header(editor, r)
         (x, y) = last(sort([(t[1], t[2]) for t in texts(editor) if t[3] == string(r)]; by = last))

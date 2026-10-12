@@ -1,3 +1,11 @@
+# The event that a key gives its meaning by: the KeyPress of the character it
+# types, or its KeyDown.
+function _ttg_key_event(key, modifiers)
+    character = find_typed_character(key)
+    character === nothing ? KeyDown(key, modifiers; time = 0.0) :
+                            KeyPress(character, modifiers; time = 0.0)
+end
+
 function test_text_to_graphics()
 _test_measure(cw, lh) = FixedMeasure(cw, lh - lh÷4, lh÷4, 0)
 
@@ -193,7 +201,7 @@ iomap = print_document(p, IdentityProjection(), block, PrinterContext())
 printed = computed[]
 @test printed <= 1
 for key in (:up, :down, :home, :end, :return)
-    @test read_intent(p, iomap, (character = find_typed_character(key)) === nothing ? KeyDown(key, ModifierKeys(); time = 0.0) : KeyPress(character, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(p, iomap, _ttg_key_event(key, ModifierKeys())) === nothing
 end
 @test computed[] == printed
 

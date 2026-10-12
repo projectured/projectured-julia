@@ -13,6 +13,14 @@ using ProjecturedPlatform.CollectionModule: ListNode
 # column is its header and an equal share of what is left; narrow, each keeps
 # its header, and the cells are wider than their viewport, which the table
 # scrolls.
+# The event that a key gives its meaning by: the KeyPress of the character it
+# types, or its KeyDown.
+function _wtp_key_event(key, modifiers)
+    character = find_typed_character(key)
+    character === nothing ? KeyDown(key, modifiers; time = 0.0) :
+                            KeyPress(character, modifiers; time = 0.0)
+end
+
 function test_widget_table_list_header_floor()
 @testset "a weighted column is at least as wide as its header" begin
     det = FixedMeasure(8, 12, 4, 0)
@@ -512,7 +520,7 @@ end
 @testset "keys move a selected column, and go between a column and its cells" begin
     table = make_table(make_list(5, texts_of))
     io = print_document(rec, nothing, table, context())
-    key(name; kw...) = read(io, (character = find_typed_character(name)) === nothing ? KeyDown(name, ModifierKeys(; kw...); time = 0.0) : KeyPress(character, ModifierKeys(; kw...); time = 0.0))
+    key(name; kw...) = read(io, _wtp_key_event(name, ModifierKeys(; kw...)))
     column(c) = ConcreteReference(FieldReferenceStep("columns"),
                     ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))
     getfield(table, :selection)[] = column(1)
@@ -945,7 +953,7 @@ end
            Any[Any[texts_of(i, 1), texts_of(i, 2)] for i in 1:5]
     table = make_table(rows; open_cells = Any[(row = 2, column = 1, reason = nothing)])
     io = print_document(rec, nothing, table, context())
-    key(name; kw...) = read(io, (character = find_typed_character(name)) === nothing ? KeyDown(name, ModifierKeys(; kw...); time = 0.0) : KeyPress(character, ModifierKeys(; kw...); time = 0.0))
+    key(name; kw...) = read(io, _wtp_key_event(name, ModifierKeys(; kw...)))
     getfield(table, :selection)[] = cell_reference(2, 1)
     commit = key(:return)
     @test commit isa CommitTableCellOperation && commit.table === table

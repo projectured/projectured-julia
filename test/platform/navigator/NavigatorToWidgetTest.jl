@@ -10,6 +10,14 @@ import ProjecturedKernel.DeviceModule: Device, Keyboard, Mouse, Display
 _nav_natural() = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
 
 # An editor whose document is `document`, after its first frame.
+# The event that a key gives its meaning by: the KeyPress of the character it
+# types, or its KeyDown.
+function _nav_widget_key_event(key, modifiers)
+    character = find_typed_character(key)
+    character === nothing ? KeyDown(key, modifiers; time = 0.0) :
+                            KeyPress(character, modifiers; time = 0.0)
+end
+
 function _nav_editor(document; tabs = false, keywords...)
     backend = HeadlessBackend()
     editor = build_editor(document, _nav_natural(); backend,
@@ -58,7 +66,7 @@ const _NAV_PARENT = string(Char(0xe04a))
 _nav_press!(editor, backend, events...) =
     (foreach(event -> push_event!(backend, event), events); run_frame!(editor))
 
-_nav_key(key) = (character = find_typed_character(key)) === nothing ? KeyDown(key, ModifierKeys(ctrl = true); time = 0.0) : KeyPress(character, ModifierKeys(ctrl = true); time = 0.0)
+_nav_key(key) = _nav_widget_key_event(key, ModifierKeys(ctrl = true))
 
 # A click on the first text `text` that the frame draws.
 function _nav_click(backend, text)

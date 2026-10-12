@@ -15,6 +15,14 @@ mutable struct _EvaluatorToplevelMockEditor; document::Any; tools::ToolSet; end
 _et_flatten(t::TextBlock) = get_flat_string(t)
 _et_flatten(d) = String(strip(print_natural_text(d)))
 
+# The event that a key gives its meaning by: the KeyPress of the character it
+# types, or its KeyDown.
+function _evt_key_event(key, modifiers)
+    character = find_typed_character(key)
+    character === nothing ? KeyDown(key, modifiers; time = 0.0) :
+                            KeyPress(character, modifiers; time = 0.0)
+end
+
 function test_evaluator_toplevel()
 @testset "the evaluator toplevel is a persistent REPL" begin
 
@@ -441,7 +449,7 @@ function history_session(codes...; parse = true, structured = false)
     toplevel.type_structured_forms = structured
     ed = editor(toplevel)
     type!(text) = evaluate_operation(ed, ReplaceStringRangeOperation(toplevel.selection, text))
-    press!(key; modifiers...) = (op = read_gesture(toplevel, (character = find_typed_character(key)) === nothing ? KeyDown(key, ModifierKeys(; modifiers...); time = 0.0) : KeyPress(character, ModifierKeys(; modifiers...); time = 0.0));
+    press!(key; modifiers...) = (op = read_gesture(toplevel, _evt_key_event(key, ModifierKeys(; modifiers...)));
                    op === nothing || evaluate_operation(ed, op); op)
     shown() = toplevel.elements[length(toplevel.elements)].form.value
     caret() = last(get_reference_steps(strip_reference_types(toplevel.selection)))

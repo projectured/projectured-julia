@@ -83,8 +83,13 @@ function _nav_open_book_choices()
     (shelf, navigator, editor, backend, main.id)
 end
 
-_nav_key_down(key; time) =
-    (character = find_typed_character(key)) === nothing ? KeyDown(key, ModifierKeys(); time) : KeyPress(character, ModifierKeys(); time)
+# The event that a key gives its meaning by: the KeyPress of the character it
+# types, or its KeyDown.
+function _nav_key_down(key; time)
+    character = find_typed_character(key)
+    character === nothing ? KeyDown(key, ModifierKeys(); time) :
+                            KeyPress(character, ModifierKeys(); time)
+end
 
 function test_navigator_choices()
 @testset "Navigator choices" begin

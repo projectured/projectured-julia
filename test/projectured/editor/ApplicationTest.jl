@@ -9,6 +9,14 @@ using Test
 # `evaluate_operation` reads `document` and `iomap` of an editor.
 mutable struct _AppFakeEditor; document::Any; iomap::Any; end
 
+# The event that a key gives its meaning by: the KeyPress of the character it
+# types, or its KeyDown.
+function _app_key_event(key, modifiers)
+    character = find_typed_character(key)
+    character === nothing ? KeyDown(key, modifiers; time = 0.0) :
+                            KeyPress(character, modifiers; time = 0.0)
+end
+
 function _app_fire(composed, iomap, event)
     change = read_intent(composed, nothing, Intent(WindowInput(:ProjecturEd, event)), iomap)
     change isa Intent ? change.operation : change
@@ -1079,7 +1087,7 @@ function test_application()
                     operation isa Operation && evaluate_operation(editor, operation)
                     operation
                 end
-                key(name; modifiers...) = (character = find_typed_character(name)) === nothing ? KeyDown(name, ModifierKeys(; modifiers...); time = 0.0) : KeyPress(character, ModifierKeys(; modifiers...); time = 0.0)
+                key(name; modifiers...) = _app_key_event(name, ModifierKeys(; modifiers...))
                 type!(text) = foreach(character -> press!(KeyPress(character; time = 0.0)), text)
                 toolbar = only(search_documents(document, node -> node isa WidgetToolbar))
                 button = only(item for item in toolbar.elements
@@ -1297,7 +1305,7 @@ function test_application()
                     fire!(MouseUp(:left, x, y, modifiers; time = 0.0))
                     fire!(MouseClick(:left, x, y, 1, modifiers; time = 0.0))
                 end
-                key!(name; modifiers...) = fire!((character = find_typed_character(name)) === nothing ? KeyDown(name, ModifierKeys(; modifiers...); time = 0.0) : KeyPress(character, ModifierKeys(; modifiers...); time = 0.0))
+                key!(name; modifiers...) = fire!(_app_key_event(name, ModifierKeys(; modifiers...)))
                 type!(text) = foreach(character -> fire!(KeyPress(character; time = 0.0)), text)
                 content() = get_iomap_output(editor.iomap).windows[1].content
                 drawn() = _app_drawn_at(content())

@@ -20,6 +20,14 @@ _ti_renderers() = (("the text domain", () -> NaturalToGraphics(measure = FontFil
 
 # An editor on `document` with no window and no feature of a window, after its
 # first frame.
+# The event that a key gives its meaning by: the KeyPress of the character it
+# types, or its KeyDown.
+function _ti_key_event(key, modifiers)
+    character = find_typed_character(key)
+    character === nothing ? KeyDown(key, modifiers; time = 0.0) :
+                            KeyPress(character, modifiers; time = 0.0)
+end
+
 function _ti_editor(document; projection = NaturalToGraphics(measure = FontFileMeasure()), keywords...)
     backend = HeadlessBackend()
     editor = build_editor(document, projection;
@@ -34,7 +42,7 @@ _ti_press!(editor, backend, events...) =
     (foreach(event -> push_event!(backend, event), events); run_frame!(editor))
 
 _ti_key(character) = KeyPress(character; time = 0.0)
-_ti_down(key; ctrl = false) = (character = find_typed_character(key)) === nothing ? KeyDown(key, ModifierKeys(ctrl = ctrl); time = 0.0) : KeyPress(character, ModifierKeys(ctrl = ctrl); time = 0.0)
+_ti_down(key; ctrl = false) = _ti_key_event(key, ModifierKeys(ctrl = ctrl))
 
 # The caret at `k` in the value of the first element of a list, after `prefix`.
 _ti_caret(k; prefix = ()) =

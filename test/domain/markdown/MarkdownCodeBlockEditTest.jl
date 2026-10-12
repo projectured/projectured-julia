@@ -10,6 +10,14 @@ projection = ChainingProjection(RecursiveProjection(MarkdownToSyntax()),
 document = MarkdownRoot([MarkdownCodeBlock("julia", "ab\ncd")])
 
 # Every canvas of a graphics output, so the printer computes the layout.
+# The event that a key gives its meaning by: the KeyPress of the character it
+# types, or its KeyDown.
+function _code_block_key_event(key, modifiers)
+    character = find_typed_character(key)
+    character === nothing ? KeyDown(key, modifiers; time = 0.0) :
+                            KeyPress(character, modifiers; time = 0.0)
+end
+
 function _force_layout(node)
     if node isa GraphicsCanvas
         foreach(_force_layout, node.elements)
@@ -24,7 +32,7 @@ function press!(selection, key)
     set_selection!(document, selection)
     iomap = print_document(projection, document)
     _force_layout(iomap.output)
-    op = read_intent(projection, iomap, (character = find_typed_character(key)) === nothing ? KeyDown(key, ModifierKeys(); time = 0.0) : KeyPress(character, ModifierKeys(); time = 0.0))
+    op = read_intent(projection, iomap, _code_block_key_event(key, ModifierKeys()))
     op === nothing || evaluate_operation((document = document,), op)
     op
 end
