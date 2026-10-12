@@ -110,6 +110,27 @@ skips every callee identifier.
 
 ## 5. The steps
 
+**The gallery follows each step** (asked by the owner, 2026-10-12). Each step that adds or changes
+a feature adds it to the formula example of the gallery in the same step, so a person can try it
+in the REPL (`test_repl(formula_example)`) and in the gallery. The example is `formula_example`
+in `example/projectured/DomainExamples.jl`, built by `make_formula_document_example`. When the
+plan is done, its sheet holds:
+
+| Formula | What it shows |
+| --- | --- |
+| `A = 42`, `B = 13`, `C = A + B` | a reference by name, and a change of `A` that computes `C` again |
+| `V = [1, 2, 3]`, `W = V .* A` | a value that is not a number (D4) |
+| `F = x -> x^2`, `G = F(3)` | a function value, and a callee that is a dependency |
+| `S = sum(x -> x * A, 1:3)` | a local name `x` that is not a dependency (D6) |
+| `D = \frac{C}{2}`, in math notation | a math formula that refers to a Julia formula (D8) |
+| `E = A + Z` | a name that resolves to nothing, which shows as an error |
+| `H = 2 * K` and `K = H + 1` | a cycle, which shows `#CYCLE!` |
+
+`test_example(formula_example)` passes after each step: the printer, the reader and the position
+navigation. The atomic documents of the catalog follow too: the `reference` entry goes with Step 3.
+The scope-wins rule (D7) gets a test of its own and no formula in the gallery sheet, because a
+formula named `pi` would make every other `pi` of the sheet mean it.
+
 - [ ] **Step 1: the walk of free names.** `get_formula_names` skips the names that D6 lists, and
   counts a callee that resolves in the scope (the consequence of D4 and D7). Tests for each kind
   of local binding and for a function value.
@@ -124,7 +145,8 @@ skips every callee identifier.
   resolves in the scope in the reference style, and a click on it selects its definition. The
   projection prints the environment and its formulas, so it gives the Julia projection the set of
   names of the scope through the printer context, and reads no other projection.
-- [ ] **Step 5: the rename operation** of D3, as one compound operation with one inverse.
+- [ ] **Step 5: the rename operation** of D3, as one compound operation with one inverse, and
+  a gesture for it that a person can try on the name of a formula in the gallery.
 - [ ] **Step 6: the strict Julia fields.** Step 4 of
   [strict-document-types.md](strict-document-types.md) then narrows every Julia field to
   `JuliaDocument`, and every list to `CellVector{JuliaDocument}`.
