@@ -1,9 +1,9 @@
 # Fragment of `TextModule`.
 #
-# Text → Graphics projection. Pure layout pass: arranges already-wrapped spans
-# left-to-right and breaks the line at a `TextLine` element, at an explicit
-# `TextNewline` element, or at an embedded `\\n` character. Word wrapping itself
-# lives in `WordWrapping`, inserted upstream of `TextToGraphics` in the pipeline.
+# Text → Graphics projection. Pure layout pass: arranges the spans of each
+# `TextLine` left-to-right, a row for each line and a row after each soft break
+# of the line. Word wrapping itself lives in `WordWrapping`, which sets the soft
+# breaks upstream of `TextToGraphics` in the pipeline.
 #
 # A coordinate table in the IoMap records the character range and pixel
 # position of each emitted segment. The reader uses it for keyboard navigation
@@ -17,8 +17,8 @@
     SegmentCoordinate(span_path, char_start, char_end, x, y, font, text, width, height)
 
 One entry per emitted text segment. `span_path` is the segment's span as an index
-path into the input `TextBlock` (a `SpanPath`): `[i]` for a top-level span, `[i, j]`
-for span `j` of the `TextLine` at element `i`. `char_start`/`char_end` are
+path into the input `TextBlock` (a `SpanPath`): `[i, j]` for span `j` of the
+`TextLine` at element `i`. `char_start`/`char_end` are
 0-based offsets local to that span (exclusive end). `x` is the left edge of the
 segment and `width` its width. `y` and `height` are the line box of the visual
 line the segment is on: every segment of one line has the same `y`, and the
@@ -133,11 +133,7 @@ function map_reference_forward(p::TextToGraphics, iomap, reference)
     reference isa Reference || return nothing
     reference = strip_reference_types(reference)
     reference isa EmptyReference && return EmptyReference()
-    if iomap.input.elements isa ListNode
-        head = iomap.input.elements::ListNode
-        return head.value isa TextLine ? _map_list_lines_forward(p, iomap, reference) :
-                                         _map_list_text_forward(p, iomap, reference)
-    end
+    iomap.input.elements isa ListNode && return _map_list_lines_forward(p, iomap, reference)
     range = _find_text_forward_range(iomap.input, reference)
     range === nothing && return nothing
     start, stop, space = range
@@ -339,9 +335,9 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     declined === nothing || return nothing
 
     styled = iomap.input
-    # A block whose elements are a list is drawn paragraph by paragraph and keeps
-    # no line geometry, so no key moves along its lines. The list can be endless,
-    # so it is not walked either.
+    # A block whose elements are a lazy list is drawn line by line and keeps no
+    # geometry of the whole, so no key moves along its lines. The list can be
+    # endless, so it is not walked either.
     styled.elements isa ListNode && return nothing
     _has_caret_span(styled) || return nothing
 
@@ -427,10 +423,9 @@ end
     print_document(p::TextToGraphics, styled::TextBlock) -> Cell{Vector{GraphicsText}}
 
 Lay an already-wrapped `TextBlock` out into reactive `GraphicsText` primitives.
-Lines advance left-to-right; the line breaks come from `TextNewline` elements
-and from `\\n` characters embedded in `TextString` content. The wrap itself —
-splitting at word boundaries when text would overflow — is the job of
-`WordWrapping` upstream.
+Lines advance left-to-right; each `TextLine` starts a row, and so does each of
+its soft breaks. The wrap itself — finding the word boundaries where text would
+overflow — is the job of `WordWrapping` upstream.
 
 The returned `Cell` holds a `Vector{GraphicsText}`. Its thunk reads every
 relevant cell in the `TextBlock`, so any value or structural change
@@ -441,14 +436,14 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # cells, says so in the context.
     spacing = ctx === nothing ? nothing : get_property(ctx, :line_spacing, nothing)
     spacing === nothing || (p = _with_line_spacing(p, spacing))
-    # ListNode path: lazy paragraph-level mapping
+    # A lazy list of lines: a lazy list of line canvases
     if styled.elements isa ListNode
         return _print_listnode(p, styled, ctx)
     end
     # Per-line decomposition (printer locality — dimension B). The output is a
-    # vertical stack of one reactive sub-canvas per visual line, where lines are
-    # split at `TextNewline` *elements* — a structural boundary that never reads
-    # span content. Each line's sub-canvas lays out only that line's spans, so a
+    # vertical stack of one reactive sub-canvas per `TextLine` — a structural
+    # boundary that never reads span content. Each line's sub-canvas lays out only
+    # that line's spans, so a
     # content edit invalidates just the edited line's cells (and, via the y-offset
     # height chain, the lines below it). The backend dirty-rectangle pass then
     # repaints only the edited line instead of the whole block.
@@ -457,11 +452,6 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # the line grouping (structure), so a content edit leaves it up to date and the
     # dirty walk descends into it to find just the edited line stale. Editing the
     # last line moves nothing below it, so its dirty rect is tight.
-    #
-    # Embedded '\n' inside a span (e.g. SyntaxToText emits `TextString("\n")`
-    # separators and no `TextNewline` elements) collapses into one big line group,
-    # which stays whole-block dirty exactly as before — no regression for those
-    # pipelines (already non-local via SyntaxToText flattening).
     #
     # The caret/highlight stay a single selection-driven `overlay`, laid out in
     # absolute coordinates over the whole stack, so a pure caret move still
@@ -719,15 +709,10 @@ function _make_span_shape_regions(text::TextBlock, coordinates)
 end
 
 _has_span_shape(text::TextBlock) =
-    any(element -> element isa TextString ? element.pointer_shape !== nothing :
-                   element isa TextLine && any(span -> span isa TextString && span.pointer_shape !== nothing,
-                                                element.elements),
+    any(line -> any(span -> span isa TextString && span.pointer_shape !== nothing, line.elements),
         text.elements)
 
-function _find_segment_span(text::TextBlock, path::SpanPath)
-    element = text.elements[path[1]]
-    length(path) == 1 ? element : element.elements[path[2]]
-end
+_find_segment_span(text::TextBlock, path::SpanPath) = text.elements[path[1]].elements[path[2]]
 
 # ── Line grouping ─────────────────────────────────────────────────────────────
 #
@@ -735,81 +720,33 @@ end
 # so the rendered lines and the caret/highlight overlay can never disagree about
 # where a span sits.
 #
-# A group is one visual line: the spans that render on it (each tagged with its
-# `SpanPath`, so a span inside a `TextLine` addresses `[i, j]`), the `indentation`
-# it opens with, the `TextNewline` element that terminates it (or `nothing`),
-# whether an implicit line break precedes it, `line`, the index of the `TextLine`
-# element that it lays out, or 0, and `soft_breaks`, the cell of the soft breaks of
-# that line, or `nothing`. The cell is not read here: the layout of the line reads
-# it, so a new wrap lays out only its line.
+# A group is one `TextLine`: the spans that render on it, each tagged with its
+# `SpanPath` `[i, j]`, the `indentation` it opens with, whether the break before a
+# line precedes it, `line`, the index of the line, and `soft_breaks`, the cell of
+# the soft breaks of that line. The cell is not read here: the layout of the line
+# reads it, so a new wrap lays out only its line. A line implies a break *before*
+# itself unless it leads the block — the separator rule of `get_flat_offsets` and
+# `TextBlockToString`, so `n` lines render with `n-1` breaks. A block with no line
+# has one empty group that is no line, `line` 0: it adds no height.
 #
-# Lines arrive by two mechanisms and the grouping honours both:
-#   • a `TextNewline` *element* terminates the current line;
-#   • a `TextLine` element carries a line of its own and implies a break *before*
-#     itself unless it leads the block — the separator rule of `get_flat_offsets`
-#     and `TextBlockToString`, so `n` lines render with `n-1` breaks.
-# `is_line` marks the second kind: only such a line, when empty, still occupies a
-# row. The empty group a trailing `TextNewline` leaves behind must not, or every
-# newline-terminated block would grow a phantom blank line.
-#
-# Block-level spans that follow a `TextLine` join the line it opened (a block is
-# meant to hold either spans or lines; a mixed one degrades, it does not error).
-#
-# A span's `.content` is never read here — only the element structure, the element
-# types and a line's indentation — so the grouping survives content edits
-# untouched, which is what keeps a line's layout local to that line.
+# A span's `.content` is never read here — only the lines, their spans and their
+# indentation — so the grouping survives content edits untouched, which is what
+# keeps a line's layout local to that line.
 function _line_groups(styled::TextBlock)
     groups = NamedTuple[]
-    spans = Tuple{SpanPath,Any}[]
-    indentation = 0
-    break_before = false
-    is_line = false
-    line = 0
-    soft_breaks = nothing
-    for (i, element) in enumerate(styled.elements)
-        if element isa TextNewline
-            push!(groups, (spans = spans, newline = element, indentation = indentation,
-                           break_before = break_before, is_line = is_line, line = line,
-                           soft_breaks = soft_breaks))
-            spans = Tuple{SpanPath,Any}[]
-            indentation = 0
-            break_before = false
-            is_line = false
-            line = 0
-            soft_breaks = nothing
-        elseif element isa TextLine
-            if i > 1
-                push!(groups, (spans = spans, newline = nothing, indentation = indentation,
-                               break_before = break_before, is_line = is_line, line = line,
-                               soft_breaks = soft_breaks))
-                spans = Tuple{SpanPath,Any}[]
-            end
-            indentation = element.indentation
-            break_before = i > 1
-            is_line = true
-            line = i
-            soft_breaks = getfield(element, :soft_breaks)
-            for (j, span) in enumerate(element.elements)
-                push!(spans, (Int[i, j], span))
-            end
-        else
-            push!(spans, (Int[i], element))
-        end
+    for (i, line) in enumerate(styled.elements)
+        push!(groups, (spans = Tuple{SpanPath,Any}[(Int[i, j], span) for (j, span) in enumerate(line.elements)],
+                       indentation = line.indentation, break_before = i > 1, is_line = true, line = i,
+                       soft_breaks = getfield(line, :soft_breaks)))
     end
-    push!(groups, (spans = spans, newline = nothing, indentation = indentation,
-                   break_before = break_before, is_line = is_line, line = line,
-                   soft_breaks = soft_breaks))
+    isempty(groups) && push!(groups, (spans = Tuple{SpanPath,Any}[], indentation = 0, break_before = false,
+                                      is_line = false, line = 0, soft_breaks = nothing))
     groups
 end
 
-# The `TextLine` that `group` lays out, when the group holds the spans of that line
-# only, or `nothing`.
-function _find_group_line(styled::TextBlock, group)
-    (group.is_line && group.line > 0) || return nothing
-    all(entry -> length(entry[1]) == 2, group.spans) || return nothing
-    line = styled.elements[group.line]
-    line isa TextLine ? line : nothing
-end
+# The `TextLine` that `group` lays out, or `nothing` for the group of a block with
+# no line.
+_find_group_line(styled::TextBlock, group) = group.line > 0 ? styled.elements[group.line] : nothing
 
 # ── Layout engine (wrap-free) ─────────────────────────────────────────────────
 
@@ -882,92 +819,69 @@ function _layout_group(p::TextToGraphics, group, y0::Int, cursor_pos,
         span isa TextString || continue
         span_oid = objectid(span)
         span_occ = (occ[span_oid] = get(occ, span_oid, 0) + 1)
-        char_offset = 0                                 # local offset within this span
         txt = span.content::AbstractString               # reads span content cell
         sf  = span.font::StyleFont                       # reads span font cell
         col = span.font_color::StyleColor                # reads span font_color cell
         last_font = sf
 
-        for (li, line) in enumerate(split(txt, '\n'))
-            # Hard newline embedded in the span content.
-            if li > 1
-                # caret BEFORE the '\n' (char_offset still points at it)
-                is_caret_at(path, char_offset) && (g.caret = (round(Int, g.pen), sf))
-                # A line with no glyph yet takes the height of the span's font.
-                _close_line!(g, p, sf, true, collect_spans)
-                g.pen = Float64(p.start_x)
-                char_offset += 1           # count the '\n'
-                # caret AFTER the '\n' — now at the start of the next line
-                is_caret_at(path, char_offset) && (g.caret = (round(Int, g.pen), sf))
-            end
+        # An empty span draws no glyph, but it has a place: a zero-width coordinate
+        # where a caret on it stands, so a key moves the caret onto the line and
+        # off it. A caret there has no glyph to stand against, so it takes the font
+        # of the span. One on a line that draws a glyph is dropped below.
+        if isempty(txt)
+            is_caret_at(path, 0) && (g.caret = (round(Int, g.pen), sf))
+            push!(g.pieces, (kind = :place, path = path, char = 0, x = round(Int, g.pen), font = sf))
+            continue
+        end
 
-            # An empty first sub-line is an empty span, or one that starts with
-            # '\n'. A caret at its start has no glyph to stand against, so it
-            # takes the font of the span.
-            if isempty(line)
-                li == 1 && is_caret_at(path, char_offset) && (g.caret = (round(Int, g.pen), sf))
-                # An empty line draws no glyph, but it has a place: a zero-width
-                # coordinate where a caret on it stands, so a key moves the caret
-                # onto the line and off it. One on a line that draws a glyph is
-                # dropped below.
-                push!(g.pieces, (kind = :place, path = path, char = char_offset,
-                                 x = round(Int, g.pen), font = sf))
-                continue
-            end
-
-            # Emit the sub-line as one segment for each row it is on, at the rounded
-            # real pen position, so a long line of many runs does not drift. A soft
-            # break inside it, or at its start, starts a row there.
-            seg_len = length(line)
-            sub_start = span_base + char_offset
-            cuts = Int[b - sub_start for b in soft_breaks if sub_start <= b < sub_start + seg_len]
-            (isempty(cuts) || cuts[1] != 0) && pushfirst!(cuts, 0)
-            push!(cuts, seg_len)
-            characters = collect(line)
-            for k in 1:(length(cuts) - 1)
-                piece_start, piece_end = cuts[k], cuts[k + 1]
-                (sub_start + piece_start) in soft_breaks && !isempty(g.boxes) && break_row!(sf)
-                piece = String(characters[(piece_start + 1):piece_end])
-                box = measure_string(p.measure, piece, sf)
-                _, ascent, descent = compute_text_extent(box)
-                x = round(Int, g.pen)
-                g.pen += box.width
-                width = round(Int, g.pen) - x
-                push!(g.boxes, FontMetrics(box.ascent, box.descent, box.line_gap))
-                g.ink_descent = max(g.ink_descent, descent)
-                key = k == 1 ? (span_oid, span_occ, li) : (span_oid, span_occ, li, k)
-                start, stop = char_offset + piece_start, char_offset + piece_end
-                push!(g.pieces, (kind = :text, key = key, path = path,
-                                 char_start = start, char_end = stop,
-                                 span = span, text = piece, x = x, width = width,
-                                 ascent = ascent, descent = descent, font = sf, color = col))
-                if cursor_pos !== nothing && g.cursor === nothing && g.caret === nothing &&
-                   cursor_pos.span == path && start <= cursor_pos.char <= stop
-                    # A caret at the end of a row that a soft break ends stands at
-                    # the start of the next row.
-                    if cursor_pos.char == stop && (span_base + stop) in soft_breaks
-                        pending_caret = sf
-                    else
-                        g.caret = (x + _get_caret_x(p.measure, piece, sf, cursor_pos.char - start), sf)
-                    end
+        # Emit the span as one segment for each row it is on, at the rounded real pen
+        # position, so a long line of many runs does not drift. A soft break inside
+        # it, or at its start, starts a row there.
+        seg_len = length(txt)
+        cuts = Int[b - span_base for b in soft_breaks if span_base <= b < span_base + seg_len]
+        (isempty(cuts) || cuts[1] != 0) && pushfirst!(cuts, 0)
+        push!(cuts, seg_len)
+        characters = collect(txt)
+        for k in 1:(length(cuts) - 1)
+            start, stop = cuts[k], cuts[k + 1]
+            (span_base + start) in soft_breaks && !isempty(g.boxes) && break_row!(sf)
+            piece = String(characters[(start + 1):stop])
+            box = measure_string(p.measure, piece, sf)
+            _, ascent, descent = compute_text_extent(box)
+            x = round(Int, g.pen)
+            g.pen += box.width
+            width = round(Int, g.pen) - x
+            push!(g.boxes, FontMetrics(box.ascent, box.descent, box.line_gap))
+            g.ink_descent = max(g.ink_descent, descent)
+            key = k == 1 ? (span_oid, span_occ) : (span_oid, span_occ, k)
+            push!(g.pieces, (kind = :text, key = key, path = path,
+                             char_start = start, char_end = stop,
+                             span = span, text = piece, x = x, width = width,
+                             ascent = ascent, descent = descent, font = sf, color = col))
+            if cursor_pos !== nothing && g.cursor === nothing && g.caret === nothing &&
+               cursor_pos.span == path && start <= cursor_pos.char <= stop
+                # A caret at the end of a row that a soft break ends stands at
+                # the start of the next row.
+                if cursor_pos.char == stop && (span_base + stop) in soft_breaks
+                    pending_caret = sf
+                else
+                    g.caret = (x + _get_caret_x(p.measure, piece, sf, cursor_pos.char - start), sf)
                 end
-                g.max_x = max(g.max_x, round(Int, g.pen))
             end
-            char_offset += seg_len
+            g.max_x = max(g.max_x, round(Int, g.pen))
         end
     end
 
     if !isempty(g.boxes)
         _close_line!(g, p, last_font, true, collect_spans)
-    elseif g.closed == 0 && (group.newline !== nothing || group.is_line || _has_text_span(group))
+    elseif g.closed == 0 && (group.is_line || _has_text_span(group))
         # A blank line still occupies one row, sized by the font it has no glyph to
         # take one from. A group that holds only an empty span is such a line,
         # because a caret can stand in it.
         _close_line!(g, p, _line_height_font(group, block_font), true, collect_spans)
     else
-        # The empty line after a trailing '\n', and the empty group that a
-        # trailing newline leaves behind, are not lines: they add no height. A
-        # caret or a place on them still stands where the next line begins.
+        # The group of a block with no line is no line: it adds no height. A caret
+        # or a place on it still stands where the next line begins.
         _close_line!(g, p, last_font, false, collect_spans)
     end
 
@@ -1081,11 +995,9 @@ end
 # and the implicit break and the indentation of a `TextLine` (the rule of
 # `get_flat_offsets`), because the projection that emits the line counts both.
 #   • The caret space of the text domain (`get_flat_offsets`), in which a
-#     `TextRangeReferenceStep` is expressed, also counts a `TextNewline` and a
-#     `TextSpacing` as 1.
+#     `TextRangeReferenceStep` is expressed, also counts a `TextSpacing` as 1.
 #   • The box space, in which a `TextSpanReferenceStep` box is expressed, counts
-#     them as 0: `WordWrapping` splices soft newlines into the block at wrap
-#     points, and a box must stay invariant under them.
+#     it as 0.
 # The flat base of each span of `styled`, in the box space and in the caret space
 # (see `_highlight_char_range`): where the span's first character is counted.
 function _compute_span_bases(styled::TextBlock)
@@ -1103,7 +1015,6 @@ function _compute_span_bases(styled::TextBlock)
             box += _box_flat_length(span)
             caret += get_flat_length(span)
         end
-        group.newline === nothing || (caret += 1)
     end
     (box_offsets, caret_offsets)
 end
@@ -1152,11 +1063,15 @@ function _indent_width(p::TextToGraphics, group, block_font::Cell)
     font === nothing ? 0 : first(compute_text_extent(p.measure, " "^(group.indentation::Int), font))
 end
 
-# The font an empty line is sized with. A flat block carries it on the
-# `TextNewline` that terminates the line; a `TextLine` has none, so fall back to
-# the block's prevailing font.
-_line_height_font(group, block_font::Cell) =
-    group.newline === nothing ? block_font[] : group.newline.font::StyleFont
+# The font an empty line is sized with: the font of its empty run, so an empty line
+# after a heading has the height of its own run, and text typed into it takes that
+# font. A line with no run takes the prevailing font of its block.
+function _line_height_font(group, block_font::Cell)
+    for (_, span) in group.spans
+        span isa TextString && return span.font::StyleFont
+    end
+    block_font[]
+end
 
 _has_text_span(group) = any(entry -> entry[2] isa TextString, group.spans)
 
@@ -1165,9 +1080,9 @@ _has_text_span(group) = any(entry -> entry[2] isa TextString, group.spans)
 # line draws nothing.
 _draws_glyph(sc::SegmentCoordinate) = sc.width > 0 || !isempty(sc.text) || sc.char_end > sc.char_start
 
-# The block's prevailing font — the first font any element offers, in document
-# order, or `nothing` for a block that has none. It sizes an empty `TextLine`,
-# which has neither a glyph nor a terminating newline to read one from.
+# The block's prevailing font — the first font any line offers, in document order,
+# or `nothing` for a block that has none. It sizes a `TextLine` with no run, which
+# has no font of its own.
 function _block_font(styled::TextBlock)
     for element in styled.elements
         font = _element_font(element)
@@ -1208,10 +1123,7 @@ end
 
 # At least one span to put a caret beside, at either depth: a `TextString`, or an
 # inline image, which has a caret before and after it.
-_has_caret_span(styled::TextBlock) =
-    any(styled.elements) do element
-        _is_caret_span(element) || (element isa TextLine && any(_is_caret_span, element.elements))
-    end
+_has_caret_span(styled::TextBlock) = any(line -> any(_is_caret_span, line.elements), styled.elements)
 _is_caret_span(span) = span isa Union{TextString, TextGraphics}
 
 # ── Persistent per-segment graphics (printer locality — dimension C) ───────────
@@ -1265,160 +1177,16 @@ function _make_persistent_rect(layout, pl0)
     rect
 end
 
-# ── ListNode path: lazy paragraph-level mapping ──────────────────────
-
-# A part of a text whose spans are a lazy list maps into the list of paragraph
-# canvases. Both count from their heads: the head paragraph holds the head span.
-# A span, or characters of it (`elements[i].content{a:b}`), maps to the text node
-# of the span, followed by the characters (`text{a:b}`). Spans of one paragraph
-# map to its canvas followed by the region of their texts, and spans of more
-# paragraphs to the canvas of the text followed by the region of their texts. A
-# span that draws no text, such as a newline, adds nothing to a range.
-function _map_list_text_forward(p::TextToGraphics, iomap::TextToGraphicsIoMap, reference)
-    reference isa ConcreteReference || return nothing
-    field = get_reference_head(reference)
-    (field isa FieldReferenceStep && field.name == "elements") || return nothing
-    range = get_reference_tail(reference)
-    range isa ConcreteReference || return nothing
-    step = get_reference_head(range)
-    (step isa ARangeReferenceStep && step.start < step.stop) || return nothing
-    rest = get_reference_tail(range)
-    head = iomap.input.elements::ListNode
-    places = Any[]
-    for index in (step.start + 1):step.stop
-        place = _find_list_span_place(head, index)
-        place === nothing || push!(places, place)
-    end
-    isempty(places) && return nothing
-    first, last = places[1], places[end]
-    rest isa EmptyReference || step.stop == step.start + 1 || return nothing
-    paragraphs = unwrap_cell(getfield(unwrap_cell(iomap.output), :elements))
-    if first == last
-        element = _find_paragraph_text_index(paragraphs, first.paragraph, first.piece)
-        element === nothing && return nothing
-        node = ConcreteReference(FieldReferenceStep("elements"),
-                   ConcreteReference(ElementReferenceStep(first.paragraph),
-                       ConcreteReference(FieldReferenceStep("elements"),
-                           ConcreteReference(ElementReferenceStep(element), EmptyReference()))))
-        rest isa EmptyReference && return node
-        return _map_list_span_characters(node, rest)
-    end
-    box = _compute_list_text_box(p, paragraphs, first, last)
-    box === nothing && return nothing
-    region = ConcreteReference(RegionReferenceStep(box...), EmptyReference())
-    first.paragraph == last.paragraph || return region
-    ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(ElementReferenceStep(first.paragraph), region))
-end
-
-# `content{a:b}` of a span maps to `text{a:b}` of its text node, which draws the
-# whole content of the span.
-function _map_list_span_characters(node, rest)
-    field = get_reference_head(rest)
-    (field isa FieldReferenceStep && field.name == "content") || return nothing
-    range = get_reference_tail(rest)
-    range isa ConcreteReference && get_reference_tail(range) isa EmptyReference || return nothing
-    step = get_reference_head(range)
-    step isa ARangeReferenceStep || return nothing
-    concat_references(node, ConcreteReference(FieldReferenceStep("text"),
-                                ConcreteReference(RangeReferenceStep(step.start, step.stop), EmptyReference())))
-end
-
-# The place of span `index` of a lazy list of spans, counted from `head`:
-# `(paragraph, piece)`, the index of its paragraph from the head paragraph and its
-# index among the spans of that paragraph that draw a text. `nothing` for a span
-# that draws no text, such as a newline, and for an index past the list. A
-# paragraph ends at a newline; the head paragraph starts at the head, and the
-# paragraph before it ends at the span before the head.
-function _find_list_span_place(head::ListNode, index::Int)
-    node = find_list_node(head, index)
-    (node === nothing || !_is_drawn_list_span(node.value)) && return nothing
-    if index >= 1
-        paragraph, piece, current = 1, 0, head
-        while true
-            span = current.value
-            if span isa TextNewline
-                paragraph, piece = paragraph + 1, 0
-            elseif _is_drawn_list_span(span)
-                piece += 1
-            end
-            current === node && return (paragraph = paragraph, piece = piece)
-            current = current.next
-        end
-    end
-    paragraph, current = 0, head.prev
-    while current !== node
-        current.value isa TextNewline && current !== head.prev && (paragraph -= 1)
-        current = current.prev
-    end
-    piece, current = 1, node.prev
-    while current !== nothing && !(current.value isa TextNewline)
-        _is_drawn_list_span(current.value) && (piece += 1)
-        current = current.prev
-    end
-    (paragraph = paragraph, piece = piece)
-end
-
-# Whether a span of a lazy list draws a text, as `_compute_paragraph_line` lays
-# them out.
-_is_drawn_list_span(span) = span isa TextString && !isempty(span.content::AbstractString)
-
-# The index in the canvas of paragraph `paragraph` of its text number `piece`: a
-# fill comes before the text of a span that has one.
-function _find_paragraph_text_index(paragraphs, paragraph::Int, piece::Int)
-    node = find_list_node(paragraphs, paragraph)
-    node === nothing && return nothing
-    elements = unwrap_cell(getfield(unwrap_cell(node.value), :elements))
-    count = 0
-    for k in 1:length(elements)
-        unwrap_cell(elements[k]) isa GraphicsText || continue
-        count += 1
-        count == piece && return k
-    end
-    nothing
-end
-
-# The box of the texts from the place `first` to the place `last`, as
-# `(x, y, width, height)`: in the frame of their paragraph when one paragraph holds
-# them, else in the frame of the canvas of the text.
-function _compute_list_text_box(p::TextToGraphics, paragraphs, first, last)
-    left, top, right, bottom = typemax(Int), typemax(Int), typemin(Int), typemin(Int)
-    for paragraph in first.paragraph:last.paragraph
-        node = find_list_node(paragraphs, paragraph)
-        node === nothing && return nothing
-        canvas = unwrap_cell(node.value)
-        offset = first.paragraph == last.paragraph ? 0 : Int(unwrap_cell(getfield(canvas, :y)))
-        elements = unwrap_cell(getfield(canvas, :elements))
-        piece = 0
-        for k in 1:length(elements)
-            text = unwrap_cell(elements[k])
-            text isa GraphicsText || continue
-            piece += 1
-            paragraph == first.paragraph && piece < first.piece && continue
-            paragraph == last.paragraph && piece > last.piece && break
-            content = String(unwrap_cell(getfield(text, :text)))
-            width, ascent, descent = compute_text_extent(p.measure, content, unwrap_cell(getfield(text, :font)))
-            x, y = Int(unwrap_cell(getfield(text, :x))), Int(unwrap_cell(getfield(text, :y))) + offset
-            left, top = min(left, x), min(top, y)
-            right, bottom = max(right, x + round(Int, width)), max(bottom, y + round(Int, ascent + descent))
-        end
-    end
-    left > right && return nothing
-    (left, top, right - left, bottom - top)
-end
-
 """
     _print_listnode(p, styled, ctx)
 
-When `TextBlock.elements` is a `ListNode`, produce a top-level
-`GraphicsCanvas` with `layout_vertical`, `overlapping_elements=false`,
-and a `ListNode` of sub-canvases — one per paragraph (spans between
-`TextNewline` nodes). Each paragraph lays out left-to-right; word wrapping
-inside a paragraph is upstream's responsibility.
+When `TextBlock.elements` is a `ListNode` of `TextLine`s, produce a top-level
+`GraphicsCanvas` with `layout_vertical`, `overlapping_elements=false`, and a
+`ListNode` of sub-canvases, one for each line (see below).
 """
 function _print_listnode(p::TextToGraphics, styled::TextBlock, ctx)
     head_node = styled.elements::ListNode
-    output_head = head_node.value isa TextLine ? _build_line_node(p, head_node, 0.0) :
-                                                 _build_paragraph_node(p, head_node, 0.0)
+    output_head = _build_line_node(p, head_node, 0.0)
     canvas = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0), output_head, layout_vertical, false, Cell(nothing))
     TextToGraphicsIoMap(p, styled, canvas, Cell(SegmentCoordinate[]), Cell(0), Cell(nothing),
                         Cell(NamedTuple[]), nothing)
@@ -1436,7 +1204,7 @@ end
 # line of a block keeps wherever it stands.
 _make_line_group(line::TextLine) =
     (spans = Tuple{SpanPath,Any}[(Int[1, j], span) for (j, span) in enumerate(line.elements)],
-     newline = nothing, indentation = line.indentation, break_before = false, is_line = true,
+     indentation = line.indentation, break_before = false, is_line = true,
      line = 1, soft_breaks = getfield(line, :soft_breaks))
 
 # The layout of a line of a lazy list. A line with no glyph takes the font of its
@@ -1584,160 +1352,6 @@ function _parse_list_line_part(rest)
     step = get_reference_head(characters)
     step isa ARangeReferenceStep || return (false, nothing)
     (spans, (step.start, step.stop))
-end
-
-"""
-    _build_paragraph_node(p, input_node, y_offset) -> ListNode
-
-Starting from `input_node`, collect all spans until a `TextNewline` or
-end of list (one paragraph). Lay them out into a sub-`GraphicsCanvas`
-at position `(0, y_offset)`, where `y_offset` is the real sum of the line
-distances above, rounded once. Return a `ListNode` whose value is that
-sub-canvas, with a lazy `next` thunk that builds the next paragraph.
-"""
-function _build_paragraph_node(p::TextToGraphics, input_node::ListNode, y_offset::Float64)
-    # Collect paragraph spans and find the node after the paragraph
-    spans = Any[]
-    cur = input_node
-    while cur !== nothing
-        val = cur.value
-        if val isa TextNewline
-            cur = cur.next  # skip past the newline
-            break
-        end
-        push!(spans, val)
-        next_node = cur.next
-        if next_node === nothing
-            cur = nothing
-            break
-        end
-        cur = next_node
-    end
-
-    sub_canvas = _layout_paragraph(p, spans, y_offset)
-    distance = _paragraph_distance(p, spans)
-
-    out_node = ListNode(sub_canvas)
-
-    next_input = cur
-    set_cell_computation!(getfield(out_node, :next), () -> begin
-        next_input === nothing && return nothing
-        next_out = _build_paragraph_node(p, next_input, y_offset + distance)
-        set_cell_value!(getfield(next_out, :prev), out_node)
-        next_out
-    end)
-
-    set_cell_computation!(getfield(out_node, :prev), () -> begin
-        prev_start = input_node.prev
-        prev_start === nothing && return nothing
-        prev_out = _build_paragraph_node_prev(p, prev_start, y_offset)
-        prev_out === nothing && return nothing
-        set_cell_value!(getfield(prev_out, :next), out_node)
-        prev_out
-    end)
-
-    out_node
-end
-
-"""
-    _build_paragraph_node_prev(p, input_node_prev, y_offset) -> ListNode or nothing
-
-Starting from `input_node_prev` (the text node just before the current head),
-traverse backward collecting spans until a `TextNewline` or nothing (one
-paragraph). Lay them out into a sub-`GraphicsCanvas` at a negative y-offset.
-Return a `ListNode` whose value is that sub-canvas, with a lazy `prev` thunk.
-"""
-function _build_paragraph_node_prev(p::TextToGraphics, input_node_prev, y_offset::Float64)
-    cur = input_node_prev
-    if cur !== nothing && cur.value isa TextNewline
-        cur = cur.prev
-    end
-    cur === nothing && return nothing
-
-    spans_reversed = Any[]
-    while cur !== nothing
-        val = cur.value
-        if val isa TextNewline
-            break
-        end
-        push!(spans_reversed, val)
-        cur = cur.prev
-    end
-
-    isempty(spans_reversed) && return nothing
-
-    spans = reverse(spans_reversed)
-
-    new_y_offset = y_offset - _paragraph_distance(p, spans)
-
-    sub_canvas = _layout_paragraph(p, spans, new_y_offset)
-
-    out_node = ListNode(sub_canvas)
-
-    prev_boundary = cur
-    set_cell_computation!(getfield(out_node, :prev), () -> begin
-        prev_boundary === nothing && return nothing
-        prev_out = _build_paragraph_node_prev(p, prev_boundary, new_y_offset)
-        prev_out === nothing && return nothing
-        set_cell_value!(getfield(prev_out, :next), out_node)
-        prev_out
-    end)
-
-    out_node
-end
-
-"""
-    _layout_paragraph(p, spans, y_offset) -> GraphicsCanvas
-
-Lay out a list of `TextString` spans into `GraphicsText` elements within a
-sub-canvas positioned at `(0, y_offset)`, the real offset rounded. No wrap;
-each span goes down as a single segment on the baseline of the paragraph's one
-line.
-"""
-function _layout_paragraph(p::TextToGraphics, spans::Vector, y_offset::Float64)
-    result = Any[]
-    line = _compute_paragraph_line(p, spans)
-    for piece in line.pieces
-        y = line.baseline - piece.ascent
-        _push_fill_rect!(result, piece.span, piece.x, y, piece.width, piece.ascent + piece.descent)
-        push!(result, _make_sdl(piece.text, piece.x, y, piece.span.font::StyleFont,
-                                piece.span.font_color::StyleColor))
-    end
-    GraphicsCanvas(Int32(0), Int32(round(Int, y_offset)), Int32(0), Int32(0), CellVector(Cell[Cell(e) for e in result]),
-                   layout_none, false, Cell(nothing))
-end
-
-"""
-    _paragraph_distance(p, spans) -> Float64
-
-The real distance from the top of a paragraph to the top of the next one: the
-line distance of its one visual line, or 0 for a paragraph with no text.
-"""
-_paragraph_distance(p::TextToGraphics, spans::Vector) = _compute_paragraph_line(p, spans).distance
-
-# The one line of a paragraph of the list path: each span that draws, at its x
-# and with the rounded ascent and descent of its box, the baseline of the line
-# below its top, and the real distance to the next line.
-function _compute_paragraph_line(p::TextToGraphics, spans::Vector)
-    boxes = FontMetrics[]
-    pieces = Any[]
-    pen = 0.0
-    for span in spans
-        span isa TextString || continue
-        txt = span.content::AbstractString
-        isempty(txt) && continue
-        box = measure_string(p.measure, txt, span.font::StyleFont)
-        _, ascent, descent = compute_text_extent(box)
-        x = round(Int, pen)
-        pen += box.width
-        push!(boxes, FontMetrics(box.ascent, box.descent, box.line_gap))
-        push!(pieces, (span = span, text = txt, x = x, width = round(Int, pen) - x,
-                       ascent = ascent, descent = descent))
-    end
-    isempty(boxes) && return (pieces = pieces, baseline = 0, distance = 0.0)
-    metrics = compute_line_metrics(boxes)
-    (pieces = pieces, baseline = compute_line_baseline(p.line_spacing, metrics),
-     distance = compute_line_distance(p.line_spacing, metrics))
 end
 
 # ── Selection → cursor position ───────────────────────────────────────
