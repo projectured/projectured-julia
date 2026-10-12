@@ -197,7 +197,7 @@ Facts that the test found:
       `test_rst` 111, `test_pivot` 299. The style guard fails on
       `source/platform/text/TextDocument.jl:460`, on `main` too, from other
       work.
-- [ ] Move this plan to `plan/done/`.
+- [x] Move this plan to `plan/done/`.
 
 ### 5.1 The measurement after the work
 
