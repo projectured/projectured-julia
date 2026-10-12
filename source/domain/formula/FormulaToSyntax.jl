@@ -1,7 +1,7 @@
 # Fragment of `FormulaModule`.
 #
-# Formula → Syntax projection, composed with the Julia projection so a formula
-# and the Julia nodes of its body render through one shared `recursion`:
+# Formula → Syntax projection, composed with the Julia and the math projections so a
+# formula and the nodes of its code render through one shared `recursion`:
 #
 # - `FormulaFormula` → `SyntaxNode` with three layouts selected by the formula's
 #   `display_mode` cell (`:code` / `:result` / `:both`).
@@ -394,10 +394,10 @@ end
 
 # ── FormulaToSyntax convenience constructor ────────────────────────────────────
 #
-# Merge the Julia type-dispatch table with the Formula entries into one
-# TypeDispatchingProjection, wrapped once in RecursiveProjection, so the same
-# `recursion` renders both kinds of node. This is also what lets a formula appear
-# inside an otherwise-Julia AST.
+# Merge the Julia type-dispatch table with the Formula entries and the rules of
+# the math notation into one TypeDispatchingProjection, wrapped once in
+# RecursiveProjection, so the same `recursion` renders a formula, Julia code and
+# math code, which prints in its linear form, such as `C/2`.
 
 # Returns a bare `TypeDispatchingProjection` (the convention used by
 # JuliaToSyntax / JsonToSyntax / BookToSyntax); callers wrap it once in a
@@ -405,16 +405,20 @@ end
 #
 # The builder gives each projection the style of its role with
 # `get_formula_style`, from `theme`, a `FormulaTheme` scaled or not, or the
-# default styles for `nothing`; `julia_theme` and `syntax_theme` style the
-# Julia nodes a formula's code is built from, through `JuliaToSyntax`.
-function FormulaToSyntax(; theme = nothing, julia_theme = nothing, syntax_theme = nothing)
+# default styles for `nothing`; `julia_theme`, `math_theme` and `syntax_theme`
+# style the Julia and the math nodes that the code of a formula is built from,
+# through `JuliaToSyntax` and `MathToSyntax`.
+function FormulaToSyntax(; theme = nothing, julia_theme = nothing, math_theme = nothing,
+                         syntax_theme = nothing)
     get_style(name) = get_formula_style(theme, name)
+    math = MathToSyntax(; theme = math_theme, syntax_theme)
     julia = JuliaToSyntax(
         FormulaInsertion   => FormulaInsertionToSyntaxLeaf(; style = get_style(:insertion_text)),
         FormulaFormula     => FormulaFormulaToSyntaxNode(; name = get_style(:name_text),
                                                             op = get_style(:operator_text),
                                                             result = get_style(:result_text)),
-        FormulaEnvironment => FormulaEnvironmentToSyntaxNode(; font = get_style(:plain_font));
+        FormulaEnvironment => FormulaEnvironmentToSyntaxNode(; font = get_style(:plain_font)),
+        math.dispatch...;
         theme = julia_theme, syntax_theme)
     # The identifier rule goes first, because the dispatch takes the first match and
     # the Julia table holds a rule for every identifier.

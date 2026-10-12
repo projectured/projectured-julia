@@ -166,6 +166,17 @@ end
     @test math.formulas[2].name == "Dl"
 end
 
+@testset "math code prints in its linear form, and the keys walk past it" begin
+    sheet = FormulaEnvironment([FormulaFormula("C", parse_julia("55")),
+                                FormulaFormula("D", parse_math("C/2")),
+                                FormulaFormula("H", parse_julia("2"))])
+    rendered = render(print_document(RecursiveProjection(FormulaToSyntax()), sheet).output)
+    @test occursin("D = C/2 ⇒ 27.5", rendered)
+    walk = ProjecturedPlatformTest.explore_position_selections(sheet, make_formula_projection_example())
+    @test walk.state_count > 0
+    @test isempty(walk.errors)
+end
+
 @testset "FormulaFormula view modes (code / result / both)" begin
     f2s = RecursiveProjection(FormulaToSyntax())
     env = FormulaEnvironment([FormulaFormula("A1", parse_julia("2 + 3"))])

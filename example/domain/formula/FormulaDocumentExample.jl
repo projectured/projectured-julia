@@ -15,6 +15,8 @@ function make_formula_document_example()
         FormulaFormula("G", parse_julia("F(3)")),
         # The `x` of the lambda is local, and only `A` is a dependency.
         FormulaFormula("S", parse_julia("sum(x -> x * A, 1:3)")),
+        # A math formula refers to a Julia formula by the same name.
+        FormulaFormula("D", parse_math("C/2")),
         # A name that resolves to nothing is an error.
         FormulaFormula("E", parse_julia("A + Z")),
         # Two formulas that read each other are a cycle.

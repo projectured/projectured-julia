@@ -373,13 +373,21 @@ formula named `pi` would make every other `pi` of the sheet mean it.
 
 ## 6. Open
 
+Decided by the owner on 2026-10-12, after the landing:
+
 - A formula in a table (D2) and a formula in a Markdown document need a container that holds
   formulas and an environment for them, and a Markdown paragraph needs a way to show the value
-  of a formula inline. This plan does not build them; a plan for each container follows when
-  the owner asks.
+  of a formula inline. **The owner: wait** (option (c); the first release is the core).
 - The other operation of D3, to break a binding and to make one: the edit of the name field
   alone has no gesture, because a key in a name is a rename (Step 5), and a rename to a name
   that some code reads free, such as `Z` in `E = A + Z`, makes that name refer to the formula.
-- Math code in the text view of a formula: `FormulaToSyntax()` prints it as one object leaf, and
-  the up and down keys fail next to it, so the gallery has no math row `D` (Step 3). The rules
-  of `MathToSyntax()` could join the table, as the formula rules join the table of Julia.
+  **The owner: keep it as it is** (option (a)).
+- Math code in the text view of a formula: `FormulaToSyntax()` printed it as one object leaf,
+  and the up and down keys failed next to it, so the gallery had no math row `D` (Step 3).
+  **The owner: the rules of `MathToSyntax()` join the table** (option (a)), as the formula rules
+  join the table of Julia, and the gallery gets the row `D`. A rename of a name that math code
+  uses still refuses. *Built (2026-10-12):* `FormulaToSyntax(; math_theme)` passes the rules of
+  `MathToSyntax()` to the Julia table as entries of its own, so `D = C/2 ⇒ 27.5` prints, and a
+  walk of the keys over a sheet with math code finds no fault. In `test_example(formula)` the
+  printer (7951), the reader, the REPL and the navigation (329) pass; the type-in part adds 3
+  failures and 1 broken: a key in the name `C` makes no edit, because `D` uses `C` in math.
