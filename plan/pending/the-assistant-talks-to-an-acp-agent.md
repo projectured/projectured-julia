@@ -1415,16 +1415,69 @@ from the command line of the projectured UI.
     `claude-code-acp-image`: `image = true`, and an `ImageContent` of the type
     png, jpeg, gif or webp becomes an image block of the user message; another
     type is `INVALID_PARAMS`. Not released.
-  - [ ] 3.1b The content of a user turn is done: `_make_user_turn_content` gives
+  - [x] 3.1b The content of a user turn: `_make_user_turn_content` gives
     the text of the parts and each `ImageFile` part as an `LlmImage` where it
     stands, for a model, a prompt and a steer; a file that is gone or of another
     type is a line. A picture part shows as a card with the tag "picture", in the
     transcript and in the draft, at most `picture_height` (160) high: the view
-    decodes the file with `decode_image`, so the part keeps only the name. The
-    command and the button wait for Q24 and Q25.
-  - [ ] 3.1d The tool waits for Q24 and Q25.
+    decodes the file with `decode_image`, so the part keeps only the name.
+    The picture itself (after Q24 and Q25): `write_part_picture(editor, source,
+    filename)` and `write_window_picture(editor, source, filename)` in the screen
+    slice map `source` forward through the projection of the editor and write the
+    `GraphicsCanvas` that it reaches with the backend's `write_image`, at its own
+    size, moved to the origin. A part whose view has no canvas of its own, such
+    as a file under the wrapper of its undo, takes the nearest part above it that
+    has one. The button "Picture" (the Lucide `camera`, `0xe064`) beside the stop
+    button gives `AddDraftPictureOperation`: the part when the selection is whole
+    (`is_whole_selection`), else the window; the picture goes into the draft
+    before the text. The files are in `$XDG_CACHE_HOME/projectured/pictures`. At
+    the submit, a part with no text form (no `:string` projection) becomes a
+    picture of it, written with `write_image(document, NaturalToGraphics(…))`,
+    as a tab draws it, and the part becomes that `ImageFile`; a chart, which has
+    no notation, has no `make_natural_projection(…, :graphics)`, so the picture
+    takes `NaturalToGraphics`. A prose part (`MarkdownRoot`) and a JSON part keep
+    their text.
+    Found on the way: `_map_child_forward` of the widget views dropped the types
+    of the rest of a reference, and a child that reads with `@reference_case`,
+    such as the assistant, threw "under-typed @reference"; the rest is now typed
+    again against the input of the child.
+  - [x] 3.1d `register_picture_tools!(set)` adds `take_picture` (`part`:
+    `"window"` or `"selection"`), which answers an `LlmImage`; the application
+    registers it beside the undo tools. The MCP server answers a picture as an
+    `ImageContent`, and its log says "A picture of N bytes". The loop of a turn
+    gives the model of the editor a line of text in place of a picture.
+  - [ ] 3.1e A paste of a document into the draft waits for Q26.
 
-  **Questions for the owner (2026-10-12).**
+  **Checks (2026-10-12).** A script without a window, on the SDL backend, built
+  the window of the application with an assistant: the window picture is the
+  window at 1600 × 1000 with the new button; an Alt+click on the assistant gives
+  the picture of the part of the conversation; the file of a tab, under the
+  wrapper of its undo, gives the picture of the page of the tab; the button puts
+  the picture into the draft before the text; a chart part becomes a picture at
+  the submit. Tests: `test_part_picture` (SDL), `test_agent_loop`, the MCP tests
+  of a tool, `test_conversation` and the layering guard alone, `test_assistant_mvp`
+  with `test_assistant_composer_panel`, and `test_application` pass; the broken
+  counts match their markers. `test_platform` passes but for the two failures of
+  `test_interface_api` that main has since 8353fc722.
+
+  **Answers (the owner, 2026-10-12).** Q24: "taking a picture of anything could
+  be done by mapping it forward using the iomap and writing the part into an
+  image using the backend". Q25: "yes, the selection can be shown to the agent or
+  the whole screen but the user should be able to copy-paste into the draft and
+  submit, so that should also be possible to turn into an image if there's no
+  text representation for it (e.g. a plot)".
+
+  **Q26 (open).** A paste into the draft does not work for a document: the caret
+  of the draft is a text target, so the clipboard pastes text (the text of the
+  operating system first, then the text of the copied document), and a plot has
+  no text. The proposal: one new generic of the domain slice,
+  `make_pasted_document_operation(document, path, value) -> Operation | nothing`,
+  which the clipboard asks before the text paste when it holds a document with no
+  text: each document on the path of the selection, from the deepest, can take
+  the document in its own way. The draft answers an insertion of a part with the
+  document before the text that the person types.
+
+  **Questions for the owner (2026-10-12, answered).**
   - Q24. A new channel: the picture command reads the screen that the editor
     printed (`editor.iomap`), as the backend does, and no projection reads it.
     Agreed?
