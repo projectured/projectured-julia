@@ -1,10 +1,12 @@
 # Strict document types
 
-**Status (2026-10-05): PENDING. Not started.** The owner asked for this plan in the decision
-walk of [kernel-audit-fixes.md](kernel-audit-fixes.md), at L10-13. Do not implement it until the
-owner asks. The owner accepted the model of §3 on 2026-10-05: no foreign type, and a field that
-admits other domains declares `Document`. The pilot domains are Julia, JSON and XML. Every
-question of §7 is decided, so the pilot can start when the owner asks.
+**Status (2026-10-12): IN PROGRESS.** The check of declared types, the list rule, and the JSON and
+XML fields landed on `main` on 2026-10-09, and the laws of §6 changed after it. Steps 1 to 3, 6
+and 7 are done. Step 4 waits for [formula-references-by-name.md](formula-references-by-name.md),
+step 5 is not started, and step 8 is a decision of the owner. The owner asked for this plan in
+the decision walk of [kernel-audit-fixes.md](kernel-audit-fixes.md), at L10-13, and accepted the
+model of §3 on 2026-10-05: no foreign type, and a field that admits other domains declares
+`Document`. The pilot domains are Julia, JSON and XML.
 
 **Goal:** the declared type of a `@document` field becomes a contract that the reactive layout
 keeps. An intermediate state of an edit is the insertion or the nothing of its domain, and a field
@@ -445,10 +447,11 @@ worktree. The three domains test different parts of the model:
     fail: Step 1 removed the private name that the layering guard refused). `test_integration`
     is equal: 1206344 pass, 12 fail, 2 error, 1578 broken. So Steps 1 and 2, with the delegation
     of every text edit to its element, change no result of any suite.
-- [ ] **Step 3: the check.** Add the check of §3.3 to the reactive layout and to the `CellVector`,
+- [x] **Step 3: the check.** Add the check of §3.3 to the reactive layout and to the `CellVector`,
   for every type at once (S-1). A refused write throws the exception type of S-6. The writes that
   Step 0 found in other domains are fixed in this step, or the check does not land.
-  *In progress (2026-10-06).* The groups of the inventory (Step 0):
+  *Done; landed on `main` on 2026-10-09 with the default `:throw`.* The groups of the inventory
+  (Step 0):
   - [x] **Group 1, a missing optional value:** 147 declarations became `Union{X, Nothing}`: the
     margin, border and padding of 41 widgets, the optional parts of `WidgetShell`, the position
     and size of the scroll panes, scroll bars and `WidgetTransformPane.position`, the inner type
@@ -872,6 +875,22 @@ worktree. The three domains test different parts of the model:
   - XML: `XmlElement.children` becomes `CellVector{Document}`, because the tests put JSON there.
     `XmlElement.attrs` becomes `CellVector{Document}` (S-8). The convenience constructors of
     `XmlElement` must still tell `attrs` from `children` when both admit any document.
+  - *JSON and XML are done; they landed with the pilot.*
+  - *The probe of the Julia fields (2026-10-11).* All 77 candidates (52 `Document`, 5
+    `Union{Document,Nothing}`, 20 untyped `CellVector`) were narrowed to `JuliaDocument` in a
+    worktree, and `test_julia`, `test_platform`, `test_integration` and the omnet suites that
+    build Julia documents (`test_study`, `test_study_presentation`, `OmnetPresentationTest`) ran
+    in the mode `:record`. Two findings: `JuliaBinaryOperation.left` and `right` got a
+    `FormulaReference` of the formula domain, and the constructors of `JuliaCall` gave
+    `arguments` and `keyword_arguments` an untyped `CellVector` (314 writes each). The formula
+    domain puts its references into every expression place that `MathToJulia` builds, so with
+    `FormulaReference` in Julia trees, 37 expression places would stay `Document` (option A of
+    the owner, 2026-10-12, by the kind of place).
+  - **Decided by the owner, 2026-10-12: a formula refers to another by name**, and no formula
+    node stands in a Julia tree; see [formula-references-by-name.md](formula-references-by-name.md).
+    So this step narrows every Julia field to `JuliaDocument` and every list to
+    `CellVector{JuliaDocument}`, after step 3 of that plan. `JuliaFile.content` stays `Document`
+    (group 6). The constructors of `JuliaCall` give typed lists.
 - [ ] **Step 5: the insertion follows its place.** The typed child contexts, the filter of the
   candidates (§3.5), and the widening key (§3.6), in the three domains. The example of §3.6, an
   XML element typed into a `JsonArray`, is the test of acceptance.
