@@ -1,7 +1,7 @@
 # The first window with domain packages installed
 
-Status: pending, 2026-10-12. The analysis is done; nothing is implemented. The
-owner decides the option of §4 before the work starts.
+Status: in progress, 2026-10-12. The owner chose options 2 and 3 of §4. A
+test of option 2 on all domains passed (§4.1); §5 holds the steps.
 
 ## 1. The request
 
@@ -97,33 +97,70 @@ loads fewer.
 | 2 | **Each domain compiles its own rows.** | A `@compile_workload` in the entry file of each domain builds its natural rows and its scaled theme with a default `Appearance`. The rule of package-rules.md allows a workload only in the entry file of a first window package, so the rule grows. | The compile drops. The run time of building every row stays, the images grow, and each new domain must keep its workload. |
 | 3 | **The six invalidation roots of §3 get concrete types**, as D9 of [the-first-window-in-under-a-second.md](../done/the-first-window-in-under-a-second.md) did. | Type assertions and untyped helper arguments at the six roots. | A small part of the time. It helps with both options. |
 
-**Recommendation (mine, not decided):** options 1 and 3. Option 1 removes the
-cause: work that the window does not need. Option 2 only moves the cost into the
-images, and every new domain must remember it. Option 2 stays as the fallback if
-option 1 can not keep the projection algebra clean.
+**The decision.** The owner, 2026-10-12: "option 2 and 3". The reason, in the
+owner's words: "the domain packages have to have their own compile workloads
+anyway, so why not compile natural support? maybe we can do it better but let's
+not overcomplicate this". Option 1 stays a possible improvement for later, if
+the run time of building every row ever shows in a measurement.
 
-## 5. Steps for options 1 and 3
+### 4.1 The test of option 2
 
-- [ ] Read [natural.md](../../documentation/package/platform/natural/natural.md),
-      [higher-order-projections.md](../../documentation/package/platform/projection/higher-order-projections.md)
-      and the part of package-rules.md that §1 names. Check
+On 2026-10-12, before the implementation, a `@compile_workload` in the entry
+file of a domain built `NaturalToGraphics(; measure = FontFileMeasure(),
+appearance = Appearance())`. The measurement is that of §2.
+
+| Case | First window compiles | Statements not in the README session |
+| --- | --- | --- |
+| README packages only, control | 0.66–0.68 s | – |
+| `ProjecturedRST`, before and after | 2.24–2.39 s, 0.65–0.68 s | 157, 1 |
+| `ProjecturedFormula`, before and after | 2.29 s, 1.08 s | – |
+| all 24 domains, before and after | 8.3–15 s, 1.34–1.58 s | 462, 26 |
+
+Facts that the test found:
+
+- **The workload must run the `__init__` of the domain module first.** A
+  domain registers its rows there, and `__init__` runs when the package loads,
+  after its workload. Without the call, the workload compiled nothing of the
+  domain: RST stayed at 2.35 s.
+- **Only a package whose slice registers natural rows needs it.** Thirteen
+  domain slices call a `register_natural_…!` function in their `__init__`:
+  book, chart, formula, graph, json, julia, markdown, math, rst, sql, workflow,
+  xml and yaml. FSM, Process, Pivot and DBCatalog register nothing; their cost
+  in §2 came from the rows of Graph, Julia, Chart and SQL below them.
+  `ProjecturedDatabase` depends only on the kernel, and the platform names
+  that the workload calls are not there.
+- **The 26 statements that remain are not rows.** They are code of the kernel
+  and the platform that compiles again: the task of the editor loop,
+  `initialize_backend!`, `configure_devices!`, `take_from_devices!`,
+  `wrap_editor!`, `evaluate_operation`. Option 3 is for them.
+
+## 5. Steps for options 2 and 3
+
+- [ ] **The platform function.** `run_natural_rows_workload(domain::Module)`
+      beside `run_display_workload` in
+      [DisplayWorkload.jl](../../source/platform/display/DisplayWorkload.jl):
+      it runs `domain.__init__()`, then builds `NaturalToGraphics` as
+      `_start_session` of the display does.
+- [ ] **The workloads.** The entry file of each of the 13 packages ends with
+      `@compile_workload run_natural_rows_workload(<Domain>Module)`, and
+      `PrecompileTools` joins its `[deps]` and its entry in the manifests.
+- [ ] **The rule and its guards.** package-rules.md, under "A package that a
+      user loads compiles its own first window", gives the rule for a package
+      that registers natural rows. In `PackageGraphTest`, the guard of
+      `@compile_workload` allows it in such an entry file, and a new guard
+      checks that each package whose slice calls a `register_natural_…!`
+      function has the workload. The new domain guide says it too.
+- [ ] **Option 3.** Find the roots of the statements that remain, with the
+      method of §6, and give them concrete types. Check
       [SEALING.md](../../SEALING.md) for each file before an edit.
-- [ ] Design the lazy table: where the maker of a row and the built row live,
-      how the table finds the most derived registered type, and what an edit
-      of the appearance does to a built row. Write the design here, and ask the
-      owner before the code.
-- [ ] Implement it, and make `get_natural_entries` and the factories give makers.
-- [ ] Give the six roots of §3 concrete types.
-- [ ] A test beside `test_first_window_compiles_little`: the first window of a
-      data frame in `environment/all`, with every domain installed, compiles
-      less than a limit that the measurement after the change sets.
-- [ ] Measure again with the method of §6: the table of §2 and the session of
-      the README, which must stay at about 0.64 s.
-- [ ] The narrow tests: `test_natural_registry()`, `test_natural_notation()`,
-      `test_natural_renders_every_atom()` and
-      `test_natural_round_trips_every_atom()` of the umbrella, and the suites of
-      the domains whose natural rows change.
-- [ ] Update natural.md and package-rules.md.
+- [ ] **A test.** Beside the README session, `test_first_window_compiles_little`
+      measures the first window in the active environment, with every domain
+      installed, against a limit that the measurement after option 3 sets.
+- [ ] **Measure** the table of §2 again, and the README session, which must stay
+      at about 0.66 s.
+- [ ] **The narrow tests:** the guards, `test_package_graph()`, the natural
+      tests of the umbrella, and the suites of two domains.
+- [ ] Move this plan to `plan/done/`.
 
 ## 6. How to measure
 
