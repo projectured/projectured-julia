@@ -1,9 +1,10 @@
 # A text block holds only lines
 
-> **Kind:** plan · **Status:** pending, 2026-10-09. The owner decided the end
+> **Kind:** plan · **Status:** in progress, 2026-10-12, on the branch `text-lines`
+> (worktree `projectured-julia-text-lines`). The owner decided the end
 > state on 2026-10-09 (N5 of [a-text-span-holds-no-line-break.md](../done/a-text-span-holds-no-line-break.md)),
-> and that it is a plan of its own, and L1 to L4 on 2026-10-09. No question is
-> open, and no step is started. ·
+> and that it is a plan of its own, and L1 to L4 on 2026-10-09. The owner asked for
+> the implementation on 2026-10-12 ("continue with plan 2"). No question is open. ·
 > **Stands on:** [text.md](../../documentation/package/platform/text/text.md),
 > [text-domain-kit.md](text-domain-kit.md) (shape A of Phase 3),
 > [a-text-span-holds-no-line-break.md](../done/a-text-span-holds-no-line-break.md) (N5)
@@ -239,6 +240,25 @@ the release plan).
   `TextToGraphics` serves only 5 tests.
 - 2026-10-09: the gutter marks (`_make_fold_mark`, `_make_numbered_line`) are
   blocks of one run, which the recursion prints to graphics beside the line.
+- 2026-10-12, the inventory again at main `8cd3db4e6`, after the first plan
+  landed: about 40 producers of a block of spans in source and 20 in the
+  examples; `TextNewline` on 70 lines of source, 14 of the examples and 48 of the
+  tests (15 files); 21 call sites of `_is_block_of_lines`; about 117 blocks of
+  spans in 32 test files. `ObjectToWidget` and `ObjectFieldToWidget` no longer
+  build a block. omnet-julia has 7 blocks of one run; inet-julia's
+  `PacketDiagramToText` gives a `TextNewline` after each row.
+- 2026-10-12: a reader of a text that joins the runs at the top of a block reads
+  nothing from a block of lines. Such readers were `_text_to_string` of the
+  assistant (the text that a model gets), `_text_is_empty` of the conversation,
+  and the result of a formula; they read the flat string now. A producer and its
+  readers must change in one step.
+- 2026-10-12: once a primitive is a block of lines, Enter there is a break of the
+  text domain. The rule of the first plan for a field of one run (N10: it takes no
+  break, and the key falls to the bindings around it) now applies to each producer
+  of a value of one line: `PrimitiveToText` declines an edit that holds a `'\n'`,
+  so Enter still makes the value of a type-in, and `_text_break` binds in every
+  block. A paste of text with breaks into a primitive is declined too; on main the
+  value took the breaks, which its one run then held.
 
 ## 8. Steps (tentative)
 
@@ -248,6 +268,10 @@ a block of spans still works, so the producers move one at a time.
 0. **The baseline.** The text and projection suites of the platform, the
    conversation and widget suites, the example sweeps and the console, each part
    in a process of its own, at main before step 1.
+   *Started (2026-10-12)* at main `8cd3db4e6`, in `/var/tmp/text-lines/baseline`:
+   the sweep of the first plan, with `test_platform` at 12 GB (it peaks near 8 GB
+   in one process), and the catalog, its coverage, the insertion, the assistant
+   MVP and the tool views.
    **`make_text_block(content, style)`** is step 1 of
    [a-text-span-holds-no-line-break.md](../done/a-text-span-holds-no-line-break.md). The
    plan that starts first makes it.
@@ -255,6 +279,9 @@ a block of spans still works, so the producers move one at a time.
    `SelectionInspectorToText`, `ReferenceToText`, `make_evaluator_arguments_text`
    (one line for each argument), and the tooltip of the gallery. Their
    `WordWrapping` then wraps lines.
+   *Built (2026-10-12), `8f648b6fe`.* `make_evaluator_arguments_text` gave lines
+   already, from the first plan. The tooltip of a Julia definition gave a run for
+   each line, which a block of spans draws on one row; it gives lines too.
 2. **The producers of one run give one line**, by `make_text_block` or
    `TextBlock(TextLine(run))` (L1). First `get_flat_range(block, reference)` in the
    text domain, with its tests; its name follows its sibling `get_flat_caret`.
@@ -265,8 +292,25 @@ a block of spans still works, so the producers move one at a time.
    conversation and the assistant, Formula, the Julia tooltip, RST, `NaturalProjection`,
    the gutter marks, and the fold placeholder as a list of runs (L4). One commit for each package
    slice, with the tests that assert its paths.
+   *Built (2026-10-12)*: the text slice with `get_flat_range` (`fa5a838b5`), the
+   widgets (`76eb9bbe8`), the conversation and the assistant (`936f72fc6`), and
+   formula, RST and natural (`879c8647c`).
+   - `get_flat_range(block, reference)` is `_text_flat_selection` by a public
+     name; a caret is the empty range.
+   - `make_text_block(content)` gives lines in the font of a text with no style,
+     as `TextString(content)` does; a part, a thinking, a committed paragraph, a
+     streamed text and a formula result use it.
+   - The view of a field of code gives a line for each line of its text, with a
+     run for each piece, and a text widget maps a place of its view back through
+     `get_flat_range` on the view, which the IO map of its content holds.
+   - The body of a draft is one line; its caret is the flat range past the runs
+     before the value, so the empty chooser needs no case of its own.
+   - The placeholder of a fold is `Union{Vector{TextDocument}, Nothing}`; the
+     syntax gives a `CellVector{TextDocument}` from its computed cell.
 3. **The examples**: the documents of the text examples give lines, and the two
    examples of `TextNewline` leave the catalog. `ExampleSweeps.jl` follows.
+   *Built (2026-10-12), `9f66afbe5`*, with their export, their precompile
+   statements and their ids in the catalog tests.
 4. **The tests of the consumers** build lines: the blocks of spans and the soft
    `TextNewline`s in `WordWrappingTest`, `TextToGraphicsTest`, `TextLineModelTest`,
    `InlineImageCaretTest`, `TextDocumentTest` and the decorators. The 5 lazy lists
