@@ -24,7 +24,7 @@ function press!(selection, key)
     set_selection!(document, selection)
     iomap = print_document(projection, document)
     _force_layout(iomap.output)
-    op = read_intent(projection, iomap, KeyDown(key, ModifierKeys(); time = 0.0))
+    op = read_intent(projection, iomap, (character = find_typed_character(key)) === nothing ? KeyDown(key, ModifierKeys(); time = 0.0) : KeyPress(character, ModifierKeys(); time = 0.0))
     op === nothing || evaluate_operation((document = document,), op)
     op
 end

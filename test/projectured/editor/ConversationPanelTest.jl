@@ -59,7 +59,7 @@ function test_assistant_composer_panel()
             @test op.replacement == "h"
             @test first(get_reference_steps(strip_reference_types(op.reference))) ==
                   FieldReferenceStep("draft")
-            @test read_intent(proj, iom, KeyDown(:return, ModifierKeys(); time = 0.0)) isa SubmitDraftTurnOperation
+            @test read_intent(proj, iom, KeyPress('\n'; time = 0.0)) isa SubmitDraftTurnOperation
         end
 
         @testset "submit pushes the draft, resets it, and streams a reply" begin
@@ -105,7 +105,7 @@ function test_assistant_composer_panel()
             @test a.draft.parts[end].content.value == "hi"
             steps = get_reference_steps(strip_reference_types(editor.document.selection))
             @test (last(steps).start, last(steps).stop) == (2, 2)
-            press(KeyDown(:return, none; time = 0.0))
+            press(KeyPress('\n'; time = 0.0))
             @test length(a.conversation.turns) >= 1
             @test something(a.draft.parts[end].content.value, "") == ""
             _panel_wait_idle!(a)
@@ -140,7 +140,7 @@ function test_assistant_composer_panel()
             at("hellXo", (3, 5))
             press(KeyDown(:backspace, none; time = 0.0))
             at("helo", (3, 3))
-            press(KeyDown(:return, ModifierKeys(shift = true); time = 0.0))
+            press(KeyPress('\n', ModifierKeys(shift = true); time = 0.0))
             at("hel\no", (4, 4))
 
             # A click inside the text lands where it was aimed.
@@ -151,14 +151,14 @@ function test_assistant_composer_panel()
             at("hel\no", (1, 1))
 
             # Return submits, and the fresh draft holds the selection.
-            press(KeyDown(:return, none; time = 0.0))
+            press(KeyPress('\n'; time = 0.0))
             @test length(a.conversation.turns) >= 1
             at("", (0, 0))
             press(KeyPress('q'; time = 0.0))
             at("q", (1, 1))
 
             # A structured part: the kind chooser takes the selection.
-            press(KeyDown(:tab, none; time = 0.0))
+            press(KeyPress('\t'; time = 0.0))
             @test active() isa DocumentInsertion
             at("", (0, 0))
             foreach(c -> press(KeyPress(c; time = 0.0)), "jul")
@@ -209,7 +209,7 @@ function test_assistant_composer_panel()
             foreach(c -> press(KeyPress(c; time = 0.0)), "right")
             @test request.terminal.input.value == "right"
             connection.is_signed_in = true
-            press(KeyDown(:return, none; time = 0.0))
+            press(KeyPress('\n'; time = 0.0))
             @test frames_until(() -> request.state == "Signed in.")
             @test "right" in [line.text for line in request.terminal.lines]
             @test frames_until(() -> length(connection.sessions) == 1)

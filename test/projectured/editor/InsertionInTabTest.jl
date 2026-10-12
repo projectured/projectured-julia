@@ -70,7 +70,7 @@ end
 
 @testset "Ctrl+T opens a tab on an empty placeholder" begin
     # Ctrl+Tab gives the first tab the focus, as opening a window does.
-    press!(KeyDown(:tab, ModifierKeys(ctrl = true); time = 0.0))
+    press!(KeyPress('\t', ModifierKeys(ctrl = true); time = 0.0))
     press!(KeyDown(:t, ModifierKeys(ctrl = true); time = 0.0))
     @test length(get_pane_groups(tree)[1].tabs) == 2
     @test content() isa DocumentNothing
@@ -114,9 +114,8 @@ end
 @testset "A typed name narrows and commits" begin
     type!("json")
     @test occursin("json", drawn())
-    # `:return` is what a keyboard sends. The backend maps keysym 13 to it, and
-    # every binding in the tree names it; `:enter` names no key at all.
-    press!(KeyDown(:return, ModifierKeys(); time = 0.0))
+    # Return types the character '\n'; every binding in the tree reads that `KeyPress`.
+    press!(KeyPress('\n'; time = 0.0))
     # "json" is the alias `@domain Json` gives its own insertion, and an exact
     # name wins over every prefix, so the commit is unambiguous.
     @test content() isa JsonInsertion

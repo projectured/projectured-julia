@@ -26,7 +26,7 @@ function test_arrangement_find()
         tab = only(editor.document.root.tabs)
         frame!() = (drain_operations!(editor); run_frame!(editor))
         key!(key; ctrl = false, shift = false) =
-            (_arrangement_press!(editor, backend, KeyDown(key, ModifierKeys(; ctrl, shift); time = 0.0)); frame!())
+            (_arrangement_press!(editor, backend, (character = find_typed_character(key)) === nothing ? KeyDown(key, ModifierKeys(; ctrl, shift); time = 0.0) : KeyPress(character, ModifierKeys(; ctrl, shift); time = 0.0)); frame!())
         # The item that the selection names, by its index in the source.
         function selected()
             steps = get_reference_steps(strip_reference_types(editor.document.selection))

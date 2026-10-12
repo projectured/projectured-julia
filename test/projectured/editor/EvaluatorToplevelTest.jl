@@ -51,8 +51,8 @@ print_natural(document) =
 render(document) = drawn(print_natural(document))
 
 editor(t) = _EvaluatorToplevelMockEditor(t, ToolSet())
-enter() = KeyDown(:return, ModifierKeys(); time = 0.0)
-shift_enter() = KeyDown(:return, ModifierKeys(shift = true); time = 0.0)
+enter() = KeyPress('\n'; time = 0.0)
+shift_enter() = KeyPress('\n', ModifierKeys(shift = true); time = 0.0)
 
 @testset "a fresh loop holds one empty form, caret inside it" begin
     toplevel = make_insertion_document(EvaluatorToplevel)
@@ -222,7 +222,7 @@ end
     @test toplevel.elements[1].form.selection === nothing
     @test toplevel.elements[2].form.selection !== nothing
     # Alt+Enter evaluates nothing: Enter alone does.
-    @test read_gesture(toplevel, KeyDown(:return, ModifierKeys(alt = true); time = 0.0)) === nothing
+    @test read_gesture(toplevel, KeyPress('\n', ModifierKeys(alt = true); time = 0.0)) === nothing
 end
 
 # The form that evaluating `code` leaves behind, with the parse on or off.
@@ -441,7 +441,7 @@ function history_session(codes...; parse = true, structured = false)
     toplevel.type_structured_forms = structured
     ed = editor(toplevel)
     type!(text) = evaluate_operation(ed, ReplaceStringRangeOperation(toplevel.selection, text))
-    press!(key; modifiers...) = (op = read_gesture(toplevel, KeyDown(key, ModifierKeys(; modifiers...); time = 0.0));
+    press!(key; modifiers...) = (op = read_gesture(toplevel, (character = find_typed_character(key)) === nothing ? KeyDown(key, ModifierKeys(; modifiers...); time = 0.0) : KeyPress(character, ModifierKeys(; modifiers...); time = 0.0));
                    op === nothing || evaluate_operation(ed, op); op)
     shown() = toplevel.elements[length(toplevel.elements)].form.value
     caret() = last(get_reference_steps(strip_reference_types(toplevel.selection)))

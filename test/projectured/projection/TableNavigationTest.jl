@@ -30,7 +30,7 @@ function explore_table_selections(document, projection; onstate=nothing)
         KeyDown(:right, ModifierKeys(alt=true); time = 0.0),
         KeyDown(:space, ModifierKeys(shift=true); time = 0.0),
         KeyDown(:space, ModifierKeys(ctrl=true); time = 0.0),
-        KeyDown(:return, ModifierKeys(); time = 0.0),
+        KeyPress('\n'; time = 0.0),
     ]
 
     visited = Set{String}()
@@ -193,7 +193,7 @@ end
     incell = let
         clear_selection!(doc)
         set_selection!(doc, _wt_cell(2, 2))
-        op = read_intent(proj, print_document(proj, doc), KeyDown(:return, ModifierKeys(); time = 0.0))
+        op = read_intent(proj, print_document(proj, doc), KeyPress('\n'; time = 0.0))
         op.path
     end
     # Alt+arrow promotes an in-cell cursor to the whole cell, then moves.
@@ -208,16 +208,16 @@ end
     @test nav(KeyDown(:down,  ModifierKeys(); time = 0.0), _wt_row(2)) == ".rows[3]"
     @test nav(KeyDown(:up,    ModifierKeys(); time = 0.0), _wt_row(2)) == ".rows[1]"
     @test nav(KeyDown(:right, ModifierKeys(); time = 0.0), _wt_row(2)) == ".cells[2][1]"
-    @test nav(KeyDown(:return, ModifierKeys(); time = 0.0), _wt_row(2)) == ".cells[2][1]"
+    @test nav(KeyPress('\n'; time = 0.0), _wt_row(2)) == ".cells[2][1]"
 
     # A whole column steps between columns and narrows to its first cell.
     @test nav(KeyDown(:right, ModifierKeys(); time = 0.0), _wt_col(2)) == ".columns[3]"
     @test nav(KeyDown(:left,  ModifierKeys(); time = 0.0), _wt_col(2)) == ".columns[1]"
     @test nav(KeyDown(:down,  ModifierKeys(); time = 0.0), _wt_col(2)) == ".cells[1][2]"
-    @test nav(KeyDown(:return, ModifierKeys(); time = 0.0), _wt_col(2)) == ".cells[1][2]"
+    @test nav(KeyPress('\n'; time = 0.0), _wt_col(2)) == ".cells[1][2]"
 
     # Enter on a whole cell drops a real character cursor into its content.
-    @test startswith(nav(KeyDown(:return, ModifierKeys(); time = 0.0), _wt_cell(2, 2)), ".cells[2][2]")
+    @test startswith(nav(KeyPress('\n'; time = 0.0), _wt_cell(2, 2)), ".cells[2][2]")
 end
 
 @testset "Alt+click promotes a data cell to a whole-cell pick" begin

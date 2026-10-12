@@ -161,12 +161,12 @@ end
     typed = read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys(); time = 0.0))
     @test typed isa ReplaceStringRangeOperation
     @test typed.reference.head == FieldReferenceStep("content")
-    broken = read_intent(_proj(), iomap, KeyDown(:return, ModifierKeys(); time = 0.0))
+    broken = read_intent(_proj(), iomap, KeyPress('\n'; time = 0.0))
     @test broken isa ReplaceTextRangeOperation
     @test broken.replacement == "\n"
     @test broken.reference.head == FieldReferenceStep("content")
     # Tab is not text, so it goes on to move the focus.
-    @test read_intent(_proj(), iomap, KeyDown(:tab, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(_proj(), iomap, KeyPress('\t'; time = 0.0)) === nothing
 
     evaluate_operation(_WidgetTextMockEditor(doc), broken)
     @test [get_flat_string(line) for line in doc.content.elements] == ["one", " two"]
@@ -202,7 +202,7 @@ _held_caret(widget) = strip_reference_types(widget.selection)
     set_selection!(off, _cursor(1))
     iomap = print_document(_proj(), nothing, off, PrinterContext())
     @test read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys(); time = 0.0)) === nothing
-    @test read_intent(_proj(), iomap, KeyDown(:return, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(_proj(), iomap, KeyPress('\n'; time = 0.0)) === nothing
     @test read_intent(_proj(), iomap, MouseClick(:left, 10, 10, ModifierKeys(); time = 0.0)) === nothing
     @test off.content.elements[1].elements[1].content == "one"
 
@@ -246,7 +246,7 @@ end
 
     # A field is one line: Return breaks no line, and goes on to the bindings
     # around the field.
-    @test read_intent(_proj(), iomap, KeyDown(:return, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(_proj(), iomap, KeyPress('\n'; time = 0.0)) === nothing
     @test doc.content == "edit me"
 
     # A validator sees the edit of a plain string as it sees any other.
@@ -262,7 +262,7 @@ end
     doc = WidgetTextarea("one two"; rows = 3)
     set_selection!(doc, _plain_cursor(3))
     iomap = print_document(_proj(), nothing, doc, PrinterContext())
-    broken = read_intent(_proj(), iomap, KeyDown(:return, ModifierKeys(); time = 0.0))
+    broken = read_intent(_proj(), iomap, KeyPress('\n'; time = 0.0))
     @test broken isa ReplaceStringRangeOperation
     @test broken.replacement == "\n"
     evaluate_operation(_WidgetTextMockEditor(doc), broken)

@@ -303,20 +303,20 @@ end
     proj = _proj()
     btn = WidgetButton("Go"; size = Point2D(80, 30), action = (_e) -> nothing)
     biomap = print_document(proj, nothing, btn, PrinterContext())
-    @test read_intent(proj, biomap, KeyDown(:return, ModifierKeys(); time = 0.0)) isa InvokeActionOperation
-    @test read_intent(proj, biomap, KeyDown(:space,  ModifierKeys(); time = 0.0)) isa InvokeActionOperation
+    @test read_intent(proj, biomap, KeyPress('\n'; time = 0.0)) isa InvokeActionOperation
+    @test read_intent(proj, biomap, KeyPress(' '; time = 0.0)) isa InvokeActionOperation
     dbtn = WidgetButton("Go"; size = Point2D(80, 30), action = (_e) -> nothing, enabled = false)
     @test read_intent(proj, print_document(proj, nothing, dbtn, PrinterContext()),
-                          KeyDown(:return, ModifierKeys(); time = 0.0)) === nothing
+                          KeyPress('\n'; time = 0.0)) === nothing
 
     cb = WidgetCheckbox(false)
     ciomap = print_document(proj, nothing, cb, PrinterContext())
-    op = read_intent(proj, ciomap, KeyDown(:space, ModifierKeys(); time = 0.0))
+    op = read_intent(proj, ciomap, KeyPress(' '; time = 0.0))
     @test op isa ReplaceReferencedValueOperation && op.value == true
-    @test read_intent(proj, ciomap, KeyDown(:return, ModifierKeys(); time = 0.0)) isa ReplaceReferencedValueOperation
+    @test read_intent(proj, ciomap, KeyPress('\n'; time = 0.0)) isa ReplaceReferencedValueOperation
     dcb = WidgetCheckbox(false; enabled = false)
     @test read_intent(proj, print_document(proj, nothing, dcb, PrinterContext()),
-                          KeyDown(:space, ModifierKeys(); time = 0.0)) === nothing
+                          KeyPress(' '; time = 0.0)) === nothing
 end
 
 # Stage 2, Step 2: first/get_last_focusable_path locate enabled interactive leaves as
@@ -377,8 +377,8 @@ end
     _btn(t) = WidgetButton(t; size = Point2D(80, 30))
     _slot(op) = op.path.tail.head.start + 1          # 1-based selected slot from the op
     proj = _proj()
-    tab  = KeyDown(:tab, ModifierKeys(); time = 0.0)
-    stab = KeyDown(:tab, ModifierKeys(shift=true); time = 0.0)
+    tab  = KeyPress('\t'; time = 0.0)
+    stab = KeyPress('\t', ModifierKeys(shift=true); time = 0.0)
     _read(c, ev) = read_intent(proj, print_document(proj, nothing, c, PrinterContext()), ev)
 
     comp = WidgetComposite(Any[_btn("A"), WidgetCheckbox(true), _btn("C")])
@@ -416,8 +416,8 @@ end
                 ConcreteReference(RangeReferenceStep(i - 1, i), EmptyReference()))
     _btn(t) = WidgetButton(t; size = Point2D(80, 30))
     _slot(op) = op.path.tail.head.start + 1
-    tab  = KeyDown(:tab, ModifierKeys(); time = 0.0)
-    stab = KeyDown(:tab, ModifierKeys(shift=true); time = 0.0)
+    tab  = KeyPress('\t'; time = 0.0)
+    stab = KeyPress('\t', ModifierKeys(shift=true); time = 0.0)
     _renderer() = RecursiveProjection(TypeDispatchingProjection(
         WidgetToGraphics(_font; measure=_stub).dispatch))
     _read(proj, c, ev) = read_intent(proj, print_document(proj, nothing, c, PrinterContext()), ev)
@@ -446,7 +446,7 @@ end
         RecursiveProjection(TypeDispatchingProjection(vcat(
             LayoutToGraphics().dispatch,
             WidgetToGraphics(_font; measure=_stub).dispatch)))))
-    tab = KeyDown(:tab, ModifierKeys(); time = 0.0)
+    tab = KeyPress('\t'; time = 0.0)
     _read(c, ev) = read_intent(lproj, print_document(lproj, nothing, c, PrinterContext()), ev)
 
     lay = VerticalLayout(Any[_btn("A"), WidgetCheckbox(true), _btn("C")]; gap=8)

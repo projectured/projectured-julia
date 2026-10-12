@@ -149,7 +149,7 @@ function test_command_palette_decorator()
 @testset "CommandPaletteDecoratorProjection" begin
     none    = ModifierKeys()
     summon  = KeyDown(:p, ModifierKeys(ctrl=true, shift=true); time = 0.0)
-    enter   = KeyDown(:return, none; time = 0.0)
+    enter   = KeyPress('\n'; time = 0.0)
     escape  = KeyDown(:escape, none; time = 0.0)
 
     # The real JSON pipeline, down to graphics — the decorator draws over graphics.
@@ -445,7 +445,7 @@ function test_command_palette_decorator()
 
         # Tab moves the cursor from the key to the value; the command moves it back.
         set_selection!(obj, @reference(obj, entries[1].key{0}))
-        forward = read_gesture(obj, KeyDown(:tab, none; time = 0.0))
+        forward = read_gesture(obj, KeyPress('\t'; time = 0.0))
         @test forward isa ReplaceSelectionOperation
         set_selection!(obj, forward.path)
         back = fire_named_gesture_binding(bindings, obj, "Move from value to key";

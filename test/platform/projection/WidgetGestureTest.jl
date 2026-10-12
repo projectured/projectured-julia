@@ -153,14 +153,14 @@ end
 
 @testset "tree: a per-node key binding fires against the selected node" begin
     entered = Ref(false)
-    kb = GestureBinding(KeyDownPattern(:return),
+    kb = GestureBinding(KeyPressPattern('\n'),
                         (node, evt) -> (entered[] = true; DoNothingOperation());
                         applicable = _always, description = "enter", domain = "test-node")
     node = WidgetTreeNode(:file, "a.jl"; gestures = [kb])
     w = WidgetTree(Any[node])
     io = print_document(_treeproj, w)
     getfield(w, :selection)[] = _pathref(1)          # select the node
-    op = _readop(io, KeyDown(:return, ModifierKeys(); time = 0.0))
+    op = _readop(io, KeyPress('\n'; time = 0.0))
     @test entered[] == true
     @test op isa DoNothingOperation
 end

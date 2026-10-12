@@ -14,7 +14,7 @@
 # Typing goes through the standard `PrimitiveString → Syntax → Text →
 # Graphics` chain (PrimitiveStringToSyntaxLeaf catches `KeyPress`).
 # Enter goes through `AssistantToWidgetSplitPane.read_intent`, which
-# returns `SubmitProseOperation` for `KeyDown :return`.
+# returns `SubmitProseOperation` for `KeyPress('\n')`.
 # The test deliberately does not wire the full assistant → graphics
 # chain — that path is exercised by the standalone assistant example
 # (see [`make_assistant_only_example`](../example/Examples.jl)).
@@ -100,7 +100,7 @@ function _mvp_enter!(a::Assistant)
     chain = make_assistant_projection_example()
     set_selection!(a, @reference(a, draft.^(make_draft_caret_reference(a.draft))))
     iomap = print_document(chain, a)
-    op = read_intent(chain, iomap, KeyDown(:return, ModifierKeys(); time = 0.0))
+    op = read_intent(chain, iomap, KeyPress('\n'; time = 0.0))
     op === nothing && return nothing
     evaluate_operation((document = a, tools = register_default_tools!(ToolSet())), op)
     op

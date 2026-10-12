@@ -27,7 +27,7 @@ function test_data_frame_row_page()
     shows(editor, text) = any(t -> t[3] == text, texts(editor))
     input(editor, event) = WindowInput(window(editor).id, event)
     press!(editor, backend, event) = (push!(backend.events, input(editor, event)); run_frame!(editor))
-    key(k; ctrl = false) = KeyDown(k, ModifierKeys(; ctrl); time = 0.0)
+    key(k; ctrl = false) = (character = find_typed_character(k)) === nothing ? KeyDown(k, ModifierKeys(; ctrl); time = 0.0) : KeyPress(character, ModifierKeys(; ctrl); time = 0.0)
     # The header of row `r`: the lowest drawn text `string(r)`, below the corner.
     function header(editor, r)
         (x, y) = last(sort([(t[1], t[2]) for t in texts(editor) if t[3] == string(r)]; by = last))

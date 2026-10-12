@@ -234,10 +234,10 @@ end
     editor, backend = _stab_editor(settings, settings; focus_cycling = true)
     fault = get_settings_group!(settings, FaultSettings)
     @test fault.is_barrier_enabled
-    _stab_press!(editor, backend, KeyDown(:tab, ModifierKeys(); time = 0.0))
+    _stab_press!(editor, backend, KeyPress('\t'; time = 0.0))
     # The selection of the settings is a path that the tab introduces.
     @test get_selection(settings) isa ConcreteReference
-    _stab_press!(editor, backend, KeyDown(:space, ModifierKeys(); time = 0.0))
+    _stab_press!(editor, backend, KeyPress(' '; time = 0.0))
     @test !fault.is_barrier_enabled && !editor.fault_policy.is_barrier_enabled
 end
 

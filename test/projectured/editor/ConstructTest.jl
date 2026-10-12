@@ -482,7 +482,7 @@ function test_json_construct()
         # delimiter after a string, in a number — the JSON step reads the key itself.
         @testset "json/caret-only" begin
             chars(text) = [KeyPress(c; time = 0.0) for c in text]
-            tab, right = KeyDown(:tab, ModifierKeys(); time = 0.0), KeyDown(:right, ModifierKeys(); time = 0.0)
+            tab, right = KeyPress('\t'; time = 0.0), KeyDown(:right, ModifierKeys(); time = 0.0)
             function build(events)
                 seed = JsonInsertion()
                 set_selection!(seed, EmptyReference())

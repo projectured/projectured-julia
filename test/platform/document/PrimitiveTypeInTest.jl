@@ -34,7 +34,7 @@ _ti_press!(editor, backend, events...) =
     (foreach(event -> push_event!(backend, event), events); run_frame!(editor))
 
 _ti_key(character) = KeyPress(character; time = 0.0)
-_ti_down(key; ctrl = false) = KeyDown(key, ModifierKeys(ctrl = ctrl); time = 0.0)
+_ti_down(key; ctrl = false) = (character = find_typed_character(key)) === nothing ? KeyDown(key, ModifierKeys(ctrl = ctrl); time = 0.0) : KeyPress(character, ModifierKeys(ctrl = ctrl); time = 0.0)
 
 # The caret at `k` in the value of the first element of a list, after `prefix`.
 _ti_caret(k; prefix = ()) =

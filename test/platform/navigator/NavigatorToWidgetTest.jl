@@ -58,7 +58,7 @@ const _NAV_PARENT = string(Char(0xe04a))
 _nav_press!(editor, backend, events...) =
     (foreach(event -> push_event!(backend, event), events); run_frame!(editor))
 
-_nav_key(key) = KeyDown(key, ModifierKeys(ctrl = true); time = 0.0)
+_nav_key(key) = (character = find_typed_character(key)) === nothing ? KeyDown(key, ModifierKeys(ctrl = true); time = 0.0) : KeyPress(character, ModifierKeys(ctrl = true); time = 0.0)
 
 # A click on the first text `text` that the frame draws.
 function _nav_click(backend, text)

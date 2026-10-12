@@ -169,7 +169,7 @@ end
         run_frame!(editor)
     end
     @test terminal.input.value == "xy"
-    push_event!(backend, KeyDown(:return, ModifierKeys(); time = 0.0))
+    push_event!(backend, KeyPress('\n'; time = 0.0))
     run_frame!(editor)
     @test terminal.input.value == ""
     @test _wait_for_terminal(() -> (run_frame!(editor); "got xy" in _terminal_texts(terminal)))

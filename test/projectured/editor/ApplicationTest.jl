@@ -1037,7 +1037,7 @@ function test_application()
                 end
                 @test evaluator.elements[1].form.value == "1 + 41"
                 @test !any(text -> occursin("42", text), drawn())
-                @test _app_plain(press!(KeyDown(:return, ModifierKeys(); time = 0.0))) isa
+                @test _app_plain(press!(KeyPress('\n'; time = 0.0))) isa
                       EvaluateSelectedFormOperation
                 @test length(evaluator.elements) == 2
                 # One caret, and it is in the fresh form below the result: the
@@ -1049,14 +1049,14 @@ function test_application()
                 for character in "x = 1"
                     press!(KeyPress(character; time = 0.0))
                 end
-                press!(KeyDown(:return, ModifierKeys(shift = true); time = 0.0))
+                press!(KeyPress('\n', ModifierKeys(shift = true); time = 0.0))
                 for character in "x + 1"
                     press!(KeyPress(character; time = 0.0))
                 end
                 @test evaluator.elements[2].form.value == "x = 1\nx + 1"
                 @test length(evaluator.elements) == 2
                 @test y_of("x + 1") > y_of("x = 1")
-                press!(KeyDown(:return, ModifierKeys(); time = 0.0))
+                press!(KeyPress('\n'; time = 0.0))
                 @test length(evaluator.elements) == 3
                 @test "2" in drawn()
                 @test length(carets()) == 1
@@ -1079,7 +1079,7 @@ function test_application()
                     operation isa Operation && evaluate_operation(editor, operation)
                     operation
                 end
-                key(name; modifiers...) = KeyDown(name, ModifierKeys(; modifiers...); time = 0.0)
+                key(name; modifiers...) = (character = find_typed_character(name)) === nothing ? KeyDown(name, ModifierKeys(; modifiers...); time = 0.0) : KeyPress(character, ModifierKeys(; modifiers...); time = 0.0)
                 type!(text) = foreach(character -> press!(KeyPress(character; time = 0.0)), text)
                 toolbar = only(search_documents(document, node -> node isa WidgetToolbar))
                 button = only(item for item in toolbar.elements
@@ -1147,7 +1147,7 @@ function test_application()
                 @test evaluator.elements[1].form.value == "1+1"
                 # Enter evaluates the form. The hole's own Enter, which commits in
                 # place, does not win.
-                @test _app_plain(press!(KeyDown(:return, ModifierKeys(); time = 0.0))) isa
+                @test _app_plain(press!(KeyPress('\n'; time = 0.0))) isa
                       EvaluateSelectedFormOperation
                 @test length(evaluator.elements) == 2
                 @test evaluator.elements[1].form isa JuliaBinaryOperation
@@ -1201,14 +1201,14 @@ function test_application()
                 # The application keeps the content of a file in its undo buffer.
                 type!("x.content.content.entries[1].value.value = \"Bob\"")
                 # Tab commits the hole into a tree of the code.
-                press!(KeyDown(:tab, ModifierKeys(); time = 0.0))
+                press!(KeyPress('\t'; time = 0.0))
                 # Alt+click on `x` selects it whole, and Ctrl+V puts the noted file
                 # there, which the code draws as its label.
                 (xx, xy) = only(at("x"))
                 press!(MouseClick(:left, xx + 3, xy + 5, 1, ModifierKeys(alt = true); time = 0.0))
                 press!(KeyDown(:v, ModifierKeys(ctrl = true); time = 0.0))
                 @test "⟨a.json⟩" in [text for (text, _, _) in drawn()]
-                @test _app_plain(press!(KeyDown(:return, ModifierKeys(); time = 0.0))) isa
+                @test _app_plain(press!(KeyPress('\n'; time = 0.0))) isa
                       EvaluateSelectedFormOperation
                 @test !evaluator.elements[1].is_error
                 # The evaluation changed the file itself, so its tab, brought to the
@@ -1271,7 +1271,7 @@ function test_application()
                     @test evaluator.elements[1].form.value == ""
                     press!(KeyDown(:v, ModifierKeys(ctrl = true); time = 0.0))
                     @test evaluator.elements[1].form.value == code
-                    press!(KeyDown(:return, ModifierKeys(); time = 0.0))
+                    press!(KeyPress('\n'; time = 0.0))
                     @test !evaluator.elements[1].is_error
                     @test evaluator.elements[1].result === file
                 finally
@@ -1297,7 +1297,7 @@ function test_application()
                     fire!(MouseUp(:left, x, y, modifiers; time = 0.0))
                     fire!(MouseClick(:left, x, y, 1, modifiers; time = 0.0))
                 end
-                key!(name; modifiers...) = fire!(KeyDown(name, ModifierKeys(; modifiers...); time = 0.0))
+                key!(name; modifiers...) = fire!((character = find_typed_character(name)) === nothing ? KeyDown(name, ModifierKeys(; modifiers...); time = 0.0) : KeyPress(character, ModifierKeys(; modifiers...); time = 0.0))
                 type!(text) = foreach(character -> fire!(KeyPress(character; time = 0.0)), text)
                 content() = get_iomap_output(editor.iomap).windows[1].content
                 drawn() = _app_drawn_at(content())
@@ -1375,7 +1375,7 @@ function test_application()
                 evaluator = get_wrapped_document(group.tabs[index].content)
                 for code in ("GraphicsCircle(10, 10, 10)", "x = 1  # why")
                     foreach(character -> press!(KeyPress(character; time = 0.0)), code)
-                    press!(KeyDown(:return, ModifierKeys(); time = 0.0))
+                    press!(KeyPress('\n'; time = 0.0))
                 end
                 @test evaluator.elements[1].form isa JuliaCall
                 @test evaluator.elements[2].form isa PrimitiveString
@@ -1653,7 +1653,7 @@ function test_application()
                 selection = _app_fire(composed, iomap, MouseClick(:left, 100, y, 1, ModifierKeys(); time = 0.0))
                 @test _app_plain(selection) isa ReplaceSelectionOperation
                 evaluate_operation(editor, selection)
-                opened = _app_fire(composed, iomap, KeyDown(:return, ModifierKeys(); time = 0.0))
+                opened = _app_fire(composed, iomap, KeyPress('\n'; time = 0.0))
                 @test _app_plain(opened) isa OpenFileOperation
                 @test _app_plain(opened).path == _app_plain(operation).path
             end
@@ -1746,7 +1746,7 @@ function test_application()
                 @test isempty(ring())
                 @test press!(KeyDown(:down, ModifierKeys(); time = 0.0)) isa ReplaceSelectionOperation
                 @test selected_file() == joinpath(dir, next)
-                opened = _app_fire(composed, editor.iomap, KeyDown(:return, ModifierKeys(); time = 0.0))
+                opened = _app_fire(composed, editor.iomap, KeyPress('\n'; time = 0.0))
                 @test _app_plain(opened).path == joinpath(dir, next)
 
                 @test press!(MouseClick(:left, x + 3, y + 3, 1, ModifierKeys(alt = true); time = 0.0)) isa
@@ -1793,7 +1793,7 @@ function test_application()
                 focus_draft!(w)
                 type!(w, "hi")
                 @test holds_one_path(w)
-                @test w.press!(KeyDown(:tab, ModifierKeys(); time = 0.0)) isa ComposerInsertPartOperation
+                @test w.press!(KeyPress('\t'; time = 0.0)) isa ComposerInsertPartOperation
                 @test holds_one_path(w)
                 @test w.press!(KeyDown(:escape, ModifierKeys(); time = 0.0)) isa ComposerRevertOperation
                 @test holds_one_path(w)
@@ -1801,7 +1801,7 @@ function test_application()
                 w = window()
                 focus_draft!(w)
                 type!(w, "hello")
-                @test w.press!(KeyDown(:return, ModifierKeys(); time = 0.0)) isa SubmitDraftTurnOperation
+                @test w.press!(KeyPress('\n'; time = 0.0)) isa SubmitDraftTurnOperation
                 @test waited(w)
                 @test carets(w) == 1
                 # The submitted part leaves its caret behind in the draft.
@@ -1874,7 +1874,7 @@ function test_application()
                     reset_os_clipboard_backend!()
                 end
                 @test evaluator.elements[1].form.value == "1 + 41"
-                w.press!(KeyDown(:return, ModifierKeys(); time = 0.0))
+                w.press!(KeyPress('\n'; time = 0.0))
                 @test length(evaluator.elements) == 2
                 @test holds_one_path(w)
                 @test w.press!(KeyDown(:up, ModifierKeys(); time = 0.0)) isa RecallEvaluatorFormOperation
@@ -1908,7 +1908,7 @@ function test_application()
             carets() = _app_drawn_carets(get_iomap_output(editor.iomap).windows[1].content)
             (x, y) = first((x, y) for (text, x, y) in drawn() if text == "a.json")
             press!(MouseClick(:left, x + 3, y + 3, 1, ModifierKeys(); time = 0.0))
-            @test press!(KeyDown(:return, ModifierKeys(); time = 0.0)) isa OpenFileOperation
+            @test press!(KeyPress('\n'; time = 0.0)) isa OpenFileOperation
             file = only(search_documents(document, node -> node isa JsonFile;
                                          descend = _app_is_content_search_step))
             name() = get_wrapped_document(file.content).entries[1].value.value

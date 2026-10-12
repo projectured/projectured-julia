@@ -82,8 +82,8 @@ end
 
 # ── Interactive driver: real key events through the JuliaToSyntax pipeline ──────
 _jt_keys(s) = [KeyPress(c, string(c), ModifierKeys(); time = 0.0) for c in s]
-const _JT_TAB = KeyDown(:tab, ModifierKeys(); time = 0.0)
-const _JT_RET = KeyDown(:return, ModifierKeys(); time = 0.0)
+const _JT_TAB = KeyPress('\t'; time = 0.0)
+const _JT_RET = KeyPress('\n'; time = 0.0)
 
 # Feed one event through `proj`; returns the (possibly root-swapped) document.
 function _jt_feed(proj, doc, ev)

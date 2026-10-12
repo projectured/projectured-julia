@@ -512,7 +512,7 @@ end
 @testset "keys move a selected column, and go between a column and its cells" begin
     table = make_table(make_list(5, texts_of))
     io = print_document(rec, nothing, table, context())
-    key(name; kw...) = read(io, KeyDown(name, ModifierKeys(; kw...); time = 0.0))
+    key(name; kw...) = read(io, (character = find_typed_character(name)) === nothing ? KeyDown(name, ModifierKeys(; kw...); time = 0.0) : KeyPress(character, ModifierKeys(; kw...); time = 0.0))
     column(c) = ConcreteReference(FieldReferenceStep("columns"),
                     ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))
     getfield(table, :selection)[] = column(1)
@@ -945,7 +945,7 @@ end
            Any[Any[texts_of(i, 1), texts_of(i, 2)] for i in 1:5]
     table = make_table(rows; open_cells = Any[(row = 2, column = 1, reason = nothing)])
     io = print_document(rec, nothing, table, context())
-    key(name; kw...) = read(io, KeyDown(name, ModifierKeys(; kw...); time = 0.0))
+    key(name; kw...) = read(io, (character = find_typed_character(name)) === nothing ? KeyDown(name, ModifierKeys(; kw...); time = 0.0) : KeyPress(character, ModifierKeys(; kw...); time = 0.0))
     getfield(table, :selection)[] = cell_reference(2, 1)
     commit = key(:return)
     @test commit isa CommitTableCellOperation && commit.table === table

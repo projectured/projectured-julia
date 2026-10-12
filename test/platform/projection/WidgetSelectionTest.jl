@@ -107,7 +107,7 @@ function _selection_click!(projection, iomap, root, x, y; button = :left,
 end
 
 function _selection_space!(projection, iomap, root)
-    answer = read_intent(projection, iomap, KeyDown(:space, ModifierKeys(); time = 0.0))
+    answer = read_intent(projection, iomap, KeyPress(' '; time = 0.0))
     answer === nothing || evaluate_operation((document = root,), answer)
     answer
 end

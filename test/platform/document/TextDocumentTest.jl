@@ -139,7 +139,7 @@ evaluate_operation((document = bb,), bop)
 # Enter splits the line at the caret; the new line takes the indentation of the
 # line, and the text after the caret.
 be  = caret(fb(Int[1, 1], 3))
-eop = read_bound_gesture(be, KeyDown(:return, ModifierKeys(); time = 0.0))
+eop = read_bound_gesture(be, KeyPress('\n'; time = 0.0))
 @test eop isa ReplaceTextRangeOperation && eop.replacement == "\n"
 evaluate_operation((document = be,), eop)
 @test [get_flat_length(line) for line in be.elements] == [3, 8, 8]

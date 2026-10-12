@@ -193,7 +193,7 @@ iomap = print_document(p, IdentityProjection(), block, PrinterContext())
 printed = computed[]
 @test printed <= 1
 for key in (:up, :down, :home, :end, :return)
-    @test read_intent(p, iomap, KeyDown(key, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(p, iomap, (character = find_typed_character(key)) === nothing ? KeyDown(key, ModifierKeys(); time = 0.0) : KeyPress(character, ModifierKeys(); time = 0.0)) === nothing
 end
 @test computed[] == printed
 

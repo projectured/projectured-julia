@@ -214,7 +214,7 @@ function test_data_frame_cells()
             end
             @test only(view.edits).document isa PrimitiveInsertion
             send!(KeyPress('7'; time = 1.4))
-            send!(KeyDown(:return, ModifierKeys(); time = 1.5))
+            send!(KeyPress('\n'; time = 1.5))
             @test view.frame[2, :id] == 7
             send!(KeyDown(:z, ModifierKeys(ctrl = true); time = 1.6))
             @test view.frame[2, :id] == 102
@@ -237,7 +237,7 @@ function test_data_frame_cells()
             @test shown(io, 2, 1) isa PrimitiveNumber && shown(io, 2, 1).value == 102
         end
 
-        enter() = KeyDown(:return, ModifierKeys(); time = 0.0)
+        enter() = KeyPress('\n'; time = 0.0)
         whole(r, c) = ConcreteReference(FieldReferenceStep("rows"), ConcreteReference(RangeReferenceStep(r - 1, r),
             ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference())))
         # Open the cell that shows `text` with the caret at the end of `text`.
@@ -344,7 +344,7 @@ function test_data_frame_cells()
             @test entry.row == 1 && entry.column == "name"
             set_selection!(view, caret(1, 2, 5))
             evaluate_operation(editor, key(io, KeyPress('x'; time = 0.0)))
-            evaluate_operation(editor, key(io, KeyDown(:tab, ModifierKeys(); time = 0.0)))
+            evaluate_operation(editor, key(io, KeyPress('\t'; time = 0.0)))
             @test view.frame[1, :name] == "alphax"
             @test isempty(view.edits)
         end
@@ -388,7 +388,7 @@ function test_data_frame_cells()
             send!(MouseDown(:left, x + 30, y + 2, ModifierKeys(); time = 1.0))
             send!(MouseUp(:left, x + 30, y + 2, ModifierKeys(); time = 1.05))
             send!(KeyPress('5'; time = 1.2))
-            send!(KeyDown(:return, ModifierKeys(); time = 1.3))
+            send!(KeyPress('\n'; time = 1.3))
             @test view.frame[2, :id] == 1025 && isempty(view.edits)
             # The first Ctrl+Z takes the commit back and opens the cell with the
             # text of the edit; the second takes the key back.
@@ -497,7 +497,7 @@ function test_data_frame_cells()
             end
         end
         y_of(io, text) = place_of(io, text)[2]
-        tab(shift = false) = KeyDown(:tab, ModifierKeys(; shift); time = 0.0)
+        tab(shift = false) = KeyPress('\t', ModifierKeys(; shift); time = 0.0)
 
         @testset "after a commit the view sorts again, and Enter goes to the cell below, which keeps its place" begin
             view, io, editor = open_sorted_view()
@@ -587,7 +587,7 @@ function test_data_frame_cells()
             send!(KeyPress('5'; time = 1.2))
             send!(KeyPress('7'; time = 1.3))
             @test only(view.edits).document.value == 57
-            send!(KeyDown(:return, ModifierKeys(); time = 1.4))
+            send!(KeyPress('\n'; time = 1.4))
             @test view.frame[2, :id] == 57 && isempty(view.edits)
             send!(KeyDown(:z, ModifierKeys(ctrl = true); time = 1.5))
             @test view.frame[2, :id] == 102 && only(view.edits).document.value == 57

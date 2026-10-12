@@ -78,18 +78,18 @@ function test_data_frame_find()
                 evaluate_operation(editor, key(io, KeyPress(character; time = 0.0)))
             end
             @test view.find_text == "an" && view.query.expression == ""
-            evaluate_operation(editor, key(io, KeyDown(:return, ModifierKeys(); time = 0.0)))
+            evaluate_operation(editor, key(io, KeyPress('\n'; time = 0.0)))
             @test selected(view) == whole(2, 1)
             # Shift+Enter in the find field finds back.
             evaluate_operation(editor, key(io, KeyDown(:f, ModifierKeys(ctrl = true); time = 0.0)))
-            evaluate_operation(editor, key(io, KeyDown(:return, ModifierKeys(shift = true); time = 0.0)))
+            evaluate_operation(editor, key(io, KeyPress('\n', ModifierKeys(shift = true); time = 0.0)))
             @test selected(view) == whole(2, 1)
             # From the find field a find starts at the row at the head of the
             # list, row 2 after the jump to banana, so back from it is apple.
             getfield(view, :find_text)[] = "a"
             evaluate_operation(editor, key(io, KeyDown(:f, ModifierKeys(ctrl = true); time = 0.0)))
             @test view.anchor == 2
-            evaluate_operation(editor, key(io, KeyDown(:return, ModifierKeys(shift = true); time = 0.0)))
+            evaluate_operation(editor, key(io, KeyPress('\n', ModifierKeys(shift = true); time = 0.0)))
             @test selected(view) == whole(1, 1)
         end
 
@@ -102,7 +102,7 @@ function test_data_frame_find()
             send!(event) = (push!(backend.events, WindowInput(:W, event)); run_frame!(editor))
             send!(KeyDown(:f, ModifierKeys(ctrl = true); time = 1.0))
             send!(KeyPress('e'; time = 1.1))
-            send!(KeyDown(:return, ModifierKeys(); time = 1.5))
+            send!(KeyPress('\n'; time = 1.5))
             @test view.find_text == "e" && selected(view) == whole(1, 1)
             send!(KeyDown(:f3, ModifierKeys(); time = 2.0))
             @test selected(view) == whole(3, 1)

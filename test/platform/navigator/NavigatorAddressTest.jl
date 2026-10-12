@@ -5,7 +5,7 @@
 
 _nav_type!(editor, backend, text) =
     foreach(c -> _nav_press!(editor, backend, KeyPress(c; time = 0.0)), text)
-_nav_plain_key(key) = KeyDown(key, ModifierKeys(); time = 0.0)
+_nav_plain_key(key) = (character = find_typed_character(key)) === nothing ? KeyDown(key, ModifierKeys(); time = 0.0) : KeyPress(character, ModifierKeys(); time = 0.0)
 _nav_draft_texts(navigator) = [_nav_step_text(step) for step in navigator.address_draft.steps]
 _nav_step_text(step::FieldReferenceStep) = "." * step.name
 _nav_step_text(step::RangeReferenceStep) = "[" * string(step.stop) * "]"

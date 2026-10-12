@@ -31,7 +31,11 @@ function _focus_second(control)
         ConcreteReference(RangeReferenceStep(1, 2), EmptyReference()))
     layout
 end
-_key(k; modifiers...) = KeyDown(k, ModifierKeys(; modifiers...); time = 0.0)
+function _key_event(k, mods)
+    character = k === :space && mods == ModifierKeys() ? ' ' : find_typed_character(k)
+    character === nothing ? KeyDown(k, mods; time = 0.0) : KeyPress(character, mods; time = 0.0)
+end
+_key(k; modifiers...) = _key_event(k, ModifierKeys(; modifiers...))
 
 @testset "spin box steps up/down and clamps to [min, max]" begin
     s = WidgetSpinBox(5; min=0, max=10, step=2)
@@ -141,7 +145,7 @@ end
     @test press(io, ModifierKeys(shift = true)).value == 3
     @test press(print_document(proj, step_group(3)), ModifierKeys()).value == 1
     # Return and Space with no modifier step too; another key does nothing.
-    key(k, modifiers = ModifierKeys()) = read_intent(proj, io, KeyDown(k, modifiers; time = 0.0))
+    key(k, modifiers = ModifierKeys()) = read_intent(proj, io, _key_event(k, modifiers))
     @test key(:return).value == 2
     @test key(:space).value == 2
     @test key(:return, ModifierKeys(ctrl = true)) === nothing

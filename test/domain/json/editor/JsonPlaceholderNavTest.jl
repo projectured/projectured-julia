@@ -128,7 +128,7 @@ function test_json_placeholder_navigation()
                     ConcreteReference(RangeReferenceStep(6, 6), EmptyReference()))
         ins = JsonInsertion("object"); clear_selection!(ins); set_selection!(ins, vpath)
         io = print_document(proj, ins)
-        @test read_intent(proj, io, KeyDown(:return, ModifierKeys(); time = 0.0)) isa CompoundOperation
+        @test read_intent(proj, io, KeyPress('\n'; time = 0.0)) isa CompoundOperation
         @test read_intent(proj, io, KeyDown(:escape, ModifierKeys(); time = 0.0)) isa CompoundOperation
     end
 end

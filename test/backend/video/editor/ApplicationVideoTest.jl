@@ -53,7 +53,7 @@ function test_application_video()
         (event = KeyDown(:t, ModifierKeys(ctrl = true); time = 0.0), hold = 0.2),
         (event = KeyDown(:insert, ModifierKeys(); time = 0.0),        hold = 0.2),
         make_typein_gestures("repl"; hold = 0.1, jitter = 0.0)...,
-        (event = KeyDown(:return, ModifierKeys(); time = 0.0),        hold = 0.5),
+        (event = KeyPress('\n'; time = 0.0),        hold = 0.5),
     ]
     expected_duration = initial_hold + sum(e.hold for e in timeline) + final_hold
 
@@ -228,7 +228,7 @@ end
         (event = KeyDown(:t, ModifierKeys(ctrl = true); time = 0.0), hold = 0.3),
         (event = KeyDown(:insert, ModifierKeys(); time = 0.0),        hold = 0.3),
         make_typein_gestures("repl"; hold = 0.1, jitter = 0.0)...,
-        (event = KeyDown(:return, ModifierKeys(); time = 0.0),        hold = 0.5),
+        (event = KeyPress('\n'; time = 0.0),        hold = 0.5),
     ]
     root = mktempdir()
     take(; kwargs...) = begin

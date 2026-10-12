@@ -111,7 +111,7 @@ end
 @testset "Space inserts an attribute and selects its name" begin
     e = XmlElement("a")
     # Cursor in the start tag → fires.
-    op = read_key(e, @reference(e, tag{0}), KeyDown(:space, ModifierKeys(); time = 0.0))
+    op = read_key(e, @reference(e, tag{0}), KeyPress(' '; time = 0.0))
     @test op isa CompoundOperation
     ed = _XmlReaderEditor(e, nothing)
     evaluate_operation(ed, op)
@@ -120,7 +120,7 @@ end
     @test selof(e.attrs[1]) isa ConcreteReference  # cursor in the name
     # Gating: Space while editing a child node declines.
     e2 = XmlElement("a", XmlDocument[XmlText("hi")])
-    @test read_key(e2, @reference(e2, children[1].content{0}), KeyDown(:space, ModifierKeys(); time = 0.0)) === nothing
+    @test read_key(e2, @reference(e2, children[1].content{0}), KeyPress(' '; time = 0.0)) === nothing
 end
 
 @testset "Insert key inserts a generic insertion child" begin

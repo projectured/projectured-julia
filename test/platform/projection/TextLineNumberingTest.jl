@@ -56,14 +56,14 @@ end
     @test op isa ReplaceStringRangeOperation && op.replacement == "" &&
           is_reference_equal(strip_reference_types(op.reference), TextModule._text_replace_path(Int[2, 1], 0, 1))
     # A key with no rule gets no operation, and the gesture is never the answer.
-    @test read_intent(proj, iomap, KeyDown(:tab, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(proj, iomap, KeyPress('\t'; time = 0.0)) === nothing
     # In a chain, the stage before the numbering then gets the key.
     measure = FixedMeasure(10, 18, 6, 0)
     chain = ChainingProjection(TextLineNumbering(), TextToGraphics(measure = measure))
     chain_iomap = print_document(chain, input)
-    @test read_intent(chain, chain_iomap, KeyDown(:tab, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(chain, chain_iomap, KeyPress('\t'; time = 0.0)) === nothing
     # A line break is an edit of the lines of the input, which stays flat.
-    enter = read_intent(chain, chain_iomap, KeyDown(:return, ModifierKeys(); time = 0.0))
+    enter = read_intent(chain, chain_iomap, KeyPress('\n'; time = 0.0))
     @test enter isa ReplaceTextRangeOperation && enter.replacement == "\n"
     # A typed key: the string edit of the numbered output is declined, and the key
     # is read again against the input, so it types into "def" at character 1.
