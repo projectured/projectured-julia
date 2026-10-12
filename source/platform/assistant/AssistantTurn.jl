@@ -89,13 +89,19 @@ is_assistant_turn_running(a::Assistant) = a.status === :streaming
     AssistantTurnControl()
 
 The live control of the turn of an assistant that runs: a stop sets
-`is_cancelled`. The assistant holds it in `turn_control` while the turn runs.
+`is_cancelled`; a message that the agent took into the turn sets
+`is_split_asked`, so the answer goes on in a new turn below the message; and
+`seen_turn_count` counts the turns of the conversation that the turn read, so a
+user turn after them is a message that waits. The assistant holds it in
+`turn_control` while the turn runs.
 """
 mutable struct AssistantTurnControl
     is_cancelled::Bool
+    is_split_asked::Bool
+    seen_turn_count::Int
 end
 
-AssistantTurnControl() = AssistantTurnControl(false)
+AssistantTurnControl() = AssistantTurnControl(false, false, 0)
 
 # What the callbacks of a turn of a model throw after a stop. It ends the stream
 # of the model, which closes its connection, and the loop of the kernel with it.
@@ -284,6 +290,7 @@ end
 function _launch_agent_turn!(editor, a::Assistant)
     a.status = :streaming
     control = AssistantTurnControl()
+    control.seen_turn_count = length(a.conversation.turns)
     a.turn_control = control
     @async begin
         try
@@ -310,6 +317,10 @@ function _launch_agent_turn!(editor, a::Assistant)
             run_on_editor_task!(editor; wait = false) do
                 a.status === :streaming && (a.status = :idle)
                 a.turn_control === control && (a.turn_control = nothing)
+                # A message that waited while the turn ran starts the next turn,
+                # unless a person stopped this one or it failed.
+                a.status === :idle && !control.is_cancelled && _has_waiting_message(a, control) &&
+                    _launch_agent_turn!(editor, a)
             end
         end
     end
@@ -327,15 +338,12 @@ end
 
 function evaluate_operation(editor, op::SubmitProseOperation)
     a = op.assistant
-    # A turn that streams owns the end of the conversation, so the submit waits
-    # for it to end and the input keeps its text.
-    a.status === :streaming && return nothing
     text = _text_to_string(a.input)
     isempty(strip(text)) && return nothing
-
-    push!(a.conversation.turns, _make_instant_turn(:user, [ConversationPart(text)]))
+    turn = _make_instant_turn(:user, [ConversationPart(text)])
+    push!(a.conversation.turns, turn)
     _set_input!(a, "")
-    _launch_agent_turn!(editor, a)
+    _send_user_turn!(editor, a, turn)
 end
 
 """
@@ -344,8 +352,9 @@ end
 Submit the composer's draft turn: finalize it (`finalize_draft!`), push it into
 the conversation history, reset the draft in place, and launch a streaming turn.
 This is what the panel emits when the composer's `ComposerSubmitOperation` fires
-(ENTER on a text typein). While a turn streams it does nothing, and the draft
-keeps its text.
+(ENTER on a text typein). While a turn streams, the message shows at once below
+the answer: an external agent that takes a prompt into a turn that runs gets it
+there, and else the message waits for the next turn.
 """
 struct SubmitDraftTurnOperation <: Operation
     assistant::Assistant
@@ -353,15 +362,31 @@ end
 
 function evaluate_operation(editor, op::SubmitDraftTurnOperation)
     a = op.assistant
-    # A turn that streams owns the end of the conversation, so Return waits for
-    # it to end and the draft keeps its text.
-    a.status === :streaming && return nothing
     draft = a.draft
     finalize_draft!(draft) || return nothing          # nothing to submit
-    push!(a.conversation.turns, _make_instant_turn(:user, collect(draft.parts)))
+    turn = _make_instant_turn(:user, collect(draft.parts))
+    push!(a.conversation.turns, turn)
     reset_draft!(draft)
     sync_draft_selection!(editor, draft)
-    _launch_agent_turn!(editor, a)
+    _send_user_turn!(editor, a, turn)
+end
+
+# A user turn that a person sent. With no turn that runs, a turn starts with it.
+# While a turn runs, an external agent that takes a prompt into a turn that runs
+# gets it there, and the answer goes on in a new turn below the message; else the
+# message waits in the conversation, and the next turn starts with it when the
+# running turn ends.
+function _send_user_turn!(editor, a::Assistant, turn::ConversationTurn)
+    a.status === :streaming || return _launch_agent_turn!(editor, a)
+    a.backend === :acp && _steer_external_agent!(editor, a, turn)
+    nothing
+end
+
+# Whether the conversation ends with a message that the turn of `control` did not
+# take: a user turn after the turns that it read.
+function _has_waiting_message(a::Assistant, control::AssistantTurnControl)
+    turns = collect(a.conversation.turns)
+    !isempty(turns) && last(turns).role === :user && length(turns) > control.seen_turn_count
 end
 
 
@@ -507,9 +532,13 @@ and a payload whose first message is an assistant message is rejected. A
 conversation that holds no user turn is serialised whole: there is no first
 message to protect.
 """
-function build_messages(conversation::ConversationConversation)
+function build_messages(conversation::ConversationConversation; until = nothing)
     out = LlmMessage[]
     turns = collect(conversation.turns)
+    # A turn that runs reads the conversation up to itself, and not a message
+    # that waits below it for the next turn.
+    stop = until === nothing ? nothing : findfirst(turn -> turn === until, turns)
+    stop === nothing || (turns = turns[1:stop])
     # A payload cannot open with an assistant message. The provider wants the
     # first message to carry the `user` role and answers a leading assistant
     # message with a 400, so the walk starts at the first thing a person said. A
@@ -783,7 +812,7 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
         run_turn!(agent, editor; tools = Tool[_make_ask_person_tool(a, turn)],
             messages = () -> begin
                 control.is_cancelled && throw(TurnCancelledException())
-                run_on_editor_task!(() -> build_messages(a.conversation), editor)
+                run_on_editor_task!(() -> build_messages(a.conversation; until = turn), editor)
             end,
             on_event = ev -> begin
                 control.is_cancelled && !(ev isa AgentToolResult) && throw(TurnCancelledException())

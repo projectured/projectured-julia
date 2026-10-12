@@ -233,8 +233,9 @@ end
 
 # ── Return while a turn streams ────────────────────────────────────────
 #
-# A turn streams on a task of its own. Return in that time submits nothing: the
-# draft keeps its text, and no second turn starts on the same conversation.
+# A turn streams on a task of its own. Return in that time sends the message: it
+# shows at once, and a turn that has not begun its answer reads it with the
+# message before it.
 
 # An editor with no loop, on the assistant, for an operation to be evaluated in.
 _mvp_editor(a::Assistant) =
@@ -242,25 +243,20 @@ _mvp_editor(a::Assistant) =
            devices = Device[], tools = register_default_tools!(ToolSet()))
 
 function _mvp_test_submit_while_streaming()
-    @testset "Return while a turn streams does nothing" begin
+    @testset "Return while a turn streams sends the message" begin
         a = make_assistant_mvp_setup()
         editor = _mvp_editor(a)
         _mvp_type!(a, "Hello")
         evaluate_operation(editor, SubmitDraftTurnOperation(a))
         @test a.status === :streaming
-        # The task of the turn has not run yet, so the turn still streams.
+        # The task of the turn has not run yet: the message goes in before the
+        # answer, and the turn reads both messages.
         _mvp_type!(a, "What?")
         evaluate_operation(editor, SubmitDraftTurnOperation(a))
-        @test length(a.conversation.turns) == 1
-        @test _mvp_draft_text(a) == "What?"
+        @test _mvp_draft_text(a) == ""
         @test _mvp_wait_idle!(a) === :idle
-        @test [t.role for t in a.conversation.turns] == [:user, :assistant]
-        @test _mvp_draft_text(a) == "What?"
-        # Once the turn ended, Return submits the draft.
-        evaluate_operation(editor, SubmitDraftTurnOperation(a))
-        @test _mvp_wait_idle!(a) === :idle
-        @test [t.role for t in a.conversation.turns] == [:user, :assistant, :user, :assistant]
-        @test _text_to_string(a.conversation.turns[3].parts[1].content) == "What?"
+        @test [t.role for t in a.conversation.turns] == [:user, :user, :assistant]
+        @test _text_to_string(a.conversation.turns[2].parts[1].content) == "What?"
     end
 end
 
@@ -320,10 +316,11 @@ function _mvp_test_stop_turn()
     end
 end
 
-# Alt+Return and the prose submit have the same guard as Return: a user turn in
-# the middle of a streamed turn would come between a tool call and its result.
+# Alt+Return keeps its guard while a turn streams: its form in the middle of a
+# streamed turn would come between a tool call and its result. A prose submit
+# sends the message, as Return does.
 function _mvp_test_evaluate_while_streaming()
-    @testset "Alt+Return and a prose submit while a turn streams do nothing" begin
+    @testset "Alt+Return while a turn streams does nothing, and a prose submit sends" begin
         a = make_assistant_mvp_setup()
         editor = _mvp_editor(a)
         _mvp_type!(a, "Hello")
@@ -336,14 +333,13 @@ function _mvp_test_evaluate_while_streaming()
         @test _mvp_draft_text(a) == "What?"
         a.input.value = "again"
         evaluate_operation(editor, SubmitProseOperation(a))
-        @test length(a.conversation.turns) == 1
-        @test a.input.value == "again"
+        @test a.input.value == ""
         @test _mvp_wait_idle!(a) === :idle
-        @test [t.role for t in a.conversation.turns] == [:user, :assistant]
+        @test [t.role for t in a.conversation.turns] == [:user, :user, :assistant]
         @test _mvp_draft_text(a) == "What?"
         # Once the turn ended, Alt+Return puts the draft into the conversation.
         evaluate_operation(editor, EvaluateDraftTurnOperation(a))
-        @test [t.role for t in a.conversation.turns] == [:user, :assistant, :user]
+        @test [t.role for t in a.conversation.turns] == [:user, :user, :assistant, :user]
     end
 end
 
@@ -532,6 +528,7 @@ function test_assistant_mvp()
         _mvp_test_agent_markdown_tool_result()
         _mvp_test_agent_resource_result()
         _mvp_test_ask_person()
+        _mvp_test_message_while_model_works()
         _mvp_test_markdown_result_table()
     end
 end
@@ -625,6 +622,37 @@ function _mvp_test_ask_person()
         evaluate_operation(editor, CancelAssistantTurnOperation(a))
         @test _mvp_wait_idle!(a; timeout_seconds = 10.0) === :idle
         @test request.answer == "Declined"
+    end
+end
+
+# A message that a person sends while a model of this editor works waits below the
+# answer that streams, the turn that runs does not read it, and a turn of its own
+# answers it when the running turn ends.
+function _mvp_test_message_while_model_works()
+    @testset "a message while a model of this editor works waits, and a turn of its own follows" begin
+        llm = ScriptedLlm([_final_text_script("First answer."), _final_text_script("Second answer.")]; delay = 0.3)
+        a = Assistant(; llm)
+        editor = _mvp_editor(a)
+        a.input.value = "First"
+        evaluate_operation(editor, SubmitProseOperation(a))
+        @test a.status === :streaming
+        # The answer streams, so a message now waits below it.
+        @test timedwait(() -> any(turn -> turn.role === :assistant && !isempty(turn.parts),
+                                  collect(a.conversation.turns)), 10.0; pollint = 0.01) === :ok
+        a.input.value = "Second"
+        evaluate_operation(editor, SubmitProseOperation(a))
+        @test last(collect(a.conversation.turns)).role === :user
+        @test timedwait(() -> a.status === :idle && count(turn -> turn.role === :assistant,
+                                                          collect(a.conversation.turns)) == 2,
+                        15.0; pollint = 0.01) === :ok
+        turns = collect(a.conversation.turns)
+        @test [turn.role for turn in turns] == [:user, :assistant, :user, :assistant]
+        @test occursin("First answer.", join(_text_to_string(part.content) for part in turns[2].parts))
+        @test occursin("Second answer.", join(_text_to_string(part.content) for part in turns[4].parts))
+        # The first turn read the conversation up to itself, not the message below it.
+        messages = build_messages(a.conversation; until = turns[2])
+        @test !any(message -> any(content -> content isa LlmText && occursin("Second", content.text),
+                                  message.content), messages)
     end
 end
 

@@ -170,6 +170,62 @@ function test_external_agent_turn()
             @test copy_document(DuplicatePolicy(), request).reply === nothing
         end
 
+        @testset "a message while the agent works goes into its turn, and the answer goes on below it" begin
+            # The agent answers, waits until it took the second message, and answers on.
+            wait_for_steer = (connection, on_event) -> timedwait(() -> !isempty(connection.steered), 10.0; pollint = 0.01)
+            connection = ScriptedAgentConnection([
+                Any[LlmTextStart(), LlmTextDelta("Working."), LlmTextStop(), wait_for_steer,
+                    LlmTextStart(), LlmTextDelta("Also done."), LlmTextStop()],
+                Any[LlmTextStart(), LlmTextDelta("Third answer."), LlmTextStop()]]; can_steer = true)
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "First"; wait = false)
+            @test timedwait(() -> any(turn -> turn.role === :assistant && !isempty(turn.parts),
+                                      collect(a.conversation.turns)), 10.0; pollint = 0.01) === :ok
+            _submit_to_agent!(a, "Second")
+            @test connection.steered == [Any[LlmText("Second")]]
+            @test length(connection.prompts) == 1
+            turns = collect(a.conversation.turns)
+            @test [turn.role for turn in turns] == [:user, :assistant, :user, :assistant]
+            @test occursin("Working.", AssistantModule._part_text(only(turns[2].parts)))
+            @test occursin("Also done.", AssistantModule._part_text(only(turns[4].parts)))
+            # The agent saw the second message, so the next prompt holds only the third.
+            _submit_to_agent!(a, "Third")
+            @test connection.prompts[2] == Any[LlmText("Third")]
+        end
+
+        @testset "a message while an agent without steering works waits, and a turn of its own follows" begin
+            release = Ref(false)
+            wait_for_release = (connection, on_event) -> timedwait(() -> release[], 10.0; pollint = 0.01)
+            connection = ScriptedAgentConnection([
+                Any[wait_for_release, LlmTextStart(), LlmTextDelta("One."), LlmTextStop()],
+                Any[LlmTextStart(), LlmTextDelta("Two."), LlmTextStop()]])
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "First"; wait = false)
+            @test timedwait(() -> length(connection.prompts) == 1, 10.0; pollint = 0.01) === :ok
+            _submit_to_agent!(a, "Second"; wait = false)
+            # The message shows at once below the turn that runs.
+            @test [turn.role for turn in collect(a.conversation.turns)] == [:user, :assistant, :user]
+            release[] = true
+            @test timedwait(() -> length(connection.prompts) == 2 && a.status !== :streaming, 10.0;
+                            pollint = 0.01) === :ok
+            @test connection.prompts[2] == Any[LlmText("Second")]
+            @test [turn.role for turn in collect(a.conversation.turns)] == [:user, :assistant, :user, :assistant]
+            # A stop does not start the next turn: the waiting message goes with the next Return.
+            release[] = false
+            connection = ScriptedAgentConnection([Any[wait_for_release, LlmTextStart(), LlmTextDelta("x"), LlmTextStop()],
+                                                  Any[LlmTextStart(), LlmTextDelta("y"), LlmTextStop()]])
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "First"; wait = false)
+            @test timedwait(() -> length(connection.prompts) == 1, 10.0; pollint = 0.01) === :ok
+            _submit_to_agent!(a, "Second"; wait = false)
+            evaluate_operation((document = a,), CancelAssistantTurnOperation(a))
+            release[] = true
+            _wait_for_idle(a)
+            sleep(0.2)
+            @test length(connection.prompts) == 1
+            @test last(collect(a.conversation.turns)).role === :user
+        end
+
         @testset "a turn that the person cancelled is not sent again" begin
             connection = ScriptedAgentConnection([
                 Any[(connection, on_event) -> timedwait(() -> connection.is_cancelled, 10.0; pollint = 0.01)],

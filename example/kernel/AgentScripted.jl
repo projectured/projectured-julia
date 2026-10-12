@@ -7,7 +7,7 @@
 """
     ScriptedAgentConnection(turns; failing_opens = 0, on_start = nothing, options = AgentOption[],
                             can_resume = false, is_signed_in = true, sign_in_methods = AgentSignInMethod[],
-                            can_sign_out = false)
+                            can_sign_out = false, can_steer = false)
 
 An external agent that plays `turns`, one for each prompt. A turn is a vector of
 steps. A step that is an event goes to `on_event` as it is. A step that is a
@@ -25,6 +25,8 @@ The first `failing_opens` sessions fail to open with a plain error. While
 `is_signed_in` is `false`, an open and a prompt throw an `AgentSignInException`
 with `sign_in_methods`; a test sets it to `true` for a sign-in that worked. A
 connection that `can_sign_out` signs out when asked, and is then not signed in.
+A connection that `can_steer` takes a prompt into the turn that runs, and
+`steered` records each one; it takes none while no prompt runs.
 `on_start`, when given, gets the connection at each start, for a start that
 takes its time. `options` are the options of each session: an open and a
 set give them to their `on_event`, and `option_sets` records each set as
@@ -47,16 +49,20 @@ mutable struct ScriptedAgentConnection
     is_signed_in::Bool
     sign_in_methods::Vector{AgentSignInMethod}
     can_sign_out::Bool
+    can_steer::Bool
+    steered::Vector{Vector{Any}}
+    is_prompting::Bool
 end
 
 ScriptedAgentConnection(turns::AbstractVector; failing_opens::Integer = 0, on_start = nothing,
                         options::AbstractVector = AgentOption[], can_resume::Bool = false,
                         is_signed_in::Bool = true, sign_in_methods::AbstractVector = AgentSignInMethod[],
-                        can_sign_out::Bool = false) =
+                        can_sign_out::Bool = false, can_steer::Bool = false) =
     ScriptedAgentConnection([collect(Any, turn) for turn in turns], 0, false, false,
                             Any[], Vector{Any}[], Function[], Any[], Int(failing_opens), on_start,
                             collect(AgentOption, options), Pair{String,String}[], can_resume,
-                            is_signed_in, collect(AgentSignInMethod, sign_in_methods), can_sign_out)
+                            is_signed_in, collect(AgentSignInMethod, sign_in_methods), can_sign_out,
+                            can_steer, Vector{Any}[], false)
 
 # What a scripted agent that is not signed in throws.
 _make_scripted_sign_in_exception(connection::ScriptedAgentConnection) =
@@ -116,11 +122,25 @@ function AgentModule.send_agent_prompt!(connection::ScriptedAgentConnection, ses
     push!(connection.prompts, collect(Any, prompt))
     connection.cursor += 1
     connection.cursor > length(connection.turns) && return :end_turn
-    for step in connection.turns[connection.cursor]
-        connection.is_cancelled && break
-        step isa Function ? step(connection, on_event) : on_event(step)
+    connection.is_prompting = true
+    try
+        for step in connection.turns[connection.cursor]
+            connection.is_cancelled && break
+            step isa Function ? step(connection, on_event) : on_event(step)
+        end
+    finally
+        connection.is_prompting = false
     end
     connection.is_cancelled ? :cancelled : :end_turn
+end
+
+AgentModule.has_agent_steering(connection::ScriptedAgentConnection) = connection.can_steer && connection.is_started
+
+function AgentModule.steer_agent_prompt!(connection::ScriptedAgentConnection, session_id::AbstractString,
+                                         prompt::AbstractVector)
+    (connection.can_steer && connection.is_prompting) || return false
+    push!(connection.steered, collect(Any, prompt))
+    true
 end
 
 function AgentModule.cancel_agent_prompt!(connection::ScriptedAgentConnection, session_id::AbstractString)

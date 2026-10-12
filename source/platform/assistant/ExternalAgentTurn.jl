@@ -40,6 +40,7 @@ mutable struct ExternalAgentSession
     session_id::String
     tool_server::Any
     sent_turn_count::Int
+    steered_turn_count::Int
     directory::String
     is_resumed::Bool
     has_answered::Bool
@@ -48,7 +49,7 @@ mutable struct ExternalAgentSession
 end
 
 ExternalAgentSession(connection; session_id::AbstractString = "", tool_server = nothing) =
-    ExternalAgentSession(connection, String(session_id), tool_server, -1, "", false, false, false,
+    ExternalAgentSession(connection, String(session_id), tool_server, -1, 0, "", false, false, false,
                          ReentrantLock())
 
 """
@@ -88,7 +89,8 @@ function _run_external_agent_turn!(editor, a::Assistant; control::AssistantTurnC
                              :tool_forms => Dict{String,EvaluatorForm}(), :plan_part => nothing,
                              :permission_requests => ConversationPermissionRequest[],
                              :question_requests => ConversationQuestionRequest[],
-                             :tools => _find_editor_tool_set(editor), :live_results => Set{String}())
+                             :tools => _find_editor_tool_set(editor), :live_results => Set{String}(),
+                             :turn => turn)
     stop_reason = try
         _start_external_agent_session!(editor, a, session)
         prompt, turn_count = run_on_editor_task!(editor) do
@@ -103,9 +105,10 @@ function _run_external_agent_turn!(editor, a::Assistant; control::AssistantTurnC
         run_on_editor_task!(() -> push!(a.conversation.turns, turn), editor; wait = false)
         reason = Base.invokelatest(send_agent_prompt!, session.connection, session.session_id, prompt;
             on_event = event -> run_on_editor_task!(editor; wait = false) do
-                _handle_external_agent_event!(event, a, turn, state)
+                _split_steered_turn!(a, state, control)
+                _handle_external_agent_event!(event, a, state[:turn], state)
             end)
-        session.sent_turn_count = turn_count
+        session.sent_turn_count = max(turn_count, session.steered_turn_count)
         session.has_answered = true
         run_on_editor_task!(() -> _keep_agent_session!(a, conversation, session), editor; wait = false)
         reason
@@ -127,7 +130,7 @@ function _run_external_agent_turn!(editor, a::Assistant; control::AssistantTurnC
             foreach(request -> answer_question_request!(request, nothing), state[:question_requests])
         end
     end
-    run_on_editor_task!(() -> _finish_turn!(a, turn, stop_reason), editor; wait = false)
+    run_on_editor_task!(() -> _finish_turn!(a, state[:turn], stop_reason), editor; wait = false)
     nothing
 end
 
@@ -253,6 +256,61 @@ function evaluate_operation(editor, operation::StartExternalAgentOperation)
             end
         end
     end)
+    nothing
+end
+
+# ── A message while the agent works ──────────────────────────────────────────
+
+# Send the user turn `turn` into the turn that runs, when the agent takes a prompt
+# there. When it took it, the turn counts the message as read, the session as
+# seen, and the answer goes on in a new turn below it; else the message waits for
+# the next turn. The request to the agent runs on a task of its own.
+function _steer_external_agent!(editor, a::Assistant, turn::ConversationTurn)
+    session = a.agent_session
+    control = a.turn_control
+    (session isa ExternalAgentSession && !isempty(session.session_id) && control isa AssistantTurnControl) ||
+        return nothing
+    index = something(findfirst(candidate -> candidate === turn, collect(a.conversation.turns)), 0)
+    prompt = LlmContent[LlmText(_make_user_turn_text(turn))]
+    errormonitor(@async begin
+        is_taken = try
+            Base.invokelatest(has_agent_steering, session.connection) &&
+                Base.invokelatest(steer_agent_prompt!, session.connection, session.session_id, prompt)
+        catch exception
+            is_passthrough_exception(exception) && rethrow()
+            false
+        end
+        is_taken && run_on_editor_task!(editor; wait = false) do
+            session.steered_turn_count = max(session.steered_turn_count, index)
+            control.seen_turn_count = max(control.seen_turn_count, index)
+            control.is_split_asked = true
+        end
+    end)
+    nothing
+end
+
+# After a message that the agent took into the turn, the answer goes on in a new
+# turn below the message. The open blocks close in the turn above it, which ends;
+# an empty turn above goes, and the counts of the turns after it move down by one.
+function _split_steered_turn!(a::Assistant, state, control::AssistantTurnControl)
+    control.is_split_asked || return nothing
+    control.is_split_asked = false
+    above = state[:turn]
+    state[:current_block] === nothing || _handle_agent_event!(LlmTextStop(), a, above, state, nothing)
+    state[:current_thinking] === nothing || _handle_agent_event!(LlmThinkingStop(), a, above, state, nothing)
+    index = findfirst(turn -> turn === above, collect(a.conversation.turns))
+    if isempty(above.parts) && index !== nothing
+        deleteat!(a.conversation.turns, index)
+        control.seen_turn_count -= control.seen_turn_count >= index
+        session = a.agent_session
+        session isa ExternalAgentSession && (session.steered_turn_count -= session.steered_turn_count >= index)
+    else
+        above.stop_reason = :end_turn
+        above.finish_time = time()
+    end
+    below = ConversationTurn(:assistant; start_time = time())
+    push!(a.conversation.turns, below)
+    state[:turn] = below
     nothing
 end
 
