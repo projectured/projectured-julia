@@ -1,12 +1,12 @@
 # A text block holds only lines
 
 > **Kind:** plan · **Status:** pending, 2026-10-09. The owner decided the end
-> state on 2026-10-09 (N5 of [a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md)),
+> state on 2026-10-09 (N5 of [a-text-span-holds-no-line-break.md](../done/a-text-span-holds-no-line-break.md)),
 > and that it is a plan of its own, and L1 to L4 on 2026-10-09. No question is
 > open, and no step is started. ·
 > **Stands on:** [text.md](../../documentation/package/platform/text/text.md),
 > [text-domain-kit.md](text-domain-kit.md) (shape A of Phase 3),
-> [a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md) (N5)
+> [a-text-span-holds-no-line-break.md](../done/a-text-span-holds-no-line-break.md) (N5)
 
 ## 1. The goal
 
@@ -144,7 +144,7 @@ of spans), `ObjectToWidget.jl` (`_end_cursor`), `ObjectFieldToWidget.jl`
 
 - The flat caret space and its values.
 - A `'\n'` inside a `TextString`. Step 7 of
-  [a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md) removes
+  [a-text-span-holds-no-line-break.md](../done/a-text-span-holds-no-line-break.md) removes
   it; this plan keeps the paths that read it.
 - The syntax, which gives lines already.
 
@@ -249,7 +249,7 @@ a block of spans still works, so the producers move one at a time.
    conversation and widget suites, the example sweeps and the console, each part
    in a process of its own, at main before step 1.
    **`make_text_block(content, style)`** is step 1 of
-   [a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md). The
+   [a-text-span-holds-no-line-break.md](../done/a-text-span-holds-no-line-break.md). The
    plan that starts first makes it.
 1. **The producers of many lines give lines**: `ReferenceInspectorToText`,
    `SelectionInspectorToText`, `ReferenceToText`, `make_evaluator_arguments_text`
@@ -274,7 +274,7 @@ a block of spans still works, so the producers move one at a time.
 5. **The consumers lose their span path**: the list of §3.2, and
    `_is_block_of_lines`. With them go the row that `TextToGraphics` draws for a
    `'\n'` in a run, the cut of `TextFirstLine` there, and the cut of a run in
-   `SyntaxToText` (N11 of [a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md)):
+   `SyntaxToText` (N11 of [a-text-span-holds-no-line-break.md](../done/a-text-span-holds-no-line-break.md)):
    step 2 has moved the producers of a free text, so no run holds a break, which
    the guard `test_text_runs_hold_no_break` checks. `_line_height_font` sizes an empty line by the font of its
    empty run (L2), with a test of an empty line after a heading. `WordWrapping` keeps only `soft_breaks`, and its maps are

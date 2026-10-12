@@ -332,7 +332,7 @@ Rejected: **A** (`elements` holds only `TextLine`s) — cleanest model, but ever
 text layer changes at once and an unstructured span sequence becomes unrepresentable.
 
 **2026-10-09: A is the end state** (the owner, N5 of
-[a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md)): a text is a
+[a-text-span-holds-no-line-break.md](../done/a-text-span-holds-no-line-break.md)): a text is a
 list of lines, and `TextNewline` goes. B stays the way there, and
 [a-text-block-holds-only-lines.md](a-text-block-holds-only-lines.md) holds the steps to A.
 
@@ -516,7 +516,7 @@ producer of syntax text emits lines.
 
 Q5 narrowed (a) on 2026-10-08: a leaf value is a run and is not split; a text of
 many lines reaches the lines through the rule of
-[a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md).
+[a-text-span-holds-no-line-break.md](../done/a-text-span-holds-no-line-break.md).
 
 My recommendation was (a), because it is the direction decided on 2026-08-12
 (this plan owns the change, and `SyntaxToText` emits lines), and only (a) gives
@@ -632,7 +632,7 @@ below. A `TextString` holds no `'\n'`, and the domain states that a field can
 hold lines by the type it gives the leaf value: a `TextString` is one run, and a
 `String` or a `TextDocument` is text that can have lines, which the recursion
 prints with a projection such as `StringToTextBlock`. That rule is the plan
-[a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md). In this
+[a-text-span-holds-no-line-break.md](../done/a-text-span-holds-no-line-break.md). In this
 plan a leaf value is a `TextString`, so the leaf never reads it: an edit of a leaf
 leaves the lines valid, and a `'\n'` that a value still holds is a row inside its
 line until its domain moves to the new rule. The question, as it stood:
@@ -776,7 +776,7 @@ The design of step 1, found when the work started (2026-10-08):
    `y` reads the offset of its current place, which chains by place as before. A
    group that is no line keeps its cells by its place. A row of the gutter stays
    with its line too. This is rule 6 of
-   [a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md).
+   [a-text-span-holds-no-line-break.md](../done/a-text-span-holds-no-line-break.md).
 
    Checked at a snapshot (cf32a9a59, `/var/tmp/text-gutter/probe5/`): no part has
    a failure above the baseline; `test_projections` is back to 724 with no

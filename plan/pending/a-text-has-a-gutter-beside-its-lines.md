@@ -461,7 +461,7 @@ The order of the work, each step on its own commit, each with its test.
 
    Rendered and checked (2026-10-08): a file in a scroll pane shows the numbers
    and the open triangles of `module`, of a function and of an `if`. **Known
-   until the plan [a-text-span-holds-no-line-break.md](a-text-span-holds-no-line-break.md)
+   until the plan [a-text-span-holds-no-line-break.md](../done/a-text-span-holds-no-line-break.md)
    does Julia:** a docstring is a leaf value that holds `'\n'`, so it is one line
    with rows, and the closing fence `"\n\"\"\"\n"` is a leaf value too, so the
    line of the function after it joins that line. A file of 16 lines with one

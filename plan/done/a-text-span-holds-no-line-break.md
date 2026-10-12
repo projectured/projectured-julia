@@ -1,9 +1,9 @@
 # A text span holds no line break
 
-> **Kind:** plan · **Status:** pending, 2026-10-09. The owner decided the rule
+> **Kind:** plan · **Status:** done, 2026-10-12. The owner decided the rule
 > (§1), N1, N1b and N2 with N3 on 2026-10-08, and N5, N6 and N7 on 2026-10-09;
-> only N1c is open, until a domain needs it. §9 holds the steps: steps 0 to 2 are
-> built on the branch `text-breaks`. ·
+> only N1c is open, until a domain needs it. §9 holds the steps: all of them landed
+> on main on 2026-10-12, with step 8 in omnet-julia at the same time. ·
 > **Stands on:** [text.md](../../documentation/package/platform/text/text.md),
 > [syntax.md](../../documentation/package/platform/syntax/syntax.md),
 > [text-domain-kit.md](text-domain-kit.md) (Q5 of step 3 of Phase 3),
@@ -595,8 +595,9 @@ change how every view of syntax makes its lines, so they land together.
 
 8. **omnet-julia**: NED and INI state their breaks in their texts, which removes
    their empty lines. It follows the landing of steps 2 to 4.
-   **Built (2026-10-12)** on the branch `text-breaks` of omnet-julia (`abdda782`),
-   to land together with this branch (the owner: "together").
+   ✅ **Done (2026-10-12)** on the branch `text-breaks` of omnet-julia (`abdda782`),
+   and landed together with this branch (the owner: "together", then "land it"):
+   projectured main `bd655edd5`, omnet-julia main `122d83c5`.
    - NED: a module heading and a section label end with `"\n"`, a section puts
      its entries one on each line one level in, and the closing `"\n}"` starts a
      line at the level of the module. A section has no empty last line.
