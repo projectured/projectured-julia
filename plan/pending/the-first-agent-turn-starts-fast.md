@@ -19,7 +19,7 @@ machine had a load of 50 to 60.
   Dropped: the cause was not the compilation (see below).
 - [x] 2. ClaudeCodeACP 0.1.8 starts `claude` with `MCP_TIMEOUT=120000` unless the
   environment sets it (branch `mcp-timeout`, 290f793; 165 tests pass).
-- [ ] 4. The tasks of the thread of the editor get their share while the loop
+- [x] 4. The tasks of the thread of the editor get their share while the loop
   animates (the owner: option 1, "sounds good", 2026-10-12), and an animation
   draws at most 30 frames a second ("can we aim for 30 frame per second at most
   for animation and react to events as fast as today?"):
@@ -35,6 +35,14 @@ machine had a load of 50 to 60.
     wakes it at once.
   - A wake from a task (timeout 0) sleeps 1 ms in place of the bare `yield()`.
   - Input that the backend owes still skips the wait.
+  Done in a336b87a9. `compute_wait_timeout` answers the whole interval after
+  each frame, so the tasks get the whole 33 ms of each gap and no extra share
+  after a heavy frame is needed. Tests: `test_kernel` 4374 (2 broken),
+  `test_sdl_wait_wake` with two new tests (a short wait gives a task of the
+  thread more than 100 turns in 50 ms; a queued event ends a short wait at
+  once). Without a window, frames are cheap, and the start with the Assistants
+  tab open takes 26 s on main and 25 s on the branch: the gain needs the costly
+  frames of a large real window, which the owner tries.
 - [x] 3. The transcript says "Starting Claude Code…" while the session opens
   (a48fafca1): the turn shows at once with that part, leaves the conversation
   when the session is open, and comes back after the prompt, so a message that

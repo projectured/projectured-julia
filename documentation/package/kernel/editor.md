@@ -107,9 +107,13 @@ end
 
 Between frames the editor sleeps in the backend's `wait_for_input`, and three
 things end the sleep: an input event, a `wake_editor!` from any task, and the
-timeout. The timeout is `FRAME_INTERVAL` while anything subscribes to the
-editor's clock (an animation), else the nearest feed deadline or timer, else
-`Inf`.
+timeout. The timeout is `FRAME_INTERVAL` (1/30 s, so an animation draws at
+most 30 frames a second) while anything subscribes to the editor's clock, else
+the nearest feed deadline or timer, else `Inf`. The wait is where the
+cooperative tasks of the thread of the editor run, with their I/O: the turn of
+an agent, the MCP server, the reader of a terminal. A frame that does not wait,
+because a task posted work, sleeps `TASK_SHARE` (1 ms) first, so a task that
+posts work does not shut out the others.
 
 A timer is how a reader waits for a pattern that ends when no event arrives. The
 reader answers `SetTimerOperation(name, time)`, the editor keeps the time under

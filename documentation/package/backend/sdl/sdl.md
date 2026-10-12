@@ -87,7 +87,7 @@ An accent that the system names, as GNOME and macOS do, gives the step 9 colour 
 
 ### Wait and wake
 
-`wait_for_input` blocks in `SDL_WaitEventTimeout` with a null event pointer, the form that removes nothing from the queue. It blocks in slices that let the garbage collector run: 10 ms with one thread, 100 ms with more. A `yield` between the slices gives the MCP server and the assistant on the same thread their turn. `wake_backend!` pushes a user event that `initialize_backend!` registered, through `SDL_PushEvent`, which SDL documents as safe from any thread. `take_from_devices!` skips that event.
+`wait_for_input` waits in two ways. A wait of at most 0.1 s, as between the frames of an animation, waits in Julia: it looks at the queue with `SDL_PollEvent` and a null event pointer, which pumps the events of the window system and removes nothing, and sleeps 1 ms between the looks. So the cooperative tasks of the thread, such as the turn of an agent and the HTTP servers that its MCP tools need, run with their I/O for the whole wait, and an input event ends the wait within 1 ms. A longer wait blocks in `SDL_WaitEventTimeout` with a null event pointer, the form that removes nothing from the queue, in slices of 10 ms that let the garbage collector run, so an input event ends it at once; a `yield` between the slices gives the tasks their turn. `wake_backend!` pushes a user event that `initialize_backend!` registered, through `SDL_PushEvent`, which SDL documents as safe from any thread. `take_from_devices!` skips that event.
 
 ### Zoom
 
