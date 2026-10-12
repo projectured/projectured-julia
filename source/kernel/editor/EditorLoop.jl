@@ -192,15 +192,16 @@ function run_editor!(editor::Editor; mcp::Union{Bool,NamedTuple}=false,
             # kick. The wait itself ends on input, on a kick, or at the
             # timeout — and a backend with no wait of its own polls in 10 ms
             # slices here, exactly as this loop did when it slept. A frame
-            # that does not wait yields once, because the wait is where the
-            # cooperative tasks of this thread get their turn.
+            # that does not wait sleeps 1 ms, because the wait is where the
+            # cooperative tasks of this thread and their I/O get their turn,
+            # and a task that posts work must not shut out the others.
             timeout = editor.wake_pending[] ? 0.0 : compute_wait_timeout(editor)
             if timeout > 0
                 # Through `invokelatest`, as every call of the backend protocol: a
                 # backend package adds methods, which would invalidate a resolved call.
                 Base.invokelatest(wait_for_input, editor.backend, editor.devices, timeout)
             else
-                yield()
+                sleep(TASK_SHARE)
             end
             # The frame takes ownership of every wake posted before it;
             # a wake that arrives from here on belongs to the next frame.

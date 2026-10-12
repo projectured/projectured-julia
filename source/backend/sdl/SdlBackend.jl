@@ -3742,12 +3742,20 @@ end
 # Device I/O
 # ════════════════════════════════════════════════════════════════════════
 
-# How long one wait slice blocks this thread. On a single-threaded process
-# the cooperative tasks of this thread — the MCP server, the assistant — run
-# only between slices, so the slice is the 10 ms cadence the polling loop
-# had. With more threads a longer slice only bounds how long a task that
-# still lives on this thread waits for its turn.
-_get_wait_slice_seconds() = Threads.nthreads() == 1 ? 0.01 : 0.1
+# How long one wait slice blocks this thread in SDL. The cooperative tasks of
+# this thread — the MCP server, the assistant, the turn of an agent with its
+# HTTP servers — run only between slices, so the slice is the 10 ms cadence the
+# polling loop had, with any number of threads.
+const _WAIT_SLICE_SECONDS = 0.01
+
+# A wait of at most this long, as between the frames of an animation or before
+# a feed that is due soon, waits in Julia and not in SDL, so the tasks of this
+# thread and their I/O run for the whole wait.
+const _JULIA_WAIT_LIMIT_SECONDS = 0.1
+
+# One step of a wait in Julia: the step of the timers of libuv. An input event
+# ends the wait within one step.
+const _JULIA_WAIT_STEP_SECONDS = 0.001
 
 # Block until the SDL queue holds an event or `milliseconds` pass, without
 # removing anything: the NULL event pointer is SDL's look-only form, so
@@ -3763,6 +3771,11 @@ _wait_for_queued_event(milliseconds::Integer) =
     (@ccall gc_safe=true LibSDL2.libsdl2.SDL_WaitEventTimeout(
         C_NULL::Ptr{Cvoid}, Cint(milliseconds)::Cint)::Cint) == 1
 
+# Whether the SDL queue holds an event, without a wait and without removing
+# anything: `SDL_PollEvent` with no event pumps the events of the window system
+# and looks. Must run on the thread that initialized the video subsystem.
+_has_queued_event() = (@ccall LibSDL2.libsdl2.SDL_PollEvent(C_NULL::Ptr{Cvoid})::Cint) == 1
+
 """
     wait_for_input(backend::SdlBackend, devices, timeout_seconds) -> Nothing
 
@@ -3773,8 +3786,12 @@ read: everything stays for `run_read_stage!`. An event this backend already owes
 caps the timeout at the rest of its rate-limit interval, so the last sample
 of a pointer that stopped is delivered on time.
 
-The block runs in GC-safe slices (`_get_wait_slice_seconds`) with a `yield`
-between them, so cooperative tasks that live on this thread keep their turn.
+A wait of at most 0.1 s, as between the frames of an animation, waits in
+Julia: it looks at the queue, and sleeps 1 ms between the looks, so the
+cooperative tasks of this thread and their I/O run for the whole wait, and an
+input event ends it within 1 ms. A longer wait, as when nothing animates, blocks
+in SDL in GC-safe slices of 10 ms with a `yield` between them, so an input event
+ends it at once.
 """
 function BackendModule.wait_for_input(backend::SdlBackend, devices, timeout_seconds)
     backend.pending_input === nothing || return nothing
@@ -3787,9 +3804,15 @@ function BackendModule.wait_for_input(backend::SdlBackend, devices, timeout_seco
         timeout = min(timeout, remaining)
     end
     deadline = time() + timeout                       # Inf stays Inf
-    slice = _get_wait_slice_seconds()
+    if timeout <= _JULIA_WAIT_LIMIT_SECONDS
+        while time() < deadline
+            _has_queued_event() && return nothing
+            sleep(_JULIA_WAIT_STEP_SECONDS)           # the cooperative tasks' turn, with their I/O
+        end
+        return nothing
+    end
     while true
-        this_slice = min(slice, deadline - time())
+        this_slice = min(_WAIT_SLICE_SECONDS, deadline - time())
         this_slice <= 0 && return nothing
         milliseconds = clamp(ceil(Int, this_slice * 1000), 1, 1000)
         _wait_for_queued_event(milliseconds) && return nothing

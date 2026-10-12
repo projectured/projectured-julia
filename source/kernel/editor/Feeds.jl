@@ -18,10 +18,15 @@ struct InboxFeed <: Feed end
 drain_changes!(::InboxFeed, editor::Editor) = drain_operations!(editor)
 
 # How long the editor may sleep while something subscribes to its clock. One
-# tick per sleep, so an animation advances every 10 milliseconds. With no
-# subscriber the clock does not tick and the editor sleeps to the nearest feed
-# deadline, or forever.
-const FRAME_INTERVAL = 0.01
+# tick per sleep, so an animation draws at most 30 frames a second, and the
+# tasks of the thread of the editor run in the sleep. With no subscriber the
+# clock does not tick and the editor sleeps to the nearest feed deadline, or
+# forever.
+const FRAME_INTERVAL = 1 / 30
+
+# How long a frame that does not wait gives the cooperative tasks of the thread
+# of the editor and their I/O: one millisecond, the step of the timers of libuv.
+const TASK_SHARE = 0.001
 
 """
     compute_wait_timeout(editor) -> Float64

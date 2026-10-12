@@ -35,6 +35,32 @@ function test_sdl_wait_wake()
         @test elapsed < _FAR_LESS
     end
 
+    @testset "a short wait gives the tasks of this thread the whole wait" begin
+        # A wait between the frames of an animation waits in Julia, so a task of
+        # this thread runs again and again. A wait that blocked in SDL would give
+        # it one turn for each slice of 10 ms.
+        _drain_sdl_queue!()
+        turns = Ref(0)
+        is_counting = Ref(true)
+        counter = @async while is_counting[]
+            turns[] += 1
+            yield()
+        end
+        wait_for_input(backend, Device[], 0.05)
+        is_counting[] = false
+        wait(counter)
+        @test turns[] > 100
+    end
+
+    @testset "a queued event ends a short wait at once" begin
+        _drain_sdl_queue!()
+        backend.last_hover_motion = 0.0
+        _push_motion!(5, 6)
+        elapsed = @elapsed wait_for_input(backend, Device[], 0.09)
+        @test elapsed < 0.05
+        _drain_sdl_queue!()
+    end
+
     @testset "a wake from another task ends a long wait" begin
         _drain_sdl_queue!()
         waker = @async (sleep(0.05); wake_backend!(backend))
