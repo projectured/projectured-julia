@@ -333,11 +333,11 @@ state. So many editors can run in one process, and their counters stay apart
 `CellModule` uses it.
 
 By default the build **compiles the counting out**. `PERFORMANCE_COUNTERS_ENABLED`
-gets its value at precompile time from `PROJECTURED_PERFORMANCE_COUNTERS`, and it
-is off by default. So a normal build has no instrumentation: `@count_performance`
-expands to `nothing`, and `@measure_performance_time` to its expression. To
-profile, or to run the demos and the tests that read the counts, set the
-environment variable to `true` and compile again.
+is the preference `performance_counters` of `ProjecturedKernel` when the kernel
+was compiled, and it is off by default. So a normal build has no instrumentation:
+`@count_performance` expands to `nothing`, and `@measure_performance_time` to its
+expression. To profile, or to run the tests that read the counts, set the
+preference to `true` and start Julia again.
 
 Public surface:
 

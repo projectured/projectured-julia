@@ -578,6 +578,7 @@ uuid = "56a0c30a-96eb-4614-b42e-73838bfa8222"
 version = "0.1.0"
 
 [[deps.ProjecturedKernel]]
+deps = ["Preferences"]
 path = "../../package/ProjecturedKernel"
 uuid = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 version = "0.1.0"

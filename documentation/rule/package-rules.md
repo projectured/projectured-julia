@@ -238,8 +238,8 @@ needs each direct dependency in `[deps]`, and
 `ProjecturedTest.test_package_graph()` asserts that a package declares exactly
 the packages its own source names — no more and no less.
 
-The kernel depends on nothing. A row names it only where it is the one
-dependency.
+The kernel depends on one package, Preferences, which reads its compile-time
+switches. A row names the kernel only where it is the one dependency.
 
 ### The slices of the platform
 

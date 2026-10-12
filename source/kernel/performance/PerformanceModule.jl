@@ -17,6 +17,7 @@ nothing from the kernel, so every layer above it can count.
 module PerformanceModule
 
 using Base.ScopedValues: ScopedValue, with
+using Preferences: @load_preference
 
 export PERFORMANCE_COUNTERS_ENABLED, run_with_performance_counters,
        @count_performance, @measure_performance_time, get_performance_counters

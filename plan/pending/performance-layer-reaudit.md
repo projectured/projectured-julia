@@ -120,4 +120,19 @@ and L02-8 stay fixed; L02-4 is A-2; L02-7 is A-5; L02-1 is open.
 - [ ] 3. The guide `documentation/package/kernel/performance.md` (G-1 … G-3), with its
   guide check by an independent auditor.
 - [ ] 4. L02-1 as decided.
+  - [x] **The owner, 2026-10-12: "use Preferences.jl and fix it with that"** (A), after
+    the lead counted its users: 263 packages of General depend on it directly, and
+    every process that loads the platform loads it through PrecompileTools. The
+    switch is the preference `performance_counters` of `ProjecturedKernel`, read with
+    `@load_preference` at compile time and typed `Bool`. The kernel has its first
+    dependency, Preferences, with `[compat]` "1"; `package-rules.md` and the law
+    (PAR-PROFILE-WITH-COUNTERS) say so. Julia names a compiled image with a hash of
+    the preferences (`compilecache_path`, `prefs_blob`), so the image with the
+    counters and the one without them both stay. Eleven environments that list the
+    kernel were resolved: here `environment/all`, `environment/readme-data-frame` and
+    four test packages, in omnet-julia `environment/all` and two test packages, in
+    inet-julia `environment/all` and one test package. Checked: the default build
+    reads `false`, and the package graph test passes 398 of 398; a copy of
+    `environment/all` with the preference on reads `true`, and the counted tests pass
+    (`test_performance_counter` 17, `test_editor_frame_performance` 5).
 - [ ] 5. The tests, the guards, a second audit, and the seal on the owner's word.

@@ -3,6 +3,12 @@ uuid = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 version = "0.1.0"
 authors = []
 
-# ProjecturedKernel has no runtime dependencies and no extensions: the optional
-# LLM/MCP agent backends are now standalone opt-in packages (llm/, mcp/) that
-# depend on this package, rather than weakdep-triggered extensions of it.
+# ProjecturedKernel depends on Preferences alone, which reads its compile-time
+# switches. It has no extensions: the LLM and MCP backends are packages of their
+# own that depend on it.
+
+[deps]
+Preferences = "21216c6a-2e73-6563-6e65-726566657250"
+
+[compat]
+Preferences = "1"

@@ -1,13 +1,25 @@
 # Fragment of `PerformanceModule` — the counters of one scope: counts, and times.
 
-# The compile-time switch. Set PROJECTURED_PERFORMANCE_COUNTERS=true and
-# recompile to compile the counters in, for example to profile an edit or to run
-# the tests that count. The variable is read once, at precompile time. While the
-# switch is off, `@count_performance` expands to `nothing` and
-# `@measure_performance_time` to its expression, so a normal build carries no
-# instrumentation.
-const PERFORMANCE_COUNTERS_ENABLED =
-    get(ENV, "PROJECTURED_PERFORMANCE_COUNTERS", "false") == "true"
+"""
+    PERFORMANCE_COUNTERS_ENABLED
+
+Whether the counters are compiled into the kernel: the preference
+`performance_counters` of `ProjecturedKernel` when the kernel was compiled. It is
+`false` by default.
+
+Use it to skip work that only the counters need, such as a log of the counts of
+a frame. To turn the counters on, set the preference and start Julia again:
+
+    using Preferences, ProjecturedKernel
+    set_preferences!(ProjecturedKernel, "performance_counters" => true)
+
+The package cache keeps one compiled kernel for each value of the preference. So
+the first start after a change compiles the kernel, and a change back loads the
+kernel that was compiled before. While the counters are off,
+`@count_performance` expands to `nothing` and `@measure_performance_time` to its
+expression, so the kernel carries no instrumentation.
+"""
+const PERFORMANCE_COUNTERS_ENABLED = @load_preference("performance_counters", false)::Bool
 
 # The counters of one scope: the counts, and the times in nanoseconds. A time
 # never goes into the counts, so a reader knows the unit of every key.

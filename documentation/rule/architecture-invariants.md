@@ -1067,8 +1067,9 @@ events.
 
 ### PAR-PROFILE-WITH-COUNTERS
 
-**Profile edits with the per-frame performance counters.** Set
-`PROJECTURED_PERFORMANCE_COUNTERS=true` and recompile to compile the counters in.
+**Profile edits with the per-frame performance counters.** Set the preference
+`performance_counters` of `ProjecturedKernel` to `true` and start Julia again; the
+package cache then compiles the kernel with the counters.
 The read-eval-print loop then binds a fresh counter store for each frame, and
 `_log_performance_counters!` logs `reads / computes / invalidations / writes` for each frame that
 applied an operation. Use them to find unintentional recomputation (a single
