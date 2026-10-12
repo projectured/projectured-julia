@@ -588,6 +588,10 @@ change how every view of syntax makes its lines, so they land together.
      alive on the branch as on main (546 MB and 545 MB at the end) and takes as
      long (873 s and 910 s in all). With a cap of 12 GB the whole part passes with
      the four failing files of main.
+   - After the rebase onto main `12ebf498e` the guard ran without end: its walk
+     visited each element of a range of a huge length, and an element is a
+     number, which its cap of nodes does not count. It now skips a vector of
+     scalars. 111 examples pass.
 
 8. **omnet-julia**: NED and INI state their breaks in their texts, which removes
    their empty lines. It follows the landing of steps 2 to 4.
