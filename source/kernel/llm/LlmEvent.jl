@@ -112,7 +112,7 @@ parsed.
 The event carries the *parsed* call rather than closing an empty block, because
 turning the argument JSON into a `Dict` is the provider adapter's job and nobody
 else's. Every adapter necessarily owns a JSON parser — it speaks a JSON protocol —
-while the kernel has no dependencies at all and so has none. Handing the parsed
+while the kernel has no JSON parser. Handing the parsed
 call over here is what lets a caller that runs tools dispatch a tool without the
 kernel ever seeing JSON.
 """

@@ -57,8 +57,17 @@ function test_performance_counter()
             counters = get_performance_counters()
             @test Set(keys(counters.counts)) == Set([:reads, :computes, :invalidations, :writes])
             counters.counts[:reads] = 99
-            @test get_performance_counters().counts[:reads] == 0
+            counters.times[:probe_time] = 99
+            again = get_performance_counters()
+            @test again.counts[:reads] == 0
+            @test isempty(again.times)
         end
+    end
+
+    @testset "the switch is the preference that the kernel was compiled with" begin
+        preferences = Base.get_preferences(Base.PkgId(Base.moduleroot(PerformanceModule)).uuid)
+        @test PERFORMANCE_COUNTERS_ENABLED ==
+              get(preferences, "performance_counters", false)
     end
 
     if !PERFORMANCE_COUNTERS_ENABLED

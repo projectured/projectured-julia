@@ -209,7 +209,7 @@ times for one logical change must leave the same value behind. A write to an
 object with two properties changes no result: no cell depends on the object, and
 no computation reads it. A count in such an object can grow at each run, because
 no cached value can see it. `PAR-NO-WRITE-IN-THUNK` carries the same carve-out and
-names the case: the fault store. A counter or a log that a cell or a computation
+names the cases: the fault store and the counter store of a performance scope. A counter or a log that a cell or a computation
 reads does not qualify, and a write to it stays forbidden.
 
 ### PAR-NO-WRITE-IN-THUNK

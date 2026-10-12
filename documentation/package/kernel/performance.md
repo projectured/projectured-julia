@@ -8,33 +8,36 @@ The performance layer is layer 2 of the kernel. It imports no other layer, and i
 
 ## The switch
 
-The counters are in the kernel only when the preference `performance_counters` of `ProjecturedKernel` was `true` when the kernel was compiled. It is `false` by default, so a normal build has no instrumentation. `PERFORMANCE_COUNTERS_ENABLED` holds the value that the kernel was compiled with:
+The counters are in the kernel only when the preference `performance_counters` of `ProjecturedKernel` was `true` when the kernel was compiled. It is `false` by default, so a normal build has no instrumentation. `PERFORMANCE_COUNTERS_ENABLED` holds the value that the kernel was compiled with.
 
-```julia
-using Preferences, ProjecturedKernel
-set_preferences!(ProjecturedKernel, "performance_counters" => true)
-# start Julia again: the package cache compiles the kernel with the counters
+To turn the counters on, put the preference in the `LocalPreferences.toml` beside the `Project.toml` of an environment that lists `ProjecturedKernel`, and start Julia again. To turn them off, write `false` or delete the line:
+
+```toml
+[ProjecturedKernel]
+performance_counters = true
 ```
 
-The package cache names a compiled kernel with a hash of its preferences. So the first start after a change compiles the kernel once, and a change back loads the kernel that was compiled before. The preference goes in the `LocalPreferences.toml` of the active environment.
+In an environment that lists Preferences too, `set_preferences!(ProjecturedKernel, "performance_counters" => true; force = true)` writes the same line; without `force = true` it throws when the line exists. A value other than `true` or `false` stops the compile of the kernel with an `ArgumentError`.
+
+The package cache tracks the preference, so the first start after a change compiles the kernel again, and no build keeps a stale value. Each change also compiles every package above the kernel again: only the kernel keeps a compiled image for each value.
 
 Code above the layer reads `PERFORMANCE_COUNTERS_ENABLED` to skip work that only the counters need. The editor reads it before it logs the counts of a frame, and before it gives the counts to the frame store.
 
 ## The counters of a scope
 
-`run_with_performance_counters(f)` binds a new counter store while `f` runs, and every cell operation inside `f` counts into it. `get_performance_counters()` answers copies of its counts and its times:
+`run_with_performance_counters(f)` binds a new counter store while `f` runs. Each read, computation, invalidation and write of a reactive cell inside `f` counts into it. `get_performance_counters()` answers copies of its counts and its times:
 
 ```julia
 counters = run_with_performance_counters() do
     work()
     get_performance_counters()
 end
-get(counters.counts, :reads, 0)        # the cells that work() read
+get(counters.counts, :reads, 0)        # the cell reads of work()
 ```
 
 A store holds four counts from the start: `:reads`, `:computes`, `:invalidations` and `:writes`. `:computes` counts each computation that starts, also one that throws. Times are in nanoseconds, and a time never goes into the counts. Outside a scope there is no store, so the counters read empty, and a cell operation counts nothing. Without the counters, `run_with_performance_counters(f)` is `f()`.
 
-The store is a `ScopedValue`: a binding of the task that ran the scope and of the tasks that it starts. So many editors in one process count apart. The store is a collector outside the reactive graph: a computation writes it, and a computation must never read it, so no cached value depends on it. The law names it beside the fault store (PAR-NO-WRITE-IN-THUNK in [architecture-invariants.md](../../rule/architecture-invariants.md)).
+A `ScopedValue` binds the store: a binding of the task that ran the scope and of the tasks that it starts. So many editors in one process count apart. The store is a collector outside the reactive graph: a computation writes it, and a computation must never read it, so no cached value depends on it. The law names it beside the fault store (PAR-NO-WRITE-IN-THUNK in [architecture-invariants.md](../../rule/architecture-invariants.md)).
 
 ## Count and time your own work
 
@@ -59,10 +62,10 @@ get_frame_count(store)                 # 1
 get_frame_measurement_names(store)     # [:frame_time, :reads], in first-seen order
 ```
 
-`record_frame_measurements!` takes its times in seconds and its counts as `name => value` pairs, and `end_time` in seconds, `time()` by default. These calls throw an `ArgumentError` and leave the store as it was:
+`record_frame_measurements!` takes two groups of `name => value` pairs, times in seconds and counts, and `end_time` in seconds, `time()` by default. A `NaN` value reads as a frame that did not measure the name. These calls throw an `ArgumentError` and leave the store as it was:
 - a name in the other group than the one that first gave it;
 - a name in both groups of one call;
-- a name that is not a `Symbol`, or a value that is not a number.
+- a name that is not a `Symbol`, or a value that is not a real number.
 
 A capacity below 1 throws an `ArgumentError` too.
 
@@ -77,13 +80,13 @@ summary = compute_frame_measurement_summary(store, :frame_time)
 (summary.mean, summary.maximum)        # the mean and the worst frame time
 ```
 
-A frame that did not measure the name does not count. With no value, the minimum, the maximum and the mean are `NaN`; below two values, the standard deviation is `0.0`. A name that the store does not know throws a `KeyError`.
+A frame that did not measure the name does not count. With no value, the minimum, the maximum and the mean are `NaN`; below two values, the standard deviation is `0.0`. A call with a name that has no column in the store throws a `KeyError`.
 
 `collect_recent_frame_measurements` answers the single frames, oldest first, as new vectors: the frame numbers, the end times, and one column of `(; name, unit, values)` for each name:
 
 ```julia
 recent = collect_recent_frame_measurements(store)
-slowest = recent.frames[argmax(recent.columns[1].values)]
+slowest = recent.frames[argmax(replace(recent.columns[1].values, NaN => -Inf))]
 ```
 
 ## Keep the frames
@@ -112,13 +115,13 @@ The layer has no interface file: it declares no seam that a layer above answers.
 
 - The cell engine counts its reads, computations, invalidations and writes, in `ReactiveCell.jl`.
 - The editor runs each frame in a scope of its own, in `EditorLoop.jl`, and times its read, evaluate and print stages there. With the counters, it logs the counts of each frame that applied an operation.
-- Each editor has a `FrameMeasurementStore`, `editor.frame_measurements`. At the end of each frame, `record_frame_performance!` in `Feeds.jl` records the frame time. With the counters, it also records every count and every time of the frame, in seconds.
+- Each editor has a `FrameMeasurementStore`, `editor.frame_measurements`. At the end of each frame, `record_frame_performance!` in `Feeds.jl` records the frame time. With the counters, it also records every count, and every time in seconds.
 - The statistics view of the platform draws the store; see the [statistics guide of the platform](../platform/statistics/statistics.md).
 - Code that waits for the first frame, such as the check of a release, polls `get_frame_count`.
 
 ## Try it
 
-`print_performance_example()` in `ProjecturedKernelExample` prints a REPL session with the layer: the switch, a scope and a timed expression, the counters outside a scope, and a frame store with its records, its summaries, its unit rule, its ring and its CSV. Each line runs as it prints. A session can not show a count: the counts of a frame come from the cells of an editor, in a build with the counters.
+`print_performance_example()` in `ProjecturedKernelExample` prints a REPL session with the layer: the switch, a scope and a timed expression, the counters outside a scope, and a frame store with its records, its summaries, its unit rule, its ring and its CSV. Each line runs as it prints. In a default build, a session can not show a count: the counters are in the kernel only when the preference compiled them in.
 
 ```julia
 using ProjecturedKernelExample

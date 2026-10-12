@@ -388,7 +388,7 @@ end
 
 # A tool call's arguments arrive as JSON fragments; only the concatenation is valid
 # JSON. Parsing it is the adapter's job — this package speaks a JSON protocol and so
-# has a parser, while the kernel has no dependencies at all and has none. A malformed
+# has a parser, while the kernel has none. A malformed
 # or empty payload yields no arguments rather than throwing: the model can be asked
 # to try again, but a broken turn cannot be recovered.
 _native(v::JSON3.Object) = Dict{String,Any}(String(k) => _native(x) for (k, x) in pairs(v))

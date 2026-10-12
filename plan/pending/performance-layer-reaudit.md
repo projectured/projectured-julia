@@ -149,3 +149,44 @@ and L02-8 stay fixed; L02-4 is A-2; L02-7 is A-5; L02-1 is open.
     `environment/all` with the preference on reads `true`, and the counted tests pass
     (`test_performance_counter` 17, `test_editor_frame_performance` 5).
 - [ ] 5. The tests, the guards, a second audit, and the seal on the owner's word.
+  - [x] The second audit (below), and its fixes.
+  - [ ] The seal, when the owner says so. Its commit names the accepted gap T-6.
+
+## The second audit
+
+A second auditor read the layer on c3b411d8f. Every finding of the first audit was
+closed, except T-5 (half) and T-6 (accepted). It found 13 new findings, S-1 … S-13,
+three of them Medium, all in the text about the switch. The lead confirmed S-1 and
+S-3 in the code.
+
+- [x] **S-1 (Medium)** — `using Preferences` fails in `environment/all`, which lists
+  Preferences only as a dependency of other packages. The docstring and the guide now
+  show the file form: `[ProjecturedKernel]` and `performance_counters = true` in the
+  `LocalPreferences.toml` of an environment that lists the kernel.
+- [x] **S-2 (Medium)** — `set_preferences!` throws for a key that exists, without
+  `force = true`, and no text said how to turn the counters off. The guide names
+  `force = true`, and both texts say: write `false` or delete the line.
+- [x] **S-3 (Medium)** — Julia hashes into the name of an image only the preferences
+  that the compile of that package read. So only the kernel keeps an image for each
+  value, and each change, also a change back, compiles every package above the kernel
+  again. The texts say so. The note of step 4 above that both builds stay is true for
+  the kernel alone.
+- [x] **S-4 (Low)** — a value other than `true` or `false` now stops the compile with an
+  `ArgumentError` that names the preference.
+- [x] **S-5 (Low)** — two comments said that the kernel has no dependencies; they say
+  that it has no JSON parser.
+- [ ] **S-6 (Low)** — omnet-julia `tool/trim-routing/Manifest.toml` lists the kernel
+  without Preferences. It does not resolve, because it names `ProjecturedDomain`, a
+  package that no longer exists; it was broken before this change. Left as it is.
+- [x] **S-7 … S-13 (Low)** — the accuracy of the guide (only a reactive cell counts; a
+  `ScopedValue` binds the store; the two groups of pairs; a call with an unknown name
+  throws; a default build shows no count); `argmax` over a column with a gap takes
+  `NaN`, so the examples replace it with `-Inf`; the frame store names no editor and
+  no cells; the law names both stores; `_check_frame_units` is
+  `_check_frame_measurements` and says "a real number", and a `NaN` value reads as not
+  measured; the missing Example and See also parts; the editor guide links the
+  performance guide. T-5: the copy of the times is tested too, and a test checks that
+  the switch is the preference of the environment, which also catches a stale image.
+
+Checked: in the default build 17, 55, 2, 3; with the preference on 25, 55, 2, 5; the
+kernel layering guard 10 in both; the survey finds no gap; the guards pass.

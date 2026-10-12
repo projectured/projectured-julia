@@ -4,22 +4,38 @@
     PERFORMANCE_COUNTERS_ENABLED
 
 Whether the counters are compiled into the kernel: the preference
-`performance_counters` of `ProjecturedKernel` when the kernel was compiled. It is
-`false` by default.
+`performance_counters` of `ProjecturedKernel` when the kernel was compiled, `true`
+or `false`. It is `false` by default, and another value stops the compile of the
+kernel with an `ArgumentError`.
 
 Use it to skip work that only the counters need, such as a log of the counts of
-a frame. To turn the counters on, set the preference and start Julia again:
+a frame.
 
-    using Preferences, ProjecturedKernel
-    set_preferences!(ProjecturedKernel, "performance_counters" => true)
+To turn the counters on, put the preference in the `LocalPreferences.toml` beside
+the `Project.toml` of an environment that lists `ProjecturedKernel`, and start
+Julia again. To turn them off, write `false` or delete the line.
 
-The package cache keeps one compiled kernel for each value of the preference. So
-the first start after a change compiles the kernel, and a change back loads the
-kernel that was compiled before. While the counters are off,
+    [ProjecturedKernel]
+    performance_counters = true
+
+Each change compiles the kernel and every package above it again; only the kernel
+keeps a compiled image for each value. While the counters are off,
 `@count_performance` expands to `nothing` and `@measure_performance_time` to its
 expression, so the kernel carries no instrumentation.
+
+# Example
+
+    PERFORMANCE_COUNTERS_ENABLED && print_counts(get_performance_counters())
+
+See also [`run_with_performance_counters`](@ref) and [`@count_performance`](@ref).
 """
-const PERFORMANCE_COUNTERS_ENABLED = @load_preference("performance_counters", false)::Bool
+const PERFORMANCE_COUNTERS_ENABLED = let
+    value = @load_preference("performance_counters", false)
+    value isa Bool || throw(ArgumentError(
+        "the preference performance_counters of ProjecturedKernel is true or false, " *
+        "not $(repr(value))"))
+    value
+end
 
 # The counters of one scope: the counts, and the times in nanoseconds. A time
 # never goes into the counts, so the unit of every key is clear.

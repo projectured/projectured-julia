@@ -11,7 +11,12 @@ With no value, the minimum, the maximum and the mean are `NaN`. Below two
 values, the standard deviation is `0.0`.
 
 Use it to read how a measurement went over the recent frames: the mean and the
-worst frame time, or the mean count of the cells that a frame reads.
+worst frame time, or the mean of a count.
+
+# Example
+
+    summary = compute_frame_measurement_summary(store, :frame_time)
+    summary.count == 0 || println(summary.mean)
 
 See also [`compute_frame_measurement_summary`](@ref), which makes one.
 """
@@ -35,11 +40,11 @@ measurement name, in first-seen order, and one column of frame end times. A
 frame that did not measure a name holds `NaN` in the column of that name. Each
 name has a unit, `:second` for a time and `:count` for a count, from the group
 that first gave it. The store also counts the frames since the start. A store
-belongs to one editor, and only the task of that editor writes it, so it needs
-no lock. A `capacity` below 1 throws an `ArgumentError`.
+has one writer, the task that records the frames, so it needs no lock. A
+`capacity` below 1 throws an `ArgumentError`.
 
-Use it to keep what the frames of one editor measured, so a view or a file can
-show how the editor performs over time.
+Use it to keep what the last frames measured, so that a reader can show them over
+time.
 
 # Example
 
@@ -85,8 +90,9 @@ in seconds.
 A name keeps the unit of the group that first gave it. A name given later in
 the other group is an error, and so is a name in both groups of one call,
 because its column would mix two units. A name that is not a `Symbol` and a value
-that is not a number are errors too. A call that is an error throws an
-`ArgumentError` and leaves the store as it was.
+that is not a real number are errors too. A call that is an error throws an
+`ArgumentError` and leaves the store as it was. A `NaN` value reads as a frame that
+did not measure the name.
 
 Use it once at the end of each frame, to keep what the frame measured: its time,
 and the counts and the times of the counters.
@@ -95,11 +101,14 @@ and the counts and the times of the counters.
 
     record_frame_measurements!(store; times = [:frame_time => 0.016],
                                counts = [:reads => 120])
+
+See also [`compute_frame_measurement_summary`](@ref) and
+[`collect_recent_frame_measurements`](@ref), which read the frames.
 """
 function record_frame_measurements!(store::FrameMeasurementStore; times = (), counts = (),
                                     end_time::Real = time())
-    _check_frame_units(store, times, :second)
-    _check_frame_units(store, counts, :count)
+    _check_frame_measurements(store, times, :second)
+    _check_frame_measurements(store, counts, :count)
     _check_frame_groups(times, counts)
     store.frame_count += 1
     slot = _get_frame_slot(store, store.frame_count)
@@ -112,14 +121,15 @@ function record_frame_measurements!(store::FrameMeasurementStore; times = (), co
     store
 end
 
-# A name is a `Symbol`, a value is a number, and a name keeps its unit. The check
+# A name is a `Symbol`, a value is a real number, and a name keeps its unit. The check
 # runs before the frame changes the store, so a wrong call leaves the store as it was.
-function _check_frame_units(store::FrameMeasurementStore, measurements, unit::Symbol)
+function _check_frame_measurements(store::FrameMeasurementStore, measurements,
+                                   unit::Symbol)
     for (name, value) in measurements
         name isa Symbol || throw(ArgumentError(
             "the frame measurement $(repr(name)) is not a Symbol"))
         value isa Real || throw(ArgumentError(
-            "the value of the frame measurement $(name) is not a number"))
+            "the value of the frame measurement $(name) is not a real number"))
         known = get(store.units, name, unit)
         known === unit ||
             throw(ArgumentError("the frame measurement $(name) has the unit $(known), " *
@@ -127,8 +137,8 @@ function _check_frame_units(store::FrameMeasurementStore, measurements, unit::Sy
     end
 end
 
-# A name in both groups of one call is an error, also when the store does not
-# know the name yet. The check runs before the frame changes the store.
+# A name in both groups of one call is an error, also for a name that has no
+# column yet. The check runs before the frame changes the store.
 function _check_frame_groups(times, counts)
     for (name, _) in counts
         any(pair -> first(pair) === name, times) &&
@@ -154,10 +164,11 @@ end
     compute_frame_measurement_summary(store, name) -> FrameMeasurementSummary
 
 The summary of the measurement `name` over the frames that the ring holds. A
-frame that did not measure `name` does not count. The store must know `name`.
+frame that did not measure `name` does not count. A `name` that has no column in
+the store throws a `KeyError`.
 
 Use it to see how slow the frames are, or how much work a frame does: the mean
-and the worst frame time, or the mean count of the cells that a frame reads.
+and the worst frame time, or the mean of a count.
 
 # Example
 
@@ -241,7 +252,7 @@ file, or to draw them.
 # Example
 
     recent = collect_recent_frame_measurements(store)
-    slowest = recent.frames[argmax(recent.columns[1].values)]
+    slowest = recent.frames[argmax(replace(recent.columns[1].values, NaN => -Inf))]
 
 See also [`write_frame_measurements!`](@ref), which writes the same frames as CSV.
 """

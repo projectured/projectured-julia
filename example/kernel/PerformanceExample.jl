@@ -38,9 +38,9 @@ frame store with its records, its summaries, its unit rule, its ring and its CSV
 
 Each line runs as it prints, so the value under a line is the value that the line
 gives. To try the lines, type them in a REPL after
-`using ProjecturedKernel.PerformanceModule`. A session can not show a count: the
-counters are in the kernel only when the preference `performance_counters`
-compiled them in, and the counts of a frame come from the cells of an editor.
+`using ProjecturedKernel.PerformanceModule`. In a default build, a session can not
+show a count: the counters are in the kernel only when the preference
+`performance_counters` compiled them in.
 
 # Example
 

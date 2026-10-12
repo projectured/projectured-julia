@@ -641,7 +641,8 @@ recomputation: if a single keypress causes thousands of `computes`,
 something is reading more cells than necessary.
 
 The loop also records every frame in `editor.frame_measurements`: the frame time
-always, and the counters above when they are compiled in. The store keeps the
+always, and the counters above when they are compiled in; the
+[performance guide](performance.md) says how. The store keeps the
 last 1000 frames. The `FrameStatisticsFeed` shows their summaries as a table
 (open a tab and type `statistics`) and their times as a chart (type
 `frame times`). `write_frame_measurements!("frames.csv", editor.frame_measurements)`
