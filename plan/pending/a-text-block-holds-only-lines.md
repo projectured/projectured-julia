@@ -157,7 +157,11 @@ that lands second follows the other.
 
 `TextNewline` and `TextNewlineToString` are exported (`TextModule.jl`). Their
 removal is a removed export, which takes a minor version step after 0.1.0 (R36 of
-the release plan).
+the release plan). The span path takes three more exports with it,
+`WrapSegment`, `convert_flat_offset_to_element` and
+`convert_element_to_flat_offset`, and the keyword `separator` of
+`TextLineNumbering` and `LineNumbering`, which only the prefix spans of a block
+of spans used. No caller in the three repositories passes or names them.
 
 ## 6. Questions
 
@@ -315,6 +319,14 @@ a block of spans still works, so the producers move one at a time.
    `TextNewline`s in `WordWrappingTest`, `TextToGraphicsTest`, `TextLineModelTest`,
    `InlineImageCaretTest`, `TextDocumentTest` and the decorators. The 5 lazy lists
    of spans become lazy lists of lines.
+   *Built (2026-10-12), in `5bb137d54` with the decorators of step 5.* A wrap is
+   the `soft_breaks` of a line, counted by hand from `_compute_soft_breaks`; the
+   tests of the decorators read the line step and the flat base; the lazy test of
+   spans in `TextToGraphicsTest` goes, as the test of a lazy list of lines covers
+   its cases, and its laziness test now expects no read of `next` until the output
+   asks for it. No test names `TextNewline`. To check when it runs: the numbers of
+   the soft breaks, the laziness test, and the style of a run typed beside an image
+   on a line with no text run.
 5. **The consumers lose their span path**: the list of §3.2, and
    `_is_block_of_lines`. With them go the row that `TextToGraphics` draws for a
    `'\n'` in a run, the cut of `TextFirstLine` there, and the cut of a run in
@@ -323,14 +335,35 @@ a block of spans still works, so the producers move one at a time.
    the guard `test_text_runs_hold_no_break` checks. `_line_height_font` sizes an empty line by the font of its
    empty run (L2), with a test of an empty line after a heading. `WordWrapping` keeps only `soft_breaks`, and its maps are
    the identity.
+   *Built (2026-10-12)*: the decorators and the flat helpers (`5bb137d54`),
+   `TextToGraphics` (`6711e0b1f`, 380 lines fewer: a group is a line, a run is one
+   piece for each row of its soft breaks, the lazy list of spans goes), the console
+   (in `29be6b79b`), and the cut of a run in `SyntaxToText` (`31cd2fc3c`). Open: the
+   test of an empty line after a heading.
+   - `_text_break` binds in every block; a producer of a value of one line declines
+     the break (§7).
+   - `TextLineNumbering` puts the number in the gutter only, and `TextFirstLine`
+     keeps the first line, the same object.
+   - The decorators keep no branch for a lazy list of lines. Their span branch
+     walked a lazy list too, and no chain gives them one.
 6. **`TextNewline` and `TextNewlineToString` go**, with their exports, and every
    constructor of `TextBlock` takes lines (L1); the tests and the examples that
    still pass runs follow, about 130 sites. A guard test walks the printer output of every example
    and rejects an element of a block that is not a `TextLine`.
+   *Built (2026-10-12), `29be6b79b`.* `test_text_blocks_hold_only_lines` shares
+   the walk of `test_text_runs_hold_no_break` and runs after it in the umbrella
+   suite. The constructors store what they get; their docstring says that the
+   arguments are lines. The recorded precompile statements that name a removed type
+   go; a statement of a removed private function is skipped when it is replayed.
 7. **A full sweep** against step 0.
 8. **The other repositories**, after the landing: inet-julia's
    `PacketDiagramToText` gives a line for each row and loses its stale comment;
    omnet-julia's 7 blocks of one run give one line (L1). Both make their precompile statements again.
+   *Prepared (2026-10-12)* on the branches `text-lines` of inet-julia (`3db493c`:
+   a `TextLine` for each row of the packet diagram, and its string needs no strip
+   of a trailing break) and of omnet-julia (`c1b82b45`: the source view of the
+   workbench is `make_text_block`, as a source has many lines, and the other six
+   sites are one line), to land with this branch, as the first plan did.
 9. **The documents**: `text.md` (the shape, the paths, the flat caret), the
    guides that show a block of spans, and a note in `text-domain-kit.md` that
    shape A is reached.
