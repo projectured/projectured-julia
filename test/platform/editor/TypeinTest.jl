@@ -16,8 +16,9 @@
 #   4. Simulate the edit's event through the reader (KeyPress for insert;
 #      KeyDown(:backspace)/KeyDown(:delete) for the deletions). Where an edit is
 #      expected it must yield a ReplaceStringRangeOperation (empty replacement for
-#      the deletions); at a declined boundary the reader yields nothing.
-#   5. Where an edit is expected, evaluate that operation against the document. At a
+#      the deletions), alone or first in a compound of more writes; at a declined
+#      boundary the reader yields nothing.
+#   5. Where an edit is expected, evaluate that edit against the document. At a
 #      declined boundary nothing is evaluated — a stray boundary op is a failure, and
 #      evaluating it would mutate the neighbouring chrome and drift the document.
 #   6. Check that the string in the original input document changed exactly as the
@@ -410,15 +411,20 @@ function _edit_at(document, projection, target, k::Int, ch, kind::Symbol)
     end
 
     # 4. The edit is expected: a ReplaceStringRangeOperation (empty replacement for the
-    # deletions).
-    op isa ReplaceStringRangeOperation ||
+    # deletions), alone, or first in a compound whose other members are writes that the
+    # domain adds to the edit, as a rename of a formula writes its uses. The walk
+    # evaluates the edit alone, so the restore takes it back and the rest of the
+    # document stays as the remaining positions expect it.
+    edit = op isa CompoundOperation && !isempty(op.operations) &&
+           first(op.operations) isa ReplaceStringRangeOperation ? first(op.operations) : op
+    edit isa ReplaceStringRangeOperation ||
         return _typein_failed("$kind produced $(op === nothing ? "nothing" : string(typeof(op))), not ReplaceStringRangeOperation")
-    (kind !== :insert && !isempty(op.replacement)) &&
-        return _typein_failed("$kind produced a non-empty replacement $(repr(op.replacement))")
+    (kind !== :insert && !isempty(edit.replacement)) &&
+        return _typein_failed("$kind produced a non-empty replacement $(repr(edit.replacement))")
 
     # 5. Evaluate the operation and 6. verify both the string and the post-edit caret.
     try
-        evaluate_operation((document=document,), op)
+        evaluate_operation((document=document,), edit)
     catch e
         return _typein_failed("evaluate_operation threw: $e")
     end

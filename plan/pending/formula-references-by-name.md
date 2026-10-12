@@ -2,7 +2,7 @@
 
 **Status (2026-10-12): IN PROGRESS.** The owner and I worked out the model of §3 in a
 discussion on 2026-10-12, and the owner decided each point of §4. The owner asked to implement it
-on 2026-10-12. Steps 1 to 4 are done. Step 4 of
+on 2026-10-12. Steps 1 to 5 are done. Step 4 of
 [strict-document-types.md](strict-document-types.md) waits for this plan, because a formula
 reference inside a Julia tree kept 37 Julia fields at `Document`.
 
@@ -278,8 +278,37 @@ formula named `pi` would make every other `pi` of the sheet mean it.
     identifier today, as a whole. If a plain click goes to the definition, a person can not
     select a reference to edit it. The choices: Ctrl+click, as code editors do (my
     recommendation); a key on a selected reference; or a plain click as the step says.
-- [ ] **Step 5: the rename operation** of D3, as one compound operation with one inverse, and
+- [x] **Step 5: the rename operation** of D3, as one compound operation with one inverse, and
   a gesture for it that a person can try on the name of a formula in the gallery.
+  - **Decided by the owner, 2026-10-12: each key in the name is a rename** (option (b) of three:
+    (a) F2 and a draft name, committed by Enter; (b) each key renames the formula and every use;
+    (c) a popup with a text field). The owner: "merging the edit operations can still be done by
+    the undo buffer in a generic way". So one key is one operation and one undo step, and a
+    merge of the keys of one name is a matter of the undo buffer, not of this plan.
+  - *Done (2026-10-12).* What is built:
+    - The formula rule maps a place in the name to the text of its name leaf and back, where the
+      layout is `:both`, so a caret shows in a name and a key types there.
+    - The sheet rule turns a string edit of `formulas[j].name` into one `CompoundOperation`: the
+      edit, then a `ReplaceReferencedValueOperation` that writes the new name into each use, by
+      its path from the sheet. A use spelled as the name takes the new name; a use spelled as the
+      key of the name, such as `rho` for `ρ`, takes the key of the new name.
+    - A key that would make a use mean something else does nothing, and the description of the
+      answer says why: a math formula uses the name (its uses are math nodes, and the rename
+      writes Julia identifiers), another formula has the new name, or a local name of the code
+      would take the use (the walk now records the names bound around each identifier). The
+      editor shows no message for a declined key today.
+    - The type-in walker of `TypeinTest.jl` accepts a compound whose first member is the string
+      edit, and evaluates that edit alone, so its restore takes the edit back. Over every
+      example of the registry, the old and the new walker give the same counts except
+      `formula`.
+  - Facts: with `undo = true`, one Ctrl+Z takes back the name and every use of one key. In
+    `test_example`, the 66 type-ins into names now pass; the type-in part fails 486 times, the
+    identifiers of code (96) and the computed results (390), kinds that `main` has.
+  - Open: the edit of the name field alone, D3's operation that rewrites no use, has no gesture
+    now, because a key in the name is a rename. And a rename to a name that some code reads
+    free, such as `Z` in `E = A + Z`, makes that name refer to the renamed formula: a key that
+    refused it would also keep a person from naming a new formula `Z`, and making a binding is
+    the other operation of D3.
 - [ ] **Step 6: the strict Julia fields.** Step 4 of
   [strict-document-types.md](strict-document-types.md) then narrows every Julia field to
   `JuliaDocument`, and every list to `CellVector{JuliaDocument}`.

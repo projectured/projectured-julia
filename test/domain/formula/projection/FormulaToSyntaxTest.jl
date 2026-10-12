@@ -113,6 +113,59 @@ end
     @test repr(get_selection(sheet)) == repr(@reference(sheet, formulas[2]))
 end
 
+@testset "a key in the name of a formula renames the formula and its uses" begin
+    platform = ProjecturedPlatformTest
+    sheet = FormulaEnvironment([
+        FormulaFormula("A", parse_julia("42")),
+        FormulaFormula("C", parse_julia("A + 1")),
+        FormulaFormula("S", parse_julia("sum(x -> x * A, 1:3)")),
+        FormulaFormula("B", parse_julia("2")),
+    ])
+    backend = HeadlessBackend()
+    projection = make_formula_projection_example(; measure = FixedMeasure(8, 12, 4, 0))
+    editor = build_editor(sheet, projection; backend, devices = Device[Keyboard(), Mouse(), Display()],
+                          window = false, tabs = false, appearance = false, settings = false,
+                          undo = true)
+    run_frame!(editor)
+    names() = [formula.name for formula in sheet.formulas]
+    uses() = [print_natural_text(sheet.formulas[2].code), print_natural_text(sheet.formulas[3].code)]
+    set_selection!(sheet, @reference(sheet, formulas[1].name{1}))
+    run_frame!(editor)
+    platform._nav_press!(editor, backend, KeyPress('l'; time = 0.0))
+    @test names() == ["Al", "C", "S", "B"]
+    @test uses() == ["Al + 1", "sum(x -> x * Al, 1:3)"]
+    @test get_formula_value(sheet.formulas[2]) == 43
+    # One undo takes back the key: the name and every use.
+    platform._nav_press!(editor, backend, KeyDown(:z, ModifierKeys(ctrl = true); time = 0.0))
+    @test names() == ["A", "C", "S", "B"]
+    @test uses() == ["A + 1", "sum(x -> x * A, 1:3)"]
+    # A key that gives the name of another formula, or a name that a local name of
+    # the code would take, does nothing.
+    for key in ('B', 'x')
+        set_selection!(sheet, @reference(sheet, formulas[1].name[1]))
+        run_frame!(editor)
+        platform._nav_press!(editor, backend, KeyPress(key; time = 0.0))
+        @test names() == ["A", "C", "S", "B"]
+        @test uses() == ["A + 1", "sum(x -> x * A, 1:3)"]
+    end
+    # A math use is a math node, which a rename does not write: the key does nothing.
+    math = FormulaEnvironment([FormulaFormula("A", parse_julia("1")),
+                               FormulaFormula("D", parse_math("A/2"))])
+    math_backend = HeadlessBackend()
+    math_editor = build_editor(math, projection; backend = math_backend,
+                               devices = Device[Keyboard(), Mouse(), Display()],
+                               window = false, tabs = false, appearance = false, settings = false)
+    set_selection!(math, @reference(math, formulas[1].name{1}))
+    run_frame!(math_editor)
+    platform._nav_press!(math_editor, math_backend, KeyPress('l'; time = 0.0))
+    @test math.formulas[1].name == "A"
+    # The same key in the name of `D`, which no formula uses, renames it.
+    set_selection!(math, @reference(math, formulas[2].name{1}))
+    run_frame!(math_editor)
+    platform._nav_press!(math_editor, math_backend, KeyPress('l'; time = 0.0))
+    @test math.formulas[2].name == "Dl"
+end
+
 @testset "FormulaFormula view modes (code / result / both)" begin
     f2s = RecursiveProjection(FormulaToSyntax())
     env = FormulaEnvironment([FormulaFormula("A1", parse_julia("2 + 3"))])

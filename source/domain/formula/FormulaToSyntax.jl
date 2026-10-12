@@ -146,10 +146,15 @@ function map_reference_forward(p::FormulaFormulaToSyntaxNode, iomap::ChildrenIoM
     f = iomap.input
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
-        # The name as a whole, as a jump to the definition selects it, where the
-        # layout shows the name. A place inside the name maps to nothing.
+        # The name, where the layout shows it: as a whole, as a jump to the
+        # definition selects it, and a place in it, where a key types.
         ::FormulaFormula.name => if f.display_mode === :both
             @reference ::SyntaxNode.children::CellVector[1]::SyntaxLeaf
+        end
+        ::FormulaFormula.name.rest... => if f.display_mode === :both &&
+                                            rest isa ConcreteReference &&
+                                            rest.head isa RangeReferenceStep
+            @reference ::SyntaxNode.children::CellVector[1]::SyntaxLeaf.value::TextString.^(rest)
         end
         ::FormulaFormula.code.rest... => begin
             idx = _code_index(f)
@@ -174,6 +179,12 @@ function map_reference_backward(p::FormulaFormulaToSyntaxNode, iomap::ChildrenIo
                 child = iomap.child_iomaps[1]
                 inner = map_reference_backward(child.projection, child, rest)
                 inner === nothing ? nothing : (@reference ::FormulaFormula.code.^(inner))
+            elseif child_i == 1 && f.display_mode === :both
+                # The text of the name leaf is the name.
+                @reference_case rest begin
+                    value.tail... => @reference ::FormulaFormula.name::String.^(tail)
+                    __ => @invoke map_reference_backward(p::Projection, iomap, reference)
+                end
             else
                 # Projection-introduced child (name, "=", "⇒", result): wrap as
                 # structural reference so the roundtrip can place a cursor.
@@ -256,6 +267,8 @@ end
 
 function read_intent(p::FormulaEnvironmentToSyntaxNode, recursion, change::Intent, iomap)
     answer = @invoke read_intent(p::Projection, recursion, change::Intent, iomap)
+    # A key that types in a name renames the formula; see the section below.
+    answer.operation isa ReplaceStringRangeOperation && return _read_rename(iomap.input, answer)
     gesture = change.gesture
     (gesture isa MouseClick && gesture.button === :left &&
      gesture.modifiers == ModifierKeys(ctrl = true)) || return answer
@@ -294,6 +307,87 @@ function _find_last_identifier(node, path)
         end
         node isa JuliaIdentifier && (found = node)
         path = path.tail
+    end
+    found
+end
+
+# ── A key in the name renames the formula ─────────────────────────────────────
+#
+# A key that types in the name of a formula renames it: the edit of the name and
+# the new name in each use of the formula, as one operation, so every use keeps
+# its formula while a person types. Undo takes back one key; an undo buffer can
+# merge the keys of one name. A key that would make a use mean something else does
+# nothing, and the description of the answer says why: a math formula uses the
+# name (its uses are math nodes, and a rename writes Julia identifiers), another
+# formula has the new name, or a local name of the code would take the use.
+
+function _read_rename(env::FormulaEnvironment, answer::Intent)
+    edit = answer.operation
+    steps = get_reference_steps(strip_reference_types(edit.reference))
+    (length(steps) == 4 && steps[1] == FieldReferenceStep("formulas") &&
+     steps[2] isa RangeReferenceStep && steps[3] == FieldReferenceStep("name") &&
+     steps[4] isa RangeReferenceStep) || return answer
+    formula = env.formulas[steps[2].stop]
+    name = splice_string(formula.name, steps[4].start, steps[4].stop, edit.replacement)
+    writes, reason = _make_rename_writes(env, formula, name)
+    reason === nothing || return Intent(answer.gesture, nothing, reason, "formula")
+    isempty(writes) && return answer
+    Intent(answer.gesture, CompoundOperation(Any[edit, writes...]),
+           "Rename the formula and its uses", "formula")
+end
+
+# The writes that give each use of `formula` the name `name`, and `nothing`; or no
+# writes, and the reason that the rename refuses. A use spelled as the name of the
+# formula takes `name`, and a use spelled as its key, such as `rho` for `ρ`, takes
+# the key of `name`.
+function _make_rename_writes(env::FormulaEnvironment, formula::FormulaFormula, name::String)
+    writes = Any[]
+    holder = resolve(env, name)
+    for (index, user) in enumerate(env.formulas)
+        if !(user.code isa JuliaDocument)
+            any(used -> resolve(env, used) === formula, _find_readable_names(user.code)) &&
+                return (Any[], "The math formula $(user.name) uses the name, and a rename " *
+                               "does not rewrite math")
+            continue
+        end
+        uses = Base.IdSet{Any}(use for use in _find_reference_identifiers(user, env)
+                               if resolve(env, use.name) === formula)
+        isempty(uses) && continue
+        holder === nothing || holder === formula ||
+            return (Any[], "The formula $(holder.name) has the name $name")
+        scopes = _find_identifier_scopes(user.code)
+        places = _collect_node_steps!(IdDict{Any,Vector{Any}}(), user.code, uses, Any[])
+        for use in uses
+            spelling = use.name == formula.name ? name : get_formula_key(name)
+            spelling in scopes[use] &&
+                return (Any[], "A local $spelling of $(user.name) would take the use")
+            reference = Reference(FieldReferenceStep("formulas"), ElementReferenceStep(index),
+                                  FieldReferenceStep("code"), places[use]...,
+                                  FieldReferenceStep("name"))
+            push!(writes, ReplaceReferencedValueOperation(nothing, reference, spelling))
+        end
+    end
+    (writes, nothing)
+end
+
+# The steps from `node` to each node of `wanted`, by field and by element.
+function _collect_node_steps!(found::IdDict, node, wanted, steps::Vector{Any})
+    node in wanted && (found[node] = copy(steps))
+    node isa Document || return found
+    for fname in fieldnames(typeof(node))
+        is_view_state_field(fname) && continue
+        child = getfield(node, fname)[]
+        push!(steps, FieldReferenceStep(String(fname)))
+        if child isa CellVector
+            for (index, element) in enumerate(child)
+                push!(steps, ElementReferenceStep(index))
+                _collect_node_steps!(found, element, wanted, steps)
+                pop!(steps)
+            end
+        else
+            _collect_node_steps!(found, child, wanted, steps)
+        end
+        pop!(steps)
     end
     found
 end

@@ -180,9 +180,16 @@ end
 
 function _collect_free_identifiers!(found, node::JuliaIdentifier,
                                     bound::Set{String})
-    node.name in bound || push!(found, node)
+    _record_identifier!(found, node, bound)
     return
 end
+
+# A list keeps each free identifier; a dictionary keeps every identifier with the
+# names that bind where it stands, to find a local name that would capture it.
+_record_identifier!(found::Vector, node::JuliaIdentifier, bound::Set{String}) =
+    node.name in bound || push!(found, node)
+_record_identifier!(found::IdDict, node::JuliaIdentifier, bound::Set{String}) =
+    found[node] = copy(bound)
 
 _collect_free_identifiers!(found, node::JuliaFieldAccess, bound::Set{String}) =
     _collect_free_identifiers!(found, node.object, bound)
@@ -351,6 +358,14 @@ function _collect_target_identifiers!(found, node::Union{JuliaTuple,JuliaNamedTu
     for element in (node isa JuliaTuple ? node.elements : node.entries)
         _collect_target_identifiers!(found, element, bound)
     end
+end
+
+# Each identifier of the Julia `code`, with the names that a binding of the code
+# covers where it stands.
+function _find_identifier_scopes(code::JuliaDocument)
+    scopes = IdDict{Any,Set{String}}()
+    _collect_free_identifiers!(scopes, code, Set{String}())
+    scopes
 end
 
 # The identifiers of the code of `formula` that refer to a formula of `env`: each

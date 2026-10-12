@@ -1,6 +1,8 @@
 function make_formula_document_example()
     # A sheet in which a formula refers to another by its name. Each row shows one
-    # feature to try: change `A`, and every formula that reads it computes again.
+    # feature to try: change `A`, and every formula that reads it computes again;
+    # type in the name `A`, and every use takes the new name; Ctrl+click a use of
+    # `A`, and the name of `A` is selected.
     env = FormulaEnvironment([
         FormulaFormula("A", parse_julia("42")),
         FormulaFormula("B", parse_julia("13")),
