@@ -11767,7 +11767,8 @@ function _wtree_node_gesture(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToG
         _, content_y = _get_rows_content_offset(p, iomap)
         row = _wtree_row_at(geom, g.y - content_y)
         row === nothing || (path = row.path)
-    elseif g isa KeyDown
+    elseif g isa Union{KeyDown, KeyPress}
+        # A key goes to the selected node; Return gives its meaning by its KeyPress.
         path = _wtree_ref_path(w.selection)
     end
     path === nothing && return nothing
