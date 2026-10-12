@@ -120,7 +120,24 @@ take the break or decline it.
      nothing, and the two select the row and the column as a pair.
 5. **The tests**, the scripted events and the example harness send what a
    backend sends.
+   *Built (2026-10-12), `4b4f1b1e5`, `ee52265ed`, `afd735826`, `b1b005e97`.*
+   A test sends the `KeyPress` alone, as it sends a letter: the `KeyDown` of
+   Return and Tab has no meaning, so it adds nothing to a test. A helper that
+   takes any key symbol gives the `KeyPress` for Return and Tab through
+   `find_typed_character`, in a short file-local helper. The kernel tests of the
+   pattern machinery keep `KeyDown(:tab)` and `KeyDown(:return)` as sample keys,
+   and the reader test that sends every event to every reader sends `'\t'` and
+   Return and Tab with Ctrl and Shift too.
 6. **omnet-julia and inet-julia**, on branches of the same name, to land with
    this one.
+   *Built (2026-10-12)*: omnet-julia `cf374e3e` (worktree
+   `omnet-julia-return-keypress`: the precompile workloads, the recorder, the
+   notebook demo and its test, the window test of the interface, and the take
+   tool of the videos, whose helper `_key` goes with its last call), inet-julia
+   `6edc7c0` (worktree `inet-julia-return-keypress`: the driver of the recording).
+   Neither repository binds a meaning to Return or Tab, or inserts any typed text.
 7. **The documents.**
+   *Built (2026-10-12), `9a74f06f9`.* `gesture.md` states the rule in "A key that
+   types a character"; `devices-and-backends.md`, `engineer-tour.md` and the
+   tables of the console, SDL and web backends follow it.
 8. **A sweep** against step 0.
