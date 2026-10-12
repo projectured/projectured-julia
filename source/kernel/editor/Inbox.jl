@@ -42,7 +42,7 @@ happens to consume costs nothing: the flag still skips the next wait.
 """
 function wake_editor!(editor::Editor)
     Threads.atomic_xchg!(editor.wake_pending, true) && return nothing
-    wake_backend!(editor.backend)
+    Base.invokelatest(wake_backend!, editor.backend)
     nothing
 end
 

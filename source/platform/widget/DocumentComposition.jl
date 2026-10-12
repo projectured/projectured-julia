@@ -44,9 +44,9 @@ function collect_graphics_projection_types()
         (argument isa DataType && argument.name === Type.body.name) || continue
         type = argument.parameters[1]
         type isa TypeVar && (type = type.ub)
-        type isa Type && type !== Any && push!(types, type)
+        type isa Type && type !== Any && !(type in types) && push!(types, type)
     end
-    sort!(unique!(types); by = type -> (-_count_supertypes(type), string(type)))
+    sort!(types; by = type -> (-_count_supertypes(type), string(type)))
 end
 
 # How far `type` is below `Any`.

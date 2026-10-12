@@ -1300,7 +1300,7 @@ end
 function _format_layout_note(root, node, steps, from, focused)
     node === root && return "the editor's document"
     name = get_document_title(node)
-    what = describe_document(node)
+    what = describe_document(node)::String
     what == String(nameof(typeof(node))) && (what = "")
     has_title = !(name === nothing || isempty(String(name)))
     note = has_title && !isempty(what) ? "title " * repr(String(name)) * ", shows " * what :

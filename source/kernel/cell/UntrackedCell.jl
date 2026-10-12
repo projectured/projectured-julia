@@ -34,7 +34,8 @@ See also `ReactiveCell`, which keeps its value and records its readers, and
 struct UntrackedCell{T} <: AbstractCell{T}
     computation::Function
     UntrackedCell{T}(marker::Computation) where {T} = new{T}(marker.computation)
-    UntrackedCell{T}(value) where {T} = new{T}(Returns(convert(T, value)))
+    UntrackedCell{T}(value) where {T} =
+        new{T}(Returns(value isa T ? value : Base.invokelatest(convert, T, value)))
 end
 
 UntrackedCell(marker::Computation) = UntrackedCell{Any}(marker)

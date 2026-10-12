@@ -195,7 +195,7 @@ get_insertion_aliases(::Type) = String[]
 function DocumentModule.convert_to_declared_type(owner::Document, declared_type::Type,
                                                  value::AbstractString; name = nothing)
     value isa declared_type && return value
-    insertion = something(get_domain_insertion(typeof(owner)), DocumentInsertion)
+    insertion = something(Base.invokelatest(get_domain_insertion, typeof(owner)), DocumentInsertion)
     insertion <: declared_type && return insertion(String(value))
     invoke(DocumentModule.convert_to_declared_type, Tuple{Any, Type, Any},
            owner, declared_type, value; name)
@@ -309,7 +309,7 @@ end
 # `WidgetInsertion`, …) stay out of the list without per-type opt-outs.
 function _is_domain_entry(T::Type)
     endswith(String(nameof(T)), "Insertion") || return true
-    get_domain_insertion(get_insertion_root(T)) === T
+    Base.invokelatest(get_domain_insertion, get_insertion_root(T)) === T
 end
 
 # A native mutable-layout struct (`MFoo`) is the same document as its stem (`Foo`)
@@ -337,7 +337,7 @@ function get_insertion_candidates(root::Type)
     world = Base.get_world_counter()
     cached = get(_CANDIDATE_CACHE, root, nothing)
     cached !== nothing && cached[1] == world && return cached[2]
-    own = get_domain_insertion(root)
+    own = Base.invokelatest(get_domain_insertion, root)
     # `insertable` goes last: it probes the constructor and compiles a method for
     # each type, and a layout variant or a stray insertion cursor needs neither.
     result = filter(T -> T !== own && !_is_layout_variant(T) && _is_domain_entry(T) && insertable(T),

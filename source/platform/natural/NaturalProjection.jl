@@ -162,8 +162,8 @@ function NaturalToGraphics(; measure::TextMeasure,
         # node be a widget, a page hold a live card, and a number inside a
         # formula render through the shared primitive path. The rows of the
         # seam `make_graphics_projection` come first.
-        Pair{Type,Any}[type => make_graphics_projection(type; measure = measure,
-                                                        appearance = appearance)
+        Pair{Type,Any}[type => Base.invokelatest(make_graphics_projection, type; measure = measure,
+                                                 appearance = appearance)
                        for type in collect_graphics_projection_types()],
         get_natural_graphics_entries(measure = measure, appearance = appearance),
         # A primitive document that is no part of a syntax tree draws as plain

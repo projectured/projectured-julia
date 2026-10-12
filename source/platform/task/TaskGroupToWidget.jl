@@ -851,8 +851,8 @@ function build_task_graphics_entry(; measure = nothing, appearance::Appearance =
               muted_color = get_style(:muted_color))
     # A document that a kind gives for a result draws as it draws in any
     # document: by the method of `make_graphics_projection` for its type.
-    documents = Pair{Type,Any}[type => make_graphics_projection(type; measure = measured,
-                                                                appearance = appearance)
+    documents = Pair{Type,Any}[type => Base.invokelatest(make_graphics_projection, type;
+                                                         measure = measured, appearance = appearance)
                                for type in collect_graphics_projection_types()]
     widgets() = RecursiveProjection(TypeDispatchingProjection(vcat(
         WidgetToGraphics(; measure = measured, theme = get_scaled_theme!(appearance, WidgetTheme),
