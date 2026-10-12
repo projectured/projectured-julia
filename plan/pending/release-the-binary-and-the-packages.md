@@ -1310,7 +1310,20 @@ registration.
       organization `projectured` for `projectured-julia` and `Projectured.jl`.
       Both workflows upload through OIDC, so no secret `CODECOV_TOKEN` is
       needed. Done by the owner on 2026-10-11.
-- [ ] Land and push; read the first run.
+- [x] Land and push; read the first run. Done on 2026-10-12. Codecov took the
+      upload of each job that passed its tests: 30 uploads in the run the owner
+      started by hand (`38175351748`), and the uploads of the run of the push
+      `42e600339` (`38232211627`). A job whose tests fail stops before its
+      upload. The guard job and the Builder job pass. The jobs that fail
+      fail on the work of other plans: the style guard on
+      `source/platform/text/TextDocument.jl:460`; SDL `TreeRenderTest`
+      (`WidgetTree` has no field `size`); `InterfaceApiTest` (32 names, not 31,
+      and the docstring of `WidgetProgressRing`); the navigation of the
+      progress bar and ring, and the catalog coverage (11 types); and, new
+      in this run, the line work of a-text-span-holds-no-line-break: the
+      evaluator result that `_eval_result` reads as "" (`McpTest.jl:450`), the
+      JSON typed from the caret in `VideoTest.jl:146`, and `text/line/graphics`
+      in `TypeinTest.jl:633`.
 
 ### Open
 
