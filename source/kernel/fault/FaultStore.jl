@@ -101,6 +101,22 @@ end
 attach_fault_target!(::Nothing, target) = nothing
 
 """
+    detach_fault_target!(store, target) -> store
+
+Say that `target` is to be shown no more faults. A target that is not attached
+changes nothing.
+
+Code that attaches a target for a while detaches it when the while ends, so the
+store does not hand records to a target that nothing shows.
+"""
+function detach_fault_target!(store::FaultStore, target)
+    filter!(existing -> existing !== target, store.targets)
+    store
+end
+
+detach_fault_target!(::Nothing, target) = nothing
+
+"""
     attach_fault_wake!(store, wake) -> store
 
 Hand the store the wake function of its editor. `record_fault!` calls it the

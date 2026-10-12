@@ -14,8 +14,6 @@ play_fault_sound!(backend) = (print(_get_fault_sound_stream(), _BELL); nothing)
 
 get_fault_store(target) = nothing
 
-make_safe_mode_projection(store) = nothing
-
 is_passthrough_exception(exception) = false
 
 is_passthrough_exception(::InterruptException) = true

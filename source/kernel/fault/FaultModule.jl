@@ -36,11 +36,10 @@ The module lives in seven fragments that share this namespace:
 """
 module FaultModule
 
-export append_fault!, play_fault_sound!, get_fault_store, make_safe_mode_projection,
-       is_passthrough_exception
+export append_fault!, play_fault_sound!, get_fault_store, is_passthrough_exception
 export FaultRecord, make_fault_record
 export FaultStore, record_fault!, drain_faults!, get_fault_records,
-       attach_fault_target!, attach_fault_wake!,
+       attach_fault_target!, detach_fault_target!, attach_fault_wake!,
        get_consecutive_fault_count, reset_consecutive_fault_count!
 export FaultPolicy, make_strict_fault_policy
 export report_fault!, run_fault_barrier!

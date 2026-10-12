@@ -37,10 +37,6 @@ function test_fault_defaults()
         @test append_fault!(target, record) === nothing
     end
 
-    @testset "the kernel makes no safe mode projection" begin
-        @test make_safe_mode_projection(nothing) === nothing
-    end
-
     @testset "the default sound goes to the global stderr" begin
         pipe = Pipe()
         value = redirect_stderr(pipe) do

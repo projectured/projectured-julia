@@ -173,6 +173,15 @@ The decisions are C for L01-1, A for L01-2, A for L01-12, and A for A-4.
     reached and plays no sound. The drain puts the keys that it did not hand over
     back in `undrained` in a `finally`, so a stop exception loses none (A-2). The
     tests T-3 and T-11 came with it.
+  - [x] L01-2 A with L01-12 A. `detach_fault_target!` is in the store.
+    `make_safe_mode_projection` is declared in `editor/SafeMode.jl`, with its
+    default `nothing`, and exported by `EditorModule`. **The editor attaches and
+    detaches, not the platform.** `enter_safe_mode!` attaches the projection of
+    the safe mode to the store as a target, and `leave_safe_mode!` detaches it,
+    so each attach has its detach in one layer. The platform no longer attaches a
+    log in the seam: `FaultSafeModeProjection` answers `append_fault!` by putting
+    the record in its log. The test of the seam default moved to
+    `test_editor_fault_barriers`. T-2 came with it.
 - [ ] 4. The fault tests, the cell example test, and the guards. Then the audit of
   the changed files again, and the seal on the owner's word.
 

@@ -160,6 +160,22 @@ function test_fault_store()
         @test length(records) == 1
     end
 
+    @testset "a target is attached once, and a detached target takes nothing" begin
+        store = FaultStore()
+        target = QuietTarget(Any[])
+        @test attach_fault_target!(store, target) === store
+        attach_fault_target!(store, target)
+        record_fault!(store, :print; origin = :P, exception = ErrorException("e"))
+        drain_faults!(store)
+        @test length(target.seen) == 1
+        @test detach_fault_target!(store, target) === store
+        @test detach_fault_target!(store, QuietTarget(Any[])) === store
+        record_fault!(store, :print; origin = :Q, exception = ErrorException("e"))
+        drain_faults!(store; policy = FaultPolicy(is_console_enabled = false,
+                                                  is_sound_enabled = false))
+        @test length(target.seen) == 1
+    end
+
     @testset "the drain reports on the console only a record that no target took" begin
         policy = FaultPolicy(is_sound_enabled = false)
         shown = FaultStore()
@@ -205,6 +221,8 @@ function test_fault_store()
         @test isempty(get_fault_records(nothing))
         @test get_consecutive_fault_count(nothing, :print) == 0
         @test attach_fault_wake!(nothing, () -> nothing) === nothing
+        @test attach_fault_target!(nothing, QuietTarget(Any[])) === nothing
+        @test detach_fault_target!(nothing, QuietTarget(Any[])) === nothing
     end
 
     @testset "a queued record wakes, a plain count bump does not" begin

@@ -161,6 +161,10 @@ end
 function test_editor_fault_barriers()
 @testset "the fault barriers of the editor loop" begin
 
+    @testset "the kernel makes no safe mode projection" begin
+        @test EditorModule.make_safe_mode_projection(nothing) === nothing
+    end
+
     @testset "repairs 0 and 1: a failed operation is taken back and prints again" begin
         editor, backend, log = _barrier_editor()
         editor.operation = HalfWayBarrierOperation(7)

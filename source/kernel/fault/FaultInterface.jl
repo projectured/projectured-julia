@@ -63,27 +63,6 @@ See also [`record_fault!`](@ref), which records a fault in the store.
 function get_fault_store end
 
 """
-    make_safe_mode_projection(store) -> projection or nothing
-
-A projection that shows the faults in `store` and nothing else.
-
-Use it when the printer failed so many times in a row that it draws nothing.
-The projection it answers replaces the one that fails, so the screen still
-shows something: at worst, the list of what went wrong.
-
-The default is `nothing`. Then nothing replaces the projection, and the frame
-before stays on the screen. A package that can draw a fault answers it, so this
-layer names neither a log document nor a projection.
-
-# Example
-
-    projection = make_safe_mode_projection(editor.faults)
-
-See also [`FaultStore`](@ref), the store that it shows.
-"""
-function make_safe_mode_projection end
-
-"""
     is_passthrough_exception(exception) -> Bool
 
 Whether a catch-all arm must let `exception` through rather than catch it.

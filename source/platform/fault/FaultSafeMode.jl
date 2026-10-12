@@ -52,16 +52,20 @@ map_reference_backward(::FaultSafeModeProjection, ::FaultSafeModeIoMap, referenc
 """
     make_safe_mode_projection(store) -> FaultSafeModeProjection
 
-The kernel's safe-mode seam, answered.
+The safe-mode seam of the editor, answered.
 
-The log starts with every record the store already holds, and the store keeps
-feeding it, so a fault raised while the safe mode runs appears in it too.
+The log starts with every record the store already holds. The editor attaches
+the projection to the store while the safe mode lasts, and the projection puts
+each record that it takes in its log, so a fault raised while the safe mode runs
+appears in it too.
 """
-function FaultModule.make_safe_mode_projection(store::FaultStore)
+function make_safe_mode_projection(store::FaultStore)
     log = FaultLog()
     for record in get_fault_records(store)
         append_fault!(log, record)
     end
-    attach_fault_target!(store, log)
     FaultSafeModeProjection(log = log)
 end
+
+append_fault!(p::FaultSafeModeProjection, record::FaultRecord) =
+    (append_fault!(p.log, record); p)

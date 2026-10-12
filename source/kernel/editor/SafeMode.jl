@@ -18,11 +18,41 @@ Whether the editor put its projection aside and is showing the fault list.
 is_editor_in_safe_mode(editor::Editor) = editor.replaced_projection !== nothing
 
 """
+    make_safe_mode_projection(store) -> projection or nothing
+
+A projection that shows the faults in `store` and nothing else.
+
+Use it when the printer failed so many times in a row that it draws nothing.
+The projection it answers replaces the one that fails, so the screen still
+shows something: at worst, the list of what went wrong.
+
+While the safe mode lasts, the editor attaches the projection to `store` as a
+fault target, and it detaches the projection when the safe mode ends. So a
+projection that answers `append_fault!` shows the faults that arrive meanwhile.
+
+The default is `nothing`. Then nothing replaces the projection, and the frame
+before stays on the screen. A package that can draw a fault answers it, so the
+kernel names neither a log document nor a projection.
+
+# Example
+
+    projection = make_safe_mode_projection(editor.faults)
+
+See also [`enter_safe_mode!`](@ref).
+"""
+function make_safe_mode_projection end
+
+make_safe_mode_projection(store) = nothing
+
+"""
     enter_safe_mode!(editor) -> Bool
 
 Put the projection aside and show the fault list instead. Answers whether it
 happened: nothing answered `make_safe_mode_projection`, or the editor was
 already in the safe mode, and it did not.
+
+The projection of the safe mode is a target of the fault store until
+[`leave_safe_mode!`](@ref).
 """
 function enter_safe_mode!(editor::Editor)
     is_editor_in_safe_mode(editor) && return false
@@ -30,6 +60,7 @@ function enter_safe_mode!(editor::Editor)
     projection isa Projection || return false
     editor.replaced_projection = editor.projection
     editor.projection = projection
+    attach_fault_target!(editor.faults, projection)
     invalidate_projection!(editor)
     # The count that brought us here is spent. A fault in the safe mode itself
     # must be able to raise a fresh one.
@@ -42,10 +73,12 @@ end
 """
     leave_safe_mode!(editor) -> Bool
 
-Put the projection back. Answers whether the editor was in the safe mode.
+Put the projection back, and detach the projection of the safe mode from the
+fault store. Answers whether the editor was in the safe mode.
 """
 function leave_safe_mode!(editor::Editor)
     is_editor_in_safe_mode(editor) || return false
+    detach_fault_target!(editor.faults, editor.projection)
     editor.projection = editor.replaced_projection
     editor.replaced_projection = nothing
     invalidate_projection!(editor)

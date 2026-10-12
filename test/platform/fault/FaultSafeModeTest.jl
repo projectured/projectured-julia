@@ -84,6 +84,22 @@ function test_fault_safe_mode()
         @test log.entries[1].origin === :AlwaysFailingProjection
     end
 
+    @testset "the safe mode takes new faults, and detaches what it attached" begin
+        editor = _failing_editor()
+        before = length(editor.faults.targets)
+        for round in 1:3
+            @test enter_safe_mode!(editor)
+            @test length(editor.faults.targets) == before + 1
+            origin = Symbol("SafeModeRound", round)
+            record_fault!(editor.faults, :tool; origin, exception = ErrorException("e"))
+            report_frame_faults!(editor)
+            @test any(entry -> entry isa FaultLogEntry && entry.origin === origin,
+                      editor.projection.log.entries)
+            @test leave_safe_mode!(editor)
+            @test length(editor.faults.targets) == before
+        end
+    end
+
     @testset "Escape leaves the safe mode rather than quitting" begin
         editor = _failing_editor()
         for _ in 1:get_consecutive_fault_limit(:print)
