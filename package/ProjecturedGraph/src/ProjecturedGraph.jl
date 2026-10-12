@@ -44,4 +44,8 @@ end
 # from its layout folder. Each keeps the C++ file's name and the order of its
 # definitions, so a later fix over there can be read across.
 
+# The natural rows of this domain, which every first window of the display builds.
+using PrecompileTools: @compile_workload
+@compile_workload run_natural_rows_workload(GraphModule)
+
 end # module ProjecturedGraph

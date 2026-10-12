@@ -6,6 +6,7 @@ authors = []
 # The book domain.
 
 [deps]
+PrecompileTools = "aea7be01-6a6a-4083-8856-8a6e6704d82a"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 

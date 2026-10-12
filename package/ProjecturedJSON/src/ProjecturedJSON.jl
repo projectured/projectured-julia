@@ -39,4 +39,8 @@ for _n in names(JsonModule)
     _n === :JsonModule || Core.eval(@__MODULE__, Expr(:export, _n))
 end
 
+# The natural rows of this domain, which every first window of the display builds.
+using PrecompileTools: @compile_workload
+@compile_workload run_natural_rows_workload(JsonModule)
+
 end # module ProjecturedJSON

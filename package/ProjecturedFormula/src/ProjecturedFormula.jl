@@ -38,4 +38,8 @@ for _n in names(FormulaModule)
     _n === :FormulaModule || Core.eval(@__MODULE__, Expr(:export, _n))
 end
 
+# The natural rows of this domain, which every first window of the display builds.
+using PrecompileTools: @compile_workload
+@compile_workload run_natural_rows_workload(FormulaModule)
+
 end # module ProjecturedFormula

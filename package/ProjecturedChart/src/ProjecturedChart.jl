@@ -39,4 +39,8 @@ for _n in names(ChartModule)
     _n === :ChartModule || Core.eval(@__MODULE__, Expr(:export, _n))
 end
 
+# The natural rows of this domain, which every first window of the display builds.
+using PrecompileTools: @compile_workload
+@compile_workload run_natural_rows_workload(ChartModule)
+
 end # module ProjecturedChart
