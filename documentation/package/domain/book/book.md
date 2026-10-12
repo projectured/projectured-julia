@@ -12,14 +12,14 @@ The Book domain, `ProjecturedBook`, holds structured prose: a book, its chapters
 | --- | --- |
 | `BookBook` | `title`, `author` (can be `nothing`), `elements` |
 | `BookChapter` | `title`, `numbering`, `elements` |
-| `BookParagraph` | `content`, a `TextBlock` of styled spans; `alignment` |
+| `BookParagraph` | `content`, a `TextBlock` of lines of styled runs; `alignment` |
 | `BookList` | `elements`, one bullet for each |
 | `BookPicture` | `content` (an image or a path), `title` |
 | `BookInsertion` | the placeholder |
 
 `BookBook`, `BookChapter` and `BookList` pass their `collapsed` field to the syntax node, so they fold in the view.
 
-A paragraph holds a `TextBlock`, not a string. The spans of the block carry their own font and colour, so a paragraph can mix styles without a markup language. A typed character goes to the span under the caret through the `splice_value!` step of the text package.
+A paragraph holds a `TextBlock`, not a string. The runs of the block carry their own font and colour, so a paragraph can mix styles without a markup language. A typed character goes to the run under the caret through the `splice_value!` step of the text package.
 
 `BookToSyntax()` has one rule for each type. Three rules are `@projection_template` rules: the placeholder, the paragraph and the picture. Three are hand-written, because the template markers can not express their shape:
 
@@ -52,7 +52,7 @@ Its `__init__` makes one call: `register_natural_syntax!(:book, …)`, with the 
 ## Design decisions
 
 - **No text form.** A book is made by a program or by the assistant, not read from a file. The package has no parser, no file type and no dependency on the file packages. No plan records the reason.
-- **Rich text is data.** A paragraph holds styled spans, not Markdown. The view does not parse the paragraph, and an edit changes a span directly.
+- **Rich text is data.** A paragraph holds styled runs, not Markdown. The view does not parse the paragraph, and an edit changes a run directly.
 - **The abstract root is declared by hand.** `BookDocument` does not use `@domain`, and the domain has no `@gestures` tables.
 
 ## Usage
@@ -60,8 +60,8 @@ Its `__init__` makes one call: `register_natural_syntax!(:book, …)`, with the 
 ```julia
 book = BookBook("Projectured User Guide", "The Projectured Authors", [
     BookChapter("Introduction", "1", [
-        BookParagraph(TextBlock(TextString("Reactive cells propagate changes.",
-                                           StyleFont("Ubuntu Mono", 20), color_default))),
+        BookParagraph(TextBlock(TextLine(TextString("Reactive cells propagate changes.",
+                                                    StyleFont("Ubuntu Mono", 20), color_default)))),
     ]),
 ])
 run_example(book, make_book_projection_example(); name = "book")

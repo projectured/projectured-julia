@@ -26,12 +26,12 @@ For any other output, `write_to_devices!` raises an error that says to drop the 
 
 The backend has no text measure: a console pipeline ends in `TextBlock` and never reaches `TextToGraphics`, so no projection of a console pipeline measures text.
 
-`render_console` writes the spans of the block into one buffer:
+`render_console` writes the runs of the block into one buffer:
 
-- A `TextLine` ends the line before it and prints its indentation.
+- A `TextLine` ends the line before it and prints its indentation. This is the only newline.
 - A `TextString` prints its content with its font colour and its fill colour as 24-bit SGR codes.
-- `TextNewline` prints a newline, and `TextSpacing` prints one space.
-- `TextGraphics` and any other span print nothing.
+- `TextSpacing` prints one space.
+- `TextGraphics` and any other run print nothing.
 
 `color_default` gets no code, so an empty marker span takes the foreground colour of the terminal and is not black on a dark background. With `ansi = false` the backend writes plain text, and with `clear = true` it clears the screen before each frame. The editor loop writes on every tick, so the backend compares the buffer with the last frame and writes nothing when the two are equal. Without that, the terminal would flicker.
 

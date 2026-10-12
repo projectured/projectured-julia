@@ -189,8 +189,8 @@ renders the **Text domain** straight to a terminal. Crucially it consumes a
 `JsonToSyntax → SyntaxToText` (no graphics step), so `write_to_devices!` receives
 a `TextBlock` rather than a `ScreenDocument`. Highlights:
 
-- `write_to_devices!` flattens the spans to a character stream, preserving each
-  span's `font_color`/`fill_color` as 24-bit ANSI SGR codes (set `ansi=false`
+- `write_to_devices!` flattens the runs to a character stream, preserving each
+  run's `font_color`/`fill_color` as 24-bit ANSI SGR codes (set `ansi=false`
   for plain output). The selection is shown as inverse-video span colors baked
   in by the `SelectionInverting` projection at the end of the console pipeline,
   so the backend itself just emits each span's colors.

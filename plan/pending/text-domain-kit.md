@@ -331,6 +331,8 @@ therefore handle *both* shapes — a flat span list and a line-nested one.
 Rejected: **A** (`elements` holds only `TextLine`s) — cleanest model, but every reference path in the
 text layer changes at once and an unstructured span sequence becomes unrepresentable.
 
+Shape A is reached: a block holds only lines, as [a-text-block-holds-only-lines.md](a-text-block-holds-only-lines.md) made it.
+
 **2026-10-09: A is the end state** (the owner, N5 of
 [a-text-span-holds-no-line-break.md](../done/a-text-span-holds-no-line-break.md)): a text is a
 list of lines, and `TextNewline` goes. B stays the way there, and

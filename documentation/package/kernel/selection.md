@@ -246,7 +246,7 @@ are elements or characters.
 | `JsonObject` | `[i] + <entry path>` — into entry `i` (1-based) |
 | `SyntaxLeaf` | `.open/.value/.close + {k}` — cursor at offset `k` in the named span |
 | `SyntaxNode` | `[i] + <child path>` — into child `i`; or `.open/.close + {k}` for delimiter |
-| `TextBlock` | `{k}` — flat cursor at offset `k` in the concatenated spans |
+| `TextBlock` | `{k}` — flat cursor at offset `k` in the flat string of the lines |
 
 `GraphicsText`, `GraphicsRect`, and `GraphicsCanvas` are **not** selectable
 containers. They are terminal output; the selection mechanism does not enter
@@ -309,7 +309,7 @@ offset:
 | `ProjectionReferenceStep(p, .close + {k})` | `open_len + value_len + k` |
 
 `_flat_to_text_elem_path` then turns that flat offset into the `TextBlock`-domain
-path (which of the concatenated spans, and the offset inside it) that
+path (which line, which run of it, and the offset inside it) that
 `{k}` addresses. The output document's `selection` cell reads from the input
 document's `selection` cell as a computed dependency, so an edit that moves the
 caret propagates without either side polling the other.
