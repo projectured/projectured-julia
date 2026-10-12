@@ -231,6 +231,19 @@ struct ComposerInsertPartOperation <: Operation
 end
 
 """
+    InsertDraftDocumentOperation(draft, document)
+
+Put `document` into `draft` as a part before the last one, the text that the
+person types, and keep the caret in that text. A paste of a document that has no
+text form, such as a plot, gives it, and so does the "Picture" button of an
+assistant.
+"""
+struct InsertDraftDocumentOperation <: Operation
+    draft::ConversationDraft
+    document::Document
+end
+
+"""
 ENTER in the kind chooser: if the value names a known kind, commit it to that
 domain's insertion via the factory; otherwise a no-op (keep editing).
 """
@@ -275,7 +288,7 @@ OperationModule.is_self_contained_operation(::Union{
     ComposerInputOperation, ComposerBackspaceOperation, ComposerNewlineOperation,
     ComposerInsertPartOperation, ComposerCommitChooserOperation,
     ComposerCommitSourceOperation, ComposerEvaluateOperation,
-    ComposerRevertOperation, ComposerSubmitOperation}) = true
+    ComposerRevertOperation, ComposerSubmitOperation, InsertDraftDocumentOperation}) = true
 
 # ═══════════════════════════════════════════════════════════════════════
 # evaluate_operation
@@ -305,6 +318,28 @@ function evaluate_operation(editor, op::ComposerBackspaceOperation)
     _set_value!(c, first(v, k - 1) * last(v, length(v) - k), k - 1)
     sync_draft_selection!(editor, op.draft)
 end
+
+function evaluate_operation(editor, op::InsertDraftDocumentOperation)
+    d = op.draft
+    insert!(d.parts, max(length(d.parts), 1), ConversationPart(op.document))
+    sync_draft_selection!(editor, d)
+end
+
+# A draft takes a pasted document with no text form as a part of its own; a
+# document with a text form goes into the text that the person types, as text.
+make_pasted_document_operation(d::ConversationDraft, path, value) =
+    has_text_form(value) ? nothing : InsertDraftDocumentOperation(d, value)
+
+"""
+    has_text_form(content) -> Bool
+
+Whether a model reads `content`, a part of a conversation, as text: text, a form,
+a thought, or a document with a `:string` natural projection, such as code or
+JSON. A part with none, such as a plot or a picture, goes to a model as a picture.
+"""
+has_text_form(content) =
+    content isa Union{TextBlock, PrimitiveString, EvaluatorForm, ConversationThinking} ||
+    make_natural_projection(content, :string) !== nothing
 
 function evaluate_operation(editor, op::ComposerInsertPartOperation)
     d = op.draft

@@ -387,6 +387,8 @@ end
 # empty, fall back to the OS clipboard via the projection's `from_text` converter.
 function _clipboard_paste(p, input)
     (p.text && input.content isa TextBlock) && return _text_clipboard_paste(p, input)
+    taken = _document_target_paste(input, input.slice)
+    taken === nothing || return taken
     text = _text_target_paste(p, input)
     text === nothing || return text
     slice = input.slice
@@ -408,11 +410,35 @@ function _clipboard_paste(p, input)
     ])
 end
 
+# A stored document that is no plain text, pasted at a text cursor: each document
+# on the path of the cursor, from the deepest, can take it in its own way
+# (`make_pasted_document_operation`), as the draft of a conversation takes a plot
+# as a part. Paste-copy gives a fresh copy. A document that takes nothing leaves
+# the paste to the text.
+function _document_target_paste(input, slice; copy::Bool = false)
+    (slice isa Document && _slice_text(slice) === nothing) || return nothing
+    _find_text_target(input; writes = true) === nothing && return nothing
+    value = copy ? _make_clipboard_copy(slice) : slice
+    value === nothing && return nothing
+    copy && clear_selection!(value)
+    steps = get_reference_steps(strip_reference_types(input.selection))
+    for count in length(steps):-1:1
+        path = _make_steps_path(steps[1:count])
+        document = try_evaluate_reference(input, path, missing)
+        document isa Document || continue
+        operation = make_pasted_document_operation(document, path, value)
+        operation === nothing || return operation
+    end
+    nothing
+end
+
 # Paste-copy: like paste, but a fresh deep copy each time. The OS fallback already
 # produces a fresh document per read, so it needs no extra copy. In text mode it is
 # identical to paste (splicing a string needs no copy).
 function _clipboard_paste_copy(p, input)
     (p.text && input.content isa TextBlock) && return _text_clipboard_paste(p, input)
+    taken = _document_target_paste(input, input.slice; copy = true)
+    taken === nothing || return taken
     text = _text_target_paste(p, input)
     text === nothing || return text
     slice = input.slice

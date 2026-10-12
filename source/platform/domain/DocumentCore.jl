@@ -104,6 +104,21 @@ takes text in its fields, because a person types there.
 """
 accepts_pasted_text(::Any) = true
 
+"""
+    make_pasted_document_operation(document, path, value) -> Operation | Nothing
+
+How `document` takes a pasted document `value` that is no plain text, while the
+selection is a text cursor inside it: the operation that puts `value` in, or
+`nothing` when it does not take it. `path` is the path from the root of the paste
+to `document`, for an operation that names its target by a path. `nothing` by
+default.
+
+The clipboard asks each document on the path of the selection, from the deepest,
+before it pastes text there. Use it for a document that holds parts, such as the
+draft of a conversation, which takes a plot as a part of its own.
+"""
+make_pasted_document_operation(::Any, ::Any, ::Any) = nothing
+
 # ── What a new tab may share a pane group with ────────────────────────────────
 
 """

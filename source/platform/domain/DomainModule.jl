@@ -41,7 +41,7 @@ export DocumentNothing, DocumentInsertion
 export compute_context_menu
 export release_document!, ReleaseDocumentOperation
 export accepts_pasted_document, accepts_pasted_replacement, accepts_pasted_text,
-       accepts_opened_file
+       accepts_opened_file, make_pasted_document_operation
 
 
 include("DocumentCore.jl")

@@ -21,9 +21,7 @@ function evaluate_operation(editor, op::AddDraftPictureOperation)
     editor isa Editor || return nothing
     filename = _make_picture_filename()
     _write_selection_picture(editor, filename) === nothing && return nothing
-    draft = op.assistant.draft
-    insert!(draft.parts, length(draft.parts), ConversationPart(ImageFile(filename)))
-    sync_draft_selection!(editor, draft)
+    evaluate_operation(editor, InsertDraftDocumentOperation(op.assistant.draft, ImageFile(filename)))
 end
 
 # A picture of the part that the person selected as a whole, or else of the window
@@ -74,17 +72,13 @@ end
 function _make_part_pictures!(draft::ConversationDraft)
     for part in collect(draft.parts)
         content = part.content
-        _has_text_form(content) && continue
+        (content isa ImageDocument || has_text_form(content)) && continue
         filename = _make_picture_filename()
         _write_document_picture(content, filename) === nothing && continue
         part.content = ImageFile(filename)
     end
     nothing
 end
-
-_has_text_form(content) =
-    content isa Union{TextBlock, PrimitiveString, EvaluatorForm, ConversationThinking, ImageDocument} ||
-    make_natural_projection(content, :string) !== nothing
 
 function _write_document_picture(document, filename::AbstractString)
     projection = NaturalToGraphics(; measure = FontFileMeasure())

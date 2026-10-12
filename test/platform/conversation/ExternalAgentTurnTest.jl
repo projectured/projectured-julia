@@ -88,6 +88,20 @@ function test_external_agent_turn()
             @test occursin("See\n\n(A picture is left out", only(prompt).text)
         end
 
+        @testset "a draft takes a pasted document with no text form as a part before the text" begin
+            draft = make_conversation_draft()
+            result = AgentTurnLiveResult(() -> 1)
+            @test !has_text_form(result)
+            @test has_text_form(PrimitiveString("x")) && has_text_form(TextBlock(TextString("t")))
+            @test make_pasted_document_operation(draft, EmptyReference(), PrimitiveString("x")) === nothing
+            operation = make_pasted_document_operation(draft, EmptyReference(), result)
+            @test operation isa InsertDraftDocumentOperation
+            evaluate_operation((document = draft,), operation)
+            parts = collect(draft.parts)
+            @test length(parts) == 2
+            @test parts[1].content === result && parts[2].content isa PrimitiveString
+        end
+
         @testset "a picture is a card with its image, at most as high as the theme says" begin
             part = ConversationPart(ImageFile(joinpath(mktempdir(), "gone.png")))
             card = print_document(ConversationPartToWidget(), nothing, part, nothing).output

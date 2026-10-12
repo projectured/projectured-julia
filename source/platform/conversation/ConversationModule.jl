@@ -49,7 +49,7 @@ using ..WidgetModule
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_computation!
 import ..DocumentModule: copy_document, get_document_title, has_document_duplicate
-import ..DomainModule: accepts_pasted_document, accepts_pasted_text,
+import ..DomainModule: accepts_pasted_document, accepts_pasted_text, make_pasted_document_operation,
                        get_insertion_aliases
 import ..FocusModule: is_selection_walk_stop
 import ..SelectionModule: has_dormant_selection
@@ -84,7 +84,7 @@ export ConversationComposerToWidget, make_conversation_composer_projection,
        ComposerInputOperation, ComposerBackspaceOperation, ComposerNewlineOperation,
        ComposerInsertPartOperation, ComposerCommitChooserOperation,
        ComposerCommitSourceOperation, ComposerEvaluateOperation,
-       ComposerRevertOperation, ComposerSubmitOperation
+       ComposerRevertOperation, ComposerSubmitOperation, InsertDraftDocumentOperation, has_text_form
 export ConversationConversation, EvaluatorForm, EvaluatorToplevel, ConversationTurn,
        ConversationPart, ConversationDraft
 
