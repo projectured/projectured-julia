@@ -572,6 +572,22 @@ change how every view of syntax makes its lines, so they land together.
      main, the guard passes 109 examples, and the text dump is that of step 6. It
      found one more reader of the runs of an evaluator result, a helper of
      `ConversationEditorTest`, which now reads the flat string; `test_julia` 550.
+   - *Found after the rebase onto main `dd0510645` (2026-10-12):* the find bar of
+     main moves to the next item on Return in its field, a one-line `WidgetText`.
+     Its view of the string is lines, so the text domain took Return as a break
+     and the find text became `"ap\n"` (`ArrangementFindTest`, 7 failures). The
+     reader of a `WidgetText` now gives a plain Return to no text, and the key
+     goes on to the bindings around the field, as on main; a `WidgetTextarea`
+     still types a break. `test_widget_text_editing` 66, `test_arrangement_find`
+     16.
+   - The sweep of the rebased branch against main `dd0510645`: every part has the
+     failures of main, with the fix above. `test_platform` of the branch and of
+     main both peak near 8 GB in one process, and the branch went over the cap of
+     the sweep: the kernel stopped it. Each of the 200 functions of
+     `test_platform`, run alone with a collection after it, keeps as much memory
+     alive on the branch as on main (546 MB and 545 MB at the end) and takes as
+     long (873 s and 910 s in all). With a cap of 12 GB the whole part passes with
+     the four failing files of main.
 
 8. **omnet-julia**: NED and INI state their breaks in their texts, which removes
    their empty lines. It follows the landing of steps 2 to 4.
@@ -593,6 +609,18 @@ change how every view of syntax makes its lines, so they land together.
    - INI: the separator of a section is lines. The result view: a run and a
      module are one level in, one item on each line. The test file: a
      description and an expected body are lines.
+   - Checked in a scratch environment against this branch and against main, on
+     the examples `ini`, `ned`, `test` and the three of the simulation: each row
+     holds the same text at the same x; NED and the test file lose 9 empty lines
+     and the result view 1; no run holds a break; the printer, REPL and
+     navigation walks and the omnet-julia tests of the four projections pass. The
+     navigation reaches 31 states fewer in NED and in the test file and 7 in the
+     result view: 9 carets on the empty lines that went, and introduced places in
+     the old texts of breaks, where main draws no caret. No caret that main draws
+     moves or goes.
+   - The NED example of omnet-julia main did not build since main of projectured
+     checks the declared type of each field: it gave the literals of a property
+     key as its name. Its fixture now calls `make_ned_property_key` (`a3ba55c8`).
 9. **The documents**: `text.md`, `syntax.md` and the guides of the domains.
    ✅ **Done (2026-10-09).** `syntax.md`: a break is text, the rules of the lines
    of a compound and of a leaf, `indentation` as `nest`, N7, the edit of a break,
