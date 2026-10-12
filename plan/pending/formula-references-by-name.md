@@ -226,6 +226,22 @@ formula named `pi` would make every other `pi` of the sheet mean it.
   resolves in the scope in the reference style, and a click on it selects its definition. The
   projection prints the environment and its formulas, so it gives the Julia projection the set of
   names of the scope through the printer context, and reads no other projection.
+  *Open, two questions for the owner (found 2026-10-12, before the code of this step):*
+  - **How the style reaches every identifier.** `JuliaToSyntax(entries...)` puts the entries of
+    another domain after its own, and the dispatch takes the first match, so a formula rule for
+    `JuliaIdentifier` must go in front of the table (the formula domain can build its table so).
+    But `JuliaCallToSyntaxNode` draws a callee with its own `JuliaIdentifierToSyntaxLeaf`, past
+    the table, so the `F` of `G = F(3)` would keep the callee style. The choices: (a) the Julia
+    identifier leaf reads a property of the printer context that a host sets, the identifier
+    nodes to mark and their style; a small capability of the Julia domain that names no
+    formula (my recommendation); (b) the formula domain overrides the call rule too, a copy of
+    it; (c) only the identifiers that the table reaches take the style, and a callee does not.
+    In each choice the formula rule finds the marked nodes by identity, the free identifiers of
+    its code that resolve in the scope, so a local name that a formula also has (D6) stays plain.
+  - **The gesture that goes to the definition.** A plain click on an identifier selects the
+    identifier today, as a whole. If a plain click goes to the definition, a person can not
+    select a reference to edit it. The choices: Ctrl+click, as code editors do (my
+    recommendation); a key on a selected reference; or a plain click as the step says.
 - [ ] **Step 5: the rename operation** of D3, as one compound operation with one inverse, and
   a gesture for it that a person can try on the name of a formula in the gallery.
 - [ ] **Step 6: the strict Julia fields.** Step 4 of
