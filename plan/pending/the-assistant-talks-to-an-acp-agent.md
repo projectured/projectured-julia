@@ -1371,7 +1371,49 @@ from the command line of the projectured UI.
     an MCP server that no setting allows. A model of this editor gets such a
     tool later, because the result of a tool of the kernel is text.
 
-  **Questions for the owner.**
+  **Answers (the owner, 2026-10-12).** Q20-Q23: as recommended, and "pictures
+  of any smaller part should also be possible".
+
+  **A smaller part (facts, 2026-10-12).**
+  - The editor prints its document to a screen: `editor.iomap` has the screen as
+    its output, and each `WindowDocument` of it holds the `GraphicsCanvas` that
+    the backend draws. The SDL backend keeps no other copy that the platform
+    can read, and it reads no pixels back.
+  - `find_reference_box(document, reference; visible = true)` gives the box of
+    any printed node, clipped by the panes that scroll; `find_part_place` maps a
+    part forward and reads its box, for a tooltip and a context menu.
+  - Alt+click selects any part as a whole: the selection of the window ends at
+    the part. A press that a button takes does not move the focus or the
+    selection, so the selection stays on the part.
+  - The items of a context menu come from the type of each document, so a
+    "Picture" item on every part needs a new mechanism; the selection does not.
+
+  **The design of a picture (proposal).**
+  - The command renders a window again from its canvas, with `write_image`,
+    at its size and at the density 1. For a part, it maps the selection forward
+    through the projection of the editor, reads the box of the part, and renders
+    only that box: the canvas of the window goes into a canvas of the size of the
+    box, moved by the corner of the box.
+  - The "Picture" button (a camera icon) in the row under the composer takes the
+    part that the person selected with Alt+click, else the window of the
+    assistant. Its tooltip says so. The picture goes into the draft as an
+    `ImageFile` part.
+  - The tool `take_picture` of the MCP server (3.1d) takes `part`: `"window"`
+    (the default) or `"selection"`.
+  - A picture is a PNG file in `$XDG_CACHE_HOME/projectured/pictures`, so a saved
+    conversation still names it. A picture whose file is gone shows as an empty
+    box, and the prompt says that it is gone.
+
+  **Questions for the owner (2026-10-12).**
+  - Q24. A new channel: the picture command reads the screen that the editor
+    printed (`editor.iomap`), as the backend does, and no projection reads it.
+    Agreed?
+  - Q25. The part is the one that the person selected with Alt+click; with no
+    such selection, the picture is the whole window. Agreed? The other way, a
+    mode after the press of the button in which the next press picks a part,
+    needs a new gesture mode.
+
+  **Questions for the owner (answered above).**
   - Q20. Who takes the picture: the person with the command (3.1b), and also
     the agent with the tool (3.1d)? Recommended: both.
   - Q21. What the picture shows: the whole window, exactly the canvas that the
