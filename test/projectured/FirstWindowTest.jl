@@ -8,6 +8,12 @@
 # on 2026-10-08: 0.65 s; with no workloads, more than 40 s.
 const _FIRST_WINDOW_COMPILE_LIMIT = 2.0
 
+# The same seconds with every domain integration of the active environment
+# installed, which `using Projectured` loads too. Each domain compiles its natural
+# rows in its own image. Measured on 2026-10-12 in `environment/all`: 1.1 to
+# 1.2 s; without the workloads of the domains, 8 to 15 s.
+const _FIRST_WINDOW_WITH_DOMAINS_COMPILE_LIMIT = 3.0
+
 # The session of the README in a fresh process: the packages load by their ids, so
 # a package that the environment holds but does not list loads too. It prints the
 # seconds of compilation of the first window.
@@ -57,29 +63,41 @@ end
 _make_absolute_path_line(line, root) =
     "path = \"" * normpath(joinpath(root, match(r"^path = \"(.*)\"$", line)[1])) * "\""
 
+# The seconds of compilation of the first window of `_FIRST_WINDOW_SESSION` in a
+# fresh process with the project `project`, or `nothing` when the session printed
+# no result. The binary alone, with the flags of a user's session: a test runs
+# with bounds checks and often with coverage, and under those flags Julia compiles
+# the packages again instead of using their images.
+function _measure_first_window_compile_seconds(project::String)
+    julia = first(Base.julia_cmd().exec)
+    command = addenv(`$julia --startup-file=no --project=$project -e $_FIRST_WINDOW_SESSION`,
+                     "SDL_VIDEODRIVER" => "offscreen")
+    output, errors = IOBuffer(), IOBuffer()
+    run(pipeline(ignorestatus(command); stdout = output, stderr = errors))
+    found = match(r"FIRST WINDOW COMPILED ([0-9.e+-]+)", String(take!(output)))
+    found === nothing &&
+        println(stderr, "\nthe session of the first window printed no result:\n",
+                last(String(take!(errors)), 3000))
+    found === nothing ? nothing : parse(Float64, found[1])
+end
+
+# The assertions on the seconds of one session.
+function _test_first_window_compile_seconds(seconds, limit::Float64)
+    @test seconds !== nothing
+    if seconds !== nothing
+        seconds < limit || println(stderr, "\nthe first window compiled for ", seconds, " s")
+        @test seconds < limit
+    end
+end
+
 function test_first_window_compiles_little()
     @testset "the first window of a data frame compiles little" begin
-        # The binary alone, with the flags of a user's session: a test runs with
-        # bounds checks and often with coverage, and under those flags Julia
-        # compiles the packages again instead of using their images.
-        julia = first(Base.julia_cmd().exec)
-        output, errors = IOBuffer(), IOBuffer()
-        mktempdir() do folder
-            project = _make_readme_session_project(folder)
-            command = addenv(`$julia --startup-file=no --project=$project -e $_FIRST_WINDOW_SESSION`,
-                             "SDL_VIDEODRIVER" => "offscreen")
-            run(pipeline(ignorestatus(command); stdout = output, stderr = errors))
-        end
-        found = match(r"FIRST WINDOW COMPILED ([0-9.e+-]+)", String(take!(output)))
-        found === nothing &&
-            println(stderr, "\nthe session of the first window printed no result:\n",
-                    last(String(take!(errors)), 3000))
-        @test found !== nothing
-        if found !== nothing
-            seconds = parse(Float64, found[1])
-            seconds < _FIRST_WINDOW_COMPILE_LIMIT ||
-                println(stderr, "\nthe first window compiled for ", seconds, " s")
-            @test seconds < _FIRST_WINDOW_COMPILE_LIMIT
-        end
+        seconds = mktempdir(folder -> _measure_first_window_compile_seconds(
+            _make_readme_session_project(folder)))
+        _test_first_window_compile_seconds(seconds, _FIRST_WINDOW_COMPILE_LIMIT)
+    end
+    @testset "the first window of a data frame compiles little with every domain installed" begin
+        seconds = _measure_first_window_compile_seconds(Base.active_project())
+        _test_first_window_compile_seconds(seconds, _FIRST_WINDOW_WITH_DOMAINS_COMPILE_LIMIT)
     end
 end
