@@ -338,8 +338,9 @@ a block of spans still works, so the producers move one at a time.
    *Built (2026-10-12)*: the decorators and the flat helpers (`5bb137d54`),
    `TextToGraphics` (`6711e0b1f`, 380 lines fewer: a group is a line, a run is one
    piece for each row of its soft breaks, the lazy list of spans goes), the console
-   (in `29be6b79b`), and the cut of a run in `SyntaxToText` (`31cd2fc3c`). Open: the
-   test of an empty line after a heading.
+   (in `29be6b79b`), and the cut of a run in `SyntaxToText` (`31cd2fc3c`). The test
+   of an empty line after a heading gives the heading its own metrics in a
+   `FixedMeasure` (`75fbd38d2`).
    - `_text_break` binds in every block; a producer of a value of one line declines
      the break (§7).
    - `TextLineNumbering` puts the number in the gutter only, and `TextFirstLine`
