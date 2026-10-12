@@ -245,7 +245,9 @@ The editor's other feed stores — the inbox, the message log store, the frame
 measurement store — share the shape but do not need the carve-out: their producers
 run on ordinary tasks, outside every computation, so this ban is not in play for
 them. Only a store a computation itself writes must have the two properties above,
-and the fault store is the one that does.
+and two stores do: the fault store, and the counter store of
+`run_with_performance_counters` (`source/kernel/performance/PerformanceCounter.jl`),
+to which a cell read, a computation, an invalidation and a write add a count.
 
 **Accepted carve-out — a new cell that the same run made.** A computation can write
 a cell that it made in the same run, before it gives the cell out. Until then no

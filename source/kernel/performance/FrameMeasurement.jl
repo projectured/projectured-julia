@@ -1,8 +1,5 @@
-# Fragment of `PerformanceModule` — the measurements of the recent frames. The
-# store keeps the last frames in a ring of fixed size, one column and one unit
-# for each measurement name, and computes a summary from the ring when a reader
-# asks. It is a plain object outside the reactive graph, and one frame costs
-# one lookup and one store for each measurement.
+# Fragment of `PerformanceModule` — the measurements of the recent frames, in a
+# plain object outside the reactive graph.
 
 """
     FrameMeasurementSummary
@@ -12,6 +9,9 @@ The summary of one measurement over the frames that a store holds: its `unit`,
 `minimum`, `maximum`, `mean`, `standard_deviation` and `total` of their values.
 With no value, the minimum, the maximum and the mean are `NaN`. Below two
 values, the standard deviation is `0.0`.
+
+Use it to read how a measurement went over the recent frames: the mean and the
+worst frame time, or the mean count of the cells that a frame reads.
 
 See also [`compute_frame_measurement_summary`](@ref), which makes one.
 """
@@ -36,7 +36,10 @@ frame that did not measure a name holds `NaN` in the column of that name. Each
 name has a unit, `:second` for a time and `:count` for a count, from the group
 that first gave it. The store also counts the frames since the start. A store
 belongs to one editor, and only the task of that editor writes it, so it needs
-no lock.
+no lock. A `capacity` below 1 throws an `ArgumentError`.
+
+Use it to keep what the frames of one editor measured, so a view or a file can
+show how the editor performs over time.
 
 # Example
 
@@ -81,8 +84,17 @@ in seconds.
 
 A name keeps the unit of the group that first gave it. A name given later in
 the other group is an error, and so is a name in both groups of one call,
-because its column would mix two units. A call that is an error leaves the store
-as it was.
+because its column would mix two units. A name that is not a `Symbol` and a value
+that is not a number are errors too. A call that is an error throws an
+`ArgumentError` and leaves the store as it was.
+
+Use it once at the end of each frame, to keep what the frame measured: its time,
+and the counts and the times of the counters.
+
+# Example
+
+    record_frame_measurements!(store; times = [:frame_time => 0.016],
+                               counts = [:reads => 120])
 """
 function record_frame_measurements!(store::FrameMeasurementStore; times = (), counts = (),
                                     end_time::Real = time())
@@ -100,10 +112,14 @@ function record_frame_measurements!(store::FrameMeasurementStore; times = (), co
     store
 end
 
-# A name keeps its unit. The check runs before the frame changes the store, so a
-# wrong call leaves the store as it was.
+# A name is a `Symbol`, a value is a number, and a name keeps its unit. The check
+# runs before the frame changes the store, so a wrong call leaves the store as it was.
 function _check_frame_units(store::FrameMeasurementStore, measurements, unit::Symbol)
-    for (name, _) in measurements
+    for (name, value) in measurements
+        name isa Symbol || throw(ArgumentError(
+            "the frame measurement $(repr(name)) is not a Symbol"))
+        value isa Real || throw(ArgumentError(
+            "the value of the frame measurement $(name) is not a number"))
         known = get(store.units, name, unit)
         known === unit ||
             throw(ArgumentError("the frame measurement $(name) has the unit $(known), " *
@@ -145,7 +161,7 @@ and the worst frame time, or the mean count of the cells that a frame reads.
 
 # Example
 
-    summary = compute_frame_measurement_summary(editor.frame_measurements, :frame_time)
+    summary = compute_frame_measurement_summary(store, :frame_time)
     (summary.mean, summary.maximum)
 
 See also [`get_frame_measurement_names`](@ref), which lists the names that the
@@ -188,7 +204,7 @@ Use it to find what a store measured before you ask for a summary.
 
 # Example
 
-    names = get_frame_measurement_names(editor.frame_measurements)
+    names = get_frame_measurement_names(store)
 
 See also [`compute_frame_measurement_summary`](@ref).
 """
@@ -205,7 +221,7 @@ Use it to find whether new frames arrived since you last read the store.
 
 # Example
 
-    shown = get_frame_count(editor.frame_measurements)
+    shown = get_frame_count(store)
 
 See also [`collect_recent_frame_measurements`](@ref).
 """
@@ -224,7 +240,7 @@ file, or to draw them.
 
 # Example
 
-    recent = collect_recent_frame_measurements(editor.frame_measurements)
+    recent = collect_recent_frame_measurements(store)
     slowest = recent.frames[argmax(recent.columns[1].values)]
 
 See also [`write_frame_measurements!`](@ref), which writes the same frames as CSV.
@@ -264,7 +280,7 @@ Use it to keep the frames of a session, or to plot them in another program.
 
 # Example
 
-    write_frame_measurements!("frames.csv", editor.frame_measurements)
+    write_frame_measurements!("frames.csv", store)
 
 See also [`collect_recent_frame_measurements`](@ref), which gives the same frames as
 vectors.

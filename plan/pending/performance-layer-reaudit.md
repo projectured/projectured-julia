@@ -114,7 +114,12 @@ and L02-8 stay fixed; L02-4 is A-2; L02-7 is A-5; L02-1 is open.
 
 ## Steps
 
-- [ ] 1. The fixes: A-1, A-2, A-4 … A-7, and A-3 after decision 2.
+- [x] 1. The fixes: A-1, A-2, A-4 … A-7, and A-3 after decision 2. The owner agreed
+  to decision 2 on 2026-10-12. A-1: the check before the change also throws an
+  `ArgumentError` for a name that is not a `Symbol` and a value that is not a number.
+  A-3: the docstring of `get_performance_counters` and the law name the counter store
+  as the second store that a computation writes. The examples use `work()`,
+  `parse(Int, text)` and a variable `store` in place of the editor.
 - [ ] 2. The tests T-1 … T-13, except T-6, and the walkthrough `print_performance_example`
   (E-1).
 - [ ] 3. The guide `documentation/package/kernel/performance.md` (G-1 … G-3), with its

@@ -4,10 +4,10 @@
 What the editor measures about itself. Two instruments share this namespace,
 and they differ by lifecycle:
 
-- [`PerformanceCounter.jl`](PerformanceCounter.jl) — the conditionally-compiled
-  counters. `run_with_performance_counters(f)` binds a fresh counter store for the
-  dynamic extent of `f`. `@count_performance` adds to its counts, and
-  `@measure_performance_time` adds to its times.
+- [`PerformanceCounter.jl`](PerformanceCounter.jl) — the counters, which the
+  preference `performance_counters` compiles in. `run_with_performance_counters(f)`
+  binds a fresh counter store for the dynamic extent of `f`. `@count_performance`
+  adds to its counts, and `@measure_performance_time` adds to its times.
 - [`FrameMeasurement.jl`](FrameMeasurement.jl) — the `FrameMeasurementStore`, one for each
   editor, which keeps the measurements of the last frames and summarizes them.
 
@@ -20,10 +20,9 @@ using Base.ScopedValues: ScopedValue, with
 using Preferences: @load_preference
 
 export PERFORMANCE_COUNTERS_ENABLED, run_with_performance_counters,
-       @count_performance, @measure_performance_time, get_performance_counters
-export FrameMeasurementStore, record_frame_measurements!,
-       get_frame_count, get_frame_measurement_names,
-       FrameMeasurementSummary, compute_frame_measurement_summary,
+       get_performance_counters, @count_performance, @measure_performance_time
+export FrameMeasurementSummary, FrameMeasurementStore, record_frame_measurements!,
+       compute_frame_measurement_summary, get_frame_measurement_names, get_frame_count,
        collect_recent_frame_measurements, write_frame_measurements!
 
 include("PerformanceCounter.jl")
