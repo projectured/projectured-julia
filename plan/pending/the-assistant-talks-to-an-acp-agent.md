@@ -1404,6 +1404,26 @@ from the command line of the projectured UI.
     conversation still names it. A picture whose file is gone shows as an empty
     box, and the prompt says that it is gone.
 
+  **Progress.**
+  - [x] 3.1a `LlmImage(media_type, data)` holds the bytes. The Anthropic adapter
+    writes an image block; the Ollama adapter puts the picture in `images` when
+    `/api/show` lists "vision" for the model (it asks once, only for a request
+    with a picture), else a line; the ACP adapter writes `ImageContent` when
+    `promptCapabilities.image` is true, else a line. The three adapter packages
+    take `Base64`, a standard library, in their `[deps]`.
+  - [x] 3.1c `ClaudeCodeACP` 0.1.7 on the branch `image` of its worktree
+    `claude-code-acp-image`: `image = true`, and an `ImageContent` of the type
+    png, jpeg, gif or webp becomes an image block of the user message; another
+    type is `INVALID_PARAMS`. Not released.
+  - [ ] 3.1b The content of a user turn is done: `_make_user_turn_content` gives
+    the text of the parts and each `ImageFile` part as an `LlmImage` where it
+    stands, for a model, a prompt and a steer; a file that is gone or of another
+    type is a line. A picture part shows as a card with the tag "picture", in the
+    transcript and in the draft, at most `picture_height` (160) high: the view
+    decodes the file with `decode_image`, so the part keeps only the name. The
+    command and the button wait for Q24 and Q25.
+  - [ ] 3.1d The tool waits for Q24 and Q25.
+
   **Questions for the owner (2026-10-12).**
   - Q24. A new channel: the picture command reads the screen that the editor
     printed (`editor.iomap`), as the backend does, and no projection reads it.
