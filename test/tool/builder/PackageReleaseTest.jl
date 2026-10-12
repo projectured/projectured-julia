@@ -563,9 +563,13 @@ function test_package_release()
         @test !occursin("PackageSpec(url", workflow)
         # AutoIntegration, a package of a sibling repository, gets the bound of the
         # version that the manifest names.
+        manifest = ProjecturedBuilder.BuilderModule.TOML.parsefile(
+            joinpath(context.root, "environment", "all", "Manifest.toml"))
+        integration = VersionNumber(only(manifest["deps"]["AutoIntegration"])["version"])
         umbrella = ProjecturedBuilder.BuilderModule.TOML.parsefile(
             joinpath(output, "Projectured", "Project.toml"))
-        @test umbrella["compat"]["AutoIntegration"] == "0.1.0"
+        @test umbrella["compat"]["AutoIntegration"] ==
+              "$(integration.major).$(integration.minor).$(integration.patch)"
         # The test of the umbrella loads the umbrella, which its test package does not.
         @test occursin("using Projectured\nusing ProjecturedTest\n",
                        read(joinpath(output, "Projectured", "test", "runtests.jl"), String))
