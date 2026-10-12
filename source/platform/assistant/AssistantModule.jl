@@ -19,16 +19,19 @@ its own loop and its own tools, and the turn draws what it reports
 module AssistantModule
 
 using ..AgentModule
+using ..BackendModule
 using ..CellModule
 using ..ClockModule
 using ..CollectionModule
 using ..ConversationModule
 using ..DocumentModule
+using ..EditorModule
 using ..EventModule
 using ..EventModule
 using ..FaultModule
 using ..FocusModule
 using ..GestureBindingModule
+using ..GraphicsModule
 using ..IoMapModule
 using ..LayoutModule
 using ..LlmModule
@@ -38,6 +41,8 @@ using ..PrimitiveModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
+using ..ScreenModule
+using ..SelectionModule
 using ..SerializationModule
 using ..StyleModule
 using ..TerminalModule
@@ -66,7 +71,8 @@ export register_assistant_api!, get_registered_assistant_api
 export ExternalAgentSession, is_external_agent_turn_running, CancelAssistantTurnOperation,
        stop_external_agent!, StartExternalAgentOperation, SetAgentOptionOperation, SignOutAgentOperation,
        make_agent_option_bar, format_agent_usage, describe_agent_usage
-export is_assistant_turn_running, make_assistant_stop_button
+export is_assistant_turn_running, make_assistant_stop_button, make_assistant_picture_button
+export AddDraftPictureOperation, register_picture_tools!
 export compute_assistant_overview_title, find_first_prompt, find_last_prompt, compute_prompt_count,
        compute_assistant_turn_side, describe_assistant_activity, find_assistant_start_time,
        find_assistant_last_activity_time, compute_assistant_elapsed_time, compute_assistant_busy_time
@@ -79,6 +85,7 @@ include("AssistantDocument.jl")
 include("AssistantToWidget.jl")
 include("AssistantTurn.jl")
 include("ExternalAgentTurn.jl")
+include("AssistantPicture.jl")
 include("AssistantOverview.jl")
 include("AssistantList.jl")
 include("AssistantListToWidget.jl")

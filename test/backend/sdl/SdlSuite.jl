@@ -16,6 +16,7 @@ include("backend/SystemColorQueryTest.jl")
 include("backend/NativeWindowTest.jl")
 include("projection/GraphicsToFileTest.jl")
 include("projection/TreeRenderTest.jl")
+include("projection/PartPictureTest.jl")
 
 """
     test_sdl_layering()
@@ -53,9 +54,10 @@ function test_sdl()
         test_native_window()
         test_write_image()
         test_tree_render()
+        test_part_picture()
     end
 end
 
 export test_sdl, test_sdl_layering, test_dirty_rect, test_laid_out_canvas, test_paint_fault, test_sdl_keysym, test_device_config, test_sdl_font_metrics_agree, test_sdl_text_baseline_ink,
        test_sdl_text_pen_positions,
-       test_input_coalescing, test_sdl_pointer_shape, test_sdl_wait_wake, test_sdl_system_colors, test_native_window, test_write_image, test_tree_render
+       test_input_coalescing, test_sdl_pointer_shape, test_sdl_wait_wake, test_sdl_system_colors, test_native_window, test_write_image, test_tree_render, test_part_picture

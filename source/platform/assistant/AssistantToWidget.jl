@@ -87,14 +87,15 @@ function print_document(projection::AssistantToWidgetSplitPane,
                          min_height=projection.composer_min_height,
                          preferred_height=projection.composer_min_height),
     ]
-    # A row under the composer holds the button that stops the turn that runs.
-    # An external agent has options of its own, and a row of menus beside the
+    # A row under the composer holds the button that stops the turn that runs,
+    # and the button that puts a picture into the draft. An external agent has
+    # options of its own, and a row of menus beside the
     # button shows them, and a line says how much of its context the session
     # uses. The row is the last child, so the maps below, which name the first
     # two, stay as they are, and a click on it is a click on a part that the view
     # drew. A split pane prints a child at the height of its slot, so the row
     # declares its height.
-    items = Any[make_assistant_stop_button(a)]
+    items = Any[make_assistant_stop_button(a), make_assistant_picture_button(a)]
     if a.backend === :acp
         usage = WidgetLabel("")
         set_cell_computation!(getfield(usage, :content), () -> format_agent_usage(a.agent_usage))
@@ -371,6 +372,19 @@ function make_assistant_stop_button(a::Assistant)
     set_cell_computation!(getfield(button, :enabled), () -> is_assistant_turn_running(a))
     button
 end
+
+"""
+    make_assistant_picture_button(assistant) -> WidgetButton
+
+The button that puts a picture into the draft of `assistant`, with
+`AddDraftPictureOperation`: a picture of the part that the person selected with
+Alt+click, or else of the window. It shows the camera icon and no word; its
+tooltip says what it does.
+"""
+make_assistant_picture_button(a::Assistant) =
+    WidgetButton(""; icon = :camera,
+                 tooltip = "Add a picture of the selected part, or else of the window, to the message",
+                 action = editor -> evaluate_operation(editor, AddDraftPictureOperation(a)))
 
 # The options of an external agent that the bar shows, in this order, with the
 # word that names each one.

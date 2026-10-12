@@ -364,6 +364,7 @@ function evaluate_operation(editor, op::SubmitDraftTurnOperation)
     a = op.assistant
     draft = a.draft
     finalize_draft!(draft) || return nothing          # nothing to submit
+    _make_part_pictures!(draft)
     turn = _make_instant_turn(:user, collect(draft.parts))
     push!(a.conversation.turns, turn)
     reset_draft!(draft)

@@ -842,6 +842,7 @@ function start_application!(editor; mcp::Bool = false, assistant::Symbol = :none
         # nothing until it asks.
         declare_api!(editor.tools, make_application_api())
         register_undo_tools!(editor.tools)
+        register_picture_tools!(editor.tools)
     end
     (mcp && assistant !== :none && hasproperty(editor, :tools)) || return nothing
     try
