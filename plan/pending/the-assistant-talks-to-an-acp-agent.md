@@ -1414,7 +1414,10 @@ from the command line of the projectured UI.
   - [x] 3.1c `ClaudeCodeACP` 0.1.7 on the branch `image` of its worktree
     `claude-code-acp-image`: `image = true`, and an `ImageContent` of the type
     png, jpeg, gif or webp becomes an image block of the user message; another
-    type is `INVALID_PARAMS`. Not released.
+    type is `INVALID_PARAMS`. Not released. A live check (2026-10-12) with the
+    real `claude` and the agent of the worktree in the same process: initialize
+    says `image = true`, and a prompt with a text and the picture of a part of a
+    conversation gets the first line of the picture back, word for word.
   - [x] 3.1b The content of a user turn: `_make_user_turn_content` gives
     the text of the parts and each `ImageFile` part as an `LlmImage` where it
     stands, for a model, a prompt and a steer; a file that is gone or of another
