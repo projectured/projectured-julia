@@ -2285,6 +2285,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **Recommended (mine): A.** Each attach then has its detach, so a log that nothing shows stops getting writes, and the safe mode owns what it attached. B needs a table keyed by store in ProjecturedFault, a process-wide table of per-editor state (PAR-PER-EDITOR-STATE), and C keeps a hidden log that each drain writes for the life of the editor.
 - Depends on: L01-12.
 - Cost: FaultStore.jl and FaultModule.jl (sealed); editor/SafeMode.jl; source/platform/fault/FaultSafeMode.jl; FaultStoreTest.jl, FaultSafeModeTest.jl. S.
+- **Decided by the owner, 2026-10-12: A.** `fault-layer-reaudit.md` holds the work.
 
 **L18-4** (High): Does the code tool keep the process-wide swap of stdout and stderr, with a lock and a stated exception to PAR-PER-EDITOR-STATE, or capture each call with a new mechanism that does not touch the process streams?
 
@@ -2557,6 +2558,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **Recommended (mine): C.** A and B tell the person that faults were lost but never which ones, and since nothing empties the store, a long session (a web editor runs for days) fills it once and then turns every new kind of fault into a number. With C each fault reaches the log and the console at least once, as PAR-REPORT-NEVER-THROWS asks ('no fault is lost'), and the capacity still bounds the memory.
 - Cost: FaultStore.jl (sealed), FaultModule.jl (sealed) only if a name is exported; FaultStoreTest.jl; fault.md. M.
 - **Risk:** It reverses the rule of the store "keep the first faults"; a forgotten fault is reported again when it comes back.
+- **Decided by the owner, 2026-10-12: C.** `fault-layer-reaudit.md` holds the work.
 
 **L13-3** (Medium): Must 'next hole' search only the document that holds the selection, and may the exported seam child_reference_steps go?
 
@@ -2617,6 +2619,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **Recommended (mine): A.** The fault layer never calls the seam, and the seam names a projection (layer 17) and the safe mode (layer 22); PAR-NO-CONSUMER-DOCS puts a seam in the lowest layer where every concept that it names exists, which is the editor layer.
 - Depends on: L01-2.
 - Cost: FaultInterface.jl, FaultDefaults.jl, FaultModule.jl (sealed); editor/SafeMode.jl, EditorModule.jl; source/platform/fault/FaultSafeMode.jl; FaultDefaultsTest.jl; fault.md. No user in omnet-julia or inet-julia. S.
+- **Decided by the owner, 2026-10-12: A.** `fault-layer-reaudit.md` holds the work.
 
 **L15-10** (Low): Does Intent.gesture keep a second meaning for a collected intent, or does the pattern get a field of its own?
 
