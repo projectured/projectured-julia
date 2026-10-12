@@ -35,6 +35,7 @@ say what it is:
 | code (`julia`, `json`, `xml`) | a muted panel | the language |
 | a thinking block | a muted panel | `thinking` |
 | an evaluation (`EvaluatorForm`) | a muted panel with two sections | see below |
+| a picture (`ImageFile`) | a muted panel with the image, at most `picture_height` high | `picture` |
 
 A typed message becomes a markdown document when the composer commits it and the
 markdown parser is loaded, so it draws with the same font and the same wrapping

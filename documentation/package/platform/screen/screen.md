@@ -62,6 +62,12 @@ The parts that say a shape are listed in [widget.md](../widget/widget.md#the-sha
 
 `find_part_place(projection, iomap, source)` answers where a window that a command opens at a part stands: the bottom left corner of the box of the node that draws the part, in screen coordinates, or `nothing` when the part has no image. `source` is a reference from the input of `iomap`, a screen. The part is mapped forward with the type of each node on its reference, and the box is read from the printed output with `find_reference_box` ([reference.md](../../kernel/reference.md), "The place of a part"). The tooltip window and the context menu window open a window that has no point there, 4 pixels lower, so the window stands below the part and does not cover it.
 
+### The picture of a part
+
+`write_part_picture(editor, source, filename)`, in `source/platform/screen/PartPicture.jl`, writes a picture of a part. `source` is a reference from the document of the editor. The function maps it forward through the projection of the editor (`map_reference_forward`, with `annotate_reference_types`), walks the printed screen to the `GraphicsCanvas` that the reference reaches, and writes that canvas with the `write_image` of the backend. The canvas keeps its own size, moves to the origin, and lies on the background of its window. The picture holds all of the part, also what a pane scrolls out of view. A part whose view has no canvas of its own, such as a file under the wrapper of its undo, takes the nearest part above it on the path that has one.
+
+`write_window_picture(editor, source, filename)` writes the window that shows `source`, or the first window. Both functions answer `nothing` with no window, or with no backend that writes an image (`applicable(write_image, …)`).
+
 ### The layers of a window
 
 A wrapper at the screen that keeps one window, such as the tooltip window and the context menu window, collects layers: what the part under the pointer and the parts around it answered, the nearest first. Its window shows the first ones. The state document of the wrapper has the fields `layers`, `shown` (how many layers show, `0` when the window is closed) and `window` (the `OpenWindowOperation` that opened the window last).

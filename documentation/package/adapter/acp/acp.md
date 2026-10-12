@@ -42,6 +42,10 @@ The end of the agent process closes the connection, so a request does not wait f
 
 The requests that the package sends are the typed requests of `AgentClientProtocol`, such as `PromptRequest`. The translation of the updates reads the JSON object of each update with the defaults of its fields, so a field that an agent leaves out gives no error.
 
+### A picture in a prompt
+
+`_make_prompt_blocks(connection, prompt)` writes an `LlmImage` as `ACP.ImageContent(data = base64, mime_type)` when the agent advertises `promptCapabilities.image` (`_has_prompt_capability`). Otherwise it writes the text line "(A picture is left out: the agent takes no pictures.)". A prompt and a steer (`_session/steering`) both use it. ClaudeCodeACP 0.1.7 advertises `image = true` and gives Claude a png, jpeg, gif or webp picture as an image block of the user message. Another type gets `INVALID_PARAMS`.
+
 ### The translation of an update
 
 The agent reports its work as `session/update` notifications. `AcpUpdate.jl` translates each one into the events of the kernel, so no caller reads the wire format.

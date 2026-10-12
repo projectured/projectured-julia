@@ -44,7 +44,9 @@ A `Tool` is a name, a description, abstractly-described parameters, and a handle
 Anthropic's `input_schema` is `ProjecturedAnthropic`'s job, rendering it into MCP's
 parameter list is `ProjecturedMCP`'s, and neither is the tool's business. The
 handler of a tool of a turn can answer a `Task` whose value is the text, as the
-loop below describes.
+loop below describes. A handler can also answer an `LlmImage`. The MCP server gives
+it to its client as an image. `run_turn!` gives the model a line of text in its
+place (`_PICTURE_RESULT_TEXT`), because the result of a tool for a model is text.
 
 A `Tool` also names the media type of the text its handler returns,
 `result_mime_type`, as a `Resource` names its own with `mime_type`. It is
@@ -290,9 +292,11 @@ LlmInterface.jl  the Llm supertype; the stream_turn and render_tool_schema seams
                  meaning-model seams; the make_llm and get_default_llm_model factories
 LlmDefaults.jl   the fallbacks: no meaning model; the factories that take a symbol
 Llm.jl           a backend is opaque to the walk; bind_meaning_model!; get_llm_backend_names
-LlmMessage.jl    LlmText / LlmThinking / LlmToolUse / LlmToolResult; LlmMessage; LlmRequest
+LlmMessage.jl    LlmText / LlmImage / LlmThinking / LlmToolUse / LlmToolResult; LlmMessage; LlmRequest
 LlmEvent.jl      LlmTextDelta, LlmToolUseStart, LlmTurnEnd, … — what streams back
 ```
+
+`LlmImage(media_type, data)` holds the bytes of a picture (`data::Vector{UInt8}`) and its media type, such as `"image/png"`. An adapter writes it in the shape of its provider. An adapter whose model can not see a picture leaves it out.
 
 **None of this is any provider's wire format.** The messages and events are the
 project's own vocabulary, and an adapter translates its protocol into them. That is
