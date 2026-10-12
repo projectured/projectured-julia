@@ -50,6 +50,18 @@ items_nl = _texts(sdl_nl)
 @test items_nl[2].y == 20
 @test items_nl[3].y == 40
 
+# An empty line takes the height of its own empty run (L2): after a heading in a
+# larger font, an empty line in the body font is one body line high.
+heading_font = StyleFont("Ubuntu Mono", 40)
+body_font = StyleFont("Ubuntu Mono", 20)
+heading_measure = FixedMeasure(10, 15, 5, 0; fonts = Dict(heading_font => FontMetrics(30, 10, 0)))
+st_heading = TextBlock(TextLine(TextString("Title", heading_font, color_white)),
+                       TextLine(TextString("", body_font, color_white)),
+                       TextLine(TextString("body", body_font, color_white)))
+items_heading = _texts(print_document(TextToGraphics(measure=heading_measure), st_heading).output)
+@test [item.text for item in items_heading] == ["Title", "body"]
+@test items_heading[2].y == 60
+
 # color preservation
 st_color = TextBlock(TextLine(
     TextString("red text", StyleFont("Ubuntu Mono", 20), color_red),
