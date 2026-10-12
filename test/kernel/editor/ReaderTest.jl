@@ -15,7 +15,10 @@ const _ALL_KEY_EVENTS = vcat(
     # KeyUp
     [KeyUp(key, ModifierKeys(); time = 0.0)            for key in _ALL_KEY_SYMBOLS],
     # KeyPress — printable characters
-    [KeyPress(ch; time = 0.0) for ch in ('a', 'Z', '0', ' ', ',', '.', '\n', 'é', '€')],
+    [KeyPress(ch; time = 0.0) for ch in ('a', 'Z', '0', ' ', ',', '.', '\n', '\t', 'é', '€')],
+    # KeyPress — Return and Tab with the modifiers that a backend gives them
+    [KeyPress(ch, ModifierKeys(ctrl = true, shift = shift); time = 0.0) for ch in ('\n', '\t')
+     for shift in (false, true)],
 )
 
 const _MOUSE_SAMPLE_XY = [(0, 0), (1, 1), (100, 100), (400, 300), (800, 600)]
