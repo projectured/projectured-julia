@@ -1,8 +1,8 @@
 # Formula references by name
 
-**Status (2026-10-12): PENDING. Not started.** The owner and I worked out the model of §3 in a
-discussion on 2026-10-12, and the owner decided each point of §4. Do not implement it until the
-owner asks. Step 4 of [strict-document-types.md](strict-document-types.md) waits for this plan,
+**Status (2026-10-12): IN PROGRESS.** The owner and I worked out the model of §3 in a
+discussion on 2026-10-12, and the owner decided each point of §4. The owner asked to implement it
+on 2026-10-12. Step 1 is done. Step 4 of [strict-document-types.md](strict-document-types.md) waits for this plan,
 because a formula reference inside a Julia tree keeps 37 Julia fields at `Document`.
 
 **Goal:** a formula is a named computation in an explicit scope. Its definition is written in the
@@ -127,20 +127,44 @@ plan is done, its sheet holds:
 | `H = 2 * K` and `K = H + 1` | a cycle, which shows `#CYCLE!` |
 
 `test_example(formula_example)` passes after each step: the printer, the reader and the position
-navigation. The atomic documents of the catalog follow too: the `reference` entry goes with Step 3.
+navigation. The atomic documents of the catalog follow too: the `reference` entry goes with Step 2.
 The scope-wins rule (D7) gets a test of its own and no formula in the gallery sheet, because a
 formula named `pi` would make every other `pi` of the sheet mean it.
 
-- [ ] **Step 1: the walk of free names.** `get_formula_names` skips the names that D6 lists, and
+- [x] **Step 1: the walk of free names.** `get_formula_names` skips the names that D6 lists, and
   counts a callee that resolves in the scope (the consequence of D4 and D7). Tests for each kind
   of local binding and for a function value.
-- [ ] **Step 2: the evaluation by name only.** `wire_result!` binds the names of the scope last
-  (D7), and the `result` holds the value (D4). `FormulaFormula.result` declares `Any`.
-- [ ] **Step 3: no reference node.** `FormulaReference` goes out of the code of a formula:
+  *Done (2026-10-12).* What is built:
+  - `get_formula_names(code)` gives every free name, and a callee is one of them.
+    `get_formula_dependencies(formula, env)` keeps the names that resolve, so `sqrt` stays for
+    Julia and `F` in `F(3)` is a dependency.
+  - The walk is one method of `_collect_names!` for each kind of binding, with the set of the
+    names that a binding above covers. Parameters, the bindings of a `let` and the parameters of a
+    `where` bind from left to right, so a default can read a parameter before it.
+  - Two kinds of local name that D6 does not list are local too, because Julia makes them local:
+    the target of an `=` covers the statements after it in its block, and the variable of a
+    `catch` covers its branch. A function definition, `f(x) = …` or `function f(x) … end`,
+    binds `f` and its parameters.
+  - The target of an `=` is no name, so the keyword `k` of a call `f(A; k = B)` and the field
+    `a` of a named tuple `(a = A,)` are not free.
+  - Tests: `test_formula_names()` in `test/domain/formula/FormulaNameTest.jl`.
+  - The gallery gets `F`, `G` and `S` with the evaluation by name (now Step 3), because the
+    evaluator of today has no lambda.
+  - `test_example(formula_example)` gives 2901 passes and 72 failures, the same as `main`. The 72
+    failures are type-ins into the name and the result of a formula ("no cursor in Graphics
+    image"), and `main` has them too.
+- [ ] **Step 2: no reference node.** `FormulaReference` goes out of the code of a formula:
   `get_formula_dependencies` resolves names only, `_to_expr` maps no reference node, and the
   example and the tests write identifiers. `FormulaFormula.code` declares
   `Union{JuliaDocument, MathDocument, PrimitiveNumber}`, and `FormulaEnvironment.formulas`
   declares `Vector{FormulaFormula}`.
+- [ ] **Step 3: the evaluation by name only.** `wire_result!` binds the names of the scope last
+  (D7), and the `result` holds the value (D4). `FormulaFormula.result` declares `Any`.
+
+  *The order of Steps 2 and 3 changed on 2026-10-12, in the implementation.* The evaluation by
+  name builds its `Expr` with `make_julia_expression` of the Julia domain, which takes every
+  Julia node, the lambda too. That function puts a node that is not Julia into the `Expr` as the
+  object itself, so it can run only on code with no `FormulaReference`.
 - [ ] **Step 4: the view of a reference.** The formula projection draws an identifier that
   resolves in the scope in the reference style, and a click on it selects its definition. The
   projection prints the environment and its formulas, so it gives the Julia projection the set of
@@ -150,6 +174,16 @@ formula named `pi` would make every other `pi` of the sheet mean it.
 - [ ] **Step 6: the strict Julia fields.** Step 4 of
   [strict-document-types.md](strict-document-types.md) then narrows every Julia field to
   `JuliaDocument`, and every list to `CellVector{JuliaDocument}`.
+  *Open, a question for the owner (found 2026-10-12):* Julia code holds a pasted object of
+  another domain by design. The last entry of the `JuliaToSyntax` table,
+  `Document => JuliaObjectToSyntaxLeaf()`, draws it as one leaf, `make_julia_expression` puts it
+  into the `Expr` as the object itself, and the test "a pasted object stands as that very object"
+  writes a `PrimitiveString` into `call.arguments[2]`. The probe of 2026-10-11 did not see it,
+  because the constructors of `JuliaCall` gave untyped lists. By the model of §3 of
+  strict-document-types.md, a field that admits other domains declares `Document`. The choices:
+  keep the paste, and the expression places stay `Document` (my recommendation); remove the
+  paste from code, and every field becomes `JuliaDocument`; or a Julia node that wraps the
+  object, which §3 rejected. The probe did not run `test_fsm()` and `test_process()` either.
 
 ## 6. Open
 

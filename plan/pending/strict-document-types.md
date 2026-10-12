@@ -889,7 +889,8 @@ worktree. The three domains test different parts of the model:
   - **Decided by the owner, 2026-10-12: a formula refers to another by name**, and no formula
     node stands in a Julia tree; see [formula-references-by-name.md](formula-references-by-name.md).
     So this step narrows every Julia field to `JuliaDocument` and every list to
-    `CellVector{JuliaDocument}`, after step 3 of that plan. `JuliaFile.content` stays `Document`
+    `CellVector{JuliaDocument}`, after step 2 of that plan (no reference node). A question
+    stays open before it: Julia code holds a pasted object by design; see step 6 of that plan. `JuliaFile.content` stays `Document`
     (group 6). The constructors of `JuliaCall` give typed lists.
 - [ ] **Step 5: the insertion follows its place.** The typed child contexts, the filter of the
   candidates (§3.5), and the widening key (§3.6), in the three domains. The example of §3.6, an

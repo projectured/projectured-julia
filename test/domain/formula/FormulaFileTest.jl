@@ -21,8 +21,8 @@ function test_formula_file()
         # A changed load changes every number below it.
         sheet.formulas[1].code = parse_julia("0.5")
         @test isapprox(parse(Float64, _formula_file_result(p_block)), 0.007874; atol = 1e-5)
-        # A callee is a function and not a name of the sheet.
-        @test get_formula_names(parse_julia("sqrt(rho) + exp(n)")) == ["rho", "n"]
+        # A callee is a name, and the sheet holds no formula of the name `sqrt`.
+        @test get_formula_names(parse_julia("sqrt(rho) + exp(n)")) == ["sqrt", "rho", "exp", "n"]
         # A name the sheet does not hold is an error the result says.
         stray = FormulaFormula("stray", parse_julia("rho + missing_name"))
         push!(getfield(sheet, :formulas)[], Cell(stray))

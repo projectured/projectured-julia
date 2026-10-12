@@ -21,6 +21,8 @@ A `FormulaReference` holds its target formula, not the name of the target. The v
 
 A formula loaded from a file has no `FormulaReference` objects. Its code is text such as `(1 - rho) * rho^n`, and `rho` is a plain identifier. So `get_formula_dependencies` also resolves each plain name that the code reads against the names of the environment. `get_formula_key` reads a name as a one-line math expression, so `ρ` and `rho` are the same key and `p_{block}` becomes `p_block`.
 
+`get_formula_names` gives the free names of the code. A name that the code binds itself is local, and refers to no formula: a parameter of a lambda, a function or a `do` block, a variable of a `let`, a `for` loop or a comprehension, and the target of an `=` in the statements after it. In `sum(x -> x * A, 1:3)`, only `sum` and `A` are free. A callee is a name like any other, because the value of a formula can be a function: `G = F(3)` depends on `F`. A free name that the environment does not hold, such as `sum`, stays for Julia.
+
 ### Evaluation
 
 `wire_result!(formula, environment)` sets the function of the `result` cell. The function builds a Julia `Expr` from the code, binds the value of each dependency in a `let` block, and evaluates it in a scratch module that is made once. The read of each dependency's `result` records the dependency, so a change of one formula computes its dependents again. `FormulaEnvironment(formulas)` wires every formula that it holds.
@@ -82,7 +84,7 @@ sheet.formulas[1].code = parse_julia("0.5")  # p_block computes again on the nex
 ```
 
 - Examples: `formula_example`, from `make_formula_document_example()` and `make_formula_projection_example()`.
-- Test: `test_formula()` runs the layering guard, `test_formula_to_syntax`, `test_formula_file` and `test_formula_math`.
+- Test: `test_formula()` runs the layering guard, `test_formula_to_syntax`, `test_formula_file`, `test_formula_math` and `test_formula_names`.
 
 ## Limits
 
