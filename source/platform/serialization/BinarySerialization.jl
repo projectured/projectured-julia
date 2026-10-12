@@ -5,8 +5,9 @@
 function Serialization.serialize(s::AbstractSerializer, c::ReactiveCell)
     # The concrete type (`ReactiveCell{T}`) is the tag, so typed cells round-trip
     # their value-type parameter. Deserialization rebuilds a fresh primitive cell.
+    # `peek` reads the value and records no reader.
     Serialization.serialize_type(s, typeof(c))
-    Serialization.serialize(s, getfield(c, :value))
+    Serialization.serialize(s, peek(c))
 end
 
 function Serialization.deserialize(s::AbstractSerializer, ::Type{ReactiveCell{T}}) where {T}

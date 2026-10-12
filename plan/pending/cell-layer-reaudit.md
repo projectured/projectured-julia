@@ -165,7 +165,7 @@ L03-9 B.
     so a line can add a method of `record_computation_fault!`. The line that adds it
     ends in `nothing`, because the count of its methods depends on the packages that
     are loaded. The three walkthrough tests pass.
-- [ ] 2. The decisions.
+- [x] 2. The decisions.
   - [x] Decision 1, the states of a cell. `valid::Bool` is `state::_CellState`, an
     `@enum` of `UInt8`, so a cell grows by nothing. It has five values: the four
     states, and *computing* split in two, because a write that reaches a computing
@@ -177,4 +177,12 @@ L03-9 B.
     a new test covers a direct and an indirect cycle. The law
     (PAR-MONOTONE-INVALIDATION, PAR-ACYCLIC-CELLS) and `cell.md` say so. The kernel
     suite passes, 4384 of 4384, with no broken test left.
+  - [x] Decision 2. L03-9 B: the typed code of `_invalidate_dependents!` showed a
+    dynamic `:call` of itself, for `ReactiveCell{Int}` and `ReactiveCell{Any}`; with
+    `@nospecialize` it is a static `:invoke` of one body. No time was measured. L03-8
+    B: the binary serializer of the platform writes `peek(c)`, and the checkpoint of
+    omnet-julia asks `is_computed_cell(c)` and reads `peek(c)`; the law
+    (PAR-PERSISTENCE-BY-VALUE) names both. `peek` also gives a value for a computed
+    cell whose field is not set yet. Checked: the checkpoint test of omnet-julia 100 of
+    100, and a binary round trip of a `ReactiveCell{Int}`.
 - [ ] 3. The tests, the guards, a second audit, and the seal on the owner's word.

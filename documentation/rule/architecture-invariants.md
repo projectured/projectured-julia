@@ -1566,8 +1566,9 @@ describe — a docstring that names a function that no longer exists is a defect
 
 **Persistence crosses cell boundaries by value and never enters the reactive
 graph.** Serialization (binary and natural-format) writes a `Cell`'s *value*
-only — reading it via `getfield(c, :value)`, never `c[]`, so no spurious
-reactive dependency is registered — and never traverses a cell's `dependents`
+only — reading it with `peek(c)`, never `c[]`, so no reactive dependency is
+registered, and asking `is_computed_cell(c)` where it must refuse a computed cell —
+and never traverses a cell's `dependents`
 out into the projection-output graph. Keep this boundary intact: what is
 durable is the document's data, not the reactive machinery or the projected
 view built over it. Transient view/UI state (hover, drag, scroll, zoom) is

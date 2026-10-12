@@ -268,8 +268,10 @@ _is_computing(c::ReactiveCell) =
 # that is out of date already stops the walk: its own readers became out of date with
 # it. A failed reader does not stop it, because a reader of the failed cell that
 # caught its exception can be up to date. A computing reader is marked, so it ends
-# out of date.
-function _invalidate_dependents!(c::ReactiveCell)
+# out of date. A reader comes out of `dependents` as a `ReactiveCell` with a free `T`,
+# so `@nospecialize` gives the walk one compiled body, which calls itself with no
+# dispatch at run time.
+function _invalidate_dependents!(@nospecialize(c::ReactiveCell))
     ds = c.dependents
     ds === nothing && return
     for i in eachindex(ds)
