@@ -2,7 +2,7 @@
 
 > **Replaced in part (2026-10-12):** a formula refers to another by its name, and the reference
 > by identity of this plan, `FormulaReference`, is gone; see
-> [formula-references-by-name.md](formula-references-by-name.md).
+> [formula-references-by-name.md](../done/formula-references-by-name.md).
 >
 > **Status (2026-08-12): IN PROGRESS.** Phases 1–4 (types, environment/cycle-detection,
 > evaluation, projections) and Phase 7 (example) are done and re-verified live

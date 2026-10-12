@@ -3,7 +3,7 @@
 **Status (2026-10-12): IN PROGRESS.** The check of declared types, the list rule, and the JSON and
 XML fields landed on `main` on 2026-10-09, and the laws of §6 changed after it. Steps 1 to 4, 6
 and 7 are done; the Julia fields of Step 4 were built with
-[formula-references-by-name.md](formula-references-by-name.md) (its Step 6). Step 5 is not
+[formula-references-by-name.md](../done/formula-references-by-name.md) (its Step 6). Step 5 is not
 started, and step 8 is a decision of the owner. The owner asked for this plan in
 the decision walk of [kernel-audit-fixes.md](kernel-audit-fixes.md), at L10-13, and accepted the
 model of §3 on 2026-10-05: no foreign type, and a field that admits other domains declares
@@ -888,7 +888,7 @@ worktree. The three domains test different parts of the model:
     `FormulaReference` in Julia trees, 37 expression places would stay `Document` (option A of
     the owner, 2026-10-12, by the kind of place).
   - **Decided by the owner, 2026-10-12: a formula refers to another by name**, and no formula
-    node stands in a Julia tree; see [formula-references-by-name.md](formula-references-by-name.md).
+    node stands in a Julia tree; see [formula-references-by-name.md](../done/formula-references-by-name.md).
     So this step narrows every Julia field to `JuliaDocument` and every list to
     `CellVector{JuliaDocument}`, after step 2 of that plan (no reference node). A question
     stays open before it: Julia code holds a pasted object by design; see step 6 of that plan. `JuliaFile.content` stays `Document`

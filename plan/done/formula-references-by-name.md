@@ -1,10 +1,10 @@
 # Formula references by name
 
-**Status (2026-10-12): IN PROGRESS.** The owner and I worked out the model of §3 in a
-discussion on 2026-10-12, and the owner decided each point of §4. The owner asked to implement it
-on 2026-10-12. Steps 1 to 6 are done. Step 4 of
-[strict-document-types.md](strict-document-types.md) waits for this plan, because a formula
-reference inside a Julia tree kept 37 Julia fields at `Document`.
+**Status (2026-10-12): DONE.** The owner and I worked out the model of §3 in a discussion on
+2026-10-12, and the owner decided each point of §4. The owner asked to implement it on
+2026-10-12, and Steps 1 to 6 are built on the branch `formula-references-by-name`. The Julia
+fields of Step 4 of [strict-document-types.md](../pending/strict-document-types.md) are built
+with Step 6. Three questions stay open (§6).
 
 **Goal:** a formula is a named computation in an explicit scope. Its definition is written in the
 math notation or in Julia, and a reference to another formula is a name in that notation, which
@@ -310,7 +310,7 @@ formula named `pi` would make every other `pi` of the sheet mean it.
     refused it would also keep a person from naming a new formula `Z`, and making a binding is
     the other operation of D3.
 - [x] **Step 6: the strict Julia fields.** Step 4 of
-  [strict-document-types.md](strict-document-types.md) then narrows every Julia field to
+  [strict-document-types.md](../pending/strict-document-types.md) then narrows every Julia field to
   `JuliaDocument`, and every list to `CellVector{JuliaDocument}`.
   *Open, a question for the owner (found 2026-10-12):* Julia code holds a pasted object of
   another domain by design. The last entry of the `JuliaToSyntax` table,
@@ -374,6 +374,12 @@ formula named `pi` would make every other `pi` of the sheet mean it.
 ## 6. Open
 
 - A formula in a table (D2) and a formula in a Markdown document need a container that holds
-  formulas and an environment for them. This plan does not build them; a plan for each container
-  follows when the owner asks.
-- How a Markdown paragraph shows the value of a formula inline.
+  formulas and an environment for them, and a Markdown paragraph needs a way to show the value
+  of a formula inline. This plan does not build them; a plan for each container follows when
+  the owner asks.
+- The other operation of D3, to break a binding and to make one: the edit of the name field
+  alone has no gesture, because a key in a name is a rename (Step 5), and a rename to a name
+  that some code reads free, such as `Z` in `E = A + Z`, makes that name refer to the formula.
+- Math code in the text view of a formula: `FormulaToSyntax()` prints it as one object leaf, and
+  the up and down keys fail next to it, so the gallery has no math row `D` (Step 3). The rules
+  of `MathToSyntax()` could join the table, as the formula rules join the table of Julia.
