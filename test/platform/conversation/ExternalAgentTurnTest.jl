@@ -92,7 +92,7 @@ function test_external_agent_turn()
             draft = make_conversation_draft()
             result = AgentTurnLiveResult(() -> 1)
             @test !has_text_form(result)
-            @test has_text_form(PrimitiveString("x")) && has_text_form(TextBlock(TextString("t")))
+            @test has_text_form(PrimitiveString("x")) && has_text_form(TextBlock(TextLine(TextString("t"))))
             @test make_pasted_document_operation(draft, EmptyReference(), PrimitiveString("x")) === nothing
             operation = make_pasted_document_operation(draft, EmptyReference(), result)
             @test operation isa InsertDraftDocumentOperation
