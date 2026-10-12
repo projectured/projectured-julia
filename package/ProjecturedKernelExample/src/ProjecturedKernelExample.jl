@@ -20,6 +20,10 @@ external-agent seam of `AgentModule`, and the in-memory `HeadlessBackend` for th
 `BackendModule.Backend` seam. They are doubles, so by architectural requirement
 they live in an example package, never in `main` — none is reachable from a
 production build.
+
+A kernel layer that a REPL session can show has a **walkthrough**: a function that
+runs the lines that a person types to try the layer, and prints each line with the
+value that it gives. `print_cell_example` shows the cell layer.
 """
 module ProjecturedKernelExample
 
@@ -50,6 +54,8 @@ include("../../../example/kernel/SearchScaleMeasurement.jl") # what a search cos
 include("../../../example/kernel/SearchCorpus.jl")           # the corpus of a whole application
 include("../../../example/kernel/CallSite.jl")               # where a caller writes each name
 include("../../../example/kernel/SearchRanking.jl")          # rankings of a search compared
+include("../../../example/kernel/Walkthrough.jl")            # a REPL session that shows a layer
+include("../../../example/kernel/CellExample.jl")            # the walkthrough of the cell layer
 
 export Example, AtomicDocument, force_projected
 export write_example_image, record_example_video, make_typein_gestures
@@ -66,5 +72,6 @@ export CallSite, collect_call_sites, find_module_folder, rank_call_sites, format
 export SearchQuestion, make_search_question, make_candidate_text, SearchRanker,
        make_word_ranker, make_meaning_ranker, make_classifier_ranker, make_cascade_ranker,
        make_tree_ranker, measure_search_rankings, make_guide_units
+export print_cell_example
 
 end # module ProjecturedKernelExample
