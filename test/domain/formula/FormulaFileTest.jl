@@ -2,8 +2,6 @@
 # back with the same results, and a name in a formula's code binds to the
 # formula of that name in the sheet.
 
-_formula_file_result(formula) = get_flat_string(formula.result)
-
 function test_formula_file()
 @testset "a formula and its file" begin
 
@@ -16,18 +14,18 @@ function test_formula_file()
         p_block = sheet.formulas[3]
         @test get_formula_names(p_block.code) == ["rho", "n"]
         @test length(get_formula_dependencies(p_block, sheet)) == 2
-        @test isapprox(parse(Float64, _formula_file_result(p_block)), 0.066341; atol = 1e-5)
         @test isapprox(get_formula_value(p_block), 0.066341; atol = 1e-5)
         # A changed load changes every number below it.
         sheet.formulas[1].code = parse_julia("0.5")
-        @test isapprox(parse(Float64, _formula_file_result(p_block)), 0.007874; atol = 1e-5)
+        @test isapprox(get_formula_value(p_block), 0.007874; atol = 1e-5)
         # A callee is a name, and the sheet holds no formula of the name `sqrt`.
         @test get_formula_names(parse_julia("sqrt(rho) + exp(n)")) == ["sqrt", "rho", "exp", "n"]
         # A name the sheet does not hold is an error the result says.
         stray = FormulaFormula("stray", parse_julia("rho + missing_name"))
         push!(getfield(sheet, :formulas)[], Cell(stray))
         wire_result!(stray, sheet)
-        @test startswith(_formula_file_result(stray), "#ERROR!")
+        @test get_formula_value(stray) isa FormulaError
+        @test startswith(get_formula_value(stray).text, "#ERROR!")
         @test !would_create_cycle(sheet, p_block, sheet.formulas[1])
         @test would_create_cycle(sheet, sheet.formulas[1], p_block)
     end
@@ -50,7 +48,7 @@ function test_formula_file()
         @test length(loaded.formulas) == 3
         @test loaded.formulas[3].name == "p_block"
         @test loaded.formulas[3].display_mode === :result
-        @test isapprox(parse(Float64, _formula_file_result(loaded.formulas[3])), 0.066341; atol = 1e-5)
+        @test isapprox(get_formula_value(loaded.formulas[3]), 0.066341; atol = 1e-5)
         # Byte stable: a second print of the loaded sheet is the same text.
         @test print_pred_text(loaded) == text
         # The positional form reads too.

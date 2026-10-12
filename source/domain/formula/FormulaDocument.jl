@@ -17,30 +17,22 @@ end
 """
 A named formula: `name` (display name — a `String` or a derived thunk `Cell`),
 `code` (a `JuliaDocument`, a `MathDocument`, or a bare number), `result` (the
-computed result document), `display_mode` (`:code`/`:result`/`:both`). The code
-refers to another formula by its name.
+computed value, any value or a `FormulaError`), `display_mode`
+(`:code`/`:result`/`:both`). The code refers to another formula by its name.
 `result` is wired to `Cell(@computation evaluate_formula(self, env))` once placed
 in an environment; see [`wire_result!`](@ref).
 """
 @document struct FormulaFormula <: FormulaDocument
     name::String
     code::Union{JuliaDocument, MathDocument, PrimitiveNumber}
-    result::Document
+    result::Any
     display_mode::Symbol = :both
 end
-
-# Convenience: build a result document from a value.
-make_formula_result_text(s) = make_text_block(_value_string(s))
-
-_value_string(s::AbstractString) = String(s)
-_value_string(x) = string(x)
 
 # Mixed positional+keyword form (name/code positional, result/display_mode
 # keywords) the @document macro can't generate. `name` may be a String or a Cell
 # (a derived thunk); the inner ctor passes a Cell through unchanged.
-function FormulaFormula(name, code::Document;
-                        result::Document = make_formula_result_text(""),
-                        display_mode::Symbol = :both)
+function FormulaFormula(name, code::Document; result = nothing, display_mode::Symbol = :both)
     name_cell = name isa Cell ? name : Cell(name isa AbstractString ? String(name) : name)
     FormulaFormula(name_cell, Cell(code), Cell(result), Cell(display_mode), Cell(nothing))
 end
@@ -419,121 +411,100 @@ function _formula_scratch_module()
     _FORMULA_SCRATCH[]
 end
 
-# Cycle safety net: the set of formulas currently being evaluated. Re-entering a
-# formula mid-evaluation yields an explicit error rather than looping. (Static
-# rejection in the reader means this should never trigger in normal use.)
-const _EVALUATING = Set{FormulaFormula}()
+"""
+    FormulaError(text)
+
+The value of a formula that computes none: `#ERROR!` and the message of an
+error that its code raised, or `#CYCLE!` when the formula depends on itself. A
+formula that reads it gives it on as its own value, so the error shows in every
+formula that depends on the formula that failed.
+"""
+struct FormulaError
+    text::String
+end
+
+Base.show(io::IO, error::FormulaError) = print(io, error.text)
 
 """
     convert_formula_to_expr(code, env) -> Expr | literal
 
-Walk the Julia body `code` to a native Julia `Expr` (the inverse of
-`parse_julia`). The result is evaluated inside a `let` that binds the names of
-its dependencies to their values.
+The Julia `Expr` of the code of a formula, which `evaluate_formula` runs inside
+a `let` that binds the names of its dependencies to their values. Julia code
+gives the `Expr` that `make_julia_expression` builds, math code the `Expr` of
+its Julia reading, and a bare number its value.
 """
-convert_formula_to_expr(code, env::FormulaEnvironment) = _to_expr(code)
-# A math tree evaluates through its Julia reading, and a bare number is its value.
+convert_formula_to_expr(code::JuliaDocument, env::FormulaEnvironment) =
+    Expr(:block, make_julia_expression(code).args...)
 convert_formula_to_expr(code::MathDocument, env::FormulaEnvironment) =
-    _to_expr(convert_math_to_julia(code))
+    convert_formula_to_expr(convert_math_to_julia(code), env)
 convert_formula_to_expr(code::PrimitiveNumber, env::FormulaEnvironment) = code.value
 
-function _to_expr(node)
-    if node isa JuliaInteger
-        return node.value
-    elseif node isa JuliaFloat
-        return node.value
-    elseif node isa JuliaString
-        return node.value
-    elseif node isa JuliaBool
-        return node.value
-    elseif node isa JuliaChar
-        return node.value
-    elseif node isa JuliaNothing
-        return nothing
-    elseif node isa JuliaSymbol
-        return QuoteNode(Symbol(node.name))
-    elseif node isa JuliaIdentifier
-        return Symbol(node.name)
-    elseif node isa JuliaBinaryOperation
-        return Expr(:call, node.operator, _to_expr(node.left), _to_expr(node.right))
-    elseif node isa JuliaUnaryOperation
-        return Expr(:call, node.operator, _to_expr(node.operand))
-    elseif node isa JuliaCall
-        arguments = Any[_to_expr(a) for a in node.arguments]
-        isempty(node.keyword_arguments) && return Expr(:call, _to_expr(node.callee), arguments...)
-        # A keyword after `;` is `k = v`, which the call reads as `Expr(:kw, …)`.
-        keywords = Any[(k = _to_expr(k); k isa Expr && k.head === :(=) ? Expr(:kw, k.args...) : k)
-                       for k in node.keyword_arguments]
-        return Expr(:call, _to_expr(node.callee), Expr(:parameters, keywords...), arguments...)
-    elseif node isa JuliaRange
-        s = node.step
-        return s === nothing ?
-            Expr(:call, :(:), _to_expr(node.start), _to_expr(node.stop)) :
-            Expr(:call, :(:), _to_expr(node.start), _to_expr(s), _to_expr(node.stop))
-    elseif node isa JuliaIndex
-        return Expr(:ref, _to_expr(node.collection),
-                    Any[_to_expr(i) for i in node.indices]...)
-    elseif node isa JuliaFieldAccess
-        f = node.field
-        fname = f isa JuliaIdentifier ? Symbol(f.name) : _to_expr(f)
-        return Expr(:., _to_expr(node.object), QuoteNode(fname))
-    elseif node isa JuliaTuple
-        return Expr(:tuple, Any[_to_expr(e) for e in node.elements]...)
-    elseif node isa JuliaArray
-        return Expr(:vect, Any[_to_expr(e) for e in node.elements]...)
-    elseif node isa JuliaTernary
-        return Expr(:if, _to_expr(node.condition),
-                    _to_expr(node.then_branch), _to_expr(node.else_branch))
-    elseif node isa JuliaIf
-        return Expr(:if, _to_expr(node.condition),
-                    _to_expr(node.then_branch), _to_expr(node.else_branch))
-    elseif node isa JuliaBlock
-        return Expr(:block, Any[_to_expr(s) for s in node.statements]...)
-    elseif node isa JuliaAssignment
-        return Expr(node.operator, _to_expr(node.target), _to_expr(node.value))
-    else
-        error("convert_formula_to_expr: unsupported node $(typeof(node))")
+"""
+    evaluate_formula(formula, env) -> value
+
+The value of `formula`: its code evaluated in a scratch module, inside a `let`
+that binds each free name that resolves in `env` to the value of that formula.
+The scope binds last, so a formula named `pi` means that formula and not
+`Base.pi`. The read of the `result` of each dependency records the dependency,
+so a change of it computes this formula again.
+
+An error that the code raises, a dependency whose value is a `FormulaError`,
+and a formula that depends on itself give a `FormulaError`.
+"""
+function evaluate_formula(formula::FormulaFormula, env::FormulaEnvironment)
+    _depends_on_itself(formula, env) && return FormulaError("#CYCLE!")
+    try
+        bindings = Expr[]
+        for name in get_formula_names(formula.code)
+            dependency = resolve(env, name)
+            dependency === nothing && continue
+            value = dependency.result
+            value isa FormulaError && return value
+            push!(bindings, Expr(:(=), Symbol(name), QuoteNode(value)))
+        end
+        body = convert_formula_to_expr(formula.code, env)
+        Core.eval(_formula_scratch_module(), Expr(:let, Expr(:block, bindings...), body))
+    catch e
+        FormulaError("#ERROR! " * sprint(showerror, e))
     end
 end
 
-"""
-    evaluate_formula(formula, env) -> result document
-
-Evaluate `formula.code` in a sandbox module with every referenced formula's name
-bound to its (recursively evaluated) value, returning a result document
-(`TextBlock`). Reading a dependency's `result` inside this thunk registers the
-reactive dependency. A re-entry guard returns an error result on a cycle.
-"""
-function evaluate_formula(formula::FormulaFormula, env::FormulaEnvironment)
-    if formula in _EVALUATING
-        return make_formula_result_text("#CYCLE!")
-    end
-    push!(_EVALUATING, formula)
-    try
-        deps = get_formula_dependencies(formula, env)
-        # Bind each dependency name to its evaluated value. Reading dep.result
-        # here is the reactive subscription that triggers recompute on change.
-        bindings = Expr[]
-        for d in deps
-            val = _result_value(d.result)
-            push!(bindings, Expr(:(=), Symbol(get_formula_key(d.name)), QuoteNode(val)))
+# Whether `formula` reaches itself through the names of the formulas of `env`.
+# The walk reads the code and the name of each formula it meets, and no result:
+# so a formula of a cycle computes again when a formula of the cycle changes, and
+# the cycle is found before a result reads another in its own computation.
+function _depends_on_itself(formula::FormulaFormula, env::FormulaEnvironment)
+    visited = Set{FormulaFormula}()
+    pending = FormulaFormula[formula]
+    while !isempty(pending)
+        node = pop!(pending)
+        node in visited && continue
+        push!(visited, node)
+        for name in _find_readable_names(node.code)
+            target = resolve(env, name)
+            target === formula && return true
+            target === nothing || push!(pending, target)
         end
-        body = convert_formula_to_expr(formula.code, env)
-        letex = Expr(:let, Expr(:block, bindings...), body)
-        value = Core.eval(_formula_scratch_module(), letex)
-        return make_formula_result_text(value)
-    catch e
-        return make_formula_result_text("#ERROR! " * sprint(showerror, e))
-    finally
-        delete!(_EVALUATING, formula)
     end
+    false
+end
+
+# The free names of a code that the evaluation can read. A math tree with no
+# reading has none, and its own evaluation says why.
+function _find_readable_names(code)
+    try
+        return get_formula_names(code)
+    catch e
+        e isa MathReadingException || e isa ErrorException || rethrow()
+    end
+    String[]
 end
 
 """
     get_formula_value(formula) -> Any
 
-The value a formula's result stands for: a number, a bool, or the text of an
-error or a cycle. Reading it inside a reactive cell subscribes to the result.
+The value of a formula: any value its code computes, or a `FormulaError`.
+Reading it inside a reactive cell subscribes to the result.
 
 Use it to read the number a formula of a study's sheet computed — a blocking
 probability, a mean queue length — to compare it with a result, to print it, or
@@ -546,23 +517,18 @@ to state an expectation from it.
 
 See also `add_study_formula!`, `add_expectation!`.
 """
-get_formula_value(formula::FormulaFormula) = _result_value(formula.result)
+get_formula_value(formula::FormulaFormula) = formula.result
 
-# Read the scalar value out of a result document (a TextBlock of one TextString).
-# This is what a dependent formula consumes; parse it back to a number/bool/string.
-function _result_value(result)
-    s = _result_string(result)
-    startswith(s, "#") && return s   # propagate error/cycle markers as strings
-    v = tryparse(Int, s)
-    v !== nothing && return v
-    f = tryparse(Float64, s)
-    f !== nothing && return f
-    s == "true" && return true
-    s == "false" && return false
-    return s
+# The value of a formula as one line of text, short enough to read beside its
+# code: a float to six digits, nothing as no text, and any other value in its
+# `text/plain` form, or in its compact form when that form takes more lines.
+_formula_value_text(value::AbstractFloat) = string(round(value; sigdigits = 6))
+_formula_value_text(::Nothing) = ""
+function _formula_value_text(value)
+    text = sprint(show, MIME("text/plain"), value)
+    occursin('\n', text) && (text = sprint(show, value; context = :compact => true))
+    String(first(split(text, '\n')))
 end
-
-_result_string(result) = result isa TextBlock ? get_flat_string(result) : string(result)
 
 """
     wire_result!(formula, env) -> formula

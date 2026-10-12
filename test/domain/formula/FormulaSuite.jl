@@ -28,8 +28,10 @@ function test_formula()
         test_formula_file()
         test_formula_math()
         test_formula_names()
+        test_formula_evaluation()
     end
 end
 
 export test_formula, test_formula_layering, test_formula_to_syntax, test_formula_theme,
-       test_formula_file, test_formula_math, test_formula_names
+       test_formula_file, test_formula_math, test_formula_names,
+       test_formula_evaluation

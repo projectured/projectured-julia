@@ -1,6 +1,3 @@
-# Helper: read the flat string out of a TextBlock result document.
-_formula_result_string(result) = get_flat_string(result)
-
 function test_formula_to_syntax()
 
 @testset "get_column_letter / cell_name boundaries" begin
@@ -45,15 +42,15 @@ end
     a2 = FormulaFormula("A2", parse_julia("A1 + B1"))
     env = FormulaEnvironment([a1, b1, a2])
 
-    @test _formula_result_string(a1.result) == "10"
-    @test _formula_result_string(b1.result) == "5"
-    @test _formula_result_string(a2.result) == "15"
+    @test get_formula_value(a1) == 10
+    @test get_formula_value(b1) == 5
+    @test get_formula_value(a2) == 15
 
     # Editing A1 invalidates and recomputes A2 (reactive propagation through the
     # dependency's result cell).
     a1code.value = 100
-    @test _formula_result_string(a1.result) == "100"
-    @test _formula_result_string(a2.result) == "105"
+    @test get_formula_value(a1) == 100
+    @test get_formula_value(a2) == 105
 end
 
 @testset "cycle detection: would_create_cycle rejects A1 -> A2 -> A1" begin
@@ -80,8 +77,7 @@ end
     a1.code = parse_julia("A2")   # A1 -> A2
     a2.code = parse_julia("A1")   # A2 -> A1  (cycle)
     env = FormulaEnvironment([a1, a2])
-    s = _formula_result_string(a1.result)
-    @test occursin("#CYCLE!", s) || occursin("#ERROR!", s)
+    @test get_formula_value(a1) == FormulaError("#CYCLE!")
 end
 
 @testset "FormulaEnvironment renders one formula per line" begin

@@ -22,9 +22,11 @@ A formula refers to another by its name. `C = A + B` holds two identifiers, and 
 
 ### Evaluation
 
-`wire_result!(formula, environment)` sets the function of the `result` cell. The function builds a Julia `Expr` from the code, binds the value of each dependency in a `let` block, and evaluates it in a scratch module that is made once. The read of each dependency's `result` records the dependency, so a change of one formula computes its dependents again. `FormulaEnvironment(formulas)` wires every formula that it holds.
+`wire_result!(formula, environment)` sets the function of the `result` cell. The function builds the Julia `Expr` of the code with `make_julia_expression`, so every Julia node evaluates, a lambda too. It binds each free name that resolves in the environment to the value of that formula in a `let` block, and evaluates the block in a scratch module that is made once. The `let` is the innermost scope, so the names of the environment win over a Julia global: a formula named `pi` means that formula. The read of each dependency's `result` records the dependency, so a change of one formula computes its dependents again. `FormulaEnvironment(formulas)` wires every formula that it holds.
 
-An error and a cycle do not raise. The result becomes a `TextBlock` with the text `#ERROR! …` or `#CYCLE!`, so a broken formula does not break the reactive graph. The cycle check has two parts. `would_create_cycle(environment, from, to)` is the check that an editor runs before it adds a reference. A guard in the evaluator returns `#CYCLE!` if a cycle gets through.
+The `result` holds the value itself, any value: a number, a vector, a function. So `F = x -> x^2` and `G = F(3)` give `9`, and `get_formula_value` gives the value. The views show the value on one line: a float to six digits, and another value in its `text/plain` form, or its compact form when that form takes more lines.
+
+An error and a cycle do not raise. The result becomes a `FormulaError`, which shows as `#ERROR! …` or `#CYCLE!`, so a broken formula does not break the reactive graph. A formula that reads a `FormulaError` gives the same value on, as a spreadsheet does. Before it reads any result, the evaluation walks the names of the code through the environment, and a formula that reaches itself gives `#CYCLE!`. The walk reads the code and the name of each formula on the way, so each formula of a cycle computes again when a person breaks the cycle. `would_create_cycle(environment, from, to)` is the check that an editor runs before it adds a reference.
 
 ### Math code
 
@@ -87,4 +89,4 @@ sheet.formulas[1].code = parse_julia("0.5")  # p_block computes again on the nex
 
 - You can not type a new formula yet. `FormulaInsertion` prints a fixed label and has no reader, although its docstring describes a commit on Enter. This is Phase 5 of the plan.
 - A formula inside another domain, for example in a table cell, is a goal of the plan (Phase 6). No test or example does it.
-- The evaluator handles literals, operators, calls, ranges, indexing, field access, tuples, arrays, `if`, blocks and assignments. Code that uses another Julia type, such as a `for` loop, prints but does not evaluate.
+- Each evaluation of code that holds a lambda makes a new function type in the scratch module, as each line of the Julia REPL does. The cost grows with the edits of such a formula, not with the frames.

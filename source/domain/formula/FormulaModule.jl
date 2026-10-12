@@ -17,7 +17,7 @@ import ..SerializationModule: pred_arguments, make_pred_document
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
 
-export FormulaDocument, make_formula_result_text, wire_result!, resolve, get_column_letter, get_cell_name,
+export FormulaDocument, FormulaError, wire_result!, resolve, get_column_letter, get_cell_name,
        get_formula_dependencies, get_formula_names, would_create_cycle, compute_topological_order,
        convert_formula_to_expr, evaluate_formula, get_formula_value, convert_math_to_julia,
        MathReadingException, get_formula_key, is_math_code

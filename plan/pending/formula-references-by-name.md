@@ -2,7 +2,7 @@
 
 **Status (2026-10-12): IN PROGRESS.** The owner and I worked out the model of §3 in a
 discussion on 2026-10-12, and the owner decided each point of §4. The owner asked to implement it
-on 2026-10-12. Steps 1 and 2 are done. Step 4 of
+on 2026-10-12. Steps 1 to 3 are done. Step 4 of
 [strict-document-types.md](strict-document-types.md) waits for this plan, because a formula
 reference inside a Julia tree kept 37 Julia fields at `Document`.
 
@@ -179,8 +179,44 @@ formula named `pi` would make every other `pi` of the sheet mean it.
     Julia domain that `julia_example` has too (0 of 28 positions). The old example had
     reference nodes there, which the type-in walk does not try. `test_catalog_coverage()` has
     the failure of `main`: a list of types with no catalog entry, and no formula type in it.
-- [ ] **Step 3: the evaluation by name only.** `wire_result!` binds the names of the scope last
+- [x] **Step 3: the evaluation by name only.** `wire_result!` binds the names of the scope last
   (D7), and the `result` holds the value (D4). `FormulaFormula.result` declares `Any`.
+  *Done (2026-10-12).* What is built, and the choices made in the implementation:
+  - `convert_formula_to_expr` builds the `Expr` with `make_julia_expression`, so every Julia node
+    evaluates, the lambda too. `_to_expr` is gone.
+  - The `let` binds each free name of the code as it is written, to the value of the formula it
+    resolves to. So Julia code that writes `ρ` reads the formula `rho`, as D8 asks.
+  - **An error is a value of its own type, `FormulaError(text)`** (my choice, exported). It
+    shows as `#ERROR! …` or `#CYCLE!`. A formula that reads one gives the same value on, as a
+    spreadsheet does. `make_formula_result_text` is gone, and `get_formula_value` gives the
+    value itself.
+  - **The cycle check walks the names, and reads no result.** The engine computes a cell again
+    when its computation reads it from inside, and that inner run clears the subscriptions of
+    the outer run. So the guard of before (a set of the formulas in evaluation) left a formula
+    of a cycle at `#CYCLE!` after a person broke the cycle. Now `evaluate_formula` first walks
+    the free names through the environment; it reads the code and the name of each formula on
+    the way, so each formula of a cycle computes again when one of them changes. A formula
+    that names itself, `A = A + 1`, is a cycle too.
+  - The views show a value on one line: a float to six digits, another value in its
+    `text/plain` form, or its compact form when that form takes more lines. A function shows
+    as `#563 (generic function with 1 method)`, the text of Julia.
+  - Each evaluation of code with a lambda makes a new function type in the scratch module, as
+    each line of the Julia REPL does. The cost grows with the edits, not with the frames.
+  - Tests: `test_formula_evaluation()` in `test/domain/formula/FormulaEvaluationTest.jl`. The
+    suite passes, 162 of 162.
+  - The gallery sheet holds every row of the table except `D`. **`D` waits for the owner.**
+    Math code in the text view of a formula, `FormulaToSyntax()`, prints as one object leaf,
+    `⟨MathFraction⟩`, and the up and down keys fail next to it ("under-typed @reference" at
+    `FormulaToSyntax.jl:141`), even for `parse_math("2")`. The old gallery had no math row, so
+    its test did not meet this. A fix is to put the rules of `MathToSyntax()` into the table of
+    `FormulaToSyntax()`, as the formula rules go into the table of `JuliaToSyntax()`, so math
+    code prints in its linear form. That is a feature that no step of this plan names.
+  - `test_example` on a fresh `Example` of the factories: printer 7398, reader 225, REPL 225 and
+    navigation 309 pass. The type-in part fails 552 times, each of a kind that `main` has: a
+    type-in into a name, into an identifier of Julia code (which shows no caret), or into a
+    computed result, here the text of an error. A number in a result no longer counts, because
+    it is a number and not a text. Note: `formula_example` keeps the document it built first, so
+    a warm session must test a fresh `Example` after it changes the factory.
 
   *The order of Steps 2 and 3 changed on 2026-10-12, in the implementation.* The evaluation by
   name builds its `Expr` with `make_julia_expression` of the Julia domain, which takes every

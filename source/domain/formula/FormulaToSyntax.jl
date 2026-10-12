@@ -51,10 +51,10 @@ print_document(p::FormulaInsertionToSyntaxLeaf, recursion, b::FormulaInsertion, 
 #   :result → recurse into `result`                       → children [result]
 #   :both   → name " = " code " ⇒ " result                → children [code, result]
 #
-# The `code` child is recursed through the shared `recursion`; the `result` is a computed `TextBlock`, so it
-# is flattened into a self-contained result leaf rather than recursed (mirrors how
-# EvaluatorForm renders its result). Only `code` therefore needs School-A
-# delegation; its output child index depends on the mode.
+# The `code` child is recursed through the shared `recursion`; the `result` is a
+# computed value of any type, so it shows as one leaf of its text rather than
+# recursed (mirrors how EvaluatorForm renders its result). Only `code` therefore
+# needs School-A delegation; its output child index depends on the mode.
 
 @projection UntrackedCell struct FormulaFormulaToSyntaxNode
     name::StyleText = get_formula_style(nothing, :name_text)
@@ -62,9 +62,6 @@ print_document(p::FormulaInsertionToSyntaxLeaf, recursion, b::FormulaInsertion, 
     # The result run shares the op font but is coloured distinctly (green).
     result::StyleText = get_formula_style(nothing, :result_text)
 end
-
-# Flatten a result TextBlock into a single rendered string.
-_result_to_string(result) = result isa TextBlock ? get_flat_string(result) : string(result)
 
 function print_document(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaFormula, ctx)
     code_ref = make_child_context(ctx, f, @reference_step code)
@@ -81,7 +78,7 @@ function print_document(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaForm
         TextString("⇒", p.op);
         open=TextString(" ", p.op.font),
         close=TextString(" ", p.op.font))
-    result_leaf = SyntaxLeaf(TextString(() -> _result_to_string(f.result), p.result))
+    result_leaf = SyntaxLeaf(TextString(() -> _formula_value_text(f.result), p.result))
 
     iomap_cell = Cell(nothing)
     paths = make_output_path_cells(f, path -> begin

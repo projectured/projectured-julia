@@ -52,10 +52,6 @@ function _formula_name_tree(name::AbstractString)
     MathText(String(name))
 end
 
-# A value, short enough to read beside an equation.
-_formula_value_text(value::AbstractFloat) = string(round(value; sigdigits = 6))
-_formula_value_text(value) = string(value)
-
 """
     make_formula_graphics_entry(; measure, appearance) -> Vector{Pair{Type,Any}}
 
