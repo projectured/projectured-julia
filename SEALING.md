@@ -141,6 +141,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `cell/CellInterface.jl`
   - ⬜ `cell/CellComputation.jl`
   - ⬜ `cell/ReactiveCell.jl`
+  - ⬜ `cell/CellFaultScope.jl`
   - ⬜ `cell/MutableCell.jl`
   - ⬜ `cell/ImmutableCell.jl`
   - ⬜ `cell/UntrackedCell.jl`
@@ -176,6 +177,10 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `gesture/MouseGesture.jl`
   - ⬜ `gesture/KeyboardGesture.jl`
   - ⬜ `gesture/GesturePattern.jl`
+  - ⬜ `gesture/GestureRecognition.jl`
+  - ⬜ `gesture/ClickRecognition.jl`
+  - ⬜ `gesture/ChordRecognition.jl`
+  - ⬜ `gesture/DwellRecognition.jl`
 - **Layer 9 — backend** (`backend/`)
   - ⬜ `backend/BackendModule.jl`
   - ⬜ `backend/BackendInterface.jl`
@@ -186,6 +191,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `document/DocumentDefaults.jl`
   - ⬜ `document/DocumentCopy.jl`
   - ⬜ `document/DocumentSync.jl`
+  - ⬜ `document/DeclaredType.jl`
   - ⬜ `document/DocumentMacro.jl`
   - ⬜ `document/SelectionDocument.jl`
   - ⬜ `document/DocumentWalk.jl`
@@ -214,6 +220,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `operation/OperationInterface.jl`
   - ⬜ `operation/OperationDefaults.jl`
   - ⬜ `operation/Operations.jl`
+  - ⬜ `operation/PathChain.jl`
   - ⬜ `operation/Rerooting.jl`
   - ⬜ `operation/Inversion.jl`
   - ⬜ `operation/Description.jl`
@@ -236,6 +243,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `projection/ProjectionReferenceStep.jl`
   - ⬜ `projection/ProjectionInterface.jl`
   - ⬜ `projection/ProjectionDefaults.jl`
+  - ⬜ `projection/OutputPaths.jl`
   - ⬜ `projection/ProjectionMacro.jl`
   - ⬜ `projection/ProjectionGestureBindings.jl`
   - ⬜ `projection/ProjectionTemplate.jl`
@@ -248,6 +256,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `tool/Documentation.jl`
   - ⬜ `tool/DocstringSummary.jl`
   - ⬜ `tool/MeaningSearch.jl`
+  - ⬜ `tool/RelevanceSearch.jl`
   - ⬜ `tool/DefaultTools.jl`
 - **Layer 19 — llm** (`llm/`)
   - ⬜ `llm/LlmModule.jl`

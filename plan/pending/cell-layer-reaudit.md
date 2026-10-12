@@ -148,6 +148,9 @@ L03-9 B.
 
 - [ ] 1. The fixes that need no decision: A-1 … A-10, T-1 … T-13, E-1 (with the module
   bound under its own name in a walkthrough), G-1 … G-12.
+  - [x] A-1. The inventory of SEALING.md lists the nine missing files, each after the
+    file that loads before it; a comparison of the list with `source/kernel/` finds no
+    gap.
   - [x] A-2 … A-10. `record_computation_fault!` is declared in the interface file and
     exported there; its fallback and the two bodies of the untracked kind are in
     `CellDefaults.jl`. `is_cell_up_to_date` of an `UntrackedCell` keeps its answer
