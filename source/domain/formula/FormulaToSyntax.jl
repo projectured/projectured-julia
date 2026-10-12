@@ -302,7 +302,7 @@ function _find_last_identifier(node, path)
         node = try
             evaluate_reference_step(path.head, node)
         catch exception
-            is_passthrough_exception(exception) && rethrow()
+            is_fault_exception(exception) || rethrow()
             break
         end
         node isa JuliaIdentifier && (found = node)
