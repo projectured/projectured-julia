@@ -58,8 +58,13 @@ size of its file changes, and its text is never read to compare.
 
 Call it on the task that reads the document. A file document with no file name
 has nothing to watch. A document that watches already is left as it is.
+
+While Julia writes a precompile cache, nothing is watched. Such a process ends
+after its workload, and Julia ends it only when every task of the workload has
+ended, so the task of a watch would hold it forever.
 """
 function watch_document_file!(file::FileDocument; store::FileChangeStore = get_session_file_change_store())
+    Base.generating_output() && return file
     isempty(get_filename(file)) && return file
     path = abspath(get_filename(file))
     watched = is_editable_file_type(typeof(file)) ?

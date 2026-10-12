@@ -46,6 +46,7 @@ The code is in `source/platform/filechange/`. The slice depends on the file-form
 - **A watcher for each folder, not for each file.** A program writes a file at once by a rename, which a watch of the file itself loses, and a session with many files of one folder needs one handle of the system.
 - **The text decides, not the time.** A save of the document changes the time of its file too; the comparison with the text that the document writes separates the save from a change of another program, with no hook in the save.
 - **An edit that is not saved is never lost.** The drain reads a file again only into a document whose text is the text of its last sync.
+- **No watch while Julia writes a precompile cache.** `watch_document_file!` does nothing in such a process. Julia ends a precompile only when every task of its workload has ended, and the task of a watcher ends only when its folder monitor closes, so one watch in a workload holds the precompile forever.
 
 ## Usage
 
