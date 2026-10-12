@@ -433,8 +433,10 @@ _make_shape_step(operation::InsertDataFrameRowOperation) = _make_row_insert_step
 _make_shape_step(operation::DeleteDataFrameRowOperation) = _make_row_delete_step(operation)
 _make_shape_step(operation::_DataFrameColumnOperation) = _make_column_step(operation)
 
-# A key that the table does not take: the gestures of the view answer it.
-read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap, event::KeyDown) =
+# A key that the table does not take: the gestures of the view answer it, Return
+# by its KeyPress.
+read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
+            event::Union{KeyDown, KeyPress}) =
     read_gesture(iomap.input, event)
 
 # A selection in the table selects in the view: a header selects its column, a
