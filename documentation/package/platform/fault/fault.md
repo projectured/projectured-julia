@@ -163,7 +163,7 @@ The fault slice registers the natural row `:fault` for `FaultLog`, the title `Fa
 - **A barrier is a projection of the algebra, and each domain draws its own mark.** A pipeline is built with its barriers before it prints.
 - **The store is outside the reactive graph.** A computation may write it, and the frame drains it into the log.
 - **The key holds no reference.** One bug is one record, whatever the size of the document.
-- **A full store forgets what the log already has.** Each fault reaches the log at least once, and the capacity still bounds the memory. See [plan/pending/fault-layer-reaudit.md](../../../../plan/pending/fault-layer-reaudit.md).
+- **A full store forgets what the log already has.** Each fault reaches the log at least once, and the capacity still bounds the memory.
 - **The console takes only what no target took.** A report goes to the first tier that works, as the law says, so a fault in the log does not also fill the console.
 - **The strict policy keeps every barrier off under test.** A barrier still wraps the IoMap of its part there, so a test sees the same IO maps as a running editor.
 - **The fault log is not saved.** The faults of one session say nothing about the next one.

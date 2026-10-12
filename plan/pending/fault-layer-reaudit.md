@@ -204,9 +204,13 @@ The decisions are C for L01-1, A for L01-2, A for L01-12, and A for A-4.
   - [x] The second audit (below).
   - [x] The owner, 2026-10-12: "not yet, just land". The fixes are on main; the
     eight fault files stay ⬜.
-  - [ ] The guide check, the fourth check of the audit since 2026-10-12: the layer
-    needs its own guide, `documentation/package/kernel/fault.md`. Today the kernel
-    layer is described in `documentation/package/platform/fault/fault.md`.
+  - [x] The guide check, the fourth check of the audit since 2026-10-12: the guide
+    `documentation/package/kernel/fault.md` (db6c9e6a4). An independent auditor
+    found it passes the three parts of the check, with no High finding and 13
+    findings of accuracy and wording, G-1 … G-13; all are fixed. G-1 also fixed
+    the docstring of `report_fault!`: a `policy` that is not a `FaultPolicy`
+    throws a `TypeError` at the call. The survey finds no export without a test
+    and none that the guide does not name.
   - [ ] The seal, when the owner says so. Its commit names the accepted gaps: the
     seven keywords of `run_fault_barrier!` (2026-09-24) and B-6.
 

@@ -22,10 +22,11 @@ Report `record` at the first tier that works, and answer the tier it reached:
 before the console. Then the console stays quiet. [`drain_faults!`](@ref) passes
 it.
 
-**This function never throws an ordinary exception.** It is the last thing that
-runs when everything else failed, and sometimes that includes the code that was
-meant to report. A test asserts it against a store that throws and a backend that
-throws, both at once. An exception that is not a fault (`is_fault_exception`)
+**With a `FaultPolicy` as `policy`, this function never throws an ordinary
+exception.** A `policy` of another type throws a `TypeError` at the call. It is
+the last thing that runs when everything else failed, and sometimes that includes
+the code that was meant to report. A test asserts it against a store that throws
+and a backend that throws, both at once. An exception that is not a fault (`is_fault_exception`)
 goes on, because it is a request to stop the editor.
 
 A fault raised while a fault is reported does not recurse: the store carries a
