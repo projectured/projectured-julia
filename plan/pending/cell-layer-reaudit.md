@@ -140,6 +140,10 @@ cycles. The clock tells a computation that reads it not to yield.
    static check of the walk first, and the change only if the walk dispatches at run
    time; no measurement of time.
 
+**The owner, 2026-10-12: "I agree with these".** Decision 1: the four states of a
+cell (L03-1 D, L03-2 A, L03-3 A with `CellCycleException`). Decision 2: L03-8 B and
+L03-9 B.
+
 ## Steps
 
 - [ ] 1. The fixes that need no decision: A-1 … A-10, T-1 … T-13, E-1 (with the module

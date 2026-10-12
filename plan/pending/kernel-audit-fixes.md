@@ -1923,6 +1923,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - Cost: M. CodeExecution.jl, Tool.jl, ToolSet.jl, MeaningSearch.jl, Documentation.jl (not sealed); source/platform/conversation/Evaluator.jl; example/kernel/SearchScaleMeasurement.jl, SearchCorpus.jl, SearchRanking.jl; three umbrella tests (SearchCorpusTest.jl, SearchScaleTest.jl, McpTest.jl); omnet-julia source/presentation/page/Notebook.jl, tool/search/measure_rankings.jl and three test files (CampaignAssistantTest.jl, MeaningSearchMeasurementTest.jl, SearchScaleTest.jl). inet-julia has no user.
 
 **L03-8** (Low): Does the cell layer get a public read of the stored value, so that persistence stops reading private fields?
+- **Decided by the owner, 2026-10-12: B.** `cell-layer-reaudit.md` holds the work.
 
 - **A:** Declare a new generic get_cell_stored_value(cell) in CellInterface.jl, with a method for each cell kind, and let the two serializers call it.
 - **B:** Use the exported names that exist: a serializer asks is_computed_cell(c) first, then reads peek(c), which records no dependency and, for a cell with no computation, answers the stored value as it is. PAR-PERSISTENCE-BY-VALUE names these two in place of getfield(c, :value).
@@ -2071,6 +2072,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 **The reactive engine and the document model** (16 questions). New states and mechanisms of the sealed engine, and the document model. L03-1 and L03-2 come first: one state of a cell answers L03-1, L03-2, L03-3 and L05-1.
 
 **L03-1** (High, main question): Which form does a failed computation take in a cell?
+- **Decided by the owner, 2026-10-12: D**, a new option of the re-audit of the cell layer: a failed cell passes the walk of a write on to its readers, and stores no exception. `cell-layer-reaudit.md` holds the work.
 
 - **A:** Keep a failed computation as the result of the cell. The cell stores the exception, becomes valid, and each read throws that exception again until a write invalidates the cell. An exception that means stop (is_passthrough_exception) is not stored, and the cell stays invalid as now.
 - **B:** Keep the failed cell invalid, but also mark the reader that caught the failure as invalid, so that each read of the reader runs the failed computation again.
@@ -2081,6 +2083,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **Risk:** A stored failure stays after Revise corrects a method, until an input changes; today a failed cell under the frame barrier recovers in the next frame. Each reactive cell grows by 8 bytes.
 
 **L03-2** (Medium, main question): Does the engine get a state for a cell that computes now, so that a write during a computation is not lost?
+- **Decided by the owner, 2026-10-12: A.** `cell-layer-reaudit.md` holds the work.
 
 - **A:** Give a cell the state 'computes now'. When the walk of a write meets a dependent in that state, it marks the dependent stale, and _recompute! leaves that cell invalid at its end, so the next read computes it again.
 - **B:** Change no engine code. cell.md and PAR-NO-WRITE-IN-THUNK state that a computation must not yield and must not write, and another task (the wall-clock heartbeat) writes only through a store that the editor drains between frames.
@@ -2101,6 +2104,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - **Risk:** It depends on L10-6, and a new document trait keeps a buffer such as `green_buf` out of the sync.
 
 **L03-3** (Medium): Shall the engine detect a cycle and throw an ordinary exception that a barrier can record?
+- **Decided by the owner, 2026-10-12: A**, with `CellCycleException`. `cell-layer-reaudit.md` holds the work.
 
 - **A:** Find a re-entry: a read of a cell in the state 'computes now' throws an ordinary exception that names the cell (for example CellCycleException). A barrier records it. Under L03-1, each cell of the cycle stores it until a write breaks the cycle.
 - **B:** Keep the stack overflow, and state in cell.md and PAR-ACYCLIC-CELLS that a cycle, a direct self-read too, stops the editor.
@@ -2810,6 +2814,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 **Measurements and tests** (4 questions). Two questions need a check or a timing run, which needs your approval. The other two are questions of the tests.
 
 **L03-9** (Low): May the walk take @nospecialize, and may the timing run (it needs an idle machine and your approval)?
+- **Decided by the owner, 2026-10-12: B.** `cell-layer-reaudit.md` holds the work.
 
 - **A:** Yes to both: add @nospecialize to _invalidate_dependents! (sealed ReactiveCell.jl, permission), and measure the time of the walk before and after on an idle machine, with the owner's approval.
 - **B:** Check first with no clock: @code_typed of the walk and the trim verifier of an ahead-of-time build show whether the call of the walk to itself is a dispatch at run time. Add @nospecialize only if it is. Measure time only if the owner wants a number for the speed.
