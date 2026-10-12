@@ -146,6 +146,11 @@ function map_reference_forward(p::FormulaFormulaToSyntaxNode, iomap::ChildrenIoM
     f = iomap.input
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
+        # The name as a whole, as a jump to the definition selects it, where the
+        # layout shows the name. A place inside the name maps to nothing.
+        ::FormulaFormula.name => if f.display_mode === :both
+            @reference ::SyntaxNode.children::CellVector[1]::SyntaxLeaf
+        end
         ::FormulaFormula.code.rest... => begin
             idx = _code_index(f)
             idx === nothing && return nothing
@@ -238,6 +243,59 @@ function map_reference_backward(p::FormulaEnvironmentToSyntaxNode, iomap::Childr
         end
         __ => @invoke map_reference_backward(p::Projection, iomap, reference)
     end
+end
+
+# ── Ctrl+click goes to the definition ────────────────────────────────────────
+#
+# Ctrl+click on an identifier that refers to a formula of the sheet selects the
+# name of that formula, as Ctrl+click follows a link in the source of a page: a
+# plain click selects the identifier, to edit it. The sheet reads the click,
+# because it is the lowest node that holds both the reference and the definition.
+# It reads the click where it is the root of the view; in a view that prints it
+# inside a template, the parent asks only the gesture bindings of the parts.
+
+function read_intent(p::FormulaEnvironmentToSyntaxNode, recursion, change::Intent, iomap)
+    answer = @invoke read_intent(p::Projection, recursion, change::Intent, iomap)
+    gesture = change.gesture
+    (gesture isa MouseClick && gesture.button === :left &&
+     gesture.modifiers == ModifierKeys(ctrl = true)) || return answer
+    operation = answer.operation
+    operation isa ReplaceSelectionOperation || return answer
+    definition = _find_definition_reference(iomap.input, operation.path)
+    definition === nothing && return answer
+    Intent(gesture, ReplaceSelectionOperation(definition), "Go to the definition", "formula")
+end
+
+# The reference, from the sheet, of the definition that the identifier at `path`
+# refers to: the name of the formula where its layout shows the name, and the
+# formula otherwise. `nothing` when `path` reaches no reference identifier.
+function _find_definition_reference(env::FormulaEnvironment, path)
+    identifier = _find_last_identifier(env, path)
+    identifier === nothing && return nothing
+    for formula in env.formulas
+        identifier in _find_reference_identifiers(formula, env) || continue
+        target = resolve(env, identifier.name)
+        index = findfirst(f -> f === target, collect(env.formulas))
+        return target.display_mode === :both ? @reference(env, formulas[index].name) :
+                                               @reference(env, formulas[index])
+    end
+    nothing
+end
+
+# The deepest identifier that `path` goes through from `node`.
+function _find_last_identifier(node, path)
+    found = nothing
+    while path isa ConcreteReference
+        node = try
+            evaluate_reference_step(path.head, node)
+        catch exception
+            is_passthrough_exception(exception) && rethrow()
+            break
+        end
+        node isa JuliaIdentifier && (found = node)
+        path = path.tail
+    end
+    found
 end
 
 # ── FormulaToSyntax convenience constructor ────────────────────────────────────

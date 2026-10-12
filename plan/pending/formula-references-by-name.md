@@ -2,7 +2,7 @@
 
 **Status (2026-10-12): IN PROGRESS.** The owner and I worked out the model of §3 in a
 discussion on 2026-10-12, and the owner decided each point of §4. The owner asked to implement it
-on 2026-10-12. Steps 1 to 3 are done. Step 4 of
+on 2026-10-12. Steps 1 to 4 are done. Step 4 of
 [strict-document-types.md](strict-document-types.md) waits for this plan, because a formula
 reference inside a Julia tree kept 37 Julia fields at `Document`.
 
@@ -222,7 +222,7 @@ formula named `pi` would make every other `pi` of the sheet mean it.
   name builds its `Expr` with `make_julia_expression` of the Julia domain, which takes every
   Julia node, the lambda too. That function puts a node that is not Julia into the `Expr` as the
   object itself, so it can run only on code with no `FormulaReference`.
-- [ ] **Step 4: the view of a reference.** *The drawing is done (2026-10-12); the gesture waits.* The formula projection draws an identifier that
+- [x] **Step 4: the view of a reference.** The formula projection draws an identifier that
   resolves in the scope in the reference style, and a click on it selects its definition. The
   projection prints the environment and its formulas, so it gives the Julia projection the set of
   names of the scope through the printer context, and reads no other projection.
@@ -240,6 +240,24 @@ formula named `pi` would make every other `pi` of the sheet mean it.
     gains turns its uses into references. The walk of Step 1 now collects the identifier nodes,
     and `get_formula_names` gives their names. The rule holds two styles and no projection, and
     prints through `print_template_document`, as the rules of the RST domain do.
+  - **Decided by the owner, 2026-10-12: Ctrl+click goes to the definition**, and it selects the
+    name of the target formula.
+  - *The gesture, done (2026-10-12).* The sheet rule reads Ctrl+click with its own `read_intent`,
+    in the form that `SyntaxLeafToText` uses for Alt+click: the generic reader maps the claimed
+    selection of the click back to the sheet, and when that path goes through a reference
+    identifier, the answer selects `formulas[j].name`. The sheet is the lowest node that holds
+    both the reference and the definition. A gesture binding can not do it: its operation gets
+    only the node and the event, not the part that the click selected. The formula rule maps a
+    selection of the whole name to its name leaf when the layout is `:both`; for another layout
+    the click selects the whole formula, because the name does not show. A place inside the name
+    still maps to nothing; that belongs to Step 5.
+  - Limits: the jump works where the sheet is the root of the view, as in the gallery. A view
+    that prints the sheet inside a template asks only the bindings of the parts, so there a
+    Ctrl+click selects the identifier. The gesture help does not list the jump, because it is
+    no binding.
+  - Tests: the view test presses a Ctrl+click through a headless editor, and checks the
+    selection and the rectangle that the frame draws over the name. `test_formula()` passes,
+    173 of 173; `test_example` gives the counts of Step 3.
   - Facts: in the default palette the callee color and the reference color are the same blue;
     the reference style is bold, the callee style is not. With and without the rule, the
     navigation of the gallery sheet reaches the same 416 states. The count of states of

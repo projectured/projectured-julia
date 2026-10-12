@@ -26,6 +26,21 @@ function _identifier_colors(output, text)
     [style(run) for run in _collect_text_runs!(Any[], output) if run.content == text]
 end
 
+# Each rectangle that a canvas draws, at its place: `(x, y, w, h)`.
+function _collect_drawn_rects(canvas, ox = 0, oy = 0, found = NTuple{4,Int}[])
+    x = ox + Int(canvas.x)
+    y = oy + Int(canvas.y)
+    for element in canvas.elements
+        element = element isa Cell ? element[] : element
+        if element isa GraphicsCanvas
+            _collect_drawn_rects(element, x, y, found)
+        elseif element isa GraphicsRect
+            push!(found, (x + Int(element.x), y + Int(element.y), Int(element.w), Int(element.h)))
+        end
+    end
+    found
+end
+
 function test_formula_to_syntax()
 
 @testset "get_column_letter / cell_name boundaries" begin
@@ -64,6 +79,38 @@ end
     push!(getfield(sheet, :formulas)[], Cell(FormulaFormula("Z", parse_julia("1"))))
     wire_result!(sheet.formulas[7], sheet)
     @test count(==(:reference), _identifier_colors(output, "Z")) == 1
+end
+
+@testset "Ctrl+click on a reference selects the name of its formula" begin
+    platform = ProjecturedPlatformTest
+    sheet = FormulaEnvironment([
+        FormulaFormula("beta", parse_julia("alpha + gamma")),
+        FormulaFormula("gamma", parse_julia("2"); display_mode = :code),
+        FormulaFormula("alpha", parse_julia("1")),
+    ])
+    backend = HeadlessBackend()
+    projection = make_formula_projection_example(; measure = FixedMeasure(8, 12, 4, 0))
+    editor = build_editor(sheet, projection; backend, devices = Device[Keyboard(), Mouse(), Display()],
+                          window = false, tabs = false, appearance = false, settings = false)
+    run_frame!(editor)
+    answer(event) = read_intent(editor.projection, nothing, Intent(event), editor.iomap).operation
+    # The first `alpha` and the first `gamma` that the sheet draws are the uses in `beta`.
+    alpha = platform._nav_click(backend, "alpha")
+    gamma = platform._nav_click(backend, "gamma")
+    @test alpha !== nothing && gamma !== nothing
+    # A plain click selects the identifier, to edit it.
+    @test answer(alpha) isa ReplaceSelectionOperation
+    @test !occursin("formulas[3]", repr(answer(alpha).path))
+    # Ctrl+click selects the name of the formula, where its layout shows the name,
+    # and the frame draws the selection over that name.
+    platform._nav_press!(editor, backend, platform._nav_ctrl_click(alpha))
+    @test repr(get_selection(sheet)) == repr(@reference(sheet, formulas[3].name))
+    texts = platform._nav_texts(backend)
+    (_, x, y) = texts[findlast(entry -> entry[1] == "alpha", texts)]
+    @test (x, y, 5 * 8, 16) in _collect_drawn_rects(last(rendered_output(backend)))
+    # A formula that shows only its code is selected as a whole.
+    platform._nav_press!(editor, backend, platform._nav_ctrl_click(gamma))
+    @test repr(get_selection(sheet)) == repr(@reference(sheet, formulas[2]))
 end
 
 @testset "FormulaFormula view modes (code / result / both)" begin
