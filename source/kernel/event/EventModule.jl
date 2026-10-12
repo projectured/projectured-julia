@@ -15,7 +15,7 @@ The module lives in ten fragments that share this namespace:
 - [`ModifierKeys.jl`](ModifierKeys.jl) — the Ctrl, Shift, Alt and Meta keys that an
   event holds.
 - [`KeyboardEvent.jl`](KeyboardEvent.jl) — the key events `KeyDown`, `KeyUp` and
-  `KeyPress`.
+  `KeyPress`, and `find_typed_character`, the character of Return and Tab.
 - [`MouseEvent.jl`](MouseEvent.jl) — `MouseButtons`, the mouse events
   `MouseDown`, `MouseUp`, `MouseMove` and `MouseScroll`, and the predicate
   `is_move_without_button`.
@@ -37,7 +37,7 @@ module EventModule
 
 export Event, get_modifier_keys, get_event_time
 export ModifierKeys
-export KeyDown, KeyUp, KeyPress
+export KeyDown, KeyUp, KeyPress, find_typed_character
 export MouseButtons, MouseDown, MouseUp, MouseMove, is_move_without_button, MouseScroll
 export WindowQuit, WindowClose, WindowResize, WindowDefocus, WindowLeave
 export TimerExpire

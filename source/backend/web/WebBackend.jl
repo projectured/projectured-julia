@@ -613,6 +613,11 @@ function _decode_and_enqueue!(backend::WebBackend, msg)
         sym = convert_web_key_to_symbol(key, String(get(obj, :code, "")), m)
         repeat = Bool(get(obj, :repeat, false))
         put!(backend.inbound, WindowInput(wid, KeyDown(sym, m; repeat, time = at)))
+        # The client prevents Enter and Tab, so the browser sends no `keypress` for
+        # them: their `KeyPress` follows the `KeyDown` here, at each down and repeat.
+        char = find_typed_character(sym)
+        char === nothing ||
+            put!(backend.inbound, WindowInput(wid, KeyPress(char, string(char), m; time = at)))
 
     elseif typ == "keyup"
         m = _mods(obj)

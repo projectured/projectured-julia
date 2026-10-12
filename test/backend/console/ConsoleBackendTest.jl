@@ -88,9 +88,11 @@ function test_console_backend()
         @test _parse(0x1b, UInt8('['), UInt8('F')) == KeyDown(:end, ModifierKeys(); time = 0.0)
         @test _parse(0x03) isa WindowQuit           # Ctrl-C
         @test _parse(0x00) == KeyDown(:space, ModifierKeys(ctrl=true); time = 0.0)  # Ctrl-Space
-        @test _parse(0x0d) == KeyDown(:return, ModifierKeys(); time = 0.0)
+        # Return and Tab type a character, so they are a KeyPress, as a letter is.
+        @test _parse(0x0d) == KeyPress('\n'; time = 0.0)
+        @test _parse(0x0a) == KeyPress('\n'; time = 0.0)
         @test _parse(0x7f) == KeyDown(:backspace, ModifierKeys(); time = 0.0)
-        @test _parse(0x09) == KeyDown(:tab, ModifierKeys(); time = 0.0)
+        @test _parse(0x09) == KeyPress('\t'; time = 0.0)
         # A Ctrl byte that no row above reads is its letter with Ctrl: 0x1A is Ctrl+Z.
         @test _parse(0x1a) == KeyDown(:z, ModifierKeys(ctrl=true); time = 0.0)
         @test _parse(0x01) == KeyDown(:a, ModifierKeys(ctrl=true); time = 0.0)
@@ -147,7 +149,7 @@ function test_console_backend()
         @test csi("2~") == KeyDown(:insert, ModifierKeys(); time = 0.0)
         @test csi("15;5~") == KeyDown(:f5, ModifierKeys(ctrl = true); time = 0.0)
         @test csi("1;2P") == KeyDown(:f1, ModifierKeys(shift = true); time = 0.0)
-        @test csi("Z") == KeyDown(:tab, ModifierKeys(shift = true); time = 0.0)
+        @test csi("Z") == KeyPress('\t', ModifierKeys(shift = true); time = 0.0)
         @test _parse(ESC, UInt8('O'), UInt8('Q')) == KeyDown(:f2, ModifierKeys(); time = 0.0)
         # The parser takes the whole sequence, so no stray character follows it.
         buffer = collect(UInt8, "\e[1;5Dx")

@@ -174,9 +174,10 @@ SDL `windowID` to `WindowDocument.id`, used when translating raw SDL
 events into `WindowInput`s. Both are reconciled by
 `write_to_devices!(::SdlBackend, devices, ::ScreenDocument)`.
 
-`pending_input` and `pending_motion` are the one-event buffers
-`take_from_devices!` needs to collapse a run of pointer motion into its newest
-sample, and `last_hover_motion` is the time of the rate limit of idle motion.
+`pending_inputs` and `pending_motion` are the buffers `take_from_devices!` needs
+to collapse a run of pointer motion into its newest sample and to answer the
+`KeyPress` of Return and Tab after their `KeyDown`, and `last_hover_motion` is the
+time of the rate limit of idle motion.
 They live on the backend rather than at module level, so two backends in one
 process never hand each other an event or a delay. `partial_render`,
 `debug_dirty`, `debug_dirty_hold` and `supersample` are read for each window of
@@ -216,11 +217,13 @@ mutable struct SdlBackend <: Backend
     # by the id of the window: the outline of a frame is the union of them.
     recent_repaints::Dict{Symbol, Vector{Tuple{Float64,Vector{NTuple{4,Int}}}}}
     # Input coalescing state (see `take_from_devices!`):
-    #   pending_input  — the event that arrived behind a held motion, owed next call
+    #   pending_inputs — the events owed to the next calls, in order: the event that
+    #                    arrived behind a held motion, and the `KeyPress` of a
+    #                    Return or a Tab after its `KeyDown`
     #   pending_motion — the newest motion sample not yet delivered
     #   last_hover_motion — when the last idle motion was delivered (`time()`),
     #                       for the rate limit of idle motion
-    pending_input::Union{WindowInput, Nothing}
+    pending_inputs::Vector{WindowInput}
     pending_motion::Union{WindowInput, Nothing}
     last_hover_motion::Float64
     # The modifier keys of the last key event in the order of the queue.
@@ -263,7 +266,7 @@ SdlBackend(; partial_render::Bool = true, debug_dirty::Bool = false,
                Dict{UInt32, Symbol}(),
                partial_render, debug_dirty, Float64(debug_dirty_hold), Int(supersample),
                Dict{Symbol, Vector{Tuple{Float64,Vector{NTuple{4,Int}}}}}(),
-               nothing, nothing, 0.0, ModifierKeys(), UInt32(0), Display(), WindowInput[], 0.0,
+               WindowInput[], nothing, 0.0, ModifierKeys(), UInt32(0), Display(), WindowInput[], 0.0,
                Dict{Symbol, GraphicsCanvas}(), :default, Dict{Symbol, Ptr{SDL_Cursor}}(),
                nothing, nothing, nothing, false)
 
@@ -436,6 +439,7 @@ function sdl_keysym_to_symbol(keysym::Int32)::Symbol
     # Editing
     keysym == Int32(8)          && return :backspace
     keysym == Int32(127)        && return :delete
+    keysym == Int32(1073741912) && return :return   # keypad Enter
     keysym == Int32(13)         && return :return
     keysym == Int32(9)          && return :tab
     keysym == Int32(1073741897) && return :insert
@@ -3673,7 +3677,7 @@ function BackendModule.initialize_backend!(backend::SdlBackend)
     backend.display.width, backend.display.height = get_sdl_display_size()
     # Start with no input owed: a backend that is opened again must not answer
     # with an event left over from its last life.
-    backend.pending_input = nothing
+    empty!(backend.pending_inputs)
     backend.pending_motion = nothing
     backend.modifiers = _current_modifiers()
     # The wake event, registered once per SDL life. `SDL_RegisterEvents`
@@ -3685,7 +3689,7 @@ function BackendModule.initialize_backend!(backend::SdlBackend)
 end
 
 function BackendModule.quit_backend!(backend::SdlBackend)
-    backend.pending_input = nothing
+    empty!(backend.pending_inputs)
     backend.pending_motion = nothing
     SDL_StopTextInput()
     # Free cached textures while their renderers are still alive (before SDL_Quit).
@@ -3786,7 +3790,7 @@ _has_queued_event() = (@ccall LibSDL2.libsdl2.SDL_PollEvent(C_NULL::Ptr{Cvoid}):
 Block until the SDL queue holds an event, [`wake_backend!`](@ref) pushes the
 wake event, or `timeout_seconds` passes. The queue is only looked at, never
 read: everything stays for `run_read_stage!`. An event this backend already owes
-(`pending_input`) ends the wait before it starts, the read that a changed display
+(`pending_inputs`) ends the wait before it starts, the read that a changed display
 owes (`display_updates`) comes within 1/30 s, and a held motion sample
 caps the timeout at the rest of its rate-limit interval, so the last sample
 of a pointer that stopped is delivered on time.
@@ -3799,7 +3803,7 @@ in SDL in GC-safe slices of 10 ms with a `yield` between them, so an input event
 ends it at once.
 """
 function BackendModule.wait_for_input(backend::SdlBackend, devices, timeout_seconds)
-    backend.pending_input === nothing || return nothing
+    isempty(backend.pending_inputs) || return nothing
     backend.system_colors_change === nothing || return nothing
     timeout = Float64(timeout_seconds)
     # The read that a changed display owes comes within one frame of an
@@ -3860,6 +3864,7 @@ backend-agnostic inner event, with the time that SDL stamped on it:
 - `SDL_WINDOWEVENT_CLOSE` for a window → `WindowInput(<id>, WindowClose(; time))`
 - `SDL_WINDOWEVENT_RESIZED`            → `WindowInput(<id>, WindowResize(w, h; time))`
 - `SDL_KEYDOWN`                        → `WindowInput(<id>, KeyDown)` (Escape included)
+  and, for Return, keypad Enter and Tab, the `KeyPress` of `'\\n'` or `'\\t'` after it
 - `SDL_KEYUP`                          → `WindowInput(<id>, KeyUp)`
 - `SDL_TEXTINPUT`                      → `WindowInput(<id>, KeyPress)`
 - `SDL_MOUSEBUTTONDOWN`                → `WindowInput(<id>, MouseDown)`
@@ -3886,7 +3891,7 @@ leaving the newer ones for a later call to discard — which is what made the
 highlight trail the pointer by a frame.
 
 Order is preserved. An event that is not motion ends the run: the held motion is
-answered first and the other event is kept in `backend.pending_input` for the
+answered first and the other event is kept in `backend.pending_inputs` for the
 next call, so a click never overtakes the motion that led to it.
 
 Idle motion (no button held) is still rate-limited to one sample per
@@ -3900,12 +3905,9 @@ The move that `write_to_devices!` queues after a frame that changed a window wai
 as a motion sample too, after the `DisplayUpdate` of that frame.
 """
 function BackendModule.take_from_devices!(backend::SdlBackend, devices)
-    # What a previous call owes: the event that ended a motion run.
-    if backend.pending_input !== nothing
-        owed = backend.pending_input
-        backend.pending_input = nothing
-        return owed
-    end
+    # What a previous call owes: the event that ended a motion run, and the
+    # `KeyPress` of a Return or a Tab.
+    isempty(backend.pending_inputs) || return popfirst!(backend.pending_inputs)
     # A window that showed a changed frame: the readers find their part of the
     # view again before they read the input that came after it.
     isempty(backend.display_updates) || return popfirst!(backend.display_updates)
@@ -3925,7 +3927,8 @@ function BackendModule.take_from_devices!(backend::SdlBackend, devices)
         other === nothing && break        # queue empty
         # An event that is not motion ends the run. Answer the motion first.
         motion === nothing && return other
-        backend.pending_input = other
+        # Before the `KeyPress` that the poll of `other` owes.
+        pushfirst!(backend.pending_inputs, other)
         return motion
     end
     motion === nothing && return nothing
@@ -4021,6 +4024,12 @@ function _poll_window_input(backend::SdlBackend)
             backend.modifiers = sdl_modifiers(evt.key.keysym.mod)
             keydown = sdl_to_keydown(keysym, evt.key.keysym.mod, is_repeat;
                                      time = event_time)
+            # SDL gives no `SDL_TEXTINPUT` for Return and Tab: their `KeyPress` is
+            # owed after the `KeyDown`, at each down and each repeat.
+            char = find_typed_character(keydown.key)
+            char === nothing ||
+                push!(backend.pending_inputs,
+                      WindowInput(wid, KeyPress(char, string(char), keydown.modifiers, keydown.time)))
             return (WindowInput(wid, keydown), nothing)
 
         elseif t == 0x00000301  # SDL_KEYUP

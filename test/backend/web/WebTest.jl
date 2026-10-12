@@ -70,6 +70,21 @@ function test_web_backend()
         @test take_from_devices!(backend, Device[]).event.key === :z
     end
 
+    @testset "Return and Tab give their KeyPress after their KeyDown" begin
+        backend = WebBackend(port = 0)
+        _WEB._decode_and_enqueue!(backend,
+            """{"type":"keydown","window":"main","key":"Enter","code":"Enter","repeat":true}""")
+        _WEB._decode_and_enqueue!(backend,
+            """{"type":"keydown","window":"main","key":"Tab","code":"Tab",
+                "mods":{"shift":true}}""")
+        events = [take_from_devices!(backend, Device[]).event for _ in 1:4]
+        @test events[1] isa KeyDown && events[1].key === :return && events[1].repeat
+        @test events[2] isa KeyPress && events[2].char == '\n'
+        @test events[3] isa KeyDown && events[3].key === :tab
+        @test events[4] isa KeyPress && events[4].char == '\t' && events[4].modifiers.shift
+        @test take_from_devices!(backend, Device[]) === nothing
+    end
+
     @testset "the backslash key has the name that the SDL backend gives it" begin
         # The JSON of the page holds the key `\` as "\\".
         backend = WebBackend(port = 0)

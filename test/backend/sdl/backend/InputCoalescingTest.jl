@@ -67,6 +67,16 @@ _push_ctrl_key!(type, mod) =
                                                             _SDLK_LCTRL, UInt16(mod),
                                                             UInt32(0))))
 
+# A key event of the Return key, with the modifier mask `mod`; `repeat` marks a
+# key-down that the operating system repeats while the key is held.
+_push_return_key!(type, mod; repeat::Bool = false) =
+    _push_sdl_event!(_SDL.SDL_KeyboardEvent(type, UInt32(0), UInt32(0),
+                                            type == _SDL_KEYDOWN ? UInt8(1) : UInt8(0),
+                                            UInt8(repeat), UInt8(0), UInt8(0),
+                                            _SDL.SDL_Keysym(_SDL.SDL_SCANCODE_RETURN,
+                                                            Int32(13), UInt16(mod),
+                                                            UInt32(0))))
+
 # Start from an empty queue and an expired rate limit, so each case sees only
 # what it pushed.
 function _reset_input!(backend)
@@ -196,6 +206,25 @@ function test_input_coalescing()
         up = take_from_devices!(backend, Device[]).event
         @test up isa KeyUp
         @test !up.modifiers.ctrl
+        @test take_from_devices!(backend, Device[]) === nothing
+    end
+
+    @testset "Return gives its KeyPress after each KeyDown, behind a held motion too" begin
+        # SDL gives no text input for Return, so the backend owes the KeyPress of
+        # '\n' after the KeyDown, at the first down and at each repeat, with the
+        # modifiers of the key. A motion before the key is answered first.
+        _reset_input!(backend)
+        _push_motion!(20, 20)
+        _push_return_key!(_SDL_KEYDOWN, _KMOD_LCTRL)
+        _push_return_key!(_SDL_KEYDOWN, 0x0000; repeat = true)
+        _push_return_key!(_SDL_KEYUP, 0x0000)
+        @test take_from_devices!(backend, Device[]).event isa MouseMove
+        events = [take_from_devices!(backend, Device[]).event for _ in 1:5]
+        @test events[1] isa KeyDown && events[1].key === :return && events[1].modifiers.ctrl
+        @test events[2] isa KeyPress && events[2].char == '\n' && events[2].modifiers.ctrl
+        @test events[3] isa KeyDown && events[3].repeat
+        @test events[4] isa KeyPress && events[4].char == '\n' && !events[4].modifiers.ctrl
+        @test events[5] isa KeyUp && events[5].key === :return
         @test take_from_devices!(backend, Device[]) === nothing
     end
 

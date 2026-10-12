@@ -334,9 +334,9 @@ function _next_event!(buf::Vector{UInt8}; settled::Bool = false, time::Real)
     deleteat!(buf, 1)
     if b0 == 0x03;  return WindowQuit(; time)                              # Ctrl-C
     elseif b0 == 0x00; return KeyDown(:space, ModifierKeys(ctrl=true); time) # Ctrl-Space
-    elseif b0 == 0x0d || b0 == 0x0a; return KeyDown(:return, ModifierKeys(); time)
+    elseif b0 == 0x0d || b0 == 0x0a; return KeyPress('\n'; time)              # Return
     elseif b0 == 0x7f || b0 == 0x08; return KeyDown(:backspace, ModifierKeys(); time)
-    elseif b0 == 0x09; return KeyDown(:tab, ModifierKeys(); time)
+    elseif b0 == 0x09; return KeyPress('\t'; time)                           # Tab
     elseif 0x01 <= b0 <= 0x1a                                           # Ctrl+A to Ctrl+Z
         return KeyDown(Symbol(Char(b0 + 0x60)), ModifierKeys(ctrl = true); time)
     elseif 0x20 <= b0 < 0x7f; return KeyPress(Char(b0); time)          # printable ASCII
@@ -441,10 +441,14 @@ function _decode_modifier_parameter(parameter::Int)
     ModifierKeys(ctrl = m & 4 != 0, shift = m & 1 != 0, alt = m & 2 != 0, meta = m & 8 != 0)
 end
 
-# Home with no modifier is the chord that selects the root; see `_home_event`.
-_make_key_event(key::Symbol, modifiers::ModifierKeys, time::Real) =
-    key === :home && modifiers == ModifierKeys() ? _home_event(time) :
-                                                   KeyDown(key, modifiers; time)
+# Home with no modifier is the chord that selects the root; see `_home_event`. A
+# key that types a character, such as Shift+Tab, gives its `KeyPress`: a terminal
+# reports what was typed, and no key going down.
+function _make_key_event(key::Symbol, modifiers::ModifierKeys, time::Real)
+    key === :home && modifiers == ModifierKeys() && return _home_event(time)
+    char = find_typed_character(key)
+    char === nothing ? KeyDown(key, modifiers; time) : KeyPress(char, modifiers; time)
+end
 
 _with_alt_modifier(event::KeyDown) =
     KeyDown(event.key, _with_alt_modifier(event.modifiers); repeat = event.repeat,

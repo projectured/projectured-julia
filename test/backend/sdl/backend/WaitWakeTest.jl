@@ -83,10 +83,10 @@ function test_sdl_wait_wake()
 
     @testset "an owed event skips the wait" begin
         _drain_sdl_queue!()
-        backend.pending_input = WindowInput(:none, KeyDown(:a, ModifierKeys(); time = 0.0))
+        push!(backend.pending_inputs, WindowInput(:none, KeyDown(:a, ModifierKeys(); time = 0.0)))
         elapsed = @elapsed wait_for_input(backend, Device[], 30.0)
         @test elapsed < _FAR_LESS
-        backend.pending_input = nothing
+        empty!(backend.pending_inputs)
     end
 end
 end

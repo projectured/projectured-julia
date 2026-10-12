@@ -89,4 +89,15 @@ KeyPress(char::Char; time::Real) =
 KeyPress(char::Char, modifiers::ModifierKeys; time::Real) =
     KeyPress(char, string(char), modifiers, Float64(time))
 
+"""
+    find_typed_character(key::Symbol) -> Union{Char, Nothing}
+
+The character that the key `key` of a `KeyDown` types, when the input method of the
+operating system gives none for it: `'\\n'` for `:return` and `'\\t'` for `:tab`, and
+`nothing` for every other key. A backend makes the `KeyPress` of such a key itself,
+after its `KeyDown`, with the same modifiers and time.
+"""
+find_typed_character(key::Symbol) =
+    key === :return ? '\n' : key === :tab ? '\t' : nothing
+
 get_modifier_keys(event::Union{KeyDown,KeyUp,KeyPress}) = event.modifiers
