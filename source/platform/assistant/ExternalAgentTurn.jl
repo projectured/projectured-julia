@@ -91,8 +91,23 @@ function _run_external_agent_turn!(editor, a::Assistant; control::AssistantTurnC
                              :question_requests => ConversationQuestionRequest[],
                              :tools => _find_editor_tool_set(editor), :live_results => Set{String}(),
                              :turn => turn)
+    # The start of an agent takes seconds, and its first turn in a process takes
+    # longer, so the turn shows at once with a part that says that the agent
+    # starts. When the session is open, the turn leaves the conversation and comes
+    # back after the prompt, below a message that the person sent meanwhile.
+    starting = isempty(session.session_id) ? ConversationPart(_get_agent_starting_text(a)) : nothing
+    if starting !== nothing
+        push!(turn.parts, starting)
+        run_on_editor_task!(() -> push!(a.conversation.turns, turn), editor; wait = false)
+    end
+    is_open = false
     stop_reason = try
         _start_external_agent_session!(editor, a, session)
+        is_open = true
+        starting === nothing || run_on_editor_task!(editor) do
+            _remove_part!(turn, starting)
+            _remove_empty_turn!(a, turn)
+        end
         prompt, turn_count = run_on_editor_task!(editor) do
             _make_external_agent_prompt(a.conversation, session.sent_turn_count)
         end
@@ -118,6 +133,11 @@ function _run_external_agent_turn!(editor, a::Assistant; control::AssistantTurnC
         # sign-in that the prompt needs says nothing about the session.
         session.is_resumed && !session.has_answered && !(exception isa AgentSignInException) &&
             run_on_editor_task!(() -> _drop_agent_session_folder!(a, conversation), editor; wait = false)
+        # A start that failed leaves no turn of its own.
+        (starting === nothing || is_open) || run_on_editor_task!(editor) do
+            _remove_part!(turn, starting)
+            _remove_empty_turn!(a, turn)
+        end
         _close_external_agent_session!(session)
         rethrow()
     finally
@@ -131,6 +151,25 @@ function _run_external_agent_turn!(editor, a::Assistant; control::AssistantTurnC
         end
     end
     run_on_editor_task!(() -> _finish_turn!(a, state[:turn], stop_reason), editor; wait = false)
+    nothing
+end
+
+# What the part of a turn says while its agent starts: the name of the built-in
+# agent, or the agent of a command of the person.
+_get_agent_starting_text(a::Assistant) =
+    isempty(a.agent_command) ? "Starting Claude Code…" : "Starting the agent…"
+
+function _remove_part!(turn::ConversationTurn, part::ConversationPart)
+    index = findfirst(candidate -> candidate === part, collect(turn.parts))
+    index === nothing || deleteat!(turn.parts, index)
+    nothing
+end
+
+# A turn that holds no part leaves the conversation.
+function _remove_empty_turn!(a::Assistant, turn::ConversationTurn)
+    isempty(turn.parts) || return nothing
+    index = findfirst(candidate -> candidate === turn, collect(a.conversation.turns))
+    index === nothing || deleteat!(a.conversation.turns, index)
     nothing
 end
 

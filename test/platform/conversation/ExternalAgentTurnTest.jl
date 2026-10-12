@@ -45,6 +45,31 @@ function test_external_agent_turn()
                   findfirst(part -> part.content isa EvaluatorForm, parts)
         end
 
+        @testset "the turn says that the agent starts until its session is open" begin
+            gate = Channel{Nothing}(1)
+            connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("Hi."), LlmTextStop()]];
+                                                 on_start = connection -> take!(gate))
+            a = _make_agent_assistant(connection)
+            is_starting() = any(part -> part.content isa TextBlock &&
+                                        get_flat_string(part.content) == "Starting Claude Code…",
+                                [part for turn in collect(a.conversation.turns) for part in collect(turn.parts)])
+            _submit_to_agent!(a, "Hello"; wait = false)
+            @test timedwait(is_starting, 10.0; pollint = 0.01) === :ok
+            @test [turn.role for turn in collect(a.conversation.turns)] == [:user, :assistant]
+            put!(gate, nothing)
+            _wait_for_idle(a)
+            @test !is_starting()
+            turns = collect(a.conversation.turns)
+            @test [turn.role for turn in turns] == [:user, :assistant]
+            @test occursin("Hi.", AssistantModule._part_text(only(collect(turns[2].parts))))
+            # A start that fails leaves no turn of its own.
+            failing = ScriptedAgentConnection([Any[]]; failing_opens = 1)
+            b = _make_agent_assistant(failing)
+            _submit_to_agent!(b, "Hello")
+            @test b.status === :error
+            @test !any(turn -> turn.role === :assistant && isempty(collect(turn.parts)), collect(b.conversation.turns))
+        end
+
         @testset "a second turn sends only what came since the last answer" begin
             connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("One."), LlmTextStop()],
                                                   Any[LlmTextStart(), LlmTextDelta("Two."), LlmTextStop()]])
