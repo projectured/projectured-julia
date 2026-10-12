@@ -43,6 +43,17 @@ machine had a load of 50 to 60.
   once). Without a window, frames are cheap, and the start with the Assistants
   tab open takes 26 s on main and 25 s on the branch: the gain needs the costly
   frames of a large real window, which the owner tries.
+  The owner's try showed a hole: with the Assistants tab open, not even the line
+  "Starting Claude Code…" came. A check with the list linked to the window
+  (`link_assistant_list!`, which an earlier check left out, so its table was
+  empty) showed why: each animated frame changes the display, so it queues a
+  `DisplayUpdate`, and `wait_for_input` returned at once for it, with no wait
+  and no yield. The loop drew about 56 frames a second, and even the timers of
+  the other thread stalled. Now that read comes within one frame of an animation
+  (1/30 s) and not at once; owed input still skips the wait. The same check then
+  answered 20 s after the submit, at about 28 frames a second. SDL tests 265 of
+  272 with the dummy driver, the 7 failures all `PointerShapeTest.jl:64` (no
+  system cursors in the dummy driver), which passes 27 of 27 on the display.
 - [x] 3. The transcript says "Starting Claude Code…" while the session opens
   (a48fafca1): the turn shows at once with that part, leaves the conversation
   when the session is open, and comes back after the prompt, so a message that
