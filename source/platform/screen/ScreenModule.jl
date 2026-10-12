@@ -59,7 +59,7 @@ export ScreenToScreen, ScreenToScreenIoMap, ScreenWindowIoMap
 export make_window_scene, make_window_scene_projection, make_tracking_screen,
        show_document!
 export ScreenDocument, WindowDocument
-export find_part_place
+export find_part_place, write_part_picture, write_window_picture
 export show_window_layers, make_window_layer_bindings
 export RenderSettings
 
@@ -69,6 +69,7 @@ include("WindowManaging.jl")
 include("ScreenToScreen.jl")
 include("WindowScene.jl")
 include("PartPlace.jl")
+include("PartPicture.jl")
 include("WindowLayers.jl")
 include("DocumentShow.jl")
 include("RenderSettings.jl")
