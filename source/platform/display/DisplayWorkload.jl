@@ -1,4 +1,4 @@
-# Fragment of `DisplayModule`: the workload of the first window, which a package
+# Fragment of `DisplayModule`: the workloads of the first window, which a package
 # runs in its `@compile_workload` so that its package image holds that code.
 
 """
@@ -119,6 +119,22 @@ function run_display_workload(value; backend::Backend = WorkloadBackend(), frame
             end
         end
     end
+    nothing
+end
+
+"""
+    run_natural_rows_workload(domain::Module) -> Nothing
+
+Build the natural table of the first window of the display with the rows that
+`domain` registers. The entry file of a package whose slice registers natural
+rows calls it in its `@compile_workload`, so that its package image holds the
+code of its rows, which every first window builds. A domain registers its rows
+in its `__init__`, which runs when the package loads, after its workload, so
+the workload runs it first.
+"""
+function run_natural_rows_workload(domain::Module)
+    isdefined(domain, :__init__) && domain.__init__()
+    NaturalToGraphics(; measure = FontFileMeasure(), appearance = Appearance())
     nothing
 end
 
