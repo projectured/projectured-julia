@@ -595,7 +595,7 @@ change how every view of syntax makes its lines, so they land together.
 
 8. **omnet-julia**: NED and INI state their breaks in their texts, which removes
    their empty lines. It follows the landing of steps 2 to 4.
-   **Built (2026-10-12)** on the branch `text-breaks` of omnet-julia (`7e12926b`),
+   **Built (2026-10-12)** on the branch `text-breaks` of omnet-julia (`abdda782`),
    to land together with this branch (the owner: "together").
    - NED: a module heading and a section label end with `"\n"`, a section puts
      its entries one on each line one level in, and the closing `"\n}"` starts a
@@ -624,7 +624,7 @@ change how every view of syntax makes its lines, so they land together.
      moves or goes.
    - The NED example of omnet-julia main did not build since main of projectured
      checks the declared type of each field: it gave the literals of a property
-     key as its name. Its fixture now calls `make_ned_property_key` (`a3ba55c8`).
+     key as its name. Its fixture now calls `make_ned_property_key` (`122d83c5`).
 9. **The documents**: `text.md`, `syntax.md` and the guides of the domains.
    ✅ **Done (2026-10-09).** `syntax.md`: a break is text, the rules of the lines
    of a compound and of a leaf, `indentation` as `nest`, N7, the edit of a break,
