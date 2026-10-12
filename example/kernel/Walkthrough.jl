@@ -14,6 +14,9 @@ always the value that the line gives.
 """
 function _print_walkthrough(io::IO, layer::Module, lines::AbstractVector{<:AbstractString})
     session = Module(:Walkthrough)
+    # The layer under its own name too, as a REPL binds it after `using`, so a line
+    # can add a method to a function of the layer.
+    Core.eval(session, :(const $(nameof(layer)) = $layer))
     Core.eval(session, :(const Layer = $layer))
     Core.eval(session, :(using .Layer))
     println(io, "# Type each line in a REPL after `using ", join(fullname(layer), "."), "`.")

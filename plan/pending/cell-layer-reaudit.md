@@ -156,6 +156,12 @@ L03-9 B.
   - [x] T-1 … T-13. Checked: `test_cell` 191, `test_untracked_cell` 48,
     `test_cell_fault_scope` 34, the walkthrough 2, the layering guard 10.
   - [x] G-1 … G-12, with the four states and a section on a cycle.
+  - [x] E-1. The walkthrough shows a new computation and a new value of a cell, the
+    other cell kinds, `run_untracked`, a cycle and a fault scope. A walkthrough
+    session now binds the layer under its own name too, as a REPL does after `using`,
+    so a line can add a method of `record_computation_fault!`. The line that adds it
+    ends in `nothing`, because the count of its methods depends on the packages that
+    are loaded. The three walkthrough tests pass.
 - [ ] 2. The decisions.
   - [x] Decision 1, the states of a cell. `valid::Bool` is `state::_CellState`, an
     `@enum` of `UInt8`, so a cell grows by nothing. It has five values: the four
