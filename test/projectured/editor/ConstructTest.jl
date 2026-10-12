@@ -231,7 +231,7 @@ end
 # JSON/YAML grow every collection with one uniform gesture (`,`, which appends an empty
 # placeholder later built in place). XML grows differently per collection and child kind:
 # a child element with `<` and a child text with `"` (the node created directly), an
-# attribute with `KeyDown(:space)`. The event is discovered by building a fresh empty
+# attribute with `KeyPress(' ')`. The event is discovered by building a fresh empty
 # container and trying each event its own gestures offer plus the child's create keystroke,
 # keeping the one that grows the right collection — preferring the event that lands the
 # target child's kind (XML) over one that lands a placeholder (JSON/YAML). Cached per
@@ -258,7 +258,7 @@ function _grow_event(projection, container, field, child)
     key = (cw, field, tw)
     haskey(_GROW_EVENT_CACHE, key) && return _GROW_EVENT_CACHE[key]
     # Candidate events: the child's create keystroke, then every fixed-key gesture the
-    # container offers (its `@gestures`, e.g. XML's `KeyDown(:space)` for an attribute).
+    # container offers (its `@gestures`, e.g. XML's `KeyPress(' ')` for an attribute).
     candidates = Any[]
     ck = _create_keystroke(projection, child)
     ck === nothing || push!(candidates, KeyPress(ck; time = 0.0))
@@ -581,7 +581,7 @@ Reconstruct every XML document from its empty seed by typing. XML stretches the 
 planner furthest: an `XmlElement` is a scalar `tag` beside *two* collections (attributes
 and children), an `XmlAttribute` is a two-scalar `name`/`value` record, and its collections
 are grown by *different, kind-specific* gestures — a child element with `<`, a child text
-with `"`, an attribute with `KeyDown(:space)` — rather than one uniform separator. All of
+with `"`, an attribute with `KeyPress(' ')` — rather than one uniform separator. All of
 this is discovered generically (create + grow keystrokes probed per kind). There is no
 empty-container gap here: an XML element is created empty and its children are appended one
 at a time, so an element with no children is the natural resting state.
