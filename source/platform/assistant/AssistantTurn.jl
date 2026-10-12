@@ -852,7 +852,7 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
                 control.is_cancelled && throw(TurnCancelledException())
             end)
     catch exception
-        is_passthrough_exception(exception) && rethrow()
+        is_fault_exception(exception) || rethrow()
         # A backend can wrap what a callback threw, so the flag tells a stop
         # from a failure.
         control.is_cancelled || rethrow()

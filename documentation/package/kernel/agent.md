@@ -526,8 +526,8 @@ parts; something else might simply print them.
 
 A round whose stream ends with no `LlmTurnEnd` and no `LlmFailure` ends the turn
 with `:error`, and its tool calls do not run. A tool that throws gives an
-`AgentToolResult` with `is_error = true`. An exception that
-`is_passthrough_exception` names goes through the loop, and `run_turn!` throws it.
+`AgentToolResult` with `is_error = true`. An exception that is not a fault
+(`is_fault_exception`) goes through the loop, and `run_turn!` throws it.
 
 `tools` are tools of this turn beside the `ToolSet` of the agent, such as a tool that
 asks the person of the caller, which no other client of the tool set, such as the MCP

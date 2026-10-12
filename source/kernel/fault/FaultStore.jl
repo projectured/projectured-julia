@@ -138,7 +138,7 @@ function _notify_fault_wake!(store::FaultStore)
     try
         wake()
     catch exception
-        is_passthrough_exception(exception) && rethrow()
+        is_fault_exception(exception) || rethrow()
     end
     nothing
 end
@@ -300,7 +300,7 @@ function _hand_fault_to_targets!(store::FaultStore, record::FaultRecord, policy)
         try
             append_fault!(target, record) === false || (is_shown = true)
         catch exception
-            is_passthrough_exception(exception) && rethrow()
+            is_fault_exception(exception) || rethrow()
             _log_fault_report_failure(policy, target, exception)
         end
     end

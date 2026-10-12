@@ -676,7 +676,7 @@ function _walk_pane_path(tree::PaneTree, path)
         node = try
             evaluate_reference_step(step, node)
         catch exception
-            is_passthrough_exception(exception) && rethrow()
+            is_fault_exception(exception) || rethrow()
             break
         end
         push!(steps, step)

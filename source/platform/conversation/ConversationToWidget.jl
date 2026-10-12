@@ -316,7 +316,7 @@ function _make_picture_body(image::ImageFile, height::Int)
     raw = try
         decode_image(filename)
     catch exception
-        is_passthrough_exception(exception) && rethrow()
+        is_fault_exception(exception) || rethrow()
         nothing
     end
     natural_width, natural_height = raw isa Tuple && length(raw) == 3 ?

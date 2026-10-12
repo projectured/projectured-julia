@@ -21,8 +21,8 @@ of `play_fault_sound!` writes the BEL character, so this layer names no backend.
 
 The module lives in seven fragments that share this namespace:
 
-- [`FaultInterface.jl`](FaultInterface.jl) — the open seams and the passthrough
-  predicate.
+- [`FaultInterface.jl`](FaultInterface.jl) — the open seams and the predicate
+  of a fault.
 - [`FaultDefaults.jl`](FaultDefaults.jl) — the answer each seam supplies itself.
 - [`FaultRecord.jl`](FaultRecord.jl) — one fault as a value.
 - [`FaultStore.jl`](FaultStore.jl) — the per-editor collection, outside the
@@ -36,7 +36,7 @@ The module lives in seven fragments that share this namespace:
 """
 module FaultModule
 
-export append_fault!, play_fault_sound!, get_fault_store, is_passthrough_exception
+export append_fault!, play_fault_sound!, get_fault_store, is_fault_exception
 export FaultRecord, make_fault_record
 export FaultStore, get_fault_records, attach_fault_target!, detach_fault_target!,
        attach_fault_wake!, record_fault!, drain_faults!, get_consecutive_fault_count,

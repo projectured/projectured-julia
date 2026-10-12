@@ -25,7 +25,7 @@ it.
 **This function never throws an ordinary exception.** It is the last thing that
 runs when everything else failed, and sometimes that includes the code that was
 meant to report. A test asserts it against a store that throws and a backend that
-throws, both at once. An exception that means stop (`is_passthrough_exception`)
+throws, both at once. An exception that is not a fault (`is_fault_exception`)
 goes on, because it is a request to stop the editor.
 
 A fault raised while a fault is reported does not recurse: the store carries a
@@ -49,7 +49,7 @@ function report_fault!(store, record; policy::FaultPolicy, backend, is_shown::Bo
         depth = try
             _enter_fault_report!(store)
         catch exception
-            is_passthrough_exception(exception) && rethrow()
+            is_fault_exception(exception) || rethrow()
             is_entered = false
             1
         end
@@ -68,14 +68,14 @@ function report_fault!(store, record; policy::FaultPolicy, backend, is_shown::Bo
                 try
                     _leave_fault_report!(store)
                 catch exception
-                    is_passthrough_exception(exception) && rethrow()
+                    is_fault_exception(exception) || rethrow()
                 end
             end
         end
     catch exception
         # Tier 5. Nothing left to try, and no ordinary exception may leave this
         # function. An exception that means stop goes on.
-        is_passthrough_exception(exception) && rethrow()
+        is_fault_exception(exception) || rethrow()
         return :swallowed
     end
 end
@@ -97,7 +97,7 @@ function _report_on_console(policy::FaultPolicy, record::FaultRecord)
                traceback = record.traceback)
         true
     catch exception
-        is_passthrough_exception(exception) && rethrow()
+        is_fault_exception(exception) || rethrow()
         false
     end
 end
@@ -108,7 +108,7 @@ function _report_by_sound(backend)
         play_fault_sound!(backend)
         true
     catch exception
-        is_passthrough_exception(exception) && rethrow()
+        is_fault_exception(exception) || rethrow()
         false
     end
 end
@@ -121,7 +121,7 @@ function _log_fault_report_failure(policy::FaultPolicy, target, exception)
         @error("[fault] a fault target refused a record",
                target = typeof(target), exception = exception)
     catch failure
-        is_passthrough_exception(failure) && rethrow()
+        is_fault_exception(failure) || rethrow()
     end
     nothing
 end

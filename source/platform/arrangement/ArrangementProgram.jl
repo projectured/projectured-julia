@@ -241,7 +241,7 @@ function _find_arranged_path(root, reference::Reference)
         node = try
             evaluate_reference_step(steps[i], node)
         catch exception
-            is_passthrough_exception(exception) && rethrow()
+            is_fault_exception(exception) || rethrow()
             append!(taken, steps[(i + 1):end])
             break
         end

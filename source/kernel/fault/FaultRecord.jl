@@ -79,7 +79,7 @@ function _format_fault_message(exception; maximum_length::Integer = 400)
     text = try
         sprint(showerror, exception)
     catch failure
-        is_passthrough_exception(failure) && rethrow()
+        is_fault_exception(failure) || rethrow()
         string(nameof(typeof(exception)))
     end
     text = replace(text, '\n' => ' ')
@@ -101,7 +101,7 @@ function _format_fault_traceback(exception, traceback; maximum_lines::Integer = 
     text = try
         sprint(showerror, exception, traceback)
     catch failure
-        is_passthrough_exception(failure) && rethrow()
+        is_fault_exception(failure) || rethrow()
         return ""
     end
     lines = split(text, '\n')

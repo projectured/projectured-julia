@@ -331,7 +331,7 @@ function make_editor(document::Document, projection; backend::Backend,
         try
             Base.invokelatest(quit_backend!, backend)
         catch exception
-            is_passthrough_exception(exception) && rethrow()
+            is_fault_exception(exception) || rethrow()
         end
         rethrow()
     end

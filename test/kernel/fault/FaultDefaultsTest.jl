@@ -21,11 +21,11 @@ function test_fault_defaults()
 @testset "fault defaults" begin
 
     @testset "the exceptions that mean stop pass through" begin
-        @test is_passthrough_exception(InterruptException())
-        @test is_passthrough_exception(StackOverflowError())
-        @test is_passthrough_exception(OutOfMemoryError())
-        @test !is_passthrough_exception(ErrorException("an ordinary fault"))
-        @test !is_passthrough_exception(BoundsError([1], 2))
+        @test !is_fault_exception(InterruptException())
+        @test !is_fault_exception(StackOverflowError())
+        @test !is_fault_exception(OutOfMemoryError())
+        @test is_fault_exception(ErrorException("an ordinary fault"))
+        @test is_fault_exception(BoundsError([1], 2))
     end
 
     @testset "a target of no known type keeps no store" begin

@@ -14,8 +14,8 @@ play_fault_sound!(backend) = (print(_get_fault_sound_stream(), _BELL); nothing)
 
 get_fault_store(target) = nothing
 
-is_passthrough_exception(exception) = false
+is_fault_exception(exception) = true
 
-is_passthrough_exception(::InterruptException) = true
-is_passthrough_exception(::StackOverflowError) = true
-is_passthrough_exception(::OutOfMemoryError) = true
+is_fault_exception(::InterruptException) = false
+is_fault_exception(::StackOverflowError) = false
+is_fault_exception(::OutOfMemoryError) = false

@@ -14,7 +14,7 @@ depend on the fault and not be a fixed fallback, catch in place and call
 
 What it does, in order:
 
-1. An exception that [`is_passthrough_exception`](@ref) names is re-raised at
+1. An exception that is not a fault ([`is_fault_exception`](@ref)) is re-raised at
    once. A request to quit must reach the loop that stops on it.
 2. The consecutive count for `counter` grows, so a circuit breaker above can
    read how long this has been going on. A run without a fault resets it.
@@ -54,7 +54,7 @@ function run_fault_barrier!(body, store; policy::FaultPolicy, backend, site::Sym
         reset_consecutive_fault_count!(store, counter)
         value
     catch exception
-        is_passthrough_exception(exception) && rethrow()
+        is_fault_exception(exception) || rethrow()
         traceback = catch_backtrace()
         _count_fault!(store, counter)
         record_fault!(store, site; origin, reference, exception, traceback)

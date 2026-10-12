@@ -277,7 +277,7 @@ function _steer_external_agent!(editor, a::Assistant, turn::ConversationTurn)
             Base.invokelatest(has_agent_steering, session.connection) &&
                 Base.invokelatest(steer_agent_prompt!, session.connection, session.session_id, prompt)
         catch exception
-            is_passthrough_exception(exception) && rethrow()
+            is_fault_exception(exception) || rethrow()
             false
         end
         is_taken && run_on_editor_task!(editor; wait = false) do
@@ -620,7 +620,7 @@ function _make_resource_document(text::AbstractString, mime_type, uri)
     try
         parse_natural_text(format, text)
     catch exception
-        is_passthrough_exception(exception) && rethrow()
+        is_fault_exception(exception) || rethrow()
         nothing
     end
 end

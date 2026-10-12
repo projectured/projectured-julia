@@ -246,6 +246,24 @@ confirmed B-1 by a test that failed before the fix.
   of its two `using …EventModule` lines is gone. The private docstring at
   `FaultRecord.jl:61` names `:Printer`.
 
+## The name of the predicate
+
+The owner, 2026-10-12: "is_passthrough_exception does not have fault in its name,
+better version?", and "agreed" to the lead's proposal.
+
+- [x] `is_passthrough_exception` is `is_fault_exception`, and its answer is turned
+  around: `true` for an ordinary exception, which a catch-all arm may take as a
+  fault, and `false` for an exception that means stop. The default is `true`; the
+  methods for `InterruptException`, `StackOverflowError`, `OutOfMemoryError` and
+  `QuitEditorException` answer `false`. A call site reads
+  `is_fault_exception(exception) || rethrow()`. 46 call sites had the one form
+  `is_passthrough_exception(e) && rethrow()`; the others changed one at a time.
+  The two private helpers `_is_walk_passthrough` and
+  `_is_passthrough_for_model_code` keep their names, because they ask whether an
+  exception goes on to the caller, which a `MethodError` of the walk does although
+  it is a fault. The law (PAR-REPORT-NEVER-THROWS) and the guides name the new
+  predicate. omnet-julia and inet-julia do not use it.
+
 ## Outside the layer
 
 - `editor/FaultBarriers.jl:8` says that `make_editor` turns the barriers on. It

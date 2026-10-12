@@ -17,7 +17,7 @@ The kernel's `FaultModule` holds the record, the store, the policy, the barrier 
 | `source/kernel/fault/FaultPolicy.jl` | `FaultPolicy`, `make_strict_fault_policy` |
 | `source/kernel/fault/FaultBarrier.jl` | `run_fault_barrier!`, the catch of the editor loop |
 | `source/kernel/fault/FaultCascade.jl` | `report_fault!` and its tiers |
-| `source/kernel/fault/FaultInterface.jl` | the seams: `append_fault!`, `play_fault_sound!`, `get_fault_store`, `is_passthrough_exception` |
+| `source/kernel/fault/FaultInterface.jl` | the seams: `append_fault!`, `play_fault_sound!`, `get_fault_store`, `is_fault_exception` |
 | `source/kernel/cell/CellFaultScope.jl` | `run_in_fault_scope`, `record_computation_fault!`, `RecordedFaultException`, `find_fault_scope` |
 | `source/kernel/projection/ProjectionInterface.jl` | the seams of a barrier: `show_barrier_mark!`, `retry_barrier_print!`, `get_content_iomap` |
 | `source/kernel/editor/FaultBarriers.jl` | the barriers of the editor, the drain that draws the marks, the retry after an operation, and `record_paint_fault!` for a renderer |
@@ -74,7 +74,7 @@ The editor reports a fault at the first tier that works. A tier that fails falls
 
 The drain of the store does tiers 2 to 5. It hands each new record to the targets of the store, and `report_fault!` writes on the console only a record that no target took. A fault of a device plays the sound also when a target took it, because a screen that draws nothing shows no log.
 
-`report_fault!` must never throw, because it runs when everything else already failed. `PAR-REPORT-NEVER-THROWS` holds the rule. `run_fault_barrier!` and `FaultCatchingProjection` let `InterruptException`, `StackOverflowError`, `OutOfMemoryError` and the request to quit through, by `is_passthrough_exception`.
+`report_fault!` must never throw, because it runs when everything else already failed. `PAR-REPORT-NEVER-THROWS` holds the rule. `run_fault_barrier!` and `FaultCatchingProjection` let `InterruptException`, `StackOverflowError`, `OutOfMemoryError` and the request to quit through: `is_fault_exception` answers `false` for each.
 
 ### How a fault in a printer reaches its barrier
 
@@ -147,7 +147,7 @@ fills them with `get_fault_style`, from a `FaultTheme` scaled or not, or the def
 
 ## How it fits
 
-The kernel layer `fault` is the lowest layer of the kernel and imports nothing. The cell layer uses it for `is_passthrough_exception`. The barrier is in the projection algebra and each mark in its own domain, so every slice that builds a recursion point names its barrier when it builds the pipeline. The fault slice depends on the kernel and on the collection, domain, focus, graphics, natural, projection, serialization, settings, style, syntax, text, tooltip and widget slices.
+The kernel layer `fault` is the lowest layer of the kernel and imports nothing. The cell layer uses it for `is_fault_exception`. The barrier is in the projection algebra and each mark in its own domain, so every slice that builds a recursion point names its barrier when it builds the pipeline. The fault slice depends on the kernel and on the collection, domain, focus, graphics, natural, projection, serialization, settings, style, syntax, text, tooltip and widget slices.
 
 The `fault_log` wrapper attaches the session's fault log when a window starts, and the shell slice's toolbar has a Fault log button that opens it only when the wrapper is on; see [shell.md](../shell/shell.md). The gallery wraps each window with `make_fault_tolerant_projection` unless `fault_tolerant = false`. A built binary takes `--strict-fault-policy`.
 

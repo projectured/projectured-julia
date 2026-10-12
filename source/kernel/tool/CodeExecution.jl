@@ -372,7 +372,7 @@ end
 # out, go on to the caller. It is the one catch of the kernel that answers an
 # exception that means stop (PAR-REPORT-NEVER-THROWS).
 _is_passthrough_for_model_code(exception) =
-    is_passthrough_exception(exception) &&
+    !is_fault_exception(exception) &&
     !(exception isa InterruptException || exception isa StackOverflowError)
 
 # Everything an evaluation does after the parse. `make_expression` runs inside
@@ -557,7 +557,7 @@ function _notify_evaluation(set::ToolSet)
         try
             observe(value)
         catch err
-            is_passthrough_exception(err) && rethrow()
+            is_fault_exception(err) || rethrow()
             @warn "an evaluation observer failed" reason =
                 first(split(sprint(showerror, err), "\n"))
         end

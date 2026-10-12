@@ -73,7 +73,7 @@ function _walk_picture_image(node, image)
         node = try
             _get_cell_value(evaluate_reference_step(get_reference_head(image), node))
         catch exception
-            is_passthrough_exception(exception) && rethrow()
+            is_fault_exception(exception) || rethrow()
             return (nothing, window)
         end
         node isa WindowDocument && (window = node)

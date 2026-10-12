@@ -70,7 +70,7 @@ false, which is what `make_strict_fault_policy()` gives a test editor, so a brok
 projection fails its test. A context with no policy is the same as the strict
 policy, for the same reason. The barrier still wraps the IoMap of its part then,
 so a test sees the IO maps that a running editor has. It never catches an
-exception that `is_passthrough_exception` names, such as an interrupt or a
+exception that is not a fault (`is_fault_exception`), such as an interrupt or a
 request to quit.
 
 See also `FaultReport`, `FaultLog` and the kernel's `FaultStore`.
@@ -153,7 +153,7 @@ end
 
 # Whether the barrier takes `exception` rather than let it go on.
 _is_fault_caught(policy::FaultPolicy, exception) =
-    policy.is_barrier_enabled && !is_passthrough_exception(exception)
+    policy.is_barrier_enabled && is_fault_exception(exception)
 
 _get_inner_iomap(barrier::FaultCatchingIoMap) = getfield(barrier, :inner_iomap)
 

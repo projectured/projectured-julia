@@ -108,7 +108,7 @@ function OperationModule.evaluate_operation(::Editor, operation::RunFunctionOper
         put!(answer, (true, operation.function_()))
     catch exception
         put!(answer, (false, exception))
-        is_passthrough_exception(exception) && rethrow()
+        is_fault_exception(exception) || rethrow()
     end
     nothing
 end
@@ -137,7 +137,7 @@ function _answer_waiting_calls!(editor::Editor)
         try
             evaluate_operation(editor, operation)
         catch exception
-            is_passthrough_exception(exception) && rethrow()
+            is_fault_exception(exception) || rethrow()
             record_fault!(editor.faults, :evaluate; origin = :RunFunctionOperation,
                           exception, traceback = catch_backtrace())
         end

@@ -81,8 +81,8 @@ true
 julia> overflow = last(get_fault_records(store)); (overflow.origin, overflow.count)
 (:FaultStore, 1)
 
-# An exception that means stop passes every barrier.
-julia> is_passthrough_exception(InterruptException()), is_passthrough_exception(ErrorException("x"))
+# An ordinary exception can be a fault. An exception that means stop is none, and passes every barrier.
+julia> is_fault_exception(ErrorException("x")), is_fault_exception(InterruptException())
 (true, false)
 
 # A strict policy catches nothing, so a test sees the exception.

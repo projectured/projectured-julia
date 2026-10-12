@@ -86,7 +86,7 @@ function _write_document_picture(document, filename::AbstractString)
     try
         write_image(document, projection, filename)
     catch exception
-        is_passthrough_exception(exception) && rethrow()
+        is_fault_exception(exception) || rethrow()
         @warn "The picture of a part could not be written." exception
         nothing
     end

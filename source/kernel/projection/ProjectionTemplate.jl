@@ -1580,7 +1580,7 @@ function _read_part_override_click(iomap, evt, claimed, path)
         node = try
             evaluate_reference_step(rest.head, node)
         catch exception
-            is_passthrough_exception(exception) && rethrow()
+            is_fault_exception(exception) || rethrow()
             break
         end
         push!(taken, rest.head)

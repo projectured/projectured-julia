@@ -52,7 +52,7 @@ whether* the path resolves — a gesture precondition deciding whether it has a 
 wants an answer, not an exception.
 
 Two exceptions still go to the caller, because neither says that the path does not
-resolve: an exception that means stop (`is_passthrough_exception`), and a
+resolve: an exception that is not a fault (`is_fault_exception`), and a
 `MethodError` of `evaluate_reference_step` itself, which comes from a step with no
 method — a fault of the program. Every method of that function takes a document of
 any type, so such an error names a missing step method. A `TypeReferenceStep` left
@@ -71,7 +71,7 @@ end
 # default for a path that does not resolve: an exception that means stop, or a step
 # with no method of `evaluate_reference_step`.
 _is_walk_passthrough(exception) =
-    is_passthrough_exception(exception) ||
+    !is_fault_exception(exception) ||
     (exception isa MethodError && exception.f === evaluate_reference_step)
 
 # A selection is `nothing` when there is none, and "no selection" resolves to no node —

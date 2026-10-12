@@ -57,8 +57,8 @@ element as `origin`. While an editor with its barriers on paints, the answer is
 `true`: the editor records the fault as a fault of a printer, unless it is a
 `RecordedFaultException`, which a fault barrier recorded already and whose mark
 the next frame draws. Outside a paint of an editor, under the strict policy and
-for an exception that `is_passthrough_exception` names, the answer is `false`,
-and the renderer throws the exception again.
+for an exception that is not a fault (`is_fault_exception`), the answer is
+`false`, and the renderer throws the exception again.
 
 # Example
 
@@ -72,7 +72,7 @@ function record_paint_fault!(exception; origin)
     editor = _PAINTING_EDITOR[]
     editor === nothing && return false
     editor.fault_policy.is_barrier_enabled || return false
-    is_passthrough_exception(exception) && return false
+    is_fault_exception(exception) || return false
     exception isa RecordedFaultException && return true
     record_fault!(editor.faults, :print; origin, exception, traceback = catch_backtrace())
     true
@@ -182,7 +182,7 @@ function _make_operation_inverse(editor::Editor, operation)
     try
         make_inverse_operation(editor.document, operation)
     catch exception
-        is_passthrough_exception(exception) && rethrow()
+        is_fault_exception(exception) || rethrow()
         record_fault!(editor.faults, :evaluate; origin = typeof(operation), exception,
                       traceback = catch_backtrace())
         nothing
@@ -198,7 +198,7 @@ function _repair_after_operation_fault!(editor::Editor, inverse)
         try
             evaluate_operation(editor, inverse)
         catch exception
-            is_passthrough_exception(exception) && rethrow()
+            is_fault_exception(exception) || rethrow()
             # The way back failed too. The document stands as it is, and the
             # two repairs below still run.
             record_fault!(editor.faults, :evaluate; origin = typeof(inverse), exception,
@@ -222,7 +222,7 @@ function _repair_selection!(editor::Editor)
         clear_selection!(editor.document)
         @warn "[fault] the selection did not survive a failed operation and was cleared"
     catch exception
-        is_passthrough_exception(exception) && rethrow()
+        is_fault_exception(exception) || rethrow()
         # A document that can not even be asked where its selection is has
         # nothing this repair can do for it.
         record_fault!(editor.faults, :evaluate; origin = :_repair_selection!, exception,

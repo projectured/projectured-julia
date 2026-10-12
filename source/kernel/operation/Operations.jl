@@ -81,14 +81,14 @@ splice_value!(owner, field::Symbol, value::Number, s::Int, e::Int,
     QuitEditorException()
 
 The exception that `evaluate_operation` throws for a `QuitEditorOperation`. It is
-a request to stop the editor, not a fault: `is_passthrough_exception` answers
-`true` for it, so no fault barrier catches it.
+a request to stop the editor, not a fault: `is_fault_exception` answers `false`
+for it, so no fault barrier catches it.
 """
 struct QuitEditorException <: Exception end
 
 # A request to quit is not a fault and no barrier may catch it: catching one
 # turns a clean stop into a loop that will not end.
-FaultModule.is_passthrough_exception(::QuitEditorException) = true
+FaultModule.is_fault_exception(::QuitEditorException) = false
 
 """
     CompoundOperation(operations)

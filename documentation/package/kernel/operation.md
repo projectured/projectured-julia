@@ -529,7 +529,7 @@ to the document.
 
 ### Downward edges
 
-- `..FaultModule` — `is_passthrough_exception`, which `QuitEditorException`
+- `..FaultModule` — `is_fault_exception`, which `QuitEditorException`
   extends so that no fault barrier catches a request to quit
 - `..CellModule: Cell, AbstractCell`
 - `..DocumentModule: Document, get_edited_field, get_document_title`

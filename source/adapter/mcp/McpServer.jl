@@ -261,7 +261,7 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool})
                         call_id === nothing || _keep_evaluated_document!(editor.tools, tool.name, call_id)
                         text
                     catch exception
-                        is_passthrough_exception(exception) && rethrow()
+                        is_fault_exception(exception) || rethrow()
                         fault[] = true
                         traceback = catch_backtrace()
                         record_fault!(editor.faults, :tool; origin = Symbol(tool.name),

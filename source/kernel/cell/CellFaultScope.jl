@@ -97,7 +97,7 @@ function (scoped::_FaultScopedComputation)()
     try
         return scoped.computation()
     catch exception
-        (exception isa RecordedFaultException || is_passthrough_exception(exception)) &&
+        (exception isa RecordedFaultException || !is_fault_exception(exception)) &&
             rethrow()
         exception isa MethodError && Base.tls_world_age() < Base.get_world_counter() &&
             rethrow()

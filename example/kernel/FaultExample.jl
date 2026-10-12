@@ -31,8 +31,8 @@ const _FAULT_WALKTHROUGH = [
     "# Now every record waits for the drain. A new fault answers nothing, and one overflow record counts it.",
     "record_fault!(store, :tool; origin = :Index, exception = ErrorException(\"lost\")) === nothing",
     "overflow = last(get_fault_records(store)); (overflow.origin, overflow.count)",
-    "# An exception that means stop passes every barrier.",
-    "is_passthrough_exception(InterruptException()), is_passthrough_exception(ErrorException(\"x\"))",
+    "# An ordinary exception can be a fault. An exception that means stop is none, and passes every barrier.",
+    "is_fault_exception(ErrorException(\"x\")), is_fault_exception(InterruptException())",
     "# A strict policy catches nothing, so a test sees the exception.",
     "try run_fault_barrier!(() -> error(\"no such node\"), store; policy = make_strict_fault_policy(), backend = nothing, site = :print) catch exception; exception end",
 ]

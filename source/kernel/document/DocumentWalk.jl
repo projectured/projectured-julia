@@ -112,7 +112,7 @@ exception on `object`, and its answer is the match of that object. The walk
 visits objects of every type, so a predicate that reads a field of one type
 throws on the others; the default counts that as no match. Pass
 `on_error = (object, exception) -> throw(exception)` to let the exception go to
-the caller. An exception that means stop (`is_passthrough_exception`) never
+the caller. An exception that is not a fault (`is_fault_exception`) never
 reaches `on_error`: it ends the walk.
 
 `obj` need not be a document: the walk descends structs, arrays, and dicts alike.
@@ -144,7 +144,7 @@ function (guarded::_GuardedPredicate)(object)
     try
         guarded.predicate(object)
     catch exception
-        is_passthrough_exception(exception) && rethrow()
+        is_fault_exception(exception) || rethrow()
         guarded.on_error(object, exception)
     end
 end

@@ -66,23 +66,24 @@ See also [`record_fault!`](@ref), which records a fault in the store.
 function get_fault_store end
 
 """
-    is_passthrough_exception(exception) -> Bool
+    is_fault_exception(exception) -> Bool
 
-Whether a catch-all arm must let `exception` through rather than catch it.
+Whether a catch-all arm may take `exception` as a fault, rather than let it
+through.
 
-Answer `true` for an exception that means the program is to stop or can not go
+Answer `false` for an exception that means the program is to stop or can not go
 on: a request to quit, an interrupt, a stack that ran out, a heap that ran out.
 Catching one of those turns a clean stop into a hang, or hides a state no
 barrier can repair.
 
-The default is `false`, except for an interrupt, a stack overflow and an
+The default is `true`, except for an interrupt, a stack overflow and an
 out-of-memory error. A layer above that owns a control-flow exception adds a
 method for it.
 
 # Example
 
-    is_passthrough_exception(exception) && rethrow()
+    is_fault_exception(exception) || rethrow()
 
 See also [`run_fault_barrier!`](@ref), one of the arms that ask it.
 """
-function is_passthrough_exception end
+function is_fault_exception end

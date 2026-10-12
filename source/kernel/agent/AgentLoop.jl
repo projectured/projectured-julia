@@ -36,9 +36,9 @@ of the editor, so no frame waits with it, and the value of the task is the text
 of the tool.
 
 A tool that throws gives an `AgentToolResult` with `is_error = true`, and the
-fault goes into the fault store of `target`. An exception that
-[`is_passthrough_exception`](@ref) names goes through: `run_turn!` throws it and
-sends no result.
+fault goes into the fault store of `target`. An exception that is not a fault
+([`is_fault_exception`](@ref)) goes through: `run_turn!` throws it and sends no
+result.
 
 Throws what `stream_turn`, `messages` and `on_event` throw.
 
@@ -101,7 +101,7 @@ function run_turn!(agent::Agent, target; messages, on_event, tools::AbstractVect
                     text isa LlmImage && (text = _PICTURE_RESULT_TEXT)
                     text isa Task ? (text, false) : (text, _is_error_output(text))
                 catch e
-                    is_passthrough_exception(e) && rethrow()
+                    is_fault_exception(e) || rethrow()
                     # A tool that throws is not a broken turn: the model gets the
                     # text of the error and can try something else. The fault is
                     # recorded as well, so a person reading the editor's log sees
@@ -113,7 +113,7 @@ function run_turn!(agent::Agent, target; messages, on_event, tools::AbstractVect
                     text = try
                         sprint(showerror, e, traceback)
                     catch exception
-                        is_passthrough_exception(exception) && rethrow()
+                        is_fault_exception(exception) || rethrow()
                         string(nameof(typeof(e)))
                     end
                     (text, true)
@@ -139,7 +139,7 @@ function _wait_for_tool_task(task::Task)
     catch exception
         exception isa TaskFailedException || rethrow()
         failure = exception.task.exception
-        is_passthrough_exception(failure) && throw(failure)
+        is_fault_exception(failure) || throw(failure)
         return (sprint(showerror, failure), true)
     end
     (text, _is_error_output(text))

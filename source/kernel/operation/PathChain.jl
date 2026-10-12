@@ -93,7 +93,7 @@ function _find_path_child(document, path)
     child = try
         unwrap_cell(evaluate_reference_step(get_reference_head(path), document))
     catch exception
-        is_passthrough_exception(exception) && rethrow()
+        is_fault_exception(exception) || rethrow()
         return nothing
     end
     child isa Document ? child : nothing
@@ -180,7 +180,7 @@ function _reaches_path_head(document, path)
         evaluate_reference_step(get_reference_head(path), document)
         true
     catch exception
-        is_passthrough_exception(exception) && rethrow()
+        is_fault_exception(exception) || rethrow()
         false
     end
 end
@@ -196,7 +196,7 @@ function _find_documents_above(root, path::Reference)
         node = try
             unwrap_cell(evaluate_reference_step(step, node))
         catch exception
-            is_passthrough_exception(exception) && rethrow()
+            is_fault_exception(exception) || rethrow()
             return found
         end
     end
