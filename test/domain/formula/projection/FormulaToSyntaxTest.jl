@@ -1,3 +1,31 @@
+# Every text run of a printed syntax tree, in the order of the tree.
+function _collect_text_runs!(runs, node)
+    node isa TextString && (push!(runs, node); return runs)
+    node isa Document || return runs
+    for name in fieldnames(typeof(node))
+        is_view_state_field(name) && continue
+        value = getfield(node, name)[]
+        if value isa CellVector
+            foreach(element -> _collect_text_runs!(runs, element), value)
+        else
+            _collect_text_runs!(runs, value)
+        end
+    end
+    runs
+end
+
+# The styles of the runs whose text is `text`, by color and weight: `:reference`
+# for the reference style, `:plain` for the identifier style of Julia, and
+# `:other` for any other, such as the name of a formula or a callee.
+function _identifier_colors(output, text)
+    rule = FormulaIdentifierToSyntaxLeaf()
+    is_style(run, style) = is_color_equal(run.font_color, style.color) &&
+                           run.font.weight == style.font.weight
+    style(run) = is_style(run, rule.reference) ? :reference :
+                 is_style(run, rule.style) ? :plain : :other
+    [style(run) for run in _collect_text_runs!(Any[], output) if run.content == text]
+end
+
 function test_formula_to_syntax()
 
 @testset "get_column_letter / cell_name boundaries" begin
@@ -13,6 +41,29 @@ function test_formula_to_syntax()
     @test get_cell_name(1, 1) == "A1"
     @test get_cell_name(2, 1) == "B1"
     @test get_cell_name(27, 3) == "AA3"
+end
+
+@testset "an identifier that refers to a formula draws in the reference style" begin
+    sheet = FormulaEnvironment([
+        FormulaFormula("A", parse_julia("42")),
+        FormulaFormula("x", parse_julia("1")),
+        FormulaFormula("S", parse_julia("sum(x -> x * A, 1:3)")),
+        FormulaFormula("E", parse_julia("A + Z")),
+        FormulaFormula("F", parse_julia("y -> y^2")),
+        FormulaFormula("G", parse_julia("F(3)")),
+    ])
+    output = print_document(RecursiveProjection(FormulaToSyntax()), sheet).output
+    # The name of the formula `A` is a name, and its two uses are references.
+    @test count(==(:reference), _identifier_colors(output, "A")) == 2
+    # The `x` of the lambda is local, though the sheet has a formula `x`.
+    @test !in(:reference, _identifier_colors(output, "x"))
+    @test !in(:reference, _identifier_colors(output, "Z"))
+    # A callee draws through the call rule of Julia, and keeps the callee style.
+    @test !in(:reference, _identifier_colors(output, "F"))
+    # A formula that the sheet gains makes its name a reference where it is used.
+    push!(getfield(sheet, :formulas)[], Cell(FormulaFormula("Z", parse_julia("1"))))
+    wire_result!(sheet.formulas[7], sheet)
+    @test count(==(:reference), _identifier_colors(output, "Z")) == 1
 end
 
 @testset "FormulaFormula view modes (code / result / both)" begin

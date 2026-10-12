@@ -44,6 +44,32 @@ print_document(p::FormulaInsertionToSyntaxLeaf, recursion, b::FormulaInsertion, 
     _make_forward_path_leaf(p, b,
         paths -> SyntaxLeaf(TextString("insert formula", p.style); paths...))
 
+# ── FormulaIdentifierToSyntaxLeaf ──────────────────────────────────────────────
+#
+# An identifier of the code of a formula: in the reference style when it refers to
+# a formula of the sheet, and in the identifier style of Julia otherwise. The
+# formula rule gives the code the set of its reference identifiers through the
+# printer context, `:formula_references`, so a local name that a formula of the
+# sheet also has stays plain. The print reads the set, so a change of it prints
+# the identifier again. A callee draws through the call rule of Julia, and keeps
+# the callee style.
+
+@projection UntrackedCell struct FormulaIdentifierToSyntaxLeaf
+    style::StyleText = JuliaModule.get_julia_style(nothing, :identifier_text)
+    reference::StyleText = get_formula_style(nothing, :reference_text)
+end
+
+function print_document(p::FormulaIdentifierToSyntaxLeaf, recursion, identifier::JuliaIdentifier,
+                        ctx)
+    references = get(ctx.properties, :formula_references, nothing)
+    style = references !== nothing && identifier in references[] ? p.reference : p.style
+    print_template_document(p, recursion, identifier, ctx,
+                            (p, v) -> SyntaxLeaf(TextString(() -> v.name, style)))
+end
+
+read_intent(p::FormulaIdentifierToSyntaxLeaf, recursion, change::Intent, iomap) =
+    read_template_intent(p, recursion, change, iomap)
+
 # ── FormulaFormulaToSyntaxNode ─────────────────────────────────────────────────
 #
 # Three layouts selected by the formula's `display_mode` cell:
@@ -64,7 +90,11 @@ print_document(p::FormulaInsertionToSyntaxLeaf, recursion, b::FormulaInsertion, 
 end
 
 function print_document(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaFormula, ctx)
-    code_ref = make_child_context(ctx, f, @reference_step code)
+    environment = get(ctx.properties, :formula_environment, nothing)
+    references = Cell(@computation environment === nothing ? Base.IdSet{Any}() :
+                                   _find_reference_identifiers(f, environment))
+    code_ref = with_property(make_child_context(ctx, f, @reference_step code),
+                             :formula_references, references)
     code_iomap = Cell(@computation print_child(recursion, f.code, code_ref))
 
     # The name leaf displays the formula name; renaming is a structural
@@ -158,8 +188,12 @@ end
 end
 
 function print_document(p::FormulaEnvironmentToSyntaxNode, recursion, e::FormulaEnvironment, ctx)
+    # Each formula reads the sheet from the printer context, to find which of its
+    # identifiers refer to a formula of it.
     child_iomaps = Cell(@computation([print_child(recursion, e.formulas[i],
-             make_child_context(ctx, e, (@reference_step formulas), (@reference_step [i])))
+             with_property(make_child_context(ctx, e, (@reference_step formulas),
+                                              (@reference_step [i])),
+                           :formula_environment, e))
          for i in 1:length(e.formulas)]))
 
     iomap_cell = Cell(nothing)
@@ -223,11 +257,17 @@ end
 # Julia nodes a formula's code is built from, through `JuliaToSyntax`.
 function FormulaToSyntax(; theme = nothing, julia_theme = nothing, syntax_theme = nothing)
     get_style(name) = get_formula_style(theme, name)
-    JuliaToSyntax(
+    julia = JuliaToSyntax(
         FormulaInsertion   => FormulaInsertionToSyntaxLeaf(; style = get_style(:insertion_text)),
         FormulaFormula     => FormulaFormulaToSyntaxNode(; name = get_style(:name_text),
                                                             op = get_style(:operator_text),
                                                             result = get_style(:result_text)),
         FormulaEnvironment => FormulaEnvironmentToSyntaxNode(; font = get_style(:plain_font));
         theme = julia_theme, syntax_theme)
+    # The identifier rule goes first, because the dispatch takes the first match and
+    # the Julia table holds a rule for every identifier.
+    identifier = FormulaIdentifierToSyntaxLeaf(;
+        style = JuliaModule.get_julia_style(julia_theme, :identifier_text),
+        reference = get_style(:reference_text))
+    TypeDispatchingProjection(JuliaIdentifier => identifier, julia.dispatch...)
 end

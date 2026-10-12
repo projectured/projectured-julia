@@ -222,11 +222,29 @@ formula named `pi` would make every other `pi` of the sheet mean it.
   name builds its `Expr` with `make_julia_expression` of the Julia domain, which takes every
   Julia node, the lambda too. That function puts a node that is not Julia into the `Expr` as the
   object itself, so it can run only on code with no `FormulaReference`.
-- [ ] **Step 4: the view of a reference.** The formula projection draws an identifier that
+- [ ] **Step 4: the view of a reference.** *The drawing is done (2026-10-12); the gesture waits.* The formula projection draws an identifier that
   resolves in the scope in the reference style, and a click on it selects its definition. The
   projection prints the environment and its formulas, so it gives the Julia projection the set of
   names of the scope through the printer context, and reads no other projection.
   *Open, two questions for the owner (found 2026-10-12, before the code of this step):*
+  - **Decided by the owner, 2026-10-12: option (c)** of the first question below. Only an
+    identifier that the table reaches takes the reference style, and a callee keeps the callee
+    style.
+  - *The drawing, done (2026-10-12).* `FormulaIdentifierToSyntaxLeaf` draws an identifier in
+    `reference_text` of `FormulaTheme` when the identifier refers to a formula of the sheet, and
+    in `identifier_text` of `JuliaTheme` otherwise. `FormulaToSyntax()` puts it in front of the
+    Julia table. The sheet rule gives each formula the sheet through the printer context
+    (`:formula_environment`); the formula rule computes the free identifiers of its code that
+    resolve (`_find_reference_identifiers`, held by identity) and gives them to its code
+    (`:formula_references`). The rule reads the set when it prints, so a formula that the sheet
+    gains turns its uses into references. The walk of Step 1 now collects the identifier nodes,
+    and `get_formula_names` gives their names. The rule holds two styles and no projection, and
+    prints through `print_template_document`, as the rules of the RST domain do.
+  - Facts: in the default palette the callee color and the reference color are the same blue;
+    the reference style is bold, the callee style is not. With and without the rule, the
+    navigation of the gallery sheet reaches the same 416 states. The count of states of
+    `test_example` moves from run to run, because the text of a function value holds the number
+    of its type, `#563`, and the caret places of that result follow its length.
   - **How the style reaches every identifier.** `JuliaToSyntax(entries...)` puts the entries of
     another domain after its own, and the dispatch takes the first match, so a formula rule for
     `JuliaIdentifier` must go in front of the table (the formula domain can build its table so).

@@ -34,7 +34,7 @@ When the code is a `MathDocument`, `convert_math_to_julia` reads it into Julia n
 
 ### Views
 
-`FormulaToSyntax()` takes the dispatch table of `JuliaToSyntax()` and adds the four formula rules. One recursion then prints a formula and the Julia nodes of its code. The rule for `FormulaFormula` has three layouts, one for each `display_mode`.
+`FormulaToSyntax()` takes the dispatch table of `JuliaToSyntax()` and adds the four formula rules. One recursion then prints a formula and the Julia nodes of its code. An identifier that refers to a formula of the sheet draws in the reference style of `FormulaTheme`. `FormulaToSyntax()` puts `FormulaIdentifierToSyntaxLeaf` in front of the Julia table, because the dispatch takes the first match. The sheet rule gives each formula the sheet through the printer context, `:formula_environment`, and the formula rule gives its code the free identifiers that resolve, `:formula_references`, held by identity. So a local `x` stays plain when the sheet also has a formula `x`. A callee draws through the call rule of Julia, and keeps the callee style. The rule for `FormulaFormula` has three layouts, one for each `display_mode`.
 
 The graphics rows draw a formula with math code as a `MathAssignment` of the math domain, followed by `= value`. A formula with Julia code is one line: `name = code = value`. These rows print only; they have no reader.
 
