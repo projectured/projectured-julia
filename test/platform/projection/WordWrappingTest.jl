@@ -189,7 +189,7 @@ proj = WordWrapping(max_width=80, measure=m)
 iomap = print_document(proj, input)
 @test [run.content for run in iomap.output.elements[1].elements] == [""]
 caret = TextModule.make_flat_caret_reference(0)
-@test map_reference_forward(proj, iomap, input.selection) == caret
+@test strip_reference_types(map_reference_forward(proj, iomap, input.selection)) == caret
 @test map_reference_backward(proj, iomap, caret) == caret
 
 end # @testset "WordWrapping keeps an empty span"

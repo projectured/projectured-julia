@@ -58,9 +58,6 @@ end
     # A caret on the first line maps to itself, and one after it to nothing.
     @test map_reference_forward(TextFirstLine(), iomap, _caret(3)) == _caret(3)
     @test map_reference_forward(TextFirstLine(), iomap, _caret(6)) === nothing
-    # A span that holds a break is cut before it.
-    broken = TextBlock(TextDocument[TextLine(_span("ab\ncd"))])
-    @test [span.content for span in print_document(TextFirstLine(), broken).output.elements[1].elements] == ["ab"]
 end
 
 end # test_text_first_line

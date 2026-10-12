@@ -758,6 +758,9 @@ U+FFFC for an inline image. An offset into the string is a flat offset.
 """
 get_flat_string(text::TextBlock) = String(_flat_chars(text))
 
+# The text of one line, its indentation included, with no break.
+get_flat_string(line::TextLine) = String(_push_flat_chars!(Char[], line))
+
 # The flat text selection `(start, stop)` — from a flat `TextRangeReferenceStep` head,
 # or a structural `.content{a:b}` caret canonicalised to its flat offsets — else
 # `nothing` (no caret, or a whole-element `∅` / `TextSpanReferenceStep`).

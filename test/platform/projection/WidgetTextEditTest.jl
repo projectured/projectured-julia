@@ -263,7 +263,7 @@ end
     set_selection!(doc, _plain_cursor(3))
     iomap = print_document(_proj(), nothing, doc, PrinterContext())
     broken = read_intent(_proj(), iomap, KeyDown(:return, ModifierKeys(); time = 0.0))
-    @test broken isa ReplaceTextRangeOperation
+    @test broken isa ReplaceStringRangeOperation
     @test broken.replacement == "\n"
     evaluate_operation(_WidgetTextMockEditor(doc), broken)
     @test doc.content == "one\n two"

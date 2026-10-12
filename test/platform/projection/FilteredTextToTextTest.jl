@@ -70,8 +70,10 @@ end # @testset
         @test strip_reference_types(map_reference_backward(stage, iomap, fwd)) ==
               strip_reference_types(_text(fin(in_line, char)))
     end
-    # A cursor on the filtered-out middle line has no image in the output.
-    @test map_reference_forward(stage, iomap, _text(fin(2, 2))) === nothing
+    # A cursor on the filtered-out middle line goes to the start of the next kept
+    # line, as a caret in no run of the flat offsets does.
+    @test strip_reference_types(map_reference_forward(stage, iomap, _text(fin(2, 2)))) ==
+          strip_reference_types(fout(2, 0))
 end # @testset
 
 @testset "FilteredTextToText maps a whole-element box past a dropped line" begin
