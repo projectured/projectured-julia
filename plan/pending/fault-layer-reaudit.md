@@ -196,6 +196,16 @@ The decisions are C for L01-1, A for L01-2, A for L01-12, and A for A-4.
     `test_editor_fault_barriers`. T-2 came with it.
 - [ ] 4. The fault tests, the cell example test, and the guards. Then the audit of
   the changed files again, and the seal on the owner's word.
+  - [x] The tests and the guards pass on the branch rebased on main 42e600339:
+    the fault suites 9, 13, 67, 24 and 28, the two walkthroughs, the editor
+    fault barriers 32, the kernel layering guard 10, the platform fault suite
+    115. The whole kernel suite passed before the second audit: 4334, with its 2
+    known broken marks.
+  - [x] The second audit (below).
+  - [x] The owner, 2026-10-12: "not yet, just land". The fixes are on main; the
+    eight fault files stay ⬜.
+  - [ ] The seal, when the owner says so. Its commit names the accepted gaps: the
+    seven keywords of `run_fault_barrier!` (2026-09-24) and B-6.
 
 ## The second audit
 
