@@ -1328,7 +1328,7 @@ from the command line of the projectured UI.
 
 ### Phase 3: the agent sees what projectured sees
 
-- [ ] 3.1 A view as an image in the prompt (important, the owner 2026-10-12).
+- [x] 3.1 A view as an image in the prompt (important, the owner 2026-10-12).
 
   **Facts (2026-10-12).**
   - `write_image(canvas, filename; width, height, supersample, density)` of the
@@ -1414,7 +1414,8 @@ from the command line of the projectured UI.
   - [x] 3.1c `ClaudeCodeACP` 0.1.7 on the branch `image` of its worktree
     `claude-code-acp-image`: `image = true`, and an `ImageContent` of the type
     png, jpeg, gif or webp becomes an image block of the user message; another
-    type is `INVALID_PARAMS`. Not released. A live check (2026-10-12) with the
+    type is `INVALID_PARAMS`. Released 2026-10-12: ClaudeCodeACP main 24345f1
+    (CI green), ProjecturedRegistry 85999ea, `environment/all` on 0.1.7. A live check (2026-10-12) with the
     real `claude` and the agent of the worktree in the same process: initialize
     says `image = true`, and a prompt with a text and the picture of a part of a
     conversation gets the first line of the picture back, word for word.
