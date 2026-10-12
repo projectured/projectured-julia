@@ -1,8 +1,8 @@
 # The frame measurement store — the ring of recent frames. The properties under
 # test: a summary matches a reference computation, the ring keeps exactly the
 # last frames, a frame that did not measure a name holds no value for it, the
-# unit comes from the group that gave the name, and the CSV text is what a
-# spreadsheet reads.
+# unit comes from the group that gave the name, a wrong call leaves the store as it
+# was, and the CSV text is what a spreadsheet reads.
 
 using Test
 using ProjecturedKernel.PerformanceModule
@@ -50,11 +50,28 @@ function test_frame_measurements()
         @test compute_frame_measurement_summary(store, :reads).unit === :count
         columns = collect_recent_frame_measurements(store).columns
         @test [column.unit for column in columns] == [:second, :count]
+        @test [column.name for column in columns] == [:frame_time, :reads]
         # A name in the other group would mix two units in one column, and the
         # wrong call leaves the store as it was.
         @test_throws ArgumentError record_frame_measurements!(store;
                                                               counts = [:frame_time => 3])
         @test get_frame_count(store) == 1
+        @test_throws ArgumentError record_frame_measurements!(store;
+                                                              times = [:reads => 0.5])
+        @test get_frame_count(store) == 1
+    end
+
+    @testset "a name that is not a Symbol or a value that is not a number changes nothing" begin
+        store = FrameMeasurementStore(capacity = 2)
+        record_frame_measurements!(store; counts = [:reads => 5], end_time = 1.0)
+        end_times = copy(store.end_times)
+        columns = Dict(name => copy(column) for (name, column) in store.columns)
+        @test_throws ArgumentError record_frame_measurements!(store; counts = ["reads" => 3])
+        @test_throws ArgumentError record_frame_measurements!(store; times = [:x => "slow"])
+        @test get_frame_count(store) == 1
+        @test get_frame_measurement_names(store) == [:reads]
+        @test isequal(store.end_times, end_times)
+        @test isequal(store.columns, columns)
     end
 
     @testset "a name in both groups of one call leaves the store as it was" begin
@@ -102,8 +119,7 @@ function test_frame_measurements()
         record_frame_measurements!(store; counts = [:a => 2])
         record_frame_measurements!(store; counts = [:a => 3])
         summary = compute_frame_measurement_summary(store, :b)
-        @test summary.count == 0
-        @test isnan(summary.mean)
+        @test isequal(summary, FrameMeasurementSummary(:count, 0, NaN, NaN, NaN, 0.0, 0.0))
     end
 
     @testset "the frames are written as CSV, times in milliseconds" begin
@@ -117,12 +133,45 @@ function test_frame_measurements()
         io = IOBuffer()
         @test write_frame_measurements!(io, store) == 3
         # A time is rounded to a microsecond.
-        @test String(take!(io)) == """
+        text = String(take!(io))
+        @test text == """
             frame,end_time_s,frame_time_ms,reads
             1,0,10,5
             2,0.5,20,
             3,0.516,12.346,7
             """
+        mktempdir() do directory
+            path = joinpath(directory, "frames.csv")
+            @test write_frame_measurements!(path, store) == 3
+            @test read(path, String) == text
+        end
+    end
+
+    @testset "the CSV of an empty store, and of a ring that wrapped" begin
+        io = IOBuffer()
+        @test write_frame_measurements!(io, FrameMeasurementStore()) == 0
+        @test String(take!(io)) == "frame,end_time_s\n"
+        store = FrameMeasurementStore(capacity = 2)
+        for (value, end_time) in ((1, 10.0), (2, 10.5), (3, 11.25))
+            record_frame_measurements!(store; counts = [:x => value], end_time)
+        end
+        @test write_frame_measurements!(io, store) == 2
+        @test String(take!(io)) == "frame,end_time_s,x\n2,0,2\n3,0.75,3\n"
+    end
+
+    @testset "the answers of the store" begin
+        @test FrameMeasurementStore().capacity == 1000
+        @test_throws ArgumentError FrameMeasurementStore(capacity = 0)
+        store = FrameMeasurementStore(capacity = 3)
+        @test record_frame_measurements!(store; counts = [:x => 1]) === store
+        @test abs(only(collect_recent_frame_measurements(store).end_times) - time()) < 1.0
+        push!(get_frame_measurement_names(store), :other)
+        @test get_frame_measurement_names(store) == [:x]
+        recent = collect_recent_frame_measurements(store)
+        recent.columns[1].values[1] = 99.0
+        @test compute_frame_measurement_summary(store, :x).total == 1.0
+        empty = collect_recent_frame_measurements(FrameMeasurementStore())
+        @test isempty(empty.frames) && isempty(empty.end_times) && isempty(empty.columns)
     end
 end
 end

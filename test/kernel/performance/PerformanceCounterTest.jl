@@ -35,6 +35,32 @@ function test_performance_counter()
         @test isempty(after.counts) && isempty(after.times)
     end
 
+    @testset "the macros count and time only when the switch compiled them in" begin
+        store = PerformanceModule._make_performance_counter_store()
+        value = Base.ScopedValues.with(PerformanceModule._counters => store) do
+            @count_performance :layout_passes
+            @count_performance :layout_passes
+            @measure_performance_time :probe_time (1 + 2)
+        end
+        @test value == 3
+        @test get(store.counts, :layout_passes, 0) == (PERFORMANCE_COUNTERS_ENABLED ? 2 : 0)
+        @test haskey(store.times, :probe_time) == PERFORMANCE_COUNTERS_ENABLED
+    end
+
+    @testset "a scope answers the value of its body" begin
+        @test run_with_performance_counters(() -> 42) == 42
+    end
+
+    @testset "the counters of a scope are copies, with four seeded counts" begin
+        store = PerformanceModule._make_performance_counter_store()
+        Base.ScopedValues.with(PerformanceModule._counters => store) do
+            counters = get_performance_counters()
+            @test Set(keys(counters.counts)) == Set([:reads, :computes, :invalidations, :writes])
+            counters.counts[:reads] = 99
+            @test get_performance_counters().counts[:reads] == 0
+        end
+    end
+
     if !PERFORMANCE_COUNTERS_ENABLED
         # Counting is compiled out: the machinery is inert but still transparent.
         # `run_with_performance_counters` runs the body and returns its value, and

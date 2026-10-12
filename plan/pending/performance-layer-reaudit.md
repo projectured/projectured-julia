@@ -120,8 +120,12 @@ and L02-8 stay fixed; L02-4 is A-2; L02-7 is A-5; L02-1 is open.
   A-3: the docstring of `get_performance_counters` and the law name the counter store
   as the second store that a computation writes. The examples use `work()`,
   `parse(Int, text)` and a variable `store` in place of the editor.
-- [ ] 2. The tests T-1 … T-13, except T-6, and the walkthrough `print_performance_example`
-  (E-1).
+- [x] 2. The tests T-1 … T-13, except T-6, and the walkthrough `print_performance_example`
+  (E-1). T-6, the counted branch, now runs in a build with the preference on; no
+  default job sets it. The walkthrough test puts the value of
+  `PERFORMANCE_COUNTERS_ENABLED` in the one line that shows it, so it passes in both
+  builds. Checked in both: the default build (15, 55, 2, 3) and a copy of
+  `environment/all` with the preference on (23, 55, 2, 5).
 - [ ] 3. The guide `documentation/package/kernel/performance.md` (G-1 … G-3), with its
   guide check by an independent auditor.
 - [ ] 4. L02-1 as decided.
