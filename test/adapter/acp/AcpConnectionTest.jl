@@ -440,6 +440,33 @@ function test_acp_connection()
             stop_agent_connection!(connection)
         end
 
+        @testset "an agent that says so takes a prompt into the turn that runs" begin
+            steered = Any[]
+            agent = _make_fake_agent(Dict{String,Function}(
+                "initialize" => (agent, params) -> merge(FAKE_INITIALIZE_RESULT,
+                    Dict("_meta" => Dict("steering" => Dict("supported" => true)))),
+                "_session/steering" => function (agent, params)
+                    push!(steered, params)
+                    Dict("outcome" => length(steered) == 1 ? "injected" : "failed")
+                end))
+            connection = make_fake_connection(agent)
+            @test has_agent_steering(connection)
+            @test steer_agent_prompt!(connection, "session-1", [LlmText("Also this")])
+            @test steered[1]["sessionId"] == "session-1"
+            @test steered[1]["prompt"] == Any[Dict{String,Any}("type" => "text", "text" => "Also this")]
+            # An outcome that is not a delivery is a prompt that the agent did not take.
+            @test !steer_agent_prompt!(connection, "session-1", [LlmText("Again")])
+            stop_agent_connection!(connection)
+            @test !has_agent_steering(connection)
+            # An agent that does not say so gets no request.
+            plain = _make_fake_agent()
+            connection = make_fake_connection(plain)
+            @test !has_agent_steering(connection)
+            @test !steer_agent_prompt!(connection, "session-1", [LlmText("x")])
+            @test isempty(get_received(plain, "_session/steering"))
+            stop_agent_connection!(connection)
+        end
+
         @testset "the agent withdraws a request that waits" begin
             outcome = Ref{Any}(nothing)
             requests = AgentPermissionRequest[]

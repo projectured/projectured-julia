@@ -44,6 +44,7 @@ mutable struct AcpConnection
     agent_info::Union{Nothing,ACP.Implementation}
     agent_capabilities::ACP.AgentCapabilities
     auth_methods::Vector{ACP.AuthMethod}
+    has_steering::Bool
     turns::Dict{String,AcpTurn}
     session_options::Dict{String,Vector{AgentOption}}
     waiting_session_events::Dict{String,Dict{DataType,Any}}
@@ -57,7 +58,7 @@ make_agent_connection(::Val{:acp}; command::AbstractVector{<:AbstractString} = S
                       streams::Union{Nothing,Tuple{IO,IO}} = nothing) =
     AcpConnection(String.(command), Dict{String,String}(environment), String(directory),
                   _read_session_meta(session_meta), streams, nothing,
-                  nothing, ACP.AgentCapabilities(), ACP.AuthMethod[],
+                  nothing, ACP.AgentCapabilities(), ACP.AuthMethod[], false,
                   Dict{String,AcpTurn}(), Dict{String,Vector{AgentOption}}(),
                   Dict{String,Dict{DataType,Any}}(), ReentrantLock())
 
@@ -118,7 +119,16 @@ function start_agent_connection!(connection::AcpConnection)
     connection.agent_info = _read_or_default(() -> result.agent_info, nothing)
     connection.agent_capabilities = _read_or_default(() -> result.agent_capabilities, ACP.AgentCapabilities())
     connection.auth_methods = _read_or_default(() -> result.auth_methods, ACP.AuthMethod[])
+    connection.has_steering = _has_steering_meta(get(ACP.get_json(result), "_meta", nothing))
     connection
+end
+
+# Whether the answer to `initialize` says, in `_meta.steering.supported`, that the
+# agent answers the extension method `_session/steering`.
+function _has_steering_meta(meta)
+    meta isa AbstractDict || return false
+    steering = get(meta, "steering", nothing)
+    steering isa AbstractDict && get(steering, "supported", false) === true
 end
 
 function _read_or_default(read::Function, default)
@@ -380,6 +390,26 @@ function stop_agent_connection!(connection::AcpConnection)
     connection.transport = nothing
     transport === nothing || ACP.close_connection!(transport)
     nothing
+end
+
+has_agent_steering(connection::AcpConnection) = connection.transport !== nothing && connection.has_steering
+
+# The extension method `_session/steering` sends the prompt into the turn that
+# runs; its params have the shape of a `session/prompt`, so a `PromptRequest`
+# writes them, with the type of each block. The outcome `injected` says that the
+# turn took it, and `startedNewTurn` that the turn had ended and the agent began a
+# new one; any other outcome, and an error, is a prompt that the agent did not take.
+function steer_agent_prompt!(connection::AcpConnection, session_id::AbstractString, prompt::AbstractVector)
+    has_agent_steering(connection) || return false
+    params = ACP.get_json(ACP.PromptRequest(session_id = String(session_id),
+        prompt = ACP.ContentBlock[_make_prompt_content(content) for content in prompt]))
+    result = try
+        ACP.send_request!(_get_started_transport(connection), "_session/steering", params; timeout = 60)
+    catch exception
+        exception isa ACP.ProtocolException || rethrow()
+        return false
+    end
+    result isa AbstractDict && get(result, "outcome", nothing) in ("injected", "startedNewTurn")
 end
 
 function has_agent_sign_out(connection::AcpConnection)
