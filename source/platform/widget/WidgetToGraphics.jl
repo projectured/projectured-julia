@@ -1955,10 +1955,13 @@ _map_text_point(point::PointReferenceStep) =
 read_intent(::WidgetTextToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
 
 # Delegate every event to the recursed content (Text domain), then re-root the
-# returned path-bearing operation through `map_reference_backward`.
+# returned path-bearing operation through `map_reference_backward`. A field is
+# one line: Return breaks no line in it, and goes on to the bindings around the
+# field, such as the find of a bar.
 function read_intent(p::WidgetTextToGraphicsCanvas, iomap::WidgetTextToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     iomap.input.enabled === false && return nothing   # a disabled text widget accepts no edits
+    _is_plain_key(evt, :return) && return nothing
     operation = _validate_text_edit(iomap.input,
         _read_text_content_intent(p, iomap, evt, _content_offset(p, iomap.input)...))
     child = iomap.value_iomap

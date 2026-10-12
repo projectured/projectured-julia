@@ -233,6 +233,11 @@ end
     moved = read_intent(_proj(), iomap, KeyDown(:left, ModifierKeys(); time = 0.0))
     @test moved isa ReplaceSelectionOperation && moved.path == _plain_cursor(2)
 
+    # A field is one line: Return breaks no line, and goes on to the bindings
+    # around the field.
+    @test read_intent(_proj(), iomap, KeyDown(:return, ModifierKeys(); time = 0.0)) === nothing
+    @test doc.content == "edit me"
+
     # A validator sees the edit of a plain string as it sees any other.
     digits = WidgetText("12"; validator = make_numeric_validator())
     set_selection!(digits, _plain_cursor(2))
