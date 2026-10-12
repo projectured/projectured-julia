@@ -1418,7 +1418,9 @@ function _map_child_forward(iomap, reference)
         for child in children
             child === nothing && continue
             unwrap_cell(get_iomap_input(child)) === node || continue
-            inner = map_reference_forward(get_iomap_projection(child), child, rest)
+            # The child reads its part with the types of its own nodes, so the
+            # rest is typed again against its input.
+            inner = map_reference_forward(get_iomap_projection(child), child, annotate_reference_types(node, rest))
             inner === nothing && return nothing
             outer = find_node_reference(get_iomap_output(iomap), unwrap_cell(get_iomap_output(child));
                                         depth = 6)
@@ -8658,6 +8660,7 @@ const LUCIDE_ICON_GLYPHS = (
     :chart          => 0xe2a3,  # chart-column
     :chart_line     => 0xe2a5,  # chart-line
     :crosshair      => 0xe0ac,  # crosshair
+    :camera         => 0xe064,  # camera
     # Kinds of file
     :lambda         => 0xe780,  # lambda
     :braces         => 0xe36a,  # braces
