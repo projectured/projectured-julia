@@ -573,10 +573,9 @@ end
 
 # ── Span coordinates ──────────────────────────────────────────────────────
 #
-# A span's coordinate within a block is an *index path*, not a single index:
-# `[i]` is the i-th element of the block, `[i, j]` the j-th span of the
-# `TextLine` at element i. The cursor, word-motion and editing helpers all walk
-# these, so a block of lines and a flat block of spans are the same code — as does
+# A span's coordinate within a block is the path `[i, j]`: the j-th span of the
+# `TextLine` at element i. A block holds only lines, so every span is in a line.
+# The cursor, word-motion and editing helpers all walk these, as does
 # `TextToGraphics`, which keys its coordinate table (`SegmentCoordinate.span_path`) by them.
 const SpanPath = Vector{Int}
 
@@ -657,12 +656,10 @@ function _splice_beside_image!(text::TextBlock, s::Int, e::Int, replacement::Abs
 end
 
 # The element list that holds the span at `path`.
-_get_container(text::TextBlock, path::SpanPath) =
-    length(path) == 1 ? text.elements : text.elements[path[1]].elements
+_get_container(text::TextBlock, path::SpanPath) = text.elements[path[1]].elements
 
 # The span document at `path` (the caller has already established it is one).
-_span_at(text::TextBlock, path::SpanPath) =
-    length(path) == 1 ? text.elements[path[1]] : text.elements[path[1]].elements[path[2]]
+_span_at(text::TextBlock, path::SpanPath) = text.elements[path[1]].elements[path[2]]
 
 # ── read_gesture via reified @gestures: geometry-free text editing ───────
 #
@@ -914,16 +911,13 @@ function _text_span_infos(text::TextBlock)
     infos
 end
 
-# The path of every inline image, in document order, at either depth.
+# The path of every inline image, in document order.
 function _collect_image_paths(text::TextBlock)
     paths = SpanPath[]
-    for (i, el) in enumerate(text.elements)
-        if el isa TextGraphics
-            push!(paths, Int[i])
-        elseif el isa TextLine
-            for (j, span) in enumerate(el.elements)
-                span isa TextGraphics && push!(paths, Int[i, j])
-            end
+    for (i, line) in enumerate(text.elements)
+        line isa TextLine || continue
+        for (j, span) in enumerate(line.elements)
+            span isa TextGraphics && push!(paths, Int[i, j])
         end
     end
     paths
@@ -1045,14 +1039,11 @@ end
 
 # The span at `path`'s content when it is a TextString; nothing otherwise.
 function _span_content(text::TextBlock, path::SpanPath)
+    length(path) == 2 || return nothing
     elements = text.elements
     i = path[1]
     (i < 1 || i > length(elements)) && return nothing
     el = elements[i]
-    if length(path) == 1
-        el isa TextString || return nothing
-        return el.content::AbstractString
-    end
     el isa TextLine || return nothing
     spans = el.elements
     j = path[2]
@@ -1063,8 +1054,7 @@ function _span_content(text::TextBlock, path::SpanPath)
 end
 
 # Parse `text.selection[]` into (path, char_start, char_stop) when it matches
-# `.elements[i].content[s:e]` or the in-line `.elements[i].elements[j].content[s:e]`,
-# else return nothing. Selections are canonical at rest; the node types are
+# `.elements[i].elements[j].content[s:e]`, else return nothing. Selections are canonical at rest; the node types are
 # stripped (this parser extracts only integer span/char offsets) before the raw
 # structural walk.
 _text_selection_range(text::TextBlock) = _text_selection_range(text, text.selection)
@@ -1081,18 +1071,15 @@ function _parse_selection_range(sel)
     t1 isa ConcreteReference || return nothing
     h2 = t1.head
     h2 isa RangeReferenceStep || return nothing
-    path = Int[h2.start + 1]
     rest = t1.tail
+    # The hop into the line: `.elements[j]` again before `.content`.
+    (rest isa ConcreteReference && rest.head isa FieldReferenceStep &&
+     rest.head.name == "elements") || return nothing
+    inner = rest.tail
+    (inner isa ConcreteReference && inner.head isa RangeReferenceStep) || return nothing
+    path = Int[h2.start + 1, inner.head.start + 1]
+    rest = inner.tail
     rest isa ConcreteReference || return nothing
-    # One optional hop into a TextLine: `.elements[j]` again before `.content`.
-    if rest.head isa FieldReferenceStep && rest.head.name == "elements"
-        inner = rest.tail
-        inner isa ConcreteReference || return nothing
-        inner.head isa RangeReferenceStep || return nothing
-        push!(path, inner.head.start + 1)
-        rest = inner.tail
-        rest isa ConcreteReference || return nothing
-    end
     (rest.head isa FieldReferenceStep && rest.head.name == "content") || return nothing
     t3 = rest.tail
     t3 isa ConcreteReference || return nothing
@@ -1318,11 +1305,11 @@ end
 # The flat offset the span at `path` starts at, or nothing when the path does not
 # land on a span.
 function get_flat_base(text::TextBlock, path::SpanPath)
+    length(path) == 2 || return nothing
     offsets = get_flat_offsets(text)
     i = path[1]
     (1 <= i <= length(offsets)) || return nothing
     base = offsets[i]
-    length(path) == 1 && return base
     line = text.elements[i]
     line isa TextLine || return nothing
     spans = line.elements
@@ -1630,9 +1617,9 @@ function _lower_text_range(block::TextBlock, op::ReplaceTextRangeOperation)
         a = something(_flat_span_range_start(block, s), _flat_to_span_nearest(block, s), Some(nothing))
         b = something(_flat_span_range_end(block, e),   _flat_to_span_nearest(block, e), Some(nothing))
     end
-    # `a[1]` / `b[1]` are now full span paths (`[i]` or `[i, j]`); a range that stays
-    # within one span has equal paths. `_text_replace_path` builds the nested
-    # `.elements[i](.elements[j]).content[s:e]` reference for either depth.
+    # `a[1]` / `b[1]` are now span paths `[i, j]`; a range that stays within one
+    # span has equal paths. `_text_replace_path` builds the nested
+    # `.elements[i].elements[j].content[s:e]` reference.
     (a === nothing || b === nothing || a[1] != b[1]) && return nothing   # cross-span: v1 decline
     # A non-empty flat range that collapses to an empty span range fell entirely in a
     # break / spacing / indentation gap — there is no editable content to remove (e.g.

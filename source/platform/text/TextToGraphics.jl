@@ -1122,8 +1122,8 @@ function _get_image_caret_font(group, index::Int, block_font::Cell)
     something(block_font[], UNSTYLED_TEXT_FONT)
 end
 
-# At least one span to put a caret beside, at either depth: a `TextString`, or an
-# inline image, which has a caret before and after it.
+# At least one span of a line to put a caret beside: a `TextString`, or an inline
+# image, which has a caret before and after it.
 _has_caret_span(styled::TextBlock) = any(line -> any(_is_caret_span, line.elements), styled.elements)
 _is_caret_span(span) = span isa Union{TextString, TextGraphics}
 
