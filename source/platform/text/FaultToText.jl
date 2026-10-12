@@ -19,5 +19,5 @@ end
 function print_document(p::FaultToText, recursion, report::FaultReport,
                         ctx::PrinterContext)
     SimpleIoMap(p, report,
-                TextBlock(() -> Any[TextString(format_fault_label(report), p.style)]))
+                TextBlock(() -> Any[TextLine(TextString(format_fault_label(report), p.style))]))
 end

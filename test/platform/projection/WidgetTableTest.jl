@@ -494,7 +494,7 @@ function test_widget_table_cell_editing()
     make_cells() = Any[WidgetText("abc"; width = 80),
                        TextBlock(TextString("prose", StyleFont("Ubuntu", 20), color_default))]
     get_text(cell::WidgetText) = cell.content
-    get_text(cell::TextBlock) = cell.elements[1].content
+    get_text(cell::TextBlock) = get_flat_string(cell)
     get_cell(table, c) = table.cells isa ListNode ? table.cells.value[c] : table.cells[1][c]
     # Every text the table drew, through the viewports of its cells, and through
     # the rows a list table built, from its head on.

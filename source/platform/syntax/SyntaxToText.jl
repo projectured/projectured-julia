@@ -1147,7 +1147,7 @@ function _make_node_fold(p::SyntaxCompoundToText, node::SyntaxCompound, spans::C
     size = _deco_font(node, unwrap_cell(p.decoration_font)).size
     ellipsis = TextString(_ELLIPSIS, with_font_size(style.font, size), style.color)
     line_count = Cell(@computation length(spans[].elements) - 1)
-    placeholder = Cell(@computation TextBlock(TextDocument[ellipsis, _find_closing_spans(node, spans[])...]))
+    placeholder = Cell(@computation CellVector{TextDocument}(TextDocument[ellipsis, _find_closing_spans(node, spans[])...]))
     TextFold(line_count, getfield(node, :collapsed), placeholder, Cell(nothing))
 end
 

@@ -4,7 +4,7 @@
 function make_text_folding_document_example()
     font = StyleFont("Ubuntu Mono", 20)
     span(text) = TextString(text, font, color_default)
-    placeholder(text) = TextBlock(TextString(text, font, color_default))
+    placeholder(text) = TextDocument[TextString(text, font, color_default)]
     list = TextFold(; line_count = 4, placeholder = placeholder("…],"))
     object = TextFold(; line_count = 8, placeholder = placeholder("…}"))
     lines = TextDocument[

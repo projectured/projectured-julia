@@ -68,7 +68,7 @@ _gt_mark_renderer() = RecursiveProjection(TypeDispatchingProjection(Pair{Type, A
 _gt_plain_line(text) = TextLine(TextString(text, _GT_SMALL, color_default))
 
 # The text of the number in the gutter of output line `i`.
-_gt_number_text(output, i) = output.elements[i].gutter.number.elements[1].content
+_gt_number_text(output, i) = get_flat_string(output.elements[i].gutter.number)
 
 function test_text_gutter()
 @testset "the gutter of a text" begin

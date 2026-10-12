@@ -222,6 +222,23 @@ code[] = ""
 
 end # @testset "make_text_block gives a line for each line of a string"
 
+@testset "get_flat_caret and get_flat_range read the flat and the structural form" begin
+    # "ab" and "cd" on two lines: "cd" starts at flat offset 3.
+    block = TextBlock(TextLine(TextString("ab")), TextLine(TextString("cd")))
+    structural(line, s, e) = ConcreteReference(FieldReferenceStep("elements"),
+        ConcreteReference(RangeReferenceStep(line - 1, line), ConcreteReference(FieldReferenceStep("elements"),
+            ConcreteReference(RangeReferenceStep(0, 1), ConcreteReference(FieldReferenceStep("content"),
+                ConcreteReference(RangeReferenceStep(s, e), EmptyReference()))))))
+    @test get_flat_range(block, TextModule.make_flat_range_reference(1, 4)) == (1, 4)
+    @test get_flat_range(block, TextModule.make_flat_caret_reference(2)) == (2, 2)
+    @test get_flat_range(block, structural(2, 0, 2)) == (3, 5)
+    @test get_flat_range(block, structural(2, 1, 1)) == (4, 4)
+    @test get_flat_caret(block, structural(2, 1, 1)) == 4
+    @test get_flat_caret(block, structural(2, 0, 2)) === nothing
+    @test get_flat_range(block, EmptyReference()) === nothing
+    @test get_flat_range(block, nothing) === nothing
+end # @testset "get_flat_caret and get_flat_range read the flat and the structural form"
+
 @testset "Shift and a motion key select a range" begin
     shift = ModifierKeys(; shift = true)
     ctrl_shift = ModifierKeys(; ctrl = true, shift = true)

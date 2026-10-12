@@ -2,83 +2,55 @@
 #
 # PrimitiveDocument → TextBlock projection. Converts `PrimitiveBool`,
 # `PrimitiveNumber`, `PrimitiveString` and the type-in `PrimitiveInsertion`
-# directly into a single-span `TextBlock` without an intervening `SyntaxLeaf`, so
+# directly into a `TextBlock` of one line without an intervening `SyntaxLeaf`, so
 # a string shows no quotes. The natural renderer draws every primitive that is no
 # part of a syntax tree through it: a cell of a table, an element of a
 # collection, a value in a tab.
-# Forward: .value[k] on the primitive → .elements[1].content[k] on the TextBlock.
-# A range `.value{s:e}` is the flat range `{s:e}`: the block has one span, so a
-# flat offset is a character offset of the value.
+# Forward: the place `.value{s:e}` of the primitive is the flat range `{s:e}` of the
+# block. The block has one line, which holds the one run of the value, so a flat
+# offset is a character offset of the value; a caret is the empty range.
 function _forward_value(reference)
     @reference_case reference begin
-        value{s:e} => (s == e ?
-            (@reference ::TextBlock.elements::CellVector[1]::TextString.content::String{s}::Position) :
-            make_flat_range_reference(s, e))
+        value{s:e} => make_flat_range_reference(s, e)
     end
 end
 
-# The Text domain has two legal caret forms and `TextToGraphics` emits the
-# CANONICAL one — a flat character offset on the block (`TextRangeReferenceStep`)
-# — while the structural `.elements[1].content{k}` path is what the forward
-# direction produces. Both have to map back, or a primitive nested in a widget
-# renders and never accepts a caret: the printers compose, so the readers must
-# too. On a single-span block the two forms denote the same position.
-_flat_caret_offset(reference) =
-    reference isa ConcreteReference && reference.head isa TextRangeReferenceStep &&
-    reference.head.start == reference.head.stop ? reference.head.start : nothing
-
-# The flat `(start, stop)` of a non-empty flat range, or `nothing`. On the
-# single-span block it is the range `.value{start:stop}` of the primitive.
-_flat_range_pair(reference) =
-    reference isa ConcreteReference && reference.head isa TextRangeReferenceStep &&
-    reference.head.start < reference.head.stop ?
-        (reference.head.start, reference.head.stop) : nothing
-
-# Backward: .elements[1].content[k] on the TextBlock → .value[k] on the primitive.
-# Type-specific variants so the returned reference carries the leading document type.
-# A caret is the s == e case; a Backspace/Delete arrives as a genuine RANGE edit
-# (`ReplaceStringRangeOperation` over `content{s:e}`), and `evaluate_operation`
-# splices `range_step.start..range_step.stop`. Collapsing the range to `{s}` made
-# the deletion empty, so Backspace/Delete were silent no-ops. Keep the caret's
-# typed form (the DSL needs a terminal `::Position`); build the deletion range
-# directly — `.value{s:e}` — since a range over a scalar value has no evaluatable
-# terminal type and the operation reader strips reference types anyway.
+# Backward: a place in the block is the place `.value{s:e}` of the primitive. The
+# text domain reads the place in either form that a text takes: the flat form that
+# `TextToGraphics` emits, and the structural form that an edit leaves behind
+# (`get_flat_range`). A caret keeps its typed form, which the DSL needs for a
+# terminal `::Position`; a range is built directly as `.value{s:e}`, because a
+# range over a scalar value has no terminal type to evaluate, and the operation
+# reader strips the types anyway.
 _value_range_ref(s::Int, e::Int) =
     ConcreteReference(FieldReferenceStep("value"),
                       ConcreteReference(RangeReferenceStep(s, e), EmptyReference()))
 
-function _backward_bool(reference)
-    pair = _flat_range_pair(reference)
-    pair === nothing || return _value_range_ref(pair...)
-    flat = _flat_caret_offset(reference)
-    flat === nothing || return @reference ::PrimitiveBool.value::Bool{flat}::Position
-    @reference_case reference begin
-        ::TextBlock.elements[1].content{s:e} =>
-            (s == e ? (@reference ::PrimitiveBool.value::Bool{s}::Position) : _value_range_ref(s, e))
-    end
+function _backward_bool(block, reference)
+    range = get_flat_range(block, reference)
+    range === nothing && return nothing
+    s, e = range
+    s == e ? (@reference ::PrimitiveBool.value::Bool{s}::Position) : _value_range_ref(s, e)
 end
 
-function _backward_number(reference)
-    pair = _flat_range_pair(reference)
-    pair === nothing || return _value_range_ref(pair...)
-    flat = _flat_caret_offset(reference)
-    flat === nothing || return @reference ::PrimitiveNumber.value::Number{flat}::Position
-    @reference_case reference begin
-        ::TextBlock.elements[1].content{s:e} =>
-            (s == e ? (@reference ::PrimitiveNumber.value::Number{s}::Position) : _value_range_ref(s, e))
-    end
+function _backward_number(block, reference)
+    range = get_flat_range(block, reference)
+    range === nothing && return nothing
+    s, e = range
+    s == e ? (@reference ::PrimitiveNumber.value::Number{s}::Position) : _value_range_ref(s, e)
 end
 
-function _backward_string(reference)
-    pair = _flat_range_pair(reference)
-    pair === nothing || return _value_range_ref(pair...)
-    flat = _flat_caret_offset(reference)
-    flat === nothing || return @reference ::PrimitiveString.value::String{flat}::Position
-    @reference_case reference begin
-        ::TextBlock.elements[1].content{s:e} =>
-            (s == e ? (@reference ::PrimitiveString.value::String{s}::Position) : _value_range_ref(s, e))
-    end
+function _backward_string(block, reference)
+    range = get_flat_range(block, reference)
+    range === nothing && return nothing
+    s, e = range
+    s == e ? (@reference ::PrimitiveString.value::String{s}::Position) : _value_range_ref(s, e)
 end
+
+# The value of a primitive is one line, so an edit that holds a break is none of
+# its edits: the key that made it goes on to the bindings around the text, such as
+# Enter, which makes the value of a type-in.
+_holds_break(op::ReplaceRangeOperation) = occursin('\n', op.replacement)
 
 # ── PrimitiveBoolToText ──────────────────────────────────────────────────────
 
@@ -93,18 +65,18 @@ PrimitiveBoolToText(; theme = nothing,
 map_reference_forward(::PrimitiveBoolToText, iomap::SimpleIoMap, reference) =
     _forward_value(reference)
 map_reference_backward(::PrimitiveBoolToText, iomap::SimpleIoMap, reference) =
-    _backward_bool(reference)
+    _backward_bool(iomap.output, reference)
 
 function print_document(p::PrimitiveBoolToText, recursion, b::PrimitiveBool, ctx)
-    span = TextString(() -> string(b.value), p.style)
+    line = TextLine(TextString(() -> string(b.value), p.style))
     paths = make_output_path_cells(b, _forward_value)
-    out = TextBlock(CellVector(@computation TextDocument[span]),
+    out = TextBlock(CellVector(@computation TextDocument[line]),
                    paths.selection, paths.mouse_target)
     SimpleIoMap(p, b, out)
 end
 
 function read_intent(p::PrimitiveBoolToText, iomap::SimpleIoMap, op::ReplacePathOperation)
-    input_path = _backward_bool(op.path)
+    input_path = _backward_bool(iomap.output, op.path)
     input_path === nothing && return nothing
     make_path_operation(op, input_path)
 end
@@ -132,18 +104,18 @@ PrimitiveNumberToText(; theme = nothing,
 map_reference_forward(::PrimitiveNumberToText, iomap::SimpleIoMap, reference) =
     _forward_value(reference)
 map_reference_backward(::PrimitiveNumberToText, iomap::SimpleIoMap, reference) =
-    _backward_number(reference)
+    _backward_number(iomap.output, reference)
 
 function print_document(p::PrimitiveNumberToText, recursion, n::PrimitiveNumber, ctx)
-    span = TextString(() -> string(something(n.value, "")), p.style)
+    line = TextLine(TextString(() -> string(something(n.value, "")), p.style))
     paths = make_output_path_cells(n, _forward_value)
-    out = TextBlock(CellVector(@computation TextDocument[span]),
+    out = TextBlock(CellVector(@computation TextDocument[line]),
                    paths.selection, paths.mouse_target)
     SimpleIoMap(p, n, out)
 end
 
 function read_intent(p::PrimitiveNumberToText, iomap::SimpleIoMap, op::ReplacePathOperation)
-    input_path = _backward_number(op.path)
+    input_path = _backward_number(iomap.output, op.path)
     input_path === nothing && return nothing
     make_path_operation(op, input_path)
 end
@@ -152,6 +124,7 @@ end
 # `value{s:e}`; with `allows_type_in`, a text that the number can not show makes
 # a type-in instead.
 function read_intent(p::PrimitiveNumberToText, iomap::SimpleIoMap, op::ReplaceRangeOperation)
+    _holds_break(op) && return nothing
     mapped = invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, op)
     p.allows_type_in && mapped isa ReplaceRangeOperation ? make_number_edit_operation(iomap.input, mapped) : mapped
 end
@@ -193,26 +166,18 @@ end
 
 # Backward: as for a string, with every place of an empty type-in at its start,
 # because the text that it shows then is its placeholder.
-function _backward_insertion(reference, ins::PrimitiveInsertion)
+function _backward_insertion(block, reference, ins::PrimitiveInsertion)
+    range = get_flat_range(block, reference)
+    range === nothing && return nothing
     count = length(something(ins.value, ""))
-    pair = _flat_range_pair(reference)
-    pair === nothing || return _value_range_ref(min(pair[1], count), min(pair[2], count))
-    flat = _flat_caret_offset(reference)
-    if flat !== nothing
-        k = min(flat, count)
-        return @reference ::PrimitiveInsertion.value::String{k}::Position
-    end
-    @reference_case reference begin
-        ::TextBlock.elements[1].content{s:e} =>
-            (s == e ? (k = min(s, count); @reference ::PrimitiveInsertion.value::String{k}::Position) :
-                      _value_range_ref(min(s, count), min(e, count)))
-    end
+    s, e = min(range[1], count), min(range[2], count)
+    s == e ? (@reference ::PrimitiveInsertion.value::String{s}::Position) : _value_range_ref(s, e)
 end
 
 map_reference_forward(::PrimitiveInsertionToText, iomap::SimpleIoMap, reference) =
     _forward_value(reference)
 map_reference_backward(::PrimitiveInsertionToText, iomap::SimpleIoMap, reference) =
-    _backward_insertion(reference, iomap.input)
+    _backward_insertion(iomap.output, reference, iomap.input)
 
 function print_document(p::PrimitiveInsertionToText, recursion, ins::PrimitiveInsertion, ctx)
     style = Cell(@computation _get_type_in_style(p, ins))
@@ -220,18 +185,20 @@ function print_document(p::PrimitiveInsertionToText, recursion, ins::PrimitiveIn
     span = TextString(Cell(@computation shown()), Cell(@computation style[].font),
                       Cell(@computation style[].color), Cell(nothing), Cell(nothing), Cell(nothing),
                       Cell(nothing))
+    line = TextLine(span)
     paths = make_output_path_cells(ins, _forward_value)
-    out = TextBlock(CellVector(@computation TextDocument[span]), paths.selection, paths.mouse_target)
+    out = TextBlock(CellVector(@computation TextDocument[line]), paths.selection, paths.mouse_target)
     SimpleIoMap(p, ins, out)
 end
 
 function read_intent(p::PrimitiveInsertionToText, iomap::SimpleIoMap, op::ReplacePathOperation)
-    input_path = _backward_insertion(op.path, iomap.input)
+    input_path = _backward_insertion(iomap.output, op.path, iomap.input)
     input_path === nothing && return nothing
     make_path_operation(op, input_path)
 end
 
 function read_intent(p::PrimitiveInsertionToText, iomap::SimpleIoMap, op::ReplaceRangeOperation)
+    _holds_break(op) && return nothing
     mapped = invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, op)
     mapped isa ReplaceRangeOperation || return mapped
     range = find_value_range(mapped.reference)
@@ -255,27 +222,30 @@ PrimitiveStringToTextBlock(; theme = nothing,
 map_reference_forward(::PrimitiveStringToTextBlock, iomap::SimpleIoMap, reference) =
     _forward_value(reference)
 map_reference_backward(::PrimitiveStringToTextBlock, iomap::SimpleIoMap, reference) =
-    _backward_string(reference)
+    _backward_string(iomap.output, reference)
 
 function print_document(p::PrimitiveStringToTextBlock, recursion, s::PrimitiveString, ctx)
-    value_span = TextString(() -> something(s.value, ""), p.style)
+    value_line = TextLine(TextString(() -> something(s.value, ""), p.style))
     # When the value is empty and a placeholder is configured, show a muted hint
-    # span instead. Both spans keep a stable identity; the CellVector thunk only
-    # swaps which one is element 1 at the empty↔non-empty boundary, and the
-    # selection (mapped to `elements[1].content`) tracks `s.value` either way.
-    placeholder_span = TextString(p.placeholder, p.placeholder_style)
+    # line instead. Both lines keep a stable identity; the CellVector thunk only
+    # swaps which one is the line of the block at the empty↔non-empty boundary,
+    # and the flat selection tracks `s.value` either way.
+    placeholder_line = TextLine(TextString(p.placeholder, p.placeholder_style))
     show_placeholder() = !isempty(p.placeholder) && isempty(something(s.value, ""))
     paths = make_output_path_cells(s, _forward_value)
-    out = TextBlock(CellVector(@computation TextDocument[show_placeholder() ? placeholder_span : value_span]),
+    out = TextBlock(CellVector(@computation TextDocument[show_placeholder() ? placeholder_line : value_line]),
                    paths.selection, paths.mouse_target)
     SimpleIoMap(p, s, out)
 end
 
 function read_intent(p::PrimitiveStringToTextBlock, iomap::SimpleIoMap, op::ReplacePathOperation)
-    input_path = _backward_string(op.path)
+    input_path = _backward_string(iomap.output, op.path)
     input_path === nothing && return nothing
     make_path_operation(op, input_path)
 end
+
+read_intent(p::PrimitiveStringToTextBlock, iomap::SimpleIoMap, op::ReplaceRangeOperation) =
+    _holds_break(op) ? nothing : invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, op)
 
 # Extract a `.value[range]` selection on a PrimitiveString as a RangeReferenceStep.
 function _string_value_range(s::PrimitiveString)
@@ -359,7 +329,7 @@ _make_bool_operation(b::PrimitiveBool, value::Bool) = b.value === value ? nothin
     PrimitiveToText(; theme = nothing, bool_kw=(), number_kw=(), string_kw=())
 
 Composite projection that converts all `PrimitiveDocument` types directly
-to single-span `TextBlock` documents. `theme`, a `TextTheme` scaled or not,
+to `TextBlock` documents of one line. `theme`, a `TextTheme` scaled or not,
 gives the text of each kind; with none, the texts of the default theme.
 """
 function PrimitiveToText(; theme = nothing, bool_kw=(), number_kw=(), string_kw=())

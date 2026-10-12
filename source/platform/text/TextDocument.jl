@@ -430,12 +430,14 @@ end
 # ── make_text_block ────────────────────────────────────────────────────
 
 """
+    make_text_block(content) -> TextBlock
     make_text_block(content, style::StyleText) -> TextBlock
     make_text_block(content::Function, style::StyleText; placeholder, empty_thunk) -> TextBlock
 
 A text of lines in `style` from a string, or from a function that gives one: a
 `TextLine` for each line of the string, with one run, and an empty run on an empty
-line. The flat string of the block is the string, because the break before a line
+line. With no style, the runs are in the font of a text that names none
+(`UNSTYLED_TEXT_FONT`) and the default colour, as `TextString(content)` is. The flat string of the block is the string, because the break before a line
 counts one character as the `'\\n'` does, so a flat offset is an offset into the
 string.
 
@@ -447,6 +449,9 @@ With a `placeholder` and an `empty_thunk`, the block is one line that shows the
 placeholder in a muted colour while `empty_thunk()` is true, as
 [`make_hinted_text`](@ref) does for one run; the line is the same object each time.
 """
+make_text_block(content::AbstractString) =
+    make_text_block(content, StyleText(UNSTYLED_TEXT_FONT, color_default))
+
 make_text_block(content::AbstractString, style::StyleText) =
     TextBlock(TextDocument[_make_text_block_line(text, style) for text in split(content, '\n')])
 
@@ -521,15 +526,15 @@ DomainModule.insertable(::Type{<:TextGutter}) = false
 
 A region of lines that can fold: the line whose `fold` it is and the
 `line_count` lines after it. While it is `collapsed`, `TextFolding` hides all its
-lines but the first one, and puts `placeholder` at the end of the first one, or
-`…` when it is `nothing`. The lines stay in the text, so a number counts them.
+lines but the first one, and puts the runs of `placeholder` at the end of the first
+one, or `…` when it is `nothing`. The lines stay in the text, so a number counts them.
 A projection that makes the region can give it the `collapsed` cell of the part
 it shows, so the state stays in the document. `ToggleCollapseOperation` flips it.
 """
 @document struct TextFold <: TextDocument
     line_count::Int = 0
     collapsed::Bool = false
-    placeholder::Union{Document, Nothing} = nothing
+    placeholder::Union{Vector{TextDocument}, Nothing} = nothing
 end
 
 # A fold is a part of a line, not a document to insert on its own.
@@ -614,7 +619,7 @@ const SpanPath = Vector{Int}
 # make them committable at a *top-level* insertion, where a lone span is the root
 # document — and the text pipeline prints a `TextBlock`, not a bare span. Making
 # spans insertable belongs with a caret-level "insert a span here" gesture.
-@insertion TextBlock = @selected TextBlock([TextString("")]) elements[1].content{0}
+@insertion TextBlock = @selected TextBlock(TextLine(TextString(""))) elements[1].elements[1].content{0}
 
 
 # ── splice_value! methods for the text representations ──────────────
@@ -851,6 +856,20 @@ function get_flat_caret(block::TextBlock, ref)
     base = get_flat_base(block, path)
     base === nothing ? nothing : base + a
 end
+
+"""
+    get_flat_range(block, ref) -> (start, stop) | nothing
+
+The flat range that a reference denotes over `block`, from either form of a place
+in a text: the flat `TextRangeReferenceStep{s:e}` form, or the structural
+`….content{s:e}` form that an edit leaves behind. A caret is the empty range
+`(k, k)`. `nothing` for a whole-element `∅` or `TextSpanReferenceStep` selection,
+or any other shape.
+
+A projection that gives a text of one line maps a place backward through this and
+[`get_flat_caret`](@ref), so it does not name the steps of the shape of a text.
+"""
+get_flat_range(block::TextBlock, ref) = _text_flat_selection(block, ref)
 
 # The flat caret resolved to a `(span, char)` pair for the renderer / line-motion
 # geometry, or `nothing` when there is no caret, the selection is a range, or the

@@ -30,7 +30,7 @@ _ft_renderer() = RecursiveProjection(TypeDispatchingProjection(Pair{Type, Any}[
 _ft_unwrap(x) = x isa AbstractCell ? x[] : x
 
 # The text of the mark in the lane `lane` of the gutter of `line`.
-_ft_mark_text(line, lane) = getproperty(line.gutter, lane).elements[1].content
+_ft_mark_text(line, lane) = get_flat_string(getproperty(line.gutter, lane))
 
 # The text of the spans of `line`.
 _ft_line_text(line) = join(span.content for span in line.elements)

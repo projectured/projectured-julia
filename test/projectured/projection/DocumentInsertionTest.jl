@@ -195,14 +195,13 @@ function test_document_insertion()
             DS = DomainModule
             # Every committed candidate must land with a usable cursor. The Text
             # container is the regression: without its `@insertion` factory the
-            # generic fallback built a bare `TextBlock()` — no spans, no selection —
+            # generic fallback built a bare `TextBlock()` — no lines, no selection —
             # and every character gesture declined for want of a caret, so the
             # freshly inserted text took no keystrokes.
             text = DS.make_insertion_document(TextBlock)
             @test length(text.elements) == 1
-            @test text.elements[1] isa TextString
-            @test string(getfield(text, :selection)[]) ==
-                  "::TextBlock.elements::CellVector[1]::TextString.content::String{0}::Position"
+            @test text.elements[1] isa TextLine
+            @test get_flat_caret(text, getfield(text, :selection)[]) == 0
             @test make_text_insert_operation(text, "a") isa ReplaceStringRangeOperation
         end
 

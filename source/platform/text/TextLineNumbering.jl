@@ -228,8 +228,8 @@ end
 # selection and its part under the pointer, and a gutter with its number.
 function _make_numbered_line(p::TextLineNumbering, line::TextLine, numbers::Cell)
     style = p.style
-    mark = TextBlock(TextString(() -> (r = numbers[]; lpad(string(get(r.index, line, 0)), r.width)),
-                                style.font, style.color))
+    mark = TextBlock(TextLine(TextString(() -> (r = numbers[]; lpad(string(get(r.index, line, 0)), r.width)),
+                                         style.font, style.color)))
     field, gutter_type = p.field, p.gutter_type
     gutter = Cell(@computation _make_filled_gutter(line.gutter, field, mark, gutter_type))
     TextLine(getfield(line, :elements), getfield(line, :indentation), gutter, getfield(line, :fold),

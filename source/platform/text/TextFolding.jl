@@ -69,14 +69,13 @@ end
 
 # The triangle of `fold`, which follows its state.
 _make_fold_mark(p::TextFolding, fold::TextFold) =
-    TextBlock(TextString(() -> fold.collapsed ? p.closed_mark : p.open_mark,
-                         p.mark_style.font, p.mark_style.color))
+    TextBlock(TextLine(TextString(() -> fold.collapsed ? p.closed_mark : p.open_mark,
+                                  p.mark_style.font, p.mark_style.color)))
 
-# The spans that stand for the hidden lines of `fold` at the end of its first line.
+# The runs that stand for the hidden lines of `fold` at the end of its first line.
 function _make_fold_placeholder(p::TextFolding, fold::TextFold)
     placeholder = fold.placeholder
-    placeholder isa TextBlock && return Any[element for element in placeholder.elements]
-    placeholder isa TextDocument && return Any[placeholder]
+    placeholder === nothing || return Any[placeholder[i] for i in 1:length(placeholder)]
     Any[TextString("…", p.placeholder_style.font, p.placeholder_style.color)]
 end
 
