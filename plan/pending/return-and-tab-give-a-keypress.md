@@ -1,7 +1,8 @@
 # Return and Tab give a KeyPress
 
-> **Kind:** plan · **Status:** in progress, 2026-10-12, on the branch
-> `return-keypress` (worktree `projectured-julia-return-keypress`). The owner
+> **Kind:** plan · **Status:** built, 2026-10-12, on the branch
+> `return-keypress` (worktree `projectured-julia-return-keypress`); the landing
+> waits for the owner. The owner
 > decided the rule on 2026-10-12 (§1). No question is open. ·
 > **Stands on:** [gesture.md](../../documentation/package/kernel/gesture.md),
 > [devices-and-backends.md](../../documentation/package/kernel/devices-and-backends.md),
@@ -147,3 +148,22 @@ take the break or decline it.
    types a character"; `devices-and-backends.md`, `engineer-tour.md` and the
    tables of the console, SDL and web backends follow it.
 8. **A sweep** against step 0.
+   *Done (2026-10-12)* against main `ff11295db`, in `/var/tmp/return-keypress`
+   (`baseline/`, `branch/`, and the reruns `baseline2/`, `branch2/`, `branch3/`).
+   - The sweep found three readers that gave a key to a meaning only as a
+     `KeyDown`, and each is fixed: the tree widget gave a key to the bindings of
+     its selected node (Return in the Files pane opened no file, `0ac8bd313`); the
+     data frame view gave a key that its table did not take to its own gestures
+     (Return in the find field found nothing, `b1a974042`).
+   - At the end: `test_platform`, `test_application`, `test_conversation` and the
+     suites of the kernel, console, web, SDL, JSON, YAML, XML, Julia, pivot, math,
+     chart, data frames, video, construct, assistant, palette, insertion, table
+     and tool views fail only on the lines of main, or pass. The kernel, console,
+     web and SDL suites count the new tests (3, 1, 5 and 7 more passes). A line of
+     `ExternalAgentTurnTest.jl` that fails moves between runs of main too.
+   - omnet-julia: `test_notebook_types_a_cell` fails on the four lines of main
+     (`NotebookTest.jl` 332, 333, 336, 337: `type_cell!` answers `nothing`).
+     `test_ide_window_wrap` does not finish in a capped scope, on main too; its
+     changed line sends Return to the command palette, which
+     `test_command_palette_decorator` covers. inet-julia changes only the driver
+     of its recording; the file parses.
