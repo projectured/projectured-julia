@@ -478,11 +478,8 @@ end
 
 # @broken: the leftward walk visits fewer carets than the rightward one
 # (`:same_length`) and does not arrive back at the start (`:left_reaches_start`).
-# Each remaining member fails for its own reason, none of them the shared
-# widened-indent round-trip (that one is handled in `_backward_zone`):
-#   * text / text_with_image — a left/right asymmetry in the plain Text pipeline,
-#     with no projection involved.
-const NAV_LEFT_WALK_STALLS = ("text", "text_with_image")
+# No example is known to.
+const NAV_LEFT_WALK_STALLS = ()
 
 # @broken: the rightward walk ends somewhere other than where Ctrl+End lands
 # (`:right_reaches_end`). No example is known to.
