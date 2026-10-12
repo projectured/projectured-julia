@@ -81,7 +81,7 @@ struct PhraseToGraphics <: Projection
 end
 
 function print_document(p::PhraseToGraphics, recursion, document, ctx)
-    line = TextBlock(TextString(p.message(document), unwrap_cell(p.style)))
+    line = TextBlock(TextLine(TextString(p.message(document), unwrap_cell(p.style))))
     inner = print_document(p.text, recursion, line, ctx)
     SimpleIoMap(p, document, get_iomap_output(inner))
 end

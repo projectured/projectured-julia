@@ -2,13 +2,7 @@
 # back with the same results, and a name in a formula's code binds to the
 # formula of that name in the sheet.
 
-function _formula_file_result(formula)
-    buffer = IOBuffer()
-    for span in formula.result.elements
-        span isa TextString && print(buffer, span.content)
-    end
-    String(take!(buffer))
-end
+_formula_file_result(formula) = get_flat_string(formula.result)
 
 function test_formula_file()
 @testset "a formula and its file" begin

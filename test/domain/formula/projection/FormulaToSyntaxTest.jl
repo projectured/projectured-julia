@@ -1,11 +1,5 @@
 # Helper: read the flat string out of a TextBlock result document.
-function _formula_result_string(result)
-    buf = IOBuffer()
-    for span in result.elements
-        span isa TextString && print(buf, span.content)
-    end
-    String(take!(buf))
-end
+_formula_result_string(result) = get_flat_string(result)
 
 function test_formula_to_syntax()
 

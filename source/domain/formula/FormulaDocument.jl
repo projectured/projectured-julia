@@ -37,7 +37,7 @@ in an environment; see [`wire_result!`](@ref).
 end
 
 # Convenience: build a result document from a value.
-make_formula_result_text(s) = TextBlock(TextString(_value_string(s)))
+make_formula_result_text(s) = make_text_block(_value_string(s))
 
 _value_string(s::AbstractString) = String(s)
 _value_string(x) = string(x)
@@ -453,14 +453,7 @@ function _result_value(result)
     return s
 end
 
-function _result_string(result)
-    result isa TextBlock || return string(result)
-    buf = IOBuffer()
-    for span in result.elements
-        span isa TextString && print(buf, span.content)
-    end
-    String(take!(buf))
-end
+_result_string(result) = result isa TextBlock ? get_flat_string(result) : string(result)
 
 """
     wire_result!(formula, env) -> formula

@@ -87,13 +87,7 @@ print_document(p::FormulaReferenceToSyntaxLeaf, recursion, r::FormulaReference, 
 end
 
 # Flatten a result TextBlock into a single rendered string.
-function _result_to_string(result)
-    buf = IOBuffer()
-    for span in result.elements
-        span isa TextString && print(buf, span.content)
-    end
-    String(take!(buf))
-end
+_result_to_string(result) = result isa TextBlock ? get_flat_string(result) : string(result)
 
 function print_document(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaFormula, ctx)
     code_ref = make_child_context(ctx, f, @reference_step code)
