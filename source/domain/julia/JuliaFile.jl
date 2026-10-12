@@ -38,7 +38,7 @@ end
 # not: a `pred_ref("…")` call with the marker as its one string argument.
 get_file_domain(::Type{<:JuliaFile}) = JuliaDocument
 make_reference_leaf(::JuliaFile, marker::AbstractString) =
-    JuliaCall(JuliaIdentifier(PRED_REF_FUNCTION_NAME), CellVector([JuliaString(make_marker_text(marker))]))
+    JuliaCall(JuliaIdentifier(PRED_REF_FUNCTION_NAME), JuliaDocument[JuliaString(make_marker_text(marker))])
 function find_reference_marker(node::JuliaCall)
     _is_marker_call(node) || return nothing
     args = getfield(node, :arguments)[]

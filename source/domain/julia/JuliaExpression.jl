@@ -6,10 +6,10 @@
 The code of a Julia document as an `Expr(:toplevel, …)`, the shape
 `Meta.parseall` gives, ready for `Core.eval` statement by statement.
 
-A node that is not Julia — an object a person pasted into the code, such as a
-widget — becomes the object itself, in a `QuoteNode`, so the evaluation uses
-that very object and never a copy of it. A document that is not Julia at all
-is such an object alone. A hole of the Julia domain stands for the code typed
+A `JuliaObject` — an object a person pasted into the code, such as a widget —
+becomes its value itself, in a `QuoteNode`, so the evaluation uses that very
+object and never a copy of it. A document that is not Julia at all is such an
+object alone. A hole of the Julia domain stands for the code typed
 into it, and a hole whose text does not parse raises an error.
 
 The document is printed in the Julia notation with a placeholder name where
@@ -29,8 +29,8 @@ function make_julia_expression(document)
 end
 
 # The walk that makes the shadow: it copies the Julia nodes, and where it meets
-# a node that is not Julia it keeps the node in `objects` and puts a
-# placeholder identifier in its place.
+# a `JuliaObject` it keeps the value in `objects` and puts a placeholder
+# identifier in its place.
 struct JuliaExpressionCopyPolicy <: CopyPolicy
     objects::Dict{Symbol,Any}
 end
@@ -39,11 +39,20 @@ JuliaExpressionCopyPolicy() = JuliaExpressionCopyPolicy(Dict{Symbol,Any}())
 # A list of Julia nodes, such as the arguments of a call, is a collection and
 # not an object.
 DocumentModule.is_descendable_for_copy(::JuliaExpressionCopyPolicy, document) =
-    !(document isa Document) || document isa JuliaDocument || is_element_collection(document)
+    !(document isa Document) || document isa JuliaDocument && !(document isa JuliaObject) ||
+    is_element_collection(document)
 
-function DocumentModule.make_copy_placeholder(policy::JuliaExpressionCopyPolicy, document)
+DocumentModule.make_copy_placeholder(policy::JuliaExpressionCopyPolicy, object::JuliaObject) =
+    _make_object_placeholder(policy, object.value)
+
+# A document that is not Julia stands in the code bare only where the check of the
+# declared type does not convert a write, in the modes `:record` and `:off`.
+DocumentModule.make_copy_placeholder(policy::JuliaExpressionCopyPolicy, document) =
+    _make_object_placeholder(policy, document)
+
+function _make_object_placeholder(policy::JuliaExpressionCopyPolicy, object)
     name = Symbol("__projectured_object_", length(policy.objects) + 1)
-    policy.objects[name] = document
+    policy.objects[name] = object
     JuliaIdentifier(String(name))
 end
 

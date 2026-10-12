@@ -740,7 +740,7 @@ end
     # A circle has no notation in a line of code.
     object = GraphicsCircle(10, 10, 10)
     call = parse_natural_text(:jl, "setproperty!(x, :radius, 20)")
-    call.arguments[1] = object
+    call.arguments[1] = JuliaObject(object)
     whole(i) = ConcreteReference(FieldReferenceStep("elements"),
         ConcreteReference(RangeReferenceStep(i - 1, i),
             ConcreteReference(FieldReferenceStep("form"), EmptyReference())))
@@ -756,7 +756,7 @@ end
     @test object.radius == 20
     form = s.toplevel.elements[2]
     @test !form.is_error
-    @test form.form === call && call.arguments[1] === object
+    @test form.form === call && call.arguments[1].value === object
     # Its label is no code, so the form keeps no text and the history skips it.
     @test form.source == ""
     s.press!(:up); @test s.shown() == "y = 1"

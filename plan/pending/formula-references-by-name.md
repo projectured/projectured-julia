@@ -2,7 +2,7 @@
 
 **Status (2026-10-12): IN PROGRESS.** The owner and I worked out the model of §3 in a
 discussion on 2026-10-12, and the owner decided each point of §4. The owner asked to implement it
-on 2026-10-12. Steps 1 to 5 are done. Step 4 of
+on 2026-10-12. Steps 1 to 6 are done. Step 4 of
 [strict-document-types.md](strict-document-types.md) waits for this plan, because a formula
 reference inside a Julia tree kept 37 Julia fields at `Document`.
 
@@ -309,7 +309,7 @@ formula named `pi` would make every other `pi` of the sheet mean it.
     free, such as `Z` in `E = A + Z`, makes that name refer to the renamed formula: a key that
     refused it would also keep a person from naming a new formula `Z`, and making a binding is
     the other operation of D3.
-- [ ] **Step 6: the strict Julia fields.** Step 4 of
+- [x] **Step 6: the strict Julia fields.** Step 4 of
   [strict-document-types.md](strict-document-types.md) then narrows every Julia field to
   `JuliaDocument`, and every list to `CellVector{JuliaDocument}`.
   *Open, a question for the owner (found 2026-10-12):* Julia code holds a pasted object of
@@ -333,6 +333,43 @@ formula named `pi` would make every other `pi` of the sheet mean it.
     object", which writes a `GraphicsCircle` into `call.arguments[1]`). With `JuliaDocument`
     fields, that paste is refused by the type of the place, and the test becomes a test of the
     refusal.
+  - **Decided by the owner, 2026-10-12, after that fact: a Julia node holds a pasted object as
+    a literal.** The owner asked: "shouldn't we paste a julia literal object or something to say
+    that this object is meant as a literal to be passed in the call?", and accepted the node
+    `JuliaObject`, made at the write: a document of another domain that a write puts into a
+    Julia place becomes `JuliaObject(document)`, as text becomes the insertion of the domain
+    (rule 3). So every Julia field declares `JuliaDocument`, and the structured forms of the
+    evaluator keep the paste. It narrows the decision "no foreign type" of strict-document-types
+    §3 for Julia: the node lets a value stand as itself, not the code of another domain.
+  - *Done (2026-10-12).* What is built:
+    - The 77 fields of the Julia nodes declare `JuliaDocument`, `Union{JuliaDocument,Nothing}`
+      or `CellVector{JuliaDocument}`; the constructors of `JuliaCall` give typed lists.
+      `JuliaFile.content` stays `Document`.
+    - `JuliaObject(value::Document)`, a literal. A method of `convert_to_declared_type` for an
+      owner of the Julia domain turns a document of another domain into `JuliaObject(document)`
+      where the place admits a `JuliaObject`. So a paste, a typed edit and an operation wrap;
+      a direct write by program code goes through `convert_assigned_value`, which converts no
+      value by design ("program code wrote it, not a person"), so program code writes
+      `JuliaObject(object)` itself, and a bare object there is refused.
+    - The table entry `JuliaObject => JuliaObjectToSyntaxLeaf()` draws the title of the value;
+      the last entry, `Document`, stays for a document that is not Julia at the root. The copy
+      policy of `make_julia_expression` puts a placeholder where a `JuliaObject` stands and puts
+      its value back as a `QuoteNode`; a bare document keeps its placeholder too, for the
+      modes `:record` and `:off`.
+    - `JuliaObject` is no insertion candidate: it needs its value, so it has no zero-argument
+      constructor.
+    - The invariant `PAR-DOMAINS-INDEPENDENT` says how a domain holds a value of another domain.
+  - Tests in the mode `:throw`: `test_julia()` 557, `test_formula()` 184, `test_fsm()` 174,
+    `test_process()` 312, `test_evaluator_toplevel()` 239, all pass; `test_application()` 372
+    pass and 2 broken, its two markers of the Files pane. The two application tests that paste a
+    noted object into a form with Ctrl+V pass: the paste wraps the object, and the form runs
+    with that very object.
+  - `test_example` on fresh examples: `julia`, `formula`, `fsm`, `fsm_toggle` and `fsm_diagram`
+    pass the printer, the reader, the REPL and the navigation. Each fails only in the type-in
+    part: `julia` 84 (the known caret gap of identifiers), `formula` 486 (as in Step 5), and the
+    three FSM examples 3957, 167 and 231. No type-in result of the FSM examples threw: 4020 are
+    "no cursor", 320 a caret at another place after the edit, and 17 a key that made no edit,
+    so none is a refusal of a type. The FSM counts were not measured on `main`.
 
 ## 6. Open
 

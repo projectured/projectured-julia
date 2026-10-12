@@ -59,6 +59,29 @@ A boolean literal (`true` or `false`).
 end
 
 """
+A value that stands in the code as itself, a literal: a document of another
+domain that a person pasted into the code, such as a widget. A write that puts a
+document of another domain into a place of Julia code makes one, as text becomes
+a `JuliaInsertion` (`convert_to_declared_type`). The evaluation uses that very
+value, never a copy (`make_julia_expression`), and the notation draws it as its
+title in angle marks, `⟨Table⟩`.
+"""
+@document struct JuliaObject <: JuliaDocument
+    value::Document
+end
+
+# A document of another domain that a write puts into a place of Julia code
+# stands there as itself.
+function convert_to_declared_type(owner::JuliaDocument, declared_type::Type, value::Document;
+                                  name = nothing)
+    value isa declared_type && return value
+    if !(value isa JuliaDocument) && JuliaObject <: declared_type
+        return JuliaObject(value)
+    end
+    invoke(convert_to_declared_type, Tuple{Any, Type, Any}, owner, declared_type, value; name)
+end
+
+"""
 The literal `nothing`.
 """
 @document struct JuliaNothing <: JuliaDocument
@@ -91,8 +114,8 @@ A binary operation. `operator` is one of `:+`, `:-`, `:*`, `:/`, `:(==)`, etc.
 """
 @document struct JuliaBinaryOperation <: JuliaDocument
     operator::Symbol
-    left::Document
-    right::Document
+    left::JuliaDocument
+    right::JuliaDocument
 end
 
 """
@@ -100,7 +123,7 @@ A prefix unary operation (e.g. `-x`, `!flag`, `~bits`).
 """
 @document struct JuliaUnaryOperation <: JuliaDocument
     operator::Symbol
-    operand::Document
+    operand::JuliaDocument
 end
 
 """
@@ -109,17 +132,19 @@ each a `key = value`, as in `f(a; k = 1)`. A keyword argument written after `,`,
 as in `f(a, k = 1)`, stays in `arguments`, where the code wrote it.
 """
 @document struct JuliaCall <: JuliaDocument
-    callee::Document
-    arguments::CellVector
-    keyword_arguments::CellVector = CellVector()
+    callee::JuliaDocument
+    arguments::CellVector{JuliaDocument}
+    keyword_arguments::CellVector{JuliaDocument} = CellVector{JuliaDocument}()
 end
 
 # Most callers give the lists of a call as plain vectors, and each becomes the
 # collection that the call holds. `@document` makes such a constructor only for a
 # struct with one collection (its Rule C), and a call has two.
-JuliaCall(callee, arguments::AbstractVector) = JuliaCall(callee, CellVector(arguments), CellVector())
+JuliaCall(callee, arguments::AbstractVector) =
+    JuliaCall(callee, CellVector{JuliaDocument}(arguments), CellVector{JuliaDocument}())
 JuliaCall(callee, arguments::AbstractVector, keyword_arguments::AbstractVector) =
-    JuliaCall(callee, CellVector(arguments), CellVector(keyword_arguments))
+    JuliaCall(callee, CellVector{JuliaDocument}(arguments),
+              CellVector{JuliaDocument}(keyword_arguments))
 
 """
 A macro call expression, e.g. `@doc "…" expr` or `@show x`. `name` is
@@ -130,55 +155,55 @@ arguments hold only real values.
 """
 @document struct JuliaMacroCall <: JuliaDocument
     name::String
-    arguments::CellVector
+    arguments::CellVector{JuliaDocument}
 end
 
 """
 A ternary expression `cond ? a : b`.
 """
 @document struct JuliaTernary <: JuliaDocument
-    condition::Document
-    then_branch::Document
-    else_branch::Document
+    condition::JuliaDocument
+    then_branch::JuliaDocument
+    else_branch::JuliaDocument
 end
 
 """
 An indexing expression `a[i, j, …]`.
 """
 @document struct JuliaIndex <: JuliaDocument
-    collection::Document
-    indices::CellVector
+    collection::JuliaDocument
+    indices::CellVector{JuliaDocument}
 end
 
 """
 A field access expression `object.field`. `field` is typically a `JuliaIdentifier`.
 """
 @document struct JuliaFieldAccess <: JuliaDocument
-    object::Document
-    field::Document
+    object::JuliaDocument
+    field::JuliaDocument
 end
 
 """
 A tuple literal `(a, b, c)`.
 """
 @document struct JuliaTuple <: JuliaDocument
-    elements::CellVector = CellVector()
+    elements::CellVector{JuliaDocument} = CellVector{JuliaDocument}()
 end
 
 """
 An array literal `[a, b, c]`.
 """
 @document struct JuliaArray <: JuliaDocument
-    elements::CellVector = CellVector()
+    elements::CellVector{JuliaDocument} = CellVector{JuliaDocument}()
 end
 
 """
 A range expression `start:stop` or `start:step:stop`. `step` may be `nothing`.
 """
 @document struct JuliaRange <: JuliaDocument
-    start::Document
-    step::Union{Document,Nothing}
-    stop::Document
+    start::JuliaDocument
+    step::Union{JuliaDocument,Nothing}
+    stop::JuliaDocument
 end
 
 # a range with no step
@@ -188,8 +213,8 @@ JuliaRange(start, stop) = JuliaRange(start, nothing, stop)
 A type annotation expression `value::type`.
 """
 @document struct JuliaTypeAnnotation <: JuliaDocument
-    value::Document
-    type::Document
+    value::JuliaDocument
+    type::JuliaDocument
 end
 
 """
@@ -200,7 +225,7 @@ project (a bare "nothing" would render literally); the printer emits
 only `::` followed by `type`.
 """
 @document struct JuliaAnonymousTypeAnnotation <: JuliaDocument
-    type::Document
+    type::JuliaDocument
 end
 
 """
@@ -220,7 +245,7 @@ end
 A sequence of statements/expressions.
 """
 @document struct JuliaBlock <: JuliaDocument
-    statements::CellVector = CellVector()
+    statements::CellVector{JuliaDocument} = CellVector{JuliaDocument}()
 end
 
 """
@@ -230,7 +255,7 @@ after the last statement, `x = 1;`, which the Julia REPL reads as "do not show
 the value".
 """
 @document struct JuliaToplevel <: JuliaDocument
-    statements::CellVector
+    statements::CellVector{JuliaDocument}
     trailing_semicolon::Bool = false
 end
 
@@ -251,8 +276,8 @@ An anonymous function `(p₁, p₂, …) -> body`. `parameters` are the argument
 documents (empty for `() -> …`); `body` is the returned expression.
 """
 @document struct JuliaLambda <: JuliaDocument
-    parameters::CellVector
-    body::Document
+    parameters::CellVector{JuliaDocument}
+    body::JuliaDocument
     # Whether the parameters stand in parentheses, as the code wrote them:
     # `(x) -> x` and `() -> 1` do, `x -> x` does not.
     parenthesized::Bool = true
@@ -263,8 +288,8 @@ An assignment statement. `operator` is one of `:(=)`, `:(+=)`, `:(-=)`, `:(*=)`,
 """
 @document struct JuliaAssignment <: JuliaDocument
     operator::Symbol
-    target::Document
-    value::Document
+    target::JuliaDocument
+    value::JuliaDocument
 end
 
 # assignment defaulting the operator to `=`
@@ -275,7 +300,7 @@ A `const` declaration wrapping an assignment (`const X = value`).
 The inner `assignment` is typically a `JuliaAssignment`.
 """
 @document struct JuliaConst <: JuliaDocument
-    assignment::Document
+    assignment::JuliaDocument
 end
 
 """
@@ -290,7 +315,7 @@ docstring, not as a raw macrocall.
 """
 @document struct JuliaDocstring <: JuliaDocument
     text::String
-    subject::Document
+    subject::JuliaDocument
 end
 
 """
@@ -300,7 +325,7 @@ An abstract type declaration — `abstract type Name <: Super end` or
 supertype is given, a `JuliaCurly` when type parameters appear).
 """
 @document struct JuliaAbstractType <: JuliaDocument
-    header::Document
+    header::JuliaDocument
 end
 
 """
@@ -314,8 +339,8 @@ block.
 """
 @document struct JuliaStruct <: JuliaDocument
     mutable::Bool
-    header::Document
-    body::Document
+    header::JuliaDocument
+    body::JuliaDocument
 end
 
 """
@@ -327,7 +352,7 @@ that projects to a complete, loadable file has to be able to say `module`.
 """
 @document struct JuliaModuleDefinition <: JuliaDocument
     name::String
-    body::Document
+    body::JuliaDocument
     bare::Bool = false
 end
 
@@ -340,8 +365,8 @@ it as a keyword-tinted operator and lets a future kind-checker
 reason about it without pattern-matching on operator strings.
 """
 @document struct JuliaSubtype <: JuliaDocument
-    lhs::Document
-    rhs::Document
+    lhs::JuliaDocument
+    rhs::JuliaDocument
 end
 
 """
@@ -351,16 +376,16 @@ A parametric type expression `Foo{T, S, …}` — Julia's
 which may be identifiers, other parametric types, or `<:` bounds.
 """
 @document struct JuliaCurly <: JuliaDocument
-    callee::Document
-    params::CellVector
+    callee::JuliaDocument
+    params::CellVector{JuliaDocument}
 end
 
 """
 One `var in iter` clause of a `for` loop. `JuliaFor` holds a `CellVector` of these.
 """
 @document struct JuliaForIterator <: JuliaDocument
-    variable::Document
-    iterable::Document
+    variable::JuliaDocument
+    iterable::JuliaDocument
 end
 
 """
@@ -368,23 +393,23 @@ A for loop `for v1 in i1, v2 in i2 … end`. Each entry of `iterators` is a
 `JuliaForIterator`. `body` is typically a `JuliaBlock`.
 """
 @document struct JuliaFor <: JuliaDocument
-    iterators::CellVector
-    body::Document
+    iterators::CellVector{JuliaDocument}
+    body::JuliaDocument
 end
 
 """
 A while loop `while cond … end`.
 """
 @document struct JuliaWhile <: JuliaDocument
-    condition::Document
-    body::Document
+    condition::JuliaDocument
+    body::JuliaDocument
 end
 
 """
 A return statement. `value` may be a `Document` or `nothing` for a bare `return`.
 """
 @document struct JuliaReturn <: JuliaDocument
-    value::Union{Document,Nothing} = nothing
+    value::Union{JuliaDocument,Nothing} = nothing
 end
 
 JuliaReturn(value) = JuliaReturn(value, nothing)
@@ -406,26 +431,26 @@ A try expression. `catch_var`, `catch_branch`, and `finally_branch` may each be
 `nothing` independently.
 """
 @document struct JuliaTry <: JuliaDocument
-    body::Document
-    catch_var::Union{Document,Nothing}
-    catch_branch::Union{Document,Nothing}
-    finally_branch::Union{Document,Nothing}
+    body::JuliaDocument
+    catch_var::Union{JuliaDocument,Nothing}
+    catch_branch::Union{JuliaDocument,Nothing}
+    finally_branch::Union{JuliaDocument,Nothing}
 end
 
 """
 A `begin … end` block expression.
 """
 @document struct JuliaBegin <: JuliaDocument
-    body::Document
+    body::JuliaDocument
 end
 
 """
 An if-else expression.
 """
 @document struct JuliaIf <: JuliaDocument
-    condition::Document
-    then_branch::Document
-    else_branch::Document
+    condition::JuliaDocument
+    then_branch::JuliaDocument
+    else_branch::JuliaDocument
 end
 
 """
@@ -434,7 +459,7 @@ splatted; the `...` is postfix, which is why this is a node of its own
 rather than a `JuliaUnaryOperation`.
 """
 @document struct JuliaSplat <: JuliaDocument
-    value::Document
+    value::JuliaDocument
 end
 
 """
@@ -444,8 +469,8 @@ A broadcast call — `f.(a, b)`. Structurally a call whose dot means
 same `Expr(:.)` head means when its second argument is a name).
 """
 @document struct JuliaBroadcast <: JuliaDocument
-    callee::Document
-    arguments::CellVector
+    callee::JuliaDocument
+    arguments::CellVector{JuliaDocument}
 end
 
 """
@@ -454,7 +479,7 @@ An interpolated string — `"a \$(x) b"`. `parts` alternates literal text
 `JuliaString` is rendered inside `\$(…)`.
 """
 @document struct JuliaStringInterpolation <: JuliaDocument
-    parts::CellVector = CellVector()
+    parts::CellVector{JuliaDocument} = CellVector{JuliaDocument}()
 end
 
 """
@@ -470,7 +495,7 @@ end
 One interpolated expression inside a string — the `\$(…)` part.
 """
 @document struct JuliaInterpolation <: JuliaDocument
-    value::Document
+    value::JuliaDocument
 end
 
 """
@@ -480,8 +505,8 @@ always written, which is the form that stays readable when there is
 more than one.
 """
 @document struct JuliaWhere <: JuliaDocument
-    body::Document
-    parameters::CellVector = CellVector()
+    body::JuliaDocument
+    parameters::CellVector{JuliaDocument} = CellVector{JuliaDocument}()
 end
 
 """
@@ -493,11 +518,11 @@ is none) and `brackets` distinguishes a comprehension, which builds a
 collection, from a generator, which does not.
 """
 @document struct JuliaComprehension <: JuliaDocument
-    expression::Document
-    iterators::CellVector
-    element_type::Document = JuliaEmpty()
+    expression::JuliaDocument
+    iterators::CellVector{JuliaDocument}
+    element_type::JuliaDocument = JuliaEmpty()
     brackets::Bool = true
-    condition::Document = JuliaEmpty()
+    condition::JuliaDocument = JuliaEmpty()
 end
 
 """
@@ -507,9 +532,9 @@ written out rather than kept as a lambda, because `do` writes them
 without the arrow a lambda would.
 """
 @document struct JuliaDo <: JuliaDocument
-    call::Document
-    parameters::CellVector
-    body::Document
+    call::JuliaDocument
+    parameters::CellVector{JuliaDocument}
+    body::JuliaDocument
 end
 
 """
@@ -517,8 +542,8 @@ A `let` block — `let x = 1, y = 2 … end`. `bindings` are the
 assignments it opens with (possibly none, for a bare `let … end`).
 """
 @document struct JuliaLet <: JuliaDocument
-    bindings::CellVector
-    body::Document
+    bindings::CellVector{JuliaDocument}
+    body::JuliaDocument
 end
 
 """
@@ -527,7 +552,7 @@ the leading `;` and the `name = value` entries are not what a
 positional tuple writes.
 """
 @document struct JuliaNamedTuple <: JuliaDocument
-    entries::CellVector = CellVector()
+    entries::CellVector{JuliaDocument} = CellVector{JuliaDocument}()
 end
 
 """
@@ -544,11 +569,11 @@ into a `CellVector`, and `params` would stop being a place the
 selection walker can descend.
 """
 @document struct JuliaFunction <: JuliaDocument
-    name::Document
-    params::CellVector
-    body::Document
-    result_type::Document = JuliaEmpty()
-    where_clause::Document = JuliaEmpty()
+    name::JuliaDocument
+    params::CellVector{JuliaDocument}
+    body::JuliaDocument
+    result_type::JuliaDocument = JuliaEmpty()
+    where_clause::JuliaDocument = JuliaEmpty()
 end
 
 """
@@ -557,7 +582,7 @@ S}`. Its own node so a function's signature can carry it in a single
 field (see [`JuliaFunction`](@ref)).
 """
 @document struct JuliaWhereParameters <: JuliaDocument
-    parameters::CellVector
+    parameters::CellVector{JuliaDocument}
 end
 
 """
@@ -566,7 +591,7 @@ name without a method. Its own node because it has no parameter list
 at all, which is not the same as an empty one.
 """
 @document struct JuliaFunctionDeclaration <: JuliaDocument
-    name::Document
+    name::JuliaDocument
 end
 
 # ── Utility ──────────────────────────────────────────────────────────────────

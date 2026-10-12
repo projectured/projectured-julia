@@ -1,9 +1,10 @@
 # Strict document types
 
 **Status (2026-10-12): IN PROGRESS.** The check of declared types, the list rule, and the JSON and
-XML fields landed on `main` on 2026-10-09, and the laws of §6 changed after it. Steps 1 to 3, 6
-and 7 are done. Step 4 waits for [formula-references-by-name.md](formula-references-by-name.md),
-step 5 is not started, and step 8 is a decision of the owner. The owner asked for this plan in
+XML fields landed on `main` on 2026-10-09, and the laws of §6 changed after it. Steps 1 to 4, 6
+and 7 are done; the Julia fields of Step 4 were built with
+[formula-references-by-name.md](formula-references-by-name.md) (its Step 6). Step 5 is not
+started, and step 8 is a decision of the owner. The owner asked for this plan in
 the decision walk of [kernel-audit-fixes.md](kernel-audit-fixes.md), at L10-13, and accepted the
 model of §3 on 2026-10-05: no foreign type, and a field that admits other domains declares
 `Document`. The pilot domains are Julia, JSON and XML.
@@ -865,7 +866,7 @@ worktree. The three domains test different parts of the model:
       (`DocumentContractTest.jl:236-242`): the test document must declare that field `Any`.
     - `PrimitiveString.value` gets a `SubString`, and `DescriptionList.entries` and
       `ToyList.items` get a vector of a concrete element type: rule 2 converts them.
-- [ ] **Step 4: the fields of the three domains.** Each narrow field that a person edits admits
+- [x] **Step 4: the fields of the three domains.** Each narrow field that a person edits admits
   the insertion and the nothing (law 1).
   - Julia: each of the 52 `Document` fields and the 5 `Union{Document,Nothing}` fields chooses
     `Document` or `JuliaDocument` (§3.1). A field that holds code of another domain stays
@@ -892,6 +893,13 @@ worktree. The three domains test different parts of the model:
     `CellVector{JuliaDocument}`, after step 2 of that plan (no reference node). A question
     stays open before it: Julia code holds a pasted object by design; see step 6 of that plan. `JuliaFile.content` stays `Document`
     (group 6). The constructors of `JuliaCall` give typed lists.
+  - *The Julia fields are done (2026-10-12), with Step 6 of formula-references-by-name.md.*
+    The owner chose, after a question on the paste: Julia code holds an object of another
+    domain as a literal, `JuliaObject(value::Document)`, made at the write by a rule of
+    `convert_to_declared_type`, so all 77 fields declare `JuliaDocument` and the structured
+    forms of the evaluator keep the paste. This narrows the decision "no foreign type" of §3 for
+    Julia: the node lets a value stand as itself, not the code of another domain. `test_fsm()`
+    and `test_process()` pass with the narrow fields.
 - [ ] **Step 5: the insertion follows its place.** The typed child contexts, the filter of the
   candidates (§3.5), and the widening key (§3.6), in the three domains. The example of §3.6, an
   XML element typed into a `JsonArray`, is the test of acceptance.

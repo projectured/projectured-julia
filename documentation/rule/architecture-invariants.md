@@ -446,7 +446,11 @@ lives in projections (the edges), never in documents (the nodes) — this is wha
 makes the domain package sliceable. Anything two slices both need is a
 framework and sinks to the platform slice that owns the concept, not into either
 slice. A field that admits documents of other domains declares `Document`, so the
-declaration of a domain names no other domain.
+declaration of a domain names no other domain. A domain whose places hold only its
+own nodes can still hold a document of another domain as a value: a node of its
+own holds it in a field that declares `Document`, and a write that puts such a
+document into one of its places makes that node. The Julia domain does so with
+`JuliaObject`, a literal that stands in the code as itself.
 
 ### PAR-DOMAIN-OWNS-EDITS
 

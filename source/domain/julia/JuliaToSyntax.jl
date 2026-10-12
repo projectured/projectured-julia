@@ -905,10 +905,11 @@ end
 """
     JuliaObjectToSyntaxLeaf()
 
-An object that stands in Julia code, a document that is not Julia, such as a
+An object that stands in Julia code, the value of a `JuliaObject`, such as a
 widget a person pasted into a form, as one leaf: its title in angle marks,
 `⟨Table⟩`, or its type name when it has no title. A line of syntax holds only
-text, so the object can not draw as itself here.
+text, so the object can not draw as itself here. A document that is not Julia,
+printed through the Julia table at the root, draws the same way.
 
 The leaf takes no key, so a key never reaches the object's own table: the
 object is selected, copied and replaced whole. It shows a selection only when
@@ -926,6 +927,7 @@ end
 
 _get_julia_object_label(object) =
     "⟨" * string(something(get_document_title(object), nameof(typeof(object)))) * "⟩"
+_get_julia_object_label(object::JuliaObject) = _get_julia_object_label(object.value)
 
 map_reference_forward(::JuliaObjectToSyntaxLeaf, iomap, reference) =
     reference isa EmptyReference ? EmptyReference() : nothing
@@ -1042,9 +1044,10 @@ function JuliaToSyntax(entries::Pair...; theme = nothing, syntax_theme = nothing
         JuliaLambda          => JuliaLambdaToSyntaxNode(; delim = get_style(:punctuation_text),
                                                            arrow = get_style(:operator_text)),
         # The types of a domain that embeds Julia code.
+        JuliaObject          => JuliaObjectToSyntaxLeaf(; label = get_style(:identifier_text)),
         entries...,
-        # Last, because the first entry that matches is the one used: a node that
-        # is not Julia is an object that stands in the code.
+        # Last, because the first entry that matches is the one used: a document
+        # that is not Julia, printed through this table, draws as an object.
         Document             => JuliaObjectToSyntaxLeaf(; label = get_style(:identifier_text)),
     )
 end
