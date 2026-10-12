@@ -4,9 +4,9 @@
 #
 # One barrier per stage of the frame. Each one answers its fallback rather than
 # the exception, so a stage that fails costs that stage and not the editor.
-# `editor.fault_policy` decides whether any of them catches at all. An editor that
-# `Editor(…)` builds starts strict, `make_editor` turns the barriers on, and
-# `run_editor!` keeps the policy of its editor.
+# `editor.fault_policy` decides whether any of them catches at all. Every form
+# that makes an editor starts strict, a program that a person starts passes
+# `FaultPolicy()`, and `run_editor!` keeps the policy of its editor.
 
 # What a barrier answers when it caught. A sentinel rather than `nothing`,
 # because `nothing` is a value a stage may answer for itself.
@@ -25,10 +25,10 @@ _run_barrier(body, editor::Editor, site::Symbol; counter::Symbol = site,
 Hand every fault the last frame collected to whatever shows it, and answer how
 many there were.
 
-Call it once per frame, before anything reads the projection. This is the one
-place a fault is reported on the console, because it is the one place that knows
-which records are new — a printer's fault arrives here too, recorded from inside
-a computation that could not report anything itself.
+Call it once per frame, before anything reads the projection. The drain of the
+store hands each new record to the targets of the store, and reports on the
+console the records that no target took. A printer's fault arrives here too,
+recorded from inside a computation that could not report anything itself.
 
 It also shows the mark of each fault barrier that took a fault since the last
 frame ([`show_barrier_mark!`](@ref)). A barrier writes its output cell for it,
@@ -36,11 +36,8 @@ which a computation must not do, and this is the one point of a frame that runs
 outside every computation.
 """
 function report_frame_faults!(editor::Editor)
-    records = drain_faults!(editor.faults; policy = editor.fault_policy)
-    for record in records
-        report_fault!(editor.faults, record; policy = editor.fault_policy,
-                      backend = editor.backend)
-    end
+    records = drain_faults!(editor.faults; policy = editor.fault_policy,
+                            backend = editor.backend)
     _show_noted_marks!(editor)
     length(records)
 end

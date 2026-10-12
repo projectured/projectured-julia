@@ -230,13 +230,16 @@ function _count_overflow_fault!(store::FaultStore)
 end
 
 """
-    drain_faults!(store; policy = FaultPolicy()) -> Vector{FaultRecord}
+    drain_faults!(store; policy = FaultPolicy(), backend = nothing) -> Vector{FaultRecord}
 
 Hand every record that is new, or that grew by an order of magnitude, to each
-attached target, and answer the records that were handed over.
+attached target, report it at the next tier, and answer the records that were
+handed over.
 
-The answer is what lets the caller report the same records on the console: the
-drain holds the list of the new records, and the console tier needs exactly that.
+A record that a target took is shown, so [`report_fault!`](@ref) keeps the
+console quiet for it. A record that no target took goes to the console, and to
+the sound when the console is off or fails. A target took the record when its
+`append_fault!` returned.
 
 Call it once per frame, on the task of the editor, outside every computation and
 before anything reads the projection. A record is handed over at most once per
@@ -247,8 +250,10 @@ It throws nothing but an `ArgumentError` for a `policy` that is not a
 `FaultPolicy`, and it checks that before it changes the store. A target whose
 `append_fault!` fails is skipped, and a console line reports it when `policy`
 opens the console tier. A log that can not take a fault must not stop the editor.
+An exception that means stop goes on, and the records that the drain did not hand
+over wait for the next drain.
 """
-function drain_faults!(store::FaultStore; policy = FaultPolicy())
+function drain_faults!(store::FaultStore; policy = FaultPolicy(), backend = nothing)
     # FaultPolicy.jl loads after this file, so the keyword has no type.
     policy isa FaultPolicy ||
         throw(ArgumentError("drain_faults!: the policy must be a FaultPolicy, " *
@@ -257,23 +262,42 @@ function drain_faults!(store::FaultStore; policy = FaultPolicy())
     keys_to_emit = copy(store.undrained)
     empty!(store.undrained)
     emitted = FaultRecord[]
-    for key in keys_to_emit
-        record = get(store.records, key, nothing)
-        record === nothing && continue
-        for target in store.targets
-            try
-                append_fault!(target, record)
-            catch exception
-                is_passthrough_exception(exception) && rethrow()
-                _log_fault_report_failure(policy, target, exception)
+    handed = 0
+    try
+        for key in keys_to_emit
+            record = get(store.records, key, nothing)
+            if record !== nothing
+                is_shown = _hand_fault_to_targets!(store, record, policy)
+                report_fault!(store, record; policy, backend, is_shown)
+                push!(emitted, record)
             end
+            handed += 1
         end
-        push!(emitted, record)
+    finally
+        # Only an exception that means stop leaves the loop early.
+        for key in @view keys_to_emit[handed + 1:end]
+            key in store.undrained || push!(store.undrained, key)
+        end
     end
     emitted
 end
 
-drain_faults!(::Nothing; policy = FaultPolicy()) = FaultRecord[]
+drain_faults!(::Nothing; policy = FaultPolicy(), backend = nothing) = FaultRecord[]
+
+# Hand `record` to each target of `store`, and answer whether one of them took it.
+function _hand_fault_to_targets!(store::FaultStore, record::FaultRecord, policy)
+    is_shown = false
+    for target in store.targets
+        try
+            append_fault!(target, record)
+            is_shown = true
+        catch exception
+            is_passthrough_exception(exception) && rethrow()
+            _log_fault_report_failure(policy, target, exception)
+        end
+    end
+    is_shown
+end
 
 """
     get_consecutive_fault_count(store, counter) -> Int

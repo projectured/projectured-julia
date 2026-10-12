@@ -26,9 +26,10 @@ What it does, in order:
 3. The fault goes in the store, keyed, so the thousands of nodes one bug fails
    at become one record with a number.
 4. Reporting is left to [`drain_faults!`](@ref), because the drain holds the
-   list of the new records, and every record in the store reaches it. One
-   reporter, one line per new fault. A barrier given no store has no drain
-   behind it, so that one reports for itself.
+   list of the new records, and every record in the store reaches it. It
+   reports a record when the record is new, and again each time its count
+   reaches a power of ten. A barrier given no store has no drain behind it, so
+   that one reports for itself.
 
 **`policy.is_barrier_enabled` false means it catches nothing.** An editor that a
 test makes has it false, so a broken projection fails its test rather than

@@ -163,6 +163,16 @@ The decisions are C for L01-1, A for L01-2, A for L01-12, and A for A-4.
     that did not fit. The store forgets the oldest key in the order of first
     occurrence that does not wait for the drain. The tests of the capacity cover
     T-6.
+  - [x] A-4 A, with A-2. **The drain reports, not the frame.** The drain is the
+    only code that knows whether a target took a record, so `drain_faults!`
+    takes `backend` and calls `report_fault!` for each record that it hands
+    over. `report_fault!` takes `is_shown`: a record that a target took answers
+    `:target` and writes no console line, and a fault of a device still plays the
+    sound. `report_frame_faults!` is one call of the drain. A target took a record
+    when its `append_fault!` returned. A nested report answers the tier that it
+    reached and plays no sound. The drain puts the keys that it did not hand over
+    back in `undrained` in a `finally`, so a stop exception loses none (A-2). The
+    tests T-3 and T-11 came with it.
 - [ ] 4. The fault tests, the cell example test, and the guards. Then the audit of
   the changed files again, and the seal on the owner's word.
 

@@ -20,6 +20,16 @@ end
 FaultModule.append_fault!(target::QuietTarget, record) = push!(target.seen, record)
 FaultModule.append_fault!(::AngryTarget, record) = error("this target refuses records")
 
+# A target that a person stops when it takes the record of one origin.
+mutable struct StoppingTarget
+    stop_at::Symbol
+    seen::Vector{Symbol}
+end
+function FaultModule.append_fault!(target::StoppingTarget, record)
+    record.origin === target.stop_at && throw(InterruptException())
+    push!(target.seen, record.origin)
+end
+
 # A target that a person stops while it takes a record.
 struct InterruptedTarget end
 FaultModule.append_fault!(::InterruptedTarget, record) = throw(InterruptException())
@@ -148,6 +158,32 @@ function test_fault_store()
         quiet = FaultPolicy(is_console_enabled = false, is_sound_enabled = false)
         records = @test_logs drain_faults!(store; policy = quiet)
         @test length(records) == 1
+    end
+
+    @testset "the drain reports on the console only a record that no target took" begin
+        policy = FaultPolicy(is_sound_enabled = false)
+        shown = FaultStore()
+        attach_fault_target!(shown, QuietTarget(Any[]))
+        record_fault!(shown, :print; origin = :Shown, exception = ErrorException("e"))
+        @test length(@test_logs(drain_faults!(shown; policy))) == 1
+        alone = FaultStore()
+        record_fault!(alone, :print; origin = :Alone, exception = ErrorException("e"))
+        @test length(@test_logs((:error, r"^\[fault\] print in Alone: e$"),
+                                drain_faults!(alone; policy))) == 1
+    end
+
+    @testset "a stop exception in the drain leaves the records after it waiting" begin
+        store = FaultStore()
+        target = StoppingTarget(:B, Symbol[])
+        attach_fault_target!(store, target)
+        for origin in (:A, :B, :C)
+            record_fault!(store, :print; origin, exception = ErrorException("e"))
+        end
+        @test_throws InterruptException drain_faults!(store)
+        @test target.seen == [:A]
+        target.stop_at = :nothing
+        @test [record.origin for record in drain_faults!(store)] == [:B, :C]
+        @test target.seen == [:A, :B, :C]
     end
 
     @testset "a policy that is not a FaultPolicy throws before the drain" begin

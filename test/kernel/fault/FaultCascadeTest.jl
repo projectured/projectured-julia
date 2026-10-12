@@ -6,7 +6,11 @@ Confirms:
   a store that throws does not close the console tier;
 - with the console open, a report reaches the console and plays no sound;
 - with the console closed, a report plays the sound;
-- a fault of a device plays the sound also when the console took it;
+- a fault of a device plays the sound also when the console took it, and no
+  sound when the sound is off;
+- a console that throws falls to the sound;
+- a record that a target shows goes to no console, and a fault of a device that a
+  target shows still plays the sound;
 - a report inside a report goes to the console alone, and the depth of the
   store goes back to zero.
 
@@ -47,6 +51,14 @@ function FaultModule.play_fault_sound!(backend::NestedReportBackend)
     nothing
 end
 
+# A logger whose console is gone: each line that it is given throws.
+struct AngryLogger <: Base.CoreLogging.AbstractLogger end
+Base.CoreLogging.min_enabled_level(::AngryLogger) = Base.CoreLogging.Debug
+Base.CoreLogging.shouldlog(::AngryLogger, arguments...) = true
+Base.CoreLogging.catch_exceptions(::AngryLogger) = false
+Base.CoreLogging.handle_message(::AngryLogger, arguments...; keywords...) =
+    error("the console is gone")
+
 # A backend whose sound is stopped by a person.
 struct InterruptedSoundBackend end
 FaultModule.play_fault_sound!(::InterruptedSoundBackend) = throw(InterruptException())
@@ -78,7 +90,7 @@ function test_fault_cascade()
                            backend = AngryBackend()))
         end
         @test tiers[1] === :console
-        @test tiers[2] isa Symbol
+        @test tiers[2] === :console
         quiet = FaultPolicy(is_console_enabled = false, is_sound_enabled = false)
         @test report_fault!(store, record; policy = quiet,
                             backend = AngryBackend()) === :swallowed
@@ -120,6 +132,47 @@ function test_fault_cascade()
         @test tier === :console
         @test errors == 1
         @test backend.sounds == 1
+    end
+
+    @testset "a fault of a device plays no sound when the sound is off" begin
+        store = FaultStore()
+        record = _record_cascade_fault!(store, :device)
+        backend = CountingSoundBackend()
+        tier, errors = _run_with_test_logger() do
+            report_fault!(store, record; policy = FaultPolicy(is_sound_enabled = false),
+                          backend)
+        end
+        @test (tier, errors, backend.sounds) == (:console, 1, 0)
+    end
+
+    @testset "a console that throws falls to the sound" begin
+        store = FaultStore()
+        record = _record_cascade_fault!(store, :print)
+        backend = CountingSoundBackend()
+        tier = Base.CoreLogging.with_logger(AngryLogger()) do
+            report_fault!(store, record; policy = FaultPolicy(), backend)
+        end
+        @test (tier, backend.sounds) == (:sound, 1)
+    end
+
+    @testset "a record that a target shows goes to no console" begin
+        store = FaultStore()
+        record = _record_cascade_fault!(store, :print)
+        backend = CountingSoundBackend()
+        tier, errors = _run_with_test_logger() do
+            report_fault!(store, record; policy = FaultPolicy(), backend, is_shown = true)
+        end
+        @test (tier, errors, backend.sounds) == (:target, 0, 0)
+    end
+
+    @testset "a fault of a device that a target shows still plays the sound" begin
+        store = FaultStore()
+        record = _record_cascade_fault!(store, :device)
+        backend = CountingSoundBackend()
+        tier, errors = _run_with_test_logger() do
+            report_fault!(store, record; policy = FaultPolicy(), backend, is_shown = true)
+        end
+        @test (tier, errors, backend.sounds) == (:target, 0, 1)
     end
 
     @testset "a report inside a report goes to the console alone" begin
