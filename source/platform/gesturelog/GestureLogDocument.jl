@@ -47,13 +47,14 @@ With `root`, the document the references of `operation` start at, the entry
 writes each reference as `describe_reference` writes it, from the deepest
 document on it that has a title. With `fold_typing`, a typed character joins the
 newest entry when that entry is a run of typed characters, so a typed sentence
-is one entry, `typed "…"`, with the operation of its last character.
+is one entry, `typed "…"`, with the operation of its last character. Return and
+Tab type a character that shows nothing, so each is an entry of its own.
 """
 function record_gesture!(log::GestureLog, gesture, operation; root = nothing,
                          fold_typing::Bool = false)
     text = root === nothing ? describe_operation(operation) : describe_operation(operation, root)
     event = gesture isa WindowInput ? gesture.event : gesture
-    if fold_typing && event isa KeyPress
+    if fold_typing && event isa KeyPress && !any(iscntrl, event.text)
         typing = log.typing * event.text
         log.typing = typing
         entry = GestureLogEntry(0, _describe_typing(typing), text, _operation_kind(operation))

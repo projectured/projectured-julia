@@ -118,6 +118,12 @@ take the break or decline it.
      geometry arms, since the text no longer takes the `KeyDown` of Return.
    - Shift+Space and Ctrl+Space in a table stay `KeyDown` rules: Ctrl+Space types
      nothing, and the two select the row and the column as a pair.
+   - The gesture log and the undo buffer keep Return and Tab out of a run of typed
+     text: a `KeyPress` of a control character is an entry and an undo step of
+     its own, as its `KeyDown` was (`GestureLogDocument`, `GestureLogRecording`,
+     `UndoBufferToAny`). The default reader of a projection already gives a
+     `KeyPress` to the gestures of its document, so the pivot table and the data
+     frame view, which name only a `KeyDown`, need no change.
 5. **The tests**, the scripted events and the example harness send what a
    backend sends.
    *Built (2026-10-12), `4b4f1b1e5`, `ee52265ed`, `afd735826`, `b1b005e97`.*

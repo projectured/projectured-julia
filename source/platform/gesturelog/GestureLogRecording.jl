@@ -79,7 +79,7 @@ end
 # The keys that type no character. The press of any other key comes with the
 # character that it types.
 const _NON_TYPING_KEYS = Set{Symbol}([:left, :right, :up, :down, :home, :end, :page_up, :page_down,
-                                      :return, :tab, :escape, :insert, :backspace, :delete,
+                                      :escape, :insert, :backspace, :delete,
                                       :f1, :f2, :f3, :f4, :f5, :f6, :f7, :f8, :f9, :f10, :f11, :f12])
 
 # Is `gesture` an act of the person that types no character: a press of a mouse
@@ -88,6 +88,8 @@ const _NON_TYPING_KEYS = Set{Symbol}([:left, :right, :up, :down, :home, :end, :p
 function _ends_typing_run(gesture)
     event = gesture isa WindowInput ? gesture.event : gesture
     event isa Union{MouseClick, MouseDown, MouseScroll} && return true
+    # Return and Tab type a character that shows nothing.
+    event isa KeyPress && return any(iscntrl, event.text)
     event isa KeyDown || return false
     modifiers = event.modifiers
     modifiers.ctrl || modifiers.alt || modifiers.meta || event.key in _NON_TYPING_KEYS

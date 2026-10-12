@@ -171,10 +171,12 @@ function _record_operation(p::UndoBufferToAnyProjection, iomap::UndoBufferToAnyI
 end
 
 # Whether a step is typing, and whether it joins the run of the last step. A
-# `KeyPress` is a character; a key that is not one arrives as a `KeyDown`, and it
-# makes a step of its own.
+# `KeyPress` of a printable character is typing. Return and Tab, which type a
+# character that shows nothing, and a key that types nothing make a step of their
+# own.
 _compute_typing_run(buffer::UndoBuffer, gesture) =
-    !(gesture isa KeyPress) ? :none : _is_typing_run_open(buffer) ? :continues : :starts
+    !(gesture isa KeyPress) || any(iscntrl, gesture.text) ? :none :
+    _is_typing_run_open(buffer) ? :continues : :starts
 
 # A run is open while its last step is typing and has a way back, nothing was
 # taken back since, the caret is where the run left it, and the pause since is
