@@ -1,7 +1,7 @@
 # The first window with domain packages installed
 
-Status: in progress, 2026-10-12. The owner chose options 2 and 3 of §4. A
-test of option 2 on all domains passed (§4.1); §5 holds the steps.
+Status: done, 2026-10-12. The owner chose options 2 and 3 of §4; §5 holds
+the steps and §5.1 the measurement after them.
 
 ## 1. The request
 
@@ -136,31 +136,87 @@ Facts that the test found:
 
 ## 5. Steps for options 2 and 3
 
-- [ ] **The platform function.** `run_natural_rows_workload(domain::Module)`
+- [x] **The platform function.** `run_natural_rows_workload(domain::Module)`
       beside `run_display_workload` in
       [DisplayWorkload.jl](../../source/platform/display/DisplayWorkload.jl):
       it runs `domain.__init__()`, then builds `NaturalToGraphics` as
       `_start_session` of the display does.
-- [ ] **The workloads.** The entry file of each of the 13 packages ends with
+- [x] **The workloads.** The entry file of each of 14 packages ends with
       `@compile_workload run_natural_rows_workload(<Domain>Module)`, and
-      `PrecompileTools` joins its `[deps]` and its entry in the manifests.
-- [ ] **The rule and its guards.** package-rules.md, under "A package that a
+      `PrecompileTools` joins its `[deps]` and its entry in the manifest of
+      `environment/all`: Book, Chart, Formula, Graph, JSON, Julia, Markdown,
+      Math, Pivot, RST, SQL, Workflow, XML and YAML.
+
+      **Found during the work: a second channel of rows.** A package that
+      defines a method of `make_graphics_projection(::Type{T}; measure,
+      appearance)` adds a row too: `collect_graphics_projection_types` reads the
+      method table, and `NaturalToGraphics` builds a row for each type. Pivot
+      has rows only so, and Julia and DataFrames have them both ways. So Pivot
+      got the workload, and the rule names both channels.
+- [x] **The rule and its guards.** package-rules.md, under "A package that a
       user loads compiles its own first window", gives the rule for a package
-      that registers natural rows. In `PackageGraphTest`, the guard of
-      `@compile_workload` allows it in such an entry file, and a new guard
-      checks that each package whose slice calls a `register_natural_…!`
-      function has the workload. The new domain guide says it too.
-- [ ] **Option 3.** Find the roots of the statements that remain, with the
-      method of §6, and give them concrete types. Check
-      [SEALING.md](../../SEALING.md) for each file before an edit.
-- [ ] **A test.** Beside the README session, `test_first_window_compiles_little`
-      measures the first window in the active environment, with every domain
-      installed, against a limit that the measurement after option 3 sets.
-- [ ] **Measure** the table of §2 again, and the README session, which must stay
-      at about 0.66 s.
-- [ ] **The narrow tests:** the guards, `test_package_graph()`, the natural
-      tests of the umbrella, and the suites of two domains.
+      whose slice has natural rows. In `PackageGraphTest`, `_has_natural_rows`
+      finds such a package, the guard of `@compile_workload` allows the
+      workload in its entry file, and the new testset "a package with natural
+      rows compiles them in its entry file" checks that each one has it. The
+      testset fails when a workload is missing (checked by removing the one of
+      YAML). The new domain guide says it under "What to add next".
+- [x] **Option 3.** `@snoop_invalidations` with all domains, compared with the
+      README session, gave the roots that only the domains add, and each got
+      its fix by the rules of package-rules.md:
+      - `UntrackedCell{T}(value)`: `convert` only when `value` is not a `T`,
+        and then through `invokelatest`. `convert(::Type{NamedTuple}, ::GroupKey)`
+        of DataFrames invalidated 520 instances, also in the README session.
+      - `NaturalToGraphics` and `build_task_graphics_entry` call
+        `make_graphics_projection` through `invokelatest`; the domains extend it.
+      - `collect_graphics_projection_types` checks each type with `in` before it
+        pushes it; `unique!` on a `Vector{Type}` went through a `Set`, whose
+        iteration an `iterate` method of DataStructures invalidated.
+      - `convert_to_declared_type`, `_is_domain_entry` and
+        `get_insertion_candidates` call `get_domain_insertion` through
+        `invokelatest`; the domains extend it.
+      - `wake_editor!` calls `wake_backend!` through `invokelatest`, as the
+        editor loop calls the backend protocol; `ConsoleBackend` extends it.
+      - `_format_layout_note` asserts `describe_document(node)::String`, so `*`
+        meets no generic path that the `cconvert` of BitFlags invalidates.
+
+      Left as it is: `_read_command_output` of SDL (18 instances). The chain is
+      inside Base: `open(::CmdRedirect, ::String)` waits on a condition, and
+      the `assert_havelock` method of ConcurrentUtilities invalidates it.
+- [x] **A test.** `test_first_window_compiles_little` has a second testset:
+      the first window in the active environment, which in the CI is
+      `environment/all` with every domain installed, compiles less than 3.0 s.
+- [x] **Measure** the table of §2 again (§5.1).
+- [x] **The narrow tests:** the guards, `test_package_graph()`, the natural
+      tests of the umbrella, the tests of the changed files, and the suites of
+      RST and Pivot. All pass: `test_cell` 160 (2 broken, as before),
+      `test_editor_wait` 25, `test_editor_feeds` 21, `test_document_composition`
+      4, `test_task_views` 36, `test_arrangement_program` 13,
+      `test_data_frame_display` 8, `test_document_insertion` 123, the four
+      natural tests 2, 3, 1, 2, 4, 1, 4, 2 and 4, `test_package_graph` 398,
+      `test_rst` 111, `test_pivot` 299. The style guard fails on
+      `source/platform/text/TextDocument.jl:460`, on `main` too, from other
+      work.
 - [ ] Move this plan to `plan/done/`.
+
+### 5.1 The measurement after the work
+
+2026-10-12, the method of §6, all packages built again. The machine was busy
+by other sessions during the first two rows, so each row has its own README
+control.
+
+| Stage | README session | All 24 domains | Statements not in the README session |
+| --- | --- | --- | --- |
+| before | 0.64 s | 8.3–15 s | 462 |
+| the workloads (option 2) | 1.00–1.14 s, load 50–65 | 2.27–2.50 s | 27–34 |
+| and the invalidation fixes (option 3) | 0.62–0.76 s | 1.08–1.22 s | 9 |
+
+With all domains, our code has 1,472 invalidated instances, and 1,463 in the
+README session; before the fixes it was 2,059 against 1,581. Nine statements
+remain: three methods of the SDL backend that the load rejects, a Base
+function, two theme reads, `get_widget_style`, a `getproperty` of a `Set` and
+`compute_code_pieces` for Julia. The load of all 24 domains takes 6.3–6.9 s
+against 1.7 s; this plan does not change the load.
 
 ## 6. How to measure
 
