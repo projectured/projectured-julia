@@ -109,6 +109,26 @@ Stop the agent of `connection`, with every session in it.
 function stop_agent_connection! end
 
 """
+    has_agent_steering(connection) -> Bool
+
+Whether the agent of `connection` takes a prompt into a turn that runs, as a
+person who writes while the agent works. A connection that has not started
+answers `false`.
+"""
+function has_agent_steering end
+
+"""
+    steer_agent_prompt!(connection, session_id, prompt) -> Bool
+
+Send `prompt`, a vector of `LlmContent`, into the turn of the session that runs.
+The agent reads it at its next step, or in a turn of its own just after the one
+that runs, and the events of its answer reach the `on_event` of the prompt that
+runs. Answers whether the agent took it: `false` when it can not, when no turn
+runs, or when it refused, and the caller then sends the prompt after the turn.
+"""
+function steer_agent_prompt! end
+
+"""
     has_agent_sign_out(connection) -> Bool
 
 Whether the agent of `connection` signs out when asked. A connection that has

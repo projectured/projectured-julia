@@ -1133,7 +1133,8 @@ from the command line of the projectured UI.
   - Questions: Q17, the behaviour above (steer when the agent can, else a
     queue)? Q18, the chat order (the message below the answer, the answer
     going on below it)? Q19, the kernel names `has_agent_steering` and
-    `steer_agent_prompt!`? Recommended: yes to all three.
+    `steer_agent_prompt!`? Recommended: yes to all three. The owner agreed on
+    2026-10-12.
 - [ ] 2.8 The ACP Registry as a source for the list of agents.
 - [x] 2.9 A hook for the close of a document, so the close of a tab stops its
   agent and its MCP server (review #3). Done on 2026-10-08, as the owner
