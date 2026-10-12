@@ -349,7 +349,7 @@ function evaluate_operation(editor, op::ComposerInsertPartOperation)
         if isempty(strip(v))
             deleteat!(d.parts, length(d.parts))    # drop the blank typein
         else
-            p.content = TextBlock(TextString(v))    # commit the prose
+            p.content = make_text_block(v)    # commit the prose
         end
     end
     ins = DocumentInsertion("")
@@ -464,11 +464,11 @@ end
 # parser it stays a text block, which is what an environment without the markdown
 # package can draw. The model receives the source either way.
 function _prose_document(text::AbstractString)
-    has_natural_parser(:md) || return TextBlock(TextString(String(text)))
+    has_natural_parser(:md) || return make_text_block(String(text))
     try
         parse_natural_text(:md, String(text))
     catch
-        TextBlock(TextString(String(text)))
+        make_text_block(String(text))
     end
 end
 
@@ -568,15 +568,6 @@ end
 
 const _PLACEHOLDER = "type here…"
 
-# A range at offsets `s..e` inside span `span` (1-based) of a body `TextBlock`, in
-# the `.elements[span].content{s:e}` shape `TextToGraphics` reads. `s == e` is its
-# thin-line caret.
-_body_range_selection(span::Int, s::Int, e::Int) =
-    ConcreteReference(FieldReferenceStep("elements"),
-        ConcreteReference(RangeReferenceStep(span - 1, span),
-            ConcreteReference(FieldReferenceStep("content"),
-                ConcreteReference(RangeReferenceStep(s, e), EmptyReference()))))
-
 # ── Editable (active) part body — its value, drawn with the draft's selection.
 
 # A `DocumentInsertion` keeps its "Insert a new <value> here" decoration: static
@@ -584,9 +575,12 @@ _body_range_selection(span::Int, s::Int, e::Int) =
 const _INS_PREFIX = "Insert a new "
 const _INS_SUFFIX = " here"
 
-# Which span of the rendered body carries the editable value.
+# Which run of the one line of the rendered body carries the editable value, and
+# the flat offset where the value starts: after the prefix of a kind chooser.
 _value_span(::DocumentInsertion) = 2
 _value_span(::Any) = 1
+_value_offset(::DocumentInsertion) = length(_INS_PREFIX)
+_value_offset(::Any) = 0
 
 function _editable_body(p, c::DocumentInsertion)
     # The value span carries the live commitability colour (green = names a
@@ -602,34 +596,32 @@ function _editable_body(p, c::DocumentInsertion)
         state === :invalid ? p.invalid_color :
         state === :empty   ? p.plain_color  : p.valid_color
     end)
-    TextBlock([
+    TextBlock(TextLine(TextDocument[
         TextString(_INS_PREFIX, p.code_font, p.placeholder_color),
         value_span,
         TextString(() -> name_completion(c).hint, p.code_font, p.completion_hint_color),
         TextString(_INS_SUFFIX, p.code_font, p.placeholder_color),
-    ])
+    ]))
 end
 
-# Plain editable text (a `PrimitiveString` or a domain's insertion): one span, and
-# a pale placeholder while empty.
+# Plain editable text (a `PrimitiveString` or a domain's insertion): one line of one
+# run, and a pale placeholder while empty.
 function _editable_body(p, c)
     show() = (v = _value(c); isempty(v) ? _PLACEHOLDER : v)
     # reactive font_color (set below); font stays immutable.
     ts = TextString(Cell(Computation(show)), p.code_font, Cell(p.plain_color), nothing, nothing, nothing, nothing)
     set_cell_computation!(getfield(ts, :font_color),
            () -> isempty(_value(c)) ? p.placeholder_color : p.plain_color)
-    TextBlock(ts)
+    TextBlock(TextLine(ts))
 end
 
-# The body's selection for the value range `s..e` of the active part `c`. While a
-# kind chooser's value is empty, the caret sits at the end of the prefix span:
-# `TextToGraphics` can not place a caret in a zero-width span, and this lands at
-# the same x, just after "Insert a new ".
+# The body's selection for the value range `s..e` of the active part `c`: a flat
+# range of its line, past the runs before the value. While a kind chooser's value
+# is empty, the caret is at the end of its prefix, just after "Insert a new ".
 function _body_selection(c, s::Int, e::Int)
-    (c isa DocumentInsertion && isempty(_value(c))) &&
-        return _body_range_selection(1, length(_INS_PREFIX), length(_INS_PREFIX))
     n = length(_value(c))
-    _body_range_selection(_value_span(c), clamp(s, 0, n), clamp(e, 0, n))
+    base = _value_offset(c)
+    make_flat_range_reference(base + clamp(s, 0, n), base + clamp(e, 0, n))
 end
 
 # A widget that follows the draft's paths (the selection, the mouse target). Each
@@ -805,44 +797,23 @@ end
 
 # The value range of the active part `c` that a place in its `body` names:
 # `(start, stop)`, `nothing` for a range that leaves the value, or `:other` for a
-# reference that names no place in the text.
+# reference that names no place in the text. The value is a run of the one line of
+# the body; `get_flat_range` reads a place in either form that a text takes. A
+# caret before the value is at its start, and one after it at its end.
 function _map_body_to_value(c, body::TextBlock, reference)
-    r = strip_reference_types(reference)
+    range = get_flat_range(body, reference)
+    range === nothing && return :other
     span = _value_span(c)
     n = length(_value(c))
-    if r isa ConcreteReference && r.head isa TextRangeReferenceStep && r.tail isa EmptyReference
-        base = get_flat_base(body, Int[span])
-        base === nothing && return :other
-        shown = length(body.elements[span].content::AbstractString)
-        inside(f) = base <= f <= base + shown
-        place(f) = f < base ? 0 : f > base + shown ? n : clamp(f - base, 0, n)
-        s, e = r.head.start, r.head.stop
-        s == e && return (place(s), place(s))
-        (inside(s) && inside(e)) || return nothing
-        return (clamp(s - base, 0, n), clamp(e - base, 0, n))
-    end
-    parsed = _parse_body_span_range(r)
-    parsed === nothing && return :other
-    k, a, b = parsed
-    k == span && return (clamp(a, 0, n), clamp(b, 0, n))
-    a == b || return nothing
-    k < span ? (0, 0) : (n, n)
-end
-
-# The `(k, s, e)` of an `elements[k].content{s:e}` path, or `nothing` when the
-# reference is not one.
-function _parse_body_span_range(reference)
-    reference isa ConcreteReference || return nothing
-    (reference.head isa FieldReferenceStep && reference.head.name == "elements") || return nothing
-    span = reference.tail
-    (span isa ConcreteReference && span.head isa RangeReferenceStep) || return nothing
-    inner = span.tail
-    (inner isa ConcreteReference && inner.head isa FieldReferenceStep &&
-     inner.head.name == "content") || return nothing
-    range = inner.tail
-    (range isa ConcreteReference && range.head isa RangeReferenceStep &&
-     range.tail isa EmptyReference) || return nothing
-    (span.head.stop, range.head.start, range.head.stop)
+    base = get_flat_base(body, Int[1, span])
+    base === nothing && return :other
+    shown = length(body.elements[1].elements[span].content::AbstractString)
+    inside(f) = base <= f <= base + shown
+    place(f) = f < base ? 0 : f > base + shown ? n : clamp(f - base, 0, n)
+    s, e = range
+    s == e && return (place(s), place(s))
+    (inside(s) && inside(e)) || return nothing
+    (clamp(s - base, 0, n), clamp(e - base, 0, n))
 end
 
 # ═══════════════════════════════════════════════════════════════════════

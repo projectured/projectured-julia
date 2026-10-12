@@ -23,7 +23,7 @@ end
 ConversationPart(content::Document; collapsed::Bool = false) =
     ConversationPart(Cell(content), Cell(collapsed), Cell(nothing))
 ConversationPart(s::AbstractString; collapsed::Bool = false) =
-    ConversationPart(Cell(TextBlock(TextString(String(s)))), Cell(collapsed), Cell(nothing))
+    ConversationPart(Cell(make_text_block(String(s))), Cell(collapsed), Cell(nothing))
 
 # ── ConversationThinking ──────────────────────────────────────────────────────
 
@@ -49,7 +49,7 @@ ConversationThinking(text::AbstractString;
                      signature::AbstractString = "",
                      redacted::Bool = false,
                      data::AbstractString = "") =
-    ConversationThinking(TextBlock(TextString(String(text)));
+    ConversationThinking(make_text_block(String(text));
                          signature = signature, redacted = redacted, data = data)
 
 # Convenience: a thinking part. Collapsed by default — reasoning is verbose and

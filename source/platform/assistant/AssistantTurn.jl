@@ -121,15 +121,7 @@ end
 # Helpers for input/output mutation
 # ═══════════════════════════════════════════════════════════════════════
 
-function _text_to_string(t::TextBlock)
-    io = IOBuffer()
-    for span in t.elements
-        if hasproperty(span, :content)
-            print(io, span.content)
-        end
-    end
-    String(take!(io))
-end
+_text_to_string(t::TextBlock) = get_flat_string(t)
 
 _text_to_string(s::PrimitiveString) = something(s.value, "")
 # Any other content — a document a part holds — answers with its own source
@@ -1015,7 +1007,7 @@ end
 # and what this module wants is the *result*, which arrives as an `AgentToolResult`.
 function _handle_agent_event!(ev::LlmEvent, a, turn, state, set)
     if ev isa LlmTextStart
-        part = ConversationPart(TextBlock(TextString("")))
+        part = ConversationPart(make_text_block(""))
         push!(turn.parts, Cell(part))
         state[:current_block] = part
 
@@ -1058,22 +1050,22 @@ end
 
 function _append_text_delta!(part::ConversationPart, s::AbstractString)
     # Append to the part's TextBlock content. Simplest reliable approach:
-    # rebuild a single-span TextBlock with the accumulated content.
+    # rebuild the lines of the TextBlock from the accumulated content.
     current = _content_to_string(part.content)
-    part.content = TextBlock(TextString(current * String(s)))
+    part.content = make_text_block(current * String(s))
     nothing
 end
 
 _append_text_delta!(_, _) = nothing
 
-# Accumulate a thinking_delta into the thinking part's text (rebuild a
-# single-span TextBlock with the accumulated reasoning, mirroring
+# Accumulate a thinking_delta into the thinking part's text (rebuild the lines
+# of the TextBlock from the accumulated reasoning, mirroring
 # `_append_text_delta!`).
 function _append_thinking_delta!(part::ConversationPart, s::AbstractString)
     c = part.content
     c isa ConversationThinking || return nothing
     current = _content_to_string(c.text)
-    c.text = TextBlock(TextString(current * String(s)))
+    c.text = make_text_block(current * String(s))
     nothing
 end
 

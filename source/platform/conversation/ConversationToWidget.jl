@@ -599,22 +599,16 @@ _section_card(label::AbstractString, body, style::StyleText, padding::Inset, fol
 # content. Redacted blocks (and `display: "omitted"`, which yields empty text)
 # render an elided placeholder rather than an empty card.
 function _thinking_body(t::ConversationThinking)
-    t.redacted && return TextBlock(TextString("[redacted thinking]"))
+    t.redacted && return make_text_block("[redacted thinking]")
     txt = t.text
     txt isa TextBlock && _text_is_empty(txt) &&
-        return TextBlock(TextString("[no thinking summary]"))
+        return make_text_block("[no thinking summary]")
     txt
 end
 
 # True when a TextBlock has no non-empty span content (e.g. `display: "omitted"`).
-function _text_is_empty(t::TextBlock)
-    for span in t.elements
-        hasproperty(span, :content) || continue
-        c = span.content
-        c isa AbstractString && !isempty(c) && return false
-    end
-    true
-end
+# A text is empty when it holds no character but the breaks between its lines.
+_text_is_empty(t::TextBlock) = all(==('\n'), get_flat_string(t))
 
 # ── Reference mapping / reader ───────────────────────────────────────────────
 #
