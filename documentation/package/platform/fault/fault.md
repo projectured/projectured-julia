@@ -8,7 +8,7 @@ A fault in a printer, a reader, an operation, a backend or a tool does not stop 
 
 ### Two halves
 
-The kernel's `FaultModule` holds the record, the store, the policy, the barrier of the editor loop and the report. It names no document and no projection. The kernel's cell layer holds the fault scope of a computation, and its projection layer the seams of a barrier. The platform's `ProjectionAlgebraModule` holds the barrier inside a pipeline and the report that it leaves, and each output domain holds the mark that draws the report. `FaultViewModule` in this package holds the log, the panel, the safe mode and the gestures of a mark, and it answers the seams of the kernel.
+The kernel's `FaultModule` holds the record, the store, the policy, the barrier of the editor loop and the report; the [kernel guide of faults](../../kernel/fault.md) describes it. It names no document and no projection. The kernel's cell layer holds the fault scope of a computation, and its projection layer the seams of a barrier. The platform's `ProjectionAlgebraModule` holds the barrier inside a pipeline and the report that it leaves, and each output domain holds the mark that draws the report. `FaultViewModule` in this package holds the log, the panel, the safe mode and the gestures of a mark, and it answers the seams of the kernel.
 
 | Where | What |
 | --- | --- |
