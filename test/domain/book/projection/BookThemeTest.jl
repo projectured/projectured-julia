@@ -20,7 +20,7 @@ end
 function test_book_theme()
 @testset "the book syntax follows the scales of the appearance" begin
     document = BookBook("The Title", "An Author",
-                        [BookChapter("One", "1", [BookParagraph(TextBlock(TextString("Some prose.")))])])
+                        [BookChapter("One", "1", [BookParagraph(TextBlock(TextLine(TextString("Some prose."))))])])
 
     plain = draw_book_font_sizes(document, Appearance())
     @test !isempty(plain)

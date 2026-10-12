@@ -809,25 +809,13 @@ end
 # The object of part `k` of `span`: the span itself when it holds no `'\n'`.
 _make_span_part(span, k::Int) = _is_split_span(span) ? _make_line_piece(span::TextString, k) : span
 
-# The lines of an output. A `TextLine` is a line; a span joins the line before it;
-# a `TextNewline` opens a line. `chrome_lines`, when given, tells which lines are of
-# the chrome.
+# The lines of an output, one record for each `TextLine`. `chrome_lines`, when
+# given, tells which lines are of the chrome.
 function _compute_output_lines(block::TextBlock, chrome_lines = nothing)
     lines = _LineRecord[]
-    for element in block.elements
-        if element isa TextLine
-            k = length(lines) + 1
-            is_chrome = chrome_lines !== nothing && k <= length(chrome_lines) && chrome_lines[k]
-            push!(lines, _LineRecord(collect(TextDocument, element.elements), element.indentation, is_chrome,
-                                     element.fold))
-            continue
-        end
-        isempty(lines) && push!(lines, _make_first_line_record())
-        if element isa TextNewline
-            push!(lines, _LineRecord(TextDocument[], 0, false))
-        else
-            push!(lines[end].spans, element)
-        end
+    for (k, line) in enumerate(block.elements)
+        is_chrome = chrome_lines !== nothing && k <= length(chrome_lines) && chrome_lines[k]
+        push!(lines, _LineRecord(collect(TextDocument, line.elements), line.indentation, is_chrome, line.fold))
     end
     isempty(lines) && push!(lines, _make_first_line_record())
     lines

@@ -10,12 +10,10 @@
 # of a field highlights again (`make_text_pattern`). An empty pattern, and one
 # that does not compile, highlight nothing.
 #
-# It is the structural sibling of `WordWrapping` — both split a `TextString` into
-# adjacent sub-spans and stay invertible through a piecewise offset table. Here the
-# split happens at match boundaries and the matched runs are restyled, but no
-# character is inserted or removed, so `HighlightSegment` is `WrapSegment` and the
-# selection/reader mapping is identical. Matching is per span (the same
-# span-delimited simplification as `FilteredTextToText`).
+# It splits a `TextString` of a line into adjacent sub-spans at the boundaries of
+# the matches and restyles the matched runs. No character is inserted or removed,
+# so the table of the segments of each split line maps a path in that line
+# (`_map_line_path`), and every flat offset stays. Matching is per span.
 #
 # A reference of the input starts with the step `text`. On the way forward the
 # step comes off, the rest maps through the IO map of the text, and then across
@@ -57,10 +55,10 @@ HighlightedTextToText(; theme = nothing,
 """
     HighlightSegment(out_index, in_span, in_char_start, length)
 
-One entry per emitted output `TextString` sub-span. `out_index` is its 1-based
-position in `output.elements`; `in_span` is the 1-based originating span of the
-block of the text; `in_char_start` is the 0-based char offset of this sub-span
-within that span; `length` is its character count.
+One entry per emitted output `TextString` sub-span of a split line. `out_index` is
+its 1-based position in the spans of the output line; `in_span` is the 1-based
+originating span of the input line; `in_char_start` is the 0-based char offset of
+this sub-span within that span; `length` is its character count.
 """
 struct HighlightSegment
     out_index::Int
@@ -81,8 +79,7 @@ table of segments from that block to `output`.
     input::Any
     output::TextBlock
     text_iomap::Any
-    # Cell{Vector{HighlightSegment}} for a block of spans; for a block of lines,
-    # Cell{Vector{Pair{Int,Vector{HighlightSegment}}}}, each line that is split =>
+    # Cell{Vector{Pair{Int,Vector{HighlightSegment}}}}: each line that is split =>
     # the segments of its spans, whose indices count in the line.
     segs::Cell
 end
@@ -97,7 +94,7 @@ function print_document(p::HighlightedTextToText, recursion, document::Highlight
     both = Cell(@computation begin
         block = text_iomap[].output::TextBlock
         pattern = make_text_pattern(document.pattern, document.regex, document.case_insensitive)
-        _is_block_of_lines(block) ? _highlight_lines(block, pattern, color) : _highlight(block, pattern, color)
+        _highlight_lines(block, pattern, color)
     end)   # (elements, segs)
     elements_cv = CellVector(@computation both[][1])
     segs_cell = Cell(@computation both[][2])
@@ -107,43 +104,15 @@ function print_document(p::HighlightedTextToText, recursion, document::Highlight
     HighlightedTextToTextIoMap(p, document, output, text_iomap, segs_cell)
 end
 
-# Returns (output_elements::Vector{TextDocument}, segs::Vector{HighlightSegment}).
-# A `nothing` pattern keeps every span unchanged (identity). Otherwise each
-# TextString is split at match boundaries into alternating unmatched / matched
-# sub-spans, matched runs carrying the highlight fill. Non-text elements pass
-# through untouched.
-function _highlight(text::TextBlock, pattern, color::StyleColor)
-    result = TextDocument[]
-    segs = HighlightSegment[]
-    fill_cell = Cell(color)
-    for (in_span, elem) in enumerate(text.elements)
-        if elem isa TextString
-            if pattern === nothing
-                push!(result, elem)
-                push!(segs, HighlightSegment(length(result), in_span, 0, length(elem.content::AbstractString)))
-            else
-                _highlight_string!(result, segs, elem, in_span, pattern, fill_cell)
-            end
-        elseif elem isa TextGraphics
-            # An inline image is one position: the carets before and after it map.
-            push!(result, elem)
-            push!(segs, HighlightSegment(length(result), in_span, 0, 1))
-        else
-            push!(result, elem)
-        end
-    end
-    (result, segs)
-end
-
-# A block of lines: each line with a match gets new spans, and every other line is
-# the same object; the segments of each line that is split. A match lies inside one
-# span, as on a block of spans.
+# Each line with a match gets new spans, and every other line is the same object;
+# the segments of each line that is split: `(lines, segs)`. A `nothing` pattern
+# keeps every line. A match lies inside one span; a non-text span passes through.
 function _highlight_lines(text::TextBlock, pattern, color::StyleColor)
     result = TextDocument[]
     segs = Pair{Int,Vector{HighlightSegment}}[]
     fill_cell = Cell(color)
     for (i, line) in enumerate(text.elements)
-        if pattern === nothing || !(line isa TextLine)
+        if pattern === nothing
             push!(result, line)
             continue
         end
@@ -227,74 +196,9 @@ function _make_span(original::TextString, content::AbstractString, fill_color::C
 end
 
 # ── Selection / reference mapping ───────────────────────────────────────────
-# Identical to WordWrapping: the seg table is a piecewise-linear char-offset map.
 
-# Forward: rebuild an input flat caret against the split output by finding the
-# sub-span the cursor falls into. At the exact boundary between two sub-spans
-# of the same input span, prefer the start of the next sub-span.
-# input flat caret → output flat caret, over the seg table. Takes the blocks
-# explicitly so `print_document` can compute the output selection before the
-# `IoMap` exists.
-"""
-    _forward_map(segs, in_block, out_block, sel; unmapped_maps_to_itself = false)
-
-Map a caret on `in_block` forward to `out_block` across the segments `segs`.
-
-`unmapped_maps_to_itself` says what a caret with no segment means. A projection
-that rewrites every top-level span leaves nothing unmapped, so `nothing` is the
-honest answer and the default. Word wrapping is the exception: `_wrap` reflows
-only top-level spans and passes a `TextLine` through unchanged, so a caret inside
-one carries no `WrapSegment`. The line is identical in the output, so such a
-caret maps to itself, and the cursor stays visible over a line-structured block.
-"""
-function _forward_map(segs, in_block, out_block, sel;
-                      unmapped_maps_to_itself::Bool = false)
-    _is_structural_ref(sel) && return sel
-    # Resolve either caret form (flat `TextRangeReferenceStep{k}` or structural
-    # `.elements[i].content{k}`); a flat-only read drops the cursor after an edit.
-    flat = get_flat_caret(in_block, sel)
-    if flat === nothing
-        # A range maps end by end. Its start opens the sub-span it enters and its
-        # stop closes the one it leaves, so a range that ends at a soft break
-        # stays on its line.
-        pair = _text_flat_selection(in_block, sel)
-        pair === nothing && return nothing
-        start = _forward_flat(segs, in_block, out_block, pair[1], true)
-        stop = _forward_flat(segs, in_block, out_block, pair[2], false)
-        (start === :unmapped && stop === :unmapped) &&
-            return unmapped_maps_to_itself ? sel : nothing
-        (start isa Int && stop isa Int) || return nothing
-        return make_flat_range_reference(start, stop)
-    end
-    f = _forward_flat(segs, in_block, out_block, flat, true)
-    f === :unmapped && return unmapped_maps_to_itself ? sel : nothing
-    f === nothing ? nothing : _flat_caret(f)
-end
-
-# One flat offset of the input, as a flat offset of the output. `:unmapped` when
-# the offset lies in no top-level span (a `TextLine` passes through unchanged),
-# `nothing` when no sub-span holds it. At a split boundary `opens` prefers the
-# start of the next sub-span, and otherwise the end of the previous one.
-function _forward_flat(segs, in_block, out_block, flat::Int, opens::Bool)
-    loc = convert_flat_offset_to_element(in_block, flat)
-    loc === nothing && return :unmapped
-    in_span, in_char = loc
-    best = nothing
-    for seg in segs
-        seg.in_span == in_span || continue
-        if seg.in_char_start <= in_char <= seg.in_char_start + seg.length
-            best = seg
-            opens || break
-            # Prefer the start of the next sub-span at the split boundary.
-            in_char == seg.in_char_start && seg.in_char_start != 0 && break
-        end
-    end
-    best === nothing && return nothing
-    convert_element_to_flat_offset(out_block, best.out_index, in_char - best.in_char_start)
-end
-
-# A block of lines: a path into a span of a line maps through the segments of
-# that line (`_map_line_path`).
+# A path into a span of a line maps through the segments of that line
+# (`_map_line_path`); a line that is not split keeps its paths.
 _forward_map(segs::Vector{Pair{Int,Vector{HighlightSegment}}}, in_block, out_block, sel) =
     _map_line_path(segs, sel, true)
 
@@ -348,21 +252,7 @@ map_reference_backward(p::HighlightedTextToText, iomap::HighlightedTextToTextIoM
                                               reference))
 
 # A reference of the output, back across the segments to the block of the text.
-function _backward_map_segments(segs, in_block, out_block, reference)
-    _is_block_of_lines(in_block) && return _map_line_path(segs, reference, false)
-    _is_structural_ref(reference) && return reference
-    flat = _text_range_caret(reference)
-    flat === nothing && return nothing
-    loc = convert_flat_offset_to_element(out_block, flat)
-    loc === nothing && return nothing
-    out_span, out_char = loc
-    for seg in segs
-        seg.out_index == out_span || continue
-        f = convert_element_to_flat_offset(in_block, seg.in_span, seg.in_char_start + out_char)
-        return f === nothing ? nothing : _flat_caret(f)
-    end
-    nothing
-end
+_backward_map_segments(segs, in_block, out_block, reference) = _map_line_path(segs, reference, false)
 
 # ── Readers ─────────────────────────────────────────────────────────────────
 
@@ -374,29 +264,12 @@ function read_intent(p::HighlightedTextToText, iomap::HighlightedTextToTextIoMap
 end
 
 # Translate a `ReplaceStringRangeOperation` from the split output back to the
-# block of the text, shifting the char range by the sub-span's start, and then
-# through the IO map of the text.
+# block of the text, across the segments of its line, and then through the IO map
+# of the text.
 function read_intent(p::HighlightedTextToText, iomap::HighlightedTextToTextIoMap, op::ReplaceStringRangeOperation)
-    if _is_block_of_lines(iomap.text_iomap.output)
-        reference = _map_line_path(iomap.segs, op.reference, false)
-        reference === nothing && return nothing
-        return _read_text_operation(iomap.text_iomap, ReplaceStringRangeOperation(reference, op.replacement))
-    end
-    parsed = _parse_text_elem_range(op.reference)
-    parsed === nothing && return nothing
-    out_span, char_start, char_stop = parsed
-    for seg in iomap.segs
-        seg.out_index == out_span || continue
-        new_start = seg.in_char_start + char_start
-        new_stop  = seg.in_char_start + char_stop
-        new_ref = ConcreteReference(FieldReferenceStep("elements"),
-                      ConcreteReference(RangeReferenceStep(seg.in_span - 1, seg.in_span),
-                          ConcreteReference(FieldReferenceStep("content"),
-                              ConcreteReference(RangeReferenceStep(new_start, new_stop),
-                                                    EmptyReference()))))
-        return _read_text_operation(iomap.text_iomap, ReplaceStringRangeOperation(new_ref, op.replacement))
-    end
-    nothing
+    reference = _map_line_path(iomap.segs, op.reference, false)
+    reference === nothing && return nothing
+    _read_text_operation(iomap.text_iomap, ReplaceStringRangeOperation(reference, op.replacement))
 end
 
 # Forward any other Operation (ToggleCollapseOperation, collection ops, etc.)

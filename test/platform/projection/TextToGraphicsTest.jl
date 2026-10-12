@@ -27,9 +27,9 @@ _rects(c) = [(x = ax, y = ay, w = Int(e.w), h = Int(e.h), color = e.color) for (
 @testset "TextToGraphics" begin
 
 # basic layout (wrapping is now done by WordWrapping upstream)
-st_wrap = TextBlock(
+st_wrap = TextBlock(TextLine(
     TextString("Hello world this is a long text", StyleFont("Ubuntu Mono", 20), color_red),
-)
+))
 m = _test_measure(10, 18)
 chain = ChainingProjection(WordWrapping(max_width=200, measure=m), TextToGraphics(measure=m))
 sdl_cell = print_document(chain, st_wrap).output
@@ -39,9 +39,7 @@ texts = _texts(sdl_cell)
 @test texts[2].y == 18  # second line
 
 # newline handling
-st_nl = TextBlock(
-    TextString("line1\nline2\nline3", StyleFont("Ubuntu Mono", 20), color_white),
-)
+st_nl = make_text_block("line1\nline2\nline3", StyleText(StyleFont("Ubuntu Mono", 20), color_white))
 sdl_nl = print_document(TextToGraphics(measure=_test_measure(10, 20)), st_nl).output
 items_nl = _texts(sdl_nl)
 @test length(items_nl) == 3
@@ -53,10 +51,10 @@ items_nl = _texts(sdl_nl)
 @test items_nl[3].y == 40
 
 # color preservation
-st_color = TextBlock(
+st_color = TextBlock(TextLine(
     TextString("red text", StyleFont("Ubuntu Mono", 20), color_red),
     TextString(" blue text", StyleFont("Ubuntu Mono", 20), color_blue),
-)
+))
 sdl_color = print_document(TextToGraphics(measure=_test_measure(10, 48)), st_color).output
 items_c = _texts(sdl_color)
 @test items_c[1].color == color_red    # red
@@ -68,20 +66,20 @@ items_c = _texts(sdl_color)
 
 # reactivity: a text change invalidates that line's segment vector (but, by
 # per-line locality, NOT the top-level line list — see the locality testset).
-st_react = TextBlock(
+st_react = TextBlock(TextLine(
     TextString("short", StyleFont("Ubuntu Mono", 20), color_white),
-)
+))
 sdl_react = print_document(TextToGraphics(measure=_test_measure(10, 48)), st_react).output
 line1 = sdl_react.elements[2].elements[1]   # top[2]=line stack, [1]=first line sub-canvas
 _ = length(line1.elements)
 @test is_cell_up_to_date(getfield(line1.elements, :elements))
-st_react.elements[1].content = "changed"
+st_react.elements[1].elements[1].content = "changed"
 @test !is_cell_up_to_date(getfield(line1.elements, :elements))
 items_r = _texts(sdl_react)
 @test items_r[1].text == "changed"
 
 # hex color parsing
-st_hex = TextBlock(TextString("hex", StyleFont("Ubuntu Mono", 20), StyleColor(1.0, 0.53, 0.0, 1.0)))
+st_hex = TextBlock(TextLine(TextString("hex", StyleFont("Ubuntu Mono", 20), StyleColor(1.0, 0.53, 0.0, 1.0))))
 sdl_hex = print_document(TextToGraphics(measure=_test_measure(10, 48)), st_hex).output
 h = _texts(sdl_hex)[1]
 # StyleColor is now carried through unchanged (no byte round-trip).
@@ -91,10 +89,9 @@ end # @testset "TextToGraphics"
 
 @testset "TextToGraphics ListNode path" begin
 
-# Build a TextBlock with ListNode elements: two paragraphs separated by TextNewline
-node = ListNode(TextString("Hello world", StyleFont("Ubuntu Mono", 20), color_red))
-push!(node, TextNewline(font=StyleFont("Ubuntu Mono", 20)))
-push!(node, TextString("Second paragraph", StyleFont("Ubuntu Mono", 20), color_blue))
+# Build a TextBlock with ListNode elements: two lines
+node = ListNode(TextLine(TextString("Hello world", StyleFont("Ubuntu Mono", 20), color_red)))
+push!(node, TextLine(TextString("Second paragraph", StyleFont("Ubuntu Mono", 20), color_blue)))
 
 tt = TextBlock()
 tt.elements = node
@@ -108,7 +105,7 @@ canvas = iomap.output
 @test canvas.layout == layout_vertical
 @test canvas.overlapping_elements == false
 
-# First paragraph sub-canvas
+# First line sub-canvas
 para1 = canvas.elements.value
 @test para1 isa GraphicsCanvas
 @test para1.y == 0
@@ -116,7 +113,7 @@ para1 = canvas.elements.value
 @test length(para1.elements) >= 1
 @test para1.elements[1].text == "Hello world"
 
-# Second paragraph is lazily computed via .next
+# Second line is lazily computed via .next
 next_node = canvas.elements.next
 @test next_node !== nothing
 para2 = next_node.value
@@ -124,27 +121,23 @@ para2 = next_node.value
 @test para2.y == 20  # one line_height below first paragraph
 @test para2.elements[1].text == "Second paragraph"
 
-# No third paragraph
+# No third line
 @test next_node.next === nothing
 
 end # @testset "TextToGraphics ListNode path"
 
 @testset "TextToGraphics ListNode lazy evaluation" begin
 
-# Verify laziness: next paragraphs are not computed until forced
+# Verify laziness: next lines are not computed until forced
 counter = Ref(0)
-node = ListNode(TextString("Para 1", StyleFont("Ubuntu Mono", 20), color_white))
+node = ListNode(TextLine(TextString("Line 1", StyleFont("Ubuntu Mono", 20), color_white)))
 
-# Build a lazy chain of paragraphs
-node2 = ListNode(TextNewline(font=StyleFont("Ubuntu Mono", 20)))
-node.next = node2
-node2.prev = node
-
-node3 = ListNode(TextString("Para 2", StyleFont("Ubuntu Mono", 20), color_white))
-set_cell_computation!(getfield(node2, :next), () -> begin
+# Build a lazy chain of lines
+node2 = ListNode(TextLine(TextString("Line 2", StyleFont("Ubuntu Mono", 20), color_white)))
+set_cell_computation!(getfield(node, :next), () -> begin
     counter[] += 1
-    node3.prev = node2
-    node3
+    node2.prev = node
+    node2
 end)
 
 tt = TextBlock()
@@ -153,12 +146,11 @@ tt.elements = node
 p = TextToGraphics(measure=_test_measure(10, 20))
 iomap = print_document(p, IdentityProjection(), tt, PrinterContext())
 
-# The first paragraph collects spans until it finds the TextNewline,
-# walking past it forces node2.next thunk to find where para 2 starts
-@test counter[] == 1
+# The first line is laid out without reading the link to the second.
+@test counter[] == 0
 
-# But the second paragraph's sub-canvas is lazily built (output .next thunk)
-# Forcing it should not increase counter (input already walked)
+# The second line's sub-canvas is built when the output .next thunk is forced,
+# and that reads the input link once.
 next_node = iomap.output.elements.next
 @test next_node !== nothing
 @test counter[] == 1
@@ -167,26 +159,23 @@ end # @testset "TextToGraphics ListNode lazy evaluation"
 
 @testset "TextToGraphics reads a key on a list of text without walking it" begin
 
-# Ten thousand paragraphs, each link computed when it is first read. The printer
-# reads the first paragraph; a key must read no more, because a list can be
+# Ten thousand lines, each link computed when it is first read. The printer
+# reads the first line; a key must read no more, because a list can be
 # endless and a list block keeps no line geometry for a key to move along.
 font = StyleFont("Ubuntu Mono", 20)
 computed = Ref(0)
-function make_paragraph(i)
-    text = ListNode(TextString("paragraph $i", font, color_white))
-    newline = ListNode(TextNewline(font = font))
-    text.next = newline
-    newline.prev = text
-    i < 10_000 && set_cell_computation!(getfield(newline, :next), () -> begin
+function make_line(i)
+    line = ListNode(TextLine(TextString("line $i", font, color_white)))
+    i < 10_000 && set_cell_computation!(getfield(line, :next), () -> begin
         computed[] += 1
-        following = make_paragraph(i + 1)
-        following.prev = newline
+        following = make_line(i + 1)
+        following.prev = line
         following
     end)
-    text
+    line
 end
 block = TextBlock()
-block.elements = make_paragraph(1)
+block.elements = make_line(1)
 p = TextToGraphics(measure = _test_measure(10, 20))
 iomap = print_document(p, IdentityProjection(), block, PrinterContext())
 printed = computed[]
@@ -201,11 +190,11 @@ end # @testset "TextToGraphics reads a key on a list of text without walking it"
 @testset "TextToGraphics inline image" begin
 
 m = _test_measure(10, 18)
-st = TextBlock(
+st = TextBlock(TextLine(
     TextString("ab", StyleFont("Ubuntu Mono", 20), color_white),
     TextGraphics(ImageMemory(nothing), 64, 64),
     TextString("cd", StyleFont("Ubuntu Mono", 20), color_white),
-)
+))
 canvas = print_document(TextToGraphics(measure=m), st).output
 
 # Exactly one GraphicsImage, at the expected box (after "ab" = 20px).
@@ -232,11 +221,11 @@ end # @testset "TextToGraphics inline image"
 
 m = _test_measure(10, 18)
 p = TextToGraphics(measure=m)
-st = TextBlock(
+st = TextBlock(TextLine(
     TextString("ab", StyleFont("Ubuntu Mono", 20), color_white),
     TextGraphics(ImageMemory(nothing), 64, 64),
     TextString("cd", StyleFont("Ubuntu Mono", 20), color_white),
-)
+))
 iomap = print_document(p, st)
 
 # A click path encodes (element-index → pixel offset). The persistent highlight
@@ -263,7 +252,7 @@ end # @testset "TextToGraphics inline image hit-test"
 
 m = _test_measure(10, 18)
 p = TextToGraphics(measure=m)
-st = TextBlock(TextString("abc", StyleFont("Ubuntu Mono", 20), color_white))
+st = TextBlock(TextLine(TextString("abc", StyleFont("Ubuntu Mono", 20), color_white)))
 iomap = print_document(p, st)
 # Ten pixels to a character, from where the segment starts: a point 12 pixels in
 # is nearest the boundary after "a", and one 28 pixels in the end of "abc".
@@ -287,7 +276,7 @@ m = _test_measure(10, 18)
 hl = TextString("hi", StyleFont("Ubuntu Mono", 20), color_red)
 hl.fill_color = color_blue              # a highlighted span opts into a swatch
 plain = TextString("xy", StyleFont("Ubuntu Mono", 20), color_red)
-st = TextBlock(hl, plain)
+st = TextBlock(TextLine(hl, plain))
 canvas = print_document(TextToGraphics(measure=m), st).output
 
 # Exactly one *visible* rect — the filled span; the default-`nothing` span gets
@@ -310,16 +299,15 @@ end # @testset "TextToGraphics fill_color rect"
 
 @testset "TextToGraphics per-line dirty-rect locality" begin
 
-# Lines split at TextNewline elements become independent reactive sub-canvases.
+# The lines of a block become independent reactive sub-canvases.
 # Editing one line must invalidate only that line's segment vector — never the
 # top-level line list (so the backend dirty-walk descends and repaints just the
 # edited line) and never an earlier line.
 m = _test_measure(10, 20)
-nl() = TextNewline(font=StyleFont("Ubuntu Mono", 20))
 st = TextBlock(
-    TextString("alpha", StyleFont("Ubuntu Mono", 20), color_white), nl(),
-    TextString("beta",  StyleFont("Ubuntu Mono", 20), color_white), nl(),
-    TextString("gamma", StyleFont("Ubuntu Mono", 20), color_white),
+    TextLine(TextString("alpha", StyleFont("Ubuntu Mono", 20), color_white)),
+    TextLine(TextString("beta",  StyleFont("Ubuntu Mono", 20), color_white)),
+    TextLine(TextString("gamma", StyleFont("Ubuntu Mono", 20), color_white)),
 )
 canvas = print_document(TextToGraphics(measure=m), st).output
 
@@ -345,7 +333,7 @@ lineback(L) = getfield(lines[L].elements, :elements)
 @test all(L -> is_cell_up_to_date(lineback(L)), 1:3)
 
 # Edit the LAST line. Only its segment vector goes stale.
-st.elements[5].content = "gamma!"          # element 5 = the 3rd TextString
+st.elements[3].elements[1].content = "gamma!"          # the run of the 3rd line
 @test is_cell_up_to_date(topback)                  # line list is structural — untouched
 @test is_cell_up_to_date(stackback)
 @test is_cell_up_to_date(lineback(1))
@@ -391,16 +379,18 @@ click = read_intent(p, iomap, MouseClick(:left, 31, 20; time = 0.0))
 @test coord(read_intent(p, iomap, KeyDown(:down, ModifierKeys(); time = 0.0)))[1] == [2, 1]
 @test coord(read_intent(p, iomap, KeyDown(:end, ModifierKeys(); time = 0.0))) == ([1, 1], 5)
 
-# A blank line keeps its row. It has neither a glyph nor a terminating
-# `TextNewline` to take a height from, so the block's prevailing font sizes it.
+# A blank line keeps its row. It has neither a glyph nor a
+# run to take a height from, so the block's prevailing font sizes it.
 blank = print_document(p, TextBlock(TextLine(_span("a")), TextLine(), TextLine(_span("b")))).output
 @test Int(blank.h) == 54
 @test [t.y for t in _texts(blank)] == [0, 36]
 
-# The empty group a *trailing* newline leaves behind is not a line, and must not
-# grow a phantom blank row.
-trailing = print_document(p, TextBlock(_span("a"), TextNewline(font = StyleFont("Ubuntu Mono", 20)))).output
-@test Int(trailing.h) == 18
+# The break is a separator, so a block of one line grows no phantom blank row; a
+# line after it, with an empty run, is a row of its own.
+single = print_document(p, TextBlock(TextLine(_span("a")))).output
+@test Int(single.h) == 18
+trailing = print_document(p, TextBlock(TextLine(_span("a")), TextLine(_span("")))).output
+@test Int(trailing.h) == 36
 
 end # @testset "TextToGraphics lays out TextLine blocks"
 
@@ -432,7 +422,7 @@ rects = TextModule._compute_column_geo(coord_map, span_flat_offsets, 1, 11, p)
 sel = ConcreteReference(TextColumnReferenceStep(1, 11), EmptyReference())
 @test TextModule.is_structural_selection(sel)
 @test TextModule._text_flat_selection(
-          set_selection!(TextBlock(TextString("abcdef", _font, color_default)), sel)) === nothing
+          set_selection!(TextBlock(TextLine(TextString("abcdef", _font, color_default))), sel)) === nothing
 
 end # @testset "TextColumnReferenceStep column-box geometry"
 
@@ -487,15 +477,15 @@ end # @testset "TextSpanReferenceStep content-hugging per-row rects"
 m = _test_measure(10, 18)
 for projection in (TextToGraphics(measure=m),
                    ChainingProjection(WordWrapping(max_width=200, measure=m), TextToGraphics(measure=m)))
-    block = TextBlock(TextString("", StyleFont("Ubuntu Mono", 20), color_red))
+    block = TextBlock(TextLine(TextString("", StyleFont("Ubuntu Mono", 20), color_red)))
     canvas = print_document(projection, set_selection!(block, TextModule.make_flat_caret_reference(0))).output
     @test [(r.x, r.y, r.w, r.h) for r in _rects(canvas)] == [(0, 0, 2, 18)]
     @test Int(canvas.h) == 18
 end
 
-# A caret after a '\n' at the end of a span stands on a line with no glyph yet,
+# A caret on the empty line after "ab" stands on a line with no glyph yet,
 # and it is as tall as a line all the same.
-block = TextBlock(TextString("ab\n", StyleFont("Ubuntu Mono", 20), color_red))
+block = make_text_block("ab\n", StyleText(StyleFont("Ubuntu Mono", 20), color_red))
 canvas = print_document(TextToGraphics(measure=m), set_selection!(block, TextModule.make_flat_caret_reference(3))).output
 @test [(r.x, r.y, r.w, r.h) for r in _rects(canvas)] == [(0, 18, 2, 18)]
 
@@ -505,7 +495,7 @@ end # @testset "TextToGraphics empty span"
 
 m = _test_measure(10, 18)
 p = TextToGraphics(measure=m)
-block(text, k) = set_selection!(TextBlock(TextString(text, StyleFont("Ubuntu Mono", 20), color_red)),
+block(text, k) = set_selection!(make_text_block(text, StyleText(StyleFont("Ubuntu Mono", 20), color_red)),
                                 TextModule.make_flat_caret_reference(k))
 flat(op) = (strip_reference_types(op.path).head::TextRangeReferenceStep).start
 press(text, k, key) = (op = read_intent(p, print_document(p, block(text, k)), KeyDown(key, ModifierKeys(); time = 0.0));
@@ -532,7 +522,7 @@ end # @testset "TextToGraphics empty line"
 @testset "TextToGraphics maps a text reference to the characters that draw it" begin
     measure = _test_measure(10, 18)
     projection = TextToGraphics(measure = measure)
-    text_block = TextBlock(TextString("hello world", StyleFont("Ubuntu Mono", 20), color_black))
+    text_block = TextBlock(TextLine(TextString("hello world", StyleFont("Ubuntu Mono", 20), color_black)))
     iomap = print_document(projection, text_block)
     output = iomap.output
     box_of(reference) = find_reference_box(output, map_reference_forward(projection, iomap, reference);
@@ -548,7 +538,7 @@ end # @testset "TextToGraphics empty line"
     @test map_reference_forward(projection, iomap, EmptyReference()) == EmptyReference()
     # A range across two visual lines maps to the region of its rows, after the
     # canvas of its line group: 50 pixels wide, and as high as both rows.
-    two_lines = TextBlock(TextString("hello\nworld", StyleFont("Ubuntu Mono", 20), color_black))
+    two_lines = make_text_block("hello\nworld", StyleText(StyleFont("Ubuntu Mono", 20), color_black))
     two_iomap = print_document(projection, two_lines)
     both = map_reference_forward(projection, two_iomap, make_flat_range_reference(0, 11))
     @test last(collect(get_reference_steps(both))) isa RegionReferenceStep
@@ -556,51 +546,6 @@ end # @testset "TextToGraphics empty line"
     @test (box.x, box.width) == (0, 50)
     line = box_of(make_flat_range_reference(0, 5))
     @test box.height == 2 * line.height
-end
-
-# A text whose spans are a lazy list maps a span to the text node that draws it in
-# the list of paragraph canvases. Spans and paragraphs count from their heads.
-@testset "TextToGraphics maps a span of a lazy list to the text that draws it" begin
-    measure = FixedMeasure(10, 18, 6, 0)
-    projection = TextToGraphics(measure = measure)
-    font = StyleFont("Ubuntu Mono", 20)
-    head = ListNode(TextString("one", font, color_black))
-    push!(head, TextString("two", font, color_black))
-    push!(head, TextNewline(font = font))
-    push!(head, TextString("three", font, color_black))
-    pushfirst!(head, TextNewline(font = font))
-    pushfirst!(head, TextString("zero", font, color_black))
-    text_block = TextBlock()
-    text_block.elements = head
-    iomap = print_document(projection, IdentityProjection(), text_block, PrinterContext())
-    spans(start, stop, rest = EmptyReference()) =
-        ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(RangeReferenceStep(start, stop), rest))
-    image(reference) = map_reference_forward(projection, iomap, reference)
-    box_of(reference) = find_reference_box(iomap.output, image(reference); measure = measure)
-    # `two` is the second text of the head paragraph.
-    two = box_of(spans(1, 2))
-    @test (two.x, two.y, two.width) == (30, 0, 30)
-    # `three` is the first text of the paragraph after it, one line lower.
-    three = box_of(spans(3, 4))
-    @test (three.x, three.width) == (0, 50)
-    @test three.y == two.height
-    # The characters `hr` of `three`.
-    characters = box_of(spans(3, 4, ConcreteReference(FieldReferenceStep("content"),
-                                                      ConcreteReference(RangeReferenceStep(1, 3), EmptyReference()))))
-    @test (characters.x, characters.y, characters.width) == (10, three.y, 20)
-    # `zero`, before the newline before the head, is one line above the head.
-    zero = box_of(spans(-2, -1))
-    @test (zero.x, zero.y, zero.width) == (0, -two.height, 40)
-    # A newline draws no text.
-    @test image(spans(2, 3)) === nothing
-    # `one two` is a region of the head paragraph.
-    both = image(spans(0, 2))
-    @test last(collect(get_reference_steps(both))) isa RegionReferenceStep
-    box = find_reference_box(iomap.output, both; measure = measure)
-    @test (box.x, box.y, box.width, box.height) == (0, 0, 60, two.height)
-    # From `two` to `three` is a region of the canvas of the text, two lines high.
-    across = box_of(spans(1, 4))
-    @test (across.x, across.y, across.width, across.height) == (0, 0, 60, 2 * two.height)
 end
 
 # A part of a lazy list of numbers maps forward through the whole chain, to the
@@ -670,6 +615,9 @@ end
     @test last(collect(get_reference_steps(both))) isa RegionReferenceStep
     box = find_reference_box(iomap.output, both; measure = measure)
     @test (box.x, box.y, box.width) == (0, 0, 60)
+    # From the head line to `three` is a region of the canvas of the text, two lines high.
+    across = box_of(range_of(0, 2))
+    @test (across.x, across.y, across.width, across.height) == (0, 0, 70, 2 * two.height)
 end
 
 @testset "TextToGraphics starts a row at each soft break of a line" begin

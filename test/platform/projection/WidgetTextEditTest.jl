@@ -13,7 +13,7 @@ _stub = FixedMeasure(10, 18, 6, 0)
 
 # An editable WidgetText: content is a TextBlock recursed through the Text domain.
 function _doc()
-    content = TextBlock(TextString("edit me", _font, color_default))
+    content = TextBlock(TextLine(TextString("edit me", _font, color_default)))
     WidgetText(content)
 end
 
@@ -60,7 +60,7 @@ end
     @test op.reference.head == FieldReferenceStep("content")
 
     evaluate_operation(_WidgetTextMockEditor(doc), op)
-    @test doc.content.elements[1].content == "ediXt me"
+    @test doc.content.elements[1].elements[1].content == "ediXt me"
 end
 
 @testset "a field of code draws a run for each piece on its lines, and its edits stay ranges of its content" begin
@@ -113,13 +113,13 @@ end
 end
 
 @testset "a disabled WidgetText accepts no edits" begin
-    content = TextBlock(TextString("edit me", _font, color_default))
+    content = TextBlock(TextLine(TextString("edit me", _font, color_default)))
     doc = WidgetText(content; enabled=false)
     set_selection!(doc, _cursor(3))
     iomap = print_document(_proj(), nothing, doc, PrinterContext())
     @test iomap.output isa GraphicsCanvas                      # still renders
     @test read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys(); time = 0.0)) === nothing
-    @test doc.content.elements[1].content == "edit me"         # value unchanged
+    @test doc.content.elements[1].elements[1].content == "edit me"         # value unchanged
 end
 
 @testset "backspace and arrow navigation are re-rooted at content too" begin
@@ -131,7 +131,7 @@ end
     @test bs isa ReplaceStringRangeOperation
     @test bs.reference.head == FieldReferenceStep("content")
     evaluate_operation(_WidgetTextMockEditor(doc), bs)
-    @test doc.content.elements[1].content == "edi me"
+    @test doc.content.elements[1].elements[1].content == "edi me"
 
     iomap2 = print_document(_proj(), nothing, doc, PrinterContext())
     arrow = read_intent(_proj(), iomap2, KeyDown(:left, ModifierKeys(); time = 0.0))
@@ -153,7 +153,7 @@ function _drawn_texts(canvas, ox = 0, oy = 0, found = Tuple{String,Int,Int}[])
 end
 
 @testset "a WidgetTextarea edits its text, and Return breaks the line" begin
-    content = TextBlock(TextString("one two", _font, color_default))
+    content = TextBlock(TextLine(TextString("one two", _font, color_default)))
     doc = WidgetTextarea(content; position = Point2D(40, 40), rows = 3)
     set_selection!(doc, _cursor(3))            # cursor after "one"
     iomap = print_document(_proj(), nothing, doc, PrinterContext())
@@ -162,14 +162,14 @@ end
     @test typed isa ReplaceStringRangeOperation
     @test typed.reference.head == FieldReferenceStep("content")
     broken = read_intent(_proj(), iomap, KeyDown(:return, ModifierKeys(); time = 0.0))
-    @test broken isa ReplaceStringRangeOperation
+    @test broken isa ReplaceTextRangeOperation
     @test broken.replacement == "\n"
     @test broken.reference.head == FieldReferenceStep("content")
     # Tab is not text, so it goes on to move the focus.
     @test read_intent(_proj(), iomap, KeyDown(:tab, ModifierKeys(); time = 0.0)) === nothing
 
     evaluate_operation(_WidgetTextMockEditor(doc), broken)
-    @test doc.content.elements[1].content == "one\n two"
+    @test [get_flat_string(line) for line in doc.content.elements] == ["one", " two"]
     # The two lines are drawn one below the other.
     lines = [(text, y) for (text, _, y) in _drawn_texts(iomap.output) if !isempty(strip(text))]
     @test any(line -> occursin("one", line[1]), lines)
@@ -197,14 +197,14 @@ _plain_cursor(n) = ConcreteReference(FieldReferenceStep("content"),
 _held_caret(widget) = strip_reference_types(widget.selection)
 
 @testset "a disabled WidgetTextarea takes no edit" begin
-    content = TextBlock(TextString("one", _font, color_default))
+    content = TextBlock(TextLine(TextString("one", _font, color_default)))
     off = WidgetTextarea(content; enabled = false)
     set_selection!(off, _cursor(1))
     iomap = print_document(_proj(), nothing, off, PrinterContext())
     @test read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys(); time = 0.0)) === nothing
     @test read_intent(_proj(), iomap, KeyDown(:return, ModifierKeys(); time = 0.0)) === nothing
     @test read_intent(_proj(), iomap, MouseClick(:left, 10, 10, ModifierKeys(); time = 0.0)) === nothing
-    @test off.content.elements[1].content == "one"
+    @test off.content.elements[1].elements[1].content == "one"
 
     plain = WidgetTextarea("one\ntwo"; enabled = false)
     set_selection!(plain, _plain_cursor(1))
@@ -263,7 +263,7 @@ end
     set_selection!(doc, _plain_cursor(3))
     iomap = print_document(_proj(), nothing, doc, PrinterContext())
     broken = read_intent(_proj(), iomap, KeyDown(:return, ModifierKeys(); time = 0.0))
-    @test broken isa ReplaceStringRangeOperation
+    @test broken isa ReplaceTextRangeOperation
     @test broken.replacement == "\n"
     evaluate_operation(_WidgetTextMockEditor(doc), broken)
     @test doc.content == "one\n two"

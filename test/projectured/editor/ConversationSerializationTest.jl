@@ -101,7 +101,7 @@ function test_conversation_serialization()
             convo = ConversationConversation([
                 ConversationTurn(:user, [ConversationPart("look it up")]),
                 ConversationTurn(:assistant, [ConversationPart(
-                    EvaluatorForm(TextBlock(TextString("uri: resource://guide/orientation"));
+                    EvaluatorForm(TextBlock(TextLine(TextString("uri: resource://guide/orientation")));
                                   tool_name = "read_resource",
                                   input = Dict{String,Any}("uri" => "resource://guide/orientation"),
                                   result = make_evaluator_result_text("# Orientation"),
@@ -122,7 +122,7 @@ function test_conversation_serialization()
             convo = ConversationConversation([
                 ConversationTurn(:user, [ConversationPart("look it up")]),
                 ConversationTurn(:assistant, [ConversationPart(
-                    EvaluatorForm(TextBlock(TextString("uri: resource://guide/kernel/selection"));
+                    EvaluatorForm(TextBlock(TextLine(TextString("uri: resource://guide/kernel/selection")));
                                   tool_name = "read_resource",
                                   input = Dict{String,Any}("uri" => "resource://guide/kernel/selection"),
                                   result = page, output = written, tool_use_id = "tu_1"))])])

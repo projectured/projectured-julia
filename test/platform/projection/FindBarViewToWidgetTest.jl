@@ -8,9 +8,9 @@ function test_find_bar_view_to_widget()
 _fb_font = StyleFont("Ubuntu Mono", 20)
 
 # Three lines; the first has "Dolor", which matches only when case does not matter.
-_fb_block() = TextBlock(TextString("alpha Dolor", _fb_font, color_default), TextNewline(font = _fb_font),
-                        TextString("beta gamma", _fb_font, color_default), TextNewline(font = _fb_font),
-                        TextString("delta dolor", _fb_font, color_default))
+_fb_block() = TextBlock(TextLine(TextString("alpha Dolor", _fb_font, color_default)),
+                        TextLine(TextString("beta gamma", _fb_font, color_default)),
+                        TextLine(TextString("delta dolor", _fb_font, color_default)))
 
 # The view of the gallery: a highlighted text under a collapsible card with a form
 # of its pattern.

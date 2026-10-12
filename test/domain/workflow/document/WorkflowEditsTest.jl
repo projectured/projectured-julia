@@ -121,7 +121,7 @@ function test_workflow_edits()
         end
 
         @testset "the text of an entry that is a document is found by its words" begin
-            step = WorkflowStep(journal = [make_workflow_entry(TextBlock(TextString("a rich finding")))])
+            step = WorkflowStep(journal = [make_workflow_entry(TextBlock(TextLine(TextString("a rich finding"))))])
             @test length(collect_workflow_entries(step; text = "RICH")) == 1
         end
 
@@ -131,7 +131,7 @@ function test_workflow_edits()
             @test entry.text.value == "a fact"
             @test entry.author === :person
             @test entry.kind === :comment
-            text = TextBlock(TextString("rich"))
+            text = TextBlock(TextLine(TextString("rich")))
             @test make_workflow_entry(text).text === text
             @test_throws ArgumentError make_workflow_entry("x"; author = :robot)
             @test_throws ArgumentError make_workflow_entry("x"; kind = :rumour)

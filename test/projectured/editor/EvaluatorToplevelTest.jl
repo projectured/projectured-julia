@@ -395,7 +395,7 @@ end
     @test no_result(evaluated_form("xs = [1, 2, 3];  # three"))
     @test no_result(evaluated_form("xs = [1, 2, 3];"; parse = false))
     # A document is not drawn either.
-    @test no_result(evaluated_form("TextBlock(TextString(\"hidden\"));"))
+    @test no_result(evaluated_form("TextBlock(TextLine(TextString(\"hidden\")));"))
     # What the code prints still shows, and so does an error.
     @test _et_flatten(evaluated_form("println(\"shown\"); 42;").result) == "shown"
     form = evaluated_form("throw(ArgumentError(\"stop\"));")

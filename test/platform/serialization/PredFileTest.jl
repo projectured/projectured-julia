@@ -39,10 +39,10 @@ function test_pred_file()
     end
 
     @testset "a styled text reads back with its font and its colour" begin
-        block = TextBlock([TextString("hello", StyleFont("DejaVu Sans", 14), StyleColor(1.0, 0.0, 0.0, 1.0))])
+        block = TextBlock(TextLine([TextString("hello", StyleFont("DejaVu Sans", 14), StyleColor(1.0, 0.0, 0.0, 1.0))]))
         text = print_pred_text(block)
         loaded = parse_pred_text(text)
-        string = only(loaded.elements)
+        string = only(only(loaded.elements).elements)
         @test string.content == "hello"
         @test string.font.family == "DejaVu Sans"
         @test string.font_color.red == 1.0

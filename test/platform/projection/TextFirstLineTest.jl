@@ -5,16 +5,15 @@ _span(text) = TextString(text, _font, color_default)
 _caret(k) = make_flat_caret_reference(k)
 
 @testset "TextFirstLine keeps the first line" begin
-    iomap = print_document(TextFirstLine(), TextBlock(_span("abc\ndef")))
-    @test [e.content for e in iomap.output.elements] == ["abc"]
-    nl = TextNewline(font = _font)
-    iomap = print_document(TextFirstLine(), TextBlock(_span("ab"), nl, _span("cd")))
-    @test [e.content for e in iomap.output.elements] == ["ab"]
+    iomap = print_document(TextFirstLine(), make_text_block("abc\ndef", StyleText(_font, color_default)))
+    @test [get_flat_string(line) for line in iomap.output.elements] == ["abc"]
+    iomap = print_document(TextFirstLine(), TextBlock(TextLine(_span("ab")), TextLine(_span("cd"))))
+    @test [get_flat_string(line) for line in iomap.output.elements] == ["ab"]
 end
 
 @testset "TextFirstLine maps the flat caret" begin
     proj = TextFirstLine()
-    input = TextBlock(_span("abc\ndef"))
+    input = make_text_block("abc\ndef", StyleText(_font, color_default))
     iomap = print_document(proj, input)
 
     # A caret on the first line is the same flat offset in the output.
@@ -26,7 +25,7 @@ end
     @test map_reference_forward(proj, iomap, make_flat_range_reference(0, 2)) ==
           make_flat_range_reference(0, 2)
     # The structural caret form maps to the same flat caret.
-    structural = @reference ::TextBlock.elements::CellVector[1]::TextString.content::String{1}::Position
+    structural = @reference ::TextBlock.elements::CellVector[1]::TextLine.elements::CellVector[1]::TextString.content::String{1}::Position
     @test map_reference_forward(proj, iomap, structural) == _caret(1)
 
     # The output selection follows the input selection.
@@ -41,9 +40,9 @@ end
     @test op isa ReplaceSelectionOperation && op.path == _caret(3)
 end
 
-@testset "TextFirstLine maps a caret before a TextNewline" begin
+@testset "TextFirstLine maps a caret before a line break" begin
     proj = TextFirstLine()
-    input = TextBlock(_span("ab"), TextNewline(font = _font), _span("cd"))
+    input = TextBlock(TextLine(_span("ab")), TextLine(_span("cd")))
     iomap = print_document(proj, input)
     @test map_reference_forward(proj, iomap, _caret(1)) == _caret(1)
     @test map_reference_forward(proj, iomap, _caret(2)) == _caret(2)

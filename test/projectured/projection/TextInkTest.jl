@@ -78,7 +78,7 @@ function test_text_ink_inside_viewports()
         conversation = ConversationConversation([
             ConversationTurn(:user, [ConversationPart("look it up")]),
             ConversationTurn(:assistant, [ConversationPart(
-                EvaluatorForm(TextBlock(TextString("uri: resource://guide/x"));
+                EvaluatorForm(TextBlock(TextLine(TextString("uri: resource://guide/x")));
                               tool_name = "read_resource",
                               input = Dict{String,Any}("uri" => "resource://guide/x"),
                               result = parse_markdown(written), output = written,

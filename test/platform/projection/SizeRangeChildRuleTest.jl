@@ -13,11 +13,11 @@ _range_widget_projection() = RecursiveProjection(TypeDispatchingProjection(
 _range_drawn_width(document, ctx) =
     Int(print_document(_range_widget_projection(), nothing, document, ctx).output.w[])
 
-# The count of line breaks that wrapping inserts in `text` in the range `ctx`.
+# The count of soft breaks that wrapping gives the line of `text` in the range `ctx`.
 function _range_wrap_breaks(text, ctx)
     wrapped = print_document(WordWrapping(; measure = FixedMeasure(10, 14, 4, 0)), nothing,
-                             TextBlock(TextString(text, StyleFont("Ubuntu Mono", 20), color_default)), ctx).output
-    count(element -> element isa TextNewline, wrapped.elements)
+                             TextBlock(TextLine(TextString(text, StyleFont("Ubuntu Mono", 20), color_default))), ctx).output
+    length(wrapped.elements[1].soft_breaks)
 end
 
 """

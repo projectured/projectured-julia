@@ -56,7 +56,7 @@ end
 # A node input "should delegate" only for the container types we positively
 # recognise as having projectable child *documents*.  Unknown types return
 # false, so the probe never false-flags a leaf or an own-domain primitive (e.g.
-# TextToGraphics consuming TextString/TextNewline is correctly NOT a delegator).
+# TextToGraphics consuming TextString/TextLine is correctly NOT a delegator).
 function _should_delegate(input)
     input isa ProjecturedAll.SyntaxNode && return length(input.children) > 0
     input isa ProjecturedAll.JsonArray  && return length(input.elements) > 0

@@ -326,10 +326,9 @@ DomainModule.insertable(::Type{<:TextLine}) = false
 
 # ── An edit of the lines of a block ────────────────────────────────────
 
-# Whether a flat edit of `block` is an edit of its lines: the block is lines, and the
-# replacement holds a `'\n'` or the range covers a break.
+# Whether a flat edit of `block` is an edit of its lines: the replacement holds a
+# `'\n'` or the range covers a break.
 function _is_line_edit(block::TextBlock, start::Int, stop::Int, replacement::AbstractString)
-    _is_block_of_lines(block) || return false
     occursin('\n', replacement) || (start < stop && any(==('\n'), view(_flat_chars(block), (start + 1):stop)))
 end
 
@@ -746,7 +745,7 @@ end
 function _text_flat_total(text::TextBlock)
     total = 0
     for (k, el) in enumerate(text.elements)
-        (el isa TextLine && k > 1) && (total += 1)   # implicit inter-line break
+        k > 1 && (total += 1)   # the break before the line
         total += get_flat_length(el)
     end
     total
@@ -758,7 +757,7 @@ end
 function _flat_chars(text::TextBlock)
     chars = Char[]
     for (k, el) in enumerate(text.elements)
-        (el isa TextLine && k > 1) && push!(chars, '\n')   # implicit inter-line break
+        k > 1 && push!(chars, '\n')   # the break before the line
         _push_flat_chars!(chars, el)
     end
     chars
@@ -934,14 +933,10 @@ end
 # span layout the cursor/word helpers walk.
 function _text_span_infos(text::TextBlock)
     infos = Tuple{SpanPath,Int}[]
-    for (i, el) in enumerate(text.elements)
-        if el isa TextString
-            push!(infos, ([i], length(el.content::AbstractString)))
-        elseif el isa TextLine
-            for (j, span) in enumerate(el.elements)
-                span isa TextString || continue
-                push!(infos, ([i, j], length(span.content::AbstractString)))
-            end
+    for (i, line) in enumerate(text.elements)
+        for (j, span) in enumerate(line.elements)
+            span isa TextString || continue
+            push!(infos, ([i, j], length(span.content::AbstractString)))
         end
     end
     infos
@@ -971,10 +966,10 @@ function _text_insert(text::TextBlock, str::AbstractString)
     ReplaceTextRangeOperation(make_flat_range_reference(sel[1], sel[2]), str)
 end
 
-# Enter: a break at the cursor, in a text of lines. A text of runs is one line, so
-# the key goes on to the bindings around the text, such as the one that makes the
-# value of a type-in.
-_text_break(text::TextBlock) = _is_block_of_lines(text) ? _text_insert(text, "\n") : nothing
+# Enter: a break at the cursor. A projection that gives a value of one line
+# declines the break when it maps the edit back, so the key goes on to the bindings
+# around the text, such as the one that makes the value of a type-in.
+_text_break(text::TextBlock) = _text_insert(text, "\n")
 
 # Backspace / Delete: the flat range to remove. A non-empty selection is deleted;
 # a caret removes the char before it (backspace) / after it (delete), clamped at
@@ -1309,7 +1304,7 @@ function get_flat_offsets(text::TextBlock)
     offsets = Int[]
     pos = 0
     for (k, element) in enumerate(text.elements)
-        (element isa TextLine && k > 1) && (pos += 1)   # the break before this line
+        k > 1 && (pos += 1)   # the break before this line
         push!(offsets, pos)
         pos += get_flat_length(element)
     end
@@ -1347,52 +1342,6 @@ function get_flat_selection(text::TextBlock)
     base = get_flat_base(text, path)
     base === nothing && return nothing
     (base + a, base + b, a == b)
-end
-
-# ── Decorator flat↔element helpers ─────────────────────────────────────────
-# The text→text decorators (WordWrapping, LineNumbering, FilteredTextToText,
-# HighlightedTextToText, SelectionInverting) remap the flat cursor between their input
-# and output blocks through a per-span seg table keyed on element index + char.
-# These bridge a flat offset (the break/indentation-aware caret space) and the
-# `(element_index, char)` the seg tables use. The decorator blocks are flat
-# sequences (TextString / TextNewline / TextSpacing — no nested TextLines), so an
-# element index is a single `[i]` path.
-
-"""
-    convert_flat_offset_to_element(block, flat) -> (element_index, char) | nothing
-
-The `TextString` element a flat offset lands in and the char offset within it, or
-the inline image beside it where no `TextString` holds the offset (char 0 before
-the image, char 1 after it). A gap offset (on a break/spacing element) clamps to
-the nearest `TextString` boundary; `nothing` only when the block has no
-`TextString`.
-"""
-function convert_flat_offset_to_element(block::TextBlock, flat::Int)
-    loc = _find_flat_place(block, flat)
-    loc !== nothing && length(loc[1]) == 1 && return (loc[1][1], loc[2])
-    best = nothing
-    bestd = typemax(Int)
-    for (path, len) in _text_span_infos(block)
-        length(path) == 1 || continue
-        base = get_flat_base(block, path)
-        base === nothing && continue
-        d = flat < base ? base - flat : (flat > base + len ? flat - (base + len) : 0)
-        if d < bestd
-            bestd = d
-            best = (path[1], clamp(flat - base, 0, len))
-        end
-    end
-    best
-end
-
-"""
-    convert_element_to_flat_offset(block, element_index, char) -> flat | nothing
-
-The flat offset of `char` within the `TextString` at `element_index`.
-"""
-function convert_element_to_flat_offset(block::TextBlock, elem::Int, char::Int)
-    base = get_flat_base(block, Int[elem])
-    base === nothing ? nothing : base + char
 end
 
 # The flat offset the span at `path` starts at, or nothing when the path does not
@@ -1645,9 +1594,7 @@ function _flat_span_range_end(block::TextBlock, flat::Int)
 end
 
 # The `(span_path, char)` a flat offset resolves to, clamping a break/gap offset to the
-# nearest `TextString` span. Path-returning (so it locates a span inside a `TextLine`,
-# `[i, j]`), unlike `convert_flat_offset_to_element` which yields only a top-level index and so
-# returns nothing for a line-structured block.
+# nearest `TextString` span. The path is `[line, run]`.
 function _flat_to_span_nearest(block::TextBlock, flat::Int)
     exact = _flat_to_span(block, flat)
     exact === nothing || return exact

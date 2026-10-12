@@ -25,7 +25,7 @@ b2s = RecursiveProjection(BookToSyntax())
 render(doc) = get_flat_string(
     print_document(RecursiveProjection(SyntaxToText()),
                    print_document(b2s, doc).output).output)
-para(text) = BookParagraph(TextBlock(TextString(text)))
+para(text) = BookParagraph(TextBlock(TextLine(TextString(text))))
 
     @testset "a book renders its title, and its author only when it has one" begin
         text = render(BookBook("The Title", "An Author"))
@@ -74,9 +74,8 @@ para(text) = BookParagraph(TextBlock(TextString(text)))
     @testset "a paragraph renders the flat string of its text" begin
         # An edit of the leaf goes back into the text by `splice_value!` at the
         # same offset, so the leaf holds one character for each flat position:
-        # here the break of the `TextNewline` between the two runs.
-        content = TextBlock(TextString("ab"), TextNewline(font = StyleFont("Ubuntu Mono", 20)),
-                            TextString("cd"))
+        # here the break between the two lines.
+        content = TextBlock(TextLine(TextString("ab")), TextLine(TextString("cd")))
         @test occursin("ab\ncd", render(BookParagraph(content)))
     end
 

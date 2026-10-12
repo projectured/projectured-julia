@@ -16,8 +16,8 @@
 # *restyle* (swap colors vs set a fill swatch). A `nothing`/absent selection is a
 # pass-through (identity).
 #
-# On a block of lines, a line that the selection touches gets new spans, and every
-# other line is the same object. No character is inserted, so every flat offset
+# A line that the selection touches gets new spans, and every other line is the
+# same object. No character is inserted, so every flat offset
 # stays: a caret, a range and a box map to themselves, and only a path into a span
 # of a line maps through the segments of its line. A block caret at the end of a
 # line inverts a space after the line, as one at the end of the text does.
@@ -64,10 +64,11 @@ SelectionInverting(; theme = nothing,
 """
     SelectionSegment(out_index, in_span, in_char_start, length)
 
-One entry per emitted output `TextString` sub-span (identical in shape to
-`HighlightSegment`). `out_index` is its 1-based position in `output.elements`;
-`in_span` is the 1-based originating input span; `in_char_start` is the 0-based
-char offset of this sub-span within the input span; `length` is its char count.
+One entry per emitted output `TextString` sub-span of a split line (identical in
+shape to `HighlightSegment`). `out_index` is its 1-based position in the spans of
+the output line; `in_span` is the 1-based originating span of the input line;
+`in_char_start` is the 0-based char offset of this sub-span within the input span;
+`length` is its char count.
 """
 struct SelectionSegment
     out_index::Int
@@ -80,8 +81,7 @@ end
     projection::Any
     input::TextBlock
     output::TextBlock
-    # Cell{Vector{SelectionSegment}} for a block of spans; for a block of lines,
-    # Cell{Vector{Pair{Int,Vector{SelectionSegment}}}}, each line that is split =>
+    # Cell{Vector{Pair{Int,Vector{SelectionSegment}}}}: each line that is split =>
     # the segments of its spans, whose indices count in the line.
     segs::Cell
 end
@@ -89,12 +89,10 @@ end
 # ── Print ───────────────────────────────────────────────────────────────────
 
 function print_document(p::SelectionInverting, recursion, text::TextBlock, ctx)
-    both = Cell(@computation _is_block_of_lines(text) ? _invert_lines(p, text) : _invert(p, text))
+    both = Cell(@computation _invert_lines(p, text))
     elements_cv = CellVector(@computation both[][1])
     segs_cell = Cell(@computation both[][2])
-    paths = make_output_path_cells(text, path -> _is_block_of_lines(text) ?
-        _map_line_path(segs_cell[], path, true) :
-        _forward_map(segs_cell[], text, TextBlock(elements_cv, Cell(nothing)), path))
+    paths = make_output_path_cells(text, path -> _map_line_path(segs_cell[], path, true))
     output = TextBlock(elements_cv, paths.selection, paths.mouse_target)
     SelectionInvertingIoMap(p, text, output, segs_cell)
 end
@@ -108,7 +106,10 @@ function _get_inverted_range(p::SelectionInverting, text::TextBlock)
     (start = sel[1], stop = is_block ? sel[1] + 1 : sel[2], is_block = is_block)
 end
 
-# A block of lines: the output lines and the segments of each line that is split.
+# The output lines and the segments of each line that is split: `(lines, segs)`.
+# Each span that overlaps the selected flat range is split at its boundaries, and
+# the selected sub-spans are restyled to inverse video. No character is inserted
+# or removed, so the segments are a piecewise offset map of each split line.
 function _invert_lines(p::SelectionInverting, text::TextBlock)
     range = _get_inverted_range(p, text)
     hl = range === nothing ? nothing : (range.start, range.stop)
@@ -116,10 +117,6 @@ function _invert_lines(p::SelectionInverting, text::TextBlock)
     segs = Pair{Int,Vector{SelectionSegment}}[]
     offsets = get_flat_offsets(text)
     for (i, line) in enumerate(text.elements)
-        if !(line isa TextLine)
-            push!(result, line)
-            continue
-        end
         base = offsets[i] + line.indentation
         stop = base + sum(get_flat_length(span) for span in line.elements; init = 0)
         at_end = range !== nothing && range.is_block && range.start == stop
@@ -144,45 +141,6 @@ function _invert_lines(p::SelectionInverting, text::TextBlock)
         end
         push!(result, _make_line_with_spans(line, spans))
         push!(segs, i => line_segs)
-    end
-    (result, segs)
-end
-
-# Returns (output_elements::Vector{TextDocument}, segs::Vector{SelectionSegment}).
-# When there is no renderable selection every span is emitted unchanged
-# (identity); otherwise each span overlapping the selected flat range is split at
-# the boundaries and the in-range sub-spans are restyled to inverse video. No
-# character is inserted or removed, so `SelectionSegment` is a piecewise offset map.
-function _invert(p::SelectionInverting, text::TextBlock)
-    sel = get_flat_selection(text)
-    # Widen a zero-width caret to a one-char block so it is visible.
-    hl = sel === nothing ? nothing :
-         (sel[3] && p.block_cursor) ? (sel[1], sel[1] + 1) : (sel[1], sel[2])
-
-    result = TextDocument[]
-    segs = SelectionSegment[]
-    base = 0   # flat char offset of the current span's start
-    for (in_span, elem) in enumerate(text.elements)
-        if elem isa TextString
-            base = _invert_string!(p, result, segs, elem, in_span, base, hl)
-        else
-            push!(result, elem)
-            # An inline image is one position: the carets before and after it map.
-            elem isa TextGraphics && push!(segs, SelectionSegment(length(result), in_span, 0, 1))
-            base += get_flat_length(elem)
-        end
-    end
-    # End-of-text caret: the selection sits one past the last char. Synthesize a
-    # trailing inverted space so the block caret stays visible.
-    if hl !== nothing && hl[1] >= base && hl[2] > base && !isempty(result)
-        last_span = nothing
-        for e in result
-            e isa TextString && (last_span = e)
-        end
-        if last_span !== nothing
-            push!(result, _invert_span(p, last_span, " "))
-            push!(segs, SelectionSegment(length(result), length(text.elements), base, 1))
-        end
     end
     (result, segs)
 end
@@ -260,27 +218,14 @@ function _invert_span(p::SelectionInverting, original::TextString, content::Abst
 end
 
 # ── Selection / reference mapping ───────────────────────────────────────────
-# Identical to HighlightedTextToText: the seg table is a piecewise-linear offset map.
+# As in HighlightedTextToText: a path into a span of a split line maps through the
+# segments of that line, and every other path stays.
 
 map_reference_forward(p::SelectionInverting, iomap::SelectionInvertingIoMap, reference) =
-    _is_block_of_lines(iomap.input) ? _map_line_path(iomap.segs, reference, true) :
-    _forward_map(iomap.segs, iomap.input, iomap.output, reference)
+    _map_line_path(iomap.segs, reference, true)
 
-function map_reference_backward(p::SelectionInverting, iomap::SelectionInvertingIoMap, reference)
-    _is_block_of_lines(iomap.input) && return _map_line_path(iomap.segs, reference, false)
-    _is_structural_ref(reference) && return reference
-    flat = _text_range_caret(reference)
-    flat === nothing && return nothing
-    loc = convert_flat_offset_to_element(iomap.output, flat)
-    loc === nothing && return nothing
-    out_span, out_char = loc
-    for seg in iomap.segs
-        seg.out_index == out_span || continue
-        f = convert_element_to_flat_offset(iomap.input, seg.in_span, seg.in_char_start + out_char)
-        return f === nothing ? nothing : _flat_caret(f)
-    end
-    nothing
-end
+map_reference_backward(p::SelectionInverting, iomap::SelectionInvertingIoMap, reference) =
+    _map_line_path(iomap.segs, reference, false)
 
 function read_intent(p::SelectionInverting, iomap::SelectionInvertingIoMap, op::ReplacePathOperation)
     input_path = map_reference_backward(p, iomap, op.path)
@@ -289,27 +234,10 @@ function read_intent(p::SelectionInverting, iomap::SelectionInvertingIoMap, op::
 end
 
 # Translate a `ReplaceStringRangeOperation` from the split output domain back to
-# the un-split input domain, shifting the char range by the sub-span's start.
+# the un-split input domain, across the segments of its line.
 function read_intent(p::SelectionInverting, iomap::SelectionInvertingIoMap, op::ReplaceStringRangeOperation)
-    if _is_block_of_lines(iomap.input)
-        reference = _map_line_path(iomap.segs, op.reference, false)
-        return reference === nothing ? nothing : ReplaceStringRangeOperation(reference, op.replacement)
-    end
-    parsed = _parse_text_elem_range(op.reference)
-    parsed === nothing && return nothing
-    out_span, char_start, char_stop = parsed
-    for seg in iomap.segs
-        seg.out_index == out_span || continue
-        new_start = seg.in_char_start + char_start
-        new_stop  = seg.in_char_start + char_stop
-        new_ref = ConcreteReference(FieldReferenceStep("elements"),
-                      ConcreteReference(RangeReferenceStep(seg.in_span - 1, seg.in_span),
-                          ConcreteReference(FieldReferenceStep("content"),
-                              ConcreteReference(RangeReferenceStep(new_start, new_stop),
-                                                    EmptyReference()))))
-        return ReplaceStringRangeOperation(new_ref, op.replacement)
-    end
-    nothing
+    reference = _map_line_path(iomap.segs, op.reference, false)
+    reference === nothing ? nothing : ReplaceStringRangeOperation(reference, op.replacement)
 end
 
 # Forward any Operation (ToggleCollapseOperation, collection ops, etc.) upstream
@@ -323,5 +251,3 @@ read_intent(::SelectionInverting, ::SelectionInvertingIoMap, op::Operation) = op
 read_intent(::SelectionInverting, ::SelectionInvertingIoMap, op::Union{ReplaceReferencedValueOperation, CompoundOperation}) =
     is_text_element_write(op) ? nothing : op
 read_intent(::SelectionInverting, ::SelectionInvertingIoMap, op) = nothing
-
-# ── Path helpers ────────────────────────────────────────────────────────────

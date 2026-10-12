@@ -129,7 +129,7 @@ function test_part_pointer_shape()
     @testset "a text is an I-beam over its box, where a click puts the caret" begin
         # A text answers a click at any point with the nearest caret; the
         # container that holds it gives it only the clicks in its box.
-        text = TextBlock(TextString("hello world", StyleFont("Ubuntu Mono", 20), color_black))
+        text = TextBlock(TextLine(TextString("hello world", StyleFont("Ubuntu Mono", 20), color_black)))
         projection = TextToGraphics(measure = _POINTER_PART_MEASURE)
         iomap = print_document(projection, text)
         width, height = Int(iomap.output.w), Int(iomap.output.h)
@@ -144,9 +144,9 @@ function test_part_pointer_shape()
 
     @testset "a span that names a pointer shape has it over its text, and the I-beam elsewhere" begin
         font = StyleFont("Ubuntu Mono", 20)
-        text = TextBlock(TextString("see ", font, color_black),
-                         TextString("link", StyleText(font, color_black), :pointing_hand),
-                         TextString(" here", font, color_black))
+        text = TextBlock(TextLine(TextString("see ", font, color_black),
+                                  TextString("link", StyleText(font, color_black), :pointing_hand),
+                                  TextString(" here", font, color_black)))
         iomap = print_document(TextToGraphics(measure = _POINTER_PART_MEASURE), text)
         segment = only(s for s in iomap.char_to_coord if s.text == "link")
         @test find_pointer_shape(iomap.output, segment.x + 1, segment.y + 1) === :pointing_hand

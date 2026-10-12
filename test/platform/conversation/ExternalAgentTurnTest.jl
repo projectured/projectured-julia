@@ -629,7 +629,7 @@ function test_external_agent_turn()
 
         @testset "the document of an evaluation through the MCP server of the editor is the live result" begin
             tools = ToolSet()
-            made = TextBlock(TextString("made"))
+            made = TextBlock(TextLine(TextString("made")))
             connection = ScriptedAgentConnection([Any[
                 AgentToolCallUpdate("t1"; name = "mcp__projectured__execute_julia_code", status = :pending,
                                     input = Dict{String,Any}("code" => "make()")),
@@ -651,7 +651,7 @@ function test_external_agent_turn()
             @test plain.result isa TextBlock && plain.result !== made
             @test isempty(tools.call_values)
             # A save writes a result that its notation can not write as the text of the tool.
-            form = EvaluatorForm(TextBlock(TextString("make()")); result = AgentTurnLiveResult(() -> 1),
+            form = EvaluatorForm(TextBlock(TextLine(TextString("make()"))); result = AgentTurnLiveResult(() -> 1),
                                  output = "made by the code", tool_name = "execute_julia_code")
             written = print_pred_text(form)
             @test occursin("made by the code", written)

@@ -2,39 +2,33 @@ function test_selection_inverting()
 
 _font = StyleFont("Ubuntu Mono", 20)
 
-# `elements[span].content{char}` cursor path (span 1-based, char 0-based).
-_ref(span, char) = ConcreteReference(FieldReferenceStep("elements"),
-    ConcreteReference(RangeReferenceStep(span - 1, span),
-        ConcreteReference(FieldReferenceStep("content"),
-            ConcreteReference(RangeReferenceStep(char, char), EmptyReference()))))
+# `elements[1].elements[span].content{char}` cursor path (span 1-based, char 0-based).
+_ref(span, char) = TextModule._text_replace_path(Int[1, span], char, char)
 
-# `elements[span].content[start:stop]` range path.
-_range(span, start, stop) = ConcreteReference(FieldReferenceStep("elements"),
-    ConcreteReference(RangeReferenceStep(span - 1, span),
-        ConcreteReference(FieldReferenceStep("content"),
-            ConcreteReference(RangeReferenceStep(start, stop), EmptyReference()))))
+# `elements[1].elements[span].content[start:stop]` range path.
+_range(span, start, stop) = TextModule._text_replace_path(Int[1, span], start, stop)
 
-_contents(text) = [e.content for e in text.elements if e isa TextString]
-_fills(text)    = [e.fill_color for e in text.elements if e isa TextString]
-_fgs(text)      = [e.font_color for e in text.elements if e isa TextString]
+_runs(text)     = [run for line in text.elements for run in line.elements if run isa TextString]
+_contents(text) = [run.content for run in _runs(text)]
+_fills(text)    = [run.fill_color for run in _runs(text)]
+_fgs(text)      = [run.font_color for run in _runs(text)]
 
-# Build a one-span TextBlock carrying a selection.
+# Build a one-line, one-span TextBlock carrying a selection.
 function _doc(content, sel; fg=color_red, fill=nothing)
     span = TextString(Cell(content), Cell(_font), Cell(fg), Cell(fill),
                       Cell(nothing), Cell(nothing), Cell(nothing))
-    TextBlock(CellVector(Cell[Cell(span)]), Cell(sel))
+    TextBlock(CellVector(Cell[Cell(TextLine(span))]), Cell(sel))
 end
 
 @testset "SelectionInverting nothing selection is pass-through" begin
 
     input = TextBlock(
-        TextString("a", _font, color_default),
-        TextNewline(font=_font),
-        TextString("b", _font, color_default),
+        TextLine(TextString("a", _font, color_default)),
+        TextLine(TextString("b", _font, color_default)),
     )
     out = print_document(SelectionInverting(), input).output
-    @test length(out.elements) == 3
-    for i in 1:3
+    @test length(out.elements) == 2
+    for i in 1:2
         @test out.elements[i] === input.elements[i]
     end
 
@@ -117,12 +111,12 @@ end # @testset
     proj = SelectionInverting()
     iomap = print_document(proj, _doc("alphabet", _range(1, 2, 5)))
     out = iomap.output
-    segs = iomap.segs
+    segs = last(iomap.segs[1])
     @test length(segs) == 3
     for seg in segs
         seg.length == 0 && continue
         for k in 0:seg.length
-            out_ref = TextModule.make_flat_caret_reference(convert_element_to_flat_offset(out, seg.out_index, k))
+            out_ref = TextModule.make_flat_caret_reference(get_flat_base(out, Int[1, seg.out_index]) + k)
             in_ref = map_reference_backward(proj, iomap, out_ref)
             @test in_ref !== nothing
             @test map_reference_forward(proj, iomap, in_ref) !== nothing
@@ -145,16 +139,16 @@ end # @testset
 
 @testset "SelectionInverting out-of-range spans untouched (multi-span)" begin
 
-    input = TextBlock(
+    line = TextLine(
         TextString("foo", _font, color_red),
         TextString("bar", _font, color_green),
     )
     # Flat range [3:6) selects the whole second span via a whole-element ref.
-    input = TextBlock(CellVector(Cell[Cell(input.elements[1]), Cell(input.elements[2])]),
+    input = TextBlock(CellVector(Cell[Cell(line)]),
                      Cell(ConcreteReference(TextSpanReferenceStep(3, 6), EmptyReference())))
     out = print_document(SelectionInverting(), input).output
     @test _contents(out) == ["foo", "bar"]
-    @test out.elements[1] === input.elements[1]   # first span untouched (same object)
+    @test out.elements[1].elements[1] === line.elements[1]   # first span untouched (same object)
     @test _fills(out)[2] == color_green           # second span inverted
 
 end # @testset

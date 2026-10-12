@@ -27,11 +27,12 @@ function test_text_line_model()
     print_block(block; spacing = SingleSpacing()) =
         print_document(TextToGraphics(measure = measure, line_spacing = spacing), block)
     # Two lines of `small` and a line of `large`: the lines are 16, 16 and 24 high.
-    three_lines() = TextBlock(TextString("ab\ncd", small, color_black), TextNewline(font = small),
-                              TextString("ef", large, color_black))
+    three_lines() = TextBlock(TextLine(TextString("ab", small, color_black)),
+                              TextLine(TextString("cd", small, color_black)),
+                              TextLine(TextString("ef", large, color_black)))
 
     @testset "two fonts on one line share its baseline" begin
-        block = TextBlock(TextString("ab", small, color_black), TextString("cd", large, color_black))
+        block = TextBlock(TextLine(TextString("ab", small, color_black), TextString("cd", large, color_black)))
         canvas = print_block(block).output
         # The line is 16 + 6 + 2 = 24 high, and half of its line gap is above the
         # ink, so the baseline is 1 + 16 below its top. The box of each text
@@ -49,7 +50,8 @@ function test_text_line_model()
     end
 
     @testset "the spacing sets the distance of the lines" begin
-        block = TextBlock(TextString("ab\ncd", small, color_black))
+        block = TextBlock(TextLine(TextString("ab", small, color_black)),
+                          TextLine(TextString("cd", small, color_black)))
         tops(spacing) = [y for (_, _, y) in texts(print_block(block; spacing).output)]
         # Single: the natural distance, 16.
         @test tops(SingleSpacing()) == [0, 16]
@@ -65,7 +67,7 @@ function test_text_line_model()
     end
 
     @testset "the caret stands on the baseline, as high as the font at its place" begin
-        block = TextBlock(TextString("ab", small, color_black), TextString("cd", large, color_black))
+        block = TextBlock(TextLine(TextString("ab", small, color_black), TextString("cd", large, color_black)))
         caret(k) = [r for r in rects(print_block(set_selection!(block,
                         TextModule.make_flat_caret_reference(k))).output) if r[3] == 2]
         @test caret(1) == [(10, 17 - 12, 2, 12 + 4)]
@@ -86,30 +88,28 @@ function test_text_line_model()
         @test is_caret(click(12, 15), 1)
         @test is_caret(click(12, 16), 4)
         # The line of `large` begins at 32, above the top of its text at 33. Its
-        # span starts at flat offset 6, past the newline of the block.
+        # span starts at flat offset 6, past the break before it.
         @test is_caret(click(12, 31), 4)
         @test is_caret(click(12, 32), 7)
     end
 
-    @testset "a paragraph of the list path sits on one baseline" begin
-        node = ListNode(TextString("ab", small, color_black))
-        push!(node, TextString("cd", large, color_black))
-        push!(node, TextNewline(font = small))
-        push!(node, TextString("ef", small, color_black))
+    @testset "a line of the list path sits on one baseline" begin
+        node = ListNode(TextLine(TextString("ab", small, color_black), TextString("cd", large, color_black)))
+        push!(node, TextLine(TextString("ef", small, color_black)))
         block = TextBlock()
         block.elements = node
         canvas = print_document(TextToGraphics(measure = measure), IdentityProjection(), block,
                                 PrinterContext()).output
-        first_paragraph = canvas.elements.value
-        @test [(String(e.text), Int(e.x), Int(e.y)) for e in first_paragraph.elements] ==
+        first_line = canvas.elements.value
+        @test [(String(e.text), Int(e.x), Int(e.y)) for e in first_line.elements] ==
               [("ab", 0, 17 - 12), ("cd", 20, 17 - 16)]
         @test Int(canvas.elements.next.value.y) == 24
     end
 
     @testset "body text, code and an emoji share one baseline by the font files" begin
-        block = TextBlock(TextString("Type ", StyleFont("Ubuntu", 20), color_black),
-                          TextString("code", StyleFont("Ubuntu Mono", 20), color_black),
-                          TextString(" 😀", StyleFont("Ubuntu", 20), color_black))
+        block = TextBlock(TextLine(TextString("Type ", StyleFont("Ubuntu", 20), color_black),
+                                   TextString("code", StyleFont("Ubuntu Mono", 20), color_black),
+                                   TextString(" 😀", StyleFont("Ubuntu", 20), color_black)))
         canvas = print_document(TextToGraphics(measure = FontFileMeasure()), block).output
         # A backend draws the baseline of a text the ascent of its box below its `y`.
         baselines = [y + compute_text_extent(String(e.text), e.font)[2]

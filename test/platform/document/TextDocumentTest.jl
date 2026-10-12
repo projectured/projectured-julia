@@ -10,7 +10,7 @@ s1 = TextString("hello", StyleFont("Ubuntu Mono", 20; weight = 700), color_red)
 s1.content = "hi"
 @test s1.content == "hi"
 
-st = TextBlock(
+st = TextLine(
     TextString("aaa", StyleFont("Ubuntu Mono", 20; weight = 700), color_red),
     TextString("bbb", StyleFont("Ubuntu Mono", 20), color_blue),
 )
@@ -41,8 +41,8 @@ g = TextGraphics(img, 64, 48)
 @test g.width == 64
 @test g.height == 48
 
-# Mixes cleanly with TextStrings inside a TextBlock; length / getindex hold.
-st = TextBlock(
+# Mixes cleanly with TextStrings inside a TextLine; length / getindex hold.
+st = TextLine(
     TextString("ab", StyleFont("Ubuntu Mono", 20), color_red),
     TextGraphics(ImageMemory(nothing), 24, 24),
     TextString("cd", StyleFont("Ubuntu Mono", 20), color_blue),
@@ -146,14 +146,12 @@ evaluate_operation((document = be,), eop)
 @test get_flat_string(be) == "hel\nlo world\n  second"
 @test get_flat_selection(be) == (4, 4, true)
 
-# A flat block: single-index spans, the newline counted as one flat char.
-flat = set_selection!(TextBlock(TextString("ab"),
-                                TextNewline(font = StyleFont("Ubuntu Mono", 20)),
-                                TextString("cd")),
+# A block of two lines: the break before the second counts one flat char.
+flat = set_selection!(TextBlock(TextLine(TextString("ab")), TextLine(TextString("cd"))),
                       TextModule.make_flat_caret_reference(4))   # char 1 of "cd" → flat 4
-@test get_flat_offsets(flat) == [0, 2, 3]
+@test get_flat_offsets(flat) == [0, 3]
 @test get_flat_selection(flat) == (4, 4, true)
-@test TextModule.get_flat_cursor_coordinate(flat) == (span = [3], char = 1)
+@test TextModule.get_flat_cursor_coordinate(flat) == (span = [2, 1], char = 1)
 @test cflat(read_bound_gesture(flat, KeyDown(:left, ModifierKeys(); time = 0.0))) == 3
 
 end # @testset "TextLine: line-structured blocks"
@@ -242,7 +240,7 @@ end # @testset "get_flat_caret and get_flat_range read the flat and the structur
 @testset "Shift and a motion key select a range" begin
     shift = ModifierKeys(; shift = true)
     ctrl_shift = ModifierKeys(; ctrl = true, shift = true)
-    at(selection) = set_selection!(TextBlock(TextString("hello world")), selection)
+    at(selection) = set_selection!(TextBlock(TextLine(TextString("hello world"))), selection)
     pair(op) = (op.path.head.start, op.path.head.stop)
     caret = TextModule.make_flat_caret_reference(5)
     range = TextModule.make_flat_range_reference(3, 5)

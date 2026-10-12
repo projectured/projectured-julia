@@ -7,13 +7,10 @@ function test_highlighted_text_to_text()
 
 _font = StyleFont("Ubuntu Mono", 20)
 
-# `elements[span].content[start:stop]` range path.
-_range(span, start, stop) = ConcreteReference(FieldReferenceStep("elements"),
-    ConcreteReference(RangeReferenceStep(span - 1, span),
-        ConcreteReference(FieldReferenceStep("content"),
-            ConcreteReference(RangeReferenceStep(start, stop), EmptyReference()))))
+# `elements[1].elements[span].content[start:stop]` range path.
+_range(span, start, stop) = TextModule._text_replace_path(Int[1, span], start, stop)
 
-_contents(text) = [e.content for e in text.elements if e isa TextString]
+_contents(text) = [run.content for line in text.elements for run in line.elements if run isa TextString]
 
 # The text stage: a highlight, and a plain block as it is.
 _stage(; color = color_red) = RecursiveProjection(TypeDispatchingProjection(
@@ -21,7 +18,7 @@ _stage(; color = color_red) = RecursiveProjection(TypeDispatchingProjection(
     TextBlock       => IdentityProjection()))
 
 _highlighted(text; keywords...) =
-    HighlightedText(text = TextBlock(TextString(text, _font, color_default)); keywords...)
+    HighlightedText(text = TextBlock(TextLine(TextString(text, _font, color_default))); keywords...)
 
 _print(document) = (stage = _stage(); print_document(stage, stage, document, PrinterContext()))
 
@@ -29,7 +26,7 @@ _print(document) = (stage = _stage(); print_document(stage, stage, document, Pri
 
     out = _print(_highlighted("alpha beta alpha"; pattern = "alpha")).output
     @test _contents(out) == ["alpha", " beta ", "alpha"]
-    fills = [e.fill_color for e in out.elements if e isa TextString]
+    fills = [run.fill_color for run in out.elements[1].elements if run isa TextString]
     @test fills[1] == color_red          # matched run filled
     @test fills[2] === nothing           # unmatched gap keeps original (no) fill
     @test fills[3] == color_red
@@ -47,11 +44,11 @@ end # @testset
 
 @testset "HighlightedTextToText with an empty pattern is a pass-through" begin
 
-    block = TextBlock(TextString("a", _font, color_default), TextNewline(font=_font),
-                      TextString("b", _font, color_default))
+    block = TextBlock(TextLine(TextString("a", _font, color_default)),
+                      TextLine(TextString("b", _font, color_default)))
     out = _print(HighlightedText(text = block)).output
-    @test length(out.elements) == 3
-    for i in 1:3
+    @test length(out.elements) == 2
+    for i in 1:2
         @test out.elements[i] === block.elements[i]
     end
 
@@ -63,11 +60,11 @@ end # @testset
     iomap = print_document(stage, stage, _highlighted("alpha beta alpha"; pattern = "alpha"),
                            PrinterContext())
     out = iomap.output
-    segs = iomap.segs
+    segs = last(iomap.segs[1])
     @test length(segs) == 3
     for seg in segs
         for k in 0:seg.length
-            out_ref = TextModule.make_flat_caret_reference(convert_element_to_flat_offset(out, seg.out_index, k))
+            out_ref = TextModule.make_flat_caret_reference(get_flat_base(out, Int[1, seg.out_index]) + k)
             in_ref = map_reference_backward(stage, iomap, out_ref)
             @test in_ref !== nothing
             @test get_reference_head(strip_reference_types(in_ref)) == FieldReferenceStep("text")
@@ -96,8 +93,8 @@ end # @testset
     # `a*` yields empty matches between consonants; they must not produce
     # zero-length sub-spans, hang, or drop characters.
     iomap = _print(_highlighted("banana"; pattern = "a*", regex = true))
-    @test all(s.length >= 1 for s in iomap.segs)
-    @test join((e.content for e in iomap.output.elements if e isa TextString), "") == "banana"
+    @test all(seg.length >= 1 for seg in last(iomap.segs[1]))
+    @test join(_contents(iomap.output), "") == "banana"
 
 end # @testset
 

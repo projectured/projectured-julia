@@ -327,11 +327,12 @@ end
     buf = Ref("")
     set_os_clipboard_backend!(read = () -> buf[], write = t -> (buf[] = String(t); true))
     try
-        # "world" = chars 6..11 (0-based boundaries) in span 1 of "hello world".
+        # "world" = chars 6..11 (0-based boundaries) in run 1 of line 1 of "hello world".
         trange = cpath(FieldReferenceStep("elements"), RangeReferenceStep(0, 1),
+                       FieldReferenceStep("elements"), RangeReferenceStep(0, 1),
                        FieldReferenceStep("content"), RangeReferenceStep(6, 11))
         mkslice(; stored=nothing) = begin
-            content = TextBlock(TextString("hello world"))
+            content = TextBlock(TextLine(TextString("hello world")))
             content.selection = trange
             s = ClipboardSlice(content, stored)
             s.selection = ConcreteReference(FieldReferenceStep("content"), trange)
@@ -382,12 +383,14 @@ end
         @test op.replacement == "OSPASTE"
 
         # An empty caret (no range) declines copy.
-        content = TextBlock(TextString("hello world"))
+        content = TextBlock(TextLine(TextString("hello world")))
         content.selection = cpath(FieldReferenceStep("elements"), RangeReferenceStep(0, 1),
+                                  FieldReferenceStep("elements"), RangeReferenceStep(0, 1),
                                   FieldReferenceStep("content"), RangeReferenceStep(3, 3))
         sc = ClipboardSlice(content)
         sc.selection = ConcreteReference(FieldReferenceStep("content"),
             cpath(FieldReferenceStep("elements"), RangeReferenceStep(0, 1),
+                  FieldReferenceStep("elements"), RangeReferenceStep(0, 1),
                   FieldReferenceStep("content"), RangeReferenceStep(3, 3)))
         iom = print_document(p, IdentityProjection(), sc, PrinterContext())
         # Declines (no range): no copy compound is produced — it falls through to the

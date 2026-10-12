@@ -162,7 +162,7 @@ function test_widget_value_slot()
     end
 
     @testset "a TextBlock in a text still draws as text" begin
-        editor, backend = _slot_editor(WidgetText(TextBlock(TextString("hello", StyleText(StyleFont("Ubuntu Mono", 20), color_default)))))
+        editor, backend = _slot_editor(WidgetText(TextBlock(TextLine(TextString("hello", StyleText(StyleFont("Ubuntu Mono", 20), color_default))))))
         @test any(entry -> entry[1] == "hello", _slot_drawn(_slot_frame(backend)))
     end
 
@@ -180,7 +180,7 @@ function test_widget_value_slot()
 
     @testset "a child that does not take a value sends no edit" begin
         checkbox = WidgetCheckbox(true)
-        child = print_document(IdentityProjection(), nothing, TextBlock(TextString("x", StyleText(StyleFont("Ubuntu Mono", 20), color_default))), nothing)
+        child = print_document(IdentityProjection(), nothing, TextBlock(TextLine(TextString("x", StyleText(StyleFont("Ubuntu Mono", 20), color_default)))), nothing)
         @test make_slot_store_operation(checkbox, :content, child, false) === nothing
     end
 
