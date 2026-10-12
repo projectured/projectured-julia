@@ -524,6 +524,21 @@ BookmarkList
   docstring of each field under its name; the first paragraph of the
   docstring of the type is the summary at the top of the card.
 
+- **The natural rows:** when the module registers natural rows in its
+  `__init__`, with `register_natural_domain!` or another
+  `register_natural_…!` function, or defines a method of
+  `make_graphics_projection` for one of its types, every first window of a
+  session that loads the package builds them. End the root module with a workload that compiles
+  them, and add `PrecompileTools` to its `[deps]`:
+
+  ```julia
+  using PrecompileTools: @compile_workload
+  @compile_workload run_natural_rows_workload(BookmarkModule)
+  ```
+
+  [package-rules.md](../rule/package-rules.md#a-package-that-a-user-loads-compiles-its-own-first-window)
+  says why, and `test_package_graph()` checks it.
+
 For the next level of complexity, such as a domain with cross-references, a
 custom reader that handles structural events, or a projection whose output
 document draws itself directly rather than going through Syntax, read

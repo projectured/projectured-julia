@@ -66,6 +66,26 @@ holds it, so the rest of the package does not.
 const _FIRST_WINDOW_PACKAGES = ("ProjecturedPlatform", "ProjecturedDataFrames", "ProjecturedSDL")
 
 """
+    _has_natural_rows(name) -> Bool
+
+Whether the slice of the package `name` calls a `register_natural_…!` function
+or defines a method of `make_graphics_projection` for a type, so that every
+first window builds rows of it. Such a package compiles them in a
+`@compile_workload` of its entry file, by the rules of `package-rules.md`.
+"""
+function _has_natural_rows(name)
+    dir = _source_dir(name)
+    dir === nothing && return false
+    for (root, _dirs, files) in walkdir(dir), file in files
+        endswith(file, ".jl") || continue
+        text = read(joinpath(root, file), String)
+        (occursin(r"(?m)^[^#\n]*\bregister_natural_\w+!\(", text) ||
+         occursin(r"(?m)^make_graphics_projection\(::Type\{", text)) && return true
+    end
+    false
+end
+
+"""
     _is_main_package(name) -> Bool
 
 A package that holds code, rather than a suite or an example gallery. `package/`
@@ -346,7 +366,10 @@ function test_package_graph()
             end
         end
 
-        @testset "a compile workload lives in a leaf, or in the entry file of a first window package" begin
+        @testset "a compile workload lives in a leaf, or in the entry file of a first window package or of a package with natural rows" begin
+            entries = [joinpath(_PACKAGE_ROOT, "package", name, "src", "$name.jl")
+                       for name in keys(packages)
+                       if name in _FIRST_WINDOW_PACKAGES || _has_natural_rows(name)]
             offenders = String[]
             # Both trees: a package is a name and an include list, and the
             # list it names lives under `source/`.
@@ -357,8 +380,7 @@ function test_package_graph()
                 for file in files
                     endswith(file, ".jl") || continue
                     path = joinpath(root, file)
-                    any(name -> path == joinpath(_PACKAGE_ROOT, "package", name, "src", "$name.jl"),
-                        _FIRST_WINDOW_PACKAGES) && continue
+                    path in entries && continue
                     # A call, not a mention: the macro at the head of a line.
                     # Prose about it, and this test's own message, must not count.
                     occursin(r"(?m)^\s*@compile_workload\b", read(path, String)) &&
@@ -369,6 +391,21 @@ function test_package_graph()
                 println(stderr, "\n@compile_workload outside a leaf and a first window entry file:\n  ",
                         join(offenders, "\n  "))
             @test isempty(offenders)
+        end
+
+        @testset "a package with natural rows compiles them in its entry file" begin
+            missing_workload = String[]
+            for name in sort(collect(keys(packages)))
+                (name in _LEAVES || name in _FIRST_WINDOW_PACKAGES) && continue
+                _has_natural_rows(name) || continue
+                entry = read(joinpath(_PACKAGE_ROOT, "package", name, "src", "$name.jl"), String)
+                occursin(r"(?m)^@compile_workload run_natural_rows_workload\(\w+\)$", entry) ||
+                    push!(missing_workload, name)
+            end
+            isempty(missing_workload) ||
+                println(stderr, "\nno `@compile_workload run_natural_rows_workload(…)` in the entry file of:\n  ",
+                        join(missing_workload, "\n  "))
+            @test isempty(missing_workload)
         end
     end
 end

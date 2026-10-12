@@ -47,9 +47,13 @@ taste; it is the whole mechanism, and [the next section](#why-the-leaf-matters)
 says why. `test_package_graph()` asserts it, along with two more:
 
 - an example package is a dependency only of a leaf, an example or a test;
-- a `@compile_workload` lives in a leaf, or in the entry file of a package that
-  a user loads and whose first window it compiles (see
-  [the next section](#why-the-leaf-matters)).
+- a `@compile_workload` lives in a leaf, in the entry file of a package that a
+  user loads and whose first window it compiles, or in the entry file of a
+  package whose slice has natural rows (see
+  [the next section](#why-the-leaf-matters));
+- a package whose slice has natural rows compiles them with
+  `@compile_workload run_natural_rows_workload(<Domain>Module)` in its entry
+  file.
 
 ### A package with a third-party dependency is a stem, not a sub-stem
 
@@ -109,6 +113,23 @@ the first window runs holds a `@compile_workload` in its entry file:
 `run_display_workload` of the platform, which runs the first window of
 `display_in_editor`, with a backend that has no device or with an offscreen SDL
 window, and gives it the gestures of a first look.
+
+Every first window builds the natural table of the display, with the rows of
+each domain that the session has loaded, also when it shows no document of that
+domain. A slice has natural rows when it calls a `register_natural_…!`
+function or defines a method of `make_graphics_projection` for a type. So a
+package whose slice has natural rows compiles them in its entry file too:
+
+```julia
+using PrecompileTools: @compile_workload
+@compile_workload run_natural_rows_workload(JsonModule)
+```
+
+`run_natural_rows_workload` runs the `__init__` of the module, where the domain
+registers its rows, and builds the table as the display does. The workload runs
+while the package precompiles, before that `__init__`, so without the call it
+would build no row of the domain. A package that only depends on such a domain,
+as `ProjecturedFSM` depends on `ProjecturedGraph`, needs no workload of its own.
 
 That code survives only where no package loaded later can invalidate it. Three
 rules keep it valid with any packages that a session loads after it:
