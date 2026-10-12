@@ -58,7 +58,7 @@ index 7 carry different messages and the same bug.
 
 # Example
 
-    key = _compute_fault_key(:print, :JsonToSyntax, :BoundsError)
+    key = _compute_fault_key(:print, :Printer, :BoundsError)
 
 See also [`FaultRecord`](@ref).
 """

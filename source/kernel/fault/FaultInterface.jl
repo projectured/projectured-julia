@@ -9,7 +9,8 @@
 Show `record` on `target`, whatever showing it means there.
 
 Use it through [`drain_faults!`](@ref) rather than directly: the drain calls it
-once per new record, per target, on the editor's own task. A target that holds
+for each target, once for a new record and again each time the count of the
+record reaches a power of ten, on the editor's own task. A target that holds
 cells may therefore write them, which a reactive computation may not.
 
 The kernel answers nothing. A package that owns a log document adds the method
@@ -37,7 +38,7 @@ its own method where it can do better.
 
 # Example
 
-    play_fault_sound!(editor.backend)
+    play_fault_sound!(backend)
 
 See also [`report_fault!`](@ref), which is what calls it.
 """

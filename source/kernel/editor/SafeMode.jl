@@ -6,9 +6,6 @@
 # failed on every frame for long enough that no repair helped, the projection is
 # put aside and one that draws the fault list takes its place. At worst a person
 # reads what went wrong instead of looking at a window that stopped moving.
-#
-# The kernel draws nothing itself, so it asks through `make_safe_mode_projection`
-# and does nothing when nothing answers.
 
 """
     is_editor_in_safe_mode(editor) -> Bool

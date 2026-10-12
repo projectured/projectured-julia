@@ -21,11 +21,16 @@ const _FAULT_WALKTHROUGH = [
     "# Once per frame the drain hands each new record to the targets of the store, and reports it. Then nothing is new.",
     "[record.origin for record in drain_faults!(store; policy)]",
     "isempty(drain_faults!(store; policy))",
+    "# report_fault! reports one record at the first tier that works. The console and the sound are closed here.",
+    "report_fault!(store, record; policy, backend = nothing)",
+    "# A record that a target of the store took is shown already, so the console stays quiet for it.",
+    "report_fault!(store, record; policy, backend = nothing, is_shown = true)",
     "# A full store forgets the oldest record that the drain handed over, so a new fault has room.",
     "record_fault!(store, :device; origin = :Screen, exception = ErrorException(\"gone\")); [record.origin for record in get_fault_records(store)]",
     "record_fault!(store, :tool; origin = :Search, exception = ErrorException(\"lost\")); [record.origin for record in get_fault_records(store)]",
-    "# Now every record waits for the drain, so a new fault counts into one overflow record.",
-    "overflow = record_fault!(store, :tool; origin = :Index, exception = ErrorException(\"lost\")); (overflow.origin, overflow.count)",
+    "# Now every record waits for the drain. A new fault answers nothing, and one overflow record counts it.",
+    "record_fault!(store, :tool; origin = :Index, exception = ErrorException(\"lost\")) === nothing",
+    "overflow = last(get_fault_records(store)); (overflow.origin, overflow.count)",
     "# An exception that means stop passes every barrier.",
     "is_passthrough_exception(InterruptException()), is_passthrough_exception(ErrorException(\"x\"))",
     "# A strict policy catches nothing, so a test sees the exception.",
@@ -37,8 +42,9 @@ const _FAULT_WALKTHROUGH = [
 
 Print a REPL session that shows the fault layer: a store and a quiet policy, a
 barrier that answers a value and then its fallback, the count of one fault, the
-count of the faults in a row, the drain, a full store that makes room and then
-counts into its overflow record, and a strict policy that catches nothing.
+count of the faults in a row, the drain, `report_fault!`, a full store that makes
+room and then counts into its overflow record, and a strict policy that catches
+nothing.
 
 Each line runs as it prints, so the value under a line is the value that the line
 gives. To try the lines, type them in a REPL after `using ProjecturedKernel.FaultModule`.

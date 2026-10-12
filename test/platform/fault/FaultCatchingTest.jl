@@ -230,6 +230,20 @@ function test_fault_catching()
         @test length(_read_with_marks(() -> _drawn_children(iomap.output), context)) == 4
     end
 
+    @testset "a full store leaves a mark its own fault" begin
+        # The store is full, and its one record waits for the drain, so the
+        # overflow record counts the new fault. The mark still names its own.
+        store = FaultStore(capacity = 1)
+        record_fault!(store, :print; origin = :Other, exception = ErrorException("first"))
+        barrier = FaultCatchingProjection(inner = _probe_dispatch(),
+                                          substitute = FaultToSyntax())
+        context = _make_tolerant_context(store)
+        iomap = print_document(barrier, barrier, FaultProbeLeaf(value = 1), context)
+        _read_with_marks(() -> _force_cell(iomap.output), context)
+        @test occursin("leaf 1 is odd", iomap.fault.message)
+        @test last(get_fault_records(store)).origin === :FaultStore
+    end
+
     @testset "the fault reaches the log with its count" begin
         store = FaultStore()
         log = FaultLog()

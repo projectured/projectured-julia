@@ -37,9 +37,9 @@ passing quietly.
 
 # Example
 
-    run_fault_barrier!(editor.faults; policy = editor.fault_policy,
-                       backend = editor.backend, site = :print) do
-        run_print_stage!(editor)
+    count = run_fault_barrier!(store; policy, backend, site = :read,
+                               fallback = 0) do
+        parse(Int, text)
     end
 
 See also [`FaultPolicy`](@ref), [`record_fault!`](@ref) and

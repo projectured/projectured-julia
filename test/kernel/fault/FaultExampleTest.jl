@@ -55,6 +55,14 @@ julia> [record.origin for record in drain_faults!(store; policy)]
 julia> isempty(drain_faults!(store; policy))
 true
 
+# report_fault! reports one record at the first tier that works. The console and the sound are closed here.
+julia> report_fault!(store, record; policy, backend = nothing)
+:swallowed
+
+# A record that a target of the store took is shown already, so the console stays quiet for it.
+julia> report_fault!(store, record; policy, backend = nothing, is_shown = true)
+:target
+
 # A full store forgets the oldest record that the drain handed over, so a new fault has room.
 julia> record_fault!(store, :device; origin = :Screen, exception = ErrorException("gone")); [record.origin for record in get_fault_records(store)]
 2-element Vector{Symbol}:
@@ -66,8 +74,11 @@ julia> record_fault!(store, :tool; origin = :Search, exception = ErrorException(
  :Screen
  :Search
 
-# Now every record waits for the drain, so a new fault counts into one overflow record.
-julia> overflow = record_fault!(store, :tool; origin = :Index, exception = ErrorException("lost")); (overflow.origin, overflow.count)
+# Now every record waits for the drain. A new fault answers nothing, and one overflow record counts it.
+julia> record_fault!(store, :tool; origin = :Index, exception = ErrorException("lost")) === nothing
+true
+
+julia> overflow = last(get_fault_records(store)); (overflow.origin, overflow.count)
 (:FaultStore, 1)
 
 # An exception that means stop passes every barrier.

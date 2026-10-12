@@ -182,9 +182,9 @@ The decisions are C for L01-1, A for L01-2, A for L01-12, and A for A-4.
     `:target` and writes no console line, and a fault of a device still plays the
     sound. `report_frame_faults!` is one call of the drain. A target took a record
     when its `append_fault!` returned. A nested report answers the tier that it
-    reached and plays no sound. The drain puts the keys that it did not hand over
-    back in `undrained` in a `finally`, so a stop exception loses none (A-2). The
-    tests T-3 and T-11 came with it.
+    reached and plays no sound. A key leaves `undrained` only after the drain
+    handed it over, so a stop exception loses none (A-2). The tests T-3 and T-11
+    came with it.
   - [x] L01-2 A with L01-12 A. `detach_fault_target!` is in the store.
     `make_safe_mode_projection` is declared in `editor/SafeMode.jl`, with its
     default `nothing`, and exported by `EditorModule`. **The editor attaches and
@@ -196,6 +196,38 @@ The decisions are C for L01-1, A for L01-2, A for L01-12, and A for A-4.
     `test_editor_fault_barriers`. T-2 came with it.
 - [ ] 4. The fault tests, the cell example test, and the guards. Then the audit of
   the changed files again, and the seal on the owner's word.
+
+## The second audit
+
+A second auditor read the branch after step 3. It found 21 findings of the first
+audit closed and A-5 half closed, and 11 new ones, B-1 … B-11. The lead
+confirmed B-1 by a test that failed before the fix.
+
+- [x] **B-1 (High)** — `record_fault!` answered the overflow record for a fault
+  that found no room, and the barrier in a pipeline (`_take_fault` in
+  `FaultCatching.jl`) drew it as the fault of its part. `record_fault!` answers
+  `nothing` again for such a fault, so the barrier makes its own record. The test
+  `a full store leaves a mark its own fault` in `FaultCatchingTest.jl`.
+- [ ] **B-2 (Medium)** — the default `append_fault!` returns, so the drain counts a
+  target with no method as one that showed the record. Waits for the owner.
+- [x] **B-3 (Medium)** — tests of the drain with a backend: the sound of a device
+  fault that a target took, and the console line of a record whose only target
+  refused it.
+- [x] **B-4 (Low)** — the drain took every key out of `undrained` before the
+  hand-over, so a fault recorded during the drain could forget a key that still
+  waited. A key now leaves `undrained` after its hand-over, and the `finally` is
+  gone.
+- [x] **B-5 (Low)** — the text says that a key that comes back takes its line in
+  the log back with the new count.
+- [ ] **B-6 (Low)** — `leave_safe_mode!` detaches `editor.projection`, not the
+  projection that `enter_safe_mode!` attached. Waits for the owner.
+- [x] **B-7, B-8, B-9, B-10, B-11 (Low)** and the rest of A-5: the examples of
+  `FaultBarrier.jl`, `FaultCascade.jl` and `FaultInterface.jl` name no editor;
+  two comments that repeated docstrings are gone; the walkthrough shows
+  `report_fault!`; the detach test detaches a stranger while a target is
+  attached; `ProjecturedKernelExample` uses `FaultModule` with `using`, and one
+  of its two `using …EventModule` lines is gone. The private docstring at
+  `FaultRecord.jl:61` names `:Printer`.
 
 ## Outside the layer
 

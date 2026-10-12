@@ -20,6 +20,13 @@ end
 FaultModule.append_fault!(target::QuietTarget, record) = push!(target.seen, record)
 FaultModule.append_fault!(::AngryTarget, record) = error("this target refuses records")
 
+# A backend that counts the sounds that the drain plays.
+mutable struct DrainSoundBackend
+    sounds::Int
+end
+FaultModule.play_fault_sound!(backend::DrainSoundBackend) =
+    (backend.sounds += 1; nothing)
+
 # A target that a person stops when it takes the record of one origin.
 mutable struct StoppingTarget
     stop_at::Symbol
@@ -85,8 +92,9 @@ function test_fault_store()
         # Every key waits for the drain, so no key can make room.
         @test [record.origin for record in get_fault_records(store)] ==
               [:P1, :P2, :P3, :FaultStore]
-        @test (answers[10].site, answers[10].origin, answers[10].count) ==
-              (:store, :FaultStore, 7)
+        @test all(isnothing, answers[4:10])
+        overflow = last(get_fault_records(store))
+        @test (overflow.site, overflow.origin, overflow.count) == (:store, :FaultStore, 7)
         @test record_fault!(store, :print; origin = :P1,
                             exception = ErrorException("e")).count == 2
     end
@@ -101,8 +109,9 @@ function test_fault_store()
         @test [record.origin for record in get_fault_records(store)] == [:B, :C]
         fail!(:D)
         @test [record.origin for record in get_fault_records(store)] == [:C, :D]
-        # C and D wait for the drain, so E counts into the overflow record.
-        @test (fail!(:E).origin, fail!(:F).count) == (:FaultStore, 2)
+        # C and D wait for the drain, so E and F count into the overflow record.
+        @test (fail!(:E), fail!(:F)) === (nothing, nothing)
+        @test last(get_fault_records(store)).count == 2
         @test [record.origin for record in drain_faults!(store; policy = quiet)] ==
               [:C, :D, :FaultStore]
         # A key that comes back after the store forgot it starts a new count.
@@ -174,11 +183,12 @@ function test_fault_store()
         target = QuietTarget(Any[])
         @test attach_fault_target!(store, target) === store
         attach_fault_target!(store, target)
+        # A target that is not attached changes nothing.
+        @test detach_fault_target!(store, QuietTarget(Any[])) === store
         record_fault!(store, :print; origin = :P, exception = ErrorException("e"))
         drain_faults!(store)
         @test length(target.seen) == 1
         @test detach_fault_target!(store, target) === store
-        @test detach_fault_target!(store, QuietTarget(Any[])) === store
         record_fault!(store, :print; origin = :Q, exception = ErrorException("e"))
         drain_faults!(store; policy = FaultPolicy(is_console_enabled = false,
                                                   is_sound_enabled = false))
@@ -195,6 +205,24 @@ function test_fault_store()
         record_fault!(alone, :print; origin = :Alone, exception = ErrorException("e"))
         @test length(@test_logs((:error, r"^\[fault\] print in Alone: e$"),
                                 drain_faults!(alone; policy))) == 1
+    end
+
+    @testset "the drain plays the sound of a device fault that a target took" begin
+        store = FaultStore()
+        attach_fault_target!(store, QuietTarget(Any[]))
+        record_fault!(store, :device; origin = :Screen, exception = ErrorException("gone"))
+        backend = DrainSoundBackend(0)
+        @test length(@test_logs(drain_faults!(store; policy = FaultPolicy(), backend))) == 1
+        @test backend.sounds == 1
+    end
+
+    @testset "a record whose only target refuses it reaches the console" begin
+        store = FaultStore()
+        attach_fault_target!(store, AngryTarget())
+        record_fault!(store, :print; origin = :Refused, exception = ErrorException("e"))
+        @test_logs((:error, "[fault] a fault target refused a record"),
+                   (:error, r"^\[fault\] print in Refused: e$"),
+                   drain_faults!(store; policy = FaultPolicy(is_sound_enabled = false)))
     end
 
     @testset "a stop exception in the drain leaves the records after it waiting" begin

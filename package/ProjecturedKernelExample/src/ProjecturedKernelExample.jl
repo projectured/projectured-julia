@@ -29,8 +29,7 @@ value that it gives. `print_cell_example` shows the cell layer, and
 module ProjecturedKernelExample
 
 using ProjecturedKernel.CellModule
-import ProjecturedKernel.FaultModule
-using ProjecturedKernel.EventModule
+using ProjecturedKernel.FaultModule
 using ProjecturedKernel.EventModule
 using ProjecturedKernel.BackendModule
 import ProjecturedKernel.ToolModule

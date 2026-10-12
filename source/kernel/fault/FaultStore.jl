@@ -32,9 +32,10 @@ thread.
 `capacity` bounds the number of distinct keys, and it must be at least 1. A new
 key that does not fit takes the place of the oldest key that the drain already
 handed over, so each fault reaches the targets at least once. A key that comes
-back after the store forgot it starts a new count. When every key still waits for
-the drain, the new fault counts into the overflow record: one record beside the
-capacity, whose count says how many faults did not fit.
+back after the store forgot it starts a new count, and a target that still shows
+the key takes the new count. When every key still waits for the drain, the new
+fault counts into the overflow record: one record beside the capacity, whose
+count says how many faults did not fit.
 
 # Example
 
@@ -164,9 +165,9 @@ It is safe to call from inside a reactive computation, which is the whole reason
 the store exists. It is also safe to call with `nothing` as the store, so a
 projection that was given none still runs.
 
-Answers `nothing` when there is no store. A new fault that finds the store full
-belongs to the overflow record when no key can make room (see [`FaultStore`](@ref)),
-and the answer is that record.
+Answers `nothing` when there is no store, and when a new fault finds the store
+full and no key can make room. The overflow record counts that fault (see
+[`FaultStore`](@ref)), and the caller makes its own record where it needs one.
 
 # Example
 
@@ -182,7 +183,8 @@ function record_fault!(store::FaultStore, site::Symbol; origin, reference = noth
     known = get(store.records, key, nothing)
     known === nothing || return _count_known_fault!(store, known)
     if _count_fault_keys(store) >= store.capacity && !_forget_drained_fault!(store)
-        return _count_overflow_fault!(store)
+        _count_overflow_fault!(store)
+        return nothing
     end
     _add_fault_record!(store, make_fault_record(site; origin, reference, exception,
                                                 traceback))
@@ -275,25 +277,16 @@ function drain_faults!(store::FaultStore; policy = FaultPolicy(), backend = noth
         throw(ArgumentError("drain_faults!: the policy must be a FaultPolicy, " *
                             "not a $(typeof(policy))"))
     isempty(store.undrained) && return FaultRecord[]
-    keys_to_emit = copy(store.undrained)
-    empty!(store.undrained)
     emitted = FaultRecord[]
-    handed = 0
-    try
-        for key in keys_to_emit
-            record = get(store.records, key, nothing)
-            if record !== nothing
-                is_shown = _hand_fault_to_targets!(store, record, policy)
-                report_fault!(store, record; policy, backend, is_shown)
-                push!(emitted, record)
-            end
-            handed += 1
-        end
-    finally
-        # Only an exception that means stop leaves the loop early.
-        for key in @view keys_to_emit[handed + 1:end]
-            key in store.undrained || push!(store.undrained, key)
-        end
+    for key in copy(store.undrained)
+        record = store.records[key]
+        is_shown = _hand_fault_to_targets!(store, record, policy)
+        report_fault!(store, record; policy, backend, is_shown)
+        push!(emitted, record)
+        # A key waits until it is handed over. So a stop exception leaves it and
+        # the keys after it for the next drain, and a fault recorded during the
+        # drain can not make room by forgetting a key that waits.
+        filter!(!=(key), store.undrained)
     end
     emitted
 end

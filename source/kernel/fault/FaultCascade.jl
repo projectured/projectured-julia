@@ -10,9 +10,7 @@
 #   5  nothing                                   — here
 #
 # Tiers 1 and 2 are not in this file. Code that can put a mark in its output puts
-# it there and records the fault in the store. The drain hands each new record to
-# the targets, and then calls `report_fault!` with `is_shown`, so a record that a
-# target took goes no further, except to the sound of a device fault.
+# it there and records the fault in the store.
 
 """
     report_fault!(store, record; policy, backend, is_shown = false) -> Symbol
@@ -39,8 +37,7 @@ and a person has nothing else to notice.
 
 # Example
 
-    report_fault!(editor.faults, record; policy = editor.fault_policy,
-                  backend = editor.backend)
+    report_fault!(store, record; policy, backend)
 
 See also [`drain_faults!`](@ref) and [`run_fault_barrier!`](@ref), which call it.
 """
