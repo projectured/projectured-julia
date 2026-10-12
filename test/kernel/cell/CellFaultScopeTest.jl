@@ -160,7 +160,7 @@ function test_cell_fault_scope()
 
     @testset "a recorded fault shows the exception that it holds" begin
         @test sprint(showerror, RecordedFaultException(ErrorException("x"), nothing)) ==
-              "a fault that a barrier recorded: x"
+              "a fault that a scope recorded: x"
     end
 end
 end

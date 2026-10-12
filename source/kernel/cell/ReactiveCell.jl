@@ -3,6 +3,20 @@
 # computation that runs on the next read. The engine counts its reads, computes,
 # invalidations and writes with `@count_performance`.
 
+# The state of a reactive cell. A cell that is not up to date computes at its next
+# read. A failed cell is one whose last computation threw: it computes at its next read,
+# and the walk of a write goes on through it, because a reader that caught its exception
+# can be up to date. A computing cell is on the stack of a computation; a write that
+# reaches it marks it, so it ends out of date, and a read of it from inside its own
+# computation is a cycle.
+@enum _CellState::UInt8 begin
+    _UP_TO_DATE
+    _OUT_OF_DATE
+    _FAILED
+    _COMPUTING
+    _COMPUTING_OUT_OF_DATE
+end
+
 """
     ReactiveCell{T}
 
@@ -40,26 +54,12 @@ reader; and the guide `kernel/cell`.
 
 # Read and write
 
-    c[]                             # read, and compute first if the cell is invalid
+    c[]                             # read, and compute first if not up to date
     c[] = value                     # hold `value`, and invalidate the readers
     c[] = @computation expr         # compute `expr`, and invalidate the readers
     set_cell_value!(c, value)       # the same as `c[] = value`
     set_cell_computation!(c, f)     # the same as `c[] = Computation(f)`
 """
-# The state of a reactive cell. A cell that is not up to date computes at its next
-# read. A failed cell is one whose last computation threw: it computes at its next read,
-# and the walk of a write goes on through it, because a reader that caught its exception
-# can be up to date. A computing cell is on the stack of a computation; a write that
-# reaches it marks it, so it ends out of date, and a read of it from inside its own
-# computation is a cycle.
-@enum _CellState::UInt8 begin
-    _UP_TO_DATE
-    _OUT_OF_DATE
-    _FAILED
-    _COMPUTING
-    _COMPUTING_OUT_OF_DATE
-end
-
 mutable struct ReactiveCell{T} <: AbstractCell{T}
     value::T
     computation::Union{Nothing, Function}
@@ -165,13 +165,22 @@ function run_untracked(f)
     stack = _get_computing_stack()
     isempty(stack) && return f()                 # no reader: nothing to stop
     storage = task_local_storage()
+    set_aside = _get_set_aside_stacks()
+    push!(set_aside, stack)
     storage[:projectured_reactive_computing] = ReactiveCell[]
     try
         return f()
     finally
         storage[:projectured_reactive_computing] = stack
+        pop!(set_aside)
     end
 end
+
+# The stacks that `run_untracked` set aside on this task, the innermost last. A cycle
+# can pass through them, so the check of a cycle searches them too.
+_get_set_aside_stacks() =
+    get!(() -> Vector{ReactiveCell}[], task_local_storage(),
+         :projectured_reactive_set_aside)::Vector{Vector{ReactiveCell}}
 
 # ── a cycle ──────────────────────────────────────────────────────────────────
 
@@ -183,7 +192,11 @@ through other cells.
 
 It is an ordinary exception, so a barrier records it as a fault and the editor goes
 on. Each cell of the cycle is failed, and computes again at its next read; a write
-that breaks the cycle reaches the readers of the cycle.
+that breaks the cycle reaches the readers of the cycle. The check finds a cycle also
+through `run_untracked` and an `UntrackedCell`.
+
+Use it to tell a cycle from another fault in a catch, or in a test of a computation
+that could read itself.
 
 # Example
 
@@ -241,36 +254,51 @@ function _recompute!(c::ReactiveCell)
         return
     end
     stack = _get_computing_stack()
-    _is_computing(c) && any(cell -> cell === c, stack) && throw(CellCycleException(c))
+    is_computing = _is_computing(c)
+    is_computing && _is_computing_on_this_task(c, stack) && throw(CellCycleException(c))
     _detach_upstream!(c)
     @count_performance :computes
     push!(stack, c)
-    c.state = _COMPUTING
-    try
-        c.value = _run_computation(c.computation)
+    # A run on another task can compute the cell already; the mark of a write stays.
+    is_computing || (c.state = _COMPUTING)
+    value = try
+        _run_computation(c.computation)
     catch
-        # The exception goes on to the reader. The failed cell lets the walk of a
-        # later write reach the readers that caught it.
         c.state = _FAILED
         rethrow()
     finally
         pop!(stack)
     end
-    c.state = c.state === _COMPUTING_OUT_OF_DATE ? _OUT_OF_DATE : _UP_TO_DATE
+    # Only a run that still finds the cell computing stores its value. A write, a new
+    # computation or a run on another task that ended first changed the state, and
+    # their answer stands.
+    if c.state === _COMPUTING
+        c.value = value
+        c.state = _UP_TO_DATE
+    elseif c.state === _COMPUTING_OUT_OF_DATE
+        c.value = value
+        c.state = _OUT_OF_DATE
+    elseif !isdefined(c, :value)
+        c.value = value
+    end
 end
 
 _is_computing(c::ReactiveCell) =
     c.state === _COMPUTING || c.state === _COMPUTING_OUT_OF_DATE
 
+# Whether `c` computes on this task: on its stack, or on a stack that `run_untracked`
+# set aside. A cell that computes on another task is no cycle.
+_is_computing_on_this_task(c::ReactiveCell, stack) =
+    any(cell -> cell === c, stack) ||
+    any(aside -> any(cell -> cell === c, aside), _get_set_aside_stacks())
+
 # ── invalidation ─────────────────────────────────────────────────────────────
 
-# Mark every reader of `c` out of date, then the readers of each, and so on. A reader
-# that is out of date already stops the walk: its own readers became out of date with
-# it. A failed reader does not stop it, because a reader of the failed cell that
-# caught its exception can be up to date. A computing reader is marked, so it ends
-# out of date. A reader comes out of `dependents` as a `ReactiveCell` with a free `T`,
-# so `@nospecialize` gives the walk one compiled body, which calls itself with no
-# dispatch at run time.
+# Mark every reader of `c` out of date, then the readers of each, and so on, by the
+# rules of `_CellState`: a reader out of date already stops the walk, a failed reader
+# does not, and a computing reader is marked. A reader comes out of `dependents` as a
+# `ReactiveCell` with a free `T`, so `@nospecialize` gives the walk one compiled body,
+# which calls itself with no dispatch at run time.
 function _invalidate_dependents!(@nospecialize(c::ReactiveCell))
     ds = c.dependents
     ds === nothing && return
@@ -485,6 +513,6 @@ function Base.show(io::IO, c::ReactiveCell{T}) where {T}
     # The value is shown into the same `io`, not through `repr`, which makes a new
     # buffer. So the depth and limit keys that a caller set on `io` still hold
     # inside a value in a cell.
-    c.state === _UP_TO_DATE ? show(io, c.value) : print(io, "<invalid>")
+    c.state === _UP_TO_DATE ? show(io, c.value) : print(io, "<out of date>")
     print(io, ")")
 end

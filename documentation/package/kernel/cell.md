@@ -123,9 +123,11 @@ keeps a bare function, so a cell outside every barrier runs with no scope. The b
 ## A cycle
 
 A computation that reads its own cell, directly or through other cells, is a
-cycle. The read finds the cell *computing*, on the stack of its own task, and
-throws a `CellCycleException`, an ordinary exception: a barrier records it, and the
-editor goes on. Each cell of the cycle is failed, and a write that breaks the cycle
+cycle. The read finds the cell *computing*, on the stack of its own task or on a
+stack that `run_untracked` set aside, and throws a `CellCycleException`, an
+ordinary exception: a barrier records it, and the editor goes on. A read of a
+computing cell from another task is no cycle: that task computes the cell too, and
+only a run that still finds the cell computing stores its value. Each cell of the cycle is failed, and a write that breaks the cycle
 reaches their readers.
 
 ```julia
@@ -137,8 +139,9 @@ a[] = 5; b[]            # 6
 
 ## Invariants the engine relies on
 
-The engine keeps these invariants. When code above breaks one, the result is a
-stale value or a stack overflow, and not an error.
+The engine keeps these invariants. A cycle throws a `CellCycleException`. When code
+above breaks another invariant, the result is a stale value or a stack overflow,
+and not an error.
 
 - **The dependency graph must stay acyclic.** The engine finds a cycle and throws
   a `CellCycleException`, but the cells of the cycle have no value until a write
@@ -148,7 +151,8 @@ stale value or a stack overflow, and not an error.
   dependents are out of date too.** `_invalidate_dependents!` stops at a dependent
   that is out of date already, because that cell made its own dependents out of
   date when it became so. This holds only because each write walks the *full*
-  transitive closure, and only `_recompute!` makes a cell up to date. Two states
+  transitive closure, and only `_recompute!` and a write of a value make a cell up
+to date. Two states
   keep it where a computation ends early or late: a failed cell passes the walk on,
   and a computing cell that a write reaches ends out of date. Never set the state
   by hand, and never invalidate only a part of the dependents. Both break the early
@@ -226,6 +230,8 @@ cells with `@cell_struct`. This guide describes the struct layer too; the
 layers below.
 
 ```
+fault/FaultModule.jl              (FaultModule): the fault and its predicate
+        │  is_fault_exception, used by ↓
 performance/PerformanceModule.jl  (PerformanceModule): the counters
         │  @count_performance, used by ↓
 cell/CellModule.jl                (CellModule): the cell kinds, one file each
@@ -247,13 +253,15 @@ struct/CellStructModule.jl        (CellStructModule): the struct of cells
 contract and nothing else. The read `c[]`, the untracked read `peek` and
 `is_cell_up_to_date` have their bodies in the file of each kind. The bodies of
 `unwrap_cell`, `get_cell_value_type`, `make_similar_cell`, `is_computed_cell`,
-`get_cell_computation` and `has_dependent_cells` are in the sibling
-`CellDefaults.jl`.
+`get_cell_computation`, `has_dependent_cells` and the fallback of
+`record_computation_fault!` are in the sibling `CellDefaults.jl`.
 
 The animation clock is a `@cell_struct` that uses the engine, and it is not a
 part of the engine. It is its own layer, `clock/ClockModule.jl`, above the struct
 layer. It imports `CellModule` and `CellStructModule` and nothing else, and the
-docstring of `ClockModule` holds the full interface.
+docstring of `ClockModule` holds the full interface: `Clock`,
+`get_reactive_clock_time`, `get_clock_time`, `set_clock_time!`,
+`start_wall_clock!` and `stop_wall_clock!`.
 
 The load order is the dependency order that the include-order guard checks.
 
@@ -369,8 +377,3 @@ The performance layer below the cell layer counts the work of the cells: the
 engine adds to the counts `:reads`, `:computes`, `:invalidations` and `:writes`
 with `@count_performance`, in a build with the counters. The
 [performance guide](performance.md) describes the layer.
-
-The animation clock is a kernel layer of its own, `clock/`, above the struct
-layer. `clock/ClockModule.jl` holds its interface: `Clock`,
-`get_reactive_clock_time`, `get_clock_time`, `set_clock_time!`,
-`start_wall_clock!` and `stop_wall_clock!`.

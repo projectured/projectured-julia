@@ -30,7 +30,7 @@ abstract type AbstractCell{T} end
 """
     is_cell_up_to_date(cell) -> Bool
 
-Whether reading a cell costs nothing, or starts a computation.
+Whether a read returns the value that the cell holds, or starts a computation.
 
 Use it to tell a value that is ready from one that must be worked out: before a
 measurement of what a read costs, or in a test that asks whether a write

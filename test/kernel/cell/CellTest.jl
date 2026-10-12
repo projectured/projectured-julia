@@ -356,7 +356,7 @@ end
 
 @testset "show" begin
     @test repr(Cell(2)) == "Cell(value, 2)"
-    @test repr(Cell(@computation 2)) == "Cell(computation, <invalid>)"
+    @test repr(Cell(@computation 2)) == "Cell(computation, <out of date>)"
     # A typed cell is not a `Cell`, so it shows its type.
     @test repr(ReactiveCell{Int}(2)) == "ReactiveCell{$(Int)}(value, 2)"
     typed = ReactiveCell{Int}(@computation 3)
@@ -485,6 +485,64 @@ end
     # A write that breaks the cycle reaches the readers of the cycle.
     a[] = 5
     @test b[] == 6
+end
+
+@testset "a cycle through run_untracked or an UntrackedCell throws" begin
+    a = Cell(0)
+    b = Cell(@computation a[] + 1)
+    a[] = @computation run_untracked(() -> b[]) + 1
+    @test_throws CellCycleException a[]
+    p = Cell(0)
+    u = UntrackedCell{Int}(@computation p[] + 1)
+    p[] = @computation u[] + 1
+    @test_throws CellCycleException p[]
+    typed = ReactiveCell{Int}(0)
+    typed[] = @computation typed[] + 1
+    exception = try typed[] catch caught; caught end
+    @test sprint(showerror, exception) == "a ReactiveCell{$(Int)} read itself while it computed"
+end
+
+@testset "a read from another task keeps the mark of a write" begin
+    t = Cell(1)
+    gate = Channel{Nothing}(1)
+    is_waiting = Ref(true)
+    c = Cell(@computation begin
+        value = 10 * t[]
+        if is_waiting[]
+            is_waiting[] = false
+            take!(gate)              # the first run waits here, on its own task
+        end
+        value
+    end)
+    first_read = @async c[]
+    @test timedwait(() -> !is_waiting[], 10.0) === :ok
+    t[] = 2                          # marks the computing cell
+    @test fetch(@async c[]) == 20    # a second run, on another task
+    put!(gate, nothing)
+    fetch(first_read)                # the first run ends last, with its stale 10
+    @test c[] == 20
+end
+
+@testset "a write or a new computation during the computation of a cell stands" begin
+    c = Cell(0)
+    c[] = @computation (c[] = 5; 1)
+    @test c[] == 5
+    @test !is_computed_cell(c)
+    d = Cell(0)
+    d[] = @computation (set_cell_computation!(d, () -> 2); 1)
+    d[]
+    @test d[] == 2
+end
+
+@testset "a new computation of a failed cell runs at the next read" begin
+    f = Cell(@computation error("x"))
+    @test_throws ErrorException f[]
+    set_cell_computation!(f, () -> 4)
+    @test f[] == 4
+end
+
+@testset "the reactive cell has its docstring" begin
+    @test Base.Docs.hasdoc(CellModule, :ReactiveCell)
 end
 
 @testset "a MethodError in a chain of ten computed cells" begin

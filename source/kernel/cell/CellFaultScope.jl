@@ -7,10 +7,10 @@
 # inside `run_in_fault_scope`, each computation made there keeps the scope, and the
 # computation that throws hands its fault to that scope.
 
-# The scope that a barrier set, the computing stack of that moment and its depth.
-# A computation made deeper in that stack was made by a computation that runs
-# inside the print, so it takes the scope of that computation instead. A stack
-# that is not the same vector is the stack of `run_untracked`.
+# The scope that `run_in_fault_scope` set, the computing stack of that moment and its
+# depth. A computation made deeper in that stack was made by a computation that runs
+# inside the scope, so it takes the scope of that computation instead. A stack that
+# is not the same vector is the stack of `run_untracked`.
 const _FAULT_SCOPE =
     ScopedValue{Union{Nothing, Tuple{Any, Vector{ReactiveCell}, Int}}}(nothing)
 
@@ -44,9 +44,9 @@ end
 
 A fault that a scope took, on its way up the stack of the reads.
 
-The scope already recorded `exception` and will show it, so a scope or a barrier
-above lets it pass and records nothing. A barrier that catches it while it prints
-shows a mark and records no second fault. `scope` is the scope of the computation
+The scope already recorded `exception` and will show it, so a scope above lets it
+pass and records nothing, and a catch that would record a fault records no second
+one. `scope` is the scope of the computation
 that handed the fault on; a scope can pass a fault to the scope that encloses it,
 which then shows it. `showerror` shows `exception`.
 
@@ -68,7 +68,7 @@ struct RecordedFaultException <: Exception
 end
 
 function Base.showerror(io::IO, recorded::RecordedFaultException)
-    print(io, "a fault that a barrier recorded: ")
+    print(io, "a fault that a scope recorded: ")
     showerror(io, recorded.exception)
 end
 
@@ -117,8 +117,8 @@ get_fault_scope(::Union{Function, Nothing}) = nothing
     find_fault_scope() -> scope or nothing
 
 The scope that a computation made now keeps: the scope of the computation that
-runs, when it runs deeper than where the last barrier set its scope, else the
-scope of that barrier, or `nothing` outside every scope.
+runs, when it runs deeper than where `run_in_fault_scope` set the last scope, else
+that scope, or `nothing` outside every scope.
 
 Use it before code sets a scope of its own, to know the scope that encloses it: a
 fault that the inner scope can not show goes there.

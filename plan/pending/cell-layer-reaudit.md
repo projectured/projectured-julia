@@ -186,3 +186,41 @@ L03-9 B.
     cell whose field is not set yet. Checked: the checkpoint test of omnet-julia 100 of
     100, and a binary round trip of a `ReactiveCell{Int}`.
 - [ ] 3. The tests, the guards, a second audit, and the seal on the owner's word.
+  - [x] The second audit (below), and its fixes.
+  - [ ] The seal, when the owner says so.
+
+## The second audit
+
+A second auditor read the layer on a263eb855. It found every finding of the first
+audit closed, except a few words (S-8), and nine new ones, S-1 … S-9, from the fixes.
+It ran each defect on the bare files of the three layers.
+
+- [x] **S-1 (High)** — `ReactiveCell` had no docstring: the comment and the `@enum` of
+  the states stood between the docstring and the struct. The enum is above the
+  docstring now, and a test checks `Base.Docs.hasdoc(CellModule, :ReactiveCell)`.
+- [x] **S-2 (Medium)** — a cycle through `run_untracked` or an `UntrackedCell` overflowed
+  the stack, because `run_untracked` sets the stack aside. It keeps the stacks that it
+  sets aside in a list of the task, and the check of a cycle searches them too. Tests
+  for both chains.
+- [x] **S-3 (Medium)** — a read of a computing cell from another task started a second
+  run that set the state to computing, so the mark of a write was lost, and the run
+  that ended last stored its value. A second run keeps the mark, and a run stores its
+  value only while it still finds the cell computing. A test with two tasks and a
+  channel.
+- [x] **S-4 (Low)** — a write or a new computation of a cell from inside its own
+  computation was lost; the S-3 rule keeps them. A test.
+- [x] **S-5, S-7 (Medium, Low)** — `cell.md` and the law: a cycle throws, and a write of
+  a value also makes a cell up to date.
+- [x] **S-6 (Low)** — a save reads a computed cell with `peek`, which can run a
+  computation; a save that throws truncated the old file. `save_document` writes a
+  file beside the path and moves it over the path at the end. The law and the
+  comment say that a save can compute.
+- [x] **S-8, S-9 (Low)** — no barrier and no print words in `CellFaultScope.jl`, and the
+  message of a `RecordedFaultException` names a scope; the show of a cell that is
+  not up to date says `<out of date>`; one comment of the states in place of three;
+  the guide lists the fallback of `record_computation_fault!` and shows the fault
+  layer in its diagram; the docstring of the walkthrough says that each call adds a
+  method. `CellCycleException` has its "Use it to" paragraph.
+
+Checked: `test_cell` 203, `test_untracked_cell` 48, `test_cell_fault_scope` 34, the
+walkthrough 2, the layering guard 10.

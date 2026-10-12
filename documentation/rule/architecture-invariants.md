@@ -293,7 +293,7 @@ out of date already, and the early-stop walk of a write relies on it. Two states
 keep the walk right where a computation ends early or late. A *failed* cell, whose
 computation threw, can have up-to-date readers, which caught its exception, so the
 walk goes on through it. A *computing* cell that a write reaches is marked, and it
-ends out of date. `_recompute!` is the only thing that makes a cell up to date.
+ends out of date. Only `_recompute!` and a write of a value make a cell up to date.
 Setting the state by hand, or invalidating only a subset of readers, breaks the
 early stop and leaves cells stale forever.
 
@@ -1566,10 +1566,11 @@ describe — a docstring that names a function that no longer exists is a defect
 
 **Persistence crosses cell boundaries by value and never enters the reactive
 graph.** Serialization (binary and natural-format) writes a `Cell`'s *value*
-only — reading it with `peek(c)`, never `c[]`, so no reactive dependency is
-registered, and asking `is_computed_cell(c)` where it must refuse a computed cell —
-and never traverses a cell's `dependents`
-out into the projection-output graph. Keep this boundary intact: what is
+only. It reads the value with `peek(c)`, never `c[]`, so no reactive dependency is
+registered, and it asks `is_computed_cell(c)` where it must refuse a computed cell. A
+computed cell that is out of date computes at the save, so a save writes the file
+only after the whole document is written. Serialization never traverses a cell's
+`dependents` out into the projection-output graph. Keep this boundary intact: what is
 durable is the document's data, not the reactive machinery or the projected
 view built over it. Transient view/UI state (hover, drag, scroll, zoom) is
 projection output and is therefore excluded from serialization by construction.

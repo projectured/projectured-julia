@@ -5,7 +5,8 @@
 function Serialization.serialize(s::AbstractSerializer, c::ReactiveCell)
     # The concrete type (`ReactiveCell{T}`) is the tag, so typed cells round-trip
     # their value-type parameter. Deserialization rebuilds a fresh primitive cell.
-    # `peek` reads the value and records no reader.
+    # `peek` reads the value and records no reader. A computed cell that is out of
+    # date computes first, so a save can run a computation.
     Serialization.serialize_type(s, typeof(c))
     Serialization.serialize(s, peek(c))
 end
@@ -28,13 +29,21 @@ const _VERSION = 2
 
 Serialize `document` to `path` in the exact binary format (header + payload).
 Returns `path`. See the module docstring for what "exact" covers (full structure
-plus selection) and the structural-only limitation.
+plus selection) and the structural-only limitation. The file at `path` changes only
+when the whole document was written: a save that throws, for example in a
+computation that a cell runs, leaves the old file as it was.
 """
 function save_document(document::Document, path::AbstractString)
-    open(path, "w") do io
-        serialize(io, _MAGIC)
-        serialize(io, _VERSION)
-        serialize(io, document)
+    temporary = path * ".partial"
+    try
+        open(temporary, "w") do io
+            serialize(io, _MAGIC)
+            serialize(io, _VERSION)
+            serialize(io, document)
+        end
+        mv(temporary, path; force = true)
+    finally
+        isfile(temporary) && rm(temporary)
     end
     path
 end

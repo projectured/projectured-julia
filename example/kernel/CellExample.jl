@@ -50,7 +50,9 @@ with `peek` that records no dependency, a chain of computations, a new computati
 of a cell, the other cell kinds, `run_untracked`, a cycle, and a fault scope.
 
 Each line runs as it prints, so the value under a line is the value that the line
-gives. To try the lines, type them in a REPL after `using ProjecturedKernel.CellModule`.
+gives. Each call adds one method of `record_computation_fault!`, for the scope type
+of its own session, and the method stays while the process runs. To try the lines,
+type them in a REPL after `using ProjecturedKernel.CellModule`.
 
 # Example
 
