@@ -50,6 +50,15 @@ function test_fault_store()
         @test records[1].exception_type === :BoundsError
     end
 
+    @testset "a record keeps its first occurrence" begin
+        store = FaultStore()
+        record_fault!(store, :print; origin = :P, reference = 1,
+                      exception = ErrorException("first"))
+        record = record_fault!(store, :print; origin = :P, reference = 2,
+                               exception = ErrorException("second"))
+        @test (record.message, record.first_reference, record.count) == ("first", 1, 2)
+    end
+
     @testset "a different exception in the same place is a different fault" begin
         store = FaultStore()
         record_fault!(store, :print; origin = :SyntaxToText,
@@ -243,7 +252,7 @@ function test_fault_store()
         store = FaultStore()
         attach_fault_wake!(store, () -> error("the wake is broken"))
         @test record_fault!(store, :print; origin = :P,
-                            exception = ErrorException("e")) !== nothing
+                            exception = ErrorException("e")).origin === :P
     end
 
     @testset "an exception that means stop goes through the drain and the wake" begin

@@ -5,11 +5,21 @@ Confirms:
 - a long message is cut by characters, not by bytes, so a multi-byte character
   at the cut does not make the formatting throw;
 - a short message is kept whole, as one line;
-- an origin that is a Union type gets a name, so the record does not throw.
+- an origin that is a Union type gets a name, so the record does not throw, and
+  a type, a value and `nothing` give their names;
+- an exception whose own `showerror` throws gives its type name, and no
+  traceback;
+- a record with no backtrace has no traceback, and a long one is cut to twelve
+  lines.
 """
 
 using Test
 using ProjecturedKernel.FaultModule
+
+# An exception whose own `showerror` is broken.
+struct BrokenShowException <: Exception end
+Base.showerror(::IO, ::BrokenShowException) = error("showerror is broken")
+Base.showerror(::IO, ::BrokenShowException, traceback) = error("showerror is broken")
 
 # An exception whose message a person stops while it is written.
 struct InterruptedShowException <: Exception end
@@ -40,6 +50,30 @@ function test_fault_record()
         @test union_record.origin === Symbol(string(Union{Int, String}))
         bottom_record = make_fault_record(:print; origin = Union{}, exception)
         @test bottom_record.origin === Symbol("Union{}")
+    end
+
+    @testset "a type, a value and nothing give the name of the origin" begin
+        exception = ErrorException("x")
+        @test make_fault_record(:print; origin = String, exception).origin === :String
+        @test make_fault_record(:print; origin = FaultStore(), exception).origin ===
+              :FaultStore
+        @test make_fault_record(:print; origin = nothing, exception).origin === :unknown
+    end
+
+    @testset "an exception whose showerror throws gives its type name" begin
+        record = make_fault_record(:print; origin = :test,
+                                   exception = BrokenShowException(),
+                                   traceback = backtrace())
+        @test (record.message, record.traceback) == ("BrokenShowException", "")
+    end
+
+    @testset "a traceback is empty with no backtrace, and a long one is cut" begin
+        exception = ErrorException("x")
+        @test make_fault_record(:print; origin = :test, exception).traceback == ""
+        traceback = make_fault_record(:print; origin = :test, exception,
+                                      traceback = backtrace()).traceback
+        lines = split(traceback, '\n')
+        @test (length(lines), lines[end]) == (13, "  …")
     end
 
     @testset "an exception that means stop goes through the formatting" begin

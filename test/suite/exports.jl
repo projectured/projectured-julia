@@ -62,7 +62,6 @@ const EXPORT_UNMIGRATED = Set(String[
     "source/kernel/binding/GestureBindingModule.jl",
     "source/kernel/document/DocumentModule.jl",
     "source/kernel/editor/EditorModule.jl",
-    "source/kernel/fault/FaultModule.jl",
     "source/kernel/intent/IntentModule.jl",
     "source/kernel/iomap/IoMapModule.jl",
     "source/kernel/llm/LlmModule.jl",

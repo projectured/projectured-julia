@@ -7,7 +7,6 @@ Confirms:
   through, and catches an ordinary exception;
 - a target of no known type keeps no fault store, and a record appended to it
   goes nowhere;
-- the kernel makes no safe mode projection;
 - the default sound is the BEL character on the global `stderr`, so a redirect
   of that stream takes it.
 """
@@ -46,7 +45,7 @@ function test_fault_defaults()
         output = read(pipe.out, String)
         close(pipe.out)
         @test value === nothing
-        @test '\a' in output
+        @test output == "\a"
     end
 
 end

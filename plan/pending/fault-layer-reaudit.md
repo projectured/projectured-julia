@@ -151,11 +151,17 @@ The decisions are C for L01-1, A for L01-2, A for L01-12, and A for A-4.
 
 ## Steps
 
-- [ ] 1. The fixes that need no decision: A-2, A-3, A-5, A-6, A-7, A-8, E-2.
+- [x] 1. The fixes that need no decision: A-2, A-3, A-5, A-6, A-7, A-8, E-2.
   - [x] A-5, A-6, A-7, A-8 and E-2 (ee69d5133). The new example of
     `make_strict_fault_policy` is a barrier around a parse, so it names no editor.
+  - [x] A-3: one export statement for each fragment, in the order of the
+    definitions, and `FaultModule.jl` is off the list `EXPORT_UNMIGRATED`.
+  - [x] A-2 came with A-4 (b91683206).
 - [ ] 2. The tests T-1 … T-12, and the walkthrough `print_fault_example` (E-1).
-- [ ] 3. The three decisions.
+  - [x] T-1 … T-12. T-2, T-3, T-6 and T-11 came with the decisions; the others
+    are in one commit. T-9 names `String`, not `Int`: `Int` is a name of `Int64`,
+    so the record says `:Int64`. The five fault suites pass: 9, 13, 60, 24 and 28.
+- [x] 3. The three decisions.
   - [x] L01-1 C. The field `dropped` is gone: the overflow record holds that
     count. The overflow record has the site `:store`, the origin `:FaultStore`,
     the exception type `:Nothing` and a fixed message. It does not count against
