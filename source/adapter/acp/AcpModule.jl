@@ -35,6 +35,7 @@ unread, and the transport logs no message content.
 module AcpModule
 
 using ..KernelModule
+using Base64
 import AgentClientProtocol as ACP
 import ClaudeCodeACP
 

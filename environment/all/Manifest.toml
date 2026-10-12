@@ -943,7 +943,7 @@ uuid = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 version = "0.1.0"
 
 [[deps.ProjecturedACP]]
-deps = ["AgentClientProtocol", "ClaudeCodeACP", "ProjecturedKernel"]
+deps = ["AgentClientProtocol", "Base64", "ClaudeCodeACP", "ProjecturedKernel"]
 path = "../../package/ProjecturedACP"
 uuid = "c086a6dc-7bb1-453d-ac62-5c5ddfbfdd44"
 version = "0.1.0"
@@ -973,7 +973,7 @@ uuid = "3e41c706-0d64-40b0-8e9d-89616f7fa6cc"
 version = "0.1.0"
 
 [[deps.ProjecturedAnthropic]]
-deps = ["HTTP", "JSON3", "ProjecturedKernel"]
+deps = ["Base64", "HTTP", "JSON3", "ProjecturedKernel"]
 path = "../../package/ProjecturedAnthropic"
 uuid = "7a22cfc9-547a-444c-98bf-c26ac0f0a0b0"
 version = "0.1.0"
@@ -1311,7 +1311,7 @@ uuid = "b5c88522-b0a8-403b-b9a3-0ff1b237a7b9"
 version = "0.1.0"
 
 [[deps.ProjecturedOllama]]
-deps = ["HTTP", "JSON3", "ProjecturedKernel"]
+deps = ["Base64", "HTTP", "JSON3", "ProjecturedKernel"]
 path = "../../package/ProjecturedOllama"
 uuid = "1e313069-2975-45bd-ba6e-35a6296eb437"
 version = "0.1.0"

@@ -26,7 +26,7 @@ import ProjecturedKernel.LlmModule:
     make_llm, get_default_llm_model, get_llm_backend_names,
     stream_turn, render_tool_schema,
     has_meaning_model, get_meaning_model_name, compute_meaning_vectors,
-    LlmContent, LlmText, LlmThinking, LlmToolUse, LlmToolResult,
+    LlmContent, LlmText, LlmImage, LlmThinking, LlmToolUse, LlmToolResult,
     LlmMessage, LlmRequest,
     LlmTextStart, LlmTextDelta, LlmTextStop,
     LlmThinkingStart, LlmThinkingDelta, LlmThinkingStop,

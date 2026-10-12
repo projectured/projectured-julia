@@ -69,6 +69,17 @@ wire = ProjecturedOllama.OllamaModule._wire_messages(request)
 @test wire[1]["role"] == "user"
 @test occursin("18 degrees", wire[1]["content"])
 
+# ── a picture goes in the images of its message, when the model can see ──
+request = LlmRequest(messages = [
+    LlmMessage(:user, LlmContent[LlmText("See"), LlmImage("image/png", UInt8[1, 2, 3])])])
+wire = ProjecturedOllama.OllamaModule._wire_messages(request; has_vision = true)
+@test only(wire)["content"] == "See"
+@test only(wire)["images"] == ["AQID"]
+# A model that can not see gets a line in place of the picture.
+wire = ProjecturedOllama.OllamaModule._wire_messages(request)
+@test !haskey(only(wire), "images")
+@test occursin("picture is left out", only(wire)["content"])
+
 # ── the token budget is an option, and an empty model is the default ──
 @test OllamaLlm(; model = "").model == get_default_llm_model(:ollama)
 @test OllamaLlm(; base_url = "http://host:1/").base_url == "http://host:1"

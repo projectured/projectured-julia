@@ -267,5 +267,13 @@ function test_anthropic_stream()
             signed = LlmMessage(:assistant, LlmContent[LlmThinking("whole", "sig")])
             @test only(wire(signed)["content"])["signature"] == "sig"
         end
+
+        @testset "a picture is an image block with its bytes in base64" begin
+            wire = ProjecturedAnthropic.AnthropicModule._wire
+            message = LlmMessage(:user, LlmContent[LlmText("See"), LlmImage("image/png", UInt8[1, 2, 3])])
+            block = wire(message)["content"][2]
+            @test block == Dict("type" => "image",
+                                "source" => Dict("type" => "base64", "media_type" => "image/png", "data" => "AQID"))
+        end
     end
 end

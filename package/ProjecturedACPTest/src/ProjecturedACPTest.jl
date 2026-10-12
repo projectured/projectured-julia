@@ -19,7 +19,7 @@ using ProjecturedKernel
 using ProjecturedKernelTest
 using ProjecturedACP
 
-using ProjecturedKernel.LlmModule: LlmText, LlmToolUse,
+using ProjecturedKernel.LlmModule: LlmText, LlmImage, LlmToolUse,
     LlmTextStart, LlmTextDelta, LlmTextStop,
     LlmThinkingStart, LlmThinkingDelta, LlmThinkingStop
 using ProjecturedKernel.AgentModule: make_agent_connection, start_agent_connection!,

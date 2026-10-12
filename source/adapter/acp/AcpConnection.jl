@@ -331,7 +331,7 @@ function send_agent_prompt!(connection::AcpConnection, session_id::AbstractStrin
                             prompt::AbstractVector; on_event::Function)
     transport = _get_started_transport(connection)
     request = ACP.PromptRequest(session_id = String(session_id),
-                                prompt = ACP.ContentBlock[_make_prompt_content(content) for content in prompt])
+                                prompt = _make_prompt_blocks(connection, prompt))
     turn = AcpTurn(on_event)
     # The updates of the session that came while no prompt ran go first, under
     # the lock, so a newer update that the reader gives the turn comes after them.
@@ -355,9 +355,24 @@ function send_agent_prompt!(connection::AcpConnection, session_id::AbstractStrin
     end
 end
 
-_make_prompt_content(content::LlmText) = ACP.TextContent(text = content.text)
-_make_prompt_content(content) =
-    throw(ArgumentError("An ACP prompt takes text, not a $(nameof(typeof(content)))."))
+# The blocks of a prompt. A picture goes as an image when the agent says that it
+# takes images in a prompt; else a line says that the picture is left out.
+function _make_prompt_blocks(connection::AcpConnection, prompt::AbstractVector)
+    has_images = _has_prompt_capability(connection, "image")
+    ACP.ContentBlock[_make_prompt_content(content, has_images) for content in prompt]
+end
+
+_make_prompt_content(content::LlmText, ::Bool) = ACP.TextContent(text = content.text)
+_make_prompt_content(content::LlmImage, has_images::Bool) =
+    has_images ? ACP.ImageContent(data = base64encode(content.data), mime_type = content.media_type) :
+                 ACP.TextContent(text = "(A picture is left out: the agent takes no pictures.)")
+_make_prompt_content(content, ::Bool) =
+    throw(ArgumentError("An ACP prompt takes text and pictures, not a $(nameof(typeof(content)))."))
+
+function _has_prompt_capability(connection::AcpConnection, name::AbstractString)
+    capabilities = get(ACP.get_json(connection.agent_capabilities), "promptCapabilities", nothing)
+    capabilities isa AbstractDict && get(capabilities, name, false) === true
+end
 
 function cancel_agent_prompt!(connection::AcpConnection, session_id::AbstractString)
     transport = _get_started_transport(connection)
@@ -402,7 +417,7 @@ has_agent_steering(connection::AcpConnection) = connection.transport !== nothing
 function steer_agent_prompt!(connection::AcpConnection, session_id::AbstractString, prompt::AbstractVector)
     has_agent_steering(connection) || return false
     params = ACP.get_json(ACP.PromptRequest(session_id = String(session_id),
-        prompt = ACP.ContentBlock[_make_prompt_content(content) for content in prompt]))
+        prompt = _make_prompt_blocks(connection, prompt)))
     result = try
         ACP.send_request!(_get_started_transport(connection), "_session/steering", params; timeout = 60)
     catch exception

@@ -152,6 +152,10 @@ end
 # One content block in Anthropic's shape. A thinking block carries its signature
 # back unchanged, or a tool-use continuation is rejected.
 _wire(c::LlmText)             = Dict("type" => "text", "text" => c.text)
+_wire(c::LlmImage)            = Dict("type"   => "image",
+                                     "source" => Dict("type"       => "base64",
+                                                      "media_type" => c.media_type,
+                                                      "data"       => base64encode(c.data)))
 _wire(c::LlmThinking)         = Dict("type"      => "thinking",
                                      "thinking"  => c.text,
                                      "signature" => c.signature)

@@ -22,6 +22,18 @@ struct LlmText <: LlmContent
 end
 
 """
+    LlmImage(media_type, data)
+
+A picture that the user gives: the bytes of an image file in `data`, of the type
+`media_type`, such as `"image/png"`. An adapter writes it in the shape of its
+provider; one whose model can not see a picture leaves it out.
+"""
+struct LlmImage <: LlmContent
+    media_type::String
+    data::Vector{UInt8}
+end
+
+"""
     LlmThinking(text, signature)
 
 A block of the model's reasoning. `signature` is an opaque token the provider

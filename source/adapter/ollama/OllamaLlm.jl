@@ -55,9 +55,10 @@ struct OllamaLlm <: Llm
     temperature::Union{Nothing,Float64}
     seed::Union{Nothing,Int}
     meaning_model::String
-    # The answer of the capability question, kept per instance. Never a module
-    # global: one process runs many editors, and each holds its own backend.
-    thinking_answer::Ref{Union{Nothing,Bool}}
+    # The capabilities that the server says the model has, kept per instance.
+    # Never a module global: one process runs many editors, and each holds its
+    # own backend.
+    capabilities::Ref{Union{Nothing,Vector{String}}}
 end
 
 OllamaLlm(; model::AbstractString = _DEFAULT_MODEL,
@@ -74,7 +75,7 @@ OllamaLlm(; model::AbstractString = _DEFAULT_MODEL,
               temperature === nothing ? nothing : Float64(temperature),
               seed === nothing ? nothing : Int(seed),
               String(meaning_model),
-              Ref{Union{Nothing,Bool}}(nothing))
+              Ref{Union{Nothing,Vector{String}}}(nothing))
 
 # This package's registration on the kernel's factory seam. `api_key` is accepted
 # and ignored: it is one of the three keywords every backend takes, and a server on
@@ -126,18 +127,21 @@ end
 # - that message names the tool, not the call. Our `LlmToolResult` carries the
 #   call's id, so the walk keeps an id-to-name map as it passes each `LlmToolUse`,
 #   and the result that follows looks its name up there.
-function _wire_messages(request::LlmRequest)
+#
+# A picture goes in the `images` of its message, when the model can see; else a
+# line of the message says that it is left out.
+function _wire_messages(request::LlmRequest; has_vision::Bool = false)
     out   = Any[]
     names = Dict{String,String}()
     isempty(request.system) ||
         push!(out, Dict{String,Any}("role" => "system", "content" => request.system))
     for m in request.messages
-        _wire_message!(out, names, m)
+        _wire_message!(out, names, m; has_vision)
     end
     out
 end
 
-function _wire_message!(out, names::Dict{String,String}, m::LlmMessage)
+function _wire_message!(out, names::Dict{String,String}, m::LlmMessage; has_vision::Bool = false)
     if m.role === :assistant
         text     = IOBuffer()
         thinking = IOBuffer()
@@ -164,8 +168,12 @@ function _wire_message!(out, names::Dict{String,String}, m::LlmMessage)
         push!(out, msg)
     else
         texts = String[]
+        images = String[]
         for c in m.content
-            if c isa LlmToolResult
+            if c isa LlmImage
+                has_vision ? push!(images, base64encode(c.data)) :
+                             push!(texts, "(A picture is left out: this model can not see pictures.)")
+            elseif c isa LlmToolResult
                 name = get(names, c.tool_use_id, "")
                 if isempty(name)
                     # A result whose call was never seen. Quoting it in the user
@@ -181,34 +189,44 @@ function _wire_message!(out, names::Dict{String,String}, m::LlmMessage)
                 push!(texts, c.text)
             end
         end
-        isempty(texts) ||
-            push!(out, Dict{String,Any}("role"    => String(m.role),
-                                        "content" => join(texts, "\n\n")))
+        if !(isempty(texts) && isempty(images))
+            message = Dict{String,Any}("role"    => String(m.role),
+                                       "content" => join(texts, "\n\n"))
+            isempty(images) || (message["images"] = images)
+            push!(out, message)
+        end
     end
     nothing
 end
 
-# Does this model reason? `nothing` means nobody said, so ask the server once and
-# keep the answer on this instance. A server that cannot be reached answers "no",
-# which costs a turn its reasoning and never its life.
-function _supports_thinking(llm::OllamaLlm)
-    llm.thinking === nothing || return llm.thinking
-    known = llm.thinking_answer[]
+# Does this model reason? `nothing` means nobody said, so the server answers.
+_supports_thinking(llm::OllamaLlm) =
+    llm.thinking === nothing ? "thinking" in _get_capabilities(llm) : llm.thinking
+
+# Does this model see pictures?
+_supports_vision(llm::OllamaLlm) = "vision" in _get_capabilities(llm)
+
+# The capabilities of the model, such as "thinking" and "vision": the server is
+# asked once, and the answer is kept on this instance. A server that cannot be
+# reached answers none, which costs a turn its reasoning and its pictures and
+# never its life.
+function _get_capabilities(llm::OllamaLlm)
+    known = llm.capabilities[]
     known === nothing || return known
     answer = try
         r = HTTP.post(llm.base_url * "/api/show",
                       ["content-type" => "application/json"],
                       JSON3.write(Dict("model" => llm.model));
                       status_exception = false)
-        r.status == 200 &&
-            any(c -> String(c) == "thinking",
-                get(JSON3.read(r.body), :capabilities, ()))
+        r.status == 200 ? String[String(c) for c in get(JSON3.read(r.body), :capabilities, ())] : String[]
     catch
-        false
+        String[]
     end
-    llm.thinking_answer[] = answer
+    llm.capabilities[] = answer
     answer
 end
+
+_has_image(request::LlmRequest) = any(m -> any(c -> c isa LlmImage, m.content), request.messages)
 
 # ═══════════════════════════════════════════════════════════════════════
 # Ollama NDJSON → LlmEvent
@@ -353,7 +371,7 @@ function stream_turn(llm::OllamaLlm, request::LlmRequest; on_event::Function)
     body = Dict{String,Any}(
         "model"    => llm.model,
         "stream"   => true,
-        "messages" => _wire_messages(request),
+        "messages" => _wire_messages(request; has_vision = _has_image(request) && _supports_vision(llm)),
         "options"  => options,
     )
     isempty(request.tools) || (body["tools"] = render_tool_schema(llm, request.tools))

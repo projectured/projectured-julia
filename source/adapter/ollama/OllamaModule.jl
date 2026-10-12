@@ -21,6 +21,7 @@ than as streamed fragments; and a turn that made tool calls still reports
 module OllamaModule
 
 using ..KernelModule
+using Base64
 using HTTP
 using JSON3
 

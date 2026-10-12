@@ -15,6 +15,7 @@ not a transcoding into Anthropic's names.
 module AnthropicModule
 
 using ..KernelModule
+using Base64
 using HTTP
 using JSON3
 

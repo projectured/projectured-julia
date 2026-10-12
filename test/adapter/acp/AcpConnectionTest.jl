@@ -528,12 +528,27 @@ function test_acp_connection()
             stop_agent_connection!(connection)
         end
 
-        @testset "a prompt takes text only" begin
+        @testset "a prompt takes text and pictures" begin
+            picture = LlmImage("image/png", UInt8[1, 2, 3])
             agent = _make_fake_agent()
             connection = make_fake_connection(agent)
             session_id = open_agent_session!(connection)
+            send_agent_prompt!(connection, session_id, [LlmText("See"), picture]; on_event = identity)
+            prompt = only(get_received(agent, "session/prompt"))["params"]["prompt"]
+            @test prompt[2] == Dict{String,Any}("type" => "image", "mimeType" => "image/png", "data" => "AQID")
             @test_throws ArgumentError send_agent_prompt!(connection, session_id,
                 [LlmToolUse("t1", "x", Dict{String,Any}())]; on_event = identity)
+            stop_agent_connection!(connection)
+            # An agent that takes no images gets a line in place of the picture.
+            agent = _make_fake_agent(Dict{String,Function}(
+                "initialize" => (agent, params) -> merge(FAKE_INITIALIZE_RESULT,
+                                                         Dict("agentCapabilities" => Dict()))))
+            connection = make_fake_connection(agent)
+            session_id = open_agent_session!(connection)
+            send_agent_prompt!(connection, session_id, [picture]; on_event = identity)
+            block = only(only(get_received(agent, "session/prompt"))["params"]["prompt"])
+            @test block["type"] == "text"
+            @test occursin("picture is left out", block["text"])
             stop_agent_connection!(connection)
         end
     end
