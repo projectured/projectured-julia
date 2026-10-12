@@ -918,7 +918,7 @@ from the command line of the projectured UI.
     "Try again" for the other cases?
   - Q5. The place of "Sign out": an item in the option bar of the agent, beside
     "Commands"?
-- [ ] 2.6 Elicitation forms: a question of the agent as a form in the
+- [x] 2.6 Elicitation forms: a question of the agent as a form in the
   conversation. The owner chose this step after 2.5 on 2026-10-09, and said on
   2026-10-11: "The AI should be able to bring up UI for asking a question
   anyway". The owner answered the questions of the design on 2026-10-11.
@@ -1020,6 +1020,8 @@ from the command line of the projectured UI.
     as the result of the tool, the card not in the messages, a stop that
     declines). No live check with a model of this editor: no Anthropic key is
     set, and a local Ollama model needs more memory than the machine has free.
+    The owner pushed 2.6a to 2.6d with `ClaudeCodeACP` 0.1.5 and the registry,
+    and said yes on 2026-10-12 to land and push 2.6e.
 
   **Questions for the owner.**
   - Q11. The scope: 2.6a to 2.6d now, and 2.6e (a tool for the models of this
