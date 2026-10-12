@@ -322,6 +322,17 @@ formula named `pi` would make every other `pi` of the sheet mean it.
   keep the paste, and the expression places stay `Document` (my recommendation); remove the
   paste from code, and every field becomes `JuliaDocument`; or a Julia node that wraps the
   object, which §3 rejected. The probe did not run `test_fsm()` and `test_process()` either.
+  - **Decided by the owner, 2026-10-12:** "the paste should check the place if it takes the
+    value by type", and "julia should keep JuliaDocument for now until we have a concrete use
+    case".
+  - *A fact found after that answer (2026-10-12), put to the owner before any field changes:*
+    the evaluator has a built use of a pasted object in code. With the option "Structured
+    forms" on (off by default), a person selects a node of a form whole with Alt+click and
+    pastes a copied document with Ctrl+V; the form runs with that very object (`154f33062`,
+    2026-09-23; `EvaluatorToplevelTest.jl`, "a form that holds an object runs with that very
+    object", which writes a `GraphicsCircle` into `call.arguments[1]`). With `JuliaDocument`
+    fields, that paste is refused by the type of the place, and the test becomes a test of the
+    refusal.
 
 ## 6. Open
 
