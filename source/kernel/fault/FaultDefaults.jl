@@ -1,7 +1,7 @@
 # Fragment of `FaultModule` — what each seam of `FaultInterface.jl` answers when
 # nothing above the kernel answered it.
 
-append_fault!(target, record) = nothing
+append_fault!(target, record) = false
 
 const _BELL = '\a'
 

@@ -257,7 +257,7 @@ handed over.
 A record that a target took is shown, so [`report_fault!`](@ref) keeps the
 console quiet for it. A record that no target took goes to the console, and to
 the sound when the console is off or fails. A target took the record when its
-`append_fault!` returned.
+`append_fault!` returned an answer other than `false`.
 
 Call it once per frame, on the task of the editor, outside every computation and
 before anything reads the projection. A record is handed over at most once per
@@ -298,8 +298,7 @@ function _hand_fault_to_targets!(store::FaultStore, record::FaultRecord, policy)
     is_shown = false
     for target in store.targets
         try
-            append_fault!(target, record)
-            is_shown = true
+            append_fault!(target, record) === false || (is_shown = true)
         catch exception
             is_passthrough_exception(exception) && rethrow()
             _log_fault_report_failure(policy, target, exception)

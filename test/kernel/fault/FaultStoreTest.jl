@@ -20,6 +20,9 @@ end
 FaultModule.append_fault!(target::QuietTarget, record) = push!(target.seen, record)
 FaultModule.append_fault!(::AngryTarget, record) = error("this target refuses records")
 
+# A target with no `append_fault!` of its own, so it shows nothing.
+struct BlindTarget end
+
 # A backend that counts the sounds that the drain plays.
 mutable struct DrainSoundBackend
     sounds::Int
@@ -214,6 +217,14 @@ function test_fault_store()
         backend = DrainSoundBackend(0)
         @test length(@test_logs(drain_faults!(store; policy = FaultPolicy(), backend))) == 1
         @test backend.sounds == 1
+    end
+
+    @testset "a record that only a target with no method was given reaches the console" begin
+        store = FaultStore()
+        attach_fault_target!(store, BlindTarget())
+        record_fault!(store, :print; origin = :Unshown, exception = ErrorException("e"))
+        @test_logs((:error, r"^\[fault\] print in Unshown: e$"),
+                   drain_faults!(store; policy = FaultPolicy(is_sound_enabled = false)))
     end
 
     @testset "a record whose only target refuses it reaches the console" begin

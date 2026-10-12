@@ -6,7 +6,7 @@ Confirms:
 - a barrier lets an interrupt, a stack overflow and an out-of-memory error
   through, and catches an ordinary exception;
 - a target of no known type keeps no fault store, and a record appended to it
-  goes nowhere;
+  answers `false`, which says that the target did not show it;
 - the default sound is the BEL character on the global `stderr`, so a redirect
   of that stream takes it.
 """
@@ -33,7 +33,7 @@ function test_fault_defaults()
         @test get_fault_store(target) === nothing
         record = make_fault_record(:tool; origin = :test,
                                    exception = ErrorException("x"))
-        @test append_fault!(target, record) === nothing
+        @test append_fault!(target, record) === false
     end
 
     @testset "the default sound goes to the global stderr" begin

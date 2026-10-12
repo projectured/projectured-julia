@@ -208,8 +208,12 @@ confirmed B-1 by a test that failed before the fix.
   `FaultCatching.jl`) drew it as the fault of its part. `record_fault!` answers
   `nothing` again for such a fault, so the barrier makes its own record. The test
   `a full store leaves a mark its own fault` in `FaultCatchingTest.jl`.
-- [ ] **B-2 (Medium)** — the default `append_fault!` returns, so the drain counts a
-  target with no method as one that showed the record. Waits for the owner.
+- [x] **B-2 (Medium)** — the default `append_fault!` returned, so the drain counted
+  a target with no method as one that showed the record. **The owner, 2026-10-12,
+  chose A:** the default answers `false`, and the drain counts a target as one
+  that showed the record only when its answer is not `false`. The seam
+  docstring says so. Test: `a record that only a target with no method was given
+  reaches the console`.
 - [x] **B-3 (Medium)** — tests of the drain with a backend: the sound of a device
   fault that a target took, and the console line of a record whose only target
   refused it.
@@ -219,8 +223,11 @@ confirmed B-1 by a test that failed before the fix.
   gone.
 - [x] **B-5 (Low)** — the text says that a key that comes back takes its line in
   the log back with the new count.
-- [ ] **B-6 (Low)** — `leave_safe_mode!` detaches `editor.projection`, not the
-  projection that `enter_safe_mode!` attached. Waits for the owner.
+- [x] **B-6 (Low)** — `leave_safe_mode!` detaches `editor.projection`, not the
+  projection that `enter_safe_mode!` attached. The two differ only when code in
+  the code tool sets `editor.projection` while the safe mode lasts. **The owner,
+  2026-10-12, accepted it as a named gap (B),** because a field of `Editor` for
+  it costs more than the case, which `leave_safe_mode!` already overwrites.
 - [x] **B-7, B-8, B-9, B-10, B-11 (Low)** and the rest of A-5: the examples of
   `FaultBarrier.jl`, `FaultCascade.jl` and `FaultInterface.jl` name no editor;
   two comments that repeated docstrings are gone; the walkthrough shows
