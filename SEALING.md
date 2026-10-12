@@ -18,11 +18,11 @@ sealed and ask for explicit permission before proceeding.
 ## The audit protocol
 
 **Audit a file the moment you introduce it as the next file — before inviting
-review and before offering to seal.** An audit has three checks. Report the result
-of all three first. Never say "seal as-is", and never ask whether to seal, until
+review and before offering to seal.** An audit has four checks. Report the result
+of all four first. Never say "seal as-is", and never ask whether to seal, until
 the audit has been reported.
 
-A file is sealed only when it passes the three checks, or when the user accepts a
+A file is sealed only when it passes the four checks, or when the user accepts a
 specific gap explicitly in the conversation. If a violation is found in an
 already-sealed file, report it and ask permission before fixing (the seal still
 holds until permission is given).
@@ -51,7 +51,7 @@ method of `Base.peek`.
   and the line that covers it. Then it lists the gaps.
 
 To find the exported names that no test names, run
-`julia tool/survey-interface-tests.jl <ModuleName>`. For a domain, name its module
+`julia tool/survey-interface.jl <ModuleName>`. For a domain, name its module
 under `source/domain/`, for example `JsonModule`. A name in the list has no test.
 A name that is not in the list can still have a weak test, so read the tests that
 name it. The survey reads exports only, so find the tests of the methods by hand.
@@ -78,6 +78,26 @@ of the last file of the layer or the domain in the audit order.
   asserts the full text that the walkthrough prints. If a REPL session can not
   show the layer, the audit gives the reason. For example, the only interface of
   the layer is a seam that a backend fills.
+
+### 4. The guide check
+
+Do this check once for each kernel layer and once for each domain, at the audit
+of the last file of the layer or the domain in the audit order.
+
+- **One guide.** Each kernel layer has a guide of its own,
+  `documentation/package/kernel/<layer>.md`. A domain has the guide of its slice,
+  `documentation/package/domain/<name>/<name>.md`.
+- **Coverage.** The guide describes each part of the layer: each fragment of its
+  module, and what each public name is for.
+- **Usage.** Code examples in the guide show how the parts are meant to be used,
+  and the text explains them. An example can be short and leave out what does not
+  matter. The examples do not have to use every public name, but together they
+  show the main uses of the layer. For a complete session, the guide refers to the
+  walkthrough of the layer or to the examples of the domain.
+
+`julia tool/survey-interface.jl <ModuleName>` also lists the exported names that
+the guide does not name, or says that the layer has no guide. Read the examples of
+the guide yourself: the survey does not judge them.
 
 ## List conventions
 

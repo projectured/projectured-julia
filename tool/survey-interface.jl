@@ -1,8 +1,9 @@
-# The report of the test check of an audit: the exported names of a module that no
-# test names. See SEALING.md, "The test check".
+# The report of the test check and the guide check of an audit: the exported names
+# of a module that no test names, and the ones that the guide of the layer does not
+# name. See SEALING.md, "The test check" and "The guide check".
 #
-#     julia tool/survey-interface-tests.jl CellModule ReferenceModule
-#     julia tool/survey-interface-tests.jl            # each module under source/kernel/
+#     julia tool/survey-interface.jl CellModule ReferenceModule
+#     julia tool/survey-interface.jl            # each module under source/kernel/
 #
 # For a domain, name the module under `source/domain/`, for example `JsonModule`. The
 # package `ProjecturedJSON` gives out the names of that module when it loads, so the
@@ -13,6 +14,11 @@
 # a `using` line do not count. A string macro counts by its literal:
 # `reference_pattern"…"` names `@reference_pattern_str`. A name that the report does
 # not list can still have a weak test, so the audit reads the tests that name it.
+#
+# The guide of a kernel layer is `documentation/package/kernel/<layer>.md`, and the
+# guide of another slice is `documentation/package/<group>/<slice>/<slice>.md`. A
+# guide names a name when the name occurs in its text. A guide does not have to show
+# an example of each name, so the audit reads the examples of the guide too.
 
 const ROOT = normpath(joinpath(@__DIR__, ".."))
 
@@ -73,7 +79,32 @@ function collect_used_symbols!(symbols::Set{Symbol}, expression)
     symbols
 end
 
-function print_interface_test_report(root::AbstractString, module_names::Vector{Symbol})
+# The guide of the layer or the slice that `file` belongs to, as a path relative to
+# `root`, and whether it exists. A module file at the top of `source/<group>/` belongs
+# to no layer, and the answer is `nothing`.
+function find_guide_path(root::AbstractString, file::AbstractString)
+    parts = splitpath(relpath(file, root))
+    (length(parts) >= 4 && parts[1] == "source") || return nothing
+    group, folder = parts[2], parts[3]
+    flat = joinpath("documentation", "package", group, folder * ".md")
+    nested = joinpath("documentation", "package", group, folder, folder * ".md")
+    path = group == "kernel" ? flat : nested
+    (path, isfile(joinpath(root, path)))
+end
+
+# Whether the text of a guide names `name`. A string macro is named by its literal.
+function is_named_in_guide(text::AbstractString, name::Symbol)
+    word = string(name)
+    if startswith(word, "@") && endswith(word, "_str")
+        return occursin(word[2:end-4] * "\"", text)
+    end
+    occursin(Regex("(?<![A-Za-z0-9_@])" * escape_string_for_regex(word) * "(?![A-Za-z0-9_!])"), text)
+end
+
+escape_string_for_regex(word::AbstractString) =
+    replace(word, r"([\\^$.|?*+()\[\]{}])" => s"\\\1")
+
+function print_interface_report(root::AbstractString, module_names::Vector{Symbol})
     exports = Dict{Symbol,Set{Symbol}}()
     files = Dict{Symbol,String}()
     sources = [joinpath(root, "source"); filter(isdir, joinpath.(root, "package", readdir(joinpath(root, "package")), "src"))]
@@ -88,19 +119,32 @@ function print_interface_test_report(root::AbstractString, module_names::Vector{
         kernel = joinpath(root, "source", "kernel") * "/"
         module_names = sort!([name for (name, path) in files if startswith(path, kernel)])
     end
-    total = 0
+    untested_total = 0
+    unnamed_total = 0
     for name in module_names
         if !haskey(exports, name)
             println(name, ": no module of this name under source/ or package/*/src")
             continue
         end
-        untested = sort!([string(exported) for exported in exports[name] if !(exported in tested)])
-        total += length(untested)
-        println(name, "  ", relpath(files[name], root), "  ",
-                length(exports[name]), " exported, ", length(untested), " that no test names")
-        foreach(untested_name -> println("    ", untested_name), untested)
+        names = sort!(collect(exports[name]))
+        untested = [exported for exported in names if !(exported in tested)]
+        untested_total += length(untested)
+        println(name, "  ", relpath(files[name], root), "  ", length(names), " exported")
+        isempty(untested) || println("    no test: ", join(untested, ", "))
+        guide = find_guide_path(root, files[name])
+        if guide === nothing
+            println("    no layer, so no guide")
+        elseif !guide[2]
+            println("    no guide: ", guide[1])
+        else
+            text = read(joinpath(root, guide[1]), String)
+            unnamed = [exported for exported in names if !is_named_in_guide(text, exported)]
+            unnamed_total += length(unnamed)
+            isempty(unnamed) || println("    not in ", guide[1], ": ", join(unnamed, ", "))
+        end
     end
-    println(total, " exported names that no test names, in ", length(module_names), " modules")
+    println(untested_total, " exported names that no test names, and ", unnamed_total,
+            " that a guide does not name, in ", length(module_names), " modules")
 end
 
-print_interface_test_report(ROOT, Symbol.(ARGS))
+print_interface_report(ROOT, Symbol.(ARGS))
