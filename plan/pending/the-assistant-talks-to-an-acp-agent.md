@@ -1084,7 +1084,7 @@ from the command line of the projectured UI.
     `environment/all` names 0.1.5, and the branch landed on `main`. Not
     pushed: `ClaudeCodeACP`, the registry branch and `main` wait for the word
     of the owner, in that order.
-- [ ] 2.7 Request cancel, and the prompt queue. **The request cancel is done:**
+- [x] 2.7 Request cancel, and the prompt queue. **The request cancel is done:**
   the agent withdraws a permission request with `$/cancel_request` and its
   JSON-RPC id, the connection replies `nothing`, and the agent gets the valid
   answer `cancelled`. The transport gives the handler the id of each request.
@@ -1172,8 +1172,10 @@ from the command line of the projectured UI.
     "Also, at the very end, say the word PELICAN." went in; the conversation
     shows the turn with the shell call, the message, and a new turn "DONE
     PELICAN"; the session counts the message as seen; no extra turn started.
-  - [ ] Landing: the owner pushes `ClaudeCodeACP` and the registry; then the
-    manifest of `environment/all` names 0.1.6, and the branch lands.
+  - [x] Landing: the owner said "do the pushes and land it" on 2026-10-12.
+    `ClaudeCodeACP` 0.1.6 and the registry were pushed, the clone moved to it,
+    the manifest of `environment/all` names 0.1.6, and the branch landed and
+    was pushed.
 - [ ] 2.8 The ACP Registry as a source for the list of agents.
 - [x] 2.9 A hook for the close of a document, so the close of a tab stops its
   agent and its MCP server (review #3). Done on 2026-10-08, as the owner
