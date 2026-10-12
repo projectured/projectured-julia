@@ -1,11 +1,10 @@
 # Fragment of `TextModule`.
 #
-# TextBlock → String projection. Flattens a sequence of styled text spans into
-# a plain Julia String by concatenating each span's content. TextString spans
-# contribute their content verbatim; TextNewline spans contribute a newline
-# character, a TextSpacing a space and an inline image (TextGraphics) U+FFFC; a
-# TextLine contributes its indentation and its own spans, and the enclosing block
-# emits the break it implies (a separator: `n` lines, `n-1` breaks). So the string
+# TextBlock → String projection. Flattens the lines of styled text spans into a
+# plain Julia String. TextString spans contribute their content verbatim, a
+# TextSpacing a space and an inline image (TextGraphics) U+FFFC; a TextLine
+# contributes its indentation and its own spans, and the enclosing block emits the
+# break it implies (a separator: `n` lines, `n-1` breaks). So the string
 # of a text is its flat string (`get_flat_string`): an offset into the one is an
 # offset into the other.
 # ── TextStringToString ───────────────────────────────────────────────────────
@@ -25,26 +24,6 @@ function print_document(p::TextStringToString, recursion, ts::TextString, ctx)
 end
 
 function read_intent(::TextStringToString, iomap::SimpleIoMap, op)
-    return nothing
-end
-
-# ── TextNewlineToString ───────────────────────────────────────────────────────
-
-struct TextNewlineToString <: Projection end
-
-function map_reference_forward(::TextNewlineToString, iomap, reference)
-    return nothing
-end
-
-function map_reference_backward(::TextNewlineToString, iomap, reference)
-    return nothing
-end
-
-function print_document(p::TextNewlineToString, recursion, tn::TextNewline, ctx)
-    SimpleIoMap(p, tn, Cell("\n"))
-end
-
-function read_intent(::TextNewlineToString, iomap::SimpleIoMap, op)
     return nothing
 end
 
@@ -148,7 +127,6 @@ end
 function TextToString()
     TypeDispatchingProjection(
         TextString   => TextStringToString(),
-        TextNewline  => TextNewlineToString(),
         TextSpacing  => TextSpacingToString(),
         TextGraphics => TextGraphicsToString(),
         TextLine     => TextLineToString(),

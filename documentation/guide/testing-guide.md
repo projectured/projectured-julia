@@ -134,6 +134,7 @@ gives what each of them costs.
 | `test_projections()` | The umbrella-only projection suites (example/editor/SDL-coupled: tooltip, hover, dragging, write_image, …). |
 | `test_printers()` | Runs `test_printer` over every entry in `examples`. |
 | `test_text_runs_hold_no_break()` | Walks the document, the stage outputs and the IO maps of every entry in `examples`, and rejects a `TextString` that holds a `'\n'`: a break is the start of a line. |
+| `test_text_blocks_hold_only_lines()` | Walks the same, and rejects an element of a `TextBlock` that is no `TextLine`: a text is a block of lines. |
 | `test_readers()` | Runs `test_reader` over every example. |
 | `test_position_navigations()` | Runs `test_position_navigation` (position/caret BFS, no-error sweep) over every example. |
 | `test_position_navigations_complete()` | Over a curated subset, additionally asserts navigation reaches every position enumerated from the document (`collect_position_selections`). |

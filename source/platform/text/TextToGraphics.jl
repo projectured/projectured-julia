@@ -1092,7 +1092,6 @@ function _block_font(styled::TextBlock)
 end
 
 _element_font(span::TextString) = span.font::StyleFont
-_element_font(newline::TextNewline) = newline.font::StyleFont
 _element_font(::TextDocument) = nothing
 
 function _element_font(line::TextLine)

@@ -202,8 +202,6 @@ function _render_span!(buf::IO, backend::ConsoleBackend, span::TextString)
     return
 end
 
-_render_span!(buf::IO, ::ConsoleBackend, ::TextNewline) = (print(buf, '\n'); nothing)
-
 # Span size is in pixels; there is no exact character-cell equivalent.
 # Approximate horizontal spacing with a single space; ignore non-pixel units.
 _render_span!(buf::IO, ::ConsoleBackend, ::TextSpacing) = (print(buf, ' '); nothing)
@@ -223,19 +221,15 @@ already encoded in the span colors (by `SelectionInverting`).
 function render_console(backend::ConsoleBackend, text::TextBlock)
     buf = IOBuffer()
     backend.ansi && backend.clear && print(buf, _ANSI_CLEAR_HOME)
-    for (i, span) in enumerate(text.elements)
+    for (i, line) in enumerate(text.elements)
         # A TextLine implies its break: it is a *separator*, so every line but a
         # leading one starts by ending the previous one. Its indentation is a
         # property of the line, printed here rather than carried in a span.
-        if span isa TextLine
-            i > 1 && print(buf, '\n')
-            print(buf, ' '^span.indentation)
-            for inner in span.elements
-                _render_span!(buf, backend, inner)
-            end
-            continue
+        i > 1 && print(buf, '\n')
+        print(buf, ' '^line.indentation)
+        for span in line.elements
+            _render_span!(buf, backend, span)
         end
-        _render_span!(buf, backend, span)
     end
     frame = String(take!(buf))
     # Skip the write when the frame is identical to the last one. The editor's

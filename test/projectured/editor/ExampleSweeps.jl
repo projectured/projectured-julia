@@ -37,57 +37,80 @@ function test_printers()
     end
 end
 
-# ── a text run holds no break ────────────────────────────────────────────────
+# ── a text run holds no break, and a text block holds only lines ─────────────
 
 const _RUN_WALK_MAX_NODES = 200_000
 const _RUN_WALK_MAX_DEPTH = 300
 
-# A value that holds no text run, and so ends the walk.
+# A value that holds no text, and so ends the walk.
 const _RunWalkScalar = Union{Number, Symbol, AbstractString, Nothing, Function, Module, DataType, Char}
 
-# Each `TextString` that holds a `'\n'` in what `value` reaches — the documents, the
-# output of each stage and the IO maps between them — as the head of its text. The
-# walk stops at a node it saw and at a cap of nodes and of depth. A vector of
-# scalars, such as a range, holds no run, and its length can be any.
-function _find_runs_with_break!(value, visited::Set{UInt64}, found::Vector{String}, depth::Int)
+# Each text document that `value` reaches — the documents, the output of each stage
+# and the IO maps between them — given to `visit`. The walk stops at a node it saw
+# and at a cap of nodes and of depth. A vector of scalars, such as a range, holds no
+# text, and its length can be any. A run is a leaf of the walk.
+function _visit_text_documents!(visit, value, visited::Set{UInt64}, depth::Int)
     (depth > _RUN_WALK_MAX_DEPTH || length(visited) >= _RUN_WALK_MAX_NODES) && return
     value isa _RunWalkScalar && return
     value isa AbstractVector && eltype(value) <: _RunWalkScalar && return
     id = objectid(value)
     id in visited && return
     push!(visited, id)
+    value isa TextDocument && visit(value)
     if value isa TextString
-        content = value.content
-        (content isa AbstractString && occursin('\n', content)) && push!(found, first(content, 60))
+        return
     elseif value isa Cell || value isa UntrackedCell
-        _find_runs_with_break!(value[], visited, found, depth + 1)
+        _visit_text_documents!(visit, value[], visited, depth + 1)
     elseif value isa AbstractVector
         for i in eachindex(value)
-            isassigned(value, i) && _find_runs_with_break!(value[i], visited, found, depth + 1)
+            isassigned(value, i) && _visit_text_documents!(visit, value[i], visited, depth + 1)
         end
     else
         for name in fieldnames(typeof(value))
             isdefined(value, name) || continue
-            _find_runs_with_break!(getfield(value, name), visited, found, depth + 1)
+            _visit_text_documents!(visit, getfield(value, name), visited, depth + 1)
+        end
+    end
+end
+
+# What `find` gives for each text document that the printer of each example reaches:
+# one test set for each example, which asserts that it gives nothing.
+function _test_example_texts(find, title::AbstractString)
+    @testset "$title" begin
+        for example in examples
+            @testset "$(example.name)" begin
+                found = String[]
+                iomap = print_document(example.projection, example.document)
+                _visit_text_documents!(document -> find(found, document), iomap, Set{UInt64}(), 0)
+                @test isempty(found)
+            end
         end
     end
 end
 
 # A text run holds no break, rule 1 of the text domain: a break is the start of a
 # line. The walk covers the document of every example and the output of every
-# stage that prints it.
-function test_text_runs_hold_no_break()
-    @testset "A text run holds no break" begin
-        for example in examples
-            @testset "$(example.name)" begin
-                found = String[]
-                iomap = print_document(example.projection, example.document)
-                _find_runs_with_break!(iomap, Set{UInt64}(), found, 0)
-                @test isempty(found)
-            end
+# stage that prints it; a run that holds a `'\n'` is reported by the head of its
+# text.
+test_text_runs_hold_no_break() =
+    _test_example_texts("A text run holds no break") do found, document
+        document isa TextString || return
+        content = document.content
+        (content isa AbstractString && occursin('\n', content)) && push!(found, first(content, 60))
+    end
+
+# A text block holds only lines (L1 of the text domain): the elements of a block are
+# `TextLine`s. A lazy list of lines is not walked, because it can be endless; an
+# element that is no line is reported by its type.
+test_text_blocks_hold_only_lines() =
+    _test_example_texts("A text block holds only lines") do found, document
+        document isa TextBlock || return
+        elements = document.elements
+        elements isa CellVector || return
+        for element in elements
+            element isa TextLine || push!(found, string(typeof(element)))
         end
     end
-end
 
 # ── reader ───────────────────────────────────────────────────────────────────
 

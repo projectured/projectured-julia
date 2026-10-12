@@ -1,20 +1,23 @@
 # Fragment of `TextModule`.
 #
 # The text domain bridges the structural (syntax tree) and visual (graphics) domains.
-# Text is stored as a flat sequence of spans, each with its own reactive style and color.
+# Text is stored as a sequence of lines, each a sequence of spans with their own
+# reactive style and color.
 # The selection is a flat character offset, making keyboard navigation straightforward
 # before the pixel-coordinate layout is applied.
 #
 # The domain includes:
-# - **Span types**: `TextString` (text content), `TextNewline` (line break), `TextSpacing` (spacing), `TextGraphics` (embedded graphics)
-# - **Container type**: `TextBlock` (sequence of spans)
+# - **Span types**: `TextString` (text content), `TextSpacing` (spacing), `TextGraphics` (embedded graphics)
+# - **Line type**: `TextLine` (a sequence of spans, with the break before it)
+# - **Container type**: `TextBlock` (sequence of lines)
 # - **Base type**: `TextDocument` abstract type for all text documents
 # - **Insertion kit** (`@domain Text`): `TextNothing` (the empty-text placeholder) and
 #   `TextInsertion` (the typed-name buffer Insert opens on it)
 #
 # Selection semantics (`[i]` = 1-based item, `{k}` = 0-based cursor):
 # - Spans: `.content{k}` — cursor at boundary k within the span's content
-# - TextBlock: `.elements[i]` — the i-th span, then `.content{k}` for the cursor within it
+# - TextBlock: `.elements[i].elements[j]` — span j of line i, then `.content{k}` for
+#   the cursor within it; the canonical caret is the flat `TextRangeReferenceStep{k}`
 #
 # Each span has reactive styling fields:
 # - `font` — font style (e.g., "bold", "italic", "monospace")
@@ -33,36 +36,6 @@
 # turning one into the other, and the traits wiring them together.
 
 @domain Text
-
-# ── TextNewline ─────────────────────────────────────────────────────
-
-"""
-    TextNewline
-
-Represents a line break in text. All styling fields are reactive cells for
-incremental updates.
-
-# Fields
-
-- `font::Cell{StyleFont}` — font specification
-- `font_color::Cell` — text color
-- `fill_color::Cell` — background fill color
-- `line_color::Cell` — border/line color
-- `padding::Cell` — inset/padding value
-
-# Constructor
-
-- `TextNewline(; font, font_color=nothing, fill_color=nothing, line_color=nothing, padding=nothing)`
-  — the macro's keyword constructor; `font` is the one field without a default,
-  and so the one required keyword.
-"""
-@document struct TextNewline <: TextDocument
-    font::StyleFont
-    font_color::Union{StyleColor, Nothing} = nothing
-    fill_color::Union{StyleColor, Nothing} = nothing
-    line_color::Union{StyleColor, Nothing} = nothing
-    padding::Union{Inset, Nothing} = nothing
-end
 
 # ── TextSpacing ─────────────────────────────────────────────────────
 
@@ -235,24 +208,29 @@ const OBJECT_REPLACEMENT_CHARACTER = '\uFFFC'
 # ── TextBlock ───────────────────────────────────────────────────────────
 
 """
-    TextBlock(spans)
+    TextBlock(lines...)
+    TextBlock(lines::Vector)
+    TextBlock(() -> lines)
 
-A sequence of `TextString` spans. The span list is a reactive `Cell`
-holding `Vector{TextString}`, so structural changes (add/remove spans)
-are tracked alongside per-span value changes.
+A text: a sequence of `TextLine`s. The arguments of each constructor are the
+lines, and the elements of a thunk are lines too. The list of lines is a
+`CellVector`, or a lazy `ListNode` of lines, so structural changes (add/remove
+lines) are tracked alongside per-span value changes. A block of zero lines is
+valid; a filter with no match gives one.
 
-The `selection` cell holds a path into the span sequence, or `nothing`:
-  `.elements[i]`  — cursor within element i
+The `selection` cell holds a place in the text, or `nothing`: the flat caret
+`TextRangeReferenceStep{k}`, or the structural `.elements[i].elements[j].content{k}`
+that an edit leaves behind.
 """
 @document struct TextBlock <: TextDocument
     elements::CollectionDocument = CellVector()
 end
 
-TextBlock(spans::Vector{<:TextDocument}) =
-    TextBlock(CellVector(Cell[Cell(s) for s in spans]), Cell(nothing))
+TextBlock(lines::Vector{<:TextDocument}) =
+    TextBlock(CellVector(Cell[Cell(line) for line in lines]), Cell(nothing))
 
-TextBlock(spans::TextDocument...) =
-    TextBlock(CellVector(Cell[Cell(s) for s in spans]), Cell(nothing))
+TextBlock(lines::TextDocument...) =
+    TextBlock(CellVector(Cell[Cell(line) for line in lines]), Cell(nothing))
 
 TextBlock(f::Function) = TextBlock(CellVector(Computation(f)), Cell(nothing))
 
@@ -270,14 +248,10 @@ trailing blank line.
 line, not a span**: no caret can land inside it, and a projection that indents
 does not have to emit (and later re-find) a whitespace `TextString`.
 
-The invariant — no `TextNewline` element, and no `TextString` whose content embeds
-a `'\\n'` — is a producer-side convention; nothing enforces it yet, since a span's
-content is a reactive cell that can grow a newline after construction.
-
-A block's elements are meant to be *either* spans *or* lines, not a mix. Mixing
-degrades gracefully rather than erroring (a line still breaks before itself), but
-the flat character offsets get hard to reason about, and no projection produces
-such a block.
+The invariant — no `TextString` whose content embeds a `'\\n'` — is a
+producer-side convention, since a span's content is a reactive cell that can grow
+a newline after construction; the guard `test_text_runs_hold_no_break` checks the
+examples.
 
 `gutter` is what the gutter shows beside the line: any document that the
 recursion prints to graphics, such as a [`TextGutter`](@ref), or `nothing`. It is
@@ -612,7 +586,7 @@ const SpanPath = Vector{Int}
 # a `.elements[i].content{k}` caret, so the freshly inserted text takes no
 # keystrokes. One empty span with the caret in it is the smallest typeable text.
 #
-# The span types (`TextString`, `TextNewline`, `TextSpacing`, `TextGraphics`) get
+# The span types (`TextString`, `TextSpacing`, `TextGraphics`) get
 # no factory on purpose: each has a required field, so none is zero-arg
 # constructible, and none is therefore a completion candidate. A factory would
 # make them committable at a *top-level* insertion, where a lone span is the root
@@ -732,8 +706,7 @@ end
 #
 # The text cursor is a single flat offset into the block's concatenated rendered
 # stream (the `get_flat_offsets` / `get_flat_length` space, which counts
-# TextNewline / TextSpacing / TextLine indentation and the implicit inter-line
-# break). Every offset `0 … total` is a valid caret rest, so character motion is
+# TextSpacing, TextLine indentation and the break before a line). Every offset `0 … total` is a valid caret rest, so character motion is
 # `± 1` clamped — no span bookkeeping and no boundary-duplicate skip: the *same*
 # visual caret has exactly one representation regardless of travel direction, and
 # a within-line span boundary collapses to a single offset while a line boundary
@@ -763,7 +736,6 @@ function _flat_chars(text::TextBlock)
     chars
 end
 _push_flat_chars!(chars, s::TextString) = append!(chars, collect(s.content::AbstractString))
-_push_flat_chars!(chars, ::TextNewline)  = push!(chars, '\n')
 _push_flat_chars!(chars, ::TextSpacing)  = push!(chars, ' ')
 _push_flat_chars!(chars, ::TextGraphics) = push!(chars, OBJECT_REPLACEMENT_CHARACTER)
 _push_flat_chars!(chars, ::TextDocument) = chars          # no position, as in get_flat_length
@@ -781,8 +753,7 @@ end
     get_flat_string(text::TextBlock) -> String
 
 The text as one string, one character for each position of the flat caret space
-(`get_flat_offsets`): a break for a `TextNewline` and for the break before a
-`TextLine`, a space for a `TextSpacing` and for each column of indentation, and
+(`get_flat_offsets`): a break for the break before a `TextLine`, a space for a `TextSpacing` and for each column of indentation, and
 U+FFFC for an inline image. An offset into the string is a flat offset.
 """
 get_flat_string(text::TextBlock) = String(_flat_chars(text))
@@ -1268,7 +1239,7 @@ set_cell_computation!(st::TextBlock, f::Function) = (set_cell_computation!(getfi
 
 # The flat length a span contributes to the rendered character stream, matching
 # how the selection's offsets are counted: TextString → its content length,
-# TextNewline / TextSpacing / TextGraphics → 1, anything else → 0. An inline image
+# TextSpacing / TextGraphics → 1, anything else → 0. An inline image
 # is one position, so the caret before it and the caret after it differ.
 #
 # A `TextLine` contributes its indentation (which the renderers emit as leading
@@ -1280,7 +1251,6 @@ set_cell_computation!(st::TextBlock, f::Function) = (set_cell_computation!(getfi
 # A `TextBlock` contributes its whole flat length, breaks included: a block that a
 # document holds in a field, such as the value of a syntax leaf.
 get_flat_length(span::TextString) = length(span.content::AbstractString)
-get_flat_length(::TextNewline) = 1
 get_flat_length(::TextSpacing) = 1
 get_flat_length(::TextGraphics) = 1
 get_flat_length(line::TextLine) =
@@ -1735,38 +1705,30 @@ end
 _get_container_reference(path::SpanPath) =
     _elements_prefix(path[1:end-1], ConcreteReference(FieldReferenceStep("elements"), EmptyReference()))
 
-# The span whose style a new run beside the image at `path` takes: the nearest
-# text run of the image's line, the run before the image first; on a line with no
-# text run, the first `TextString` or `TextNewline` of the block in document order,
+# The span whose style a new run beside the image at `path` (`[line, run]`) takes:
+# the nearest text run of the image's line, the run before the image first; on a
+# line with no text run, the first `TextString` of the block in document order,
 # where `TextToGraphics` finds the prevailing font of a block; `nothing` when the
-# block has neither.
+# block has none.
 function _find_style_span(text::TextBlock, path::SpanPath)
-    siblings = length(path) == 1 ? text.elements : text.elements[path[1]].elements
+    siblings = text.elements[path[1]].elements
     k = path[end]
     for i in (k - 1):-1:1
-        el = siblings[i]
-        el isa TextString && return el
-        el isa Union{TextNewline, TextLine} && break
+        siblings[i] isa TextString && return siblings[i]
     end
     for i in (k + 1):length(siblings)
-        el = siblings[i]
-        el isa TextString && return el
-        el isa Union{TextNewline, TextLine} && break
+        siblings[i] isa TextString && return siblings[i]
     end
-    for el in text.elements
-        el isa Union{TextString, TextNewline} && return el
-        el isa TextLine || continue
-        for span in el.elements
-            span isa TextString && return span
-        end
+    for line in text.elements, span in line.elements
+        span isa TextString && return span
     end
     nothing
 end
 
-# A new run of `content` in the style of `span` (a `TextString` or a
-# `TextNewline`), or in the default style when there is none.
+# A new run of `content` in the style of `span`, or in the default style when there
+# is none.
 _make_styled_run(content::AbstractString, ::Nothing) = TextString(content)
-_make_styled_run(content::AbstractString, span::Union{TextString, TextNewline}) =
+_make_styled_run(content::AbstractString, span::TextString) =
     TextString(Cell(content), span.font, span.font_color, Cell(span.fill_color),
                Cell(span.line_color), Cell(span.padding), Cell(nothing))
 

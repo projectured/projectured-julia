@@ -64,7 +64,7 @@ export ReferenceTheme, ScaledReferenceTheme
 export TextToGraphics, TextToGraphicsIoMap
 export TextGutter, TextGutterToGraphics, TextBlockToScrollLayout, TextBlockToScrollLayoutIoMap
 export TextFold, TextFolding, TextFoldingIoMap
-export TextBlockToString, TextStringToString, TextNewlineToString, TextSpacingToString, TextGraphicsToString,
+export TextBlockToString, TextStringToString, TextSpacingToString, TextGraphicsToString,
        TextLineToString, TextToString
 export TextLineNumbering, LineNumbering
 export WordWrapping, WordWrappingIoMap
@@ -75,7 +75,7 @@ export HighlightedText, HighlightedTextToText, HighlightedTextToTextIoMap, Highl
 export SelectionInverting, SelectionInvertingIoMap, SelectionSegment
 export PrimitiveBoolToText, PrimitiveNumberToText, PrimitiveStringToTextBlock, PrimitiveInsertionToText, PrimitiveToText
 export ReferenceToText, ReferenceToHumanReadableText
-export TextBlock, TextLine, TextString, TextNewline, TextGraphics, TextDocument, UNSTYLED_TEXT_FONT
+export TextBlock, TextLine, TextString, TextGraphics, TextDocument, UNSTYLED_TEXT_FONT
 export FaultToText
 
 
