@@ -22,7 +22,7 @@ expression, so the kernel carries no instrumentation.
 const PERFORMANCE_COUNTERS_ENABLED = @load_preference("performance_counters", false)::Bool
 
 # The counters of one scope: the counts, and the times in nanoseconds. A time
-# never goes into the counts, so a reader knows the unit of every key.
+# never goes into the counts, so the unit of every key is clear.
 struct _PerformanceCounterStore
     counts::Dict{Symbol,Int}
     times::Dict{Symbol,Int}
@@ -116,7 +116,7 @@ counting is compiled out, so a count costs nothing in a normal build.
 
 Use it to count an event of your own in a profile, for example each call of a
 function that runs more often than you expect. A key names a count or a time,
-never both: the frame store refuses a name in both groups.
+never both: the frame store throws an `ArgumentError` for a name in both groups.
 
 # Example
 
@@ -137,7 +137,7 @@ just `expr`.
 
 Use it to time one stage of work in a profile, for example the print or the
 paint of a frame. A key names a time or a count, never both: the frame store
-refuses a name in both groups.
+throws an `ArgumentError` for a name in both groups.
 
 # Example
 

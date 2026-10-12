@@ -10,8 +10,8 @@ engine is in [CellModule.jl](../../../source/kernel/cell/CellModule.jl).
 The cell layer is the base of the incremental work of ProjecturEd. It is a
 pull-based reactive engine, and it takes the place of `hu.dwim.computed-class` in
 the original Common Lisp ProjecturEd. It is a layer of the kernel. It imports only
-the performance layer, which counts its reads and writes, and every layer above it
-builds on it.
+the performance layer, which counts its reads and writes (see the
+[performance guide](performance.md)), and every layer above it builds on it.
 
 ## Cell
 
@@ -190,7 +190,8 @@ The layer is the folder [source/kernel/cell/](../../../source/kernel/cell/), and
 `CellModule` is its one module. One layer sits on each side of it: the
 performance layer below, whose `@count_performance` the engine counts with, and
 the struct layer above, whose `@cell_struct` builds structs of cells. This guide
-describes both of them too, in the sections below.
+describes the struct layer too; the [performance guide](performance.md) describes
+the performance layer.
 
 ```
 performance/PerformanceModule.jl  (PerformanceModule): the counters
@@ -314,44 +315,12 @@ Public surface: `CellStructPlan`, `make_cell_struct_plan`, `add_cell_struct_fiel
 `build_cell_struct_exprs`, `parse_cell_struct_macro_arguments`, `@cell_struct`,
 `get_cell_struct_argument_type` and `get_cell_struct_kind`.
 
-## PerformanceModule: the counters
+## The performance layer
 
-The build compiles the counters only when a switch is on, and **no store belongs
-to the whole process**. A store keeps the counts and the times apart. The cell engine
-adds to four counts with `@count_performance` on the hot path: `:reads`,
-`:computes`, `:invalidations` and `:writes`. `:computes` counts each computation
-that starts, also one that throws. The editor measures its stages into the times
-`:read_time`, `:evaluate_time` and `:print_time`, in nanoseconds, with
-`@measure_performance_time`.
-
-The active store is a **task-local dynamic binding** (`ScopedValue`).
-`run_with_performance_counters(f)` binds a new store while `f` runs, and everything
-that runs inside `f` counts into it. Outside such a scope the binding is
-`nothing`, so a cell operation outside a scope counts nothing and shares no
-state. So many editors can run in one process, and their counters stay apart
-(PAR-PER-EDITOR-STATE). This layer loads before the cell layer, because
-`CellModule` uses it.
-
-By default the build **compiles the counting out**. `PERFORMANCE_COUNTERS_ENABLED`
-is the preference `performance_counters` of `ProjecturedKernel` when the kernel
-was compiled, and it is off by default. So a normal build has no instrumentation:
-`@count_performance` expands to `nothing`, and `@measure_performance_time` to its
-expression. To profile, or to run the tests that read the counts, set the
-preference to `true` and start Julia again.
-
-Public surface:
-
-- `run_with_performance_counters(f)` binds a new store while `f` runs.
-- `get_performance_counters()` returns copies of the counts and the times of the
-  active store. Both are empty outside a scope.
-- `@measure_performance_time key expr` times `expr`, and adds the nanoseconds to
-  the time `key`.
-- `@count_performance key` adds one to the count `key` on the hot path.
-
-The read-eval-print loop of the editor binds a new store for each frame. With the
-counting compiled in, `_log_performance_counters!` logs the store of each frame that applied an
-operation; see [EditorModule.run_editor!](../../../source/kernel/editor/EditorLoop.jl).
-This is the easiest way to see what work one edit starts.
+The performance layer below the cell layer counts the work of the cells: the
+engine adds to the counts `:reads`, `:computes`, `:invalidations` and `:writes`
+with `@count_performance`, in a build with the counters. The
+[performance guide](performance.md) describes the layer.
 
 The animation clock is a kernel layer of its own, `clock/`, above the struct
 layer. `clock/ClockModule.jl` holds its interface: `Clock`,

@@ -165,7 +165,7 @@ and the worst frame time, or the mean count of the cells that a frame reads.
     (summary.mean, summary.maximum)
 
 See also [`get_frame_measurement_names`](@ref), which lists the names that the
-store knows, and [`collect_recent_frame_measurements`](@ref), which gives the
+store holds, and [`collect_recent_frame_measurements`](@ref), which gives the
 single frames.
 """
 function compute_frame_measurement_summary(store::FrameMeasurementStore, name::Symbol)

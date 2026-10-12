@@ -128,6 +128,10 @@ and L02-8 stay fixed; L02-4 is A-2; L02-7 is A-5; L02-1 is open.
   `environment/all` with the preference on (23, 55, 2, 5).
 - [ ] 3. The guide `documentation/package/kernel/performance.md` (G-1 … G-3), with its
   guide check by an independent auditor.
+  - [x] The guide, on the model of the fault guide. The section of `cell.md` moved to
+    it, and `cell.md`, `architecture.md` and the package index point to it. The
+    survey finds no export that the guide does not name. The words "refuses" and
+    "knows" left the guide and the layer.
 - [ ] 4. L02-1 as decided.
   - [x] **The owner, 2026-10-12: "use Preferences.jl and fix it with that"** (A), after
     the lead counted its users: 263 packages of General depend on it directly, and
