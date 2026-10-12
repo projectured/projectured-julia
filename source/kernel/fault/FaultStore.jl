@@ -37,7 +37,7 @@ are the ones that name the cause, so the store keeps those.
 
     store = FaultStore()
     attach_fault_target!(store, log)
-    record_fault!(store, :print; origin = JsonToSyntax, reference, exception,
+    record_fault!(store, :print; origin = p.inner, reference, exception,
                   traceback = catch_backtrace())
     drain_faults!(store)
 
@@ -238,9 +238,8 @@ drain_faults!(::Nothing; policy = FaultPolicy()) = FaultRecord[]
 How many times in a row the barriers that count on `counter` caught, with no
 success between. A barrier counts on its site, or on the counter it was given.
 
-A circuit breaker reads it: a backend seam that fails every frame is worse to
-call than to leave alone, and a printer that fails every frame is what the safe
-mode answers.
+A circuit breaker reads it: a seam that fails every frame is worse to call than
+to leave alone.
 """
 get_consecutive_fault_count(store::FaultStore, counter::Symbol) =
     get(store.consecutive, counter, 0)

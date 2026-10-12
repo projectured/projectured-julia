@@ -26,7 +26,9 @@ function _print_walkthrough(io::IO, layer::Module, lines::AbstractVector{<:Abstr
         println(io, "julia> ", line)
         value = Core.eval(session, Meta.parse(line))
         if value !== nothing
-            show(IOContext(io, :limit => true), MIME"text/plain"(), value)
+            # The line can define a name that the value shows, and this function
+            # runs in the world from before the line ran.
+            Base.invokelatest(show, IOContext(io, :limit => true), MIME"text/plain"(), value)
             println(io)
         end
         println(io)

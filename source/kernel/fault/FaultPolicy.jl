@@ -17,7 +17,7 @@ What the barriers and the report do with a fault. One per editor.
 
 # Example
 
-    editor.fault_policy = make_strict_fault_policy()   # in a test
+    policy = FaultPolicy(is_sound_enabled = false)
 
 See also [`run_fault_barrier!`](@ref) and [`report_fault!`](@ref).
 """
@@ -38,14 +38,14 @@ FaultPolicy(; is_barrier_enabled::Bool = true,
 The policy that catches nothing. Every barrier re-raises, so an exception ends
 the run and a test sees it.
 
-It is the default of every form that makes an editor: `Editor`, `make_editor`,
-`build_editor` and `run_editor!(document, projection)`. Use it in a test, and in
+It is the default of every form that makes an editor. Use it in a test, and in
 any harness where a fault is to fail the run rather than be survived.
 
 # Example
 
-    editor = make_editor(document, projection; backend,
-                         fault_policy = make_strict_fault_policy())
+    count = run_fault_barrier!(() -> parse(Int, text), store;
+                               policy = make_strict_fault_policy(), backend,
+                               site = :read)
 
 See also [`FaultPolicy`](@ref).
 """

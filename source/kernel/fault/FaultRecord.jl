@@ -22,7 +22,7 @@ shows.
 
 # Example
 
-    record = make_fault_record(:print; origin = JsonToSyntax, reference,
+    record = make_fault_record(:print; origin = p.inner, reference,
                                exception, traceback)
 
 See also [`record_fault!`](@ref), which is what a barrier calls.

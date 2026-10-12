@@ -86,7 +86,7 @@ function make_safe_mode_projection end
 """
     is_passthrough_exception(exception) -> Bool
 
-Whether a barrier must let `exception` through rather than catch it.
+Whether a catch-all arm must let `exception` through rather than catch it.
 
 Answer `true` for an exception that means the program is to stop or can not go
 on: a request to quit, an interrupt, a stack that ran out, a heap that ran out.
@@ -101,6 +101,6 @@ method for it.
 
     is_passthrough_exception(exception) && rethrow()
 
-See also [`run_fault_barrier!`](@ref), which is what asks.
+See also [`run_fault_barrier!`](@ref), one of the arms that ask it.
 """
 function is_passthrough_exception end
