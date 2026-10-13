@@ -465,7 +465,7 @@ B is ever needed.
 | `add_cell_writer!(task)`, `remove_cell_writer!(task)` | the owner tasks of rule d | `source/kernel/cell/CellWriterCheck.jl` (new) |
 | `run_on_editor_task!(...; timeout, description)` | T3, and the description of a unit | `Inbox.jl` |
 | `EditorCallTimeoutException` | the end of the wait of T3 | `Inbox.jl` |
-| `Editor` fields `code_unit`, `owner_posts`, `loop_state`, `held_faults`, `unapplied_operations` | the running unit, the queue of I3, the state of I1, the faults of held frames, what an interrupted drain did not apply | `Editor.jl` |
+| `Editor` fields `code_unit`, `owner_posts`, `has_loop_ended`, `held_faults`, `unapplied_operations` | the running unit, the queue of I3, the end of I1, the faults of held frames, what an interrupted drain did not apply | `Editor.jl` |
 | `Tool(...; reads_documents)` | T4: a tool that reads no document runs on the calling task | `Tool.jl` |
 | `acquire_document!(editor, document)`, `AcquireDocumentOperation` | the counterpart of `release_document!` (A3) | `DocumentRelease.jl` |
 | formula fields `result` (stored), `result_key`, `draft` | the last value, the inputs that it came from, the code in edit mode | `FormulaDocument.jl` |
@@ -692,8 +692,15 @@ nothing.
     unit, so a test fails and the unit keeps an owner. The kernel suite: 4481 of
     4482 before the move of `HeldFrameState`, and the one failure was that rule;
     the baseline at `main` was 4453 of 4453 (`/var/tmp/editor-answers-probe`).
-  - [ ] 2d. POLICY-6-inbox: the states, the queue of the owner, the close at the
-    end, and one run of the loop.
+  - [x] 2d. POLICY-6-inbox (`0cb48e9bd`): the queue of the owner
+    (`Editor.owner_posts`, no bound) takes the posts of the loop task, the
+    running unit, a task that the unit started, and any task before the loop
+    starts; the drain takes it first. The end closes both queues; a later post
+    throws `InvalidStateException`, and `run_on_editor_task!` then runs the call
+    at once, unless a unit still owns the editor. A second `run_editor!` throws
+    `ArgumentError`. The three states of I1 come from what exists: a set
+    `loop_task` means running, and `Editor.has_loop_ended` means ended; a field
+    of its own would repeat `loop_task`. The kernel suite: 4482 of 4482.
   - [ ] 2e. The cell writers of rule d (waits for the permission for the sealed
     `cell/ReactiveCell.jl` and `cell/CellModule.jl`).
   - [ ] 2f. The record of a slow frame.
