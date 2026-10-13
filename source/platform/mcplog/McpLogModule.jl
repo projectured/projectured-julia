@@ -27,6 +27,7 @@ using ..PrimitiveModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
+using ..RosterModule
 using ..SerializationModule
 using ..ShellModule
 using ..StyleModule

@@ -33,6 +33,7 @@ using ..PerformanceModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
+using ..RosterModule
 using ..SerializationModule
 using ..StyleModule
 using ..WidgetModule
@@ -44,6 +45,7 @@ import ..DomainModule: get_insertion_aliases, make_insertion_document
 import ..FeedModule: drain_changes!, compute_wake_deadline
 import ..ProjectionModule: print_document, read_intent, map_reference_forward
 import ..SerializationModule: pred_arguments
+import ..RosterModule: collect_roster_parts, collect_roster_items
 import ..EditorModule: wrap_editor!, get_wrapper_layers
 
 export FrameStatisticsRow, FrameStatistics, get_session_frame_statistics,
@@ -63,6 +65,9 @@ include("FrameStatisticsToWidget.jl")
 # projection instance. The widgets that the projection builds come back through
 # the renderer, which draws them with the rows of the widgets.
 function __init__()
+    # The recent frames of the session, as a source of a roster.
+    register_roster_source!(:frames, link -> _SessionFrames();
+                            description = "the recent frames of the session: frame, and the time of each stage in seconds")
     register_natural_graphics!(:statistics, (; measure, appearance) -> Pair{Type,Any}[
         FrameStatistics => ChainingProjection(
             make_frame_statistics_projection(;

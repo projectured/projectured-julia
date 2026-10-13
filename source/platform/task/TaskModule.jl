@@ -27,10 +27,12 @@ using ..PrimitiveModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
+using ..RosterModule
 using ..StyleModule
 using ..ToolModule
 using ..WidgetModule
 import ..DocumentModule: copy_document, has_document_duplicate, get_document_title, sync_document!
+import ..RosterModule: collect_roster_parts, collect_roster_items, get_roster_item_type
 import ..DomainModule: accepts_pasted_document
 import ..FeedModule: drain_changes!, compute_wake_deadline
 import ..PaneModule: make_pane_tab_title

@@ -193,3 +193,20 @@ get_session_frame_time_series() = _SESSION_FRAME_TIME_SERIES
 # A person who types `frame times` into an empty tab gets the session's series,
 # for the same reason as the table.
 make_insertion_document(::Type{FrameTimeSeries}) = get_session_frame_time_series()
+
+# The recent frames of the session, as a roster reads them: one row for each frame
+# of the series, a named tuple of the number of the frame and of the time of each
+# measurement in seconds. The part reads the names of the series, which is what
+# tells its feed that a view shows it, so the series flushes while a roster
+# shows its frames, and only then.
+struct _SessionFrames end
+
+collect_roster_parts(::_SessionFrames, link) = Any[get_session_frame_time_series()]
+
+function collect_roster_items(::_SessionFrames, link, series)
+    names = Tuple(Symbol[:frame; Symbol.(series.names)])
+    frames = series.frames
+    columns = series.columns
+    RosterItem[RosterItem(NamedTuple{names}((Int(frames[k]), (column[k] for column in columns)...)))
+               for k in eachindex(frames)]
+end

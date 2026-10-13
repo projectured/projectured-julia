@@ -111,4 +111,7 @@ function __init__()
     register_natural_graphics!(:mcplog, (; measure, appearance) -> Pair{Type,Any}[
         McpLog => ChainingProjection(make_mcp_log_projection(; theme = get_scaled_theme!(appearance, McpLogTheme)),
                                      VerticalLayoutToGraphicsCanvas())])
+    # The calls of the MCP log of the session, as a source of a roster.
+    register_roster_source!(:mcp_log, link -> CollectionItems(get_session_mcp_log().entries);
+                            description = "the calls of the MCP log of the session: time, method, name, duration, fault")
 end

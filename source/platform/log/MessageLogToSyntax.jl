@@ -91,4 +91,7 @@ end
 function __init__()
     register_natural_syntax!(:messagelog, (; appearance) -> Pair{Type,Any}[
         MessageLog => make_message_log_projection(; theme = get_scaled_theme!(appearance, MessageLogTheme))])
+    # The lines of the message log of the session, as a source of a roster.
+    register_roster_source!(:log, link -> CollectionItems(get_session_message_log().entries);
+                            description = "the lines of the message log of the session: level, message")
 end

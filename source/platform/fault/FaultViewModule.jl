@@ -50,6 +50,7 @@ using ..NaturalModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
+using ..RosterModule
 using ..OperationModule
 using ..StyleModule
 using ..SyntaxModule

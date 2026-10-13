@@ -911,7 +911,7 @@ For each step, run the narrowest test: the test files of the step, through
     - With no key, `group_collection!` takes the group away; with no count,
       `limit_collection!` takes the first items away.
 
-- [ ] **4. The sources of the window and of the stores.**
+- [x] **4. The sources of the window and of the stores.** Done 2026-10-14.
   - `TabDocuments(type)` in the slice `pane`, one part for each tab. The window
     links it to its pane tree when it shows the roster, as
     `link_assistant_list!` does.
@@ -926,6 +926,24 @@ For each step, run the narrowest test: the test files of the step, through
       roster shows them.
   - Tests: each source gives the items of its store; a store that no roster
     shows asks for no frame.
+  - **What the step found and decided:**
+    - `TabDocuments` finds the pane tree in the document of the window, the link,
+      as `show_document!` finds it: the content of the first window, looked
+      through the layers that wrap it. A tab gives the first layer of its
+      content that is of the type, from the outside inward.
+    - Each of the five stores is a document of the session now: `FaultLog`,
+      `MessageLog`, `McpLog`, the `TaskGroupList` and `FrameTimeSeries`. So
+      `StoreRecords` reads each one as a collection, and no store needed a new
+      feed. Each slice registers its store in the `__init__` that it has.
+    - `:tasks` is a private source of the task slice: one part for each group of
+      the session list, and each task with its group as `within`.
+    - `:frames` is a private source of the statistics slice: one row for each
+      frame of the session series, a named tuple of the number of the frame and
+      the time of each measurement. The part reads `names` of the series, which
+      is the probe of `FrameStatisticsFeed` for a view. So the series flushes
+      while a roster shows its frames, and only then, with no new feed.
+    - An entry of the message log holds `level` and `message` only. So X6 shows
+      those columns, and a filter of a source needs a facet in step 5.
 
 - [ ] **5. The facets of the first examples.**
   - `FileDocument`: `"name"`, `"folder"` and `"has_edits"`. A file document

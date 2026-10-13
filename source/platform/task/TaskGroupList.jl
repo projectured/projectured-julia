@@ -78,3 +78,13 @@ function open_task_group_pane(editor, list::TaskGroupList, group)
     action = getfield(list, :opener)[][]
     action === nothing ? nothing : action(editor, group)
 end
+
+# The tasks of the groups of the session, as a roster reads them: one part for
+# each group of the session list, and each task with its group as `within`. A
+# group that starts or a row that a person closes changes the parts; a task that
+# runs changes only its own row.
+struct _SessionTasks end
+
+get_roster_item_type(::_SessionTasks) = TaskDocument
+collect_roster_parts(::_SessionTasks, link) = Any[group for group in get_session_task_group_list().groups]
+collect_roster_items(::_SessionTasks, link, group) = RosterItem[RosterItem(task, group) for task in group.tasks]

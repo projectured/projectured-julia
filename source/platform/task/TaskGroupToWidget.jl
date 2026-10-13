@@ -865,4 +865,7 @@ end
 
 function __init__()
     register_natural_graphics!(:task, build_task_graphics_entry)
+    # The tasks of the groups of the session, as a source of a roster.
+    register_roster_source!(:tasks, link -> _SessionTasks();
+                            description = "the tasks of the groups of the session, each with its group as within")
 end

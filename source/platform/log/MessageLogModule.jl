@@ -23,6 +23,7 @@ using ..IoMapModule
 using ..NaturalModule
 using ..ProjectionModule
 using ..ReferenceModule
+using ..RosterModule
 using ..SerializationModule
 using ..StyleModule
 using ..SyntaxModule

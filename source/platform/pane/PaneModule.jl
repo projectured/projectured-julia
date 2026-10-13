@@ -49,6 +49,7 @@ using ..PrimitiveModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
+using ..RosterModule
 using ..SelectionModule
 using ..ScreenModule
 using ..SerializationModule
@@ -62,7 +63,8 @@ import ..SelectionModule: has_dormant_selection
 import ..ClipboardModule: find_clipboard_document
 import ..DomainModule: accepts_pasted_replacement
 import ..DocumentModule: get_document_title, get_edited_field
-import ..SerializationModule: pred_arguments, make_pred_document
+import ..SerializationModule: pred_arguments, make_pred_document, is_pred_constructible
+import ..RosterModule: collect_roster_parts, collect_roster_items, get_roster_item_type
 import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
 import ..ScreenModule: show_document!
 import ..OperationModule: find_drop_zone
@@ -100,6 +102,7 @@ export PaneTreeToWidget, PaneTreeToWidgetIoMap,
        PaneToWidget
 export save_user_interface, load_user_interface
 export get_pane_file_group
+export TabDocuments
 
 
 include("PaneDocument.jl")
@@ -112,6 +115,7 @@ include("PaneArrangement.jl")
 include("UserInterfaceFile.jl")
 include("PaneFile.jl")
 include("PaneTabsWrapper.jl")
+include("PaneRoster.jl")
 
 
 end # module

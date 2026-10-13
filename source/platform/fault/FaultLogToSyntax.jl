@@ -88,4 +88,7 @@ end
 function __init__()
     register_natural_syntax!(:fault, (; appearance) -> Pair{Type,Any}[
         FaultLog => make_fault_log_projection(; theme = get_scaled_theme!(appearance, FaultTheme))])
+    # The lines of the fault log of the session, as a source of a roster.
+    register_roster_source!(:faults, link -> CollectionItems(get_session_fault_log().entries);
+                            description = "the lines of the fault log of the session: site, origin, message, count")
 end
