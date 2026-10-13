@@ -167,7 +167,7 @@ function _follow_list_chain!(start::ListNode, follow_node)
         node = start
         while true
             cell = getfield(node, link)
-            if cell isa AbstractCell && is_computed_cell(cell) && !is_cell_up_to_date(cell)
+            if cell isa AbstractCell && is_computed_cell(cell) && !is_cell_valid(cell)
                 _follow_built_list_nodes!(cell, follow_node)
                 break
             end

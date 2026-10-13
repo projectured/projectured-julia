@@ -23,7 +23,7 @@ make_res() = SDL.SdlWindowResources(
     # New bounds (10,20)-(40,60), padded by 2px.
     @test SDL._compute_dirty_rect(res, canvas) == (8, 18, 42, 62)
 
-    # Frame 2: nothing changed → every cell is up to date → nothing to repaint.
+    # Frame 2: nothing changed → every cell is valid → nothing to repaint.
     @test SDL._compute_dirty_rect(res, canvas) === nothing
 
     # Frame 3: move the rect. The write invalidates the computed elements cell;
@@ -197,7 +197,7 @@ end
     top = GraphicsCanvas(CellVector(Cell[Cell(stack)]), layout_none)
     res = make_res()
     @test SDL._compute_dirty_rect(res, top) == (0, 0, 102, 20)
-    @test !is_cell_up_to_date(getfield(getfield(below, :elements)[], :elements))
+    @test !is_cell_valid(getfield(getfield(below, :elements)[], :elements))
     @test SDL._compute_dirty_rect(res, top) === nothing
 end
 

@@ -45,7 +45,7 @@ end
     reader[]
     evaluate_operation((document = holder,), ReplaceStringRangeOperation(at(1), "x"))
     @test holder.text.value == "axb"
-    @test is_cell_up_to_date(reader)
+    @test is_cell_valid(reader)
     range = _cursor_at(holder.text)
     @test range.start == 2 && range.stop == 2
 end

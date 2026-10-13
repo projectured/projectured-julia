@@ -108,7 +108,7 @@ Tuple{typeof(Core.kwcall), NamedTuple{(:deadline,), Tuple{Float64}}, Type{Projec
 Tuple{typeof(Core.kwcall), NamedTuple{(:is_barrier_enabled,), Tuple{Bool}}, Type{ProjecturedKernel.FaultModule.FaultPolicy}}
 Tuple{typeof(Core.kwcall), NamedTuple{(:width, :height), Tuple{Int64, Int64}}, typeof(ProjecturedKernel.ProjectionModule.with_inner_size), ProjecturedKernel.ProjectionModule.PrinterContext}
 Tuple{typeof(Core.kwcall), NamedTuple{(:width, :height), Tuple{Int64, ProjecturedKernel.CellModule.ReactiveCell{Any}}}, typeof(ProjecturedKernel.ProjectionModule.with_inner_size), ProjecturedKernel.ProjectionModule.PrinterContext}
-Tuple{typeof(ProjecturedKernel.CellModule.is_cell_up_to_date), ProjecturedKernel.CellModule.ReactiveCell{Any}}
+Tuple{typeof(ProjecturedKernel.CellModule.is_cell_valid), ProjecturedKernel.CellModule.ReactiveCell{Any}}
 Tuple{typeof(ProjecturedKernel.CellModule.run_without_cell_tracking), Base.Returns{Int64}}
 Tuple{typeof(ProjecturedKernel.CellModule.set_cell_computation!), ProjecturedKernel.CellModule.ReactiveCell{Any}, Function}
 Tuple{typeof(ProjecturedKernel.CellModule.unwrap_cell), Int64}

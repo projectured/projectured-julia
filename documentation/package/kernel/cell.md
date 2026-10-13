@@ -47,18 +47,18 @@ a value, and does not call it; write `Computation(f)` for that.
 The struct also holds its `state`, the cells that it reads (`dependencies`), and
 the cells that read it (`dependents`), through a `WeakRef`, so a cell does not keep
 its readers alive. Both edge fields are `nothing` until the first edge. The state is
-*up to date*, *out of date*, *failed* or *computing*; the sections below say when
+*valid*, *invalid*, *failed* or *computing*; the sections below say when
 each one holds.
 
 ### Read and write
 
 ```julia
-c[]                           # read: compute first if not up to date, and return the value
+c[]                           # read: compute first if not valid, and return the value
 c[] = v                       # write a value, and invalidate the dependents
 c[] = @computation expr       # write a computation, and invalidate the dependents
 set_cell_value!(c, v)         # the same as c[] = v
 set_cell_computation!(c, f)   # the same as c[] = Computation(f)
-is_cell_up_to_date(c)         # can the next read return the value with no computation?
+is_cell_valid(c)         # can the next read return the value with no computation?
 ```
 
 `peek(c)` is an **untracked** read. It returns the value and records no
@@ -78,7 +78,7 @@ evaluation on one task never records a reader for an evaluation on another task:
 2. Each `c[]` during the computation records an edge `observer ← c`. The computed
    cell that reads becomes a downstream dependent of `c`.
 3. When the computation returns, the cell pops off the stack, and the engine marks
-   it up to date.
+   it valid.
 
 So no code declares a dependency. A read records it.
 
@@ -87,10 +87,10 @@ So no code declares a dependency. A read records it.
 The engine invalidates at once, and it computes only on a read:
 
 - `c[] = v` or `set_cell_computation!(c, f)` walks the dependents of `c`, and
-  their dependents, and marks each one out of date. No computation runs. The walk
-  stops at a dependent that is out of date already, and at a computing dependent:
+  their dependents, and marks each one invalid. No computation runs. The walk
+  stops at a dependent that is invalid already, and at a computing dependent:
   see the next section.
-- The next `c[]` of a cell that is not up to date calls `_recompute!(c)`. It
+- The next `c[]` of a cell that is not valid calls `_recompute!(c)`. It
   removes the old upstream edges, runs the computation with tracking, and stores
   the new value.
 
@@ -104,9 +104,9 @@ One task owns a set of cells that depend on each other, and only that task write
 and reads them. The owner keeps two phases apart:
 
 1. In a **write phase**, the owner writes cells. No computation runs, and each
-   write marks the readers out of date.
-2. In a **read phase**, the owner reads cells, and each read computes what is out
-   of date. No cell of the set changes, so all reads of the phase see the values
+   write marks the readers invalid.
+2. In a **read phase**, the owner reads cells, and each read computes what is
+   invalid. No cell of the set changes, so all reads of the phase see the values
    of one moment.
 
 A write between two reads of one phase can give a result that mixes an old value
@@ -142,8 +142,8 @@ two times in one read phase.
 
 A computation that throws makes its cell *failed*. The next read runs it again,
 and the exception goes up the stack of the reads; the engine keeps no exception. A
-reader can catch the exception and answer something else. That reader is then up
-to date while the cell that it read is not, so a failed cell passes the walk of a
+reader can catch the exception and answer something else. That reader is then
+valid while the cell that it read is not, so a failed cell passes the walk of a
 later write on to its readers, and the reader computes again.
 
 A computation also keeps its **fault scope**: the scope that held when its
@@ -186,23 +186,23 @@ and not an error.
   a `CellCycleException`, but the cells of the cycle have no value until a write
   breaks it. So a computed cell must never read itself, directly or through any
   chain.
-- **Invalidation is monotone: when a cell is out of date, all its transitive
-  dependents are out of date too.** `_invalidate_dependents!` stops at a dependent
-  that is out of date already, because that cell made its own dependents out of
-  date when it became so. This holds only because each write walks the *full*
-  transitive closure, and only `_recompute!` and a write of a value make a cell up
-  to date. A failed cell passes the walk on, because a reader that caught its
-  exception can be up to date. A computing cell stops the walk, because only its
+- **Invalidation is monotone: when a cell is invalid, all its transitive
+  dependents are invalid too.** `_invalidate_dependents!` stops at a dependent
+  that is invalid already, because that cell made its own dependents
+  invalid when it became so. This holds only because each write walks the *full*
+  transitive closure, and only `_recompute!` and a write of a value make a cell
+  valid. A failed cell passes the walk on, because a reader that caught its
+  exception can be valid. A computing cell stops the walk, because only its
   own computation writes a cell that reaches it. Never set the state by hand, and
   never invalidate only a part of the dependents. Both break the early stop and
   leave cells stale for good.
 - **One task writes and reads a set of cells, in phases that do not overlap.** A
-  write from another task, or a write inside a read phase, can leave a reader up
-  to date with a stale value. See
+  write from another task, or a write inside a read phase, can leave a reader
+  valid with a stale value. See
   [Who writes and reads cells, and when](#who-writes-and-reads-cells-and-when).
 - **Propagation follows the writes, not the values.** A write to a cell always
   invalidates its dependents, with **no equality check**. A write of the value
-  that the cell holds already still makes everything downstream out of date, and
+  that the cell holds already still makes everything downstream invalid, and
   each cell computes again at its next read. A
   computation that returns an unchanged value does *not* stop the propagation. So
   `c[] = c[]` has a cost: a printer that writes `selection` in each frame pays for
@@ -294,7 +294,7 @@ struct/CellStructModule.jl        (CellStructModule): the struct of cells
 
 `CellInterface.jl` is the **interface file** of the layer: it declares the
 contract and nothing else. The read `c[]`, the untracked read `peek` and
-`is_cell_up_to_date` have their bodies in the file of each kind. The bodies of
+`is_cell_valid` have their bodies in the file of each kind. The bodies of
 `unwrap_cell`, `get_cell_value_type`, `make_similar_cell`, `is_computed_cell`,
 `get_cell_computation`, `has_dependent_cells` and the fallback of
 `record_cell_fault!` are in the sibling `CellDefaults.jl`.
@@ -331,7 +331,7 @@ theme. A plain value makes a constant, and a write is a `MethodError`.
 The kind is an immutable struct with one pointer, so a struct of cells holds it
 inline, and two structs can share its function.
 
-Public surface: `AbstractCell`, `is_cell_up_to_date`, `unwrap_cell`,
+Public surface: `AbstractCell`, `is_cell_valid`, `unwrap_cell`,
 `get_cell_value_type`, `make_similar_cell`, `is_computed_cell`,
 `get_cell_computation`, `has_dependent_cells`, `run_without_cell_tracking`, `Computation`,
 `@computation`, `ReactiveCell`, `Cell`, `CellCycleException`, `set_cell_value!`,
@@ -350,7 +350,7 @@ not compute again when a part of the node changes.
 ## Try it
 
 `print_cell_example()` in `ProjecturedKernelExample` prints a REPL session with the
-layer: a value, a computation, a write that makes the readers out of date, `peek`, a
+layer: a value, a computation, a write that makes the readers invalid, `peek`, a
 chain, the other cell kinds, `run_without_cell_tracking` and a fault scope. Each line runs as it
 prints. Type the lines yourself after `using ProjecturedKernel.CellModule`, and change
 them.

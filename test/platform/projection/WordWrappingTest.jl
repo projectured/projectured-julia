@@ -225,14 +225,14 @@ caret = make_flat_caret_reference(8)
 # nor the soft breaks of another line.
 @test out.elements[2].soft_breaks == Int[]
 getfield(long, :content)[] = "alpha beta gamma"
-@test is_cell_up_to_date(getfield(out.elements, :elements))
-@test !is_cell_up_to_date(getfield(out.elements[1], :soft_breaks))
-@test is_cell_up_to_date(getfield(out.elements[2], :soft_breaks))
+@test is_cell_valid(getfield(out.elements, :elements))
+@test !is_cell_valid(getfield(out.elements[1], :soft_breaks))
+@test is_cell_valid(getfield(out.elements[2], :soft_breaks))
 @test out.elements[1].soft_breaks == [6, 11]
 
 # A resize changes the soft breaks, and not the list of lines.
 avail[] = 1000
-@test is_cell_up_to_date(getfield(out.elements, :elements))
+@test is_cell_valid(getfield(out.elements, :elements))
 @test out.elements[1].soft_breaks == Int[]
 
 end # @testset "WordWrapping wraps a block of lines by its soft breaks"

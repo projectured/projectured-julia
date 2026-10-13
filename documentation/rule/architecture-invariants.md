@@ -255,8 +255,8 @@ a cell that it made in the same run, before it gives the cell out. Until then no
 other cell depends on the new cell. The computation itself can read the new cell
 before the write: the walk of the write then reaches the computing cell, and it
 stops there (`PAR-SINGLE-WRITER`). No other cell may read the new cell before the
-write: the walk would mark that reader out of date and stop at the computing cell,
-which then ends up to date above a reader that is out of date. `push!` on a
+write: the walk would mark that reader invalid and stop at the computing cell,
+which then ends valid above a reader that is invalid. `push!` on a
 `CellVector` that the run made does this: it reads the elements cell, then writes
 it. The template walk of `@projection_template` does this too: a nested template
 builds an output node inside the computation of its parent, reads the blueprint
@@ -285,7 +285,7 @@ once, with backpressure.
 do not overlap.** A set of cells that depend on each other, such as the document
 of an editor and the cells that its projections derive, has one owner task. In a
 write phase the owner writes cells, and no computation runs. In a read phase the
-owner reads cells, the reads compute what is out of date, and no cell of the set
+owner reads cells, the reads compute what is invalid, and no cell of the set
 changes. A write between two reads of one read phase can give a result that
 mixes an old value and a new value, and no walk of a write can repair it. The
 engine does not lock a cell, so the rule is what keeps the cached values right:
@@ -319,14 +319,14 @@ missing until a write breaks the cycle.
 ### PAR-MONOTONE-INVALIDATION
 
 **Never hand-set the state of a cell and never partially invalidate.** A reactive
-cell is *up to date*, *out of date*, *failed* or *computing*. Invalidation is
-monotone: a cell that is out of date implies that all its transitive readers are
-out of date already, and the early-stop walk of a write relies on it. Two states
+cell is *valid*, *invalid*, *failed* or *computing*. Invalidation is
+monotone: a cell that is invalid implies that all its transitive readers are
+invalid already, and the early-stop walk of a write relies on it. Two states
 keep the walk right where a computation ends early or late. A *failed* cell, whose
-computation threw, can have up-to-date readers, which caught its exception, so the
-walk goes on through it. A *computing* cell stops the walk, as a cell out of date
+computation threw, can have valid readers, which caught its exception, so the
+walk goes on through it. A *computing* cell stops the walk, as an invalid cell
 does: by `PAR-SINGLE-WRITER`, a write that reaches it comes from inside its own
-computation. Only `_recompute!` and a write of a value make a cell up to date.
+computation. Only `_recompute!` and a write of a value make a cell valid.
 Setting the state by hand, or invalidating only a subset of readers, breaks the
 early stop and leaves cells stale forever.
 
@@ -1609,7 +1609,7 @@ describe — a docstring that names a function that no longer exists is a defect
 graph.** Serialization (binary and natural-format) writes a `Cell`'s *value*
 only. It reads the value with `peek(c)`, never `c[]`, so no reactive dependency is
 registered, and it asks `is_computed_cell(c)` where it must refuse a computed cell. A
-computed cell that is out of date computes at the save, so a save writes the file
+computed cell that is invalid computes at the save, so a save writes the file
 only after the whole document is written. Serialization never traverses a cell's
 `dependents` out into the projection-output graph. Keep this boundary intact: what is
 durable is the document's data, not the reactive machinery or the projected

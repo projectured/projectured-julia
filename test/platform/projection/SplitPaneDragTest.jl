@@ -62,7 +62,7 @@ end
                                 Any[doc.pinned[i] for i in 1:length(doc.pinned)]))
     reader[]
     _feed(proj, iomap, DragMove(270, 50; time = 0.0))
-    @test is_cell_up_to_date(reader)
+    @test is_cell_valid(reader)
     @test _szs(doc) == [270, 330]
 
     up =_feed(proj, iomap, DragEnd(270, 50; time = 0.0))

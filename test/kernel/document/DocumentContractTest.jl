@@ -18,7 +18,7 @@ Covers:
 using Test
 using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.CellModule: Cell, Computation, @computation, ImmutableCell,
-                                    ReactiveCell, AbstractCell, is_cell_up_to_date
+                                    ReactiveCell, AbstractCell, is_cell_valid
 # The reference layer supplies the type our test-local selection field carries.
 # Non-cell/document imports are allowed only to build the fixture; the contract
 # tests below still exercise DocumentModule generics.
@@ -378,7 +378,7 @@ function test_document_contract()
         reader[]
         sync_document!(shadow, source)
         @test getfield(shadow, :selection)[] === kept
-        @test is_cell_up_to_date(reader)
+        @test is_cell_valid(reader)
 
         # A native source holds a live selection document as the value of its field.
         native = MToyNode("root", nothing, SelectionDocument(; primary = path))

@@ -1124,7 +1124,7 @@ function test_layering_checkers()
     @testset "interface_purity_errors separates declaration from implementation" begin
         no_syms = Pair{Symbol, Vector{Symbol}}[]
         entries = [("cell/CellModule.jl", :CellModule, Symbol[], no_syms,
-                    [:AbstractCell, :Reference, :is_cell_up_to_date, :get_reference_step_kind])]
+                    [:AbstractCell, :Reference, :is_cell_valid, :get_reference_step_kind])]
         interface_files = Dict("cell/Interface.jl" => :CellModule)
         check(source) = mktempdir() do root
             mkpath(joinpath(root, "cell"))
@@ -1138,12 +1138,12 @@ function test_layering_checkers()
             abstract type AbstractCell{T} end
             const Reference = Union{Nothing, AbstractCell}
             \"\"\"An open generic.\"\"\"
-            function is_cell_up_to_date end
+            function is_cell_valid end
             """))
 
         # A default is behaviour — long form, short form, and a `where` method alike.
-        for method in ("function is_cell_up_to_date(c::AbstractCell)\n    true\nend",
-                       "is_cell_up_to_date(c::AbstractCell) = true",
+        for method in ("function is_cell_valid(c::AbstractCell)\n    true\nend",
+                       "is_cell_valid(c::AbstractCell) = true",
                        "get_reference_step_kind(::T) where {T} = :structural")
             errs = check("abstract type AbstractCell{T} end\n$method\n")
             @test length(errs) == 1
@@ -1157,7 +1157,7 @@ function test_layering_checkers()
         # State, a concrete struct, and a macro are all implementation.
         @test occursin("binds a value", only(check("const Reference = Ref{Any}(nothing)\n")))
         @test occursin("concrete struct", only(check("struct Reference end\n")))
-        @test occursin("defines a macro", only(check("macro is_cell_up_to_date(x)\n    x\nend\n")))
+        @test occursin("defines a macro", only(check("macro is_cell_valid(x)\n    x\nend\n")))
 
         # Module plumbing is not implementation: a module wrapper, imports, an
         # `include` of the implementation fragment, and a docstring on a generic.
@@ -1166,10 +1166,10 @@ function test_layering_checkers()
             module CellModule
             using ..Other
             import ..Other: thing
-            export AbstractCell, is_cell_up_to_date
+            export AbstractCell, is_cell_valid
             abstract type AbstractCell{T} end
             \"\"\"An open generic.\"\"\"
-            function is_cell_up_to_date end
+            function is_cell_valid end
             include("Defaults.jl")
             end
             """))

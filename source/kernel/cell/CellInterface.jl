@@ -1,7 +1,7 @@
 # Fragment of `CellModule` — the cell **contract**: the base type of the cell
 # kinds and the generics that form their protocol. Included before the kinds,
 # which subtype it and implement it. Nothing here carries a body. The read, the
-# untracked read and `is_cell_up_to_date` live in the file of each kind, and the
+# untracked read and `is_cell_valid` live in the file of each kind, and the
 # bodies of the other generics live in the sibling `CellDefaults.jl`.
 
 """
@@ -19,7 +19,7 @@ that only reads takes any of them.
     show_value(cell::AbstractCell) = println(cell[])
 
 Every kind has the read `c[]`, the untracked read `Base.peek(c)`, which records
-no dependency, and [`is_cell_up_to_date`](@ref). The writes, the computations
+no dependency, and [`is_cell_valid`](@ref). The writes, the computations
 and the dependency tracking belong to each kind.
 
 See also `ReactiveCell`, `MutableCell`, `ImmutableCell` and `UntrackedCell`, the
@@ -28,7 +28,7 @@ four kinds, and `unwrap_cell`, for a slot that may hold a value instead of a cel
 abstract type AbstractCell{T} end
 
 """
-    is_cell_up_to_date(cell) -> Bool
+    is_cell_valid(cell) -> Bool
 
 Whether a read returns the value that the cell holds, or starts a computation.
 
@@ -39,17 +39,17 @@ reached the cells that depend on it.
 # Example
 
     total = Cell(@computation length(rows[]))
-    is_cell_up_to_date(total)       # false until the first read
+    is_cell_valid(total)       # false until the first read
     total[]
-    is_cell_up_to_date(total)       # true
+    is_cell_valid(total)       # true
 
-A kind that holds its value, and not a computation, is always up to date. An
+A kind that holds its value, and not a computation, is always valid. An
 `UntrackedCell` answers `true` too, although each read of a computed one runs its
 computation.
 
 See also `set_cell_computation!` and `ReactiveCell`.
 """
-function is_cell_up_to_date end
+function is_cell_valid end
 
 """
     unwrap_cell(x) -> value
@@ -177,7 +177,7 @@ caller can do work that nobody needs, but it never skips work that a reader
 needs. Only the reactive kind records readers, so the other kinds always return
 `false`.
 
-See also `is_cell_up_to_date`, and `peek`, a read that records no reader.
+See also `is_cell_valid`, and `peek`, a read that records no reader.
 """
 function has_dependent_cells end
 

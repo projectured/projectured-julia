@@ -41,7 +41,7 @@ UntrackedCell(value::T) where {T} = UntrackedCell{T}(value)
 
 Base.getindex(c::UntrackedCell{T}) where {T} = run_without_cell_tracking(c.computation)::T
 
-is_cell_up_to_date(::UntrackedCell) = true
+is_cell_valid(::UntrackedCell) = true
 Base.peek(c::UntrackedCell) = c[]
 
 function Base.show(io::IO, c::UntrackedCell{T}) where {T}

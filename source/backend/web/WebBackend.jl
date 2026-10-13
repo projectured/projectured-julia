@@ -375,7 +375,7 @@ end
 # ════════════════════════════════════════════════════════════════════════
 #
 # Walk the window's content canvas the way the renderer does, but test each
-# unit's reactive `is_cell_up_to_date` flag *before* reading its value (reading
+# unit's reactive `is_cell_valid` flag *before* reading its value (reading
 # recomputes). Stale computed-container cells (a canvas's `elements`, a
 # CellVector's backing vector, a ListNode's spine) mark a whole subtree dirty;
 # a leaf whose own field cell is stale (in-place mutation) is a tight dirty unit.
@@ -405,7 +405,7 @@ function _node_dirty(elem)::Bool
         (is_view_state_field(f) || f === :prev || f === :next) && continue
         c = getfield(elem, f)
         c isa Cell || continue
-        is_cell_up_to_date(c) || return true
+        is_cell_valid(c) || return true
     end
     false
 end
@@ -428,12 +428,12 @@ function _collect_canvas_dirty!(canvas::GraphicsCanvas, ox::Int, oy::Int,
                                 acc::ContentBounds, prev::Dict{UInt,NTuple{4,Int}};
                                 include_xy::Bool=true)
     ec = getfield(canvas, :elements)
-    cd = !is_cell_up_to_date(ec)
+    cd = !is_cell_valid(ec)
     if include_xy && !cd
-        cd = !is_cell_up_to_date(getfield(canvas, :x)) || !is_cell_up_to_date(getfield(canvas, :y))
+        cd = !is_cell_valid(getfield(canvas, :x)) || !is_cell_valid(getfield(canvas, :y))
     end
     ev = canvas.elements                      # read after capturing validity above
-    if !cd && ev isa CellVector && !is_cell_up_to_date(getfield(ev, :elements))
+    if !cd && ev isa CellVector && !is_cell_valid(getfield(ev, :elements))
         cd = true
     end
     if cd
@@ -456,7 +456,7 @@ function _collect_listnode_dirty!(head::ListNode, ox::Int, oy::Int,
                                   acc::ContentBounds, prev::Dict{UInt,NTuple{4,Int}})
     nodes = _list_nodes(head)
     for n in nodes
-        if !is_cell_up_to_date(getfield(n, :next)) || !is_cell_up_to_date(getfield(n, :prev))
+        if !is_cell_valid(getfield(n, :next)) || !is_cell_valid(getfield(n, :prev))
             _union_unit!(acc, prev, objectid(head), _bounds_of_listnode(head, ox, oy))
             return
         end

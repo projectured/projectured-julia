@@ -451,7 +451,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # repaints only the edited line instead of the whole block.
     #
     # The crucial property is that the *list* of line sub-canvases depends only on
-    # the line grouping (structure), so a content edit leaves it up to date and the
+    # the line grouping (structure), so a content edit leaves it valid and the
     # dirty walk descends into it to find just the edited line stale. Editing the
     # last line moves nothing below it, so its dirty rect is tight.
     #
@@ -606,7 +606,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
 
     # Vertical stack of line sub-canvases. Its membership reads only `lines_cell`
     # (structure); `get_line_cells` builds/looks up cells without forcing them, so
-    # no content is read here and the stack stays up to date across content edits.
+    # no content is read here and the stack stays valid across content edits.
     # The cells of a line that left the block, and of a place that holds a line now
     # or no group, go.
     # `layout_vertical` + non-overlapping lets the dirty walk and renderer

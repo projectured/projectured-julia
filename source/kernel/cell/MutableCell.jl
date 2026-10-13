@@ -31,7 +31,7 @@ end
 Base.getindex(c::MutableCell) = c.value
 Base.setindex!(c::MutableCell, value) = (c.value = value)
 
-is_cell_up_to_date(::MutableCell) = true
+is_cell_valid(::MutableCell) = true
 Base.peek(c::MutableCell) = c[]
 
 function Base.show(io::IO, c::MutableCell)

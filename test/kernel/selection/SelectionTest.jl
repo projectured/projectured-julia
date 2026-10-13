@@ -14,7 +14,7 @@ Covers:
 """
 
 using Test
-using ProjecturedKernel.CellModule: Cell, @computation, is_cell_up_to_date
+using ProjecturedKernel.CellModule: Cell, @computation, is_cell_valid
 using ProjecturedKernel.DocumentModule: @document, SelectionDocument
 using ProjecturedKernel.ReferenceModule: Reference, EmptyReference, FieldReferenceStep,
                                          MFieldReferenceStep, ElementReferenceStep,
@@ -144,8 +144,8 @@ function test_selection()
         replace_selection!(root, Reference(FieldReferenceStep("left"),
                                            FieldReferenceStep("text"),
                                            PositionReferenceStep(2)))
-        @test is_cell_up_to_date(root_reader)
-        @test !is_cell_up_to_date(leaf_reader)
+        @test is_cell_valid(root_reader)
+        @test !is_cell_valid(leaf_reader)
         @test strip_reference_types(get_selection(root.left)) ==
               Reference(FieldReferenceStep("text"), PositionReferenceStep(2))
         @test strip_reference_types(get_selection(root)) ==

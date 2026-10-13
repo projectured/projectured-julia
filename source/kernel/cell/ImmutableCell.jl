@@ -32,7 +32,7 @@ end
 # There is no `setindex!`: a write is a `MethodError`, and that is the contract.
 Base.getindex(c::ImmutableCell) = c.value
 
-is_cell_up_to_date(::ImmutableCell) = true
+is_cell_valid(::ImmutableCell) = true
 Base.peek(c::ImmutableCell) = c[]
 
 function Base.show(io::IO, c::ImmutableCell)

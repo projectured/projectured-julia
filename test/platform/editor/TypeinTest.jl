@@ -140,7 +140,7 @@ function _walk_strings!(node, path, visited, refs)
         # be endless, and the walk visits the links that exist, as
         # `count_computed_nodes` counts them.
         (node isa ListNode && fval isa Cell && is_computed_cell(fval) &&
-         !is_cell_up_to_date(fval)) && continue
+         !is_cell_valid(fval)) && continue
         val  = fval isa Cell ? fval[] : fval
         field_path = extend_reference(path, FieldReferenceStep(string(fname)))
         if node isa Union{TextBlock, TextLine} && fname === :elements && val isa CellVector

@@ -96,7 +96,7 @@ function fanout_report(name = "pane_json"; io::IO = stdout, top::Integer = 20)
     order = sortperm(ndeps; rev=true)[1:min(top, n)]
     for i in order
         c = rcells[i]
-        vt = try; string(typeof(is_cell_up_to_date(c) ? getfield(c,:value) : nothing)); catch; "?"; end
+        vt = try; string(typeof(is_cell_valid(c) ? getfield(c,:value) : nothing)); catch; "?"; end
         own = get(owner, objectid(c), (Symbol("<value>"), Symbol("-")))
         println(io, "    ", rpad(ndeps[i],7), rpad(vt,22), "$(own[1]).$(own[2])")
     end

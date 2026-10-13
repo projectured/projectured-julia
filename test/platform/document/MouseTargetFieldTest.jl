@@ -72,7 +72,7 @@ end
                for document in (outer, outer[2], outer[2][1])]
     foreach(reader -> reader[], readers)
     replace_mouse_target!(outer, _mt_path(2, 1))
-    @test all(is_cell_up_to_date, readers)
+    @test all(is_cell_valid, readers)
 end
 
 @testset "a move to another part clears the old branch" begin
@@ -89,7 +89,7 @@ end
     @test get_mouse_target(outer[1]) == EmptyReference()
     @test get_mouse_target(outer[2]) === nothing
     @test get_mouse_target(outer[2][2]) === nothing
-    @test !is_cell_up_to_date(inner_reader)
+    @test !is_cell_valid(inner_reader)
     replace_mouse_target!(outer, nothing)
     @test get_mouse_target(outer) === nothing
     @test get_mouse_target(outer[1]) === nothing

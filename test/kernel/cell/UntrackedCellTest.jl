@@ -21,7 +21,7 @@ function test_untracked_cell()
     c = UntrackedCell{Int}(3)
     @test c[] == 3
     @test peek(c) == 3
-    @test is_cell_up_to_date(c)
+    @test is_cell_valid(c)
     @test !is_computed_cell(c)
     @test get_cell_value_type(c) === Int
     @test UntrackedCell(4) isa UntrackedCell{Int}
@@ -47,7 +47,7 @@ end
     @test reader[] == 11
     @test !has_dependent_cells(source)
     source[] = 2
-    @test is_cell_up_to_date(reader)
+    @test is_cell_valid(reader)
     @test reader[] == 11                    # the reader keeps its value
     @test untracked[] == 20                 # the untracked cell reads the new one
 end
@@ -70,8 +70,8 @@ end
     @test has_dependent_cells(source)       # `inner` read it
     @test !has_dependent_cells(inner)       # `reader` did not
     source[] = 5
-    @test !is_cell_up_to_date(inner)
-    @test is_cell_up_to_date(reader)
+    @test !is_cell_valid(inner)
+    @test is_cell_valid(reader)
     @test untracked[] == 105
 end
 
@@ -91,7 +91,7 @@ end
     @test reader[] == 1
     @test has_dependent_cells(source)       # the read after the error recorded
     source[] = 2
-    @test !is_cell_up_to_date(reader)
+    @test !is_cell_valid(reader)
     @test reader[] == 2
 end
 
@@ -123,7 +123,7 @@ end
 @testset "an untracked cell shows its kind, and its answers" begin
     @test repr(UntrackedCell{Int}(3)) == "UntrackedCell{$(Int)}(3)"
     @test repr(UntrackedCell{Int}(@computation 3)) == "UntrackedCell{$(Int)}(computation)"
-    @test is_cell_up_to_date(UntrackedCell{Int}(@computation 3))
+    @test is_cell_valid(UntrackedCell{Int}(@computation 3))
     @test UntrackedCell(@computation 1) isa UntrackedCell{Any}
     @test UntrackedCell{Float64}(1)[] === 1.0
     @test !has_dependent_cells(UntrackedCell{Int}(3))

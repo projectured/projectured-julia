@@ -17,7 +17,7 @@ Confirms:
 
 using Test
 using ProjecturedKernel.ClockModule
-using ProjecturedKernel.CellModule: Cell, Computation, @computation, is_cell_up_to_date
+using ProjecturedKernel.CellModule: Cell, Computation, @computation, is_cell_valid
 
 # Waits until `condition()` holds, for at most five seconds.
 function _wait_for_clock_condition(condition)
@@ -45,7 +45,7 @@ function test_clock()
         subscribed = Cell(@computation get_reactive_clock_time(clock) * 2)
         @test subscribed[] == 0.0
         set_clock_time!(clock, 1.5)
-        @test !is_cell_up_to_date(subscribed)
+        @test !is_cell_valid(subscribed)
         @test subscribed[] == 3.0
 
         # SAMPLE: reading via get_clock_time registers nothing, so the write
@@ -53,7 +53,7 @@ function test_clock()
         sampled = Cell(@computation get_clock_time(clock) + 10.0)
         @test sampled[] == 11.5
         set_clock_time!(clock, 2.0)
-        @test is_cell_up_to_date(sampled)
+        @test is_cell_valid(sampled)
         @test sampled[] == 11.5           # still the cached value
     end
 
@@ -65,8 +65,8 @@ function test_clock()
         @test sub_b[] == 100.0
 
         set_clock_time!(a, 5.0)
-        @test !is_cell_up_to_date(sub_a)         # a's subscriber was invalidated
-        @test is_cell_up_to_date(sub_b)          # b's was not
+        @test !is_cell_valid(sub_a)         # a's subscriber was invalidated
+        @test is_cell_valid(sub_b)          # b's was not
         @test sub_a[] == 6.0
         @test sub_b[] == 100.0
     end
@@ -163,7 +163,7 @@ function test_clock()
         start_wall_clock!(clock)
         try
             # The wait has a bound, so a heartbeat that stops fails the test.
-            @test _wait_for_clock_condition(() -> !is_cell_up_to_date(seen))
+            @test _wait_for_clock_condition(() -> !is_cell_valid(seen))
             @test seen[] > before
         finally
             stop_wall_clock!(clock)

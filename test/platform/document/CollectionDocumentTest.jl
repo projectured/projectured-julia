@@ -157,7 +157,7 @@ counted = lazy_integers_from(1)
 @test count_computed_nodes(counted) == 5
 # The count computes nothing: the `next` of the fifth link is still not run.
 fifth = counted.next.next.next.next
-@test !is_cell_up_to_date(getfield(fifth, :next))
+@test !is_cell_valid(getfield(fifth, :next))
 @test count_computed_nodes(counted) == 5
 # A link that holds its neighbour as a value counts too, in either direction:
 # the fifth link counts itself and the one link back that it holds.

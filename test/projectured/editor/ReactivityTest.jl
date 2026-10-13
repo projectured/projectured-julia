@@ -215,7 +215,7 @@ function reactive_surface(node::IoMapNode)
     for lc in Iterators.flatten((own, reachable))
         try
             lc.cell[]                       # force, so validity means something
-            is_cell_up_to_date(lc.cell) && push!(valid, objectid(lc.cell))
+            is_cell_valid(lc.cell) && push!(valid, objectid(lc.cell))
         catch e
             push!(errors, "forcing $(lc.owner).$(lc.field) threw: $e")
         end
@@ -234,7 +234,7 @@ function invalidated(surface::ReactiveSurface)
     out = LocalityCell[]
     for lc in Iterators.flatten((surface.own, surface.reachable))
         objectid(lc.cell) in surface.valid_before || continue
-        is_cell_up_to_date(lc.cell) || push!(out, lc)
+        is_cell_valid(lc.cell) || push!(out, lc)
     end
     out
 end
@@ -475,7 +475,7 @@ _try_map(node::IoMapNode, reference) =
 
 The cells of this node's input that hold a leaf value the mutator can move.
 
-A `MutableCell` is included on purpose. It always answers "up to date", so it can
+A `MutableCell` is included on purpose. It always answers "valid", so it can
 never register a change downstream — which is precisely the third bug of §1.1,
 where a stage built with a mutable constructor left a button label frozen. Skip
 it here and the harness would be blind to that whole shape.

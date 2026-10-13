@@ -14,14 +14,14 @@ julia> price = Cell(10); quantity = Cell(3); price[]
 10
 
 # A computation reads other cells. It runs at its first read, not before.
-julia> total = Cell(@computation price[] * quantity[]); is_cell_up_to_date(total)
+julia> total = Cell(@computation price[] * quantity[]); is_cell_valid(total)
 false
 
 julia> total[]
 30
 
-# A write makes each cell that read the cell out of date. The next read computes again.
-julia> price[] = 12; is_cell_up_to_date(total)
+# A write makes each cell that read the cell invalid. The next read computes again.
+julia> price[] = 12; is_cell_valid(total)
 false
 
 julia> total[]
@@ -31,7 +31,7 @@ julia> total[]
 julia> shown = Cell(@computation peek(price)); shown[]
 12
 
-julia> price[] = 20; is_cell_up_to_date(shown)
+julia> price[] = 20; is_cell_valid(shown)
 true
 
 julia> shown[]
@@ -51,11 +51,11 @@ julia> set_cell_computation!(price, () -> 3 * 4); is_computed_cell(price), total
 julia> set_cell_value!(price, 8); is_computed_cell(price), total[]
 (false, 16)
 
-# A MutableCell records no reader, so a write to it makes no reader out of date.
+# A MutableCell records no reader, so a write to it makes no reader invalid.
 julia> frames = MutableCell(0); counted = Cell(@computation frames[] + 1); counted[]
 1
 
-julia> frames[] = 9; is_cell_up_to_date(counted)
+julia> frames[] = 9; is_cell_valid(counted)
 true
 
 # An ImmutableCell can not be written, and neither of these two kinds can hold a computation.
@@ -76,7 +76,7 @@ julia> theme[] = :dark; styled[], background[]
 julia> snapshot = Cell(@computation run_without_cell_tracking(() -> price[] + 1)); snapshot[]
 9
 
-julia> price[] = 2; is_cell_up_to_date(snapshot)
+julia> price[] = 2; is_cell_valid(snapshot)
 true
 
 # A computation that reads its own cell is a cycle. The read throws an ordinary exception, so the editor goes on.

@@ -1993,7 +1993,7 @@ end
 # of three ways, and the walk finds each in its own way.
 #
 # Its content changed. Detection keys on the reactive `valid` flag of the
-# relevant cells, tested via `is_cell_up_to_date` *before* the value is read
+# relevant cells, tested via `is_cell_valid` *before* the value is read
 # (reading recomputes). Because writing a primitive cell marks it valid (only its
 # dependents go stale), the detectable dirty units are the *computed* container
 # cells the projection pipeline invalidates — a canvas whose `CellVector`-backed
@@ -2014,7 +2014,7 @@ end
 # it by the keys of what the canvas draws, compared with the keys it painted, and
 # not by a stale cell: the size of a canvas reads its elements, so a layout that
 # reads the size before the walk computes a new element list, and the walk finds
-# the list up to date.
+# the list valid.
 #
 # For each dirty unit the region gets its *new* bounds and its *previous*
 # rendered bounds (cached in `res.dirty_bounds`) so content that moved, shrank or
@@ -2073,7 +2073,7 @@ function _node_dirty(elem)::Bool
         (is_view_state_field(f) || f === :prev || f === :next) && continue
         c = getfield(elem, f)
         c isa Cell || continue
-        is_cell_up_to_date(c) || return true
+        is_cell_valid(c) || return true
     end
     false
 end
@@ -2419,9 +2419,9 @@ function _collect_canvas_dirty!(res::SdlWindowResources, canvas::GraphicsCanvas,
     # must not be mistaken for "dirty"). `(ox, oy)` already holds this canvas's own
     # offset, which the caller read, so the place is compared by value.
     moved = get(res.painted.origins, key, nothing) != (ox, oy)
-    list_changed = walk.by_value || !is_cell_up_to_date(elements_cell)
+    list_changed = walk.by_value || !is_cell_valid(elements_cell)
     ev = elements_cell[]                 # read after capturing validity above
-    if !list_changed && ev isa CellVector && !is_cell_up_to_date(getfield(ev, :elements))
+    if !list_changed && ev isa CellVector && !is_cell_valid(getfield(ev, :elements))
         list_changed = true              # the regenerated element vector changed
     end
     layout = canvas.layout
@@ -2460,8 +2460,8 @@ end
 
 # The index of the first element that the render draws, found by the same search
 # as `_compute_first_drawn_index`, and the indices of the leaves that the search
-# read while their cells were not up to date; or `nothing` when a slot that the
-# search reads is not up to date. The search reads the place of a few elements,
+# read while their cells were not valid; or `nothing` when a slot that the
+# search reads is not valid. The search reads the place of a few elements,
 # and that read computes a stale leaf again, so the walk takes the test of the
 # leaf from before the read.
 function _find_first_walked_index(canvas::GraphicsCanvas, ev, ox::Int, oy::Int, edges::_ClipEdges)
@@ -2473,7 +2473,7 @@ function _find_first_walked_index(canvas::GraphicsCanvas, ev, ox::Int, oy::Int, 
     first = compute_first_visible_index(length(slots), horizontal ? edges.left - ox : edges.top - oy) do i
         elem = slots[i]
         if elem isa AbstractCell
-            is_cell_up_to_date(elem) || (stale_slot = true; return nothing)
+            is_cell_valid(elem) || (stale_slot = true; return nothing)
             elem = elem[]
         end
         _is_leaf_graphic(elem) && _node_dirty(elem) && push!(dirty_leaves, i)
@@ -2508,7 +2508,7 @@ function _collect_elements_dirty!(res::SdlWindowResources, canvas::GraphicsCanva
     for i in first:length(slots)
         slot = slots[i]
         if slot isa AbstractCell
-            is_cell_up_to_date(slot) || return (true, changed)
+            is_cell_valid(slot) || return (true, changed)
             elem = slot[]
         else
             elem = slot
@@ -2701,7 +2701,7 @@ end
 
 # Clear each node from `node` on, along the `link` field, that was painted and
 # that the render no longer reaches. A fence was never painted and is passed. A
-# link that is not up to date was not read by the render, so nothing past it was
+# link that is not valid was not read by the render, so nothing past it was
 # drawn. True when a node was cleared.
 function _clear_left_view_nodes!(res::SdlWindowResources, walk::_DirtyWalk, node, list::UInt,
                                  link::Symbol)::Bool
@@ -2713,7 +2713,7 @@ function _clear_left_view_nodes!(res::SdlWindowResources, walk::_DirtyWalk, node
             break
         end
         next = getfield(node, link)
-        is_cell_up_to_date(next) || break
+        is_cell_valid(next) || break
         node = next[]
     end
     cleared
@@ -2740,22 +2740,22 @@ function _collect_listnode_dirty!(res::SdlWindowResources, head::ListNode, key::
 
     # Prev links (negative offsets): process, then early-stop (as in render).
     pcell = getfield(head, :prev)
-    is_cell_up_to_date(pcell) || (spine_dirty = true)
+    is_cell_valid(pcell) || (spine_dirty = true)
     node = pcell[]
     above = nothing                        # the first node the render does not reach back
     while node !== nothing
         vcell = getfield(node, :value)
-        vstale = !is_cell_up_to_date(vcell)
+        vstale = !is_cell_valid(vcell)
         elem = vcell[]
         pc = getfield(node, :prev)
         if !(elem isa GraphicsFence)
             visit!(node, elem, vstale)
             if _is_before_early_start(elem, ox, oy, edges, layout, early)
-                above = is_cell_up_to_date(pc) ? pc[] : nothing
+                above = is_cell_valid(pc) ? pc[] : nothing
                 break
             end
         end
-        is_cell_up_to_date(pc) || (spine_dirty = true)
+        is_cell_valid(pc) || (spine_dirty = true)
         node = pc[]
     end
 
@@ -2765,7 +2765,7 @@ function _collect_listnode_dirty!(res::SdlWindowResources, head::ListNode, key::
     below = nothing                        # the first node the render does not reach forward
     while node !== nothing
         vcell = getfield(node, :value)
-        vstale = !is_cell_up_to_date(vcell)
+        vstale = !is_cell_valid(vcell)
         elem = vcell[]
         if !(elem isa GraphicsFence)
             leaf_dirty = _is_leaf_graphic(elem) && _node_dirty(elem)
@@ -2776,7 +2776,7 @@ function _collect_listnode_dirty!(res::SdlWindowResources, head::ListNode, key::
             push!(visited, (node, _make_placement_key(node, key), elem, vstale || leaf_dirty))
         end
         nc = getfield(node, :next)
-        is_cell_up_to_date(nc) || (spine_dirty = true)
+        is_cell_valid(nc) || (spine_dirty = true)
         node = nc[]
     end
 

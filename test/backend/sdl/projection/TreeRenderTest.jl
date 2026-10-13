@@ -20,8 +20,8 @@ function test_tree_render()
                                                        measure = FixedMeasure(8, 12, 4, 0)))
         canvas = print_document(widgets, pane).output
         entries = getfield(folder.elements, :elements)[]
-        read_entries() = [k for k in eachindex(entries) if is_cell_up_to_date(entries[k])]
-        is_listing_read(d) = is_cell_up_to_date(getfield(d.elements, :elements))
+        read_entries() = [k for k in eachindex(entries) if is_cell_valid(entries[k])]
+        is_listing_read(d) = is_cell_valid(getfield(d.elements, :elements))
         function render()
             off = SDL.open_offscreen_renderer(800, 600; supersample = 1)
             try

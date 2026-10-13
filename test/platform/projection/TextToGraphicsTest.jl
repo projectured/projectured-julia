@@ -92,9 +92,9 @@ st_react = TextBlock(TextLine(
 sdl_react = print_document(TextToGraphics(measure=_test_measure(10, 48)), st_react).output
 line1 = sdl_react.elements[2].elements[1]   # top[2]=line stack, [1]=first line sub-canvas
 _ = length(line1.elements)
-@test is_cell_up_to_date(getfield(line1.elements, :elements))
+@test is_cell_valid(getfield(line1.elements, :elements))
 st_react.elements[1].elements[1].content = "changed"
-@test !is_cell_up_to_date(getfield(line1.elements, :elements))
+@test !is_cell_valid(getfield(line1.elements, :elements))
 items_r = _texts(sdl_react)
 @test items_r[1].text == "changed"
 
@@ -349,16 +349,16 @@ end
 topback   = getfield(canvas.elements, :elements)
 stackback = getfield(stack.elements, :elements)
 lineback(L) = getfield(lines[L].elements, :elements)
-@test is_cell_up_to_date(topback) && is_cell_up_to_date(stackback)
-@test all(L -> is_cell_up_to_date(lineback(L)), 1:3)
+@test is_cell_valid(topback) && is_cell_valid(stackback)
+@test all(L -> is_cell_valid(lineback(L)), 1:3)
 
 # Edit the LAST line. Only its segment vector goes stale.
 st.elements[3].elements[1].content = "gamma!"          # the run of the 3rd line
-@test is_cell_up_to_date(topback)                  # line list is structural — untouched
-@test is_cell_up_to_date(stackback)
-@test is_cell_up_to_date(lineback(1))
-@test is_cell_up_to_date(lineback(2))
-@test !is_cell_up_to_date(lineback(3))
+@test is_cell_valid(topback)                  # line list is structural — untouched
+@test is_cell_valid(stackback)
+@test is_cell_valid(lineback(1))
+@test is_cell_valid(lineback(2))
+@test !is_cell_valid(lineback(3))
 @test _texts(lines[3])[1].text == "gamma!"
 
 end # @testset "TextToGraphics per-line locality"

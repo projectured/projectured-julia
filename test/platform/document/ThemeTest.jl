@@ -150,7 +150,7 @@ end
     reader = Cell(@computation gap[] + 1)
     @test reader[] == 5
     appearance.spacing_scale = 2.0
-    @test is_cell_up_to_date(reader)       # no edge: the reader keeps its value
+    @test is_cell_valid(reader)       # no edge: the reader keeps its value
     @test gap[] == 8                       # a new read sees the new scale
 end
 

@@ -28,7 +28,7 @@ Each drawn text sends the ascent of its box (`b`), the pen offset of each charac
 
 - **`zoom`** is the zoom of the `Display` in `devices`, or 1 with none. The `appearance` wrapper copies the zoom of the editor into that `Display`. The client draws each logical pixel as `devicePixelRatio × zoom` pixels of the page, divides each size and each pointer position that it sends by `zoom`, and multiplies the size and the place of a window that it opens by `zoom`. A new zoom makes the client send the new logical size of each window and a `resync`.
 - **`full`** holds the whole draw list of a window. A window goes in full on its first paint, after a connection, after a `resync` from the client, after the queue overflowed, and after a new zoom.
-- **`patches`** holds, for every other window, one clip rectangle and the primitives that cross it. `_collect_window_dirty` finds the rectangle from the cells that are not up to date, as the SDL backend does. `prev_bounds` keeps the last bounds of each unit, so a moved unit also clears its old place.
+- **`patches`** holds, for every other window, one clip rectangle and the primitives that cross it. `_collect_window_dirty` finds the rectangle from the cells that are not valid, as the SDL backend does. `prev_bounds` keeps the last bounds of each unit, so a moved unit also clears its old place.
 - **`close`** holds the ids of the windows that left the screen document.
 
 After the `update` message, the backend sends `{"type": "pointer", "window": id, "cursor": css}` when the shape that [`find_pointer_shape`](../../platform/graphics/graphics.md#the-shape-of-the-pointer) finds changes, at the point and in the window of the last pointer event that the editor read. `cursor` is the CSS cursor of the shape:

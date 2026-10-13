@@ -24,9 +24,9 @@ lv = Cell("X")
 sl = SyntaxLeaf(() -> lv[]; open="[", close="]")
 sst3 = print_document(s2st, sl).output
 @test sst3.elements[1].elements[2].content == "X"
-@test is_cell_up_to_date(getfield(sst3.elements, :elements))  # spans structure still valid
+@test is_cell_valid(getfield(sst3.elements, :elements))  # spans structure still valid
 lv[] = "Y"
-@test is_cell_up_to_date(getfield(sst3.elements, :elements))  # still valid! only the text cell changed
+@test is_cell_valid(getfield(sst3.elements, :elements))  # still valid! only the text cell changed
 @test sst3.elements[1].elements[2].content == "Y"
 
 # structural incrementality
@@ -34,9 +34,9 @@ src2 = Cell(2)
 sn2 = SyntaxNode(() -> SyntaxDocument[SyntaxLeaf(string(i)) for i in 1:src2[]]; open="<", close=">", sep=",")
 sst4 = print_document(s2st, sn2).output
 _ = get_flat_string(sst4)  # force eval
-@test is_cell_up_to_date(getfield(sst4.elements, :elements))
+@test is_cell_valid(getfield(sst4.elements, :elements))
 src2[] = 3
-@test !is_cell_up_to_date(getfield(sst4.elements, :elements))  # children changed → spans rebuild
+@test !is_cell_valid(getfield(sst4.elements, :elements))  # children changed → spans rebuild
 
 end # @testset "SyntaxToText"
 
@@ -404,9 +404,9 @@ empty_node.collapsed = true
 react_node = SyntaxNode(SyntaxDocument[SyntaxLeaf("x")]; open="[", close="]", sep=", ")
 out = print_document(pipe, react_node).output
 _ = get_flat_string(out)                                    # force the spans cell
-@test is_cell_up_to_date(getfield(out.elements, :elements))
+@test is_cell_valid(getfield(out.elements, :elements))
 react_node.collapsed = true
-@test !is_cell_up_to_date(getfield(out.elements, :elements))
+@test !is_cell_valid(getfield(out.elements, :elements))
 @test get_flat_string(out) == "[…]"
 end # let
 

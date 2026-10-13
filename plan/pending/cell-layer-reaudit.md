@@ -280,9 +280,30 @@ writes/reads cells and when".
   201, `test_untracked_cell` 48, `test_cell_fault_scope` 35, the walkthrough 2,
   `test_cell_struct` 63); the probe finds 14, 0, 3 and 2 stops at a computing cell for
   json, syntax, widget and table, the counts of the walk before L03-2 A.
-- [ ] 2. A write of the same plain value does not invalidate: `===` on a value that is
-  `isbits`, a `String`, a `Symbol` or `nothing`. An explicit invalidation function.
-  PAR-WRITE-DRIVEN-PROPAGATION and the design decision change; T-12 flips.
-- [ ] 3. The names of the states and of the invalidation function, and the heartbeat
-  of the wall clock: on the owner's word.
+**The owner, 2026-10-13**, on the names: "Question 3: yes, agreed, do it". On the
+wall clock: "the example is only used in the repl for demonstration, also the
+constructor can be called again if a new editor is to be used, it's only the cached
+instance, so sending the clock in is fine."
+
+- [x] 2. The names. `is_cell_up_to_date` is `is_cell_valid`, and the states are
+  `_VALID`, `_INVALID`, `_FAILED` and `_COMPUTING`. The texts of the layer, the law
+  and the guide say *valid* and *invalid*. omnet-julia follows.
+  `julia-rename.jl` renamed 127 references in 36 files; a text pass renamed the
+  strings, the comments, the docstrings and the recorded precompile files. The text
+  pass changed only the words that name the state of a cell: the task layer says
+  *up to date* of a build, and keeps it. The show of a cell that is not valid says
+  `<invalid>`. omnet-julia renamed 4 lines in 2 files. Checked: the kernel suite 4431
+  of 4431, the web suite 138, `test_typein(json_example)` 480, DBCatalog 74, and the
+  tests of each changed file of the platform, SDL, JSON and XML layers. Known
+  failures only: `test_tree_render` (no field `size`), and the opt-in sweeps
+  `test_selection_localities` (graphics cells of the caret, as on 2026-10-01) and
+  `test_value_localities`.
+- [ ] 3. `invalidate_cell!(c)`: a cell with a computation becomes invalid, and the walk
+  marks its readers; a cell that holds a value keeps it, and the walk marks its
+  readers. A write of the same plain value does not invalidate: `===` on a value that
+  is `isbits`, a `String`, a `Symbol` or `nothing`. PAR-WRITE-DRIVEN-PROPAGATION and
+  the design decision change; T-12 flips.
+- [ ] 4. The clock has no heartbeat: `start_wall_clock!`, `stop_wall_clock!` and the
+  field `heartbeat` are gone. The rotating-vector example takes the clock of the
+  editor that shows it. PAR-STORE-THEN-DRAIN and PAR-SINGLE-WRITER have no exception.
 

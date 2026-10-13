@@ -6,7 +6,7 @@
 # its chevron is clicked. Here we drive the WidgetTree projection directly with a
 # deterministic text measure so row geometry is exact.
 
-using ProjecturedKernel.CellModule: Cell, Computation, is_cell_up_to_date
+using ProjecturedKernel.CellModule: Cell, Computation, is_cell_valid
 using ProjecturedKernel.SelectionModule: replace_selection!, get_selection
 using ProjecturedKernel.ReferenceModule: evaluate_reference
 
@@ -151,8 +151,8 @@ end
     getfield(w, :expanded)[] = Set([[1]])
     # The content of a folder row that did not toggle is not computed again: only
     # the glyph of its chevron reads the set of open folders.
-    @test is_cell_up_to_date(getfield(getfield(before[2], :elements)[], :elements))
-    @test !is_cell_up_to_date(getfield(doc_chevron, :text))
+    @test is_cell_valid(getfield(getfield(before[2], :elements)[], :elements))
+    @test !is_cell_valid(getfield(doc_chevron, :text))
     # The rows of the folder are new, the rows that stay keep their canvas, and
     # the rows under the folder move down by its two rows.
     after = collect(_rows_canvas(io).elements)

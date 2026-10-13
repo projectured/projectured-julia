@@ -353,7 +353,7 @@ read of external state takes none, so `read_os_clipboard` has no `!`.
 - **Factories are `make_*`**: `make_agent_server`,
   `make_child_context`, `make_scripted_say`.
 - **Predicates start with `is_`** (`is_valid_reference`,
-  `is_reference_equal`, `is_cell_up_to_date`) or are plain verbs that read as
+  `is_reference_equal`, `is_cell_valid`) or are plain verbs that read as
   questions at the call site (`matches(pattern, gesture)`,
   `would_create_cycle(env, from, to)`). Keep the plain verb where `is_` would
   change the meaning: `would_create_cycle` asks what adding an edge *would*
@@ -374,7 +374,7 @@ read of external state takes none, so `read_os_clipboard` has no `!`.
 
 ### Words
 
-- **snake_case with underscores between all words**: `is_cell_up_to_date`, not
+- **snake_case with underscores between all words**: `is_cell_valid`, not
   `isuptodate`; `insert_row!`, not `insertrow!`.
 - **No ad-hoc abbreviated words inside names**: `value` not `val`, `function`
   not `fn`, `reference` not `ref`, `operation` not `op`, `performance` not
@@ -397,7 +397,7 @@ read of external state takes none, so `read_os_clipboard` has no `!`.
   outside keeps its spelling.
 - **An exported name usually carries the noun of its layer or slice**, so a reader
   can tell at the call site where the name comes from, and a search finds it there:
-  `is_cell_up_to_date`, `record_cell_fault!`, `is_fault_exception`. This is advice,
+  `is_cell_valid`, `record_cell_fault!`, `is_fault_exception`. This is advice,
   not a strict rule. A word that is the vocabulary of the layer, and that appears
   almost only beside a name of the layer, can go without it: `Computation` and
   `@computation` stand in `Cell(@computation x)`. A name whose words point to

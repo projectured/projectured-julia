@@ -258,7 +258,7 @@ Tuple{typeof(Core.kwcall), NamedTuple{(:time,), Tuple{Float64}}, Type{Projecture
 Tuple{typeof(Core.kwcall), NamedTuple{(:width, :height), Tuple{Int64, Int64}}, typeof(ProjecturedKernel.ProjectionModule.with_inner_size), ProjecturedKernel.ProjectionModule.PrinterContext}
 Tuple{typeof(Core.kwcall), NamedTuple{(:width, :height), Tuple{Int64, ProjecturedKernel.CellModule.ReactiveCell{Any}}}, typeof(ProjecturedKernel.ProjectionModule.with_inner_size), ProjecturedKernel.ProjectionModule.PrinterContext}
 Tuple{typeof(Core.kwcall), NamedTuple{(:width,), Tuple{Int64}}, typeof(ProjecturedKernel.ProjectionModule.with_inner_size), ProjecturedKernel.ProjectionModule.PrinterContext}
-Tuple{typeof(ProjecturedKernel.CellModule.is_cell_up_to_date), ProjecturedKernel.CellModule.ReactiveCell{Any}}
+Tuple{typeof(ProjecturedKernel.CellModule.is_cell_valid), ProjecturedKernel.CellModule.ReactiveCell{Any}}
 Tuple{typeof(ProjecturedKernel.CellModule.run_without_cell_tracking), Base.Returns{Bool}}
 Tuple{typeof(ProjecturedKernel.CellModule.run_without_cell_tracking), Base.Returns{Int64}}
 Tuple{typeof(ProjecturedKernel.CellModule.run_without_cell_tracking), Base.Returns{Nothing}}

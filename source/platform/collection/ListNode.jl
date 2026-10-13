@@ -150,7 +150,7 @@ function _sync_list_tail!(shadow::ListNode, source::ListNode, link::Symbol, back
     shadow_node, source_node = shadow, source
     while true
         cell = getfield(shadow_node, link)
-        if is_computed_cell(cell) && !is_cell_up_to_date(cell)
+        if is_computed_cell(cell) && !is_cell_valid(cell)
             _set_list_link_lazily!(copy_node, source_node, shadow_node, link, back)
             return
         end
@@ -451,7 +451,7 @@ function _count_computed_links(node::ListNode, link::Symbol)
     current = node
     while true
         cell = getfield(current, link)
-        is_computed_cell(cell) && !is_cell_up_to_date(cell) && return count
+        is_computed_cell(cell) && !is_cell_valid(cell) && return count
         linked = peek(cell)
         linked isa ListNode || return count
         count += 1

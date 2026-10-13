@@ -4,8 +4,8 @@
 function test_filesystem_document()
 @testset "FileSystemDocument reads a folder when something reads it" begin
     # Whether the listing of `folder` was read, and whether its entry `i` was.
-    is_listing_read(folder) = is_cell_up_to_date(getfield(folder.elements, :elements))
-    is_entry_read(folder, i) = is_cell_up_to_date(getfield(folder.elements, :elements)[][i])
+    is_listing_read(folder) = is_cell_valid(getfield(folder.elements, :elements))
+    is_entry_read(folder, i) = is_cell_valid(getfield(folder.elements, :elements)[][i])
     mktempdir() do dir
         write(joinpath(dir, "a.jl"), "")
         mkpath(joinpath(dir, "sub", "deep"))

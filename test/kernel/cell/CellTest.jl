@@ -32,45 +32,45 @@ a = Cell(1)
 b = Cell(2)
 @test a[] == 1
 @test b[] == 2
-@test is_cell_up_to_date(a)
-@test is_cell_up_to_date(b)
+@test is_cell_valid(a)
+@test is_cell_valid(b)
 
 # computed cell
 c = Cell(@computation a[] + b[])
-@test !is_cell_up_to_date(c)
+@test !is_cell_valid(c)
 @test c[] == 3
-@test is_cell_up_to_date(c)
+@test is_cell_valid(c)
 
 # mutation invalidates dependents
 a[] = 10
-@test is_cell_up_to_date(a)
-@test !is_cell_up_to_date(c)
+@test is_cell_valid(a)
+@test !is_cell_valid(c)
 @test c[] == 12
 
 # deep chain
 d = Cell(@computation c[] * 2)
 @test d[] == 24
 b[] = 3
-@test !is_cell_up_to_date(c)
-@test !is_cell_up_to_date(d)
+@test !is_cell_valid(c)
+@test !is_cell_valid(d)
 @test d[] == 26  # (10+3)*2
 
 # switch computation → value
 c[] = 99
 @test c[] == 99
-@test is_cell_up_to_date(c)
+@test is_cell_valid(c)
 a[] = 50
-@test is_cell_up_to_date(c)  # no longer depends on a
+@test is_cell_valid(c)  # no longer depends on a
 @test c[] == 99
 
 # switch value → computation
 set_cell_computation!(c, () -> a[] * b[])
-@test !is_cell_up_to_date(c)
+@test !is_cell_valid(c)
 @test c[] == 150  # 50*3
 
 # re-tracking after set_cell_computation!
 a[] = 2
-@test !is_cell_up_to_date(c)
+@test !is_cell_valid(c)
 @test c[] == 6   # 2*3
 
 # conditional dependency
@@ -82,7 +82,7 @@ cond = Cell(@computation flag[] ? x[] : y[])
 flag[] = false
 @test cond[] == 20
 x[] = 999          # x is no longer a dep after last eval
-@test is_cell_up_to_date(cond)  # cond should still be valid
+@test is_cell_valid(cond)  # cond should still be valid
 
 # ── the dependency edge must not own the reader ─────────────────────────
 
@@ -133,10 +133,10 @@ end
     @test t[] === 2
     @test_throws InexactError t[] = 2.5
     tc = ReactiveCell{Int}(@computation t[] + 1) # computed: value starts undefined
-    @test !is_cell_up_to_date(tc)
+    @test !is_cell_valid(tc)
     @test (@inferred tc[]) == 3
     t[] = 10
-    @test !is_cell_up_to_date(tc)
+    @test !is_cell_valid(tc)
     @test tc[] == 11
     set_cell_computation!(tc, () -> t[] * 2)   # typed: keeps the stale value slot
     @test tc[] == 20
@@ -149,7 +149,7 @@ end
     @test_throws InexactError tc[] = 2.5
     @test is_computed_cell(tc)
     t[] = 5
-    @test !is_cell_up_to_date(tc)          # the cell still reads `t`
+    @test !is_cell_valid(tc)          # the cell still reads `t`
     @test tc[] == 6
 
     # A cell that nothing read keeps its computation too.
@@ -185,14 +185,14 @@ end
     @test (@inferred m[]) == 1
     m[] = 2
     @test m[] == 2
-    @test is_cell_up_to_date(m)                   # trivially: nothing to recompute
+    @test is_cell_valid(m)                   # trivially: nothing to recompute
     @test peek(m) == 2
     # no reactive bookkeeping: a computation reading a MutableCell registers nothing,
     # so a later write does NOT invalidate the computed cell (by design)
     obs = Cell(@computation m[] * 10)
     @test obs[] == 20
     m[] = 5
-    @test is_cell_up_to_date(obs)                 # unaware of the write
+    @test is_cell_valid(obs)                 # unaware of the write
     @test obs[] == 20                        # stale until *reactive* invalidation
     w = MutableCell{Union{Nothing,Int}}(nothing)
     w[] = 3                                  # explicit wide type admits both
@@ -203,7 +203,7 @@ end
     i = ImmutableCell("abc")
     @test i isa AbstractCell{String}
     @test (@inferred i[]) == "abc"
-    @test is_cell_up_to_date(i)
+    @test is_cell_valid(i)
     @test peek(i) == "abc"
     @test_throws MethodError i[] = "xyz"  # read-only is the contract
     @test isbitstype(ImmutableCell{Int})  # zero-cost wrapper: the field inlines
@@ -221,16 +221,16 @@ end
     @test c[] == 3
 end
 
-@testset "a new computation makes a reader that is up to date out of date" begin
+@testset "a new computation makes a reader that is valid invalid" begin
     s = Cell(1)
     r = Cell(@computation s[] + 1)
     @test r[] == 2
     @test set_cell_computation!(s, () -> 10) === s
     @test getfield(s, :value) === nothing
-    @test !is_cell_up_to_date(r)
+    @test !is_cell_valid(r)
     @test r[] == 11
     s[] = @computation 20
-    @test !is_cell_up_to_date(r)
+    @test !is_cell_valid(r)
     @test r[] == 21
 end
 
@@ -247,12 +247,12 @@ end
     @test !has_dependent_cells(a)
 end
 
-@testset "an equal write still makes the readers out of date" begin
+@testset "an equal write still makes the readers invalid" begin
     x = Cell(1)
     y = Cell(@computation x[] + 1)
     @test y[] == 2
     x[] = 1
-    @test !is_cell_up_to_date(y)
+    @test !is_cell_valid(y)
 end
 
 @testset "a read on another task records no reader" begin
@@ -270,7 +270,7 @@ end
     # The answer comes from the type, so a computed cell does not compute.
     computed = Cell(@computation error("computed"))
     @test get_cell_value_type(computed) === Any
-    @test !is_cell_up_to_date(computed)
+    @test !is_cell_valid(computed)
 end
 
 @testset "a function is a value" begin
@@ -278,11 +278,11 @@ end
     c = Cell(f)
     @test c[] === f                      # stored, not called
     @test c[]() == 42                    # still callable through the cell
-    @test is_cell_up_to_date(c)          # a value cell, not an invalid computed one
+    @test is_cell_valid(c)          # a value cell, not an invalid computed one
 
     cc = Cell(Computation(f))              # the marker is what makes a cell compute
     @test cc[] == 42
-    @test !is_cell_up_to_date(Cell(Computation(f)))
+    @test !is_cell_valid(Cell(Computation(f)))
 
     @test ReactiveCell{Function}(f)[] === f
     @test ReactiveCell{Int}(Computation(f))[] == 42
@@ -356,7 +356,7 @@ end
 
 @testset "show" begin
     @test repr(Cell(2)) == "Cell(value, 2)"
-    @test repr(Cell(@computation 2)) == "Cell(computation, <out of date>)"
+    @test repr(Cell(@computation 2)) == "Cell(computation, <invalid>)"
     # A typed cell is not a `Cell`, so it shows its type.
     @test repr(ReactiveCell{Int}(2)) == "ReactiveCell{$(Int)}(value, 2)"
     typed = ReactiveCell{Int}(@computation 3)
@@ -377,7 +377,7 @@ end
     reader = Cell(@computation unwrap_cell(source) + 1)
     @test reader[] == 4
     source[] = 10
-    @test !is_cell_up_to_date(reader)
+    @test !is_cell_valid(reader)
     @test reader[] == 11
 end
 
@@ -388,10 +388,10 @@ end
     @test reader[] == 11
     set_cell_value!(width, 80)
     @test !is_computed_cell(width)
-    @test !is_cell_up_to_date(reader)              # the write invalidates the reader
+    @test !is_cell_valid(reader)              # the write invalidates the reader
     @test reader[] == 81
     margin[] = 6                                   # the value does not follow `margin`
-    @test is_cell_up_to_date(width)
+    @test is_cell_valid(width)
     @test width[] == 80
 end
 
@@ -427,7 +427,7 @@ end
     @test drawn[] == "1a"
     @test !has_dependent_cells(frames)
     frames[] = 2
-    @test is_cell_up_to_date(drawn)                # not a reader of `frames`
+    @test is_cell_valid(drawn)                # not a reader of `frames`
     @test drawn[] == "1a"
     title[] = "b"
     @test drawn[] == "2b"
@@ -437,7 +437,7 @@ end
     inner = Cell(@computation frames[] + 100)
     outer = Cell(@computation peek(inner) + 1)
     @test outer[] == 103
-    @test is_cell_up_to_date(inner)
+    @test is_cell_valid(inner)
     @test !has_dependent_cells(inner)
     @test has_dependent_cells(frames)              # `inner` reads `frames`
 end
@@ -449,7 +449,7 @@ end
     @test c[] == -1
     a[] = 2
     # The failed cell passes the walk of the write on to the reader that caught it.
-    @test !is_cell_up_to_date(c)
+    @test !is_cell_valid(c)
     @test c[] == 5
 end
 
@@ -464,7 +464,7 @@ end
         length(items[])
     end)
     @test c[] == 1
-    @test is_cell_up_to_date(c)
+    @test is_cell_valid(c)
     @test c[] == 1
     @test runs[] == 1
 end
@@ -473,7 +473,7 @@ end
     c = Cell(0)
     c[] = @computation c[] + 1
     @test_throws CellCycleException c[]
-    @test !is_cell_up_to_date(c)
+    @test !is_cell_valid(c)
     a = Cell(0)
     b = Cell(@computation a[] + 1)
     a[] = @computation b[] + 1

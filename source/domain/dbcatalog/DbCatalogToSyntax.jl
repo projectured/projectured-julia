@@ -153,7 +153,7 @@ end
 # also reads `valid`, so only the explored path opens up front.
 function _children_realized(children)
     children isa CellVector || return true
-    is_cell_up_to_date(getfield(children, :elements))
+    is_cell_valid(getfield(children, :elements))
 end
 
 # ── Shared node builder ───────────────────────────────────────────────────────
