@@ -8,8 +8,7 @@ describes the modules of the cell layer and of the struct layer above it. The
 engine is in [ReactiveCell.jl](../../../source/kernel/cell/ReactiveCell.jl).
 
 The cell layer is the base of the incremental work of ProjecturEd. It is a
-pull-based reactive engine, and it takes the place of `hu.dwim.computed-class` in
-the original Common Lisp ProjecturEd. It is a layer of the kernel. It imports the
+pull-based reactive engine, and a layer of the kernel. It imports the
 performance layer, which counts its reads and writes (see the
 [performance guide](performance.md)), and the fault layer, whose
 `is_fault_exception` a computation in a fault scope calls (see the
