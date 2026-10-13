@@ -9,9 +9,9 @@
 """
     InboxFeed
 
-The built-in queue feed over `editor.inbox`. Always first in `editor.feeds`,
-so a posted operation applies before any other feed writes its target
-document.
+The built-in queue feed over the posts of the editor: the queue of its owner,
+then its inbox. Always first in `editor.feeds`, so a posted operation applies
+before any other feed writes its target document.
 """
 struct InboxFeed <: Feed end
 

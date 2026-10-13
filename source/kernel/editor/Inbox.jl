@@ -18,13 +18,32 @@ simulation, a file watcher, an agent, a timer — to change what it shows.
 
 Blocks once `INBOX_CAPACITY` operations are waiting, so a producer faster than
 the editor is slowed down rather than allowed to queue work that will be stale
-before it is applied.
+before it is applied. A post of the owner of the editor never blocks: the task of
+its loop, its running code unit, a task that the unit started, and any task before
+the loop starts. Such a post goes to a queue with no bound, which the next drain
+takes first, so the owner never waits for itself.
+
+Throws `InvalidStateException` once the loop has ended, because nothing would
+apply the operation.
 
 Wakes the editor after the `put!`, so a posted operation is applied on the
 next frame rather than on the next tick of a timer.
 """
-post_operation!(editor::Editor, operation::Operation) =
-    (put!(editor.inbox, operation); wake_editor!(editor); operation)
+function post_operation!(editor::Editor, operation::Operation)
+    put!(_is_owner_post(editor) ? editor.owner_posts : editor.inbox, operation)
+    wake_editor!(editor)
+    operation
+end
+
+# Whether a post of the calling task goes to the queue of the owner: before the
+# loop starts no task drains yet, the owner must never wait for itself, and a task
+# that the running unit started must not wait for the drain that waits for the unit.
+function _is_owner_post(editor::Editor)
+    editor.loop_task === nothing && return true
+    _is_editor_owner(editor) && return true
+    unit = @atomic editor.code_unit
+    unit !== nothing && get_current_code_unit() === unit
+end
 
 """
     wake_editor!(editor) -> Nothing
@@ -73,10 +92,13 @@ in which the user did something from an idle one. It also keeps a sync arriving 
 a second out of the operation log.
 """
 function drain_operations!(editor::Editor)
-    # `Base.n_avail` also counts the producers that wait for room. The bound
-    # keeps each `take!` to an operation that the inbox holds already.
-    count = min(Base.n_avail(editor.inbox), INBOX_CAPACITY)
-    operations = Operation[take!(editor.inbox) for _ in 1:count]
+    # The posts of the owner first. `Base.n_avail` of the inbox also counts the
+    # producers that wait for room. The bound keeps each `take!` to an operation
+    # that the inbox holds already.
+    owned = Base.n_avail(editor.owner_posts)
+    count = owned + min(Base.n_avail(editor.inbox), INBOX_CAPACITY)
+    operations = Operation[take!(index <= owned ? editor.owner_posts : editor.inbox)
+                           for index in 1:count]
     calls = String[operation.description for operation in operations
                    if operation isa RunFunctionOperation]
     if isempty(calls)
@@ -86,7 +108,7 @@ function drain_operations!(editor::Editor)
             _apply_posted_operations!(editor, operations)
         end
     end
-    isready(editor.inbox) && (editor.wake_pending[] = true)
+    (isready(editor.owner_posts) || isready(editor.inbox)) && (editor.wake_pending[] = true)
     count
 end
 
@@ -160,24 +182,39 @@ function AgentModule.run_on_editor_task!(function_, editor::Editor; wait::Bool =
         return wait ? value : nothing
     end
     answer = wait ? Channel{Any}(1) : nothing
-    post_operation!(editor, RunFunctionOperation(function_, answer, String(description)))
+    try
+        post_operation!(editor, RunFunctionOperation(function_, answer, String(description)))
+    catch exception
+        exception isa InvalidStateException || rethrow()
+        # The loop ended between the look at its task and the post. No frame runs
+        # any more, so the call runs here, unless a unit still owns the editor.
+        (@atomic editor.code_unit) === nothing || rethrow()
+        value = function_()
+        return wait ? value : nothing
+    end
     answer === nothing && return nothing
     succeeded, value = take!(answer)
     succeeded ? value : throw(value)
 end
 
-# The calls still in the inbox when the loop ends run here, on the task that ran
-# the loop, where no frame runs any more. So a task that waits for one gets its
-# answer and does not wait forever. An operation of another kind that was posted
-# after the last frame is not applied. When the loop ends while a code unit still
-# runs, after a quit, the unit owns the documents, so a call gets an exception as
-# its answer and does not run.
+# The end of the loop closes both queues first: a later post throws, and a producer
+# that waits for room in the full inbox wakes with that exception. The calls still
+# in the queues then run here, on the task that ran the loop, where no frame runs
+# any more. So a task that waits for one gets its answer and does not wait
+# forever. An operation of another kind that was posted after the last frame is
+# not applied. When the loop ends while a code unit still runs, after a quit, the
+# unit owns the documents, so a call gets an exception as its answer and does not
+# run.
 function _answer_waiting_calls!(editor::Editor)
+    close(editor.owner_posts)
+    close(editor.inbox)
     is_unit_running = (@atomic editor.code_unit) !== nothing
     unapplied = copy(editor.unapplied_operations)
     empty!(editor.unapplied_operations)
-    while !isempty(unapplied) || isready(editor.inbox)
-        operation = isempty(unapplied) ? take!(editor.inbox) : popfirst!(unapplied)
+    while !isempty(unapplied) || isready(editor.owner_posts) || isready(editor.inbox)
+        operation = !isempty(unapplied) ? popfirst!(unapplied) :
+                    isready(editor.owner_posts) ? take!(editor.owner_posts) :
+                    take!(editor.inbox)
         operation isa RunFunctionOperation || continue
         if is_unit_running
             operation.answer === nothing ||

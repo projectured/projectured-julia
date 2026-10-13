@@ -145,7 +145,9 @@ the editor; off by default. Its value is `true` for the server's own defaults,
 or a `NamedTuple` of `instructions`, `host` and `port`, and a field that is left
 out takes the server's default.
 
-When the loop ends, it answers the calls that wait in the inbox, runs the stop
+An editor runs its loop once: a second `run_editor!` throws `ArgumentError`,
+because the end of the first quit the backend. When the loop ends, it closes its
+queues, so a later post throws, answers the calls that wait in them, runs the stop
 steps of the editor, stops the server and quits the backend it ran on. Each of these steps runs also when the loop or a
 step before it throws. The first exception goes on to the caller: the exception of
 the loop, or else the first exception of a step.
@@ -154,6 +156,9 @@ starts it strict, and a program that a person starts passes `FaultPolicy()`.
 """
 function run_editor!(editor::Editor; mcp::Union{Bool,NamedTuple}=false,
               fault_policy::FaultPolicy=editor.fault_policy)
+    editor.has_loop_ended &&
+        throw(ArgumentError("The loop of this editor ran and ended, and its end quit the " *
+                            "backend. Make a new editor with `make_editor`."))
     server = nothing
     has_quit = false
     try
@@ -236,6 +241,7 @@ function run_editor!(editor::Editor; mcp::Union{Bool,NamedTuple}=false,
         has_quit = true
     finally
         editor.loop_task = nothing
+        editor.has_loop_ended = true
         exception = _end_editor_loop!(editor, server)
         # An exception of the loop goes on, so the exception of a step goes on
         # only after a quit.

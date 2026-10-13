@@ -237,6 +237,49 @@ function test_editor_inbox()
         @test backend.quits == 1
     end
 
+    @testset "a post of the owner never waits, also beyond the bound of the inbox" begin
+        editor = _inbox_editor()
+        log = Any[]
+        # Before the loop starts, every task is the owner.
+        for index in 1:(EditorModule.INBOX_CAPACITY + 10)
+            post_operation!(editor, ProbeInboxOperation(log, index))
+        end
+        @test !isready(editor.inbox)
+        @test drain_operations!(editor) == EditorModule.INBOX_CAPACITY + 10
+        @test [tag for (tag, _) in log] == collect(1:(EditorModule.INBOX_CAPACITY + 10))
+        # The task of a running loop is the owner too.
+        editor.loop_task = current_task()
+        for index in 1:(EditorModule.INBOX_CAPACITY + 1)
+            post_operation!(editor, ProbeInboxOperation(log, index))
+        end
+        @test !isready(editor.inbox)
+        @test drain_operations!(editor) == EditorModule.INBOX_CAPACITY + 1
+    end
+
+    @testset "a post from another task waits for room in the inbox" begin
+        editor = _inbox_editor()
+        editor.loop_task = current_task()          # a loop runs on this task
+        log = Any[]
+        producer = @async for index in 1:(EditorModule.INBOX_CAPACITY + 1)
+            post_operation!(editor, ProbeInboxOperation(log, index))
+        end
+        @test timedwait(() -> Base.n_avail(editor.inbox) >= EditorModule.INBOX_CAPACITY, 5.0) === :ok
+        @test !istaskdone(producer)                # the last post waits for room
+        @test drain_operations!(editor) == EditorModule.INBOX_CAPACITY
+        wait(producer)
+        @test drain_operations!(editor) == 1
+        @test length(log) == EditorModule.INBOX_CAPACITY + 1
+    end
+
+    @testset "the end of the loop closes the queues, and a later call runs at once" begin
+        editor = _inbox_editor()
+        post_operation!(editor, QuitEditorOperation())
+        run_editor!(editor)
+        @test_throws InvalidStateException post_operation!(editor, ProbeInboxOperation(Any[], :late))
+        @test run_on_editor_task!(() -> current_task(), editor) === current_task()
+        @test_throws ArgumentError run_editor!(editor)
+    end
+
     @testset "a frame applies what was posted before it reads" begin
         editor = _inbox_editor()
         log = Any[]

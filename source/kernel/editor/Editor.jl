@@ -21,8 +21,14 @@ Holds the state for a read-eval-print loop:
                    process neither share a tool list nor evaluate code into each
                    other's namespace.
   - `inbox`      — operations posted from outside this editor's task; drained and
-                   applied once per frame by `run_editor!`. See
+                   applied once per frame by `run_editor!`. It holds at most
+                   `INBOX_CAPACITY`, so a fast producer waits. See
                    [`post_operation!`](@ref).
+  - `owner_posts` — operations that the owner of the editor posted: the task of
+                   its loop, its running code unit and the tasks that the unit
+                   started, and any task before the loop starts. It has no bound,
+                   so the owner never waits on its own inbox, and the next drain
+                   takes it first (internal).
   - `iomap`      — the latest IoMap from the printer (internal)
   - `operation`  — the latest operation from the reader (internal)
   - `faults`     — the per-editor `FaultStore` every barrier writes to, and the
@@ -85,6 +91,8 @@ Holds the state for a read-eval-print loop:
                    did not apply, because an exception that means stop ended the
                    drain. The end of the loop treats them as the operations still
                    in the inbox (internal).
+  - `has_loop_ended` — the loop of [`run_editor!`](@ref) ran and ended. An editor
+                   runs its loop once (internal).
 """
 mutable struct Editor
     backend::Backend
@@ -94,6 +102,7 @@ mutable struct Editor
     clock::Clock
     tools::ToolSet
     inbox::Channel{Operation}
+    owner_posts::Channel{Operation}
     iomap::Union{IoMap, Nothing}
     operation::Union{Operation, Nothing}
     faults::FaultStore
@@ -111,6 +120,7 @@ mutable struct Editor
     @atomic code_unit::Union{CodeUnit, Nothing}
     held_faults::Vector{Any}
     unapplied_operations::Vector{Operation}
+    has_loop_ended::Bool
 end
 
 # The inbox is bounded: a producer that outruns the editor should wait for it,
@@ -131,7 +141,7 @@ function Editor(document, projection; backend::Backend,
                 fault_policy::FaultPolicy = make_strict_fault_policy(),
                 feeds::Vector{Feed} = Feed[])
     editor = Editor(backend, document, projection, devices, clock, tools,
-                    Channel{Operation}(INBOX_CAPACITY),
+                    Channel{Operation}(INBOX_CAPACITY), Channel{Operation}(Inf),
                     nothing, nothing, faults, fault_policy, nothing,
                     Any[], WeakRef[], false,
                     # The wake starts pending: the first frame runs before the
@@ -139,7 +149,7 @@ function Editor(document, projection; backend::Backend,
                     # has happened.
                     Feed[InboxFeed(); feeds], Threads.Atomic{Bool}(true),
                     FrameMeasurementStore(), nothing, Dict{Symbol, Float64}(), Any[],
-                    nothing, Any[], Operation[])
+                    nothing, Any[], Operation[], false)
     # Registration is the one moment a feed meets its editor. The callback is
     # the only handle a producer-side store gets: a store lives below the
     # editor layer and must not name `Editor`.

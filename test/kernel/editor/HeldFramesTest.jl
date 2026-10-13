@@ -183,6 +183,19 @@ function test_editor_held_frames()
             @test Set(state.current for state in backend.states) ⊆ Set([1, 2])
         end
 
+        @testset "a task that the running unit starts posts to the queue of the owner" begin
+            editor = _held_frame_editor(HeldFrameProbeBackend())
+            queues = run_code_unit!(editor; parts = ["poster"]) do
+                child = @async begin
+                    post_operation!(editor, RunFunctionOperation(() -> nothing, nothing))
+                    (owned = Base.n_avail(editor.owner_posts), inbox = Base.n_avail(editor.inbox))
+                end
+                fetch(child)
+            end
+            @test queues == (owned = 1, inbox = 0)
+            @test drain_operations!(editor) == 1
+        end
+
         @testset "the code tool runs its evaluation as a unit" begin
             editor = _held_frame_editor(HeldFrameProbeBackend())
             answer = execute_julia_code!(editor.tools, editor, "Threads.threadid()")
