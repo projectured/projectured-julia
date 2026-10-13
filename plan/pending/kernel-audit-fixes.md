@@ -1016,7 +1016,7 @@ The tests that no fix above adds. A test that belongs to a fix is in the step of
 
 - [x] **L05-4** (Low, Tests)
   Add a test set: start a heartbeat, read a computed cell of `get_reactive_clock_time`, wait with a bound until `is_cell_up_to_date` is false, and read a larger value. Make the docstring of the file name what it tests.
-  **Withdrawn on 2026-10-13:** the clock has no heartbeat any more ([cell-layer-reaudit.md](cell-layer-reaudit.md), step 4).
+  **Withdrawn on 2026-10-13:** the clock has no heartbeat any more ([cell-layer-reaudit.md](../done/cell-layer-reaudit.md), step 4).
   *Test:* test_clock: the new set passes within its bound.
   *Done:* lane A, 40496d8b8. A 5 s bound; the set also passes on the old code, so it adds coverage and is no regression test. test_kernel 2559 pass and 2 broken; test_substrate 86852 and the 7 known failures; test_julia 407, test_fault 73, test_sdl 801, test_serialization 58.
 
@@ -2085,6 +2085,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 
 **L03-2** (Medium, main question): Does the engine get a state for a cell that computes now, so that a write during a computation is not lost?
 - **Decided by the owner, 2026-10-12: A.** `cell-layer-reaudit.md` holds the work.
+- **Changed by the owner, 2026-10-13: B**, by the single-writer rule (PAR-SINGLE-WRITER): one task writes and reads a set of cells, so the walk stops at a computing cell, and a read of a computing cell is a cycle. The cell layer is sealed (330926c9f); [cell-layer-reaudit.md](../done/cell-layer-reaudit.md) holds the work.
 
 - **A:** Give a cell the state 'computes now'. When the walk of a write meets a dependent in that state, it marks the dependent stale, and _recompute! leaves that cell invalid at its end, so the next read computes it again.
 - **B:** Change no engine code. cell.md and PAR-NO-WRITE-IN-THUNK state that a computation must not yield and must not write, and another task (the wall-clock heartbeat) writes only through a store that the editor drains between frames.
