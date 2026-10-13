@@ -15,11 +15,13 @@ cell engine.
 The module lives in two fragments that share this namespace:
 
 - [`CellStructPlan.jl`](CellStructPlan.jl) — `CellStructPlan`, the parse of a
-  `struct` definition, and the functions that give the builders the kinds, the
-  value types and the type parameters of its fields.
+  `struct` definition, the two functions that add a field and write the field
+  types, and the functions that give the builders the kinds, the value types, the
+  type parameters and their bounds, and the number of required fields.
 - [`CellStruct.jl`](CellStruct.jl) — `@cell_struct`, the builders that return its
-  parts as expressions, and the two functions that read a struct of cells at run
-  time.
+  parts as expressions, the function that gives the type that a constructor
+  argument binds, and the function that reads the kind of a struct of cells at
+  run time.
 """
 module CellStructModule
 
@@ -28,7 +30,8 @@ using ..CellModule
 export CellStructPlan, make_cell_struct_plan, add_cell_struct_field!,
        retype_cell_struct_fields!, get_cell_struct_value_types,
        get_cell_struct_field_kinds, get_cell_struct_parameter_names,
-       find_cell_struct_parameter_slots, get_cell_struct_required_count
+       get_cell_struct_parameter_bounds, find_cell_struct_parameter_slots,
+       get_cell_struct_required_count
 export build_cell_struct_field_type, build_cell_struct_keyword_parameters,
        build_cell_struct_keyword_constructor, build_cell_struct_positional_constructors,
        build_cell_struct_exprs, parse_cell_struct_macro_arguments, @cell_struct,

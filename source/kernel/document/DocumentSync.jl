@@ -51,8 +51,9 @@ sync_document!(shadow::Document, source::Document) =
 function sync_document!(shadow::Document, source::Document, policy, depth::Int)
     _is_same_document_type(shadow, source) ||
         error("sync_document!: type mismatch, $(typeof(shadow)) vs $(typeof(source))")
-    # An element is rebuilt in the kind of the cells of the collection, and a field
-    # child in the kind of the cell of its own slot (`_sync_fields!`).
+    # An element is rebuilt in the kind of the first field of the collection, which
+    # is the kind of all its cells, and a field child in the kind of the cell of its
+    # own slot (`_sync_fields!`), so a record of mixed kinds syncs each field right.
     is_element_collection(source) ?
         _sync_elements!(shadow, source, get_cell_struct_kind(shadow), policy, depth) :
         _sync_fields!(shadow, source, policy, depth)

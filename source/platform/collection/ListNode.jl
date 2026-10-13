@@ -143,7 +143,8 @@ _sync_unlinked_list_node!(shadow::ListNode, source::ListNode, policy, depth::Int
 # follow `source`. The walk pairs the node of each place, and it ends at a link of
 # the shadow that nothing has read, at the end of either list, or where the shadow
 # grows. A shadow of a kind that holds a value grows to the end of the source at
-# once; a reactive one grows when a reader reads the link.
+# once; a reactive one grows when a reader reads the link. The kind is that of the
+# first field of the shadow node, because a list keeps one kind for all its nodes.
 function _sync_list_tail!(shadow::ListNode, source::ListNode, link::Symbol, back::Symbol, policy, depth::Int)
     K = get_cell_struct_kind(shadow)
     copy_node = _make_list_node_copier(K, policy, depth)

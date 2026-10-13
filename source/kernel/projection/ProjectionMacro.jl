@@ -42,6 +42,7 @@ macro projection(args...)
     name = structdef.args[2].args[1]
     name isa Expr && name.head === :curly && (name = name.args[1])
     return esc(Expr(:block,
-                    build_cell_struct_exprs(structdef; default = default),
+                    build_cell_struct_exprs(structdef; default = default,
+                                            source = __source__),
                     Expr(:export, name)))
 end

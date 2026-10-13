@@ -274,8 +274,10 @@ function _emit_autowrap_ctor(plan, arg_names; default = ReactiveCell)
     inner = Expr(:function, head, body)
     # `Foo(raw…)` for a schema whose every parameter is some field's declared type:
     # bind each from its argument, then hand over to the explicit form.
+    bounds = inferrable ? get_cell_struct_parameter_bounds(plan) : Any[]
     bound = inferrable ?
-        [:($(get_cell_struct_argument_type)($(arg_names[i]))) for i in slots] : Any[]
+        [:($(get_cell_struct_argument_type)($(arg_names[i]), $(bounds[k])))
+         for (k, i) in enumerate(slots)] : Any[]
     outer = inferrable ?
         :($(plan.name)($(params...)) =
               $(Expr(:curly, plan.name, bound...))($(arg_names...))) :
@@ -302,8 +304,20 @@ _emit_accessors(plan) = (
                               getfield(obj, name)[]),
     :(Base.setproperty!(obj::$(plan.name), name::Symbol, val) =
         (getfield(obj, name)[] =
-             $(_check_declared_write)(obj, name, $(_wrap_list_write)(obj, name, val)))),
+             $(_check_declared_write)(obj, name,
+                 $(_wrap_list_write)(obj, name, $(_refuse_cell_value)(obj, name, val))))),
 )
+
+# The value of a write `document.f = v`. A field holds a value, and a cell is not
+# one, so a cell throws: two documents share a cell only through the constructor.
+# Where the compiler knows the type of `value`, the test costs nothing.
+function _refuse_cell_value(document, name::Symbol, value)
+    value isa AbstractCell && throw(ArgumentError(
+        "`$(name)` of a $(nameof(typeof(document))) holds a value, and a cell is not " *
+        "one. To share a cell, give it to the constructor; " *
+        "`getfield(document, :$(name))` is the cell of the field."))
+    value
+end
 
 """
     _emit_kind_aliases(plan, arg_names) -> Vector

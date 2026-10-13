@@ -255,7 +255,7 @@ reads and writes them as plain fields: `obj.f` reads the value of the cell,
 `obj.f = v` writes into it, and `getfield(obj, :f)` returns the `Cell` itself. So
 most of the code reads like ordinary Julia code on structs, and every field is
 reactive. The kernel code generator for this is
-[`@cell_struct`](struct.md#cellstructmodule-the-struct-of-cells), in the struct
+[`@cell_struct`](struct.md#a-struct-of-cells), in the struct
 guide. The details of
 the field wrapping are in [the macros guide](macros.md).
 

@@ -112,6 +112,60 @@ end
           [:(a::C1), :(selection::C2)]
 end
 
+@testset "a plan is a CellStructPlan, and it knows the slot of each field" begin
+    plan = make_cell_struct_plan(:(struct Slots; a::Int; "the b"; b; end))
+    @test plan isa CellStructPlan
+    body = plan.definition.args[3].args
+    @test [body[slot] for slot in plan.field_slots] == [:(a::Int), :b]   # no docstring
+    added = make_cell_struct_plan(:(struct Slots2; a::Int; end))
+    add_cell_struct_field!(added, :c; type = :String, default = "")
+    # Until the retype, the slot of the added field holds the name and `Any`.
+    @test added.definition.args[3].args[added.field_slots[end]] == :(c::Any)
+end
+
+@testset "the keyword parameters and the keyword constructor" begin
+    plan = make_cell_struct_plan(:(struct Kw; x::Int; y::Int = 0; end))
+    parameters = build_cell_struct_keyword_parameters(plan.field_names, plan.defaults)
+    @test parameters == Any[:x, Expr(:kw, :y, 0)]
+    constructor = build_cell_struct_keyword_constructor(:Kw, plan.field_names; parameters)
+    @test _bare(constructor) == _bare(:(function Kw(; x, y = 0)
+        Kw(x, y)
+    end))
+end
+
+@testset "build_cell_struct_exprs changes no definition and no plan" begin
+    definition = :(struct Twice; a::Int; end)
+    kept = copy(definition)
+    build_cell_struct_exprs(definition)
+    @test definition == kept
+    # A second call on the same definition works, because the first changed nothing.
+    @test build_cell_struct_exprs(definition) isa Expr
+    plan = make_cell_struct_plan(:(struct Twice2; a::Int; end))
+    body = copy(plan.definition.args[3].args)
+    build_cell_struct_exprs(plan)
+    @test plan.definition.args[3].args == body
+    # A definition without a field comes back as it is.
+    empty = :(struct Empty; end)
+    @test build_cell_struct_exprs(empty) == empty
+    # With a source, the build writes the line nodes of a copy of each default.
+    lazy = make_cell_struct_plan(:(struct Lazy; f = () -> 1; end))
+    before = deepcopy(lazy)
+    build_cell_struct_exprs(lazy; source = LineNumberNode(999, :elsewhere))
+    @test lazy.defaults == before.defaults
+    @test lazy.definition == before.definition
+end
+
+@testset "build_cell_struct_exprs makes a field that add_cell_struct_field! adds from the plan" begin
+    plan = make_cell_struct_plan(:(struct Labeled; a::Int; end))
+    add_cell_struct_field!(plan, :label; type = :String, default = "none")
+    scope = Module(:CsLabeledScope)
+    Core.eval(scope, build_cell_struct_exprs(plan; default = ImmutableCell))
+    # The methods are newer than this function, so the reads run in the module.
+    @test Core.eval(scope, :(Labeled(a = 1).label)) == "none"
+    @test Core.eval(scope, :(getfield(Labeled(a = 1), :label))) isa ImmutableCell{String}
+    @test Core.eval(scope, :(try Labeled(a = 1, label = 3); false catch; true end))
+end
+
 @testset "build_cell_struct_exprs makes the field that add_cell_struct_field! adds" begin
     plan = make_cell_struct_plan(:(struct Added; a::Int; end))
     add_cell_struct_field!(plan, :extra; type = :Any, default = :nothing)
@@ -137,6 +191,9 @@ end
     @test get_cell_struct_field_kinds(plan; default = ImmutableCell) ==
           [ImmutableCell, ImmutableCell, ImmutableCell, MutableCell, ReactiveCell]
     @test get_cell_struct_value_types(plan) == [:Any, :Int, :Int, :Any, :Any]
+    untracked = make_cell_struct_plan(:(struct U; a::UntrackedCell{Int}; b; end))
+    @test get_cell_struct_field_kinds(untracked) == [UntrackedCell, ReactiveCell]
+    @test get_cell_struct_value_types(untracked) == [:Int, :Any]
 end
 
 @testset "the names and the slots of the type parameters" begin
@@ -148,6 +205,12 @@ end
     end))
     @test plan.parameters == Any[:A, :(B<:Real), :(C>:Int), :(Int<:D<:Real)]
     @test get_cell_struct_parameter_names(plan) == [:A, :B, :C, :D]
+    @test get_cell_struct_parameter_bounds(plan) == Any[Any, :Real, Any, :Real]
+    reversed = make_cell_struct_plan(:(struct R{Real >: A >: Int}; a::A; end))
+    @test get_cell_struct_parameter_bounds(reversed) == Any[:Real]
+    # A bound that names a parameter gives `Any`.
+    dependent = make_cell_struct_plan(:(struct Q{A, B<:AbstractVector{A}}; a::A; b::B; end))
+    @test get_cell_struct_parameter_bounds(dependent) == Any[Any, Any]
     # `C` is the value type of no field; it is only inside `Vector{C}`.
     @test find_cell_struct_parameter_slots(plan) === nothing
 

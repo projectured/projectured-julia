@@ -32,7 +32,7 @@ macro iomap(args...)
     if !(name_expr isa Expr && name_expr.head === :(<:))
         structdef.args[2] = Expr(:(<:), name_expr, :IoMap)
     end
-    return esc(build_cell_struct_exprs(structdef; default = default))
+    return esc(build_cell_struct_exprs(structdef; default = default, source = __source__))
 end
 
 # The field convention every IoMap keeps unless it says otherwise: it stores the

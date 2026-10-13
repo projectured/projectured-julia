@@ -440,9 +440,12 @@ admits one.
 
 **A macro-wrapped field may never hold a `Cell` or a `Computation` as its logical
 value.** Both are cell vocabulary, and the auto-wrapping constructor consumes
-them rather than storing them. A cell that a constructor gets becomes the cell of
-the field, whatever type of value it holds, and a `Computation` becomes the
-field's *derivation*, making it a computed cell. The declared type of a field is
+them rather than storing them. A cell that the constructor of a `@document` gets
+becomes the cell of the field, whatever type of value it holds; `@cell_struct`
+takes only a cell of the type of the field cell, and throws a `MethodError` for
+another. A `Computation` becomes the field's *derivation*, making it a computed
+cell. A write of a cell through the setter of either macro throws an
+`ArgumentError`, so a write can not store a cell as a value either. The declared type of a field is
 the type that the field holds. The reactive layout stores every field in a
 `ReactiveCell{Any}`, and it checks each write through the document against the
 declared type: the constructor, the setter, an operation, and an element write of

@@ -6,9 +6,12 @@
     CellStructPlan
 
 A `struct` definition, parsed: the name, the type parameters, the supertype, the
-fields and the defaults. Every builder of the struct layer reads it.
+fields and the defaults. The questions about the fields, the builders of the
+positional constructors and `build_cell_struct_exprs` read it.
 
-- `definition` is the `struct` expression. The builders change it in place.
+- `definition` is the `struct` expression. `add_cell_struct_field!` and
+  `retype_cell_struct_fields!` change it in place; `build_cell_struct_exprs` works
+  on a copy.
 - `parameters` holds each type parameter as the programmer wrote it, such as
   `A<:Real`. It is empty when the struct has none.
 - `supertype` is the supertype expression, or `nothing` when none is written.
@@ -30,7 +33,7 @@ them to the builders of the struct layer. `make_cell_struct_plan` makes one.
     plan.defaults                                   # Dict(:y => 0)
 
 See also `build_cell_struct_exprs`, which makes the whole struct of cells from a
-definition.
+definition or from a plan.
 """
 struct CellStructPlan
     definition               :: Expr
@@ -137,13 +140,15 @@ The field has the declared type `type` and the default `default`. Its slot holds
 `name::Any` until `retype_cell_struct_fields!` writes it.
 
 Use it to give each struct of your macro a field that the programmer does not
-write, such as a label or a link to a parent.
+write, such as a label or a link to a parent. Then give the plan to
+`build_cell_struct_exprs`, which makes the field with its type and its default.
 
 # Example
 
     plan = make_cell_struct_plan(:(struct Point; x::Int; end))
     add_cell_struct_field!(plan, :label; type = :String, default = "")
     plan.field_names                                # [:x, :label]
+    build_cell_struct_exprs(plan)                   # Point(x = 1).label == ""
 """
 function add_cell_struct_field!(plan::CellStructPlan, name::Symbol; type, default)
     body = plan.definition.args[3]
@@ -271,6 +276,44 @@ function _get_parameter_name(parameter::Expr)
     parameter.head === :comparison && return parameter.args[3]
     throw(ArgumentError("`$(parameter)` is not a type parameter"))
 end
+
+"""
+    get_cell_struct_parameter_bounds(plan) -> Vector
+
+The upper bound of each type parameter, as an expression: `Real` for `A<:Real`,
+`Int<:A<:Real` and `Real>:A>:Int`, and `Any` for `A` and `A>:Int`. A bound that
+names a type parameter, such as `B<:AbstractVector{A}`, gives `Any`, because a
+constructor that binds the parameters does not know `A` yet.
+
+Use it to bind a type parameter from an argument whose value type is not known,
+such as a computation: give the bound to `get_cell_struct_argument_type`.
+
+# Example
+
+    plan = make_cell_struct_plan(:(struct Box{T<:Real}; value::T; end))
+    get_cell_struct_parameter_bounds(plan)          # [:Real]
+
+See also `get_cell_struct_parameter_names`, which gives the names.
+"""
+function get_cell_struct_parameter_bounds(plan::CellStructPlan)
+    names = get_cell_struct_parameter_names(plan)
+    Any[(bound = _get_parameter_upper_bound(parameter);
+         _mentions_any_name(bound, names) ? Any : bound)
+        for parameter in plan.parameters]
+end
+
+_get_parameter_upper_bound(::Symbol) = Any
+function _get_parameter_upper_bound(parameter::Expr)
+    parameter.head === :(<:) && return parameter.args[2]
+    parameter.head === :comparison &&
+        return parameter.args[2] === :(>:) ? parameter.args[1] : parameter.args[5]
+    Any
+end
+
+_mentions_any_name(expression::Symbol, names) = expression in names
+_mentions_any_name(expression::Expr, names) =
+    any(argument -> _mentions_any_name(argument, names), expression.args)
+_mentions_any_name(expression, names) = false
 
 """
     find_cell_struct_parameter_slots(plan) -> Vector{Int} | nothing

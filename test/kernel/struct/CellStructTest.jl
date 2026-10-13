@@ -55,6 +55,34 @@ end
     m::MutableCell
 end
 
+# Fields that name the reactive kind under another leading kind.
+@cell_struct ImmutableCell struct CsNamedReactive
+    a::Cell
+    b::ReactiveCell{Int}
+    c::Int
+end
+
+# An untracked field whose value type is a type parameter.
+@cell_struct UntrackedCell struct CsUntrackedBox{A}
+    content::A
+end
+
+# A parameter that binds from no argument, and a field with a default.
+@cell_struct struct CsListDefault{A}
+    items::Vector{A}
+    count::Int = 0
+end
+
+# A mutable kind for every field.
+@cell_struct MutableCell struct CsMutableKind
+    a
+end
+
+# A reactive field that a computation reads.
+@cell_struct struct CsCounter
+    count::Int = 0
+end
+
 function test_cell_struct()
 @testset "CellStruct" begin
 
@@ -149,8 +177,50 @@ end
     @test x.m === 0
 end
 
+@testset "a field whose type names the reactive kind" begin
+    named = CsNamedReactive(1, 2, 3)
+    @test getfield(named, :a) isa Cell
+    @test getfield(named, :b) isa Cell              # `ReactiveCell{Int}` is a `Cell`
+    @test getfield(named, :c) isa ImmutableCell{Int}
+    # A reactive cell of another value type is not the cell of the field.
+    @test_throws MethodError CsNamedReactive(1, ReactiveCell{Int}(2), 3)
+    # A reactive field checks no declared type.
+    @test CsPlain(1, "text").b == "text"
+end
+
+@testset "a write of a cell through a field throws" begin
+    plain = CsPlain(1, 2)
+    exception = try plain.a = Cell(5) catch caught; caught end
+    @test exception isa ArgumentError
+    @test occursin("getfield(object, :a)", exception.msg)
+    @test plain.a == 1
+    @test_throws ArgumentError (CsImmutable(1, 2, 3).b = MutableCell(4))
+end
+
+@testset "a write of a new value makes a reader compute again" begin
+    counter = CsCounter()
+    doubled = Cell(@computation 2 * counter.count)
+    @test doubled[] == 0
+    counter.count = 0                               # the same plain value
+    @test is_cell_valid(doubled)
+    counter.count = 3
+    @test !is_cell_valid(doubled)
+    @test doubled[] == 6
+end
+
+@testset "the generated methods point to the declaration" begin
+    @test all(method -> endswith(String(method.file), "CellStructTest.jl"),
+              methods(CsDefaults))
+    for signature in ((CsDefaults, Symbol), (CsDefaults, Symbol, Any))
+        function_ = length(signature) == 2 ? Base.getproperty : Base.setproperty!
+        @test endswith(String(which(function_, signature).file), "CellStructTest.jl")
+    end
+    @test endswith(String(which(CsBox, (Any,)).file), "CellStructTest.jl")
+end
+
 @testset "the kind of a struct of cells" begin
     @test get_cell_struct_kind(CsPlain(1, 2)) === ReactiveCell
+    @test get_cell_struct_kind(CsMutableKind(1)) === MutableCell
     # Only the first field counts, and the second field of `CsImmutable` is mutable.
     @test get_cell_struct_kind(CsImmutable(1, 2, 3)) === ImmutableCell
     @test get_cell_struct_kind((1, 2)) === nothing      # the first field is not a cell
@@ -171,6 +241,19 @@ end
 
     @test CsList{Int}([1, 2]).items == [1, 2]
     @test_throws MethodError CsList([1, 2])
+    # A parameter that binds from no argument gives no keyword constructor either.
+    @test CsListDefault{Int}([1], 2).count == 2
+    @test_throws MethodError CsListDefault(items = [1])
+
+    # A computation, and a cell of `Any`, give the parameter its declared bound.
+    computed = CsBox(@computation 1)
+    @test computed isa CsBox{Any}
+    @test computed.content == 1
+    @test CsBounded(@computation(2.0), 1) isa CsBounded{Real}
+    @test CsBounded(Cell(2.0), 1) isa CsBounded{Real}
+    untracked = CsUntrackedBox(@computation 1)
+    @test untracked isa CsUntrackedBox{Any}
+    @test untracked.content == 1
 
     typed = CsTyped(1)
     @test typed isa CsTyped{Int}
@@ -191,6 +274,9 @@ end
           ImmutableCell
     @test parse_cell_struct_macro_arguments((:MutableCell, definition))[1] === MutableCell
     @test parse_cell_struct_macro_arguments((:Cell, definition))[1] === ReactiveCell
+    @test parse_cell_struct_macro_arguments((:ReactiveCell, definition))[1] === ReactiveCell
+    @test parse_cell_struct_macro_arguments((:UntrackedCell, definition))[1] ===
+          UntrackedCell
     @test_throws ArgumentError parse_cell_struct_macro_arguments((:Int, definition))
     @test_throws ArgumentError parse_cell_struct_macro_arguments(
         (:ImmutableCell, :x, definition))
@@ -203,6 +289,11 @@ end
     @test get_cell_struct_argument_type(1) === Int
     @test get_cell_struct_argument_type(ImmutableCell{Int}(1)) === Int
     @test get_cell_struct_argument_type(Cell(1)) === Any
+    @test get_cell_struct_argument_type(Cell(1), Real) === Real
+    @test get_cell_struct_argument_type(ReactiveCell{Int}(1), Real) === Int
+    @test get_cell_struct_argument_type(@computation 1) === Any
+    @test get_cell_struct_argument_type(Computation(() -> 1), Real) === Real
+    @test get_cell_struct_argument_type(1, Real) === Int
 end
 
 end

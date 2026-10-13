@@ -46,8 +46,10 @@ layer's codegen kit for everything that is not document-specific:
 - the keyword-constructor builders (`build_cell_struct_keyword_parameters`,
   `build_cell_struct_keyword_constructor`), and **Rule Y**
   (`build_cell_struct_positional_constructors`).
-Rule Y fills a trailing run of defaults positionally; it is a rule about any
-cell struct, not about documents. `@document` is then a parse plus six emitters, each a pure
+Rule Y fills a trailing run of defaults positionally. Only `@document` applies it:
+`@cell_struct`, `@iomap` and `@projection` do not, because a generated method with
+the signature of an outer constructor that the programmer wrote would overwrite it
+when the package precompiles. `@document` is then a parse plus six emitters, each a pure
 function of the plan. Use `@cell_struct` directly for a transparent-Cell struct
 that is none of the three framework kinds.
 

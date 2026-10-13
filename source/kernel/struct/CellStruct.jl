@@ -1,5 +1,6 @@
 # Fragment of `CellStructModule` — `@cell_struct`, the builders that return the parts
-# of a struct of cells as expressions, and the two functions that read a struct of
+# of a struct of cells as expressions, the function that gives the type that a
+# constructor argument binds, and the function that reads the kind of a struct of
 # cells at run time.
 
 """
@@ -43,15 +44,18 @@ function _build_cell_struct_autowrap_ctor(plan, field_types)
 end
 
 # The outer constructor `T(values…)` of a struct with type parameters. It binds each
-# parameter to the value type of the argument that `find_cell_struct_parameter_slots`
-# gives, and calls `T{A…}(values…)`. The result is `nothing` for a struct without
+# parameter to the type that `get_cell_struct_argument_type` gives for the argument
+# that `find_cell_struct_parameter_slots` names, with the declared bound of the
+# parameter, and calls `T{A…}(values…)`. The result is `nothing` for a struct without
 # type parameters, and for a struct with a parameter that binds from no argument.
 function _build_cell_struct_inferring_ctor(plan)
     isempty(plan.parameters) && return nothing
     slots = find_cell_struct_parameter_slots(plan)
     slots === nothing && return nothing
     arguments = [gensym(name) for name in plan.field_names]
-    bound = [:($(get_cell_struct_argument_type)($(arguments[slot]))) for slot in slots]
+    bounds = get_cell_struct_parameter_bounds(plan)
+    bound = [:($(get_cell_struct_argument_type)($(arguments[slot]), $(bounds[i])))
+             for (i, slot) in enumerate(slots)]
     :($(plan.name)($(arguments...)) =
           $(Expr(:curly, plan.name, bound...))($(arguments...)))
 end
@@ -61,7 +65,18 @@ end
 _build_cell_struct_property_accessors(type_name) = (
     :(Base.getproperty(object::$(type_name), name::Symbol) = getfield(object, name)[]),
     :(Base.setproperty!(object::$(type_name), name::Symbol, value) =
-          (getfield(object, name)[] = value)))
+          $(_write_cell_struct_field!)(object, name, value)))
+
+# The write `object.f = v`. A field holds a value, and a cell is not one, so a cell
+# throws: two structs share a cell only through the constructor. Where the compiler
+# knows the type of `value`, the test costs nothing.
+function _write_cell_struct_field!(object, name::Symbol, value)
+    value isa AbstractCell && throw(ArgumentError(
+        "`$(name)` of a $(nameof(typeof(object))) holds a value, and a cell is not " *
+        "one. To share a cell, give it to the constructor; " *
+        "`getfield(object, :$(name))` is the cell of the field."))
+    getfield(object, name)[] = value
+end
 
 """
     build_cell_struct_keyword_parameters(field_names, defaults) -> Vector
@@ -102,8 +117,8 @@ positional constructor.
 """
 function build_cell_struct_keyword_constructor(type_name, field_names; parameters)
     # `Expr(:call, type_name, field_names...)` lowers to `Core._apply_iterate` on the
-    # generic `Expr` constructor. A `juliac --trim=safe` build of omnet-julia reported
-    # that call as a verifier error, so `append!` builds the same expression.
+    # generic `Expr` constructor, which a `juliac --trim=safe` build rejects, so
+    # `append!` builds the same expression.
     call = Expr(:call, type_name)
     append!(call.args, field_names)
     :(function $(type_name)(; $(parameters...))
@@ -133,7 +148,9 @@ When `find_cell_struct_parameter_slots(plan)` returns `nothing`, the constructor
 name the type parameters: `type_name{A…}(f₁, …, f_k) where {A…}`.
 
 Use it to let a caller of your struct leave out the fields with a default at the
-end, as `Point(1)` for `Point(1, 0)`.
+end, as `Point(1)` for `Point(1, 0)`. `@cell_struct` does not call it: a generated
+method with the signature of a constructor that the programmer wrote outside the
+struct would overwrite it, so a macro that calls it must rule that out.
 
 # Example
 
@@ -167,40 +184,72 @@ function build_cell_struct_positional_constructors(plan::CellStructPlan, type_na
 end
 
 """
-    build_cell_struct_exprs(definition; default = ReactiveCell) -> Expr
+    build_cell_struct_exprs(definition; default = ReactiveCell, source = nothing) -> Expr
+    build_cell_struct_exprs(plan::CellStructPlan; default = ReactiveCell,
+                            source = nothing) -> Expr
 
 The code of `@cell_struct` for one `struct` definition: the struct with its fields
 written as cells and its inner constructor, the outer constructor that binds the
 type parameters, the property accessors, and the keyword constructor. `default` is
-the kind of a field whose type names no kind.
+the kind of a field whose type names no kind. The code gives `nothing`, as a
+`struct` definition does. A definition without a field comes back as it is.
+
+The second form takes a plan, so a macro can first change it, for example with
+`add_cell_struct_field!`. Neither form changes its argument: each works on a copy.
+
+`source` is the `LineNumberNode` of the declaration, such as `__source__` of the
+macro. The generated methods then point to it, so a stack trace and `methods(T)`
+name the line of the struct and not this file. With `nothing`, they point here.
 
 Use it to write a macro that makes a struct of cells with parts of its own, such
-as a default supertype. The macro changes `definition`, and then returns the
-result of this function escaped. The result names `new`, `getfield` and `Base`
-without a module, so it must be escaped.
+as a default supertype. The macro changes the definition or the plan, and then
+returns the result of this function escaped. The result names `new`, `getfield`
+and `Base` without a module, so it must be escaped.
 
 # Example
 
     macro shape(definition)
         definition.args[2] isa Symbol &&
             (definition.args[2] = :(\$(definition.args[2]) <: AbstractShape))
-        esc(build_cell_struct_exprs(definition))
+        esc(build_cell_struct_exprs(definition; source = __source__))
     end
 
 See also `parse_cell_struct_macro_arguments`, which reads a leading kind.
 """
-function build_cell_struct_exprs(definition; default = ReactiveCell)
-    plan = make_cell_struct_plan(definition)
-    isempty(plan.field_names) && return definition
+build_cell_struct_exprs(definition; default = ReactiveCell, source = nothing) =
+    _build_cell_struct_exprs!(make_cell_struct_plan(_copy_definition(definition)),
+                              default, source)
+
+build_cell_struct_exprs(plan::CellStructPlan; default = ReactiveCell, source = nothing) =
+    _build_cell_struct_exprs!(_copy_cell_struct_plan(plan), default, source)
+
+_copy_definition(definition) = definition isa Expr ? copy(definition) : definition
+
+# A copy of the plan that shares no expression with it, because the build writes
+# the line nodes of the defaults, the types and the parameters that it uses.
+_copy_cell_struct_plan(plan::CellStructPlan) = CellStructPlan(
+    copy(plan.definition), plan.name, Any[_copy_definition(p) for p in plan.parameters],
+    _copy_definition(plan.supertype), copy(plan.field_names),
+    Any[_copy_definition(t) for t in plan.field_types], copy(plan.field_slots),
+    Dict{Symbol,Any}(name => _copy_definition(value) for (name, value) in plan.defaults),
+    plan.declared_field_count, plan.programmer_default_count)
+
+# The parts of a struct of cells, from a plan that nothing else holds: the function
+# writes the field types and the inner constructor into its definition.
+function _build_cell_struct_exprs!(plan::CellStructPlan, default, source)
+    isempty(plan.field_names) && return plan.definition
     kinds       = get_cell_struct_field_kinds(plan; default = default)
     value_types = get_cell_struct_value_types(plan)
     field_types = Any[build_cell_struct_field_type(kinds[i], value_types[i])
                       for i in eachindex(kinds)]
     retype_cell_struct_fields!(plan, field_types)
     push!(plan.definition.args[3].args,
-          _build_cell_struct_autowrap_ctor(plan, field_types))
+          _set_cell_struct_source!(_build_cell_struct_autowrap_ctor(plan, field_types),
+                                   source))
     inferring = _build_cell_struct_inferring_ctor(plan)
-    parts = Any[:(Base.@__doc__ $(plan.definition))]
+    documented = :(Base.@__doc__ $(plan.definition))
+    source === nothing || (documented.args[2] = source)
+    parts = Any[documented]
     inferring === nothing || push!(parts, inferring)
     append!(parts, _build_cell_struct_property_accessors(plan.name))
     # The keyword constructor calls `T(values…)`, which a struct does not have when
@@ -210,7 +259,37 @@ function build_cell_struct_exprs(definition; default = ReactiveCell)
         push!(parts, build_cell_struct_keyword_constructor(plan.name, plan.field_names;
                                                            parameters))
     end
-    Expr(:block, parts...)
+    for i in 2:length(parts)
+        _set_cell_struct_source!(parts[i], source)
+    end
+    # The code gives `nothing`, as a `struct` definition does.
+    Expr(:block, parts..., nothing)
+end
+
+# Put `source` in place of each line node of a generated method, and at the start of
+# a body that has none, so the method points to the declaration. With `nothing`,
+# the method keeps the line nodes of this file.
+_set_cell_struct_source!(expression, ::Nothing) = expression
+
+function _set_cell_struct_source!(expression::Expr, source::LineNumberNode)
+    if expression.head in (:function, :(=)) && length(expression.args) == 2 &&
+       expression.args[2] isa Expr && expression.args[2].head === :block
+        body = expression.args[2]
+        isempty(body.args) || body.args[1] isa LineNumberNode ||
+            pushfirst!(body.args, source)
+    end
+    _replace_line_nodes!(expression, source)
+end
+
+function _replace_line_nodes!(expression::Expr, source::LineNumberNode)
+    for (i, argument) in enumerate(expression.args)
+        if argument isa LineNumberNode
+            expression.args[i] = source
+        elseif argument isa Expr
+            _replace_line_nodes!(argument, source)
+        end
+    end
+    expression
 end
 
 """
@@ -248,9 +327,9 @@ end
 
 A struct whose fields are cells, read and written like plain fields.
 
-Use it to keep state that computations read in a struct of your own. A read of
-`object.f` in a computation makes the computation depend on the field, and a write
-to `object.f` makes it compute again.
+Use it to keep state that computations read in a struct of your own. A read of a
+reactive field `object.f` in a computation makes the computation depend on the
+field, and a write of a new value to `object.f` makes it compute again.
 
 # Example
 
@@ -262,11 +341,14 @@ to `object.f` makes it compute again.
     counter.count = 3
     doubled[]                                       # 6
 
-Each field is a cell of one kind. A field `f::ImmutableCell{T}`,
-`f::MutableCell{T}` or `f::UntrackedCell{T}` has that kind. Every other field has
-the kind `Kind`, which is `ReactiveCell` when the macro gets no `Kind`. A reactive
-field is a `Cell`, so its declared type is not checked. An immutable, a mutable or
-an untracked field is a cell of the declared type.
+Each field is a cell of one kind. A field whose type names a kind has that kind:
+`f::ImmutableCell{T}`, `f::MutableCell{T}`, `f::UntrackedCell{T}`, and `f::Cell` or
+`f::ReactiveCell{T}` for the reactive kind, also under another `Kind`. Every other
+field has the kind `Kind`, which is `ReactiveCell` when the macro gets no `Kind`.
+A reactive field is a `Cell`, so its declared type is not checked, and a
+`ReactiveCell{T}` cell of another `T` is not the cell of the field: the constructor
+throws a `MethodError` for it. An immutable, a mutable or an untracked field is a
+cell of the declared type.
 
 The macro generates these parts:
 
@@ -274,7 +356,8 @@ The macro generates these parts:
   the cell of that field, and it wraps every other value in a new cell. A cell of
   another type throws a `MethodError`, so a field never holds a cell as its value.
 - `getproperty` and `setproperty!`. `object.f` reads the value of the cell, and
-  `object.f = v` writes it. `getfield(object, :f)` returns the cell.
+  `object.f = v` writes it. A cell as `v` throws an `ArgumentError`, because a
+  field holds a value. `getfield(object, :f)` returns the cell.
 - A keyword constructor, when a field has a default `f = value`. A field with a
   default is an optional keyword, and a field without one is a required keyword.
 
@@ -288,26 +371,37 @@ adds parts of its own.
 """
 macro cell_struct(arguments...)
     kind, definition = parse_cell_struct_macro_arguments(arguments)
-    esc(build_cell_struct_exprs(definition; default = kind))
+    esc(build_cell_struct_exprs(definition; default = kind, source = __source__))
 end
 
 """
-    get_cell_struct_argument_type(argument) -> Type
+    get_cell_struct_argument_type(argument, bound = Any) -> Type
 
-The type that a constructor argument gives to a type parameter: the value type of
-a cell, from `get_cell_value_type`, and the type of `argument` for any other value.
+The type that a constructor argument gives to a type parameter whose upper bound is
+`bound`: the value type of a cell, from `get_cell_value_type`, and the type of
+`argument` for any other value. A `Computation`, whose value type is not known
+before it runs, and a cell whose value type is `Any` give `bound`, the widest type
+that the declaration allows.
 
 Use it in a constructor that binds a type parameter from its arguments, so that
-an argument can be a cell or a value.
+an argument can be a cell, a computation or a value.
 
 # Example
 
     get_cell_struct_argument_type(1)                        # Int64
     get_cell_struct_argument_type(ImmutableCell{Int}(1))    # Int64
     get_cell_struct_argument_type(Cell(1))                  # Any
+    get_cell_struct_argument_type(Cell(1), Real)            # Real
+
+See also `get_cell_struct_parameter_bounds`, which gives the bound of each
+parameter.
 """
-get_cell_struct_argument_type(argument) = typeof(argument)
-get_cell_struct_argument_type(cell::AbstractCell) = get_cell_value_type(cell)
+get_cell_struct_argument_type(argument, bound = Any) = typeof(argument)
+get_cell_struct_argument_type(::Computation, bound = Any) = bound
+function get_cell_struct_argument_type(cell::AbstractCell, bound = Any)
+    value_type = get_cell_value_type(cell)
+    value_type === Any ? bound : value_type
+end
 
 _get_cell_kind(::Type{<:ReactiveCell})  = ReactiveCell
 _get_cell_kind(::Type{<:MutableCell})   = MutableCell
@@ -318,8 +412,8 @@ _get_cell_kind(::Type{<:UntrackedCell}) = UntrackedCell
     get_cell_struct_kind(x) -> Type{<:AbstractCell} | Nothing
 
 The kind of the cell in the first field of `x`: `ReactiveCell`, `MutableCell`,
-`ImmutableCell` or `UntrackedCell`. The result is `nothing` when `x` has no field, or when its first
-field is not a cell.
+`ImmutableCell` or `UntrackedCell`. The result is `nothing` when `x` has no field,
+or when its first field is not a cell.
 
 Use it to make a new struct of cells, such as a copy, in the kind of one that
 exists. The kind is a property of the cells and not of the type name.

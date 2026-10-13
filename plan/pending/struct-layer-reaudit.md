@@ -32,6 +32,41 @@ stay.
 
 - [x] 1. The audit: the four checks on the three files, and the state of L04-2 to L04-6
   on the current code. The lead confirms each finding in the code.
-- [ ] 2. The decisions of the owner, and the fixes, with a test for each.
-- [ ] 3. The walkthrough and the full guide.
+- [x] 2. The decisions of the owner, and the fixes, with a test for each.
+  - Both methods of `build_cell_struct_exprs` work on a copy and call a private
+    `_build_cell_struct_exprs!`; the generated block ends with `nothing`, as a
+    `struct` definition does (S4-1, S4-2).
+  - The setter refuses a cell with an `ArgumentError` (L04-2). The setter of
+    `@document` has a private refusal of its own, so the check adds no export.
+  - `get_cell_struct_parameter_bounds(plan)` is a new export, and
+    `get_cell_struct_argument_type(argument, bound = Any)` gives `bound` for a
+    `Computation` and for a cell of `Any`. The inferring constructors of
+    `@cell_struct` and `@document` pass the bound (L04-3). A bound that names
+    another parameter gives `Any`.
+  - L04-4: texts in `DocumentInterface.jl`, `DocumentSync.jl` and `ListNode.jl`; the
+    test of a record of mixed kinds exists already (`ContractMixedKinds`).
+  - L04-5: `macros.md` and the docstring of the positional builder.
+  - L04-6: the keyword `source`; `@cell_struct`, `@iomap` and `@projection` pass
+    `__source__`. `@document` does not call `build_cell_struct_exprs`.
+  - The texts of S4-3 … S4-9, and PAR-NO-NESTED-CELL. Each new test set of a fix
+    fails on the code before it (checked in a worktree at f8f42d393).
+- [x] 3. The walkthrough and the full guide. `print_cell_struct_example()` with its
+  exact-text test; `struct.md` in full. Checked: `test_cell_struct` 96,
+  `test_cell_struct_plan` 69, the walkthrough 2, the kernel suite 4504 of 4504, the
+  survey of `CellStructModule` clean, the documentation guard.
 - [ ] 4. An audit that finds nothing, then the seal on the owner's word.
+  - The second pass found R-1 (a comment promised `Point(1)`, which no Rule Y
+    makes), R-2 (the plan form with a `source` wrote the line nodes of the default
+    expressions that the copy shared with the caller), R-3 (a fragment header), and
+    the advice R-4 (`Real>:A>:Int` gave the lower bound), R-5 (a long line) and R-6
+    (`_is_naming_any_of` is `_mentions_any_name`). All six are fixed, R-2 and R-4
+    with a test. Checked: `test_cell_struct` 96, `test_cell_struct_plan` 72, the
+    walkthrough 2, the layering guard 10.
+  - The final check of the auditor: the four checks pass, and no finding is left.
+  - Each suite in its own process: the kernel suite 4504 of 4504, and every other
+    suite with the failure places of the baseline. `test_integration` reached its
+    60-minute bound, because the six fixes landed during the run and each later
+    suite compiled the packages again. Run part by part, it ended in 48 minutes
+    with the known failures, and one more: `test_evaluator_duplicate`, because the
+    Julia parser keeps comments since 948779e3a of another session. A scan of the
+    three repositories found no write of a cell through a setter.

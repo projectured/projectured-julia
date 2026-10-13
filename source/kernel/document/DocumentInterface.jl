@@ -346,7 +346,11 @@ writable kind (`ReactiveCell` or `MutableCell`); `source` may be any kind.
 
 Both shapes are handled: a **record** (children are named fields) syncs
 field-by-field, and a **positional collection** (`is_element_collection`) syncs
-its elements by index through the vector protocol.
+its elements by index through the vector protocol. A child that a record needs
+again is built in the kind of the cell of its own field, so the fields of a record
+can have different kinds. An element is built in the kind of the first field of
+the collection, which `get_cell_struct_kind` reads: a collection keeps one kind
+for all its elements.
 
 The shadow must be a **cell layout**, and the source may be either layout. A
 native tree holds no cells, so nothing in it can invalidate a reader and it is
