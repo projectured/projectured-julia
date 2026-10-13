@@ -141,6 +141,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `cell/CellInterface.jl`
   - 🔒 `cell/CellComputation.jl`
   - ⬜ `cell/ReactiveCell.jl`
+  - ⬜ `cell/CellWriterCheck.jl`
   - 🔒 `cell/CellFaultScope.jl`
   - 🔒 `cell/MutableCell.jl`
   - 🔒 `cell/ImmutableCell.jl`

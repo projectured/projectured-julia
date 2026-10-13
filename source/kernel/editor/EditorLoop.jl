@@ -179,8 +179,10 @@ function run_editor!(editor::Editor; mcp::Union{Bool,NamedTuple}=false,
             invalidate_projection!(editor)
         editor.fault_policy = fault_policy
         # From here on, a call that another task makes through
-        # `run_on_editor_task!` runs in a frame of this task.
+        # `run_on_editor_task!` runs in a frame of this task, and this task owns
+        # the cells: a write from another task is recorded.
         editor.loop_task = current_task()
+        add_cell_writer!(current_task())
         # The server renders the tool set when it starts, so it starts here:
         # a tool that the caller declares between `make_editor` and this call
         # reaches a client too.
@@ -254,6 +256,7 @@ function run_editor!(editor::Editor; mcp::Union{Bool,NamedTuple}=false,
         has_quit = true
     finally
         editor.loop_task = nothing
+        remove_cell_writer!(current_task())
         editor.has_loop_ended = true
         exception = _end_editor_loop!(editor, server)
         # An exception of the loop goes on, so the exception of a step goes on

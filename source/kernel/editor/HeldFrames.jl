@@ -53,12 +53,15 @@ function run_code_unit!(function_, editor::Editor; parts::Vector{String})
         catch exception
             (false, exception)
         finally
+            # A unit that outlives a quit owns the cells until it ends.
+            remove_cell_writer!(current_task())
             # Ends the wait of the held frame in progress; safe from any thread.
             Base.invokelatest(wake_backend!, editor.backend)
         end
     end
     unit.task = task
     @atomic editor.code_unit = unit
+    add_cell_writer!(task)
     schedule(task)
     # A confirm to quit throws here and leaves the unit running, and its owner.
     _run_held_frames!(editor, unit, task)

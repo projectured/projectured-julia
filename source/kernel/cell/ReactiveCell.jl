@@ -344,6 +344,7 @@ function _recompute!(c::ReactiveCell)
     # One task writes and reads the cells, so a read of a computing cell comes from
     # inside its own computation: a cycle.
     c.state === _COMPUTING && throw(CellCycleException(c))
+    _check_cell_writer(c)
     # The value that the readers of `c` read last, which the new value is compared
     # with. A failed cell has none: its next value is new to a reader that caught
     # its exception.
@@ -464,6 +465,7 @@ and `invalidate_cell!` makes them compute again with no write.
 function Base.setindex!(c::ReactiveCell{T}, value) where {T}
     converted = convert(T, value)
     _is_same_plain_value(c, converted) && return value
+    _check_cell_writer(c)
     @count_performance :writes
     _detach_upstream!(c)
     c.computation = nothing
@@ -482,6 +484,7 @@ _is_same_plain_value(c::ReactiveCell, value) =
 _is_plain_value(value) = isbits(value) || value isa Union{String,Symbol}
 
 function invalidate_cell!(c::ReactiveCell)
+    _check_cell_writer(c)
     if c.computation !== nothing && (c.state === _VALID || c.state === _FAILED || c.state === _MAYBE_INVALID)
         c.state = _INVALID
         @count_performance :invalidations
@@ -536,6 +539,7 @@ See also `set_cell_value!`, for the other direction, `@computation`, which makes
 the computation of an expression, and the guide `kernel/cell`.
 """
 function set_cell_computation!(c::ReactiveCell{T}, computation::Function) where {T}
+    _check_cell_writer(c)
     _detach_upstream!(c)
     c.computation = _capture_fault_scope(computation)
     nothing isa T && (c.value = nothing)

@@ -30,12 +30,19 @@ store hands each new record to the targets of the store, and reports on the
 console the records that no target took. A printer's fault arrives here too,
 recorded from inside a computation that could not report anything itself.
 
+It first records each write that a task which does not own the cells made to a
+cell that a computation reads ([`take_foreign_cell_writes!`](@ref)), as a fault
+whose message names that task.
+
 It also shows the mark of each fault barrier that took a fault since the last
 frame ([`show_barrier_mark!`](@ref)). A barrier writes its output cell for it,
 which a computation must not do, and this is the one point of a frame that runs
 outside every computation.
 """
 function report_frame_faults!(editor::Editor)
+    for write in take_foreign_cell_writes!()
+        record_fault!(editor.faults, :evaluate; origin = :cell_writer, exception = write)
+    end
     records = drain_faults!(editor.faults; policy = editor.fault_policy,
                             backend = editor.backend)
     _show_noted_marks!(editor)

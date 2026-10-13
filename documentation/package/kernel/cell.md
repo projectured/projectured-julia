@@ -166,6 +166,22 @@ inside a read. The animation clock follows the rule too: the editor writes its
 clock at the start of a frame, and a document that animates takes the clock of
 the editor that shows it.
 
+A code unit of the editor, such as a run of the code tool, runs on a thread of its
+own, and while it runs, its task is the owner. The editor task waits for it in
+held frames, which read no cell, so the cells still have one owner at a time.
+
+The engine checks the rule while an editor runs its loop. The editor registers its
+owner with `add_cell_writer!` and `remove_cell_writer!`: the task of its loop, and
+the task of a code unit while it runs. A write, a new computation, an
+invalidation, or the store of a computed value, to a cell that a computation reads,
+from any other task, is recorded once for that task as a
+`ForeignCellWriteException`. The editor takes the list with
+`take_foreign_cell_writes!` in its next frame and records each one as a fault. The
+write itself stands. With no registered owner, the check costs one atomic load,
+and an owner passes at one comparison for each running editor. A cell that no
+computation reads, such as a cell of a document that a task builds before it
+posts it, is not checked.
+
 ## A computation that throws
 
 A computation that throws makes its cell *failed*. The next read runs it again,
@@ -341,6 +357,7 @@ cell/CellModule.jl                (CellModule): the cell kinds, one file each
         ├─ CellInterface.jl   : AbstractCell{T} and the generics that every kind answers
         ├─ CellComputation.jl : Computation and @computation, the marker of a computation
         ├─ ReactiveCell.jl    : the pull-based reactive engine
+        ├─ CellWriterCheck.jl : the check that only the owner writes a cell that a computation reads
         ├─ CellFaultScope.jl  : the fault scope that a computation keeps, and where its fault goes
         ├─ MutableCell.jl     : a plain mutable box, with no reactive bookkeeping
         ├─ ImmutableCell.jl   : a read-only box

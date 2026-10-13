@@ -24,6 +24,7 @@ import ProjecturedKernel.EditorModule: Editor, run_editor!, run_frame!, post_ope
                                        get_consecutive_fault_limit, is_editor_degraded,
                                        RunFunctionOperation
 import ProjecturedKernel.FaultModule: FaultPolicy, get_fault_records
+using ProjecturedKernel.CellModule: Cell, @computation
 import ProjecturedKernel.OperationModule: Operation, evaluate_operation,
                                           make_inverse_operation, QuitEditorOperation
 using ProjecturedKernelExample
@@ -158,6 +159,20 @@ function _barrier_editor(; feeds::Vector{Feed} = Feed[])
     (editor, backend, log)
 end
 
+# A feed that runs `act` in its first drain, and ends the loop in its third, so
+# the second frame reports what the first one did.
+mutable struct ForeignWriteProbeFeed <: Feed
+    act::Function
+    drains::Int
+end
+
+function FeedModule.drain_changes!(feed::ForeignWriteProbeFeed, editor)
+    feed.drains += 1
+    feed.drains == 1 && feed.act()
+    feed.drains == 3 && post_operation!(editor, QuitEditorOperation())
+    0
+end
+
 function test_editor_fault_barriers()
 @testset "the fault barriers of the editor loop" begin
 
@@ -289,6 +304,21 @@ function test_editor_fault_barriers()
         # The wall time since the loop started: more than no time, less than a
         # generous bound.
         @test 0 < get_clock_time(editor.clock) < 5
+    end
+    @testset "a write of a cell from a task that does not own it is a fault" begin
+        source = Cell(0)
+        reader = Cell(@computation source[] + 1)
+        reader[]
+        writes = Ref(0)
+        # A feed that, in its first drain, lets a task of the default pool write
+        # the cell, and ends the loop in its third.
+        feed = ForeignWriteProbeFeed(() -> fetch(Threads.@spawn (source[] = 7)), 0)
+        editor, _, _ = _barrier_editor(; feeds = Feed[feed])
+        run_editor!(editor)
+        records = get_fault_records(editor.faults)
+        @test any(record -> record.origin === :cell_writer &&
+                            record.exception_type === :ForeignCellWriteException, records)
+        @test reader[] == 8
     end
 end
 end
