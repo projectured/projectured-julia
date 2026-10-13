@@ -1,11 +1,11 @@
 # Strict document types
 
 **Status (2026-10-13): IN PROGRESS.** The check of declared types, the list rule, and the JSON and
-XML fields landed on `main` on 2026-10-09, and the laws of §6 changed after it. Steps 1 to 7 are
+XML fields landed on `main` on 2026-10-09, and the laws of §6 changed after it. Steps 1 to 8 are
 done; the Julia fields of Step 4 were built with
-[formula-references-by-name.md](../done/formula-references-by-name.md) (its Step 6). Step 8 goes
-on domain by domain: Markdown is on `main` since `59703dd8f`, RST since `22723b1ba`, and math is
-done on the branch `strict-types-math`. The leftovers of Steps 0 and 4 (group 4, omnet-julia and
+[formula-references-by-name.md](../done/formula-references-by-name.md) (its Step 6). Step 8 went
+on domain by domain: Markdown is on `main` since `59703dd8f`, RST since `22723b1ba`, and math
+with the landing of the branch `strict-types-math`. The leftovers of Steps 0 and 4 (group 4, omnet-julia and
 inet-julia) wait: the owner deferred them on 2026-10-13. The owner asked for this plan in
 the decision walk of [kernel-audit-fixes.md](kernel-audit-fixes.md), at L10-13, and accepted the
 model of §3 on 2026-10-05: no foreign type, and a field that admits other domains declares
@@ -1033,7 +1033,7 @@ worktree. The three domains test different parts of the model:
     `JsonNumber(42)` allocates 144 bytes and `StyleFont(…)` 0 bytes, the same with the check
     and without it. The constructor checks each field with its type known, so a typed cell
     costs nothing.
-- [ ] **Step 8: the owner decides** whether the other domains follow, and in which order.
+- [x] **Step 8: the owner decides** whether the other domains follow, and in which order.
   *The loose fields of the other domains (2026-10-13)*, counted in the `@document` structs:
   RST 44 types, 33 lists with no element type; Markdown 18 types, 11 such lists; math 22
   types, 18 `Document` fields; workflow 9 lists; FSM 8 lists and 9 `Any`; process 3 lists and
@@ -1101,7 +1101,7 @@ worktree. The three domains test different parts of the model:
   `RstDocument.jl` of `main` gives the same failures, example by example. `rst/grid_table`
   gives 3 more passes in each view, from `widths`, by the list rule.
 
-  *Math, done on the branch `strict-types-math` (2026-10-13):* math is a tree of expressions,
+  *Math, landed with the branch `strict-types-math` (2026-10-13):* math is a tree of expressions,
   not a flow, so the rule that applies is the third one, what works today. Numbers are
   `PrimitiveNumber`, which the parser makes and both views draw, so a place of an expression
   declares `MathOperand = Union{MathDocument, PrimitiveNumber}`, a new alias in
