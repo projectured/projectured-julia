@@ -47,9 +47,38 @@ A kind that holds its value, and not a computation, is always valid. An
 `UntrackedCell` answers `true` too, although each read of a computed one runs its
 computation.
 
-See also `set_cell_computation!` and `ReactiveCell`.
+See also `set_cell_computation!`, `invalidate_cell!` and `ReactiveCell`.
 """
 function is_cell_valid end
+
+"""
+    invalidate_cell!(cell) -> nothing
+
+Make every cell that reads `cell` invalid, and the cells that read those, with no
+write. A cell that holds a computation becomes invalid too, so its next read
+computes again. A cell that holds a value keeps it.
+
+Use it after a change that a write does not show, such as a change inside a
+mutable value that the cell holds. A write of plain data that is `===` to the
+value of the cell invalidates nothing, so this is also the way to make the
+readers compute again then. Call it where a write could stand, never inside a
+computation, because one task writes and reads a set of cells, in phases.
+
+# Example
+
+    rows = Cell([1, 2])
+    total = Cell(@computation sum(rows[]))
+    total[]                    # 3
+    push!(peek(rows), 3)
+    invalidate_cell!(rows)
+    total[]                    # 6
+
+A `MutableCell`, an `ImmutableCell` and an `UntrackedCell` record no reader, so the
+call does nothing for them.
+
+See also `is_cell_valid`, and `c[] = value`, the write that invalidates the readers.
+"""
+function invalidate_cell! end
 
 """
     unwrap_cell(x) -> value

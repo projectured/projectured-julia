@@ -333,11 +333,17 @@ early stop and leaves cells stale forever.
 ### PAR-WRITE-DRIVEN-PROPAGATION
 
 **Treat propagation as write-driven, not value-driven.** Writing a cell
-invalidates its dependents unconditionally — there is no `old == new`
-short-circuit, and a computation that returns an unchanged value does not stop
-propagation. Consequently `c[] = c[]` is not free: a printer that rewrites
-`selection` (or any cell) every frame pays to recompute the whole subtree that
-reads it. Write a cell only when its value actually needs to change.
+invalidates its dependents. There is no `old == new` check, and a computation
+that returns an unchanged value does not stop propagation. One write is exempt:
+plain data that is `===` to the value that the cell holds, written into a cell
+that holds no computation, invalidates nothing. Plain data is a value that is
+`isbits`, a `String` or a `Symbol`; it can not change inside, so no reader can
+tell the write from no write. A write of the same mutable value still
+invalidates. So `c[] = c[]` of a mutable value is not free: a printer that
+rewrites `selection` every frame pays to recompute the whole subtree that reads
+it. Write a cell only when its value needs to change. After a change that a
+write does not show, such as a change inside a mutable value, call
+`invalidate_cell!(c)`.
 
 ### PAR-NO-PROJECTION-GLOBALS
 

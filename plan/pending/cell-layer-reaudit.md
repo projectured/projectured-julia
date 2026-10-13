@@ -298,11 +298,19 @@ instance, so sending the clock in is fine."
   failures only: `test_tree_render` (no field `size`), and the opt-in sweeps
   `test_selection_localities` (graphics cells of the caret, as on 2026-10-01) and
   `test_value_localities`.
-- [ ] 3. `invalidate_cell!(c)`: a cell with a computation becomes invalid, and the walk
+- [x] 3. `invalidate_cell!(c)`: a cell with a computation becomes invalid, and the walk
   marks its readers; a cell that holds a value keeps it, and the walk marks its
   readers. A write of the same plain value does not invalidate: `===` on a value that
   is `isbits`, a `String`, a `Symbol` or `nothing`. PAR-WRITE-DRIVEN-PROPAGATION and
   the design decision change; T-12 flips.
+  The check runs only when the cell holds no computation, so a write of a value into
+  a computed cell still ends the computation and invalidates. `nothing` is `isbits`.
+  A scan of the three repositories found one write of a cell's own value,
+  `_touch_cell!` of `Operations.jl`, after a change inside a mutable value; it calls
+  `invalidate_cell!` now. `DirtyRectTest.jl` tests a box that computes to the same
+  place with `invalidate_cell!`, because a write of the same width writes nothing.
+  The walkthrough shows both. Checked: `test_cell` 227, the kernel suite 4457 of
+  4457, the survey finds no gap.
 - [ ] 4. The clock has no heartbeat: `start_wall_clock!`, `stop_wall_clock!` and the
   field `heartbeat` are gone. The rotating-vector example takes the clock of the
   editor that shows it. PAR-STORE-THEN-DRAIN and PAR-SINGLE-WRITER have no exception.

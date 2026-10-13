@@ -390,12 +390,12 @@ function _find_cell_anchor(root, reference::ConcreteReference)
      reference = Reference(steps[anchor.first:end]...))
 end
 
-# Write a cell with the value that it holds, so each reader of it reads again. A
-# computed cell keeps its computation, which a write would end.
+# Make each reader of `cell` read again, after a change inside the value that it
+# holds. A computed cell is left as it is: it would compute again, and lose the
+# change.
 function _touch_cell!(cell)
     is_computed_cell(cell) && return nothing
-    cell[] = cell[]
-    nothing
+    invalidate_cell!(cell)
 end
 
 _format_no_cell_message(parent) =

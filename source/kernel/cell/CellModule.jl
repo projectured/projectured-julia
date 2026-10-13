@@ -36,7 +36,7 @@ using Base.ScopedValues: ScopedValue, with
 using ..FaultModule
 using ..PerformanceModule
 
-export AbstractCell, is_cell_valid, unwrap_cell, get_cell_value_type,
+export AbstractCell, is_cell_valid, invalidate_cell!, unwrap_cell, get_cell_value_type,
        make_similar_cell, is_computed_cell, get_cell_computation, has_dependent_cells,
        record_cell_fault!
 export Computation, @computation

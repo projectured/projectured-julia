@@ -58,7 +58,8 @@ c[] = v                       # write a value, and invalidate the dependents
 c[] = @computation expr       # write a computation, and invalidate the dependents
 set_cell_value!(c, v)         # the same as c[] = v
 set_cell_computation!(c, f)   # the same as c[] = Computation(f)
-is_cell_valid(c)         # can the next read return the value with no computation?
+is_cell_valid(c)              # can the next read return the value with no computation?
+invalidate_cell!(c)           # invalidate the readers, and a computation of c, with no write
 ```
 
 `peek(c)` is an **untracked** read. It returns the value and records no
@@ -89,7 +90,8 @@ The engine invalidates at once, and it computes only on a read:
 - `c[] = v` or `set_cell_computation!(c, f)` walks the dependents of `c`, and
   their dependents, and marks each one invalid. No computation runs. The walk
   stops at a dependent that is invalid already, and at a computing dependent:
-  see the next section.
+  see the next section. A write of plain data that is `===` to the value of `c`
+  walks nothing, and `invalidate_cell!(c)` walks with no write.
 - The next `c[]` of a cell that is not valid calls `_recompute!(c)`. It
   removes the old upstream edges, runs the computation with tracking, and stores
   the new value.
@@ -200,13 +202,16 @@ and not an error.
   write from another task, or a write inside a read phase, can leave a reader
   valid with a stale value. See
   [Who writes and reads cells, and when](#who-writes-and-reads-cells-and-when).
-- **Propagation follows the writes, not the values.** A write to a cell always
-  invalidates its dependents, with **no equality check**. A write of the value
-  that the cell holds already still makes everything downstream invalid, and
-  each cell computes again at its next read. A
-  computation that returns an unchanged value does *not* stop the propagation. So
-  `c[] = c[]` has a cost: a printer that writes `selection` in each frame pays for
-  the whole subtree that it feeds. See
+- **Propagation follows the writes, not the values.** A write to a cell
+  invalidates its dependents, with **no `==` check**. Only a write of plain data
+  that is `===` to the value that the cell holds invalidates nothing: a value
+  that is `isbits`, a `String` or a `Symbol`, into a cell that holds no
+  computation. A write of the same mutable value still makes everything
+  downstream invalid, because the value can have changed inside. A computation
+  that returns an unchanged value does *not* stop the propagation. So `c[] = c[]`
+  of a mutable value has a cost: a printer that writes `selection` in each frame
+  pays for the whole subtree that it feeds. `invalidate_cell!(c)` makes the
+  readers compute again with no write. See
   [the design-decisions note](../../design/architecture-decisions.md#10-propagation-is-write-driven-not-value-driven).
 - **A computation must be pure and deterministic in its cell inputs.** A
   computation can run zero, one or many times for one logical change, and the
@@ -331,7 +336,7 @@ theme. A plain value makes a constant, and a write is a `MethodError`.
 The kind is an immutable struct with one pointer, so a struct of cells holds it
 inline, and two structs can share its function.
 
-Public surface: `AbstractCell`, `is_cell_valid`, `unwrap_cell`,
+Public surface: `AbstractCell`, `is_cell_valid`, `invalidate_cell!`, `unwrap_cell`,
 `get_cell_value_type`, `make_similar_cell`, `is_computed_cell`,
 `get_cell_computation`, `has_dependent_cells`, `run_without_cell_tracking`, `Computation`,
 `@computation`, `ReactiveCell`, `Cell`, `CellCycleException`, `set_cell_value!`,

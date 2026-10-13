@@ -27,6 +27,14 @@ false
 julia> total[]
 36
 
+# A write of the same plain value, such as a number or a string, invalidates nothing.
+julia> price[] = 12; is_cell_valid(total)
+true
+
+# invalidate_cell! makes the readers compute again with no write.
+julia> invalidate_cell!(price); is_cell_valid(total)
+false
+
 # `peek` reads a cell and records no dependency, so the reader does not follow a write.
 julia> shown = Cell(@computation peek(price)); shown[]
 12

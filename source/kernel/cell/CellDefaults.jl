@@ -1,7 +1,7 @@
 # Fragment of `CellModule` — the bodies of `unwrap_cell`, `get_cell_value_type`,
 # `make_similar_cell`, `is_computed_cell`, `get_cell_computation`,
-# `has_dependent_cells` and `record_cell_fault!`, which `CellInterface.jl`
-# declares. The methods of each generic stand side by side, one for each kind. The
+# `has_dependent_cells`, `record_cell_fault!` and the fallback of
+# `invalidate_cell!`, which `CellInterface.jl` declares. The methods of each generic stand side by side, one for each kind. The
 # file also keeps a `Computation` out of the two kinds that can not compute.
 
 unwrap_cell(x) = x isa AbstractCell ? x[] : x
@@ -21,6 +21,9 @@ get_cell_computation(::AbstractCell) = nothing
 get_cell_computation(c::ReactiveCell) = c.computation
 
 has_dependent_cells(::AbstractCell) = false
+
+# A kind that records no reader has no reader to invalidate.
+invalidate_cell!(::AbstractCell) = nothing
 
 function has_dependent_cells(c::ReactiveCell)
     ds = c.dependents

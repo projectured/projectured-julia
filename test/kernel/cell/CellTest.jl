@@ -247,12 +247,73 @@ end
     @test !has_dependent_cells(a)
 end
 
-@testset "an equal write still makes the readers invalid" begin
+@testset "a write of the same plain data makes no reader invalid" begin
     x = Cell(1)
     y = Cell(@computation x[] + 1)
     @test y[] == 2
     x[] = 1
+    @test is_cell_valid(y)
+    for (old, same) in (("text", String(['t', 'e', 'x', 't'])), (:name, :name),
+                        (nothing, nothing), ((1, 2.5), (1, 2.5)))
+        source = Cell(old)
+        reader = Cell(@computation source[])
+        reader[]
+        source[] = same
+        @test is_cell_valid(reader)
+    end
+    # A value that is equal and not identical is a change.
+    z = Cell(1)
+    w = Cell(@computation z[] * 2)
+    w[]
+    z[] = 1.0
+    @test !is_cell_valid(w)
+    @test w[] == 2.0
+end
+
+@testset "a write of the same mutable value makes the readers invalid" begin
+    rows = Cell([1, 2])
+    total = Cell(@computation sum(rows[]))
+    @test total[] == 3
+    push!(peek(rows), 3)
+    rows[] = peek(rows)
+    @test !is_cell_valid(total)
+    @test total[] == 6
+end
+
+@testset "a write of a value into a computed cell makes the readers invalid" begin
+    x = Cell(@computation 1)
+    y = Cell(@computation x[] + 1)
+    @test y[] == 2
+    x[] = 1                       # the same value, but the computation ends
+    @test !is_computed_cell(x)
     @test !is_cell_valid(y)
+end
+
+@testset "invalidate_cell! makes the readers compute again" begin
+    rows = Cell([1, 2])
+    total = Cell(@computation sum(rows[]))
+    doubled = Cell(@computation 2 * total[])
+    @test doubled[] == 6
+    push!(peek(rows), 3)
+    @test invalidate_cell!(rows) === nothing
+    @test is_cell_valid(rows)                 # a value cell keeps its value
+    @test !is_cell_valid(total)
+    @test !is_cell_valid(doubled)
+    @test doubled[] == 12
+    # A computed cell becomes invalid too, and computes again at its next read.
+    runs = Ref(0)
+    counted = Cell(@computation (runs[] += 1; length(peek(rows))))
+    reader = Cell(@computation counted[] + 1)
+    @test reader[] == 4
+    invalidate_cell!(counted)
+    @test !is_cell_valid(counted)
+    @test !is_cell_valid(reader)
+    @test reader[] == 4
+    @test runs[] == 2
+    # The kinds that record no reader do nothing.
+    @test invalidate_cell!(MutableCell(1)) === nothing
+    @test invalidate_cell!(ImmutableCell(1)) === nothing
+    @test invalidate_cell!(UntrackedCell{Int}(@computation 1)) === nothing
 end
 
 @testset "a read on another task records no reader" begin

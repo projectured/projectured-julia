@@ -162,9 +162,18 @@ the same events, and projection reader code stays unchanged.
 ## 10. Propagation is write-driven, not value-driven
 
 When a cell that holds a value is written, the engine invalidates its transitive
-dependents **unconditionally** — there is no `old == new` short-circuit, and a
-computed cell that recomputes to an unchanged value does not stop propagation.
-The engine is deliberately *not* glitch-free or value-stabilising.
+dependents. There is no `old == new` check, and a computed cell that recomputes
+to an unchanged value does not stop propagation. The engine is deliberately
+*not* glitch-free or value-stabilising.
+
+One write is exempt: plain data that is `===` to the value that the cell holds,
+written into a cell that holds no computation. Plain data is a value that is
+`isbits`, a `String` or a `Symbol`. Such a value can not change inside, so `===`
+proves that no reader can see a difference, and the check needs no `==` of a
+document payload and no value of a cell that was never pulled. A mutable value
+can change inside, so a write of the same mutable object still invalidates.
+`invalidate_cell!(cell)` makes the readers compute again with no write, for a
+change that a write does not show.
 
 The reason is simplicity and predictability. Change detection by value would
 require every cell to retain and compare its previous value, and to define a
@@ -172,9 +181,9 @@ meaningful `==` for arbitrary document payloads. It also interacts badly with
 laziness: a cell that was never pulled has no previous value to compare
 against. Keeping propagation keyed on *writes* makes the cost model easy to
 reason about: work is proportional to what is written and then pulled.
-The practical consequence to keep in mind is that writing a cell to its own
-current value is **not** free. For example, a printer that rewrites `selection`
-every frame pays to recompute the whole subtree that reads it. See
+The practical consequence to keep in mind is that writing a mutable value to
+the cell that holds it is **not** free. For example, a printer that rewrites
+`selection` every frame pays to recompute the whole subtree that reads it. See
 [the reactive invariants](../package/kernel/cell.md#invariants-the-engine-relies-on).
 
 ---

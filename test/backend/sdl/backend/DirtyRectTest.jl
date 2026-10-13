@@ -406,8 +406,8 @@ end
     SDL._compute_dirty_rect(res, top)
     @test SDL._compute_dirty_rect(res, top) === nothing
 
-    # The same width again: the box is computed again to the same place.
-    window[] = 400
+    # The box is computed again, to the same place.
+    invalidate_cell!(window)
     @test SDL._compute_dirty_rect(res, top) === nothing
 
     # A wider window moves the pane from x=100 to x=150: the old box and the new.

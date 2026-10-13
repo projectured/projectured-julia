@@ -324,16 +324,40 @@ end
 Make `c` hold `value`, and invalidate every cell that reads `c`, and the cells
 that read those. If `c` held a computation, it holds `value` in its place. A value
 that does not convert to the value type of `c` throws, and `c` stays as it was.
+
+A write of plain data that is `===` to the value that `c` holds, when `c` holds no
+computation, invalidates nothing. Plain data is a value that is `isbits`, a
+`String` or a `Symbol`: it can not change inside, so no reader can tell the write
+from no write. A write of the same mutable value still invalidates the readers,
+and `invalidate_cell!` makes them compute again with no write.
 """
 function Base.setindex!(c::ReactiveCell{T}, value) where {T}
     converted = convert(T, value)
     @count_performance :writes
+    _is_same_plain_value(c, converted) && return value
     _detach_upstream!(c)
     c.computation = nothing
     c.value = converted
     c.state = _VALID
     _invalidate_dependents!(c)
     return value
+end
+
+# Whether `c` holds no computation and holds `value` already as plain data, which
+# can not change inside, so that a write of it changes nothing that a reader sees.
+_is_same_plain_value(c::ReactiveCell, value) =
+    c.computation === nothing && isdefined(c, :value) && _is_plain_value(value) &&
+    c.value === value
+
+_is_plain_value(value) = isbits(value) || value isa Union{String,Symbol}
+
+function invalidate_cell!(c::ReactiveCell)
+    if c.computation !== nothing && (c.state === _VALID || c.state === _FAILED)
+        c.state = _INVALID
+        @count_performance :invalidations
+    end
+    _invalidate_dependents!(c)
+    nothing
 end
 
 """
@@ -344,7 +368,7 @@ Put a value into a cell, and invalidate every cell that read it.
 Use it to write a cell that held a computation and must now hold a value, or to
 write one from code that reads better with a verb than with `c[] = value`,
 which does the same. Everything that read the cell computes again on its next
-read.
+read, unless the write is of the same plain data that the cell holds.
 
 # Example
 
