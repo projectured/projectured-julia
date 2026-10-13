@@ -1,10 +1,11 @@
 # Strict document types
 
-**Status (2026-10-12): IN PROGRESS.** The check of declared types, the list rule, and the JSON and
-XML fields landed on `main` on 2026-10-09, and the laws of §6 changed after it. Steps 1 to 4, 6
-and 7 are done; the Julia fields of Step 4 were built with
-[formula-references-by-name.md](../done/formula-references-by-name.md) (its Step 6). Step 5 is not
-started, and step 8 is a decision of the owner. The owner asked for this plan in
+**Status (2026-10-13): IN PROGRESS.** The check of declared types, the list rule, and the JSON and
+XML fields landed on `main` on 2026-10-09, and the laws of §6 changed after it. Steps 1 to 7 are
+done; the Julia fields of Step 4 were built with
+[formula-references-by-name.md](../done/formula-references-by-name.md) (its Step 6). Step 8 goes
+on domain by domain: Markdown is done on the branch `markdown-strict-fields`, RST and math are
+not started. The owner asked for this plan in
 the decision walk of [kernel-audit-fixes.md](kernel-audit-fixes.md), at L10-13, and accepted the
 model of §3 on 2026-10-05: no foreign type, and a field that admits other domains declares
 `Document`. The pilot domains are Julia, JSON and XML.
@@ -1052,6 +1053,22 @@ worktree. The three domains test different parts of the model:
      link) and the cells of a table row admit **what works today**: the nodes that the views
      draw there, found by the inventory. The owner: "if anything comes up later we can change
      the types and the projections".
+
+  *Markdown, done on the branch `markdown-strict-fields` (2026-10-13):* the inline flow
+  declares `CellVector{MarkdownDocument}`, the block flow `CellVector{Document}`, `items`
+  `Union{MarkdownListItem, MarkdownInsertion}`, `rows` `Union{MarkdownTableRow,
+  MarkdownInsertion}`, the entries of a row `Union{MarkdownParagraph, MarkdownInsertion}`, and
+  `alignments` `Vector{Symbol}`. The inventory ran in the `:record` mode over `test_markdown`,
+  `test_file_project`, `test_workflow_file`, `test_help`, `test_documents` and the Markdown
+  examples, and found no Markdown record. No view draws a node of another domain inline, and
+  only two test files outside the domain build Markdown nodes. `test_markdown` passes in the
+  `:throw` mode, 268 of 268.
+
+  *A finding outside Markdown, on `main` since the `JuliaObject` narrowing:* `test_file_project`,
+  "every other format spells its own leaf", errors for Julia. The test puts a bare `JsonObject`
+  in a `JuliaBlock`, and a program write does not convert. With a `JuliaObject` in its place,
+  the save writes `⟨JuliaCall⟩`, not `pred_ref("…")`, and returns `true`; the load then fails
+  with `unsupported Julia construct: :error`. The owner decides the fix.
 
 The laws change only when the pilot lands (§6).
 
