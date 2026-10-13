@@ -63,8 +63,8 @@ mutable struct _JsonReaderEditor
     iomap::Any
 end
 
-# Drive the JSON reader command set (the Lisp `json/read-command` plus the
-# array/object insert and Tab readers). Each JSON projection must work as the
+# Drive the JSON reader command set: the readers of the JSON values, and the
+# array/object insert and Tab readers. Each JSON projection must work as the
 # whole document on its own, so the cursor is placed with a whole-element
 # selection and a raw key gesture is fed straight to the root JSON reader.
 function test_json_to_syntax_reader()

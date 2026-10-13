@@ -8,7 +8,6 @@
 # When the elements list is empty, falls back to the stored recursion
 # (or the outer recursion if none was stored).
 #
-# Mirrors the design of `nesting.lisp` in the Common Lisp codebase.
 # Transparent: `output` forwards the child iomap's output through a cell, so the
 # IoMap keeps its identity while the nested projection re-derives
 # (PAR-STABLE-IOMAP-IDENTITY); `iomap.child_iomap` reads the child.

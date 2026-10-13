@@ -254,9 +254,9 @@ read_intent(seq::ChainingProjection, iomap::ChainingIoMap, payload) =
     read_intent(seq, nothing, Intent(payload), iomap).operation
 
 # Where threading one gesture stops at the first stage that answers, a collection
-# takes every stage's answer. This is the one place the two differ, and it is
-# Lisp's `merge-commands`: a stage returns its own commands merged with the ones
-# its child produced, rather than whichever came first.
+# takes every stage's answer. This is the one place the two differ: a stage
+# returns its own commands merged with the ones its child produced, rather than
+# whichever came first.
 #
 # Walk last stage to first. At each step, map what the later stages contributed
 # into this stage's input domain — the same backward threading an ordinary

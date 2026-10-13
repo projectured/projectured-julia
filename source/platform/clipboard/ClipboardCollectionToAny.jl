@@ -1,7 +1,6 @@
 # Fragment of `ClipboardModule`.
 #
-# The internal-clipboard collection projection — Julia port of Lisp's
-# `clipboard/collection->t` (`source/platform/projection/primitive/clipboard-to-t.lisp`).
+# The internal-clipboard collection projection.
 #
 # `ClipboardCollectionToAnyProjection` sits on a `ClipboardCollection` document
 # and shows either the wrapped `content` or the `elements` collection, toggled by
@@ -107,7 +106,7 @@ end
 
 # ── Reader gesture helpers ───────────────────────────────────────────────
 
-# Add the selected object to the front of the collection (matches Lisp `push`).
+# Add the selected object to the front of the collection.
 function _clipboard_collection_add(input)
     _, obj = _selected(input)
     obj isa Document || return nothing

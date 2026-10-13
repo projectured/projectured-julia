@@ -1,7 +1,6 @@
 # Fragment of `ClipboardModule`.
 #
-# The internal-clipboard slice projection — Julia port of Lisp's
-# `clipboard/slice->t` (`source/platform/projection/primitive/clipboard-to-t.lisp`).
+# The internal-clipboard slice projection.
 #
 # `ClipboardSliceToAnyProjection` sits on a `ClipboardSlice` document and shows
 # either the wrapped `content` or the stored `slice`, toggled by `Ctrl+/`. Copy,

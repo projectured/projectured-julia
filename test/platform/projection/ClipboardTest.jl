@@ -190,7 +190,7 @@ end
     @test op.operations[2] isa ReplaceSelectionOperation
 
     # Paste with no stored slice does not fire: it falls through to the content
-    # reader (matching Lisp's merge-commands). With no replace produced here, the
+    # reader. With no replace produced here, the
     # clipboard does not emit a paste compound.
     empty_slice = ClipboardSlice(PrimitiveString("x"))
     empty_slice.selection = cpath(FieldReferenceStep("content"))

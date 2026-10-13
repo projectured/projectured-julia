@@ -38,8 +38,7 @@ in two coordinate frames:
 
 A reader returns an `Intent`: it either keeps `operation === nothing` (it had
 nothing to say) or returns a fresh `Intent` with the gesture preserved and a real
-operation swapped in (cf. Lisp's `clone-command`; the original names this
-type `command`).
+operation swapped in.
 
 **A reader that reroots an operation must preserve the labels.** Rerooting changes
 where an operation points, never what it is called.
@@ -143,9 +142,8 @@ CollectedIntentsOperation() = CollectedIntentsOperation(Intent[])
 """
     merge_collected_intents(a, b) -> CollectedIntentsOperation
 
-Both collections, `a` first. The reader equivalent of Lisp's `merge-commands`:
-where a reader routing one gesture takes the first answer, a reader answering
-`CollectIntents` takes every answer.
+Both collections, `a` first. Where a reader routing one gesture takes the first
+answer, a reader answering `CollectIntents` takes every answer.
 """
 merge_collected_intents(a::CollectedIntentsOperation, b::CollectedIntentsOperation) =
     CollectedIntentsOperation(vcat(a.intents, b.intents))

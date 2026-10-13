@@ -1248,8 +1248,8 @@ end
 # Gesture-aware reader. With the originating gesture in hand, all pointer-driven
 # tree behaviour is resolved here — the text/graphics layers below stay dumb and
 # emit only a plain character cursor. Click reinterpretations are keyed off
-# `change.gesture isa MouseClick` (the Lisp `(typep -gesture- 'gesture/mouse/click)`)
-# so keyboard navigation that lands on the same glyph still places the cursor:
+# `change.gesture isa MouseClick`, so keyboard navigation that lands on the same
+# glyph still places the cursor:
 #   1. A click on a node's inline marker (either state) or its collapsed ellipsis
 #      is a fold gesture → toggle that specific node.
 #   2. Alt+click promotes the click to a whole-element (tree) selection on the

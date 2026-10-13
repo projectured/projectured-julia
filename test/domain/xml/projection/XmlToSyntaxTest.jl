@@ -32,8 +32,8 @@ mutable struct _XmlReaderEditor
     iomap::Any
 end
 
-# Drive the XML reader command set (the Lisp xml/insertion, xml/element and
-# xml/attribute readers). Each XML projection must work as the whole document on
+# Drive the XML reader command set: the insertion, element and attribute
+# readers. Each XML projection must work as the whole document on
 # its own, so the cursor is placed with a selection and a raw key gesture is fed
 # straight to the root XML reader.
 function test_xml_to_syntax_reader()

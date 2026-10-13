@@ -1,5 +1,5 @@
-# Fragment of `DocumentModule` — deep copy of document subtrees. The Julia
-# counterpart of Lisp's `deep-copy`. Unlike `Base.deepcopy` it understands the
+# Fragment of `DocumentModule` — deep copy of document subtrees. Unlike
+# `Base.deepcopy` it understands the
 # Cell-wrapped field convention and allocates fresh `Cell`s, so the copy is
 # independent of the original's reactive graph. Two forms:
 #

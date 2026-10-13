@@ -8,8 +8,7 @@
 #
 # The directory printer places a name leaf as children[1] and wraps all
 # recursively-projected element outputs in a body SyntaxNode, which puts each on
-# a line of its own one level in, as children[2], mirroring the Lisp
-# file-system-to-syntax/indentation layout.
+# a line of its own one level in, as children[2].
 #
 # When the downstream `SyntaxToText` is configured with expand/collapse markers,
 # pass `marker_eligible = is_filesystem_marker_eligible` so the fold marker lands on

@@ -24,9 +24,8 @@ The gesture that summons the help window: F1, with any modifiers. It is an ordin
 reified pattern, owned here rather than by the input vocabulary — an event carries no
 intent, so "F1 means help" is this projection's decision and no one else's.
 
-Lisp binds help to Ctrl-H; F1 is unambiguous here, where Ctrl-? would need
-`Ctrl+Shift+/` handling. A key chord would work too, once a chord table entry and a
-chord pattern exist.
+F1 is unambiguous, where Ctrl-? would need `Ctrl+Shift+/` handling. A key chord
+would work too, once a chord table entry and a chord pattern exist.
 """
 const HELP_GESTURE = KeyDownPattern(:f1)
 

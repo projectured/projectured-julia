@@ -1,7 +1,6 @@
 # Fragment of `SyntaxModule`.
 #
-# The insert-by-typing mechanism, ported from the Common Lisp ProjecturEd
-# `document-to-syntax.lisp` — now with the live completion hint and green/red
+# The insert-by-typing mechanism, with the live completion hint and green/red
 # commitability colouring.
 #
 # `InsertionToSyntaxLeaf(commit; prefix, suffix, completion)` projects any
@@ -29,8 +28,7 @@
 # domain scope), and constructors all come from `DomainModule`'s
 # reflection — nothing here is a table. The chain is *domain-independent
 # insertion (`DocumentInsertion`) → domain-specific insertion
-# (`DomainInsertionToSyntaxLeaf(root)`) → the domain's values*, exactly as in
-# the Lisp editor.
+# (`DomainInsertionToSyntaxLeaf(root)`) → the domain's values*.
 #
 # Nothing here names a domain. A domain that wants a *source* insertion — one
 # that commits by parsing rather than by naming a type — builds its own leaf from

@@ -6,9 +6,8 @@
 # authoring gestures to invert — so it is a plain leaf printer with no reader or
 # reference mappers.
 #
-# Greyed (not-applicable) rows are styled muted and tagged, the v1 of the Lisp
-# `accessible` colouring: a row that cannot fire for the current selection is shown
-# but dimmed.
+# Greyed (not-applicable) rows are styled muted and tagged: a row that cannot fire
+# for the current selection is shown but dimmed.
 #
 # The projection holds its styles and no theme; `make_gesture_map_syntax_projection`
 # fills them from a theme.
