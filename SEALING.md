@@ -137,15 +137,15 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `performance/PerformanceCounter.jl`
   - 🔒 `performance/FrameMeasurement.jl`
 - **Layer 3 — cell** (`cell/`)
-  - ⬜ `cell/CellModule.jl`
-  - ⬜ `cell/CellInterface.jl`
-  - ⬜ `cell/CellComputation.jl`
-  - ⬜ `cell/ReactiveCell.jl`
-  - ⬜ `cell/CellFaultScope.jl`
-  - ⬜ `cell/MutableCell.jl`
-  - ⬜ `cell/ImmutableCell.jl`
-  - ⬜ `cell/UntrackedCell.jl`
-  - ⬜ `cell/CellDefaults.jl`
+  - 🔒 `cell/CellModule.jl`
+  - 🔒 `cell/CellInterface.jl`
+  - 🔒 `cell/CellComputation.jl`
+  - 🔒 `cell/ReactiveCell.jl`
+  - 🔒 `cell/CellFaultScope.jl`
+  - 🔒 `cell/MutableCell.jl`
+  - 🔒 `cell/ImmutableCell.jl`
+  - 🔒 `cell/UntrackedCell.jl`
+  - 🔒 `cell/CellDefaults.jl`
 - **Layer 4 — struct** (`struct/`)
   - ⬜ `struct/CellStructModule.jl`
   - ⬜ `struct/CellStructPlan.jl`
