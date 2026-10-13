@@ -176,9 +176,11 @@ clipboard, so the list names the gestures of the walk and of the clipboard too.
 function wrap_editor!(::Val{:gesture_help}, layer::Symbol, argument, parts::EditorParts)
     options = argument === true ? (;) : argument
     parts.projection = GestureHelpDecoratorProjection(inner = parts.projection, state = GestureHelpState())
-    push!(parts.opened_window_projections,
-          GestureMap => make_gesture_map_projection(get(options, :measure, FontFileMeasure());
-                                                    _get_gesture_help_themes(parts)...))
+    # First: the screen takes the first row whose type the content has, and a wrapper
+    # of a lower layer, such as the shell, ends its rows with one for any `Document`.
+    pushfirst!(parts.opened_window_projections,
+               GestureMap => make_gesture_map_projection(get(options, :measure, FontFileMeasure());
+                                                         _get_gesture_help_themes(parts)...))
     parts
 end
 

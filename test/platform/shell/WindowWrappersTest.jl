@@ -50,6 +50,16 @@ _ww_help_rows(screen) =
     [row.description for row in only(window.content for window in screen.windows
                                      if window.content isa GestureMap).rows]
 
+# The texts drawn in `node` and below it.
+function _ww_drawn_texts(node, texts = String[])
+    node = _cm_force(node)
+    node === nothing && return texts
+    hasproperty(node, :text) && push!(texts, String(_cm_force(node.text)))
+    hasproperty(node, :elements) &&
+        foreach(element -> _ww_drawn_texts(element, texts), _cm_force(node.elements))
+    texts
+end
+
 function test_window_wrappers()
 @testset "the features of a window as wrappers of build_editor" begin
 
@@ -204,6 +214,18 @@ end
         _ww_click_help_item!(editor, backend, screen, id, "Gestures", 5.0)
         @test length(screen.windows) == 1
     end
+end
+
+@testset "shell: the help window draws its rows through its own row, not the shell's row for any document" begin
+    editor, backend = _ww_editor(PrimitiveString("x"); window = (; width = 800, height = 600),
+                                 shell = true, gesture_help = true)
+    screen = get_wrapped_document(editor.document)
+    _ww_press!(editor, backend, WindowInput(screen.windows[1].id, KeyDown(:f1, ModifierKeys(); time = 0.0)))
+    help = only(window for window in screen.windows if window.content isa GestureMap)
+    texts = _ww_drawn_texts(_cm_drawn_window(editor, screen, help.id))
+    @test any(description -> any(text -> occursin(description, text), texts), _ww_help_rows(screen))
+    # The row for any document draws a row as a reflected value, by its type name.
+    @test !any(==("GestureRow"), texts)
 end
 
 @testset "shell: Command palette in the Help menu does what Ctrl+Shift+P does" begin
