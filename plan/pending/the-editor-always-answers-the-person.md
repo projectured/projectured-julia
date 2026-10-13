@@ -5,9 +5,10 @@
 > threads, etc. then we should design it that way. Of course, race conditions,
 > dead locks, live locks should be avoided at all costs." Nothing is built.
 >
-> **Decided by the owner, 2026-10-13:** D1 (option A), D7, the rules a, b, c and
-> d of §5.7 with d in its narrow form, and the permission P1 for one sentence of
-> a sealed file. **Open:** the decisions D2 to D6, one at a time.
+> **Decided by the owner, 2026-10-13:** D1 (option A), D2 (option B), D7, the
+> rules a, b, c and d of §5.7 with d in its narrow form, the permission P1 for
+> one sentence of a sealed file, and step 6 for formulas. **Open:** the
+> decisions D3 to D6 and D8, one at a time.
 >
 > This plan takes in three earlier plans: `a-long-evaluation-does-not-hold-the-editor.md`
 > (on the branch `plan-evaluation-off-editor`, deferred on 2026-10-09),
@@ -32,6 +33,7 @@ The plan (D1, option A):
   the hourglass pointer, a busy bar that names the unit, and a stop control. It
   touches no cell, and it leaves the other input for the frames after the unit.
 - A stop ends our own waits at once, and model code at its next wait (D6).
+- A formula computes off the loop, and the print reads its stored value (step 6).
 - Julia's default threads are enough. With one thread, a unit runs on thread 1,
   as today.
 
@@ -220,8 +222,9 @@ The loop, while it waits for a unit:
 - after 0.5 s, draws a busy bar over the picture with the description of the
   unit, its time, and a stop control;
 - reads the stop gesture (D3) and the close of a window (D4);
-- leaves every other input in the queue of the backend, in order, for the frames
-  after the unit (D2).
+- leaves the keys in the queue of the backend, in order, for the frames after the
+  unit, and drops each pointer press and motion that starts during a held frame.
+  A press that started before the held frame keeps its release (D2).
 
 A held frame reads no cell, applies no operation, drains no feed and writes no
 fault store. It reads the description, the start time and the stop flag of the
@@ -323,7 +326,7 @@ B is ever needed.
 | `execute_julia_code` from a native turn, MCP or ACP | holds the window | a unit: held frames, the stop |
 | An evaluation of the composer or the evaluator | holds the window | a unit |
 | Any other tool call | holds the window | a unit |
-| A formula in a print | holds the window | as today; §5.8 records a slow frame; a plan of its own moves it off the loop |
+| A formula in a print | holds the window | the print reads a stored value; the formula computes off the loop (step 6) |
 | An operation, a feed drain, a print | fast (D1) | as today; §5.8 records a slow frame |
 | A storm of faults | the frame reports them | as today |
 | An MCP request while a unit runs | waits with no bound | waits in the inbox with the bound T3 (30 s), then an error result (D5) |
@@ -363,9 +366,11 @@ B is ever needed.
   step 2 that makes a unit write the store, so that it describes code that
   exists.
 - **D1. Decided by the owner, 2026-10-13: A** (§4).
-- **D2. Input during a held frame:** keep it in order and apply it after the
-  unit, or drop it and say so. Recommended: keep it. A terminal, Emacs and a
-  browser keep input.
+- **D2. Decided by the owner, 2026-10-13: B.** A held frame keeps the keys in
+  order for the frames after the unit, as a terminal does, and drops the pointer
+  presses and motion that start during it. A click aims at a picture, and the unit
+  can change what is under the pointer. The other options were A, keep all input,
+  and C, drop all input.
 - **D3. The stop gesture:** the stop control on the busy bar, and Escape while the
   bar shows. Before the bar shows, Escape stays input for the document.
   Recommended as written.
@@ -385,8 +390,17 @@ B is ever needed.
   one to the other, copying and synching stuff." So each editor has its own
   owner, and a unit holds only the document work of its own editor. The
   documents that two editors share today change in step 5 (L21-1).
+- **D8. What starts the update of a formula** (step 6). A print must not start
+  work (PAR-PURE-THUNK), and an edit of the code of a formula is an edit of its
+  syntax, which no operation of the formula domain sees. A: a feed that the
+  formula domain registers with the editor. Its drain runs on the loop, outside
+  every computation, reads for each formula a key of its inputs (its code and the
+  values of its dependencies, a pure and cheap cell), and starts the computation
+  of each formula whose key changed. B: a new kind of cell whose computation runs
+  off the loop and writes its value later through the door. Recommended: A. It
+  uses the feed and the door that exist, and the cell engine stays as it is.
 
-## 9. The steps (after P1 and the decisions)
+## 9. The steps (after the decisions)
 
 - [ ] **1. A probe**, in a throwaway program outside the repository: the SDL loop
   on thread 1, a unit pinned to thread 2 with its supervisor, the handoff, held
@@ -415,7 +429,27 @@ B is ever needed.
   door; no lock across a post in ACP; and each document that two editors share
   today (L21-1: the session fault log, and the stores of the log and statistics
   feeds) becomes one for each editor, or a copy that a feed keeps in sync (D7).
-- [ ] **6. The rules, the guides and the checks:** a new invariant for the units
+- [ ] **6. Formulas off the loop.** The owner, 2026-10-13: "the formula value
+  should be stored in the document explicitly and updated by the projection on a
+  task/thread out of the printer loop to avoid making the editor unresponsive".
+  Today `result` is a cell whose computation runs the code of the formula, set by
+  `wire_result!` (`FormulaDocument.jl:574`), so a print or any read runs it. The
+  step:
+  - `result` becomes a stored value of the document, with the key of the inputs
+    that it was computed from. A print reads only the stored value, and shows a
+    mark while the key of the inputs differs.
+  - The computation runs on a task of the default pool. It gets its inputs as
+    values, as `evaluate_formula` already binds them in a `let`, so it reads no
+    document. Its value comes back through the door, and a value computed for a
+    key that is no longer current is dropped. Formulas compute one at a time, in
+    the order of their dependencies.
+  - `get_formula_value` in a unit answers the value for the current inputs: it
+    computes on the task of the unit when the stored value is not current. So a
+    script that adds a formula and reads its value at once still works. Its users
+    in omnet-julia (`StudyCheck.jl`, `StudyVerbs.jl`, `StudyToWidget.jl`,
+    `StudyFile.jl`, `IdePrecompile.jl`) follow.
+  - What starts an update is D8.
+- [ ] **7. The rules, the guides and the checks:** a new invariant for the units
   and the held frames, the limits in `editor.md`, `mcp.md`, `mcp-guide.md` and
   `assistant.md`, the tests of each layer, and a live check of each row of §6
   with the real application. The hourglass plan and the branch
@@ -426,7 +460,4 @@ B is ever needed.
 Option B · the services off thread 1, which needs `-t 2` · code in a
 separate process, which alone can stop a loop that never waits · the
 process-wide swap of stdout in the code tool (L18-4) · editing of other
-documents while a code unit runs · formulas, a plan of its own; the owner,
-2026-10-13: "the formula value should be stored in the document explicitly and
-updated by the projection on a task/thread out of the printer loop to avoid
-making the editor unresponsive".
+documents while a code unit runs.
