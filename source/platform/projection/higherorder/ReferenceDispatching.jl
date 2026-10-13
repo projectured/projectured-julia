@@ -76,13 +76,28 @@ end
 # it prints is no dependency of the choice. `output` forwards the output of the
 # inner IO map through a cell, which keeps the identity of this IO map while the
 # inner one changes (PAR-STABLE-IOMAP-IDENTITY).
-@iomap struct ReferenceDispatchingIoMap
+#
+# The dispatch adds nothing to what the chosen projection prints, so a property
+# that it does not have is the property of the inner IO map: a parent that reads
+# the grid of a pane, or the cells of a grid, reads them through the dispatch as
+# if it were not there, as it reads them through a fault barrier.
+struct ReferenceDispatchingIoMap <: IoMap
     projection::Any
     input::Any
-    output::Any
+    output::Any           # the cell of the output of the inner IO map
     reference::Any        # the `reference` arg used at print time
-    inner_iomap::Any      # the iomap of the chosen inner projection
+    inner_iomap::Any      # the cell of the iomap of the chosen inner projection
 end
+
+function Base.getproperty(iomap::ReferenceDispatchingIoMap, name::Symbol)
+    (name === :output || name === :inner_iomap) && return getfield(iomap, name)[]
+    hasfield(ReferenceDispatchingIoMap, name) && return getfield(iomap, name)
+    getproperty(getfield(iomap, :inner_iomap)[], name)
+end
+
+Base.propertynames(iomap::ReferenceDispatchingIoMap, private::Bool = false) =
+    unique((fieldnames(ReferenceDispatchingIoMap)...,
+            propertynames(getfield(iomap, :inner_iomap)[], private)...))
 
 function print_document(rdp::ReferenceDispatchingProjection, recursion, input, ctx)
     if rdp.applies !== nothing && !rdp.applies(ctx)
@@ -115,6 +130,11 @@ function map_reference_backward(::ReferenceDispatchingProjection, iomap::Referen
     inner = iomap.inner_iomap
     return map_reference_backward(get_iomap_projection(inner), inner, reference)
 end
+
+# The dispatch adds nothing to the output of the projection that it chose, so a
+# printer that looks at the IoMap of a child sees the IoMap of that projection, as
+# it sees through a fault barrier.
+get_content_iomap(iomap::ReferenceDispatchingIoMap) = get_content_iomap(iomap.inner_iomap)
 
 # Where `applies` answered `false`, the dispatch gave the IO map of the projection
 # that it printed, and the projection that holds the dispatch calls it with that

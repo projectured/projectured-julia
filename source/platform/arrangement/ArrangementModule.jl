@@ -38,8 +38,8 @@ export ArrangementDocument, ArrangementEntry, ArrangementChips, ArrangementFilte
 export ArrangeCollectionOperation, make_arrangement_change_edit, make_first_arrangement, make_entry_removal_edit
 export make_arrangement_projection, ArrangingProjection, ArrangingIoMap, make_arranged_dispatch,
        find_arranged_projection, ArrangedChainingProjection, get_arranged_wrap_steps
-export PickingProjection, PickingIoMap, get_arrangement_value, compute_filter_rows, is_condition_holding,
-       compute_sort_rows, compare_arrangement_values
+export PickingProjection, PickingIoMap, get_arrangement_value, find_arrangement_key_value, compute_filter_rows,
+       is_condition_holding, compute_sort_rows, compare_arrangement_values
 export ArrangementBarProjection, ArrangementBarIoMap
 export compute_shown_rows, make_field_caret_reference, find_arranged_place, is_in_find_field,
        make_find_field_selection, make_first_find, make_find_move

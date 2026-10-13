@@ -786,7 +786,7 @@ The branch lands on `main` only with the word of the owner.
 For each step, run the narrowest test: the test files of the step, through
 `ProjecturedPlatformTest`. Do not run `test_all()`.
 
-- [ ] **1. The roster slice, its document and its generics.**
+- [x] **1. The roster slice, its document and its generics.** Done 2026-10-14.
   - Add the slice `source/platform/roster/`, module `RosterModule`, after
     `natural` in `ProjecturedPlatform.jl`. Add it to the layering guard of the
     platform.
@@ -805,6 +805,46 @@ For each step, run the narrowest test: the test files of the step, through
     of JSON objects; a write of one item makes only its own row out of date;
     the parts of `ItemsWithin` and the key `within`; a facet key and a path
     key.
+  - **What the step found and decided:**
+    - The generic `make_roster_parts` is two generics, `collect_roster_parts(source,
+      link)` and `collect_roster_items(source, link, part)`. The roster keeps the
+      cell of each part itself, by the identity of the part, so a source holds no
+      cache and stays a plain value. The naming law gives `collect_`: they gather
+      from several places.
+    - A source is a plain immutable struct, not a `@document`. It is data, so a
+      file and the assistant can still write it.
+    - `rows` is one `CellVector{RosterRow}` that keeps its identity. Its elements
+      compute from the parts. The roster keeps the slot of the row of each item,
+      so a row that stays keeps its cells. An item that two parts give is one
+      row.
+    - `link` is a field of the roster: the document of the window, which
+      `link_roster!` sets. A roster with no link has no rows.
+    - The roster is opaque to the walk of the documents (`is_walk_opaque`), as
+      `AssistantList` is: its rows are the items of other places.
+    - The arrangement gets a public generic, `find_arrangement_key_value(item,
+      key)`, in place of a private helper. A row answers a key through the value
+      cell of its column, or through `compute_roster_value`.
+    - `PickingProjection` keeps the element type of a `CellVector`. So the picked
+      rows of a filter or a sort are a `CellVector{RosterRow}`, which the natural
+      renderer prints as a roster table.
+    - `RosterToGraphics` prints `rows` through the recursion at the path `rows`.
+      So an arrangement entry at `rows` works as at any collection, with no
+      code of the roster for it.
+    - **A widget table could not print inside an arrangement.** Inside an
+      arrangement, every part prints through the arranged dispatch, also the
+      panes and the grids that a table prints. The table reads fields of those
+      IO maps, such as `content_iomap`, and the `ReferenceDispatchingIoMap` did
+      not pass them on. The fault barrier states the law that a wrapper IO map
+      keeps: a parent reads the IO map of the part through it, as if it were not
+      there. So `ReferenceDispatchingIoMap` is now a plain struct, as
+      `FaultCatchingIoMap` is, and passes an unknown property on to its inner
+      IO map. It also answers `get_content_iomap`.
+    - A facet is declared on the name of a type, such as `_RosterRun`, but an
+      item of a `@document` type has a type with parameters. So
+      `collect_item_facets` asks each type of the chain and the name of each.
+    - The cell layer renamed its names on `main` while this plan was written:
+      `is_cell_up_to_date` is `is_cell_valid`, and `run_untracked` is
+      `run_without_cell_tracking`. Section 2.2 keeps the old words.
 
 - [ ] **2. The table of a roster, and an edit through a row.**
   - `RosterToWidget` prints the rows as a `WidgetTable`: a header with the

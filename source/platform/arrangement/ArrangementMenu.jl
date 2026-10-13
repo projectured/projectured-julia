@@ -26,7 +26,7 @@ function find_arranged_item(document, path)
         index = step.start + 1
         (1 <= index <= length(collection)) || continue
         key = extend_reference(EmptyReference(), steps[k + 2:end]...)
-        return (at = at, index = index, key = key, value = _find_key_value(collection[index], key))
+        return (at = at, index = index, key = key, value = find_arrangement_key_value(collection[index], key))
     end
     nothing
 end

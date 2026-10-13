@@ -24,7 +24,10 @@ end
 
 function print_document(p::PickingProjection, recursion, input::CellVector, ctx)
     rows = Cell(@computation collect(Int, p.compute_rows(input)))
-    output = CellVector(@computation Any[input[i] for i in rows[]])
+    # The output has the element type of the input, so a printer that draws a
+    # collection of one kind of element draws the picked items as it draws them all.
+    output = CellVector{find_declared_element_type(input)}()
+    set_cell_computation!(getfield(output, :elements), () -> Cell[Cell(input[i]) for i in rows[]])
     set_output_path_computations!(output, input, path -> _map_picked_forward(rows[], path))
     PickingIoMap(p, input, output, rows)
 end
@@ -98,9 +101,19 @@ values, such as the number of a JSON number.
 get_arrangement_value(value) = value
 get_arrangement_value(document::PrimitiveDocument) = document.value
 
-# The value at the path `key` inside `item`; the empty path is the item itself.
-_find_key_value(item, key::EmptyReference) = get_arrangement_value(item)
-_find_key_value(item, key::Reference) = get_arrangement_value(try_evaluate_reference(item, key, nothing))
+"""
+    find_arrangement_key_value(item, key::Reference) -> Any
+
+The value at the path `key` inside `item`, which a condition compares and a sort
+orders: the value of `item` itself for the empty path, and else the value that
+the path reaches, each read with `get_arrangement_value`; `nothing` when the path
+reaches nothing. A kind of item whose keys are not only the paths of its fields
+adds a method, as a row of a roster does for its columns.
+"""
+function find_arrangement_key_value(item, key::Reference)
+    key isa EmptyReference && return get_arrangement_value(item)
+    get_arrangement_value(try_evaluate_reference(item, key, nothing))
+end
 
 """
     compute_filter_rows(filter, items) -> Vector{Int}
@@ -129,7 +142,7 @@ function is_condition_holding(condition::ArrangementCondition, item)
         operator === :contains && isempty(string(expected)) && return true
         return _is_any_value_holding(operator, expected, item, IdSet{Any}(), 0)
     end
-    _is_value_holding(operator, _find_key_value(item, condition.key), expected)
+    _is_value_holding(operator, find_arrangement_key_value(item, condition.key), expected)
 end
 
 # Whether `actual` compares with `expected` by `operator`.
@@ -178,7 +191,7 @@ equal in every key. A missing value comes last in either direction.
 """
 function compute_sort_rows(sort::ArrangementSort, items)
     keys = Any[key for key in sort.keys]
-    values = [Any[_find_key_value(items[i], key.key) for key in keys] for i in 1:length(items)]
+    values = [Any[find_arrangement_key_value(items[i], key.key) for key in keys] for i in 1:length(items)]
     before(i, j) = begin
         for (n, key) in enumerate(keys)
             a, b = values[i][n], values[j][n]
