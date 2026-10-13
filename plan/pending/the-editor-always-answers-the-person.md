@@ -1,6 +1,6 @@
 # The editor always answers the person
 
-> **Status (2026-10-13): IN PROGRESS, step 1.** The work runs on the branch
+> **Status (2026-10-13): IN PROGRESS, step 1 done.** The work runs on the branch
 > `editor-always-answers`, in the worktree `projectured-julia-answers`. The owner
 > asked on 2026-10-12: "The editor cannot become unresponsive in any
 > circumstances. [...] If this needs new tasks, threads, etc. then we should
@@ -612,7 +612,7 @@ nothing.
 
 ## 9. The steps (after the decisions)
 
-- [ ] **1. A probe**, in a throwaway program outside the repository: the SDL loop
+- [x] **1. A probe**, in a throwaway program outside the repository: the SDL loop
   on thread 1, a unit pinned to a default thread, the start and the end of a
   unit, held frames from the retained picture, the hourglass and a busy bar from
   textures made before the unit. Units: `sleep(10)` with the stoppable `sleep`,
@@ -622,6 +622,44 @@ nothing.
   100 ms; the delay from a key press to its picture does not grow in a frame with
   no unit; the keys of a held frame arrive in order after the unit; the effect of
   a collection and of a compile on the held frames.
+
+  **Done 2026-10-13** with `/var/tmp/editor-answers-probe/probe.jl` (SDL2 2.32.10,
+  SDL2_ttf 2.24.0, Julia 1.13.1 with its default threads, a live window on
+  `DISPLAY=:0`). 12 of 13 checks pass; the one that fails is the limit of §7:
+  - The unit ran on thread 2, a default thread, and the loop on thread 1.
+  - A stop by Escape ended the stoppable `sleep` 28 ms after the Escape, and the
+    first close of the window ended it too.
+  - Held frames pumped the events at least every 60 ms during a `sleep`, a loop
+    that allocates, a loop with calls and no allocation, an offscreen render and
+    a compile. A present took at most 0.4 ms.
+  - `SDL_FilterEvents` is the tool of a held frame. It drops each pointer event
+    whose time is at or after the start of the hold, keeps the keys and the
+    window events, and takes an Escape whose time is at or after the busy bar,
+    and a close. SDL gives a pushed event the time of `SDL_PushEvent`, so the
+    rule holds for pushed events too. The keys arrived after the unit in order,
+    the pointer events of the hold were dropped, a press from before the hold
+    kept its release, and an Escape before the bar stayed a key.
+  - `SDL_PollEvent` stops at a sentinel that marks the end of the events of the
+    last pump (SDL 2.0.22 and later). So a read after a hold can need a second
+    frame; the loop already runs a frame at once while events wait.
+  - 100,000 offscreen renders with TTF text, a software renderer on a surface
+    and no start of SDL video, ran on thread 2 for 1.44 s while thread 1 presented
+    143 times, with no fault (A1).
+  - A compile of a function of 4000 statements on thread 2 took 0.34 s, and the
+    largest gap between held frames was 21 ms.
+  - The limit of §7 is real. In a loop with no call and no allocation, a
+    collection that thread 1 started waited 1967 ms, until the loop ended. In a
+    loop with calls (`time()`, `sin`) and no allocation, the same collection took
+    3 ms.
+  - One early run showed gaps of 0.5 to 1 s between held frames, and no later
+    run did; that run did not time its presents. A present that waits for vsync
+    is the likely cause. If it comes back, a held frame turns vsync off with
+    `SDL_RenderSetVSync` (step 4).
+  - Not done here: the delay from a key press to its picture in a frame with no
+    unit. That is a measurement of time, so it needs an idle machine and the
+    word of the owner, and it belongs to step 2, where the real loop exists.
+    GNOME was not watched for "not responding": the gaps stayed far under its
+    5 s, except in the loop with no call (2 s).
 - [ ] **2. Units in the kernel editor layer:** `CodeUnit`, `run_code_unit!`, the
   task pinned to a default thread that is not the loop's and the fallback inline,
   the start and the end of a unit, the held frames while the loop waits,
@@ -637,7 +675,8 @@ nothing.
   defaults. SDL: the pump; the keys and the window events left in the queue; the
   pointer events of the windows of the editor dropped; the retained present; the
   resize; the pointer; the busy bar from textures; the stop control; the close;
-  and the offscreen render of `write_image` with no SDL video (A1). The web
+  vsync off in a held frame when a present waits for it (step 1); and the
+  offscreen render of `write_image` with no SDL video (A1). The web
   backend: a busy message and the `wait` pointer. The console backend: a status
   line. The video backend: a unit runs on the thread of the loop, so the video
   time stays exact.
