@@ -1,15 +1,16 @@
 # The editor always answers the person
 
-> **Status (2026-10-13): PROPOSAL.** The owner asked on 2026-10-12: "The editor
+> **Status (2026-10-13): DECIDED, NOT STARTED.** The owner asked on 2026-10-12: "The editor
 > cannot become unresponsive in any circumstances. [...] If this needs new tasks,
 > threads, etc. then we should design it that way. Of course, race conditions,
-> dead locks, live locks should be avoided at all costs." Nothing is built.
+> dead locks, live locks should be avoided at all costs." Nothing is built, and
+> the work starts when the owner says so.
 >
 > **Decided by the owner, 2026-10-13:** D1 (option A), D2 (option B), D3
 > (option A), D4 (option A), D5 (option A), D6 (option C), D7, the
 > rules a, b, c and d of §5.7 with d in its narrow form, the permission P1 for
-> one sentence of a sealed file, and step 6 for formulas. **Open:** the
-> decision D8.
+> one sentence of a sealed file, step 6 for formulas, and D8. All decisions are
+> made. Step 6 still designs the gestures of the edit mode of a formula.
 >
 > This plan takes in three earlier plans: `a-long-evaluation-does-not-hold-the-editor.md`
 > (on the branch `plan-evaluation-off-editor`, deferred on 2026-10-09),
@@ -412,15 +413,14 @@ B is ever needed.
   one to the other, copying and synching stuff." So each editor has its own
   owner, and a unit holds only the document work of its own editor. The
   documents that two editors share today change in step 5 (L21-1).
-- **D8. What starts the update of a formula** (step 6). A print must not start
-  work (PAR-PURE-THUNK), and an edit of the code of a formula is an edit of its
-  syntax, which no operation of the formula domain sees. A: a feed that the
-  formula domain registers with the editor. Its drain runs on the loop, outside
-  every computation, reads for each formula a key of its inputs (its code and the
-  values of its dependencies, a pure and cheap cell), and starts the computation
-  of each formula whose key changed. B: a new kind of cell whose computation runs
-  off the loop and writes its value later through the door. Recommended: A. It
-  uses the feed and the door that exist, and the cell engine stays as it is.
+- **D8. Decided by the owner, 2026-10-13: the model of step 6.** A formula
+  computes at a commit, at a load, and at a new value of a formula that it names,
+  as Excel does. A key starts no computation, and a formula in edit mode shows no
+  value, because the stored value belongs to code that is no longer there. Each
+  start is an operation of the formula domain. The options before were a feed
+  that walks the documents, a new kind of cell that computes off the loop, a note
+  from the print in the printer context, and a mark that the reader adds to each
+  edit. The model needs none of them.
 
 ## 9. The steps (after the decisions)
 
@@ -458,22 +458,40 @@ B is ever needed.
   should be stored in the document explicitly and updated by the projection on a
   task/thread out of the printer loop to avoid making the editor unresponsive".
   Today `result` is a cell whose computation runs the code of the formula, set by
-  `wire_result!` (`FormulaDocument.jl:574`), so a print or any read runs it. The
-  step:
-  - `result` becomes a stored value of the document, with the key of the inputs
-    that it was computed from. A print reads only the stored value, and shows a
-    mark while the key of the inputs differs.
-  - The computation runs on a task of the default pool. It gets its inputs as
-    values, as `evaluate_formula` already binds them in a `let`, so it reads no
-    document. Its value comes back through the door, and a value computed for a
-    key that is no longer current is dropped. Formulas compute one at a time, in
-    the order of their dependencies.
-  - `get_formula_value` in a unit answers the value for the current inputs: it
-    computes on the task of the unit when the stored value is not current. So a
-    script that adds a formula and reads its value at once still works. Its users
-    in omnet-julia (`StudyCheck.jl`, `StudyVerbs.jl`, `StudyToWidget.jl`,
-    `StudyFile.jl`, `IdePrecompile.jl`) follow.
-  - What starts an update is D8.
+  `wire_result!` (`FormulaDocument.jl:574`), so a print or any read runs it, and
+  it computes again on each key that changes the code. The model, decided by the
+  owner on 2026-10-13 (D8):
+  - **The last value.** A formula holds the last value that was computed, in a
+    field of the document. Its default is `nothing`. Only the operation that
+    brings a computed value back through the door writes it. A print reads only
+    this field.
+  - **Two modes.** In value mode, a formula shows its value. In edit mode, it
+    shows its code and no value. A commit ends the edit mode and starts the
+    computation. A cancel restores the code and the value from before the edit.
+    A key starts no computation. This is what Excel does: Enter or a move out of
+    the cell commits, and Escape cancels.
+  - **Three starts.** A computation starts at a commit, at the load of a document
+    (each value is `nothing` after a load), and at a new value of a formula that
+    this formula names, as in the automatic mode of Excel. Each start is an
+    operation of the formula domain, which runs on the loop outside every
+    computation.
+  - **Off the loop.** The computation runs on a task of the default pool. It gets
+    its inputs as values, as `evaluate_formula` already binds them in a `let`, so
+    it reads no document. A value computed for code or inputs that are no longer
+    current is dropped. Formulas compute one at a time, in the order of their
+    dependencies. Until the value arrives, the formula shows a mark that it
+    computes.
+  - **Undo** of a commit restores the old code and its value together.
+  - **Code that reads a value.** `get_formula_value` in a unit answers the value
+    for the current code and inputs, and computes it on the task of the unit
+    when the stored value is not current. So a script that adds a formula and
+    reads its value at once still works. Its users in omnet-julia
+    (`StudyCheck.jl`, `StudyVerbs.jl`, `StudyToWidget.jl`, `StudyFile.jl`,
+    `IdePrecompile.jl`) follow.
+  - **The gestures** that enter the edit mode, commit and cancel are designed in
+    this step. Julia code can have more than one line, so Enter can not always
+    commit. The commit of `FormulaInsertion` on Enter (`formula.md:94`) uses the
+    same gestures.
 - [ ] **7. The rules, the guides and the checks:** a new invariant for the units
   and the held frames, the limits in `editor.md`, `mcp.md`, `mcp-guide.md` and
   `assistant.md`, the tests of each layer, and a live check of each row of §6
