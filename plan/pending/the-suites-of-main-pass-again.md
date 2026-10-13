@@ -1,7 +1,7 @@
 # The suites of main pass again
 
-**Status (2026-10-13): PENDING. Not started.** The owner asked to record these failures in a
-plan. Nobody works on them yet.
+**Status (2026-10-13): IN PROGRESS, step 1.** The owner asked to record these failures in a
+plan, and then to start step 1 with the type-in of item 7. Item 7 has its origin.
 
 **Goal:** each failure of §1 is fixed, or marked with `@test_broken` and its reason, so that a
 suite on `main` shows no unmarked failure.
@@ -37,7 +37,13 @@ known; elsewhere the origin is not found yet.
 7. **The type-in of the atomic example `text/line/graphics`, 1 failure** (`TypeinTest.jl:639`,
    in `test_catalog_typeins`). Backspace at the start of the first string of the second line,
    `.elements[2].elements[1].content{0}`, gives `ReplaceTextRangeOperation(⌶{7:12})`, and the
-   walk expects no edit there. `test_catalog` of Markdown, RST and math passes on `main` at
+   walk expects no edit there. **Origin: `a3489a00e`** (2026-10-11, found by a bisect from
+   `5d4c1269e`, 11 steps), "text: Enter breaks a line, and Backspace or Delete at a line
+   boundary joins two". The change is on purpose: N10 of
+   [a-text-span-holds-no-line-break.md](../done/a-text-span-holds-no-line-break.md) makes
+   Backspace at the start of a line cover the break and the indentation of the lower line, and
+   that plan left "the sweep is pending". So the walk keeps a rule that changed: a change of
+   the test. `test_catalog` of Markdown, RST and math passes on `main` at
    `a5a408b83` (35803, 74477 and 44289 tests).
 8. **`test_application`, 2 failures and 2 errors.**
    - "the Evaluator button opens an evaluator, and Enter evaluates what is typed"
