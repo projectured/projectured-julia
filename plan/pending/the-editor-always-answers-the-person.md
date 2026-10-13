@@ -703,7 +703,12 @@ nothing.
     of its own would repeat `loop_task`. The kernel suite: 4482 of 4482.
   - [ ] 2e. The cell writers of rule d (waits for the permission for the sealed
     `cell/ReactiveCell.jl` and `cell/CellModule.jl`).
-  - [ ] 2f. The record of a slow frame.
+  - [x] 2f. The record of a slow frame (`cd4f19fc3`): the loop times each feed, the
+    read, each operation, the print and the fault report, and after a frame that
+    took longer than `SLOW_FRAME_SECONDS` (1 s), without the time of its held
+    frames, it writes one warning line to the log, such as "a frame took 1.1 s,
+    1.1 s of it in the drain of TaskFeed". The record is a line of the log, not a
+    fault: a slow frame is no exception. The kernel suite: 4500 of 4500.
 - [ ] **3. The stop and the bounds:** the stop flag, `stop_code_unit!` and the
   stop steps of our own waits, the stoppable `sleep` of the scratch module (D6),
   T0 with the MCP start on a service task, T3, T4 (`Tool(...; reads_documents)`,
