@@ -983,6 +983,17 @@ worktree. The three domains test different parts of the model:
     `xml/element` and `json/array` in the three views then give no error. A document of
     another domain that the widened insertion commits still has no rule in such a table, as a
     pasted one has none.
+    The other failures of the retest are on `main` without this step: a detached worktree at
+    `c345fe385` with this step reverted gives the same counts for each failing test function
+    (`test_julia_expression` 1, `test_external_agent_turn` 50 and 29 errors,
+    `test_interface_api` 2, `test_mcp_log_pane` 1, `test_assistant_overview` 1 and 1 error,
+    `test_parse_markdown_blocks` 1, the walk of `widget/progress_bar/graphics` 1, the type-in
+    of `text/line/graphics` 1, `test_application` 2 and 2 errors). `test_window_wrappers`
+    failed twice only in a long session, whose earlier tests had filled the gesture log of the
+    session to its capacity of 20; alone it passes, with and without this step. The suites that
+    pass: kernel, json, xml, yaml, sql, formula, fsm, process, the insertion tests, the
+    evaluator, markdown, rst, book, math, table, tree, pivot, graph, chart, sequencechart,
+    undo, help, documents, projections, filesystem, filechange and dbcatalog.
 - [x] **Step 6: fix the callers** that the inventory of Step 0 found, one by one.
   *Done (2026-10-09):* every refusal that the inventories found is fixed: the 23 suites of
   projectured-julia (groups 1 to 8 above), the 29 suites and `OmnetPresentationTest` of
