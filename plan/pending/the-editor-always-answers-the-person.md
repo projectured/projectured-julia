@@ -6,10 +6,10 @@
 > dead locks, live locks should be avoided at all costs." Nothing is built.
 >
 > **Decided by the owner, 2026-10-13:** D1 (option A), D2 (option B), D3
-> (option A), D4 (option A), D5 (option A), D7, the
+> (option A), D4 (option A), D5 (option A), D6 (option C), D7, the
 > rules a, b, c and d of §5.7 with d in its narrow form, the permission P1 for
 > one sentence of a sealed file, and step 6 for formulas. **Open:** the
-> decisions D6 and D8, one at a time.
+> decision D8.
 >
 > This plan takes in three earlier plans: `a-long-evaluation-does-not-hold-the-editor.md`
 > (on the branch `plan-evaluation-off-editor`, deferred on 2026-10-09),
@@ -33,7 +33,8 @@ The plan (D1, option A):
 - While the loop waits for a unit, it runs **held frames**: the last picture,
   the hourglass pointer, a busy bar that names the unit, and a stop control. It
   touches no cell, and it leaves the other input for the frames after the unit.
-- A stop ends our own waits at once, and model code at its next wait (D6).
+- A stop ends our own waits and a `sleep` of model code at once (D6). Any other
+  wait of model code, and code that computes, end with the quit of D4.
 - A formula computes off the loop, and the print reads its stored value (step 6).
 - Julia's default threads are enough. With one thread, a unit runs on thread 1,
   as today.
@@ -180,8 +181,7 @@ way to B.
 - **Thread 1, the main task: the loop,** as today. It owns the backend and, except
   while a unit runs, the cells of the editor.
 - **Thread 2, the default pool: the units.** One unit at a time for each editor.
-  A unit runs in a task pinned to thread 2, next to a small supervisor task pinned
-  to the same thread (§5.4).
+  A unit runs in a task of the default pool.
 - **The services stay on thread 1** as `@async` tasks. They run during a unit,
   because the held frames of thread 1 wait for events and yield.
 - **No new thread option.** With one thread (`-t 1`), or when the loop itself runs
@@ -236,17 +236,19 @@ unit, which are plain values.
 - **A stop flag** (`Threads.Atomic{Bool}`) belongs to each unit. The held frame
   sets it on the stop gesture. It does not block and does not post.
 - **Our own long waits** (a stream of a model, an ACP request, a wait for a task
-  group, a verb with `wait = true`) read the stop flag through a scoped value and
-  close their connection or process. This route has no race.
-- **Model code that waits** (`sleep`, a channel, I/O) can only be stopped by an
-  interrupt (D6). The supervisor task runs on the same thread as the unit, so the
-  unit does not run when the supervisor runs. The supervisor calls
-  `schedule(unit, InterruptException(); error = true)`, which takes the unit out
-  of the queue that it waits in. The code tool turns the interrupt into the
-  answer of the call (L18-10 C).
-- **Code that computes without a wait** does not let the supervisor run, so no
-  stop acts until its next wait. If the stop has no effect after 3 s, the busy
-  bar says so, and a close then offers to quit without a save (D4).
+  group, a verb with `wait = true`) find the stop flag of their unit through a
+  scoped value, which a task that the code starts inherits. They end, and close
+  their connection or process. The held frame only sets the flag and wakes these
+  waits. A close that can block runs on a task of its own, never on thread 1.
+- **A `sleep` of model code** (D6). The scratch module of the code tool has its
+  own `sleep`. It waits for its time or for the stop flag of its unit, both
+  behind one lock, and on a stop it throws `InterruptException` in its own task.
+  The code tool turns the interrupt into the answer of the call (L18-10 C). No
+  task throws into another task, so this route has no race.
+- **Any other wait of model code** (a channel, I/O, `Base.sleep` in a library),
+  and code that computes without a wait, do not see the stop. If the stop has no
+  effect after 3 s, the busy bar says so, and a close then offers to quit without
+  a save (D4).
 - **After a stopped unit,** the first frame runs the repairs of a failed
   operation: it prints from scratch, and it clears a selection that does not
   resolve.
@@ -345,7 +347,7 @@ B is ever needed.
   that condition. A notify from another thread in the same microseconds can then
   break the queue. Julia's own Ctrl+C has the same race: it forwards the
   interrupt with `throwto`, and its comment calls the delivery "best-effort"
-  (`base/task.jl:1199-1217`).
+  (`base/task.jl:1199-1217`). So the plan throws into no task (D6).
 - **A loop that does not allocate also delays every garbage collection.** The
   collection stops all threads, and such a loop never reaches a safepoint. The
   loop on thread 1 then waits in its next allocation. Step 1 measures how often
@@ -397,11 +399,14 @@ B is ever needed.
   T0 moves the MCP start, which waits up to 10 s on the loop, to a service task.
   T1, T2, T5 and T6 stay in `kernel-audit-fixes.md`. The other options were B,
   only I3, I5 and T3, and C, nothing until the audit plan decides POLICY-6.
-- **D6. The stop of model code that waits:** A, an interrupt, with the small race
-  of §7; or B, no interrupt, so a stop acts only on our own waits, and otherwise
-  the person can wait or quit. Recommended: A, only after a stop through our own
-  waits had no effect for 1 s, because it is the route of Julia's own Ctrl+C and
-  the person asks for it.
+- **D6. Decided by the owner, 2026-10-13: C.** No interrupt. A stop ends our own
+  waits and the `sleep` of the scratch module of the code tool, which waits for
+  its time or for the stop flag behind one lock (§5.4). Any other wait of model
+  code ends with the quit of D4. The other options were A, an interrupt with
+  `schedule(...; error = true)`, which has the race of §7 and can crash the
+  process, and B, no interrupt and no stoppable `sleep`. My recommendation was A
+  at first. I changed it to C because the owner asked to avoid races at all
+  costs, and a crash loses the unsaved changes of every window.
 - **D7. Decided by the owner, 2026-10-13:** "there should be no document which
   two editor owns or reads or writes. If it's ever needed it will use a feed from
   one to the other, copying and synching stuff." So each editor has its own
@@ -420,22 +425,22 @@ B is ever needed.
 ## 9. The steps (after the decisions)
 
 - [ ] **1. A probe**, in a throwaway program outside the repository: the SDL loop
-  on thread 1, a unit pinned to thread 2 with its supervisor, the handoff, held
+  on thread 1, a unit on thread 2, the handoff, held
   frames from the retained picture, the hourglass and a busy bar. Three units:
   `sleep(10)`, and a loop that computes for 10 s, once with and once without
   allocations. Measure: the window moves, redraws, resizes and closes, and GNOME
-  shows no "not responding"; a stop ends the sleep within 100 ms, a thousand
-  times in a row with a notify from another thread at the same time; the delay
+  shows no "not responding"; a stop ends the stoppable `sleep` within 100 ms;
+  the delay
   from a key press to its picture does not grow in a frame with no unit; the
   effect of a collection and of a compile on the held frames.
 - [ ] **2. Units in the kernel editor layer:** the unit and its description, the
-  task on thread 2 and its supervisor, the handoff, the held frames while the
+  task on thread 2, the handoff, the held frames while the
   loop waits, `run_on_editor_task!` for the owner, the fallback on one thread,
   the faults of the held frames, the sentence of P1 in `FaultStore.jl` and
   `fault.md`, POLICY-6-inbox with I3 for a unit (D5), and the record of a slow
   frame (§5.8).
-- [ ] **3. The stop and the bounds:** the stop flag, our own waits, the interrupt
-  (D6), the repairs after a stop, T0 with the MCP start on a service task, T3,
+- [ ] **3. The stop and the bounds:** the stop flag, our own waits, the
+  stoppable `sleep` of the scratch module (D6), the repairs after a stop, T0 with the MCP start on a service task, T3,
   T4 (an API search and a resource read that read no document run on the calling
   task, and the budget in the description of the code tool), and the rules a to
   d of §5.7.
