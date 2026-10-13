@@ -6,10 +6,10 @@
 > dead locks, live locks should be avoided at all costs." Nothing is built.
 >
 > **Decided by the owner, 2026-10-13:** D1 (option A), D2 (option B), D3
-> (option A), D7, the
+> (option A), D4 (option A), D7, the
 > rules a, b, c and d of §5.7 with d in its narrow form, the permission P1 for
 > one sentence of a sealed file, and step 6 for formulas. **Open:** the
-> decisions D4 to D6 and D8, one at a time.
+> decisions D5, D6 and D8, one at a time.
 >
 > This plan takes in three earlier plans: `a-long-evaluation-does-not-hold-the-editor.md`
 > (on the branch `plan-evaluation-off-editor`, deferred on 2026-10-09),
@@ -246,7 +246,7 @@ unit, which are plain values.
   answer of the call (L18-10 C).
 - **Code that computes without a wait** does not let the supervisor run, so no
   stop acts until its next wait. If the stop has no effect after 3 s, the busy
-  bar says so, and offers to quit (D4).
+  bar says so, and a close then offers to quit without a save (D4).
 - **After a stopped unit,** the first frame runs the repairs of a failed
   operation: it prints from scratch, and it clears a selection that does not
   resolve.
@@ -379,9 +379,12 @@ B is ever needed.
   dropped as any other press (D2). The other options were B, A and also that
   button, which needs a way for a projection to name its stop button, and C, the
   control alone.
-- **D4. Close during a held frame:** the first close stops the unit. A second
-  close, or a close after a stop that had no effect, quits the process without a
-  save. Recommended as written.
+- **D4. Decided by the owner, 2026-10-13: A.** During a held frame, the first
+  close of a window acts as the stop. A second close, or a close after a stop that
+  had no effect for 3 s, shows "Quit without saving?" with a confirm control on
+  the busy bar, and the confirm quits the process. No save is possible during a
+  unit, because the unit owns the documents. The other options were B, the close
+  waits for the end of the unit, and C, the close quits at once.
 - **D5. POLICY-6-inbox A and POLICY-6-time T0, T3 and T4** of
   `kernel-audit-fixes.md` become part of this plan. Recommended: yes. The plan
   needs I3, I5 and T3, and T0 and T4 agree with it.
