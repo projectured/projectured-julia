@@ -846,7 +846,7 @@ For each step, run the narrowest test: the test files of the step, through
       `is_cell_up_to_date` is `is_cell_valid`, and `run_untracked` is
       `run_without_cell_tracking`. Section 2.2 keeps the old words.
 
-- [ ] **2. The table of a roster, and an edit through a row.**
+- [x] **2. The table of a roster, and an edit through a row.** Done 2026-10-14.
   - `RosterToWidget` prints the rows as a `WidgetTable`: a header with the
     column keys, and one row for each item. It uses the widget table as it is
     now. A roster of more than about 1000 rows waits for the lazy rows of step
@@ -860,6 +860,24 @@ For each step, run the narrowest test: the test files of the step, through
   - Tests with a real `Editor`: an edit in a row changes the item and is one
     step of undo; the context menu of a row; a save and a read of a tab that
     shows a roster.
+  - **What the step found and decided:**
+    - The printer of the rows is `RosterRowsToWidget`, which step 1 made, and
+      the natural renderer prints a `CellVector{RosterRow}` with it.
+    - A cell whose value is a document shows that document, the same object as
+      in its item, so its own reader edits it. In the test, a key in a cell
+      writes the item and adds one entry to the undo list. A cell whose value is
+      not a document is a label: no widget writes a field of a target as text
+      now, so such a cell takes no key. A press on it selects the item of the
+      row, so the context menu is the menu of the item.
+    - A file keeps the source, the columns and the title of a roster
+      (`pred_arguments`), and the three sources of the slice say that a file may
+      build them (`is_pred_constructible`).
+    - **A file can not keep an arrangement now**, of a roster or of any other
+      document: an entry holds a `Reference`, and the pred notation can not
+      write a kernel `Reference`. A `CollectionItems` with a `Reference` can not
+      be saved for the same reason. This is outside this plan.
+    - A bare name in a file is the name of a type that a file may build, and a
+      name that starts with `_`, as a test fixture has, is not one.
 
 - [ ] **3. Two new kinds of the arrangement.**
   - `ArrangementGroup(keys, aggregates)` and `ArrangementFirst(count)`, each

@@ -205,6 +205,14 @@ get_document_title(roster::Roster) = roster.title
 # there, so a walk does not go into a roster.
 is_walk_opaque(::Roster) = true
 
+# A file keeps what a roster is, not what it shows: its source, its columns and
+# its title. The rows are the items of other places, and the link belongs to the
+# window that shows the roster, so a roster read from a file has no link until a
+# window links it.
+pred_arguments(roster::Roster) =
+    (roster.source,), Pair{Symbol,Any}[:columns => roster.columns, :title => roster.title]
+make_pred_document(::Type{<:Roster}, positional, keywords) = Roster(positional...; keywords...)
+
 """
     link_roster!(roster, link) -> roster
 

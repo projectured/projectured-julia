@@ -22,6 +22,9 @@ end
 
 collect_roster_parts(source::CollectionItems, link) = Any[source]
 
+# A source is data, so a file that keeps a roster writes its source.
+is_pred_constructible(::Type{CollectionItems}) = true
+
 function collect_roster_items(source::CollectionItems, link, part)
     collection = source.collection isa Reference ?
         try_evaluate_reference(link, source.collection, nothing) : source.collection
@@ -48,6 +51,8 @@ struct ItemsWithin
 end
 
 get_roster_item_type(source::ItemsWithin) = source.type
+
+is_pred_constructible(::Type{ItemsWithin}) = true
 
 collect_roster_parts(source::ItemsWithin, link) =
     Any[entry.item for part in collect_roster_parts(source.source, link)
@@ -98,6 +103,8 @@ loaded slice registered is an `ArgumentError` when the roster gathers its items.
 struct StoreRecords
     name::Symbol
 end
+
+is_pred_constructible(::Type{StoreRecords}) = true
 
 function _find_store_source(source::StoreRecords, link)
     entry = get(_ROSTER_SOURCES, source.name, nothing)
