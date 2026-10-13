@@ -5,10 +5,11 @@
 > threads, etc. then we should design it that way. Of course, race conditions,
 > dead locks, live locks should be avoided at all costs." Nothing is built.
 >
-> **Decided by the owner, 2026-10-13:** D1 (option A), D2 (option B), D7, the
+> **Decided by the owner, 2026-10-13:** D1 (option A), D2 (option B), D3
+> (option A), D7, the
 > rules a, b, c and d of §5.7 with d in its narrow form, the permission P1 for
 > one sentence of a sealed file, and step 6 for formulas. **Open:** the
-> decisions D3 to D6 and D8, one at a time.
+> decisions D4 to D6 and D8, one at a time.
 >
 > This plan takes in three earlier plans: `a-long-evaluation-does-not-hold-the-editor.md`
 > (on the branch `plan-evaluation-off-editor`, deferred on 2026-10-09),
@@ -371,9 +372,13 @@ B is ever needed.
   presses and motion that start during it. A click aims at a picture, and the unit
   can change what is under the pointer. The other options were A, keep all input,
   and C, drop all input.
-- **D3. The stop gesture:** the stop control on the busy bar, and Escape while the
-  bar shows. Before the bar shows, Escape stays input for the document.
-  Recommended as written.
+- **D3. Decided by the owner, 2026-10-13: A.** The stop gesture is the stop
+  control on the busy bar, and Escape while the bar shows. That Escape stops the
+  unit and is not kept for later. Before the bar shows, Escape is a key like any
+  other (D2). A click on the Stop button of the assistant in the old picture is
+  dropped as any other press (D2). The other options were B, A and also that
+  button, which needs a way for a projection to name its stop button, and C, the
+  control alone.
 - **D4. Close during a held frame:** the first close stops the unit. A second
   close, or a close after a stop that had no effect, quits the process without a
   save. Recommended as written.
