@@ -39,4 +39,12 @@ that writes `Int[line, run]`.
    a path of another length; two comments that named "either depth" follow.
 2. **The tests** of the text slice: `test_text_document`, `test_text_to_graphics`,
    the decorators, the inline images, and `test_platform` once.
+   *Done (2026-10-13)* against the parent `f06e1af94`, in
+   `/var/tmp/return-keypress/item3-*`: `test_text`, `test_text_to_graphics`,
+   `test_inline_image_caret`, `test_clipboard`, the six decorators, `test_text_folding`,
+   `test_syntax`, `test_json`, `test_conversation_editor` and
+   `test_assistant_composer_panel` all pass, with the counts of the parent.
+   `test_platform` was left out: since main `773f1cfc2` (the four states of a
+   cell, another session) `test_widget_table` takes more than 10 minutes alone,
+   14 s before, and the suite runs past an hour on the parent too.
 3. **The plan** moves to `plan/done`.
