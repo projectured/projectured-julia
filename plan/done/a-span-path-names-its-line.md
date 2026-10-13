@@ -1,8 +1,7 @@
 # A span path names its line
 
-> **Kind:** plan · **Status:** in progress, 2026-10-13, on the branch
-> `span-path-lines` (worktree `projectured-julia-span-path-lines`). The owner asked
-> for it on 2026-10-13 (item 3 of the report after the landing of
+> **Kind:** plan · **Status:** done, 2026-10-13: landed on main with the owner's
+> approval ("1: yes"). The owner asked for it on 2026-10-13 (item 3 of the report after the landing of
 > [a-text-block-holds-only-lines.md](../done/a-text-block-holds-only-lines.md):
 > "1: yes"). No question is open. ·
 > **Stands on:** [text.md](../../documentation/package/platform/text/text.md),
@@ -48,3 +47,4 @@ that writes `Int[line, run]`.
    cell, another session) `test_widget_table` takes more than 10 minutes alone,
    14 s before, and the suite runs past an hour on the parent too.
 3. **The plan** moves to `plan/done`.
+   *Done (2026-10-13).*
