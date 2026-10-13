@@ -41,6 +41,7 @@ using ..PrimitiveModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
+using ..RosterModule
 using ..ScreenModule
 using ..SelectionModule
 using ..SerializationModule
@@ -56,6 +57,7 @@ import ..DocumentModule: copy_document, get_document_title, has_document_duplica
 import ..DomainModule: accepts_pasted_document, accepts_opened_file, release_document!,
                        get_insertion_aliases, make_insertion_document
 import ..OperationModule: evaluate_operation
+import ..RosterModule: get_item_facets, compute_item_facet
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SerializationModule: pred_arguments, make_pred_document
 

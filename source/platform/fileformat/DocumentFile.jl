@@ -181,8 +181,45 @@ function evaluate_operation(editor, op::SaveFileOperation)
     file = op.file
     # A file that a person does not edit has nothing of a person to write.
     is_editable_file_type(typeof(file)) || return nothing
-    save_file!(_make_plain_file(file), dirname(abspath(get_filename(file))))
+    saved = save_file!(_make_plain_file(file), dirname(abspath(get_filename(file))))
+    # The history of the file notes that the file holds what the history holds now.
+    record_saved_state!(get_file_content(file))
+    saved
 end
+
+"""
+    record_saved_state!(content) -> nothing
+
+Note that the file that holds `content` holds what `content` is now, as after a
+save, so [`has_unsaved_edits`](@ref) answers `false` until the next edit. A
+history answers it by keeping its newest step. The default does nothing, for a
+content that keeps no history.
+"""
+function record_saved_state! end
+
+record_saved_state!(content) = nothing
+
+"""
+    has_unsaved_edits(content) -> Union{Bool, Nothing}
+
+Whether `content`, what a file holds, has edits since its file was read or saved.
+A history answers it from its steps. The default answers `nothing`, for a content
+that keeps no history and so can not say.
+"""
+function has_unsaved_edits end
+
+has_unsaved_edits(content) = nothing
+
+# The facets of a file document, which a roster of files shows, filters and sorts
+# by. The folder is the folder of the file name as the file gives it.
+get_item_facets(::Type{FileDocument}) = [
+    "name" => "the name of the file, without its folder",
+    "folder" => "the folder of the file, as its file name gives it",
+    "has_edits" => "whether the document has edits since its file was read or saved; nothing for a file " *
+                   "that keeps no history"]
+compute_item_facet(file::FileDocument, ::Val{:name}) = basename(String(get_filename(file)))
+compute_item_facet(file::FileDocument, ::Val{:folder}) = dirname(String(get_filename(file)))
+compute_item_facet(file::FileDocument, ::Val{:has_edits}) = has_unsaved_edits(get_file_content(file))
 
 # The file with the document that it holds and not a wrapper around it: a content
 # that carries a history writes what the history is about. The save walks the

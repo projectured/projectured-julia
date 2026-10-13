@@ -81,7 +81,8 @@ function test_roster()
         @test compute_roster_value(row, "delay") == 0.31
         @test compute_roster_value(row, "no_such_field") === nothing
         @test compute_roster_value(row, "within") === nothing
-        @test collect_item_facets(_RosterRun) == ["slow" => "whether the run took longer than 0.3"]
+        @test first(collect_item_facets(_RosterRun)) == ("slow" => "whether the run took longer than 0.3")
+        @test first.(collect_item_facets(_RosterRun)) == ["slow", "type"]
         @test_throws ArgumentError collect_item_facets(_RosterClash)
         # A key of an arrangement is a key of a column, or any other key.
         status = extend_reference(EmptyReference(), FieldReferenceStep("status"))

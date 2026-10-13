@@ -152,3 +152,14 @@ function compute_assistant_busy_time(a::Assistant; now::Real = time())
     end
     total
 end
+
+# The facets of an assistant, which a roster of assistants shows, filters and
+# sorts by. Its state of the work and its status are fields, which a key names as
+# they are.
+get_item_facets(::Type{Assistant}) = [
+    "title" => "the title of the conversation, as the Assistants pane shows it",
+    "turn" => "whose turn it is: assistant or you",
+    "tokens" => "how many tokens of its context the conversation uses, or 0 before the first answer"]
+compute_item_facet(a::Assistant, ::Val{:title}) = compute_assistant_overview_title(a)
+compute_item_facet(a::Assistant, ::Val{:turn}) = compute_assistant_turn_side(a) === :assistant ? "assistant" : "you"
+compute_item_facet(a::Assistant, ::Val{:tokens}) = (usage = a.agent_usage; usage === nothing ? 0 : usage.used)

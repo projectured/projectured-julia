@@ -79,30 +79,42 @@ end
 
 The facets of the items of `type`: those that `type` declares and those that each
 of its supertypes declares ([`get_item_facets`](@ref)), each as its name and the
-words that say what it is. A facet that has the name of a field of `type` is an
-`ArgumentError`, because a key names either.
+words that say what it is. A field of `type` wins over a facet of the same name
+that a supertype declares, so a key names the field. A facet that `type` itself
+declares with the name of one of its fields is an `ArgumentError`, because a key
+could not name it.
 """
 function collect_item_facets(type::Type)
     facets = Pair{String,String}[]
+    fields = _get_own_field_names(type)
     current = type
     while current !== nothing
         for declaring in _get_declaring_types(current)
             for facet in get_item_facets(declaring)
+                if Symbol(first(facet)) in fields
+                    current === type &&
+                        throw(ArgumentError(string("The facet \"", first(facet), "\" of ", type,
+                                                   " has the name of one of its fields, so a key can not name it.")))
+                    continue
+                end
                 any(f -> first(f) == first(facet), facets) || push!(facets, facet)
             end
         end
         current = _find_supertype(current)
     end
-    unwrapped = Base.unwrap_unionall(type)
-    if unwrapped isa DataType && !isabstracttype(unwrapped)
-        for facet in facets
-            Symbol(first(facet)) in fieldnames(unwrapped) &&
-                throw(ArgumentError(string("The facet \"", first(facet), "\" of ", type,
-                                           " has the name of a field, so a key can not name it.")))
-        end
-    end
     facets
 end
+
+# The names of the fields of a type that has fields, and none for any other.
+function _get_own_field_names(type::Type)
+    unwrapped = Base.unwrap_unionall(type)
+    (unwrapped isa DataType && !isabstracttype(unwrapped)) ? fieldnames(unwrapped) : ()
+end
+
+# Every document has a type, which a roster of documents of many kinds groups by.
+get_item_facets(::Type{Document}) =
+    ["type" => "the name of the type of the document that a person sees, through the layers that wrap it"]
+compute_item_facet(document::Document, ::Val{:type}) = String(nameof(typeof(get_wrapped_document(document))))
 
 # The types that can declare the facets of `type`: `type` itself, and the name of a
 # parametric type, as `@document` makes one, whose instances are of a type with

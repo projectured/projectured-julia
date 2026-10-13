@@ -30,6 +30,10 @@ A named identifier in a Julia expression (e.g. `n`, `factorial`).
     name::String
 end
 
+# A filter or a sort compares an identifier by its name, so a key that reaches the
+# callee of a call compares with the name that a person writes.
+get_arrangement_value(identifier::JuliaIdentifier) = identifier.name
+
 """
 An integer literal in a Julia expression.
 """

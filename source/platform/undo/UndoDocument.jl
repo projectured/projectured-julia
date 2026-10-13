@@ -62,6 +62,10 @@ taken back and can be put back. `capacity` bounds the first list; the oldest
 entry is dropped when a new one does not fit. It is a number, or the cell of a
 setting, such as `undo_capacity` of `HistorySettings`, which the buffer reads at
 each step.
+`saved_entry` is the step that was newest when the file that holds the buffer was
+last saved, or `nothing` when the file holds what the buffer held before its first
+step. A save notes it (`record_saved_state!`), and `has_unsaved_edits` compares
+it with the newest step.
 
 The buffer records nothing by itself. `UndoBufferToAnyProjection` is what wraps
 the operations that pass through it.
@@ -77,12 +81,13 @@ See also `UndoBufferToAnyProjection`, `UndoEntry` and `make_inverse_operation`.
     undo_entries::CellVector
     redo_entries::CellVector
     capacity::Int
+    saved_entry::Any
 end
 
 UndoBuffer(content::Document; capacity::Union{Integer, AbstractCell} = 100,
            selection = nothing) =
     UndoBuffer(content, CellVector(), CellVector(),
-               capacity isa AbstractCell ? capacity : Int(capacity), selection)
+               capacity isa AbstractCell ? capacity : Int(capacity), nothing, selection)
 
 # A buffer is transparent on the screen, and a real node in the tree. Anything
 # that reads the tree rather than the picture — saving a file is the case — asks
@@ -129,8 +134,20 @@ disk, say — because the steps of the old document say nothing about the new on
 function clear_undo_history!(buffer::UndoBuffer)
     _empty_entries!(buffer.undo_entries)
     _empty_entries!(buffer.redo_entries)
+    buffer.saved_entry = nothing
     buffer
 end
+
+# The file that holds a history holds what the history holds now: the newest step
+# is the saved one, and a history with no step was saved before its first.
+record_saved_state!(buffer::UndoBuffer) = (buffer.saved_entry = _find_newest_entry(buffer); nothing)
+
+# A history has edits that its file does not hold when its newest step is not the
+# step that was newest at the save, or at the read when nothing was saved since.
+has_unsaved_edits(buffer::UndoBuffer) = _find_newest_entry(buffer) !== buffer.saved_entry
+
+_find_newest_entry(buffer::UndoBuffer) =
+    (entries = buffer.undo_entries; isempty(entries) ? nothing : entries[end])
 
 # Deleting from the front, one at a time, is how the gesture log bounds its own
 # buffer: a `CellVector` write is what the readers of the collection follow.

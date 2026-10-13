@@ -945,7 +945,7 @@ For each step, run the narrowest test: the test files of the step, through
     - An entry of the message log holds `level` and `message` only. So X6 shows
       those columns, and a filter of a source needs a facet in step 5.
 
-- [ ] **5. The facets of the first examples.**
+- [x] **5. The facets of the first examples.** Done 2026-10-14.
   - `FileDocument`: `"name"`, `"folder"` and `"has_edits"`. A file document
     has no such state now: the file change store compares a hash of the whole
     text. So a save and a load record the newest entry of the undo list in a
@@ -959,6 +959,38 @@ For each step, run the narrowest test: the test files of the step, through
     field.
   - Tests: each facet; and X1 in a real `Editor`: a key press in a file makes
     its row show `has_edits`, and a save clears it.
+  - **What the step found and decided:**
+    - **A field wins over a facet of a supertype.** A facet "type" of every
+      document would clash with the field `type` of `FsmDocument`. So a field of
+      the type of an item hides a facet of the same name that a supertype
+      declares, and a key names the field. A facet that a type declares with the
+      name of one of its own fields stays an error.
+    - `get_item_facets` has one method for each type, so the facets of one type
+      come from one slice. The facets of a file document come from the slice
+      `fileformat`.
+    - **The saved point of a history.** An `UndoBuffer` has a new field,
+      `saved_entry`: the step that was newest at the last save. The slice
+      `fileformat` declares two generics, `record_saved_state!(content)` and
+      `has_unsaved_edits(content)`, and the undo slice answers them for a
+      history. `SaveFileOperation` records the saved state; the reload clears
+      the history and the saved point with it. A file keeps its history in its
+      `content`, so `"has_edits"` reads the history of the file: the newest step
+      against the saved one. A step of typing that grows replaces the last entry
+      with a new one, so it counts as an edit. A file with no history answers
+      `nothing`.
+    - Every document has the facet `"type"`, the name of the type that a person
+      sees through the layers that wrap it, from the roster slice.
+    - An assistant has the facets `"title"`, `"turn"` and `"tokens"`. Its state
+      of the work and its status are the fields `work_state` and `status`, so
+      they need no facet.
+    - `JuliaCall` has a field `callee`, so `"callee"` is a path key. The Julia
+      domain adds `get_arrangement_value(::JuliaIdentifier)`, its name, so a
+      filter compares the callee with the name that a person writes.
+    - The entries of the stores are read with path keys, and need no facet.
+    - **The cell layer is sealed on `main`** since this plan began: the files of
+      `source/kernel/cell/`, also `ReactiveCell.jl`, carry 🔒 in SEALING.md. The
+      options R4, R5, R7 and R9 change `ReactiveCell.jl`, so a later plan for them
+      needs the word of the owner for that file, beside answer 2 of section 8.
 
 - [ ] **6. The verbs of the assistant.**
   - `make_roster`, `show_roster!`, `list_roster_sources`, `list_item_facets`
