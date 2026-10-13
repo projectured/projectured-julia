@@ -1,6 +1,6 @@
 # The editor always answers the person
 
-> **Status (2026-10-13): IN PROGRESS, step 1 done.** The work runs on the branch
+> **Status (2026-10-13): IN PROGRESS, step 1 done, step 2 under way.** The work runs on the branch
 > `editor-always-answers`, in the worktree `projectured-julia-answers`. The owner
 > asked on 2026-10-12: "The editor cannot become unresponsive in any
 > circumstances. [...] If this needs new tasks, threads, etc. then we should
@@ -449,21 +449,23 @@ B is ever needed.
 
 | Name | What it is | File |
 |---|---|---|
-| `CodeUnit` | a unit: its description, its start time, its stop flag and its stop steps | `source/kernel/tool/CodeUnit.jl` (new) |
+| `CodeUnit` | a unit: its parts, the current part, its start time, its stop flag, its stop steps and its task | `source/kernel/tool/CodeUnit.jl` (new) |
+| `set_code_unit_part!(unit, part)`, `run_as_code_unit(function_, unit)` | the current part of the bar; run code as the code of a unit | same |
 | `get_current_code_unit()` | the unit of the running task, through a scoped value, or `nothing` | same |
 | `is_code_unit_stopped()` | whether the person stopped the current unit | same |
 | `attach_code_unit_stop!(step)` | a step that a stop runs on a task of its own, such as the close of what a wait waits on | same |
 | `stop_code_unit!(unit)` | sets the stop flag and starts the stop steps | same |
 | `wait_in_code_unit(seconds)` | the stoppable wait that the `sleep` of the scratch module calls | same |
 | `sleep` of the scratch module | the stoppable `sleep` of model code (D6) | `CodeExecution.jl` |
-| `run_code_unit!(editor, function_; description)` | runs `function_` as a unit, and runs held frames until it ends | `source/kernel/editor/HeldFrames.jl` (new) |
+| `run_code_unit!(function_, editor; parts)` | runs `function_` as a unit, and runs held frames until it ends | `source/kernel/editor/HeldFrames.jl` (new) |
 | `prepare_held_frames!(backend, devices, description)` | backend protocol: makes what held frames draw, before the unit starts | `BackendInterface.jl`, `BackendDefaults.jl` |
-| `run_held_frame!(backend, devices, seconds)` | backend protocol: one held frame; answers `:none`, `:stop` or `:close` | same |
+| `run_held_frame!(backend, devices, state)` | backend protocol: one held frame; answers `:none`, `:stop`, `:close` or `:quit` | same |
+| `HeldFrameState` | what one held frame shows: the time, the current part, a stop with no effect, the question to quit | `source/kernel/backend/HeldFrameState.jl` (new) |
 | `end_held_frames!(backend, devices)` | backend protocol: gives the pointer back its shape and frees what held frames drew | same |
 | `add_cell_writer!(task)`, `remove_cell_writer!(task)` | the owner tasks of rule d | `source/kernel/cell/CellWriterCheck.jl` (new) |
 | `run_on_editor_task!(...; timeout, description)` | T3, and the description of a unit | `Inbox.jl` |
 | `EditorCallTimeoutException` | the end of the wait of T3 | `Inbox.jl` |
-| `Editor` fields `code_unit`, `owner_posts`, `loop_state`, `held_faults` | the running unit, the queue of I3, the state of I1, the faults of held frames | `Editor.jl` |
+| `Editor` fields `code_unit`, `owner_posts`, `loop_state`, `held_faults`, `unapplied_operations` | the running unit, the queue of I3, the state of I1, the faults of held frames, what an interrupted drain did not apply | `Editor.jl` |
 | `Tool(...; reads_documents)` | T4: a tool that reads no document runs on the calling task | `Tool.jl` |
 | `acquire_document!(editor, document)`, `AcquireDocumentOperation` | the counterpart of `release_document!` (A3) | `DocumentRelease.jl` |
 | formula fields `result` (stored), `result_key`, `draft` | the last value, the inputs that it came from, the code in edit mode | `FormulaDocument.jl` |
@@ -666,6 +668,35 @@ nothing.
   `run_on_editor_task!` for the owner, the faults of the held frames, the
   sentence of P1 in `FaultStore.jl` and `fault.md`, POLICY-6-inbox with I3 for a
   unit (D5), the cell writers of rule d, and the record of a slow frame (§5.10).
+  - [x] 2a. The backend protocol of held frames (`839ba7d4b`, `bc22107cf`).
+    `run_held_frame!(backend, devices, state::HeldFrameState)` answers `:none`,
+    `:stop`, `:close` or `:quit`. `HeldFrameState(seconds, current,
+    is_stop_pending, is_quit_asked)` is a fragment of its own, `HeldFrameState.jl`,
+    because an interface file declares only abstract types
+    (PAR-INTERFACE-DECLARES-ONLY). `prepare_held_frames!` takes the list of parts,
+    so the bar names the current part with no text made in a held frame.
+  - [x] 2b. `CodeUnit` in the tool layer (`61f0e9d87`, `eb3b2bb68`): the record,
+    its stop flag and stop steps, `wait_in_code_unit`, `run_as_code_unit`, and
+    the seam `run_in_code_unit`, whose default runs the work inline. The code
+    tool runs its evaluation through the seam; the bar shows "Run the code: "
+    and the first line of the code.
+  - [x] 2c. The units and the held frames in the editor (`fa4364301`):
+    `run_code_unit!(function_, editor; parts)` in `HeldFrames.jl`; the owner
+    check in `run_on_editor_task!`, which takes a `description`; a drain of the
+    inbox with a posted call runs as one unit (A4); the faults of held frames;
+    the sentence of P1. `Editor.code_unit` is an `@atomic` field, because tasks
+    on other threads read it. A drain takes its operations at its start, so
+    an exception that means stop leaves the rest in `Editor.unapplied_operations`,
+    and the end of the loop treats them as the operations still in the inbox, as
+    before. Under a strict policy, a fault of a held frame is thrown after the
+    unit, so a test fails and the unit keeps an owner. The kernel suite: 4481 of
+    4482 before the move of `HeldFrameState`, and the one failure was that rule;
+    the baseline at `main` was 4453 of 4453 (`/var/tmp/editor-answers-probe`).
+  - [ ] 2d. POLICY-6-inbox: the states, the queue of the owner, the close at the
+    end, and one run of the loop.
+  - [ ] 2e. The cell writers of rule d (waits for the permission for the sealed
+    `cell/ReactiveCell.jl` and `cell/CellModule.jl`).
+  - [ ] 2f. The record of a slow frame.
 - [ ] **3. The stop and the bounds:** the stop flag, `stop_code_unit!` and the
   stop steps of our own waits, the stoppable `sleep` of the scratch module (D6),
   T0 with the MCP start on a service task, T3, T4 (`Tool(...; reads_documents)`,
