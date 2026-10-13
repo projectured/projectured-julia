@@ -110,8 +110,10 @@ function test_cell_fault_scope()
         scope = FaultScopeProbe(:scope)
         untracked = run_in_cell_fault_scope(
             () -> UntrackedCell{Int}(@computation error("broken")), scope)
+        @test get_cell_fault_scope(untracked) === scope
         @test_throws RecordedCellFaultException untracked[]
         @test length(scope.faults) == 1
+        @test get_cell_fault_scope(UntrackedCell{Int}(3)) === nothing
     end
 
     @testset "a computation given to a cell that exists keeps the scope" begin
@@ -131,6 +133,31 @@ function test_cell_fault_scope()
         end
         @test made[] == 8
         @test get_cell_fault_scope(made) === nothing
+    end
+
+    @testset "a computation made in an untracked run inside a computation takes its scope" begin
+        outer = FaultScopeProbe(:outer)
+        loose = Cell(@computation Cell(@computation 9))
+        # The scope is set inside a running computation, and the untracked run puts a
+        # new stack in place, so the computation that makes the cell is on another stack.
+        host = Cell(@computation run_in_cell_fault_scope(outer) do
+            CellModule.run_without_cell_tracking(() -> loose[])
+        end)
+        made = host[]
+        @test made[] == 9
+        @test get_cell_fault_scope(made) === nothing   # the scope of `loose`, not `outer`
+    end
+
+    @testset "a MethodError of an older world goes to no scope, and the retry runs" begin
+        scope = FaultScopeProbe(:scope)
+        # A new function for each run, which gets its method only after the cell is
+        # made, so a read from the world before the method throws a `MethodError`.
+        late = Core.eval(@__MODULE__, :(function $(gensym(:fault_scope_late)) end))
+        cell = run_in_cell_fault_scope(() -> Cell(@computation late()), scope)
+        world = Base.get_world_counter()
+        Core.eval(@__MODULE__, :($(nameof(late))() = 11))
+        @test Base.invoke_in_world(world, () -> cell[]) == 11
+        @test isempty(scope.faults)
     end
 
     @testset "the value comes back when the computation works" begin

@@ -292,12 +292,15 @@ engine does not lock a cell, so the rule is what keeps the cached values right:
   owner drains the store in a write phase (`PAR-STORE-THEN-DRAIN`).
 - Another task reads a cell of the set only while the owner waits for it, as in
   `fetch(Threads.@spawn c[])` inside a computation. The computing stack is per
-  task, so that read records no reader.
+  task, so that read records no reader. One task at a time reads for the owner:
+  a read of a cell that is not valid computes it and changes the edges of the
+  graph. Several tasks at once read only cells that are valid.
 - A computation runs in a read phase, so it writes no cell that another cell
   reads (`PAR-NO-WRITE-IN-THUNK`).
 
-The walk of a write relies on the rule: it stops at a computing cell, because a
-write that reaches a computing cell comes from inside that computation. The
+The engine relies on the rule twice: the walk of a write stops at a computing cell,
+because a write that reaches it comes from inside that computation, and a read of a
+computing cell is a cycle (`PAR-ACYCLIC-CELLS`). The
 editor task owns the cells of an editor. A frame runs its steps one after the
 other on that task: a drain and an applied operation write, and a read of input
 against the IO map, a print and a paint read. The editor writes its clock at the
@@ -306,10 +309,12 @@ start of a frame, before the reads.
 ### PAR-ACYCLIC-CELLS
 
 **The cell dependency graph must stay acyclic.** `_recompute!` evaluates a computation
-while its cell is on the computing stack, in the state *computing*. A read of a
-computing cell from inside its own computation, directly or through any chain, is a
-cycle: the engine throws a `CellCycleException`, an ordinary exception that a
-barrier records, and each cell of the cycle is failed. So a cycle costs one fault and
+while its cell is on the computing stack, in the state *computing*. By
+`PAR-SINGLE-WRITER`, a read of a computing cell comes from inside its own computation,
+directly, through any chain, or through a task that the computation waits for. So
+the read is a cycle, which the state alone shows: the engine throws a
+`CellCycleException`, an ordinary exception that a barrier records, and each cell of
+the cycle is failed. So a cycle costs one fault and
 not the editor, but a computed cell must still never read itself: its value is
 missing until a write breaks the cycle.
 

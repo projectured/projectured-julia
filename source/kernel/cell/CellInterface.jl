@@ -1,8 +1,9 @@
 # Fragment of `CellModule` — the cell **contract**: the base type of the cell
 # kinds and the generics that form their protocol. Included before the kinds,
 # which subtype it and implement it. Nothing here carries a body. The read, the
-# untracked read and `is_cell_valid` live in the file of each kind, and the
-# bodies of the other generics live in the sibling `CellDefaults.jl`.
+# untracked read and `is_cell_valid` live in the file of each kind, the method of
+# `invalidate_cell!` for a reactive cell lives in `ReactiveCell.jl`, and the bodies
+# of the other generics live in the sibling `CellDefaults.jl`.
 
 """
     AbstractCell{T}

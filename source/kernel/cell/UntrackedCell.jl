@@ -33,8 +33,16 @@ struct UntrackedCell{T} <: AbstractCell{T}
     computation::Function
     UntrackedCell{T}(marker::Computation) where {T} = new{T}(marker.computation)
     UntrackedCell{T}(value) where {T} =
-        new{T}(Returns(value isa T ? value : Base.invokelatest(convert, T, value)))
+        new{T}(_UntrackedValue(value isa T ? value : Base.invokelatest(convert, T, value)))
 end
+
+# The computation of an untracked cell that a value made. Its own type tells the
+# constant from a computation, also from one that always returns the same value.
+struct _UntrackedValue{V} <: Function
+    value::V
+end
+
+(constant::_UntrackedValue)() = constant.value
 
 UntrackedCell(marker::Computation) = UntrackedCell{Any}(marker)
 UntrackedCell(value::T) where {T} = UntrackedCell{T}(value)
@@ -44,8 +52,10 @@ Base.getindex(c::UntrackedCell{T}) where {T} = run_without_cell_tracking(c.compu
 is_cell_valid(::UntrackedCell) = true
 Base.peek(c::UntrackedCell) = c[]
 
+get_cell_fault_scope(c::UntrackedCell) = _get_computation_fault_scope(c.computation)
+
 function Base.show(io::IO, c::UntrackedCell{T}) where {T}
-    if c.computation isa Returns
+    if c.computation isa _UntrackedValue
         print(io, "UntrackedCell{", T, "}(")
         show(io, c.computation.value)
         print(io, ")")

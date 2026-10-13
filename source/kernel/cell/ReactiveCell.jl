@@ -9,8 +9,8 @@
 # can be valid. A computing cell is on the stack of a computation, and the walk of
 # a write stops at it: one task writes and reads a set of cells, so a write that
 # reaches a computing cell comes from inside its computation, which writes only a cell
-# that it made in the same run. A read of a computing cell on the task that computes
-# it is a cycle.
+# that it made in the same run. A read of a computing cell is a cycle, for the same
+# reason: it comes from inside the computation, or from a task that it waits for.
 @enum _CellState::UInt8 begin
     _VALID
     _INVALID
@@ -26,11 +26,8 @@ read.
 
 Use it to keep a value that others depend on: a cell records the cells that read
 it, and a write invalidates them, so each of them computes again the next time
-it is read.
-Nothing recomputes until it is read, and nothing recomputes that did not depend
-on what changed. A struct of cells keeps its fields in these unless its
-declaration names another kind, so a write to one field invalidates only the
-computations that read that field.
+it is read. Nothing recomputes until it is read, and nothing recomputes that did
+not depend on what changed.
 
 # Example
 
@@ -167,22 +164,13 @@ function run_without_cell_tracking(f)
     stack = _get_computing_stack()
     isempty(stack) && return f()                 # no reader: nothing to stop
     storage = task_local_storage()
-    set_aside = _get_set_aside_stacks()
-    push!(set_aside, stack)
     storage[:projectured_reactive_computing] = ReactiveCell[]
     try
         return f()
     finally
         storage[:projectured_reactive_computing] = stack
-        pop!(set_aside)
     end
 end
-
-# The stacks that `run_without_cell_tracking` set aside on this task, the innermost
-# last. A cycle can pass through them, so the check of a cycle searches them too.
-_get_set_aside_stacks() =
-    get!(() -> Vector{ReactiveCell}[], task_local_storage(),
-         :projectured_reactive_set_aside)::Vector{Vector{ReactiveCell}}
 
 # ── a cycle ──────────────────────────────────────────────────────────────────
 
@@ -195,10 +183,13 @@ through other cells.
 It is an ordinary exception, so a barrier records it as a fault and the editor goes
 on. Each cell of the cycle is failed, and computes again at its next read; a write
 that breaks the cycle reaches the readers of the cycle. The check finds a cycle also
-through `run_without_cell_tracking` and an `UntrackedCell`.
+through `run_without_cell_tracking`, an `UntrackedCell` and a task that the
+computation waits for, because a read of a computing cell is always a cycle.
 
 Use it to tell a cycle from another fault in a catch, or in a test of a computation
-that could read itself.
+that could read itself. A cycle through a task that the computation waits for
+reaches the catch inside the `TaskFailedException` of `fetch`, whose task holds the
+`CellCycleException` as its result.
 
 # Example
 
@@ -237,9 +228,11 @@ end
 # Run the computation of a cell. A computation that calls a method newer than the
 # world of the task that reads it throws a `MethodError`, so the computation then
 # runs once more through `Base.invokelatest`. The retry happens only in an older
-# world. Code inside `invokelatest` runs in the latest world, so a nested cell does
-# not retry, and a real `MethodError` runs each computation of a chain once. A
-# computation is pure, so a second run is safe.
+# world. Code inside `invokelatest` runs in the latest world, so a cell that the
+# retry computes does not retry again. A real `MethodError` read from an older world
+# makes each cell of a chain retry the rest of the chain, so a chain of n cells runs
+# about n²/2 computations before the error reaches the reader. A computation is
+# pure, so the extra runs are safe.
 function _run_computation(@nospecialize(f))
     try
         return f()
@@ -255,9 +248,10 @@ function _recompute!(c::ReactiveCell)
         c.state = _VALID
         return
     end
+    # One task writes and reads the cells, so a read of a computing cell comes from
+    # inside its own computation: a cycle.
+    c.state === _COMPUTING && throw(CellCycleException(c))
     stack = _get_computing_stack()
-    c.state === _COMPUTING && _is_computing_on_this_task(c, stack) &&
-        throw(CellCycleException(c))
     _detach_upstream!(c)
     @count_performance :computes
     push!(stack, c)
@@ -278,20 +272,6 @@ function _recompute!(c::ReactiveCell)
     elseif !isdefined(c, :value)
         c.value = value
     end
-end
-
-# Whether `c` computes on this task: on its stack, or on a stack that
-# `run_without_cell_tracking` set aside.
-function _is_computing_on_this_task(@nospecialize(c::ReactiveCell), stack)
-    _is_on_stack(c, stack) && return true
-    any(aside -> _is_on_stack(c, aside), _get_set_aside_stacks())
-end
-
-function _is_on_stack(@nospecialize(c::ReactiveCell), stack::Vector{ReactiveCell})
-    for i in lastindex(stack):-1:firstindex(stack)
-        stack[i] === c && return true
-    end
-    false
 end
 
 # ── invalidation ─────────────────────────────────────────────────────────────
@@ -333,8 +313,8 @@ and `invalidate_cell!` makes them compute again with no write.
 """
 function Base.setindex!(c::ReactiveCell{T}, value) where {T}
     converted = convert(T, value)
-    @count_performance :writes
     _is_same_plain_value(c, converted) && return value
+    @count_performance :writes
     _detach_upstream!(c)
     c.computation = nothing
     c.value = converted

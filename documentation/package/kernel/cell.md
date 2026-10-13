@@ -89,7 +89,9 @@ The engine invalidates at once, and it computes only on a read:
   their dependents, and marks each one invalid. No computation runs. The walk
   stops at a dependent that is invalid already, and at a computing dependent:
   see the next section. A write of plain data that is `===` to the value of `c`
-  walks nothing, and `invalidate_cell!(c)` walks with no write.
+  walks nothing, and `invalidate_cell!(c)` walks with no write. In a build with
+  the counters, each write adds one to `:writes`, except a write of the same
+  plain data, which adds nothing.
 - The next `c[]` of a cell that is not valid calls `_recompute!(c)`. It
   removes the old upstream edges, runs the computation with tracking, and stores
   the new value.
@@ -118,16 +120,20 @@ the write, and the engine does not lock a cell. Three things follow from the rul
   `post_operation!` and the feeds that `drain_feeds!` drains do this.
 - Another task reads a cell of the set only while the owner waits for it, for
   example `fetch(Threads.@spawn c[])` inside a computation. The computing stack
-  is per task, so such a read records no reader.
+  is per task, so such a read records no reader. One task at a time reads for the
+  owner: a read of a cell that is not valid computes it and changes the edges of
+  the graph. Several tasks at once read only cells that are valid.
 - A computation runs in a read phase, so it writes no cell that another cell
   reads. It can write a cell that it made in the same run, and a collector that
   no cell reads: [PAR-NO-WRITE-IN-THUNK](../../rule/architecture-invariants.md#par-no-write-in-thunk)
   gives the conditions.
 
-The engine uses the rule in one place: the walk of a write stops at a computing
-cell. A write that reaches a computing cell comes from inside its own computation,
-which writes a cell that it made in the same run. That computation reads the new
-value after its write, so its value is right when it ends.
+The engine uses the rule in two places. The walk of a write stops at a computing
+cell, because a write that reaches it comes from inside its own computation, which
+writes a cell that it made in the same run. The value of that computation stays
+right only when no other cell read the new cell before the write, which
+PAR-NO-WRITE-IN-THUNK requires. And a read of a computing cell is a cycle: see
+[A cycle](#a-cycle).
 
 In the editor, the editor task is the owner. A frame runs its steps one after the
 other on that task. A drain and an applied operation write cells. A read of the
@@ -154,17 +160,31 @@ takes the fault, it answers `true`, and the computation throws a
 answers `false`, as a scope with no method does, the exception goes on as it is. An
 exception that is not a fault, and a `MethodError` in an older world, go on with no
 call. `get_cell_fault_scope(cell)` answers the scope that the computation of `cell`
-keeps, and `find_cell_fault_scope()` answers the scope that a computation made now
-keeps: a barrier calls it to find the scope that encloses it. A computation made outside every scope
-keeps a bare function, so a cell outside every barrier runs with no scope. The barrier and its scope are in
-[fault.md](../platform/fault/fault.md).
+keeps, for a reactive and for an untracked cell, and `find_cell_fault_scope()`
+answers the scope that a computation made now keeps: a barrier calls it to find
+the scope that encloses it. A computation made outside every scope keeps a bare
+function, so a cell outside every barrier runs with no scope. The barrier and its
+scope are in [fault.md](../platform/fault/fault.md).
+
+```julia
+struct PartScope; faults::Vector{Any}; end
+CellModule.record_cell_fault!(scope::PartScope, computation, exception; traceback) =
+    (push!(scope.faults, exception); true)
+scope = PartScope([])
+part = run_in_cell_fault_scope(() -> Cell(@computation error("no value")), scope)
+get_cell_fault_scope(part) === scope          # true
+try part[] catch exception; typeof(exception) end   # RecordedCellFaultException
+scope.faults                                  # [ErrorException("no value")]
+```
 
 ## A cycle
 
 A computation that reads its own cell, directly or through other cells, is a
-cycle. The read finds the cell *computing*, on the stack of its own task or on a
-stack that `run_without_cell_tracking` set aside, and throws a `CellCycleException`, an
-ordinary exception: a barrier records it, and the editor goes on. Each cell of
+cycle. The read finds the cell *computing* and throws a `CellCycleException`, an
+ordinary exception: a barrier records it, and the editor goes on. The state alone
+shows the cycle, because one task writes and reads the cells: a read of a computing
+cell comes from inside its computation, also through `run_without_cell_tracking`, an
+`UntrackedCell` or a task that the computation waits for. Each cell of
 the cycle is failed, and a write that breaks the cycle reaches their readers.
 
 ```julia
@@ -223,7 +243,9 @@ and not an error.
   method newer than the world of the task that reads it throws a `MethodError`,
   and then it runs once more through `Base.invokelatest`. In the latest world a
   `MethodError` is real, so no computation retries, and each computation of a
-  chain runs once.
+  chain runs once. A real `MethodError` read from an older world makes each cell
+  of a chain retry the rest of the chain: a chain of n cells runs about n²/2
+  computations before the error reaches the reader.
 
 ## How the cell appears in the rest of the codebase
 
@@ -298,8 +320,10 @@ struct/CellStructModule.jl        (CellStructModule): the struct of cells
 contract and nothing else. The read `c[]`, the untracked read `peek` and
 `is_cell_valid` have their bodies in the file of each kind. The bodies of
 `unwrap_cell`, `get_cell_value_type`, `make_similar_cell`, `is_computed_cell`,
-`get_cell_computation`, `has_dependent_cells` and the fallback of
-`record_cell_fault!` are in the sibling `CellDefaults.jl`.
+`get_cell_computation`, `has_dependent_cells` and the fallbacks of
+`record_cell_fault!` and `invalidate_cell!` are in the sibling `CellDefaults.jl`.
+The method of `invalidate_cell!` for a reactive cell is in `ReactiveCell.jl`, beside
+the walk that it calls.
 
 The animation clock is a `@cell_struct` that uses the engine, and it is not a
 part of the engine. It is its own layer, `clock/ClockModule.jl`, above the struct
@@ -351,10 +375,11 @@ not compute again when a part of the node changes.
 ## Try it
 
 `print_cell_example()` in `ProjecturedKernelExample` prints a REPL session with the
-layer: a value, a computation, a write that makes the readers invalid, `peek`, a
-chain, the other cell kinds, `run_without_cell_tracking` and a fault scope. Each line runs as it
-prints. Type the lines yourself after `using ProjecturedKernel.CellModule`, and change
-them.
+layer: a value, a computation, a write that makes the readers invalid, a write of
+the same plain value, `invalidate_cell!`, `peek`, a chain, a new computation and a
+new value of a cell, the other cell kinds, `run_without_cell_tracking`, a cycle and
+a fault scope. Each line runs as it prints. Type the lines yourself after
+`using ProjecturedKernel.CellModule`, and change them.
 
 ```julia
 using ProjecturedKernelExample

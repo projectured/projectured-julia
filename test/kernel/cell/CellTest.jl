@@ -261,6 +261,12 @@ end
         source[] = same
         @test is_cell_valid(reader)
     end
+    # The check sees the value after the conversion to the value type.
+    typed = ReactiveCell{Float64}(1.0)
+    typed_reader = Cell(@computation typed[] + 1)
+    typed_reader[]
+    typed[] = 1
+    @test is_cell_valid(typed_reader)
     # A value that is equal and not identical is a change.
     z = Cell(1)
     w = Cell(@computation z[] * 2)
@@ -560,6 +566,29 @@ end
     typed[] = @computation typed[] + 1
     exception = try typed[] catch caught; caught end
     @test sprint(showerror, exception) == "a ReactiveCell{$(Int)} read itself while it computed"
+end
+
+@testset "a read of a computing cell from a task that its computation waits for is a cycle" begin
+    c = Cell(0)
+    runs = Ref(0)
+    c[] = @computation (runs[] += 1; fetch(Threads.@spawn c[]) + 1)
+    exception = try c[] catch caught; caught end
+    @test exception isa TaskFailedException
+    @test exception.task.result isa CellCycleException
+    @test exception.task.result.cell === c
+    @test runs[] == 1                     # the read on the other task ran no computation
+    @test !is_cell_valid(c)
+end
+
+@testset "a typed cell keeps its value until the first read of a new computation" begin
+    typed = ReactiveCell{Int}(5)
+    set_cell_computation!(typed, () -> 6)
+    @test getfield(typed, :value) == 5
+    @test typed[] == 6
+    optional = ReactiveCell{Union{Nothing,Int}}(5)
+    set_cell_computation!(optional, () -> 6)
+    @test getfield(optional, :value) === nothing   # a type that admits nothing clears it
+    @test optional[] == 6
 end
 
 @testset "a write or a new computation during the computation of a cell stands" begin

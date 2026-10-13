@@ -346,3 +346,43 @@ performance layer is gone. The full guide check of `struct.md` (each fragment, e
 name, a walkthrough) belongs to the re-audit of layer 4. The survey finds no name of
 `CellModule` or `CellStructModule` that its guide does not name.
 
+## The third audit
+
+An auditor read the layer on 24b553cad. Architecture: fail (3 Medium, 3 Low); tests:
+pass with gaps; example: pass; guide: pass with findings. **The owner, 2026-10-13:**
+"C-3: agreed as A" and "fix the smaller issues too, until the audit is clean".
+
+- [x] C-1 (Medium): `get_cell_fault_scope` answers `nothing` for an `UntrackedCell`
+  made in a scope. A method for the kind, and a test.
+- [x] C-2, G-1 (Medium): "another task reads while the owner waits" allows several
+  tasks at once, and 16 spawned reads of invalid cells race in
+  `_register_dependent!`. The law and the guide: one task at a time, or only valid
+  cells.
+- [x] C-3 (Medium), A: a read of a computing cell is a cycle, by its state alone. A
+  cycle through a spawned read ran with no bound. The list of the stacks that
+  `run_without_cell_tracking` set aside is gone.
+- [x] C-4, C-5, C-6 (Low): the comment of `_run_computation` (a chain read from an
+  older world runs its computations about n²/2 times), the header of
+  `CellInterface.jl`, the header and the order of `CellDefaults.jl`.
+- [x] G-2, G-3, G-4 (Low): the guide says where the bodies of `invalidate_cell!` are,
+  lists every step of the walkthrough, and says the read-before-write condition.
+- [x] T-1, T-2, T-3 (Low): tests of a `MethodError` from an older world, of the
+  other-stack branch of `find_cell_fault_scope`, of a typed cell after
+  `set_cell_computation!` and of a same-value write after a conversion.
+- [x] The advice: the docstring of `ReactiveCell` describes no struct layer; an
+  untracked cell of `Returns`; a short example of a fault scope in the guide; a
+  skipped write counts no write.
+  An untracked cell made from a value keeps it in a private `_UntrackedValue`, so
+  `Computation(Returns(x))` counts as a computation. Each new test fails on the code
+  that it guards (checked with the old code put back). Checked: `test_cell` 237,
+  `test_untracked_cell` 48, `test_cell_fault_scope` 41, the walkthrough 2, the
+  layering guard 10, the kernel suite 4453 of 4453, the survey of `CellModule`.
+- [x] An audit that finds nothing. The auditor read the fixes in the working tree on
+  ad4ef07b6: the four checks pass, and no finding blocks the seal. Its last advice,
+  that a cycle through a waited-for task reaches a catch inside the
+  `TaskFailedException` of `fetch`, is in the docstring of `CellCycleException`.
+  Checked: `test_platform` and `test_julia` have the failure places of the full
+  run, and `test_integration` too, less the 481 of the xml REPL walks, which
+  96bacc774 of another session fixed.
+- [ ] The seal, on the owner's word.
+
