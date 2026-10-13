@@ -2116,6 +2116,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - Cost: ReactiveCell.jl 🔒 and CellModule.jl 🔒 (the export of the new exception type); cell.md and PAR-ACYCLIC-CELLS in architecture-invariants.md; FormulaDocument.jl; CellTest.jl (a cycle and a direct self-read). The name of the exception is a decision; CellCycleException ends in Exception, as naming-rules.md requires. Size S.
 
 **L05-1** (Medium): As L03-2: does the engine get a state for a cell that computes now?
+- **Withdrawn on 2026-10-13:** the heartbeat is gone (01024a2a9), and the owner decided L03-2 as B, the single-writer rule. [clock-layer-reaudit.md](clock-layer-reaudit.md) holds the re-audit of the layer.
 
 - **A:** The engine fix of L03-2: a reader that computes when the heartbeat writes stays invalid after its computation, so the next frame computes it again.
 - **B:** Change no engine code. Keep the sentence in the docstring of start_wall_clock! (done in 40496d8b8): a computation that reads the clock must not yield.
