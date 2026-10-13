@@ -10,6 +10,8 @@ The Markdown domain, `ProjecturedMarkdown`, holds a Markdown page as a tree of b
 
 `MarkdownRoot` holds the page in `elements`. The blocks are `MarkdownHeading`, `MarkdownParagraph`, `MarkdownCodeBlock`, `MarkdownQuote`, `MarkdownList` with `MarkdownListItem`, `MarkdownTable` with `MarkdownTableRow`, and `MarkdownThematicBreak`. The inlines are `MarkdownText`, `MarkdownCode`, `MarkdownEmphasis`, `MarkdownStrong`, `MarkdownLink` and `MarkdownImage`. A container holds its children in a `CellVector` field: `content` for inlines, `elements`, `items` or `rows` for blocks. A table holds its `header` row, its body `rows`, and one alignment for each column in `alignments` (`:default`, `:left`, `:center` or `:right`). An entry of a table row is a `MarkdownParagraph`, because an entry is a run of inlines.
 
+Each list declares the type of its elements, and a write of another type fails at the write. The block flow, the `elements` of the root, a quote and a list item, declares `Document`, so a page holds a part of any domain, such as JSON, XML, Julia code or a widget. The inline flow, the `content` of a paragraph, a heading, an emphasis, a strong and a link, declares `MarkdownDocument`. The structural places are narrow: `items` holds `MarkdownListItem`, `rows` holds `MarkdownTableRow`, and the entries of a row are `MarkdownParagraph`. Each of them also admits `MarkdownInsertion`, the intermediate state of an edit.
+
 The domain does not use `@domain`. It declares `MarkdownDocument` by hand, and `MarkdownInsertion` has a `value::Any` field. It has no `@gestures` tables, so the structural edits of JSON do not exist here. A text edit of a field goes through the shared splice, as in every domain.
 
 ### Two presentations

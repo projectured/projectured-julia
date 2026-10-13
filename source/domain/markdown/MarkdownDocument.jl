@@ -44,7 +44,7 @@ set_cell_value!(c::MarkdownCode, v::AbstractString) = (set_cell_value!(getfield(
 Emphasised (italic) inline content (`*…*`), a sequence of inline nodes.
 """
 @document struct MarkdownEmphasis <: MarkdownDocument
-    content::CellVector = CellVector()
+    content::CellVector{MarkdownDocument} = CellVector{MarkdownDocument}()
 end
 
 @forward_vector_protocol on MarkdownEmphasis to content
@@ -53,7 +53,7 @@ end
 Strong (bold) inline content (`**…**`), a sequence of inline nodes.
 """
 @document struct MarkdownStrong <: MarkdownDocument
-    content::CellVector = CellVector()
+    content::CellVector{MarkdownDocument} = CellVector{MarkdownDocument}()
 end
 
 @forward_vector_protocol on MarkdownStrong to content
@@ -63,7 +63,7 @@ An inline link (`[content](url)`). `content` is the inline text shown, `url` the
 target.
 """
 @document struct MarkdownLink <: MarkdownDocument
-    content::CellVector = CellVector()
+    content::CellVector{MarkdownDocument} = CellVector{MarkdownDocument}()
     url::String
 end
 
@@ -85,7 +85,7 @@ nodes.
 """
 @document struct MarkdownHeading <: MarkdownDocument
     level::Int
-    content::CellVector = CellVector()
+    content::CellVector{MarkdownDocument} = CellVector{MarkdownDocument}()
 end
 
 @forward_vector_protocol on MarkdownHeading to content
@@ -94,7 +94,7 @@ end
 A prose paragraph — a sequence of inline nodes.
 """
 @document struct MarkdownParagraph <: MarkdownDocument
-    content::CellVector = CellVector()
+    content::CellVector{MarkdownDocument} = CellVector{MarkdownDocument}()
 end
 
 @forward_vector_protocol on MarkdownParagraph to content
@@ -121,7 +121,7 @@ A block quote (`> …`). `elements` holds its child blocks; `collapsed` hides th
 behind a marker in the projection.
 """
 @document struct MarkdownQuote <: MarkdownDocument
-    elements::CellVector = CellVector()
+    elements::CellVector{Document} = CellVector{Document}()
     collapsed::Bool = false
 end
 
@@ -133,7 +133,7 @@ itself contain paragraphs, nested lists, …); `collapsed` hides them in the
 projection.
 """
 @document struct MarkdownListItem <: MarkdownDocument
-    elements::CellVector = CellVector()
+    elements::CellVector{Document} = CellVector{Document}()
     collapsed::Bool = false
 end
 
@@ -147,7 +147,8 @@ wrapping constructor: `MarkdownList(true, [MarkdownListItem(…), …])`.
 """
 @document struct MarkdownList <: MarkdownDocument
     ordered::Bool
-    items::CellVector = CellVector()
+    items::CellVector{Union{MarkdownListItem, MarkdownInsertion}} =
+        CellVector{Union{MarkdownListItem, MarkdownInsertion}}()
     collapsed::Bool = false
 end
 
@@ -158,7 +159,8 @@ One row of a `MarkdownTable`. `elements` holds one `MarkdownParagraph` for each
 column: an entry of a table is a run of inlines, which is what a paragraph is.
 """
 @document struct MarkdownTableRow <: MarkdownDocument
-    elements::CellVector = CellVector()
+    elements::CellVector{Union{MarkdownParagraph, MarkdownInsertion}} =
+        CellVector{Union{MarkdownParagraph, MarkdownInsertion}}()
 end
 
 @forward_vector_protocol on MarkdownTableRow to elements
@@ -172,9 +174,10 @@ required leading arguments, so `rows` reaches the `CellVector`-wrapping
 constructor: `MarkdownTable([:default], MarkdownTableRow(…), [MarkdownTableRow(…)])`.
 """
 @document struct MarkdownTable <: MarkdownDocument
-    alignments::Any             # Vector{Symbol}, one per column
+    alignments::Vector{Symbol}  # one per column
     header::MarkdownTableRow
-    rows::CellVector = CellVector()
+    rows::CellVector{Union{MarkdownTableRow, MarkdownInsertion}} =
+        CellVector{Union{MarkdownTableRow, MarkdownInsertion}}()
 end
 
 @forward_vector_protocol on MarkdownTable to rows
@@ -186,7 +189,7 @@ The whole Markdown document — a top-level sequence of block nodes. `collapsed`
 hides the body behind a marker in the projection.
 """
 @document struct MarkdownRoot <: MarkdownDocument
-    elements::CellVector = CellVector()
+    elements::CellVector{Document} = CellVector{Document}()
     collapsed::Bool = false
 end
 
