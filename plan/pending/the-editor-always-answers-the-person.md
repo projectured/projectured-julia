@@ -5,9 +5,9 @@
 > threads, etc. then we should design it that way. Of course, race conditions,
 > dead locks, live locks should be avoided at all costs." Nothing is built.
 >
-> **Decided by the owner, 2026-10-13:** D1 (option A), D7, and the rules a, b, c
-> and d of §5.7, with d in its narrow form. **Open:** the permission P1 for one
-> sealed file, and the decisions D2 to D6, one at a time.
+> **Decided by the owner, 2026-10-13:** D1 (option A), D7, the rules a, b, c and
+> d of §5.7 with d in its narrow form, and the permission P1 for one sentence of
+> a sealed file. **Open:** the decisions D2 to D6, one at a time.
 >
 > This plan takes in three earlier plans: `a-long-evaluation-does-not-hold-the-editor.md`
 > (on the branch `plan-evaluation-off-editor`, deferred on 2026-10-09),
@@ -323,7 +323,7 @@ B is ever needed.
 | `execute_julia_code` from a native turn, MCP or ACP | holds the window | a unit: held frames, the stop |
 | An evaluation of the composer or the evaluator | holds the window | a unit |
 | Any other tool call | holds the window | a unit |
-| A formula in a print | holds the window | as today; §5.8 records a slow frame |
+| A formula in a print | holds the window | as today; §5.8 records a slow frame; a plan of its own moves it off the loop |
 | An operation, a feed drain, a print | fast (D1) | as today; §5.8 records a slow frame |
 | A storm of faults | the frame reports them | as today |
 | An MCP request while a unit runs | waits with no bound | waits in the inbox with the bound T3 (30 s), then an error result (D5) |
@@ -359,6 +359,9 @@ B is ever needed.
   writes it: the task that owns the cells of the editor. A task that hands the
   cells to another task hands the store with them." The same change goes into
   `fault.md:79`, which is not sealed. No code of the file changes.
+  **Granted by the owner, 2026-10-13.** The sentence changes in the commit of
+  step 2 that makes a unit write the store, so that it describes code that
+  exists.
 - **D1. Decided by the owner, 2026-10-13: A** (§4).
 - **D2. Input during a held frame:** keep it in order and apply it after the
   unit, or drop it and say so. Recommended: keep it. A terminal, Emacs and a
@@ -397,8 +400,8 @@ B is ever needed.
 - [ ] **2. Units in the kernel editor layer:** the unit and its description, the
   task on thread 2 and its supervisor, the handoff, the held frames while the
   loop waits, `run_on_editor_task!` for the owner, the fallback on one thread,
-  the faults of the held frames (P1), POLICY-6-inbox (D5), and the record of a
-  slow frame (§5.8).
+  the faults of the held frames, the sentence of P1 in `FaultStore.jl` and
+  `fault.md`, POLICY-6-inbox (D5), and the record of a slow frame (§5.8).
 - [ ] **3. The stop and the bounds:** the stop flag, our own waits, the interrupt
   (D6), the repairs after a stop, T3, the budget of T4 in the description of the
   code tool, and the rules a to d of §5.7.
@@ -421,6 +424,9 @@ B is ever needed.
 ## Not in this plan
 
 Option B · the services off thread 1, which needs `-t 2` · code in a
-separate process, which alone can stop a loop that never waits · formulas
-computed outside the print · the process-wide swap of stdout in the code tool
-(L18-4) · editing of other documents while a code unit runs.
+separate process, which alone can stop a loop that never waits · the
+process-wide swap of stdout in the code tool (L18-4) · editing of other
+documents while a code unit runs · formulas, a plan of its own; the owner,
+2026-10-13: "the formula value should be stored in the document explicitly and
+updated by the projection on a task/thread out of the printer loop to avoid
+making the editor unresponsive".
