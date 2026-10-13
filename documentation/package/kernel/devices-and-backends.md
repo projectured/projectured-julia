@@ -628,6 +628,7 @@ The layer lives in [source/kernel/backend/](../../../source/kernel/backend/):
 ```
 BackendModule.jl    (BackendModule)         — the module: its docstring, exports, and fragments
 BackendInterface.jl (BackendModule)         — Backend abstract + batch generics
+HeldFrameState.jl   (BackendModule)         — what one held frame shows while a code unit runs
 BackendDefaults.jl  (BackendModule)         — the fallback behaviours the contract supplies itself
 ```
 

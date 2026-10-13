@@ -99,21 +99,6 @@ the editor task.
 function wake_backend! end
 
 """
-    HeldFrameState(seconds, current, is_stop_pending, is_quit_asked)
-
-What one held frame shows while a code unit runs: the time since the unit
-started, in seconds; the index of the description of `prepare_held_frames!` that
-names the work that runs now; whether the person asked for a stop that has not
-acted yet; and whether the frame asks to quit without a save.
-"""
-struct HeldFrameState
-    seconds::Float64
-    current::Int
-    is_stop_pending::Bool
-    is_quit_asked::Bool
-end
-
-"""
     prepare_held_frames!(backend, devices, descriptions)
 
 Make everything that the held frames of a code unit draw, before the unit starts:
