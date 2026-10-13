@@ -462,7 +462,7 @@ B is ever needed.
 | `run_held_frame!(backend, devices, state)` | backend protocol: one held frame; answers `:none`, `:stop`, `:close` or `:quit` | same |
 | `HeldFrameState` | what one held frame shows: the time, the current part, a stop with no effect, the question to quit | `source/kernel/backend/HeldFrameState.jl` (new) |
 | `end_held_frames!(backend, devices)` | backend protocol: gives the pointer back its shape and frees what held frames drew | same |
-| `add_cell_writer!(task)`, `remove_cell_writer!(task)` | the owner tasks of rule d | `source/kernel/cell/CellWriterCheck.jl` (new) |
+| `add_cell_writer!(task)`, `remove_cell_writer!(task)`, `take_foreign_cell_writes!()`, `ForeignCellWriteException` | the owner tasks of rule d, and the writes of other tasks | `source/kernel/cell/CellWriterCheck.jl` (new) |
 | `run_on_editor_task!(...; timeout, description)` | T3, and the description of a unit | `Inbox.jl` |
 | `EditorCallTimeoutException` | the end of the wait of T3 | `Inbox.jl` |
 | `Editor` fields `code_unit`, `owner_posts`, `has_loop_ended`, `held_faults`, `unapplied_operations` | the running unit, the queue of I3, the end of I1, the faults of held frames, what an interrupted drain did not apply | `Editor.jl` |
@@ -701,8 +701,17 @@ nothing.
     `ArgumentError`. The three states of I1 come from what exists: a set
     `loop_task` means running, and `Editor.has_loop_ended` means ended; a field
     of its own would repeat `loop_task`. The kernel suite: 4482 of 4482.
-  - [ ] 2e. The cell writers of rule d (waits for the permission for the sealed
-    `cell/ReactiveCell.jl` and `cell/CellModule.jl`).
+  - [x] 2e. The cell writers of rule d (`2cf33246b`). The cell layer was sealed
+    during the work (`330926c9f`); the owner allowed the change of
+    `cell/ReactiveCell.jl` and `cell/CellModule.jl` on 2026-10-13, after seeing its
+    shape. `ReactiveCell` calls `_check_cell_writer` at a write, a new computation,
+    an invalidation and the store of a computed value. The new fragment
+    `CellWriterCheck.jl` keeps the owners in one `@atomic` list (copied under a
+    lock on a change) and the foreign writes in a bounded list. The loop registers
+    its task; a unit registers its task, which removes itself when it ends; each
+    frame records the foreign writes as faults (origin `:cell_writer`). The
+    docstring of `CellModule.jl` lists the new fragment too. The kernel suite:
+    4513 of 4513, and no kernel test makes a foreign write.
   - [x] 2f. The record of a slow frame (`cd4f19fc3`): the loop times each feed, the
     read, each operation, the print and the fault report, and after a frame that
     took longer than `SLOW_FRAME_SECONDS` (1 s), without the time of its held
