@@ -1,13 +1,11 @@
 # The assistant talks to an ACP agent
 
-> **Status (2026-10-08): PHASE 1 DONE and on `main` since 2026-10-07; phase 2
-> partly done.** Steps 1.1 to 1.10, the command line, 2.1, 2.2, 2.3 and the
-> request cancel of 2.7 are on `main`. Since the plan
-> [acp-is-a-julia-package-and-claude-runs-without-node.md](../done/acp-is-a-julia-package-and-claude-runs-without-node.md),
-> the built-in agent of `ProjecturedACP` runs Claude Code, and it is the
-> default agent. 2.9 and 2.10 are done too, and 2.4a and 2.4b on the branch
-> `assistant-resume`. Open: the list and the delete of 2.4c, which wait, 2.5,
-> 2.6, the prompt queue of 2.7, 2.8 and phase 3. The owner answered every question on 2026-10-07; see "Decisions".
+> **Status (2026-10-13): DONE.** Phases 1, 2 and 3 are on `main` and pushed:
+> the built-in agent of `ProjecturedACP` runs Claude Code through `ClaudeCodeACP`
+> (now 0.1.8), with save, load and resume, sign-in, question forms, a message
+> into a turn that runs, and pictures in a prompt. The owner kept 2.4c, 2.8 and
+> 3.2 deferred on 2026-10-13, so they are not in this plan; see "Not in this
+> plan".
 > The feature comes in a release after the first one.
 
 ## Goal
@@ -630,8 +628,8 @@ from the command line of the projectured UI.
     as "Context: 36k of 1M tokens", with the cost when the agent gives one.
   - Tests: ACP 100 of 100, the platform conversation suite 164 of 164, the
     application test 357 with 2 known broken, the history sweep 136 of 136.
-- [ ] 2.4 Save, load, resume and delete. Split on 2026-10-08 into three parts:
-  2.4a and 2.4b are done, and 2.4c waits.
+- [x] 2.4 Save, load, resume and delete. Split on 2026-10-08 into three parts:
+  2.4a and 2.4b are done; 2.4c is not in this plan.
   Facts found on 2026-10-08:
   - `ClaudeCodeACP` answers `session/resume` and `session/close`, and not
     `session/load`, `session/list` or `session/delete`. The schema 1.7.0 marks
@@ -1176,7 +1174,7 @@ from the command line of the projectured UI.
     `ClaudeCodeACP` 0.1.6 and the registry were pushed, the clone moved to it,
     the manifest of `environment/all` names 0.1.6, and the branch landed and
     was pushed.
-- [ ] 2.8 The ACP Registry as a source for the list of agents.
+- 2.8 The ACP Registry as a source for the list of agents: not in this plan.
 - [x] 2.9 A hook for the close of a document, so the close of a tab stops its
   agent and its MCP server (review #3). Done on 2026-10-08, as the owner
   approved: `release_document!(editor, document)` and `ReleaseDocumentOperation`
@@ -1517,8 +1515,16 @@ from the command line of the projectured UI.
   - The picture holds all that the window shows, files included, and goes to
     the provider of the model; only the person or a call that the person allows
     takes it.
-- [ ] 3.2 File access through the editor, if an agent calls `fs/*`. Deferred by
-  the owner on 2026-10-12.
+- 3.2 File access through the editor, if an agent calls `fs/*`: not in this
+  plan.
+
+## Not in this plan
+
+The owner deferred these on 2026-10-12 and kept them deferred on 2026-10-13:
+2.4c, the list and the delete of the sessions of an agent (for Claude Code only
+through its transcript files, which are not documented); 2.8, the ACP Registry
+as a list of agents (`--agent-command` starts any agent now); and 3.2, the files
+of an agent through the editor (Claude Code does not call `fs/*`).
 
 ## The questions and their answers
 

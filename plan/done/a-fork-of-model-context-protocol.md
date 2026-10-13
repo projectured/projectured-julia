@@ -3,7 +3,7 @@
 > **Status (2026-10-09): DONE.** The owner decided the base, the identity and
 > the repository on 2026-10-08; see "Decisions". It is the first of the three
 > later options of step 2.12 of
-> [the-assistant-talks-to-an-acp-agent.md](../pending/the-assistant-talks-to-an-acp-agent.md).
+> [the-assistant-talks-to-an-acp-agent.md](the-assistant-talks-to-an-acp-agent.md).
 > F.1 to F.7 are done; the owner deferred F.8, the pull request for upstream, on
 > 2026-10-09.
 

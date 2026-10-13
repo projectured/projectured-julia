@@ -7,7 +7,7 @@
 > `ProjecturedACP` uses it. Part B is done: `ClaudeCodeACP.jl` 0.1.2 is on GitHub
 > and in ProjecturedRegistry, ProjecturEd runs it in its own process by default,
 > and the builder of ProjecturEd compiles its program. The steps that remain of
-> [the-assistant-talks-to-an-acp-agent.md](../pending/the-assistant-talks-to-an-acp-agent.md)
+> [the-assistant-talks-to-an-acp-agent.md](the-assistant-talks-to-an-acp-agent.md)
 > continue there.
 
 ## Goal
