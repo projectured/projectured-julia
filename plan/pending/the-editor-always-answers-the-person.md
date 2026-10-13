@@ -1,10 +1,11 @@
 # The editor always answers the person
 
-> **Status (2026-10-13): DECIDED, NOT STARTED.** The owner asked
-> on 2026-10-12: "The editor cannot become unresponsive in any circumstances.
-> [...] If this needs new tasks, threads, etc. then we should design it that way.
-> Of course, race conditions, dead locks, live locks should be avoided at all
-> costs." Nothing is built, and the work starts when the owner says so.
+> **Status (2026-10-13): IN PROGRESS, step 1.** The work runs on the branch
+> `editor-always-answers`, in the worktree `projectured-julia-answers`. The owner
+> asked on 2026-10-12: "The editor cannot become unresponsive in any
+> circumstances. [...] If this needs new tasks, threads, etc. then we should
+> design it that way. Of course, race conditions, dead locks, live locks should
+> be avoided at all costs." The owner started the work on 2026-10-13.
 >
 > **Decided by the owner, 2026-10-13:** D1 (option A), D2 (option B), D3
 > (option A), D4 (option A), D5 (option A), D6 (option C), D7, D8, the rules a,
