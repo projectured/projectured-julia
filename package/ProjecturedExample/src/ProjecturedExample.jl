@@ -189,6 +189,7 @@ export make_json_null_document_example, make_json_null_projection_example
 export make_json_projection_example, make_json_sorted_projection_example
 export make_json_string_document_example, make_json_string_projection_example
 export make_julia_document_example, make_julia_projection_example
+export make_julia_code_document_example, make_julia_code_projection_example
 export make_julia_abstract_type_document_example
 export make_julia_anonymous_type_annotation_document_example
 export make_julia_broadcast_document_example, make_julia_comprehension_document_example
@@ -384,7 +385,7 @@ export layout_example, constraint_layout_example, book_example, markdown_example
 export collection_example, reversing_example, filtering_example, searching_example, sorting_example, focusing_example, table_example, math_table_example, graph_example
 export lazy_example, lazy_bidirectional_example
 export math_example
-export julia_example
+export julia_example, julia_code_example
 export graphics_image_example
 export rotating_vector_example
 export make_rotating_vector_document

@@ -77,3 +77,34 @@ function make_julia_document_example()
                         JuliaCall(JuliaIdentifier("factorial"), [
                             JuliaBinaryOperation(:-, JuliaIdentifier("n"), JuliaInteger(1))]))]))]))
 end
+
+# A short Julia program read from its source, in a scroll pane smaller than the
+# code: a struct, two functions and a loop, so each definition, the branch and the
+# loop fold as a region of lines, and the gutter numbers every line.
+const _JULIA_CODE_EXAMPLE_SOURCE = """
+struct Point
+    x::Float64
+    y::Float64
+end
+
+function distance(a::Point, b::Point)
+    dx = a.x - b.x
+    dy = a.y - b.y
+    return sqrt(dx^2 + dy^2)
+end
+
+function factorial(n)
+    if n <= 1
+        return 1
+    else
+        return n * factorial(n - 1)
+    end
+end
+
+for n in 1:5
+    println(n, "! = ", factorial(n))
+end
+"""
+
+make_julia_code_document_example() =
+    WidgetScrollPane(parse_julia(_JULIA_CODE_EXAMPLE_SOURCE); size = Point2D(560, 300))

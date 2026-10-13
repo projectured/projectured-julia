@@ -86,6 +86,7 @@ const math_example           = Example("math",           make_math_document_exam
 # (`run_example(math_display_example)`) for everything else.
 const math_display_example   = Example("math_display",   make_math_display_document_example,   make_math_display_projection_example)
 const julia_example          = Example("julia",          make_julia_document_example,          make_julia_projection_example)
+const julia_code_example     = Example("julia_code",     make_julia_code_document_example,     make_julia_code_projection_example)
 const graphics_image_example = Example("graphics_image", make_json_document_example,           make_json_projection_example)
 const assistant_example      = Example("assistant",      make_assistant_document_example,      make_assistant_projection_example; render_width=1600, render_height=1000)
 const conversation_widget_example = Example("conversation_widget", make_conversation_document_example, make_conversation_widget_projection_example; render_width=1200, render_height=700)
@@ -184,6 +185,7 @@ const domain_examples = Example[
     widget_split_tabs_example,
     math_example,
     julia_example,
+    julia_code_example,
     graphics_image_example,
     assistant_example,
     conversation_widget_example,
