@@ -1051,7 +1051,7 @@ For each step, run the narrowest test: the test files of the step, through
       A run with the Claude backend sends the prompts to an external service,
       which needs the word of the owner.
 
-- [ ] **7. Measure X1 and X4, and record the counts here.**
+- [x] **7. Measure X1 and X4, and record the counts here.** Done 2026-10-14.
   - Compile the performance counters in, with the preference
     `performance_counters`.
   - X1: 50 file tabs, the roster on the screen, 100 key presses in one file.
@@ -1062,6 +1062,47 @@ For each step, run the narrowest test: the test files of the step, through
   - Record counts, not times. A time needs an idle machine and the word of the
     owner.
   - The counts decide if a later plan adds a stage for each part, R4 or R7.
+  - **What the step found:**
+    - The method: a copy of `environment/all` with the preference
+      `performance_counters = true`, so the counters compile in, and the cache
+      of the other environments stays. A headless window; each step is counted
+      with `run_with_performance_counters`. The headless backend keeps the
+      output and does not walk it, so each counted step also walks the drawn
+      output, as a paint does; without that walk, the lazy cells compute only
+      when a test reads them, and the counts show no computation.
+    - X1: 50 text files, each with its history, and the typed file beside the
+      roster of the files with edits (filter by state and folder, sort by name).
+      X4: 19 Julia files of 30 calls each and one small typed file, as a
+      collection, and the roster of the calls of `length`, grouped by file. A
+      Julia file tab can not print in a bare window: its code view makes a
+      `ScrollLayout` that the scroll pane of a file tab of the application takes
+      apart. So in X4 a step replaces the callee of one call of the typed file,
+      `other` and `length` in turn, instead of a key press in a tab.
+    - The counts of each step after the first, with the walk of the paint:
+
+      | | rows | reads | computes | invalidations |
+      |---|---|---|---|---|
+      | X1 without roster | 0 | 2827 | 16 | 16 |
+      | X1 with roster | 50 | 10678 | 360 | 265 |
+      | X4 without roster | 0 | 149 | 0 | 0 |
+      | X4 with roster | 571 | 32836 | 732 | 486 |
+
+    - **What costs.** The roster costs about 7 computations for each row at each
+      step. In X1 each key replaces the newest entry of the undo list of the
+      file, so `has_edits` computes again and invalidates the filter, though its
+      value stays `true` (decision 10: propagation follows the writes). The
+      filter then runs over all rows, the pick makes a new slot cell for each
+      picked row, and the table lays out every row again. In X4 the change of
+      one call runs the filter over 571 rows and the group again, and the table
+      of the groups prints again. The edges of the assembly (R4) are not the
+      main cost.
+    - **What a later plan can do**, in the order of its cost: the pick and the
+      table keep the slot of a row that stays, with no change in the engine; a
+      cut-off kind of cell (R10) for a facet whose value does not change; R7 for
+      an aggregate at O(changed). R4, R7 and R10 change `ReactiveCell.jl`, which
+      is sealed.
+    - The counts are counts, not times: a time needs an idle machine and the
+      word of the owner.
 
 - [ ] **8. The documentation.**
   - `documentation/package/platform/roster/roster.md`: the design document of
