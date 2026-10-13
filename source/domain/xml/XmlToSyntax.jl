@@ -120,6 +120,11 @@ function XmlToSyntax(; theme = nothing, syntax_theme = nothing)
                                                   delim = get_style(:delimiter_text)),
         XmlInsertion => XmlInsertionToSyntaxLeaf(; theme = syntax_theme),
         XmlNothing   => InsertionNothingToSyntaxLeaf(; theme = syntax_theme),
+        # The children and the attributes of an element admit any document, so they
+        # admit the insertion and the nothing of every domain, which Insert makes of an
+        # XML insertion there.
+        DocumentInsertion => DocumentInsertionToSyntaxLeaf(; theme = syntax_theme),
+        DocumentNothing   => InsertionNothingToSyntaxLeaf(; theme = syntax_theme),
     )
 end
 

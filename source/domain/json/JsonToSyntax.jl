@@ -159,6 +159,11 @@ function JsonToSyntax(; theme = nothing, syntax_theme = nothing)
                                                     separator_style = get_style(:separator_text)),
         JsonInsertion   => JsonInsertionToSyntaxLeaf(; theme = syntax_theme),
         JsonNothing     => InsertionNothingToSyntaxLeaf(; theme = syntax_theme),
+        # The elements, the entries and the values admit any document, so they admit
+        # the insertion and the nothing of every domain, which Insert makes of a JSON
+        # insertion there.
+        DocumentInsertion => DocumentInsertionToSyntaxLeaf(; theme = syntax_theme),
+        DocumentNothing   => InsertionNothingToSyntaxLeaf(; theme = syntax_theme),
         JsonObjectEntry => JsonObjectEntryToSyntaxNode(; key_style = get_style(:key_text),
                                                          colon_style = get_style(:separator_text)),
         Vector{Cell}    => CopyingProjection(),

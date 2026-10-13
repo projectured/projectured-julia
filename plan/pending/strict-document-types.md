@@ -972,6 +972,17 @@ worktree. The three domains test different parts of the model:
   - Landed on 2026-10-13 on the owner's word, rebased over "Return and Tab give a KeyPress"
     (the two new test lines send Return as `KeyPress('\n')`), with no test run after the
     rebase: the owner chose to run the suites when the slow walks of `main` are fixed.
+  - *The retest after the fix of the cell walks (2026-10-13) found one regression of this step.*
+    The REPL walk of the atomic example `xml/element` (its syntax, text and graphics views,
+    481 failures) pressed Insert on an XML insertion among the children of an element, which
+    declare `Document`; the insertion widened to a `DocumentInsertion`, which the table of the
+    XML domain had no rule for. The application prints a domain through the shared natural
+    table, which has the rule; a view that prints with the table of one domain does not. The
+    fix: `XmlToSyntax()` and `JsonToSyntax()` hold rules for `DocumentInsertion` and
+    `DocumentNothing`, the states that their `Document` places admit. The REPL walks of
+    `xml/element` and `json/array` in the three views then give no error. A document of
+    another domain that the widened insertion commits still has no rule in such a table, as a
+    pasted one has none.
 - [x] **Step 6: fix the callers** that the inventory of Step 0 found, one by one.
   *Done (2026-10-09):* every refusal that the inventories found is fixed: the 23 suites of
   projectured-julia (groups 1 to 8 above), the 29 suites and `OmnetPresentationTest` of
