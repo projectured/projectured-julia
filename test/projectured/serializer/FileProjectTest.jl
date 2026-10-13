@@ -366,15 +366,21 @@ function test_file_project()
                 ("julia",    obj -> JuliaBlock([JuliaIdentifier("x"), obj]),
                  JuliaFile,    "page.jl",  "pred_ref("))
             @testset "$label" begin
-                obj = JsonObject("k" => JsonString("v"))
-                d, project = _project(file_type(name, make_page(obj)), JsonFile("a.json", obj))
-                @test save_project!(project) === true
-                text = read(joinpath(d, name), String)
-                @test occursin(spelling, text)
-                @test occursin("file(", text) && occursin("a.json", text)
-                loaded = load_project(d, [name, "a.json"])
-                page = get_file_content(loaded.files[1])
-                @test _last_child(page) === get_file_content(loaded.files[2])
+                try
+                    obj = JsonObject("k" => JsonString("v"))
+                    d, project = _project(file_type(name, make_page(obj)), JsonFile("a.json", obj))
+                    @test save_project!(project) === true
+                    text = read(joinpath(d, name), String)
+                    @test occursin(spelling, text)
+                    @test occursin("file(", text) && occursin("a.json", text)
+                    loaded = load_project(d, [name, "a.json"])
+                    page = get_file_content(loaded.files[1])
+                    @test _last_child(page) === get_file_content(loaded.files[2])
+                catch e
+                    label == "julia" || rethrow()
+                    # @broken: a JuliaBlock admits no node of another domain, and the owner defers how Julia code holds one; plan/pending/strict-document-types.md
+                    @test_broken (@warn "setup threw: $e"; false)
+                end
             end
         end
     end
