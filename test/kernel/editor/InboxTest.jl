@@ -161,7 +161,13 @@ function test_editor_inbox()
         @test isempty(log) && !istaskdone(caller)
         @test drain_operations!(editor) == 2
         @test [tag for (tag, _) in log] == [:posted, :called]
-        @test all(((_, task),) -> task === current_task(), log)
+        # Both calls run in one code unit: on a task of their own when the process
+        # has a thread for it, or else here, on the task of the loop.
+        tasks = unique(task for (_, task) in log)
+        @test length(tasks) == 1 && only(tasks) !== caller
+        has_unit_thread = any(thread -> thread != Threads.threadid(),
+                              Threads.threadpooltids(:default))
+        @test (only(tasks) === current_task()) == !has_unit_thread
         @test fetch(caller) == 42
         # What the call throws is thrown on the task that waits for it.
         failing = @async run_on_editor_task!(() -> error("the call failed"), editor)

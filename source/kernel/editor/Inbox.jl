@@ -60,7 +60,12 @@ runs without a wait.
 
 Each operation applies in the operation barrier of [`run_evaluate_stage!`](@ref), with
 the same repairs: an operation that fails half way is taken back where it has a way back,
-the fault is recorded, and the next operation still applies. It is not
+the fault is recorded, and the next operation still applies. When the operations of the drain hold a call that another task posted with
+[`run_on_editor_task!`](@ref), the whole drain runs as one code unit
+([`run_code_unit!`](@ref)): on a thread of its own while the loop holds its frames,
+so a long call keeps the window alive. The busy bar names each call in turn.
+
+It is not
 `run_evaluate_stage!` itself: posted
 operations do not become `editor.operation`, because that field means "what the reader
 made of this frame's input" and is what `_log_performance_counters!` uses to tell a frame
@@ -71,11 +76,39 @@ function drain_operations!(editor::Editor)
     # `Base.n_avail` also counts the producers that wait for room. The bound
     # keeps each `take!` to an operation that the inbox holds already.
     count = min(Base.n_avail(editor.inbox), INBOX_CAPACITY)
-    for _ in 1:count
-        _evaluate_operation_guarded!(editor, take!(editor.inbox))
+    operations = Operation[take!(editor.inbox) for _ in 1:count]
+    calls = String[operation.description for operation in operations
+                   if operation isa RunFunctionOperation]
+    if isempty(calls)
+        _apply_posted_operations!(editor, operations)
+    else
+        run_code_unit!(editor; parts = calls) do
+            _apply_posted_operations!(editor, operations)
+        end
     end
     isready(editor.inbox) && (editor.wake_pending[] = true)
     count
+end
+
+# Apply the operations that the drain took, in order. In a code unit, the bar names
+# each call as it starts. An exception that means stop leaves the rest unapplied, and
+# the end of the loop treats them as the operations still in the inbox.
+function _apply_posted_operations!(editor::Editor, operations::Vector{Operation})
+    unit = get_current_code_unit()
+    part = 0
+    for (index, operation) in enumerate(operations)
+        if operation isa RunFunctionOperation
+            part += 1
+            unit === nothing || set_code_unit_part!(unit, part)
+        end
+        try
+            _evaluate_operation_guarded!(editor, operation)
+        catch
+            append!(editor.unapplied_operations, operations[(index + 1):end])
+            rethrow()
+        end
+    end
+    nothing
 end
 
 # ── A call on the editor task ────────────────────────────────────────
@@ -87,16 +120,21 @@ end
 # into the channel, and the caller waits on it.
 
 """
-    RunFunctionOperation(function_, answer)
+    RunFunctionOperation(function_, answer, description = "a call from another task")
 
 Run `function_()` on the editor task, in the drain of the inbox. `answer` is the
 channel that takes `(true, value)` or `(false, exception)`, or `nothing` when no
-task waits for the call. [`run_on_editor_task!`](@ref) makes it.
+task waits for the call. `description` names the call on the busy bar while it
+runs in a code unit. [`run_on_editor_task!`](@ref) makes it.
 """
 struct RunFunctionOperation <: Operation
     function_::Function
     answer::Union{Channel{Any}, Nothing}
+    description::String
 end
+
+RunFunctionOperation(function_::Function, answer::Union{Channel{Any}, Nothing}) =
+    RunFunctionOperation(function_, answer, "a call from another task")
 
 # An exception goes to the task that waits for it, and a posted call that no task
 # waits for throws into the barrier of the drain, which records it. An exception
@@ -113,14 +151,16 @@ function OperationModule.evaluate_operation(::Editor, operation::RunFunctionOper
     nothing
 end
 
-function AgentModule.run_on_editor_task!(function_, editor::Editor; wait::Bool = true)
-    task = editor.loop_task
-    if task === nothing || task === current_task()
+# The call runs at once when no loop runs, and for the task that owns the documents:
+# the task of the running code unit, or else the task of the loop.
+function AgentModule.run_on_editor_task!(function_, editor::Editor; wait::Bool = true,
+                                         description::AbstractString = "a call from another task")
+    if editor.loop_task === nothing || _is_editor_owner(editor)
         value = function_()
         return wait ? value : nothing
     end
     answer = wait ? Channel{Any}(1) : nothing
-    post_operation!(editor, RunFunctionOperation(function_, answer))
+    post_operation!(editor, RunFunctionOperation(function_, answer, String(description)))
     answer === nothing && return nothing
     succeeded, value = take!(answer)
     succeeded ? value : throw(value)
@@ -129,11 +169,22 @@ end
 # The calls still in the inbox when the loop ends run here, on the task that ran
 # the loop, where no frame runs any more. So a task that waits for one gets its
 # answer and does not wait forever. An operation of another kind that was posted
-# after the last frame is not applied.
+# after the last frame is not applied. When the loop ends while a code unit still
+# runs, after a quit, the unit owns the documents, so a call gets an exception as
+# its answer and does not run.
 function _answer_waiting_calls!(editor::Editor)
-    while isready(editor.inbox)
-        operation = take!(editor.inbox)
+    is_unit_running = (@atomic editor.code_unit) !== nothing
+    unapplied = copy(editor.unapplied_operations)
+    empty!(editor.unapplied_operations)
+    while !isempty(unapplied) || isready(editor.inbox)
+        operation = isempty(unapplied) ? take!(editor.inbox) : popfirst!(unapplied)
         operation isa RunFunctionOperation || continue
+        if is_unit_running
+            operation.answer === nothing ||
+                put!(operation.answer, (false, InvalidStateException(
+                    "The editor quit while a code unit ran, so the call did not run.", :closed)))
+            continue
+        end
         try
             evaluate_operation(editor, operation)
         catch exception

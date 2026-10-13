@@ -243,7 +243,7 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool})
                 # drain of its next frame, which then paints the change.
                 held = Ref(0.0)
                 fault = Ref(false)
-                text = run_on_editor_task!(editor) do
+                text = run_on_editor_task!(editor; description = tool.name) do
                     started = time()
                     # Code that throws answers its message, so a new exception of
                     # an evaluation is what marks such a call as a fault. The count

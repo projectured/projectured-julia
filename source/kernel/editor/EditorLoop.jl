@@ -421,13 +421,15 @@ function _find_editor_thread()
     isempty(candidates) ? nothing : last(candidates)
 end
 
-# Run `f` in a task that never moves from thread `thread`: a sticky task, pinned
-# with the internal call that `Threads.@threads :static` makes.
-function _spawn_pinned(f, thread::Int)
+# A task for `f` that never moves from thread `thread`, not yet scheduled: a sticky
+# task, pinned with the internal call that `Threads.@threads :static` makes.
+function _make_pinned_task(f, thread::Int)
     task = Task(f)
     task.sticky = true
     ccall(:jl_set_task_tid, Cint, (Any, Cint), task, thread - 1) == 1 ||
-        error("The editor task could not be pinned to thread ", thread, ".")
-    schedule(task)
+        error("The task could not be pinned to thread ", thread, ".")
     task
 end
+
+# Run `f` in a task that never moves from thread `thread`.
+_spawn_pinned(f, thread::Int) = schedule(_make_pinned_task(f, thread))

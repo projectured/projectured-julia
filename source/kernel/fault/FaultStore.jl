@@ -25,9 +25,9 @@ Call [`drain_faults!`](@ref) once per frame, on the task of the editor, outside
 every computation. The drain may write cells, and it is what puts a fault into a
 log document.
 
-A store has no lock, so all code that writes it must run on the thread of the
-editor task. A task that the editor task starts with `@async` runs on that
-thread.
+A store has no lock, so one task at a time writes it: the task that owns the
+cells of the editor. A task that hands the cells to another task hands the store
+with them.
 
 `capacity` bounds the number of distinct keys, and it must be at least 1. A new
 key that does not fit takes the place of the oldest key that the drain already

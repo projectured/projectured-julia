@@ -73,6 +73,18 @@ Holds the state for a read-eval-print loop:
                    [`run_editor!`](@ref) ends, such as the removal of a log
                    capture that a wrapper of [`build_editor`](@ref) installed.
                    An editor whose loop never runs never runs them.
+  - `code_unit`  — the code unit that runs on a thread of its own and owns the
+                   documents and the state of this editor, or `nothing`; while
+                   one runs, the loop runs held frames ([`run_code_unit!`](@ref)).
+                   Atomic, because a task on any thread reads it to find the owner
+                   (internal).
+  - `held_faults` — the faults of the held frames of the code unit that runs:
+                   the loop records them in `faults` when the unit ends, because
+                   the unit writes that store meanwhile (internal).
+  - `unapplied_operations` — the operations that a drain of the inbox took and
+                   did not apply, because an exception that means stop ended the
+                   drain. The end of the loop treats them as the operations still
+                   in the inbox (internal).
 """
 mutable struct Editor
     backend::Backend
@@ -96,6 +108,9 @@ mutable struct Editor
     loop_task::Union{Task, Nothing}
     timers::Dict{Symbol, Float64}
     stop_steps::Vector{Any}
+    @atomic code_unit::Union{CodeUnit, Nothing}
+    held_faults::Vector{Any}
+    unapplied_operations::Vector{Operation}
 end
 
 # The inbox is bounded: a producer that outruns the editor should wait for it,
@@ -123,7 +138,8 @@ function Editor(document, projection; backend::Backend,
                     # first wait, so the editor paints once before anything
                     # has happened.
                     Feed[InboxFeed(); feeds], Threads.Atomic{Bool}(true),
-                    FrameMeasurementStore(), nothing, Dict{Symbol, Float64}(), Any[])
+                    FrameMeasurementStore(), nothing, Dict{Symbol, Float64}(), Any[],
+                    nothing, Any[], Operation[])
     # Registration is the one moment a feed meets its editor. The callback is
     # the only handle a producer-side store gets: a store lives below the
     # editor layer and must not name `Editor`.

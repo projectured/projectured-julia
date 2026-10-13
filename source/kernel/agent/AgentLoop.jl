@@ -92,8 +92,9 @@ function run_turn!(agent::Agent, target; messages, on_event, tools::AbstractVect
         for call in pending
             @info "[agent] tool call" call.name
             # The loop runs on a task of its own, and a tool may write what the
-            # editor shows, so the call runs on the editor's task.
-            output, is_error = run_on_editor_task!(target) do
+            # editor shows, so the call runs on the editor's task. The busy bar of
+            # the editor names the tool while it runs.
+            output, is_error = run_on_editor_task!(target; description = call.name) do
                 try
                     turn_tool = findfirst(tool -> tool.name == call.name, turn_tools)
                     text = turn_tool === nothing ? call_tool(agent.tools, call.name; args = call.input, target) :

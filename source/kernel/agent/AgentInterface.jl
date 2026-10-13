@@ -45,7 +45,7 @@ server of its editor to an external agent.
 function get_agent_server_access end
 
 """
-    run_on_editor_task!(function_, target; wait = true) -> value
+    run_on_editor_task!(function_, target; wait = true, description = "a call from another task") -> value
 
 Run `function_()` on the task that owns `target`, and answer its value.
 
@@ -61,9 +61,15 @@ With `wait = false` the call is only posted, and the answer is `nothing`. The
 posts of one task are applied in the order they were made, and before any call
 that the same task makes after them with `wait = true`.
 
+A posted call runs in a code unit of the editor: on a thread of its own, while the
+editor holds its frames, so a long call does not stop the window. `description`
+names the call on the busy bar meanwhile, such as the name of a tool.
+
 The call runs at once, on the calling task, when nothing runs a loop for
-`target`, or when the calling task is the one that runs it. So a call from the
-editor's own task, and a call in a test that drives no loop, never wait.
+`target`, or when the calling task owns the documents of `target`: the task of
+its running code unit, or else the task of its loop. So a call from the editor's
+own task, from code that runs in a unit, and from a test that drives no loop, never
+waits.
 
 The default runs the call at once for every target. A target type whose loop can
 run on another task adds a method that posts the call to that loop.

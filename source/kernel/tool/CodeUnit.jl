@@ -139,6 +139,15 @@ function wait_in_code_unit(seconds::Real)
 end
 
 """
+    run_as_code_unit(function_, unit) -> value
+
+Run `function_()` as the code of `unit`: the code, and each task that it starts,
+finds `unit` with [`get_current_code_unit`](@ref), and a stop of `unit` reaches
+its waits. Use it on the task that runs the unit.
+"""
+run_as_code_unit(function_, unit::CodeUnit) = with(function_, _CURRENT_CODE_UNIT => unit)
+
+"""
     run_in_code_unit(function_, target; parts) -> value
 
 Run `function_()` as a code unit of `target`, with the words `parts` for its busy
@@ -152,5 +161,5 @@ unit.
 """
 function run_in_code_unit(function_, target; parts::Vector{String})
     _CURRENT_CODE_UNIT[] === nothing || return function_()
-    with(function_, _CURRENT_CODE_UNIT => CodeUnit(parts))
+    run_as_code_unit(function_, CodeUnit(parts))
 end

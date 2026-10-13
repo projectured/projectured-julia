@@ -76,7 +76,7 @@ The key holds no reference and no message, so one bug at three thousand nodes is
 
 ### A store is not made of cells
 
-A printer throws inside a computation, while the renderer reads its output, and a computation must not write a cell. A store has no dependents, so `record_fault!` is safe inside a computation. A store has no lock: write it only on the thread of the task of its editor. A task that the editor task starts with `@async` runs on that thread.
+A printer throws inside a computation, while the renderer reads its output, and a computation must not write a cell. A store has no dependents, so `record_fault!` is safe inside a computation. A store has no lock, so one task at a time writes it: the task that owns the cells of the editor. A task that hands the cells to another task hands the store with them.
 
 ### A full store makes room
 

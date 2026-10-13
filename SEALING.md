@@ -184,6 +184,7 @@ include order — the source files state their dependencies, never their index.
 - **Layer 9 — backend** (`backend/`)
   - ⬜ `backend/BackendModule.jl`
   - ⬜ `backend/BackendInterface.jl`
+  - ⬜ `backend/HeldFrameState.jl`
   - ⬜ `backend/BackendDefaults.jl`
 - **Layer 10 — document** (`document/`)
   - ⬜ `document/DocumentModule.jl`
@@ -288,6 +289,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `editor/DocumentEdits.jl`
   - ⬜ `editor/SafeMode.jl`
   - ⬜ `editor/FaultBarriers.jl`
+  - ⬜ `editor/HeldFrames.jl`
   - ⬜ `editor/EditorLoop.jl`
   - ⬜ `editor/BackendChoice.jl`
   - ⬜ `editor/EditorBuild.jl`
