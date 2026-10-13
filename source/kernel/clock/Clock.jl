@@ -1,5 +1,4 @@
-# Fragment of `ClockModule` — the `Clock`, its two reads and its write, and the
-# heartbeat that writes real time into a clock.
+# Fragment of `ClockModule` — the `Clock`, its two reads and its write.
 
 """
     Clock(time = 0.0) -> Clock
@@ -21,18 +20,18 @@ moves the animation writes the time with `set_clock_time!`.
 `Clock` is a `@cell_struct`. `clock.time` is the read that records a dependency,
 and `clock.time = t` is the write, but the field takes a value of any type. Write
 with `set_clock_time!`, which converts the time to `Float64`. The two reads
-convert any real number. The field `heartbeat` holds the task of
-`start_wall_clock!`, or `nothing`; leave it to `start_wall_clock!` and
-`stop_wall_clock!`.
+convert any real number.
 
-See also `get_clock_time`, the read that records nothing, and `start_wall_clock!`.
+A clock has one writer: the editor that owns it writes the time at the start of
+each frame. To animate a document in an editor, give the document and the editor
+the same clock, with the keyword `clock` of `run_editor!`, `build_editor` or
+`make_editor`.
+
+See also `get_clock_time`, the read that records nothing.
 """
 @cell_struct struct Clock
     time::Float64 = 0.0
-    heartbeat::MutableCell{Union{Nothing,Task}} = nothing
 end
-
-Clock(time::Real) = Clock(Float64(time), nothing)
 
 # The time as a `Float64`. The field takes any value, so a read converts a real
 # number, and the common `Float64` needs no call.
@@ -99,84 +98,3 @@ set_clock_time!(clock::Clock, t::Real) = (clock.time = Float64(t); nothing)
 # clock, and it does not narrow, so a clock that holds another type still shows.
 Base.show(io::IO, clock::Clock) =
     print(io, "Clock(time = ", peek(getfield(clock, :time)), ")")
-
-"""
-    start_wall_clock!(clock) -> clock
-
-Start a heartbeat that moves `clock` forward with real time, from the time that
-it holds, every 10 milliseconds, and return `clock`. The time never goes back, so
-a stop and a later start act as a pause and a resume. A clock whose heartbeat runs
-keeps it, so a second call starts nothing.
-
-Use it to animate with real time where no frame loop writes the clock. An owner
-with a frame loop writes its clock once per frame with `set_clock_time!` instead.
-
-# Example
-
-    clock = start_wall_clock!(Clock())
-    blink = Cell(@computation isodd(floor(Int, 2 * get_reactive_clock_time(clock))))
-    stop_wall_clock!(clock)
-
-Call it on the task that reads the clock. The heartbeat is a task on the thread of
-the caller, and Julia keeps the caller on that thread too, so the two never run at
-the same moment. A read of the clock on another thread races with the heartbeat.
-The heartbeat writes at the points where the tasks of its thread yield, so a frame
-that yields can see two times. A computation that reads the clock, directly or
-through another cell, must not yield, because a write at that yield can leave it
-stale for good. Do not start a heartbeat on a clock that other code writes.
-
-The heartbeat holds the clock through a `WeakRef`, so it ends when the collector
-frees a clock that nobody stopped. It does not start while a package precompiles,
-because a task that never ends keeps the precompile process alive.
-
-See also `stop_wall_clock!`.
-"""
-function start_wall_clock!(clock::Clock)
-    ccall(:jl_generating_output, Cint, ()) == 0 || return clock
-    current = clock.heartbeat
-    (current !== nothing && !istaskdone(current)) && return clock
-    reference = WeakRef(clock)
-    start = time_ns() / 1e9 - get_clock_time(clock)
-    clock.heartbeat = @async _run_wall_clock_heartbeat(reference, start)
-    clock
-end
-
-"""
-    stop_wall_clock!(clock) -> nothing
-
-End the heartbeat of `clock`. The heartbeat task ends at its next wake, within 10
-milliseconds, and the clock keeps its last time. A clock without a heartbeat stays
-as it is. Call it on the task that started the heartbeat, which is the condition
-of `start_wall_clock!` too.
-
-Use it when the owner of a clock no longer needs real time, so that its task ends.
-
-# Example
-
-    stop_wall_clock!(clock)
-
-See also `start_wall_clock!`.
-"""
-function stop_wall_clock!(clock::Clock)
-    clock.heartbeat = nothing
-    nothing
-end
-
-const _HEARTBEAT_INTERVAL = 0.01
-
-# The loop of a heartbeat. It writes `time_ns() / 1e9 - start`, where `start` is
-# the monotonic time in seconds at which the clock would have been at zero. The
-# monotonic time does not step when the system clock is set. The loop holds its
-# clock only between a read of `reference` and the write, so the collector can
-# free a clock that nobody stopped. It ends when the clock is gone, or when the
-# clock holds another heartbeat or none.
-function _run_wall_clock_heartbeat(reference::WeakRef, start::Float64)
-    while true
-        clock = reference.value
-        clock === nothing && return
-        clock.heartbeat === current_task() || return
-        set_clock_time!(clock, time_ns() / 1e9 - start)
-        clock = nothing
-        sleep(_HEARTBEAT_INTERVAL)
-    end
-end

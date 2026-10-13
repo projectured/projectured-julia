@@ -7,6 +7,7 @@ using ProjecturedKernel.ProjectionModule
 using ProjecturedKernel.IoMapModule
 using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.DeviceModule
+using ProjecturedKernel.ClockModule: Clock
 import ProjecturedKernel.BackendModule
 import ProjecturedKernel.BackendModule: Backend
 import ProjecturedKernel.OperationModule: QuitEditorOperation
@@ -116,6 +117,20 @@ function test_build_editor()
         _IS_BUILD_PROBE_DEFAULT_ON[] = false
         @test editor.backend === backend && backend.starts == 1
         @test isempty(_BUILD_PROBE_STEPS)
+    end
+
+    @testset "make_editor and build_editor give the editor the clock of the caller" begin
+        clock = Clock()
+        editor = make_editor(BuildProbe(), BuildProbeProjection();
+                             backend = BuildProbeBackend(), devices = Device[], clock)
+        @test editor.clock === clock
+        built = build_editor(BuildProbe(), BuildProbeProjection();
+                             backend = BuildProbeBackend(), devices = Device[],
+                             _BUILD_PROBE_PLATFORM_OFF..., clock)
+        @test built.clock === clock
+        other = make_editor(BuildProbe(), BuildProbeProjection();
+                            backend = BuildProbeBackend(), devices = Device[])
+        @test other.clock isa Clock && other.clock !== clock
     end
 
     @testset "the wrappers apply layer by layer, and in order inside a layer" begin

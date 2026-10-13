@@ -116,7 +116,7 @@ function make_document_projection end
 
 """
     build_editor(document, projection; backend = nothing, devices, feeds,
-                 fault_policy, wrappers...) -> Editor
+                 fault_policy, clock, wrappers...) -> Editor
     build_editor(document; ...) -> Editor
 
 Make an editor on `document` with its wrappers:
@@ -133,6 +133,9 @@ Make an editor on `document` with its wrappers:
    wrappers, which its loop runs when it ends, and run the start steps of the
    wrappers.
 
+`devices`, `feeds`, `fault_policy` and `clock` go to `make_editor` as they are, so a
+document that animates with a clock of its own gets an editor with that clock.
+
 With no `projection`, the projection is
 [`make_document_projection`](@ref)`(document; arguments...)`, with the arguments
 of the wrappers made first, and the wrappers get the same arguments.
@@ -142,12 +145,13 @@ function build_editor(document::Document, projection;
                       devices::Vector{Device} = _make_default_devices(),
                       feeds::Vector{Feed} = Feed[],
                       fault_policy::FaultPolicy = make_strict_fault_policy(),
+                      clock::Clock = Clock(),
                       wrappers...)
     backend === nothing && (backend = make_default_backend(:windows))
     parts = make_editor_parts(document, projection; backend, feeds, wrappers...)
     editor = make_editor(parts.document, parts.projection; backend,
                          devices = devices, feeds = parts.feeds,
-                         fault_policy = fault_policy)
+                         fault_policy = fault_policy, clock = clock)
     append!(editor.stop_steps, parts.stop_steps)
     for step in parts.start_steps
         step(editor)
@@ -191,7 +195,7 @@ function make_editor_parts(document::Document, projection;
 end
 
 # The keywords of `build_editor` that name no wrapper.
-const _BUILD_KEYWORDS = (:backend, :devices, :feeds, :fault_policy)
+const _BUILD_KEYWORDS = (:backend, :devices, :feeds, :fault_policy, :clock)
 
 # Each argument as the package of its wrapper makes it.
 _make_wrapper_arguments(arguments::Dict{Symbol,Any}) =

@@ -311,7 +311,18 @@ instance, so sending the clock in is fine."
   place with `invalidate_cell!`, because a write of the same width writes nothing.
   The walkthrough shows both. Checked: `test_cell` 227, the kernel suite 4457 of
   4457, the survey finds no gap.
-- [ ] 4. The clock has no heartbeat: `start_wall_clock!`, `stop_wall_clock!` and the
+- [x] 4. The clock has no heartbeat: `start_wall_clock!`, `stop_wall_clock!` and the
   field `heartbeat` are gone. The rotating-vector example takes the clock of the
   editor that shows it. PAR-STORE-THEN-DRAIN and PAR-SINGLE-WRITER have no exception.
+  Only the `Editor` constructor took a clock, so `make_editor` and `build_editor` get
+  the keyword `clock::Clock = Clock()`, which they pass on as they pass `feeds` and
+  `fault_policy`; `run_editor!` takes it through `build_editor`. The default of the
+  example is `Clock()`, so the cached instance stands still. **The owner,
+  2026-10-13:** "yes", to the keyword and to a cached instance that stands still.
+  `Clock(::Real)` is gone too: with one field, the constructor of the struct takes
+  any real number, and the reads convert it. Checked: `test_clock` 28,
+  `test_build_editor` 37 with a new test of the keyword, the kernel suite 4437 of
+  4437, the printer test of `rotating_vector` 127, and a move of the given clock
+  invalidates 10 of the 121 cells of the document; the guards pass except the known
+  style failure; the survey finds no gap in `ClockModule`.
 

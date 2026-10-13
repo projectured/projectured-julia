@@ -271,9 +271,7 @@ write never blocks and never touches a cell. The editor drains the store into
 the target document on its own task, once per frame, before `run_read_stage!`
 (`drain_feeds!`; the fault report at the top of `run_frame!` is the same
 motion). Only the editor task writes a document a running editor shows
-(`PAR-SINGLE-WRITER`). The heartbeat of a wall clock is the accepted exception:
-`start_wall_clock!` writes the time cell of its clock from a task of its own, on
-the thread of the task that reads the clock. A producer that wants a frame soon calls the wake function it was
+(`PAR-SINGLE-WRITER`), and its clock too, at the start of each frame. A producer that wants a frame soon calls the wake function it was
 given (`wake_editor!`, or the callback its store received at registration); it
 never reaches into the editor. The inbox (`post_operation!`) is the queue-shaped
 case of the same rule, for a payload that is an edit: ordered, applied exactly
@@ -302,9 +300,8 @@ The walk of a write relies on the rule: it stops at a computing cell, because a
 write that reaches a computing cell comes from inside that computation. The
 editor task owns the cells of an editor. A frame runs its steps one after the
 other on that task: a drain and an applied operation write, and a read of input
-against the IO map, a print and a paint read. The heartbeat of a wall clock
-breaks the rule: `start_wall_clock!` writes the time cell from a task of its own,
-so a computation that yields can see two times in one read phase.
+against the IO map, a print and a paint read. The editor writes its clock at the
+start of a frame, before the reads.
 
 ### PAR-ACYCLIC-CELLS
 
@@ -1165,8 +1162,8 @@ per-editor `Clock` (a `@cell_struct`, not a document — `clock/ClockModule.jl`)
 `run_editor!` advances `editor.clock`, and every animated cell subscribes to the
 clock the printer context carries, so two editors in one process never
 cross-invalidate each other's animation graph. No clock is shared by the whole
-process: an owner without a frame loop starts a heartbeat on its own clock with
-`start_wall_clock!`, on the task that reads that clock.
+process: a document that animates takes the clock of the editor that shows it,
+through the keyword `clock` of `make_editor`, `build_editor` and `run_editor!`.
 
 **The editor of an evaluation is state of one evaluation.** While the code of
 the evaluator, of the assistant or of the `execute_julia_code` tool runs,

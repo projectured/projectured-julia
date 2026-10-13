@@ -277,7 +277,7 @@ end
 """
     make_editor(document::Document, projection; backend::Backend,
                 devices = Device[Display(), Keyboard(), Mouse()], feeds = Feed[],
-                fault_policy = make_strict_fault_policy()) -> Editor
+                fault_policy = make_strict_fault_policy(), clock = Clock()) -> Editor
 
 Start `backend`, open the native windows of `document`, build the `Editor`, and
 print it once, so the editor has its iomap and the window shows the document.
@@ -303,6 +303,10 @@ window never has, and the answer then arrives as a resize that computes the
 whole document again. `devices` defaults to a display, a keyboard and a mouse; a
 backend that drives another channel passes its own set (e.g. `Device[Keyboard()]`).
 
+`clock` is the clock that the editor writes at the start of each frame. A
+document that animates with a clock of its own shows its motion only in an editor
+that has the same clock.
+
 `fault_policy` is strict by default: the editor stops at its first fault, so a
 test that forgets the keyword fails loudly. A program that a person starts passes
 `FaultPolicy()` on purpose, and then the loop survives a fault; the one print
@@ -312,7 +316,8 @@ quit and the error goes on to the caller, also when the quit throws.
 function make_editor(document::Document, projection; backend::Backend,
                      devices::Vector{Device}=_make_default_devices(),
                      feeds::Vector{Feed}=Feed[],
-                     fault_policy::FaultPolicy=make_strict_fault_policy())
+                     fault_policy::FaultPolicy=make_strict_fault_policy(),
+                     clock::Clock=Clock())
     # Through `invokelatest`, as every call of the backend protocol: a
     # backend package adds methods, which would invalidate a resolved call.
     Base.invokelatest(initialize_backend!, backend)
@@ -322,7 +327,7 @@ function make_editor(document::Document, projection; backend::Backend,
         # drawn: the backend opens the windows of the screen inside it.
         Base.invokelatest(open_native_windows!, backend, get_wrapped_document(document))
         editor = Editor(document, projection; backend = backend, devices = devices,
-                        feeds = feeds, fault_policy = fault_policy)
+                        feeds = feeds, fault_policy = fault_policy, clock = clock)
         _run_barrier(editor, :print; origin = typeof(editor.projection)) do
             run_print_stage!(editor)
         end

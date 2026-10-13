@@ -41,7 +41,9 @@ end
 - `clock` — this editor's own animation clock (a fresh `Clock()` by default);
   `run_editor!` ticks it once per frame from wall-clock time, so an animated
   projection built against this editor reanimates independently of any other
-  editor running in the same process
+  editor running in the same process. A caller gives a clock of its own with the
+  keyword `clock` of `make_editor`, `build_editor` or `run_editor!`, so a document
+  that animates with that clock moves in this editor
 - `tools` — what this editor exposes to an agent: the `ToolSet` an agent loop
   drives and an MCP server publishes, empty until
   `register_default_tools!(editor.tools)` fills it. Per editor, so two editors
@@ -406,8 +408,8 @@ a window is always followed by one more read before the loop sleeps.
 Four functions make an editor, and they differ in what they decide for the
 caller:
 
-- `make_editor(document, projection; backend, devices, feeds, fault_policy)`
-  decides nothing. The caller names the backend, and no wrapper is applied. A
+- `make_editor(document, projection; backend, devices, feeds, fault_policy,
+  clock)` decides nothing. The caller names the backend, and no wrapper is applied. A
   test and a program that wants exact control call it.
 - `make_editor_parts(document, projection; backend = nothing, feeds = Feed[],
   wrappers...)` applies the wrappers and makes no editor: it is steps 2 and 3
@@ -417,7 +419,7 @@ caller:
   With no `backend`, a wrapper that needs one, such as the window, does
   nothing. Nothing runs the start steps or the stop steps of the parts.
 - `build_editor(document, projection; backend = nothing, devices, feeds,
-  fault_policy, wrappers...)` chooses the backend when none is given, makes
+  fault_policy, clock, wrappers...)` chooses the backend when none is given, makes
   the parts with `make_editor_parts`, calls `make_editor`, appends the stop
   steps of the parts to `editor.stop_steps`, and runs the start steps.
   `build_editor(document; ...)` takes the projection from

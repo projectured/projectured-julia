@@ -37,7 +37,7 @@ Layer 1  — fault/       the fault record, the store, the barrier and the repor
 Layer 2  — performance/ the performance counters and the frame measurements of an editor
 Layer 3  — cell/        the Cell kinds — ReactiveCell/MutableCell/ImmutableCell, Computation and @computation
 Layer 4  — struct/      @cell_struct and the builders of a struct of cells (CellStructPlan)
-Layer 5  — clock/       the animation clock — Clock (a @cell_struct), get_reactive_clock_time/get_clock_time, set_clock_time!, start_wall_clock!/stop_wall_clock!
+Layer 5  — clock/       the animation clock — Clock (a @cell_struct), get_reactive_clock_time/get_clock_time, set_clock_time!
 Layer 6  — event/       the input events (Event, ModifierKeys, KeyDown/KeyPress/Mouse*/Window*) + WindowInput
 Layer 7  — device/      Device abstract + the Keyboard/Mouse/Display devices (physical properties)
 Layer 8  — gesture/     the gestures (Gesture, MouseClick/MouseDwell/KeyChord), the pattern language (GesturePattern, @gesture_case) and the recognitions (GestureRecognition, ChordRecognition/ClickRecognition/DwellRecognition)
@@ -165,7 +165,7 @@ Each layer lives in its own folder under [source/kernel/](../../../source/kernel
 | `performance/` | `PerformanceModule` — the per-frame performance counters and the frame measurement store of an editor, `FrameMeasurementStore` (see [performance.md](performance.md)) |
 | `cell/` | the reactive engine — `AbstractCell` and the `ReactiveCell` / `MutableCell` / `ImmutableCell` kinds (see [cell.md](cell.md)) |
 | `struct/` | `CellStructModule` — `@cell_struct` and the builders of a struct of cells (see [cell.md](cell.md)) |
-| `clock/` | `ClockModule` — the animation `Clock` (a `@cell_struct`), `get_reactive_clock_time`/`get_clock_time`/`set_clock_time!`, and `start_wall_clock!`/`stop_wall_clock!`, the heartbeat that writes real time into a clock |
+| `clock/` | `ClockModule` — the animation `Clock` (a `@cell_struct`), `get_reactive_clock_time`/`get_clock_time`/`set_clock_time!`; the editor that owns a clock writes it once per frame |
 | `event/` | `EventModule` — the input event vocabulary (Event, ModifierKeys, KeyDown/KeyUp/KeyPress, Mouse*, Window*, TimerExpire, DisplayUpdate, SystemColors, SystemColorsChange, WindowInput) |
 | `device/` | `DeviceModule` — the `Device`, `Keyboard`, `Mouse`, `Display` device types (with physical properties) |
 | `gesture/` | `GestureModule` — the gestures (`MouseClick`, `MouseDwell`, `KeyChord`), the pattern language (`GesturePattern`, `@gesture_case`) and the recognitions (`GestureRecognition`, `ChordRecognition`, `ClickRecognition`, `DwellRecognition`) |

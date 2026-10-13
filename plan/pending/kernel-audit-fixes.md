@@ -1016,6 +1016,7 @@ The tests that no fix above adds. A test that belongs to a fix is in the step of
 
 - [x] **L05-4** (Low, Tests)
   Add a test set: start a heartbeat, read a computed cell of `get_reactive_clock_time`, wait with a bound until `is_cell_up_to_date` is false, and read a larger value. Make the docstring of the file name what it tests.
+  **Withdrawn on 2026-10-13:** the clock has no heartbeat any more ([cell-layer-reaudit.md](cell-layer-reaudit.md), step 4).
   *Test:* test_clock: the new set passes within its bound.
   *Done:* lane A, 40496d8b8. A 5 s bound; the set also passes on the old code, so it adds coverage and is no regression test. test_kernel 2559 pass and 2 broken; test_substrate 86852 and the 7 known failures; test_julia 407, test_fault 73, test_sdl 801, test_serialization 58.
 

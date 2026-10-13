@@ -134,11 +134,9 @@ value after its write, so its value is right when it ends.
 In the editor, the editor task is the owner. A frame runs its steps one after the
 other on that task. A drain and an applied operation write cells. A read of the
 input against the IO map, a print and a paint read cells. So no write falls
-inside a read.
-
-The heartbeat of a wall clock breaks the rule: `start_wall_clock!` writes the
-time cell of its clock from a task of its own. A computation that yields can see
-two times in one read phase.
+inside a read. The animation clock follows the rule too: the editor writes its
+clock at the start of a frame, and a document that animates takes the clock of
+the editor that shows it.
 
 ## A computation that throws
 
@@ -308,8 +306,7 @@ The animation clock is a `@cell_struct` that uses the engine, and it is not a
 part of the engine. It is its own layer, `clock/ClockModule.jl`, above the struct
 layer. It imports `CellModule` and `CellStructModule` and nothing else, and the
 docstring of `ClockModule` holds the full interface: `Clock`,
-`get_reactive_clock_time`, `get_clock_time`, `set_clock_time!`,
-`start_wall_clock!` and `stop_wall_clock!`.
+`get_reactive_clock_time`, `get_clock_time` and `set_clock_time!`.
 
 The load order is the dependency order that the include-order guard checks.
 

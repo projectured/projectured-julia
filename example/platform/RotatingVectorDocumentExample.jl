@@ -10,12 +10,16 @@
 # via `get_clock_time(clock)` so the angle starts at zero without the constructor
 # itself becoming reactive.
 #
-# Pass the same `Clock` to both this constructor and the editor that hosts the
-# resulting document, and the animation is tied to that editor's private clock
-# — two editors in one process animate fully independently. The default is a
-# clock with a heartbeat of its own (`start_wall_clock!`), started on the task
-# that builds the document, so the document moves wherever it is shown. The
-# heartbeat ends when the collector frees the document and its clock.
+# Pass the same `Clock` to both this constructor and the editor that shows the
+# document, and the editor moves the animation at each frame; two editors in one
+# process animate independently:
+#
+#     clock = Clock()
+#     run_editor!(make_rotating_vector_document(; clock), IdentityProjection(); clock)
+#
+# The default is a clock of its own that no editor writes, so a document built
+# with it, such as the one that the example registry keeps, shows its first frame.
+# For a new editor, build the document again with the clock of that editor.
 #
 # The scene is painted in the Solarized palette (https://ethanschoonover.com/solarized/)
 # on a light base3 background: the rotation path is an *unfilled* ring, only the
@@ -35,7 +39,7 @@ function make_rotating_vector_document(; w = 600, h = 600,   # canvas size
                                        n = 260,               # samples per chart window
                                        dt = 0.02,             # angle between adjacent samples
                                        gap = 20,              # gap between circle and charts
-                                       clock::Clock = start_wall_clock!(Clock()))
+                                       clock::Clock = Clock())
     phase0 = get_clock_time(clock)                  # SAMPLE: no subscription
     angle(t) = omega * (t - phase0)
 

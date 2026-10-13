@@ -422,7 +422,7 @@ includes them in:
                Computation and @computation
  4 struct      @cell_struct, CellStructPlan and the builders of a struct of cells
  5 clock       the animation Clock (a @cell_struct with a reactive time field),
-               get_clock_time / set_clock_time!, start_wall_clock! / stop_wall_clock!
+               get_reactive_clock_time / get_clock_time / set_clock_time!
  6 event       the input events (Event, ModifierKeys, KeyDown/KeyPress/Mouse*/Window*,
                WindowInput)
  7 device      Device abstract + Keyboard / Mouse / Display devices (physical properties)

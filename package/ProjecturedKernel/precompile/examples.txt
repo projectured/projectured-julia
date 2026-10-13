@@ -2,7 +2,6 @@
 # ProjecturedREPL.record_precompile_statements. Record it again; do not edit it.
 Tuple{Base.var"##sprint#429", Pair{Symbol, Bool}, Int64, typeof(Base.sprint), typeof(Base.show), ProjecturedKernel.ReferenceModule.ConcreteReference}
 Tuple{Base.var"#__cat_offset1!##2#__cat_offset1!##3"{Tuple{Bool}, Tuple{Int64}, ProjecturedKernel.EditorModule.InboxFeed}, Int64}
-Tuple{ProjecturedKernel.ClockModule.var"#start_wall_clock!##0#start_wall_clock!##1"{Float64, WeakRef}}
 Tuple{ProjecturedKernel.DocumentModule.var"##DocumentWalk#76", Function, Function, Function, Symbol, Type{ProjecturedKernel.DocumentModule.DocumentWalk}}
 Tuple{ProjecturedKernel.GestureBindingModule.var"##GestureBinding#1", Function, String, String, Bool, Nothing, Type{ProjecturedKernel.GestureBindingModule.GestureBinding}, ProjecturedKernel.GestureModule.GesturePattern{ProjecturedKernel.EventModule.KeyDown}, Function}
 Tuple{ProjecturedKernel.GestureModule.var"##ClickRecognition#29", Int64, Float64, Int64, Float64, Type{ProjecturedKernel.GestureModule.ClickRecognition}}
