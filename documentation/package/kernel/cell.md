@@ -78,7 +78,7 @@ evaluation on one task never records a reader for an evaluation on another task:
 2. Each `c[]` during the computation records an edge `observer ← c`. The computed
    cell that reads becomes a downstream dependent of `c`.
 3. When the computation returns, the cell pops off the stack, and the engine marks
-   it up to date, or out of date when a write reached it while it computed.
+   it up to date.
 
 So no code declares a dependency. A read records it.
 
@@ -87,8 +87,9 @@ So no code declares a dependency. A read records it.
 The engine invalidates at once, and it computes only on a read:
 
 - `c[] = v` or `set_cell_computation!(c, f)` walks the dependents of `c`, and
-  their dependents, and marks each one out of date. No computation runs. A
-  computing dependent is marked, so it ends out of date.
+  their dependents, and marks each one out of date. No computation runs. The walk
+  stops at a dependent that is out of date already, and at a computing dependent:
+  see the next section.
 - The next `c[]` of a cell that is not up to date calls `_recompute!(c)`. It
   removes the old upstream edges, runs the computation with tracking, and stores
   the new value.
@@ -96,6 +97,46 @@ The engine invalidates at once, and it computes only on a read:
 This is the pull-based, lazy strategy. The projection printer depends on it to
 stay incremental: a part of the output that nothing reads does not compute again,
 also when its inputs change.
+
+## Who writes and reads cells, and when
+
+One task owns a set of cells that depend on each other, and only that task writes
+and reads them. The owner keeps two phases apart:
+
+1. In a **write phase**, the owner writes cells. No computation runs, and each
+   write marks the readers out of date.
+2. In a **read phase**, the owner reads cells, and each read computes what is out
+   of date. No cell of the set changes, so all reads of the phase see the values
+   of one moment.
+
+A write between two reads of one phase can give a result that mixes an old value
+and a new value. No walk of a write can repair such a result. So the rule forbids
+the write, and the engine does not lock a cell. Three things follow from the rule:
+
+- Another task never writes a cell of the set. It writes a plain store, and the
+  owner moves the data into cells in its next write phase. In the editor,
+  `post_operation!` and the feeds that `drain_feeds!` drains do this.
+- Another task reads a cell of the set only while the owner waits for it, for
+  example `fetch(Threads.@spawn c[])` inside a computation. The computing stack
+  is per task, so such a read records no reader.
+- A computation runs in a read phase, so it writes no cell that another cell
+  reads. It can write a cell that it made in the same run, and a collector that
+  no cell reads: [PAR-NO-WRITE-IN-THUNK](../../rule/architecture-invariants.md#par-no-write-in-thunk)
+  gives the conditions.
+
+The engine uses the rule in one place: the walk of a write stops at a computing
+cell. A write that reaches a computing cell comes from inside its own computation,
+which writes a cell that it made in the same run. That computation reads the new
+value after its write, so its value is right when it ends.
+
+In the editor, the editor task is the owner. A frame runs its steps one after the
+other on that task. A drain and an applied operation write cells. A read of the
+input against the IO map, a print and a paint read cells. So no write falls
+inside a read.
+
+The heartbeat of a wall clock breaks the rule: `start_wall_clock!` writes the
+time cell of its clock from a task of its own. A computation that yields can see
+two times in one read phase.
 
 ## A computation that throws
 
@@ -125,10 +166,8 @@ keeps a bare function, so a cell outside every barrier runs with no scope. The b
 A computation that reads its own cell, directly or through other cells, is a
 cycle. The read finds the cell *computing*, on the stack of its own task or on a
 stack that `run_without_cell_tracking` set aside, and throws a `CellCycleException`, an
-ordinary exception: a barrier records it, and the editor goes on. A read of a
-computing cell from another task is no cycle: that task computes the cell too, and
-only a run that still finds the cell computing stores its value. Each cell of the cycle is failed, and a write that breaks the cycle
-reaches their readers.
+ordinary exception: a barrier records it, and the editor goes on. Each cell of
+the cycle is failed, and a write that breaks the cycle reaches their readers.
 
 ```julia
 a = Cell(0); b = Cell(@computation a[] + 1)
@@ -152,11 +191,15 @@ and not an error.
   that is out of date already, because that cell made its own dependents out of
   date when it became so. This holds only because each write walks the *full*
   transitive closure, and only `_recompute!` and a write of a value make a cell up
-to date. Two states
-  keep it where a computation ends early or late: a failed cell passes the walk on,
-  and a computing cell that a write reaches ends out of date. Never set the state
-  by hand, and never invalidate only a part of the dependents. Both break the early
-  stop and leave cells stale for good.
+  to date. A failed cell passes the walk on, because a reader that caught its
+  exception can be up to date. A computing cell stops the walk, because only its
+  own computation writes a cell that reaches it. Never set the state by hand, and
+  never invalidate only a part of the dependents. Both break the early stop and
+  leave cells stale for good.
+- **One task writes and reads a set of cells, in phases that do not overlap.** A
+  write from another task, or a write inside a read phase, can leave a reader up
+  to date with a stale value. See
+  [Who writes and reads cells, and when](#who-writes-and-reads-cells-and-when).
 - **Propagation follows the writes, not the values.** A write to a cell always
   invalidates its dependents, with **no equality check**. A write of the value
   that the cell holds already still makes everything downstream out of date, and

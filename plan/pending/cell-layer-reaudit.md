@@ -177,6 +177,8 @@ L03-9 B.
     a new test covers a direct and an indirect cycle. The law
     (PAR-MONOTONE-INVALIDATION, PAR-ACYCLIC-CELLS) and `cell.md` say so. The kernel
     suite passes, 4384 of 4384, with no broken test left.
+    **Changed on 2026-10-13:** L03-2 is B, by the single-writer rule (below). The enum
+    has the four states, and the walk stops at a computing cell.
   - [x] Decision 2. L03-9 B: the typed code of `_invalidate_dependents!` showed a
     dynamic `:call` of itself, for `ReactiveCell{Int}` and `ReactiveCell{Any}`; with
     `@nospecialize` it is a static `:invoke` of one body. No time was measured. L03-8
@@ -228,7 +230,9 @@ It ran each defect on the bare files of the three layers.
   run that set the state to computing, so the mark of a write was lost, and the run
   that ended last stored its value. A second run keeps the mark, and a run stores its
   value only while it still finds the cell computing. A test with two tasks and a
-  channel.
+  channel. **Withdrawn on 2026-10-13:** by the single-writer rule, another task does
+  not read a cell while its owner computes it. The rule that a run stores its value
+  only while it finds the cell computing stays, for S-4. The test is gone.
 - [x] **S-4 (Low)** — a write or a new computation of a cell from inside its own
   computation was lost; the S-3 rule keeps them. A test.
 - [x] **S-5, S-7 (Medium, Low)** — `cell.md` and the law: a cycle throws, and a write of
@@ -246,3 +250,39 @@ It ran each defect on the bare files of the three layers.
 
 Checked: `test_cell` 203, `test_untracked_cell` 48, `test_cell_fault_scope` 34, the
 walkthrough 2, the layering guard 10.
+
+## The single-writer rule
+
+**The slowdown (reported by other sessions on 2026-10-13).** The L03-2 A walk marked a
+computing cell that a write on its own task reached. `push!` on a `CellVector` reads
+the elements cell and then writes it, so its computation marked itself and computed
+again at each read. The probe counted 6, 87 and 28 marks for the examples json,
+widget and table: `push!` of `CellVector.jl` 115 times, `_fixed_print` of
+`ProjectionTemplate.jl` 6 times. A walk that marked only a write from another task
+removed the marks.
+
+**The owner, 2026-10-13**, on that task check: "how could another task set a cell
+while a computation is going on? … a set of coherent cells can only be modified and
+queried by a single reader/writer which knows what its doing, clearly separating the
+write and read phases". Then, on three questions: "1: yes / 2: yes / 3: why not
+simply invalidate_cell just a pair for is_cell_up_to_date? maybe it should be renamed
+to is_cell_valid?", and "the documenation should say this rule explictely about who
+writes/reads cells and when".
+
+- [x] 1. The single-writer rule; L03-2 is B. `_COMPUTING_OUT_OF_DATE` is gone, and
+  the walk stops at a computing cell, as a cell out of date stops it. The check of a
+  cycle stays. The two tests of a write and a read from another task are gone; a test
+  checks that a computation that writes a cell that it made computes once. The law
+  has a new rule, PAR-SINGLE-WRITER, and `cell.md` a section "Who writes and reads
+  cells, and when". PAR-NO-WRITE-IN-THUNK says that the computation itself can read
+  a new cell before it writes it, and that no other cell can. The heartbeat of a wall
+  clock breaks the rule, and the law says so. Checked: the cell suites (`test_cell`
+  201, `test_untracked_cell` 48, `test_cell_fault_scope` 35, the walkthrough 2,
+  `test_cell_struct` 63); the probe finds 14, 0, 3 and 2 stops at a computing cell for
+  json, syntax, widget and table, the counts of the walk before L03-2 A.
+- [ ] 2. A write of the same plain value does not invalidate: `===` on a value that is
+  `isbits`, a `String`, a `Symbol` or `nothing`. An explicit invalidation function.
+  PAR-WRITE-DRIVEN-PROPAGATION and the design decision change; T-12 flips.
+- [ ] 3. The names of the states and of the invalidation function, and the heartbeat
+  of the wall clock: on the owner's word.
+

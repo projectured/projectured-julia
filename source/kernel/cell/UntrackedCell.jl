@@ -5,8 +5,8 @@
 
 A cell that runs its computation at each read. It keeps no value and records no
 reader, and no read inside its computation records one, because the computation
-runs with `run_without_cell_tracking`. So nothing depends on an untracked cell, and a change
-of what its computation reads reaches no computation that read it.
+runs with `run_without_cell_tracking`. So nothing depends on an untracked cell, and a
+change of what its computation reads reaches no computation that read it.
 
 Use it for a value that other code owns, when that code makes the readers compute
 again itself. When the readers must follow the value on their own, use a reactive

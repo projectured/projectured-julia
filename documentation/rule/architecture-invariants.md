@@ -66,6 +66,7 @@ requirement; the rule is its own lead sentence.
 | [PAR-PURE-THUNK](#par-pure-thunk) | Every reactive computation must be a pure function of the cells it reads |
 | [PAR-NO-WRITE-IN-THUNK](#par-no-write-in-thunk) | A computation must never write another cell or mutate shared document state |
 | [PAR-STORE-THEN-DRAIN](#par-store-then-drain) | Data enters a running editor through a store and a drain, never through a direct write |
+| [PAR-SINGLE-WRITER](#par-single-writer) | One task writes and reads a set of cells, in write phases and read phases that do not overlap |
 | [PAR-ACYCLIC-CELLS](#par-acyclic-cells) | The cell dependency graph must stay acyclic |
 | [PAR-MONOTONE-INVALIDATION](#par-monotone-invalidation) | Never hand-set `valid` and never partially invalidate |
 | [PAR-WRITE-DRIVEN-PROPAGATION](#par-write-driven-propagation) | Treat propagation as write-driven, not value-driven |
@@ -251,9 +252,13 @@ to which a cell read, a computation, an invalidation and a write add a count.
 
 **Accepted carve-out — a new cell that the same run made.** A computation can write
 a cell that it made in the same run, before it gives the cell out. Until then no
-cell depends on the new cell, so the write invalidates nothing. The computation
-reads such a cell only with `peek`, so that the cell gets no dependent before the
-write. The template walk of `@projection_template` does this: a nested template
+other cell depends on the new cell. The computation itself can read the new cell
+before the write: the walk of the write then reaches the computing cell, and it
+stops there (`PAR-SINGLE-WRITER`). No other cell may read the new cell before the
+write: the walk would mark that reader out of date and stop at the computing cell,
+which then ends up to date above a reader that is out of date. `push!` on a
+`CellVector` that the run made does this: it reads the elements cell, then writes
+it. The template walk of `@projection_template` does this too: a nested template
 builds an output node inside the computation of its parent, reads the blueprint
 of that node with `peek`, and completes its cells.
 
@@ -265,14 +270,41 @@ barrier inside a computation — writes a plain store outside the reactive graph
 write never blocks and never touches a cell. The editor drains the store into
 the target document on its own task, once per frame, before `run_read_stage!`
 (`drain_feeds!`; the fault report at the top of `run_frame!` is the same
-motion). Only the editor task writes a document a running editor shows. The
-heartbeat of a wall clock is the accepted exception: `start_wall_clock!` writes
-the time cell of its clock from a task of its own, on the thread of the task that
-reads the clock. A producer that wants a frame soon calls the wake function it was
+motion). Only the editor task writes a document a running editor shows
+(`PAR-SINGLE-WRITER`). The heartbeat of a wall clock is the accepted exception:
+`start_wall_clock!` writes the time cell of its clock from a task of its own, on
+the thread of the task that reads the clock. A producer that wants a frame soon calls the wake function it was
 given (`wake_editor!`, or the callback its store received at registration); it
 never reaches into the editor. The inbox (`post_operation!`) is the queue-shaped
 case of the same rule, for a payload that is an edit: ordered, applied exactly
 once, with backpressure.
+
+### PAR-SINGLE-WRITER
+
+**One task writes and reads a set of cells, in write phases and read phases that
+do not overlap.** A set of cells that depend on each other, such as the document
+of an editor and the cells that its projections derive, has one owner task. In a
+write phase the owner writes cells, and no computation runs. In a read phase the
+owner reads cells, the reads compute what is out of date, and no cell of the set
+changes. A write between two reads of one read phase can give a result that
+mixes an old value and a new value, and no walk of a write can repair it. The
+engine does not lock a cell, so the rule is what keeps the cached values right:
+
+- Another task never writes a cell of the set. It writes a plain store, and the
+  owner drains the store in a write phase (`PAR-STORE-THEN-DRAIN`).
+- Another task reads a cell of the set only while the owner waits for it, as in
+  `fetch(Threads.@spawn c[])` inside a computation. The computing stack is per
+  task, so that read records no reader.
+- A computation runs in a read phase, so it writes no cell that another cell
+  reads (`PAR-NO-WRITE-IN-THUNK`).
+
+The walk of a write relies on the rule: it stops at a computing cell, because a
+write that reaches a computing cell comes from inside that computation. The
+editor task owns the cells of an editor. A frame runs its steps one after the
+other on that task: a drain and an applied operation write, and a read of input
+against the IO map, a print and a paint read. The heartbeat of a wall clock
+breaks the rule: `start_wall_clock!` writes the time cell from a task of its own,
+so a computation that yields can see two times in one read phase.
 
 ### PAR-ACYCLIC-CELLS
 
@@ -292,8 +324,9 @@ monotone: a cell that is out of date implies that all its transitive readers are
 out of date already, and the early-stop walk of a write relies on it. Two states
 keep the walk right where a computation ends early or late. A *failed* cell, whose
 computation threw, can have up-to-date readers, which caught its exception, so the
-walk goes on through it. A *computing* cell that a write reaches is marked, and it
-ends out of date. Only `_recompute!` and a write of a value make a cell up to date.
+walk goes on through it. A *computing* cell stops the walk, as a cell out of date
+does: by `PAR-SINGLE-WRITER`, a write that reaches it comes from inside its own
+computation. Only `_recompute!` and a write of a value make a cell up to date.
 Setting the state by hand, or invalidating only a subset of readers, breaks the
 early stop and leaves cells stale forever.
 

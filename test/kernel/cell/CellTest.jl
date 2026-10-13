@@ -453,21 +453,20 @@ end
     @test c[] == 5
 end
 
-@testset "a write while a reader computes reaches the reader" begin
-    t = Cell(1)
-    q = Cell(@computation t[] + 1)
-    written = Ref(false)
-    p = Cell(@computation begin
-        value = q[]
-        # A write to an input of `q` while `p` computes.
-        written[] || (written[] = true; t[] = 10)
-        value
+@testset "a computation that writes a cell that it made computes once" begin
+    made = Ref{Any}(nothing)
+    runs = Ref(0)
+    c = Cell(@computation begin
+        runs[] += 1
+        items = Cell(Int[])
+        items[] = vcat(items[], 1)       # reads the new cell, then writes it
+        made[] = items
+        length(items[])
     end)
-    @test p[] == 2
-    # The write marked `p` while it computed, so `p` ended out of date.
-    @test !is_cell_up_to_date(p)
-    t[] = 20
-    @test p[] == 21
+    @test c[] == 1
+    @test is_cell_up_to_date(c)
+    @test c[] == 1
+    @test runs[] == 1
 end
 
 @testset "a cell that reads itself throws a CellCycleException" begin
@@ -500,27 +499,6 @@ end
     typed[] = @computation typed[] + 1
     exception = try typed[] catch caught; caught end
     @test sprint(showerror, exception) == "a ReactiveCell{$(Int)} read itself while it computed"
-end
-
-@testset "a read from another task keeps the mark of a write" begin
-    t = Cell(1)
-    gate = Channel{Nothing}(1)
-    is_waiting = Ref(true)
-    c = Cell(@computation begin
-        value = 10 * t[]
-        if is_waiting[]
-            is_waiting[] = false
-            take!(gate)              # the first run waits here, on its own task
-        end
-        value
-    end)
-    first_read = @async c[]
-    @test timedwait(() -> !is_waiting[], 10.0) === :ok
-    t[] = 2                          # marks the computing cell
-    @test fetch(@async c[]) == 20    # a second run, on another task
-    put!(gate, nothing)
-    fetch(first_read)                # the first run ends last, with its stale 10
-    @test c[] == 20
 end
 
 @testset "a write or a new computation during the computation of a cell stands" begin

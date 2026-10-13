@@ -6,15 +6,16 @@
 # The state of a reactive cell. A cell that is not up to date computes at its next
 # read. A failed cell is one whose last computation threw: it computes at its next read,
 # and the walk of a write goes on through it, because a reader that caught its exception
-# can be up to date. A computing cell is on the stack of a computation; a write that
-# reaches it marks it, so it ends out of date, and a read of it from inside its own
-# computation is a cycle.
+# can be up to date. A computing cell is on the stack of a computation, and the walk of
+# a write stops at it: one task writes and reads a set of cells, so a write that
+# reaches a computing cell comes from inside its computation, which writes only a cell
+# that it made in the same run. A read of a computing cell on the task that computes
+# it is a cycle.
 @enum _CellState::UInt8 begin
     _UP_TO_DATE
     _OUT_OF_DATE
     _FAILED
     _COMPUTING
-    _COMPUTING_OUT_OF_DATE
 end
 
 """
@@ -157,7 +158,8 @@ runs, and puts the stack back after `f` returns or throws.
 
 # Example
 
-    label = Cell(@computation title[] * run_without_cell_tracking(() -> " (" * string(count[]) * ")"))
+    suffix() = " (" * string(count[]) * ")"
+    label = Cell(@computation title[] * run_without_cell_tracking(suffix))
 
 See also `peek`, the untracked read of one cell, and `UntrackedCell`.
 """
@@ -176,8 +178,8 @@ function run_without_cell_tracking(f)
     end
 end
 
-# The stacks that `run_without_cell_tracking` set aside on this task, the innermost last. A cycle
-# can pass through them, so the check of a cycle searches them too.
+# The stacks that `run_without_cell_tracking` set aside on this task, the innermost
+# last. A cycle can pass through them, so the check of a cycle searches them too.
 _get_set_aside_stacks() =
     get!(() -> Vector{ReactiveCell}[], task_local_storage(),
          :projectured_reactive_set_aside)::Vector{Vector{ReactiveCell}}
@@ -254,13 +256,12 @@ function _recompute!(c::ReactiveCell)
         return
     end
     stack = _get_computing_stack()
-    is_computing = _is_computing(c)
-    is_computing && _is_computing_on_this_task(c, stack) && throw(CellCycleException(c))
+    c.state === _COMPUTING && _is_computing_on_this_task(c, stack) &&
+        throw(CellCycleException(c))
     _detach_upstream!(c)
     @count_performance :computes
     push!(stack, c)
-    # A run on another task can compute the cell already; the mark of a write stays.
-    is_computing || (c.state = _COMPUTING)
+    c.state = _COMPUTING
     value = try
         _run_computation(c.computation)
     catch
@@ -269,36 +270,37 @@ function _recompute!(c::ReactiveCell)
     finally
         pop!(stack)
     end
-    # Only a run that still finds the cell computing stores its value. A write, a new
-    # computation or a run on another task that ended first changed the state, and
-    # their answer stands.
+    # Only a run that still finds the cell computing stores its value. A write or a
+    # new computation inside the run changed the state, and its answer stands.
     if c.state === _COMPUTING
         c.value = value
         c.state = _UP_TO_DATE
-    elseif c.state === _COMPUTING_OUT_OF_DATE
-        c.value = value
-        c.state = _OUT_OF_DATE
     elseif !isdefined(c, :value)
         c.value = value
     end
 end
 
-_is_computing(c::ReactiveCell) =
-    c.state === _COMPUTING || c.state === _COMPUTING_OUT_OF_DATE
+# Whether `c` computes on this task: on its stack, or on a stack that
+# `run_without_cell_tracking` set aside.
+function _is_computing_on_this_task(@nospecialize(c::ReactiveCell), stack)
+    _is_on_stack(c, stack) && return true
+    any(aside -> _is_on_stack(c, aside), _get_set_aside_stacks())
+end
 
-# Whether `c` computes on this task: on its stack, or on a stack that `run_without_cell_tracking`
-# set aside. A cell that computes on another task is no cycle.
-_is_computing_on_this_task(c::ReactiveCell, stack) =
-    any(cell -> cell === c, stack) ||
-    any(aside -> any(cell -> cell === c, aside), _get_set_aside_stacks())
+function _is_on_stack(@nospecialize(c::ReactiveCell), stack::Vector{ReactiveCell})
+    for i in lastindex(stack):-1:firstindex(stack)
+        stack[i] === c && return true
+    end
+    false
+end
 
 # ── invalidation ─────────────────────────────────────────────────────────────
 
 # Mark every reader of `c` out of date, then the readers of each, and so on, by the
-# rules of `_CellState`: a reader out of date already stops the walk, a failed reader
-# does not, and a computing reader is marked. A reader comes out of `dependents` as a
-# `ReactiveCell` with a free `T`, so `@nospecialize` gives the walk one compiled body,
-# which calls itself with no dispatch at run time.
+# rules of `_CellState`: a reader out of date or computing stops the walk, and a failed
+# reader does not. A reader comes out of `dependents` as a `ReactiveCell` with a free
+# `T`, so `@nospecialize` gives the walk one compiled body, which calls itself with no
+# dispatch at run time.
 function _invalidate_dependents!(@nospecialize(c::ReactiveCell))
     ds = c.dependents
     ds === nothing && return
@@ -307,13 +309,8 @@ function _invalidate_dependents!(@nospecialize(c::ReactiveCell))
         d === nothing && continue      # the reader was collected
         dd = d::ReactiveCell
         state = dd.state
-        if state === _UP_TO_DATE || state === _FAILED
-            dd.state = _OUT_OF_DATE
-        elseif state === _COMPUTING
-            dd.state = _COMPUTING_OUT_OF_DATE
-        else
-            continue
-        end
+        state === _UP_TO_DATE || state === _FAILED || continue
+        dd.state = _OUT_OF_DATE
         @count_performance :invalidations
         _invalidate_dependents!(dd)
     end
