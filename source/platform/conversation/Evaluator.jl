@@ -533,8 +533,9 @@ form, or `nothing` when the form keeps its string.
 
 A form becomes a Julia document when the document prints back as the same tokens
 on the same lines as the code; the spaces between them may change. Otherwise the
-form keeps its string: code with a comment, code that the print would change in
-another way (the juxtaposed product `2x` prints as `2 * x`), code that does not
+form keeps its string: code of several statements, such as a comment above a
+statement, code that the print would change in another way (the juxtaposed
+product `2x` prints as `2 * x`), code that does not
 parse, or code that no loaded domain reads as Julia. Use it to check the forms of
 a script before they are typed.
 

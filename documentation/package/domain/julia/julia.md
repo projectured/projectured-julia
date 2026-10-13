@@ -8,11 +8,12 @@ The Julia domain, `ProjecturedJulia`, holds Julia source code as a tree of react
 
 ## How it works
 
-`JuliaDocument` has about fifty concrete types, in three groups:
+`JuliaDocument` has about sixty concrete types, in four groups:
 
 - **Literals:** `JuliaIdentifier`, `JuliaInteger`, `JuliaFloat`, `JuliaString`, `JuliaBool`, `JuliaSymbol`, `JuliaChar`.
 - **Expressions:** `JuliaCall`, `JuliaBinaryOperation`, `JuliaUnaryOperation`, `JuliaIndex`, `JuliaFieldAccess`, `JuliaTuple`, `JuliaArray`, `JuliaRange` and others.
 - **Statements and definitions:** `JuliaBlock`, `JuliaToplevel`, `JuliaAssignment`, `JuliaIf`, `JuliaFor`, `JuliaWhile`, `JuliaTry`, `JuliaFunction`, `JuliaStruct`, `JuliaModuleDefinition`, `JuliaUsing`, `JuliaDocstring` and others.
+- **Comments:** `JuliaComment`, a `#` line, and `JuliaMultilineComment`, a `#= … =#` comment, are statements. `JuliaEndOfLineComment` holds the statement before it, as `JuliaDocstring` holds its subject, so a move of the statement moves the comment too. The text of a comment keeps every character after the `#`, the first space too, so a `#!` line prints back as it was. A comment binds no name and runs no code.
 
 A variable-length list of children is a `CellVector`: `arguments`, `statements`, `params`. `JuliaEmpty` prints nothing, for example a missing `else` branch. It is not the same as `JuliaNothing`, the `nothing` literal.
 
@@ -24,7 +25,19 @@ A variable-length list of children is a `CellVector`: `arguments`, `statements`,
 
 ### The parser
 
-`parse_julia(text)` calls `Meta.parseall`, the parser of Julia itself, and converts the `Expr` tree into documents in one recursive pass. It has one `_convert_head(::Val{head}, x)` method for each `Expr` head. It builds no syntax tree of its own. Where the `Expr` tree has one shape for two spellings, the document has one type: `a ? b : c` and `if` both become `JuliaIf`, and `begin … end` becomes `JuliaBlock`. A head with no converter raises an error. A call of an infix operator becomes a `JuliaBinaryOperation`, so it prints between its operands: the arithmetic and comparison operators, `%`, `÷`, `isa`, `in`, `∈`, `∉`, `=>`, `|>`, and the dotted forms of the arithmetic and comparison operators. Any other callee stays a `JuliaCall`. Statements on one line with `;` between them have a `:toplevel` of their own in the `Expr` tree, and they become a `JuliaToplevel`, which prints them on their line. The `Expr` tree does not say whether a `;` follows the last statement, so `parse_julia` reads that from the tokens of the text and sets `trailing_semicolon`. A `;` inside `begin … end` separates statements of that block.
+`parse_julia(text)` calls `Meta.parseall`, the parser of Julia itself, and converts the `Expr` tree into documents in one recursive pass. It has one `_convert_head(::Val{head}, x)` method for each `Expr` head. It builds no syntax tree of its own. Where the `Expr` tree has one shape for two spellings, the document has one type: `a ? b : c` and `if` both become `JuliaIf`, and `begin … end` becomes `JuliaBlock`. A head with no converter raises an error. A call of an infix operator becomes a `JuliaBinaryOperation`, so it prints between its operands: the arithmetic and comparison operators, `%`, `÷`, `isa`, `in`, `∈`, `∉`, `=>`, `|>`, and the dotted forms of the arithmetic and comparison operators. Any other callee stays a `JuliaCall`. Statements on one line with `;` between them have a `:toplevel` of their own in the `Expr` tree, and they become a `JuliaToplevel`, which prints them on their line. The `Expr` tree does not say whether a `;` follows the last statement, so `parse_julia` reads that from the tokens of the text and sets `trailing_semicolon`. A `;` inside `begin … end` separates statements of that block. In the body of a struct, a string directly before another statement becomes a `JuliaDocstring` of that statement, as Julia documents a field.
+
+**The comments.** The `Expr` tree holds no comment, and it gives no column and no end of a statement. So `parse_julia` collects the comment tokens, finds the place of each comment in the tree of `Base.JuliaSyntax`, which holds the byte range of every node, and writes a copy of the text with a marker call, `var"#comment#"("text", :kind)`, on the line after the comment. Julia's parser puts each marker into the correct block, and the converter turns it into a comment. The copy keeps every comment, so a marker follows the same tokens as the code after the comment did, and a docstring attaches exactly as in the text. The innermost node that holds a comment gives its place:
+
+| the place of the comment | the document |
+| --- | --- |
+| in a statement list, after a statement on the same line | a `JuliaEndOfLineComment` with that statement as its `subject` |
+| in a statement list, on a line of its own | a `JuliaComment` or a `JuliaMultilineComment` between the statements |
+| on the header line of a block, such as `function f(x)  # c` | a comment statement at the start of the body |
+| in a node that is not a statement list, such as the arguments of a call | a comment statement before the statement that holds that node |
+| `#= … =#` after the code on a line | a `JuliaMultilineComment` after the statement |
+
+A statement list is the root, a line of statements, or a block; the bindings of a `let` are a block, but not of statements. A text with no comment parses as before, with no second parse.
 
 ### The printer
 
@@ -32,21 +45,25 @@ A variable-length list of children is a `CellVector`: `arguments`, `statements`,
 
 Every field of a Julia node declares `JuliaDocument`, and every list `CellVector{JuliaDocument}`, so no other domain stands in Julia code. An object that a person pastes into the code, such as a widget, stands there as a literal: a `JuliaObject` holds it as its `value`. A write makes the node: `convert_to_declared_type` turns a document of another domain, written into a place of Julia code, into `JuliaObject(document)`, as it turns text into a `JuliaInsertion`. So a paste, a typed edit and an operation of the assistant wrap the object; program code writes `JuliaObject(object)` itself, because a direct write converts no value. The entry `JuliaObject => JuliaObjectToSyntaxLeaf()` draws the node as one leaf with the title of its value in angle marks, `⟨a.json⟩`, or its type name when it has no title. The last entry of the dispatch, `Document => JuliaObjectToSyntaxLeaf()`, draws a document that is not Julia the same way, where one is printed through the Julia table at the root. It is the one leaf written by hand, because the reader of a template would give a key on the label to the object's own table. It answers no key, maps a whole selection both ways, and shows a selection only when the object is selected whole. A chain that recurses through this table, as `print_natural_text` does, draws the label; a bare `NaturalToGraphics` recurses a child of the code through its own shared table by the child's own type, and would draw a pasted object as the reflected tree of its own domain instead of the leaf above. So `__init__` registers `JuliaDocument` with `register_natural_graphics!(:julia_code, …)`, a closed chain of `JuliaToSyntax()`, `SyntaxToText()` and `TextToGraphics()`: every natural renderer then draws Julia code through this one table, and an object pasted into the code stays one leaf in every tab and every transcript, not only in a host that names Julia itself. A domain that embeds Julia code passes the entries of its own types to `JuliaToSyntax(entries...)`, which puts them before that last entry: `FsmToSyntax()`, `FormulaToSyntax()` and `ProcessToSyntax()` do so.
 
-The leaves are opaque: they have no `bound` marker. So a caret selects an identifier, a number or a string as a whole, and does not go into its characters. A `bound` leaf needs the flat-offset mapping of JSON for the tokens that no document field produces, such as `function`, `(` and `end`.
+The leaves are opaque: they have no `bound` marker. So a caret selects an identifier, a number or a string as a whole, and does not go into its characters. A `bound` leaf needs the flat-offset mapping of JSON for the tokens that no document field produces, such as `function`, `(` and `end`. The text of a comment, the text of a docstring and the name of a module are the exceptions: they are `bound`, so a person types into them.
+
+A comment prints in the style `comment_text` of `JuliaTheme`. `JuliaCommentToSyntaxLeaf` writes `#` and the text, `JuliaMultilineCommentToSyntaxLeaf` writes `#=`, the text as lines and `=#`, and `JuliaEndOfLineCommentToSyntaxNode` writes the statement, two spaces, `#` and the text. The block that holds a comment statement puts it on a line of its own, at the indentation of the block. The text of a `#` comment is one line: a `TextString` shows it, and a Return key in it gives no operation. A module prints a bare `end`; a `# module Name` in a file is an end-of-line comment like any other. The text of a docstring prints escaped as a triple-quoted string spells it: `\` becomes `\\`, `$` becomes `\$`, and the third quote of a run of three becomes `\"`. The parser removes the escapes, so any text goes through a save and a load.
+
+A comment stands where a statement stands. In an expression place, it holds the code that the print puts after it: in `a  # c && b` the comment holds `&& b`. The parser makes a comment only in a statement list. `get_julia_expression_without_comments(document)` gives the expression of a document of one statement without its comments, and `FsmToJuliaCode` and `ProcessToJuliaCode` call it for a guard, a condition, an iterable and a returned value. A person can type a comment into an expression hole, and the print is then not valid Julia, as for other text typed into a wrong place.
 
 ### The expression
 
-`make_julia_expression(document)` gives the `Expr(:toplevel, …)` that runs a Julia document, the shape `Meta.parseall` gives. It copies the document with `copy_document` under a copy policy whose stop hooks put a placeholder identifier where a `JuliaObject` stands, prints the copy, parses the text, and puts the value of each object back as a `QuoteNode`. So an evaluation uses the object itself, and a noted live object keeps its identity. A hole stands for the parse of its text, because its print adds the completion; a hole whose text does not parse raises an error. The domain registers the function as the expression of its format, `:jl`, in the natural seam.
+`make_julia_expression(document)` gives the `Expr(:toplevel, …)` that runs a Julia document, the shape `Meta.parseall` gives. It copies the document with `copy_document` under a copy policy whose stop hooks put a placeholder identifier where a `JuliaObject` stands, prints the copy, parses the text, and puts the value of each object back as a `QuoteNode`. So an evaluation uses the object itself, and a noted live object keeps its identity. A hole stands for the parse of its text, because its print adds the completion; a hole whose text does not parse raises an error. The domain registers the function as the expression of its format, `:jl`, in the natural seam. A comment prints as text and `Meta.parseall` drops it, so a comment never reaches an evaluation.
 
 ### Type-in
 
-`JuliaInsertion` is a text buffer. The `@gestures JuliaInsertion` table does the editing, the commit and the navigation, so `JuliaInsertionToSyntaxLeaf` only prints the buffer and a pale-green completion. On commit, a complete keyword (`function`, `if`, `while`, `for`, `begin`, `return`) expands into a scaffold with holes, and the first hole is selected. Any other text goes to `parse_julia`.
+`JuliaInsertion` is a text buffer. The `@gestures JuliaInsertion` table does the editing, the commit and the navigation, so `JuliaInsertionToSyntaxLeaf` only prints the buffer and a pale-green completion. On commit, a complete keyword (`function`, `if`, `while`, `for`, `begin`, `return`) expands into a scaffold with holes, and the first hole is selected. Any other text goes to `parse_julia`, so a typed `# note` becomes a `JuliaComment`.
 
 ### The file
 
 `JuliaFile` holds a `.jl` file. A reference to a node in another file is the call `pred_ref("<<file(\"path\")>>")`, so the file stays valid Julia. `find_julia_definition(document, name)` finds a top-level definition by its name. It is the `definition` verb of the marker language, so `definition(file("steps.jl"), "queue_step")` names one function of a file. No match, or more than one, raises an error.
 
-A `JuliaFunction` gives its call signature as its tooltip, and a `JuliaDocstring` gives the signature and the text.
+A `JuliaFunction` gives its call signature as its tooltip, and a `JuliaDocstring` gives the signature and the text. The docstring of a struct field gives its text.
 
 ### The duplicate
 
@@ -54,7 +71,7 @@ A `JuliaFunction` gives its call signature as its tooltip, and a `JuliaDocstring
 
 ### The theme
 
-`JuliaTheme` holds the look of the Julia projections: the text of an identifier, a literal, punctuation, a keyword, a symbol, an operator, a called function, a module name and plain text, the completion hint, and the colors of a typed name that names nothing and of one that names one thing. Each value has
+`JuliaTheme` holds the look of the Julia projections: the text of an identifier, a literal, punctuation, a comment, a keyword, a symbol, an operator, a called function, a module name and plain text, the completion hint, and the colors of a typed name that names nothing and of one that names one thing. Each value has
 the default that the domain draws with no appearance. A projection holds its
 styles as fields, and no theme; nothing in it scales or asks whether a theme is
 scaled. `JuliaToSyntax(entries...; theme, syntax_theme)` gives each projection the style of
@@ -75,7 +92,9 @@ Its `__init__` registers the natural notation (format `:jl`, extension `.jl`, pa
 ## Design decisions
 
 - **The parser of Julia itself.** A hand-written grammar would drift from the language. `Meta.parseall` is in Base, so it adds no dependency. See [plan/done/julia-parser.md](../../../../plan/done/julia-parser.md).
-- **One document type for one `Expr` shape.** The document can not keep a difference that the `Expr` tree does not keep. See [plan/done/julia-basic-language-support.md](../../../../plan/done/julia-basic-language-support.md).
+- **One document type for one `Expr` shape.** The document can not keep a difference that the `Expr` tree does not keep. See [plan/done/julia-basic-language-support.md](../../../../plan/done/julia-basic-language-support.md). The comments are the one exception: they come from the tokens. The document keeps no blank line, no quote form and no column.
+- **A marker carries a comment through the parser of Julia.** The `Expr` tree gives no column and no end, so the converter can not place a comment alone. Julia's parser puts the marker into the correct block, and a rewrite of the converter over the tree of `Base.JuliaSyntax` is not necessary. See [plan/done/julia-code-keeps-its-comments-and-docstrings.md](../../../../plan/done/julia-code-keeps-its-comments-and-docstrings.md).
+- **A comment on a line of its own is a statement of its own.** It does not attach to the statement after it, because a heading such as `# ── Parser ──` belongs to no single statement. A docstring attaches, because Julia attaches it. A comment that no statement list holds moves before its statement, so its text stays in the file.
 - **Type-in is a gesture table on the document.** The insertion leaf has no reader of its own, as `@gestures PrimitiveString` does for a string. See [plan/done/julia-typein-operations.md](../../../../plan/done/julia-typein-operations.md).
 - **Every rule is a template.** A set of hand-written reference maps was tried, and it left the structural tokens without a caret. The template rules give every token a caret. See [plan/pending/julia-syntax-navigation.md](../../../../plan/pending/julia-syntax-navigation.md).
 
@@ -86,14 +105,20 @@ code = parse_julia("function f(x)\n    x + 1\nend")   # one statement: a bare Ju
 code.name                                     # the JuliaIdentifier `f`
 parse_julia("a = 1\nb = 2")                   # two statements: a JuliaBlock
 parse_julia("x = 1;")                         # a JuliaToplevel with trailing_semicolon
+parse_julia("x = 1  # meters")                # a JuliaEndOfLineComment around the assignment
 print_natural_text(code)                      # back to source text
 run_example("julia")
 ```
 
-- Examples: `julia_example`, from `make_julia_document_example()` and `make_julia_projection_example()`. The atomic catalog has about fifty documents, one for each type.
+- Examples: `julia_example`, from `make_julia_document_example()` and `make_julia_projection_example()`. The atomic catalog has about sixty documents, one for each type.
 - Test: `test_julia()` runs the layering guard, the parser test, the definition test and the type-in test.
 
 ## Limits
 
 - A caret does not go into the characters of a leaf. `test_position_navigation(julia_example; check_reaches_all = true)` has 28 failures for this reason. [plan/pending/julia-syntax-navigation.md](../../../../plan/pending/julia-syntax-navigation.md) tracks it.
 - A formula evaluates only a subset of the Julia types; see [formula.md](../formula/formula.md).
+- A comment inside an expression, such as between the arguments of a call, moves to the line before its statement.
+- The print puts no blank line between two statements, and two spaces before an end-of-line comment. Comments that a file aligns at one column lose the alignment.
+- A docstring with an interpolation, `"""… $(x) …"""`, and a raw docstring, `raw"""…"""`, stay a macro call of `Core.@doc`. A docstring in single quotes gets a line break at its end after one save and one load, because the triple quotes of the print write one.
+- A typed `=#` in the text of a multiline comment ends the comment, because Julia has no escape in a comment.
+- The print of a `JuliaString` does not escape `$`, so a string that holds a `$` prints as text that Julia does not read back.

@@ -1,11 +1,12 @@
 # Julia code keeps its comments and its docstrings
 
-> **Kind:** plan · **Status:** proposal, not started. Nothing is implemented.
-> The owner answered the three questions of section 8 on 2026-10-13. ·
+> **Kind:** plan · **Status:** done 2026-10-13, on the branch `julia-comments`,
+> not on `main`. The owner answered the three questions of section 8 on
+> 2026-10-13. ·
 > **Stands on:**
 > [julia.md](../../documentation/package/domain/julia/julia.md),
 > [syntax.md](../../documentation/package/platform/syntax/syntax.md),
-> [strict-document-types.md](strict-document-types.md)
+> [strict-document-types.md](../pending/strict-document-types.md)
 
 The Julia domain drops every comment when it parses code, so a save of a `.jl`
 file deletes the comments of the file. This plan adds three comment types to the
@@ -394,12 +395,30 @@ commit. Nothing lands on `main` before the owner approves it.
     an end-of-line comment. `test_julia_typein()` types `# note` into a hole of a
     block, and the commit makes a `JuliaComment`.
 
-- [ ] **Step 5: the guide, and the close.**
+- [x] **Step 5: the guide, and the close.** *Done 2026-10-13.* Results:
+  - `test_julia()` passes 667 and fails only the known `JuliaExpressionTest.jl:31`.
+    `test_formula()` passes 187, `test_fsm()` 177 and `test_process()` 315.
+  - `test_file_project()` passes 143 with 1 broken and no error: `main` marks the
+    Julia case `@test_broken` since `cb540d963`.
+  - `test_documentation()` passes. The navigation of `julia_example` fails its
+    known 28; the count did not grow.
+  - `test_application()` fails 2 and errors 2 at `ApplicationTest.jl` 1066, 1077,
+    1114 and 1462, which fail on `main` too (the full run of 2026-10-13).
+  - *A change of behavior found in step 5:* an evaluated form with an end-of-line
+    comment now prints back as the same tokens, so the evaluator makes a Julia
+    document of it, where it kept a string before. A comment above a statement
+    still keeps the string, because the form is two statements. Three tests used
+    a comment to get a string form: `EvaluatorToplevelTest.jl` takes the
+    two-line form `x = 1` and `# one`, or expects the parse, and
+    `ApplicationTest.jl` takes `y = 2x + 1`. `test_evaluator_toplevel()` passes
+    239. The docstring of `find_form_document` and
+    [conversation.md](../../documentation/package/platform/conversation/conversation.md)
+    say so.
   - Write the comment types, the rule of section 3.2, the docstring rules and the
     limits into [julia.md](../../documentation/package/domain/julia/julia.md).
   - Run `test_julia()`, `test_fsm()`, `test_process()` and `test_formula()` once.
     `test_file_project` errors for Julia on `main` before this plan
-    ([strict-document-types.md](strict-document-types.md), step 8), so its result
+    ([strict-document-types.md](../pending/strict-document-types.md), step 8), so its result
     is compared with the result on `main`.
   - `test_position_navigation(julia_example; check_reaches_all = true)` has 28
     failures on `main`. The count must not grow.
@@ -407,14 +426,14 @@ commit. Nothing lands on `main` before the owner approves it.
 
 ## 7. Related plans
 
-- [strict-document-types.md](strict-document-types.md): the new fields use the
+- [strict-document-types.md](../pending/strict-document-types.md): the new fields use the
   declared types of the domain: `JuliaDocument` for the subject, and `String` for
   a text. The owner's remark of 2026-10-13 says that a node of another domain can
   sit in a Julia comment. The owner's answer to Q1 keeps a `String` for now.
-- [bound-julia-code-stores-each-name-once.md](bound-julia-code-stores-each-name-once.md):
+- [bound-julia-code-stores-each-name-once.md](../pending/bound-julia-code-stores-each-name-once.md):
   a comment binds no name. The bound document must keep the comments, or its
   print loses them.
-- [julia-syntax-navigation.md](julia-syntax-navigation.md): the comment leaves and
+- [julia-syntax-navigation.md](../pending/julia-syntax-navigation.md): the comment leaves and
   the text of a docstring are `bound`, so a caret goes into their characters. The
   other leaves of the domain stay opaque.
 

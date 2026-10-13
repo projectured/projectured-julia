@@ -353,13 +353,16 @@ end
 end
 
 @testset "a form whose parse would change more than spacing keeps its string" begin
-    # A comment has no place in the Julia document, and the print writes a
-    # juxtaposed product with `*`: both forms keep what was typed.
-    for code in ("x = 1 + 2  # three", "y = 2x + 1")
-        form = evaluated_form(code)
-        @test form.form isa PrimitiveString
-        @test form.form.value == code
-    end
+    # The print writes a juxtaposed product with `*`, so the form keeps what was
+    # typed.
+    form = evaluated_form("y = 2x + 1")
+    @test form.form isa PrimitiveString
+    @test form.form.value == "y = 2x + 1"
+    # A comment at the end of the line is part of the Julia document, and the
+    # print writes it back, so the form parses.
+    form = evaluated_form("x = 1 + 2  # three")
+    @test !(form.form isa PrimitiveString)
+    @test print_natural_text(form.form) == "x = 1 + 2  # three"
     # Code of several statements prints as an indented block with an empty first
     # and last line, so it keeps the lines it was typed on.
     form = evaluated_form("x = 1\nx + 1")
@@ -483,17 +486,17 @@ end
 end
 
 @testset "the history holds string forms and Julia forms alike" begin
-    # The comment keeps the first form a string, and the second becomes Julia.
-    s = history_session("x = 1  # one", "y = 2")
+    # Two statements keep the first form a string, and the second becomes Julia.
+    s = history_session("x = 1\n# one", "y = 2")
     @test s.toplevel.elements[1].form isa PrimitiveString
     @test s.toplevel.elements[2].form isa JuliaAssignment
     s.press!(:up); @test s.shown() == "y = 2"
     # The string form comes back with its comment.
-    s.press!(:up); @test s.shown() == "x = 1  # one"
+    s.press!(:up); @test s.shown() == "x = 1\n# one"
     s.press!(:down); s.press!(:down); @test s.shown() == ""
     # The prefix finds both kinds.
     s.type!("x")
-    s.press!(:up); @test s.shown() == "x = 1  # one"
+    s.press!(:up); @test s.shown() == "x = 1\n# one"
     # A Julia form comes back as it prints, which is the code without the blank
     # space around it.
     s = history_session("\nz = 3\n")
@@ -628,13 +631,13 @@ end
     @test form.source == "x = 1 + 2"
     @test occursin("3", _et_flatten(form.result))
     @test s.toplevel.elements[3].form isa JuliaInsertion
-    # A hole whose parse would lose a comment keeps its text, and still ran.
+    # A hole with a comment at the end of the line commits too, with the comment.
     s.type!("y = 2  # two")
     s.press!(:return)
-    @test s.toplevel.elements[3].form isa JuliaInsertion
-    @test s.toplevel.elements[3].form.value == "y = 2  # two"
+    @test s.toplevel.elements[3].form isa JuliaEndOfLineComment
+    @test print_natural_text(s.toplevel.elements[3].form) == "y = 2  # two"
     @test occursin("2", _et_flatten(s.toplevel.elements[3].result))
-    # Up recalls both, the hole's text as it was typed.
+    # Up recalls both as they print.
     s.press!(:up); @test s.shown() == "y = 2  # two"
     s.press!(:up); @test s.shown() == "x = 1 + 2"
 end

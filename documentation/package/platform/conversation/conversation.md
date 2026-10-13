@@ -142,7 +142,7 @@ The paths of a transcript name its objects, and the path of a draft names a plac
 - The chooser makes an insertion that takes the whole source as text. A structural key, such as `[` for a JSON array, does not start a document.
 - The arguments of a tool call print one `key: value` line each. A nested value prints as its Julia `string`.
 - A noted object in a form is live only while the session lives: a saved evaluator writes it by value, and it comes back as a copy.
-- An evaluated form with a comment stays a string, because the Julia domain has no comment. Code of several statements stays a string too, because the Julia notation prints a top-level block indented, with an empty first and last line. A form that stays a string draws in one color, so beside a parsed form it looks unhighlighted.
+- An evaluated form of several statements stays a string, also a comment above a statement, because the Julia notation prints a top-level block indented, with an empty first and last line. A comment at the end of the line parses with its statement. A form that stays a string draws in one color, so beside a parsed form it looks unhighlighted.
 - The composer and the evaluator set `is_error` from the text of the output: an output that contains `ERROR` or `Error` marks the result as an error.
 - A tab that holds a bare `ConversationConversation` shows its reflected fields unless the host adds the conversation rows.
 - No test is marked `@test_broken`.

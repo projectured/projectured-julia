@@ -1365,7 +1365,7 @@ function test_application()
                 @test only(circles(content()))[3] == 30
             end
 
-            @testset "an evaluated form draws as Julia, and a form with a comment as typed" begin
+            @testset "an evaluated form draws as Julia, and a form that keeps its string as typed" begin
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
                 editor = Editor(scene, composed; backend = ConsoleBackend(),
                                 devices = Device[Display(), Keyboard(), Mouse()])
@@ -1381,7 +1381,7 @@ function test_application()
                 _app_apply!(editor, InvokeActionOperation(button.action))
                 (group, index) = get_pane_focus(_app_window(document))
                 evaluator = get_wrapped_document(group.tabs[index].content)
-                for code in ("GraphicsCircle(10, 10, 10)", "x = 1  # why")
+                for code in ("GraphicsCircle(10, 10, 10)", "y = 2x + 1")
                     foreach(character -> press!(KeyPress(character; time = 0.0)), code)
                     press!(KeyPress('\n'; time = 0.0))
                 end
@@ -1405,20 +1405,20 @@ function test_application()
                     found
                 end
                 # The Julia form draws the words of its call apart, each in the
-                # color of its kind. The string form draws what was typed, the
-                # comment too, as one text.
+                # color of its kind. The string form draws what was typed as one
+                # text: its parse would print the product as `2 * x`.
                 @test "GraphicsCircle" in texts
                 @test !any(text -> occursin("GraphicsCircle(", text), texts)
                 @test colors(content)["GraphicsCircle"] != colors(content)["10"]
-                @test "x = 1  # why" in texts
+                @test "y = 2x + 1" in texts
                 # The prompts stand in one column, and both codes start right of it.
                 prompts_x = unique(x for (text, x, _) in drawn_at if text in (">", "="))
                 @test length(prompts_x) == 1
-                @test x_of("GraphicsCircle") == x_of("x = 1  # why") > only(prompts_x)
+                @test x_of("GraphicsCircle") == x_of("y = 2x + 1") > only(prompts_x)
                 # The one caret is in the fresh form, below both.
                 carets = _app_drawn_carets(content)
                 @test length(carets) == 1
-                @test only(carets)[2] > y_of("x = 1  # why") > y_of("GraphicsCircle")
+                @test only(carets)[2] > y_of("y = 2x + 1") > y_of("GraphicsCircle")
             end
 
             @testset "a closed assistant and a closed Files pane come back as they were" begin
