@@ -11,6 +11,13 @@ _julia_text_projection() = ChainingProjection(RecursiveProjection(JuliaToSyntax(
                                               RecursiveProjection(SyntaxToText()),
                                               RecursiveProjection(TextToString()))
 
+# The least editor that `evaluate_operation` takes: a whole-root swap rebinds
+# `document`.
+mutable struct _JuliaToSyntaxEditor
+    document::Any
+    iomap::Any
+end
+
 """
     test_julia_to_syntax()
 
@@ -62,6 +69,20 @@ function test_julia_to_syntax()
             @test read_key(document, '\n') === nothing
         end
         @test read_key(JuliaMultilineComment(" note"), '\n') !== nothing
+    end
+
+    @testset "a typed character goes into the text of a docstring, and prints escaped" begin
+        projection = make_julia_projection_example()
+        docstring = JuliaDocstring("A value.", JuliaAssignment(JuliaIdentifier("x"), JuliaInteger(1)))
+        clear_selection!(docstring)
+        set_selection!(docstring, ConcreteReference(FieldReferenceStep("text"),
+                                  ConcreteReference(RangeReferenceStep(2, 2), EmptyReference())))
+        iomap = print_document(projection, docstring)
+        operation = read_intent(projection, iomap, KeyPress('$'; time = 0.0))
+        @test operation !== nothing
+        evaluate_operation(_JuliaToSyntaxEditor(docstring, iomap), operation)
+        @test docstring.text == "A \$value."
+        @test occursin("A \\\$value.", String(print_document(_julia_text_projection(), docstring).output))
     end
 
     @testset "the print of each comment is Julia that parses" begin

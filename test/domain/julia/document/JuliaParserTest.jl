@@ -10,15 +10,47 @@ appeared in a real file and stopped the whole file from parsing, since
 """
 
 using Test
-using ProjecturedJulia.JuliaModule: parse_julia, JuliaBlock, JuliaToplevel
+using ProjecturedJulia.JuliaModule: parse_julia, JuliaBlock, JuliaToplevel, JuliaDocstring
 using ProjecturedPlatform.NaturalModule: print_natural_text
 
 # What the printer produced, trimmed — the pipeline emits the editor's rendered
 # form, so leading and trailing whitespace is not part of what is asserted.
 _julia_round_trip(source::AbstractString) = strip(print_natural_text(parse_julia(source)))
 
+# The statements of the body of the one struct in `text`, as Julia parses them,
+# with no line numbers. A docstring loses the break at its end, which a single
+# quote does not write and a triple quote does.
+function _julia_struct_body(text::AbstractString)
+    definition = only(a for a in Meta.parseall(text).args if !(a isa LineNumberNode))
+    Any[a isa AbstractString ? rstrip(a, '\n') : a for a in definition.args[3].args
+        if !(a isa LineNumberNode)]
+end
+
 function test_julia_parser()
 @testset "Julia: ordinary source round-trips" begin
+
+    @testset "a docstring keeps any text through a print and a parse" begin
+        for text in ("Costs \$5.\n", "A \\ backslash.\n", "Three \"\"\" quotes.\n",
+                     "Four \"\"\"\" quotes, and \"two\".\n", "Ends in a quote\"")
+            document = JuliaDocstring(text, parse_julia("f() = 1"))
+            again = parse_julia(print_natural_text(document))
+            @test again isa JuliaDocstring && rstrip(again.text, '\n') == rstrip(text, '\n')
+        end
+    end
+
+    @testset "a string before a field of a struct is the docstring of the field" begin
+        source = "struct Point\n    \"\"\"\n    The x of the point.\n    \"\"\"\n    x::Float64\n" *
+                 "    \"The y.\"\n    y::Float64\n    \"Not a docstring.\"\nend"
+        point = parse_julia(source)
+        statements = [s for s in point.body.statements]
+        @test length(statements) == 3
+        @test statements[1] isa JuliaDocstring && statements[1].text == "The x of the point.\n"
+        @test statements[2] isa JuliaDocstring && statements[2].text == "The y."
+        @test !(statements[3] isa JuliaDocstring)
+        printed = print_natural_text(point)
+        @test print_natural_text(parse_julia(printed)) == printed
+        @test _julia_struct_body(printed) == _julia_struct_body(source)
+    end
 
     @testset "comprehensions and generators" begin
         @test _julia_round_trip("xs = [f(i) for i in 1:3]") == "xs = [f(i) for i in 1:3]"

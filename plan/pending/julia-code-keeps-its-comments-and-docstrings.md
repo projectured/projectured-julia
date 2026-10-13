@@ -311,7 +311,19 @@ commit. Nothing lands on `main` before the owner approves it.
     indentation, and sends a Return key to a `#` comment. `test_example` runs for
     the three catalog examples.
 
-- [ ] **Step 2: docstrings.**
+- [x] **Step 2: docstrings.** *Done 2026-10-13.* `test_julia()` passes 606 and
+  fails only the known `JuliaExpressionTest.jl:31`. The sweep of
+  `julia/docstring/graphics` fails 6, all at the identifier of its subject, where
+  it failed 33 before; the 27 failures on its text are gone. Facts found:
+  - A string before a comment or before another string in a struct body stays a
+    string, so a field docstring never takes a comment as its subject.
+  - A docstring in single quotes, such as `"The y."`, gets a line break at its
+    end after one save and one load, because the triple quotes write one. From
+    the second save on, the print is the same. The top-level docstrings did the
+    same before this plan.
+  - Found and not changed: the print of a `JuliaString` does not escape `$`
+    ([JuliaToSyntax.jl, `_julia_string_escape`](../../source/domain/julia/JuliaToSyntax.jl)),
+    so a string that holds a `$` prints as text that Julia does not read back.
   - Escape the text of a docstring in the print, and make the text `bound`.
   - Convert the docstrings of the fields in a struct body.
   - Test: `test_julia_parser()` parses, prints and parses again the three texts of

@@ -31,6 +31,13 @@ end
     @test occursin("Add two numbers.", answer)
 end
 
+@testset "a documented field answers its documentation" begin
+    source = "struct Point\n    \"The x of the point.\"\n    x::Float64\nend"
+    found = search_documents(parse_julia(source), node -> node isa JuliaDocstring)
+    @test length(found) == 1
+    @test occursin("The x of the point.", _text(_read_julia_tooltip(first(found))))
+end
+
 @testset "each binding has the name that a command shows" begin
     names = [binding.name for binding in collect_document_gesture_bindings(JuliaFunction)
              if binding.domain == "tooltip"]

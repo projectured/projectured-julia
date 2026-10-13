@@ -262,7 +262,9 @@ end
 # break, as `\"\"\"\n…\n\"\"\"` gives it, puts the closing fence on a line of its
 # own already; the separator breaks before the fence only when the text does not.
 # A separation can not collapse, so a fold key inside a docstring folds the code
-# around it.
+# around it. The text is escaped as a triple-quoted string spells it, and the
+# parser removes the escapes, so any text goes through a save and a load. A
+# person edits the text, as the text of a JSON string, in its escaped form.
 
 @projection UntrackedCell struct JuliaDocstringToSyntaxNode
     doc_style::StyleText   = get_julia_style(nothing, :string_text)
@@ -271,7 +273,7 @@ end
 
 @projection_template JuliaDocstringToSyntaxNode JuliaDocstring (p, d) ->
     SyntaxSeparation([
-        SyntaxLeaf(make_text_block(() -> d.text, p.doc_style);
+        SyntaxLeaf(bound(:text, String, make_text_block(() -> _escape_julia_docstring(d.text), p.doc_style));
                    open=TextString("\"\"\"\n", p.fence_style)),
         project(:subject),
     ]; separator=make_text_block(() -> (endswith(d.text, '\n') ? "" : "\n") * "\"\"\"\n", p.fence_style))
@@ -1103,6 +1105,22 @@ function _julia_string_escape(s::AbstractString)
                      write(buf, ch)
     end
     String(take!(buf))
+end
+
+# The text of a docstring as a triple-quoted string spells it: a `\` and a `$`
+# are escaped, and so is the third quote of each run of three, so that no `"""`
+# in the text closes the docstring. A line break stays a break.
+function _escape_julia_docstring(text::AbstractString)
+    buffer = IOBuffer()
+    quotes = 0
+    for character in text
+        quotes = character == '"' ? quotes + 1 : 0
+        character == '\\' ? write(buffer, "\\\\") :
+        character == '$'  ? write(buffer, "\\\$") :
+        quotes == 3       ? (write(buffer, "\\\""); quotes = 0) :
+                            write(buffer, character)
+    end
+    String(take!(buffer))
 end
 
 # ── Natural-format registration ─────────────────────────────────────────────

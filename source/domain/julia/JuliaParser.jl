@@ -222,8 +222,31 @@ _convert_head(::Val{:abstract}, x::Expr) = JuliaAbstractType(convert_expr(x.args
 function _convert_head(::Val{:struct}, x::Expr)
     mutable = x.args[1]::Bool
     header  = convert_expr(x.args[2])
-    body    = convert_expr(x.args[3])
+    body    = x.args[3]
+    body    = Meta.isexpr(body, :block) ?
+              JuliaBlock(_convert_field_docstrings(_convert_statements(body.args))) :
+              convert_expr(body)
     JuliaStruct(mutable, header, body)
+end
+
+# In the body of a struct, a string directly before another statement documents
+# that statement, as Julia documents a field. A string before a comment or
+# before another string stays a string.
+function _convert_field_docstrings(statements::Vector{JuliaDocument})
+    result = JuliaDocument[]
+    index = 1
+    while index <= length(statements)
+        statement = statements[index]
+        if statement isa JuliaString && index < length(statements) &&
+           !(statements[index + 1] isa Union{JuliaString, JuliaComment, JuliaMultilineComment})
+            push!(result, JuliaDocstring(statement.value, statements[index + 1]))
+            index += 2
+        else
+            push!(result, statement)
+            index += 1
+        end
+    end
+    result
 end
 
 # `module Name … end` → `Expr(:module, true, name, body)`;
