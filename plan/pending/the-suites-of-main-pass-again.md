@@ -1,7 +1,7 @@
 # The suites of main pass again
 
 **Status (2026-10-13): IN PROGRESS, step 1.** The owner asked to record these failures in a
-plan, and then to start step 1 with the type-in of item 7. Item 7 has its origin.
+plan, and then to start step 1 with the type-in of item 7. Items 6 and 7 have their origins.
 
 **Goal:** each failure of §1 is fixed, or marked with `@test_broken` and its reason, so that a
 suite on `main` shows no unmarked failure.
@@ -33,7 +33,13 @@ known; elsewhere the origin is not found yet.
 5. **`test_parse_markdown_blocks`, 1 failure** (`ConversationParsingTest.jl:48`). A fenced code
    block of the language `unknownlang` gives no `TextBlock` that holds that word.
 6. **The position walk of the atomic example `widget/progress_bar/graphics`, 1 failure**
-   (`NavigationTest.jl:180`). The walk reaches no state.
+   (`NavigationTest.jl:180`). The walk reaches no state: Ctrl+Home, the seed of the walk,
+   gives `nothing`. **Origin: `8389450e8`** (2026-10-06, found by a bisect from `5d4c1269e`,
+   10 steps), "example: the progress ring, and a bar whose value is not known". The atom
+   `progress_bar` of the catalog uses `make_widget_progress_bar_document_example`, which from
+   that commit stacks two bars in a `VerticalLayout`, where the seed finds no selection. The
+   atoms `separator` and `skeleton` have an atom function of their own for the same reason
+   (`make_widget_separator_atom_document_example`).
 7. **The type-in of the atomic example `text/line/graphics`, 1 failure** (`TypeinTest.jl:639`,
    in `test_catalog_typeins`). Backspace at the start of the first string of the second line,
    `.elements[2].elements[1].content{0}`, gives `ReplaceTextRangeOperation(⌶{7:12})`, and the
