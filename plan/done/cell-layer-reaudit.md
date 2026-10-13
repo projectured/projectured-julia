@@ -146,7 +146,7 @@ L03-9 B.
 
 ## Steps
 
-- [ ] 1. The fixes that need no decision: A-1 … A-10, T-1 … T-13, E-1 (with the module
+- [x] 1. The fixes that need no decision: A-1 … A-10, T-1 … T-13, E-1 (with the module
   bound under its own name in a walkthrough), G-1 … G-12.
   - [x] A-1. The inventory of SEALING.md lists the nine missing files, each after the
     file that loads before it; a comparison of the list with `source/kernel/` finds no
@@ -187,9 +187,9 @@ L03-9 B.
     (PAR-PERSISTENCE-BY-VALUE) names both. `peek` also gives a value for a computed
     cell whose field is not set yet. Checked: the checkpoint test of omnet-julia 100 of
     100, and a binary round trip of a `ReactiveCell{Int}`.
-- [ ] 3. The tests, the guards, a second audit, and the seal on the owner's word.
+- [x] 3. The tests, the guards, a second audit, and the seal on the owner's word.
   - [x] The second audit (below), and its fixes.
-  - [ ] The seal, when the owner says so.
+  - [x] The seal, when the owner says so (after the third audit, below).
 
 ## The names of the layer
 
@@ -384,5 +384,5 @@ pass with gaps; example: pass; guide: pass with findings. **The owner, 2026-10-1
   Checked: `test_platform` and `test_julia` have the failure places of the full
   run, and `test_integration` too, less the 481 of the xml REPL walks, which
   96bacc774 of another session fixed.
-- [ ] The seal, on the owner's word.
+- [x] The seal, on the owner's word. **The owner, 2026-10-13:** "yes, seal the cell layer".
 
