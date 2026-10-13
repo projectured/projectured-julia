@@ -728,9 +728,12 @@ function test_mcp_server()
                 run_editor!(editor; mcp = (; host = "127.0.0.1", port = port))
                 @test occursin("\"execute_julia_code\"", listing[])
                 @test occursin("\"probe_declared\"", listing[])
-                # The call ran on the task of the loop, which is this one.
+                # The call ran in a code unit of the editor: on a task of its own
+                # when the process has a thread for it, or else on the task of the
+                # loop, which is this one.
                 @test occursin("probed", answer[])
-                @test ran_on == [current_task()]
+                @test length(ran_on) == 1
+                @test (only(ran_on) === current_task()) == !_has_mcp_unit_thread()
             end
         finally
             Base.CoreLogging.global_logger(logger)
@@ -738,8 +741,14 @@ function test_mcp_server()
     end
 end
 
-# A tool that a client calls runs on the task that runs the editor's loop, in
-# the drain of the inbox, and the server task waits for its answer. The test
+# Whether this process can run a code unit on a thread other than the one of this
+# task.
+_has_mcp_unit_thread() =
+    any(thread -> thread != Threads.threadid(), Threads.threadpooltids(:default))
+
+# A tool that a client calls runs in the drain of the inbox, as a code unit of the
+# editor: on a task of its own when the process has a thread for it, or else on
+# the task that runs the loop. The server task waits for its answer. The test
 # plays the loop: it marks its own task as the loop's and drains by hand.
 function test_mcp_tool_runs_on_editor_task()
     @testset "a tool that a client calls runs on the editor task" begin
@@ -767,7 +776,8 @@ function test_mcp_tool_runs_on_editor_task()
         @test editor.document.value == "x"
         @test !istaskdone(call)
         @test drain_operations!(editor) == 1
-        @test ran_on == [current_task()]
+        @test length(ran_on) == 1 && only(ran_on) !== call
+        @test (only(ran_on) === current_task()) == !_has_mcp_unit_thread()
         @test editor.document.value == "written"
         @test fetch(call).text == "done"
         # A tool that throws answers its error, and the fault is recorded.
@@ -781,7 +791,7 @@ function test_mcp_tool_runs_on_editor_task()
         # With no loop, the call runs at once, on the task that calls.
         editor.loop_task = nothing
         @test handlers["probe_task"](Dict{String,Any}()).text == "done"
-        @test ran_on == [current_task(), current_task()]
+        @test length(ran_on) == 2 && ran_on[2] === current_task()
         # A tool that answers a picture gives the client an image.
         picture = Tool("probe_picture"; description = "Answers a picture.", parameters = NamedTuple[],
                        handler = (target, args) -> LlmImage("image/png", UInt8[1, 2, 3]))

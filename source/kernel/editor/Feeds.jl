@@ -140,6 +140,8 @@ _reset_frame_stages!(editor::Editor) = (editor.frame_stages = _FrameStages(); no
 # One line in the log for a frame that took longer than `SLOW_FRAME_SECONDS`
 # without its held frames, naming its slowest stage and the work in it.
 function _report_slow_frame!(editor::Editor, frame_seconds::Float64)
+    # A precompile workload runs frames that compile as they go, so it reports none.
+    Base.generating_output() && return nothing
     stages = editor.frame_stages
     seconds = frame_seconds - stages.held_seconds
     seconds > SLOW_FRAME_SECONDS || return nothing
