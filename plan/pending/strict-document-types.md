@@ -4,8 +4,9 @@
 XML fields landed on `main` on 2026-10-09, and the laws of §6 changed after it. Steps 1 to 7 are
 done; the Julia fields of Step 4 were built with
 [formula-references-by-name.md](../done/formula-references-by-name.md) (its Step 6). Step 8 goes
-on domain by domain: Markdown is on `main` since `59703dd8f`, RST is done on the branch
-`strict-types-rst`, and math is not started. The owner asked for this plan in
+on domain by domain: Markdown is on `main` since `59703dd8f`, RST since `22723b1ba`, and math is
+done on the branch `strict-types-math`. The leftovers of Steps 0 and 4 (group 4, omnet-julia and
+inet-julia) wait: the owner deferred them on 2026-10-13. The owner asked for this plan in
 the decision walk of [kernel-audit-fixes.md](kernel-audit-fixes.md), at L10-13, and accepted the
 model of §3 on 2026-10-05: no foreign type, and a field that admits other domains declares
 `Document`. The pilot domains are Julia, JSON and XML.
@@ -1082,7 +1083,7 @@ worktree. The three domains test different parts of the model:
   4 more passes in each view: the list rule stores `alignments::Vector{Symbol}` as a
   `CellVector{Symbol}`, and the printer walk reaches its cells.
 
-  *RST, done on the branch `strict-types-rst` (2026-10-13):* by the three rules of Markdown. A
+  *RST, on `main` since `22723b1ba` (2026-10-13):* by the three rules of Markdown. A
   run of blocks declares `CellVector{Document}`: the `elements` of the root, a section, a list
   item, a definition, a field, a block quote, a footnote, a table cell, an admonition and a
   directive, and the `caption` of a figure, which the parser fills with blocks. A run of
@@ -1099,6 +1100,24 @@ worktree. The three domains test different parts of the model:
   `:throw` mode, 111 of 111. The RST examples give 4001 failures at the same two places; the
   `RstDocument.jl` of `main` gives the same failures, example by example. `rst/grid_table`
   gives 3 more passes in each view, from `widths`, by the list rule.
+
+  *Math, done on the branch `strict-types-math` (2026-10-13):* math is a tree of expressions,
+  not a flow, so the rule that applies is the third one, what works today. Numbers are
+  `PrimitiveNumber`, which the parser makes and both views draw, so a place of an expression
+  declares `MathOperand = Union{MathDocument, PrimitiveNumber}`, a new alias in
+  `MathDocument.jl` (17 places). A slot that can be absent declares
+  `Union{MathOperand, Nothing}` (7 places). `MathRow.elements` and `MathMatrix.elements` are
+  `CellVector{MathOperand}`, and `MathCases.cases` is
+  `CellVector{Union{MathCase, MathInsertion}}`. `MathToGraphics` also draws a
+  `PrimitiveString`, but the parser and `MathToSyntax` do not know one, so a string in math can
+  not be saved as text, and `MathOperand` leaves it out. The inventory ran in the `:record`
+  mode over `test_math`, `test_formula`, `test_file_project`, `test_documents` and the 79
+  math, formula and natural examples, and found no math record. `test_math` (182) and
+  `test_formula` (187) pass in the `:throw` mode. The examples give 1188 failures at the same
+  two places as Markdown and RST; the `MathDocument.jl` of `main` gives the same failures,
+  example by example. The position walk of the `formula` example gives 6 passes fewer in the
+  sweep, but its count is not stable: in one process on the branch the first walk reaches
+  334 states and three walks after it reach 322, the count of `main`.
 
 The laws change only when the pilot lands (§6).
 
