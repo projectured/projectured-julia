@@ -251,6 +251,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `tool/ToolModule.jl`
   - ⬜ `tool/Tool.jl`
   - ⬜ `tool/ToolSet.jl`
+  - ⬜ `tool/CodeUnit.jl`
   - ⬜ `tool/CodeExecution.jl`
   - ⬜ `tool/SearchQuery.jl`
   - ⬜ `tool/Documentation.jl`
