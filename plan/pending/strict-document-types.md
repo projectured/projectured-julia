@@ -229,6 +229,14 @@ Saved files, the undo history, version snapshots and the gesture log can hold va
 declaration refuses. A load turns such a value into the insertion of the domain, or a migration
 changes the files once. The load never fails on a value that was valid before.
 
+**Decided by the owner, 2026-10-13: no lenient load.** "ignore all saved files, I'll delete
+them, they are not worth fighting for". A narrowing keeps no saved file valid: text files
+(Markdown, JSON, XML, Julia) are parsed and need nothing; a `.pred` project file or a binary
+document saved before a narrowing can fail to load or load loose, and the owner deletes such
+files. The facts behind the choice: no `.pred` file in projectured-julia or omnet-julia held a
+Markdown node (40 checked); the binary format rebuilds cells with no check; the undo history and
+the versions are not saved, and the gesture log saves only its capacity.
+
 ### 3.8 What stays loose
 
 Generic containers keep `Document` or `Any`, because to hold anything is their purpose: the tabs,
@@ -1069,7 +1077,7 @@ modes and the list protocol; `collection.md`, `style.md`, `json.md` and the new-
 follow. The filter of the insertion candidates, the widening key and the lenient load are not
 built, so no law describes them.
 *Changed (2026-10-12), with Step 5:* PAR-WIDE-FIELD-TYPES gains the filter of the candidates
-and the widening key. The lenient load is not built.
+and the widening key. The lenient load is not built. The owner dropped it on 2026-10-13 (§3.7).
 
 ## 7. Questions for the owner before the pilot
 
