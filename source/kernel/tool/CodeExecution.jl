@@ -328,7 +328,8 @@ function execute_julia_code!(set::ToolSet, target, code;
         return answer
     end
     # parseall handles code of several lines
-    output = _run_expression(set, target, () -> Meta.parseall(code); describe_value)
+    output = _run_expression(set, target, () -> Meta.parseall(code); describe_value,
+                             part = _describe_code_part(code))
     @info "[tool] execute_julia_code! result" output
     output
 end
@@ -346,7 +347,8 @@ function execute_julia_expression!(set::ToolSet, target, expression;
     @info "[tool] execute_julia_expression! call" expression
     set.last_value = nothing
     set.last_exception = nothing
-    output = _run_expression(set, target, () -> expression; describe_value)
+    output = _run_expression(set, target, () -> expression; describe_value,
+                             part = _describe_code_part(sprint(print, expression)))
     @info "[tool] execute_julia_expression! result" output
     output
 end
@@ -375,13 +377,30 @@ _is_passthrough_for_model_code(exception) =
     !is_fault_exception(exception) &&
     !(exception isa InterruptException || exception isa StackOverflowError)
 
-# Everything an evaluation does after the parse. `make_expression` runs inside
-# the guard, so a failure to make the expression is answered like any other.
-# `describe_value` renders the last value once the capture is closed, so its
-# text never lands inside the same pipe as the code's own `println`s. What the
-# code printed comes first in the answer, also before an error.
-function _run_expression(set::ToolSet, target, make_expression::Function;
-                          describe_value::Function = _describe_value_for_model)
+# The words of the busy bar of the editor for a run of `code`: its first line that
+# holds text, short enough for one line of the bar.
+function _describe_code_part(code::AbstractString)
+    lines = [strip(line) for line in split(code, '\n') if !isempty(strip(line))]
+    line = isempty(lines) ? "" : String(first(lines))
+    length(line) > 60 && (line = string(first(line, 57), "..."))
+    "Run the code: " * line
+end
+
+# Everything an evaluation does after the parse, as one code unit of `target`, so
+# an editor runs it on a thread of its own and its window answers meanwhile.
+# `make_expression` runs inside the guard, so a failure to make the expression is
+# answered like any other. `describe_value` renders the last value once the
+# capture is closed, so its text never lands inside the same pipe as the code's
+# own `println`s. What the code printed comes first in the answer, also before an
+# error.
+_run_expression(set::ToolSet, target, make_expression::Function;
+                describe_value::Function = _describe_value_for_model, part::String) =
+    run_in_code_unit(target; parts = [part]) do
+        _run_expression_in_unit(set, target, make_expression, describe_value)
+    end
+
+function _run_expression_in_unit(set::ToolSet, target, make_expression::Function,
+                                 describe_value::Function)
     pipes = (Pipe(), Pipe())
     readers = Task[]
     printed = ""
