@@ -337,9 +337,10 @@ end
 
 What the assistant of this window may write, and the whole of it.
 
-Six vocabularies: the pane verbs that arrange the window, the widget names that
+Seven vocabularies: the pane verbs that arrange the window, the widget names that
 build what a pane shows, the file verbs that open and save one, the workspace
-this application lists, the verbs that filter and sort a collection, and what
+this application lists, the verbs that filter, sort, group and limit a
+collection, the verbs that gather the members of one kind into a roster, and what
 each loaded domain registered with
 `register_assistant_api!`. Every exported name here is a verb the assistant reaches
 through `execute_julia_code`, and nothing else resolves.
@@ -363,9 +364,15 @@ make_application_api() = Any[
     NaturalModule => (:print_natural_text, :parse_natural_text),
     # The verbs that edit a collection of a document, as edits of the editor.
     EditorModule => (:insert_elements!, :delete_elements!),
-    # The verbs that filter and sort a collection, which change how it shows and
-    # not its data.
-    ArrangementModule => (:filter_collection!, :sort_collection!),
+    # The verbs that filter, sort, group and limit a collection, which change how
+    # it shows and not its data.
+    ArrangementModule => (:filter_collection!, :sort_collection!, :group_collection!, :limit_collection!),
+    # The verbs that gather the members of one kind from the whole window or the
+    # session into a table, the sources of such a table, and the words that say
+    # what it can show.
+    RosterModule => (:Roster, :show_roster!, :describe_roster_sources, :describe_item_facets,
+                     :edit_shown_items!, :CollectionItems, :ItemsWithin, :StoreRecords),
+    PaneModule => (:TabDocuments,),
     # What each loaded domain offers for its own documents, such as the shape of
     # a JSON file, which a model reads to find the fields of a record.
     get_registered_assistant_api()...,
@@ -401,6 +408,13 @@ const APPLICATION_SYSTEM = DEFAULT_ASSISTANT_SYSTEM * "\n\n" *
     "document back with write_document_file. FileSystemModule names the workspace " *
     "the Files pane lists. search_documents finds a document in the window when no " *
     "tab names it. " *
+    "show_roster!(source; title, columns, filter, sort, group, aggregates, first) " *
+    "shows a table of the members of one kind, gathered from the whole window or " *
+    "the session: TabDocuments(type) gives the documents of the tabs, and " *
+    "StoreRecords(:log) a store of the session. describe_roster_sources() and " *
+    "describe_item_facets(type) say which sources and which keys exist, and " *
+    "filter_collection!, sort_collection!, group_collection! and limit_collection! " *
+    "change the rows that show_roster! answers. " *
     "Call one tool per round, and put the whole Julia source " *
     "in the code argument of execute_julia_code: a call with no code does " *
     "nothing and costs the round."

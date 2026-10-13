@@ -76,20 +76,32 @@ function describe_arranged_collection(entry, items)
     string(shown, isempty(parts) ? "" : ": " * join(parts, ", "))
 end
 
-# How many rows of groups the place of `entry` shows: the groups of the items that
-# the group reads, and then the picks after the group; `nothing` with no group.
-function _count_shown_groups(entry, items)
+# How many rows of groups the place of `entry` shows; `nothing` with no group.
+_count_shown_groups(entry, items) =
+    any(description -> description isa ArrangementGroup, entry.projections) ?
+        length(collect_shown_items(entry, items)) : nothing
+
+"""
+    collect_shown_items(entry, items) -> Vector
+
+What the place of `entry` shows of `items`, in the order in which it shows them:
+the items that the filters, the sorts and the first items pick, or, with a group,
+the rows of the groups ([`ArrangementGroupRow`](@ref)) that the picks after the
+group keep. With `entry === nothing` every item, in its own order.
+"""
+function collect_shown_items(entry, items)
+    entry === nothing && return Any[item for item in items]
+    picked = Any[items[r] for r in compute_shown_rows(entry, items)]
     projections = collect(entry.projections)
     g = findfirst(description -> description isa ArrangementGroup, projections)
-    g === nothing && return nothing
-    rows = compute_shown_rows(entry, items)
-    groups = compute_group_rows(projections[g], Any[items[r] for r in rows])
+    g === nothing && return picked
+    groups = Any[row for row in compute_group_rows(projections[g], picked)]
     for description in projections[(g + 1):end]
         description isa ArrangementGroup && break
-        picked = _compute_description_rows(description, groups)
-        picked === nothing || (groups = groups[picked])
+        rows = _compute_description_rows(description, groups)
+        rows === nothing || (groups = groups[rows])
     end
-    length(groups)
+    groups
 end
 
 """
@@ -274,6 +286,30 @@ the editor's document, which it does not evaluate.
 make_limit_collection_operation(collection, count = nothing; editor = get_evaluation_editor()) =
     _make_arrange_operation(editor, collection, _make_first(count), "Limit")
 
+"""
+    make_arrangement_entry(at; filter = [], sort = [], group = [], aggregates = [:count], first = nothing)
+        -> ArrangementEntry or nothing
+
+The entry at the collection `at` that the verbs make when code calls them in this
+order: `filter_collection!` with the conditions of `filter`, `sort_collection!`
+with the keys of `sort`, `group_collection!` with the keys of `group` and
+`aggregates`, and `limit_collection!` with `first`. Each keyword takes what its
+verb takes. `nothing` when every keyword is empty.
+
+Use it to arrange a collection that no frame printed yet, such as one that a new
+tab is about to show: put the entry in the `ArrangementDocument` that the tab
+shows.
+"""
+function make_arrangement_entry(at::Reference; filter = Any[], sort = Any[], group = Any[],
+                                aggregates = Any[:count], first = nothing)
+    descriptions = Any[]
+    isempty(filter) || push!(descriptions, _make_filter(filter))
+    isempty(sort) || push!(descriptions, _make_sort(sort))
+    isempty(group) || push!(descriptions, _make_group(group, aggregates))
+    first === nothing || push!(descriptions, _make_first(first))
+    isempty(descriptions) ? nothing : ArrangementEntry(strip_reference_types(at), descriptions)
+end
+
 _make_filter(conditions) = ArrangementFilter(Any[_make_condition(condition) for condition in conditions])
 _make_sort(keys) = ArrangementSort(Any[_make_sort_key(key) for key in keys])
 _make_group(keys, aggregates) =
@@ -329,15 +365,41 @@ _is_arrange_operation(operation) = operation isa ArrangeCollectionOperation ||
     (operation isa WrappingOperation && _is_arrange_operation(get_wrapped_operation(operation)))
 
 _get_collection_reference(collection::Reference) = collection
-_get_collection_reference(collection::ReferencedDocument) = get_reference(collection)
+_get_collection_reference(collection::ReferencedDocument) =
+    extend_reference(get_reference(collection), get_arranged_collection_steps(get_document(collection))...)
+
+"""
+    get_arranged_collection_steps(document) -> Tuple
+
+The steps from `document` to the collection that it shows, for a document that
+shows a collection of its own, as a roster shows its rows: a verb of the
+arrangement that a referenced `document` is given arranges that collection. The
+default is no step: the document is the collection.
+"""
+get_arranged_collection_steps(document) = ()
 
 # How the collection at `reference` shows, after an edit of its arrangement.
 function _describe_collection_at(root, reference)
-    (path, arrangement, at) = _find_arranged_path(root, reference)
+    found = find_arranged_collection(root, reference)
+    found === nothing && return "The collection is no longer there."
+    describe_arranged_collection(found.entry, found.items)
+end
+
+"""
+    find_arranged_collection(root, reference) -> NamedTuple or nothing
+
+The collection at `reference` in `root` and how it is arranged: `(path, items,
+entry)`, the path of the collection from `root` with the step `document` of each
+arrangement on it, the collection, and the entry of the nearest arrangement at it
+or `nothing`. A path below an arranged document can leave out the step `document`.
+`nothing` when the path reaches no collection.
+"""
+function find_arranged_collection(root, reference::Reference)
+    (path, arrangement, at) = _find_arranged_path(root, strip_reference_types(reference))
     items = try_evaluate_reference(root, path, nothing)
-    items === nothing && return "The collection is no longer there."
+    items === nothing && return nothing
     entry = arrangement === nothing ? nothing : _find_entry_at(arrangement.entries, at, Reference)
-    describe_arranged_collection(entry, items)
+    (path = path, items = items, entry = entry)
 end
 
 # The path of `reference` in `root`, with the step `document` of each arrangement

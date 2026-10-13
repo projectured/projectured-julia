@@ -45,10 +45,11 @@ export GroupingProjection, GroupingIoMap, compute_group_rows, compute_arrangemen
 export ArrangementBarProjection, ArrangementBarIoMap
 export compute_shown_rows, make_field_caret_reference, find_arranged_place, is_in_find_field,
        make_find_field_selection, make_first_find, make_find_move
-export get_arrangement_parts, describe_arrangement_part, describe_arranged_collection, describe_arrangement,
-       filter_collection!, sort_collection!, group_collection!, limit_collection!,
+export get_arrangement_parts, describe_arrangement_part, describe_arranged_collection, collect_shown_items,
+       describe_arrangement, filter_collection!, sort_collection!, group_collection!, limit_collection!,
        make_filter_collection_operation, make_sort_collection_operation, make_group_collection_operation,
-       make_limit_collection_operation
+       make_limit_collection_operation, make_arrangement_entry, get_arranged_collection_steps,
+       find_arranged_collection
 export find_arranged_item, make_arrangement_edits, make_first_arrangement_edits
 
 include("ArrangementDocument.jl")

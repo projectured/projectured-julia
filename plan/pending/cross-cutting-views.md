@@ -659,10 +659,10 @@ show_roster!(ItemsWithin(TabDocuments(FileDocument), JuliaCall); title = "Uses o
              columns = ["callee", "within.name"],
              filter = ["callee" => ==("drain_feeds!")], group = ["within.name"], aggregates = [:count])
 
-# X6: the newest 100 errors of the log
+# X6: the first 100 errors of the log
 show_roster!(StoreRecords(:log); title = "Errors",
-             columns = ["time", "source", "text"],
-             filter = ["level" => ==(:error)], sort = ["time" => :descending], first = 100)
+             columns = ["level", "message"],
+             filter = ["level" => ==("Error")], first = 100)
 
 # X10 (omnet-julia): fingerprint tasks, counted by campaign and state
 show_roster!(StoreRecords(:tasks); title = "Fingerprint tests",
@@ -992,7 +992,7 @@ For each step, run the narrowest test: the test files of the step, through
       options R4, R5, R7 and R9 change `ReactiveCell.jl`, so a later plan for them
       needs the word of the owner for that file, beside answer 2 of section 8.
 
-- [ ] **6. The verbs of the assistant.**
+- [x] **6. The verbs of the assistant.** Done 2026-10-14, but for the rehearsal.
   - `make_roster`, `show_roster!`, `list_roster_sources`, `list_item_facets`
     and `edit_shown_items!`, in a file of verbs, as `ArrangementProgram.jl`
     holds the verbs of the arrangement.
@@ -1008,6 +1008,48 @@ For each step, run the narrowest test: the test files of the step, through
   - The fast loop of the assistant (`tool/assistant/rehearsal.jl`) with three
     requests in plain words, for X1, X2 and X6. Record here how many rounds the
     model used for each. Check the free memory before a local model runs.
+  - **What the step found and decided:**
+    - `make_roster` is not a verb: the constructor `Roster(source; columns,
+      title)` makes a roster, and `show_roster!` shows a `Roster` that it is
+      given as it is.
+    - `show_roster!` answers the roster itself, as a `ReferencedDocument`. Its
+      `show` prints `describe_roster`: the title, how the rows show of all, the
+      columns and the first 20 rows. The guard of the arguments forbids a read of
+      the editor of the evaluation outside an `editor` keyword
+      (PAR-PER-EDITOR-STATE), and a `show` takes no keyword. So the summary
+      reads the arrangement through the link of the roster, the document of its
+      window, and needs no editor.
+    - The verbs of the arrangement take the roster for its rows through a new
+      generic of the arrangement, `get_arranged_collection_steps(document)`:
+      the steps from a document to the collection that it shows, `rows` for a
+      roster and none by default.
+    - `show_roster!` makes the entry of the arrangement itself, with a new public
+      function of the arrangement, `make_arrangement_entry(at; filter, sort,
+      group, aggregates, first)`, and shows the roster already arranged. A verb
+      of the arrangement reads the IO map that the last frame printed, and a tab
+      that the same call opens is not in it.
+    - The arrangement makes two more functions public: `collect_shown_items`
+      (the items or the groups as a place shows them) and
+      `find_arranged_collection` (the path, the items and the entry of a
+      collection).
+    - The verbs that say what a roster can show are `describe_roster_sources()`
+      and `describe_item_facets(type_or_source)`: the naming law has no verb
+      `list_`, and `describe_` makes words for a person. The sources come from
+      the methods of `collect_roster_parts`, so a source that a slice adds is
+      listed with no change here.
+    - `edit_shown_items!` makes one `CompoundOperation` and carries it through
+      the readers with `find_rooted_operation`, so a history records it as one
+      step. A roster that shows groups refuses it.
+    - A name after `within` is a facet of the outer item when its type has one,
+      so `"within.name"` is the name of the file of a call.
+    - X4 runs as a test of the Julia domain, because the tests of the platform
+      may not load a domain. An entry of the message log has the level as text,
+      such as `"Error"`, so X6 filters by `"level" => ==("Error")`.
+    - **The rehearsal did not run.** It runs a local model through Ollama, and
+      the memory rule asks for 47 GB available before each model run; the
+      machine had about 35 GB available, because other sessions held the rest.
+      A run with the Claude backend sends the prompts to an external service,
+      which needs the word of the owner.
 
 - [ ] **7. Measure X1 and X4, and record the counts here.**
   - Compile the performance counters in, with the preference

@@ -138,13 +138,15 @@ function _make_row_cells(row::RosterRow)
 end
 
 # The path of a column `c` of the row at `r`, as the roster holds it: below the item
-# for a path of fields, below the outer item for `within`, and the value cell of the
-# column for a facet.
+# for a path of fields, below the outer item for a path after `within`, and the
+# value cell of the column for a facet.
 function _get_column_path(row::RosterRow, r::Int, c::Int)
     key = row.columns[c]
     names = split(key, '.')
     head = String(names[1])
-    steps = if head == "within"
+    steps = if head == "within" && length(names) > 1 && _has_item_facet(typeof(row.within), String(names[2]))
+        Any[FieldReferenceStep("values"), ElementReferenceStep(c)]
+    elseif head == "within"
         Any[FieldReferenceStep("within"), (FieldReferenceStep(String(n)) for n in names[2:end])...]
     elseif _has_item_facet(typeof(row.item), head)
         Any[FieldReferenceStep("values"), ElementReferenceStep(c)]

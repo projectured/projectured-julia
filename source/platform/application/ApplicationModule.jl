@@ -29,6 +29,7 @@ using ..FaultViewModule
 using ..FileSystemModule
 using ..NaturalModule
 using ..PaneModule
+using ..RosterModule
 using ..PrimitiveModule
 using ..ProjectionAlgebraModule
 using ..ScreenModule

@@ -14,6 +14,7 @@ using ..ArrangementModule
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
+using ..EditorModule
 using ..FocusModule
 using ..IntentModule
 using ..IoMapModule
@@ -24,12 +25,14 @@ using ..PrimitiveModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
+using ..ScreenModule
 using ..SerializationModule
 using ..StyleModule
+using ..ToolModule
 using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..ArrangementModule: find_arrangement_key_value, get_arrangement_value
+import ..ArrangementModule: find_arrangement_key_value, get_arrangement_value, get_arranged_collection_steps
 import ..DocumentModule: get_document_title, is_walk_opaque
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
                            get_child_iomaps
@@ -41,12 +44,14 @@ export RosterItem, RosterRow, make_roster_row, compute_roster_value, collect_ite
        Roster, link_roster!
 export CollectionItems, ItemsWithin, register_roster_source!, get_roster_source_names, StoreRecords
 export RosterToGraphics, RosterToGraphicsIoMap, RosterRowsToWidget, RosterRowsToWidgetIoMap
+export show_roster!, describe_roster, describe_roster_sources, describe_item_facets, edit_shown_items!
 
 include("RosterInterface.jl")
 include("RosterDefaults.jl")
 include("RosterDocument.jl")
 include("RosterSource.jl")
 include("RosterToGraphics.jl")
+include("RosterProgram.jl")
 
 function __init__()
     register_natural_graphics!(:roster, _make_roster_graphics_entries)

@@ -50,20 +50,26 @@ end
     compute_roster_value(row, key) -> Any
 
 The value of the column `key` of `row`. A key is names with dots between them.
-`within` names the item of the outer source, and the names after it a path
-inside that item. A name that is a facet of the type of the item
+`within` names the item of the outer source, and the names after it a key of that
+item. A first name that is a facet of the type of the item
 ([`collect_item_facets`](@ref)) names the value of the facet, and the names after
 it a path inside that value. Any other key is a path of fields inside the item.
 A path that reaches nothing gives `nothing`.
 """
 function compute_roster_value(row::RosterRow, key::AbstractString)
     names = split(key, '.')
-    head = String(names[1])
-    head == "within" && return _follow_names(row.within, names, 2)
-    item = row.item
+    String(names[1]) == "within" && return _compute_key_value(row.within, names, 2)
+    _compute_key_value(row.item, names, 1)
+end
+
+# The value at the key `names[from:end]` of `item`: a facet and a path inside it,
+# or a path of fields.
+function _compute_key_value(item, names, from::Int)
+    (from > length(names) || item === nothing) && return item
+    head = String(names[from])
     _has_item_facet(typeof(item), head) &&
-        return _follow_names(compute_item_facet(item, Val(Symbol(head))), names, 2)
-    _follow_names(item, names, 1)
+        return _follow_names(compute_item_facet(item, Val(Symbol(head))), names, from + 1)
+    _follow_names(item, names, from)
 end
 
 # The value at the names `names[from:end]` inside `value`, a path of fields.
