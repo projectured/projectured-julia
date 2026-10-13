@@ -39,7 +39,7 @@
 #     …
 # end
 # <helpers verbatim>
-# end # module FooFsm
+# end
 # ```
 #
 # **State values are 0-based document order.** They appear in recorded statistics

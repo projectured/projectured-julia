@@ -43,19 +43,23 @@ Parse a Julia source string into a `JuliaDocument` tree.
 
 Top-level source with several statements becomes a `JuliaBlock`; a single
 expression is returned bare. A line that ends with `;` is a `JuliaToplevel`
-with `trailing_semicolon`.
+with `trailing_semicolon`. A comment becomes a `JuliaComment`, a
+`JuliaMultilineComment` or a `JuliaEndOfLineComment` (see "Comments" below).
 """
 function parse_julia(text::AbstractString)
-    parsed = Meta.parseall(String(text))
+    source = String(text)
+    comments = _collect_julia_comments(source)
+    parsed = Meta.parseall(isempty(comments) ? source :
+                           _format_julia_source_with_comment_markers(source, comments))
     # `parseall` always wraps in `Expr(:toplevel, …)` interleaved with
     # `LineNumberNode`s. Flatten: one real statement → bare, otherwise a block.
     stmts = _convert_statements(parsed.args)
     # The parser gives a line that ends with `;` a `:toplevel` of its own, but the
     # `Expr` does not say whether the `;` follows its last statement: the text does.
-    last = findlast(a -> !(a isa LineNumberNode), parsed.args)
-    if last !== nothing && Meta.isexpr(parsed.args[last], :toplevel) &&
-       _has_trailing_semicolon(text)
-        stmts[end] = JuliaToplevel(_convert_statements(parsed.args[last].args), true)
+    last = findlast(s -> !(s isa Union{JuliaComment, JuliaMultilineComment}), stmts)
+    if last !== nothing && _has_trailing_semicolon(source)
+        statement = stmts[last] isa JuliaEndOfLineComment ? stmts[last].subject : stmts[last]
+        statement isa JuliaToplevel && (statement.trailing_semicolon = true)
     end
     length(stmts) == 1 && return stmts[1]
     return JuliaBlock(stmts)
@@ -83,11 +87,180 @@ function parse_julia_file(path::AbstractString)
     parse_julia(read(path, String))
 end
 
+# ── Comments ──────────────────────────────────────────────────────────────────
+#
+# The `Expr` tree holds no comment, and it gives no column and no end of a
+# statement. So the parser finds the place of each comment in the tree of
+# `Base.JuliaSyntax`, which holds the byte range of every node, and writes a copy
+# of the text with a marker call on the line after the comment, or before the
+# statement that the comment moves to: `var"#comment#"("text", :kind)`.
+# The parser of Julia puts each marker into the correct block, and
+# `convert_expr` turns it into a comment. Julia gives names with `#` only to what
+# the compiler makes, so no code of a person calls the marker.
+#
+# A comment in a statement list is a statement there, or the end-of-line comment
+# of the statement before it on its line. A comment in any other node, such as
+# the arguments of a call, moves before the statement that holds that node.
+
+const _JULIA_COMMENT_MARKER = Symbol("#comment#")
+
+# The byte ranges of the comments of `source`, in order.
+function _collect_julia_comments(source::String)
+    ranges = UnitRange{Int}[]
+    for token in Base.JuliaSyntax.tokenize(source)
+        Base.JuliaSyntax.kind(token) == Base.JuliaSyntax.K"Comment" || continue
+        push!(ranges, Int(first(token.range)):Int(last(token.range)))
+    end
+    ranges
+end
+
+# `source` with a marker call for each comment at the byte ranges `comments`.
+function _format_julia_source_with_comment_markers(source::String, comments::Vector{UnitRange{Int}})
+    tree = Base.JuliaSyntax.parseall(Base.JuliaSyntax.SyntaxNode, source)
+    edits = Tuple{Int,Int,Int,String}[_compute_julia_comment_edit(source, tree, range, order)
+                                      for (order, range) in enumerate(comments)]
+    # From the end of the text to its start, so that an edit does not move the
+    # bytes of the edits before it. Of two markers put before the same statement,
+    # the later comment goes in first, so the earlier one stands before it.
+    sort!(edits; by = edit -> (edit[1], edit[3]), rev = true)
+    bytes = Vector{UInt8}(codeunits(source))
+    for (start, stop, _, replacement) in edits
+        splice!(bytes, start:stop, codeunits(replacement))
+    end
+    String(bytes)
+end
+
+# The edit, as `(first byte, last byte, order, replacement)`, that puts the
+# marker of the comment at `range` into the text. It inserts, so its last byte is
+# one before its first. The comment stays in the text: a marker on the line after
+# it follows the same tokens as the code after it did, so a string before the
+# comment documents the marker exactly when it documented that code, which is
+# never, or the comment would stand inside the docstring.
+function _compute_julia_comment_edit(source::String, tree, range::UnitRange{Int}, order::Int)
+    chain = _find_julia_node_chain(tree, range)
+    list = findlast(index -> _is_julia_statement_list(chain, index), eachindex(chain))
+    text, multiline = _get_julia_comment_text(source, range)
+    after = last(range) + 1
+    if list == lastindex(chain)
+        children = Base.JuliaSyntax.children(chain[list])
+        before = findlast(child -> last(Base.JuliaSyntax.byte_range(child)) < first(range), children)
+        if before !== nothing && !multiline &&
+           !_has_julia_line_break(source, last(Base.JuliaSyntax.byte_range(children[before])) + 1, first(range) - 1)
+            return (after, after - 1, order, "\n" * _format_julia_comment_marker(text, :end_of_line))
+        end
+        marker = _format_julia_comment_marker(text, multiline ? :multiline : :own_line)
+        return (after, after - 1, order,
+                "\n" * marker * (_has_julia_code_after(source, last(range)) ? "\n" : ""))
+    end
+    marker = _format_julia_comment_marker(text, multiline ? :multiline : :own_line)
+    start = first(Base.JuliaSyntax.byte_range(chain[list + 1]))
+    (start, start - 1, order, (_has_julia_code_before(source, start) ? "\n" : "") * marker * "\n")
+end
+
+# The nodes from the root of `tree` to the innermost node that holds the bytes
+# `range`.
+function _find_julia_node_chain(tree, range::UnitRange{Int})
+    chain = Any[tree]
+    while !Base.JuliaSyntax.is_leaf(chain[end])
+        children = Base.JuliaSyntax.children(chain[end])
+        index = findfirst(children) do child
+            child_range = Base.JuliaSyntax.byte_range(child)
+            !Base.JuliaSyntax.is_leaf(child) &&
+                first(child_range) <= first(range) && last(range) <= last(child_range)
+        end
+        index === nothing && break
+        push!(chain, children[index])
+    end
+    chain
+end
+
+# Whether the node at `index` of `chain` holds statements: the root, a line of
+# statements, or a block. The bindings of a `let` are a block too, but not of
+# statements.
+function _is_julia_statement_list(chain, index::Int)
+    kind = Base.JuliaSyntax.kind(chain[index])
+    kind == Base.JuliaSyntax.K"toplevel" && return true
+    kind == Base.JuliaSyntax.K"block" || return false
+    !(index > 1 && Base.JuliaSyntax.kind(chain[index - 1]) == Base.JuliaSyntax.K"let" &&
+      first(Base.JuliaSyntax.children(chain[index - 1])) === chain[index])
+end
+
+# The text of the comment at `range`, and whether it is a `#= … =#` comment. The
+# text of such a comment loses, on each line after its first, the indentation of
+# the line where it starts, so the printer can indent it again.
+function _get_julia_comment_text(source::String, range::UnitRange{Int})
+    bytes = view(codeunits(source), range)
+    length(bytes) >= 4 && bytes[2] == UInt8('=') || return String(bytes[2:end]), false
+    indentation = _has_julia_code_before(source, first(range)) ? 0 :
+                  first(range) - _find_julia_line_start(source, first(range))
+    lines = split(String(bytes[3:end-2]), '\n')
+    for index in 2:length(lines)
+        line = lines[index]
+        count = 0
+        while count < min(indentation, ncodeunits(line)) && codeunit(line, count + 1) in (UInt8(' '), UInt8('\t'))
+            count += 1
+        end
+        lines[index] = SubString(line, count + 1)
+    end
+    join(lines, '\n'), true
+end
+
+_format_julia_comment_marker(text::AbstractString, kind::Symbol) =
+    string("var\"#comment#\"(", repr(String(text)), ", :", kind, ")")
+
+# The first byte of the line that holds the byte `position`.
+function _find_julia_line_start(source::String, position::Int)
+    start = position
+    while start > 1 && codeunit(source, start - 1) != UInt8('\n')
+        start -= 1
+    end
+    start
+end
+
+_is_julia_blank(byte::UInt8) = byte in (UInt8(' '), UInt8('\t'), UInt8('\r'))
+
+# Whether code stands before the byte `position` on its line.
+_has_julia_code_before(source::String, position::Int) =
+    any(index -> !_is_julia_blank(codeunit(source, index)),
+        _find_julia_line_start(source, position):position - 1)
+
+# Whether code stands after the byte `position` on its line.
+function _has_julia_code_after(source::String, position::Int)
+    for index in position + 1:ncodeunits(source)
+        byte = codeunit(source, index)
+        byte == UInt8('\n') && return false
+        _is_julia_blank(byte) || return true
+    end
+    false
+end
+
+_has_julia_line_break(source::String, start::Int, stop::Int) =
+    any(index -> codeunit(source, index) == UInt8('\n'), start:stop)
+
+_is_julia_comment_marker(x) =
+    Meta.isexpr(x, :call) && !isempty(x.args) && x.args[1] === _JULIA_COMMENT_MARKER
+_is_julia_end_of_line_marker(x) =
+    _is_julia_comment_marker(x) && x.args[3] == QuoteNode(:end_of_line)
+
+_convert_julia_comment_marker(x::Expr) =
+    x.args[3] == QuoteNode(:multiline) ? JuliaMultilineComment(x.args[2]::String) :
+                                         JuliaComment(x.args[2]::String)
+
 # ── Core recursive conversion ─────────────────────────────────────────────────
 
-# Convert a list of raw `Expr.args`, dropping line-number bookkeeping.
+# Convert a list of raw `Expr.args`, dropping line-number bookkeeping. An
+# end-of-line marker wraps the statement before it.
 function _convert_statements(args)
-    JuliaDocument[convert_expr(a) for a in args if !(a isa LineNumberNode)]
+    statements = JuliaDocument[]
+    for a in args
+        a isa LineNumberNode && continue
+        if _is_julia_end_of_line_marker(a) && !isempty(statements)
+            statements[end] = JuliaEndOfLineComment(statements[end], a.args[2]::String)
+        else
+            push!(statements, convert_expr(a))
+        end
+    end
+    statements
 end
 
 """
@@ -127,6 +300,7 @@ _convert_head(::Val{H}, x::Expr) where {H} =
 # ── Calls: range / binary / unary / general ──────────────────────────────────
 
 function _convert_head(::Val{:call}, x::Expr)
+    _is_julia_comment_marker(x) && return _convert_julia_comment_marker(x)
     callee = x.args[1]
     # The keyword arguments after `;` arrive as a leading `Expr(:parameters, kw…)`,
     # and they are kept apart, so the call prints the `;` its code wrote. A range,

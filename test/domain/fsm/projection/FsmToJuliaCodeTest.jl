@@ -6,7 +6,7 @@ function test_fsm_to_julia_code()
     text = generate_component_text(make_fsm_toggle_document_example())
 
     @test occursin("module ToggleFsm", text)
-    @test occursin("end # module ToggleFsm", text)
+    @test endswith(rstrip(text), "\nend")
     # State constants are 0-based document order — the values are recorded as
     # statistics and compared against a reference implementation, so the
     # numbering is part of the contract.

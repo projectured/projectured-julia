@@ -10,12 +10,30 @@ appeared in a real file and stopped the whole file from parsing, since
 """
 
 using Test
-using ProjecturedJulia.JuliaModule: parse_julia, JuliaBlock, JuliaToplevel, JuliaDocstring
+using ProjecturedJulia.JuliaModule: parse_julia, JuliaBlock, JuliaToplevel, JuliaDocstring,
+                                    JuliaComment, JuliaMultilineComment, JuliaEndOfLineComment
 using ProjecturedPlatform.NaturalModule: print_natural_text
 
 # What the printer produced, trimmed — the pipeline emits the editor's rendered
 # form, so leading and trailing whitespace is not part of what is asserted.
 _julia_round_trip(source::AbstractString) = strip(print_natural_text(parse_julia(source)))
+
+# Whether the print of `source` is Julia that parses, and that prints the same
+# text again.
+function _julia_prints_back(source::AbstractString)
+    printed = print_natural_text(parse_julia(source))
+    !any(a -> Meta.isexpr(a, (:error, :incomplete)), Meta.parseall(printed).args) &&
+        print_natural_text(parse_julia(printed)) == printed
+end
+
+# Whether the statements of `block`, or of the block that `source` parses to, are
+# of `types`, in order.
+function _has_julia_statements(block::JuliaBlock, types...)
+    statements = [s for s in block.statements]
+    length(statements) == length(types) && all(map(isa, statements, collect(types)))
+end
+_has_julia_statements(source::AbstractString, types...) =
+    (document = parse_julia(source); document isa JuliaBlock && _has_julia_statements(document, types...))
 
 # The statements of the body of the one struct in `text`, as Julia parses them,
 # with no line numbers. A docstring loses the break at its end, which a single
@@ -149,11 +167,104 @@ function test_julia_parser()
         end
     end
 
+    @testset "a comment after a statement on its line is the end-of-line comment of that statement" begin
+        for (source, subject) in (("x = 1  # c", JuliaAssignment), ("f() = 1  # c", JuliaAssignment),
+                                  ("x = 1;  # c", JuliaToplevel), ("a = 1; b = 2  # c", JuliaToplevel),
+                                  ("function f()\n    1\nend  # c", JuliaFunction))
+            document = parse_julia(source)
+            @test document isa JuliaEndOfLineComment && document.subject isa subject && document.text == " c"
+            @test _julia_prints_back(source)
+        end
+        @test parse_julia("x = 1;  # c").subject.trailing_semicolon
+        @test _julia_round_trip("x = 1  # c") == "x = 1  # c"
+        @test _julia_round_trip("x = 1;  # c") == "x = 1;  # c"
+        # The two spaces before the `#` are the printer's: the document keeps no column.
+        @test _julia_round_trip("x = 1 # c") == "x = 1  # c"
+        module_ = parse_julia("module M\nf() = 1\nend # module M")
+        @test module_ isa JuliaEndOfLineComment && module_.subject isa JuliaModuleDefinition
+        @test endswith(_julia_round_trip("module M\nf() = 1\nend # module M"), "end  # module M")
+        @test endswith(_julia_round_trip("module M\nf() = 1\nend"), "\nend")
+    end
+
+    @testset "a comment on a line of its own is a statement between the statements" begin
+        @test _has_julia_statements("# c\nx = 1", JuliaComment, JuliaAssignment)
+        @test _has_julia_statements("x = 1\n# c", JuliaAssignment, JuliaComment)
+        @test _has_julia_statements(parse_julia("function f()\n    # TODO\nend").body, JuliaComment)
+        @test _has_julia_statements(parse_julia("function f()\n    x\n    # last\nend").body, JuliaIdentifier, JuliaComment)
+        struct_ = parse_julia("struct S\n    # the x\n    x::Int  # meters\nend")
+        @test _has_julia_statements(struct_.body, JuliaComment, JuliaEndOfLineComment)
+        @test parse_julia("# c").text == " c"
+        @test _julia_round_trip("#!/usr/bin/env julia\nx = 1")[1:20] == "#!/usr/bin/env julia"
+        # A `#` in a string is no comment.
+        @test parse_julia("s = \"a # b\"") isa JuliaAssignment
+        # Julia does not attach a docstring across a comment, so the three are statements.
+        @test _has_julia_statements("\"doc\"\n# between\nf(x) = x", JuliaString, JuliaComment, JuliaAssignment)
+        for source in ("# c\nx = 1", "function f()\n    # TODO\nend", "struct S\n    # the x\n    x::Int  # meters\nend",
+                       "\"doc\"\n# between\nf(x) = x", "#!/usr/bin/env julia\nx = 1")
+            @test _julia_prints_back(source)
+        end
+    end
+
+    @testset "a comment on the header line of a block is the first statement of the body" begin
+        @test _has_julia_statements(parse_julia("function f(x)  # c\n    x\nend").body, JuliaComment, JuliaIdentifier)
+        branch = parse_julia("if a  # why\n    1\nelse  # other\n    2\nend")
+        @test _has_julia_statements(branch.then_branch, JuliaComment, JuliaInteger)
+        @test _has_julia_statements(branch.else_branch, JuliaComment, JuliaInteger)
+        @test branch.then_branch.statements[1].text == " why"
+        @test _julia_prints_back("if a  # why\n    1\nelse  # other\n    2\nend")
+    end
+
+    @testset "a comment that no statement list holds moves before its statement" begin
+        @test _has_julia_statements("g(a,  # c\n  b)", JuliaComment, JuliaCall)
+        @test _has_julia_statements("v = [1,  # one\n     2]", JuliaComment, JuliaAssignment)
+        @test _has_julia_statements("let a = 1,  # c\n    b = 2\n    a + b\nend", JuliaComment, JuliaLet)
+        moved = parse_julia("g(a,  # one\n  b,  # two\n  c)")
+        @test _has_julia_statements(moved, JuliaComment, JuliaComment, JuliaCall)
+        @test [moved.statements[1].text, moved.statements[2].text] == [" one", " two"]
+        @test length(moved.statements[3].arguments) == 3
+        for source in ("g(a,  # c\n  b)", "v = [1,  # one\n     2]", "g(a,  # one\n  b,  # two\n  c)")
+            @test _julia_prints_back(source)
+        end
+    end
+
+    @testset "a real file keeps every comment, in order" begin
+        # Files of this repository that the printer prints back exactly, with
+        # many comments, and with a `#` inside a string.
+        root = joinpath(@__DIR__, "..", "..", "..", "..")
+        for path in ("source/domain/julia/JuliaCodePieces.jl", "source/domain/julia/JuliaExpression.jl",
+                     "source/domain/julia/JuliaFile.jl", "source/platform/syntax/FaultToSyntax.jl")
+            text = read(joinpath(root, path), String)
+            printed = print_natural_text(parse_julia(text))
+            missing_comments = String[]
+            position = 1
+            for token in Base.JuliaSyntax.tokenize(text)
+                Base.JuliaSyntax.kind(token) == Base.JuliaSyntax.K"Comment" || continue
+                comment = String(view(codeunits(text), Int(first(token.range)):Int(last(token.range))))
+                found = findnext(comment, printed, position)
+                found === nothing ? push!(missing_comments, comment) :
+                                    (position = nextind(printed, last(found)))
+            end
+            @test missing_comments == String[]
+            @test print_natural_text(parse_julia(printed)) == printed
+        end
+    end
+
+    @testset "a multiline comment keeps its lines, and its indentation is the code's" begin
+        @test _has_julia_statements("x = 1 #= c =#", JuliaAssignment, JuliaMultilineComment)
+        body = parse_julia("function f()\n    #= a\n       b =#\nend").body
+        @test _has_julia_statements(body, JuliaMultilineComment)
+        @test body.statements[1].text == " a\n   b "
+        @test parse_julia("#= nested #= inner =# outer =#").text == " nested #= inner =# outer "
+        for source in ("x = 1 #= c =#", "function f()\n    #= a\n       b =#\nend")
+            @test _julia_prints_back(source)
+        end
+    end
+
     @testset "statements on one line keep their semicolons" begin
         @test _julia_round_trip("a; b") == "a; b"
         @test _julia_round_trip("x = 1;") == "x = 1;"
         @test _julia_round_trip("a; b;") == "a; b;"
-        @test _julia_round_trip("push!(xs, 1);  # the list") == "push!(xs, 1);"
+        @test _julia_round_trip("push!(xs, 1);  # the list") == "push!(xs, 1);  # the list"
         @test parse_julia("x = 1;") isa JuliaToplevel
         @test parse_julia("x = 1;").trailing_semicolon
         @test !parse_julia("a; b").trailing_semicolon

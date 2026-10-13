@@ -356,7 +356,8 @@ end
 #
 # The body is a `JuliaBlock`, so its texts hold the breaks around its statements —
 # the same shape `JuliaStructToSyntaxNode` relies on, and the reason neither node
-# writes a break before `end`.
+# writes a break before `end`. The node writes no comment after `end`: a
+# `# module Name` that a file holds is an end-of-line comment of the module.
 
 @projection UntrackedCell struct JuliaModuleDefinitionToSyntaxNode
     keyword_style::StyleText = get_julia_style(nothing, :keyword_text)
@@ -372,7 +373,7 @@ end
                                           placeholder = "enter module name",
                                           style = p.name_style))),
         project(:body),
-        SyntaxLeaf(TextString(() -> "end # module " * m.name, p.keyword_style)),
+        SyntaxLeaf(TextString("end", p.keyword_style)),
     ])
 
 # ── JuliaSubtypeToSyntaxNode ───────────────────────────────────────────────

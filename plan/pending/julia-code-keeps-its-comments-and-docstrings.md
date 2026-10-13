@@ -168,15 +168,22 @@ parser of Julia can put it there:
    `var"#comment#"("text", :kind)`. The text is a Julia string literal, made by
    `repr`. The kind is `:own_line`, `:multiline` or `:end_of_line`. Julia gives
    names with `#` only to what the compiler makes, so no code of a person calls
-   this name.
-   - For a comment that becomes a statement, the marker takes the place of the
-     comment. The marker stands on a line of its own: a line break comes before
-     it when code is before it on its line, and after it when code is after it.
-   - For an end-of-line comment, a line break and the marker take the place of
-     the comment. So the marker is the next statement of the same list.
-   - For a comment that no statement list holds, the parser removes the comment.
-     It puts the marker and a line break before the statement that holds the
-     comment.
+   this name. The copy keeps every comment where it is.
+   - For a comment that becomes a statement, the marker goes on the line after
+     the comment. A line break comes after the marker when code is after the
+     comment on its line.
+   - For an end-of-line comment, the marker goes on the line after the comment.
+     So the marker is the next statement of the same list.
+   - For a comment that no statement list holds, the marker and a line break go
+     before the statement that holds the comment. A line break comes before the
+     marker when code is before that statement on its line.
+
+   *Changed in step 3:* the first form of the copy put the marker in the place of
+   the comment. Then in `"doc"`, a comment line and `f(x) = x`, the marker came
+   directly after the string, and Julia made the marker the subject of a
+   docstring. Julia does not attach a docstring across a comment line. With the
+   comment kept, the marker follows the same tokens as the code after the comment
+   did, so a docstring attaches exactly as in the text.
 4. It parses the copy with `Meta.parseall`, and converts it as now. The
    converter turns a marker call into a comment type. `_convert_statements` wraps
    the statement before an end-of-line marker in a `JuliaEndOfLineComment`.
@@ -331,7 +338,22 @@ commit. Nothing lands on `main` before the owner approves it.
     `test_julia_tooltip()` shows the documentation of a field. A typed `$` in the
     text of a docstring puts a `$` into `text`.
 
-- [ ] **Step 3: the parser keeps the comments.**
+- [x] **Step 3: the parser keeps the comments.** *Done 2026-10-13.*
+  `test_julia()` passes 665 and fails only the known `JuliaExpressionTest.jl:31`;
+  `test_fsm_to_julia_code()` passes 39. Section 3.3 holds the change of the copy.
+  Facts found:
+  - 51 files of the Julia, FSM, process, JSON and syntax slices, read with their
+    comments and without them, have the same result each way: 12 print back
+    exactly, 13 print a second time differently, 23 print text that does not
+    parse, and 3 do not parse. Every file that parses keeps every comment in
+    order. The 36 files that do not print back show limits of the printer that
+    comments do not cause, such as the `$` of a string.
+  - `test_example(julia_code_example)` fails 423 in the type-in sweep, all on
+    opaque leaves: 408 on the name of an identifier and 15 on the string `"! = "`.
+    The comment and the docstring texts of the example pass. `julia_example`
+    fails its known 84 (28 positions on identifiers, 3 edits each).
+  - The end of a module prints `end  # module M` from `end # module M`: two
+    spaces, as decision 4 says.
   - Add the parts of section 3.3 to
     [JuliaParser.jl](../../source/domain/julia/JuliaParser.jl): collect the
     comment tokens, compute their places, and write the copy with the markers.

@@ -83,13 +83,18 @@ end
 
 # A short Julia program read from its source, in a scroll pane smaller than the
 # code: a struct, two functions and a loop, so each definition, the branch and the
-# loop fold as a region of lines, and the gutter numbers every line.
+# loop fold as a region of lines, and the gutter numbers every line. A comment on
+# a line of its own, an end-of-line comment and a docstring show the comments.
 const _JULIA_CODE_EXAMPLE_SOURCE = """
+# Points in the plane.
 struct Point
-    x::Float64
+    x::Float64  # meters
     y::Float64
 end
 
+\"\"\"
+The distance between two points.
+\"\"\"
 function distance(a::Point, b::Point)
     dx = a.x - b.x
     dy = a.y - b.y
