@@ -4,8 +4,7 @@
 
 This guide says what a reactive cell holds, how a read records a dependency and a
 write invalidates the readers, and which invariants the engine relies on. It then
-describes the modules of the cell layer and of the struct layer above it. The
-engine is in [ReactiveCell.jl](../../../source/kernel/cell/ReactiveCell.jl).
+describes the module of the cell layer. The engine is in [ReactiveCell.jl](../../../source/kernel/cell/ReactiveCell.jl).
 
 The cell layer is the base of the incremental work of ProjecturEd. It is a
 pull-based reactive engine, and a layer of the kernel. It imports the
@@ -234,7 +233,8 @@ reads and writes them as plain fields: `obj.f` reads the value of the cell,
 `obj.f = v` writes into it, and `getfield(obj, :f)` returns the `Cell` itself. So
 most of the code reads like ordinary Julia code on structs, and every field is
 reactive. The kernel code generator for this is
-[`@cell_struct`](#cellstructmodule-the-struct-of-cells), below. The details of
+[`@cell_struct`](struct.md#cellstructmodule-the-struct-of-cells), in the struct
+guide. The details of
 the field wrapping are in [the macros guide](macros.md).
 
 ## Idioms you will meet
@@ -270,9 +270,9 @@ The layer is the folder [source/kernel/cell/](../../../source/kernel/cell/), and
 `CellModule` is its one module. Two layers sit below it: the fault layer, whose
 `is_fault_exception` a fault scope calls, and the performance layer, whose
 `@count_performance` the engine counts with. The struct layer above builds structs of
-cells with `@cell_struct`. This guide describes the struct layer too; the
-[fault guide](fault.md) and the [performance guide](performance.md) describe the
-layers below.
+cells with `@cell_struct`. The [struct guide](struct.md) describes the layer above,
+and the [fault guide](fault.md) and the [performance guide](performance.md) describe
+the layers below.
 
 ```
 fault/FaultModule.jl              (FaultModule): the fault and its predicate
@@ -360,64 +360,3 @@ them.
 using ProjecturedKernelExample
 print_cell_example()
 ```
-
-## CellStructModule: the struct of cells
-
-`CellStructModule` is the struct layer, and it uses `CellModule` and nothing else.
-`@cell_struct struct T [<: Super] … end` writes each field as a cell and generates
-three parts:
-
-- An inner constructor `T(values…)`. It wraps each value in a cell of the kind of
-  its field. A cell of the type of the field is the cell of the field, so two
-  structs can share one cell. A cell of another type throws a `MethodError`, so a
-  field never holds a cell as its value.
-- `getproperty` and `setproperty!`. `obj.f` reads the value of the cell,
-  `obj.f = v` writes it, and `getfield(obj, :f)` returns the cell.
-- A keyword constructor, when a field has a default `f = value`. It has the
-  optional and required keywords of `Base.@kwdef`.
-
-A kind is a type: `ReactiveCell`, `ImmutableCell`, `MutableCell` or
-`UntrackedCell`. A field `f::ImmutableCell{T}`, `f::MutableCell{T}` or
-`f::UntrackedCell{T}` has that kind. Every other field has the kind that the macro
-gets before `struct`, or `ReactiveCell` without one. A reactive field is a `Cell`,
-and an immutable, a mutable or an untracked field is a cell of the declared value
-type. The struct keeps its supertype and its type parameters.
-`T{A}(values…)` always works, and `T(values…)` works when each parameter is the
-value type of a field.
-
-The generated code holds the kinds and `Cell` as objects, so a module that calls
-`@cell_struct` needs only the macro in scope. The code names `new`, `getfield` and
-`Base` without a module, so `build_cell_struct_exprs` returns it unescaped and
-the macro escapes it.
-
-The builders are public, so a macro that makes a struct of cells with parts of its
-own starts from them:
-
-- `make_cell_struct_plan` reads a `struct` definition into a `CellStructPlan`.
-- The `get_cell_struct_…` functions and `find_cell_struct_parameter_slots` answer
-  questions about the fields and the type parameters of a plan.
-- The `build_cell_struct_…` functions return the parts as expressions, and
-  `build_cell_struct_exprs` returns all of `@cell_struct`.
-- `parse_cell_struct_macro_arguments` reads the kind before `struct`.
-
-[The macros guide](macros.md) says how `@iomap`, `@projection` and `@document`
-use them. At run time, `get_cell_struct_kind(x)` returns the kind of the cell in
-the first field of `x`. A generated constructor calls
-`get_cell_struct_argument_type(argument)` to bind a type parameter: it returns the
-value type of a cell, or the type of any other value.
-
-Public surface: `CellStructPlan`, `make_cell_struct_plan`, `add_cell_struct_field!`,
-`retype_cell_struct_fields!`, `get_cell_struct_value_types`,
-`get_cell_struct_field_kinds`, `get_cell_struct_parameter_names`,
-`find_cell_struct_parameter_slots`, `get_cell_struct_required_count`,
-`build_cell_struct_field_type`, `build_cell_struct_keyword_parameters`,
-`build_cell_struct_keyword_constructor`, `build_cell_struct_positional_constructors`,
-`build_cell_struct_exprs`, `parse_cell_struct_macro_arguments`, `@cell_struct`,
-`get_cell_struct_argument_type` and `get_cell_struct_kind`.
-
-## The performance layer
-
-The performance layer below the cell layer counts the work of the cells: the
-engine adds to the counts `:reads`, `:computes`, `:invalidations` and `:writes`
-with `@count_performance`, in a build with the counters. The
-[performance guide](performance.md) describes the layer.

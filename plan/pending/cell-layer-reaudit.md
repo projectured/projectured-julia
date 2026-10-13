@@ -337,3 +337,12 @@ The failures: the style guard (`TextDocument.jl:438`), the external agent turn
 projection of a `DocumentInsertion`), the julia example in a scroll pane, and
 single tests of the application, the catalog, a typein and a navigation.
 
+**The owner, 2026-10-13:** "the cell struct module is a separate layer and should have
+its separate documentation not in this layer", then "move the section to a new guide".
+The section "CellStructModule: the struct of cells" is now
+`documentation/package/kernel/struct.md`, which the survey already expects for
+`source/kernel/struct/`; the cell guide links it, and its short section on the
+performance layer is gone. The full guide check of `struct.md` (each fragment, each
+name, a walkthrough) belongs to the re-audit of layer 4. The survey finds no name of
+`CellModule` or `CellStructModule` that its guide does not name.
+

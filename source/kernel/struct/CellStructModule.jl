@@ -9,7 +9,8 @@ parts of its own starts from them.
 
 A kind is one of the types `ReactiveCell`, `ImmutableCell`, `MutableCell` and
 `UntrackedCell` of [`CellModule`](@ref), when a macro expands and at run time. The
-guide `kernel/cell` explains the struct of cells with the cell engine.
+guide `kernel/struct` explains the struct of cells, and the guide `kernel/cell` the
+cell engine.
 
 The module lives in two fragments that share this namespace:
 

@@ -164,7 +164,7 @@ Each layer lives in its own folder under [source/kernel/](../../../source/kernel
 | `fault/` | `FaultModule` — the fault record, the store, the policy, the barrier and the report (see [fault.md](fault.md)) |
 | `performance/` | `PerformanceModule` — the per-frame performance counters and the frame measurement store of an editor, `FrameMeasurementStore` (see [performance.md](performance.md)) |
 | `cell/` | the reactive engine — `AbstractCell` and the `ReactiveCell` / `MutableCell` / `ImmutableCell` kinds (see [cell.md](cell.md)) |
-| `struct/` | `CellStructModule` — `@cell_struct` and the builders of a struct of cells (see [cell.md](cell.md)) |
+| `struct/` | `CellStructModule` — `@cell_struct` and the builders of a struct of cells (see [struct.md](struct.md)) |
 | `clock/` | `ClockModule` — the animation `Clock` (a `@cell_struct`), `get_reactive_clock_time`/`get_clock_time`/`set_clock_time!`; the editor that owns a clock writes it once per frame |
 | `event/` | `EventModule` — the input event vocabulary (Event, ModifierKeys, KeyDown/KeyUp/KeyPress, Mouse*, Window*, TimerExpire, DisplayUpdate, SystemColors, SystemColorsChange, WindowInput) |
 | `device/` | `DeviceModule` — the `Device`, `Keyboard`, `Mouse`, `Display` device types (with physical properties) |
