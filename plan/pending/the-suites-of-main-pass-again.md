@@ -33,8 +33,15 @@ known; elsewhere the origin is not found yet.
 5. **`test_parse_markdown_blocks`, 1 failure** (`ConversationParsingTest.jl:48`). A fenced code
    block of the language `unknownlang` gives no `TextBlock` that holds that word.
 6. **The position walk of the atomic example `widget/progress_bar/graphics`, 1 failure**
-   (`NavigationTest.jl:180`). The walk reaches no state.
+   (`NavigationTest.jl:180`). The walk reaches no state. The same assertion fails 21 times in
+   the 51 Markdown examples and 86 times in the 129 RST examples (`test_example` of each, on
+   `main` at `59703dd8f`, 2026-10-13).
 7. **The type-in of the atomic example `text/line/graphics`, 1 failure** (`TypeinTest.jl:639`).
+   The same assertion fails 416 times in the Markdown examples and 3915 times in the RST
+   examples, in the same runs. A message of the RST runs: `[backspace .content{0}] no cursor
+   in Graphics image for string "Frame replication"` for `rst/text/syntax`. The strict types
+   of Markdown and RST make none of these: the same examples with the files of before give
+   the same failures, example by example.
 8. **`test_application`, 2 failures and 2 errors.**
    - "the Evaluator button opens an evaluator, and Enter evaluates what is typed"
      (`ApplicationTest.jl:1066` and `:1077`): the window draws no separate text `x + 1` for a

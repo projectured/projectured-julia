@@ -4,8 +4,8 @@
 XML fields landed on `main` on 2026-10-09, and the laws of §6 changed after it. Steps 1 to 7 are
 done; the Julia fields of Step 4 were built with
 [formula-references-by-name.md](../done/formula-references-by-name.md) (its Step 6). Step 8 goes
-on domain by domain: Markdown is done on the branch `markdown-strict-fields`, RST and math are
-not started. The owner asked for this plan in
+on domain by domain: Markdown is on `main` since `59703dd8f`, RST is done on the branch
+`strict-types-rst`, and math is not started. The owner asked for this plan in
 the decision walk of [kernel-audit-fixes.md](kernel-audit-fixes.md), at L10-13, and accepted the
 model of §3 on 2026-10-05: no foreign type, and a field that admits other domains declares
 `Document`. The pilot domains are Julia, JSON and XML.
@@ -1071,7 +1071,34 @@ worktree. The three domains test different parts of the model:
   with `unsupported Julia construct: :error`. **Deferred by the owner, 2026-10-13.** A wrap in
   `JuliaObject` at the load is not always correct: a `JuliaObject` is a literal value that the
   code passes into a function, and a node of another domain can as well sit in a Julia comment.
-  No example uses a reference from a Julia file to another file today.
+  No example uses a reference from a Julia file to another file today. The Julia case of the
+  test is marked `@test_broken` with this reason (`11f4fc5eb`).
+
+  *The examples of Markdown, checked after the landing (2026-10-13):* the Markdown examples
+  give 437 failures, at `TypeinTest.jl:639` and `NavigationTest.jl:180`. The same examples
+  with the `MarkdownDocument.jl` of `ad4ef07b6` give the same failures, example by example, so
+  the landing makes none of them. They are in
+  [the-suites-of-main-pass-again.md](the-suites-of-main-pass-again.md). `markdown/table` gives
+  4 more passes in each view: the list rule stores `alignments::Vector{Symbol}` as a
+  `CellVector{Symbol}`, and the printer walk reaches its cells.
+
+  *RST, done on the branch `strict-types-rst` (2026-10-13):* by the three rules of Markdown. A
+  run of blocks declares `CellVector{Document}`: the `elements` of the root, a section, a list
+  item, a definition, a field, a block quote, a footnote, a table cell, an admonition and a
+  directive, and the `caption` of a figure, which the parser fills with blocks. A run of
+  inlines declares `CellVector{RstDocument}`: the `content` of a paragraph, an emphasis and a
+  strong, the `title` of a section and the `term` of a definition. The structural places are
+  narrow and also admit `RstInsertion`: the `items` of the two lists and of a definition list,
+  the `fields` of a field list, the `rows` of a grid table, the `cells` of a row, the `lines`
+  of a line block (paragraphs), the `entries` of a table of contents (`RstText`), and the
+  `extra` and `options` of the directives (`RstDirectiveOption`). `RstSubstitutionDefinition.body`
+  is `Union{RstDocument, Nothing}`, and `RstGridTable.widths` is `Vector{Int}`. The helper
+  `_rst_cellvector` takes the element type, so the hand-written constructors make typed lists.
+  The inventory ran in the `:record` mode over `test_rst`, `test_file_project`,
+  `test_documents` and the 129 RST examples, and found no RST record. `test_rst` passes in the
+  `:throw` mode, 111 of 111. The RST examples give 4001 failures at the same two places; the
+  `RstDocument.jl` of `main` gives the same failures, example by example. `rst/grid_table`
+  gives 3 more passes in each view, from `widths`, by the list rule.
 
 The laws change only when the pilot lands (§6).
 
