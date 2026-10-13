@@ -1068,7 +1068,10 @@ worktree. The three domains test different parts of the model:
   "every other format spells its own leaf", errors for Julia. The test puts a bare `JsonObject`
   in a `JuliaBlock`, and a program write does not convert. With a `JuliaObject` in its place,
   the save writes `⟨JuliaCall⟩`, not `pred_ref("…")`, and returns `true`; the load then fails
-  with `unsupported Julia construct: :error`. The owner decides the fix.
+  with `unsupported Julia construct: :error`. **Deferred by the owner, 2026-10-13.** A wrap in
+  `JuliaObject` at the load is not always correct: a `JuliaObject` is a literal value that the
+  code passes into a function, and a node of another domain can as well sit in a Julia comment.
+  No example uses a reference from a Julia file to another file today.
 
 The laws change only when the pilot lands (§6).
 
