@@ -6,11 +6,13 @@
     get_arrangement_parts(description) -> Vector
 
 The parts of `description` that a bar shows as chips: the conditions of a filter,
-the keys of a sort, and a find itself.
+the keys of a sort, and a find, a group and the first items themselves.
 """
 get_arrangement_parts(filter::ArrangementFilter) = Any[condition for condition in filter.conditions]
 get_arrangement_parts(sort::ArrangementSort) = Any[key for key in sort.keys]
 get_arrangement_parts(find::ArrangementFind) = Any[find]
+get_arrangement_parts(group::ArrangementGroup) = Any[group]
+get_arrangement_parts(first::ArrangementFirst) = Any[first]
 get_arrangement_parts(description) = Any[]
 
 """
@@ -26,6 +28,13 @@ describe_arrangement_part(condition::ArrangementCondition) =
 describe_arrangement_part(key::ArrangementSortKey) =
     string(key.direction === :descending ? "↓ " : "↑ ", _describe_key(key.key))
 describe_arrangement_part(find::ArrangementFind) = string("find ", repr(string(find.text)))
+describe_arrangement_part(group::ArrangementGroup) =
+    string("by ", join((_describe_key(key) for key in group.keys), ", "),
+           isempty(group.aggregates) ? "" :
+               ": " * join((describe_arrangement_part(aggregate) for aggregate in group.aggregates), ", "))
+describe_arrangement_part(aggregate::ArrangementAggregate) =
+    aggregate.operator === :count ? "count" : string(aggregate.operator, " of ", _describe_key(aggregate.key))
+describe_arrangement_part(first::ArrangementFirst) = string("first ", first.count)
 
 const _OPERATOR_TEXTS = Dict(:equal => "=", :not_equal => "≠", :less => "<", :greater => ">",
                              :at_most => "≤", :at_least => "≥", :contains => "contains")
@@ -52,16 +61,35 @@ end
     describe_arranged_collection(entry, items) -> String
 
 How the place of `entry` shows `items`: how many items show, of all, and each
-part of the entry, such as `2 of 3 items: status ≠ "failed", ↑ delay`. With
-`entry === nothing` every item shows, in its own order.
+part of the entry, such as `2 of 3 items: status ≠ "failed", ↑ delay`. A place
+with a group says how many groups show, such as `2 groups of 3 items: by status:
+count`. With `entry === nothing` every item shows, in its own order.
 """
 function describe_arranged_collection(entry, items)
     total = length(items)
     entry === nothing && return string(total, total == 1 ? " item" : " items", ", all in their own order")
     parts = String[describe_arrangement_part(part)
                    for description in entry.projections for part in get_arrangement_parts(description)]
-    string(length(compute_shown_rows(entry, items)), " of ", total, " items",
-           isempty(parts) ? "" : ": " * join(parts, ", "))
+    groups = _count_shown_groups(entry, items)
+    shown = groups === nothing ? string(length(compute_shown_rows(entry, items)), " of ", total, " items") :
+                                 string(groups, groups == 1 ? " group" : " groups", " of ", total, " items")
+    string(shown, isempty(parts) ? "" : ": " * join(parts, ", "))
+end
+
+# How many rows of groups the place of `entry` shows: the groups of the items that
+# the group reads, and then the picks after the group; `nothing` with no group.
+function _count_shown_groups(entry, items)
+    projections = collect(entry.projections)
+    g = findfirst(description -> description isa ArrangementGroup, projections)
+    g === nothing && return nothing
+    rows = compute_shown_rows(entry, items)
+    groups = compute_group_rows(projections[g], Any[items[r] for r in rows])
+    for description in projections[(g + 1):end]
+        description isa ArrangementGroup && break
+        picked = _compute_description_rows(description, groups)
+        picked === nothing || (groups = groups[picked])
+    end
+    length(groups)
 end
 
 """
@@ -150,6 +178,59 @@ sort_collection!(collection, keys...; editor = get_evaluation_editor()) =
     _arrange_collection!(editor, collection, _make_sort(keys), "Sort")
 
 """
+    group_collection!(collection, keys...; aggregates = [:count], editor = get_evaluation_editor()) -> Text
+
+Show one row for each group of the items of the collection at `collection` that
+have the same values at `keys`, with the `aggregates` over the items of each
+group, and answer how the collection shows now. The data does not change, and
+`group_collection!(collection)` with no key takes the group away. A second call
+replaces the group of the first.
+
+A key is the path of a value inside an item, as for `filter_collection!`. An
+aggregate is `:count`, or `key => operator`, where the operator is `:sum`,
+`:mean`, `:minimum`, `:maximum`, or one that a slice adds
+(`compute_arrangement_aggregate`). A filter, a sort and the first items after the
+group act on its rows, and a key of a row is the name of a column, such as
+`"count"` or `"mean of delay"`.
+
+Use it to count or sum the items of a list by a value they share, such as the
+runs of each state, without a change of the data.
+
+# Example
+
+    group_collection!(runs_1, "status"; aggregates = [:count, "delay" => :mean])
+    group_collection!(runs_1)           # the runs again, one row each
+
+See also `limit_collection!`, `filter_collection!` and `sort_collection!`.
+"""
+group_collection!(collection, keys...; aggregates = Any[:count], editor = get_evaluation_editor()) =
+    _arrange_collection!(editor, collection, _make_group(keys, aggregates), "Group")
+
+"""
+    limit_collection!(collection, count = nothing; editor = get_evaluation_editor()) -> Text
+
+Show only the first `count` items of the collection at `collection`, in the order
+that its filter, its sort and its group give, and answer how the collection shows
+now. `limit_collection!(collection)` with no count shows every item again. A
+second call replaces the count of the first.
+
+Use it to show the few items that a person asks about, such as the ten slowest
+runs after a sort.
+
+# Example
+
+    sort_collection!(runs_1, "delay" => :descending)
+    limit_collection!(runs_1, 10)
+    limit_collection!(runs_1)           # every run again
+
+See also `group_collection!` and `sort_collection!`.
+"""
+# @optional: the count is what the call says, and a call with no count takes the first
+# items away, as a call of `filter_collection!` with no condition takes the filter away.
+limit_collection!(collection, count = nothing; editor = get_evaluation_editor()) =
+    _arrange_collection!(editor, collection, _make_first(count), "Limit")
+
+"""
     make_filter_collection_operation(collection, conditions...; editor = get_evaluation_editor())
         -> Operation or nothing
 
@@ -171,8 +252,51 @@ the editor's document, which it does not evaluate.
 make_sort_collection_operation(collection, keys...; editor = get_evaluation_editor()) =
     _make_arrange_operation(editor, collection, _make_sort(keys), "Sort")
 
+"""
+    make_group_collection_operation(collection, keys...; aggregates = [:count], editor = get_evaluation_editor())
+        -> Operation or nothing
+
+The edit that [`group_collection!`](@ref) makes, as an operation from the root of
+the editor's document, which it does not evaluate.
+"""
+make_group_collection_operation(collection, keys...; aggregates = Any[:count], editor = get_evaluation_editor()) =
+    _make_arrange_operation(editor, collection, _make_group(keys, aggregates), "Group")
+
+"""
+    make_limit_collection_operation(collection, count = nothing; editor = get_evaluation_editor())
+        -> Operation or nothing
+
+The edit that [`limit_collection!`](@ref) makes, as an operation from the root of
+the editor's document, which it does not evaluate.
+"""
+# @optional: the count is what the call says, and a call with no count takes the first
+# items away, as a call of `filter_collection!` with no condition takes the filter away.
+make_limit_collection_operation(collection, count = nothing; editor = get_evaluation_editor()) =
+    _make_arrange_operation(editor, collection, _make_first(count), "Limit")
+
 _make_filter(conditions) = ArrangementFilter(Any[_make_condition(condition) for condition in conditions])
 _make_sort(keys) = ArrangementSort(Any[_make_sort_key(key) for key in keys])
+_make_group(keys, aggregates) =
+    ArrangementGroup(Any[_make_key(key) for key in keys], Any[_make_aggregate(a) for a in aggregates])
+_make_first(::Nothing) = ArrangementFirst(0)
+_make_first(count::Integer) = ArrangementFirst(Int(count))
+_make_first(count) = throw(ArgumentError("The count of the first items is a whole number, not " * repr(count) * "."))
+
+# An aggregate as code writes it: `:count`, `key => operator`, or an
+# `ArrangementAggregate`. An operator with no method of
+# `compute_arrangement_aggregate` is refused here, where the code names it.
+_make_aggregate(aggregate::ArrangementAggregate) = aggregate
+_make_aggregate(operator::Symbol) = _make_aggregate("" => operator)
+function _make_aggregate(aggregate::Pair)
+    operator = last(aggregate)
+    (operator isa Symbol && hasmethod(compute_arrangement_aggregate, Tuple{Val{operator}, Vector{Any}})) ||
+        throw(ArgumentError("An aggregate is :count, :sum, :mean, :minimum or :maximum, or an operator " *
+                            "that a slice adds, not " * repr(operator) * "."))
+    ArrangementAggregate(_make_key(first(aggregate)), operator)
+end
+_make_aggregate(aggregate) =
+    throw(ArgumentError("An aggregate is :count or key => operator, such as \"delay\" => :mean, not " *
+                        repr(aggregate) * "."))
 
 function _arrange_collection!(editor, collection, description, words::String)
     operation = _make_arrange_operation(editor, collection, description, words)

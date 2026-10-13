@@ -6,12 +6,15 @@
     compute_shown_rows(entry, items) -> Vector{Int}
 
 The indices in `items` of the items that the place of `entry` shows, in the order
-in which they show: the rows that the filters and the sorts of `entry` pick, one
-after the other, as the chain of the entry picks them.
+in which they show: the rows that the filters, the sorts and the first items of
+`entry` pick, one after the other, as the chain of the entry picks them. A group
+shows groups and not items, so the picks stop at a group, and the answer is the
+items that the group reads.
 """
 function compute_shown_rows(entry, items)
     rows = collect(1:length(items))
     for description in entry.projections
+        description isa ArrangementGroup && break
         picked = _compute_description_rows(description, Any[items[r] for r in rows])
         picked === nothing || (rows = rows[picked])
     end
@@ -20,6 +23,7 @@ end
 
 _compute_description_rows(filter::ArrangementFilter, items) = compute_filter_rows(filter, items)
 _compute_description_rows(sort::ArrangementSort, items) = compute_sort_rows(sort, items)
+_compute_description_rows(first::ArrangementFirst, items) = collect(1:min(max(first.count, 0), length(items)))
 _compute_description_rows(description, items) = nothing
 
 """

@@ -879,7 +879,7 @@ For each step, run the narrowest test: the test files of the step, through
     - A bare name in a file is the name of a type that a file may build, and a
       name that starts with `_`, as a test fixture has, is not one.
 
-- [ ] **3. Two new kinds of the arrangement.**
+- [x] **3. Two new kinds of the arrangement.** Done 2026-10-14.
   - `ArrangementGroup(keys, aggregates)` and `ArrangementFirst(count)`, each
     with its `make_arrangement_projection` method and its chips in the bar.
   - A group gives one row for each group: its keys and its aggregates. A group
@@ -889,6 +889,27 @@ For each step, run the narrowest test: the test files of the step, through
     forms, as `filter_collection!` has.
   - Tests beside the tests of the arrangement: each kind on a plain collection
     and on a roster, its chips, and its verb.
+  - **What the step found and decided:**
+    - A group is a stage of its own, `GroupingProjection`, in a new fragment
+      `Grouping.jl`. Its output is a `CellVector{ArrangementGroupRow}`. A row of
+      a group holds the names of its columns, its values and the indices of its
+      items (`members`). A key of a row is the name of a column, so a sort and
+      the first items after a group act on the rows, such as `"count" =>
+      :descending`. The aggregate is the generic `compute_arrangement_aggregate`.
+    - The first items are a pick, as a filter is.
+    - The bar shows a group and the first items each as one chip, so the × of
+      the chip takes the whole description away.
+    - The words of a place with a group count the groups: `2 groups of 3 items:
+      by status: count, mean of delay`. `compute_shown_rows` stops at a group,
+      because a group shows groups and not items.
+    - The natural renderer prints the rows of a group as a table,
+      `ArrangementGroupRowsToWidget`. The natural slice may not use the focus
+      slice, so the table of a group does not follow the selection.
+    - The widget slice has a new constructor, `WidgetTable(headers::CellVector,
+      cells::CellVector)`, for a table that follows computed headers and rows.
+      The roster table uses it too.
+    - With no key, `group_collection!` takes the group away; with no count,
+      `limit_collection!` takes the first items away.
 
 - [ ] **4. The sources of the window and of the stores.**
   - `TabDocuments(type)` in the slice `pane`, one part for each tab. The window

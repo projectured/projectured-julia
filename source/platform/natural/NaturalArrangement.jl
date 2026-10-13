@@ -271,3 +271,58 @@ const _ARRANGEMENT_MENU =
         is_in_find_field(doc) ? make_find_move(doc, false) : nothing
     splice(_ARRANGEMENT_MENU)
 end
+
+"""
+    ArrangementGroupRowsToWidget()
+
+Prints the rows that a group of an arrangement makes, a
+`CellVector{ArrangementGroupRow}`, as a `WidgetTable` in a `VerticalLayout`: a
+header with the name of each column, the keys of the group and then its
+aggregates, and one row of labels for each group. A row stands for no one item,
+so a path in the table is the path of its row of the groups, and no key edits it.
+"""
+struct ArrangementGroupRowsToWidget <: Projection end
+
+@iomap struct ArrangementGroupRowsToWidgetIoMap
+    projection::Any
+    input::Any
+    output::Any
+end
+
+function print_document(p::ArrangementGroupRowsToWidget, recursion, rows::CellVector, ctx)
+    headers = CellVector(@computation Any[WidgetLabel(name) for name in (isempty(rows) ? String[] : rows[1].columns)])
+    cells = CellVector(@computation Any[CellVector(Cell[Cell(WidgetLabel(_format_group_value(value)))
+                                                        for value in row.values]) for row in rows])
+    table = WidgetTable(headers, cells)
+    layout = VerticalLayout(Any[table]; child_width = Fill)
+    ArrangementGroupRowsToWidgetIoMap(p, rows, layout)
+end
+
+# The text of a value of a group: empty for `nothing`, and its text for any other.
+_format_group_value(::Nothing) = ""
+_format_group_value(value) = string(value)
+
+# The whole row in the table for a path of a row of the groups.
+function _map_group_rows_forward(path)
+    path isa EmptyReference && return path
+    path isa ConcreteReference || return nothing
+    head = get_reference_head(path)
+    (head isa RangeReferenceStep && is_element_reference_step(head)) || return nothing
+    extend_reference(EmptyReference(), FieldReferenceStep("children"), ElementReferenceStep(1),
+                     FieldReferenceStep("rows"), head)
+end
+
+map_reference_forward(::ArrangementGroupRowsToWidget, iomap::ArrangementGroupRowsToWidgetIoMap, reference) =
+    _map_group_rows_forward(reference)
+
+# A row of the table, or a cell in it, is the row of its group.
+function map_reference_backward(::ArrangementGroupRowsToWidget, iomap::ArrangementGroupRowsToWidgetIoMap, reference)
+    reference isa EmptyReference && return reference
+    reference isa ConcreteReference || return nothing
+    @reference_case strip_reference_types(reference) begin
+        children[1].rows[r].rest... => extend_reference(EmptyReference(), ElementReferenceStep(r))
+        children[1].cells[r].rest... => extend_reference(EmptyReference(), ElementReferenceStep(r))
+        children[1].rest... => EmptyReference()
+        __ => nothing
+    end
+end

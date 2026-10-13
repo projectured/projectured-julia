@@ -2892,6 +2892,39 @@ function WidgetTable(headers::Vector, rows::Vector; position::Point2D=Point2D(0,
 end
 
 """
+    WidgetTable(headers::CellVector, cells::CellVector)
+
+A table whose header row follows `headers`, a collection of documents, and whose
+body follows `cells`, a collection of rows, each a `CellVector` of documents. A
+header or a row that comes into a collection or goes out of it, as a computation
+gives them (`CellVector(@computation …)`), comes into the table or goes out of
+it. Every column and every row is its content, and a cell is one line, cut at
+the edge of its column.
+
+Use it for a table that a projection derives from a collection that changes,
+such as the rows that a filter keeps.
+"""
+function WidgetTable(headers::CellVector, cells::CellVector)
+    WidgetTable(Cell(Point2D(0, 0)), headers,
+                CellVector(),                        # no row headers
+                Cell(nothing),                       # no corner
+                cells, Cell(:row_major),
+                Cell(@computation WidgetTableRows(length(cells))),
+                Cell(@computation WidgetTableColumns(length(headers))),
+                Cell(1),                             # border width
+                Cell(Content), Cell(Content),        # every column and row is its content
+                Cell(:clip),                         # a cell is one line, cut at the edge
+                Cell(true),                          # visible
+                Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),  # margin, border, padding, style
+                Cell(Point2D(0, 0)),                 # scroll position
+                Cell(1),                             # top row
+                Cell(nothing),                       # no drag of the edge of a column
+                Cell(:auto), Cell(:auto),            # the bars of the cells
+                Cell(nothing),                       # no owner opens a cell
+                Cell(nothing))                       # no tooltip
+end
+
+"""
     get_widget_table_column_count(table) -> Int or nothing
 
 The count of the columns of `table`: the length of its data of the columns, or

@@ -96,6 +96,8 @@ end
 
 _is_empty_description(filter::ArrangementFilter) = isempty(filter.conditions)
 _is_empty_description(sort::ArrangementSort) = isempty(sort.keys)
+_is_empty_description(group::ArrangementGroup) = isempty(group.keys)
+_is_empty_description(first::ArrangementFirst) = first.count <= 0
 _is_empty_description(description) = false
 
 # The edit that makes `old`, the `d`-th description of `entry`, say what `new`

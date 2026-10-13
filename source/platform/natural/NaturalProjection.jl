@@ -150,7 +150,9 @@ function NaturalToGraphics(; measure::TextMeasure,
         # A document that a person arranged prints its document with the
         # arrangement in the context, through this renderer.
         Pair{Type,Any}[ArrangementDocument => ArrangingProjection(),
-                       ArrangementChips => ArrangementChipsToGraphics()],
+                       ArrangementChips => ArrangementChipsToGraphics(),
+                       CellVector{ArrangementGroupRow} => ChainingProjection(ArrangementGroupRowsToWidget(),
+                                                                             VerticalLayoutToGraphicsCanvas())],
         # layouts before widgets: a WidgetTable builds a GridLayout
         LayoutToGraphics(; theme = graphics_theme).dispatch,
         w2g.dispatch,                  # every widget node (incl. WidgetTable)

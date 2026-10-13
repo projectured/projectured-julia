@@ -134,3 +134,55 @@ the order in which the items show (`make_find_move`).
 @document struct ArrangementFind
     text::Any
 end
+
+"""
+    ArrangementGroup(keys, aggregates)
+
+A group that a person placed at a collection: one row for each value that the
+items have at the paths of `keys`, in the order in which the first item of each
+group comes, with the value of each `ArrangementAggregate` of `aggregates` over
+the items of the group ([`ArrangementGroupRow`](@ref)). The bar shows the group
+as one chip.
+"""
+@document struct ArrangementGroup
+    keys::CellVector
+    aggregates::CellVector
+end
+
+"""
+    ArrangementAggregate(key, operator)
+
+One value of each group: `operator` over the values at the path `key` inside the
+items of the group. `:count` counts the items, and `:sum`, `:mean`, `:minimum`
+and `:maximum` take the numbers among the values; a slice adds an operator with
+a method of [`compute_arrangement_aggregate`](@ref).
+"""
+@document struct ArrangementAggregate
+    key::Any
+    operator::Symbol
+end
+
+"""
+    ArrangementFirst(count)
+
+The first `count` items of a collection, in the order that the projections before
+it give. The bar shows it as one chip.
+"""
+@document struct ArrangementFirst
+    count::Int
+end
+
+"""
+    ArrangementGroupRow(columns, values, members)
+
+One row that a group makes: the names of its columns, the keys of the group and
+then its aggregates (`columns`), the value of each (`values`), and the indices of
+the items of the group among the items that the group read (`members`). A filter,
+a sort and the first items after a group act on these rows, and a key of a row
+is the name of a column.
+"""
+@document struct ArrangementGroupRow
+    columns::Any
+    values::Any
+    members::Any
+end

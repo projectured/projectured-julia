@@ -85,23 +85,7 @@ function print_document(p::RosterRowsToWidget, recursion, rows::CellVector, ctx)
     made = IdDict{Any,Any}()
     cells = CellVector(Computation(() -> _collect_row_cells(rows, made)))
     headers = CellVector(Cell[Cell(WidgetLabel(key)) for key in columns])
-    table = WidgetTable(Cell(Point2D(0, 0)), headers,
-                        CellVector(),                       # no row headers
-                        Cell(nothing),                      # no corner
-                        cells, Cell(:row_major),
-                        Cell(Computation(() -> WidgetTableRows(length(rows)))),
-                        Cell(WidgetTableColumns(length(columns))),
-                        Cell(1),                            # border width
-                        Cell(Content), Cell(Content),       # every column and row is its content
-                        Cell(:clip),                        # a cell is one line, cut at the edge
-                        Cell(true),                         # visible
-                        Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),  # margin, border, padding, style
-                        Cell(Point2D(0, 0)),                # scroll position
-                        Cell(1),                            # top row
-                        Cell(nothing),                      # no drag of the edge of a column
-                        Cell(:auto), Cell(:auto),           # the bars of the cells
-                        Cell(nothing),                      # no owner opens a cell
-                        Cell(nothing))                      # no tooltip
+    table = WidgetTable(headers, cells)
     layout = VerticalLayout(Any[table]; child_width = Fill)
     iomap = RosterRowsToWidgetIoMap(p, rows, layout, columns)
     # The layout and the table hold their part of the selection and of the part

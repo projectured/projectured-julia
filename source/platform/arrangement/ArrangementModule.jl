@@ -34,24 +34,28 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 import ..OperationModule: operation_reference, retarget_operation
 
 export ArrangementDocument, ArrangementEntry, ArrangementChips, ArrangementFilter, ArrangementCondition,
-       is_quick_text_condition, ArrangementSort, ArrangementSortKey, ArrangementFind
+       is_quick_text_condition, ArrangementSort, ArrangementSortKey, ArrangementFind,
+       ArrangementGroup, ArrangementAggregate, ArrangementFirst, ArrangementGroupRow
 export ArrangeCollectionOperation, make_arrangement_change_edit, make_first_arrangement, make_entry_removal_edit
 export make_arrangement_projection, ArrangingProjection, ArrangingIoMap, make_arranged_dispatch,
        find_arranged_projection, ArrangedChainingProjection, get_arranged_wrap_steps
 export PickingProjection, PickingIoMap, get_arrangement_value, find_arrangement_key_value, compute_filter_rows,
        is_condition_holding, compute_sort_rows, compare_arrangement_values
+export GroupingProjection, GroupingIoMap, compute_group_rows, compute_arrangement_aggregate
 export ArrangementBarProjection, ArrangementBarIoMap
 export compute_shown_rows, make_field_caret_reference, find_arranged_place, is_in_find_field,
        make_find_field_selection, make_first_find, make_find_move
 export get_arrangement_parts, describe_arrangement_part, describe_arranged_collection, describe_arrangement,
-       filter_collection!,
-       sort_collection!, make_filter_collection_operation, make_sort_collection_operation
+       filter_collection!, sort_collection!, group_collection!, limit_collection!,
+       make_filter_collection_operation, make_sort_collection_operation, make_group_collection_operation,
+       make_limit_collection_operation
 export find_arranged_item, make_arrangement_edits, make_first_arrangement_edits
 
 include("ArrangementDocument.jl")
 include("ArrangeCollectionOperation.jl")
 include("Arranging.jl")
 include("Picking.jl")
+include("Grouping.jl")
 include("ArrangementBar.jl")
 include("Finding.jl")
 include("ArrangementProgram.jl")

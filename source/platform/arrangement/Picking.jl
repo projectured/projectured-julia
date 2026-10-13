@@ -80,7 +80,7 @@ end
 # Whether `reference` names a part that a later stage of the chain drew, such as
 # the chips of the bar: the step stands at the place, which is the input and the
 # output of this stage alike, so the path passes through.
-_is_later_introduced(p::PickingProjection, reference) =
+_is_later_introduced(p::Projection, reference) =
     is_introduced_reference(reference) && !is_introduced_reference(reference, p)
 
 make_arrangement_projection(filter::ArrangementFilter) =
