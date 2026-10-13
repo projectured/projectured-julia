@@ -14,6 +14,8 @@ The documents are in three groups:
 
 As in Markdown, the domain does not use `@domain`. It declares `RstDocument` by hand, `RstInsertion` has a `value::Any` field, and no `@gestures` table exists. A text edit of a field goes through the shared splice.
 
+Each list declares the type of its elements, by the same rules as Markdown, and a write of another type fails at the write. A run of blocks declares `Document`, so it holds a part of any domain: the `elements` of the root, a section, a list item, a definition, a field, a block quote, a footnote, a table cell, an admonition and a directive, and the caption of a figure. A run of inlines declares `RstDocument`: the `content` of a paragraph, an emphasis and a strong, the `title` of a section and the `term` of a definition. The structural places are narrow: the items of a list, the fields of a field list, the rows of a table and the cells of a row, the lines of a line block, the entries of a table of contents, and the options of a directive. Each of them also admits `RstInsertion`, the intermediate state of an edit.
+
 ### Sections nest, the source does not
 
 RST writes a section as a title line under an adornment line, and the adornment character alone sets the depth. No character has a fixed meaning: the order in which a file first uses a character sets its depth in that file.

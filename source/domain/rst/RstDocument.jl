@@ -3,12 +3,12 @@
 
 abstract type RstDocument <: Document end
 
-# Wrap a plain vector as a `CellVector`, the way the hand-written keyword
-# constructors below need. The macro does this for a struct with exactly one
-# collection field (Rule C); a struct with two needs it by hand.
-_rst_cellvector(items) =
-    items isa CellVector ? items :
-    CellVector(Cell[x isa Cell ? x : Cell(x) for x in items])
+# Wrap a plain vector as a `CellVector` of the element type `T`, the way the
+# hand-written keyword constructors below need. The macro does this for a struct
+# with exactly one collection field (Rule C); a struct with two needs it by hand.
+_rst_cellvector(::Type{T}, items) where {T} =
+    items isa CellVector{T} ? items :
+    CellVector{T}(Cell[x isa Cell ? x : Cell(x) for x in items])
 
 # ── Insertion cursor ──────────────────────────────────────────────────────────
 
@@ -50,7 +50,7 @@ set_cell_value!(l::RstLiteral, v::AbstractString) = (set_cell_value!(getfield(l,
 Emphasised (italic) inline content (`*…*`), a sequence of inline nodes.
 """
 @document struct RstEmphasis <: RstDocument
-    content::CellVector = CellVector()
+    content::CellVector{RstDocument} = CellVector{RstDocument}()
 end
 
 @forward_vector_protocol on RstEmphasis to content
@@ -59,7 +59,7 @@ end
 Strong (bold) inline content (`**…**`), a sequence of inline nodes.
 """
 @document struct RstStrong <: RstDocument
-    content::CellVector = CellVector()
+    content::CellVector{RstDocument} = CellVector{RstDocument}()
 end
 
 @forward_vector_protocol on RstStrong to content
@@ -115,7 +115,7 @@ end
 A prose paragraph — a sequence of inline nodes.
 """
 @document struct RstParagraph <: RstDocument
-    content::CellVector = CellVector()
+    content::CellVector{RstDocument} = CellVector{RstDocument}()
 end
 
 @forward_vector_protocol on RstParagraph to content
@@ -136,7 +136,8 @@ A line block (`| …`) — lines whose breaks are significant. Each line is an
 [`RstParagraph`](@ref) of inline nodes.
 """
 @document struct RstLineBlock <: RstDocument
-    lines::CellVector = CellVector()
+    lines::CellVector{Union{RstParagraph, RstInsertion}} =
+        CellVector{Union{RstParagraph, RstInsertion}}()
 end
 
 @forward_vector_protocol on RstLineBlock to lines
@@ -147,7 +148,7 @@ list item may itself contain paragraphs and nested lists); `collapsed` hides
 them in the projection.
 """
 @document struct RstListItem <: RstDocument
-    elements::CellVector = CellVector()
+    elements::CellVector{Document} = CellVector{Document}()
     collapsed::Bool = false
 end
 
@@ -161,7 +162,8 @@ kept so emit reproduces it. `marker` is a required leading argument so
 """
 @document struct RstBulletList <: RstDocument
     marker::String
-    items::CellVector = CellVector()
+    items::CellVector{Union{RstListItem, RstInsertion}} =
+        CellVector{Union{RstListItem, RstInsertion}}()
     collapsed::Bool = false
 end
 
@@ -173,7 +175,8 @@ An enumerated list. `style` is the source's numbering form, `"1."` or `"1)"`.
 """
 @document struct RstEnumeratedList <: RstDocument
     style::String
-    items::CellVector = CellVector()
+    items::CellVector{Union{RstListItem, RstInsertion}} =
+        CellVector{Union{RstListItem, RstInsertion}}()
     start::Int = 1
     collapsed::Bool = false
 end
@@ -184,20 +187,21 @@ end
 One entry of a definition list: a term and the indented blocks that define it.
 """
 @document struct RstDefinitionItem <: RstDocument
-    term::CellVector = CellVector()
-    elements::CellVector = CellVector()
+    term::CellVector{RstDocument} = CellVector{RstDocument}()
+    elements::CellVector{Document} = CellVector{Document}()
     collapsed::Bool = false
 end
 
 RstDefinitionItem(term::AbstractVector; elements = [], collapsed::Bool = false) =
-    RstDefinitionItem(_rst_cellvector(term), _rst_cellvector(elements),
+    RstDefinitionItem(_rst_cellvector(RstDocument, term), _rst_cellvector(Document, elements),
                       Cell(collapsed), Cell(nothing))
 
 """
 A definition list — a sequence of [`RstDefinitionItem`](@ref)s.
 """
 @document struct RstDefinitionList <: RstDocument
-    items::CellVector = CellVector()
+    items::CellVector{Union{RstDefinitionItem, RstInsertion}} =
+        CellVector{Union{RstDefinitionItem, RstInsertion}}()
 end
 
 @forward_vector_protocol on RstDefinitionList to items
@@ -208,7 +212,7 @@ as blocks.
 """
 @document struct RstField <: RstDocument
     name::String
-    elements::CellVector = CellVector()
+    elements::CellVector{Document} = CellVector{Document}()
 end
 
 @forward_vector_protocol on RstField to elements
@@ -218,7 +222,8 @@ A field list — a sequence of [`RstField`](@ref)s. Directive options are *not*
 field lists: they belong to the directive that owns them.
 """
 @document struct RstFieldList <: RstDocument
-    fields::CellVector = CellVector()
+    fields::CellVector{Union{RstField, RstInsertion}} =
+        CellVector{Union{RstField, RstInsertion}}()
 end
 
 @forward_vector_protocol on RstFieldList to fields
@@ -228,7 +233,7 @@ A block quote — an indented run of blocks with no other marker. `attribution`
 is the `-- Author` line, empty when absent.
 """
 @document struct RstBlockQuote <: RstDocument
-    elements::CellVector = CellVector()
+    elements::CellVector{Document} = CellVector{Document}()
     attribution::String = ""
     collapsed::Bool = false
 end
@@ -240,7 +245,7 @@ end
 # leading field and there is none. An attributed quote needs the arity-2 form
 # by hand.
 RstBlockQuote(elements::AbstractVector, attribution::AbstractString; collapsed::Bool = false) =
-    RstBlockQuote(_rst_cellvector(elements), Cell(String(attribution)),
+    RstBlockQuote(_rst_cellvector(Document, elements), Cell(String(attribution)),
                   Cell(collapsed), Cell(nothing))
 
 """
@@ -275,7 +280,7 @@ the substitution expands to.
 """
 @document struct RstSubstitutionDefinition <: RstDocument
     name::String
-    body::Any = nothing
+    body::Union{RstDocument, Nothing} = nothing
 end
 
 """
@@ -283,7 +288,7 @@ A footnote (`.. [1] text`). `label` is the text between the brackets.
 """
 @document struct RstFootnote <: RstDocument
     label::String
-    elements::CellVector = CellVector()
+    elements::CellVector{Document} = CellVector{Document}()
 end
 
 @forward_vector_protocol on RstFootnote to elements
@@ -294,7 +299,7 @@ end
 One cell of a grid table — a sequence of blocks.
 """
 @document struct RstTableCell <: RstDocument
-    elements::CellVector = CellVector()
+    elements::CellVector{Document} = CellVector{Document}()
 end
 
 @forward_vector_protocol on RstTableCell to elements
@@ -303,7 +308,8 @@ end
 One row of a grid table — a sequence of [`RstTableCell`](@ref)s.
 """
 @document struct RstTableRow <: RstDocument
-    cells::CellVector = CellVector()
+    cells::CellVector{Union{RstTableCell, RstInsertion}} =
+        CellVector{Union{RstTableCell, RstInsertion}}()
 end
 
 @forward_vector_protocol on RstTableRow to cells
@@ -315,8 +321,9 @@ the `+===+` separator marks as the head; it is `0` for a headless table.
 """
 @document struct RstGridTable <: RstDocument
     header_rows::Int
-    rows::CellVector = CellVector()
-    widths::Any = Int[]
+    rows::CellVector{Union{RstTableRow, RstInsertion}} =
+        CellVector{Union{RstTableRow, RstInsertion}}()
+    widths::Vector{Int} = Int[]
     collapsed::Bool = false
 end
 
@@ -349,7 +356,8 @@ reference, it does not read the file.
     end_at::String = ""
     start_after::String = ""
     end_before::String = ""
-    extra::CellVector = CellVector()
+    extra::CellVector{Union{RstDirectiveOption, RstInsertion}} =
+        CellVector{Union{RstDirectiveOption, RstInsertion}}()
     collapsed::Bool = false
 end
 
@@ -361,14 +369,16 @@ block that follows the options.
     path::String
     align::String = ""
     width::String = ""
-    caption::CellVector = CellVector()
-    extra::CellVector = CellVector()
+    caption::CellVector{Document} = CellVector{Document}()
+    extra::CellVector{Union{RstDirectiveOption, RstInsertion}} =
+        CellVector{Union{RstDirectiveOption, RstInsertion}}()
 end
 
 RstFigure(path::AbstractString; align::AbstractString = "", width::AbstractString = "",
           caption = [], extra = []) =
     RstFigure(Cell(String(path)), Cell(String(align)), Cell(String(width)),
-              _rst_cellvector(caption), _rst_cellvector(extra), Cell(nothing))
+              _rst_cellvector(Document, caption),
+              _rst_cellvector(Union{RstDirectiveOption, RstInsertion}, extra), Cell(nothing))
 
 """
 `.. code-block:: language` — a verbatim block with a language for colouring.
@@ -377,7 +387,8 @@ RstFigure(path::AbstractString; align::AbstractString = "", width::AbstractStrin
 @document struct RstCodeBlock <: RstDocument
     language::String
     code::String = ""
-    extra::CellVector = CellVector()
+    extra::CellVector{Union{RstDirectiveOption, RstInsertion}} =
+        CellVector{Union{RstDirectiveOption, RstInsertion}}()
     collapsed::Bool = false
 end
 
@@ -389,7 +400,8 @@ end
     width::String = ""
     height::String = ""
     alt::String = ""
-    extra::CellVector = CellVector()
+    extra::CellVector{Union{RstDirectiveOption, RstInsertion}} =
+        CellVector{Union{RstDirectiveOption, RstInsertion}}()
 end
 
 """
@@ -401,7 +413,8 @@ end
     width::String = ""
     height::String = ""
     loop::Bool = true
-    extra::CellVector = CellVector()
+    extra::CellVector{Union{RstDirectiveOption, RstInsertion}} =
+        CellVector{Union{RstDirectiveOption, RstInsertion}}()
 end
 
 """
@@ -409,7 +422,8 @@ end
 """
 @document struct RstAudio <: RstDocument
     path::String
-    extra::CellVector = CellVector()
+    extra::CellVector{Union{RstDirectiveOption, RstInsertion}} =
+        CellVector{Union{RstDirectiveOption, RstInsertion}}()
 end
 
 """
@@ -420,7 +434,7 @@ to a paragraph in `elements`, and emit writes the indented form.
 """
 @document struct RstAdmonition <: RstDocument
     kind::String
-    elements::CellVector = CellVector()
+    elements::CellVector{Document} = CellVector{Document}()
     collapsed::Bool = false
 end
 
@@ -434,14 +448,17 @@ end
     maxdepth::Int = 0
     titlesonly::Bool = false
     glob::Bool = false
-    entries::CellVector = CellVector()
-    extra::CellVector = CellVector()
+    entries::CellVector{Union{RstText, RstInsertion}} =
+        CellVector{Union{RstText, RstInsertion}}()
+    extra::CellVector{Union{RstDirectiveOption, RstInsertion}} =
+        CellVector{Union{RstDirectiveOption, RstInsertion}}()
 end
 
 RstToctree(entries::AbstractVector; maxdepth::Integer = 0, titlesonly::Bool = false,
            glob::Bool = false, extra = []) =
     RstToctree(Cell(Int(maxdepth)), Cell(titlesonly), Cell(glob),
-               _rst_cellvector(entries), _rst_cellvector(extra), Cell(nothing))
+               _rst_cellvector(Union{RstText, RstInsertion}, entries),
+               _rst_cellvector(Union{RstDirectiveOption, RstInsertion}, extra), Cell(nothing))
 
 """
 `.. math::` — a display formula, kept as its LaTeX source.
@@ -466,7 +483,8 @@ one derives from, empty when there is none.
 @document struct RstRoleDefinition <: RstDocument
     name::String
     base::String = ""
-    extra::CellVector = CellVector()
+    extra::CellVector{Union{RstDirectiveOption, RstInsertion}} =
+        CellVector{Union{RstDirectiveOption, RstInsertion}}()
 end
 
 """
@@ -478,15 +496,17 @@ the text on the directive line, `options` the `:name: value` lines, and
 @document struct RstDirective <: RstDocument
     name::String
     argument::String = ""
-    options::CellVector = CellVector()
-    elements::CellVector = CellVector()
+    options::CellVector{Union{RstDirectiveOption, RstInsertion}} =
+        CellVector{Union{RstDirectiveOption, RstInsertion}}()
+    elements::CellVector{Document} = CellVector{Document}()
     collapsed::Bool = false
 end
 
 RstDirective(name::AbstractString, argument::AbstractString; options = [],
              elements = [], collapsed::Bool = false) =
-    RstDirective(Cell(String(name)), Cell(String(argument)), _rst_cellvector(options),
-                 _rst_cellvector(elements), Cell(collapsed), Cell(nothing))
+    RstDirective(Cell(String(name)), Cell(String(argument)),
+                 _rst_cellvector(Union{RstDirectiveOption, RstInsertion}, options),
+                 _rst_cellvector(Document, elements), Cell(collapsed), Cell(nothing))
 
 # ── Section and root ──────────────────────────────────────────────────────────
 
@@ -506,23 +526,23 @@ a title that carries the adornment above as well as below.
 @document struct RstSection <: RstDocument
     level::Int
     adornment::String = "="
-    title::CellVector = CellVector()
-    elements::CellVector = CellVector()
+    title::CellVector{RstDocument} = CellVector{RstDocument}()
+    elements::CellVector{Document} = CellVector{Document}()
     overline::Bool = false
     collapsed::Bool = false
 end
 
 RstSection(level::Integer, adornment::AbstractString, title::AbstractVector;
            elements = [], overline::Bool = false, collapsed::Bool = false) =
-    RstSection(Cell(Int(level)), Cell(String(adornment)), _rst_cellvector(title),
-               _rst_cellvector(elements), Cell(overline), Cell(collapsed), Cell(nothing))
+    RstSection(Cell(Int(level)), Cell(String(adornment)), _rst_cellvector(RstDocument, title),
+               _rst_cellvector(Document, elements), Cell(overline), Cell(collapsed), Cell(nothing))
 
 """
 The whole RST document — a top-level sequence of blocks. `collapsed` hides
 the body behind a marker in the projection.
 """
 @document struct RstRoot <: RstDocument
-    elements::CellVector = CellVector()
+    elements::CellVector{Document} = CellVector{Document}()
     collapsed::Bool = false
 end
 
