@@ -1,6 +1,6 @@
 # The editor always answers the person
 
-> **Status (2026-10-13): DECIDED, NOT STARTED, FOUR POINTS OPEN.** The owner asked
+> **Status (2026-10-13): DECIDED, NOT STARTED.** The owner asked
 > on 2026-10-12: "The editor cannot become unresponsive in any circumstances.
 > [...] If this needs new tasks, threads, etc. then we should design it that way.
 > Of course, race conditions, dead locks, live locks should be avoided at all
@@ -9,10 +9,9 @@
 > **Decided by the owner, 2026-10-13:** D1 (option A), D2 (option B), D3
 > (option A), D4 (option A), D5 (option A), D6 (option C), D7, D8, the rules a,
 > b, c and d of §5.7 with d in its narrow form, the permission P1 for one
-> sentence of a sealed file, and step 6 for formulas.
->
-> **Open:** the points A1 to A4 that the review of 2026-10-13 found (§8.1), one
-> at a time. Step 6 still designs the gestures of the edit mode of a formula.
+> sentence of a sealed file, step 6 for formulas, and the points A1 to A4 of the
+> review (§8.1). All decisions are made. Step 6 still designs the gestures of
+> the edit mode of a formula.
 >
 > This plan takes in `a-long-evaluation-does-not-hold-the-editor.md` (on the
 > branch `plan-evaluation-off-editor`, deferred on 2026-10-09),
@@ -359,7 +358,9 @@ time and the stop flag of the unit.
   between two of its operations. That is the same as code that throws an error,
   which today needs no repair either.
 - **A model stream and an ACP request are not part of a unit.** They run on the
-  task of a turn. What a stop of a unit does to the turn that made the call is A2.
+  task of a turn. A stop of a unit that an assistant turn of this editor made also
+  cancels that turn, as the Stop button of the assistant does (A2). For an
+  external MCP client, only the call ends.
 
 ### 5.7 Who touches a document during a code unit
 
@@ -562,34 +563,40 @@ nothing.
   from the print in the printer context, and a mark that the reader adds to each
   edit. The model needs none of them.
 
-### 8.1 Open points of the review of 2026-10-13
+### 8.1 The points of the review of 2026-10-13
 
-Each one waits for the owner. The recommendation is mine.
+**Decided by the owner, 2026-10-13: option a of each point.**
 
 - **A1. The text state of the backend.** A unit can call `write_image`, which
   starts SDL video and TTF on the thread of the unit, and any print-side
   computation of a unit measures text with the shared `_font_cache` (§3.4). A held
   frame that drew text would use the same cache and TTF on thread 1 at the same
-  time. Recommended: a held frame draws only textures that `prepare_held_frames!`
+  time. Decided: a held frame draws only textures that `prepare_held_frames!`
   made before the unit started, so the unit owns the text state as it owns the
   cells; and the offscreen render of `write_image` needs no SDL video, so it can
-  run on the thread of a unit.
+  run on the thread of a unit. The other options were b, a lock on the font cache
+  and TTF, which can make thread 1 wait as long as the unit renders text, and c,
+  backend calls of a unit that thread 1 runs in a held frame.
 - **A2. A stop of a unit that an assistant turn made.** The stop ends the code,
   and the tool answers that it was interrupted. The turn then goes on, and the
-  model can run the code again. Recommended: a stop of a unit that an assistant
-  turn of this editor made also cancels that turn, as the Stop button of the
-  assistant does. For an external MCP client, only the call ends.
+  model can run the code again. Decided: a stop of a unit that an assistant turn
+  of this editor made also cancels that turn, as the Stop button of the assistant
+  does. For an external MCP client, only the call ends. The other option was b,
+  only the unit stops.
 - **A3. A document that enters the window.** A formula computes at the load of a
   document (D8), and no hook says when a document enters the window (§3.4).
-  Recommended: `acquire_document!(editor, document)` and
+  Decided: `acquire_document!(editor, document)` and
   `AcquireDocumentOperation`, the counterpart of `release_document!`, which the
   open of a document adds. The formula domain starts its computations there. This
-  is a new mechanism.
+  is a new mechanism. The other option was b, no start at load, so a sheet opens
+  with no values.
 - **A4. What a unit is.** Each streamed event of a turn and each line of output of
   a terminal is a posted function. If each posted function were a unit, each would
-  cost a handoff to another thread and back, up to 64 in one drain. Recommended:
-  one unit for each drain of the inbox that holds a posted function, which
-  applies the posted operations and functions of the drain in order (§5.4).
+  cost a handoff to another thread and back, up to 64 in one drain. Decided: one
+  unit for each drain of the inbox that holds a posted function, which applies
+  the posted operations and functions of the drain in order (§5.4). The other
+  options were b, each posted function a unit, and c, only posts that the caller
+  marks as long.
 
 ## 9. The steps (after the decisions)
 
