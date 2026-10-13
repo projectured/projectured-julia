@@ -1075,11 +1075,12 @@ worktree. The three domains test different parts of the model:
   No example uses a reference from a Julia file to another file today. The Julia case of the
   test is marked `@test_broken` with this reason (`11f4fc5eb`).
 
-  *The examples of Markdown, checked after the landing (2026-10-13):* the Markdown examples
-  give 437 failures, at `TypeinTest.jl:639` and `NavigationTest.jl:180`. The same examples
-  with the `MarkdownDocument.jl` of `ad4ef07b6` give the same failures, example by example, so
-  the landing makes none of them. They are in
-  [the-suites-of-main-pass-again.md](the-suites-of-main-pass-again.md). `markdown/table` gives
+  *The examples of Markdown, checked after the landing (2026-10-13):* the check ran
+  `test_example` on each catalog entry, which also runs the type-in and the position walk
+  where `test_catalog` does not apply them, so many entries fail at `TypeinTest.jl:639` and
+  `NavigationTest.jl:180` by design of that call. The same call with the `MarkdownDocument.jl`
+  of `ad4ef07b6` gives the same failures, example by example, so the landing makes none.
+  `test_catalog(domain = :markdown)` passes on `main` at `a5a408b83`. `markdown/table` gives
   4 more passes in each view: the list rule stores `alignments::Vector{Symbol}` as a
   `CellVector{Symbol}`, and the printer walk reaches its cells.
 
@@ -1097,8 +1098,9 @@ worktree. The three domains test different parts of the model:
   `_rst_cellvector` takes the element type, so the hand-written constructors make typed lists.
   The inventory ran in the `:record` mode over `test_rst`, `test_file_project`,
   `test_documents` and the 129 RST examples, and found no RST record. `test_rst` passes in the
-  `:throw` mode, 111 of 111. The RST examples give 4001 failures at the same two places; the
-  `RstDocument.jl` of `main` gives the same failures, example by example. `rst/grid_table`
+  `:throw` mode, 111 of 111. The same call of `test_example` on the RST entries gives the same
+  failures with the `RstDocument.jl` of `main`, example by example, and
+  `test_catalog(domain = :rst)` passes on `main` at `a5a408b83`. `rst/grid_table`
   gives 3 more passes in each view, from `widths`, by the list rule.
 
   *Math, landed with the branch `strict-types-math` (2026-10-13):* math is a tree of expressions,
@@ -1113,9 +1115,9 @@ worktree. The three domains test different parts of the model:
   not be saved as text, and `MathOperand` leaves it out. The inventory ran in the `:record`
   mode over `test_math`, `test_formula`, `test_file_project`, `test_documents` and the 79
   math, formula and natural examples, and found no math record. `test_math` (182) and
-  `test_formula` (187) pass in the `:throw` mode. The examples give 1188 failures at the same
-  two places as Markdown and RST; the `MathDocument.jl` of `main` gives the same failures,
-  example by example. The position walk of the `formula` example gives 6 passes fewer in the
+  `test_formula` (187) pass in the `:throw` mode. The same call of `test_example` gives the
+  same failures with the `MathDocument.jl` of `main`, example by example, and
+  `test_catalog(domain = :math)` passes on `main` at `a5a408b83`. The position walk of the `formula` example gives 6 passes fewer in the
   sweep, but its count is not stable: in one process on the branch the first walk reaches
   334 states and three walks after it reach 322, the count of `main`.
 

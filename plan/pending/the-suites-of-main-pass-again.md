@@ -33,16 +33,12 @@ known; elsewhere the origin is not found yet.
 5. **`test_parse_markdown_blocks`, 1 failure** (`ConversationParsingTest.jl:48`). A fenced code
    block of the language `unknownlang` gives no `TextBlock` that holds that word.
 6. **The position walk of the atomic example `widget/progress_bar/graphics`, 1 failure**
-   (`NavigationTest.jl:180`). The walk reaches no state. The same assertion fails 21 times in
-   the 51 Markdown examples, 86 times in the 129 RST examples and 36 times in the 79 math,
-   formula and natural examples (`test_example` of each, on `main` at `59703dd8f` and
-   `22723b1ba`, 2026-10-13).
-7. **The type-in of the atomic example `text/line/graphics`, 1 failure** (`TypeinTest.jl:639`).
-   The same assertion fails 416 times in the Markdown examples, 3915 times in the RST
-   examples and 1152 times in the math examples, in the same runs. A message of the RST runs: `[backspace .content{0}] no cursor
-   in Graphics image for string "Frame replication"` for `rst/text/syntax`. The strict types
-   of Markdown, RST and math make none of these: the same examples with the files of before give
-   the same failures, example by example.
+   (`NavigationTest.jl:180`). The walk reaches no state.
+7. **The type-in of the atomic example `text/line/graphics`, 1 failure** (`TypeinTest.jl:639`,
+   in `test_catalog_typeins`). Backspace at the start of the first string of the second line,
+   `.elements[2].elements[1].content{0}`, gives `ReplaceTextRangeOperation(⌶{7:12})`, and the
+   walk expects no edit there. `test_catalog` of Markdown, RST and math passes on `main` at
+   `a5a408b83` (35803, 74477 and 44289 tests).
 8. **`test_application`, 2 failures and 2 errors.**
    - "the Evaluator button opens an evaluator, and Enter evaluates what is typed"
      (`ApplicationTest.jl:1066` and `:1077`): the window draws no separate text `x + 1` for a
