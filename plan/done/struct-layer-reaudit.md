@@ -54,7 +54,8 @@ stay.
   exact-text test; `struct.md` in full. Checked: `test_cell_struct` 96,
   `test_cell_struct_plan` 69, the walkthrough 2, the kernel suite 4504 of 4504, the
   survey of `CellStructModule` clean, the documentation guard.
-- [ ] 4. An audit that finds nothing, then the seal on the owner's word.
+- [x] 4. An audit that finds nothing, then the seal on the owner's word. **The owner,
+  2026-10-13:** "yes, seal it".
   - The second pass found R-1 (a comment promised `Point(1)`, which no Rule Y
     makes), R-2 (the plan form with a `source` wrote the line nodes of the default
     expressions that the copy shared with the caller), R-3 (a fragment header), and

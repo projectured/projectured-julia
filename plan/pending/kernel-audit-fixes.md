@@ -2176,7 +2176,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - Cost: ReactiveCell.jl 🔒 and CellModule.jl 🔒 (the primitive and its export), cell.md; IoMapReconcile.jl; CellTest.jl and a test that the child list does not depend on a cell that only a child printer reads. The name is a decision; run_untracked starts with a verb. Size S.
 
 **L04-2** (Low): Must the generated setter refuse a cell as a value, at the cost of one type test on each write?
-- **Decided by the owner, 2026-10-13: A.** [struct-layer-reaudit.md](struct-layer-reaudit.md) holds the work.
+- **Decided by the owner, 2026-10-13: A.** [struct-layer-reaudit.md](../done/struct-layer-reaudit.md) holds the work.
 
 - **A:** The generated setter throws an ArgumentError when the value is a cell, and the message points to getfield for a shared cell. The setter that @document generates (_emit_accessors) gets the same check.
 - **B:** Keep the setter as it is, and state in PAR-NO-NESTED-CELL that a write through the setter can store a cell as a value.
@@ -2185,7 +2185,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - Cost: CellStruct.jl 🔒 (the generated setter) and DocumentMacro.jl (_emit_accessors); CellStructTest.jl (the set that L04-10 left for this decision). Every struct of cells gets the check, so a run of the suites and of omnet-julia must show that no writer stores a cell through the setter. Size S.
 
 **L04-3** (Low): What does a Computation argument give to a type parameter?
-- **Decided by the owner, 2026-10-13: C.** [struct-layer-reaudit.md](struct-layer-reaudit.md) holds the work.
+- **Decided by the owner, 2026-10-13: C.** [struct-layer-reaudit.md](../done/struct-layer-reaudit.md) holds the work.
 
 - **A:** A Computation gives Any: add get_cell_struct_argument_type(::Computation) = Any. A bounded parameter (A<:Real) then throws a TypeError.
 - **B:** A Computation throws an ArgumentError that asks for the explicit form T{A}(...).
@@ -2194,7 +2194,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - Cost: CellStruct.jl 🔒 (the constructor that infers the parameters, and get_cell_struct_argument_type); DocumentMacro.jl (its own such constructor calls the same function); CellStructTest.jl. No caller in the three repositories passes a Computation to a parametric struct today (SequentialEvent{A} of omnet-julia uses ImmutableCell, which refuses a Computation). Size S.
 
 **L04-4** (Low): Does the sync ask for the kind of each field, or does a struct of mixed kinds never reach the sync?
-- **Decided by the owner, 2026-10-13: B.** [struct-layer-reaudit.md](struct-layer-reaudit.md) holds the work.
+- **Decided by the owner, 2026-10-13: B.** [struct-layer-reaudit.md](../done/struct-layer-reaudit.md) holds the work.
 
 - **A:** Export a query of the kind of one field (for example get_cell_struct_field_kind(x, name)), and let every walk ask each slot.
 - **B:** Keep get_cell_struct_kind as it is. The field walk already takes the kind from the cell of each slot (L10-17). The collection walk and the list sync take the kind of the first field, and their docstrings say so.
@@ -2203,7 +2203,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - Cost: Text only: DocumentSync.jl and the sync_document! docstring in DocumentInterface.jl; no sealed file. A test in DocumentContractTest.jl with a DC layout of mixed kinds. Size S.
 
 **L04-5** (Low): Does @cell_struct apply Rule Y, as macros.md says, or only @document?
-- **Decided by the owner, 2026-10-13: B.** [struct-layer-reaudit.md](struct-layer-reaudit.md) holds the work.
+- **Decided by the owner, 2026-10-13: B.** [struct-layer-reaudit.md](../done/struct-layer-reaudit.md) holds the work.
 
 - **A:** build_cell_struct_exprs calls the builder of the positional constructors, so @cell_struct, @iomap and @projection apply Rule Y, after a check that no generated method collides with a hand-written one.
 - **B:** Only @document applies Rule Y. Correct macros.md:48, and say it in the docstring of build_cell_struct_positional_constructors.
@@ -2211,7 +2211,7 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - Cost: B: macros.md, and one sentence in a docstring of CellStruct.jl 🔒 if you want it there. A: CellStruct.jl 🔒, and a load of every package of the three repositories with --warn-overwrite=yes. B is size S; A is size M.
 
 **L04-6** (Low): Shall the generated methods point to the declaration of the struct, with a new source argument on the exported builders?
-- **Decided by the owner, 2026-10-13: A.** [struct-layer-reaudit.md](struct-layer-reaudit.md) holds the work.
+- **Decided by the owner, 2026-10-13: A.** [struct-layer-reaudit.md](../done/struct-layer-reaudit.md) holds the work.
 
 - **A:** build_cell_struct_exprs takes a keyword source (default nothing) and puts it in place of the line nodes of the parts that it generates. @cell_struct, @document, @iomap and @projection pass __source__.
 - **B:** Keep the kernel file as the location of the generated methods.
