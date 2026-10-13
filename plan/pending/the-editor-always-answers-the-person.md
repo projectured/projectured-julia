@@ -1,6 +1,6 @@
 # The editor always answers the person
 
-> **Status (2026-10-13): IN PROGRESS, step 1 done, step 2 under way.** The work runs on the branch
+> **Status (2026-10-14): IN PROGRESS, steps 1 and 2 done.** The work runs on the branch
 > `editor-always-answers`, in the worktree `projectured-julia-answers`. The owner
 > asked on 2026-10-12: "The editor cannot become unresponsive in any
 > circumstances. [...] If this needs new tasks, threads, etc. then we should
@@ -662,7 +662,7 @@ nothing.
     word of the owner, and it belongs to step 2, where the real loop exists.
     GNOME was not watched for "not responding": the gaps stayed far under its
     5 s, except in the loop with no call (2 s).
-- [ ] **2. Units in the kernel editor layer:** `CodeUnit`, `run_code_unit!`, the
+- [x] **2. Units in the kernel editor layer:** `CodeUnit`, `run_code_unit!`, the
   task pinned to a default thread that is not the loop's and the fallback inline,
   the start and the end of a unit, the held frames while the loop waits,
   `run_on_editor_task!` for the owner, the faults of the held frames, the
@@ -712,6 +712,15 @@ nothing.
     frame records the foreign writes as faults (origin `:cell_writer`). The
     docstring of `CellModule.jl` lists the new fragment too. The kernel suite:
     4513 of 4513, and no kernel test makes a foreign write.
+  - The suites above the kernel, against `main` (`a0ac19f66`): the platform suite
+    is the same on both, 152468 of 152477 with the same 2 failures and 7 broken
+    on `main` (`InterfaceApiTest.jl:46,49`, `WidgetProgressRing`). The MCP suite
+    found 3 assertions of the old rule, "a tool runs on the task of the loop";
+    they now assert the rule of A4, as `InboxTest.jl` does, and the suite passes
+    495 of 495. The precompile workload of the platform runs an editor and wrote
+    a slow-frame line, so a frame reports nothing while Julia generates output.
+  - Not done: the delay from a key press to its picture, a measurement of time
+    that needs an idle machine and the word of the owner.
   - [x] 2f. The record of a slow frame (`cd4f19fc3`): the loop times each feed, the
     read, each operation, the print and the fault report, and after a frame that
     took longer than `SLOW_FRAME_SECONDS` (1 s), without the time of its held
