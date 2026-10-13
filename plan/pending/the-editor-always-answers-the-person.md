@@ -6,10 +6,10 @@
 > dead locks, live locks should be avoided at all costs." Nothing is built.
 >
 > **Decided by the owner, 2026-10-13:** D1 (option A), D2 (option B), D3
-> (option A), D4 (option A), D7, the
+> (option A), D4 (option A), D5 (option A), D7, the
 > rules a, b, c and d of §5.7 with d in its narrow form, the permission P1 for
 > one sentence of a sealed file, and step 6 for formulas. **Open:** the
-> decisions D5, D6 and D8, one at a time.
+> decisions D6 and D8, one at a time.
 >
 > This plan takes in three earlier plans: `a-long-evaluation-does-not-hold-the-editor.md`
 > (on the branch `plan-evaluation-off-editor`, deferred on 2026-10-09),
@@ -333,7 +333,7 @@ B is ever needed.
 | An MCP request while a unit runs | waits with no bound | waits in the inbox with the bound T3 (30 s), then an error result (D5) |
 | An ACP permission request | waits for the person | the same; the stop also releases it |
 | A model stream, an ACP agent, a terminal, a task group | starved while a frame runs | run during a unit, because thread 1 waits in held frames |
-| The MCP start | waits up to 10 s on the loop | the same |
+| The MCP start | waits up to 10 s on the loop | waits on a service task (T0) |
 | The person closes a window while a unit runs | nothing happens | D4 |
 
 ## 7. What Julia can not give
@@ -385,9 +385,18 @@ B is ever needed.
   the busy bar, and the confirm quits the process. No save is possible during a
   unit, because the unit owns the documents. The other options were B, the close
   waits for the end of the unit, and C, the close quits at once.
-- **D5. POLICY-6-inbox A and POLICY-6-time T0, T3 and T4** of
-  `kernel-audit-fixes.md` become part of this plan. Recommended: yes. The plan
-  needs I3, I5 and T3, and T0 and T4 agree with it.
+- **D5. Decided by the owner, 2026-10-13: A.** POLICY-6-inbox A (I1 to I6) and
+  T0, T3 and T4 of POLICY-6-time (`kernel-audit-fixes.md:2226-2272`) are part of
+  this plan, with two changes for units:
+  - I3: the queue with no bound takes the posts of the owner of the cells, which
+    is the loop task or the running unit. The inbox is not drained during a unit,
+    so a unit that posts into a full inbox would wait for the loop that waits for
+    it.
+  - T4: the description of the code tool says that the person can not edit while
+    the code runs, so long work belongs in a task that posts its results.
+  T0 moves the MCP start, which waits up to 10 s on the loop, to a service task.
+  T1, T2, T5 and T6 stay in `kernel-audit-fixes.md`. The other options were B,
+  only I3, I5 and T3, and C, nothing until the audit plan decides POLICY-6.
 - **D6. The stop of model code that waits:** A, an interrupt, with the small race
   of §7; or B, no interrupt, so a stop acts only on our own waits, and otherwise
   the person can wait or quit. Recommended: A, only after a stop through our own
@@ -423,10 +432,13 @@ B is ever needed.
   task on thread 2 and its supervisor, the handoff, the held frames while the
   loop waits, `run_on_editor_task!` for the owner, the fallback on one thread,
   the faults of the held frames, the sentence of P1 in `FaultStore.jl` and
-  `fault.md`, POLICY-6-inbox (D5), and the record of a slow frame (§5.8).
+  `fault.md`, POLICY-6-inbox with I3 for a unit (D5), and the record of a slow
+  frame (§5.8).
 - [ ] **3. The stop and the bounds:** the stop flag, our own waits, the interrupt
-  (D6), the repairs after a stop, T3, the budget of T4 in the description of the
-  code tool, and the rules a to d of §5.7.
+  (D6), the repairs after a stop, T0 with the MCP start on a service task, T3,
+  T4 (an API search and a resource read that read no document run on the calling
+  task, and the budget in the description of the code tool), and the rules a to
+  d of §5.7.
 - [ ] **4. The backends:** SDL (the pump, the retained present, the resize, the
   pointer, the busy bar, the stop control, the close), the web backend (a busy
   message and the `wait` pointer), the console backend (a status line), and the

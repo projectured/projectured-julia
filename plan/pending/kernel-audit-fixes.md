@@ -2225,6 +2225,11 @@ Each question shows its options and my recommendation, marked **Recommended (min
 
 #### POLICY-6-inbox
 
+**Decided by the owner, 2026-10-13: A, as part of
+[the-editor-always-answers-the-person.md](the-editor-always-answers-the-person.md)
+(D5).** That plan holds the work. Its change: I3 also takes the posts of a running
+code unit, which owns the cells while it runs.
+
 - **A:** Three states and two queues: a bounded inbox for other tasks, a queue with no bound for the editor task and for posts before the loop, and a close of both at the end of the loop.
 - **B:** Code on the editor task applies an operation at once and never posts; a feed drain calls a guarded apply (the report fix of L21-5).
 - **C:** One inbox with no bound for every task.
@@ -2240,6 +2245,11 @@ Each question shows its options and my recommendation, marked **Recommended (min
 - Cost: editor/Inbox.jl, Editor.jl (a queue and the state), EditorLoop.jl (the close and the refusal of a second run), feed/FeedInterface.jl (docstring), InboxTest.jl; no sealed file; omnet-julia Watch.jl may catch the exception to stop its driver. M.
 
 #### POLICY-6-time
+
+**Decided by the owner, 2026-10-13: T0, T3 and T4, as part of
+[the-editor-always-answers-the-person.md](the-editor-always-answers-the-person.md)
+(D5).** That plan holds the work. Its change: the budget of T4 says that the
+person can not edit while model code runs. T1, T2, T5 and T6 stay open here.
 
 - **A:** Bound each wait by what it waits for: a stream by its silence, a call by its wait in the queue, a tool by a stated budget. A round and a turn get no clock of their own. A person can cancel a turn.
 - **B:** Give each round (and each turn) one wall-clock limit that the event wrapper of the loop checks, as the report of L20-1 proposes.
