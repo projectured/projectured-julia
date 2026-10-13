@@ -326,3 +326,14 @@ instance, so sending the clock in is fine."
   invalidates 10 of the 121 cells of the document; the guards pass except the known
   style failure; the survey finds no gap in `ClockModule`.
 
+Checked on c345fe385, each suite of `test_all` in its own process (a nested
+`test_all` grew to 16 GB and printed nothing): `test_platform` 11.4 minutes, where
+the slowdown had made it more than an hour. Every failure of the run is outside the
+cell engine: the same counts with the same-value rule turned off, and a detector of
+a write that reaches a computing cell through another reader (the one case where
+the walk of item 1 differs from the marking walk) found none in each failing test.
+The failures: the style guard (`TextDocument.jl:438`), the external agent turn
+(`editor.tools` of a stand-in editor in the MCP adapter), the xml REPL walks (no
+projection of a `DocumentInsertion`), the julia example in a scroll pane, and
+single tests of the application, the catalog, a typein and a navigation.
+
