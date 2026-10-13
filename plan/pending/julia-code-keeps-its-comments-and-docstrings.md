@@ -380,7 +380,14 @@ commit. Nothing lands on `main` before the owner approves it.
     the comment. `test_julia_file_view()` runs for the changed example.
     `test_fsm()` runs for the changed assertion.
 
-- [ ] **Step 4: a comment stands where a statement stands.**
+- [x] **Step 4: a comment stands where a statement stands.** *Done 2026-10-13.*
+  `test_julia_typein()` passes 12, `test_fsm()` 177 and `test_process()` 315. The
+  expression places are the guard of a transition and the default of a variable
+  in `FsmToJuliaCode`, and the condition of a decision and of a loop, the
+  variable and the iterable of a loop and a returned value in
+  `ProcessToJuliaCode`. An action and an entry block are statement places, so
+  their comments go into the generated code. The type-in commit does not change
+  (Q3).
   - Add `get_julia_expression_without_comments`. Call it in `FsmToJuliaCode` and
     in `ProcessToJuliaCode` at each expression place.
   - Test: `test_fsm()` and `test_process()` with a guard and a condition that hold

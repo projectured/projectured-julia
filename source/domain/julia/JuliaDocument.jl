@@ -354,6 +354,25 @@ the `#`, as written. It is one line.
 end
 
 """
+    get_julia_expression_without_comments(document) -> document
+
+The expression that `document` holds without its comments: the subject of an
+end-of-line comment, or the one statement of a block whose other statements are
+comments. Any other document comes back as it is. A domain that puts the code of
+a person into an expression place, such as the condition of an `if`, calls it,
+because a comment there holds the code that the print puts after it.
+"""
+function get_julia_expression_without_comments(document)
+    document isa JuliaEndOfLineComment &&
+        return get_julia_expression_without_comments(document.subject)
+    if document isa JuliaBlock
+        statements = [s for s in document.statements if !(s isa Union{JuliaComment, JuliaMultilineComment})]
+        length(statements) == 1 && return get_julia_expression_without_comments(statements[1])
+    end
+    document
+end
+
+"""
 An abstract type declaration — `abstract type Name <: Super end` or
 `abstract type Name end`. `header` is the name expression as written
 (a `JuliaIdentifier` for the simple case, a `JuliaSubtype` when a

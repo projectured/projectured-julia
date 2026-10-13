@@ -2,6 +2,18 @@ function test_fsm_to_julia_code()
 @testset "FsmToJuliaCode" begin
 
 # ── shape ────────────────────────────────────────────────────────────────
+@testset "a comment in a guard stays out of the generated condition" begin
+    component = make_fsm_toggle_document_example()
+    machine = first(m for m in component.machines if m isa FsmMachine)
+    transition = first(t for state in get_fsm_states(machine) for t in state.transitions
+                       if t isa FsmTransition && t.trigger !== nothing)
+    transition.guard = parse_julia("a || b  # either one")
+    text = generate_component_text(component)
+    @test !occursin("either one", text)
+    @test occursin("&& (a || b)", text)
+    @test (Base.JuliaSyntax.parseall(Base.JuliaSyntax.SyntaxNode, text); true)
+end
+
 @testset "the generated module is complete and parses" begin
     text = generate_component_text(make_fsm_toggle_document_example())
 

@@ -23,7 +23,7 @@ import ..WidgetModule: compute_code_pieces, make_graphics_projection
 export _julia_operator_string
 export parse_julia, parse_julia_file
 export make_julia_expression, make_julia_file_code_projection
-export compute_julia_signature
+export compute_julia_signature, get_julia_expression_without_comments
 export JuliaTheme, ScaledJuliaTheme
 export JuliaInsertionToSyntaxLeaf, get_julia_completion, make_julia_scaffold
 export JuliaObjectToSyntaxLeaf

@@ -68,6 +68,21 @@ end
     @test _binding(mod, :SENT) == Any[1, 2, 3]
 end
 
+@testset "a comment in a condition or in a returned value stays out of the realized code" begin
+    model = ProcessModel("check";
+        parameters = [parse_julia("n")],
+        body = ProcessSequence([
+            ProcessDecision(parse_julia("n > 1 || n < -1  # far from zero");
+                then_branch = ProcessSequence([ProcessReturn(parse_julia(":far  # far away"))])),
+            ProcessReturn(parse_julia("# near zero\n:near")),
+        ]))
+    text = realize_process_text(model)
+    @test !occursin("far from zero", text) && !occursin("far away", text) && !occursin("near zero", text)
+    check = _binding(_load_realized(model, :ProcessCommentProbe), :check)
+    @test Base.invokelatest(check, 5) === :far
+    @test Base.invokelatest(check, 0) === :near
+end
+
 @testset "loops, decisions and jumps run to the contract" begin
     # A while loop with a break, an else branch, and an early return — the control flow a
     # sequence of steps cannot express.

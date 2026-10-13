@@ -14,7 +14,9 @@
 # The embedded code is **spliced verbatim**: a guard, an action, an entry block,
 # a helper function is already a `JuliaDocument`, so it is placed into the
 # generated tree as-is. Nothing is stringified and re-parsed, and nothing is
-# rewritten — what the author sees in the notation is exactly what runs.
+# rewritten — what the author sees in the notation is exactly what runs. A guard
+# and the default of a variable go in without their comments, which stay in the
+# state machine (`get_julia_expression_without_comments`).
 #
 # ## What is generated
 #
@@ -195,7 +197,7 @@ function host_constructor(component::FsmComponent)
     end
     for variable in component.variables
         variable isa FsmVariable || continue
-        default = variable.default
+        default = get_julia_expression_without_comments(variable.default)
         push!(arguments, default === nothing ? JuliaNothing() : default)
     end
     JuliaAssignment(_call(host_type_name(component)),
@@ -207,11 +209,11 @@ end
 # The guard of one transition, as the condition of the `if` that fires it:
 # the trigger test and the author's guard, `&&`-joined. A condition-only
 # transition contributes only the guard; an always-true event transition only
-# the trigger test.
+# the trigger test. The comments of the guard stay in the state machine.
 function _transition_condition(machine::FsmMachine, transition::FsmTransition,
                                component::FsmComponent)
     trigger = transition.trigger
-    guard = transition.guard
+    guard = get_julia_expression_without_comments(transition.guard)
     trigger_test = if trigger isa FsmEvent
         JuliaBinaryOperation(:(==), _id("event"), _id(get_fsm_event_constant_name(trigger)))
     elseif trigger isa FsmTimer
