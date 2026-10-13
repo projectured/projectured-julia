@@ -1024,6 +1024,26 @@ worktree. The three domains test different parts of the model:
     and without it. The constructor checks each field with its type known, so a typed cell
     costs nothing.
 - [ ] **Step 8: the owner decides** whether the other domains follow, and in which order.
+  *The loose fields of the other domains (2026-10-13)*, counted in the `@document` structs:
+  RST 44 types, 33 lists with no element type; Markdown 18 types, 11 such lists; math 22
+  types, 18 `Document` fields; workflow 9 lists; FSM 8 lists and 9 `Any`; process 3 lists and
+  16 `Any`; graph 5 `Document`; SQL, YAML, book and dbcatalog a few each; chart, sequence
+  chart, pivot and database 97 `Any` fields, which hold the values of the data.
+  **Decided by the owner, 2026-10-13: option (b)**, of (a) stop the pilot here, (b) follow
+  only where people type documents, (c) every domain one by one. The order: Markdown and RST,
+  then math. The data domains stay loose by design (§3.8). Each domain gets its own inventory
+  and its own landing.
+  **Decided by the owner for Markdown, 2026-10-13:**
+  1. The block flow declares `CellVector{Document}`: `MarkdownRoot.elements`,
+     `MarkdownQuote.elements` and `MarkdownListItem.elements` keep any part, such as XML,
+     JSON, Julia code, a plot or a widget, which the layout draws in a card.
+  2. The structural places get narrow types: `MarkdownList.items` holds list items,
+     `MarkdownTable.rows` table rows, and `MarkdownTable.alignments` symbols. Each narrow
+     place a person edits also admits `MarkdownInsertion` (law 1).
+  3. The inline flow (the `content` of a paragraph, a heading, an emphasis, a strong and a
+     link) and the cells of a table row admit **what works today**: the nodes that the views
+     draw there, found by the inventory. The owner: "if anything comes up later we can change
+     the types and the projections".
 
 The laws change only when the pilot lands (§6).
 
