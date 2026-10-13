@@ -93,7 +93,21 @@ Holds the state for a read-eval-print loop:
                    in the inbox (internal).
   - `has_loop_ended` — the loop of [`run_editor!`](@ref) ran and ended. An editor
                    runs its loop once (internal).
+  - `frame_stages` — the slowest stage of the frame that runs, with its work, and
+                   the time that the frame spent in held frames; a frame that is
+                   slow anyway is reported with them (internal).
 """
+# The slowest stage of the frame that runs, with its work, and the time that the
+# frame spent in the held frames of code units.
+mutable struct _FrameStages
+    seconds::Float64
+    stage::Symbol
+    work::Any
+    held_seconds::Float64
+end
+
+_FrameStages() = _FrameStages(0.0, :none, nothing, 0.0)
+
 mutable struct Editor
     backend::Backend
     document::Document
@@ -121,6 +135,7 @@ mutable struct Editor
     held_faults::Vector{Any}
     unapplied_operations::Vector{Operation}
     has_loop_ended::Bool
+    frame_stages::_FrameStages
 end
 
 # The inbox is bounded: a producer that outruns the editor should wait for it,
@@ -149,7 +164,7 @@ function Editor(document, projection; backend::Backend,
                     # has happened.
                     Feed[InboxFeed(); feeds], Threads.Atomic{Bool}(true),
                     FrameMeasurementStore(), nothing, Dict{Symbol, Float64}(), Any[],
-                    nothing, Any[], Operation[], false)
+                    nothing, Any[], Operation[], false, _FrameStages())
     # Registration is the one moment a feed meets its editor. The callback is
     # the only handle a producer-side store gets: a store lives below the
     # editor layer and must not name `Editor`.

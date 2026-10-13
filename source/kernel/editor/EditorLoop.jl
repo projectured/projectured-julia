@@ -68,8 +68,10 @@ function run_frame!(editor::Editor)
     # driver that steps frames by hand — a playback, a test — must collect its
     # faults too. It runs first because a write to a log document has to happen
     # outside every computation, and this is the one point in a frame that is.
-    _run_barrier(editor, :report) do
-        report_frame_faults!(editor)
+    _time_frame_stage(editor, :report, nothing) do
+        _run_barrier(editor, :report) do
+            report_frame_faults!(editor)
+        end
     end
     applied = nothing
     # True until a read finds no input: the reads can also end at the bound, at a
@@ -79,8 +81,10 @@ function run_frame!(editor::Editor)
         # A reader that throws is a reader that declined: the gesture is lost,
         # the frame goes on, and the fault says which reader lost it.
         has_input = @measure_performance_time :read_time begin
-            _run_barrier(editor, :read; fallback = _BARRIER_FAILED) do
-                run_read_stage!(editor)
+            _time_frame_stage(editor, :read, nothing) do
+                _run_barrier(editor, :read; fallback = _BARRIER_FAILED) do
+                    run_read_stage!(editor)
+                end
             end
         end
         has_input === _BARRIER_FAILED && break
@@ -88,7 +92,11 @@ function run_frame!(editor::Editor)
             is_input_left = false
             break
         end
-        @measure_performance_time :evaluate_time run_evaluate_stage!(editor)
+        @measure_performance_time :evaluate_time begin
+            _time_frame_stage(editor, :evaluate, editor.operation) do
+                run_evaluate_stage!(editor)
+            end
+        end
         applied = editor.operation
         editor.iomap === nothing && break     # repaint before reading anything else
     end
@@ -99,8 +107,10 @@ function run_frame!(editor::Editor)
     # Outside the paint, so a part that prints again shows in this frame.
     editor.is_retry_pending && _retry_marked_barriers!(editor)
     @measure_performance_time :print_time begin
-        _run_barrier(editor, :print; origin = typeof(editor.projection)) do
-            run_print_stage!(editor)
+        _time_frame_stage(editor, :print, nothing) do
+            _run_barrier(editor, :print; origin = typeof(editor.projection)) do
+                run_print_stage!(editor)
+            end
         end
     end
     _consider_safe_mode!(editor)
@@ -215,6 +225,7 @@ function run_editor!(editor::Editor; mcp::Union{Bool,NamedTuple}=false,
             # cell operations below count into it and `_log_performance_counters!` reads
             # it.
             frame_started = time_ns()
+            _reset_frame_stages!(editor)
             run_with_performance_counters() do
                 wall_time = (frame_started - t_start) / 1e9
                 # A backend whose time throws is recorded, and the frame shows
@@ -232,7 +243,9 @@ function run_editor!(editor::Editor; mcp::Union{Bool,NamedTuple}=false,
                 run_frame!(editor)
                 _run_barrier(editor, :report) do
                     _log_performance_counters!(editor)
-                    record_frame_performance!(editor, (time_ns() - frame_started) / 1e9)
+                    frame_seconds = (time_ns() - frame_started) / 1e9
+                    record_frame_performance!(editor, frame_seconds)
+                    _report_slow_frame!(editor, frame_seconds)
                 end
             end
         end

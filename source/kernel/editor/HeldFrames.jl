@@ -62,6 +62,7 @@ function run_code_unit!(function_, editor::Editor; parts::Vector{String})
     schedule(task)
     # A confirm to quit throws here and leaves the unit running, and its owner.
     _run_held_frames!(editor, unit, task)
+    editor.frame_stages.held_seconds += time() - unit.started
     succeeded, value = fetch(task)
     @atomic editor.code_unit = nothing
     _end_held_frames!(editor)

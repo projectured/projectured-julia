@@ -22,7 +22,8 @@ import ProjecturedKernel.FeedModule: drain_changes!, compute_wake_deadline,
                                      attach_wake_callback!
 import ProjecturedKernel.EditorModule
 import ProjecturedKernel.EditorModule: Editor, InboxFeed, post_operation!,
-                                       drain_feeds!, wake_editor!
+                                       drain_feeds!, wake_editor!, run_editor!
+import ProjecturedKernel.OperationModule: QuitEditorOperation
 import ProjecturedKernel.OperationModule: Operation, evaluate_operation
 import ProjecturedKernel.FaultModule: record_fault!, FaultPolicy, get_fault_records
 using ProjecturedKernelExample
@@ -168,8 +169,29 @@ ProjectionModule.print_document(::FrameMeasurementProbeProjection, recursion, in
                                 ctx) =
     SimpleIoMap(nothing, input, input)
 
+# A feed whose first drain takes `seconds`, and whose next drain ends the loop.
+mutable struct SlowFrameProbeFeed <: Feed
+    seconds::Float64
+    drains::Int
+end
+
+function drain_changes!(feed::SlowFrameProbeFeed, editor)
+    feed.drains += 1
+    feed.drains == 1 && sleep(feed.seconds)
+    feed.drains == 2 && post_operation!(editor, QuitEditorOperation())
+    0
+end
+
 function test_editor_frame_performance()
 @testset "the frame performance of the editor" begin
+    @testset "a slow frame is reported with its slowest stage" begin
+        feed = SlowFrameProbeFeed(1.1, 0)
+        editor = Editor(FrameMeasurementProbe(), FrameMeasurementProbeProjection();
+                        backend = HeadlessBackend(), devices = Device[], feeds = Feed[feed])
+        @test_logs (:warn, r"a frame took 1\.\d+ s, 1\.\d+ s of it in the drain of SlowFrameProbeFeed") match_mode = :any run_editor!(editor)
+        @test feed.drains >= 2
+    end
+
     @testset "the editor records its frame time as a time" begin
         editor = Editor(FrameMeasurementProbe(), FrameMeasurementProbeProjection();
                         backend = HeadlessBackend(), devices = Device[])

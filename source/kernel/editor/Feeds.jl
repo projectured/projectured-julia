@@ -100,9 +100,61 @@ still drains.
 function drain_feeds!(editor::Editor)
     count = 0
     for feed in editor.feeds
-        count += _run_barrier(editor, :evaluate; origin = typeof(feed), fallback = 0) do
-            drain_changes!(feed, editor)
+        count += _time_frame_stage(editor, :feed, typeof(feed)) do
+            _run_barrier(editor, :evaluate; origin = typeof(feed), fallback = 0) do
+                drain_changes!(feed, editor)
+            end
         end
     end
     count
+end
+
+# ── A slow frame ──────────────────────────────────────────────────────
+
+# A frame that takes longer than this, without the time of its held frames, is
+# reported in the log with its slowest stage. The printer, the reader and the
+# gestures are fast by design, so such a frame shows work that belongs elsewhere.
+const SLOW_FRAME_SECONDS = 1.0
+
+# Time `body` as the stage `stage` of the frame, with `work` for its report, and
+# keep it when it is the slowest stage so far. The time of the held frames of a
+# code unit inside `body` does not count: the window answered meanwhile.
+function _time_frame_stage(body, editor::Editor, stage::Symbol, work)
+    stages = editor.frame_stages
+    held = stages.held_seconds
+    started = time_ns()
+    try
+        body()
+    finally
+        seconds = (time_ns() - started) / 1e9 - (stages.held_seconds - held)
+        if seconds > stages.seconds
+            stages.seconds = seconds
+            stages.stage = stage
+            stages.work = work
+        end
+    end
+end
+
+_reset_frame_stages!(editor::Editor) = (editor.frame_stages = _FrameStages(); nothing)
+
+# One line in the log for a frame that took longer than `SLOW_FRAME_SECONDS`
+# without its held frames, naming its slowest stage and the work in it.
+function _report_slow_frame!(editor::Editor, frame_seconds::Float64)
+    stages = editor.frame_stages
+    seconds = frame_seconds - stages.held_seconds
+    seconds > SLOW_FRAME_SECONDS || return nothing
+    @warn string("[frame] a frame took ", round(seconds; digits = 2), " s, ",
+                 round(stages.seconds; digits = 2), " s of it in ",
+                 _describe_frame_stage(stages))
+    nothing
+end
+
+function _describe_frame_stage(stages::_FrameStages)
+    stages.stage === :feed && return string("the drain of ", nameof(stages.work))
+    stages.stage === :read && return "the read of the input"
+    stages.stage === :evaluate && return stages.work === nothing ? "an operation" :
+        string("the operation ", describe_operation(stages.work))
+    stages.stage === :print && return "the print and the paint"
+    stages.stage === :report && return "the report of the faults"
+    "the frame"
 end

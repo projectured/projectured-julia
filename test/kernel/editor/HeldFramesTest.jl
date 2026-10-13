@@ -13,8 +13,8 @@ using ProjecturedKernel.IoMapModule
 using ProjecturedKernel.DocumentModule
 import ProjecturedKernel.EditorModule
 import ProjecturedKernel.EditorModule: Editor, post_operation!, drain_operations!,
-                                       run_code_unit!, RunFunctionOperation
-import ProjecturedKernel.OperationModule: QuitEditorException
+                                       run_code_unit!, RunFunctionOperation, run_editor!
+import ProjecturedKernel.OperationModule: QuitEditorException, QuitEditorOperation
 import ProjecturedKernel.AgentModule: run_on_editor_task!
 import ProjecturedKernel.ToolModule: get_current_code_unit, wait_in_code_unit,
                                      execute_julia_code!
@@ -194,6 +194,16 @@ function test_editor_held_frames()
             end
             @test queues == (owned = 1, inbox = 0)
             @test drain_operations!(editor) == 1
+        end
+
+        @testset "the time of held frames does not make a slow frame" begin
+            editor = Editor(HeldFrameProbe(), HeldFrameProbeProjection();
+                            backend = HeldFrameProbeBackend(), devices = Device[])
+            post_operation!(editor, RunFunctionOperation(function ()
+                sleep(1.2)
+                post_operation!(editor, QuitEditorOperation())
+            end, nothing, "a long call"))
+            @test_logs min_level = Base.CoreLogging.Warn run_editor!(editor)
         end
 
         @testset "the code tool runs its evaluation as a unit" begin
