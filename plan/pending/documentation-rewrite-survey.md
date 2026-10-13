@@ -2536,7 +2536,7 @@ secretly done, and no plan claiming a specific remaining item turned out to be f
 | unify-projection-api-parameter-names.md | STALE | 2026-08-12 | confirmed NOT STARTED |
 | word-wrapping-projection.md | STALE | 2026-08-12 | 3 remaining tests + `LineNumbering` wiring not done |
 | workbench-feature-projections.md | STALE | 2026-08-12 (effective) | none of the six features (clipboard, dragging, tooltip, filtering, searching, highlighting) wired in the workbench example; the 2026-09-13 touch was an unrelated `ClipboardToAny.jl` file-split commit |
-| xml-to-syntax-lisp-parity.md | STALE | 2026-08-12 | phases 1-4 and 6 done; Phase 5 (placeholders) is the only remaining work, "genuinely unblocked," but untouched since the audit |
+| xml-to-syntax-reference-parity.md | STALE | 2026-08-12 | phases 1-4 and 6 done; Phase 5 (placeholders) is the only remaining work, "genuinely unblocked," but untouched since the audit |
 
 ## plan/tentative/ (10 files)
 
@@ -2721,7 +2721,7 @@ By the date of the commit that added them (`git log --diff-filter=A --name-only 
     (a parser branch, a wiring step, a missing test). None were found to be secretly finished, but
     the volume itself is a documentation risk: a plan whose only remaining line is "wire X into Y"
     reads, from outside, exactly like a shipped feature — several (`sql-insert-update-support.md`,
-    `xml-to-syntax-lisp-parity.md`, `injecting-projection.md`) are close enough that a rewrite
+    `xml-to-syntax-reference-parity.md`, `injecting-projection.md`) are close enough that a rewrite
     author skimming the plan title could mistakenly describe the feature as available.
 
 ---

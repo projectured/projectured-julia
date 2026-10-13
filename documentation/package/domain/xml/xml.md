@@ -110,7 +110,7 @@ The paths use `[i]` for the i-th item, from 1, and `{k}` for the caret at bounda
 
 ## Limits
 
-- An empty text, tag, attribute name or attribute value shows no hint. JSON and YAML show one with `make_hinted_text`. The four hints "enter xml text", "enter xml element name", "enter xml attribute name" and "enter xml attribute value" are phase 5 of [plan/pending/xml-to-syntax-lisp-parity.md](../../../../plan/pending/xml-to-syntax-lisp-parity.md).
+- An empty text, tag, attribute name or attribute value shows no hint. JSON and YAML show one with `make_hinted_text`. The four hints "enter xml text", "enter xml element name", "enter xml attribute name" and "enter xml attribute value" are phase 5 of [plan/pending/xml-to-syntax-reference-parity.md](../../../../plan/pending/xml-to-syntax-reference-parity.md).
 - No projection reads `collapsed`. `XmlToSyntax` does not give it to the output, and `SyntaxConcatenation` has no `collapsed` field. [plan/pending/collapse-expand-syntax-nodes.md](../../../../plan/pending/collapse-expand-syntax-nodes.md) holds the open step.
 - An element with no children prints as `<tag></tag>`, never as `<tag/>`.
 - The parser raises an error on a CDATA section.

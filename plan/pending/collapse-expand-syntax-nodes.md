@@ -133,4 +133,4 @@ case; no code change expected.
 - Foundation (done): [`../done/collapse-expand-syntax-nodes.md`](../done/collapse-expand-syntax-nodes.md).
 - The JSON/XML parity plans explicitly delegate collapse wiring here
   ([`../done/json-to-syntax-lisp-parity.md`](../done/json-to-syntax-lisp-parity.md) §0,
-  [`xml-to-syntax-lisp-parity.md`](xml-to-syntax-lisp-parity.md) §0).
+  [`xml-to-syntax-reference-parity.md`](xml-to-syntax-reference-parity.md) §0).

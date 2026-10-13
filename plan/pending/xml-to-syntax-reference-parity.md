@@ -1,4 +1,4 @@
-# Bringing `XmlToSyntax` up to the Lisp reference's capabilities
+# Bringing `XmlToSyntax` up to the capabilities of the reference reader
 
 > **Status (2026-08-12): IN PROGRESS.** Phases 1-4 and Phase 6 are done;
 > Phase 5 (placeholders) is the only remaining work, and it is genuinely

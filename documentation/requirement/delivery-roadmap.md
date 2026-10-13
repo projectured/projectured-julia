@@ -42,7 +42,7 @@ Each line names the plan that carries it.
 | --- | --- |
 | Select any widget and paste it into a tab ([select-a-widget-and-paste-it-into-a-tab.md](../../plan/pending/select-a-widget-and-paste-it-into-a-tab.md)) | twelve steps of thirteen |
 | Character type-in in every domain ([live-example-construction.md](../../plan/pending/live-example-construction.md), [simplest-syntax-document.md](../../plan/pending/simplest-syntax-document.md)) | JSON, YAML and XML rebuild from an empty document; SQL, Julia, text and graph do not |
-| XML parity with the reference reader ([xml-to-syntax-lisp-parity.md](../../plan/pending/xml-to-syntax-lisp-parity.md)) | five phases of six |
+| XML parity with the reference reader ([xml-to-syntax-reference-parity.md](../../plan/pending/xml-to-syntax-reference-parity.md)) | five phases of six |
 | Excel-style formulas ([excel-julia-formulas.md](../../plan/pending/excel-julia-formulas.md)) | the formulas compute; the operations and the host embedding are open |
 | A version history view ([object-versioning.md](../../plan/pending/object-versioning.md)) | the overlay works; the history view is open |
 | Every document type in the catalogue ([catalog-all-documents.md](../../plan/pending/catalog-all-documents.md)) | three workstreams of four, with fourteen faults marked in the catalogue |
