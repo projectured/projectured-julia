@@ -39,6 +39,8 @@ A number is a `PrimitiveNumber`, and the math rules set it upright. Three rules 
 2. `MathAssignment` is the root of an equation. A relation inside an expression is a `MathBinaryOperation`.
 3. A slot that can be absent holds `nothing` when it is absent and a `MathInsertion` when it is present and empty. `nothing` prints nothing, and an insertion prints a placeholder that a mouse can hit.
 
+Each place declares its type, and a write of another type fails at the write. A place of an expression holds a `MathOperand`, which is a math node or a `PrimitiveNumber`: the two that the parser and both views know. A slot that can be absent is `Union{MathOperand, Nothing}`: the two scripts, the index of a root, the limits of a large operator, the base of a function and the condition of a case. A `MathRow` and a `MathMatrix` hold a `MathOperand` in each element, and `MathCases` holds a `MathCase` or a `MathInsertion`.
+
 `MathSubscript(base, index)` and `MathSuperscript(base, exponent)` build a `MathScript` with one script. The table `_MATH_OPERATORS` in `source/domain/math/MathDocument.jl` has three columns for each operator: the text of the linear form, the glyph of the page, and the class, `:binary`, `:relation` or `:punctuation`, that sets the space around it.
 
 ### The linear form

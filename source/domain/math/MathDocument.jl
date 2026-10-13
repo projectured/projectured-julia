@@ -3,6 +3,12 @@
 
 abstract type MathDocument <: Document end
 
+"""
+What a place of a math expression holds: a math node, or a number, which is a
+`PrimitiveNumber`. An optional place also admits `nothing`.
+"""
+const MathOperand = Union{MathDocument, PrimitiveNumber}
+
 # ── Atoms ─────────────────────────────────────────────────────────────────────
 
 """
@@ -49,7 +55,7 @@ Juxtaposition: `k T B`, `2 π d`. An explicit operator is a
 `MathBinaryOperation`; adjacency without one is a `MathRow`.
 """
 @document struct MathRow <: MathDocument
-    elements::CellVector = CellVector()
+    elements::CellVector{MathOperand} = CellVector{MathOperand}()
 end
 
 """
@@ -59,8 +65,8 @@ projections read that one table.
 """
 @document struct MathBinaryOperation <: MathDocument
     operator::Symbol
-    left::Document
-    right::Document
+    left::MathOperand
+    right::MathOperand
 end
 
 """
@@ -68,7 +74,7 @@ A prefix operation (`−x`) or, with `postfix`, a suffix one (`n!`).
 """
 @document struct MathUnaryOperation <: MathDocument
     operator::Symbol
-    operand::Document
+    operand::MathOperand
     postfix::Bool = false
 end
 
@@ -77,8 +83,8 @@ An assignment expression `target = value` — the root of an equation. A relatio
 *inside* an expression is a `MathBinaryOperation`.
 """
 @document struct MathAssignment <: MathDocument
-    target::Document
-    value::Document
+    target::MathOperand
+    value::MathOperand
 end
 
 # ── Two-dimensional constructs ────────────────────────────────────────────────
@@ -89,7 +95,7 @@ Explicit grouping around a sub-expression. `kind` picks the delimiter pair:
 `:ceiling` or `:none`. The delimiter grows with its content.
 """
 @document struct MathParenthesized <: MathDocument
-    content::Document
+    content::MathOperand
     kind::Symbol = :parenthesis
 end
 
@@ -99,8 +105,8 @@ children and centers each on it; `inline` asks for the one-line slash form
 instead.
 """
 @document struct MathFraction <: MathDocument
-    numerator::Document
-    denominator::Document
+    numerator::MathOperand
+    denominator::MathOperand
     inline::Bool = false
 end
 
@@ -109,9 +115,9 @@ A base with a subscript, a superscript or both (`P_t`, `x²`, `A_i^n`). An absen
 script is `nothing`; an empty one is a `MathInsertion`.
 """
 @document struct MathScript <: MathDocument
-    base::Document
-    subscript::Any = nothing
-    superscript::Any = nothing
+    base::MathOperand
+    subscript::Union{MathOperand, Nothing} = nothing
+    superscript::Union{MathOperand, Nothing} = nothing
 end
 
 MathScript(base::Document; subscript=nothing, superscript=nothing) =
@@ -135,8 +141,8 @@ MathSuperscript(base::Document, exponent) = MathScript(base; superscript=exponen
 A root: `√x`, or `ⁿ√x` when `index` is present.
 """
 @document struct MathRadical <: MathDocument
-    radicand::Document
-    index::Any = nothing
+    radicand::MathOperand
+    index::Union{MathOperand, Nothing} = nothing
 end
 
 """
@@ -146,9 +152,9 @@ scripts to its right) or `:auto`, which picks by operator and by style.
 """
 @document struct MathBigOperator <: MathDocument
     operator::Symbol
-    body::Document
-    lower::Any = nothing
-    upper::Any = nothing
+    body::MathOperand
+    lower::Union{MathOperand, Nothing} = nothing
+    upper::Union{MathOperand, Nothing} = nothing
     limits::Symbol = :auto
 end
 
@@ -161,7 +167,7 @@ MathBigOperator(operator::Symbol, body::Document;
 A differential: `dt`, or `∂x` when `kind` is `:partial`.
 """
 @document struct MathDifferential <: MathDocument
-    variable::Document
+    variable::MathOperand
     kind::Symbol = :total
 end
 
@@ -170,8 +176,8 @@ A derivative, drawn as a fraction of two differentials: `dQ/dt`, `∂P/∂t`.
 `order` above 1 puts the order on both `d`s.
 """
 @document struct MathDerivative <: MathDocument
-    body::Document
-    variable::Document
+    body::MathOperand
+    variable::MathOperand
     order::Int = 1
     kind::Symbol = :total
 end
@@ -183,8 +189,8 @@ logarithm's base.
 """
 @document struct MathFunction <: MathDocument
     name::String
-    argument::Document
-    base::Any = nothing
+    argument::MathOperand
+    base::Union{MathOperand, Nothing} = nothing
     parenthesized::Bool = true
 end
 
@@ -197,7 +203,7 @@ MathFunction(name::AbstractString, argument::Document;
 An accent above a base: `:bar`, `:hat`, `:vec`, `:dot`, `:ddot` or `:tilde`.
 """
 @document struct MathAccent <: MathDocument
-    base::Document
+    base::MathOperand
     accent::Symbol
 end
 
@@ -208,7 +214,7 @@ A matrix or a vector: `elements` in row-major order, `columns` per row, inside
 the delimiter pair named by `delimiter`.
 """
 @document struct MathMatrix <: MathDocument
-    elements::CellVector
+    elements::CellVector{MathOperand}
     columns::Int
     delimiter::Symbol = :bracket
 end
@@ -218,15 +224,16 @@ One branch of a piecewise definition: a `value` and the `condition` it holds
 under. An absent condition is the `otherwise` branch.
 """
 @document struct MathCase <: MathDocument
-    value::Document
-    condition::Any = nothing
+    value::MathOperand
+    condition::Union{MathOperand, Nothing} = nothing
 end
 
 """
 A piecewise definition — a brace around a column of `MathCase`s.
 """
 @document struct MathCases <: MathDocument
-    cases::CellVector = CellVector()
+    cases::CellVector{Union{MathCase, MathInsertion}} =
+        CellVector{Union{MathCase, MathInsertion}}()
 end
 
 # ── Operator tables ───────────────────────────────────────────────────────────
