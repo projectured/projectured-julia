@@ -28,5 +28,49 @@ function test_julia_to_syntax()
         range.step = parse_julia("3")
         @test String(iomap.output) == "x = 1:3:5"
     end
+
+    @testset "a comment stands on a line of its own, at the indentation of its block" begin
+        body = JuliaBlock(JuliaDocument[JuliaComment(" the start"),
+                                        JuliaAssignment(JuliaIdentifier("x"), JuliaInteger(1)),
+                                        JuliaMultilineComment(" one\ntwo ")])
+        code = JuliaFunction(JuliaIdentifier("f"), JuliaDocument[], body)
+        iomap = print_document(_julia_text_projection(), code)
+        @test String(iomap.output) == "function f()\n  # the start\n  x = 1\n  #= one\n  two =#\nend"
+        body.statements[1].text = " the first line"
+        @test String(iomap.output) == "function f()\n  # the first line\n  x = 1\n  #= one\n  two =#\nend"
+    end
+
+    @testset "an end-of-line comment follows its statement on the same line" begin
+        statement = JuliaEndOfLineComment(JuliaAssignment(JuliaIdentifier("x"), JuliaInteger(1)), " meters")
+        iomap = print_document(_julia_text_projection(), statement)
+        @test String(iomap.output) == "x = 1  # meters"
+        statement.text = " feet"
+        @test String(iomap.output) == "x = 1  # feet"
+    end
+
+    @testset "a Return key breaks the line of a multiline comment and of no other comment" begin
+        projection = make_julia_projection_example()
+        caret = ConcreteReference(FieldReferenceStep("text"),
+                                  ConcreteReference(RangeReferenceStep(3, 3), EmptyReference()))
+        function read_key(document, key)
+            clear_selection!(document)
+            set_selection!(document, caret)
+            read_intent(projection, print_document(projection, document), KeyPress(key; time = 0.0))
+        end
+        for document in (JuliaComment(" note"), JuliaEndOfLineComment(JuliaIdentifier("x"), " note"))
+            @test read_key(document, 'x') !== nothing
+            @test read_key(document, '\n') === nothing
+        end
+        @test read_key(JuliaMultilineComment(" note"), '\n') !== nothing
+    end
+
+    @testset "the print of each comment is Julia that parses" begin
+        for document in (JuliaComment(" a note"), JuliaMultilineComment(" a\nnote "),
+                         JuliaEndOfLineComment(JuliaCall(JuliaIdentifier("f"), [JuliaIdentifier("x")]), " a note"))
+            text = String(print_document(_julia_text_projection(), document).output)
+            @test !Meta.isexpr(Meta.parseall(text), :error) &&
+                  all(a -> !Meta.isexpr(a, (:error, :incomplete)), Meta.parseall(text).args)
+        end
+    end
 end
 end

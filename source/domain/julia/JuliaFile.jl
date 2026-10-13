@@ -59,8 +59,8 @@ parse_file_content(::Type{<:JuliaFile}, text::AbstractString) = parse_julia(text
 The name a top-level Julia definition introduces, or `nothing` for a
 statement that introduces none (a `using`, a bare call, …).
 
-A docstring is named by what it documents, and a macro call by its
-first argument — so `@document struct Foo … end` is found under
+A docstring is named by what it documents, an end-of-line comment by its
+statement, and a macro call by its first argument — so `@document struct Foo … end` is found under
 `"Foo"`, and asking for a documented definition yields the docstring
 with it rather than the bare definition.
 
@@ -76,6 +76,7 @@ get_julia_definition_name(n::JuliaAbstractType) = _julia_header_name(n.header)
 get_julia_definition_name(n::JuliaAssignment)   = _julia_header_name(n.target)
 get_julia_definition_name(n::JuliaConst)        = get_julia_definition_name(n.assignment)
 get_julia_definition_name(n::JuliaDocstring)    = get_julia_definition_name(n.subject)
+get_julia_definition_name(n::JuliaEndOfLineComment) = get_julia_definition_name(n.subject)
 
 function get_julia_definition_name(n::JuliaMacroCall)
     args = getfield(n, :arguments)[]

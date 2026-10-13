@@ -33,6 +33,7 @@ export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
        JuliaNothingToSyntaxLeaf, JuliaSymbolToSyntaxLeaf, JuliaCharToSyntaxLeaf,
        JuliaBinaryOperationToSyntaxNode, JuliaUnaryOperationToSyntaxNode, JuliaCallToSyntaxNode,
        JuliaMacroCallToSyntaxNode, JuliaConstToSyntaxNode, JuliaDocstringToSyntaxNode,
+       JuliaCommentToSyntaxLeaf, JuliaMultilineCommentToSyntaxLeaf, JuliaEndOfLineCommentToSyntaxNode,
        JuliaAbstractTypeToSyntaxNode, JuliaStructToSyntaxNode,
        JuliaSubtypeToSyntaxNode, JuliaCurlyToSyntaxNode,
        JuliaAnonymousTypeAnnotationToSyntaxNode, JuliaEmptyToSyntaxLeaf,
@@ -53,7 +54,7 @@ export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
        JuliaStringChunkToSyntaxLeaf, JuliaInterpolationToSyntaxNode,
        JuliaFunctionDeclarationToSyntaxNode, JuliaWhereParametersToSyntaxNode,
        JuliaToSyntax
-export JuliaIdentifier, JuliaInteger, JuliaFloat, JuliaString, JuliaBool, JuliaObject, JuliaNothing, JuliaSymbol, JuliaChar, JuliaBinaryOperation, JuliaUnaryOperation, JuliaCall, JuliaMacroCall, JuliaConst, JuliaDocstring, JuliaAbstractType, JuliaStruct, JuliaSubtype, JuliaCurly, JuliaAnonymousTypeAnnotation, JuliaEmpty, JuliaTernary, JuliaIndex, JuliaFieldAccess, JuliaTuple, JuliaArray, JuliaRange, JuliaTypeAnnotation, JuliaAssignment, JuliaFor, JuliaForIterator, JuliaWhile, JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry, JuliaBegin, JuliaIf, JuliaFunction, JuliaBlock, JuliaToplevel, JuliaUsing, JuliaLambda, JuliaModuleDefinition, JuliaDocument, JuliaSplat, JuliaBroadcast, JuliaStringInterpolation, JuliaWhere, JuliaComprehension, JuliaDo, JuliaLet, JuliaNamedTuple, JuliaStringChunk, JuliaInterpolation, JuliaFunctionDeclaration, JuliaWhereParameters, JuliaInsertion
+export JuliaIdentifier, JuliaInteger, JuliaFloat, JuliaString, JuliaBool, JuliaObject, JuliaNothing, JuliaSymbol, JuliaChar, JuliaBinaryOperation, JuliaUnaryOperation, JuliaCall, JuliaMacroCall, JuliaConst, JuliaDocstring, JuliaComment, JuliaMultilineComment, JuliaEndOfLineComment, JuliaAbstractType, JuliaStruct, JuliaSubtype, JuliaCurly, JuliaAnonymousTypeAnnotation, JuliaEmpty, JuliaTernary, JuliaIndex, JuliaFieldAccess, JuliaTuple, JuliaArray, JuliaRange, JuliaTypeAnnotation, JuliaAssignment, JuliaFor, JuliaForIterator, JuliaWhile, JuliaReturn, JuliaBreak, JuliaContinue, JuliaTry, JuliaBegin, JuliaIf, JuliaFunction, JuliaBlock, JuliaToplevel, JuliaUsing, JuliaLambda, JuliaModuleDefinition, JuliaDocument, JuliaSplat, JuliaBroadcast, JuliaStringInterpolation, JuliaWhere, JuliaComprehension, JuliaDo, JuliaLet, JuliaNamedTuple, JuliaStringChunk, JuliaInterpolation, JuliaFunctionDeclaration, JuliaWhereParameters, JuliaInsertion
 
 
 include("JuliaDocument.jl")

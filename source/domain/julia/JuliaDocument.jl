@@ -318,6 +318,41 @@ docstring, not as a raw macrocall.
     subject::JuliaDocument
 end
 
+# ── Comments ─────────────────────────────────────────────────────────────────
+#
+# A comment binds no name and runs no code. `JuliaComment` and
+# `JuliaMultilineComment` are statements: they stand in the statements of a
+# block, of a line of statements, or at the root. A comment in an expression
+# place prints into the code after it.
+
+"""
+A comment on a line of its own: `#` and the rest of the line. `text` is what
+follows the `#`, as written, with its first space, so `# note` holds `" note"`.
+It is one line.
+"""
+@document struct JuliaComment <: JuliaDocument
+    text::String
+end
+
+"""
+A comment between `#=` and `=#`. `text` is what stands between the fences, as
+written, and it can hold more than one line.
+"""
+@document struct JuliaMultilineComment <: JuliaDocument
+    text::String
+end
+
+"""
+A `#` comment after the code on the same line, as in `x = 1  # meters`.
+`subject` is the statement before the comment, so a move of the statement moves
+its comment too, as a `JuliaDocstring` holds its subject. `text` is what follows
+the `#`, as written. It is one line.
+"""
+@document struct JuliaEndOfLineComment <: JuliaDocument
+    subject::JuliaDocument
+    text::String
+end
+
 """
 An abstract type declaration — `abstract type Name <: Super end` or
 `abstract type Name end`. `header` is the name expression as written

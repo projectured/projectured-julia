@@ -276,6 +276,43 @@ end
         project(:subject),
     ]; separator=make_text_block(() -> (endswith(d.text, '\n') ? "" : "\n") * "\"\"\"\n", p.fence_style))
 
+# ── JuliaCommentToSyntaxLeaf ───────────────────────────────────────────────
+# `#` and the text. The statement list that holds the comment puts it on a line
+# of its own.
+
+@projection UntrackedCell struct JuliaCommentToSyntaxLeaf
+    style::StyleText = get_julia_style(nothing, :comment_text)
+end
+
+@projection_template JuliaCommentToSyntaxLeaf JuliaComment (p, c) ->
+    SyntaxLeaf(bound(:text, String, TextString(() -> c.text, p.style));
+               open=TextString("#", p.style))
+
+# ── JuliaMultilineCommentToSyntaxLeaf ──────────────────────────────────────
+# `#=`, the text and `=#`. The text is lines, so each of its lines follows the
+# indentation of the code around it.
+
+@projection UntrackedCell struct JuliaMultilineCommentToSyntaxLeaf
+    style::StyleText = get_julia_style(nothing, :comment_text)
+end
+
+@projection_template JuliaMultilineCommentToSyntaxLeaf JuliaMultilineComment (p, c) ->
+    SyntaxLeaf(bound(:text, String, make_text_block(() -> c.text, p.style));
+               open=TextString("#=", p.style),
+               close=TextString("=#", p.style))
+
+# ── JuliaEndOfLineCommentToSyntaxNode ──────────────────────────────────────
+# The statement, two spaces, `#` and the text, on the line of the statement.
+
+@projection UntrackedCell struct JuliaEndOfLineCommentToSyntaxNode
+    style::StyleText = get_julia_style(nothing, :comment_text)
+end
+
+@projection_template JuliaEndOfLineCommentToSyntaxNode JuliaEndOfLineComment (p, c) ->
+    SyntaxConcatenation([ project(:subject),
+                          SyntaxLeaf(bound(:text, String, TextString(() -> c.text, p.style));
+                                     open=TextString("  #", p.style)) ])
+
 # ── JuliaAbstractTypeToSyntaxNode ──────────────────────────────────────────
 
 @projection UntrackedCell struct JuliaAbstractTypeToSyntaxNode
@@ -1001,6 +1038,9 @@ function JuliaToSyntax(entries::Pair...; theme = nothing, syntax_theme = nothing
         JuliaConst           => JuliaConstToSyntaxNode(; keyword_style = get_style(:keyword_text)),
         JuliaDocstring       => JuliaDocstringToSyntaxNode(; doc_style = get_style(:string_text),
                                                              fence_style = get_style(:punctuation_text)),
+        JuliaComment          => JuliaCommentToSyntaxLeaf(; style = get_style(:comment_text)),
+        JuliaMultilineComment => JuliaMultilineCommentToSyntaxLeaf(; style = get_style(:comment_text)),
+        JuliaEndOfLineComment => JuliaEndOfLineCommentToSyntaxNode(; style = get_style(:comment_text)),
         JuliaAbstractType    => JuliaAbstractTypeToSyntaxNode(; keyword_sep_style..., type_header_style...),
         JuliaStruct          => JuliaStructToSyntaxNode(; keyword_sep_style..., type_header_style...),
         JuliaSubtype         => JuliaSubtypeToSyntaxNode(; op_style = get_style(:operator_text),

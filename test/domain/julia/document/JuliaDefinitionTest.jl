@@ -39,6 +39,11 @@ function test_julia_definition()
         @test !_offers("using Foo", "Foo")
     end
 
+    @testset "an end-of-line comment is named by its statement, and a comment by none" begin
+        @test get_julia_definition_name(JuliaEndOfLineComment(parse_julia("f(x) = x"), " c")) == "f"
+        @test get_julia_definition_name(JuliaComment(" f")) === nothing
+    end
+
     @testset "a macro that decorates is named by what it wraps" begin
         @test _offers("@document struct Foo\n    a::Int\nend", "Foo")
     end

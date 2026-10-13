@@ -218,10 +218,11 @@ code, apart from the markers.
 - A multiline comment prints its lines with `make_text_block`, so each line
   follows the indentation of the code. The parser removes the indentation of the
   first line of the comment from the lines after it.
-- The text of a `#` comment holds no line break. Step 1 checks that a Return key
-  in it does not put a break into the text. The text of a `PrimitiveString`
-  refuses such an edit in the same way
-  ([PrimitiveToText.jl:50-53](../../source/platform/text/PrimitiveToText.jl#L50-L53)).
+- The text of a `#` comment holds no line break. A `bound` text that a
+  `TextString` shows takes no break: a Return key in it gives no operation, and
+  the key goes on to the readers around the text. So the rule needs no reader of
+  its own. In the text of a multiline comment, which `make_text_block` shows, a
+  Return key puts a break, as it must.
 
 ### 3.6 A comment stands where a statement stands
 
@@ -278,7 +279,19 @@ These are my recommendations. The owner can change each one.
 The work runs in a worktree, on the branch `julia-comments`. Each step is one
 commit. Nothing lands on `main` before the owner approves it.
 
-- [ ] **Step 1: the comment types and their print.**
+- [x] **Step 1: the comment types and their print.** *Done 2026-10-13.*
+  `test_julia()` passes 590 and fails 1, `JuliaExpressionTest.jl:31`. That failure
+  is on `main` too: the `julia_code` example stands in a scroll pane. A Return key
+  in a `#` comment gives no operation, so the rule needs no reader of its own
+  (section 3.5). The `test_example` sweeps of the three catalog examples fail
+  only where the same kind fails for unchanged atoms:
+  - The `syntax` and `text` variants find no caret in graphics, as for every
+    `bound` text: `json/string/syntax` fails 40, `xml/text/syntax` 40,
+    `julia/module_def/syntax` 7.
+  - `julia/end_of_line_comment/graphics` fails 6 at the identifier `x` of its
+    subject, which is an opaque leaf. `julia/docstring/graphics` fails the same 6
+    on the same subject, and 27 more on its text, which step 2 makes `bound`.
+  - `julia/comment/graphics` and `julia/multiline_comment/graphics` fail none.
   - Add `JuliaComment`, `JuliaMultilineComment` and `JuliaEndOfLineComment` to
     [JuliaDocument.jl](../../source/domain/julia/JuliaDocument.jl), and export them
     from [JuliaModule.jl](../../source/domain/julia/JuliaModule.jl).

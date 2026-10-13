@@ -37,7 +37,7 @@ values of the default theme.
     nothing_text::ThemeText = TextRole(:null_literal)
     "A quote, a delimiter, a separator, a brace and a fence."
     punctuation_text::ThemeText = TextRole(:punctuation)
-    "A comment, in a field of code that colors Julia as a person types it."
+    "A comment."
     comment_text::ThemeText = TextRole(:comment)
     "A keyword."
     keyword_text::ThemeText = TextRole(:keyword; weight = 700)

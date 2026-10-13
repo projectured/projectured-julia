@@ -37,8 +37,8 @@
 # it does. [`is_executable`](@ref) is the check to run *before* realizing;
 # `get_unrefined_nodes` says which boxes are still prose.
 #
-# Step descriptions do not survive into realized code — the julia domain has no
-# comment node — so the notation and the diagram are where the prose lives.
+# Step descriptions do not go into the realized code, so the notation and the
+# diagram are where the prose lives.
 # ── Small AST helpers ────────────────────────────────────────────────────────
 
 _id(name::AbstractString) = JuliaIdentifier(String(name))
