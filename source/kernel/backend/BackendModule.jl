@@ -22,7 +22,8 @@ fragments that share this namespace:
 - [`BackendDefaults.jl`](BackendDefaults.jl) — the fallback behaviours the
   contract supplies itself, for the capabilities a backend can lack (pointer
   position, display size, the colour settings of the system, device
-  configuration, native windows, the input wait and the wake).
+  configuration, native windows, the input wait and the wake, and the held
+  frames).
 """
 module BackendModule
 
@@ -30,6 +31,7 @@ export Backend, initialize_backend!, quit_backend!,
        write_to_devices!, take_from_devices!, get_display_size, find_system_colors,
        configure_devices!,
        open_native_windows!, wait_for_input, wake_backend!,
+       HeldFrameState, prepare_held_frames!, run_held_frame!, end_held_frames!,
        write_image, record_video, render_canvas, decode_image, get_pointer_position
 
 include("BackendInterface.jl")

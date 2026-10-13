@@ -99,6 +99,59 @@ the editor task.
 function wake_backend! end
 
 """
+    HeldFrameState(seconds, current, is_stop_pending, is_quit_asked)
+
+What one held frame shows while a code unit runs: the time since the unit
+started, in seconds; the index of the description of `prepare_held_frames!` that
+names the work that runs now; whether the person asked for a stop that has not
+acted yet; and whether the frame asks to quit without a save.
+"""
+struct HeldFrameState
+    seconds::Float64
+    current::Int
+    is_stop_pending::Bool
+    is_quit_asked::Bool
+end
+
+"""
+    prepare_held_frames!(backend, devices, descriptions)
+
+Make everything that the held frames of a code unit draw, before the unit starts:
+the busy bar with each of `descriptions`, its stop control, the notice that a stop
+has not acted, the question whether to quit without a save, and the digits of the
+time. A held frame makes no text, because the unit owns the text state of the
+backend while it runs.
+"""
+function prepare_held_frames! end
+
+"""
+    run_held_frame!(backend, devices, state::HeldFrameState) -> Symbol
+
+Run one held frame while a code unit runs, and answer what the person did:
+`:none`, `:stop`, `:close` or `:quit`.
+
+A held frame pumps the events of the window system, so the window answers it. It
+presents the last picture again where the window system asks for it, shows the
+busy pointer and, from half a second on, the busy bar of `state`. It keeps the keys
+and the window events for the frames after the unit, and drops the pointer input
+that starts during the hold, except a press on a control of the bar. `:stop` is
+the stop control, or Escape while the bar shows; `:close` is the close of a
+window; `:quit` is the confirm of the question that `state.is_quit_asked` shows.
+
+A held frame reads no document and makes no text. It waits for an event for one
+short slice at most, and [`wake_backend!`](@ref) ends the wait.
+"""
+function run_held_frame! end
+
+"""
+    end_held_frames!(backend, devices)
+
+End the held frames of a code unit: give the pointer back its shape, and free
+what [`prepare_held_frames!`](@ref) made.
+"""
+function end_held_frames! end
+
+"""
     get_pointer_position(::Backend) -> (x, y)
 
 The current global mouse pointer position in the logical pixels of the screen,

@@ -13,7 +13,9 @@
 # fabricate a result.
 # The wait defaults to one 10 ms poll slice, with the wake a matching no-op:
 # a sliced sleep notices pending work on its next slice at the latest, which
-# is the cadence the editor loop has without a real wait.
+# is the cadence the editor loop has without a real wait. A backend that shows no
+# held frames prepares nothing, waits one such slice in each held frame, and
+# reports that the person did nothing.
 get_pointer_position(::Backend) = (-1, -1)
 get_display_size(::Backend) = (1280, 800)
 find_system_colors(::Backend) = nothing
@@ -21,3 +23,6 @@ configure_devices!(::Backend, devices) = nothing
 open_native_windows!(::Backend, document) = nothing
 wait_for_input(::Backend, devices, timeout_seconds) = sleep(min(Float64(timeout_seconds)::Float64, 0.01))
 wake_backend!(::Backend) = nothing
+prepare_held_frames!(::Backend, devices, descriptions) = nothing
+run_held_frame!(::Backend, devices, state::HeldFrameState) = (sleep(0.01); :none)
+end_held_frames!(::Backend, devices) = nothing

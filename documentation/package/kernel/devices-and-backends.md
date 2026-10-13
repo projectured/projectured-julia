@@ -111,6 +111,9 @@ wake_backend!(::Backend)                             # end a wait, from any task
 get_display_size(::Backend)                          # the usable size in logical pixels
 find_system_colors(::Backend)                        # the colour settings of the system, or nothing
 get_pointer_position(::Backend)                      # the global position of the pointer
+prepare_held_frames!(::Backend, devices, descriptions) # make what held frames draw, before a code unit
+run_held_frame!(::Backend, devices, state)           # one held frame while a code unit runs
+end_held_frames!(::Backend, devices)                 # give the pointer back, free what held frames drew
 quit_backend!(::Backend)                             # release everything
 ```
 
@@ -128,6 +131,17 @@ The wait is where the editor sleeps between frames, and the wake is how a
 producer on another task ends the sleep. `timeout_seconds` must be above zero, and
 `Inf` is legal. The defaults in `BackendDefaults.jl` are one 10 ms poll slice and
 a no-op, so a backend that answers neither polls every 10 ms.
+
+A held frame is what the editor runs while a code unit runs on another thread
+and owns the documents. `prepare_held_frames!` makes all that the held frames
+draw before the unit starts, because a held frame makes no text: the unit owns the
+text state of the backend. Each `run_held_frame!` pumps the events of the window
+system, presents the last picture where the window system asks for it, shows the
+busy state of its `HeldFrameState`, keeps the keys and the window events for later,
+and drops the pointer input that starts during the hold. It answers `:none`,
+`:stop`, `:close` or `:quit`. `end_held_frames!` gives the pointer back its shape.
+The defaults prepare nothing, wait one 10 ms slice in each held frame and answer
+`:none`.
 
 There are four backends and a test double:
 
@@ -156,6 +170,9 @@ default of `BackendDefaults.jl`. A generic with no default and no method raises 
 | `get_display_size` | `(1280, 800)` | ✓ | default | default | ✓ the video size | default |
 | `find_system_colors` | `nothing` | ✓ gsettings, the portal, the registry, defaults | default | default | default | ✓ the script |
 | `get_pointer_position` | `(-1, -1)` | ✓ | default | default | ✓ the last pointer | default |
+| `prepare_held_frames!` | no-op | default | default | default | default | default |
+| `run_held_frame!` | a sleep of 10 ms, `:none` | default | default | default | default | default |
+| `end_held_frames!` | no-op | default | default | default | default | default |
 | `write_image` | — | ✓ | — | — | — | — |
 | `record_video` | — | — | — | — | ✓ | — |
 | `render_canvas` | — | an empty image | — | — | — | — |
@@ -619,8 +636,10 @@ BackendDefaults.jl  (BackendModule)         — the fallback behaviours the cont
 Declares `Backend <: Any` and the backend generics `initialize_backend!`,
 `quit_backend!`, `write_to_devices!`, `open_native_windows!`, `take_from_devices!`,
 `wait_for_input`, `wake_backend!`, `get_pointer_position`, `get_display_size`,
-`find_system_colors`, `configure_devices!`, `write_image`, `record_video`, `render_canvas` and
-`decode_image`. A concrete backend lives in a package above the kernel, subtypes
+`find_system_colors`, `configure_devices!`, `prepare_held_frames!`,
+`run_held_frame!`, `end_held_frames!`, `write_image`, `record_video`,
+`render_canvas` and `decode_image`, and the plain `HeldFrameState` that a held
+frame shows. A concrete backend lives in a package above the kernel, subtypes
 `Backend` and adds methods for its own `::MyBackend` type (see the tables in
 [Backends](#backends)). A backend is constructed by
 naming its type directly (`SdlBackend()`, `ConsoleBackend()`). Code that must
@@ -639,7 +658,9 @@ capabilities a backend can lack: `get_pointer_position` answers `(-1, -1)`,
 `configure_devices!` is a no-op that
 leaves the devices at their default properties, `open_native_windows!` is a
 no-op for a backend that has no native windows to open, `wait_for_input` sleeps
-for at most 10 ms, and `wake_backend!` is a no-op. Each is a legal answer rather
+for at most 10 ms, `wake_backend!` is a no-op, `prepare_held_frames!` and
+`end_held_frames!` are no-ops, and `run_held_frame!` sleeps for 10 ms and answers
+`:none`. Each is a legal answer rather
 than a missing implementation. The batch generics deliberately have no
 such fallback: an unimplemented `write_to_devices!` or `write_image` must raise a
 `MethodError` rather than fabricate a result.
