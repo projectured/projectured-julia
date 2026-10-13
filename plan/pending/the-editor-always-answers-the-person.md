@@ -9,9 +9,9 @@
 > **Decided by the owner, 2026-10-13:** D1 (option A), D2 (option B), D3
 > (option A), D4 (option A), D5 (option A), D6 (option C), D7, D8, the rules a,
 > b, c and d of §5.7 with d in its narrow form, the permission P1 for one
-> sentence of a sealed file, step 6 for formulas, and the points A1 to A4 of the
-> review (§8.1). All decisions are made. Step 6 still designs the gestures of
-> the edit mode of a formula.
+> sentence of a sealed file, step 6 for feeds, step 7 for formulas, and the
+> points A1 to A4 of the review (§8.1). All decisions are made. Step 7 still
+> designs the gestures of the edit mode of a formula.
 >
 > This plan takes in `a-long-evaluation-does-not-hold-the-editor.md` (on the
 > branch `plan-evaluation-off-editor`, deferred on 2026-10-09),
@@ -38,7 +38,8 @@ The plan (D1, option A):
   the pointer input that starts during a held frame.
 - A stop ends our own waits and a `sleep` of model code at once (D6). Any other
   wait of model code, and code that computes, end with the quit of D4.
-- A formula computes off the loop, and the print reads its stored value (step 6).
+- A feed drain moves only data that its producer prepared off the loop (step 6).
+- A formula computes off the loop, and the print reads its stored value (step 7).
 - Julia's default threads are enough. With one thread, a unit runs on thread 1,
   as today.
 
@@ -47,7 +48,8 @@ The plan (D1, option A):
 A professional tool meets these. The plan meets them for each unit, except where
 §7 says that Julia can not. For the other work of a frame, the owner states that
 the printer, the reader and the gesture processing are fast enough in all
-circumstances (D1), and R8 shows a frame that is slow anyway.
+circumstances (D1). Step 6 makes each feed drain move only prepared data, and R8
+shows a frame that is slow anyway.
 
 - **R1 The window answers the window system** at all times: expose, move,
   resize, close, and the ping of the window manager. GNOME marks a window "not
@@ -106,6 +108,13 @@ circumstances (D1), and R8 shows a frame that is slow anyway.
   `execute_julia_code!` inside the evaluation of an operation.
 - **A formula.** `evaluate_formula` runs `Core.eval` inside a cell computation,
   so a print can run code of the person (`FormulaDocument.jl:489-507`).
+- **Three feeds do work on the loop that grows.** The file-change drain reads,
+  hashes and parses a changed file, and writes the whole text of its document to
+  compare (`FileChangeStore.jl:206-235`). The task drain walks every registered
+  run every 0.25 s and reads `/proc` (`TaskFeed.jl:87-112`). The reflection drain
+  calls `getproperty`, `length` and `show` of the user's types on a live value
+  (`DocumentReflection.jl:92-119`). The other four feeds move only data that their
+  producer prepared, with a bound.
 - **The MCP start** waits up to 10 s on the loop task (`McpServer.jl:119-122`).
 - **Starvation.** The assistant turn (`AssistantTurn.jl:287`), the ACP tasks, the
   MCP server loop, the terminal and task readers and the process debugger are
@@ -172,7 +181,8 @@ drawing for a second" (`editor.md:228-229`, `mcp.md:89,110`,
   problems that exist today: the window freezes during a code unit, the stop can
   not act, no hourglass shows, and the window does not answer the window system.
   It does not cover work whose length is not known before it starts, such as a
-  slow operation or a slow print. Step 6 moves formulas off the print.
+  slow operation or a slow print. Step 6 makes the feed drains move only prepared
+  data, and step 7 moves formulas off the print.
 - **B. All document work off thread 1.** The worker runs the document half of
   each frame, and thread 1 only reads events, paints and presents. It also covers
   the work of unknown length. It costs a split of the SDL backend (4700 lines)
@@ -208,7 +218,7 @@ way to B.
  │                                         │ end  └─────────────────────────────┘
  │ the backend: windows, renderer, events, │      ┌─────────────────────────────┐
  │   pointer                               │      │ the formula task of each    │
- │                                         │      │ editor (step 6): inputs as  │
+ │                                         │      │ editor (step 7): inputs as  │
  │ services, @async: assistant turns, ACP, │      │ values, reads no document   │
  │   MCP server, terminal, task readers    │      └─────────────────────────────┘
  └─────────────────────────────────────────┘
@@ -224,7 +234,7 @@ way to B.
   because a held frame waits for events and yields. They reach a document only
   through the door.
 - **The formula task** of each editor computes formulas from their inputs as
-  values (step 6). It reads no document, so it runs next to the loop and next to
+  values (step 7). It reads no document, so it runs next to the loop and next to
   a unit.
 
 ### 5.2 Who owns what
@@ -456,7 +466,7 @@ B is ever needed.
 | `Tool(...; reads_documents)` | T4: a tool that reads no document runs on the calling task | `Tool.jl` |
 | `acquire_document!(editor, document)`, `AcquireDocumentOperation` | the counterpart of `release_document!` (A3) | `DocumentRelease.jl` |
 | formula fields `result` (stored), `result_key`, `draft` | the last value, the inputs that it came from, the code in edit mode | `FormulaDocument.jl` |
-| `EditFormulaOperation`, `CommitFormulaOperation`, `CancelFormulaEditOperation`, `ReplaceFormulaResultOperation` | the edit mode and the value of a formula (step 6) | `source/domain/formula/FormulaComputation.jl` (new) |
+| `EditFormulaOperation`, `CommitFormulaOperation`, `CancelFormulaEditOperation`, `ReplaceFormulaResultOperation` | the edit mode and the value of a formula (step 7) | `source/domain/formula/FormulaComputation.jl` (new) |
 
 The backend defaults make a backend with no held frames still work:
 `run_held_frame!` waits one slice and answers `:none`, and the other two do
@@ -470,8 +480,9 @@ nothing.
 | An evaluation of the composer or the evaluator | holds the window | a unit |
 | Any other tool call that reads a document | holds the window | a unit |
 | A tool call that reads no document (T4) | holds the window | runs on the calling task |
-| A formula in a print | holds the window | the print reads a stored value; the formula computes off the loop (step 6) |
-| An operation, a feed drain, a print | fast (D1) | as today; §5.10 records a slow frame |
+| A formula in a print | holds the window | the print reads a stored value; the formula computes off the loop (step 7) |
+| An operation, a print | fast (D1) | as today; §5.10 records a slow frame |
+| A drain of the file-change, task or reflection feed | grows with the file, the runs or the value | moves only data that its producer prepared off the loop (step 6) |
 | A storm of faults | the frame reports them | as today |
 | A second MCP request while a unit runs | waits with no bound | waits in the queue of the MCP server until the unit ends |
 | A call that waits in the inbox while a unit runs, such as a tool call of a native turn | waits with no bound | the bound T3: 30 s until it starts, then an error result |
@@ -554,7 +565,7 @@ nothing.
   one to the other, copying and synching stuff." So each editor has its own
   owner, and a unit holds only the document work of its own editor. The
   documents that two editors share today change in step 5 (L21-1).
-- **D8. Decided by the owner, 2026-10-13: the model of step 6.** A formula
+- **D8. Decided by the owner, 2026-10-13: the model of step 7.** A formula
   computes at a commit, at a load, and at a new value of a formula that it names,
   as Excel does. A key starts no computation, and a formula in edit mode shows no
   value, because the stored value belongs to code that is no longer there. Each
@@ -635,7 +646,29 @@ nothing.
   editors share today (L21-1: the session fault log, and the stores of the log and
   statistics feeds) becomes one for each editor, or a copy that a feed keeps in
   sync (D7).
-- [ ] **6. Formulas off the loop.** The owner, 2026-10-13: "the formula value
+- [ ] **6. Feeds that move only prepared data.** Decided by the owner,
+  2026-10-13. The rule: a drain moves only data that its producer prepared off
+  the loop. It does no I/O, it runs no method of a user type, and its work grows
+  only with what changed. The contract of a feed (`FeedInterface.jl`) says it.
+  The three feeds that break it change:
+  - **File change** (`FileChangeStore.jl:206-235`). The watcher thread reads and
+    hashes a changed file, and parses it into a new document. No computation
+    reads the new document yet, so rule d allows that. When the file changes
+    again during a parse, the watcher parses only its newest version. The drain
+    swaps the new document in with `ReloadFileOperation`. Whether the document
+    has edits since its last load or save comes from a mark that each edit sets
+    and each load and save clears, in place of a write of its whole text.
+  - **Task** (`TaskFeed.jl:87-112`). The reader tasks sample `/proc`, and the
+    store keeps the set of runs that changed since the last drain. The drain
+    syncs only those.
+  - **Reflection** (`DocumentReflection.jl:92-119`). The drain hands a producer
+    task the open paths of the tree, as plain data. The producer reads the value
+    along those paths into a plain snapshot, with the user's `getproperty`,
+    `length` and `show`, and the next drain writes the shadow from the snapshot.
+    The producer reads the value as the sync reads it today, so a value that
+    another task changes at the same time races as it does today. The owner
+    accepted that race for the display (`view-and-edit-a-data-frame.md:548-554`).
+- [ ] **7. Formulas off the loop.** The owner, 2026-10-13: "the formula value
   should be stored in the document explicitly and updated by the projection on a
   task/thread out of the printer loop to avoid making the editor unresponsive".
   Today `result` is a cell whose computation runs the code of the formula, set by
@@ -676,9 +709,10 @@ nothing.
     this step. Julia code can have more than one line, so Enter can not always
     commit. The commit of `FormulaInsertion` on Enter (`formula.md:94`) uses the
     same gestures.
-- [ ] **7. The rules, the guides and the checks:** a new invariant for the units
-  and the held frames, the limits in `editor.md`, `mcp.md`, `mcp-guide.md` and
-  `assistant.md`, the tests of each layer, and a live check of each row of §6
+- [ ] **8. The rules, the guides and the checks:** a new invariant for the units
+  and the held frames, and one for the drains of feeds; the limits in
+  `editor.md`, `mcp.md`, `mcp-guide.md` and `assistant.md`; the table of feeds in
+  `editor.md:259`, which names a `TooltipFeed` that no longer exists; the tests of each layer, and a live check of each row of §6
   with the real application. The hourglass plan and the branch
   `plan-evaluation-off-editor` close.
 
