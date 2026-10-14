@@ -243,11 +243,13 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool})
                 call_id = context === nothing ? nothing :
                           _find_tool_call_id(ModelContextProtocol.request_meta(context))
                 # The handler runs on the server task, and a tool may write what
-                # the editor shows, so the call runs on the editor's task, in the
-                # drain of its next frame, which then paints the change.
+                # the editor shows, so the call runs on the task that owns the
+                # documents of the editor, in the drain of its next frame, which
+                # then paints the change. A tool that reads no document runs here,
+                # on the server task.
                 held = Ref(0.0)
                 fault = Ref(false)
-                text = try run_on_editor_task!(editor; description = tool.name) do
+                call = function ()
                     started = time()
                     # Code that throws answers its message, so a new exception of
                     # an evaluation is what marks such a call as a fault. The count
@@ -268,8 +270,11 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool})
                         is_fault_exception(exception) || rethrow()
                         fault[] = true
                         traceback = catch_backtrace()
-                        record_fault!(editor.faults, :tool; origin = Symbol(tool.name),
-                                      exception, traceback)
+                        # The store is written by the task that owns the editor.
+                        run_on_editor_task!(editor; wait = false, description = "the fault of a tool") do
+                            record_fault!(editor.faults, :tool; origin = Symbol(tool.name),
+                                          exception, traceback)
+                        end
                         # A `showerror` method that throws gives the type name.
                         try
                             sprint(showerror, exception, traceback)
@@ -282,11 +287,18 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool})
                             (fault[] = true)
                     end
                 end
-                catch exception
-                    # The editor did not start the call in time: the client reads why.
-                    exception isa EditorCallTimeoutException || rethrow()
-                    fault[] = true
-                    sprint(showerror, exception)
+                text = if !tool.reads_documents
+                    call()
+                else
+                    try
+                        run_on_editor_task!(call, editor; description = tool.name)
+                    catch exception
+                        # The editor did not start the call in time: the client
+                        # reads why.
+                        exception isa EditorCallTimeoutException || rethrow()
+                        fault[] = true
+                        sprint(showerror, exception)
+                    end
                 end
                 # A picture goes to the client as an image, and to the log as a line.
                 is_picture = text isa LlmImage

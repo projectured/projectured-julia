@@ -157,6 +157,7 @@ end
 function _register_search_tools!(set::ToolSet)
     register_tool!(set, Tool(
         "search_guides";
+        reads_documents = false,
         description =
             "Learn how the parts fit together: search the guides, prose with worked " *
             "examples. A hit is one section, with the URI `read_resource` reads it by. " *
@@ -176,6 +177,7 @@ function _register_search_tools!(set::ToolSet)
 
     register_tool!(set, Tool(
         "search_api";
+        reads_documents = false,
         description =
             "Find the name to call: search the modules, types and functions you may " *
             "write, by name and docstring. A hit shows the signature and one sentence; " *
@@ -208,6 +210,7 @@ function _register_function_documentation_tool!(set::ToolSet)
     # hit `search_api` returns is one tool call away from its full text.
     register_tool!(set, Tool(
         "read_function_documentation";
+        reads_documents = false,
         description =
             "Read the full documentation of a function. `search_api` names the module " *
             "and the function of every hit; this reads the whole docstring of one, " *
@@ -240,6 +243,7 @@ function _register_resource_tools!(set::ToolSet)
     # resource list is just this rendered onto the wire.
     register_tool!(set, Tool(
         "list_resources";
+        reads_documents = false,
         description =
             "The kinds of documentation resource, each with its count and how it is " *
             "addressed: the catalogues, the guides and their sections, the modules, " *
@@ -251,6 +255,7 @@ function _register_resource_tools!(set::ToolSet)
 
     register_tool!(set, Tool(
         "read_resource";
+        reads_documents = false,
         description =
             "Read a documentation resource in full by its URI: a guide, one section of " *
             "a guide (resource://guide/<name>#<heading>), a module, a type, or a " *

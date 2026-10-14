@@ -92,13 +92,15 @@ function run_turn!(agent::Agent, target; messages, on_event, tools::AbstractVect
         for call in pending
             @info "[agent] tool call" call.name
             # The loop runs on a task of its own, and a tool may write what the
-            # editor shows, so the call runs on the editor's task. The busy bar of
-            # the editor names the tool while it runs.
-            output, is_error = try run_on_editor_task!(target; description = call.name) do
+            # editor shows, so the call runs on the task that owns the documents of
+            # the editor, whose busy bar names the tool while it runs. A tool that
+            # reads no document runs here, on the task of the turn.
+            turn_tool = findfirst(tool -> tool.name == call.name, turn_tools)
+            tool = turn_tool === nothing ? find_tool(agent.tools, call.name) : turn_tools[turn_tool]
+            run_call = function ()
                 try
-                    turn_tool = findfirst(tool -> tool.name == call.name, turn_tools)
-                    text = turn_tool === nothing ? call_tool(agent.tools, call.name; args = call.input, target) :
-                           turn_tools[turn_tool].handler(target, call.input)
+                    text = tool === nothing ? call_tool(agent.tools, call.name; args = call.input, target) :
+                           tool.handler(target, call.input)
                     text isa LlmImage && (text = _PICTURE_RESULT_TEXT)
                     text isa Task ? (text, false) : (text, _is_error_output(text))
                 catch e
@@ -106,10 +108,13 @@ function run_turn!(agent::Agent, target; messages, on_event, tools::AbstractVect
                     # A tool that throws is not a broken turn: the model gets the
                     # text of the error and can try something else. The fault is
                     # recorded as well, so a person reading the editor's log sees
-                    # what the model ran into.
+                    # what the model ran into. The store is written by the task that
+                    # owns the editor, so the record goes through its door.
                     traceback = catch_backtrace()
-                    record_fault!(get_fault_store(target), :tool;
-                                  origin = Symbol(call.name), exception = e, traceback)
+                    run_on_editor_task!(target; wait = false, description = "the fault of a tool") do
+                        record_fault!(get_fault_store(target), :tool;
+                                      origin = Symbol(call.name), exception = e, traceback)
+                    end
                     # A `showerror` method that throws gives the type name.
                     text = try
                         sprint(showerror, e, traceback)
@@ -120,11 +125,17 @@ function run_turn!(agent::Agent, target; messages, on_event, tools::AbstractVect
                     (text, true)
                 end
             end
-            catch exception
-                # The editor did not start the call in time: the model reads why,
-                # and the turn goes on.
-                exception isa EditorCallTimeoutException || rethrow()
-                (sprint(showerror, exception), true)
+            output, is_error = if tool !== nothing && !tool.reads_documents
+                run_call()
+            else
+                try
+                    run_on_editor_task!(run_call, target; description = call.name)
+                catch exception
+                    # The editor did not start the call in time: the model reads
+                    # why, and the turn goes on.
+                    exception isa EditorCallTimeoutException || rethrow()
+                    (sprint(showerror, exception), true)
+                end
             end
             output isa Task && ((output, is_error) = _wait_for_tool_task(output))
             on_event(AgentToolResult(call, output, is_error))

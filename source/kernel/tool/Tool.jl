@@ -1,7 +1,8 @@
 # Fragment of `ToolModule` — the three types the capability surface is made of.
 
 """
-    Tool(name; description, parameters, handler, result_mime_type = "text/plain")
+    Tool(name; description, parameters, handler, result_mime_type = "text/plain",
+         reads_documents = true)
 
 An action the editor can be asked to perform. The name stands first; the other parts
 take a name at the call, as the parts of a `Resource` do.
@@ -25,6 +26,10 @@ take a name at the call, as the parts of a `Resource` do.
   `Resource` names its own: `"text/markdown"` for a page of documentation. A
   front end that shows a result reads it to choose how to draw the text; the
   text itself is the same for every front end.
+- `reads_documents` says whether the handler reads or writes a document of the
+  editor. A tool that does not, such as a search of the documentation, runs on
+  the task that calls it, so its caller waits for it while the editor goes on. A
+  tool that does runs on the task that owns the documents of the editor.
 """
 struct Tool
     name::String
@@ -32,18 +37,20 @@ struct Tool
     parameters::Vector{NamedTuple}
     handler::Function
     result_mime_type::String
+    reads_documents::Bool
 end
 
 Tool(name; description, parameters, handler,
-     result_mime_type::AbstractString = "text/plain") =
-    Tool(name, description, parameters, handler, result_mime_type)
+     result_mime_type::AbstractString = "text/plain", reads_documents::Bool = true) =
+    Tool(name, description, parameters, handler, result_mime_type, reads_documents)
 
 """
     Resource(uri, name; description, provider, mime_type = "text/markdown")
 
 A read-only piece of data identified by `uri`. `provider()` returns the resource
 body as a `String`, lazily — so registering a resource costs nothing until it is
-read.
+read. A provider reads no document of the editor: a resource is read on the task
+that asks for it, not on the task that owns the documents.
 """
 struct Resource
     uri::String
