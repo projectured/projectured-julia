@@ -148,5 +148,30 @@ function test_roster()
         @test "1 of 3" in drawn
         @test filter(t -> t in ("1", "2", "3"), drawn) == ["1"]
     end
+
+    # The table reads the cell of each value when it prints. A value of text has a
+    # cell that holds its label, so a new value draws only the text of its label.
+    @testset "a new value of text draws its label again, and no other cell" begin
+        runs = make_runs()
+        roster = link_roster!(Roster(CollectionItems(runs); columns = ["id", "status"]), runs)
+        natural = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
+        io = print_document(natural, nothing, roster, PrinterContext())
+        function texts(node, found = GraphicsText[])
+            if node isa GraphicsCanvas
+                foreach(element -> texts(element, found), node.elements)
+            elseif node isa GraphicsViewport
+                texts(node.content, found)
+            elseif node isa GraphicsText
+                push!(found, node)
+            end
+            found
+        end
+        find_text(text) = only(t for t in texts(io.output) if string(t.text) == text)
+        id = find_text("1")
+        @test string.(getproperty.(texts(io.output), :text)) == ["id", "status", "1", "done", "2", "failed", "3", "done"]
+        runs[2].status = "stopped"
+        @test string.(getproperty.(texts(io.output), :text)) == ["id", "status", "1", "done", "2", "stopped", "3", "done"]
+        @test find_text("1") === id
+    end
 end
 end

@@ -124,15 +124,20 @@ function _collect_row_cells(rows, made::IdDict{Any,Any})
 end
 
 # The cells of one row: the document that a value is, or a label of the text of the
-# value. Each cell keeps its label, so a value that changes and stays text draws
-# again only its text.
+# value. The table reads every cell of a row when it prints, so a cell that
+# computes again prints the whole table again. A value that is text when the row
+# is made gets a cell that holds its label, and only the text of the label reads
+# the value. A value that is a document gets a cell that follows it, so a new
+# document shows.
 function _make_row_cells(row::RosterRow)
     values = row.values
     slots = Cell[]
     for c in 1:length(values)
         value = get_cell_at(values, c)
         label = WidgetLabel(() -> format_roster_value(value[]))
-        push!(slots, Cell(Computation(() -> (v = value[]; v isa Document ? v : label))))
+        push!(slots, peek(value) isa Document ?
+                         Cell(Computation(() -> (v = value[]; v isa Document ? v : label))) :
+                         Cell(label))
     end
     CellVector(slots)
 end
