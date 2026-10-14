@@ -646,8 +646,9 @@ nothing.
     3. The visible list of all background work, such as a kind of task in the
     task slice, is not part of it: each user shows its own work (the form, the tool
     call of the turn).
-- **D9g. Open: the stop of a turn and the work of its tool call.** Found in
-  3b.3. The Stop of the assistant, and Escape, cancel a native turn, but the turn
+- **D9g. Decided by the owner, 2026-10-14: A**, the recommendation below. The
+  other options were B, a stop of any turn stops all background work of the
+  editor that a tool call started, and C, nothing. Found in 3b.3. The Stop of the assistant, and Escape, cancel a native turn, but the turn
   waits in `run_turn!` for the background work of its tool call, and the work runs
   to its end. A cancel of an ACP turn does not reach the work for which the MCP
   server waits either. Recommended (mine): the assistant runs each turn as
@@ -878,7 +879,7 @@ nothing.
     of the umbrella said the old rule, "a tool call of a turn runs on the task of
     the loop", which step 2 changed; it now says the rule of A4 (`397ecec08`), as
     the MCP tests do.
-- [ ] **3b. Background work (D9):** `BackgroundWork` and
+- [x] **3b. Background work (D9):** `BackgroundWork` and
   `start_background_work`, `fetch` and `stop_background_work!` (D9a); the link to
   a running unit and the calls that throw while it runs (D9b); the argument
   `background` of `execute_julia_code`, and the wait for the work in the turn and
@@ -940,7 +941,24 @@ nothing.
     evaluator and the assistant tests of the umbrella 521 and 4 broken that were
     marked before. `test_evaluator_duplicate` fails as on `main` (1 failure and 2
     errors at `EvaluatorDuplicateTest.jl:40`, the baseline of 2026-10-13).
-  - [ ] 3b.6 Open: D9g, how a stop of a turn reaches the work of its tool call.
+  - [x] 3b.6 (`c5beae25c`) D9g, decided A. A turn of the assistant runs as
+    background work with no parent unit, and the cancel of the turn stops it; the
+    work of each turn is in a table of the assistant slice under the control of
+    the turn, because the work holds the editor and no document holds an editor.
+    The wait of `run_turn!` for the work of a tool call attaches a stop step that
+    stops that work. `stop_agent_server_work!(server)` is a new generic of the
+    agent layer; the MCP server keeps the work of each call that runs, and the
+    cancel of an ACP turn calls it. `start_background_work` takes `parent`, the
+    unit of the work (`nothing` for a turn or the run of a tool call), and
+    `is_sticky`. A fact found here: a turn on another thread would race the
+    caller where no loop runs, as in the tests, because each call through the
+    door then runs at once on the turn. So the turn keeps the thread of the task
+    that starts it (`is_sticky`), as its `@async` task did; step 5 moves it. The
+    turn now reads the settings of the assistant, and the ACP turn the command
+    and the session of the agent, through the door. The suites: the kernel 4565,
+    the MCP suite 504, the ACP suite 168, the platform the same as `main`, and
+    the assistant tests 275 and 4 broken that were marked before. The stopped
+    turn of the test ends in about 6 s, where its code sleeps 60 s.
 - [ ] **4. The backends:** the three protocol functions of held frames and their
   defaults. SDL: the pump; the keys and the window events left in the queue; the
   pointer events of the windows of the editor dropped; the retained present; the
@@ -954,7 +972,8 @@ nothing.
   door (§5.7), with each one moved to the door; a list of each task of ours that
   runs user code or long work on the thread of the loop, with each one moved to
   the default pool, the first being the user model that the process debugger runs
-  with `@async` (`ProcessDebug.jl:80`); each MCP resource provider by
+  with `@async` (`ProcessDebug.jl:80`), and the turn of the assistant, which runs
+  as sticky background work (3b.6), with the tests that run a turn with no loop; each MCP resource provider by
   `reads_documents`; no lock across a post in ACP; and each document that two
   editors share today (L21-1: the session fault log, and the stores of the log and
   statistics feeds) becomes one for each editor, or a copy that a feed keeps in
