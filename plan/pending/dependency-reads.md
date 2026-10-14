@@ -45,3 +45,8 @@ costs.
 - [ ] **3. The checks.** The counts of the six scenarios of the measure, which
   must not change; the time of the six scenarios against `main` on an idle
   machine; the suites of the kernel and the platform.
+  - The counts, done 2026-10-14: every scenario computes, checks, stops and
+    reads as on `main`; the median of the marks of S4d differs by 1, a reader
+    that the collector has not freed yet.
+  - The suites, done 2026-10-14: the kernel passes, 4559 tests; the platform
+    has 152598 passes and the two failures of `main` in `InterfaceApiTest.jl`.
