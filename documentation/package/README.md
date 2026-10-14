@@ -46,6 +46,7 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | `pane` | [pane.md](platform/pane/pane.md) | tabs, split panes, and the pane tree of the window |
 | `tooltip` | [tooltip.md](platform/tooltip/tooltip.md) | the tooltip in a window of its own |
 | `natural` | [natural.md](platform/natural/natural.md) | the natural notation of each domain, and the renderer of any document |
+| `roster` | [roster.md](platform/roster/roster.md) | a list of the items of a source across the session, such as the open files or the tasks, with their facets as the columns of a table |
 | `syntax` | [syntax.md](platform/syntax/syntax.md) | the syntax tree, the insertion leaf, and syntax to text |
 | `inspector` | [inspector.md](platform/inspector/inspector.md) | the inspector views of a reference and of the selection |
 | `gesturehelp` | [gesturehelp.md](platform/gesturehelp/gesturehelp.md) | the help window and the command palette |
