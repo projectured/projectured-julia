@@ -42,7 +42,7 @@ costs.
   - The walks of a new reader stay. To leave them out, a record must know that
     the reader is new to the list, and the collected readers must go out in
     another way, or the list grows with no bound; that is outside this plan.
-- [ ] **3. The checks.** The counts of the six scenarios of the measure, which
+- [x] **3. The checks.** The counts of the six scenarios of the measure, which
   must not change; the time of the six scenarios against `main` on an idle
   machine; the suites of the kernel and the platform.
   - The counts, done 2026-10-14: every scenario computes, checks, stops and
@@ -50,3 +50,23 @@ costs.
     that the collector has not freed yet.
   - The suites, done 2026-10-14: the kernel passes, 4559 tests; the platform
     has 152598 passes and the two failures of `main` in `InterfaceApiTest.jl`.
+  - The time, 2026-10-14, two rounds each, medians in milliseconds, `main`
+    cc0977a78 against the branch:
+
+    | | `main` | the branch |
+    |---|---|---|
+    | S1 a key in a text file | 0.46 / 0.40 | 0.41 / 0.43 |
+    | S2 a key in a JSON string | 2.19 / 2.01 | 2.01 / 2.03 |
+    | S3 a caret move in JSON | 4.06 / 3.89 | 3.62 / 3.81 |
+    | S4a X1, a key in a file | 1.82 / 1.74 | 1.68 / 1.76 |
+    | S4b X1, a save that the filter sees | 30.0 / 33.1 | 23.8 / 24.0 |
+    | S4c 200 rows, the edits of a file change | 15.2 / 14.8 | 14.5 / 15.0 |
+    | S4d X4, a change of one call | 12.8 / 13.7 | 10.4 / 10.4 |
+    | S5 the width of the window changes | 1.76 / 1.92 | 1.65 / 1.64 |
+    | S6 a scroll of a table of 300 rows | 12.9 / 17.2 | 12.6 / 12.5 |
+
+  - The machine was idle when the rounds started and busy after: the load of
+    one minute rose to 14 in the first round of the branch and stayed between
+    6 and 9. Both sides ran under it. S4b and S4d are 20 to 28 percent faster in
+    both rounds, as the experiment of the measure was; no step is slower by more
+    than the rounds differ.
