@@ -62,6 +62,20 @@ mutable struct WebBackend <: Backend
     pointer_x::Int
     pointer_y::Int
     pointer_shapes::Dict{Symbol,Symbol}   # the shape of the pointer sent for each window
+    # The held frames of a code unit: the words of its parts, the inputs kept for
+    # the frames after the unit, the buttons pressed during the hold, the time of
+    # the start of the hold and of the first busy bar (0 before it), whether the
+    # Escape of the stop is down, the bar sent last, and the answer of a control
+    # of the bar (0 none, 1 the stop, 2 the confirm to quit), which the receive
+    # task sets.
+    held_parts::Vector{String}
+    held_pending::Vector{Any}
+    held_buttons::Set{Symbol}
+    held_started::Float64
+    held_bar_time::Float64
+    is_held_escape_down::Bool
+    held_bar::Tuple{String,Bool}
+    held_answer::Threads.Atomic{Int}
 end
 
 function WebBackend(; host::AbstractString="127.0.0.1", port::Integer=8080)
@@ -69,7 +83,9 @@ function WebBackend(; host::AbstractString="127.0.0.1", port::Integer=8080)
                get_web_asset_directory("font"),
                nothing, Channel{Any}(256), Base.Event(true), nothing,
                Dict{Symbol,WebWindowState}(), Symbol[], false, 1.0,
-               :none, -1, -1, Dict{Symbol,Symbol}())
+               :none, -1, -1, Dict{Symbol,Symbol}(),
+               String[], Any[], Set{Symbol}(), 0.0, 0.0, false, ("", false),
+               Threads.Atomic{Int}(0))
 end
 
 # The browser draws a screen of windows, and `--backend=web` names it.
@@ -649,6 +665,10 @@ function _decode_and_enqueue!(backend::WebBackend, msg)
     elseif typ == "resync"
         # Client (re)launched popups and wants a fresh full state for everything.
         _reset_for_full!(backend)
+
+    elseif typ == "stop" || typ == "quitconfirm"
+        # A control of the busy bar of a code unit.
+        backend.held_answer[] = typ == "stop" ? 1 : 2
     end
     # The event is in the channel before the wake, so the wait that the wake
     # ends finds it.
@@ -821,8 +841,14 @@ end
 # Non-blocking poll: hand back the next decoded event, or nothing. A pointer event
 # puts the pointer where the next frame finds the shape of the pointer.
 function BackendModule.take_from_devices!(backend::WebBackend, devices)
-    isready(backend.inbound) || return nothing
-    input = take!(backend.inbound)
+    input = if !isempty(backend.held_pending)
+        # The inputs that a held frame kept come first: they arrived first.
+        popfirst!(backend.held_pending)
+    elseif isready(backend.inbound)
+        take!(backend.inbound)
+    else
+        return nothing
+    end
     _track_pointer!(backend, input)
     input
 end
@@ -848,7 +874,7 @@ sends every window in full. Everything here is a cooperative Julia wait; no
 thread blocks.
 """
 function BackendModule.wait_for_input(backend::WebBackend, devices, timeout_seconds)
-    if isready(backend.inbound)
+    if isready(backend.inbound) || !isempty(backend.held_pending)
         # The frame after this wait reads every event in `inbound`, so the
         # notifications of those events are spent.
         reset(backend.wake_gate)
@@ -879,6 +905,107 @@ function _wait_for_gate(gate::Base.Event, timeout_seconds)
     finally
         close(timer)
     end
+end
+
+# ── Held frames ──────────────────────────────────────────────────────────
+#
+# While a code unit runs, a held frame takes the inputs of the client out of
+# `inbound`, so the receive task never waits for room. It keeps the keys and the
+# window events for the frames after the unit, and drops the pointer input that
+# starts during the hold; a press from before the hold keeps its release. Escape
+# while the busy bar shows is the stop, and the close of a window is the close.
+# The client shows the `wait` cursor over each window and, from half a second on,
+# the busy bar that the server sends, with its Stop button and, when the editor
+# asks, the button that quits without a save.
+
+function BackendModule.prepare_held_frames!(backend::WebBackend, devices, parts)
+    backend.held_parts = String[String(part) for part in parts]
+    empty!(backend.held_buttons)
+    backend.held_started = time()
+    backend.held_bar_time = 0.0
+    backend.is_held_escape_down = false
+    backend.held_bar = ("", false)
+    backend.held_answer[] = 0
+    for id in backend.last_ids
+        _send_held_message!(backend, Dict("type" => "pointer", "window" => String(id), "cursor" => "wait"))
+    end
+    nothing
+end
+
+function BackendModule.run_held_frame!(backend::WebBackend, devices, state::HeldFrameState)
+    isready(backend.inbound) || _wait_for_gate(backend.wake_gate, 0.1)
+    answer = :none
+    while isready(backend.inbound)
+        heard = _hold_web_input!(backend, take!(backend.inbound))
+        heard === :close && (answer = :close)
+        heard === :stop && answer === :none && (answer = :stop)
+    end
+    control = Threads.atomic_xchg!(backend.held_answer, 0)
+    control == 1 && answer === :none && (answer = :stop)
+    control == 2 && state.is_quit_asked && (answer = :quit)
+    state.seconds >= 0.5 && _send_held_bar!(backend, state)
+    answer
+end
+
+function BackendModule.end_held_frames!(backend::WebBackend, devices)
+    _send_held_message!(backend, Dict("type" => "held", "show" => false))
+    # The next frame sends the shape at the pointer again.
+    for id in backend.last_ids
+        _send_held_message!(backend, Dict("type" => "pointer", "window" => String(id), "cursor" => "default"))
+    end
+    empty!(backend.pointer_shapes)
+    nothing
+end
+
+# Keep `input` for the frames after the unit, or drop it, and answer what it
+# means for the hold: `:none`, `:stop` or `:close`.
+function _hold_web_input!(backend::WebBackend, input)
+    input isa WindowInput || (push!(backend.held_pending, input); return :none)
+    event = input.event
+    event isa Union{WindowClose,WindowQuit} && return :close
+    if event isa Union{MouseDown,MouseUp,MouseMove,MouseScroll}
+        event.time < backend.held_started && (push!(backend.held_pending, input); return :none)
+        if event isa MouseDown
+            push!(backend.held_buttons, event.button)
+        elseif event isa MouseUp
+            event.button in backend.held_buttons ? delete!(backend.held_buttons, event.button) :
+                                                  push!(backend.held_pending, input)
+        end
+        return :none
+    end
+    if event isa KeyDown && event.key === :escape && backend.held_bar_time > 0 &&
+       event.time >= backend.held_bar_time
+        backend.is_held_escape_down = true
+        return :stop
+    end
+    if event isa KeyUp && event.key === :escape && backend.is_held_escape_down
+        backend.is_held_escape_down = false
+        return :none
+    end
+    push!(backend.held_pending, input)
+    :none
+end
+
+# The busy bar, sent when its words or its question change.
+function _send_held_bar!(backend::WebBackend, state::HeldFrameState)
+    parts = backend.held_parts
+    part = isempty(parts) ? "The code runs" : parts[clamp(state.current, 1, length(parts))]
+    seconds = string(floor(Int, state.seconds), " s")
+    text = state.is_quit_asked ? string("The code does not stop. Quit without saving? ", part, " · ", seconds) :
+           state.is_stop_pending ? string("The code does not stop: it computes. ", part, " · ", seconds) :
+           string(part, " · ", seconds, " · Esc stops")
+    bar = (text, state.is_quit_asked)
+    bar == backend.held_bar && return nothing
+    backend.held_bar = bar
+    backend.held_bar_time == 0 && (backend.held_bar_time = time())
+    _send_held_message!(backend, Dict("type" => "held", "show" => true, "text" => text,
+                                      "quit" => state.is_quit_asked))
+end
+
+function _send_held_message!(backend::WebBackend, message::Dict)
+    conn = backend.conn
+    conn === nothing || _enqueue!(backend, conn, JSON3.write(message), false)
+    nothing
 end
 
 # `primary` marks the in-tab window (the first `WindowDocument` in list order):

@@ -11,6 +11,8 @@
 //
 // Protocol (JSON over one WebSocket). Server -> client:
 //   {type:"update", zoom, full:[win...], patches:[{window,clip,draw}...], close:[id...]}
+//   {type:"pointer", window, cursor}
+//   {type:"held", show, text, quit}  the busy bar while the editor runs a code unit
 // A `full` entry carries a window's complete draw-list and a `primary` flag (the
 // in-tab window); a `patch` repaints only its clip rectangle over the retained
 // canvas (incremental rendering). See package/web/src/ProjecturedWeb.jl.
@@ -24,6 +26,10 @@
 
   const canvasEl = document.getElementById("main");
   const overlayEl = document.getElementById("overlay");
+  const busyEl = document.getElementById("busy");
+  const busyTextEl = document.getElementById("busy-text");
+  const busyQuitEl = document.getElementById("busy-quit");
+  const busyStopEl = document.getElementById("busy-stop");
 
   let ws = null;
   let mainId = null;                    // window id bound to the page canvas
@@ -122,8 +128,22 @@
       if (msg.type === "update") handleUpdate(msg);
       else if (msg.type === "pointer") setPointerCursor(msg);
       else if (msg.type === "busy") setOverlay("Another client is already connected to this editor.");
+      else if (msg.type === "held") setBusyBar(msg);
     };
   }
+
+  // The busy bar of a code unit that runs: the server sends it while the editor
+  // holds its frames, and hides it after. Its buttons stop the unit, and confirm
+  // the quit without a save when the editor asks.
+  function setBusyBar(msg) {
+    if (!busyEl) return;
+    if (!msg.show) { busyEl.style.display = "none"; return; }
+    busyTextEl.textContent = msg.text;
+    busyQuitEl.style.display = msg.quit ? "" : "none";
+    busyEl.style.display = "flex";
+  }
+  if (busyStopEl) busyStopEl.addEventListener("click", () => send({ type: "stop" }));
+  if (busyQuitEl) busyQuitEl.addEventListener("click", () => send({ type: "quitconfirm" }));
 
   // The time of a browser event in milliseconds since the Unix epoch: the clock
   // of `time()` on the server, times 1000.

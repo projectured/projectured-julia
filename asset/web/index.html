@@ -13,11 +13,18 @@
     #overlay { position: fixed; inset: 0; display: flex; align-items: center;
                justify-content: center; text-align: center; padding: 1rem;
                background: #1b1b1b; color: #999; font-size: 0.95rem; }
+    /* The busy bar of the work of the editor that runs, with its controls. */
+    #busy { position: fixed; left: 0; right: 0; bottom: 0; display: none;
+            align-items: center; gap: 0.75rem; padding: 0.4rem 0.75rem;
+            background: #1e3c78; color: #fff; font-size: 0.9rem; }
+    #busy-text { flex: 1; }
+    #busy button { font: inherit; }
   </style>
 </head>
 <body>
   <canvas id="main"></canvas>
   <div id="overlay">Loading…</div>
+  <div id="busy"><span id="busy-text"></span><button id="busy-quit">Quit without saving</button><button id="busy-stop">Stop</button></div>
   <script src="/client.js"></script>
 </body>
 </html>

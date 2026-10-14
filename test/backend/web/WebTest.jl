@@ -316,5 +316,45 @@ function test_web_backend()
         @test backend.server === nothing
     end
 
+    # While a code unit runs, a held frame keeps the keys and the window events,
+    # drops the pointer input that starts in the hold (a release of an earlier
+    # press stays), and answers the stop, the close and the confirm to quit.
+    @testset "held frames keep the keys, drop the pointer of the hold, and take the stop" begin
+        backend = WebBackend(port = 0)
+        run(seconds; is_quit_asked = false) =
+            run_held_frame!(backend, Device[], HeldFrameState(seconds, 1, false, is_quit_asked))
+        send(message) = _WEB._decode_and_enqueue!(backend, message)
+        prepare_held_frames!(backend, Device[], ["Run the code: sleep(10)"])
+        now = round(Int, time() * 1000)
+        early = now - 10_000
+        send("""{"type":"mousedown","window":"main","button":"left","x":5,"y":6,"t":$early}""")
+        send("""{"type":"keydown","window":"main","key":"a","code":"KeyA","t":$(now + 1)}""")
+        send("""{"type":"mousedown","window":"main","button":"right","x":5,"y":6,"t":$(now + 2)}""")
+        send("""{"type":"mouseup","window":"main","button":"right","x":5,"y":6,"t":$(now + 3)}""")
+        send("""{"type":"mouseup","window":"main","button":"left","x":5,"y":6,"t":$(now + 4)}""")
+        send("""{"type":"keydown","window":"main","key":"Escape","code":"Escape","t":$(now + 5)}""")
+        @test run(0.2) === :none                    # an Escape before the bar is a key
+        @test run(0.6) === :none                    # the bar shows from this frame on
+        later = round(Int, time() * 1000) + 1
+        send("""{"type":"keydown","window":"main","key":"Escape","code":"Escape","t":$later}""")
+        @test run(0.7) === :stop
+        send("""{"type":"close","window":"main","t":$later}""")
+        @test run(0.8) === :close
+        send("""{"type":"stop"}""")
+        @test run(0.9) === :stop
+        send("""{"type":"quitconfirm"}""")
+        @test run(1.0) === :none                    # no question, no quit
+        send("""{"type":"quitconfirm"}""")
+        @test run(3.5; is_quit_asked = true) === :quit
+        end_held_frames!(backend, Device[])
+        events = Any[]
+        while (input = take_from_devices!(backend, Device[])) !== nothing
+            push!(events, input.event)
+        end
+        @test [typeof(event) for event in events if !(event isa KeyPress)] ==
+              [MouseDown, KeyDown, MouseUp, KeyDown]
+        @test [event.key for event in events if event isa KeyDown] == [:a, :escape]
+    end
+
 end
 end
