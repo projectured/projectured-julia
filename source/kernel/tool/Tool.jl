@@ -16,7 +16,10 @@ take a name at the call, as the parts of a `Resource` do.
   result. A handler of a tool that waits, such as for a person, can return a
   `Task` whose value is that text; the loop of a turn waits for it off the task
   of the editor. Such a tool is a tool of a turn (`run_turn!(…; tools)`), not of
-  a `ToolSet`, whose other clients take the text at once. A handler can also
+  a `ToolSet`, whose other clients take the text at once. A handler can return
+  a `BackgroundWork` whose value is an `EvaluationResult`, as the code tool does
+  with `background`: each client of a `ToolSet` waits for it off the task of the
+  editor and takes the output of the result. A handler can also
   return an `LlmImage`, a picture: the MCP server gives it to its client as an
   image, and the loop of a turn gives the model a line of text in its place,
   because the result of a tool for a model is text. `args` keys are

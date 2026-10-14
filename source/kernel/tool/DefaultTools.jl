@@ -141,7 +141,10 @@ const _DOCUMENTATION_MIME_TYPE = "text/markdown"
 # ── The tools ───────────────────────────────────────────────────────────────
 
 # The tool that runs Julia code in the scratch module of `set`. A call with no
-# `code` argument gets the answer of `execute_julia_code!` for no code.
+# `code` argument gets the answer of `execute_julia_code!` for no code. With
+# `background`, the handler starts the evaluation as background work and answers
+# the work, whose value is the `EvaluationResult`; the caller waits for it off the
+# editor.
 function _register_code_tool!(set::ToolSet)
     register_tool!(set, Tool(
         "execute_julia_code";
@@ -149,9 +152,26 @@ function _register_code_tool!(set::ToolSet)
         parameters = NamedTuple[
             (name = "code", type = "string",
              description = "Julia source code to evaluate", required = true),
+            (name = "background", type = "boolean",
+             description = "true runs the code in the background: the editor stays usable " *
+                           "while it runs, and the call answers when the code ends. Use it for " *
+                           "code that does not need the documents of the editor, such as a long " *
+                           "computation or a wait for a process. Such code reaches a document " *
+                           "only through the verbs.",
+             required = false),
         ],
-        handler = (target, args) ->
-            execute_julia_code!(set, target, get(args, "code", nothing)),
+        handler = (target, args) -> begin
+            code = get(args, "code", nothing)
+            get(args, "background", false) === true ||
+                return execute_julia_code!(set, target, code)
+            part = code isa AbstractString ? _describe_code_part(code) : "Run the code"
+            # The unit that runs this handler does not wait for the work, so the
+            # work keeps no link to it, and its calls of verbs wait for the editor.
+            with(_CURRENT_CODE_UNIT => nothing) do
+                start_background_work(() -> run_julia_code!(set, target, code);
+                                      description = part, editor = target)
+            end
+        end,
     ))
 end
 

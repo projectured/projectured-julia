@@ -222,8 +222,10 @@ A handler runs its tool through `run_on_editor_task!`, so the tool runs in a cod
 unit of the editor and the server task waits for its answer; a tool that reads no
 document runs on the server task. `stop`, a function with no argument, runs when
 the person stops the unit in which a call runs, such as the cancel of the turn of
-the agent that made the call. Each call
-goes to the store of the MCP log of the session, with its arguments, its answer,
+the agent that made the call. A tool that answers background work, as the code
+tool does with `background`, is waited for here, on the server task, so the
+editor goes on meanwhile. Each call goes to the store of the MCP log of the
+session, with its arguments, its answer,
 the time it held the editor and whether it was a fault.
 
 When the client names its call in the `_meta` of the request, as Claude Code does
@@ -309,6 +311,9 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool};
                         sprint(showerror, exception)
                     end
                 end
+                # Background work runs off the editor, and this task waits for it.
+                text isa BackgroundWork &&
+                    (text = _wait_for_mcp_work(text, editor.tools, call_id, fault))
                 # A picture goes to the client as an image, and to the log as a line.
                 is_picture = text isa LlmImage
                 record_mcp_call!(get_session_mcp_log_store(); method = "tools/call",
@@ -346,6 +351,24 @@ function _keep_evaluated_document!(set, name::AbstractString, call_id::String)
     value = get_last_evaluated_value(set)
     value isa Document && keep_tool_call_value!(set, call_id, value)
     nothing
+end
+
+# The output of background work that a tool answered, once it ends: its result is
+# the result of an evaluation, whose exception marks the call as a fault and whose
+# document is kept under the id of the call, as for a call that runs at once.
+function _wait_for_mcp_work(work::BackgroundWork, set, call_id, fault::Ref{Bool})
+    result = try
+        fetch(work)
+    catch exception
+        is_fault_exception(exception) || rethrow()
+        fault[] = true
+        return sprint(showerror, exception)
+    end
+    result isa EvaluationResult || return string(result)
+    result.exception === nothing || (fault[] = true)
+    (call_id !== nothing && result.value isa Document) &&
+        keep_tool_call_value!(set, call_id, result.value)
+    result.output
 end
 
 # The arguments of a call as the MCP log shows them: the code alone when the call

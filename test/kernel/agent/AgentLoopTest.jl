@@ -5,7 +5,8 @@ using Test
 import ProjecturedKernel.AgentModule: Agent, run_turn!, AgentToolResult
 import ProjecturedKernel.FaultModule: FaultStore, get_fault_records
 import ProjecturedKernel.LlmModule: LlmMessage, LlmFailure, LlmTextStart, LlmTurnEnd, LlmImage
-import ProjecturedKernel.ToolModule: Tool, ToolSet, register_tool!
+import ProjecturedKernel.ToolModule: Tool, ToolSet, register_tool!, register_default_tools!,
+                                     call_tool, take_tool_call_value!
 using ProjecturedKernelExample: ScriptedLlm, make_scripted_turn, make_scripted_run,
                                 make_scripted_say
 
@@ -121,6 +122,20 @@ function test_agent_loop()
                   on_event = event -> push!(events, event), tools = Tool[failing])
         result = only(_get_agent_tool_results(events))
         @test result.is_error && occursin("no answer came", result.output)
+    end
+
+    @testset "a tool that answers background work answers when the work ends, and keeps its value" begin
+        code_tools = register_default_tools!(ToolSet())
+        tools = _make_agent_loop_tools((target, arguments) ->
+            call_tool(code_tools, "execute_julia_code"; target,
+                      args = Dict{String,Any}("code" => "sleep(0.1); println(\"slept\"); 7",
+                                              "background" => true)))
+        llm = ScriptedLlm([_make_agent_loop_call_round(), _make_agent_loop_answer_round("Done.")])
+        stop, events = _run_agent_loop_turn(Agent(llm, tools))
+        result = only(_get_agent_tool_results(events))
+        @test stop === :end_turn
+        @test (result.output, result.is_error) == ("slept\n7\n", false)
+        @test take_tool_call_value!(tools, "tu_1") == 7
     end
 
     @testset "a tool that answers gives a result not marked as an error" begin

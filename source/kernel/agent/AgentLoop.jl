@@ -40,7 +40,10 @@ that draws the result can take the value of that very call.
 A handler can answer a `Task` in place of its text, as a tool that waits for a
 person does. The loop then waits for the task on its own task, not on the task
 of the editor, so no frame waits with it, and the value of the task is the text
-of the tool.
+of the tool. A handler can answer `BackgroundWork` too, as the code tool does
+with `background`: the loop waits for it the same way, the output of its
+`EvaluationResult` is the text of the tool, and its value is kept under the id of
+the call.
 
 A tool that throws gives an `AgentToolResult` with `is_error = true`, and the
 fault goes into the fault store of `target`. An exception that is not a fault
@@ -112,7 +115,7 @@ function run_turn!(agent::Agent, target; messages, on_event, tools::AbstractVect
                            tool.handler(target, call.input)
                     _keep_evaluated_value!(agent.tools, call.id, before)
                     text isa LlmImage && (text = _PICTURE_RESULT_TEXT)
-                    text isa Task ? (text, false) : (text, _is_error_output(text))
+                    text isa Union{Task, BackgroundWork} ? (text, false) : (text, _is_error_output(text))
                 catch e
                     is_fault_exception(e) || rethrow()
                     # A tool that throws is not a broken turn: the model gets the
@@ -149,10 +152,28 @@ function run_turn!(agent::Agent, target; messages, on_event, tools::AbstractVect
                 end
             end
             output isa Task && ((output, is_error) = _wait_for_tool_task(output))
+            output isa BackgroundWork &&
+                ((output, is_error) = _wait_for_tool_work(output, agent.tools, call.id))
             on_event(AgentToolResult(call, output, is_error))
         end
     end
     stop
+end
+
+# A tool that answered background work answers when the work ends, here on the
+# task of the turn. The value of the work is the result of an evaluation: its
+# output is the text of the tool, and its value is kept under the id of the call.
+# Work that throws gives the text of its error, as a handler that throws does.
+function _wait_for_tool_work(work::BackgroundWork, set::ToolSet, call_id::AbstractString)
+    result = try
+        fetch(work)
+    catch exception
+        is_fault_exception(exception) || rethrow()
+        return (sprint(showerror, exception), true)
+    end
+    result isa EvaluationResult || return (string(result), _is_error_output(string(result)))
+    result.value === nothing || keep_tool_call_value!(set, call_id, result.value)
+    (result.output, _is_error_output(result.output))
 end
 
 # The value of an evaluation that a tool call made, kept under the id of the call.

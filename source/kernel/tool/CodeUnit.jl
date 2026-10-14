@@ -202,7 +202,8 @@ end
 
 Run `function_()` as a code unit of `target`, with the words `parts` for its busy
 bar, and answer its value. Code that already runs in a unit runs `function_` as a
-part of that unit.
+part of that unit, and code that runs in background work runs it at once, in the
+work.
 
 The default runs `function_` at once, on the calling task, in a unit that no stop
 reaches. An editor adds a method that runs the unit on a thread of its own while
@@ -210,6 +211,6 @@ the editor holds its frames, so the window answers and the person can stop the
 unit.
 """
 function run_in_code_unit(function_, target; parts::Vector{String})
-    _CURRENT_CODE_UNIT[] === nothing || return function_()
+    (_CURRENT_CODE_UNIT[] === nothing && !is_in_background_work()) || return function_()
     run_as_code_unit(function_, CodeUnit(parts))
 end

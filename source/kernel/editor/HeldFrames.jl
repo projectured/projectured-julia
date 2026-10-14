@@ -32,8 +32,8 @@ of the default pool other than the thread of the loop, the unit runs on a task
 pinned to that thread. Meanwhile the unit owns the documents and the state of
 `editor`, and the loop runs held frames ([`run_held_frame!`](@ref)): the window
 answers, shows that the editor is busy, and takes a stop or a close. In every
-other case, as with one thread, in a test that runs the frames by hand, or inside
-a unit, `function_` runs at once on the calling task.
+other case, as with one thread, in a test that runs the frames by hand, inside a
+unit, or in background work, `function_` runs at once on the calling task.
 
 The stop control of the bar, and Escape while the bar shows, stop the unit
 ([`stop_code_unit!`](@ref)), and so does a first close of a window. A second
@@ -42,7 +42,7 @@ quit without a save, and its confirm throws `QuitEditorException` while the unit
 still runs.
 """
 function run_code_unit!(function_, editor::Editor; parts::Vector{String})
-    get_current_code_unit() === nothing || return function_()
+    (get_current_code_unit() === nothing && !is_in_background_work()) || return function_()
     unit = CodeUnit(parts)
     thread = _find_code_unit_thread(editor)
     thread === nothing && return run_as_code_unit(function_, unit)

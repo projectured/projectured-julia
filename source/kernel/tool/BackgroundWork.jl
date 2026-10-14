@@ -112,6 +112,15 @@ because Julia can not stop code that runs. It does not wait for the work.
 stop_background_work!(work::BackgroundWork) = _stop_scope!(work)
 
 """
+    is_in_background_work() -> Bool
+
+Whether the calling code runs in background work, or in a task that the work
+started. Such code owns no document, so it never runs as a code unit: a call that
+would start a unit runs at once.
+"""
+is_in_background_work() = _CURRENT_STOP_SCOPE[] isa BackgroundWork
+
+"""
     is_background_work_done(work) -> Bool
 
 Whether `work` ended, with a value or with an exception.

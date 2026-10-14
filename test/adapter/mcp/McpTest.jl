@@ -803,6 +803,17 @@ function test_mcp_tool_runs_on_editor_task()
         @test last(ran_on) === current_task()
         @test !isready(editor.inbox) && !isready(editor.owner_posts)
         editor.loop_task = nothing
+        # A tool that answers background work answers its output once the work
+        # ends, and code that threw there marks the call as a fault.
+        register_default_tools!(editor.tools)
+        background(code) = only(render_mcp_tools(editor, [Tool("probe_background";
+            description = "Runs code in the background.", parameters = NamedTuple[],
+            handler = (target, args) -> call_tool(editor.tools, "execute_julia_code"; target,
+                args = Dict{String,Any}("code" => code, "background" => true)))])).handler
+        @test background("println(\"in the background\"); 1")(Dict{String,Any}()).text ==
+              "in the background\n1\n"
+        @test occursin("thrown in the background",
+                       background("error(\"thrown in the background\")")(Dict{String,Any}()).text)
         # A tool that answers a picture gives the client an image.
         picture = Tool("probe_picture"; description = "Answers a picture.", parameters = NamedTuple[],
                        handler = (target, args) -> LlmImage("image/png", UInt8[1, 2, 3]))

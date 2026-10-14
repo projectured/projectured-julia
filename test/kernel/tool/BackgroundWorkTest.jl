@@ -62,6 +62,29 @@ function test_background_work()
         @test fetch(work) == 1                       # the unit ended
     end
 
+    @testset "the code tool runs its code as background work when asked" begin
+        set = register_default_tools!(ToolSet())
+        arguments(code) = Dict{String,Any}("code" => code, "background" => true)
+        work = call_tool(set, "execute_julia_code"; target = :the_editor,
+                         args = arguments("println(\"from the work\"); 40 + 2"))
+        @test work isa BackgroundWork && work.parent === nothing
+        result = fetch(work)
+        @test (result.output, result.value) == ("from the work\n42\n", 42)
+        # Started in a code unit, the work keeps no link to it: the unit does not
+        # wait for the work.
+        linked = run_as_code_unit(CodeUnit(["handler"])) do
+            call_tool(set, "execute_julia_code"; target = nothing, args = arguments("1"))
+        end
+        @test linked.parent === nothing && fetch(linked).value == 1
+        # A stop ends the sleep of the code, and the answer says so.
+        sleeping = call_tool(set, "execute_julia_code"; target = nothing, args = arguments("sleep(10)"))
+        stop_background_work!(sleeping)
+        @test occursin("InterruptException", fetch(sleeping).output)
+        # Without the argument, the call answers its text at once.
+        @test call_tool(set, "execute_julia_code"; target = nothing,
+                        args = Dict{String,Any}("code" => "1 + 1")) == "2\n"
+    end
+
     @testset "work in work keeps the unit of its start, and waits for its own work" begin
         unit = CodeUnit(["parent"])
         seen = Channel{Any}(1)
