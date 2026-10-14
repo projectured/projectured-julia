@@ -208,6 +208,18 @@ function test_build_editor()
         @test all(==(thread), seen)
     end
 
+    @testset "a loop that the caller does not wait for goes to an interactive thread first" begin
+        thread = ProjecturedKernel.EditorModule._find_editor_thread()
+        others(pool) = [t for t in Threads.threadpooltids(pool) if t != Threads.threadid()]
+        if !isempty(others(:interactive))
+            @test thread in others(:interactive)
+        elseif !isempty(others(:default))
+            @test thread in others(:default)
+        else
+            @test thread === nothing
+        end
+    end
+
     @testset "with wait = false, the editor is built and runs on a task of its own" begin
         backend = BuildProbeBackend()
         editor = run_editor!(BuildProbe(), BuildProbeProjection(); wait = false,

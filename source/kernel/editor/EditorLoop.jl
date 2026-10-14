@@ -386,8 +386,11 @@ the loop — a driver that posts its work, a watcher, a tool it declares — cal
 that `run_editor!(make; wait = false)` calls on the task of the loop.
 
 With `wait = false` the call returns the editor at once, and the editor runs on
-a task of its own: a task pinned to a thread of the default pool that is not the
-thread of the caller, or an `@async` task when the process has no such thread.
+a task of its own, pinned to a thread that is not the thread of the caller: an
+interactive thread when the process has a second one (`julia -t auto,2`), where
+no task of the default pool runs, so a task that the caller starts never holds the
+window; else a thread of the default pool; else an `@async` task. Its code units
+then run on the default pool.
 The task builds the editor too, because a backend such as SDL answers only the
 thread that started it. The loop's task is `editor.loop_task`, from the moment
 the call returns until the loop ends. The loop keeps the world of its start, so a
@@ -444,12 +447,16 @@ function _start_editor_task(make, mcp)
     editor
 end
 
-# A thread of the default pool that is not the thread of the caller, or `nothing`
-# when the process has no such thread.
+# A thread for a loop that the caller does not wait for, not the thread of the
+# caller: an interactive thread first, where no task of the default pool runs, and
+# else a thread of the default pool. `nothing` when the process has neither.
 function _find_editor_thread()
     current = Threads.threadid()
-    candidates = [thread for thread in Threads.threadpooltids(:default) if thread != current]
-    isempty(candidates) ? nothing : last(candidates)
+    for pool in (:interactive, :default)
+        candidates = [thread for thread in Threads.threadpooltids(pool) if thread != current]
+        isempty(candidates) || return last(candidates)
+    end
+    nothing
 end
 
 # A task for `f` that never moves from thread `thread`, not yet scheduled: a sticky
