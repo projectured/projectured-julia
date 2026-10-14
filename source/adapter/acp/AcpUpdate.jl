@@ -12,17 +12,65 @@
     AcpTurn(on_event)
 
 The state of one prompt of a session while it runs: the function that gets its
-events, the block that is open, the message that the open block belongs to,
-and the replies of the requests that wait for a person.
+events, the block that is open, the message that the open block belongs to, the
+replies of the requests that wait for a person, and the events that wait for the
+task that gives them to `on_event`, in their order.
+
+`on_event` can wait, because it posts to an editor. So the code of the connection
+puts the events of a turn into its outbox, a queue with no bound whose `put!`
+never waits, also under the lock of the turns, and one task gives them to
+`on_event` with no lock held.
 """
 mutable struct AcpTurn
     on_event::Function
     open_block::Symbol
     message_id::String
     waiting_replies::Vector{Function}
+    outbox::Channel{Any}
+    deliverer::Union{Task,Nothing}
 end
 
-AcpTurn(on_event::Function) = AcpTurn(on_event, :none, "", Function[])
+AcpTurn(on_event::Function) = AcpTurn(on_event, :none, "", Function[], Channel{Any}(Inf), nothing)
+
+# Start the task that gives the events of the outbox of `turn` to its `on_event`,
+# one after the other, until the outbox closes and is empty.
+function _start_turn_delivery!(turn::AcpTurn)
+    turn.deliverer = errormonitor(@async _deliver_turn_events(turn))
+    nothing
+end
+
+function _deliver_turn_events(turn::AcpTurn)
+    for event in turn.outbox
+        try
+            turn.on_event(event)
+        catch exception
+            is_fault_exception(exception) || rethrow()
+            @warn "An event of the agent did not reach the editor." exception
+        end
+    end
+    nothing
+end
+
+# Put `events` into the outbox of `turn`. An event after the end of the turn has
+# no place, and goes.
+function _send_turn_events!(turn::AcpTurn, events)
+    for event in events
+        try
+            put!(turn.outbox, event)
+        catch exception
+            exception isa InvalidStateException || rethrow()
+            return nothing
+        end
+    end
+    nothing
+end
+
+# End the outbox of `turn`, and wait until its task gave each event to `on_event`.
+function _end_turn_delivery!(turn::AcpTurn)
+    close(turn.outbox)
+    turn.deliverer === nothing || wait(turn.deliverer)
+    nothing
+end
 
 # The events of one `session/update`, in order. An update kind that the client
 # does not show (`user_message_chunk`), and a kind it does not know, answers no

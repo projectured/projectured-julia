@@ -333,12 +333,14 @@ function send_agent_prompt!(connection::AcpConnection, session_id::AbstractStrin
     request = ACP.PromptRequest(session_id = String(session_id),
                                 prompt = _make_prompt_blocks(connection, prompt))
     turn = AcpTurn(on_event)
-    # The updates of the session that came while no prompt ran go first, under
-    # the lock, so a newer update that the reader gives the turn comes after them.
+    _start_turn_delivery!(turn)
+    # The updates of the session that came while no prompt ran go first into the
+    # outbox, under the lock, so a newer update that the reader gives the turn
+    # comes after them.
     lock(connection.turns_lock) do
         connection.turns[session_id] = turn
         waiting = pop!(connection.waiting_session_events, session_id, nothing)
-        waiting === nothing || foreach(on_event, values(waiting))
+        waiting === nothing || _send_turn_events!(turn, values(waiting))
     end
     try
         result = try
@@ -351,7 +353,9 @@ function send_agent_prompt!(connection::AcpConnection, session_id::AbstractStrin
     finally
         lock(() -> delete!(connection.turns, session_id), connection.turns_lock)
         _cancel_waiting_replies!(turn)
-        foreach(on_event, _close_open_block!(Any[], turn))
+        _send_turn_events!(turn, _close_open_block!(Any[], turn))
+        # Each event of the prompt reached `on_event` when the prompt answers.
+        _end_turn_delivery!(turn)
     end
 end
 
@@ -479,7 +483,7 @@ function ACP.receive_notification(handler::AcpClientHandler, notification::ACP.S
                     (waiting[typeof(event)] = event)
             end
         else
-            foreach(turn.on_event, events)
+            _send_turn_events!(turn, events)
         end
     end
     nothing
@@ -519,9 +523,9 @@ function ACP.answer_request(handler::AcpClientHandler, request::ACP.RequestPermi
     lock(() -> push!(turn.waiting_replies, reply), connection.turns_lock)
     ACP.add_cancel_callback!(() -> reply(nothing), context)
     # A request that the agent withdrew already does not reach the person.
-    isready(choice) || turn.on_event(AgentPermissionRequest(
+    isready(choice) || _send_turn_events!(turn, (AgentPermissionRequest(
         tool_call isa Dict{String,Any} ? _read_tool_call(tool_call) : AgentToolCallUpdate(""),
-        options, reply))
+        options, reply),))
     option_id = take!(choice)
     lock(() -> filter!(waiting -> waiting !== reply, turn.waiting_replies), connection.turns_lock)
     option_id === nothing && return _make_cancelled_answer()
@@ -549,8 +553,9 @@ function ACP.answer_request(handler::AcpClientHandler, request::ACP.CreateElicit
     cancel = _ -> deliver(:cancel)
     lock(() -> push!(turn.waiting_replies, cancel), connection.turns_lock)
     ACP.add_cancel_callback!(() -> deliver(:cancel), context)
-    isready(answer) || turn.on_event(AgentQuestionRequest(string(get(json, "message", "")), fields,
-                                                          values -> deliver(values === nothing ? :decline : values)))
+    isready(answer) || _send_turn_events!(turn, (AgentQuestionRequest(
+        string(get(json, "message", "")), fields,
+        values -> deliver(values === nothing ? :decline : values)),))
     value = take!(answer)
     lock(() -> filter!(waiting -> waiting !== cancel, turn.waiting_replies), connection.turns_lock)
     value === :cancel && return ACP.CreateElicitationResponseCancel()
