@@ -17,7 +17,9 @@
 #      KeyDown(:backspace)/KeyDown(:delete) for the deletions). Where an edit is
 #      expected it must yield a ReplaceStringRangeOperation (empty replacement for
 #      the deletions), alone or first in a compound of more writes; at a declined
-#      boundary the reader yields nothing.
+#      boundary the reader yields nothing, except beside an inline image, which the
+#      deletion removes, and at a line boundary of a block of lines, where it joins
+#      the two lines.
 #   5. Where an edit is expected, evaluate that edit against the document. At a
 #      declined boundary nothing is evaluated — a stray boundary op is a failure, and
 #      evaluating it would mutate the neighbouring chrome and drift the document.
@@ -49,7 +51,9 @@
 using ProjecturedKernel.CellModule: Cell, Computation
 using ProjecturedPlatform.CollectionModule: CellVector
 using ProjecturedPlatform.StyleModule: StyleFont
-using ProjecturedPlatform.TextModule: TextString, TextBlock, TextDocument, TextGraphics, get_flat_string
+using ProjecturedPlatform.TextModule: TextString, TextLine, TextBlock, TextDocument, TextGraphics,
+                                      TextRangeReferenceStep, ReplaceTextRangeOperation,
+                                      get_flat_string
 using ProjecturedKernel.OperationModule: CompoundOperation, ReplaceReferencedValueOperation
 using ProjecturedPlatform.SyntaxModule: SyntaxNode, SyntaxLeaf
 
@@ -355,6 +359,36 @@ function _is_image_deletion_beside(document, target, op, kind::Symbol)
     1 <= image <= length(elements) && elements[image] isa TextGraphics
 end
 
+# Backspace at the start of a line of a block of lines, and Delete at the end of a
+# line that another line follows, join the two lines: one flat edit of the block with
+# an empty replacement, whose range covers the break and the indentation of the lower
+# line. The walk asserts that join without evaluating it, as it asserts a declined
+# edit, so the document stays as the remaining positions expect it.
+function _is_line_join_beside(document, target, op, kind::Symbol)
+    (op isa ReplaceTextRangeOperation && isempty(op.replacement)) || return false
+    steps = get_reference_steps(strip_reference_types(target.cursor))
+    (length(steps) >= 5 && steps[end] isa FieldReferenceStep &&
+     steps[end - 1] isa RangeReferenceStep && steps[end - 3] isa RangeReferenceStep) || return false
+    block_reference = Reference(steps[1:end - 5]...)
+    block = evaluate_reference(document, block_reference)
+    block isa TextBlock || return false
+    lines = block.elements
+    all(line -> line isa TextLine, lines) || return false
+    line_index = steps[end - 3].start + 1
+    span_index = steps[end - 1].start + 1
+    1 <= line_index <= length(lines) || return false
+    lower = kind === :backspace ?
+            (span_index == 1 && line_index > 1 ? line_index : nothing) :
+            (span_index == length(lines[line_index].elements) && line_index < length(lines) ?
+             line_index + 1 : nothing)
+    lower === nothing && return false
+    # The flat offset where the lower line starts: each line above it and its break.
+    start = sum(q -> length(get_flat_string(lines[q])) + 1, 1:(lower - 1))
+    expected = extend_reference(block_reference,
+                                TextRangeReferenceStep(start - 1, start + lines[lower].indentation))
+    is_reference_equal(strip_reference_types(op.reference), expected)
+end
+
 # Run one edit round-trip (`kind` at character boundary `k`) for the cursor target
 # `target`. See the file header for the seven steps.
 function _edit_at(document, projection, target, k::Int, ch, kind::Symbol)
@@ -404,7 +438,8 @@ function _edit_at(document, projection, target, k::Int, ch, kind::Symbol)
         # would mutate the neighbouring chrome and drift the document out from under
         # the remaining positions. The string is untouched, so we only confirm the
         # decline and that the caret is still where we set it (`expected_pos == k`).
-        (op === nothing || _is_image_deletion_beside(document, target, op, kind)) ||
+        (op === nothing || _is_image_deletion_beside(document, target, op, kind) ||
+         _is_line_join_beside(document, target, op, kind)) ||
             return _typein_failed("$kind at the boundary produced $(_op_desc(op)), expected no edit")
         selok, selmsg = _selection_caret_ok(document, target, expected_pos)
         return selok ? _typein_ok() : _typein_failed("$kind at the boundary: $selmsg")
@@ -519,8 +554,9 @@ edit's event (`KeyPress` for insert; `KeyDown(:backspace)` / `KeyDown(:delete)` 
 the deletions) through the reader, and verifies **both** the string and the post-edit
 caret: insert → `k+1`, backspace → `k-1`, delete → `k`. At a declined boundary
 (backspace at the start, delete at the end) the reader must produce no edit, or,
-beside an inline image, the deletion of that image; the walk asserts either without
-evaluating anything. The insert character is
+beside an inline image, the deletion of that image, or, at a line boundary of a block
+of lines, the join of the two lines; the walk asserts each without evaluating
+anything. The insert character is
 `replacement`'s first character.
 
 `positions` is `:all` (every boundary `0…n` of a string of length `n`), `:ends`
