@@ -724,6 +724,16 @@ make_widget_alert_atom_document_example() =
 make_widget_badge_atom_document_example() =
     WidgetBadge("Default"; position = Point2D(40, 40))
 
+# WidgetProgressBar — a single 60% bar, distinct from
+# `make_widget_progress_bar_document_example` above (which stacks a bar with no value).
+make_widget_progress_bar_atom_document_example() =
+    WidgetProgressBar(0.6; position = Point2D(40, 40), width=260)
+
+# WidgetProgressRing — a single 60% ring, distinct from
+# `make_widget_progress_ring_document_example` above (which shows five and a table).
+make_widget_progress_ring_atom_document_example() =
+    WidgetProgressRing(0.6; position = Point2D(40, 40))
+
 # WidgetSeparator — a single rule, distinct from `make_widget_separator_document_example`
 # above (which frames it between two labels).
 make_widget_separator_atom_document_example() =
