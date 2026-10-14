@@ -39,12 +39,16 @@ mutable struct McpServer
     host::String
     port::Int
     secret::String
+    # Runs when the person stops a code unit in which a call of this server runs,
+    # such as the cancel of the turn of the agent that made the call; or nothing.
+    stop::Union{Function, Nothing}
 end
 
 function McpServer(editor; instructions::AbstractString = DEFAULT_MCP_INSTRUCTIONS,
                    host::AbstractString = DEFAULT_MCP_HOST,
                    port::Integer = DEFAULT_MCP_PORT,
-                   secret::Bool = false)
+                   secret::Bool = false,
+                   stop::Union{Function, Nothing} = nothing)
     srv = mcp_server(
         name        = "projectured",
         version     = "0.1.0",
@@ -67,7 +71,7 @@ function McpServer(editor; instructions::AbstractString = DEFAULT_MCP_INSTRUCTIO
     )
     port == 0 && (port = _choose_free_port(host))
     McpServer(editor, srv, nothing, String(host), Int(port),
-              secret ? bytes2hex(rand(RandomDevice(), UInt8, 32)) : "")
+              secret ? bytes2hex(rand(RandomDevice(), UInt8, 32)) : "", stop)
 end
 
 # A port that no other program holds now. The port is free again when the
@@ -95,7 +99,7 @@ the port of `mcp`. The global logger after the start is the one before it, and
 the task of the server logs to that logger.
 """
 function start_mcp!(mcp::McpServer)
-    for tool in _make_tools(mcp.editor)
+    for tool in _make_tools(mcp)
         register!(mcp.server, tool)
     end
     transport = HttpTransport(
@@ -207,15 +211,18 @@ end
 # ═══════════════════════════════════════════════════════════════════════
 
 """
-    render_mcp_tools(editor, tools) -> Vector{MCPTool}
+    render_mcp_tools(editor, tools; stop = nothing) -> Vector{MCPTool}
 
 Render the given tools into the `MCPTool` shape the MCP server expects, binding
 each handler to `editor`. This is the MCP half of the same job `ProjecturedAnthropic`
 does for the Messages API: a `Tool` is provider-neutral, and each transport
 renders it into its own wire format.
 
-A handler runs its tool through `run_on_editor_task!`, so the tool runs on the
-task of the editor's loop and the server task waits for its answer. Each call
+A handler runs its tool through `run_on_editor_task!`, so the tool runs in a code
+unit of the editor and the server task waits for its answer; a tool that reads no
+document runs on the server task. `stop`, a function with no argument, runs when
+the person stops the unit in which a call runs, such as the cancel of the turn of
+the agent that made the call. Each call
 goes to the store of the MCP log of the session, with its arguments, its answer,
 the time it held the editor and whether it was a fault.
 
@@ -224,7 +231,8 @@ with `claudecode/toolUseId`, the document that an `execute_julia_code` call
 returns is kept in the tool set under that id with `keep_tool_call_value!`, so
 the turn of an agent can show it live.
 """
-function render_mcp_tools(editor, tools::AbstractVector{Tool})
+function render_mcp_tools(editor, tools::AbstractVector{Tool};
+                          stop::Union{Function, Nothing} = nothing)
     out = MCPTool[]
     for t in tools
         params = ToolParameter[
@@ -291,7 +299,7 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool})
                     call()
                 else
                     try
-                        run_on_editor_task!(call, editor; description = tool.name)
+                        run_on_editor_task!(call, editor; description = tool.name, stop)
                     catch exception
                         # The editor did not start the call in time: the client
                         # reads why.
@@ -385,9 +393,9 @@ end
 
 # The editor's own ToolSet is what MCP publishes — one per editor, so an MCP
 # server serves exactly the tools of the editor it is bound to.
-function _make_tools(editor)
-    register_default_tools!(editor.tools)
-    render_mcp_tools(editor, list_tools(editor.tools))
+function _make_tools(mcp::McpServer)
+    register_default_tools!(mcp.editor.tools)
+    render_mcp_tools(mcp.editor, list_tools(mcp.editor.tools); stop = mcp.stop)
 end
 
 function _make_resources(editor)

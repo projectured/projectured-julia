@@ -205,7 +205,7 @@ function _start_external_agent_session!(editor, a::Assistant, session::ExternalA
     lock(session.start_lock) do
         Base.invokelatest(start_agent_connection!, session.connection)
         if isempty(session.session_id)
-            server = _start_agent_tool_server!(editor, session)
+            server = _start_agent_tool_server!(editor, a, session)
             servers = server === nothing ? Any[] : Any[Base.invokelatest(get_agent_server_access, server)]
             conversation, kept_id, kept_directory, kept_count = run_on_editor_task!(editor) do
                 a.conversation, a.agent_session_id, a.agent_session_directory, a.agent_session_turn_count
@@ -505,11 +505,14 @@ release_document!(editor, a::Assistant) = (_release_agent_sign_ins!(editor, a); 
 # The MCP server through which the agent reaches the tools of this editor: on a
 # free port, with a secret that only this agent gets. With no MCP package loaded
 # the agent has its own tools only.
-function _start_agent_tool_server!(editor, session::ExternalAgentSession)
+# The server of the tools of the agent of `a`. A stop of a code unit in which one of
+# its calls runs cancels the turn of `a`.
+function _start_agent_tool_server!(editor, a::Assistant, session::ExternalAgentSession)
     session.tool_server === nothing || return session.tool_server
     :mcp in Base.invokelatest(get_agent_server_names) || return nothing
     server = Base.invokelatest(make_agent_server, :mcp, editor; port = 0, secret = true,
-                               instructions = DEFAULT_AGENT_INSTRUCTIONS)
+                               instructions = DEFAULT_AGENT_INSTRUCTIONS,
+                               stop = _make_turn_stop_step(editor, a))
     Base.invokelatest(start_agent_server!, server)
     session.tool_server = server
 end

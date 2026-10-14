@@ -46,7 +46,7 @@ function get_agent_server_access end
 
 """
     run_on_editor_task!(function_, target; wait = true, description = "a call from another task",
-                        timeout = EDITOR_CALL_TIMEOUT_SECONDS) -> value
+                        timeout = EDITOR_CALL_TIMEOUT_SECONDS, stop = nothing) -> value
 
 Run `function_()` on the task that owns `target`, and answer its value.
 
@@ -64,7 +64,9 @@ that the same task makes after them with `wait = true`.
 
 A posted call runs in a code unit of the editor: on a thread of its own, while the
 editor holds its frames, so a long call does not stop the window. `description`
-names the call on the busy bar meanwhile, such as the name of a tool.
+names the call on the busy bar meanwhile, such as the name of a tool. `stop`, a
+function with no argument, runs when the person stops that unit, such as the
+cancel of the turn that made the call.
 
 With `wait = true`, the caller waits at most `timeout` seconds for the editor to
 start the call. When the editor is busy longer, as with a long code unit, the call

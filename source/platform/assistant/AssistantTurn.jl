@@ -319,6 +319,14 @@ function _launch_agent_turn!(editor, a::Assistant)
     nothing
 end
 
+# What a stop of a code unit, in which a tool call of a turn of `a` runs, does to
+# the turn: it cancels the turn, as the Stop button of the assistant does. The step
+# runs on a task of its own, so it posts the cancel to the editor.
+_make_turn_stop_step(editor, a::Assistant) =
+    () -> run_on_editor_task!(editor; wait = false, description = "the stop of the turn") do
+        evaluate_operation(editor, CancelAssistantTurnOperation(a))
+    end
+
 function evaluate_operation(editor, operation::CancelAssistantTurnOperation)
     a = operation.assistant
     is_assistant_turn_running(a) || return nothing
@@ -831,6 +839,7 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
     agent = Agent(llm, set; system = a.system, thinking = true)
     stop_reason = try
         run_turn!(agent, editor; tools = Tool[_make_ask_person_tool(a, turn)],
+            on_stop = _make_turn_stop_step(editor, a),
             messages = () -> begin
                 control.is_cancelled && throw(TurnCancelledException())
                 run_on_editor_task!(() -> build_messages(a.conversation; until = turn), editor)

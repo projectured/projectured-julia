@@ -9,7 +9,7 @@ _is_error_output(output::AbstractString) =
     occursin("ERROR", output) || occursin("Error", output)
 
 """
-    run_turn!(agent, target; messages, on_event, tools = Tool[]) -> stop_reason
+    run_turn!(agent, target; messages, on_event, tools = Tool[], on_stop = nothing) -> stop_reason
 
 Run one turn: stream a round from the model, run any tools it asked for, and go
 again until it stops asking. Returns the stop reason of the final round
@@ -29,6 +29,9 @@ and the loop runs none of its tool calls.
 - `tools`    — tools of this turn beside the tool set of `agent`, such as a tool
                that asks the person of the caller, which no other client of the
                tool set may see.
+- `on_stop`  — a function with no argument that runs when the person stops a code
+               unit of the editor in which a tool call of this turn runs, such as
+               the cancel of this turn; or `nothing`.
 
 A handler can answer a `Task` in place of its text, as a tool that waits for a
 person does. The loop then waits for the task on its own task, not on the task
@@ -49,7 +52,8 @@ The loop holds the *control flow* of a turn, and only that. It builds no message
 and renders no answer: the loop streams, runs the tools, and stops when the model
 asks for no tool.
 """
-function run_turn!(agent::Agent, target; messages, on_event, tools::AbstractVector{Tool} = Tool[])
+function run_turn!(agent::Agent, target; messages, on_event, tools::AbstractVector{Tool} = Tool[],
+                   on_stop::Union{Function, Nothing} = nothing)
     register_default_tools!(agent.tools)
     turn_tools = collect(Tool, tools)
     listed = vcat(list_tools(agent.tools), turn_tools)
@@ -129,7 +133,8 @@ function run_turn!(agent::Agent, target; messages, on_event, tools::AbstractVect
                 run_call()
             else
                 try
-                    run_on_editor_task!(run_call, target; description = call.name)
+                    run_on_editor_task!(run_call, target; description = call.name,
+                                        stop = on_stop)
                 catch exception
                     # The editor did not start the call in time: the model reads
                     # why, and the turn goes on.

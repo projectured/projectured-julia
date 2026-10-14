@@ -88,17 +88,23 @@ set_code_unit_part!(unit::CodeUnit, part::Integer) = (unit.part[] = Int(part); n
     attach_code_unit_stop!(step) -> Nothing
 
 Attach `step`, a function with no argument, to the code unit that the calling code
-runs in. A stop of the unit runs each of its steps once, on a task of its own.
+runs in. A stop of the unit runs each of its steps once, on a task of its own. A
+step attached after the stop runs at once, on such a task.
 
 Use it in a wait of a verb that a stop must end: the step closes what the wait
 waits on, or wakes it. Attach the step first and then look at
-[`is_code_unit_stopped`](@ref), so that a stop that came before the step is seen.
+[`is_code_unit_stopped`](@ref), because the step can run before the wait starts.
 Outside a unit, it does nothing.
 """
 function attach_code_unit_stop!(step)
     unit = _CURRENT_CODE_UNIT[]
     unit === nothing && return nothing
-    lock(() -> push!(unit.steps, step), unit.lock)
+    # The stop sets the flag before it takes the lock, and this reads the flag
+    # under the lock, so each step runs once: here or in the stop.
+    is_stopped = lock(unit.lock) do
+        unit.stop[] || (push!(unit.steps, step); false)
+    end
+    is_stopped && _run_stop_steps([step])
     nothing
 end
 
@@ -116,7 +122,12 @@ nothing else: Julia can not stop code that runs.
 function stop_code_unit!(unit::CodeUnit)
     Threads.atomic_xchg!(unit.stop, true) && return nothing
     steps = lock(() -> copy(unit.steps), unit.lock)
-    isempty(steps) && return nothing
+    isempty(steps) || _run_stop_steps(steps)
+    nothing
+end
+
+# Run `steps` one after the other on a task of the default pool, and do not wait.
+function _run_stop_steps(steps::Vector)
     Threads.@spawn :default for step in steps
         try
             step()

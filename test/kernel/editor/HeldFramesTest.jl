@@ -221,6 +221,36 @@ function test_editor_held_frames()
             @test failure.description == "child call"
         end
 
+        @testset "a stop of a unit runs the stop step of each posted call" begin
+            editor = _held_frame_editor(HeldFrameProbeBackend([:none, :none, :stop]))
+            stopped = Threads.Atomic{Bool}(false)
+            post_operation!(editor, RunFunctionOperation(function ()
+                try
+                    wait_in_code_unit(10)
+                catch exception
+                    exception isa InterruptException || rethrow()
+                end
+            end, nothing, "a stoppable call", () -> (stopped[] = true)))
+            drain_operations!(editor)
+            @test timedwait(() -> stopped[], 5.0) === :ok
+        end
+
+        @testset "a call that starts after the stop of its unit runs its stop step at once" begin
+            editor = _held_frame_editor(HeldFrameProbeBackend([:none, :none, :stop]))
+            stopped = Threads.Atomic{Bool}(false)
+            post_operation!(editor, RunFunctionOperation(function ()
+                try
+                    wait_in_code_unit(10)
+                catch exception
+                    exception isa InterruptException || rethrow()
+                end
+            end, nothing, "the call that the stop ends"))
+            post_operation!(editor, RunFunctionOperation(() -> nothing, nothing, "a later call",
+                                                         () -> (stopped[] = true)))
+            @test drain_operations!(editor) == 2
+            @test timedwait(() -> stopped[], 5.0) === :ok
+        end
+
         @testset "a stop ends the sleep of model code" begin
             backend = HeldFrameProbeBackend([:none, :none, :none, :stop])
             editor = _held_frame_editor(backend)

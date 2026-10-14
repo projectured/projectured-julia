@@ -122,6 +122,8 @@ function _apply_posted_operations!(editor::Editor, operations::Vector{Operation}
         if operation isa RunFunctionOperation
             part += 1
             unit === nothing || set_code_unit_part!(unit, part)
+            # A stop of the unit runs the stop step of the call too.
+            operation.stop === nothing || attach_code_unit_stop!(operation.stop)
         end
         try
             _evaluate_operation_guarded!(editor, operation)
@@ -142,17 +144,20 @@ end
 # into the channel, and the caller waits on it.
 
 """
-    RunFunctionOperation(function_, answer, description = "a call from another task")
+    RunFunctionOperation(function_, answer, description = "a call from another task", stop = nothing)
 
 Run `function_()` on the editor task, in the drain of the inbox. `answer` is the
 channel that takes `(true, value)` or `(false, exception)`, or `nothing` when no
 task waits for the call. `description` names the call on the busy bar while it
-runs in a code unit. [`run_on_editor_task!`](@ref) makes it.
+runs in a code unit, and `stop` is a function with no argument that a stop of that
+unit runs, such as the cancel of the turn that made the call.
+[`run_on_editor_task!`](@ref) makes it.
 """
 struct RunFunctionOperation <: Operation
     function_::Function
     answer::Union{Channel{Any}, Nothing}
     description::String
+    stop::Union{Function, Nothing}
     # 0 while the call waits, 1 once the editor started it, 2 once its caller
     # withdrew it. One compare-and-swap decides between the start and the
     # withdrawal, so a call never both runs and times out.
@@ -160,8 +165,9 @@ struct RunFunctionOperation <: Operation
 end
 
 RunFunctionOperation(function_::Function, answer::Union{Channel{Any}, Nothing},
-                     description::AbstractString = "a call from another task") =
-    RunFunctionOperation(function_, answer, String(description), Threads.Atomic{Int}(0))
+                     description::AbstractString = "a call from another task",
+                     stop::Union{Function, Nothing} = nothing) =
+    RunFunctionOperation(function_, answer, String(description), stop, Threads.Atomic{Int}(0))
 
 # An exception goes to the task that waits for it, and a posted call that no task
 # waits for throws into the barrier of the drain, which records it. An exception
@@ -184,7 +190,8 @@ end
 # the task of the running code unit, or else the task of the loop.
 function AgentModule.run_on_editor_task!(function_, editor::Editor; wait::Bool = true,
                                          description::AbstractString = "a call from another task",
-                                         timeout::Real = EDITOR_CALL_TIMEOUT_SECONDS)
+                                         timeout::Real = EDITOR_CALL_TIMEOUT_SECONDS,
+                                         stop::Union{Function, Nothing} = nothing)
     if editor.loop_task === nothing || _is_editor_owner(editor)
         value = function_()
         return wait ? value : nothing
@@ -195,7 +202,7 @@ function AgentModule.run_on_editor_task!(function_, editor::Editor; wait::Bool =
     wait && unit !== nothing && get_current_code_unit() === unit &&
         throw(CodeUnitWaitException(String(description)))
     answer = wait ? Channel{Any}(1) : nothing
-    operation = RunFunctionOperation(function_, answer, description)
+    operation = RunFunctionOperation(function_, answer, description, stop)
     try
         post_operation!(editor, operation)
     catch exception
