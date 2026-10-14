@@ -392,7 +392,8 @@ they share thread 1 with the loop:
 - a task that model code starts, with `@async` or `Threads.@spawn`, while the
   unit runs or after it ends. The edit verbs apply their operation on the task
   that calls them (`DocumentEdits.jl:82`, `PaneProgram.jl:570`);
-- an MCP resource provider that reads a document (`McpServer.jl:334-362`);
+- an MCP resource provider, if one ever read a document (`McpServer.jl:334-362`);
+  the contract of `Resource` says that none does (3.4);
 - `on_step` of the process debugger (`process.md:123`).
 
 Step 5 lists each such task, and each one goes through the door. The rules:
@@ -809,13 +810,34 @@ nothing.
     frames, it writes one warning line to the log, such as "a frame took 1.1 s,
     1.1 s of it in the drain of TaskFeed". The record is a line of the log, not a
     fault: a slow frame is no exception. The kernel suite: 4500 of 4500.
-- [ ] **3. The stop and the bounds:** the stop flag, `stop_code_unit!` and the
+- [ ] **3. The stop and the bounds:** (progress below the list) the stop flag, `stop_code_unit!` and the
   stop steps of our own waits, the stoppable `sleep` of the scratch module (D6),
   T0 with the MCP start on a service task, T3, T4 (`Tool(...; reads_documents)`,
   and the budget in the description of the code tool), the rules a, b and c of
   §5.7, A2, and D10: `run_editor!(...; wait = false)` pins the loop to an
   interactive thread other than the one of the caller when the process has one,
   and to a thread of the default pool otherwise.
+  - [x] 3.1 (`b3c95f43d`) The scratch module of the code tool defines its own
+    `sleep` first, which calls `wait_in_code_unit`; the evaluator uses the same
+    scratch module code. `wait_for_task_group!` in a unit waits in slices of
+    `wait_in_code_unit(0.1)`, so a stop ends the wait; the group goes on.
+  - [x] 3.2 (`ab5201644`) T3: `EditorCallTimeoutException` and
+    `EDITOR_CALL_TIMEOUT_SECONDS` (30 s) in a fragment of the agent layer of their
+    own, because the contract of `run_on_editor_task!` is there. A posted call has
+    an atomic state, and one compare-and-swap decides between its start and its
+    withdrawal. The agent loop and the MCP handler answer the exception as an
+    error result.
+  - [x] 3.3 (`23aadfa73`) T0: the MCP server starts on a task of its own, and the
+    end of the loop gives the start its 10 s before the stop. The fault of a start
+    goes through the door.
+  - [x] 3.4 (`f3498c204`) T4: `Tool(...; reads_documents)`;
+    the searches of the documentation, `list_resources` and `read_resource` say
+    `false` and run on the calling task. The tool layer sits below the agent
+    layer, so `read_resource` can not send a resource through the door; all
+    resources today are documentation, so the contract of `Resource` says that a
+    provider reads no document, and `Resource` gets no field. So the MCP resource
+    providers need no door (step 5 changes with it). The fault of a tool goes to
+    the store through the door, because a tool can run off the owner now.
 - [ ] **3b. Background work (D9):** `BackgroundWork` and
   `start_background_work`, `fetch` and `stop_background_work!` (D9a); the link to
   a running unit and the calls that throw while it runs (D9b); the argument
