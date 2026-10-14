@@ -31,7 +31,9 @@ abstract type AbstractCell{T} end
 """
     is_cell_valid(cell) -> Bool
 
-Whether a read returns the value that the cell holds, or starts a computation.
+Whether a read returns the value that the cell holds, or first brings it up to
+date: by a computation, or, for a reactive cell below a write, by a check of the
+cells that it read, which finds the value up to date when none of them changed.
 
 Use it to tell a value that is ready from one that must be worked out: before a
 measurement of what a read costs, or in a test that asks whether a write
@@ -55,9 +57,10 @@ function is_cell_valid end
 """
     invalidate_cell!(cell) -> nothing
 
-Make every cell that reads `cell` invalid, and the cells that read those, with no
-write. A cell that holds a computation becomes invalid too, so its next read
-computes again. A cell that holds a value keeps it.
+Make every cell that reads `cell` invalid, with no write, and the cells that
+read those maybe invalid: each of them computes again only when a cell that it
+read gives a new value. A cell that holds a computation becomes invalid too, so
+its next read computes again. A cell that holds a value keeps it.
 
 Use it after a change that a write does not show, such as a change inside a
 mutable value that the cell holds. A write of plain data that is `===` to the

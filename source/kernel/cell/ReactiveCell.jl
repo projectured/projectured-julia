@@ -1,7 +1,7 @@
 # Fragment of `CellModule` — the pull-based reactive kind and its engine: the read
 # that records its reader, the write that invalidates the readers, and the
 # computation that runs on the next read. The engine counts its reads, computes,
-# invalidations and writes with `@count_performance`.
+# invalidations, writes, checks and stops with `@count_performance`.
 
 # The state of a reactive cell. A cell that is not valid computes at its next
 # read. A failed cell is one whose last computation threw: it computes at its next read,
@@ -11,11 +11,18 @@
 # reaches a computing cell comes from inside its computation, which writes only a cell
 # that it made in the same run. A read of a computing cell is a cycle, for the same
 # reason: it comes from inside the computation, or from a task that it waits for.
+#
+# A cell below the direct readers of a write is maybe invalid: a read first brings
+# its dependencies up to date, and it computes only when one of them computed a new
+# value. A cell is checking while its dependencies are brought up to date, and a
+# read of a checking cell is a cycle, as a read of a computing cell is.
 @enum _CellState::UInt8 begin
     _VALID
     _INVALID
     _FAILED
     _COMPUTING
+    _MAYBE_INVALID
+    _CHECKING
 end
 
 """
@@ -26,8 +33,9 @@ read.
 
 Use it to keep a value that others depend on: a cell records the cells that read
 it, and a write invalidates them, so each of them computes again the next time
-it is read. Nothing recomputes until it is read, and nothing recomputes that did
-not depend on what changed.
+it is read. Nothing recomputes until it is read, nothing recomputes that did not
+depend on what changed, and a computation that gives the plain data that it gave
+before leaves the cells that read it as they were.
 
 # Example
 
@@ -62,9 +70,10 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
     value::T
     computation::Union{Nothing, Function}
     state::_CellState
-    # The cells that the last computation read. The edges are strong, so a cell
-    # keeps alive the cells that it computes from.
-    dependencies::Union{Nothing, Set{ReactiveCell}}
+    # The cells that the last computation read, in the order of the first read of
+    # each. The edges are strong, so a cell keeps alive the cells that it computes
+    # from. A check of a "maybe invalid" cell follows the order.
+    dependencies::Union{Nothing, Vector{ReactiveCell}}
     # The cells that read this one. The edges are weak, so a cell does not keep
     # its readers alive.
     dependents::Union{Nothing, Vector{WeakRef}}
@@ -88,20 +97,63 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
     # constructor above stores it. Only a `Computation` makes a cell compute.
 end
 
-# Both edge sets are `nothing` until the first edge forms, and these two make them
-# on first use. Most cells are values that read nothing, and a cell has no reader
-# until a computation reads it. An empty `Set` and an empty `Vector` in every
-# cell would be about 90% of the cost to make one: about 168 bytes, against 24
-# bytes for a `MutableCell`.
+# Both edge lists are `nothing` until the first edge forms, and these two make
+# them on first use. Most cells are values that read nothing, and a cell has no
+# reader until a computation reads it, so an empty list in every cell would be
+# memory that most cells never use.
 #
 # `@nospecialize` is on the cell, because the cell that arrives here is often a
 # `ReactiveCell{T} where T`: it comes out of `dependencies`, a
-# `Set{ReactiveCell}`, or out of the computing stack, a `Vector{ReactiveCell}`.
+# `Vector{ReactiveCell}`, or out of the computing stack, another one.
 # Neither body reads `T`, so one compiled body serves every cell. An ahead-of-time
 # build can not enumerate a free parameter, so a body specialized on `T` would
 # leave these calls unresolved.
 @inline _get_dependencies!(@nospecialize(c::ReactiveCell)) =
-    (d = c.dependencies; d === nothing ? (c.dependencies = Set{ReactiveCell}()) : d)
+    (d = c.dependencies; d === nothing ? (c.dependencies = ReactiveCell[]) : d)
+
+# Put `c` after the dependencies that the run of `observer` read, unless it is the
+# last of them. Answers whether it put it. A run that reads a cell again after
+# another one leaves a repeat, which `_remove_repeated_dependencies!` takes out
+# when the run ends.
+@inline function _record_dependency!(@nospecialize(observer::ReactiveCell), @nospecialize(c::ReactiveCell))
+    deps = _get_dependencies!(observer)
+    n = length(deps)
+    n > 0 && (@inbounds deps[n]) === c && return false
+    push!(deps, c)
+    true
+end
+
+# The count of dependencies up to which the end of a run finds a repeat by a scan,
+# and past which it finds it with a set.
+const _DEPENDENCY_SCAN = 32
+
+# Keep the first of each cell in the dependencies of `c`, in their order.
+function _remove_repeated_dependencies!(@nospecialize(c::ReactiveCell))
+    deps = c.dependencies
+    (deps === nothing || length(deps) < 2) && return nothing
+    kept = 0
+    if length(deps) <= _DEPENDENCY_SCAN
+        @inbounds for i in eachindex(deps)
+            d = deps[i]
+            is_repeat = false
+            for k in 1:kept
+                deps[k] === d && (is_repeat = true; break)
+            end
+            is_repeat || (kept += 1; deps[kept] = d)
+        end
+    else
+        seen = Base.IdSet{ReactiveCell}()
+        @inbounds for i in eachindex(deps)
+            d = deps[i]
+            d in seen && continue
+            push!(seen, d)
+            kept += 1
+            deps[kept] = d
+        end
+    end
+    resize!(deps, kept)
+    nothing
+end
 @inline _get_dependents!(@nospecialize(c::ReactiveCell)) =
     (d = c.dependents; d === nothing ? (c.dependents = WeakRef[]) : d)
 
@@ -217,12 +269,47 @@ function Base.getindex(c::ReactiveCell)
     if !isempty(stack)
         observer = stack[end]
         if observer !== c
-            _register_dependent!(c, observer)
-            push!(_get_dependencies!(observer), c)
+            _record_dependency!(observer, c) && _register_dependent!(c, observer)
         end
     end
-    c.state === _VALID || _recompute!(c)
+    c.state === _VALID || _bring_up_to_date!(c)
     return c.value
+end
+
+# Make a cell that is not valid valid: a maybe invalid cell checks its
+# dependencies first, and every other cell computes.
+function _bring_up_to_date!(c::ReactiveCell)
+    c.state === _MAYBE_INVALID && _check_dependencies!(c) && return nothing
+    c.state === _CHECKING && throw(CellCycleException(c))
+    _recompute!(c)
+    nothing
+end
+
+# Bring each dependency of `c` up to date, in the order of the last run, and stop
+# at the first one that computed a new value: that one made `c` invalid. Answers
+# whether `c` is valid with no computation. A dependency that throws makes `c`
+# compute, so that the computation of `c` meets the exception and can catch it.
+function _check_dependencies!(@nospecialize(c::ReactiveCell))
+    @count_performance :checks
+    c.state = _CHECKING
+    deps = c.dependencies
+    if deps !== nothing
+        for i in eachindex(deps)
+            d = @inbounds deps[i]
+            d.state === _VALID && continue
+            try
+                _bring_up_to_date!(d)
+            catch exception
+                exception isa InterruptException && rethrow()
+                c.state === _CHECKING && (c.state = _INVALID)
+                return false
+            end
+            c.state === _CHECKING || return false
+        end
+    end
+    c.state === _CHECKING || return false
+    c.state = _VALID
+    true
 end
 
 # Run the computation of a cell. A computation that calls a method newer than the
@@ -251,6 +338,11 @@ function _recompute!(c::ReactiveCell)
     # One task writes and reads the cells, so a read of a computing cell comes from
     # inside its own computation: a cycle.
     c.state === _COMPUTING && throw(CellCycleException(c))
+    # The value that the readers of `c` read last, which the new value is compared
+    # with. A failed cell has none: its next value is new to a reader that caught
+    # its exception.
+    had_value = c.state !== _FAILED && isdefined(c, :value)
+    old = had_value ? c.value : nothing
     stack = _get_computing_stack()
     _detach_upstream!(c)
     @count_performance :computes
@@ -260,15 +352,24 @@ function _recompute!(c::ReactiveCell)
         _run_computation(c.computation)
     catch
         c.state = _FAILED
+        _invalidate_maybe_invalid_readers!(c)
         rethrow()
     finally
         pop!(stack)
+        _remove_repeated_dependencies!(c)
     end
     # Only a run that still finds the cell computing stores its value. A write or a
-    # new computation inside the run changed the state, and its answer stands.
+    # new computation inside the run changed the state, and its answer stands. A
+    # value of plain data that is `===` to the old one is no change for a reader,
+    # by the rule of a write, so the readers that wait for a check stay as they are.
     if c.state === _COMPUTING
         c.value = value
         c.state = _VALID
+        if had_value && _is_plain_value(value) && old === value
+            @count_performance :stops
+        else
+            _invalidate_maybe_invalid_readers!(c)
+        end
     elseif !isdefined(c, :value)
         c.value = value
     end
@@ -276,11 +377,13 @@ end
 
 # ── invalidation ─────────────────────────────────────────────────────────────
 
-# Mark every reader of `c` invalid, then the readers of each, and so on, by the
-# rules of `_CellState`: an invalid or computing reader stops the walk, and a failed
-# reader does not. A reader comes out of `dependents` as a `ReactiveCell` with a free
-# `T`, so `@nospecialize` gives the walk one compiled body, which calls itself with no
-# dispatch at run time.
+# Mark every direct reader of `c` invalid, and every valid cell below them maybe
+# invalid. A failed reader stays failed, because it computes at its next read
+# anyway, and the walk goes on through it, because a reader that caught its
+# exception can be valid. An invalid, computing or checking reader stops the walk
+# below it, because the cells below it are marked already. A reader comes out of
+# `dependents` as a `ReactiveCell` with a free `T`, so `@nospecialize` gives each
+# walk one compiled body, which calls itself with no dispatch at run time.
 function _invalidate_dependents!(@nospecialize(c::ReactiveCell))
     ds = c.dependents
     ds === nothing && return
@@ -289,10 +392,49 @@ function _invalidate_dependents!(@nospecialize(c::ReactiveCell))
         d === nothing && continue      # the reader was collected
         dd = d::ReactiveCell
         state = dd.state
-        state === _VALID || state === _FAILED || continue
-        dd.state = _INVALID
-        @count_performance :invalidations
-        _invalidate_dependents!(dd)
+        if state === _VALID
+            dd.state = _INVALID
+            @count_performance :invalidations
+            _mark_readers_maybe_invalid!(dd)
+        elseif state === _FAILED
+            _mark_readers_maybe_invalid!(dd)
+        elseif state === _MAYBE_INVALID || state === _CHECKING
+            dd.state = _INVALID
+            @count_performance :invalidations
+        end
+    end
+end
+
+# Mark every valid reader below `c` maybe invalid.
+function _mark_readers_maybe_invalid!(@nospecialize(c::ReactiveCell))
+    ds = c.dependents
+    ds === nothing && return
+    for i in eachindex(ds)
+        d = ds[i].value
+        d === nothing && continue
+        dd = d::ReactiveCell
+        state = dd.state
+        if state === _VALID
+            dd.state = _MAYBE_INVALID
+            @count_performance :invalidations
+            _mark_readers_maybe_invalid!(dd)
+        elseif state === _FAILED
+            _mark_readers_maybe_invalid!(dd)
+        end
+    end
+end
+
+# A computation of `c` gave a new value, or failed: its readers that wait for a
+# check compute instead. The walk of the write counted their marks already.
+function _invalidate_maybe_invalid_readers!(@nospecialize(c::ReactiveCell))
+    ds = c.dependents
+    ds === nothing && return
+    for i in eachindex(ds)
+        d = ds[i].value
+        d === nothing && continue
+        dd = d::ReactiveCell
+        state = dd.state
+        (state === _MAYBE_INVALID || state === _CHECKING) && (dd.state = _INVALID)
     end
 end
 
@@ -301,9 +443,11 @@ end
 """
     c[] = value
 
-Make `c` hold `value`, and invalidate every cell that reads `c`, and the cells
-that read those. If `c` held a computation, it holds `value` in its place. A value
-that does not convert to the value type of `c` throws, and `c` stays as it was.
+Make `c` hold `value`, and invalidate every cell that reads `c`. The cells that
+read those are maybe invalid: at its next read, each one computes again only when
+a cell that it read gives a new value. If `c` held a computation, it holds `value`
+in its place. A value that does not convert to the value type of `c` throws, and
+`c` stays as it was.
 
 A write of plain data that is `===` to the value that `c` holds, when `c` holds no
 computation, invalidates nothing. Plain data is a value that is `isbits`, a
@@ -332,7 +476,7 @@ _is_same_plain_value(c::ReactiveCell, value) =
 _is_plain_value(value) = isbits(value) || value isa Union{String,Symbol}
 
 function invalidate_cell!(c::ReactiveCell)
-    if c.computation !== nothing && (c.state === _VALID || c.state === _FAILED)
+    if c.computation !== nothing && (c.state === _VALID || c.state === _FAILED || c.state === _MAYBE_INVALID)
         c.state = _INVALID
         @count_performance :invalidations
     end
@@ -347,8 +491,9 @@ Put a value into a cell, and invalidate every cell that read it.
 
 Use it to write a cell that held a computation and must now hold a value, or to
 write one from code that reads better with a verb than with `c[] = value`,
-which does the same. Everything that read the cell computes again on its next
-read, unless the write is of the same plain data that the cell holds.
+which does the same. Every cell that read it computes again on its next read,
+unless the write is of the same plain data that the cell holds. A cell further
+down computes again only when a cell that it read gives a new value.
 
 # Example
 
@@ -428,7 +573,7 @@ the computation depend on the cell; this one does not.
 See also `Cell` and the guide `kernel/cell`.
 """
 function Base.peek(c::ReactiveCell)
-    c.state === _VALID || _recompute!(c)
+    c.state === _VALID || _bring_up_to_date!(c)
     return c.value
 end
 
@@ -487,7 +632,7 @@ end
 
 # The mirror of `_register_dependent!`. Here `c` is the one with a free
 # parameter: `_detach_upstream!` takes it out of `dependencies`, a
-# `Set{ReactiveCell}`.
+# `Vector{ReactiveCell}`.
 function _unregister_dependent!(@nospecialize(c::ReactiveCell),
                                 @nospecialize(observer::ReactiveCell))
     ds = c.dependents

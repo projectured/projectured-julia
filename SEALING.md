@@ -138,9 +138,9 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `performance/FrameMeasurement.jl`
 - **Layer 3 — cell** (`cell/`)
   - 🔒 `cell/CellModule.jl`
-  - 🔒 `cell/CellInterface.jl`
+  - ⬜ `cell/CellInterface.jl`
   - 🔒 `cell/CellComputation.jl`
-  - 🔒 `cell/ReactiveCell.jl`
+  - ⬜ `cell/ReactiveCell.jl`
   - 🔒 `cell/CellFaultScope.jl`
   - 🔒 `cell/MutableCell.jl`
   - 🔒 `cell/ImmutableCell.jl`

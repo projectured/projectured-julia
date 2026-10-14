@@ -41,9 +41,21 @@ in the table change.
 
 ## Steps
 
-- [ ] **1. The engine.** `ReactiveCell.jl` as above. The rules of the stop are
+- [x] **1. The engine.** `ReactiveCell.jl` as above. The rules of the stop are
   tests in `CellTest.jl`. `SEALING.md` marks each changed file of the cell layer
   unsealed.
+  - Done 2026-10-14. The end of a run removes repeats by a scan up to 32
+    dependencies and with an `IdSet` past that. A read registers the reader only
+    when it puts a cell in the list.
+  - `CellInterface.jl` changed too: the docstring of `is_cell_valid` says that a
+    cell that is not valid can become valid by a check, and the one of
+    `invalidate_cell!` says that the cells below the readers are maybe invalid.
+    `SEALING.md` marks `ReactiveCell.jl` and `CellInterface.jl` unsealed;
+    `CellModule.jl` stays true and sealed.
+  - A mark of a cell that waits for a check, when a dependency gives a new
+    value, is not counted again: the walk of the write counted it.
+  - `test_cell` has 8 new testsets and passes, 261 tests; `test_untracked_cell`,
+    `test_cell_fault_scope` and `test_cell_example` pass.
 - [ ] **2. The texts.** Decision 10 of `architecture-decisions.md`, the invariant
   `PAR-WRITE-DRIVEN-PROPAGATION`, `cell.md`, the docstrings of `ReactiveCell.jl`,
   the walk of the dirty parts in `SdlBackend.jl` and `sdl.md`, the comments of

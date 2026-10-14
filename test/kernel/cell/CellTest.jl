@@ -322,6 +322,100 @@ end
     @test invalidate_cell!(UntrackedCell{Int}(@computation 1)) === nothing
 end
 
+@testset "a computation that gives the plain data that it had leaves its readers" begin
+    runs = Ref(0)
+    number = Cell(1)
+    is_odd = Cell(@computation isodd(number[]))
+    reader = Cell(@computation (runs[] += 1; is_odd[] ? "odd" : "even"))
+    @test reader[] == "odd" && runs[] == 1
+    number[] = 3
+    @test !is_cell_valid(reader)              # maybe invalid until a read checks it
+    @test reader[] == "odd" && runs[] == 1
+    @test is_cell_valid(reader)
+    number[] = 4
+    @test reader[] == "even" && runs[] == 2
+end
+
+@testset "a value that is not plain data is new at each computation" begin
+    runs = Ref(0)
+    source = Cell(1)
+    flags = Cell(@computation [source[] > 0])
+    reader = Cell(@computation (runs[] += 1; flags[][1]))
+    @test reader[] && runs[] == 1
+    source[] = 2
+    @test reader[] && runs[] == 2
+end
+
+@testset "a check does not compute a dependency that the new run does not read" begin
+    flag = Cell(true)
+    source = Cell(1)
+    computed = Ref(0)
+    gate = Cell(@computation flag[])
+    doubled = Cell(@computation (computed[] += 1; source[] * 2))
+    other = Cell(0)
+    reader = Cell(@computation gate[] ? doubled[] : other[])
+    @test reader[] == 2 && computed[] == 1
+    flag[] = false
+    source[] = 5
+    @test reader[] == 0
+    @test computed[] == 1
+end
+
+@testset "an exception in a check reaches the computation of the reader" begin
+    source = Cell(1)
+    risky = Cell(@computation source[] > 1 ? error("too big") : source[])
+    reader = Cell(@computation try risky[] catch; -1 end)
+    @test reader[] == 1
+    source[] = 2
+    @test reader[] == -1
+    # The value of `risky` is the one that it had before it failed, and it is new
+    # to the reader, which caught the exception.
+    source[] = 1
+    @test reader[] == 1
+end
+
+@testset "a cycle through a check throws CellCycleException" begin
+    start = Cell(1)
+    middle = Cell(@computation start[] + 1)
+    tail = Cell(@computation middle[] + 1)
+    @test tail[] == 3
+    start[] = @computation tail[] + 1
+    @test_throws CellCycleException tail[]
+end
+
+@testset "a write of the same value into a computed cell reaches the readers" begin
+    runs = Ref(0)
+    source = Cell(1)
+    doubled = Cell(@computation source[] * 2)
+    reader = Cell(@computation (runs[] += 1; doubled[] + 1))
+    @test reader[] == 3 && runs[] == 1
+    doubled[] = 2
+    @test reader[] == 3 && runs[] == 2
+end
+
+@testset "invalidate_cell! makes the cells below compute when a value changes" begin
+    values = Cell([1])
+    total = Cell(@computation sum(values[]))
+    reader = Cell(@computation total[] * 10)
+    @test reader[] == 10
+    push!(values[], 2)
+    invalidate_cell!(values)
+    @test reader[] == 30
+end
+
+@testset "a run keeps one edge for each cell it read, in the order of the first read" begin
+    a, b, c = Cell(1), Cell(2), Cell(3)
+    short = Cell(@computation a[] + b[] + a[] + c[] + b[])
+    @test short[] == 9
+    @test getfield(short, :dependencies) == [a, b, c]
+    sources = [Cell(k) for k in 1:40]
+    long = Cell(@computation sum(sources[k][] + sources[1][] for k in 1:40))
+    @test long[] == sum(1:40) + 40
+    @test getfield(long, :dependencies) == sources
+    sources[40][] = 41
+    @test long[] == sum(1:40) + 41
+end
+
 @testset "a read on another task records no reader" begin
     t = Cell(1)
     s = Cell(@computation fetch(Threads.@spawn t[]))
