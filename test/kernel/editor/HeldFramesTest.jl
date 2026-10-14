@@ -17,7 +17,8 @@ import ProjecturedKernel.EditorModule: Editor, post_operation!, drain_operations
 import ProjecturedKernel.OperationModule: QuitEditorException, QuitEditorOperation
 import ProjecturedKernel.AgentModule: run_on_editor_task!
 import ProjecturedKernel.ToolModule: get_current_code_unit, wait_in_code_unit,
-                                     execute_julia_code!, CodeUnitWaitException
+                                     execute_julia_code!, CodeUnitWaitException,
+                                     start_background_work, is_background_work_done
 import ProjecturedKernel.FaultModule: FaultPolicy, get_fault_records
 import ProjecturedKernel.BackendModule
 import ProjecturedKernel.BackendModule: Backend, HeldFrameState
@@ -219,6 +220,32 @@ function test_editor_held_frames()
             end
             @test failure isa CodeUnitWaitException
             @test failure.description == "child call"
+        end
+
+        @testset "work that a running unit started waits for the editor only after the unit" begin
+            editor = _held_frame_editor(HeldFrameProbeBackend())
+            early = Channel{Any}(1)
+            go = Channel{Nothing}(1)
+            work = run_code_unit!(editor; parts = ["parent"]) do
+                work = start_background_work(; editor) do
+                    put!(early, try
+                        run_on_editor_task!(() -> :ran, editor; description = "early call")
+                    catch exception
+                        exception
+                    end)
+                    take!(go)
+                    run_on_editor_task!(() -> :late, editor; description = "late call")
+                end
+                take!(early) isa CodeUnitWaitException || error("the early call did not throw")
+                work
+            end
+            put!(go, nothing)
+            deadline = time() + 5.0
+            while !is_background_work_done(work) && time() < deadline
+                drain_operations!(editor)
+                sleep(0.01)
+            end
+            @test fetch(work) === :late             # a drain of the loop ran the late call
         end
 
         @testset "a stop of a unit runs the stop step of each posted call" begin

@@ -1,6 +1,7 @@
 # Fragment of `ToolModule` — the code unit: a piece of work that runs on a thread of
 # its own and owns the documents of its editor while it runs, the stop that a
-# person asks for, and the wait that a stop ends.
+# person asks for, and the wait that a stop ends. The stop and the wait work the
+# same in background work (`BackgroundWork.jl`).
 
 """
     CodeUnit(parts::Vector{String})
@@ -11,8 +12,8 @@ it runs, it owns the documents of its editor.
 
 `parts` are the words that the busy bar of the editor shows, one for each part of
 the work, such as the name of each posted call, and [`set_code_unit_part!`](@ref)
-says which part runs. A unit also keeps its start time, its stop flag, and the
-stop steps that its stop runs.
+says which part runs. A unit also keeps its start time, its stop flag, the stop
+steps that its stop runs, and whether it ended.
 
 Use it through [`run_in_code_unit`](@ref). Code that runs in a unit finds it with
 [`get_current_code_unit`](@ref), and so does a task that the code starts.
@@ -25,17 +26,18 @@ mutable struct CodeUnit
     steps::Vector{Any}
     lock::ReentrantLock
     task::Union{Task, Nothing}
+    ended::Threads.Atomic{Bool}
 end
 
 CodeUnit(parts::Vector{String}) =
     CodeUnit(parts, Threads.Atomic{Int}(1), time(), Threads.Atomic{Bool}(false), Any[],
-             ReentrantLock(), nothing)
+             ReentrantLock(), nothing, Threads.Atomic{Bool}(false))
 
 """
     CodeUnitWaitException(description)
 
-A task that the running code unit of an editor started asked to wait for that
-editor, with the call `description`. The editor waits for the unit, and the unit
+A task that the running code unit of an editor started, or background work that
+it started, asked to wait for that editor, with the call `description`. The editor waits for the unit, and the unit
 can wait for the task, so the call would never end. It throws at once instead.
 
 Post the call with `wait = false`, or make it in the code of the unit itself,
@@ -54,6 +56,10 @@ Base.showerror(io::IO, exception::CodeUnitWaitException) =
 # The unit of the running code, and of each task that the code starts.
 const _CURRENT_CODE_UNIT = ScopedValue{Union{CodeUnit, Nothing}}(nothing)
 
+# The unit or the background work whose stop ends the waits of the running code:
+# the innermost of the two. Each has a stop flag, its stop steps, and a lock.
+const _CURRENT_STOP_SCOPE = ScopedValue{Any}(nothing)
+
 """
     get_current_code_unit() -> CodeUnit or nothing
 
@@ -65,15 +71,15 @@ get_current_code_unit() = _CURRENT_CODE_UNIT[]
 """
     is_code_unit_stopped() -> Bool
 
-Whether the person asked to stop the code unit that the calling code runs in.
-`false` outside a unit.
+Whether the person asked to stop the code unit that the calling code runs in, or
+the background work that it runs in. `false` outside both.
 
 Use it in a long loop of a verb that can end early, such as a wait for a group of
 tasks.
 """
 function is_code_unit_stopped()
-    unit = _CURRENT_CODE_UNIT[]
-    unit !== nothing && unit.stop[]
+    scope = _CURRENT_STOP_SCOPE[]
+    scope !== nothing && scope.stop[]
 end
 
 """
@@ -88,21 +94,22 @@ set_code_unit_part!(unit::CodeUnit, part::Integer) = (unit.part[] = Int(part); n
     attach_code_unit_stop!(step) -> Nothing
 
 Attach `step`, a function with no argument, to the code unit that the calling code
-runs in. A stop of the unit runs each of its steps once, on a task of its own. A
-step attached after the stop runs at once, on such a task.
+runs in, or to the background work that it runs in. A stop of the unit runs each
+of its steps once, on a task of its own. A step attached after the stop runs at
+once, on such a task.
 
 Use it in a wait of a verb that a stop must end: the step closes what the wait
 waits on, or wakes it. Attach the step first and then look at
 [`is_code_unit_stopped`](@ref), because the step can run before the wait starts.
-Outside a unit, it does nothing.
+Outside both, it does nothing.
 """
 function attach_code_unit_stop!(step)
-    unit = _CURRENT_CODE_UNIT[]
-    unit === nothing && return nothing
+    scope = _CURRENT_STOP_SCOPE[]
+    scope === nothing && return nothing
     # The stop sets the flag before it takes the lock, and this reads the flag
     # under the lock, so each step runs once: here or in the stop.
-    is_stopped = lock(unit.lock) do
-        unit.stop[] || (push!(unit.steps, step); false)
+    is_stopped = lock(scope.lock) do
+        scope.stop[] || (push!(scope.steps, step); false)
     end
     is_stopped && _run_stop_steps([step])
     nothing
@@ -119,9 +126,13 @@ nothing.
 A stop ends the waits that attached a step and the `sleep` of the code tool, and
 nothing else: Julia can not stop code that runs.
 """
-function stop_code_unit!(unit::CodeUnit)
-    Threads.atomic_xchg!(unit.stop, true) && return nothing
-    steps = lock(() -> copy(unit.steps), unit.lock)
+stop_code_unit!(unit::CodeUnit) = _stop_scope!(unit)
+
+# Set the stop flag of `scope`, a code unit or background work, and run each of
+# its stop steps once. A second call does nothing.
+function _stop_scope!(scope)
+    Threads.atomic_xchg!(scope.stop, true) && return nothing
+    steps = lock(() -> copy(scope.steps), scope.lock)
     isempty(steps) || _run_stop_steps(steps)
     nothing
 end
@@ -143,29 +154,30 @@ end
     wait_in_code_unit(seconds) -> Nothing
 
 Wait `seconds`, and end the wait early when the code unit that the calling code
-runs in is stopped. A stop throws `InterruptException`, which the code tool
-answers as an interrupt of the call. Outside a unit it is `sleep(seconds)`.
+runs in is stopped, or the background work that it runs in. A stop throws
+`InterruptException`, which the code tool answers as an interrupt of the call.
+Outside both it is `sleep(seconds)`.
 
 The `sleep` of the scratch module of the code tool calls it, so a person can stop
 model code that sleeps.
 """
 function wait_in_code_unit(seconds::Real)
-    unit = _CURRENT_CODE_UNIT[]
-    unit === nothing && return sleep(seconds)
+    scope = _CURRENT_STOP_SCOPE[]
+    scope === nothing && return sleep(seconds)
     condition = Threads.Condition()
     is_done = Ref(false)
     timer = Timer(_ -> lock(() -> (is_done[] = true; notify(condition)), condition), seconds)
     attach_code_unit_stop!(() -> lock(() -> notify(condition), condition))
     lock(condition)
     try
-        while !is_done[] && !unit.stop[]
+        while !is_done[] && !scope.stop[]
             wait(condition)
         end
     finally
         unlock(condition)
         close(timer)
     end
-    unit.stop[] && throw(InterruptException())
+    scope.stop[] && throw(InterruptException())
     nothing
 end
 
@@ -174,9 +186,16 @@ end
 
 Run `function_()` as the code of `unit`: the code, and each task that it starts,
 finds `unit` with [`get_current_code_unit`](@ref), and a stop of `unit` reaches
-its waits. Use it on the task that runs the unit.
+its waits. Use it on the task that runs the unit. The unit has ended when it
+returns.
 """
-run_as_code_unit(function_, unit::CodeUnit) = with(function_, _CURRENT_CODE_UNIT => unit)
+function run_as_code_unit(function_, unit::CodeUnit)
+    try
+        with(function_, _CURRENT_CODE_UNIT => unit, _CURRENT_STOP_SCOPE => unit)
+    finally
+        unit.ended[] = true
+    end
+end
 
 """
     run_in_code_unit(function_, target; parts) -> value

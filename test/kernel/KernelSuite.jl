@@ -118,6 +118,7 @@ function test_kernel()
         test_relevance_search()
         test_search_answer()
         test_code_execution()
+        test_background_work()
         test_docstring_summary()
         test_construct_oracle()
     end
@@ -144,7 +145,7 @@ export test_fault_defaults, test_fault_record, test_fault_store,
        test_headless_backend, test_llm_defaults, test_agent_defaults, test_agent_loop,
        test_declared_api, test_search_query, test_meaning_search, test_relevance_search,
        test_search_answer,
-       test_code_execution,
+       test_code_execution, test_background_work,
        test_docstring_summary,
        test_editor_inbox, test_editor_frame_drain, test_editor_feeds,
        test_editor_wait, test_editor_timer, test_build_editor, test_frame_measurements,

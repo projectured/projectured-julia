@@ -2,7 +2,7 @@
     ToolModule
 
 The **capability surface**: what the editor can be asked to do, and what it can
-be asked to read. Nine fragments share this namespace:
+be asked to read. Ten fragments share this namespace:
 
 - [`Tool.jl`](Tool.jl) — `Tool` (an action), `Resource` (a read-only datum), the
   `ApiEntry` lines of the API that a set declares, the `MeaningModel` and the
@@ -13,6 +13,9 @@ be asked to read. Nine fragments share this namespace:
   thread of its own and owns the documents of its editor while it runs, its stop,
   the wait that a stop ends, and `run_in_code_unit`, the seam where an editor runs
   a unit.
+- [`BackgroundWork.jl`](BackgroundWork.jl) — `BackgroundWork` and
+  `start_background_work`, code that runs on a task of the default pool while the
+  editor goes on, and reaches documents only through the verbs.
 - [`CodeExecution.jl`](CodeExecution.jl) — `execute_julia_code!` and
   `execute_julia_expression!`, which run the code of the `execute_julia_code` tool,
   their persistent scratch namespace, and `get_evaluation_editor`, the editor of
@@ -60,9 +63,10 @@ A few values of the layer are process-global, each for a reason:
 - A call of the code tool redirects the `stdout` and the `stderr` of the process
   while the code runs, so that the answer holds what the code printed.
 
-`_EVALUATION_EDITOR` and `_CURRENT_CODE_UNIT` are `ScopedValue`s, not one of
-these: each value belongs to one evaluation and to the tasks that it starts, so
-two editors that run code at the same time each see their own.
+`_EVALUATION_EDITOR`, `_CURRENT_CODE_UNIT` and `_CURRENT_STOP_SCOPE` are
+`ScopedValue`s, not one of these: each value belongs to one evaluation and to the
+tasks that it starts, so two editors that run code at the same time each see
+their own.
 """
 module ToolModule
 
@@ -81,6 +85,8 @@ export Tool, Resource, ToolSet, ApiEntry, MeaningModel, set_meaning_model!,
        CodeUnit, CodeUnitWaitException, get_current_code_unit, is_code_unit_stopped, set_code_unit_part!,
        attach_code_unit_stop!, stop_code_unit!, wait_in_code_unit, run_as_code_unit,
        run_in_code_unit,
+       BackgroundWork, BackgroundWorkWaitException, start_background_work,
+       stop_background_work!, is_background_work_done,
        execute_julia_code!, execute_julia_expression!, get_last_evaluated_value,
        keep_tool_call_value!, take_tool_call_value!,
        get_last_evaluation_exception, get_evaluation_exception_count,
@@ -97,6 +103,7 @@ export Tool, Resource, ToolSet, ApiEntry, MeaningModel, set_meaning_model!,
 include("Tool.jl")
 include("ToolSet.jl")
 include("CodeUnit.jl")
+include("BackgroundWork.jl")
 include("CodeExecution.jl")
 include("SearchQuery.jl")
 include("Documentation.jl")
