@@ -35,6 +35,16 @@ true
 julia> invalidate_cell!(price); is_cell_valid(total)
 false
 
+# A computation that gives the same plain value as before stops the walk: the cells below it keep their values.
+julia> items = Cell(2); is_odd = Cell(@computation isodd(items[])); runs = Ref(0); label = Cell(@computation (runs[] += 1; is_odd[] ? "odd" : "even")); label[], runs[]
+("even", 1)
+
+julia> items[] = 4; label[], runs[]
+("even", 1)
+
+julia> items[] = 5; label[], runs[]
+("odd", 2)
+
 # `peek` reads a cell and records no dependency, so the reader does not follow a write.
 julia> shown = Cell(@computation peek(price)); shown[]
 12

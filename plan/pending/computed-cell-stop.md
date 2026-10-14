@@ -75,3 +75,23 @@ in the table change.
   scenarios against `main`, on an idle machine.
 - [ ] **4. The audit.** The four checks of `SEALING.md` for each changed file of
   the cell layer, reported to the owner, who seals.
+  - First audit, 2026-10-14, and what it changed:
+    - A defect: the check let an interrupt through before it reset the state
+      of its cell, so the cell stayed checking and every later read threw
+      `CellCycleException`. And an exception below a chain of k checks made
+      about k²/2 computations, against k+1 without the stop. Now a check that
+      meets an exception makes its cell invalid and passes the exception up to
+      the check that a read started, which makes its cell compute; an exception
+      that `is_fault_exception` refuses goes up through every check. The cells
+      of the chain compute once, and the cell that threw twice. Two tests pin
+      it.
+    - The invariants `PAR-MONOTONE-INVALIDATION`, `PAR-ACYCLIC-CELLS` and
+      `PAR-PROFILE-WITH-COUNTERS` name the new states, the cycle through a
+      check and the two new counts. `PAR-NO-WRITE-IN-THUNK` needs no change.
+    - Tests for `:checks` and `:stops` in `PerformanceCounterTest.jl`, for the
+      stop after `invalidate_cell!`, and for two older promises of the
+      interface: `get_cell_value_type` adds no dependency, and
+      `get_cell_computation` of an `ImmutableCell` gives `nothing`.
+    - The walkthrough of the cell layer shows the stop, and `cell.md` has an
+      example of it and the rules of an exception in a check.
+    - `_DEPENDENCY_SCAN` is `_DEPENDENCY_SCAN_LIMIT`.

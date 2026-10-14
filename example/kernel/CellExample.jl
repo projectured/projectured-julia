@@ -13,6 +13,10 @@ const _CELL_WALKTHROUGH = [
     "price[] = 12; is_cell_valid(total)",
     "# invalidate_cell! makes the readers compute again with no write.",
     "invalidate_cell!(price); is_cell_valid(total)",
+    "# A computation that gives the same plain value as before stops the walk: the cells below it keep their values.",
+    "items = Cell(2); is_odd = Cell(@computation isodd(items[])); runs = Ref(0); label = Cell(@computation (runs[] += 1; is_odd[] ? \"odd\" : \"even\")); label[], runs[]",
+    "items[] = 4; label[], runs[]",
+    "items[] = 5; label[], runs[]",
     "# `peek` reads a cell and records no dependency, so the reader does not follow a write.",
     "shown = Cell(@computation peek(price)); shown[]",
     "price[] = 20; is_cell_valid(shown)",
@@ -50,7 +54,8 @@ const _CELL_WALKTHROUGH = [
 
 Print a REPL session that shows the cell layer: a cell that holds a value, a
 computation that reads cells, a write that makes the readers invalid, a write
-that changes nothing, `invalidate_cell!`, a read
+that changes nothing, `invalidate_cell!`, a computation that gives the value that
+it had, a read
 with `peek` that records no dependency, a chain of computations, a new computation
 of a cell, the other cell kinds, `run_without_cell_tracking`, a cycle, and a fault scope.
 

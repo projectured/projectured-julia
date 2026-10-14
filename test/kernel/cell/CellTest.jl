@@ -215,6 +215,7 @@ end
     @test get_cell_computation(Cell(1)) === nothing
     @test get_cell_computation(MutableCell(1)) === nothing
     @test get_cell_computation(UntrackedCell{Int}(@computation 1)) === nothing
+    @test get_cell_computation(ImmutableCell(1)) === nothing
     c = Cell(@computation 2)
     inner = get_cell_computation(c)
     set_cell_computation!(c, () -> inner() + 1)
@@ -396,11 +397,56 @@ end
 @testset "invalidate_cell! makes the cells below compute when a value changes" begin
     values = Cell([1])
     total = Cell(@computation sum(values[]))
-    reader = Cell(@computation total[] * 10)
-    @test reader[] == 10
+    runs = Ref(0)
+    reader = Cell(@computation (runs[] += 1; total[] * 10))
+    @test reader[] == 10 && runs[] == 1
     push!(values[], 2)
     invalidate_cell!(values)
-    @test reader[] == 30
+    @test reader[] == 30 && runs[] == 2
+    # A change inside that keeps the sum leaves the cell below the readers.
+    values[][1] = 0
+    push!(values[], 1)
+    invalidate_cell!(values)
+    @test !is_cell_valid(reader)
+    @test reader[] == 30 && runs[] == 2
+end
+
+@testset "an exception below a chain of checks computes each cell of the chain once" begin
+    source = Cell(1)
+    runs = Ref(0)
+    failing = Cell(@computation (runs[] += 1; source[] > 1 ? error("too big") : source[]))
+    chain_runs = Ref(0)
+    below = failing
+    for _ in 1:8
+        previous = below
+        below = Cell(@computation (chain_runs[] += 1; previous[] + 1))
+    end
+    top_cell = below
+    reader = Cell(@computation try top_cell[] catch; -1 end)
+    @test reader[] == 9
+    runs[] = 0
+    chain_runs[] = 0
+    source[] = 2
+    @test reader[] == -1
+    # Once in the check, and once in the computations that meet the exception.
+    @test runs[] == 2
+    @test chain_runs[] == 8
+end
+
+@testset "an exception that is no fault goes up through a check, and leaves no cell checking" begin
+    source = Cell(1)
+    runs = Ref(0)
+    stopping = Cell(@computation (runs[] += 1; source[] == 2 ? throw(OutOfMemoryError()) : source[]))
+    middle = Cell(@computation stopping[] + 1)
+    reader = Cell(@computation middle[] + 1)
+    @test reader[] == 3
+    runs[] = 0
+    source[] = 2
+    @test_throws OutOfMemoryError reader[]
+    @test runs[] == 1                         # no reader runs it again
+    @test !is_cell_valid(middle) && !is_cell_valid(reader)
+    source[] = 3
+    @test reader[] == 5
 end
 
 @testset "a run keeps one edge for each cell it read, in the order of the first read" begin
@@ -424,6 +470,11 @@ end
 end
 
 @testset "get_cell_value_type" begin
+    # The answer reads no value, so no computation depends on the cell.
+    typed = ReactiveCell{Int}(1)
+    asker = Cell(@computation get_cell_value_type(typed))
+    @test asker[] === Int
+    @test !has_dependent_cells(typed)
     @test get_cell_value_type(ImmutableCell{Int}(1)) === Int
     @test get_cell_value_type(MutableCell{String}("a")) === String
     @test get_cell_value_type(ReactiveCell{Float64}(1.0)) === Float64

@@ -125,14 +125,14 @@ end
 
 # The count of dependencies up to which the end of a run finds a repeat by a scan,
 # and past which it finds it with a set.
-const _DEPENDENCY_SCAN = 32
+const _DEPENDENCY_SCAN_LIMIT = 32
 
 # Keep the first of each cell in the dependencies of `c`, in their order.
 function _remove_repeated_dependencies!(@nospecialize(c::ReactiveCell))
     deps = c.dependencies
     (deps === nothing || length(deps) < 2) && return nothing
     kept = 0
-    if length(deps) <= _DEPENDENCY_SCAN
+    if length(deps) <= _DEPENDENCY_SCAN_LIMIT
         @inbounds for i in eachindex(deps)
             d = deps[i]
             is_repeat = false
@@ -277,9 +277,10 @@ function Base.getindex(c::ReactiveCell)
 end
 
 # Make a cell that is not valid valid: a maybe invalid cell checks its
-# dependencies first, and every other cell computes.
-function _bring_up_to_date!(c::ReactiveCell)
-    c.state === _MAYBE_INVALID && _check_dependencies!(c) && return nothing
+# dependencies first, and every other cell computes. `in_check` says that the
+# check of a reader asked for it, and not a read.
+function _bring_up_to_date!(c::ReactiveCell, in_check::Bool = false)
+    c.state === _MAYBE_INVALID && _check_dependencies!(c, in_check) && return nothing
     c.state === _CHECKING && throw(CellCycleException(c))
     _recompute!(c)
     nothing
@@ -287,9 +288,14 @@ end
 
 # Bring each dependency of `c` up to date, in the order of the last run, and stop
 # at the first one that computed a new value: that one made `c` invalid. Answers
-# whether `c` is valid with no computation. A dependency that throws makes `c`
-# compute, so that the computation of `c` meets the exception and can catch it.
-function _check_dependencies!(@nospecialize(c::ReactiveCell))
+# whether `c` is valid with no computation.
+#
+# A dependency that throws makes each checking cell on the path invalid, and the
+# exception goes up to the check that a read started. That check answers `false`,
+# so its cell computes: each cell below it computes once, the cell that threw
+# computes once more, and each computation meets the exception and can catch it.
+# An exception that is no fault, such as an interrupt, goes up through every check.
+function _check_dependencies!(@nospecialize(c::ReactiveCell), in_check::Bool)
     @count_performance :checks
     c.state = _CHECKING
     deps = c.dependencies
@@ -298,10 +304,10 @@ function _check_dependencies!(@nospecialize(c::ReactiveCell))
             d = @inbounds deps[i]
             d.state === _VALID && continue
             try
-                _bring_up_to_date!(d)
+                _bring_up_to_date!(d, true)
             catch exception
-                exception isa InterruptException && rethrow()
                 c.state === _CHECKING && (c.state = _INVALID)
+                (in_check || !is_fault_exception(exception)) && rethrow()
                 return false
             end
             c.state === _CHECKING || return false

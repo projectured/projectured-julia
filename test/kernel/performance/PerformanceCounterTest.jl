@@ -93,6 +93,13 @@ function test_performance_counter()
         _ = b[]           # first read: 1 compute + at least 2 reads (a, b)
         a[] = 2           # write + invalidation
         _ = b[]           # recompute
+        # A computation that gives the plain value that it had stops the walk, and
+        # the cell below it becomes valid by a check.
+        parity = Cell(@computation isodd(a[]))
+        label = Cell(@computation parity[] ? "odd" : "even")
+        _ = label[]
+        a[] = 4
+        _ = label[]
 
         # `@measure_performance_time` returns the expression's value and
         # records the elapsed nanoseconds.
@@ -104,6 +111,8 @@ function test_performance_counter()
     @test counters.counts[:computes]      >= 2
     @test counters.counts[:writes]        >= 1
     @test counters.counts[:invalidations] >= 1
+    @test counters.counts[:stops]         >= 1
+    @test counters.counts[:checks]        >= 1
     # A time goes into the times and never into the counts.
     @test counters.times[:timed_expr]     >= 0
     @test !haskey(counters.counts, :timed_expr)

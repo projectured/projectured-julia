@@ -312,25 +312,29 @@ start of a frame, before the reads.
 while its cell is on the computing stack, in the state *computing*. By
 `PAR-SINGLE-WRITER`, a read of a computing cell comes from inside its own computation,
 directly, through any chain, or through a task that the computation waits for. So
-the read is a cycle, which the state alone shows: the engine throws a
-`CellCycleException`, an ordinary exception that a barrier records, and each cell of
-the cycle is failed. So a cycle costs one fault and
-not the editor, but a computed cell must still never read itself: its value is
+the read is a cycle, which the state alone shows. A read of a *checking* cell is
+a cycle for the same reason: it comes from inside the check of its own
+dependencies. The engine throws a `CellCycleException`, an ordinary exception
+that a barrier records, and each cell of the cycle is failed. So a cycle costs
+one fault and not the editor, but a computed cell must still never read itself: its value is
 missing until a write breaks the cycle.
 
 ### PAR-MONOTONE-INVALIDATION
 
 **Never hand-set the state of a cell and never partially invalidate.** A reactive
-cell is *valid*, *invalid*, *failed* or *computing*. Invalidation is
-monotone: a cell that is invalid implies that all its transitive readers are
-invalid already, and the early-stop walk of a write relies on it. Two states
-keep the walk right where a computation ends early or late. A *failed* cell, whose
+cell is *valid*, *invalid*, *maybe invalid*, *checking*, *failed* or *computing*.
+Invalidation is monotone: a cell that is invalid or maybe invalid implies that
+all its transitive readers are invalid or maybe invalid already, and the
+early-stop walk of a write relies on it. A write marks the direct readers
+invalid and the cells below them maybe invalid. A *failed* cell, whose
 computation threw, can have valid readers, which caught its exception, so the
-walk goes on through it. A *computing* cell stops the walk, as an invalid cell
-does: by `PAR-SINGLE-WRITER`, a write that reaches it comes from inside its own
-computation. Only `_recompute!` and a write of a value make a cell valid.
-Setting the state by hand, or invalidating only a subset of readers, breaks the
-early stop and leaves cells stale forever.
+walk goes on through it, and it stays failed. A *computing* cell stops the walk,
+as a marked cell does: by `PAR-SINGLE-WRITER`, a write that reaches it comes from
+inside its own computation. A *checking* cell is a maybe invalid cell whose
+dependencies a read brings up to date. Only `_recompute!`, a check that finds no
+new value and a write of a value make a cell valid. Setting the state by hand,
+or invalidating only a subset of readers, breaks the early stop and leaves cells
+stale forever.
 
 ### PAR-WRITE-DRIVEN-PROPAGATION
 
@@ -1137,8 +1141,8 @@ events.
 `performance_counters` of `ProjecturedKernel` to `true` and start Julia again; the
 package cache then compiles the kernel with the counters.
 The read-eval-print loop then binds a fresh counter store for each frame, and
-`_log_performance_counters!` logs `reads / computes / invalidations / writes` for each frame that
-applied an operation. Use them to find unintentional recomputation (a single
+`_log_performance_counters!` logs `reads / computes / invalidations / writes`, and
+`checks / stops` when a frame had them, for each frame that applied an operation. Use them to find unintentional recomputation (a single
 keypress causing thousands of `computes` means something reads more cells than
 necessary).
 

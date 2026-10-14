@@ -107,6 +107,17 @@ The engine marks at once, and it computes only on a read:
   one to `:checks`. While a cell checks, it is *checking*, and a read of it is a
   cycle, as a read of a computing cell is.
 
+```julia
+number = Cell(1)
+is_odd = Cell(@computation isodd(number[]))
+runs = Ref(0)
+label = Cell(@computation (runs[] += 1; is_odd[] ? "odd" : "even"))
+label[]                  # "odd", and runs[] is 1
+number[] = 3             # is_odd is invalid, and label is maybe invalid
+label[]                  # "odd": is_odd gives true again, so label does not compute
+runs[]                   # 1
+```
+
 This is the pull-based, lazy strategy, with the early stop that the Salsa and
 Adapton libraries have. The projection printer depends on it to stay
 incremental: a part of the output that nothing reads does not compute again,
@@ -161,7 +172,17 @@ A computation that throws makes its cell *failed*. The next read runs it again,
 and the exception goes up the stack of the reads; the engine keeps no exception. A
 reader can catch the exception and answer something else. That reader is then
 valid while the cell that it read is not, so a failed cell passes the walk of a
-later write on to its readers, and the reader computes again.
+later write on to its readers, and the reader computes again. A failed cell stays
+failed when a write reaches it, and its next value is new to its readers, also
+when it is the value from before the failure: a reader that caught the exception
+must compute again.
+
+An exception during a check makes each checking cell on the path invalid, and
+the check that a read started makes its cell compute. So each cell of the path
+computes once, and the cell that threw runs twice: once in the check, and once in
+the computations, where a reader can catch the exception. A scope that takes
+faults can so take the same fault twice. An exception that is not a fault, such
+as an interrupt, goes up through every check, and leaves no cell checking.
 
 A computation also keeps its **fault scope**: the scope that held when its
 `Computation` was made, or when `set_cell_computation!` gave it to a cell. A
@@ -390,7 +411,8 @@ not compute again when a part of the node changes.
 
 `print_cell_example()` in `ProjecturedKernelExample` prints a REPL session with the
 layer: a value, a computation, a write that makes the readers invalid, a write of
-the same plain value, `invalidate_cell!`, `peek`, a chain, a new computation and a
+the same plain value, `invalidate_cell!`, a computation that gives the value that
+it had, `peek`, a chain, a new computation and a
 new value of a cell, the other cell kinds, `run_without_cell_tracking`, a cycle and
 a fault scope. Each line runs as it prints. Type the lines yourself after
 `using ProjecturedKernel.CellModule`, and change them.
