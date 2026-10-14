@@ -23,6 +23,7 @@ configure_devices!(::Backend, devices) = nothing
 open_native_windows!(::Backend, document) = nothing
 wait_for_input(::Backend, devices, timeout_seconds) = sleep(min(Float64(timeout_seconds)::Float64, 0.01))
 wake_backend!(::Backend) = nothing
+shows_held_frames(::Backend) = true
 prepare_held_frames!(::Backend, devices, descriptions) = nothing
 run_held_frame!(::Backend, devices, state::HeldFrameState) = (sleep(0.01); :none)
 end_held_frames!(::Backend, devices) = nothing

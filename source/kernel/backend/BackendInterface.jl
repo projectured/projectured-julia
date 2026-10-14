@@ -99,6 +99,16 @@ the editor task.
 function wake_backend! end
 
 """
+    shows_held_frames(backend) -> Bool
+
+Whether `backend` shows held frames while a code unit runs on a thread of its own.
+A backend that answers `false`, such as one that renders a video by a clock of its
+own, runs each unit on the thread of the loop and shows no held frame, so its
+frames keep their time. The default is `true`.
+"""
+function shows_held_frames end
+
+"""
     prepare_held_frames!(backend, devices, descriptions)
 
 Make everything that the held frames of a code unit draw, before the unit starts:

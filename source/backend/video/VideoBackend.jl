@@ -255,6 +255,10 @@ get_pointer_position(backend::VideoBackend) = (backend.pointer_x, backend.pointe
 
 get_display_size(backend::VideoBackend) = (backend.width, backend.height)
 
+# A video makes its frames by a clock of its own, so a code unit runs on the thread
+# of the loop, and the frames after it keep their time.
+shows_held_frames(::VideoBackend) = false
+
 # In video time the loop makes the next frame at once; it only lets other tasks
 # run.
 wait_for_input(backend::VideoBackend, devices, timeout_seconds) =

@@ -63,6 +63,10 @@ end
 BackendModule.end_held_frames!(backend::HeldFrameProbeBackend, devices) =
     (backend.ended += 1; nothing)
 
+# A backend that shows no held frames, as one that renders a video by its own clock.
+struct HeldFrameInlineBackend <: Backend end
+BackendModule.shows_held_frames(::HeldFrameInlineBackend) = false
+
 # An editor whose loop runs on the calling task, as the loop of `run_editor!` does.
 function _held_frame_editor(backend; fault_policy = nothing)
     editor = fault_policy === nothing ?
@@ -120,6 +124,11 @@ function test_editor_held_frames()
     end
 
     if _has_code_unit_thread()
+        @testset "a backend that shows no held frames runs a unit on the thread of the loop" begin
+            editor = _held_frame_editor(HeldFrameInlineBackend())
+            @test run_code_unit!(() -> current_task(), editor; parts = ["inline"]) === current_task()
+        end
+
         @testset "a stop ends the stoppable wait of a unit" begin
             backend = HeldFrameProbeBackend([:none, :none, :stop])
             editor = _held_frame_editor(backend)

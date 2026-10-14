@@ -32,8 +32,9 @@ of the default pool other than the thread of the loop, the unit runs on a task
 pinned to that thread. Meanwhile the unit owns the documents and the state of
 `editor`, and the loop runs held frames ([`run_held_frame!`](@ref)): the window
 answers, shows that the editor is busy, and takes a stop or a close. In every
-other case, as with one thread, in a test that runs the frames by hand, inside a
-unit, or in background work, `function_` runs at once on the calling task.
+other case, as with one thread, with a backend that shows no held frames, in a
+test that runs the frames by hand, inside a unit, or in background work,
+`function_` runs at once on the calling task.
 
 The stop control of the bar, and Escape while the bar shows, stop the unit
 ([`stop_code_unit!`](@ref)), and so does a first close of a window. A second
@@ -77,9 +78,11 @@ ToolModule.run_in_code_unit(function_, editor::Editor; parts::Vector{String}) =
     run_code_unit!(function_, editor; parts)
 
 # A thread of the default pool for a unit: not the thread of the loop, and only
-# when the calling task runs the loop. `nothing` when the unit runs inline.
+# when the calling task runs the loop of a backend that shows held frames.
+# `nothing` when the unit runs inline.
 function _find_code_unit_thread(editor::Editor)
     editor.loop_task === current_task() || return nothing
+    Base.invokelatest(shows_held_frames, editor.backend) || return nothing
     loop_thread = Threads.threadid()
     for thread in Threads.threadpooltids(:default)
         thread == loop_thread || return thread
