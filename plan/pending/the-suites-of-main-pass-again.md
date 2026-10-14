@@ -1,7 +1,8 @@
 # The suites of main pass again
 
-**Status (2026-10-13): IN PROGRESS, step 1.** The owner asked to record these failures in a
-plan, and then to start step 1 with the type-in of item 7. Items 6 and 7 have their origins.
+**Status (2026-10-14): IN PROGRESS.** The owner asked to record these failures in a plan, and
+then to start step 1 with the type-in of item 7. Items 6 and 7 have their origins and their
+fixes.
 
 **Goal:** each failure of §1 is fixed, or marked with `@test_broken` and its reason, so that a
 suite on `main` shows no unmarked failure.
@@ -39,7 +40,9 @@ known; elsewhere the origin is not found yet.
    `progress_bar` of the catalog uses `make_widget_progress_bar_document_example`, which from
    that commit stacks two bars in a `VerticalLayout`, where the seed finds no selection. The
    atoms `separator` and `skeleton` have an atom function of their own for the same reason
-   (`make_widget_separator_atom_document_example`).
+   (`make_widget_separator_atom_document_example`). **Fixed (`cc9c6d37e`, step 2):** the atoms
+   `progress_bar` and `progress_ring` make one widget each; the examples keep their layouts.
+   `test_catalog` of each entry passes, 1723 and 1720 tests.
 7. **The type-in of the atomic example `text/line/graphics`, 1 failure** (`TypeinTest.jl:639`,
    in `test_catalog_typeins`). Backspace at the start of the first string of the second line,
    `.elements[2].elements[1].content{0}`, gives `ReplaceTextRangeOperation(⌶{7:12})`, and the
@@ -50,7 +53,11 @@ known; elsewhere the origin is not found yet.
    Backspace at the start of a line cover the break and the indentation of the lower line, and
    that plan left "the sweep is pending". So the walk keeps a rule that changed: a change of
    the test. `test_catalog` of Markdown, RST and math passes on `main` at
-   `a5a408b83` (35803, 74477 and 44289 tests).
+   `a5a408b83` (35803, 74477 and 44289 tests). **Fixed (`627cfbbcc`, step 2):** the walk
+   expects the join at a line boundary of a block of lines and asserts it without evaluating
+   it. Delete at the end of "alpha" makes the same join; an older `@test_broken` mark for the
+   value/chrome seam hid it, and it now passes. `test_catalog_typeins`: 102 passes and 2
+   broken, from 100, 1 failure and 3 broken. `test_typeins` stays 5148 and 20 broken.
 8. **`test_application`, 2 failures and 2 errors.**
    - "the Evaluator button opens an evaluator, and Enter evaluates what is typed"
      (`ApplicationTest.jl:1066` and `:1077`): the window draws no separate text `x + 1` for a
@@ -63,7 +70,8 @@ known; elsewhere the origin is not found yet.
    have no entry in the catalog: `FilteredText`, `FindBarView`, `GraphicsRect`,
    `HighlightedText`, `ScrollLayout`, `TaskGroupDocument`, `TaskGroupList`, `TerminalDocument`,
    `TextGutter`, `WidgetProgressBar` and `WidgetProgressRing`. The test failed in the same way
-   on 2026-10-01, with another list.
+   on 2026-10-01, with another list. The atoms of `cc9c6d37e` (item 6) cover the two progress
+   widgets. On 2026-10-14 the list has ten names: the nine others and `Roster`, which is new.
 10. **`test_window_wrappers`, 2 failures, only after other tests in the same process**
     (`WindowWrappersTest.jl:116` and `:128`). Both assert that the gesture log of the session
     grows after Ctrl+T. The log keeps 20 entries, so the assertion fails when earlier tests
