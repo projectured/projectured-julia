@@ -45,8 +45,8 @@ a value, and does not call it; write `Computation(f)` for that.
 The struct also holds its `state`, the cells that it reads (`dependencies`), and
 the cells that read it (`dependents`), through a `WeakRef`, so a cell does not keep
 its readers alive. Both edge fields are `nothing` until the first edge. The state is
-*valid*, *invalid*, *failed* or *computing*; the sections below say when
-each one holds.
+*valid*, *invalid*, *maybe invalid*, *checking*, *failed* or *computing*; the
+sections below say when each one holds.
 
 ### Read and write
 
@@ -75,7 +75,9 @@ evaluation on one task never records a reader for an evaluation on another task:
 
 1. When a computed cell starts its computation, it pushes itself onto the stack.
 2. Each `c[]` during the computation records an edge `observer ← c`. The computed
-   cell that reads becomes a downstream dependent of `c`.
+   cell that reads becomes a downstream dependent of `c`. The edges keep the order
+   of the first read of each cell, and the end of the computation removes a cell
+   that it read twice.
 3. When the computation returns, the cell pops off the stack, and the engine marks
    it valid.
 
@@ -83,22 +85,33 @@ So no code declares a dependency. A read records it.
 
 ## Invalidation
 
-The engine invalidates at once, and it computes only on a read:
+The engine marks at once, and it computes only on a read:
 
-- `c[] = v` or `set_cell_computation!(c, f)` walks the dependents of `c`, and
-  their dependents, and marks each one invalid. No computation runs. The walk
-  stops at a dependent that is invalid already, and at a computing dependent:
-  see the next section. A write of plain data that is `===` to the value of `c`
-  walks nothing, and `invalidate_cell!(c)` walks with no write. In a build with
-  the counters, each write adds one to `:writes`, except a write of the same
-  plain data, which adds nothing.
-- The next `c[]` of a cell that is not valid calls `_recompute!(c)`. It
+- `c[] = v` or `set_cell_computation!(c, f)` marks the direct readers of `c`
+  invalid, and every valid cell below them *maybe invalid*. No computation runs.
+  The walk stops below a reader that is marked already, and at a computing
+  reader: see the next section. A failed reader stays failed, and the walk goes
+  on through it. A write of plain data that is `===` to the value of `c` walks
+  nothing, and `invalidate_cell!(c)` walks with no write. In a build with the
+  counters, each write adds one to `:writes`, except a write of the same plain
+  data, which adds nothing, and each mark adds one to `:invalidations`.
+- The next `c[]` of an invalid or a failed cell calls `_recompute!(c)`. It
   removes the old upstream edges, runs the computation with tracking, and stores
-  the new value.
+  the new value. When the new value is plain data that is `===` to the old one,
+  the cells that wait for a check below `c` stay as they are, and the counters
+  add one to `:stops`. Any other value, and an exception, makes them invalid.
+- The next `c[]` of a maybe invalid cell checks first. It brings each cell that
+  the last computation read up to date, in the order of the reads, and stops at
+  the first one that gave a new value, which made it invalid: then it computes.
+  When none gave a new value, the cell is valid with no computation. A check adds
+  one to `:checks`. While a cell checks, it is *checking*, and a read of it is a
+  cycle, as a read of a computing cell is.
 
-This is the pull-based, lazy strategy. The projection printer depends on it to
-stay incremental: a part of the output that nothing reads does not compute again,
-also when its inputs change.
+This is the pull-based, lazy strategy, with the early stop that the Salsa and
+Adapton libraries have. The projection printer depends on it to stay
+incremental: a part of the output that nothing reads does not compute again,
+also when its inputs change, and a part whose inputs give the values that they
+gave does not compute again either.
 
 ## Who writes and reads cells, and when
 
@@ -204,12 +217,12 @@ and not an error.
   a `CellCycleException`, but the cells of the cycle have no value until a write
   breaks it. So a computed cell must never read itself, directly or through any
   chain.
-- **Invalidation is monotone: when a cell is invalid, all its transitive
-  dependents are invalid too.** `_invalidate_dependents!` stops at a dependent
-  that is invalid already, because that cell made its own dependents
-  invalid when it became so. This holds only because each write walks the *full*
-  transitive closure, and only `_recompute!` and a write of a value make a cell
-  valid. A failed cell passes the walk on, because a reader that caught its
+- **Invalidation is monotone: when a cell is invalid or maybe invalid, all its
+  transitive dependents are invalid or maybe invalid too.** The walk of a write
+  stops below a dependent that is marked already, because that cell marked its
+  own dependents when it became so. This holds only because each write walks the
+  *full* transitive closure, and only `_recompute!`, a check that finds no new
+  value and a write of a value make a cell valid. A failed cell passes the walk on, because a reader that caught its
   exception can be valid. A computing cell stops the walk, because only its
   own computation writes a cell that reaches it. Never set the state by hand, and
   never invalidate only a part of the dependents. Both break the early stop and
@@ -218,17 +231,19 @@ and not an error.
   write from another task, or a write inside a read phase, can leave a reader
   valid with a stale value. See
   [Who writes and reads cells, and when](#who-writes-and-reads-cells-and-when).
-- **Propagation follows the writes, not the values.** A write to a cell
-  invalidates its dependents, with **no `==` check**. Only a write of plain data
-  that is `===` to the value that the cell holds invalidates nothing: a value
-  that is `isbits`, a `String` or a `Symbol`, into a cell that holds no
-  computation. A write of the same mutable value still makes everything
-  downstream invalid, because the value can have changed inside. A computation
-  that returns an unchanged value does *not* stop the propagation. So `c[] = c[]`
-  of a mutable value has a cost: a printer that writes `selection` in each frame
-  pays for the whole subtree that it feeds. `invalidate_cell!(c)` makes the
-  readers compute again with no write. See
-  [the design-decisions note](../../design/architecture-decisions.md#10-propagation-is-write-driven-not-value-driven).
+- **Propagation starts at a write, and stops at plain data that stays the
+  same.** A write to a cell invalidates its direct readers, with **no `==`
+  check**, and makes the cells below them maybe invalid. One test stops it, in
+  two places: plain data, a value that is `isbits`, a `String` or a `Symbol`,
+  that is `===` to the value before. A write of such a value into a cell that
+  holds no computation invalidates nothing. A computation that gives such a value
+  leaves the cells that wait for a check below it, and a read finds them valid
+  with no computation. A mutable value counts as new at each write and at each
+  computation, because it can have changed inside. So `c[] = c[]` of a mutable
+  value has a cost: a printer that writes `selection` in each frame pays for the
+  subtree that it feeds. `invalidate_cell!(c)` makes the readers compute again
+  with no write. See
+  [the design-decisions note](../../design/architecture-decisions.md#10-propagation-starts-at-a-write-and-stops-at-plain-data-that-stays-the-same).
 - **A computation must be pure and deterministic in its cell inputs.** A
   computation can run zero, one or many times for one logical change, and the
   engine keeps its result until the next invalidation. So a computation must have
@@ -336,8 +351,9 @@ The load order is the dependency order that the include-order guard checks.
 A cell is a typed box, `AbstractCell{T}`, and its kind sets what it does. `Cell`
 is `ReactiveCell{Any}`, the pull-based reactive graph above: a cell holds a
 *value* or a *computation*. A read of a cell inside the computation of another
-cell records a dependency edge. A write to a cell invalidates its transitive
-dependents at once, and they compute again on their next read. The whole
+cell records a dependency edge. A write to a cell marks its transitive dependents
+at once, and at their next read they compute again, or find by a check that what
+they read gave the values that it gave. The whole
 projection pipeline depends on this for its incremental work.
 
 `MutableCell{T}` and `ImmutableCell{T}` are boxes that do not use the graph. A

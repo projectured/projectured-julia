@@ -119,8 +119,8 @@ end
 
 # Two paragraphs in a vertical stack, as a text or a page draws them: the first
 # lays out from `layout`, and the second sits below it at a `y` computed from the
-# height of the first. An edit of the first makes that `y` stale, because
-# propagation is write-driven, whether or not the height changed.
+# height of the first. An edit of the first writes `layout`, and `y` reads it
+# directly, so `y` is stale whether or not the height changed.
 function make_two_paragraphs(layout::Cell)
     first = GraphicsCanvas(CellVector(@computation [GraphicsRect(0, 0, layout[].w, layout[].h)]))
     second = GraphicsCanvas(CellVector(Cell[Cell(GraphicsRect(0, 0, 100, 18))]);

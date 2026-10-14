@@ -16,9 +16,10 @@
 #     slot cells and re-projects siblings, so the old objects become garbage
 #     rather than being marked invalid).
 #
-# The reactive engine is write-driven with no equality check (see
-# package/kernel/doc/cell.md), so locality is purely a property of the
-# dependency graph the printer builds. We measure that graph directly.
+# The reactive engine marks what a write reaches, and stops only at plain data
+# that stays the same (see documentation/package/kernel/cell.md), so locality is
+# a property of the dependency graph that the printer builds. We measure that
+# graph directly.
 #
 # Dimension A — selection isolation — is the headline case the plan calls out:
 # a pure `set_selection!` must invalidate ONLY `:selection` cells and rebuild

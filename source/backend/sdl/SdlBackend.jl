@@ -1994,7 +1994,7 @@ end
 #
 # Its content changed. Detection keys on the reactive `valid` flag of the
 # relevant cells, tested via `is_cell_valid` *before* the value is read
-# (reading recomputes). Because writing a primitive cell marks it valid (only its
+# (reading computes, or checks). Because writing a primitive cell marks it valid (only its
 # dependents go stale), the detectable dirty units are the *computed* container
 # cells the projection pipeline invalidates — a canvas whose `CellVector`-backed
 # `elements` cell or one slot of it is stale, or a `ListNode` whose spine / value
@@ -2002,10 +2002,10 @@ end
 # mutation).
 #
 # It moved, or it was resized. The geometry of a container is compared BY VALUE
-# with the geometry it was painted with (`res.painted`). Propagation is
-# write-driven, so the origin of a paragraph below an edit is computed again
-# from the heights above it and is stale whether or not a height changed. A
-# container painted at the same place is not a unit; one that moved is.
+# with the geometry it was painted with (`res.painted`). The origin of a
+# paragraph below an edit is not valid when the walk tests it, whether or not a
+# height changed, because it waits for a computation or a check. A container
+# painted at the same place is not a unit; one that moved is.
 #
 # It came into view, or it left it. A graphic the walk has no record of is new
 # to the screen and is painted. A graphic that was painted and now lies past the

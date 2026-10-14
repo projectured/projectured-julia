@@ -159,30 +159,45 @@ struct in the backend before being passed to `read_intent`. This decouples
 projections from the SDL backend — a future terminal or web backend produces
 the same events, and projection reader code stays unchanged.
 
-## 10. Propagation is write-driven, not value-driven
+## 10. Propagation starts at a write and stops at plain data that stays the same
 
-When a cell that holds a value is written, the engine invalidates its transitive
-dependents. There is no `old == new` check, and a computed cell that recomputes
-to an unchanged value does not stop propagation. The engine is deliberately
-*not* glitch-free or value-stabilising.
+When a cell that holds a value is written, the engine marks its direct readers
+invalid and every cell below them maybe invalid. There is no `old == new` check.
+The engine computes on a read, and a read sees the state after the last write.
 
-One write is exempt: plain data that is `===` to the value that the cell holds,
-written into a cell that holds no computation. Plain data is a value that is
-`isbits`, a `String` or a `Symbol`. Such a value can not change inside, so `===`
-proves that no reader can see a difference, and the check needs no `==` of a
-document payload and no value of a cell that was never pulled. A mutable value
-can change inside, so a write of the same mutable object still invalidates.
+Propagation stops at plain data that stays the same, by one test in two places.
+Plain data is a value that is `isbits`, a `String` or a `Symbol`. Such a value
+can not change inside, so `===` proves that no reader can see a difference, and
+the test needs no `==` of a document payload.
+
+- A write of plain data `===` to the value of a cell that holds no computation
+  invalidates nothing.
+- A computation that gives plain data `===` to the value that it gave before
+  leaves the cells below it that wait for a check. A read of such a cell brings
+  the cells that it read up to date in the order of the reads, and the cell
+  computes only when one of them gave a new value.
+
+A mutable value can change inside, so a write of the same mutable object, and a
+computation that gives a mutable value, count as a change.
 `invalidate_cell!(cell)` makes the readers compute again with no write, for a
 change that a write does not show.
 
-The reason is simplicity and predictability. Change detection by value would
-require every cell to retain and compare its previous value, and to define a
-meaningful `==` for arbitrary document payloads. It also interacts badly with
-laziness: a cell that was never pulled has no previous value to compare
-against. Keeping propagation keyed on *writes* makes the cost model easy to
-reason about: work is proportional to what is written and then pulled.
-The practical consequence to keep in mind is that writing a mutable value to
-the cell that holds it is **not** free. For example, a printer that rewrites
+The reason for the stop is the cost of a view that depends on many cells. A
+change of the state of the edits of one file made the table of a roster of 200
+files place every row again, 2282 computations, though no size changed; with the
+stop it computes 8, and the backend paints one cell in place of the pane. A check
+at each read of a maybe invalid cell costs about 0.02 ms in a step of typing, and
+no result of any suite changed. The measure is in
+`plan/done/computed-cell-stop-measure.md`.
+
+The reason for `===` of plain data, and not `==`, is simplicity and
+predictability. A `==` of an arbitrary document payload can cost as much as the
+computation, and has no clear meaning for many payloads. The old value is in the
+cell already, so the stop needs no memory more than a cell has, and a cell that
+was never pulled has no reader that could need it. The cost model stays easy to
+reason about: work is proportional to what is written, then pulled, and then
+changed. The practical consequence to keep in mind is that writing a mutable
+value to the cell that holds it is **not** free. For example, a printer that rewrites
 `selection` every frame pays to recompute the whole subtree that reads it. See
 [the reactive invariants](../package/kernel/cell.md#invariants-the-engine-relies-on).
 

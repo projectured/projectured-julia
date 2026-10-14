@@ -69,7 +69,7 @@ requirement; the rule is its own lead sentence.
 | [PAR-SINGLE-WRITER](#par-single-writer) | One task writes and reads a set of cells, in write phases and read phases that do not overlap |
 | [PAR-ACYCLIC-CELLS](#par-acyclic-cells) | The cell dependency graph must stay acyclic |
 | [PAR-MONOTONE-INVALIDATION](#par-monotone-invalidation) | Never hand-set `valid` and never partially invalidate |
-| [PAR-WRITE-DRIVEN-PROPAGATION](#par-write-driven-propagation) | Treat propagation as write-driven, not value-driven |
+| [PAR-WRITE-DRIVEN-PROPAGATION](#par-write-driven-propagation) | Propagation starts at a write, and stops at plain data that stays the same |
 | [PAR-NO-PROJECTION-GLOBALS](#par-no-projection-globals) | No global mutable state in projections (or the machinery they call) |
 | [PAR-DERIVED-CELLS](#par-derived-cells) | Use the reactive engine for derived state; do not read a cell before its wiring is complete |
 | [PAR-FINEST-GRANULARITY](#par-finest-granularity) | Choose the reactive container that preserves the finest granularity |
@@ -334,18 +334,20 @@ early stop and leaves cells stale forever.
 
 ### PAR-WRITE-DRIVEN-PROPAGATION
 
-**Treat propagation as write-driven, not value-driven.** Writing a cell
-invalidates its dependents. There is no `old == new` check, and a computation
-that returns an unchanged value does not stop propagation. One write is exempt:
-plain data that is `===` to the value that the cell holds, written into a cell
-that holds no computation, invalidates nothing. Plain data is a value that is
-`isbits`, a `String` or a `Symbol`; it can not change inside, so no reader can
-tell the write from no write. A write of the same mutable value still
-invalidates. So `c[] = c[]` of a mutable value is not free: a printer that
-rewrites `selection` every frame pays to recompute the whole subtree that reads
-it. Write a cell only when its value needs to change. After a change that a
-write does not show, such as a change inside a mutable value, call
-`invalidate_cell!(c)`.
+**Propagation starts at a write, and stops at plain data that stays the same.**
+Writing a cell invalidates its direct readers and makes the cells below them
+maybe invalid. There is no `old == new` check. Plain data is a value that is
+`isbits`, a `String` or a `Symbol`; it can not change inside, so `===` shows that
+no reader can tell it from the value before. A write of plain data `===` to the
+value of a cell that holds no computation invalidates nothing, and a computation
+that gives plain data `===` to the value that it gave leaves the cells below it
+as they were. A write of the same mutable value, and a computation that gives a
+mutable value, still count as a change. So `c[] = c[]` of a mutable value is not
+free: a printer that rewrites `selection` every frame pays to recompute the
+subtree that reads it. Write a cell only when its value needs to change. After a
+change that a write does not show, such as a change inside a mutable value, call
+`invalidate_cell!(c)`. A computation must not depend on a run of its own when the
+cells that it read give the values that they gave.
 
 ### PAR-NO-PROJECTION-GLOBALS
 
