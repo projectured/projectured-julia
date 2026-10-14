@@ -56,11 +56,19 @@ in the table change.
     value, is not counted again: the walk of the write counted it.
   - `test_cell` has 8 new testsets and passes, 261 tests; `test_untracked_cell`,
     `test_cell_fault_scope` and `test_cell_example` pass.
-- [ ] **2. The texts.** Decision 10 of `architecture-decisions.md`, the invariant
+- [x] **2. The texts.** Decision 10 of `architecture-decisions.md`, the invariant
   `PAR-WRITE-DRIVEN-PROPAGATION`, `cell.md`, the docstrings of `ReactiveCell.jl`,
   the walk of the dirty parts in `SdlBackend.jl` and `sdl.md`, the comments of
   `PrinterLocalityTest.jl` and `DirtyRectTest.jl`, and the cost of a change in
   `roster.md`.
+  - Done 2026-10-14. Decision 10 has a new title, "Propagation starts at a write
+    and stops at plain data that stays the same", and `cell.md` links to its new
+    anchor. `cell.md` names the two new states, the order of the edges, the
+    check and the counters `:checks` and `:stops`.
+  - The counts in `roster.md` come from the final engine. They are the counts of
+    `:always` in the measure, for every scenario: X1 with a roster costs 18
+    computations for each key, and a change of the edits of one file of 200
+    costs 8.
 - [ ] **3. The checks.** The suites of the kernel, the platform, the SDL backend,
   JSON and Julia, and the integration suite. The counts of the six scenarios of
   the measure, which must be the counts of `:always`. The time of the six

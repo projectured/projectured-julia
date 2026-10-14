@@ -92,23 +92,23 @@ edit_shown_items!(roster, "status" => "checked")
 The cell engine computes only what a change invalidated and what the screen reads. A change of one item computes the value cells of its row, and a part that changed walks its own item again, and no other part. Three things set the cost of a change that the table shows:
 
 - **A value of text.** It has a cell that holds its label, and only the text of the label reads the value. So a new value draws its label again, and no other cell of the table.
-- **The grid of the table.** It holds the heights of all rows in one cell and the widths of all columns in another. A label that draws again makes both invalid, and the engine does not stop a computed cell that gives the value that it had. So the height and the top of every row, and the place of every cell, compute again: about 11 computations for each row.
+- **The grid of the table.** It holds the heights of all rows in one cell and the widths of all columns in another. A label that draws again keeps its size when its text keeps its width, and a computation that gives the plain value that it had stops the walk there: the grid places nothing again. A label that changes its size makes the grid place again the rows below it, or the columns after it.
 - **A new list of rows.** A change that a filter or a sort sees makes a new list of rows, and the table prints every row again: about 44 computations for each row.
 
-A change that gives a value that a reader already has costs nothing when it is a write of plain data. So the undo buffer writes `has_unsaved_edits`, and a key in a file that has edits invalidates no row.
+A change that gives a value that a reader already has costs nothing more when it is plain data, by a write or by a computation. The undo buffer writes `has_unsaved_edits`, so a key in a file that has edits invalidates no row.
 
 The counters measured this on a headless window, with the walk of the paint counted, for each step after the first:
 
 | | rows | reads | computes |
 | --- | --- | --- | --- |
 | 50 files, a key in one file, no roster | 0 | 2833 | 16 |
-| the same, with the roster of the files with edits | 50 | 3923 | 24 |
-| 50 files with edits, a save of one file, with the same roster | 50 | 52830 | 2208 |
-| 200 files, the edits of one file change, with a roster with no filter | 200 | 95072 | 2282 |
+| the same, with the roster of the files with edits | 50 | 3910 | 18 |
+| 50 files with edits, a save of one file, with the same roster | 50 | 53057 | 2212 |
+| 200 files, the edits of one file change, with a roster with no filter | 200 | 15974 | 8 |
 | a change of one call, no roster | 0 | 149 | 0 |
-| the same, with the roster of the calls of one function, grouped by file | 571 | 32836 | 732 |
+| the same, with the roster of the calls of one function, grouped by file | 571 | 33047 | 737 |
 
-The plan in [roster-table-cost.md](../../../../plan/done/roster-table-cost.md) holds the probe that found these causes.
+The plan in [roster-table-cost.md](../../../../plan/done/roster-table-cost.md) holds the probe that found these causes, and [computed-cell-stop-measure.md](../../../../plan/done/computed-cell-stop-measure.md) the measure of the stop of a computed cell.
 
 ## Limits
 
