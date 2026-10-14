@@ -73,6 +73,25 @@ in the table change.
   JSON and Julia, and the integration suite. The counts of the six scenarios of
   the measure, which must be the counts of `:always`. The time of the six
   scenarios against `main`, on an idle machine.
+  - The counts, done 2026-10-14: every scenario computes, checks, stops, reads
+    and paints as `:always` did in the measure.
+  - The suites, done 2026-10-14 on 82ee15208, in the plain environment:
+
+    | suite | passes | failures and errors |
+    |---|---|---|
+    | kernel | 4558 | none |
+    | platform | 152598 | 2, `InterfaceApiTest.jl:46` and `:49` |
+    | SDL | 924 | 1, `TreeRenderTest.jl:5` |
+    | JSON | 242 | none |
+    | Julia | 669 | 1, `JuliaExpressionTest.jl:31` |
+    | integration | 1616896 | 9, in `ApplicationTest.jl`, `EvaluatorDuplicateTest.jl`, `ConversationParsingTest.jl:48` and `CatalogCoverageTest.jl:223` |
+
+    Each failure is on the list of `main`: the SDL one is the field `size`
+    that `WidgetTree` no longer has. The integration suite has fewer failures
+    than in the measure, because two commits of `main` after the branch of the
+    measure fixed the navigation and the type-in failures.
+  - The first run of the suites stopped after the kernel, when the audit found
+    the defect of the check; the run above is the second.
 - [x] **4. The audit.** The four checks of `SEALING.md` for each changed file of
   the cell layer, reported to the owner, who seals.
   - First audit, 2026-10-14, and what it changed:
