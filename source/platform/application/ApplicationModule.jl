@@ -27,6 +27,7 @@ using ..DomainModule
 using ..FileFormatModule
 using ..FaultViewModule
 using ..FileSystemModule
+using ..GestureLogModule
 using ..NaturalModule
 using ..PaneModule
 using ..RosterModule

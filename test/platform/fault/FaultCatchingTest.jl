@@ -345,12 +345,14 @@ function test_fault_catching()
         @test length(get_fault_records(tolerant.faults)) == 1
     end
 
-    @testset "a person opens the session's log, and a window fills it" begin
+    @testset "a person opens the log of the editor, and a window fills it" begin
         domain = ProjecturedPlatform.DomainModule
-        log = get_session_fault_log()
-        # `Ctrl+T` and `faults` give the one log of the session, never a fresh
-        # one that nothing fills.
-        @test domain.make_insertion_document(FaultLog) === log
+        editor = Editor(_probe_branch(2), _probe_dispatch(); backend = HeadlessBackend(), devices = Device[])
+        log = get_session_fault_log(; editor)
+        # `Ctrl+T` and `faults` give the one log of the session of the editor,
+        # never a fresh one that nothing fills.
+        @test run_with_evaluation_editor(() -> domain.make_insertion_document(FaultLog), editor) === log
+        @test get_session_fault_log() !== log
         @test "faults" in domain.get_insertion_names(FaultLog)
         @test get_document_title(log) == "Faults"
         # A saved window keeps the capacity of the log and none of its faults.

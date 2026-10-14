@@ -60,9 +60,14 @@ end
     @test "resource://guides" in texts && !("execute_julia_code" in texts)
 end
 
-@testset "a person who types the name in an empty tab gets the log of the session" begin
-    @test make_insertion_document(McpLog) === get_session_mcp_log()
-    @test get_document_title(get_session_mcp_log()) == "MCP log"
+@testset "a person who types the name in an empty tab gets the log of the editor" begin
+    editor = Editor(McpLog(), McpLogToWidget(); backend = HeadlessBackend(), devices = Device[])
+    log = get_session_mcp_log(; editor)
+    @test get_session_mcp_log(; editor) === log
+    @test run_with_evaluation_editor(() -> make_insertion_document(McpLog), editor) === log
+    @test get_document_title(log) == "MCP log"
+    # With no editor, a new log that nothing keeps.
+    @test get_session_mcp_log() !== log
 end
 
 end

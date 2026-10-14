@@ -315,6 +315,7 @@ using ProjecturedKernel.IntentModule
 using ProjecturedKernel.IoMapModule
 using ProjecturedKernel.ProjectionModule
 using ProjecturedKernel.ReferenceModule
+using ProjecturedKernel.ToolModule
 using ProjecturedKernelExample
 using ProjecturedPlatform.ProjectionAlgebraModule
 using ProjecturedPlatform.SyntaxModule

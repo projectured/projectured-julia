@@ -64,7 +64,7 @@ files of the computer that records it.
 
 `prepare` is called with the document of the application, its pane tree,
 before the editor is made, so a take starts from the layout it wants, such as a
-pane with the session's gesture log below a file. The wrappers carry the
+pane with a gesture log below a file, which the window then records into. The wrappers carry the
 selection that it sets.
 
 `llm` is the model of the assistant when it is given, as
@@ -76,11 +76,14 @@ the same `ffmpeg` call [`record_video`](@ref) uses
 (`ProjecturedVideo.encode_frames_to_video!`), then discarded.
 """
 # The wrappers of the application, with the panel of the newest gestures over the
-# content when the take asks for it.
-_with_gesture_overlay(wrappers, gesture_overlay, measure) =
-    gesture_overlay === false ? wrappers :
-    merge(wrappers, (; gesture_log = merge((; overlay = true, measure),
+# content when the take asks for it. The panel keeps the options that the
+# application gave, such as the log of a tab that `prepare` opened.
+function _with_gesture_overlay(wrappers, gesture_overlay, measure)
+    gesture_overlay === false && return wrappers
+    given = wrappers.gesture_log === true ? (;) : wrappers.gesture_log
+    merge(wrappers, (; gesture_log = merge(given, (; overlay = true, measure),
                                            gesture_overlay === true ? (;) : gesture_overlay)))
+end
 
 function record_application_video(paths::AbstractVector, timeline::AbstractVector,
                                   filename::AbstractString;
@@ -127,7 +130,7 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
                                             make_application_content_projections(; measure, appearance)),
                               _with_gesture_overlay(make_application_wrappers(; root, assistant = chat,
                                                                               status_bar, measure,
-                                                                              appearance),
+                                                                              appearance, document),
                                                     gesture_overlay, measure)...)
         backend.editor = editor
         start_application!(editor; assistant, model)

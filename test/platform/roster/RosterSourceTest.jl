@@ -29,42 +29,53 @@ function test_roster_sources()
 
     @testset "the records of a store" begin
         @test issubset([:faults, :frames, :log, :mcp_log, :tasks], get_roster_source_names())
-        log = get_session_message_log()
-        roster = link_roster!(Roster(StoreRecords(:log); columns = ["level", "message"]), log)
-        before = length(roster.rows)
-        @test before == length(log.entries)
-        push!(log.entries, MessageLogEntry("Info", "a line for the roster"))
-        @test length(roster.rows) == before + 1
-        @test [value for value in roster.rows[end].values] == ["Info", "a line for the roster"]
-        deleteat!(log.entries, length(log.entries))
-        @test length(roster.rows) == before
-        faults = link_roster!(Roster(StoreRecords(:faults); columns = ["message"]), log)
-        @test length(faults.rows) == length(get_session_fault_log().entries)
-        calls = link_roster!(Roster(StoreRecords(:mcp_log); columns = ["name"]), log)
-        @test length(calls.rows) == length(get_session_mcp_log().entries)
-        tasks = link_roster!(Roster(StoreRecords(:tasks); columns = ["within.title"]), log)
-        @test length(tasks.rows) == sum((length(group.tasks) for group in get_session_task_group_list().groups); init = 0)
-        unknown = link_roster!(Roster(StoreRecords(:no_such_store); columns = ["x"]), log)
-        @test_throws ArgumentError length(unknown.rows)
+        natural = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
+        editor = Editor(PrimitiveString("x"), natural; backend = HeadlessBackend(), devices = Device[])
+        log = get_session_message_log(; editor)
+        # A store is one of the session of the editor of the evaluation, as in a
+        # frame of that editor.
+        run_with_evaluation_editor(editor) do
+            roster = link_roster!(Roster(StoreRecords(:log); columns = ["level", "message"]), log)
+            before = length(roster.rows)
+            @test before == length(log.entries)
+            push!(log.entries, MessageLogEntry("Info", "a line for the roster"))
+            @test length(roster.rows) == before + 1
+            @test [value for value in roster.rows[end].values] == ["Info", "a line for the roster"]
+            deleteat!(log.entries, length(log.entries))
+            @test length(roster.rows) == before
+            faults = link_roster!(Roster(StoreRecords(:faults); columns = ["message"]), log)
+            push!(get_session_fault_log(; editor).entries,
+                  FaultLogEntry(1, UInt64(1), :print, :Probe, "a fault for the roster", 1))
+            @test length(faults.rows) == length(get_session_fault_log(; editor).entries) == 1
+            calls = link_roster!(Roster(StoreRecords(:mcp_log); columns = ["name"]), log)
+            @test length(calls.rows) == length(get_session_mcp_log(; editor).entries)
+            tasks = link_roster!(Roster(StoreRecords(:tasks); columns = ["within.title"]), log)
+            @test length(tasks.rows) == sum((length(group.tasks) for group in get_session_task_group_list().groups); init = 0)
+            unknown = link_roster!(Roster(StoreRecords(:no_such_store); columns = ["x"]), log)
+            @test_throws ArgumentError length(unknown.rows)
+        end
     end
 
     @testset "the frames of the session flush while a roster shows them" begin
-        store = FrameMeasurementStore(capacity = 10)
+        natural = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
+        editor = Editor(PrimitiveString("x"), natural; backend = HeadlessBackend(), devices = Device[])
+        store = editor.frame_measurements
         record_frame_measurements!(store; times = [:frame_time => 0.016, :read_time => 0.001], end_time = 1.0)
         record_frame_measurements!(store; times = [:frame_time => 0.020, :read_time => 0.002], end_time = 2.0)
-        series = get_session_frame_time_series()
+        series = get_session_frame_time_series(; editor)
         feed = FrameStatisticsFeed(; now = () -> 100.0)
-        editor = (frame_measurements = store,)
         GC.gc()
         # No roster shows the frames, so the feed asks for no frame for them.
         @test !has_dependent_cells(getfield(series, :names))
-        roster = link_roster!(Roster(StoreRecords(:frames); columns = ["frame", "frame_time"]), series)
-        length(roster.rows)
-        @test has_dependent_cells(getfield(series, :names))
-        @test compute_wake_deadline(feed, editor) !== nothing
-        drain_changes!(feed, editor)
-        @test [row.values[1] for row in roster.rows] == [1, 2]
-        @test [row.values[2] for row in roster.rows] == [0.016, 0.020]
+        run_with_evaluation_editor(editor) do
+            roster = link_roster!(Roster(StoreRecords(:frames); columns = ["frame", "frame_time"]), series)
+            length(roster.rows)
+            @test has_dependent_cells(getfield(series, :names))
+            @test compute_wake_deadline(feed, editor) !== nothing
+            drain_changes!(feed, editor)
+            @test [row.values[1] for row in roster.rows] == [1, 2]
+            @test [row.values[2] for row in roster.rows] == [0.016, 0.020]
+        end
     end
 end
 end

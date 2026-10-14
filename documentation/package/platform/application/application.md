@@ -69,7 +69,7 @@ A path with no leading `-` is a file; an unknown option, or a value a keyword re
 
 ## How it fits
 
-The application slice depends on the kernel and on the assistant, collection, conversation, domain, fileformat, filesystem, natural, pane, primitive, projection, screen, serialization, shell, style, text, tooltip, undo and widget slices of `ProjecturedPlatform`; `PLATFORM_SLICE_EDGES` in [PlatformSuite.jl](../../../../test/platform/PlatformSuite.jl) has the row.
+The application slice depends on the kernel and on the assistant, collection, conversation, domain, fileformat, filesystem, gesturelog, natural, pane, primitive, projection, screen, serialization, shell, style, text, tooltip, undo and widget slices of `ProjecturedPlatform`; `PLATFORM_SLICE_EDGES` in [PlatformSuite.jl](../../../../test/platform/PlatformSuite.jl) has the row.
 
 **It names no domain, no backend and no adapter.** A document of a domain draws through the natural renderer, which each loaded domain registers itself with; the model of the assistant is asked for by the name of its backend, through `make_llm`; and the window's backend is the one a caller passes, or the one `default_backend` finds among the loaded packages. So the window shows every domain that a session loads, and a session decides what it holds by what it loads:
 

@@ -84,13 +84,15 @@ Under the composer, a row of the height `option_bar_height` holds the Stop butto
 
 ### The Assistants pane
 
-`AssistantList` is the list of the open assistants of a session, and
-`get_session_assistant_list()` answers it. Its `assistants` compute from a
+`AssistantList` is the list of the open assistants of the session of an editor,
+and `get_session_assistant_list(; editor)` answers it. Each editor has its own. Its `assistants` compute from a
 source that the application gives with `set_assistant_list_source!`: a function
 that answers the open assistants. `link_assistant_list!(list, tree)` of the
 [application slice](../application/application.md) gives a source that reads
 the tabs of the pane tree with `collect_pane_tab_contents(tree, Assistant)`, and
-`run_application` links the list of the session to its window. The read depends
+`run_application` links the list of the session of its editor to its window. A
+file that loads before the editor exists gives a new list; the window links it
+too, and the first such list is the list of the session. The read depends
 only on the structure of the panes, so a tab that opens, closes or comes back
 with an undo changes the rows, an empty assistant tab gets a row, and an edit
 inside an assistant computes nothing again. A row leaves when its tab closes.

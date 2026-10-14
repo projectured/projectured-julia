@@ -14,7 +14,7 @@ Three packages add an editor feature with the same parts, and add no code to the
 - **A transparent decorator** wraps a projection. Its printer returns the inner output through a computed cell, so the IoMap keeps its identity while the inner projection prints again. Its reader calls the inner reader first. On the way it records the result, catches a fault, or uses one gesture that the inner reader returned no operation for.
 - **A panel** draws the document. The document goes through a chain of its own, from `…ToSyntax` through `SyntaxToText` to `TextToGraphics`, and an overlay decorator puts the result in a corner of the window canvas. The overlay reader gives every gesture to the inner projection, so a click on the panel reaches the content below it.
 
-The document also opens in a tab: a natural syntax row draws it, and its insertion alias gives the one instance of the session. [fault.md](../fault/fault.md) and [gesturehelp.md](../gesturehelp/gesturehelp.md) say how the two other packages vary the shape.
+The document also opens in a tab: a natural syntax row draws it, and its insertion alias gives the log of the session of the editor. [fault.md](../fault/fault.md) and [gesturehelp.md](../gesturehelp/gesturehelp.md) say how the two other packages vary the shape.
 
 ### The recorder
 
@@ -49,9 +49,9 @@ fills them with `get_gesture_log_style`, from a `GestureLogTheme` scaled or not,
 
 The gesturelog slice depends on the kernel and on the collection, domain, graphics, natural, projection, serialization, style, syntax and text slices.
 
-The `gesture_log` wrapper of `build_editor`, in this slice, puts a recorder outermost in the container layer of a window, over `get_session_gesture_log()`; [shell.md](../shell/shell.md#the-wrappers-of-a-window) gives the order of the wrappers. The toolbar button and `gestures` in an empty tab open that log. The gallery adds an overlay to each window and a recorder at the root with `gesture_log = true`, over a log of its own.
+The `gesture_log` wrapper of `build_editor`, in this slice, puts a recorder outermost in the container layer of a window, over the log of the session of its editor, `get_session_gesture_log(; editor)`: the log that its option `log` gives, or else a new one. Each editor has its own. The application gives the first gesture log that a tab of its window shows, such as a tab that a file or a take opened before the editor existed; [shell.md](../shell/shell.md#the-wrappers-of-a-window) gives the order of the wrappers. The toolbar button and `gestures` in an empty tab open that log. The gallery adds an overlay to each window and a recorder at the root with `gesture_log = true`, over a log of its own.
 
-Its `__init__` registers the natural row `:gesturelog`. `get_insertion_aliases` gives `gestures`, and `make_insertion_document` returns the session log, because a new log would never fill: only a recorder writes into a log. `pred_arguments` saves only `capacity`, so a loaded window starts with an empty log of the same size.
+Its `__init__` registers the natural row `:gesturelog`. `get_insertion_aliases` gives `gestures`, and `make_insertion_document` returns the log of the session of the editor, because a new log would never fill: only a recorder writes into a log. `pred_arguments` saves only `capacity`, so a loaded window starts with an empty log of the same size, which its recorder fills.
 
 ## Design decisions
 

@@ -514,6 +514,28 @@ function test_application()
                                                       node.content === settings)) == 1
             end
 
+            @testset "a tab that a file gave holds the gesture log and the assistant list of the editor" begin
+                held = GestureLog()
+                files_list = AssistantList()
+                assistant = Assistant()
+                tree = PaneTree(PaneGroup([PaneTab("Gestures", held), PaneTab("Assistants", files_list),
+                                           PaneTab("Assistant", assistant)]))
+                @test make_application_wrappers(; document = tree).gesture_log == (; log = held)
+                @test make_application_wrappers(; document = PaneTree(PaneGroup(PaneTab[]))).gesture_log === true
+                editor = Editor(tree, NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                                backend = HeadlessBackend(), devices = Device[])
+                link_lists! = parentmodule(make_application_wrappers)._link_session_assistant_lists!
+                lists = link_lists!(editor, tree)
+                try
+                    @test only(lists) === files_list
+                    @test get_session_assistant_list(; editor) === files_list
+                    @test only(files_list.assistants) === assistant
+                finally
+                    foreach(unlink_assistant_list!, lists)
+                end
+                @test isempty(files_list.assistants)
+            end
+
             @testset "the Assistants button lists the assistants of the tabs, and Show reaches a tab" begin
                 assistant = Assistant(; llm = FakeLlm("ok"))
                 assistant.agent_title = "Window assistant"
@@ -526,7 +548,7 @@ function test_application()
                                                     make_opened_window_projections()))
                 tree = only(search_documents(editor.document, node -> node isa PaneTree;
                                              descend = is_pane_search_step))
-                list = get_session_assistant_list()
+                list = get_session_assistant_list(; editor)
                 link_assistant_list!(list, tree)
                 try
                     toolbar = only(search_documents(editor.document, node -> node isa WidgetToolbar))
@@ -578,7 +600,7 @@ function test_application()
                                                     make_opened_window_projections()))
                 tree = only(search_documents(editor.document, node -> node isa PaneTree;
                                              descend = is_pane_search_step))
-                list = get_session_assistant_list()
+                list = get_session_assistant_list(; editor)
                 link_assistant_list!(list, tree)
                 fire!(event) = _app_apply!(editor, _app_fire(editor.projection, editor.iomap, event))
                 press!(x, y) = fire!(MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 0.0))
@@ -823,7 +845,7 @@ function test_application()
                 @test action !== nothing
                 _app_apply!(editor, InvokeActionOperation(action))
                 tabs = [tab for group in get_pane_groups(_app_window(document)) for tab in group.tabs]
-                @test count(tab -> tab.content === get_session_gesture_log(), tabs) == 1
+                @test count(tab -> tab.content === get_session_gesture_log(; editor), tabs) == 1
                 @test any(text -> occursin("Gestures", text), drawn())
             end
 
@@ -1491,9 +1513,10 @@ function test_application()
                 x = (0:3:600)[column]
 
                 operation = _app_fire(composed, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
-                _app_apply!(_app_make_editor(scene, composed, iomap), operation)
+                editor = _app_make_editor(scene, composed, iomap)
+                _app_apply!(editor, operation)
                 tree = _app_window(document)
-                @test count(tab -> get_wrapped_document(tab.content) === get_session_message_log(),
+                @test count(tab -> get_wrapped_document(tab.content) === get_session_message_log(; editor),
                             [tab for group in get_pane_groups(tree) for tab in group.tabs]) == 1
 
                 # The pointer at rest on the picture opens a window of its own

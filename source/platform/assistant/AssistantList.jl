@@ -15,9 +15,9 @@ again. `selected` is the assistant whose detail the pane shows, or `nothing`.
 `opener` is what Show does, `opener(editor, assistant)`, or `nothing` while no
 application gave one ([`set_assistant_list_opener!`](@ref)).
 
-Every list that a person opens is the list of the session
-([`get_session_assistant_list`](@ref)): the toolbar, a name typed into an empty
-tab and the load of a file all give it.
+Every list that a person opens in a window of an editor is the list of the
+session of that editor ([`get_session_assistant_list`](@ref)): the toolbar, a
+name typed into an empty tab and the load of a file all give it.
 
 The list is opaque to the walk of the documents (`is_walk_opaque`). Its rows are
 the assistants of the tabs, which the walk reaches there, and its source and its
@@ -25,7 +25,7 @@ opener are functions, which are no documents.
 
 # Example
 
-    list = get_session_assistant_list()
+    list = get_session_assistant_list(; editor)
     [compute_assistant_overview_title(a) for a in list.assistants]
 """
 @document struct AssistantList <: Document
@@ -56,23 +56,22 @@ accepts_pasted_document(::AssistantList) = false
 has_document_duplicate(::AssistantList) = false
 is_walk_opaque(::AssistantList) = true
 
-# Made at the first use, so no cell is made when the package loads.
-const _SESSION_ASSISTANT_LIST = Ref{Any}(nothing)
-
 """
-    get_session_assistant_list() -> AssistantList
+    get_session_assistant_list(; editor = find_evaluation_editor()) -> AssistantList
 
-The one list of the open assistants of the session, made at the first call.
+The list of the open assistants of the session of `editor`: by default the editor
+of the evaluation, or of the loop that runs the calling code. Each editor has its
+own, made at the first call. With no editor, such as while a file loads before
+its window exists, a new list, which nothing keeps and no window links.
 """
-function get_session_assistant_list()
-    list = _SESSION_ASSISTANT_LIST[]
-    list === nothing || return list
-    _SESSION_ASSISTANT_LIST[] = AssistantList()
-end
+get_session_assistant_list(; editor = find_evaluation_editor()) =
+    editor isa Editor ? get_session_document!(AssistantList, editor, AssistantList) : AssistantList()
 
 make_insertion_document(::Type{AssistantList}) = get_session_assistant_list()
 
 # A file keeps that a tab shows the list, not the rows, which belong to a session.
+# A file that loads before its window exists gives a new list, which the window
+# makes the list of its session.
 pred_arguments(::AssistantList) = (), Pair{Symbol,Any}[]
 make_pred_document(::Type{<:AssistantList}, positional, keywords) = get_session_assistant_list()
 

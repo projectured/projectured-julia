@@ -58,7 +58,7 @@ function test_message_log_feed()
         @test first_log !== second_log
         @test [entry.message for entry in first_log.entries] == ["for both"]
         @test [entry.message for entry in second_log.entries] == ["for both"]
-        # With no editor, the one log of the process, which no editor fills.
+        # With no editor, a new log, which nothing keeps and no editor fills.
         @test get_session_message_log() !== first_log && isempty(get_session_message_log().entries)
         # The insertion of a log tab in the loop of an editor gives the log of that editor.
         @test run_with_evaluation_editor(() -> make_insertion_document(MessageLog), first_editor) === first_log

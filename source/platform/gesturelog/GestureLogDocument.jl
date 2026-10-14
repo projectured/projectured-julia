@@ -169,22 +169,22 @@ end
 
 # ── The session's log ────────────────────────────────────────────────────────
 
-# One log for the session, because there is one editor and one history of what a
-# person did to it. `GestureLog()` still builds an empty one, which a test wants.
-const _SESSION_GESTURE_LOG = GestureLog()
-
 """
-    get_session_gesture_log() -> GestureLog
+    get_session_gesture_log(; editor = find_evaluation_editor()) -> GestureLog
 
-The one log of the session.
+The gesture log of the session of `editor`: by default the editor of the
+evaluation, or of the loop that runs the calling code. Each editor has its own,
+one history of what a person did to it, which the `gesture_log` wrapper records
+into. With no editor, a new empty log, which nothing keeps and nothing fills.
 
-Every gesture log a person opens is this document, so two of them show the same
-history rather than two halves of it. A view that shows only part of the history
-is a filter over this log, not a log of its own.
+Every gesture log a person opens in a window of the editor is this document, so
+two of them show the same history rather than two halves of it. A view that
+shows only part of the history is a filter over this log, not a log of its own.
 """
-get_session_gesture_log() = _SESSION_GESTURE_LOG
+get_session_gesture_log(; editor = find_evaluation_editor()) =
+    editor isa Editor ? get_session_document!(GestureLog, editor, GestureLog) : GestureLog()
 
-# A person who types `gestures` into an empty tab gets the session's log, not a
-# fresh empty one. A fresh one would never fill: what records is a decorator at
+# A person who types `gestures` into an empty tab gets the log of the editor, not
+# a fresh empty one. A fresh one would never fill: what records is a decorator at
 # the root of the projection, and it records into the log it holds.
 make_insertion_document(::Type{GestureLog}) = get_session_gesture_log()

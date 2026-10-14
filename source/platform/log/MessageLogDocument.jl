@@ -64,17 +64,13 @@ end
 
 # ── The session's log ────────────────────────────────────────────────────────
 
-# The log of code that runs no editor, such as a test that prints a log.
-# `MessageLog()` still builds an empty one, which a test wants.
-const _SESSION_MESSAGE_LOG = MessageLog()
-
 """
     get_session_message_log(; editor = find_evaluation_editor()) -> MessageLog
 
 The message log of the session of `editor`: by default the editor of the
 evaluation, or of the loop that runs the calling code. Each editor has its own,
 which its [`MessageLogFeed`](@ref) fills, so no log is shared by two editors.
-With no editor, the one log of the process, which no editor fills.
+With no editor, a new empty log, which nothing keeps and nothing fills.
 
 Every message log that a person opens in a window of the editor is this
 document, so two of them show the same messages rather than two halves of them.
@@ -82,7 +78,7 @@ A view that shows only part of the history is a filter over this log, not a log
 of its own.
 """
 get_session_message_log(; editor = find_evaluation_editor()) =
-    editor isa Editor ? get_session_document!(MessageLog, editor, MessageLog) : _SESSION_MESSAGE_LOG
+    editor isa Editor ? get_session_document!(MessageLog, editor, MessageLog) : MessageLog()
 
 # A person who types `log` into an empty tab gets the log of the editor, not a
 # fresh empty one. A fresh one would never fill: the feed of the editor fills

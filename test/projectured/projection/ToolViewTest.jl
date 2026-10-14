@@ -205,10 +205,10 @@ ProjectionModule.print_document(p::ReferenceToHumanReadableText, recursion,
 # A gesture log opened in a tab fills while a person works.
 #
 # What records is a decorator at the root of the projection, and it records into
-# the log it holds. A log a person opens is therefore the session's own log, not
-# a fresh empty one — a fresh one would draw an empty list for ever.
+# the log it holds. A log a person opens is therefore the log of the session of
+# the editor, not a fresh empty one — a fresh one would draw an empty list for ever.
 #
-# There is one editor and one history of what a person did to it, so two logs
+# An editor has one history of what a person did to it, so two logs of one editor
 # show the same entries. A view that shows only part of that history is a filter
 # over this log, not a log of its own.
 function test_gesture_log_in_tab()
@@ -216,13 +216,15 @@ function test_gesture_log_in_tab()
 
 _stub = FixedMeasure(10, 18, 6, 0)
 
-log = get_session_gesture_log()
-clear_gesture_log!(log)
+session_editor = Editor(PrimitiveString("x"), NaturalToGraphics(measure = _stub);
+                        backend = HeadlessBackend(), devices = Device[])
+log = get_session_gesture_log(; editor = session_editor)
 
-@testset "opening a log by name gives the session's own" begin
-    @test make_insertion_document(GestureLog) === log
+@testset "opening a log by name gives the log of the editor" begin
+    insert() = run_with_evaluation_editor(() -> make_insertion_document(GestureLog), session_editor)
+    @test insert() === log
     # Two tabs, one history. This is the ruling, not an accident of sharing.
-    @test make_insertion_document(GestureLog) === make_insertion_document(GestureLog)
+    @test insert() === insert()
     # A log built by hand is still an empty one, which a test wants.
     @test isempty(GestureLog().entries)
 end
@@ -248,8 +250,6 @@ end
     @test length(log.entries) > before
 end
 
-clear_gesture_log!(log)
-
 end
 end
 
@@ -259,8 +259,8 @@ end
 # message into the store of the session and then forwards it to the logger it
 # replaced, so the terminal still shows what it showed. The feed moves the
 # stored lines into the log, once per frame in an editor, and here by a drain
-# that the test calls. A log a person opens by name is the session's own log,
-# because a fresh empty one would never fill.
+# that the test calls. A log a person opens by name is the log of the session of
+# the editor, because a fresh empty one would never fill.
 function test_message_log()
 @testset "a log view captures log statements" begin
 
@@ -275,7 +275,9 @@ function drawn(node, depth = 0)
     ""
 end
 
-log = get_session_message_log()
+session_editor = Editor(PrimitiveString("x"), NaturalToGraphics(measure = _stub);
+                        backend = HeadlessBackend(), devices = Device[])
+log = get_session_message_log(; editor = session_editor)
 feed = MessageLogFeed(store = get_session_message_log_store(), log = log)
 clear_message_log!(log)
 # The store can hold lines that another test of the session logged.
@@ -319,7 +321,7 @@ finally
 end
 
 @testset "a person opens it by name" begin
-    @test make_insertion_document(MessageLog) === log
+    @test run_with_evaluation_editor(() -> make_insertion_document(MessageLog), session_editor) === log
     @test resolve_insertion(Document, "log") === MessageLog
     @test get_document_title(MessageLog()) == "Log"
 end

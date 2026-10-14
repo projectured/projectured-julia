@@ -225,7 +225,8 @@ end
 """
     make_application_wrappers(; root = pwd(), assistant = nothing, status_bar = true,
                               measure = FontFileMeasure(),
-                              appearance::Appearance = Appearance()) -> NamedTuple
+                              appearance::Appearance = Appearance(),
+                              document = nothing) -> NamedTuple
 
 The wrappers of `build_editor` that the application window has, as keywords:
 its undo, its chrome, the clipboard and the walk, F1 help, the command palette,
@@ -239,11 +240,13 @@ with its backend, its model and its greeting, and its explorer lists `root`.
 `status_bar = false` leaves out the status bar, which a video that shows what
 the window paints again uses, because the status bar changes with every move of
 the caret. The clipboard offers all of its gestures: a person who edits a file
-expects `Ctrl+X` to cut.
+expects `Ctrl+X` to cut. `document` is the pane tree of the window: the gesture
+log records into the first gesture log that its tabs show, which a file or a
+take gave before the editor existed.
 """
 make_application_wrappers(; root::AbstractString = pwd(), assistant = nothing,
                           status_bar::Bool = true, measure = FontFileMeasure(),
-                          appearance::Appearance = Appearance()) =
+                          appearance::Appearance = Appearance(), document = nothing) =
     (; undo = true,
        shell = (; assistant = _make_assistant_factory(assistant),
                   explorer = _ -> _make_application_workspace(root),
@@ -252,7 +255,15 @@ make_application_wrappers(; root::AbstractString = pwd(), assistant = nothing,
        clipboard = true,
        gesture_help = (; measure),
        command_palette = (; measure),
-       gesture_log = true, message_log = true, frame_statistics = true, fault_log = true)
+       gesture_log = _make_gesture_log_option(document), message_log = true,
+       frame_statistics = true, fault_log = true)
+
+# The gesture log of a window records into the first gesture log that a tab of
+# its pane tree shows, or into a new one.
+function _make_gesture_log_option(document)
+    logs = document isa PaneTree ? collect_pane_tab_contents(document, GestureLog) : GestureLog[]
+    isempty(logs) ? true : (; log = first(logs))
+end
 
 """
     make_application_window(paths; root = pwd(), assistant = nothing,
@@ -276,11 +287,11 @@ function make_application_window(paths::AbstractVector;
                                  appearance::Appearance = Appearance(),
                                  settings::Settings = make_settings())
     # The caller's `build_editor` adds the appearance and the settings wrappers.
-    parts = make_editor_parts(make_application_document(paths; root, assistant, settings),
-                              make_application_projection(; measure, appearance);
+    document = make_application_document(paths; root, assistant, settings)
+    parts = make_editor_parts(document, make_application_projection(; measure, appearance);
                               appearance = false, settings = false,
                               make_application_wrappers(; root, assistant, status_bar, measure,
-                                                          appearance)...)
+                                                          appearance, document)...)
     (parts.document, parts.projection)
 end
 
@@ -289,7 +300,8 @@ end
 
 Make the Assistants pane of `list` show the assistants of the tabs of `tree`, and
 make its Show focus the tab of an assistant, or open it again. The window of
-[`run_application`](@ref) links the list of the session to its pane tree.
+[`run_application`](@ref) links the list of the session of its editor to its pane
+tree, and every other list that its files gave.
 """
 function link_assistant_list!(list::AssistantList, tree::PaneTree)
     set_assistant_list_source!(list, () -> collect_pane_tab_contents(tree, Assistant))
@@ -307,6 +319,17 @@ function unlink_assistant_list!(list::AssistantList)
     set_assistant_list_source!(list, nothing)
     set_assistant_list_opener!(list, nothing)
     select_assistant!(list, nothing)
+end
+
+# Link every assistant list that a tab of the window of `editor` shows, which its
+# files gave before the editor existed, and the list of the session of the editor:
+# the first of them, or a new one. Answer the lists, for the unlink.
+function _link_session_assistant_lists!(editor::Editor, tree::PaneTree)
+    lists = collect_pane_tab_contents(tree, AssistantList)
+    session = get_session_document!(() -> isempty(lists) ? AssistantList() : first(lists), editor, AssistantList)
+    any(list -> list === session, lists) || push!(lists, session)
+    foreach(list -> link_assistant_list!(list, tree), lists)
+    lists
 end
 
 # The button of the toolbar that opens the Assistants pane, or gives the focus to
@@ -546,7 +569,6 @@ function run_application(paths::AbstractString...;
     # runs under it already.
     policy = make_fault_policy(get_settings_group!(settings, FaultSettings))
     document = make_application_document(collect(String, paths); root, assistant = chat, settings)
-    link_assistant_list!(get_session_assistant_list(), document)
     editor = build_editor(document,
                           make_application_projection(; measure, appearance);
                           backend, appearance, settings, fault_policy = policy,
@@ -557,13 +579,15 @@ function run_application(paths::AbstractString...;
                                     opened_window_projections = vcat(
                                         Pair{Type,Any}[make_natural_tooltip_row(; measure, appearance)],
                                         make_application_content_projections(; measure, appearance))),
-                          make_application_wrappers(; root, assistant = chat, measure, appearance)...)
+                          make_application_wrappers(; root, assistant = chat, measure, appearance,
+                                                      document)...)
+    lists = _link_session_assistant_lists!(editor, document)
     start_application!(editor; mcp, assistant, model)
     try
         run_editor!(editor; mcp = mcp ? (; host = mcp_host, port = mcp_port) : false)
     finally
-        # The window is closed: the list of the session lets its documents go.
-        unlink_assistant_list!(get_session_assistant_list())
+        # The window is closed: its assistant lists let its documents go.
+        foreach(unlink_assistant_list!, lists)
     end
 end
 

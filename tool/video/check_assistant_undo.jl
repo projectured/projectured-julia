@@ -84,7 +84,7 @@ function say(label)
         window = only(search_documents(editor.document, node -> node isa UndoBuffer && node.content isa PaneTree))
         println(rpad(label, 24), "people ", [person["name"].value for person in people],
                 "; steps (window, file) ", (length(window.undo_entries), length(tab.content.content.content.undo_entries)))
-        for entry in get_session_gesture_log().entries
+        for entry in get_session_gesture_log(; editor).entries
             println("    log: ", entry)
         end
         true

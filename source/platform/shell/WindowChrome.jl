@@ -264,7 +264,8 @@ wants a second one opens it with `Ctrl+T` and the name of the tool.
 A tab counts when the document it wraps is a `type`, so a tool kept inside a
 history counts too. `make` takes the editor, because a window can know the
 folder of its explorer only through the editor. By default it makes what
-`Ctrl+T` and the name of the tool make.
+`Ctrl+T` and the name of the tool make in that editor, such as the log of its
+session.
 
 The button shows `icon` alone and says `tooltip`; see [`WidgetToolbarItem`](@ref).
 """
@@ -274,7 +275,7 @@ make_window_tool_command(label, type::Type; icon = nothing, tooltip = nothing,
                                              callback = editor -> _reach_tool!(editor, type, make)),
                              tooltip = tooltip)
 
-_make_default_tool(type::Type) = _ -> make_insertion_document(type)
+_make_default_tool(type::Type) = editor -> run_with_evaluation_editor(() -> make_insertion_document(type), editor)
 
 # The appearance tab shows the `Appearance` of the editor. An editor with no
 # `appearance` wrapper has none, and the tab shows a new one.

@@ -3,7 +3,7 @@
 
 The list of the open assistants: the read of the tabs of a pane tree, the rows
 that follow the tabs and not the edits inside them, each way a tab comes and
-goes, the one list of the session, the pane that draws it, and the detail of
+goes, the list of the session of an editor, the pane that draws it, and the detail of
 the assistant that a person picks.
 """
 function test_assistant_list()
@@ -67,15 +67,20 @@ function test_assistant_list()
             @test list.assistants[end] === four
         end
 
-        @testset "the list of the session" begin
-            session = get_session_assistant_list()
+        @testset "the list of the session of an editor" begin
+            editor = Editor(PrimitiveString("x"), NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                            backend = HeadlessBackend(), devices = Device[])
+            session = get_session_assistant_list(; editor)
             @test session isa AssistantList
-            @test get_session_assistant_list() === session
-            @test make_insertion_document(AssistantList) === session
+            @test get_session_assistant_list(; editor) === session
+            @test run_with_evaluation_editor(() -> make_insertion_document(AssistantList), editor) === session
             @test get_document_title(session) == "Assistants"
-            # A file keeps that a tab shows the list, and a load gives the list of the session.
+            # With no editor, a new list that nothing keeps.
+            @test get_session_assistant_list() !== session
+            # A file keeps that a tab shows the list, and a load in the editor gives
+            # the list of its session.
             tree = PaneTree(PaneGroup([PaneTab("Assistants", session), PaneTab("One", Assistant())]))
-            loaded = parse_pred_text(print_pred_text(tree))
+            loaded = run_with_evaluation_editor(() -> parse_pred_text(print_pred_text(tree)), editor)
             @test loaded.root.tabs[1].content === session
             @test length(collect_pane_tab_contents(loaded, Assistant)) == 1
             # The walk of the documents reaches an assistant through its tab, not through the list.

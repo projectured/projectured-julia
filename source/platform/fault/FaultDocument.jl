@@ -127,16 +127,12 @@ pred_arguments(log::FaultLog) = (), Pair{Symbol,Any}[:capacity => log.capacity]
 
 # ── The session's log ────────────────────────────────────────────────────────
 
-# The fault log of code that runs no editor. `FaultLog()` still builds an empty
-# one, which a test and a gallery window want.
-const _SESSION_FAULT_LOG = FaultLog()
-
 """
     get_session_fault_log(; editor = find_evaluation_editor()) -> FaultLog
 
 The fault log of the session of `editor`: by default the editor of the
-evaluation, or of the loop that runs the calling code. Each editor has its own,
-and with no editor this is the one log of the process.
+evaluation, or of the loop that runs the calling code. Each editor has its own.
+With no editor, a new empty log, which nothing keeps and nothing fills.
 
 A window fills it once it is attached to the store of its editor:
 
@@ -146,7 +142,7 @@ Every fault log that a person opens in a window of the editor is this document,
 so two of them show the same faults rather than two halves of them.
 """
 get_session_fault_log(; editor = find_evaluation_editor()) =
-    editor isa Editor ? get_session_document!(FaultLog, editor, FaultLog) : _SESSION_FAULT_LOG
+    editor isa Editor ? get_session_document!(FaultLog, editor, FaultLog) : FaultLog()
 
 # A person who types `faults` into an empty tab gets the log of the editor, not a
 # fresh empty one. A fresh one would never fill: what fills a log is the drain

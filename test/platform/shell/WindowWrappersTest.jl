@@ -117,10 +117,9 @@ end
 end
 
 @testset "gesture_log: an operation of the window is an entry of the gesture log" begin
-    log = get_session_gesture_log()
     editor, backend = _ww_editor(PrimitiveString("x"); undo = true, gesture_log = true)
-    # The log keeps a bounded number of entries, so its length stops growing once
-    # earlier tests filled it; `count` counts every entry recorded.
+    log = get_session_gesture_log(; editor)
+    # `count` counts every entry recorded, also one that the bounded log dropped.
     recorded = log.count
     _ww_focus_first_tab!(editor)
     _ww_press!(editor, backend, _ww_ctrl(:t))
@@ -129,15 +128,30 @@ end
     @test last(log.entries).gesture == "Ctrl+T"
 end
 
+@testset "gesture_log: each editor records into a log of its own, or the one that its option gives" begin
+    held = GestureLog()
+    first_editor, first_backend = _ww_editor(PrimitiveString("x"); undo = true, gesture_log = true)
+    second_editor, _ = _ww_editor(PrimitiveString("y"); undo = true, gesture_log = (; log = held))
+    @test get_session_gesture_log(; editor = second_editor) === held
+    first_log = get_session_gesture_log(; editor = first_editor)
+    @test first_log !== held
+    entries = length(first_log.entries)
+    _ww_focus_first_tab!(first_editor)
+    _ww_press!(first_editor, first_backend, _ww_ctrl(:t))
+    @test length(first_log.entries) > entries
+    @test isempty(held.entries)
+end
+
 @testset "gesture_log: with overlay, the newest gestures draw in a panel over the window" begin
-    log = get_session_gesture_log()
     editor, backend = _ww_editor(PrimitiveString("x"); undo = true,
                                  gesture_log = (; overlay = true, lines = 3))
+    log = get_session_gesture_log(; editor)
     @test "no gesture yet" in _shell_texts(last(rendered_output(backend)))
     recorded = log.count
     _ww_focus_first_tab!(editor)
     _ww_press!(editor, backend, _ww_ctrl(:t))
-    # The log of the session records as before, and the panel draws the gesture.
+    # The log of the session of the editor records as before, and the panel draws
+    # the gesture.
     @test log.count > recorded
     @test last(log.entries).gesture == "Ctrl+T"
     texts = _shell_texts(last(rendered_output(backend)))
