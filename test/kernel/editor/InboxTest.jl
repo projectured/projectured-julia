@@ -15,7 +15,8 @@ import ProjecturedKernel.EditorModule
 import ProjecturedKernel.EditorModule: Editor, post_operation!, drain_operations!, run_editor!,
                                        make_editor, RunFunctionOperation
 import ProjecturedKernel.OperationModule: Operation, evaluate_operation, QuitEditorOperation
-import ProjecturedKernel.AgentModule: run_on_editor_task!, EditorCallTimeoutException
+import ProjecturedKernel.AgentModule: run_on_editor_task!, EditorCallTimeoutException,
+                                      is_editor_loop_running
 import ProjecturedKernel.BackendModule
 import ProjecturedKernel.BackendModule: Backend
 using ProjecturedKernelExample
@@ -145,6 +146,16 @@ function test_editor_inbox()
         @test run_on_editor_task!(() -> current_task(), editor) === current_task()
         @test run_on_editor_task!(() -> 1, editor; wait = false) === nothing
         @test !isready(editor.inbox)
+    end
+
+    @testset "an editor says whether its loop runs, and only an editor does" begin
+        editor = _inbox_editor()
+        @test !is_editor_loop_running(editor)
+        editor.loop_task = current_task()
+        @test is_editor_loop_running(editor)
+        editor.has_loop_ended = true
+        @test !is_editor_loop_running(editor)
+        @test !is_editor_loop_running((document = nothing,))
     end
 
     @testset "a call from another task runs in the drain, and the caller waits" begin

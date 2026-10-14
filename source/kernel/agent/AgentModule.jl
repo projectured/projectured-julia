@@ -65,7 +65,7 @@ using ..ToolModule
 
 export Agent, run_turn!, AgentEvent, AgentToolResult
 export make_agent_server, start_agent_server!, stop_agent_server!, stop_agent_server_work!,
-       run_on_editor_task!,
+       run_on_editor_task!, is_editor_loop_running,
        EditorCallTimeoutException, EDITOR_CALL_TIMEOUT_SECONDS
 export get_agent_server_names, get_agent_server_access
 export make_agent_connection, start_agent_connection!, open_agent_session!,

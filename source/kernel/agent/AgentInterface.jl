@@ -97,3 +97,15 @@ The default runs the call at once for every target. A target type whose loop can
 run on another task adds a method that posts the call to that loop.
 """
 function run_on_editor_task! end
+
+"""
+    is_editor_loop_running(target) -> Bool
+
+Whether the loop of the editor `target` runs, so a call through
+[`run_on_editor_task!`](@ref) from another task posts and waits for a frame. With
+no loop, such a call runs at once on the task that makes it. So a task that makes
+such calls can run on a thread of its own only while the loop runs; with no loop
+it runs on the thread of its caller, never at the same time as the caller. A
+target that is no editor answers `false`.
+"""
+function is_editor_loop_running end

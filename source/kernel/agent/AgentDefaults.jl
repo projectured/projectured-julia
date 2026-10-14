@@ -49,3 +49,4 @@ _format_kinds(names) = isempty(names) ? "none" : join(map(name -> ":" * String(n
 run_on_editor_task!(function_, target; wait::Bool = true, description::AbstractString = "",
                     timeout::Real = Inf, stop = nothing) =
     wait ? function_() : (function_(); nothing)
+is_editor_loop_running(target) = false

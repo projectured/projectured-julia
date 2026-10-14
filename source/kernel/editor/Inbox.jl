@@ -186,6 +186,9 @@ function OperationModule.evaluate_operation(::Editor, operation::RunFunctionOper
     nothing
 end
 
+AgentModule.is_editor_loop_running(editor::Editor) =
+    editor.loop_task !== nothing && !editor.has_loop_ended
+
 # The call runs at once when no loop runs, and for the task that owns the documents:
 # the task of the running code unit, or else the task of the loop.
 function AgentModule.run_on_editor_task!(function_, editor::Editor; wait::Bool = true,
