@@ -810,7 +810,7 @@ nothing.
     frames, it writes one warning line to the log, such as "a frame took 1.1 s,
     1.1 s of it in the drain of TaskFeed". The record is a line of the log, not a
     fault: a slow frame is no exception. The kernel suite: 4500 of 4500.
-- [ ] **3. The stop and the bounds:** (progress below the list) the stop flag, `stop_code_unit!` and the
+- [x] **3. The stop and the bounds:** (progress below the list) the stop flag, `stop_code_unit!` and the
   stop steps of our own waits, the stoppable `sleep` of the scratch module (D6),
   T0 with the MCP start on a service task, T3, T4 (`Tool(...; reads_documents)`,
   and the budget in the description of the code tool), the rules a, b and c of
@@ -838,6 +838,36 @@ nothing.
     provider reads no document, and `Resource` gets no field. So the MCP resource
     providers need no door (step 5 changes with it). The fault of a tool goes to
     the store through the door, because a tool can run off the owner now.
+  - [x] 3.5 The rules of §5.7. Rule b (`d21bdd9dc`): a call with `wait = true`
+    from a task that the running unit started throws `CodeUnitWaitException`,
+    which names the call. Rule c (`d21bdd9dc`): the description of the code tool
+    says that a task that the code starts uses the verbs. Rule a (`1c5e110b0`): each
+    verb that reads or edits a document runs its body through
+    `run_on_editor_task!`, with the name of the verb as the description: the edit
+    verbs of `DocumentEdits.jl`, the verbs of panes, appearance, arrangement,
+    settings, the screen, the shell and its file dialog, tasks and workflows. A
+    verb of the owner still runs at once, so code in a unit and the loop see no
+    change.
+  - [x] 3.6 (`8d01c8f5a`) A2: a posted call carries a stop step, and the drain
+    attaches it to the unit, so a stop of the unit runs it. The agent loop passes
+    `run_turn!(...; on_stop)`, the MCP server has the field `stop`, and the
+    assistant gives both the step that posts `CancelAssistantTurnOperation`: the
+    native turn and the tool server of an ACP session. A fact found here: a later
+    call in the drain of a stopped unit attached its step after the stop, and the
+    step never ran. So `attach_code_unit_stop!` runs a step at once when the unit
+    is stopped. It reads the flag under the lock of the unit, and the stop sets
+    the flag before it takes that lock, so each step runs once.
+  - [x] 3.7 (`26a2b6d01`) D10: `run_editor!(...; wait = false)` pins the loop to
+    an interactive thread that is not the thread of the caller when the process
+    has one, else to a thread of the default pool, else to an `@async` task.
+  - The suites: the kernel 4526 of 4526 and the MCP suite 498 of 498 before the
+    fix of the late stop step; the held frames 38 of 38 after it. The platform is
+    the same as on `main`: the 2 known failures of `InterfaceApiTest.jl:46,49`, and
+    7 broken. The workflow suite 199 of 199. The assistant tests of the umbrella
+    and the task verbs: 296, and 4 broken that were marked before. One assertion
+    of the umbrella said the old rule, "a tool call of a turn runs on the task of
+    the loop", which step 2 changed; it now says the rule of A4 (`397ecec08`), as
+    the MCP tests do.
 - [ ] **3b. Background work (D9):** `BackgroundWork` and
   `start_background_work`, `fetch` and `stop_background_work!` (D9a); the link to
   a running unit and the calls that throw while it runs (D9b); the argument
