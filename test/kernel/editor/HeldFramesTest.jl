@@ -17,7 +17,7 @@ import ProjecturedKernel.EditorModule: Editor, post_operation!, drain_operations
 import ProjecturedKernel.OperationModule: QuitEditorException, QuitEditorOperation
 import ProjecturedKernel.AgentModule: run_on_editor_task!
 import ProjecturedKernel.ToolModule: get_current_code_unit, wait_in_code_unit,
-                                     execute_julia_code!
+                                     execute_julia_code!, CodeUnitWaitException
 import ProjecturedKernel.FaultModule: FaultPolicy, get_fault_records
 import ProjecturedKernel.BackendModule
 import ProjecturedKernel.BackendModule: Backend, HeldFrameState
@@ -204,6 +204,21 @@ function test_editor_held_frames()
                 post_operation!(editor, QuitEditorOperation())
             end, nothing, "a long call"))
             @test_logs min_level = Base.CoreLogging.Warn run_editor!(editor)
+        end
+
+        @testset "a task that the unit starts can not wait for the editor" begin
+            editor = _held_frame_editor(HeldFrameProbeBackend())
+            failure = run_code_unit!(editor; parts = ["parent"]) do
+                child = @async run_on_editor_task!(() -> 1, editor; description = "child call")
+                try
+                    fetch(child)
+                    nothing
+                catch exception
+                    exception.task.exception
+                end
+            end
+            @test failure isa CodeUnitWaitException
+            @test failure.description == "child call"
         end
 
         @testset "a stop ends the sleep of model code" begin

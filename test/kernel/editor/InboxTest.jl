@@ -180,17 +180,20 @@ function test_editor_inbox()
     @testset "a call that waits when the loop ends gets its answer" begin
         editor = _inbox_editor()
         answer = Ref{Any}(nothing)
-        # The loop applies this first, on its own task, so the call below is
-        # posted by a task that waits for a running loop.
+        quit_posted = Base.Event()
+        # The loop applies this first. It posts the quit, and gives a task outside
+        # the loop the time to post a call, which then waits in the inbox behind
+        # the quit when the loop ends. A task that this call started could not
+        # wait: the call runs in a code unit (rule b of the plan of units).
         post_operation!(editor, RunFunctionOperation(function ()
-            @async begin
-                answer[] = run_on_editor_task!(() -> current_task(), editor)
-            end
-            # The quit is applied before the call, which waits in the inbox
-            # behind it when the loop ends.
             post_operation!(editor, QuitEditorOperation())
-            yield()
+            notify(quit_posted)
+            sleep(0.2)
         end, nothing))
+        caller = @async begin
+            wait(quit_posted)
+            answer[] = run_on_editor_task!(() -> current_task(), editor)
+        end
         run_editor!(editor)
         @test timedwait(() -> answer[] !== nothing, 5.0) === :ok
         @test answer[] === current_task()

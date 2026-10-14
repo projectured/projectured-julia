@@ -31,6 +31,26 @@ CodeUnit(parts::Vector{String}) =
     CodeUnit(parts, Threads.Atomic{Int}(1), time(), Threads.Atomic{Bool}(false), Any[],
              ReentrantLock(), nothing)
 
+"""
+    CodeUnitWaitException(description)
+
+A task that the running code unit of an editor started asked to wait for that
+editor, with the call `description`. The editor waits for the unit, and the unit
+can wait for the task, so the call would never end. It throws at once instead.
+
+Post the call with `wait = false`, or make it in the code of the unit itself,
+where it runs at once.
+"""
+struct CodeUnitWaitException <: Exception
+    description::String
+end
+
+Base.showerror(io::IO, exception::CodeUnitWaitException) =
+    print(io, "CodeUnitWaitException: a task that the running code unit started can not ",
+          "wait for the call \"", exception.description, "\", because the editor waits ",
+          "for the unit. Post the call with `wait = false`, or make it in the code of ",
+          "the unit itself.")
+
 # The unit of the running code, and of each task that the code starts.
 const _CURRENT_CODE_UNIT = ScopedValue{Union{CodeUnit, Nothing}}(nothing)
 

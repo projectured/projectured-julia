@@ -72,6 +72,9 @@ is withdrawn and never runs, and the caller gets
 [`EditorCallTimeoutException`](@ref). After the start the caller waits for the
 end, because Julia can not stop a task half way.
 
+A task that the running code unit started can not wait for a call: the editor
+waits for the unit, so it throws `CodeUnitWaitException` at once.
+
 The call runs at once, on the calling task, when nothing runs a loop for
 `target`, or when the calling task owns the documents of `target`: the task of
 its running code unit, or else the task of its loop. So a call from the editor's

@@ -189,6 +189,11 @@ function AgentModule.run_on_editor_task!(function_, editor::Editor; wait::Bool =
         value = function_()
         return wait ? value : nothing
     end
+    # A task that the running unit started would wait for the editor that waits for
+    # the unit (rule b of the plan of units).
+    unit = @atomic editor.code_unit
+    wait && unit !== nothing && get_current_code_unit() === unit &&
+        throw(CodeUnitWaitException(String(description)))
     answer = wait ? Channel{Any}(1) : nothing
     operation = RunFunctionOperation(function_, answer, description)
     try

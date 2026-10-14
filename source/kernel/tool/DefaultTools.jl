@@ -25,7 +25,9 @@ _make_editing_description(ways::AbstractString) =
     "Change the editor's document through " * ways * ", and not by a direct write " *
     "such as `part.value = new_value`. A direct write works, but the editor does not " *
     "handle it as an edit: Ctrl+Z can not undo it, and the editor does not check its " *
-    "permissions or transform it, as it does for an operation.\n\n"
+    "permissions or transform it, as it does for an operation. A task that your code " *
+    "starts reads and changes documents only through the verbs, never through the " *
+    "fields of a document.\n\n"
 
 # The verbs that edit, as the description names them.
 const _EDITING_VERBS = (:replace_referenced_value! => "`replace_referenced_value!(part, new_value)`",
