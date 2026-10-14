@@ -220,9 +220,20 @@ Wait for `group` to end, and then copy what its tasks said into their documents.
 The wait is on the calling task, so a person at the REPL waits while the window
 draws, and the copy runs on the task of the editor. Called on the task of the
 editor, it holds the window until the group ends.
+
+In a code unit, a stop of the unit ends the wait and throws `InterruptException`;
+the group goes on, and its own stop stops it.
 """
 function wait_for_task_group!(editor, group::TaskGroupDocument)
-    wait_task_group(get_task_group(group))
+    task_group = get_task_group(group)
+    if get_current_code_unit() === nothing
+        wait_task_group(task_group)
+    else
+        scheduler = task_group.runtime.scheduler
+        while scheduler !== nothing && !istaskdone(scheduler)
+            wait_in_code_unit(0.1)
+        end
+    end
     run_on_editor_task!(() -> wait_task_group_document(group), editor)
     group
 end

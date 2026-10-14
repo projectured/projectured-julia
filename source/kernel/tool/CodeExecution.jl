@@ -96,6 +96,10 @@ const _SCRATCH_HELPER_NAMES = (:read_function_documentation, :search_api, :list_
 function _scratch_module(set::ToolSet)
     set.scratch === nothing || return set.scratch
     m = Module(:ToolScratch)
+    # The `sleep` of model code ends at a stop of its code unit. It is defined
+    # before any other name, so it is the one that model code calls, and not
+    # `Base.sleep`.
+    Core.eval(m, :(sleep(seconds::Real) = $(wait_in_code_unit)(seconds)))
     srcs = _scratch_sources(set)
     mods = Module[entry.module_ for entry in srcs]
     # Bind each source under its own name, so qualified access still works. The

@@ -19,6 +19,29 @@ function test_task_group_verbs()
         @test wait_for_task_group!(editor, group) === group
         identifier = getfield(group, :identifier)[]
 
+        @testset "a stop of the code unit ends the wait for a group" begin
+            slow = wrap_task_group_document(
+                TaskGroup([_TaskViewProbeTask("slow", "sleep 30")]; name = "slow", jobs = 1))
+            start_task_group_document!(slow)
+            tools = ProjecturedKernel.ToolModule
+            unit = tools.CodeUnit(["wait for the group"])
+            waiter = Threads.@spawn tools.run_as_code_unit(unit) do
+                try
+                    wait_for_task_group!(editor, slow)
+                    :waited
+                catch exception
+                    exception isa InterruptException ? :stopped : rethrow()
+                end
+            end
+            sleep(0.3)
+            started = time()
+            tools.stop_code_unit!(unit)
+            @test fetch(waiter) === :stopped
+            @test time() - started < 2
+            stop_task_group!(get_task_group(slow))
+            wait_task_group(get_task_group(slow))
+        end
+
         @testset "a group is listed and found" begin
             line = only(l for l in split(string(list_task_groups(; editor)), "\n")
                         if startswith(l, identifier * " "))

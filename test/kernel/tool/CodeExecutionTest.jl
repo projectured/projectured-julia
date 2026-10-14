@@ -56,6 +56,14 @@ function test_code_execution()
         @test startswith(printed, join(string.(1:300), '\n') * "\n(1, 2, 3")
     end
 
+    @testset "the sleep of model code sleeps outside a code unit" begin
+        plain = ToolSet()
+        started = time()
+        @test strip(execute_julia_code!(plain, nothing, "sleep(0.05); 2")) == "2"
+        @test time() - started >= 0.05
+        @test strip(execute_julia_code!(plain, nothing, "sleep === Base.sleep")) == "false"
+    end
+
     @testset "a loop at the top level assigns the global, as at the prompt" begin
         @test run("found = nothing\nfor i in 1:3\n    if i == 2\n        found = i\n        break\n    end\nend\nfound") == "2\n"
         @test run("total = 0\nfor i in 1:4\n    total += i\nend\ntotal") == "10\n"

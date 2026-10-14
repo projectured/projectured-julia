@@ -206,6 +206,15 @@ function test_editor_held_frames()
             @test_logs min_level = Base.CoreLogging.Warn run_editor!(editor)
         end
 
+        @testset "a stop ends the sleep of model code" begin
+            backend = HeldFrameProbeBackend([:none, :none, :none, :stop])
+            editor = _held_frame_editor(backend)
+            started = time()
+            answer = execute_julia_code!(editor.tools, editor, "sleep(10); :slept")
+            @test occursin("InterruptException", answer)
+            @test time() - started < 5
+        end
+
         @testset "the code tool runs its evaluation as a unit" begin
             editor = _held_frame_editor(HeldFrameProbeBackend())
             answer = execute_julia_code!(editor.tools, editor, "Threads.threadid()")
