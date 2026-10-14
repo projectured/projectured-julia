@@ -43,5 +43,6 @@ end
 _format_kinds(names) = isempty(names) ? "none" : join(map(name -> ":" * String(name), names), ", ")
 
 # A target that nothing runs a loop for has no other task to wait for.
-run_on_editor_task!(function_, target; wait::Bool = true, description::AbstractString = "") =
+run_on_editor_task!(function_, target; wait::Bool = true, description::AbstractString = "",
+                    timeout::Real = Inf) =
     wait ? function_() : (function_(); nothing)

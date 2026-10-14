@@ -272,6 +272,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `agent/AgentModule.jl`
   - ⬜ `agent/AgentInterface.jl`
   - ⬜ `agent/AgentDefaults.jl`
+  - ⬜ `agent/EditorCallTimeoutException.jl`
   - ⬜ `agent/Agent.jl`
   - ⬜ `agent/AgentLoop.jl`
   - ⬜ `agent/AgentConnectionInterface.jl`

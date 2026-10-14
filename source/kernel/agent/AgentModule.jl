@@ -8,7 +8,7 @@ which an agent outside the process drives this editor. The **external** directio
 is the contract through which this editor drives an agent that runs its own loop
 in another process.
 
-Seven fragments share this namespace:
+Eight fragments share this namespace:
 
 - [`Agent.jl`](Agent.jl) — the `Agent` itself, and the `AgentToolResult` event it
   reports a completed tool call with.
@@ -18,6 +18,9 @@ Seven fragments share this namespace:
   `get_agent_server_access` and `run_on_editor_task!`, each a body-less generic.
 - [`AgentDefaults.jl`](AgentDefaults.jl) — the fallback behaviours for that
   contract, answered when no concrete server package is loaded.
+- [`EditorCallTimeoutException.jl`](EditorCallTimeoutException.jl) — the end of
+  the wait of a call that `run_on_editor_task!` posted and the editor did not
+  start in time, and how long that wait is by default.
 - [`AgentConnectionInterface.jl`](AgentConnectionInterface.jl) — the
   external-agent contract: `make_agent_connection`, `start_agent_connection!`,
   `open_agent_session!`, `set_agent_option!`, `send_agent_prompt!`,
@@ -61,7 +64,8 @@ using ..LlmModule
 using ..ToolModule
 
 export Agent, run_turn!, AgentEvent, AgentToolResult
-export make_agent_server, start_agent_server!, stop_agent_server!, run_on_editor_task!
+export make_agent_server, start_agent_server!, stop_agent_server!, run_on_editor_task!,
+       EditorCallTimeoutException, EDITOR_CALL_TIMEOUT_SECONDS
 export get_agent_server_names, get_agent_server_access
 export make_agent_connection, start_agent_connection!, open_agent_session!,
        set_agent_option!, send_agent_prompt!, cancel_agent_prompt!, close_agent_session!,
@@ -75,6 +79,7 @@ export AgentToolCallUpdate, AgentPlanEntry, AgentPlanUpdate,
 
 include("AgentInterface.jl")
 include("AgentDefaults.jl")
+include("EditorCallTimeoutException.jl")
 include("Agent.jl")
 include("AgentLoop.jl")
 include("AgentConnectionInterface.jl")

@@ -243,7 +243,7 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool})
                 # drain of its next frame, which then paints the change.
                 held = Ref(0.0)
                 fault = Ref(false)
-                text = run_on_editor_task!(editor; description = tool.name) do
+                text = try run_on_editor_task!(editor; description = tool.name) do
                     started = time()
                     # Code that throws answers its message, so a new exception of
                     # an evaluation is what marks such a call as a fault. The count
@@ -277,6 +277,12 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool})
                         get_evaluation_exception_count(editor.tools) > before &&
                             (fault[] = true)
                     end
+                end
+                catch exception
+                    # The editor did not start the call in time: the client reads why.
+                    exception isa EditorCallTimeoutException || rethrow()
+                    fault[] = true
+                    sprint(showerror, exception)
                 end
                 # A picture goes to the client as an image, and to the log as a line.
                 is_picture = text isa LlmImage

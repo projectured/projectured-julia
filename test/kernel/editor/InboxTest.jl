@@ -15,7 +15,7 @@ import ProjecturedKernel.EditorModule
 import ProjecturedKernel.EditorModule: Editor, post_operation!, drain_operations!, run_editor!,
                                        make_editor, RunFunctionOperation
 import ProjecturedKernel.OperationModule: Operation, evaluate_operation, QuitEditorOperation
-import ProjecturedKernel.AgentModule: run_on_editor_task!
+import ProjecturedKernel.AgentModule: run_on_editor_task!, EditorCallTimeoutException
 import ProjecturedKernel.BackendModule
 import ProjecturedKernel.BackendModule: Backend
 using ProjecturedKernelExample
@@ -269,6 +269,22 @@ function test_editor_inbox()
         wait(producer)
         @test drain_operations!(editor) == 1
         @test length(log) == EditorModule.INBOX_CAPACITY + 1
+    end
+
+    @testset "a call that the editor does not start in time is withdrawn" begin
+        editor = _inbox_editor()
+        editor.loop_task = current_task()          # a loop runs, and drains nothing
+        ran = Ref(false)
+        caller = @async try
+            run_on_editor_task!(() -> (ran[] = true), editor; description = "slow", timeout = 0.2)
+        catch exception
+            exception
+        end
+        answer = fetch(caller)
+        @test answer isa EditorCallTimeoutException
+        @test answer.description == "slow"
+        @test drain_operations!(editor) == 1         # the drain takes it, and skips it
+        @test !ran[]
     end
 
     @testset "the end of the loop closes the queues, and a later call runs at once" begin

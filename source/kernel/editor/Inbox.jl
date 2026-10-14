@@ -153,15 +153,22 @@ struct RunFunctionOperation <: Operation
     function_::Function
     answer::Union{Channel{Any}, Nothing}
     description::String
+    # 0 while the call waits, 1 once the editor started it, 2 once its caller
+    # withdrew it. One compare-and-swap decides between the start and the
+    # withdrawal, so a call never both runs and times out.
+    state::Threads.Atomic{Int}
 end
 
-RunFunctionOperation(function_::Function, answer::Union{Channel{Any}, Nothing}) =
-    RunFunctionOperation(function_, answer, "a call from another task")
+RunFunctionOperation(function_::Function, answer::Union{Channel{Any}, Nothing},
+                     description::AbstractString = "a call from another task") =
+    RunFunctionOperation(function_, answer, String(description), Threads.Atomic{Int}(0))
 
 # An exception goes to the task that waits for it, and a posted call that no task
 # waits for throws into the barrier of the drain, which records it. An exception
 # that means stop is thrown on here as well, so an interrupt still stops the loop.
 function OperationModule.evaluate_operation(::Editor, operation::RunFunctionOperation)
+    # A call that its caller withdrew after its timeout does not run.
+    Threads.atomic_cas!(operation.state, 0, 1) == 0 || return nothing
     answer = operation.answer
     answer === nothing && return (operation.function_(); nothing)
     try
@@ -176,14 +183,16 @@ end
 # The call runs at once when no loop runs, and for the task that owns the documents:
 # the task of the running code unit, or else the task of the loop.
 function AgentModule.run_on_editor_task!(function_, editor::Editor; wait::Bool = true,
-                                         description::AbstractString = "a call from another task")
+                                         description::AbstractString = "a call from another task",
+                                         timeout::Real = EDITOR_CALL_TIMEOUT_SECONDS)
     if editor.loop_task === nothing || _is_editor_owner(editor)
         value = function_()
         return wait ? value : nothing
     end
     answer = wait ? Channel{Any}(1) : nothing
+    operation = RunFunctionOperation(function_, answer, description)
     try
-        post_operation!(editor, RunFunctionOperation(function_, answer, String(description)))
+        post_operation!(editor, operation)
     catch exception
         exception isa InvalidStateException || rethrow()
         # The loop ended between the look at its task and the post. No frame runs
@@ -193,7 +202,16 @@ function AgentModule.run_on_editor_task!(function_, editor::Editor; wait::Bool =
         return wait ? value : nothing
     end
     answer === nothing && return nothing
-    succeeded, value = take!(answer)
+    # The withdrawal at the timeout, unless the editor started the call first.
+    timer = isfinite(timeout) ? Timer(timeout) do _
+        Threads.atomic_cas!(operation.state, 0, 2) == 0 &&
+            put!(answer, (false, EditorCallTimeoutException(operation.description, Float64(timeout))))
+    end : nothing
+    succeeded, value = try
+        take!(answer)
+    finally
+        timer === nothing || close(timer)
+    end
     succeeded ? value : throw(value)
 end
 
@@ -217,7 +235,7 @@ function _answer_waiting_calls!(editor::Editor)
                     take!(editor.inbox)
         operation isa RunFunctionOperation || continue
         if is_unit_running
-            operation.answer === nothing ||
+            operation.answer !== nothing && Threads.atomic_cas!(operation.state, 0, 2) == 0 &&
                 put!(operation.answer, (false, InvalidStateException(
                     "The editor quit while a code unit ran, so the call did not run.", :closed)))
             continue
