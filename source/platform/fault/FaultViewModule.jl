@@ -59,6 +59,7 @@ using ..TooltipModule
 using ..WidgetModule
 using ..FocusModule
 using ..EditorModule
+using ..ToolModule
 using ..SettingsModule
 
 # The names this module EXTENDS are imported, never merely used: a bare

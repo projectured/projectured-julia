@@ -81,18 +81,20 @@ end
 """
     message_log = true
 
-The wrapper of `build_editor` that fills the message log of the session with
-what the program logs while the window is open. A start step installs the
+The wrapper of `build_editor` that fills the message log of the session of the
+editor with what the program logs while the window is open. A start step installs the
 capture of the Julia logger, which records each message and passes it on, so the
 terminal still shows it; a [`MessageLogFeed`](@ref) moves the lines into the log;
 and a stop step puts the logger that the capture replaced back when the loop of
 the editor ends. It is off by default.
 """
 function wrap_editor!(::Val{:message_log}, layer::Symbol, argument, parts::EditorParts)
-    push!(parts.feeds, MessageLogFeed())
+    feed = MessageLogFeed()
+    push!(parts.feeds, feed)
     replaced = Ref{Union{Nothing,Base.CoreLogging.AbstractLogger}}(nothing)
     push!(parts.start_steps, _ -> (replaced[] = install_message_log_capture!(); nothing))
     push!(parts.stop_steps, _ -> (replaced[] === nothing || remove_message_log_capture!(replaced[]);
+                                  detach_message_log_wake!(feed.store, feed);
                                   nothing))
     parts
 end

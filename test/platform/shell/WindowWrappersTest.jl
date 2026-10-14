@@ -162,9 +162,10 @@ end
     @test any(feed -> feed isa FrameStatisticsFeed, editor.feeds)
 end
 
-@testset "fault_log: the session log on the fault store of the editor" begin
+@testset "fault_log: the log of the session of the editor on its fault store" begin
     editor, _ = _ww_editor(PrimitiveString("x"); fault_log = true)
-    @test any(target -> target === get_session_fault_log(), editor.faults.targets)
+    @test any(target -> target === get_session_fault_log(; editor), editor.faults.targets)
+    @test get_session_fault_log(; editor) !== get_session_fault_log()
 end
 
 @testset "shell: a tool that shows what the window records is there when its wrapper is" begin

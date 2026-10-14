@@ -106,21 +106,25 @@ _write_changed_field!(document, field::Symbol, value) =
 
 # ── The session's statistics ─────────────────────────────────────────────────
 
-# One table for the session, the same way the session has one message log:
-# one program runs one editor a person watches.
+# The table of code that runs no editor.
 const _SESSION_FRAME_STATISTICS = FrameStatistics()
 
 """
-    get_session_frame_statistics() -> FrameStatistics
+    get_session_frame_statistics(; editor = find_evaluation_editor()) -> FrameStatistics
 
-The one statistics table of the session. Every statistics view a person
-opens is this document, so two of them show the same numbers.
+The statistics table of the session of `editor`: by default the editor of the
+evaluation, or of the loop that runs the calling code. Each editor has its own,
+which its statistics feed fills from the frames of that editor; with no editor,
+the one table of the process. Every statistics view that a person opens in a
+window of the editor is this document, so two of them show the same numbers.
 """
-get_session_frame_statistics() = _SESSION_FRAME_STATISTICS
+get_session_frame_statistics(; editor = find_evaluation_editor()) =
+    editor isa Editor ? get_session_document!(FrameStatistics, editor, FrameStatistics) :
+                        _SESSION_FRAME_STATISTICS
 
-# A person who types `statistics` into an empty tab gets the session's
-# table: a fresh one would never fill, because the feed flushes into the
-# table it was registered with.
+# A person who types `statistics` into an empty tab gets the table of the editor:
+# a fresh one would never fill, because the feed flushes into the table of the
+# session of its editor.
 make_insertion_document(::Type{FrameStatistics}) = get_session_frame_statistics()
 
 # ── The frame time series ────────────────────────────────────────────────────
@@ -179,16 +183,20 @@ function _get_frame_time_series_count(plot::FrameTimeSeries)
     isempty(frames) ? 0 : Int(last(frames))
 end
 
-# One plot for the session, for the same reason as the one table above.
+# The plot of code that runs no editor.
 const _SESSION_FRAME_TIME_SERIES = FrameTimeSeries()
 
 """
-    get_session_frame_time_series() -> FrameTimeSeries
+    get_session_frame_time_series(; editor = find_evaluation_editor()) -> FrameTimeSeries
 
-The one frame time series of the session. Every view of it that a person opens
-is this document, so two of them show the same frames.
+The frame time series of the session of `editor`, as
+[`get_session_frame_statistics`](@ref) answers its table: one for each editor,
+and the one of the process with no editor. Every view of it that a person opens
+in a window of the editor is this document, so two of them show the same frames.
 """
-get_session_frame_time_series() = _SESSION_FRAME_TIME_SERIES
+get_session_frame_time_series(; editor = find_evaluation_editor()) =
+    editor isa Editor ? get_session_document!(FrameTimeSeries, editor, FrameTimeSeries) :
+                        _SESSION_FRAME_TIME_SERIES
 
 # A person who types `frame times` into an empty tab gets the session's series,
 # for the same reason as the table.

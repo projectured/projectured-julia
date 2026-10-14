@@ -3,40 +3,50 @@
 # toolbar that opens the log.
 
 """
-    McpLogFeed(; store = get_session_mcp_log_store(), log = get_session_mcp_log())
+    McpLogFeed(; store = get_session_mcp_log_store(), log = nothing)
 
-Moves the calls of the store into the log once per frame, on the editor task.
-The wrapper `mcp_log = true` adds it to an editor.
+Copies the calls of the store into `log` once per frame, on the editor task, or
+with no `log` into the MCP log of the session of its editor
+([`get_session_mcp_log`](@ref)), so each editor has its own log, and two editors
+that read one store each get every call. The wrapper `mcp_log = true` adds it to
+an editor, and detaches its wake when the loop of the editor ends.
 """
-struct McpLogFeed <: Feed
+mutable struct McpLogFeed <: Feed
     store::McpLogStore
-    log::McpLog
+    log::Union{Nothing,McpLog}
+    # The number of the next call of the store to copy.
+    next::Int
 end
 
 McpLogFeed(; store::McpLogStore = get_session_mcp_log_store(),
-             log::McpLog = get_session_mcp_log()) = McpLogFeed(store, log)
+             log::Union{Nothing,McpLog} = nothing) = McpLogFeed(store, log, 1)
 
 function drain_changes!(feed::McpLogFeed, editor)
-    calls, _ = take_mcp_calls!(feed.store)
+    calls, next = read_mcp_calls(feed.store, feed.next)
+    feed.next = next
+    isempty(calls) && return 0
+    log = something(feed.log, get_session_mcp_log(; editor))
     for call in calls
-        record_mcp_call!(feed.log, McpCallEntry(call.time, call.method, call.name, call.arguments,
-                                                call.answer, call.duration, call.fault))
+        record_mcp_call!(log, McpCallEntry(call.time, call.method, call.name, call.arguments,
+                                           call.answer, call.duration, call.fault))
     end
     length(calls)
 end
 
-attach_wake_callback!(feed::McpLogFeed, wake) = (feed.store.wake = wake; nothing)
+attach_wake_callback!(feed::McpLogFeed, wake) = (attach_mcp_log_wake!(feed.store, feed, wake); nothing)
 
 """
     mcp_log = true
 
-The wrapper of `build_editor` that fills the MCP log of the session with the
-calls that the MCP server of the editor answers: it adds a [`McpLogFeed`](@ref).
+The wrapper of `build_editor` that fills the MCP log of the session of the editor
+with the calls that MCP servers answer: it adds a [`McpLogFeed`](@ref).
 It is off by default. A window shows the log in a tab, which the button of
 [`make_mcp_log_tool`](@ref) opens.
 """
 function wrap_editor!(::Val{:mcp_log}, layer::Symbol, argument, parts::EditorParts)
-    push!(parts.feeds, McpLogFeed())
+    feed = McpLogFeed()
+    push!(parts.feeds, feed)
+    push!(parts.stop_steps, _ -> (detach_mcp_log_wake!(feed.store, feed); nothing))
     parts
 end
 

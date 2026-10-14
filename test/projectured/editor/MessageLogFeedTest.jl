@@ -41,6 +41,32 @@ function test_message_log_feed()
         @test length(log.entries) == 1
     end
 
+    @testset "two editors that read one store each copy every line into a log of their own" begin
+        store = MessageLogStore()
+        first_feed = MessageLogFeed(store = store)
+        second_feed = MessageLogFeed(store = store)
+        first_editor = Editor(MessageLog(), MessageLogToSyntax(); backend = HeadlessBackend(),
+                              devices = Device[], feeds = Feed[first_feed])
+        second_editor = Editor(MessageLog(), MessageLogToSyntax(); backend = HeadlessBackend(),
+                               devices = Device[], feeds = Feed[second_feed])
+        record_message!(store, "Info", "for both")
+        @test first_editor.wake_pending[] && second_editor.wake_pending[]
+        drain_feeds!(first_editor)
+        drain_feeds!(second_editor)
+        first_log = get_session_message_log(; editor = first_editor)
+        second_log = get_session_message_log(; editor = second_editor)
+        @test first_log !== second_log
+        @test [entry.message for entry in first_log.entries] == ["for both"]
+        @test [entry.message for entry in second_log.entries] == ["for both"]
+        # With no editor, the one log of the process, which no editor fills.
+        @test get_session_message_log() !== first_log && isempty(get_session_message_log().entries)
+        # The insertion of a log tab in the loop of an editor gives the log of that editor.
+        @test run_with_evaluation_editor(() -> make_insertion_document(MessageLog), first_editor) === first_log
+        # An editor that ended forgets its wake.
+        detach_message_log_wake!(store, first_feed)
+        @test collect(keys(store.wakes)) == Any[second_feed]
+    end
+
     @testset "the store bounds what two frames can hold" begin
         store = MessageLogStore(capacity = 3)
         log = MessageLog()

@@ -127,26 +127,28 @@ pred_arguments(log::FaultLog) = (), Pair{Symbol,Any}[:capacity => log.capacity]
 
 # ── The session's log ────────────────────────────────────────────────────────
 
-# One log for the session, because there is one editor and one program that
-# fails in it. `FaultLog()` still builds an empty one, which a test and a
-# gallery window want.
+# The fault log of code that runs no editor. `FaultLog()` still builds an empty
+# one, which a test and a gallery window want.
 const _SESSION_FAULT_LOG = FaultLog()
 
 """
-    get_session_fault_log() -> FaultLog
+    get_session_fault_log(; editor = find_evaluation_editor()) -> FaultLog
 
-The one log of the session.
+The fault log of the session of `editor`: by default the editor of the
+evaluation, or of the loop that runs the calling code. Each editor has its own,
+and with no editor this is the one log of the process.
 
 A window fills it once it is attached to the store of its editor:
 
-    attach_fault_target!(editor.faults, get_session_fault_log())
+    attach_fault_target!(editor.faults, get_session_fault_log(; editor))
 
-Every fault log a person opens is this document, so two of them show the same
-faults rather than two halves of them.
+Every fault log that a person opens in a window of the editor is this document,
+so two of them show the same faults rather than two halves of them.
 """
-get_session_fault_log() = _SESSION_FAULT_LOG
+get_session_fault_log(; editor = find_evaluation_editor()) =
+    editor isa Editor ? get_session_document!(FaultLog, editor, FaultLog) : _SESSION_FAULT_LOG
 
-# A person who types `faults` into an empty tab gets the session's log, not a
+# A person who types `faults` into an empty tab gets the log of the editor, not a
 # fresh empty one. A fresh one would never fill: what fills a log is the drain
 # of the store it is attached to.
 make_insertion_document(::Type{FaultLog}) = get_session_fault_log()
@@ -161,7 +163,7 @@ The wrapper of `build_editor` that attaches the fault log of the session
 step, so the log holds every fault that the editor catches. It is off by default.
 """
 function wrap_editor!(::Val{:fault_log}, layer::Symbol, argument, parts::EditorParts)
-    push!(parts.start_steps, editor -> (attach_fault_target!(editor.faults, get_session_fault_log());
+    push!(parts.start_steps, editor -> (attach_fault_target!(editor.faults, get_session_fault_log(; editor));
                                         nothing))
     parts
 end

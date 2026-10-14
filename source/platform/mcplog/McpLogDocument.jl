@@ -62,14 +62,18 @@ function record_mcp_call!(log::McpLog, entry::McpCallEntry)
     log
 end
 
-# One log for the session, as there is one server for the editor.
+# The MCP log of code that runs no editor.
 const _SESSION_MCP_LOG = McpLog()
 
 """
-    get_session_mcp_log() -> McpLog
+    get_session_mcp_log(; editor = find_evaluation_editor()) -> McpLog
 
-The one MCP log of the session. Every MCP log a person opens is this document.
+The MCP log of the session of `editor`: by default the editor of the evaluation,
+or of the loop that runs the calling code. Each editor has its own, which its
+[`McpLogFeed`](@ref) fills; with no editor, the one log of the process. Every MCP
+log that a person opens in a window of the editor is this document.
 """
-get_session_mcp_log() = _SESSION_MCP_LOG
+get_session_mcp_log(; editor = find_evaluation_editor()) =
+    editor isa Editor ? get_session_document!(McpLog, editor, McpLog) : _SESSION_MCP_LOG
 
 make_insertion_document(::Type{McpLog}) = get_session_mcp_log()

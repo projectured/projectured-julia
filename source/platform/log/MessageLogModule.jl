@@ -31,6 +31,7 @@ using ..TextModule
 
 using ..FeedModule
 using ..EditorModule
+using ..ToolModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title
@@ -40,8 +41,8 @@ import ..ProjectionModule: print_document
 import ..SerializationModule: pred_arguments
 import ..EditorModule: wrap_editor!, get_wrapper_layers
 
-export MessageLogStore, get_session_message_log_store, take_message_lines!,
-       attach_message_log_wake!, MessageLogFeed
+export MessageLogStore, get_session_message_log_store, take_message_lines!, read_message_lines,
+       attach_message_log_wake!, detach_message_log_wake!, MessageLogFeed
 export MessageLogEntry, MessageLog, get_session_message_log,
        record_message!, clear_message_log!
 export MessageLogLogger, install_message_log_capture!, remove_message_log_capture!

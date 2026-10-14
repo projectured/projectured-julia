@@ -19,6 +19,7 @@ using ..CollectionModule
 using ..DocumentModule
 using ..DomainModule
 using ..EditorModule
+using ..ToolModule
 using ..FeedModule
 using ..IoMapModule
 using ..LayoutModule
@@ -42,7 +43,8 @@ import ..SerializationModule: pred_arguments
 import ..EditorModule: wrap_editor!, get_wrapper_layers
 
 export McpCallEntry, McpLog, record_mcp_call!, get_session_mcp_log
-export McpLogStore, take_mcp_calls!, get_session_mcp_log_store
+export McpLogStore, take_mcp_calls!, read_mcp_calls, attach_mcp_log_wake!, detach_mcp_log_wake!,
+       get_session_mcp_log_store
 export McpLogFeed, make_mcp_log_tool
 export McpLogTheme, ScaledMcpLogTheme
 export McpLogToWidget, make_mcp_log_projection
