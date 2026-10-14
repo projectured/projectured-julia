@@ -31,7 +31,11 @@ known; elsewhere the origin is not found yet.
    that starts with "Use it to". **Fixed (`564cf4394`, step 2):** the ring is a name of the
    vocabulary on purpose, so the test counts 32, and its docstring has the line. 138 of 138.
 4. **`test_mcp_log_pane`, 1 failure** (`McpLogTest.jl:55`). The pane draws no separate texts
-   `x = 1` and `x + 1` for code of two lines.
+   `x = 1` and `x + 1` for code of two lines. **Only after other tests:** alone, the test
+   passes, 14 of 14, at `a9cf7bbaa`, its parent, `c345fe385` and `7e31ba460` (2026-10-14). The
+   failure came in the run of the whole `test_platform`, so an earlier test of that run leaves
+   a state that the pane reads. A bisect over commits can not find it; a search over the
+   order of the tests can.
 5. **`test_parse_markdown_blocks`, 1 failure** (`ConversationParsingTest.jl:48`). A fenced code
    block of the language `unknownlang` gives no `TextBlock` that holds that word.
 6. **The position walk of the atomic example `widget/progress_bar/graphics`, 1 failure**
@@ -80,9 +84,10 @@ known; elsewhere the origin is not found yet.
     step 2):** both assert that `count` grows and that the newest entry is Ctrl+T. 47 of 47,
     also after 25 entries filled the log, where the length stays 20.
 
-A hypothesis, not checked: items 4 and the first two tests of item 8 all miss a separate text
-for the second line of code. The change "a run of a compound is one entry on its line"
-(`a9cf7bbaa`) is a candidate origin.
+A hypothesis, checked and wrong for item 4: items 4 and the first two tests of item 8 all miss
+a separate text for the second line of code, and the change "a run of a compound is one entry
+on its line" (`a9cf7bbaa`) was a candidate origin. Item 4 passes alone at that commit and
+after it. The first two tests of item 8 can depend on the order of the tests in the same way.
 
 ## 2. The steps
 
