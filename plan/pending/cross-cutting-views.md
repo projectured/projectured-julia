@@ -1138,7 +1138,7 @@ For each step, run the narrowest test: the test files of the step, through
     checkout of `main`, and a fast-forward does not overwrite it. The row goes in
     once that file is committed.
 
-- [ ] **9. omnet-julia: X10.**
+- [x] **9. omnet-julia: X10.**
   - Start this step after the branch lands on `main`. A change of
     projectured-julia in a worktree is not visible to omnet-julia before that.
   - The facet `"kind"` of a task of a legacy runner (a smoke test, a
@@ -1162,6 +1162,12 @@ For each step, run the narrowest test: the test files of the step, through
       verbs and `TabDocuments`, and the system text of the campaign window says
       what `show_roster!` does. `test_campaign_roster` runs X10 over three groups
       of test tasks.
+    - Done 2026-10-14: projectured `task-facets`, omnet-julia `roster-verbs`
+      (0d39b350). In a scratch environment over both branches,
+      `test_campaign_roster` passes, and so do `test_task_verbs` and
+      `test_campaign_assistant`; `test_pane_program` fails at
+      `PaneProgramTest.jl:227`, as on `main` since 2026-10-05. omnet-julia
+      reads projectured from its `main` checkout, so `task-facets` lands first.
 
 ## Not in this plan
 
