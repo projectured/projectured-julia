@@ -47,8 +47,10 @@ end
 """
     start_process(model, arguments...; kwargs...) -> ProcessRun
 
-Realize `model`, start it on its own task, and return the handle. The process
-begins running immediately unless `mode = :step` or a breakpoint stops it.
+Realize `model`, start it on a task of the default pool, and return the handle.
+The process begins running immediately unless `mode = :step` or a breakpoint
+stops it. The task never runs on the thread of the loop of an editor, so a model
+that computes for long holds no frame.
 
 - `context` — the module the code is loaded into, and where the functions the
   process calls must live. A fresh anonymous module by default, which is only
@@ -77,7 +79,10 @@ function start_process(model::ProcessModel, arguments...;
         session.previous = 0
         session.step_count = 0
     end
-    task = @async begin
+    # The model is code of the person, which can compute for long, so it runs on a
+    # thread of the default pool, never on the thread of the loop of an editor. It
+    # writes only its trace, which `sync_process_debug!` copies into a session.
+    task = Threads.@spawn :default begin
         try
             Base.invokelatest(f, arguments..., trace)
         catch exception

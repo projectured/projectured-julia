@@ -43,13 +43,17 @@ function start_terminal!(editor, terminal::TerminalDocument)
     terminal.status = :running
     _add_running_group!(group_id)
     post(write) = run_on_editor_task!(write, editor; wait = false)
-    errormonitor(@async begin
+    follow = () -> begin
         error_reader = @async _read_terminal_stream(errors, text -> post(() -> add_terminal_text!(terminal, :error, text)))
         output_reader = @async _read_terminal_stream(process.out, text -> post(() -> add_terminal_text!(terminal, :output, text)))
         wait(process)
         _end_terminal_group!(control, (output_reader, error_reader), errors)
         post(() -> _finish_terminal!(editor, terminal, process))
-    end)
+    end
+    # The readers post each piece of text, so with a running loop they run on a
+    # thread of the default pool and hold no frame. With no loop a post runs at
+    # once on the task that makes it, so they run on the thread of the caller.
+    errormonitor(is_editor_loop_running(editor) ? Threads.@spawn(:default, follow()) : @async(follow()))
     terminal
 end
 
@@ -198,7 +202,8 @@ function release_document!(editor, terminal::TerminalDocument)
     control = terminal.control
     control.is_stopping = true
     _signal_process_group!(control, Base.SIGTERM)
-    Timer(_ -> is_terminal_running(terminal) && _signal_process_group!(control, Base.SIGKILL), 3.0)
+    # The timer reads the process, not the document, which only its editor reads.
+    Timer(_ -> process_running(control.process) && _signal_process_group!(control, Base.SIGKILL), 3.0)
     nothing
 end
 

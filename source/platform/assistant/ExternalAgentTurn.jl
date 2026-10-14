@@ -207,15 +207,19 @@ end
 # loaded, and a session open that names it. The session that the assistant kept
 # resumes in its folder while the folder exists, so the agent has the history
 # that the transcript shows. The options of the session reach `agent_options`.
+#
+# The lock of the start holds no wait for the editor: the kept session is read
+# through the door before it, and the editor forgets a kept session after it.
 function _start_external_agent_session!(editor, a::Assistant, session::ExternalAgentSession)
+    conversation, kept_id, kept_directory, kept_count = run_on_editor_task!(editor) do
+        a.conversation, a.agent_session_id, a.agent_session_directory, a.agent_session_turn_count
+    end
+    is_kept_session_lost = false
     lock(session.start_lock) do
         Base.invokelatest(start_agent_connection!, session.connection)
         if isempty(session.session_id)
             server = _start_agent_tool_server!(editor, a, session)
             servers = server === nothing ? Any[] : Any[Base.invokelatest(get_agent_server_access, server)]
-            conversation, kept_id, kept_directory, kept_count = run_on_editor_task!(editor) do
-                a.conversation, a.agent_session_id, a.agent_session_directory, a.agent_session_turn_count
-            end
             is_resumable = !isempty(kept_id) && isdir(kept_directory)
             session.directory = is_resumable ? kept_directory : pwd()
             session.is_resumed = false
@@ -229,10 +233,12 @@ function _start_external_agent_session!(editor, a::Assistant, session::ExternalA
             if session.is_resumed
                 session.sent_turn_count = kept_count
             elseif !isempty(kept_id)
-                run_on_editor_task!(() -> _forget_agent_session!(a, conversation), editor; wait = false)
+                is_kept_session_lost = true
             end
         end
     end
+    is_kept_session_lost &&
+        run_on_editor_task!(() -> _forget_agent_session!(a, conversation), editor; wait = false)
     session
 end
 
@@ -288,10 +294,12 @@ function evaluate_operation(editor, operation::StartExternalAgentOperation)
     a.backend === :acp || return nothing
     session = a.agent_session
     session isa ExternalAgentSession && !isempty(session.session_id) && return nothing
-    errormonitor(@async try
+    start = () -> try
         _start_external_agent_session!(editor, a, _make_external_agent_session!(editor, a))
     catch exception
-        a.agent_session isa ExternalAgentSession && _close_external_agent_session!(a.agent_session)
+        # The task reads the assistant through the door, as a turn does.
+        started = run_on_editor_task!(() -> a.agent_session, editor)
+        started isa ExternalAgentSession && _close_external_agent_session!(started)
         if exception isa AgentSignInException
             run_on_editor_task!(() -> _add_agent_sign_in_request!(a, exception), editor; wait = false)
         else
@@ -300,7 +308,10 @@ function evaluate_operation(editor, operation::StartExternalAgentOperation)
                 push!(a.conversation.turns, _make_instant_turn(:assistant, [ConversationPart("Error: " * message)]))
             end
         end
-    end)
+    end
+    # The start of an agent runs the agent of this process too, so with a running
+    # loop it runs on a thread of the default pool, as a turn does.
+    errormonitor(is_editor_loop_running(editor) ? Threads.@spawn(:default, start()) : @async(start()))
     nothing
 end
 

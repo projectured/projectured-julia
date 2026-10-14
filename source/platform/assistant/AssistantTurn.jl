@@ -289,22 +289,27 @@ end
 # events in-process (tests / offline); `AnthropicLlm` streams from Claude — the
 # same `_handle_llm_event!` consumes both, because both speak `LlmEvent`.
 #
-# The turn runs as background work on the thread of the task that starts it, and
-# the frame of a running editor reads and paints the assistant. So every read and
-# write of the turn of the assistant goes through `run_on_editor_task!`: a status
-# change and a streamed part are posted and applied in the drain of the next
-# frame, which then paints them. No code unit waits for the turn, so its work
-# belongs to none, and a stop of the turn stops the work of its tool call.
+# The turn runs as background work, and the frame of a running editor reads and
+# paints the assistant. So every read and write of the turn of the assistant goes
+# through `run_on_editor_task!`: a status change and a streamed part are posted
+# and applied in the drain of the next frame, which then paints them. With a
+# running loop the turn runs on a thread of the default pool, so it holds no
+# frame. With no loop, as in a test that drives no frames, a call through the
+# door runs at once on the task of the turn, so the turn runs on the thread of
+# the caller and never at the same time as it. No code unit waits for the turn,
+# so its work belongs to none, and a stop of the turn stops the work of its tool
+# call.
 function _launch_agent_turn!(editor, a::Assistant)
     a.status = :streaming
     control = AssistantTurnControl()
     control.seen_turn_count = length(a.conversation.turns)
     a.turn_control = control
     is_external = a.backend === :acp
+    is_sticky = !is_editor_loop_running(editor)
     # The turn starts once the table holds its work, so its end finds it there.
     is_kept = Base.Event()
     work = start_background_work(; description = "the turn of the assistant", editor,
-                                 parent = nothing, is_sticky = true) do
+                                 parent = nothing, is_sticky) do
         wait(is_kept)
         try
             is_external ? _run_external_agent_turn!(editor, a; control) : _run_agent_loop!(editor, a; control)
