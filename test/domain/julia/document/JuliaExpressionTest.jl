@@ -26,6 +26,9 @@ function test_julia_expression()
         compared = 0
         for make in examples
             document = make()
+            # An example that shows Julia code in a widget, such as a scroll pane, is
+            # no Julia document of its own.
+            document isa JuliaDocument || continue
             text = print_natural_text(document)
             is_code(text) || continue
             @test _julia_expression_of(document) == _julia_expression_of(text)
