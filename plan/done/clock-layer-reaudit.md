@@ -48,7 +48,8 @@ hand-off to an editor [no, the guide does].
   `editor.md`, `architecture.md` and the index link. Checked: `test_clock` 39,
   `test_build_editor` 37, the walkthrough 2, the kernel suite 4520 of 4520, the survey
   of `ClockModule` clean, the guards.
-- [ ] 4. An audit that finds nothing, then the seal on the owner's word.
+- [x] 4. An audit that finds nothing, then the seal on the owner's word. **The owner,
+  2026-10-14:** "yes", to the seal and to the push.
   - The second pass found K5-11: the docstring of `has_clock_readers` advised a
     writer to skip the write while nothing reads the clock, which gives stale reads
     (the owner rejected that pattern on 2026-09-25). It now says that the answer
