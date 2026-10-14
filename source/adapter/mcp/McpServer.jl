@@ -231,10 +231,11 @@ does for the Messages API: a `Tool` is provider-neutral, and each transport
 renders it into its own wire format.
 
 A handler runs its tool through `run_on_editor_task!`, so the tool runs in a code
-unit of the editor and the server task waits for its answer; a tool that reads no
-document runs on the server task. `stop`, a function with no argument, runs when
+unit of the editor and the server task waits for its answer. `stop`, a function with no argument, runs when
 the person stops the unit in which a call runs, such as the cancel of the turn of
-the agent that made the call. A tool that answers background work, as the code
+the agent that made the call. A tool that reads no document runs on a task of
+the default pool, because HTTP serves a request on the thread of the loop of the
+editor, and the server task waits for it. A tool that answers background work, as the code
 tool does with `background`, is waited for here, on the server task, so the
 editor goes on meanwhile; `running` keeps that work while it runs, so
 `stop_agent_server_work!` reaches it. Each call goes to the store of the MCP log
@@ -269,8 +270,8 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool};
                 # The handler runs on the server task, and a tool may write what
                 # the editor shows, so the call runs on the task that owns the
                 # documents of the editor, in the drain of its next frame, which
-                # then paints the change. A tool that reads no document runs here,
-                # on the server task.
+                # then paints the change. A tool that reads no document runs on a
+                # task of the default pool, and the server task waits for it.
                 held = Ref(0.0)
                 fault = Ref(false)
                 call = function ()
@@ -313,7 +314,7 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool};
                     end
                 end
                 text = if !tool.reads_documents
-                    call()
+                    _run_on_default_pool(call)
                 else
                     try
                         run_on_editor_task!(call, editor; description = tool.name, stop)
@@ -345,6 +346,20 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool};
         end
     end
     out
+end
+
+# Run `function_` on a task of the default pool, and answer its value or throw its
+# exception. HTTP serves each request on a task of its interactive thread, which
+# is the thread of the loop of an editor, and a tool that reads no document, such
+# as a search, or a resource can compute for long; the request waits for it.
+function _run_on_default_pool(function_)
+    task = Threads.@spawn :default function_()
+    try
+        fetch(task)
+    catch exception
+        exception isa TaskFailedException || rethrow()
+        throw(exception.task.exception)
+    end
 end
 
 # The id that the client gives the call of its model, or `nothing`. Claude Code
@@ -414,7 +429,7 @@ function render_mcp_resources(resources::AbstractVector{Resource})
                 data_provider = () -> begin
                     started = time()
                     text = try
-                        res.provider()
+                        _run_on_default_pool(res.provider)
                     catch exception
                         record_mcp_call!(get_session_mcp_log_store(); method = "resources/read",
                                          name = res.uri, answer = sprint(showerror, exception),

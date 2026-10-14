@@ -792,15 +792,15 @@ function test_mcp_tool_runs_on_editor_task()
         editor.loop_task = nothing
         @test handlers["probe_task"](Dict{String,Any}()).text == "done"
         @test length(ran_on) == 2 && ran_on[2] === current_task()
-        # A tool that reads no document answers at once, on the task that calls it,
-        # while the loop drains nothing.
+        # A tool that reads no document answers at once, on a task of the default
+        # pool, while the loop drains nothing.
         searcher = Tool("probe_search"; description = "Reads no document.",
                         parameters = NamedTuple[], reads_documents = false,
                         handler = (target, args) -> (push!(ran_on, current_task()); "found"))
         search = only(render_mcp_tools(editor, [searcher])).handler
         editor.loop_task = current_task()
         @test search(Dict{String,Any}()).text == "found"
-        @test last(ran_on) === current_task()
+        @test last(ran_on) !== current_task()
         @test !isready(editor.inbox) && !isready(editor.owner_posts)
         editor.loop_task = nothing
         # A tool that answers background work answers its output once the work
