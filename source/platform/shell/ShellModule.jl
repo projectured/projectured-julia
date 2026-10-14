@@ -21,6 +21,7 @@ window records is there only when the wrapper that fills it is on.
 """
 module ShellModule
 
+using ..AgentModule
 using ..AppearanceModule
 using ..CellModule
 using ..ClipboardModule

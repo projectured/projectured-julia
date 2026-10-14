@@ -245,13 +245,15 @@ tried. Do not record every turn.
 """
 function record_workflow_decision!(node, question, options; chosen::Integer = 0, reason = "",
                                    editor = get_evaluation_editor())
-    parent = get_document(node)
-    decision = make_workflow_decision(question, options; chosen, reason, author = :assistant)
-    index = length(get_workflow_node_children(parent)) + 1
-    _evaluate_workflow_operation!(editor, node,
-        make_insert_workflow_node_operation(parent, index, decision),
-        "Record the decision " * repr(_get_plain_text(question)))
-    _get_child(node, index)
+    run_on_editor_task!(editor; description = "record_workflow_decision!") do
+        parent = get_document(node)
+        decision = make_workflow_decision(question, options; chosen, reason, author = :assistant)
+        index = length(get_workflow_node_children(parent)) + 1
+        _evaluate_workflow_operation!(editor, node,
+            make_insert_workflow_node_operation(parent, index, decision),
+            "Record the decision " * repr(_get_plain_text(question)))
+        _get_child(node, index)
+    end
 end
 
 """
@@ -265,11 +267,13 @@ has. Answer the decision.
 """
 function choose_workflow_option!(decision, index::Integer; reason = nothing,
                                  editor = get_evaluation_editor())
-    _evaluate_workflow_operation!(editor, decision,
-        make_choose_workflow_option_operation(get_document(decision), index; reason,
-                                              author = :assistant),
-        "Choose an option")
-    decision
+    run_on_editor_task!(editor; description = "choose_workflow_option!") do
+        _evaluate_workflow_operation!(editor, decision,
+            make_choose_workflow_option_operation(get_document(decision), index; reason,
+                                                  author = :assistant),
+            "Choose an option")
+        decision
+    end
 end
 
 """
@@ -282,12 +286,14 @@ stays, with its steps and its reason, as the record of a branch that was tried.
 """
 function reject_workflow_option!(decision, index::Integer; reason = nothing,
                                  editor = get_evaluation_editor())
-    option = get_document(decision).options[index]
-    operations = Any[make_workflow_state_operation(option, :rejected; author = :assistant)]
-    reason === nothing || push!(operations, ReplaceReferencedValueOperation(option, "reason", _make_reason(reason)))
-    operation = CompoundOperation(operations)
-    _evaluate_workflow_operation!(editor, decision, operation, "Reject an option")
-    decision
+    run_on_editor_task!(editor; description = "reject_workflow_option!") do
+        option = get_document(decision).options[index]
+        operations = Any[make_workflow_state_operation(option, :rejected; author = :assistant)]
+        reason === nothing || push!(operations, ReplaceReferencedValueOperation(option, "reason", _make_reason(reason)))
+        operation = CompoundOperation(operations)
+        _evaluate_workflow_operation!(editor, decision, operation, "Reject an option")
+        decision
+    end
 end
 
 """
@@ -304,10 +310,12 @@ a link to a document. Do not record every turn.
 """
 function add_workflow_entry!(node, text; kind::Symbol = :comment, source = nothing,
                              editor = get_evaluation_editor())
-    entry = make_workflow_entry(text; author = :assistant, kind, source)
-    _evaluate_workflow_operation!(editor, node,
-        make_add_workflow_entry_operation(get_document(node), entry), "Add an entry")
-    node
+    run_on_editor_task!(editor; description = "add_workflow_entry!") do
+        entry = make_workflow_entry(text; author = :assistant, kind, source)
+        _evaluate_workflow_operation!(editor, node,
+            make_add_workflow_entry_operation(get_document(node), entry), "Add an entry")
+        node
+    end
 end
 
 """
@@ -317,12 +325,14 @@ Add an open step that says `title` after the last child of `node`, a step or an
 option. Answer the new step.
 """
 function add_workflow_step!(node, title; editor = get_evaluation_editor())
-    parent = get_document(node)
-    index = length(get_workflow_node_children(parent)) + 1
-    _evaluate_workflow_operation!(editor, node,
-        make_insert_workflow_node_operation(parent, index, WorkflowStep(title = _make_text(title))),
-        "Add the step " * repr(_get_plain_text(title)))
-    _get_child(node, index)
+    run_on_editor_task!(editor; description = "add_workflow_step!") do
+        parent = get_document(node)
+        index = length(get_workflow_node_children(parent)) + 1
+        _evaluate_workflow_operation!(editor, node,
+            make_insert_workflow_node_operation(parent, index, WorkflowStep(title = _make_text(title))),
+            "Add the step " * repr(_get_plain_text(title)))
+        _get_child(node, index)
+    end
 end
 
 """
@@ -335,10 +345,12 @@ option is `:open`, `:chosen`, `:rejected` or `:parked`. Answer `node`.
 Use it when a step starts, when it is done, or when it is dropped.
 """
 function change_workflow_state!(node, state::Symbol; editor = get_evaluation_editor())
-    _evaluate_workflow_operation!(editor, node,
-        make_workflow_state_operation(get_document(node), state; author = :assistant),
-        "Change the state to :" * string(state))
-    node
+    run_on_editor_task!(editor; description = "change_workflow_state!") do
+        _evaluate_workflow_operation!(editor, node,
+            make_workflow_state_operation(get_document(node), state; author = :assistant),
+            "Change the state to :" * string(state))
+        node
+    end
 end
 
 """
@@ -353,10 +365,12 @@ Use it to keep a document that the work needs in view: a table, a chart, a part
 of a file.
 """
 function add_workflow_card!(node, content; title = "", editor = get_evaluation_editor())
-    card = WorkflowCard(title = _make_text(title), content = get_document(content))
-    _evaluate_workflow_operation!(editor, node,
-        make_add_workflow_card_operation(get_document(node), card), "Add a card")
-    node
+    run_on_editor_task!(editor; description = "add_workflow_card!") do
+        card = WorkflowCard(title = _make_text(title), content = get_document(content))
+        _evaluate_workflow_operation!(editor, node,
+            make_add_workflow_card_operation(get_document(node), card), "Add a card")
+        node
+    end
 end
 
 # The child at `index` of `node`, as a `ReferencedDocument` when `node` is one.

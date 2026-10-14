@@ -46,7 +46,7 @@ Use it to find a group that another person or another conversation started.
 See also `find_task_group`, `describe_task_group`.
 """
 function list_task_groups(; editor = get_evaluation_editor())
-    run_on_editor_task!(editor) do
+    run_on_editor_task!(editor; description = "list_task_groups") do
         groups = collect(get_session_task_group_list().groups)
         isempty(groups) && return Text("No group of tasks ran in this session.")
         Text(join((_format_group_line(group) for group in groups), "\n"))
@@ -69,7 +69,7 @@ started is the value its start verb answered.
 See also `list_task_groups`.
 """
 function find_task_group(name::AbstractString; editor = get_evaluation_editor())
-    run_on_editor_task!(editor) do
+    run_on_editor_task!(editor; description = "find_task_group") do
         groups = collect(get_session_task_group_list().groups)
         index = findfirst(g -> getfield(g, :identifier)[] == name || getfield(g, :title)[] == name,
                           groups)
@@ -114,7 +114,7 @@ See also `describe_task`, `get_task_output`, `list_task_groups`.
 """
 function describe_task_group(group::TaskGroupDocument; tasks::Symbol = :unexpected,
                              limit::Integer = 20, editor = get_evaluation_editor())
-    run_on_editor_task!(() -> _describe_task_group(group, tasks, limit), editor)
+    run_on_editor_task!(() -> _describe_task_group(group, tasks, limit), editor; description = "describe_task_group")
 end
 
 function _describe_task_group(group::TaskGroupDocument, tasks::Symbol, limit::Integer)
@@ -155,7 +155,7 @@ Use it to tell the person why one task failed.
 See also `get_task_output`, `describe_task_group`.
 """
 function describe_task(group::TaskGroupDocument, index::Integer; editor = get_evaluation_editor())
-    run_on_editor_task!(() -> _describe_task(group, index), editor)
+    run_on_editor_task!(() -> _describe_task(group, index), editor; description = "describe_task")
 end
 
 function _describe_task(group::TaskGroupDocument, index::Integer)
@@ -203,7 +203,7 @@ See also `describe_task`.
 function get_task_output(group::TaskGroupDocument, index::Integer;
                          stream::Symbol = :stdout, lines::Integer = 50, editor = get_evaluation_editor())
     stream in (:stdout, :stderr) || error("stream is :stdout or :stderr, not $(repr(stream))")
-    run_on_editor_task!(editor) do
+    run_on_editor_task!(editor; description = "get_task_output") do
         document = _get_task_documents(group)[index]
         output = collect_task_document_lines(document, stream === :stdout ? :output : :error_output)
         isempty(output) && return Text("(nothing printed)")
@@ -255,7 +255,7 @@ Use it to stop, cancel or abort a group of tasks.
 See also `stop_task!` for one task, `rerun_tasks!`.
 """
 function stop_tasks!(group::TaskGroupDocument; editor = get_evaluation_editor())
-    run_on_editor_task!(editor) do
+    run_on_editor_task!(editor; description = "stop_tasks!") do
         stop_task_group_document!(group)
         Text("Stopping the group " * getfield(group, :identifier)[] * ".")
     end
@@ -273,7 +273,7 @@ end
 See also `stop_tasks!`.
 """
 function stop_task!(group::TaskGroupDocument, index::Integer; editor = get_evaluation_editor())
-    run_on_editor_task!(editor) do
+    run_on_editor_task!(editor; description = "stop_task!") do
         run = get_task_group(group).runs[index]
         run === nothing && return Text("Task $(index) has not started.")
         stop_task_execution!(run)
@@ -298,7 +298,8 @@ Use it to repeat the tasks that failed after a fix.
 ends. A person at the REPL can: there the call waits, and the window draws.
 """
 function rerun_tasks!(group::TaskGroupDocument; which = :unexpected, wait::Bool = false, editor = get_evaluation_editor())
-    run_on_editor_task!(() -> rerun_task_group_document!(group, which), editor)
+    run_on_editor_task!(() -> rerun_task_group_document!(group, which), editor;
+                        description = "rerun_tasks!")
     wait && wait_for_task_group!(editor, group)
     group
 end
@@ -314,7 +315,7 @@ goes on; stop it first with `stop_tasks!(group)` when it must end.
     close_task_group!(t1)
 """
 function close_task_group!(group::TaskGroupDocument; editor = get_evaluation_editor())
-    run_on_editor_task!(editor) do
+    run_on_editor_task!(editor; description = "close_task_group!") do
         found = search_references(getfield(editor, :document),
                                   node -> node isa PaneTab && node.content === group;
                                   descend = is_pane_search_step)

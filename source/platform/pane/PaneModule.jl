@@ -28,6 +28,7 @@ slice declares no operation of its own.
 """
 module PaneModule
 
+using ..AgentModule
 using ..ArrangementModule
 using ..CellModule
 using ..ClipboardModule

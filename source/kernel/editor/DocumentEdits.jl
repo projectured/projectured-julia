@@ -80,8 +80,10 @@ collection of a document that the editor shows.
     insert_elements!(items_1, length(items_1) + 1, [item_1])   # appends item_1
 """
 insert_elements!(collection, index::Integer, values; editor::Editor = get_evaluation_editor()) =
-    _replace_elements!(editor, collection, index - 1, index - 1, values,
-                       "Insert " * string(length(values)) * " into")
+    run_on_editor_task!(editor; description = "insert_elements!") do
+        _replace_elements!(editor, collection, index - 1, index - 1, values,
+                           "Insert " * string(length(values)) * " into")
+    end
 
 """
     delete_elements!(collection, index; count = 1, editor = get_evaluation_editor()) -> ReferencedDocument
@@ -102,5 +104,7 @@ any collection of a document that the editor shows.
 """
 delete_elements!(collection, index::Integer; count::Integer = 1,
                  editor::Editor = get_evaluation_editor()) =
-    _replace_elements!(editor, collection, index - 1, index - 1 + count, Any[],
-                       "Delete " * string(count) * " from")
+    run_on_editor_task!(editor; description = "delete_elements!") do
+        _replace_elements!(editor, collection, index - 1, index - 1 + count, Any[],
+                           "Delete " * string(count) * " from")
+    end

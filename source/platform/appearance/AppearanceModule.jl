@@ -25,6 +25,7 @@ and the editor prints the whole view again.
 """
 module AppearanceModule
 
+using ..AgentModule
 using ..BackendModule
 using ..CellModule
 using ..DeviceModule

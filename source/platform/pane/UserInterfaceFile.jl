@@ -32,13 +32,15 @@ and added to the project here, beside the `.pred` file that holds the
 document itself.
 """
 function save_user_interface(path::AbstractString; editor = get_evaluation_editor())
-    document = getfield(editor, :document)
-    directory = dirname(abspath(path))
-    files = Any[PredFile(basename(path), document)]
-    for file in search_documents(document, is_file_document)
-        push!(files, file)
+    run_on_editor_task!(editor; description = "save_user_interface") do
+        document = getfield(editor, :document)
+        directory = dirname(abspath(path))
+        files = Any[PredFile(basename(path), document)]
+        for file in search_documents(document, is_file_document)
+            push!(files, file)
+        end
+        save_project!(FileProject(directory, files))
     end
-    save_project!(FileProject(directory, files))
 end
 
 """

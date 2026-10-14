@@ -10,6 +10,7 @@ find, and the verbs that filter and sort a collection from code.
 """
 module ArrangementModule
 
+using ..AgentModule
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule

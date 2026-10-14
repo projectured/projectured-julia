@@ -21,6 +21,7 @@ turns it into a write and an apply.
 """
 module SettingsManagingModule
 
+using ..AgentModule
 using ..CellModule
 using ..DocumentModule
 using ..EditorModule

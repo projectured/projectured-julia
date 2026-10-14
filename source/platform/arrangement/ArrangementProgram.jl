@@ -161,7 +161,7 @@ prints, so it runs on the editor's task.
 See also `sort_collection!`.
 """
 filter_collection!(collection, conditions...; editor = get_evaluation_editor()) =
-    _arrange_collection!(editor, collection, _make_filter(conditions), "Filter")
+    run_on_editor_task!(() -> _arrange_collection!(editor, collection, _make_filter(conditions), "Filter"), editor; description = "filter_collection!")
 
 """
     sort_collection!(collection, keys...; editor = get_evaluation_editor()) -> Text
@@ -187,7 +187,7 @@ order that a person asks for, without a change of the data.
 See also `filter_collection!`.
 """
 sort_collection!(collection, keys...; editor = get_evaluation_editor()) =
-    _arrange_collection!(editor, collection, _make_sort(keys), "Sort")
+    run_on_editor_task!(() -> _arrange_collection!(editor, collection, _make_sort(keys), "Sort"), editor; description = "sort_collection!")
 
 """
     group_collection!(collection, keys...; aggregates = [:count], editor = get_evaluation_editor()) -> Text
@@ -252,7 +252,7 @@ and no tab holds the collection. A caller that runs while the editor evaluates
 another operation posts it.
 """
 make_filter_collection_operation(collection, conditions...; editor = get_evaluation_editor()) =
-    _make_arrange_operation(editor, collection, _make_filter(conditions), "Filter")
+    run_on_editor_task!(() -> _make_arrange_operation(editor, collection, _make_filter(conditions), "Filter"), editor; description = "make_filter_collection_operation")
 
 """
     make_sort_collection_operation(collection, keys...; editor = get_evaluation_editor())
@@ -262,7 +262,7 @@ The edit that [`sort_collection!`](@ref) makes, as an operation from the root of
 the editor's document, which it does not evaluate.
 """
 make_sort_collection_operation(collection, keys...; editor = get_evaluation_editor()) =
-    _make_arrange_operation(editor, collection, _make_sort(keys), "Sort")
+    run_on_editor_task!(() -> _make_arrange_operation(editor, collection, _make_sort(keys), "Sort"), editor; description = "make_sort_collection_operation")
 
 """
     make_group_collection_operation(collection, keys...; aggregates = [:count], editor = get_evaluation_editor())

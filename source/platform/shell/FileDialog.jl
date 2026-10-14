@@ -33,9 +33,11 @@ It opens the dialog; the path is taken when the person confirms, and
 exactly as a file opened from the explorer does.
 """
 function open_file_dialog!(; directory::AbstractString = pwd(), editor = get_evaluation_editor())
-    dialog, chooser = make_file_dialog(directory, "Open", "Open")
-    _show_file_dialog!(editor, dialog, chooser) do path
-        isfile(path) ? OpenFileOperation(path) : nothing
+    run_on_editor_task!(editor; description = "open_file_dialog!") do
+        dialog, chooser = make_file_dialog(directory, "Open", "Open")
+        _show_file_dialog!(editor, dialog, chooser) do path
+            isfile(path) ? OpenFileOperation(path) : nothing
+        end
     end
 end
 
@@ -50,11 +52,13 @@ written, by the one operation that writes a file.
 """
 function save_file_dialog!(file; directory::AbstractString = pwd(),
                            editor = get_evaluation_editor())
-    dialog, chooser = make_file_dialog(directory, "Save as", "Save")
-    _show_file_dialog!(editor, dialog, chooser) do path
-        isempty(basename(path)) && return nothing
-        file.filename = path
-        SaveFileOperation(file)
+    run_on_editor_task!(editor; description = "save_file_dialog!") do
+        dialog, chooser = make_file_dialog(directory, "Save as", "Save")
+        _show_file_dialog!(editor, dialog, chooser) do path
+            isempty(basename(path)) && return nothing
+            file.filename = path
+            SaveFileOperation(file)
+        end
     end
 end
 

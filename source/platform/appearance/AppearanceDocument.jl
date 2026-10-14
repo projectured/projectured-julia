@@ -65,4 +65,4 @@ The `Appearance` of `editor`: the one that its `appearance` wrapper holds, or
 `nothing` for an editor with no such wrapper.
 """
 find_editor_appearance(; editor = get_evaluation_editor()) =
-    editor.document isa AppearanceDocument ? editor.document.appearance : nothing
+    run_on_editor_task!(() -> editor.document isa AppearanceDocument ? editor.document.appearance : nothing, editor; description = "find_editor_appearance")

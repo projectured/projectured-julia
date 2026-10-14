@@ -15,10 +15,12 @@ window, and a document that is shown already gets the focus again. Call it on
 the task of the editor.
 """
 function show_document!(document; title::AbstractString, editor::Editor = get_evaluation_editor())
-    screen = get_wrapped_document(editor.document)
-    content = screen isa ScreenDocument && length(screen.windows) > 0 ?
-        screen.windows[1].content : screen
-    show_document!(editor, get_wrapped_document(content), document; title = title)
+    run_on_editor_task!(editor; description = "show_document!") do
+        screen = get_wrapped_document(editor.document)
+        content = screen isa ScreenDocument && length(screen.windows) > 0 ?
+            screen.windows[1].content : screen
+        show_document!(editor, get_wrapped_document(content), document; title = title)
+    end
 end
 
 """

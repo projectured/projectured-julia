@@ -39,13 +39,15 @@ under the `content` of the documents around it, such as the `AppearanceDocument`
 `settings` wrapper.
 """
 function find_editor_settings(; editor = get_evaluation_editor())
-    document = editor.document
-    for _ in 1:8
-        document isa SettingsDocument && return document.settings
-        hasproperty(document, :content) || return nothing
-        document = document.content
+    run_on_editor_task!(editor; description = "find_editor_settings") do
+        document = editor.document
+        for _ in 1:8
+            document isa SettingsDocument && return document.settings
+            hasproperty(document, :content) || return nothing
+            document = document.content
+        end
+        nothing
     end
-    nothing
 end
 
 """

@@ -20,6 +20,7 @@ translates one into a document mutation — typically removing the matching
 """
 module ScreenModule
 
+using ..AgentModule
 using ..BackendModule
 using ..CellModule
 using ..CollectionModule
