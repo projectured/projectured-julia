@@ -347,9 +347,10 @@ end
 #
 # A turn streams on a task of its own and a frame reads what it writes, so the
 # turn writes the assistant through the inbox: its parts, its status, and each
-# tool call, which runs on the editor's task. The test plays a running loop: it
-# marks its own task as the loop's and drains the inbox by hand, and between two
-# drains nothing that the turn wrote may change.
+# tool call, which runs in a code unit of the editor: on a task of its own when
+# the process has a thread for it, or else on the task of the loop. The test plays
+# a running loop: it marks its own task as the loop's and drains the inbox by
+# hand, and between two drains nothing that the turn wrote may change.
 
 function _mvp_test_turn_writes_on_editor_task()
     @testset "a turn writes the assistant on the editor task" begin
@@ -383,7 +384,10 @@ function _mvp_test_turn_writes_on_editor_task()
         @test !changed_between_drains
         @test drains > 0
         @test a.status === :idle
-        @test ran_on == [current_task()]
+        has_unit_thread = any(thread -> thread != Threads.threadid(),
+                              Threads.threadpooltids(:default))
+        @test length(ran_on) == 1
+        @test (only(ran_on) === current_task()) == !has_unit_thread
         reply = a.conversation.turns[end]
         @test [t.role for t in a.conversation.turns] == [:user, :assistant]
         @test reply.stop_reason === :end_turn
